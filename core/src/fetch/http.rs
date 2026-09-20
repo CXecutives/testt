@@ -12,7 +12,7 @@ use reqwest::{Client, Response, StatusCode, redirect};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-use super::{PageFetcher, PageOutcome, freelancermap, judge, linkedin};
+use super::{PageFetcher, PageOutcome, Route, freelancermap, judge, linkedin};
 use crate::portal::{JobLink, Portal, fetch_url};
 
 /// Edge-Hauptversion, falls die installierte WebView2-Version unbekannt ist.
@@ -186,7 +186,12 @@ impl HttpFetcher {
 }
 
 impl PageFetcher for HttpFetcher {
-    async fn fetch(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
+    async fn fetch(
+        &mut self,
+        link: &JobLink,
+        _route: Route,
+        cancel: &CancellationToken,
+    ) -> PageOutcome {
         let work = async {
             match link.key.portal {
                 Portal::LinkedIn => self.linkedin(link).await,
@@ -364,7 +369,11 @@ mod tests {
 
     async fn fetch(fetcher: &mut HttpFetcher, url: &str) -> PageOutcome {
         fetcher
-            .fetch(&job_link(url).unwrap(), &CancellationToken::new())
+            .fetch(
+                &job_link(url).unwrap(),
+                Route::Http,
+                &CancellationToken::new(),
+            )
             .await
     }
 
@@ -631,7 +640,7 @@ mod tests {
             .await;
         let cancel = CancellationToken::new();
         let link = job_link(LI).unwrap();
-        let (outcome, ()) = tokio::join!(f.fetch(&link, &cancel), async {
+        let (outcome, ()) = tokio::join!(f.fetch(&link, Route::Http, &cancel), async {
             tokio::time::sleep(Duration::from_millis(100)).await;
             cancel.cancel();
         });

@@ -23,8 +23,29 @@ pub enum Portal {
     Freelancermap,
 }
 
+/// Wie ein Portal abgerufen wird.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LoginMode {
+    /// Ohne Konto lesbar; ein Sitzungsfenster gibt es nicht.
+    None,
+    /// Ohne Konto lesbar, angemeldet vollständiger – der Nutzer entscheidet.
+    Optional,
+    /// Nur angemeldet lesbar.
+    Required,
+}
+
 impl Portal {
     pub const ALL: [Portal; 3] = [Portal::LinkedIn, Portal::FreelanceDe, Portal::Freelancermap];
+
+    /// Ob und wie eine Anmeldung möglich ist.
+    pub const fn login_mode(self) -> LoginMode {
+        match self {
+            Portal::LinkedIn => LoginMode::None,
+            Portal::FreelanceDe => LoginMode::Required,
+            Portal::Freelancermap => LoginMode::Optional,
+        }
+    }
 
     /// Schlüssel für Speicher, Einstellungen und Oberfläche.
     pub const fn key(self) -> &'static str {
@@ -688,6 +709,10 @@ mod tests {
         assert_eq!(
             Portal::ALL.map(Portal::key),
             ["linkedin", "freelance", "freelancermap"]
+        );
+        assert_eq!(
+            Portal::ALL.map(Portal::login_mode),
+            [LoginMode::None, LoginMode::Required, LoginMode::Optional]
         );
         assert_eq!(
             Portal::ALL.map(Portal::file_tag),

@@ -1,0 +1,31 @@
+From: Ich <ich@example.org>
+To: ich@example.org
+Subject: Fwd: Neue Projekte und Jobs
+Date: Sat, 19 Sep 2026 09:00:00 +0200
+Message-ID: <fwd-autolinked@example.org>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="b1"
+
+--b1
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Senior Controller (m/w/d)
+https://www.linkedin.com/jobs/view/4468805907/
+
+Test Automation Engineer Lead
+https://www.freelancermap.de/projekt/test-automation-engineer-lead
+
+VMware Lead Solution Architect (m/f/d)
+https://www.freelance.de/projekte/projekt-1292304-VMware-Lead-Solution-Architect-m-f-d
+
+--b1
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<div dir="ltr">Senior Controller (m/w/d)<br><a href="https://www.linkedin.com/jobs/view/4468805907/">https://www.linkedin.com/jobs/view/4468805907/</a></div>
+<div><br></div>
+<div dir="ltr">Test Automation Engineer Lead<br><a href="https://www.freelancermap.de/projekt/test-automation-engineer-lead">https://www.freelancermap.de/projekt/test-automation-engineer-lead</a></div>
+<div><br></div>
+<div dir="ltr">VMware Lead Solution Architect (m/f/d)<br><a href="https://www.freelance.de/projekte/projekt-1292304-VMware-Lead-Solution-Architect-m-f-d">https://www.freelance.de/projekte/projekt-1292304-VMware-Lead-Solution-Architect-m-f-d</a></div>
+--b1--

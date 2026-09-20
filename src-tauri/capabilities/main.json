@@ -8,8 +8,7 @@
   "permissions": [
     "allow-app-state",
     "allow-cancel-run",
-    "allow-clear-result-files",
-    "allow-close-answered",
+    "allow-clear-txt-files",
     "allow-delete-gmail-credentials",
     "allow-job-detail",
     "allow-list-jobs",
@@ -18,7 +17,6 @@
     "allow-pick-workspace",
     "allow-portal-login",
     "allow-portal-logout",
-    "allow-quit",
     "allow-remove-profile",
     "allow-report-ui-error",
     "allow-reset-all",

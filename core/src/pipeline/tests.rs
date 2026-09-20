@@ -1,6 +1,7 @@
 //! Ein-Klick-Lauf mit den Trockenlauf-Attrappen; simulierte Zeit (Tempo kostet nichts).
 
 use std::path::Path;
+use std::sync::Mutex;
 
 use jiff::SignedDuration;
 use tokio::time::Instant;
@@ -30,7 +31,7 @@ fn request() -> RunRequest {
 fn ctx(workspace: &Path, dry_run: bool) -> RunContext {
     RunContext {
         workspace: workspace.to_path_buf(),
-        format: Format::Xlsx,
+        session_portals: Vec::new(),
         account: "ich@gmail.com".into(),
         dry_run,
     }
@@ -49,17 +50,10 @@ async fn go<B: Backends>(
     clock: &impl Fn() -> Timestamp,
 ) -> (RunSummary, Vec<RunEvent>) {
     let mut events = Vec::new();
-    let mut policy = Policy::in_memory();
-    let summary = run(
-        backends,
-        store,
-        &mut policy,
-        request,
-        ctx,
-        cancel,
-        clock,
-        |e| events.push(e),
-    )
+    let policy = Mutex::new(Policy::in_memory());
+    let summary = run(backends, store, &policy, request, ctx, cancel, clock, |e| {
+        events.push(e);
+    })
     .await;
     (summary, events)
 }
@@ -137,14 +131,17 @@ async fn one_click_run_writes_everything_and_finishes_once() {
             .iter()
             .all(|(text, _)| text.starts_with("Pause vor dem nächsten Abruf ("))
     );
-    // Nach jeder Wartezeit folgt wieder die Tätigkeit.
-    for pair in statuses.windows(2) {
-        if pair[0].1 {
-            assert!(
-                pair[1].0.starts_with("Jobdetails werden geholt"),
-                "{pair:?}"
-            );
-        }
+    // Nach einer Wartezeit folgt wieder eine Tätigkeit – dazwischen dürfen andere Portale
+    // ebenfalls warten, sie laufen ja nebeneinander. Die Statuszeile bleibt nie in der Pause
+    // stehen.
+    for (i, _) in statuses.iter().enumerate().filter(|(_, (_, wait))| *wait) {
+        let next = statuses[i + 1..].iter().find(|(_, wait)| !wait);
+        assert!(
+            next.is_some_and(|(text, _)| text.starts_with("Jobdetails werden geholt")
+                || text.starts_with("Anmeldung bei")
+                || text.starts_with("Ergebnisdateien")),
+            "{statuses:?}"
+        );
     }
     let status_json = serde_json::to_value(status("x")).unwrap();
     assert!(
@@ -171,7 +168,7 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     assert_eq!(s.export.as_ref().unwrap().txt_written, 0);
     assert_eq!(txt_files(dir.path()), 4);
     // Ohne Änderung wird die Übersicht nicht angefasst (offene Excel-Datei stört dann nicht).
-    let again = export_all(&store, dir.path(), Format::Xlsx, &[], s.run, c());
+    let again = export_all(&store, dir.path(), &[], s.run, c());
     assert_eq!(again.overview, None);
 }
 
@@ -182,11 +179,11 @@ async fn cancel_during_fetch_keeps_work_and_still_exports() {
     let store = Store::in_memory().unwrap();
     let cancel = CancellationToken::new();
     let mut events = Vec::new();
-    let mut policy = Policy::in_memory();
+    let policy = Mutex::new(Policy::in_memory());
     let s = run(
         &mut DemoBackends,
         &store,
-        &mut policy,
+        &policy,
         &request(),
         &ctx(dir.path(), false),
         &cancel,
@@ -220,7 +217,7 @@ async fn mail_failure_skips_fetch_but_exports() {
                 "[AUTHENTICATIONFAILED] Invalid credentials".into(),
             ))
         }
-        fn pages(&mut self) -> Result<DemoPages, String> {
+        fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
             Ok(DemoPages)
         }
     }
@@ -333,11 +330,11 @@ async fn cancel_after_k_of_n_keeps_exactly_k() {
         let cancel = CancellationToken::new();
         let mut events = Vec::new();
         let mut updated = 0;
-        let mut policy = Policy::in_memory();
+        let policy = Mutex::new(Policy::in_memory());
         run(
             &mut DemoBackends,
             &store,
-            &mut policy,
+            &policy,
             &request(),
             &ctx(dir.path(), false),
             &cancel,
@@ -400,8 +397,8 @@ fn fill_texts(store: Store) -> (Store, Vec<JobKey>) {
     (store, keys)
 }
 
-/// Eine fremde Übersicht (etwa vom alten Programm) wird einmal gesichert – die eigene nach
-/// einem Formatwechsel hin und zurück nie.
+/// Eine fremde Übersicht (etwa vom alten Programm) wird einmal gesichert – die eigene bei
+/// jedem weiteren Lauf nie.
 #[test]
 fn only_a_foreign_overview_is_backed_up_and_only_once() {
     let dir = tempfile::tempdir().unwrap();
@@ -411,7 +408,7 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
     std::fs::write(result_dir.join(export::XLSX_NAME), b"fremd").unwrap();
     let now = Timestamp::now();
 
-    let first = export_all(&store, dir.path(), Format::Xlsx, &[], 1, now);
+    let first = export_all(&store, dir.path(), &[], 1, now);
     let backup = first.backup.clone().expect("fremde Datei gesichert");
     assert_eq!(std::fs::read(&backup).unwrap(), b"fremd");
     assert!(first.overview.is_some());
@@ -422,10 +419,10 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
         RunEvent::Log { level: Level::Warn, text, .. } if text.contains("gesichert")
     )));
 
-    // Excel → CSV → Excel: alles eigene Dateien, keine weitere Sicherung.
-    let csv = export_all(&store, dir.path(), Format::Csv, &[], 2, now);
-    let back = export_all(&store, dir.path(), Format::Xlsx, &[], 3, now);
-    assert_eq!((csv.backup, back.backup), (None, None));
+    // Weitere Läufe schreiben die eigene Datei fort, ohne sie noch einmal zu sichern.
+    let second = export_all(&store, dir.path(), &[], 2, now);
+    let back = export_all(&store, dir.path(), &[], 3, now);
+    assert_eq!((second.backup, back.backup), (None, None));
     assert!(back.overview.is_some(), "neuer Lauf: Blatt „Info“ neu");
     let backups = std::fs::read_dir(&result_dir)
         .unwrap()
@@ -438,8 +435,8 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
         })
         .count();
     assert_eq!(backups, 1);
-    // Die CSV ändert sich nur mit den Daten, nicht mit der Laufnummer.
-    let again = export_all(&store, dir.path(), Format::Csv, &[], 4, now);
+    // Ohne neuen Lauf und ohne neue Daten bleibt die Übersicht liegen.
+    let again = export_all(&store, dir.path(), &[], 3, now);
     assert_eq!(again.overview, None);
 }
 
@@ -450,7 +447,7 @@ fn an_unreadable_export_stamp_leaves_the_overview_alone() {
     let dir = tempfile::tempdir().unwrap();
     let (store, db) = store_on_disk(dir.path());
     let now = Timestamp::now();
-    let first = export_all(&store, dir.path(), Format::Xlsx, &[], 1, now);
+    let first = export_all(&store, dir.path(), &[], 1, now);
     assert!(first.overview.is_some() && first.backup.is_none());
     let path = dir.path().join(RESULT_DIR).join(export::XLSX_NAME);
     let before = std::fs::read(&path).unwrap();
@@ -460,7 +457,7 @@ fn an_unreadable_export_stamp_leaves_the_overview_alone() {
         .unwrap()
         .execute("DROP TABLE kv", [])
         .unwrap();
-    let again = export_all(&store, dir.path(), Format::Xlsx, &[], 2, now);
+    let again = export_all(&store, dir.path(), &[], 2, now);
     assert_eq!(again.backup, None, "kein Backup bei unbekanntem Besitz");
     assert_eq!(again.overview, None);
     assert_eq!(std::fs::read(&path).unwrap(), before, "Datei unverändert");
@@ -488,7 +485,7 @@ fn a_failed_mark_counts_the_rest_and_keeps_the_first_error() {
             [],
         )
         .unwrap();
-    let summary = export_all(&store, dir.path(), Format::Xlsx, &[], 1, Timestamp::now());
+    let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now());
     assert_eq!(
         (summary.txt_written, summary.txt_failed_count),
         (0, 2),
@@ -507,7 +504,7 @@ fn the_first_error_survives_a_later_one() {
     let (store, _) = store_with_texts();
     // An der Stelle des Ergebnisordners steht eine Datei: nichts lässt sich dort schreiben.
     std::fs::write(dir.path().join(RESULT_DIR), b"kein Ordner").unwrap();
-    let summary = export_all(&store, dir.path(), Format::Xlsx, &[], 1, Timestamp::now());
+    let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now());
     assert_eq!((summary.txt_written, summary.txt_failed_count), (0, 2));
     assert_eq!(summary.overview, None);
     let error = summary.error.as_deref().unwrap_or_default();
@@ -527,7 +524,7 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
         async fn connect_mail(&mut self, _: &CancellationToken) -> Result<DemoMail, MailError> {
             Err(MailError::Timeout)
         }
-        fn pages(&mut self) -> Result<DemoPages, String> {
+        fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
             Ok(DemoPages)
         }
     }
@@ -578,6 +575,33 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
     );
 }
 
+/// Sicherheits-Invariante: Eine vom Nutzer gelöschte oder geleerte Textdatei legt der
+/// nächste Lauf nicht wieder an – die Marke bleibt verbraucht. Zurück holt sie nur
+/// „Textdateien neu schreiben“.
+#[test]
+fn a_text_file_the_user_removed_is_never_recreated_by_itself() {
+    let dir = tempfile::tempdir().unwrap();
+    let (store, keys) = store_with_texts();
+    let now = Timestamp::now();
+    assert_eq!(export_all(&store, dir.path(), &[], 1, now).txt_written, 2);
+    let txt_dir = dir.path().join(RESULT_DIR).join(TXT_DIR);
+    let name = |key| store.job(key).unwrap().unwrap().txt_name.unwrap();
+    let (deleted, emptied) = (txt_dir.join(name(&keys[0])), txt_dir.join(name(&keys[1])));
+    std::fs::remove_file(&deleted).unwrap();
+    std::fs::write(&emptied, b"").unwrap();
+
+    let next = export_all(&store, dir.path(), &[], 2, now);
+    assert_eq!((next.txt_written, next.txt_failed_count), (0, 0));
+    assert!(!deleted.exists(), "gelöschte Datei bleibt weg");
+    assert!(
+        std::fs::read(&emptied).unwrap().is_empty(),
+        "leer bleibt leer"
+    );
+    // Erst der ausdrückliche Befehl holt sie zurück.
+    assert_eq!(rewrite_txt(&store, dir.path(), now).txt_written, 2);
+    assert!(deleted.exists() && !std::fs::read(&emptied).unwrap().is_empty());
+}
+
 /// „Textdateien neu schreiben“: Was sich nicht schreiben lässt, behält seine Marke – der
 /// nächste Lauf legt es also nicht von selbst neu an.
 #[test]
@@ -585,7 +609,7 @@ fn a_failed_rewrite_keeps_the_marks() {
     let dir = tempfile::tempdir().unwrap();
     let (store, keys) = store_with_texts();
     let now = Timestamp::now();
-    let first = export_all(&store, dir.path(), Format::None, &[], 1, now);
+    let first = export_all(&store, dir.path(), &[], 1, now);
     assert_eq!(first.txt_written, 2);
     let txt_dir = dir.path().join(RESULT_DIR).join(TXT_DIR);
     let blocked = txt_dir.join(store.job(&keys[1]).unwrap().unwrap().txt_name.unwrap());
@@ -598,7 +622,7 @@ fn a_failed_rewrite_keeps_the_marks() {
     assert_eq!(rewrite.txt_failed, [keys[1].to_string()]);
     // Keine Marke wurde gelöscht: Nichts gilt als „noch zu schreiben“.
     assert!(store.txt_jobs(false).unwrap().is_empty());
-    let next = export_all(&store, dir.path(), Format::None, &[], 2, now);
+    let next = export_all(&store, dir.path(), &[], 2, now);
     assert_eq!(
         (next.txt_written, next.txt_failed_count),
         (0, 0),
@@ -615,7 +639,7 @@ fn an_unusable_text_folder_is_one_clear_error() {
     let result_dir = dir.path().join(RESULT_DIR);
     std::fs::create_dir_all(&result_dir).unwrap();
     std::fs::write(result_dir.join(TXT_DIR), b"eine Datei statt des Ordners").unwrap();
-    let summary = export_all(&store, dir.path(), Format::None, &[], 1, Timestamp::now());
+    let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now());
     assert_eq!((summary.txt_written, summary.txt_failed_count), (0, 2));
     // Auch hier nennt die Liste die betroffenen Jobs – sie bleibt nie leer neben einer Zahl.
     let mut failed = summary.txt_failed.clone();

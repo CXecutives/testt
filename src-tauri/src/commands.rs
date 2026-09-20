@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex};
 use jiff::Timestamp;
 use jobalert_core::export::{self, RESULT_DIR};
 use jobalert_core::fetch::policy::Policy;
+use jobalert_core::fetch::site::PortalSite;
 use jobalert_core::fetch::{Admission, Fetchers, Login, StopReason, admit, http::HttpFetcher};
 use jobalert_core::mail::imap::{Credentials, Gmail, MailError};
 use jobalert_core::pipeline::{
@@ -35,12 +36,27 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tokio_util::sync::CancellationToken;
 
-use crate::session::{Notify, Session};
+use crate::session::{Notify, Session, Sessions};
 
 /// So viele Verlaufszeilen hält der Schnappschuss (für ein Neuladen der Seite).
 const LOG_KEEP: usize = 500;
 /// Seite zum Anlegen eines Gmail-App-Passworts.
 const APP_PASSWORD_URL: &str = "https://myaccount.google.com/apppasswords";
+/// Betriebssystem der Oberfläche – die Seite formuliert ihre Texte danach.
+const PLATFORM: &str = if cfg!(windows) {
+    "windows"
+} else if cfg!(target_os = "macos") {
+    "macos"
+} else {
+    "linux"
+};
+/// Wie der Ort des Gmail-App-Passworts hier heißt. Eine Stelle für alle Texte – das Backend
+/// nennt ihn nie selbst.
+const VAULT_NAME: &str = if cfg!(windows) {
+    "Windows-Tresor"
+} else {
+    "Schlüsselbund"
+};
 
 /// Zustand der App, von allen Befehlen geteilt.
 pub struct AppState {
@@ -49,7 +65,6 @@ pub struct AppState {
     pub default_workspace: PathBuf,
     pub dry_run: bool,
     pub user_agent: String,
-    pub webview_version: String,
     pub reset_report: Mutex<Option<ResetReport>>,
     /// Gmail-Adresse aus dem Tresor. So wird der Tresor samt Passwort nur einmal je Start für
     /// die Anzeige gelesen – sonst nur für den Postfach-Abruf.
@@ -57,9 +72,6 @@ pub struct AppState {
     /// Was die App gerade tut. Geprüft und belegt wird unter derselben Sperre – ein Lauf und
     /// eine Anmeldung schließen sich aus (zwei Schreiber von `policy.json` verlören Zugriffe).
     pub activity: Mutex<Activity>,
-    /// Wann zuletzt nach dem Beenden gefragt wurde – ohne Antwort der Seite schließt das
-    /// zweite Schließen hart. Sobald die Seite geantwortet hat, ist der Eintrag wieder leer.
-    pub close_asked: Mutex<Option<std::time::Instant>>,
 }
 
 /// Gespeicherte Gmail-Adresse im Zwischenspeicher.
@@ -69,7 +81,7 @@ pub enum GmailUser {
     Known(Option<String>),
 }
 
-/// Lauf oder An-/Abmelden bei freelance.de – nie beides zugleich.
+/// Lauf oder An-/Abmelden bei einem Portal – nie beides zugleich.
 pub enum Activity {
     Idle,
     Run(RunHandle),
@@ -80,10 +92,6 @@ pub enum Activity {
 impl AppState {
     fn policy_path(&self) -> PathBuf {
         self.data_dir.join(jobalert_core::POLICY_FILE)
-    }
-
-    fn session_dir(&self) -> PathBuf {
-        self.data_dir.join(jobalert_core::SESSION_DIR)
     }
 
     /// Gespeicherte Gmail-Adresse und ggf. warum der Tresor unlesbar ist. Ein Lesefehler
@@ -131,11 +139,6 @@ impl AppState {
     }
 
     /// Bricht einen Lauf oder eine laufende An-/Abmeldung ab (idempotent).
-    /// Die Seite hat auf die Schließen-Rückfrage geantwortet: kein hartes Schließen mehr.
-    pub fn close_answered(&self) {
-        *lock(&self.close_asked) = None;
-    }
-
     pub fn cancel_run(&self) {
         match &*lock(&self.activity) {
             Activity::Run(run) => run.cancel.cancel(),
@@ -214,7 +217,10 @@ type CmdResult<T> = Result<T, CommandError>;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppStateView {
-    webview_version: String,
+    /// Betriebssystem: „windows“ | „macos“ | „linux“ – die Seite formuliert danach.
+    platform: &'static str,
+    /// Wie der Ort des App-Passworts dort heißt.
+    vault_name: &'static str,
     dry_run: bool,
     data_dir: PathBuf,
     settings: Settings,
@@ -234,8 +240,9 @@ pub struct AppStateView {
     profile_dir: PathBuf,
     txt_dir: PathBuf,
     result_dir_exists: bool,
-    result_files: usize,
-    first_run_notice: bool,
+    /// Zahl der Textdateien der App in `auswertung/beschreibungen_txt` – genau das, was
+    /// „Textdateien löschen“ entfernt.
+    txt_files: usize,
     reset_report: Option<ResetReport>,
     running: Option<Snapshot>,
 }
@@ -249,7 +256,7 @@ pub async fn app_state(
 ) -> CmdResult<AppStateView> {
     let settings = state.settings()?;
     let workspace = settings.workspace_or(&state.default_workspace);
-    // Der Trockenlauf fasst den Windows-Tresor nie an.
+    // Der Trockenlauf fasst den Tresor nie an.
     let (gmail_user, gmail_error) = if state.dry_run {
         (None, None)
     } else {
@@ -270,21 +277,21 @@ pub async fn app_state(
     };
     let workspace_for_paths = workspace.clone();
     let result_dir = workspace.join(RESULT_DIR);
-    // Nur die App-Dateien – genau die, die „Ergebnisordner leeren“ löschen würde.
-    let result_files = export::app_files(&result_dir, &state.store.txt_names()?).len();
+    // Nur die eigenen Textdateien – genau die, die „Textdateien löschen“ entfernen würde.
+    let txt_files = export::txt_files(&result_dir, &state.store.txt_names()?).len();
     let (profile, profile_error) = match profile::info(&workspace) {
         Ok(info) => (info, None),
         Err(e) => (None, Some(e.to_string())),
     };
     let last_scan_run = pipeline::last_scan_run(&state.store)?;
     Ok(AppStateView {
-        webview_version: state.webview_version.clone(),
+        platform: PLATFORM,
+        vault_name: VAULT_NAME,
         dry_run: state.dry_run,
         data_dir: state.data_dir.clone(),
-        first_run_notice: !settings.first_run_seen,
         profile,
         profile_error,
-        portals: portal_views(&policy, &state.store, now)?,
+        portals: portal_views(&policy, &state.store, &settings, now)?,
         zero_posting_mails: state
             .store
             .zero_posting_mails(last_scan_run)?
@@ -306,7 +313,7 @@ pub async fn app_state(
         profile_dir: workspace_for_paths.join(profile::PROFILE_DIR),
         txt_dir: result_dir.join(export::TXT_DIR),
         result_dir,
-        result_files,
+        txt_files,
         running,
     })
 }
@@ -316,24 +323,20 @@ pub async fn app_state(
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingsInput {
-    format: export::Format,
-    scope: jobalert_core::mail::scan::Scope,
     portals: Vec<Portal>,
     #[serde(default)]
-    first_run_seen: bool,
+    session_portals: Vec<Portal>,
 }
 
-/// Speichert Format, Umfang und Quellen. Der Arbeitsordner ändert sich nur per Dialog.
+/// Speichert die Portalwahl. Der Arbeitsordner ändert sich nur per Dialog.
 #[tauri::command]
 pub async fn save_settings(
     state: State<'_, AppState>,
     input: SettingsInput,
 ) -> CmdResult<Settings> {
     let mut settings = state.settings()?;
-    settings.format = input.format;
-    settings.scope = input.scope;
     settings.portals = input.portals;
-    settings.first_run_seen |= input.first_run_seen;
+    settings.session_portals = input.session_portals;
     settings.save(&state.store)?;
     state.settings()
 }
@@ -415,39 +418,36 @@ pub async fn delete_gmail_credentials(state: State<'_, AppState>) -> CmdResult<b
 
 // ------------------------------------------------------------------ Lauf
 
-/// Echte Abrufwege: Gmail, HTTP für LinkedIn/freelancermap, Sitzungsfenster für freelance.de.
+/// Echte Abrufwege: Gmail, HTTP für den Gastweg und je Portal ein Sitzungsfenster.
 struct AppBackends {
     credentials: Option<Credentials>,
     user_agent: String,
     app: AppHandle,
-    session_dir: PathBuf,
+    data_dir: PathBuf,
     notify: Notify,
 }
 
 impl Backends for AppBackends {
     type Mail = Gmail;
-    type Pages = Fetchers<Session>;
+    type Pages = Fetchers<Sessions>;
 
     async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<Gmail, MailError> {
         let credentials = self.credentials.as_ref().ok_or(MailError::NoCredentials)?;
         Gmail::connect(credentials, cancel.clone()).await
     }
 
-    fn pages(&mut self) -> Result<Self::Pages, String> {
+    /// Je Portal ein eigener Abrufweg – eigene HTTP-Sitzung, eigenes Fenster (eigenes
+    /// Label): Die Portale laufen nebeneinander und teilen sich nichts.
+    fn pages(&mut self, _portal: Portal) -> Result<Self::Pages, String> {
         Ok(Fetchers {
             http: HttpFetcher::new(&self.user_agent).map_err(|e| e.to_string())?,
-            session: Session::new(
-                self.app.clone(),
-                self.session_dir.clone(),
-                self.notify.clone(),
-            ),
+            session: Sessions::new(self.app.clone(), self.data_dir.clone(), self.notify.clone()),
         })
     }
 }
 
 /// Einstellungen und Gmail-Zugang eines Laufs. Nur der Postfach-Schritt braucht Gmail:
-/// „Jobdetails extrahieren“ und „Details holen“ gehen auch, wenn der Tresor-Eintrag gerade
-/// unlesbar ist.
+/// Der Abruf der Jobdetails geht auch, wenn der Tresor-Eintrag gerade unlesbar ist.
 fn run_context(
     state: &AppState,
     request: &RunRequest,
@@ -460,7 +460,7 @@ fn run_context(
     };
     let ctx = RunContext {
         workspace: settings.workspace_or(&state.default_workspace),
-        format: settings.format,
+        session_portals: settings.session_portals.clone(),
         account: credentials
             .as_ref()
             .map(|c| c.user.clone())
@@ -488,7 +488,7 @@ pub async fn start_run(
         Activity::Session(_) => {
             return Err(CommandError::new(
                 "busy",
-                "Das freelance.de-Anmeldefenster ist gerade offen – bitte dort erst fertig werden.",
+                "Ein Anmeldefenster ist gerade offen – bitte dort erst fertig werden.",
             ));
         }
     }
@@ -540,7 +540,7 @@ pub async fn start_run(
             credentials,
             user_agent: state.user_agent.clone(),
             app: app.clone(),
-            session_dir: state.session_dir(),
+            data_dir: state.data_dir.clone(),
             notify,
         };
         tauri::async_runtime::spawn(drive(backends, store, policy, request, ctx, cancel, emit))
@@ -569,13 +569,13 @@ async fn drive<B: Backends>(
     cancel: CancellationToken,
     emit: impl FnMut(RunEvent),
 ) {
-    let mut policy = policy.map_or_else(Policy::in_memory, |path| {
+    let policy = Mutex::new(policy.map_or_else(Policy::in_memory, |path| {
         Policy::load(&path, Timestamp::now())
-    });
+    }));
     pipeline::run(
         &mut backends,
         &store,
-        &mut policy,
+        &policy,
         &request,
         &ctx,
         &cancel,
@@ -648,7 +648,7 @@ pub fn cancel_run(state: State<'_, AppState>) {
     state.cancel_run();
 }
 
-// ------------------------------------------------------------------ freelance.de
+// ------------------------------------------------------------------ Portal-Anmeldung
 
 /// Hält „Sitzungsfenster in Gebrauch“ und gibt es am Ende sicher frei.
 struct SessionGuard<'a> {
@@ -669,10 +669,16 @@ impl Drop for SessionGuard<'_> {
 /// Belegt das Sitzungsfenster für An- oder Abmelden – geprüft und belegt unter einer Sperre,
 /// nie neben einem Lauf. Danach gelten dieselben Regeln wie für jeden Abruf: keine
 /// Anmeldung während einer Pause oder über der Obergrenze, Abstand zum letzten Zugriff,
-/// gezählt und gesichert vor dem Kontakt. `None`: abgebrochen, bevor freelance.de
-/// kontaktiert wurde.
-async fn claim_session(state: &AppState) -> CmdResult<Option<SessionGuard<'_>>> {
+/// gezählt und gesichert vor dem Kontakt. `None`: abgebrochen, bevor das Portal kontaktiert
+/// wurde.
+async fn claim_session(state: &AppState, portal: Portal) -> CmdResult<Option<SessionGuard<'_>>> {
     state.ensure_real("Im Trockenlauf gibt es keine Portal-Anmeldung.")?;
+    if PortalSite::of(portal).is_none() {
+        return Err(CommandError::new(
+            "invalid",
+            format!("{portal} kennt keine Anmeldung."),
+        ));
+    }
     let cancel = CancellationToken::new();
     {
         let mut activity = lock(&state.activity);
@@ -682,22 +688,21 @@ async fn claim_session(state: &AppState) -> CmdResult<Option<SessionGuard<'_>>> 
         *activity = Activity::Session(cancel.clone());
     }
     let guard = SessionGuard { state, cancel };
-    let portal = Portal::FreelanceDe;
-    let mut policy = Policy::load(&state.policy_path(), Timestamp::now());
-    match admit(&mut policy, portal, &guard.cancel, &Timestamp::now, |_| {}).await? {
+    let policy = Mutex::new(Policy::load(&state.policy_path(), Timestamp::now()));
+    match admit(&policy, portal, &guard.cancel, &Timestamp::now, |_| {}).await? {
         Admission::Go => Ok(Some(guard)),
         Admission::Cancelled => Ok(None),
         Admission::Stop(StopReason::Paused { until, reason }) => Err(CommandError::new(
             "paused",
             format!(
-                "freelance.de ist pausiert bis {} ({reason}). Bis dahin meldet die App sich dort weder an noch ab – bei einer Sperre das Portal im eigenen Browser öffnen.",
+                "{portal} ist pausiert bis {} ({reason}). Bis dahin meldet die App sich dort weder an noch ab – bei einer Sperre das Portal im eigenen Browser öffnen.",
                 jobalert_core::time::display(until)
             ),
         )),
         Admission::Stop(StopReason::Quota { next_at }) => Err(CommandError::new(
             "paused",
             format!(
-                "Die Obergrenze für freelance.de ist erreicht – An- und Abmelden wieder ab {}.",
+                "Die Obergrenze für {portal} ist erreicht – An- und Abmelden wieder ab {}.",
                 jobalert_core::time::display(next_at)
             ),
         )),
@@ -705,29 +710,41 @@ async fn claim_session(state: &AppState) -> CmdResult<Option<SessionGuard<'_>>> 
     }
 }
 
-/// Ende einer An- oder Abmeldung: den Sitzungsstand, falls er feststeht, und – als letzte
-/// Antwort – den Zeitpunkt, ab dem der nächste Abruf Abstand hält.
-fn record_session(state: &AppState, signed_in: Option<bool>) {
+/// Ende einer An- oder Abmeldung bei einem Portal: den Sitzungsstand, falls er feststeht,
+/// und – als letzte Antwort – den Zeitpunkt, ab dem der nächste Abruf Abstand hält.
+fn record_session(state: &AppState, portal: Portal, signed_in: Option<bool>) {
     let now = Timestamp::now();
     let mut policy = Policy::load(&state.policy_path(), now);
     if let Some(signed_in) = signed_in {
-        policy.set_session(Portal::FreelanceDe, signed_in, now);
+        policy.set_session(portal, signed_in, now);
     }
-    policy.record_done(Portal::FreelanceDe, now);
+    policy.record_done(portal, now);
     if let Err(e) = policy.save() {
         log::warn!("Sitzungsstand nicht gespeichert: {e}");
     }
 }
 
-/// Einmal selbst bei freelance.de anmelden (Fenster sichtbar, höchstens 5 Minuten). Die App
+/// Ein Sitzungsfenster für An- oder Abmelden von Hand (ohne Lauf-Ereignisse).
+fn session_window(app: AppHandle, state: &AppState, portal: Portal) -> Option<Session> {
+    let site = PortalSite::of(portal)?;
+    Some(Session::new(app, &state.data_dir, site, Arc::new(|_| {})))
+}
+
+/// Einmal selbst bei einem Portal anmelden (Fenster sichtbar, höchstens 5 Minuten). Die App
 /// sieht und speichert das Passwort nie. Nach einer Sicherheitsprüfung gilt die Anmeldung
 /// trotzdem (der nächste Lauf ruft wieder ab).
 #[tauri::command]
-pub async fn portal_login(app: AppHandle, state: State<'_, AppState>) -> CmdResult<bool> {
-    let Some(guard) = claim_session(&state).await? else {
+pub async fn portal_login(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    portal: Portal,
+) -> CmdResult<bool> {
+    let Some(guard) = claim_session(&state, portal).await? else {
         return Ok(false);
     };
-    let mut session = Session::new(app, state.session_dir(), Arc::new(|_| {}));
+    let Some(mut session) = session_window(app, &state, portal) else {
+        return Ok(false);
+    };
     let login = session.sign_in(&guard.cancel).await;
     drop(session);
     let signed_in = login != Login::NotSignedIn;
@@ -737,21 +754,27 @@ pub async fn portal_login(app: AppHandle, state: State<'_, AppState>) -> CmdResu
     } else {
         None
     };
-    record_session(&state, known);
+    record_session(&state, portal, known);
     Ok(signed_in)
 }
 
-/// Bei freelance.de abmelden. Andere Portale sind nicht betroffen (eigenes Profil). Nur eine
+/// Bei einem Portal abmelden. Andere Portale sind nicht betroffen (eigenes Profil). Nur eine
 /// wirklich geladene Abmeldeseite beendet die Sitzung – sonst bleibt der Stand.
 #[tauri::command]
-pub async fn portal_logout(app: AppHandle, state: State<'_, AppState>) -> CmdResult<bool> {
-    let Some(guard) = claim_session(&state).await? else {
+pub async fn portal_logout(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    portal: Portal,
+) -> CmdResult<bool> {
+    let Some(guard) = claim_session(&state, portal).await? else {
         return Ok(false);
     };
-    let mut session = Session::new(app, state.session_dir(), Arc::new(|_| {}));
+    let Some(mut session) = session_window(app, &state, portal) else {
+        return Ok(false);
+    };
     let done = session.sign_out(&guard.cancel).await;
     drop(session);
-    record_session(&state, done.then_some(false));
+    record_session(&state, portal, done.then_some(false));
     Ok(done)
 }
 
@@ -844,13 +867,14 @@ pub struct Cleared {
     failed: Vec<String>,
 }
 
-/// Löscht nur App-Dateien im Ergebnisordner; die Datenbank bleibt (kein erneuter Abruf).
+/// Löscht nur die eigenen Textdateien; die Excel-Übersicht und die Datenbank bleiben
+/// (kein erneuter Abruf).
 #[tauri::command]
-pub async fn clear_result_files(state: State<'_, AppState>) -> CmdResult<Cleared> {
+pub async fn clear_txt_files(state: State<'_, AppState>) -> CmdResult<Cleared> {
     state.ensure_idle()?;
     state.ensure_real("Im Trockenlauf werden keine Dateien gelöscht.")?;
     let result_dir = state.workspace()?.join(RESULT_DIR);
-    let (removed, failed) = export::clear_result_files(&result_dir, &state.store.txt_names()?);
+    let (removed, failed) = export::clear_txt_files(&result_dir, &state.store.txt_names()?);
     Ok(Cleared { removed, failed })
 }
 
@@ -863,9 +887,6 @@ pub enum Target {
     JobUrl {
         key: JobKey,
     },
-    MailUrl {
-        key: JobKey,
-    },
     /// Alert-Mail per Gmail-ID (hexadezimal, z. B. aus einer grauen Zeile).
     Gmail {
         id: String,
@@ -875,7 +896,6 @@ pub enum Target {
         portal: Portal,
     },
     ResultFolder,
-    ProfileFolder,
     AppPasswordPage,
     LogFolder,
 }
@@ -884,14 +904,7 @@ pub enum Target {
 pub async fn open_target(state: State<'_, AppState>, target: Target) -> CmdResult<()> {
     let what: std::ffi::OsString = match target {
         Target::JobUrl { key } => job_view(&state, &key)?.url.into(),
-        Target::MailUrl { key } => job_view(&state, &key)?
-            .gmail_url
-            .ok_or_else(|| {
-                CommandError::new("notFound", "Zu diesem Job ist keine Gmail-Mail bekannt.")
-            })?
-            .into(),
         Target::ResultFolder => existing_dir(state.workspace()?.join(RESULT_DIR))?,
-        Target::ProfileFolder => existing_dir(state.workspace()?.join(profile::PROFILE_DIR))?,
         Target::Gmail { id } => u64::from_str_radix(&id, 16)
             .ok()
             .and_then(jobalert_core::model::gmail_url)
@@ -925,7 +938,7 @@ fn existing_dir(dir: PathBuf) -> CmdResult<std::ffi::OsString> {
     }
 }
 
-// ------------------------------------------------------------------ System
+// ------------------------------------------------------------------ App
 
 /// „Alles zurücksetzen“: Auftrag ablegen, dann neu starten – gelöscht wird beim Start.
 #[tauri::command]
@@ -950,26 +963,4 @@ pub fn report_ui_error(message: String, source: Option<String>, line: Option<u32
         source.unwrap_or_default(),
         line.unwrap_or(0)
     );
-}
-
-/// Die Seite hat die Rückfrage „Beenden?“ beantwortet (egal wie). Danach fragt ein
-/// weiteres Schließen wieder nach, statt den Lauf hart abzubrechen.
-#[tauri::command]
-pub fn close_answered(state: State<'_, AppState>) {
-    state.close_answered();
-}
-
-/// Beenden auf Wunsch der Seite (nach der Rückfrage bei laufendem Lauf): abbrechen, den
-/// Export zu Ende schreiben lassen (höchstens 10 s), dann schließen.
-#[tauri::command]
-pub async fn quit(app: AppHandle, state: State<'_, AppState>) -> CmdResult<()> {
-    state.cancel_run();
-    for _ in 0..100 {
-        if !state.busy() {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    }
-    app.exit(0);
-    Ok(())
 }

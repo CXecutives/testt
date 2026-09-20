@@ -1,22 +1,37 @@
 //! freelance.de-Projektseite im Sitzungsfenster. Das Fenster sammelt per Skript nur
-//! Befunde (Status, Adresse, Anmelde-Zeichen, HTML des Beschreibungsfelds); bewertet und in
-//! Text verwandelt wird hier in Rust. Seitenfelder (Firma, Ort) werden bewusst nicht
-//! übernommen – für Nicht-EXPERT-Mitglieder stehen dort Platzhalter.
+//! Befunde (Status, Adresse, Anmelde-Zeichen, Seitenfelder, HTML des Beschreibungsfelds);
+//! bewertet und in Text verwandelt wird hier in Rust. Firma und Ort stehen für
+//! Nicht-EXPERT-Mitglieder nur als Platzhalter auf der Seite – der bleibt außen vor.
 
-use serde::Deserialize;
 use url::Url;
 
-use super::{PageOutcome, Parsed, judge};
+use super::site::SessionPage;
+use super::{PageFields, PageOutcome, Parsed, judge};
 use crate::portal::host_is;
-use crate::text::html_to_text;
+use crate::text::{html_to_text, one_line};
 
 /// Befund-Skript: synchron, in `try/catch`, liefert immer JSON. Keine Timer, keine Logik im
 /// Seiten-JS (ein verstecktes WebView drosselt Timer).
+///
+/// Der Titel steht gemessen im `h1` des Projektkopfs. Wo Firma und Ort stehen, ist nur
+/// **vermutet**: gesucht wird im Projektkopf eine beschriftete Zeile – nachzumessen an einer
+/// echten angemeldeten Seite.
 pub const PROBE_JS: &str = r#"(() => { try {
   const text = (el) => (el && el.textContent || '').replace(/\s+/g, ' ').trim();
   const heading = [...document.querySelectorAll('h1, h2, h3')].find((h) => /Projektbeschreibung/i.test(text(h)));
   const box = heading && (heading.closest('.panel') || heading.parentElement);
   const body = box && (box.querySelector('.panel-body') || box);
+  const header = document.querySelector('.panel-body.project-header');
+  const labelled = (re) => {
+    for (const el of (header ? header.querySelectorAll('*') : [])) {
+      if (el.children.length) continue;
+      const label = text(el);
+      if (!re.test(label)) continue;
+      const value = text(el.nextElementSibling) || text(el.parentElement).slice(label.length).trim();
+      if (value) return value;
+    }
+    return '';
+  };
   return JSON.stringify({
     ok: true,
     status: performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0,
@@ -25,24 +40,16 @@ pub const PROBE_JS: &str = r#"(() => { try {
     hasExpertMarker: /für EXPERT-Mitglieder sichtbar/i.test(document.body ? document.body.innerText : ''),
     hasLoginForm: !!document.querySelector('#username') && !!document.querySelector('#password'),
     hasCaptcha: !!document.querySelector('.g-recaptcha, .h-captcha, [data-sitekey], iframe[src*="captcha"], iframe[src*="challenges.cloudflare"]'),
+    title: text(header && header.querySelector('h1')),
+    company: labelled(/^(?:Firma|Unternehmen|Projektanbieter|Auftraggeber|Kunde)\s*:?$/i),
+    location: labelled(/^(?:Ort|Einsatzort|Standort|PLZ\s*\/?\s*Ort)\s*:?$/i),
     panelHtml: body ? body.innerHTML : null,
   });
 } catch (e) { return JSON.stringify({ ok: false, err: String(e), url: String(location.href) }); } })()"#;
 
-/// Was das Skript meldet (reine Befunde, daher die vielen Wahrheitswerte).
-#[expect(clippy::struct_excessive_bools, reason = "reine Befunde einer Seite")]
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase", default)]
-pub struct SessionPage {
-    pub ok: bool,
-    pub err: Option<String>,
-    pub status: u16,
-    pub url: String,
-    pub has_logout: bool,
-    pub has_expert_marker: bool,
-    pub has_login_form: bool,
-    pub has_captcha: bool,
-    pub panel_html: Option<String>,
+/// Angemeldet: Es gibt einen Abmelde-Link (gemessen).
+pub fn signed_in(page: &SessionPage) -> bool {
+    page.has_logout
 }
 
 /// Nach der Anmeldung leitet freelance.de die erste Seite einmal hierher um. Auch hier gilt
@@ -61,11 +68,6 @@ pub fn is_portal_url(url: &Url) -> bool {
             .host_str()
             .is_some_and(|host| host_is(host, "freelance.de"))
 }
-
-/// Die Anmeldeseite.
-pub const LOGIN_URL: &str = "https://www.freelance.de/login.php";
-/// Abmelden.
-pub const LOGOUT_URL: &str = "https://www.freelance.de/logout.php";
 
 /// Kürzer als das und mit Registrierungsaufruf: nur der Teaser (gemessen 242–306 Zeichen).
 const TEASER_MAX_CHARS: usize = 500;
@@ -147,8 +149,28 @@ pub fn judge_page(page: &SessionPage, project_id: &str) -> PageOutcome {
     }
     judge(Parsed {
         text,
+        fields: page_fields(page),
         ..Parsed::default()
     })
+}
+
+/// Seitenfelder für die Tabelle. Leere Werte lässt der Speicher stehen – deshalb wird der
+/// Platzhalter „für EXPERT-Mitglieder sichtbar“ zu einem leeren Feld statt zu einem Namen,
+/// der keiner ist.
+fn page_fields(page: &SessionPage) -> PageFields {
+    let value = |raw: &str| {
+        let value = one_line(raw);
+        if value.to_lowercase().contains("expert-mitglieder") {
+            String::new()
+        } else {
+            value
+        }
+    };
+    PageFields {
+        title: value(&page.title),
+        company: value(&page.company),
+        location: value(&page.location),
+    }
 }
 
 /// Projektliste oder Kategorie (keine einzelne Projektseite).
@@ -268,6 +290,46 @@ mod tests {
         assert!(is_portal_url(
             &Url::parse("https://WWW.Freelance.DE/x").unwrap()
         ));
+    }
+
+    /// Titel, Firma und Ort der Seite ersetzen die Mail-Heuristik – der EXPERT-Platzhalter
+    /// nie: Dort bleibt das Feld leer, der Speicher behält den Wert aus der Mail.
+    #[test]
+    fn page_fields_replace_the_mail_guess_but_never_the_placeholder() {
+        let long = format!("<p>{}</p>", "Aufgaben und Anforderungen. ".repeat(6));
+        let full = SessionPage {
+            title: "  Interim\n Controller (m/w/d) ".into(),
+            company: "Muster Consulting GmbH".into(),
+            location: "D-20038 Hamburg".into(),
+            ..page(URL, true, Some(&long))
+        };
+        match judge_page(&full, ID) {
+            PageOutcome::Text { fields, .. } => assert_eq!(
+                fields,
+                Some(PageFields {
+                    title: "Interim Controller (m/w/d)".into(),
+                    company: "Muster Consulting GmbH".into(),
+                    location: "D-20038 Hamburg".into(),
+                })
+            ),
+            other => panic!("{other:?}"),
+        }
+        let hidden = SessionPage {
+            company: "für EXPERT-Mitglieder sichtbar".into(),
+            location: "Für EXPERT-Mitglieder sichtbar".into(),
+            ..full
+        };
+        match judge_page(&hidden, ID) {
+            PageOutcome::Text { fields, .. } => assert_eq!(
+                fields,
+                Some(PageFields {
+                    title: "Interim Controller (m/w/d)".into(),
+                    company: String::new(),
+                    location: String::new(),
+                })
+            ),
+            other => panic!("{other:?}"),
+        }
     }
 
     #[test]

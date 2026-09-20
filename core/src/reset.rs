@@ -3,7 +3,8 @@
 //! eine Datei offen – Prozesse werden nie beendet.
 //!
 //! Gelöscht werden nur Dinge der App: Datenbank (Jobs, Einstellungen, Scan-Stand), das
-//! Profil des Sitzungsfensters (freelance.de-Anmeldung), der Gmail-Zugang im Tresor und im
+//! Profil des Sitzungsfensters (freelance.de-Anmeldung), der Gmail-Zugang im
+//! Schlüsselspeicher und im
 //! Arbeitsordner die App-Dateien samt `profil/beraterprofil.json`. `policy.json` bleibt –
 //! eine Sperrpause darf sich nicht wegklicken lassen. Fremde Dateien bleiben unberührt.
 
@@ -17,7 +18,7 @@ use crate::fetch::policy::Policy;
 use crate::portal::Portal;
 use crate::profile::{PROFILE_DIR, PROFILE_FILE, profile_path};
 use crate::secrets::Vault;
-use crate::{DB_FILE, POLICY_FILE, SESSION_DIR};
+use crate::{DB_FILE, POLICY_FILE, session_dir};
 
 const MARKER: &str = "reset.pending";
 /// Namensteil umbenannter Reste, die sich (noch) nicht löschen ließen.
@@ -84,12 +85,16 @@ pub fn perform_pending(data_dir: &Path, vault: &Vault) -> Option<ResetReport> {
     let profile = profile_path(&plan.workspace);
     let profile_dir = plan.workspace.join(PROFILE_DIR);
     let result_dir = plan.workspace.join(RESULT_DIR);
-    let mut targets = vec![db, journal, data_dir.join(SESSION_DIR), profile];
+    let sessions: Vec<String> = Portal::ALL.into_iter().map(session_dir).collect();
+    let mut targets = vec![db, journal, profile];
+    targets.extend(sessions.iter().map(|dir| data_dir.join(dir)));
     // Reste früherer Versuche mitnehmen – ein umbenanntes Sitzungsprofil samt Anmelde-Cookie
     // bliebe sonst für immer liegen.
     let journal_name = format!("{DB_FILE}-journal");
-    let names_in_data = [DB_FILE, journal_name.as_str(), SESSION_DIR];
-    targets.extend(leftovers(data_dir, |base| names_in_data.contains(&base)));
+    let names_in_data = |base: &str| {
+        base == DB_FILE || base == journal_name || sessions.iter().any(|dir| dir == base)
+    };
+    targets.extend(leftovers(data_dir, names_in_data));
     targets.extend(leftovers(&profile_dir, |base| base == PROFILE_FILE));
     // Übersichten, Textdateien, temporäre Dateien und deren Reste im Ergebnisordner.
     targets.extend(app_files(&result_dir, &plan.txt_names));
@@ -112,11 +117,15 @@ pub fn perform_pending(data_dir: &Path, vault: &Vault) -> Option<ResetReport> {
         let _ = std::fs::remove_dir(dir);
     }
     if let Err(e) = vault.delete_gmail() {
-        report.failed.push(format!("Gmail-Zugang im Tresor ({e})"));
+        report
+            .failed
+            .push(format!("Gmail-Zugang im Schlüsselspeicher ({e})"));
     }
-    // Die freelance.de-Anmeldung ist mit dem Profil weg – Pausen und Zähler bleiben.
+    // Jede Portal-Anmeldung ist mit ihrem Profil weg – Pausen und Zähler bleiben.
     let mut policy = Policy::load(&data_dir.join(POLICY_FILE), jiff::Timestamp::now());
-    policy.forget_session(Portal::FreelanceDe);
+    for portal in Portal::ALL {
+        policy.forget_session(portal);
+    }
     if let Err(e) = policy.save() {
         report
             .failed

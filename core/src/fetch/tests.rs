@@ -2,54 +2,98 @@
 //! simuliert (`start_paused`): Wartezeiten kosten keine echte Zeit.
 
 use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 
 use tokio::time::Instant;
 
 use super::*;
+use crate::fetch::policy::limits;
 use crate::model::Posting;
 use crate::portal::job_link;
 use crate::store::MailRef;
 
+/// Ein Abruf: wer, wann angefangen, wann fertig – die Grundlage der Tempo- und
+/// Überlappungsprüfung.
+#[derive(Clone, Debug)]
+struct Call {
+    id: String,
+    portal: Portal,
+    route: Route,
+    start: Instant,
+    end: Instant,
+}
+
 /// Abruf-Attrappe: je Job-ID eine Folge von Ergebnissen, sonst ein vollständiger Text.
-#[derive(Default)]
+///
+/// Jedes Portal bekommt seinen eigenen Abrufweg; die Kopien teilen sich ihr Gedächtnis,
+/// damit ein Test alle Abrufe an einer Stelle sieht.
+#[derive(Clone, Default)]
 struct Fake {
-    script: HashMap<String, VecDeque<PageOutcome>>,
-    calls: Vec<(String, Instant)>,
+    script: Arc<Mutex<HashMap<String, VecDeque<PageOutcome>>>>,
+    calls: Arc<Mutex<Vec<Call>>>,
     /// Ergebnis einer Anmeldung (`None` = keine Anmeldung möglich).
     login: Option<Login>,
     /// Beginn und Ende jeder Anmeldung.
-    logins: Vec<(Instant, Instant)>,
+    logins: Arc<Mutex<Vec<(Instant, Instant)>>>,
     /// Dauer jedes Abrufs (langsame Antworten) bzw. jeder Anmeldung.
     delay: Duration,
     login_delay: Duration,
 }
 
 impl Fake {
-    fn with(mut self, id: &str, outcomes: impl IntoIterator<Item = PageOutcome>) -> Fake {
-        self.script
-            .insert(id.into(), outcomes.into_iter().collect());
+    fn with(self, id: &str, outcomes: impl IntoIterator<Item = PageOutcome>) -> Fake {
+        lock_test(&self.script).insert(id.into(), outcomes.into_iter().collect());
         self
     }
 
-    fn ids(&self) -> Vec<&str> {
-        self.calls.iter().map(|(id, _)| id.as_str()).collect()
+    /// Alle Abrufe in der Reihenfolge ihres Beginns.
+    fn calls(&self) -> Vec<Call> {
+        let mut calls = lock_test(&self.calls).clone();
+        calls.sort_by_key(|call| call.start);
+        calls
+    }
+
+    fn ids(&self) -> Vec<String> {
+        self.calls().into_iter().map(|call| call.id).collect()
+    }
+
+    fn routes(&self) -> Vec<(Portal, Route)> {
+        self.calls()
+            .into_iter()
+            .map(|call| (call.portal, call.route))
+            .collect()
+    }
+
+    fn logins(&self) -> Vec<(Instant, Instant)> {
+        lock_test(&self.logins).clone()
     }
 }
 
+fn lock_test<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
 impl PageFetcher for Fake {
-    async fn fetch(&mut self, link: &JobLink, _: &CancellationToken) -> PageOutcome {
-        self.calls.push((link.key.id.clone(), Instant::now()));
+    async fn fetch(&mut self, link: &JobLink, route: Route, _: &CancellationToken) -> PageOutcome {
+        let start = Instant::now();
         tokio::time::sleep(self.delay).await;
-        self.script
+        let outcome = lock_test(&self.script)
             .get_mut(&link.key.id)
-            .and_then(VecDeque::pop_front)
-            .unwrap_or_else(|| text(&"Vollständige Beschreibung. ".repeat(10)))
+            .and_then(VecDeque::pop_front);
+        lock_test(&self.calls).push(Call {
+            id: link.key.id.clone(),
+            portal: link.key.portal,
+            route,
+            start,
+            end: Instant::now(),
+        });
+        outcome.unwrap_or_else(|| text(&"Vollständige Beschreibung. ".repeat(10)))
     }
 
     async fn login(&mut self, _: Portal, _: &CancellationToken) -> Login {
         let start = Instant::now();
         tokio::time::sleep(self.login_delay).await;
-        self.logins.push((start, Instant::now()));
+        lock_test(&self.logins).push((start, Instant::now()));
         self.login.unwrap_or(Login::NotSignedIn)
     }
 }
@@ -116,7 +160,7 @@ struct Run {
 }
 
 async fn run(
-    fake: &mut Fake,
+    fake: &Fake,
     store: &Store,
     policy: &mut Policy,
     selection: Selection<'_>,
@@ -133,22 +177,55 @@ async fn run(
     .await
 }
 
+async fn run_via_session(
+    fake: &Fake,
+    store: &Store,
+    policy: &mut Policy,
+    selection: Selection<'_>,
+    clock: &impl Fn() -> Timestamp,
+) -> Run {
+    run_inner(
+        fake,
+        store,
+        policy,
+        selection,
+        &Portal::ALL,
+        clock,
+        &CancellationToken::new(),
+    )
+    .await
+}
+
 async fn run_with(
-    fake: &mut Fake,
+    fake: &Fake,
     store: &Store,
     policy: &mut Policy,
     selection: Selection<'_>,
     clock: &impl Fn() -> Timestamp,
     cancel: &CancellationToken,
 ) -> Run {
+    run_inner(fake, store, policy, selection, &[], clock, cancel).await
+}
+
+async fn run_inner(
+    fake: &Fake,
+    store: &Store,
+    policy: &mut Policy,
+    selection: Selection<'_>,
+    session_portals: &[Portal],
+    clock: &impl Fn() -> Timestamp,
+    cancel: &CancellationToken,
+) -> Run {
     let mut summary = FetchSummary::default();
     let mut stops = Vec::new();
     let mut waits = Vec::new();
+    let shared = Mutex::new(std::mem::take(policy));
     let completed = fetch_all(
-        fake,
+        |_portal| Ok(fake.clone()),
         store,
-        policy,
+        &shared,
         selection,
+        session_portals,
         cancel,
         clock,
         &mut summary,
@@ -160,7 +237,7 @@ async fn run_with(
                 text,
             } => {
                 assert_eq!(text, reason.text(portal, skipped));
-                stops.push((portal, reason.clone(), skipped));
+                stops.push((portal, reason, skipped));
             }
             FetchEvent::Waiting { portal, until } => waits.push((portal, until)),
             _ => {}
@@ -168,6 +245,7 @@ async fn run_with(
     )
     .await
     .unwrap();
+    *policy = shared.into_inner().unwrap_or_else(PoisonError::into_inner);
     // Der Stopptext steht auch in der Zusammenfassung.
     for (portal, reason, skipped) in &stops {
         let counts = &summary.per_portal[portal];
@@ -181,9 +259,73 @@ async fn run_with(
     }
 }
 
+/// Ids ohne Rücksicht auf die Reihenfolge vergleichen (Portale laufen nebeneinander).
+fn sorted(ids: &[String]) -> Vec<String> {
+    let mut ids = ids.to_vec();
+    ids.sort();
+    ids
+}
+
 const FM: Portal = Portal::Freelancermap;
 const LI: Portal = Portal::LinkedIn;
 const FL: Portal = Portal::FreelanceDe;
+
+/// Der Router: nötige Anmeldung immer über das Fenster, optionale nur, wenn sie gewollt
+/// **und** bestätigt ist; LinkedIn nie.
+#[test]
+fn the_route_needs_a_wish_and_a_confirmed_session() {
+    let c = clock();
+    let mut policy = Policy::in_memory();
+    let all = Portal::ALL;
+    assert_eq!(route(LI, &all, &policy), Route::Http);
+    assert_eq!(route(FL, &[], &policy), Route::Session);
+    // Gewollt, aber nie angemeldet: Gastweg.
+    assert_eq!(route(FM, &all, &policy), Route::Http);
+    policy.set_session(FM, true, c());
+    assert_eq!(route(FM, &all, &policy), Route::Session);
+    // Nicht gewollt: Gastweg, auch mit bestätigter Sitzung.
+    assert_eq!(route(FM, &[LI], &policy), Route::Http);
+    // Anmeldung verloren: Gastweg.
+    policy.set_session(FM, false, c());
+    assert_eq!(route(FM, &all, &policy), Route::Http);
+}
+
+/// Verliert ein Portal mit optionaler Anmeldung die Sitzung, holt derselbe Lauf denselben
+/// Job still als Gast: keine Pause, kein Fehlversuch, keine Anmeldung.
+#[tokio::test(start_paused = true)]
+async fn a_lost_optional_session_falls_back_to_the_guest_route() {
+    let c = clock();
+    let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 1)]);
+    let fake = Fake {
+        login: Some(Login::SignedIn),
+        ..Fake::default()
+    }
+    .with("10001", [PageOutcome::LoginRequired("Anmeldewand".into())]);
+    let mut policy = Policy::in_memory();
+    policy.set_session(FM, true, c());
+    let r = run_via_session(
+        &fake,
+        &store,
+        &mut policy,
+        Selection::Queue(&Portal::ALL),
+        &c,
+    )
+    .await;
+    assert!(r.completed && r.stops.is_empty());
+    assert_eq!(fake.ids(), ["10001", "10001", "10002"]);
+    assert_eq!(
+        fake.routes(),
+        [(FM, Route::Session), (FM, Route::Http), (FM, Route::Http)]
+    );
+    assert!(fake.logins().is_empty(), "keine Anmeldung, kein Fenster");
+    assert_eq!(r.summary.per_portal[&FM].ok, 2);
+    assert_eq!(r.summary.per_portal[&FM].skipped, 0);
+    assert_eq!(policy.allowance(FM, c()), Allowance::Go, "keine Pause");
+    let job = store.job(&key(FM, 10_001)).unwrap().unwrap();
+    assert_eq!((job.desc_status, job.desc_attempts), (DescStatus::Ok, 0));
+    // Der Stand bleibt „Anmeldung nötig“ – der Gastweg bestätigt keine Sitzung.
+    assert!(policy.state(FM).login_needed);
+}
 
 #[tokio::test(start_paused = true)]
 async fn matrix_text_short_closed_gone_suspicious() {
@@ -195,7 +337,7 @@ async fn matrix_text_short_closed_gone_suspicious() {
         (FM, 10_004, 1),
         (FM, 10_005, 1),
     ]);
-    let mut fake = Fake::default()
+    let fake = Fake::default()
         .with("10002", [text("Kurz, aber echt.")])
         .with(
             "10003",
@@ -214,7 +356,7 @@ async fn matrix_text_short_closed_gone_suspicious() {
         .with("10005", [suspicious()]);
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -245,16 +387,16 @@ async fn matrix_text_short_closed_gone_suspicious() {
     // Jeder Zugriff zählt.
     assert_eq!(policy.state(FM).accesses.len(), 5);
     // Zweiter Lauf: Erfolgreiches wird nie erneut geholt, Fehlgeschlagenes erst nach 12 h.
-    let calls = fake.calls.len();
+    let calls = fake.calls().len();
     run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    assert_eq!(fake.calls.len(), calls);
+    assert_eq!(fake.calls().len(), calls);
 }
 
 #[tokio::test(start_paused = true)]
@@ -266,12 +408,12 @@ async fn two_suspicious_pages_in_a_row_trip_the_breaker() {
         (LI, 4_000_000_003, 3),
         (LI, 4_000_000_004, 4),
     ]);
-    let mut fake = Fake::default()
+    let fake = Fake::default()
         .with("4000000001", [suspicious()])
         .with("4000000002", [suspicious()]);
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -297,14 +439,14 @@ async fn two_suspicious_pages_in_a_row_trip_the_breaker() {
 async fn the_breaker_counts_across_runs() {
     let c = clock();
     let store = store_with(&[(LI, 4_000_000_001, 1), (LI, 4_000_000_002, 2)]);
-    let mut fake = Fake::default()
+    let fake = Fake::default()
         .with("4000000001", [suspicious()])
         .with("4000000002", [suspicious()]);
     let mut policy = Policy::in_memory();
     // „Details holen“ je ein Job: Zwei Klicks, zwei verdächtige Seiten – dann Schluss.
     for (id, stopped) in [(4_000_000_001, false), (4_000_000_002, true)] {
         let keys = [key(LI, id)];
-        let r = run(&mut fake, &store, &mut policy, Selection::Jobs(&keys), &c).await;
+        let r = run(&fake, &store, &mut policy, Selection::Jobs(&keys), &c).await;
         let breaker = r
             .stops
             .iter()
@@ -319,7 +461,7 @@ async fn the_breaker_counts_across_runs() {
     tokio::time::advance(Duration::from_secs(2 * 3600)).await;
     let store = store_with(&[(LI, 4_000_000_003, 1)]);
     run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -338,31 +480,31 @@ async fn a_full_text_between_resets_the_breaker_but_a_short_one_does_not() {
         (LI, 4_000_000_003, 3),
         (LI, 4_000_000_004, 4),
     ]);
-    let mut fake = Fake::default()
+    let fake = Fake::default()
         .with("4000000001", [suspicious()])
         .with("4000000003", [suspicious()]);
     let mut policy = Policy::in_memory();
     run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    assert_eq!(fake.calls.len(), 4);
+    assert_eq!(fake.calls().len(), 4);
 
     let store = store_with(&[
         (LI, 4_000_000_001, 1),
         (LI, 4_000_000_002, 2),
         (LI, 4_000_000_003, 3),
     ]);
-    let mut fake = Fake::default()
+    let fake = Fake::default()
         .with("4000000001", [suspicious()])
         .with("4000000002", [text("kurz")])
         .with("4000000003", [suspicious()]);
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut Policy::in_memory(),
         Selection::Queue(&Portal::ALL),
@@ -379,10 +521,10 @@ async fn a_full_text_between_resets_the_breaker_but_a_short_one_does_not() {
 async fn throttle_pauses_the_portal_across_runs_without_costing_attempts() {
     let c = clock();
     let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 2), (LI, 4_000_000_001, 1)]);
-    let mut fake = Fake::default().with("10001", [PageOutcome::Throttled("HTTP 429".into())]);
+    let fake = Fake::default().with("10001", [PageOutcome::Throttled("HTTP 429".into())]);
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -392,7 +534,7 @@ async fn throttle_pauses_the_portal_across_runs_without_costing_attempts() {
     let until = base() + SignedDuration::from_hours(1);
     assert!(matches!(&r.stops[0], (FM, StopReason::Paused { until: u, .. }, 2) if *u >= until));
     // LinkedIn läuft unabhängig weiter.
-    assert_eq!(fake.ids(), ["10001", "4000000001"]);
+    assert_eq!(sorted(&fake.ids()), ["10001", "4000000001"]);
     let job = store.job(&key(FM, 10_001)).unwrap().unwrap();
     assert_eq!(
         (job.desc_status, job.desc_attempts),
@@ -400,14 +542,14 @@ async fn throttle_pauses_the_portal_across_runs_without_costing_attempts() {
     );
     // Neuer Lauf gleich danach: kein einziger Zugriff auf das pausierte Portal.
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    assert_eq!(fake.calls.len(), 2);
+    assert_eq!(fake.calls().len(), 2);
     assert_eq!(r.summary.per_portal[&FM].skipped, 2);
 }
 
@@ -415,7 +557,7 @@ async fn throttle_pauses_the_portal_across_runs_without_costing_attempts() {
 async fn block_pauses_a_day_and_a_second_block_a_week() {
     let c = clock();
     let store = store_with(&[(LI, 4_000_000_001, 1)]);
-    let mut fake = Fake::default().with(
+    let fake = Fake::default().with(
         "4000000001",
         [
             PageOutcome::Blocked("HTTP 999".into()),
@@ -424,7 +566,7 @@ async fn block_pauses_a_day_and_a_second_block_a_week() {
     );
     let mut policy = Policy::in_memory();
     run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -437,7 +579,7 @@ async fn block_pauses_a_day_and_a_second_block_a_week() {
     tokio::time::advance(Duration::from_secs(25 * 3600)).await;
     let later = c();
     run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -472,7 +614,7 @@ fn a_block_right_after_the_week_long_pause_stays_a_week() {
 async fn network_error_is_retried_once_after_30_seconds() {
     let c = clock();
     let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 1)]);
-    let mut fake = Fake::default()
+    let fake = Fake::default()
         .with(
             "10001",
             [PageOutcome::NetError {
@@ -495,7 +637,7 @@ async fn network_error_is_retried_once_after_30_seconds() {
         );
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -503,7 +645,8 @@ async fn network_error_is_retried_once_after_30_seconds() {
     )
     .await;
     assert_eq!(fake.ids(), ["10001", "10001", "10002", "10002"]);
-    assert!(fake.calls[1].1 - fake.calls[0].1 >= NET_RETRY_DELAY);
+    let calls = fake.calls();
+    assert!(calls[1].start - calls[0].start >= NET_RETRY_DELAY);
     assert_eq!(
         store.job(&key(FM, 10_001)).unwrap().unwrap().desc_status,
         DescStatus::Ok
@@ -525,18 +668,18 @@ async fn pace_is_kept_within_and_across_runs() {
         (LI, 4_000_000_002, 2),
         (LI, 4_000_000_003, 3),
     ]);
-    let mut fake = Fake::default();
+    let fake = Fake::default();
     let mut policy = Policy::in_memory();
     run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    for pair in fake.calls.windows(2) {
-        let gap = pair[1].1 - pair[0].1;
+    for pair in fake.calls().windows(2) {
+        let gap = pair[1].start - pair[0].start;
         assert!(
             (Duration::from_secs(4)..=Duration::from_secs(7)).contains(&gap),
             "{gap:?}"
@@ -544,16 +687,16 @@ async fn pace_is_kept_within_and_across_runs() {
     }
     // Sofort erneut geklickt: auch der erste Zugriff des neuen Laufs hält den Abstand.
     let store2 = store_with(&[(LI, 4_000_000_009, 1)]);
-    let last = fake.calls.last().unwrap().1;
+    let last = fake.calls().last().unwrap().start;
     run(
-        &mut fake,
+        &fake,
         &store2,
         &mut policy,
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    assert!(fake.calls.last().unwrap().1 - last >= Duration::from_secs(4));
+    assert!(fake.calls().last().unwrap().start - last >= Duration::from_secs(4));
 }
 
 #[tokio::test(start_paused = true)]
@@ -561,17 +704,17 @@ async fn hourly_cap_stops_with_the_next_possible_time() {
     let c = clock();
     let jobs: Vec<(Portal, u64, i64)> = (1..=21).map(|i| (LI, 4_000_000_000 + i, 1)).collect();
     let store = store_with(&jobs);
-    let mut fake = Fake::default();
+    let fake = Fake::default();
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    assert_eq!(fake.calls.len(), 20);
+    assert_eq!(fake.calls().len(), 20);
     assert_eq!(r.summary.per_portal[&LI].skipped, 1);
     assert!(
         matches!(&r.stops[..], [(LI, StopReason::Quota { next_at }, 1)] if *next_at > base() + SignedDuration::from_mins(59))
@@ -582,10 +725,10 @@ async fn hourly_cap_stops_with_the_next_possible_time() {
 async fn login_required_stops_freelance_and_marks_the_session() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
-    let mut fake = Fake::default().with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    let fake = Fake::default().with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -608,7 +751,7 @@ async fn login_required_stops_freelance_and_marks_the_session() {
     );
     // Erfolg bestätigt die Sitzung.
     run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -619,26 +762,28 @@ async fn login_required_stops_freelance_and_marks_the_session() {
     assert!(policy.state(FL).session_confirmed_at.is_some());
 }
 
+/// Alle gewählten Portale kommen dran (nebeneinander, deshalb ohne feste Reihenfolge);
+/// nicht gewählte werden nicht angefasst.
 #[tokio::test(start_paused = true)]
-async fn portal_order_and_unselected_portals() {
+async fn every_chosen_portal_is_fetched_and_no_other() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (LI, 4_000_000_001, 1), (FM, 10_001, 1)]);
-    let mut fake = Fake::default();
+    let fake = Fake::default();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut Policy::in_memory(),
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    assert_eq!(fake.ids(), ["10001", "4000000001", "1255067"]);
+    assert_eq!(sorted(&fake.ids()), ["10001", "1255067", "4000000001"]);
     assert!(r.stops.is_empty());
     // Nicht gewählte Portale werden nicht angefasst.
     let store = store_with(&[(LI, 4_000_000_002, 1), (FM, 10_002, 1)]);
-    let mut fake = Fake::default();
+    let fake = Fake::default();
     run(
-        &mut fake,
+        &fake,
         &store,
         &mut Policy::in_memory(),
         Selection::Queue(&[LI]),
@@ -652,10 +797,10 @@ async fn portal_order_and_unselected_portals() {
 async fn only_recent_mails_automatically_but_any_job_on_request() {
     let c = clock();
     let store = store_with(&[(FM, 10_001, 40), (FM, 10_002, 1)]);
-    let mut fake = Fake::default();
+    let fake = Fake::default();
     let mut policy = Policy::in_memory();
     run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -664,7 +809,7 @@ async fn only_recent_mails_automatically_but_any_job_on_request() {
     .await;
     assert_eq!(fake.ids(), ["10002"]);
     let keys = [key(FM, 10_001), key(FM, 10_002), key(FM, 10_001)];
-    run(&mut fake, &store, &mut policy, Selection::Jobs(&keys), &c).await;
+    run(&fake, &store, &mut policy, Selection::Jobs(&keys), &c).await;
     assert_eq!(
         fake.ids(),
         ["10002", "10001"],
@@ -678,10 +823,10 @@ async fn only_recent_mails_automatically_but_any_job_on_request() {
 async fn a_cancelled_page_is_no_failed_job() {
     let c = clock();
     let store = store_with(&[(LI, 4_000_000_001, 1), (LI, 4_000_000_002, 1)]);
-    let mut fake = Fake::default().with("4000000001", [PageOutcome::Cancelled]);
+    let fake = Fake::default().with("4000000001", [PageOutcome::Cancelled]);
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -702,13 +847,13 @@ async fn a_cancelled_page_is_no_failed_job() {
 async fn cancel_during_the_pause_ends_at_once() {
     let c = clock();
     let store = store_with(&[(LI, 4_000_000_001, 1), (LI, 4_000_000_002, 1)]);
-    let mut fake = Fake::default();
+    let fake = Fake::default();
     let cancel = CancellationToken::new();
     let started = Instant::now();
     let mut policy = Policy::in_memory();
     let (r, ()) = tokio::join!(
         run_with(
-            &mut fake,
+            &fake,
             &store,
             &mut policy,
             Selection::Queue(&Portal::ALL),
@@ -721,7 +866,7 @@ async fn cancel_during_the_pause_ends_at_once() {
         }
     );
     assert!(!r.completed);
-    assert_eq!(fake.calls.len(), 1);
+    assert_eq!(fake.calls().len(), 1);
     assert!(started.elapsed() < Duration::from_secs(2));
     // Der abgebrochene Zugriff wurde nicht gezählt.
     assert_eq!(policy.state(LI).accesses.len(), 1);
@@ -732,11 +877,11 @@ async fn cancel_during_the_pause_ends_at_once() {
 #[tokio::test(start_paused = true)]
 async fn admit_checks_the_pause_first_and_counts_only_real_accesses() {
     let c = clock();
-    let mut policy = Policy::in_memory();
-    policy.record_access(LI, c());
-    policy.pause(LI, PauseKind::Throttled, "HTTP 429", c());
+    let policy = Mutex::new(Policy::in_memory());
+    lock(&policy).record_access(LI, c());
+    lock(&policy).pause(LI, PauseKind::Throttled, "HTTP 429", c());
     let started = Instant::now();
-    let admission = admit(&mut policy, LI, &CancellationToken::new(), &c, |_| {
+    let admission = admit(&policy, LI, &CancellationToken::new(), &c, |_| {
         panic!("ein pausiertes Portal wartet nicht")
     })
     .await
@@ -746,17 +891,17 @@ async fn admit_checks_the_pause_first_and_counts_only_real_accesses() {
         Admission::Stop(StopReason::Paused { .. })
     ));
     assert_eq!(started.elapsed(), Duration::ZERO);
-    assert_eq!(policy.state(LI).accesses.len(), 1, "nichts gezählt");
+    assert_eq!(lock(&policy).state(LI).accesses.len(), 1, "nichts gezählt");
 
-    let mut policy = Policy::in_memory();
-    policy.record_access(FM, c());
+    let policy = Mutex::new(Policy::in_memory());
+    lock(&policy).record_access(FM, c());
     let cancel = CancellationToken::new();
-    let (admission, ()) = tokio::join!(admit(&mut policy, FM, &cancel, &c, |_| {}), async {
+    let (admission, ()) = tokio::join!(admit(&policy, FM, &cancel, &c, |_| {}), async {
         tokio::time::sleep(Duration::from_secs(1)).await;
         cancel.cancel();
     });
     assert_eq!(admission.unwrap(), Admission::Cancelled);
-    assert_eq!(policy.state(FM).accesses.len(), 1);
+    assert_eq!(lock(&policy).state(FM).accesses.len(), 1);
 }
 
 /// Anmeldung im Lauf: gelingt sie, wird derselbe Job erneut geholt und der Lauf geht weiter;
@@ -765,7 +910,7 @@ async fn admit_checks_the_pause_first_and_counts_only_real_accesses() {
 async fn login_during_the_run_retries_the_same_job() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
-    let mut fake = Fake {
+    let fake = Fake {
         login: Some(Login::SignedIn),
         login_delay: Duration::from_secs(60),
         ..Fake::default()
@@ -773,22 +918,23 @@ async fn login_during_the_run_retries_the_same_job() {
     .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    assert_eq!(fake.logins.len(), 1);
+    assert_eq!(fake.logins().len(), 1);
     assert_eq!(fake.ids(), ["1255067", "1255067", "1255068"]);
     assert_eq!(r.summary.per_portal[&FL].ok, 2);
     assert!(!policy.state(FL).login_needed);
     // Jeder Abruf zählt – auch der erste, der zur Anmeldung führte, und die Anmeldeseite.
     assert_eq!(policy.state(FL).accesses.len(), 4);
-    let (login_start, login_end) = fake.logins[0];
-    let before = login_start - fake.calls[0].1;
-    let after = fake.calls[1].1 - login_end;
+    let (login_start, login_end) = fake.logins()[0];
+    let calls = fake.calls();
+    let before = login_start - calls[0].start;
+    let after = calls[1].start - login_end;
     assert!(
         before >= Duration::from_secs(10),
         "vor der Anmeldung nur {before:?}"
@@ -800,20 +946,20 @@ async fn login_during_the_run_retries_the_same_job() {
 
     // Abgelehnt/abgebrochen: Portal stoppt, keine zweite Anmeldung.
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
-    let mut fake = Fake {
+    let fake = Fake {
         login: Some(Login::NotSignedIn),
         ..Fake::default()
     }
     .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut Policy::in_memory(),
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    assert_eq!((fake.logins.len(), fake.calls.len()), (1, 1));
+    assert_eq!((fake.logins().len(), fake.calls().len()), (1, 1));
     assert_eq!(r.summary.per_portal[&FL].skipped, 2);
 }
 
@@ -823,14 +969,14 @@ async fn login_during_the_run_retries_the_same_job() {
 async fn a_challenged_login_keeps_the_session_but_rests_the_portal() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
-    let mut fake = Fake {
+    let fake = Fake {
         login: Some(Login::Challenged),
         ..Fake::default()
     }
     .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -862,7 +1008,7 @@ async fn a_challenged_login_keeps_the_session_but_rests_the_portal() {
 #[tokio::test(start_paused = true)]
 async fn the_pace_counts_from_the_answer_across_runs() {
     let c = clock();
-    let mut fake = Fake {
+    let fake = Fake {
         delay: Duration::from_secs(30),
         ..Fake::default()
     };
@@ -870,7 +1016,7 @@ async fn the_pace_counts_from_the_answer_across_runs() {
     for id in [4_000_000_001, 4_000_000_002] {
         let store = store_with(&[(LI, id, 1)]);
         run(
-            &mut fake,
+            &fake,
             &store,
             &mut policy,
             Selection::Queue(&Portal::ALL),
@@ -878,7 +1024,8 @@ async fn the_pace_counts_from_the_answer_across_runs() {
         )
         .await;
     }
-    let gap = fake.calls[1].1 - fake.calls[0].1;
+    let calls = fake.calls();
+    let gap = calls[1].start - calls[0].start;
     assert!(gap >= Duration::from_secs(34), "Abstand nur {gap:?}");
 }
 
@@ -892,13 +1039,13 @@ async fn the_login_page_counts_and_respects_the_cap() {
     for minutes in 1..=14 {
         policy.record_access(FL, base() - SignedDuration::from_mins(minutes));
     }
-    let mut fake = Fake {
+    let fake = Fake {
         login: Some(Login::SignedIn),
         ..Fake::default()
     }
     .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -906,7 +1053,7 @@ async fn the_login_page_counts_and_respects_the_cap() {
     )
     .await;
     assert!(
-        fake.logins.is_empty(),
+        fake.logins().is_empty(),
         "keine Anmeldeseite über der Obergrenze"
     );
     assert!(matches!(
@@ -923,12 +1070,12 @@ async fn a_retry_is_a_counted_access_and_happens_once() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
     let retry = || PageOutcome::Retry("Weiterleitung nach der Anmeldung".into());
-    let mut fake = Fake::default()
+    let fake = Fake::default()
         .with("1255067", [retry()])
         .with("1255068", [retry(), retry()]);
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
@@ -944,7 +1091,8 @@ async fn a_retry_is_a_counted_access_and_happens_once() {
     );
     assert_eq!(policy.state(FL).suspicious_streak, 1);
     // Auch die Wiederholung hält den Abstand ein.
-    let gap = fake.calls[1].1 - fake.calls[0].1;
+    let calls = fake.calls();
+    let gap = calls[1].start - calls[0].start;
     assert!(gap >= Duration::from_secs(10), "Abstand nur {gap:?}");
 }
 
@@ -955,20 +1103,20 @@ async fn repeated_redirects_trip_the_breaker() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1), (FL, 1_255_069, 1)]);
     let retry = || PageOutcome::Retry("Weiterleitung nach der Anmeldung".into());
-    let mut fake = Fake::default()
+    let fake = Fake::default()
         .with("1255067", [retry(), retry()])
         .with("1255068", [retry(), retry()])
         .with("1255069", [retry(), retry()]);
     let mut policy = Policy::in_memory();
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut policy,
         Selection::Queue(&Portal::ALL),
         &c,
     )
     .await;
-    assert_eq!(fake.calls.len(), 4);
+    assert_eq!(fake.calls().len(), 4);
     assert_eq!(policy.state(FL).accesses.len(), 4);
     assert!(matches!(
         r.stops.as_slice(),
@@ -985,7 +1133,7 @@ async fn repeated_redirects_trip_the_breaker() {
 async fn long_waits_are_announced() {
     let c = clock();
     let store = store_with(&[(LI, 4_000_000_001, 1), (LI, 4_000_000_002, 2)]);
-    let mut fake = Fake::default().with(
+    let fake = Fake::default().with(
         "4000000001",
         [PageOutcome::NetError {
             timeout: false,
@@ -993,7 +1141,7 @@ async fn long_waits_are_announced() {
         }],
     );
     let r = run(
-        &mut fake,
+        &fake,
         &store,
         &mut Policy::in_memory(),
         Selection::Queue(&Portal::ALL),
@@ -1010,4 +1158,112 @@ async fn long_waits_are_announced() {
         (SignedDuration::from_secs(4)..=SignedDuration::from_secs(7)).contains(&pace),
         "{pace:?}"
     );
+}
+
+/// Sicherheits-Invariante: Innerhalb eines Portals überlappen sich zwei Abrufe nie und der
+/// Abstand fällt nie unter das Tempo – zwei verschiedene Portale laufen dagegen wirklich
+/// nebeneinander.
+#[tokio::test(start_paused = true)]
+async fn portals_run_side_by_side_but_never_overlap_within_one() {
+    let c = clock();
+    let jobs: Vec<(Portal, u64, i64)> = (1..=3)
+        .flat_map(|i| {
+            [
+                (FM, 10_000 + i, 1),
+                (LI, 4_000_000_000 + i, 1),
+                (FL, 1_255_000 + i, 1),
+            ]
+        })
+        .collect();
+    let store = store_with(&jobs);
+    let fake = Fake {
+        delay: Duration::from_secs(3),
+        ..Fake::default()
+    };
+    run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Queue(&Portal::ALL),
+        &c,
+    )
+    .await;
+    let calls = fake.calls();
+    assert_eq!(calls.len(), 9);
+    for portal in Portal::ALL {
+        let own: Vec<&Call> = calls.iter().filter(|call| call.portal == portal).collect();
+        assert_eq!(own.len(), 3, "{portal}");
+        let pace = Duration::from_millis(*limits(portal).pace_ms.start());
+        for pair in own.windows(2) {
+            assert!(
+                pair[0].end <= pair[1].start,
+                "{portal}: zwei Abrufe zugleich"
+            );
+            let gap = pair[1].start - pair[0].end;
+            assert!(gap >= pace, "{portal}: Abstand nur {gap:?}");
+        }
+    }
+    // Verschiedene Portale dagegen zur selben Zeit.
+    let first = |portal: Portal| {
+        calls
+            .iter()
+            .find(|call| call.portal == portal)
+            .expect("Abruf")
+            .clone()
+    };
+    let (fm, li) = (first(FM), first(LI));
+    assert!(
+        li.start < fm.end && fm.start < li.end,
+        "Portale laufen nacheinander statt nebeneinander"
+    );
+}
+
+/// Sicherheits-Invariante: Obergrenzen, Pausen und Schutzschalter gelten auch im
+/// Parallelbetrieb und auf dem Sitzungsweg – hier je Portal eine der drei Bremsen zugleich.
+#[tokio::test(start_paused = true)]
+async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
+    let c = clock();
+    let mut jobs: Vec<(Portal, u64, i64)> = (1..=21).map(|i| (LI, 4_000_000_000 + i, 1)).collect();
+    jobs.extend([(FM, 10_001, 1), (FM, 10_002, 1), (FM, 10_003, 1)]);
+    jobs.extend([(FL, 1_255_001, 1), (FL, 1_255_002, 1)]);
+    let store = store_with(&jobs);
+    let fake = Fake::default()
+        .with("10001", [suspicious()])
+        .with("10002", [suspicious()])
+        .with("1255001", [PageOutcome::Blocked("HTTP 403".into())]);
+    let mut policy = Policy::in_memory();
+    policy.set_session(FM, true, c());
+    let r = run_via_session(
+        &fake,
+        &store,
+        &mut policy,
+        Selection::Queue(&Portal::ALL),
+        &c,
+    )
+    .await;
+    let calls = fake.calls();
+    let of = |portal: Portal| -> Vec<&Call> {
+        calls.iter().filter(|call| call.portal == portal).collect()
+    };
+    // Gastweg für LinkedIn, Sitzungsweg für die beiden Portale mit Anmeldung.
+    assert!(of(LI).iter().all(|call| call.route == Route::Http));
+    assert!(of(FM).iter().all(|call| call.route == Route::Session));
+    assert!(of(FL).iter().all(|call| call.route == Route::Session));
+    // Stundengrenze LinkedIn: 20 Abrufe, der Rest wartet.
+    assert_eq!(of(LI).len(), 20);
+    // Schutzschalter freelancermap: nach zwei Seiten ohne Beschreibung Schluss.
+    assert_eq!(of(FM).len(), 2);
+    assert!(matches!(
+        policy.allowance(FM, c()),
+        Allowance::Paused { .. }
+    ));
+    // Sperrsignal freelance.de: Pause statt Wiederholung.
+    assert_eq!(of(FL).len(), 1);
+    assert!(matches!(
+        policy.allowance(FL, c()),
+        Allowance::Paused { .. }
+    ));
+    let mut stopped: Vec<Portal> = r.stops.iter().map(|(portal, ..)| *portal).collect();
+    stopped.sort_unstable();
+    assert_eq!(stopped, Portal::ALL);
 }

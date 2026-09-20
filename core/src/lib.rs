@@ -28,9 +28,15 @@ pub use error::{Error, Result};
 pub const DB_FILE: &str = "jobs.db";
 /// Sicherheitsstand der Portale (bleibt beim Zurücksetzen erhalten).
 pub const POLICY_FILE: &str = "policy.json";
-/// Profil des freelance.de-Sitzungsfensters (Anmeldung).
-pub const SESSION_DIR: &str = "session-freelance";
+/// Präfix der Profilordner der Sitzungsfenster (Anmeldung des Nutzers).
+pub const SESSION_PREFIX: &str = "session-";
 pub const LOG_DIR: &str = "logs";
+
+/// Profilordner des Sitzungsfensters eines Portals. Der Name hängt am Portalschlüssel;
+/// `session-freelance` gab es schon, die vorhandene Anmeldung bleibt damit erhalten.
+pub fn session_dir(portal: portal::Portal) -> String {
+    format!("{SESSION_PREFIX}{}", portal.key())
+}
 
 /// Kryptografie für TLS (HTTP und IMAP) einmal einrichten: `ring` – kein aws-lc, kein
 /// OpenSSL. Mehrfacher Aufruf schadet nicht.

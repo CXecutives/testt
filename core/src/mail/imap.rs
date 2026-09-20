@@ -37,9 +37,7 @@ pub const BATCH: usize = 25;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MailError {
-    #[error(
-        "Es ist noch kein Gmail-Zugang hinterlegt – bitte unter „System“ Adresse und App-Passwort eintragen."
-    )]
+    #[error("Es ist noch kein Gmail-Zugang hinterlegt – bitte Adresse und App-Passwort eintragen.")]
     NoCredentials,
 
     #[error("Keine Verbindung zu imap.gmail.com.\n\nInternetverbindung und Firewall prüfen. ({0})")]
@@ -448,8 +446,20 @@ mod tests {
     /// Postfach-Attrappe auf Protokollebene: beantwortet jeden Befehl mit der nächsten
     /// vorbereiteten Antwort (`{tag}` wird ersetzt).
     async fn scripted(replies: Vec<String>) -> Gmail<tokio::io::DuplexStream> {
+        scripted_logging(replies).await.0
+    }
+
+    /// Wie [`scripted`], liefert zusätzlich alle Befehle, die der Client geschickt hat.
+    async fn scripted_logging(
+        replies: Vec<String>,
+    ) -> (
+        Gmail<tokio::io::DuplexStream>,
+        Arc<std::sync::Mutex<Vec<String>>>,
+    ) {
         use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
         let (client_side, server_side) = tokio::io::duplex(1 << 20);
+        let sent: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
+        let log = sent.clone();
         tokio::spawn(async move {
             let (read, mut write) = tokio::io::split(server_side);
             let mut read = BufReader::new(read);
@@ -461,6 +471,9 @@ mod tests {
                     return;
                 }
                 let tag = line.split(' ').next().unwrap_or_default().to_string();
+                if let Ok(mut log) = log.lock() {
+                    log.push(line.trim_end().to_string());
+                }
                 write
                     .write_all(reply.replace("{tag}", &tag).as_bytes())
                     .await
@@ -474,10 +487,44 @@ mod tests {
             .await
             .map_err(|(e, _)| e)
             .unwrap();
-        Gmail {
-            session,
-            cancel: CancellationToken::new(),
+        (
+            Gmail {
+                session,
+                cancel: CancellationToken::new(),
+            },
+            sent,
+        )
+    }
+
+    /// Sicherheits-Invariante: Gmail wird nur gelesen. Das Postfach wird mit `EXAMINE`
+    /// geöffnet (nie `SELECT`), Mails mit `BODY.PEEK` geholt – so markiert Gmail nichts als
+    /// gelesen, und kein Befehl verändert je etwas.
+    #[tokio::test]
+    async fn the_mailbox_is_only_ever_read() {
+        let body = "Subject: Neue Jobs\r\n\r\nText";
+        let reply = format!(
+            "* 1 FETCH (UID 7 X-GM-MSGID 1234 BODY[]<0> {{{len}}}\r\n{body})\r\n{{tag}} OK Success\r\n",
+            len = body.len()
+        );
+        let (mut gmail, sent) = scripted_logging(vec![
+            "* SEARCH 7\r\n{tag} OK SEARCH completed\r\n".into(),
+            reply,
+        ])
+        .await;
+        gmail.search(None, &[Portal::LinkedIn]).await.unwrap();
+        gmail.fetch(&[7]).await.unwrap();
+        let commands = sent.lock().unwrap().join("\n").to_uppercase();
+        assert!(commands.contains("BODY.PEEK["), "{commands}");
+        for forbidden in [
+            "SELECT", "STORE", "EXPUNGE", "DELETE", "APPEND", "COPY", "MOVE", "\\SEEN",
+        ] {
+            assert!(!commands.contains(forbidden), "{forbidden}: {commands}");
         }
+        // Das Postfach selbst wird beim Verbinden geöffnet – dort steht `examine`, nie `select`.
+        // Der Suchtext steht zusammengesetzt da, sonst fände der Test sich selbst.
+        let source = include_str!("imap.rs");
+        assert!(source.contains(&format!("session{}", r#".examine("INBOX")"#)));
+        assert!(!source.contains(&format!("session{}", ".select(")));
     }
 
     /// Eine gescheiterte Suche ist ein Fehler, nicht „0 Mails“ –

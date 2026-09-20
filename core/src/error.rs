@@ -25,9 +25,6 @@ pub enum Error {
     #[error("Die Excel-Datei konnte nicht erzeugt werden: {0}")]
     Xlsx(#[from] rust_xlsxwriter::XlsxError),
 
-    #[error("Die CSV-Datei konnte nicht erzeugt werden: {0}")]
-    Csv(#[from] csv::Error),
-
     #[error("Gespeicherte Daten sind beschädigt: {0}")]
     Corrupt(String),
 
@@ -48,7 +45,6 @@ impl Error {
             Error::FileLocked(_) => "fileLocked",
             Error::Io { .. } => "io",
             Error::Xlsx(_) => "xlsx",
-            Error::Csv(_) => "csv",
             Error::Corrupt(_) => "corrupt",
             Error::NewerSchema(_) => "newerSchema",
             Error::Invalid(_) => "invalid",

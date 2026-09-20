@@ -1,10 +1,11 @@
-//! Gmail-Zugang im Windows-Tresor (Anmeldeinformationsverwaltung). Die App speichert
+//! Gmail-Zugang im Schlüsselspeicher des Systems (unter Windows die
+//! Anmeldeinformationsverwaltung, sonst der Schlüsselbund). Die App speichert
 //! **nur** diesen einen Zugang – LinkedIn und freelancermap brauchen kein Konto, und die
 //! freelance.de-Anmeldung lebt allein im Profil des Sitzungsfensters.
 
 use crate::mail::imap::Credentials;
 
-/// Dienstname im Tresor.
+/// Dienstname im Schlüsselspeicher.
 pub(crate) const SERVICE: &str = "de.cxecutives.job-alert-monitor";
 const GMAIL: &str = "gmail";
 
@@ -19,7 +20,7 @@ pub enum SecretError {
     Invalid(&'static str),
 }
 
-/// Ein Eintrag im Tresor; Tests nutzen einen eigenen Dienstnamen.
+/// Ein Eintrag im Schlüsselspeicher; Tests nutzen einen eigenen Dienstnamen.
 pub struct Vault {
     service: String,
 }
@@ -96,7 +97,7 @@ impl Vault {
 mod tests {
     use super::*;
 
-    /// Echter Windows-Tresor mit eigenem Testdienst und Attrappen-Werten.
+    /// Echter Schlüsselspeicher mit eigenem Testdienst und Attrappen-Werten.
     #[cfg(windows)]
     #[test]
     fn round_trip_in_the_vault() {

@@ -3,7 +3,7 @@
 //!
 //! Prinzip: unauffällig durch Zurückhaltung, nicht durch Tarnung. Gezählt wird **jeder**
 //! Zugriff (auch Fehlschläge und Login-Seiten); erneutes Klicken umgeht nichts. Die Datei
-//! liegt neben der Datenbank und überlebt „Ergebnisordner leeren“ und „Alles zurücksetzen“ –
+//! liegt neben der Datenbank und überlebt „Textdateien löschen“ und „Alles zurücksetzen“ –
 //! eine Sperrpause darf sich nicht wegklicken lassen. Sie enthält nur Portalnamen und
 //! Zeitstempel.
 
