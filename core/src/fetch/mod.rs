@@ -416,8 +416,8 @@ pub async fn fetch_all<F: PageFetcher>(
                     fields,
                 } => {
                     store.record_text(&job.key, &text, short, closed, now)?;
-                    // freelance.de-Seitenfelder sind unzuverlässig („für EXPERT-Mitglieder
-                    // sichtbar“) – dort liefert der Abruf keine.
+                    // Nur nicht-leere Felder überschreiben die Mail-Heuristik: Was die Seite
+                    // verbirgt („für EXPERT-Mitglieder sichtbar“), kommt leer an.
                     if let Some(f) = fields {
                         store.record_page_fields(&job.key, &f.title, &f.company, &f.location)?;
                     }
