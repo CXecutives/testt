@@ -1,0 +1,7 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: "describe(std::fs::read(&path).unwrap())"
+---
+freelance.de | Neue Projekte für Ihr Profil | freelance.de
+- freelance:1990003 | Data Engineer (Azure) - Remote |  |  | https://www.freelance.de/project/index.php?id=1990003
+- freelance:1990004 | SAP Basis Berater |  |  | https://www.freelance.de/project/index.php?id=1990004

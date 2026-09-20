@@ -1,0 +1,7 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: "describe(std::fs::read(&path).unwrap())"
+---
+freelancermap.de | Neue Projekte für Ihre Suche „SAP“ | freelancermap
+- freelancermap:2990001 | SAP FI/CO Berater (m/w/d) | Beispiel Systems SE | München | https://www.freelancermap.de/nproj/2990001.html
+- freelancermap:2990002 | Projektleiter Finance | Nordwind Beispiel | Remote | https://www.freelancermap.de/nproj/2990002.html

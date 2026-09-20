@@ -1,0 +1,7 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: "describe(std::fs::read(&path).unwrap())"
+---
+freelance.de | Projektvorschläge der Woche | freelance.de
+- freelance:1990001 | SAP S/4HANA-Projektleiter (m/w/d) | Beispiel Consulting GmbH | Remote | https://www.freelance.de/project/index.php?id=1990001
+- freelance:1990002 | PMO Manager (m/w/d) |  | Berlin | https://www.freelance.de/project/index.php?id=1990002

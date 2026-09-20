@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job-Alert-Monitor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Titelleiste im Stil der Windows-Standardleiste (34 px, Windows-Symbolschrift). Ziehen,
+     Andocken, Doppelklick und Systemmenü übernimmt Windows (app-region: drag). -->
+<div class="titlebar" id="titlebar">
+  <div class="brand">
+    <!-- Dasselbe Motiv und dieselben Maße wie die 16-px-Stufe des App-Symbols (tools/icon.py):
+         alle geraden Kanten auf ganzen Pixeln. -->
+    <svg class="brand-mark" viewBox="0 0 16 16" aria-hidden="true">
+      <rect class="bg" x="1" y="1" width="14" height="14" rx="3.3"/>
+      <path class="doc" d="M5 4h2l1 1h3a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/>
+      <path class="tick" d="M6.3 8.6 7.6 10.1 9.95 7.2" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="brand-text">Job-Alert-Monitor</span>
+  </div>
+  <div class="titlebar-filler"></div>
+  <div class="titlebar-buttons">
+    <button class="win-btn" id="win-min" type="button" tabindex="-1" title="Minimieren"
+            aria-label="Minimieren"><span class="glyph" aria-hidden="true">&#xE921;</span></button>
+    <button class="win-btn" id="win-max" type="button" tabindex="-1" title="Maximieren"
+            aria-label="Maximieren"><span class="glyph icon-max" aria-hidden="true">&#xE922;</span><span class="glyph icon-restore" aria-hidden="true">&#xE923;</span></button>
+    <button class="win-btn win-close" id="win-close" type="button" tabindex="-1" title="Schließen"
+            aria-label="Schließen"><span class="glyph" aria-hidden="true">&#xE8BB;</span></button>
+  </div>
+</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <nav class="nav" id="nav" aria-label="Ansichten">
+      <button class="nav-item" type="button" data-view="alerts">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="5.5" width="18" height="13" rx="2.5"/>
+          <path d="M3.8 7.4 12 13l8.2-5.6"/>
+        </svg>
+        <span>Job-Alerts</span>
+      </button>
+      <button class="nav-item" type="button" data-view="portals">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4.5" y="10.5" width="15" height="9" rx="2.5"/>
+          <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>
+          <path d="M12 14v2.5"/>
+        </svg>
+        <span>Portal-Zugänge</span>
+      </button>
+      <button class="nav-item" type="button" data-view="profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="8.6" r="3.4"/>
+          <path d="M5 19.5c0-3.2 3.1-5 7-5s7 1.8 7 5"/>
+        </svg>
+        <span>Beraterprofil</span>
+      </button>
+      <button class="nav-item" type="button" data-view="system">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 8h8M17.5 8H20M4 16h3M12.5 16H20"/>
+          <circle cx="14.7" cy="8" r="2.2"/>
+          <circle cx="9.7" cy="16" r="2.2"/>
+        </svg>
+        <span>System</span>
+      </button>
+    </nav>
+    <div class="sidebar-foot" id="sidebar-foot"></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1 class="topbar-text" id="view-title">Job-Alerts</h1>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+
+    <div class="runbar" id="runbar" data-level="">
+      <span class="runbar-icon" id="run-icon"><span class="dot"></span></span>
+      <span class="runbar-text" id="run-status" role="status">Wird geladen …</span>
+      <span class="runbar-count" id="run-count"></span>
+      <button class="btn danger" id="run-cancel" type="button" hidden>Abbrechen</button>
+      <div class="runbar-line" id="run-line" role="progressbar" aria-label="Fortschritt"><div class="runbar-fill"></div></div>
+    </div>
+
+    <div class="content" id="content">
+      <div class="boot state"><span class="spinner"></span>Wird geladen …</div>
+      <section class="view" id="view-alerts"></section>
+      <section class="view" id="view-portals"></section>
+      <section class="view" id="view-profile"></section>
+      <section class="view" id="view-system"></section>
+    </div>
+  </main>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="modals" id="modals" hidden></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

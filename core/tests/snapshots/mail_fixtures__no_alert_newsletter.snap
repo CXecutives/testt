@@ -1,0 +1,5 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: "describe(std::fs::read(&path).unwrap())"
+---
+kein Alert

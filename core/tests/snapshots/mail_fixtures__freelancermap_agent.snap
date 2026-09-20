@@ -1,0 +1,7 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: "describe(std::fs::read(&path).unwrap())"
+---
+freelancermap.de | Neue Projektanfragen | freelancermap Projektagent
+- freelancermap:2990003 | Senior DevOps Engineer (w/m/d) | Beispiel Systems SE | Rotenburg Wümme | https://www.freelancermap.de/nproj/2990003.html
+- freelancermap:2990004 | IT-Architekt (m/w/d) | Nordwind Beispiel | Remote | https://www.freelancermap.de/nproj/2990004.html

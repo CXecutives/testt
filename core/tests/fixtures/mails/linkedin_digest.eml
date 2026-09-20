@@ -1,0 +1,32 @@
+From: LinkedIn Job Alerts <jobalerts-noreply@linkedin.com>
+To: ich@example.org
+Subject: Controller: 2 neue Jobs in Köln
+Date: Thu, 17 Sep 2026 07:30:00 +0200
+Message-ID: <1353980052@example.org>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="b1"
+
+--b1
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Senior Controller (m/w/d)
+Musterwerke GmbH
+Köln, Nordrhein-Westfalen
+Job ansehen: https://www.linkedin.com/comm/jobs/view/4990000001/?trackingId=x
+
+--b1
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><body><table><tr><td>
+  <a href="https://www.linkedin.com/comm/jobs/view/4990000001/?trackingId=abc&amp;refId=x"><img src="https://media.example/logo.png" alt=""></a>
+  <a href="https://www.linkedin.com/comm/jobs/view/4990000001/?trackingId=abc">Senior Controller (m/w/d)</a>
+  <p>Musterwerke GmbH · Köln, Nordrhein-Westfalen</p><span>vor 2 Tagen</span>
+</td></tr><tr><td>
+  <a href="https://www.linkedin.com/comm/jobs/view/interim-cfo-4990000002?refId=y">Interim CFO</a>
+  <div>Nordlicht AG</div><div>Hamburg (Hybrid)</div>
+</td></tr><tr><td><a href="https://www.linkedin.com/comm/jobs/search/?keywords=controller">Alle Jobs ansehen</a></td></tr>
+<tr><td><p>Sie erhalten diese Nachricht, weil Sie Job-Alerts abonniert haben. <a href="https://www.linkedin.com/comm/jobs/alerts">Einstellungen</a></p></td></tr>
+</table></body></html>
+--b1--

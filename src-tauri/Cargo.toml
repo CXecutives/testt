@@ -1,0 +1,41 @@
+[package]
+name = "job-alert-monitor"
+description = "Job-Alert-Monitor – Tauri-Oberfläche"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# Nur ein Programm, keine Bibliothek: Alle Tests leben in `core`
+# (Tauri-gelinkte Test-Exes scheitern unter Windows ohne App-Manifest).
+[[bin]]
+name = "job-alert-monitor"
+path = "src/main.rs"
+test = false
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+jobalert-core = { path = "../core" }
+log = "0.4"
+open = "5"
+rfd = "0.17"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+jiff = "0.2"
+fastrand = "2"
+# 2.11.1 schließt CVE-2026-42184 (Remote-Seiten konnten lokale Commands aufrufen).
+tauri = { version = "2.11.5", features = [] }
+tauri-plugin-single-instance = "2.4"
+tokio = { version = "1", features = ["sync", "time", "macros"] }
+tokio-util = "0.7"
+
+[target.'cfg(windows)'.dependencies]
+# Dieselben Versionen wie in Tauri (keine zusätzliche Übersetzung): Zugriff auf die
+# WebView2-Einstellungen, die Tauri nicht durchreicht.
+webview2-com = "0.38"
+windows-core = "0.61"

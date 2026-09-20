@@ -1,0 +1,2 @@
+# Eigennamen, die in Kommentaren als Wörter gelten (".." behält Clippys Standardliste).
+doc-valid-idents = ["WebView2", "WebView", "LinkedIn", "GmbH", ".."]

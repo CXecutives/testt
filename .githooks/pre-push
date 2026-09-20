@@ -1,0 +1,57 @@
+#!/bin/sh
+# Push-Waechter (versionierte Kopie: .githooks/pre-push). Im Zweifel wird gesperrt.
+# Einmal je Klon aktivieren: git config core.hooksPath .githooks
+#
+# 1. Ziel ausschliesslich die beiden eigenen Repos - nie ein fremdes.
+# 2. Alte Historie bleibt lokal: kein Commit, der von einer der Alt-Wurzeln abstammt,
+#    und kein Branch "legacy-*" verlaesst den Rechner.
+# 3. Nur Fast-Forward: kein Force-Push, kein Loeschen von Branches/Tags auf GitHub.
+url="$2"
+case "$url" in
+  https://github.com/CXecutives/testt|https://github.com/CXecutives/testt.git|https://github.com/CXecutives/testt/) ;;
+  git@github.com:CXecutives/testt.git|ssh://git@github.com/CXecutives/testt.git) ;;
+  https://github.com/CXecutives/TEST|https://github.com/CXecutives/TEST.git|https://github.com/CXecutives/TEST/) ;;
+  git@github.com:CXecutives/TEST.git|ssh://git@github.com/CXecutives/TEST.git) ;;
+  *)
+    echo "BLOCKIERT: Push nur nach CXecutives/testt oder CXecutives/TEST erlaubt, nicht nach '$url'." >&2
+    exit 1 ;;
+esac
+
+# Wurzeln der Alt-Historie: die Python-Zeit und der erste TEST-Stand mit echter
+# Autoren-Adresse. Beide duerfen nie in das oeffentliche Repo.
+OLD_PYTHON=9d3b5434dee0f89a47915aa5c5dcc00c57e02168
+OLD_TEST=07345a331d7342d3296d41247d61f34adf674569
+ZERO=0000000000000000000000000000000000000000
+public=0
+case "$url" in *testt*) public=1 ;; esac
+
+# "|| [ -n ... ]": auch eine letzte Zeile ohne Zeilenumbruch wird geprueft.
+while read -r local_ref local_sha remote_ref remote_sha || [ -n "$local_ref" ]; do
+  if [ "$local_sha" = "$ZERO" ]; then
+    echo "BLOCKIERT: '$remote_ref' auf GitHub loeschen - das geschieht nur von Hand." >&2
+    exit 1
+  fi
+  case "$local_ref $remote_ref" in
+    *legacy-*)
+      echo "BLOCKIERT: '$local_ref' gehoert zur alten Historie und bleibt lokal." >&2
+      exit 1 ;;
+  esac
+  commit=$(git rev-parse -q --verify "$local_sha^{commit}") || {
+    echo "BLOCKIERT: '$local_ref' zeigt auf keinen Commit." >&2
+    exit 1
+  }
+  if git merge-base --is-ancestor "$OLD_PYTHON" "$commit" 2>/dev/null; then
+    echo "BLOCKIERT: '$local_ref' enthaelt die alte Python-Historie." >&2
+    exit 1
+  fi
+  if [ "$public" = 1 ] && git merge-base --is-ancestor "$OLD_TEST" "$commit" 2>/dev/null; then
+    echo "BLOCKIERT: '$local_ref' enthaelt die Alt-Historie mit echter Autoren-Adresse." >&2
+    echo "           Das oeffentliche Repo bekommt nur die neue, saubere Historie." >&2
+    exit 1
+  fi
+  if [ "$remote_sha" != "$ZERO" ] && ! git merge-base --is-ancestor "$remote_sha" "$commit" 2>/dev/null; then
+    echo "BLOCKIERT: '$remote_ref' waere kein Fast-Forward (Force-Push oder Stand nicht geholt)." >&2
+    exit 1
+  fi
+done
+exit 0

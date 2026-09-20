@@ -1,0 +1,7 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: "describe(std::fs::read(&path).unwrap())"
+---
+LinkedIn | Controller: 2 neue Jobs in Köln | LinkedIn Job Alerts
+- linkedin:4990000001 | Senior Controller (m/w/d) | Musterwerke GmbH | Köln, Nordrhein-Westfalen | https://www.linkedin.com/jobs/view/4990000001/
+- linkedin:4990000002 | Interim CFO | Nordlicht AG | Hamburg (Hybrid) | https://www.linkedin.com/jobs/view/4990000002/
