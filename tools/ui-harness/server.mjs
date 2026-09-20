@@ -7,7 +7,10 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ui = path.resolve(here, '../../ui');
 const port = Number(process.argv[2] || 5177);
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css' };
+const types = {
+  '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
+  '.css': 'text/css', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+};
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');

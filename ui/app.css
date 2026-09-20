@@ -25,6 +25,9 @@ body {
   cursor: default;
   user-select: none;
   -webkit-user-select: none;
+  /* Inter hat eine optische Achse: kleine Grade werden offener, grosse enger. */
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
 }
 
 ::selection { background: var(--selection); }
@@ -141,7 +144,9 @@ button { font: inherit; color: inherit; }
 }
 .reader-inner { max-width: var(--reader-w); padding: var(--s8); }
 
-.reader-title { margin: 0; font: var(--t-xl); color: var(--text); user-select: text; }
+/* Inter laeuft bei grossen Graden auseinander; die Empfehlung des Entwerfers ist
+   eine leichte Verengung ab etwa 20 px. */
+.reader-title { margin: 0; font: var(--t-xl); letter-spacing: -.011em; color: var(--text); user-select: text; }
 .reader-meta { margin: var(--s3) 0 0; font: var(--t-sm); color: var(--text-2); user-select: text; }
 .reader-actions { display: flex; gap: var(--s3); margin-top: var(--s6); }
 .reader-rule { margin: var(--s6) 0; border: 0; border-top: 1px solid var(--line); }

@@ -9,6 +9,18 @@
  *                   (4,8:1 statt 3,6:1 – auf der Markenfarbe wäre Weiß zu weich).
  */
 
+/* Inter liegt im Projekt, nicht im Netz: Die App laedt nichts nach und sieht auf
+   Windows und macOS gleich aus. Eine Datei mit allen Staerken (100-900) und der
+   optischen Achse; `block` heisst: lieber kurz nichts zeigen als die Schrift wechseln
+   (der Startbildschirm deckt die Zeit ohnehin ab). Lizenz: ui/fonts/Inter-LICENSE.txt */
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   color-scheme: light;
 
@@ -83,10 +95,10 @@
   --list-w: clamp(320px, 32%, 440px);
   --reader-w: 76ch;
 
-  /* Schrift: die des Systems. Windows 11 hat drei optische Groessen – „Text" fuer
-     Fliesstext, „Display" ab etwa 18 px; macOS waehlt sie ueber system-ui selbst. */
-  --font: "Segoe UI Variable Text", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Segoe UI Variable Display", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Schrift. Die Systemschriften stehen als Rueckfall dahinter, falls die Datei
+     einmal fehlt – dann sieht es anders aus, aber nichts bricht. */
+  --font: "Inter", system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --font-display: var(--font);
   --t-xs: 400 12px/16px var(--font);
   --t-sm: 400 13px/18px var(--font);
   --t-md: 400 14px/20px var(--font);
@@ -107,8 +119,6 @@
 /* macOS: native Ampelknöpfe links, der Titel rückt dahinter. */
 :root[data-platform="macos"] {
   --titlebar: 32px;
-  --font: system-ui, -apple-system, sans-serif;
-  --font-display: system-ui, -apple-system, sans-serif;
 }
 
 @media (prefers-reduced-motion: reduce) {
