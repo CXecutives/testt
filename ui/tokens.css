@@ -116,11 +116,6 @@
   --z-sheet: 20;
 }
 
-/* macOS: native Ampelknöpfe links, der Titel rückt dahinter. */
-:root[data-platform="macos"] {
-  --titlebar: 32px;
-}
-
 @media (prefers-reduced-motion: reduce) {
   :root {
     --fast: 1ms;

@@ -14,8 +14,8 @@
         "title": "Job-Alert-Monitor",
         "width": 1280,
         "height": 860,
-        "minWidth": 1000,
-        "minHeight": 600,
+        "minWidth": 760,
+        "minHeight": 520,
         "center": true,
         "preventOverflow": true,
         "decorations": false
