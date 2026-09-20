@@ -324,8 +324,6 @@ pub async fn app_state(
 #[serde(rename_all = "camelCase")]
 pub struct SettingsInput {
     portals: Vec<Portal>,
-    #[serde(default)]
-    session_portals: Vec<Portal>,
 }
 
 /// Speichert die Portalwahl. Der Arbeitsordner ändert sich nur per Dialog.
@@ -336,7 +334,6 @@ pub async fn save_settings(
 ) -> CmdResult<Settings> {
     let mut settings = state.settings()?;
     settings.portals = input.portals;
-    settings.session_portals = input.session_portals;
     settings.save(&state.store)?;
     state.settings()
 }
@@ -460,7 +457,6 @@ fn run_context(
     };
     let ctx = RunContext {
         workspace: settings.workspace_or(&state.default_workspace),
-        session_portals: settings.session_portals.clone(),
         account: credentials
             .as_ref()
             .map(|c| c.user.clone())

@@ -46,7 +46,6 @@ pub struct RunContext {
     pub workspace: PathBuf,
     /// Portale, die über ein Sitzungsfenster abgerufen werden sollen (aus den
     /// Einstellungen, nicht aus der Seite).
-    pub session_portals: Vec<Portal>,
     /// Gmail-Adresse fürs Info-Blatt (leer, wenn unbekannt).
     pub account: String,
     /// Trockenlauf: nichts wird geschrieben.
@@ -188,7 +187,7 @@ const MAX_FAILED_NAMES: usize = 20;
 /// – außer der Lauf ließ sich gar nicht erst anlegen.
 #[expect(
     clippy::too_many_arguments,
-    reason = "Lauf-Kontext: Speicher, Regeln, Auftrag, Abbruch, Uhr und Ereignisse einzeln (in Tests austauschbar)"
+    reason = "Speicher, Regeln, Auftrag, Abbruch, Uhr und Ereignisse einzeln (in Tests austauschbar)"
 )]
 pub async fn run<B: Backends>(
     backends: &mut B,
@@ -272,7 +271,6 @@ pub async fn run<B: Backends>(
             store,
             policy,
             request,
-            ctx,
             targeted,
             cancel,
             &clock,
@@ -343,7 +341,7 @@ fn announce(activity: &mut Option<String>, text: String, emit: &mut impl FnMut(R
 
 #[expect(
     clippy::too_many_arguments,
-    reason = "Lauf-Kontext: Speicher, Regeln, Auftrag, Abbruch, Uhr und Ereignisse einzeln (in Tests austauschbar)"
+    reason = "Speicher, Regeln, Auftrag, Abbruch, Uhr und Ereignisse einzeln (in Tests austauschbar)"
 )]
 async fn scan_step<B: Backends>(
     backends: &mut B,
@@ -436,14 +434,13 @@ async fn scan_step<B: Backends>(
 
 #[expect(
     clippy::too_many_arguments,
-    reason = "Lauf-Kontext: Speicher, Regeln, Auftrag, Abbruch, Uhr und Ereignisse einzeln (in Tests austauschbar)"
+    reason = "Speicher, Regeln, Auftrag, Abbruch, Uhr und Ereignisse einzeln (in Tests austauschbar)"
 )]
 async fn fetch_step<B: Backends>(
     backends: &mut B,
     store: &Store,
     policy: &Mutex<Policy>,
     request: &RunRequest,
-    ctx: &RunContext,
     targeted: Option<&[JobKey]>,
     cancel: &CancellationToken,
     clock: &impl Fn() -> Timestamp,
@@ -461,7 +458,6 @@ async fn fetch_step<B: Backends>(
         store,
         policy,
         selection,
-        &ctx.session_portals,
         cancel,
         clock,
         fetched,

@@ -98,9 +98,6 @@ pub struct PortalView {
     pub enabled: bool,
     /// Ob und wie eine Anmeldung möglich ist.
     pub login: LoginMode,
-    /// Steht in `Settings.session_portals` – soll über ein Sitzungsfenster abgerufen werden
-    /// (nur bei `Optional`/`Required` sinnvoll).
-    pub session: bool,
     /// `None` = unbekannt, `Some(false)` = Anmeldung nötig.
     pub signed_in: Option<bool>,
     pub confirmed_at: Option<Timestamp>,
@@ -159,7 +156,6 @@ pub fn portal_views(
                 label: portal.label(),
                 enabled: settings.portals.contains(&portal),
                 login: portal.login_mode(),
-                session: settings.session_portals.contains(&portal),
                 // Nichts gemerkt heißt „unbekannt“: Erst eine Anmeldung oder eine Seite, die
                 // eine verlangt, macht daraus eine Aussage.
                 signed_in: match (state.login_needed, state.session_confirmed_at) {
@@ -242,29 +238,19 @@ mod tests {
         }
         let settings = Settings {
             portals: vec![Portal::LinkedIn, Portal::Freelancermap],
-            session_portals: vec![Portal::Freelancermap],
             ..Settings::default()
         };
         let views = portal_views(&policy, &store, &settings, now).unwrap();
         let of = |portal| views.iter().find(|v| v.portal == portal).unwrap();
         let li = of(Portal::LinkedIn);
         assert_eq!(li.pause_reason.as_deref(), Some("HTTP 999"));
-        assert_eq!(
-            (li.login, li.enabled, li.session),
-            (LoginMode::None, true, false)
-        );
+        assert_eq!((li.login, li.enabled), (LoginMode::None, true));
         let fm = of(Portal::Freelancermap);
         assert!(fm.next_free_at.is_some());
         assert_eq!((fm.used_hour, fm.cap_hour), (25, 25));
-        assert_eq!(
-            (fm.login, fm.enabled, fm.session),
-            (LoginMode::Optional, true, true)
-        );
+        assert_eq!((fm.login, fm.enabled), (LoginMode::None, true));
         let fl = of(Portal::FreelanceDe);
-        assert_eq!(
-            (fl.login, fl.enabled, fl.session),
-            (LoginMode::Required, false, false)
-        );
+        assert_eq!((fl.login, fl.enabled), (LoginMode::Required, false));
     }
 
     /// Der Anmeldestand ist dreiwertig: nichts gemerkt = unbekannt.

@@ -68,10 +68,11 @@ fn private_real_mails_when_available() {
     };
     let (mut alerts, mut postings, mut other) = (0, 0, 0);
     for entry in entries.flatten() {
+        let bytes = std::fs::read(entry.path()).unwrap();
         match classify_mail(
             &RawMail {
                 gmail_id: None,
-                bytes: std::fs::read(entry.path()).unwrap(),
+                bytes: bytes.clone(),
             },
             &Portal::ALL,
         ) {
@@ -81,6 +82,13 @@ fn private_real_mails_when_available() {
             }
             _ => other += 1,
         }
+        // Vollständig ausgeben (`--nocapture`): an echten Mails zeigt sich, ob Titel, Firma
+        // und Ort stimmen – zählen allein verrät das nicht.
+        eprintln!(
+            "--- {}\n{}",
+            entry.file_name().to_string_lossy(),
+            describe(bytes)
+        );
     }
     eprintln!("private Mails: {alerts} Alerts mit {postings} Einträgen, {other} ohne Alert");
 }

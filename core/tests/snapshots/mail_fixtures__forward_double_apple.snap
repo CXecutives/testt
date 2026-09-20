@@ -1,0 +1,7 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: "describe(std::fs::read(&path).unwrap())"
+---
+freelancermap.de | WG: Beispielsuche - Anzahl neue Projekte: 2 | Ich
+- freelancermap:2990101 | ERP-Projektleiter für Dynamics 365 Business Central (m/w/d) | Beispiel Personalberatung GmbH | Rotenburg Wümme | https://www.freelancermap.de/nproj/2990101.html
+- freelancermap:2990102 | Projektleitung mit technischem Know-How, remote und Münster (m/w/d) - #319225 | Beispiel Engineering GmbH | Münster | https://www.freelancermap.de/nproj/2990102.html

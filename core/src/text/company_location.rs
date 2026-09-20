@@ -62,7 +62,9 @@ static POSTCODE_AT_START: LazyLock<Regex> =
 static POSTCODE_AFTER_COMMA: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(&format!(r",\s*{POSTCODE}\s+\p{{L}}")).unwrap());
 
-const COUNTRIES: [&str; 8] = [
+/// Länder, die in den Alert-Mails hinter dem Ort stehen. Über den deutschsprachigen Raum
+/// hinaus, weil freelance.de auch „Krakow (Polen)“ schreibt (gemessen an echten Mails).
+const COUNTRIES: [&str; 30] = [
     "deutschland",
     "germany",
     "österreich",
@@ -71,8 +73,46 @@ const COUNTRIES: [&str; 8] = [
     "switzerland",
     "luxemburg",
     "luxembourg",
+    "polen",
+    "poland",
+    "tschechien",
+    "czechia",
+    "niederlande",
+    "netherlands",
+    "belgien",
+    "belgium",
+    "frankreich",
+    "france",
+    "italien",
+    "italy",
+    "spanien",
+    "spain",
+    "portugal",
+    "dänemark",
+    "denmark",
+    "schweden",
+    "sweden",
+    "norwegen",
+    "norway",
+    "finnland",
 ];
 const COUNTRY_CODES: [&str; 4] = ["de", "at", "ch", "lu"];
+
+/// Aufbau, den nur eine Ortsangabe hat: Ländervorsatz ohne Postleitzahl („D-D8/D9 D8/D9“)
+/// oder ein leeres Klammerpaar am Ende („D1 ()“). Beides steht so in echten
+/// freelance.de-Mails, kein Firmenname sieht so aus.
+static PLACE_SHAPE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(?:D|A|CH)-\S|\(\s*\)$").unwrap());
+
+/// „Bayern (Bayern)“, „Genf (Genf)“: Ort mit sich selbst als Region in der Klammer.
+fn repeats_itself_in_brackets(value: &str) -> bool {
+    value
+        .strip_suffix(')')
+        .and_then(|v| v.rsplit_once('('))
+        .is_some_and(|(head, tail)| {
+            !head.trim().is_empty() && head.trim().eq_ignore_ascii_case(tail.trim())
+        })
+}
 
 /// Land als eigenes Wort im Wert („Hessen Deutschland“, „Berlin (Deutschland)“).
 static COUNTRY_WORD: LazyLock<Regex> = LazyLock::new(|| {
@@ -146,6 +186,13 @@ pub fn short_location(text: &str) -> String {
     {
         value = town.as_str().to_string();
     }
+    // „D1 ()“: freelance.de hängt ein leeres Klammerpaar an, wenn die Region fehlt.
+    if let Some(head) = value.strip_suffix(')')
+        && let Some((head, tail)) = head.rsplit_once('(')
+        && tail.trim().is_empty()
+    {
+        value = head.to_string();
+    }
     truncate_chars(strip_chars(&value, " -–—,·|"), 60)
 }
 
@@ -153,8 +200,8 @@ pub fn short_location(text: &str) -> String {
 ///
 /// Entschieden wird nach Aufbau, nicht nach Reihenfolge von Verboten: Postleitzahl am
 /// Anfang ⇒ Ort (auch „CH-6300 Zug (AG)“); sonst macht eine Rechtsform
-/// den Wert zur Firma; sonst sprechen eine Anschrift hinter einem Komma oder ein Land mit
-/// Text davor für einen Ort.
+/// den Wert zur Firma; sonst sprechen eine Anschrift hinter einem Komma, ein Land mit
+/// Text davor oder ein reiner Ortsaufbau für einen Ort.
 pub fn looks_like_location(text: &str) -> bool {
     let value = flat(text);
     let value = value.trim();
@@ -164,7 +211,10 @@ pub fn looks_like_location(text: &str) -> bool {
     if has_legal_form(value) {
         return false;
     }
-    if POSTCODE_AFTER_COMMA.is_match(value) {
+    if POSTCODE_AFTER_COMMA.is_match(value)
+        || PLACE_SHAPE.is_match(value)
+        || repeats_itself_in_brackets(value)
+    {
         return true;
     }
     COUNTRY_WORD
@@ -381,5 +431,33 @@ mod tests {
         let long = "Ä".repeat(100);
         assert_eq!(short_company(&long).chars().count(), 80);
         assert_eq!(short_location(&long).chars().count(), 60);
+    }
+    /// Ortsangaben aus echten freelance.de-Mails, die vorher als Firma durchgingen: Die
+    /// Firmenspalte ist dort immer leer, der Wert hinter dem Titel ist der Ort.
+    #[test]
+    fn odd_freelance_places_are_places_not_firms() {
+        for place in [
+            "D-D8/D9 D8/D9",
+            "D1 ()",
+            "D76 ()",
+            "Krakow (Polen)",
+            "Bayern (Bayern)",
+            "D-20038 Hamburg",
+            "CH-4000 Basel (Basel-Stadt)",
+            "D-80331 München, D-50667 Köln, D-10115 Berlin",
+        ] {
+            let (company, location) = split_company_location(place, "");
+            assert_eq!(company, "", "{place} ist keine Firma");
+            assert!(!location.is_empty(), "{place} hat einen Ort");
+        }
+        // Das leere Klammerpaar verschwindet, die Region bleibt.
+        assert_eq!(split_company_location("D1 ()", "").1, "D1");
+        assert_eq!(split_company_location("Krakow (Polen)", "").1, "Krakow");
+        // Eine Firma bleibt eine Firma, auch mit Land in der Klammer.
+        let (company, location) = split_company_location("Muster (Deutschland) GmbH", "");
+        assert_eq!(
+            (company.as_str(), location.as_str()),
+            ("Muster (Deutschland) GmbH", "")
+        );
     }
 }

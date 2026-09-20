@@ -138,22 +138,12 @@ pub enum Route {
     Session,
 }
 
-/// Der einzige Router. Sitzungsweg, wenn eine Anmeldung nötig ist – oder wenn sie gewollt
-/// **und** bestätigt ist. Ein Portal mit optionaler Anmeldung ohne bestätigte Sitzung geht
-/// als Gast: Das ist kein Fehler, nur weniger Text.
-pub fn route(portal: Portal, session_portals: &[Portal], policy: &Policy) -> Route {
+/// Der einzige Router: Sitzungsfenster genau dann, wenn das Portal ohne Anmeldung nichts
+/// hergibt. Alles andere geht als Gast.
+pub fn route(portal: Portal) -> Route {
     match portal.login_mode() {
         LoginMode::None => Route::Http,
         LoginMode::Required => Route::Session,
-        LoginMode::Optional => {
-            let state = policy.state(portal);
-            let signed_in = !state.login_needed && state.session_confirmed_at.is_some();
-            if session_portals.contains(&portal) && signed_in {
-                Route::Session
-            } else {
-                Route::Http
-            }
-        }
     }
 }
 
@@ -379,7 +369,6 @@ fn lock(policy: &Mutex<Policy>) -> MutexGuard<'_, Policy> {
 struct Shared<'a, C: Fn() -> Timestamp> {
     store: &'a Store,
     policy: &'a Mutex<Policy>,
-    session_portals: &'a [Portal],
     /// Abbruch **dieses** Abrufs – auch ein Datenbankfehler in einem Portal stoppt so die
     /// übrigen, statt sie ohne gesicherten Stand weiterlaufen zu lassen.
     cancel: &'a CancellationToken,
@@ -420,7 +409,6 @@ pub async fn fetch_all<F: PageFetcher>(
     store: &Store,
     policy: &Mutex<Policy>,
     selection: Selection<'_>,
-    session_portals: &[Portal],
     cancel: &CancellationToken,
     clock: impl Fn() -> Timestamp,
     summary: &mut FetchSummary,
@@ -458,7 +446,6 @@ pub async fn fetch_all<F: PageFetcher>(
     let shared = Shared {
         store,
         policy,
-        session_portals,
         cancel: &inner,
         clock: &clock,
     };
@@ -527,12 +514,11 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
     };
     let (store, policy, cancel, clock) = (shared.store, shared.policy, shared.cancel, shared.clock);
     let mut counts = PortalCounts::default();
-    let mut route = route(portal, shared.session_portals, &lock(policy));
+    let route = route(portal);
     // Eine Anmeldung je Portal und Lauf; danach wird derselbe Job erneut versucht.
     let mut login_tried = false;
     // Eine optionale Anmeldung geht höchstens einmal je Lauf verloren – danach wäre es
     // keine verlorene Sitzung mehr, sondern eine Anmeldewand auch für Gäste.
-    let mut fell_back = false;
     // Job, dessen Seite schon einmal wiederholt wurde (höchstens eine Wiederholung).
     let mut retried: Option<usize> = None;
     let mut index = 0;
@@ -668,14 +654,6 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                     let mut policy = lock(policy);
                     policy.set_session(portal, false, now);
                     policy.save()?;
-                }
-                // Optionale Anmeldung verloren: still zurück auf den Gastweg – keine
-                // Pause, kein Fehlversuch, derselbe Job wird gleich als Gast geholt.
-                if portal.login_mode() == LoginMode::Optional && !fell_back {
-                    log::info!("{portal}: ohne Anmeldung weiter (Gastweg)");
-                    fell_back = true;
-                    route = Route::Http;
-                    continue;
                 }
                 if login_tried {
                     Some(StopReason::LoginRequired)

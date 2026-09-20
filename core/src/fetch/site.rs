@@ -5,7 +5,7 @@
 use serde::Deserialize;
 use url::Url;
 
-use super::{PageOutcome, freelance_de, freelancermap};
+use super::{PageOutcome, freelance_de};
 use crate::portal::Portal;
 
 /// Was das Befund-Skript einer Seite meldet – reine Befunde, kein Urteil. Nicht jedes Portal
@@ -27,10 +27,8 @@ pub struct SessionPage {
     pub title: String,
     pub company: String,
     pub location: String,
-    /// HTML des Beschreibungsfelds (freelance.de).
+    /// HTML des Beschreibungsfelds.
     pub panel_html: Option<String>,
-    /// HTML der ganzen Seite (freelancermap); in JS auf 2 MB gekappt.
-    pub html: Option<String>,
 }
 
 /// Ein Portal, das über ein Sitzungsfenster abgerufen werden kann.
@@ -63,25 +61,12 @@ static FREELANCE_DE: PortalSite = PortalSite {
     judge: freelance_de::judge_page,
 };
 
-static FREELANCERMAP: PortalSite = PortalSite {
-    portal: Portal::Freelancermap,
-    window_title: "freelancermap.de – Anmeldung",
-    login_url: "https://www.freelancermap.de/login.html",
-    logout_url: "https://www.freelancermap.de/logout.html",
-    probe_js: freelancermap::PROBE_JS,
-    is_allowed: freelancermap::is_portal_url,
-    is_postlogin: freelancermap::is_postlogin,
-    signed_in: freelancermap::signed_in,
-    judge: freelancermap::judge_page,
-};
-
 impl PortalSite {
-    /// Beschreibung eines Portals; `None` für Portale ohne Anmeldung (LinkedIn).
+    /// Beschreibung eines Portals; `None` für Portale ohne Anmeldung.
     pub fn of(portal: Portal) -> Option<&'static PortalSite> {
         match portal {
             Portal::FreelanceDe => Some(&FREELANCE_DE),
-            Portal::Freelancermap => Some(&FREELANCERMAP),
-            Portal::LinkedIn => None,
+            Portal::LinkedIn | Portal::Freelancermap => None,
         }
     }
 
@@ -115,12 +100,6 @@ mod tests {
                 assert!((site.is_allowed)(&url), "{url}");
             }
         }
-        // Jedes Fenster bleibt bei seinem Portal.
-        let fl = PortalSite::of(Portal::FreelanceDe).unwrap();
-        let fm = PortalSite::of(Portal::Freelancermap).unwrap();
-        assert!(!(fl.is_allowed)(&Url::parse(fm.login_url).unwrap()));
-        assert!(!(fm.is_allowed)(&Url::parse(fl.login_url).unwrap()));
-        assert_ne!(fl.label(), fm.label());
     }
 
     /// Sicherheits-Invariante: Ein Sitzungsfenster lädt nur Adressen seines eigenen Portals –
@@ -132,6 +111,8 @@ mod tests {
             "https://www.freelance.de.example.org/login.php",
             "https://notfreelance.de/login.php",
             "https://www.freelancermap.de.evil.example/",
+            // Ein anderes Portal ist genauso fremd wie jede andere Adresse.
+            "https://www.freelancermap.de/login.html",
             "https://accounts.google.com/",
             "tauri://localhost/index.html",
             "file:///C:/Windows/system.ini",

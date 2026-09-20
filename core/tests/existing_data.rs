@@ -93,7 +93,6 @@ fn settings_policy_and_database_of_an_earlier_version_keep_working() {
     let settings = Settings::load(&store).unwrap();
     assert_eq!(settings.portals, [Portal::LinkedIn, Portal::FreelanceDe]);
     assert_eq!(settings.workspace, None);
-    assert!(settings.session_portals.is_empty());
     settings.save(&store).unwrap();
     assert_eq!(Settings::load(&store).unwrap(), settings);
 
@@ -111,10 +110,7 @@ fn settings_policy_and_database_of_an_earlier_version_keep_working() {
     // Die bestätigte freelance.de-Anmeldung bleibt bestehen.
     let freelance = policy.state(Portal::FreelanceDe);
     assert!(!freelance.login_needed && freelance.session_confirmed_at.is_some());
-    assert_eq!(
-        route(Portal::FreelanceDe, &settings.session_portals, &policy),
-        Route::Session
-    );
+    assert_eq!(route(Portal::FreelanceDe), Route::Session);
     // Ein Portal, das die alte Datei gar nicht kannte, beginnt unbelastet.
     assert_eq!(
         policy.allowance(Portal::Freelancermap, now()),

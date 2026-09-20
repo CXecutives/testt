@@ -57,13 +57,6 @@ impl Fake {
         self.calls().into_iter().map(|call| call.id).collect()
     }
 
-    fn routes(&self) -> Vec<(Portal, Route)> {
-        self.calls()
-            .into_iter()
-            .map(|call| (call.portal, call.route))
-            .collect()
-    }
-
     fn logins(&self) -> Vec<(Instant, Instant)> {
         lock_test(&self.logins).clone()
     }
@@ -177,25 +170,6 @@ async fn run(
     .await
 }
 
-async fn run_via_session(
-    fake: &Fake,
-    store: &Store,
-    policy: &mut Policy,
-    selection: Selection<'_>,
-    clock: &impl Fn() -> Timestamp,
-) -> Run {
-    run_inner(
-        fake,
-        store,
-        policy,
-        selection,
-        &Portal::ALL,
-        clock,
-        &CancellationToken::new(),
-    )
-    .await
-}
-
 async fn run_with(
     fake: &Fake,
     store: &Store,
@@ -204,7 +178,7 @@ async fn run_with(
     clock: &impl Fn() -> Timestamp,
     cancel: &CancellationToken,
 ) -> Run {
-    run_inner(fake, store, policy, selection, &[], clock, cancel).await
+    run_inner(fake, store, policy, selection, clock, cancel).await
 }
 
 async fn run_inner(
@@ -212,7 +186,6 @@ async fn run_inner(
     store: &Store,
     policy: &mut Policy,
     selection: Selection<'_>,
-    session_portals: &[Portal],
     clock: &impl Fn() -> Timestamp,
     cancel: &CancellationToken,
 ) -> Run {
@@ -225,7 +198,6 @@ async fn run_inner(
         store,
         &shared,
         selection,
-        session_portals,
         cancel,
         clock,
         &mut summary,
@@ -270,61 +242,14 @@ const FM: Portal = Portal::Freelancermap;
 const LI: Portal = Portal::LinkedIn;
 const FL: Portal = Portal::FreelanceDe;
 
-/// Der Router: nötige Anmeldung immer über das Fenster, optionale nur, wenn sie gewollt
-/// **und** bestätigt ist; LinkedIn nie.
+/// Der Router kennt keine Wahl mehr: Ein Sitzungsfenster gibt es nur, wo ohne Anmeldung
+/// nichts zu lesen ist. freelancermap ist angemeldet zeichengleich zum Gast (gemessen),
+/// LinkedIn ebenfalls – beide gehen als Gast.
 #[test]
-fn the_route_needs_a_wish_and_a_confirmed_session() {
-    let c = clock();
-    let mut policy = Policy::in_memory();
-    let all = Portal::ALL;
-    assert_eq!(route(LI, &all, &policy), Route::Http);
-    assert_eq!(route(FL, &[], &policy), Route::Session);
-    // Gewollt, aber nie angemeldet: Gastweg.
-    assert_eq!(route(FM, &all, &policy), Route::Http);
-    policy.set_session(FM, true, c());
-    assert_eq!(route(FM, &all, &policy), Route::Session);
-    // Nicht gewollt: Gastweg, auch mit bestätigter Sitzung.
-    assert_eq!(route(FM, &[LI], &policy), Route::Http);
-    // Anmeldung verloren: Gastweg.
-    policy.set_session(FM, false, c());
-    assert_eq!(route(FM, &all, &policy), Route::Http);
-}
-
-/// Verliert ein Portal mit optionaler Anmeldung die Sitzung, holt derselbe Lauf denselben
-/// Job still als Gast: keine Pause, kein Fehlversuch, keine Anmeldung.
-#[tokio::test(start_paused = true)]
-async fn a_lost_optional_session_falls_back_to_the_guest_route() {
-    let c = clock();
-    let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 1)]);
-    let fake = Fake {
-        login: Some(Login::SignedIn),
-        ..Fake::default()
-    }
-    .with("10001", [PageOutcome::LoginRequired("Anmeldewand".into())]);
-    let mut policy = Policy::in_memory();
-    policy.set_session(FM, true, c());
-    let r = run_via_session(
-        &fake,
-        &store,
-        &mut policy,
-        Selection::Queue(&Portal::ALL),
-        &c,
-    )
-    .await;
-    assert!(r.completed && r.stops.is_empty());
-    assert_eq!(fake.ids(), ["10001", "10001", "10002"]);
-    assert_eq!(
-        fake.routes(),
-        [(FM, Route::Session), (FM, Route::Http), (FM, Route::Http)]
-    );
-    assert!(fake.logins().is_empty(), "keine Anmeldung, kein Fenster");
-    assert_eq!(r.summary.per_portal[&FM].ok, 2);
-    assert_eq!(r.summary.per_portal[&FM].skipped, 0);
-    assert_eq!(policy.allowance(FM, c()), Allowance::Go, "keine Pause");
-    let job = store.job(&key(FM, 10_001)).unwrap().unwrap();
-    assert_eq!((job.desc_status, job.desc_attempts), (DescStatus::Ok, 0));
-    // Der Stand bleibt „Anmeldung nötig“ – der Gastweg bestätigt keine Sitzung.
-    assert!(policy.state(FM).login_needed);
+fn only_a_portal_that_needs_an_account_uses_a_window() {
+    assert_eq!(route(LI), Route::Http);
+    assert_eq!(route(FM), Route::Http);
+    assert_eq!(route(FL), Route::Session);
 }
 
 #[tokio::test(start_paused = true)]
@@ -1232,8 +1157,7 @@ async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
         .with("10002", [suspicious()])
         .with("1255001", [PageOutcome::Blocked("HTTP 403".into())]);
     let mut policy = Policy::in_memory();
-    policy.set_session(FM, true, c());
-    let r = run_via_session(
+    let r = run(
         &fake,
         &store,
         &mut policy,
@@ -1245,9 +1169,9 @@ async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
     let of = |portal: Portal| -> Vec<&Call> {
         calls.iter().filter(|call| call.portal == portal).collect()
     };
-    // Gastweg für LinkedIn, Sitzungsweg für die beiden Portale mit Anmeldung.
+    // Gastweg für LinkedIn und freelancermap, Sitzungsweg nur für freelance.de.
     assert!(of(LI).iter().all(|call| call.route == Route::Http));
-    assert!(of(FM).iter().all(|call| call.route == Route::Session));
+    assert!(of(FM).iter().all(|call| call.route == Route::Http));
     assert!(of(FL).iter().all(|call| call.route == Route::Session));
     // Stundengrenze LinkedIn: 20 Abrufe, der Rest wartet.
     assert_eq!(of(LI).len(), 20);

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
-use crate::portal::{LoginMode, Portal};
+use crate::portal::Portal;
 use crate::store::Store;
 
 const KEY: &str = "settings";
@@ -21,8 +21,6 @@ pub struct Settings {
     pub workspace: Option<PathBuf>,
     /// Aktiv abgerufene Portale in Klick-Reihenfolge.
     pub portals: Vec<Portal>,
-    /// Portale, die über ein Sitzungsfenster abgerufen werden sollen (leer = keins).
-    pub session_portals: Vec<Portal>,
 }
 
 impl Default for Settings {
@@ -30,7 +28,6 @@ impl Default for Settings {
         Settings {
             workspace: None,
             portals: Portal::ALL.to_vec(),
-            session_portals: Vec::new(),
         }
     }
 }
@@ -56,14 +53,9 @@ impl Settings {
         store.kv_set(KEY, &json)
     }
 
-    /// Jedes Portal höchstens einmal, Reihenfolge wie gewählt. Ein Portal ohne Anmeldung
-    /// kennt kein Sitzungsfenster und fällt aus `session_portals` heraus – der Abrufweg wird
-    /// so nie von einer alten oder verdrehten Einstellung umgelenkt.
+    /// Jedes Portal höchstens einmal, Reihenfolge wie gewählt.
     fn normalized(mut self) -> Settings {
         dedup(&mut self.portals);
-        dedup(&mut self.session_portals);
-        self.session_portals
-            .retain(|p| p.login_mode() != LoginMode::None);
         self
     }
 
@@ -98,12 +90,9 @@ mod tests {
             Portal::LinkedIn,
             Portal::Freelancermap,
         ];
-        // LinkedIn kennt kein Sitzungsfenster und fällt heraus.
-        s.session_portals = vec![Portal::Freelancermap, Portal::LinkedIn];
         s.save(&store).unwrap();
         let back = Settings::load(&store).unwrap();
         assert_eq!(back.portals, [Portal::Freelancermap, Portal::LinkedIn]);
-        assert_eq!(back.session_portals, [Portal::Freelancermap]);
         // Unbekannte/fehlende Felder: Voreinstellung je Feld; kaputtes JSON: alles Standard.
         store.kv_set(KEY, r#"{"portals":[]}"#).unwrap();
         assert!(Settings::load(&store).unwrap().portals.is_empty());
@@ -119,12 +108,11 @@ mod tests {
         store
             .kv_set(
                 KEY,
-                r#"{"workspace":null,"format":"xlsx","scope":"week","portals":["linkedin"],"firstRunSeen":true}"#,
+                r#"{"workspace":null,"format":"xlsx","scope":"week","portals":["linkedin"],"sessionPortals":["freelance"],"firstRunSeen":true}"#,
             )
             .unwrap();
         let back = Settings::load(&store).unwrap();
         assert_eq!(back.portals, [Portal::LinkedIn]);
         assert_eq!(back.workspace, None);
-        assert!(back.session_portals.is_empty());
     }
 }

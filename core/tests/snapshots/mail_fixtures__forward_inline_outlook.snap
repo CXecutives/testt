@@ -1,0 +1,8 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: "describe(std::fs::read(&path).unwrap())"
+---
+freelance.de | WG: Suchagent Beispiel vom 18.09.2026 | Ich
+- freelance:1990101 | Manufacturing Engineer – Final Assembly/ ANÜ (m/w/d) |  | Hamburg | https://www.freelance.de/project/index.php?id=1990101
+- freelance:1990102 | 1083572 Projektsteuerung Bau (für modulare Datacenter) |  | D1 | https://www.freelance.de/project/index.php?id=1990102
+- freelance:1990103 | Native German Amazon SEO & Copywriting |  | Krakow | https://www.freelance.de/project/index.php?id=1990103

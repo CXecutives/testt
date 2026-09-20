@@ -29,8 +29,6 @@ pub enum Portal {
 pub enum LoginMode {
     /// Ohne Konto lesbar; ein Sitzungsfenster gibt es nicht.
     None,
-    /// Ohne Konto lesbar, angemeldet vollständiger – der Nutzer entscheidet.
-    Optional,
     /// Nur angemeldet lesbar.
     Required,
 }
@@ -41,9 +39,10 @@ impl Portal {
     /// Ob und wie eine Anmeldung möglich ist.
     pub const fn login_mode(self) -> LoginMode {
         match self {
-            Portal::LinkedIn => LoginMode::None,
+            // freelancermap und LinkedIn liefern angemeldet zeichengleich dasselbe wie als
+            // Gast (an echten Anzeigen gemessen) – ein Sitzungsfenster brächte dort nichts.
+            Portal::LinkedIn | Portal::Freelancermap => LoginMode::None,
             Portal::FreelanceDe => LoginMode::Required,
-            Portal::Freelancermap => LoginMode::Optional,
         }
     }
 
@@ -712,7 +711,7 @@ mod tests {
         );
         assert_eq!(
             Portal::ALL.map(Portal::login_mode),
-            [LoginMode::None, LoginMode::Required, LoginMode::Optional]
+            [LoginMode::None, LoginMode::Required, LoginMode::None]
         );
         assert_eq!(
             Portal::ALL.map(Portal::file_tag),
