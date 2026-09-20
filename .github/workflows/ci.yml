@@ -36,8 +36,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Feste Version statt „stable“: Ab 1.98 meldet der neue Lint
+      # clippy::unused_async_trait_impl vier Stellen in core/src/mail/scan.rs und
+      # core/src/pipeline/tests.rs (Test-Attrappen ohne .await). Solange die nicht
+      # umgestellt sind, prüft die CI mit derselben Version wie der Arbeitsplatz.
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.95.0
           components: rustfmt, clippy
 
       # Universal-Bündel: Intel und Apple Silicon. Der Runner ist arm64, x86_64 fehlt.
