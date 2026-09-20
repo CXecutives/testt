@@ -26,8 +26,6 @@ fn main() {
             "open_target",
             "reset_all",
             "report_ui_error",
-            "close_answered",
-            "quit",
             "portal_login",
             "portal_logout",
         ]),

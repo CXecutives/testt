@@ -72,9 +72,6 @@ pub struct AppState {
     /// Was die App gerade tut. Geprüft und belegt wird unter derselben Sperre – ein Lauf und
     /// eine Anmeldung schließen sich aus (zwei Schreiber von `policy.json` verlören Zugriffe).
     pub activity: Mutex<Activity>,
-    /// Wann zuletzt nach dem Beenden gefragt wurde – ohne Antwort der Seite schließt das
-    /// zweite Schließen hart. Sobald die Seite geantwortet hat, ist der Eintrag wieder leer.
-    pub close_asked: Mutex<Option<std::time::Instant>>,
 }
 
 /// Gespeicherte Gmail-Adresse im Zwischenspeicher.
@@ -142,11 +139,6 @@ impl AppState {
     }
 
     /// Bricht einen Lauf oder eine laufende An-/Abmeldung ab (idempotent).
-    /// Die Seite hat auf die Schließen-Rückfrage geantwortet: kein hartes Schließen mehr.
-    pub fn close_answered(&self) {
-        *lock(&self.close_asked) = None;
-    }
-
     pub fn cancel_run(&self) {
         match &*lock(&self.activity) {
             Activity::Run(run) => run.cancel.cancel(),
@@ -969,26 +961,4 @@ pub fn report_ui_error(message: String, source: Option<String>, line: Option<u32
         source.unwrap_or_default(),
         line.unwrap_or(0)
     );
-}
-
-/// Die Seite hat die Rückfrage „Beenden?“ beantwortet (egal wie). Danach fragt ein
-/// weiteres Schließen wieder nach, statt den Lauf hart abzubrechen.
-#[tauri::command]
-pub fn close_answered(state: State<'_, AppState>) {
-    state.close_answered();
-}
-
-/// Beenden auf Wunsch der Seite (nach der Rückfrage bei laufendem Lauf): abbrechen, den
-/// Export zu Ende schreiben lassen (höchstens 10 s), dann schließen.
-#[tauri::command]
-pub async fn quit(app: AppHandle, state: State<'_, AppState>) -> CmdResult<()> {
-    state.cancel_run();
-    for _ in 0..100 {
-        if !state.busy() {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    }
-    app.exit(0);
-    Ok(())
 }

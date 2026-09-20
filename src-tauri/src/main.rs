@@ -49,8 +49,6 @@ fn main() {
             commands::open_target,
             commands::reset_all,
             commands::report_ui_error,
-            commands::close_answered,
-            commands::quit,
             commands::portal_login,
             commands::portal_logout,
         ])
@@ -174,7 +172,6 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
         reset_report: Mutex::new(reset_report),
         gmail_user: Mutex::new(GmailUser::Unread),
         activity: Mutex::new(Activity::Idle),
-        close_asked: Mutex::new(None),
     });
     // Die WebView-Version steht nur im Protokoll: Die Oberfläche braucht sie nicht, für
     // eine Fehlersuche ist sie dort verlässlicher als in einem Bildschirmfoto.
@@ -403,21 +400,29 @@ mod geometry {
     }
 }
 
-/// Schließen und Beenden: Läuft ein Lauf, fragt die Seite nach (Ereignis
-/// `close-requested`); ein zweiter Klick auf ✕ binnen 10 s schließt trotzdem, falls die
-/// Seite nicht antwortet. Ist das Hauptfenster weg, endet die App – kein Prozess bleibt
-/// hinter dem Einzelinstanz-Schloss zurück.
+/// Schließen und Beenden: ✕ fragt nie nach. Läuft gerade etwas, bleibt das Fenster kurz
+/// stehen (die Seite zeigt auf das Ereignis `closing` hin einen Blocker), der Lauf wird
+/// abgebrochen und bekommt höchstens zehn Sekunden, seine Dateien zu Ende zu schreiben –
+/// danach endet die App in jedem Fall. Ist das Hauptfenster weg, endet sie ebenfalls: kein
+/// Prozess bleibt hinter dem Einzelinstanz-Schloss zurück.
 mod lifecycle {
     use std::sync::Arc;
-    use std::time::{Duration, Instant};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Duration;
 
     use jobalert_core::store::Store;
     use tauri::{Emitter as _, Manager as _, Runtime, WebviewWindow, WindowEvent};
 
     use crate::commands::AppState;
 
+    /// So lange darf ein abgebrochener Lauf noch aufräumen.
+    const GRACE: Duration = Duration::from_secs(10);
+    const STEP: Duration = Duration::from_millis(100);
+
     pub fn watch<R: Runtime>(window: &WebviewWindow<R>, store: Arc<Store>) {
         let win = window.clone();
+        // Weitere Klicks auf ✕ ändern nichts mehr: Der Ablauf läuft genau einmal.
+        let closing = Arc::new(AtomicBool::new(false));
         window.on_window_event(move |event| match event {
             WindowEvent::CloseRequested { api, .. } => {
                 super::geometry::save(&win, &store);
@@ -425,18 +430,22 @@ mod lifecycle {
                 if !state.busy() {
                     return;
                 }
-                let mut asked = state
-                    .close_asked
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                // Hart schließen nur, wenn die Seite auf die erste Frage nicht geantwortet hat.
-                if asked.is_some_and(|at| at.elapsed() < Duration::from_secs(10)) {
-                    state.cancel_run();
+                api.prevent_close();
+                if closing.swap(true, Ordering::SeqCst) {
                     return;
                 }
-                api.prevent_close();
-                *asked = Some(Instant::now());
-                let _ = win.emit("close-requested", ());
+                let _ = win.emit("closing", ());
+                state.cancel_run();
+                let app = win.app_handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    for _ in 0..(GRACE.as_millis() / STEP.as_millis()) {
+                        if !app.state::<AppState>().busy() {
+                            break;
+                        }
+                        tokio::time::sleep(STEP).await;
+                    }
+                    app.exit(0);
+                });
             }
             WindowEvent::Destroyed => {
                 win.state::<AppState>().cancel_run();
