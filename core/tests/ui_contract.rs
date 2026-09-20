@@ -411,3 +411,67 @@ fn one_word_per_thing() {
         }
     }
 }
+
+/// Keine Reste aus der Entwicklung und keine Verweise auf Arbeitsnotizen: Was beim
+/// Ausliefern verschwindet, darf im Code nicht als Quelle genannt werden.
+#[test]
+fn no_leftovers_from_development() {
+    let mut all = scripts();
+    all.extend(files("ui", "css"));
+    all.push(("ui/index.html".into(), read("ui/index.html")));
+    for (name, text) in all {
+        for (i, line) in code_lines(&text) {
+            for bad in [
+                "console.",
+                "debugger",
+                "TODO",
+                "FIXME",
+                "XXX",
+                "Altfehler",
+                "UI-SPEC",
+                "Review Phase",
+                "Plan §",
+                "Spike",
+            ] {
+                assert!(!line.contains(bad), "{name}:{}: „{bad}“", i + 1);
+            }
+        }
+    }
+}
+
+/// Die Strenge Sicherheitsrichtlinie verbietet Stil und Skript im Markup. Ein Verstoß
+/// fiele erst zur Laufzeit auf – als stumm nicht angewandte Regel.
+#[test]
+fn no_inline_style_or_script() {
+    let html = read("ui/index.html");
+    assert!(!html.contains(" style="), "index.html: Stil im Markup");
+    assert!(!html.contains("<script>"), "index.html: Skript im Markup");
+    for (name, text) in scripts() {
+        for (i, line) in code_lines(&text) {
+            assert!(
+                !line.contains("setAttribute('style'"),
+                "{name}:{}: Stil als Attribut – die Richtlinie verbietet es",
+                i + 1
+            );
+        }
+    }
+}
+
+/// Jedes `:hover` nur, solange der Zeiger wirklich über dem Fenster ist. Sonst bleibt der
+/// Zustand hängen, wenn das Fenster minimiert wird oder den Fokus verliert.
+#[test]
+fn hover_only_while_the_pointer_is_here() {
+    for file in ["ui/components.css", "ui/app.css"] {
+        let text = read(file);
+        for (i, line) in text.lines().enumerate() {
+            if !line.contains(":hover") || line.trim_start().starts_with('*') {
+                continue;
+            }
+            assert!(
+                line.contains(":root:not(.pointer-away)"),
+                "{file}:{}: :hover ohne Zeigerschalter",
+                i + 1
+            );
+        }
+    }
+}
