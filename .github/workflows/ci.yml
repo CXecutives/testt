@@ -1,0 +1,261 @@
+# Prüfung und Bau auf beiden Zielsystemen. Beide Läufe sind unabhängig (fail-fast: false):
+# Ein Fehler unter Windows darf den Mac-Lauf nicht abschneiden und umgekehrt.
+name: CI
+
+on:
+  push:
+    branches: [main, ci-macos]
+  workflow_dispatch:
+
+# Nur für das rollierende Vorab-Release auf main.
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  bauen:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+          - name: macos
+            os: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      # Universal-Bündel: Intel und Apple Silicon. Der Runner ist arm64, x86_64 fehlt.
+      - name: Zusätzliche Ziele (macOS)
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}
+
+      - name: Ablagen anlegen
+        shell: bash
+        run: mkdir -p artefakte/bilder artefakte/protokolle artefakte/bau
+
+      - name: Formatierung
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace
+
+      # Die Rauchprobe steckt hinter `debug_assertions` – sie gibt es nur im Entwickler-Build.
+      - name: Entwickler-Build
+        run: cargo build -p job-alert-monitor
+
+      # ------------------------------------------------------------------ Rauchprobe
+      # Startet ein echtes Fenster, klickt „Postfach abrufen“ und endet mit 0, wenn der
+      # Demo-Lauf durch ist. Nebenher alle 1,5 s ein Bildschirmfoto – anders ist die
+      # Mac-Oberfläche von außen nicht zu sehen.
+      - name: Rauchprobe (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Bild($pfad) {
+            try {
+              $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+              $bmp = New-Object Drawing.Bitmap $b.Width, $b.Height
+              $g = [Drawing.Graphics]::FromImage($bmp)
+              $g.CopyFromScreen($b.Location, [Drawing.Point]::Empty, $b.Size)
+              $bmp.Save($pfad, [Drawing.Imaging.ImageFormat]::Png)
+              $g.Dispose(); $bmp.Dispose()
+            } catch { Write-Host "Bildschirmfoto fehlgeschlagen: $_" }
+          }
+          # Start-Process löst relative Pfade nicht gegen $PWD auf – deshalb absolut.
+          $p = Start-Process -FilePath "$PWD\target\debug\job-alert-monitor.exe" `
+            -ArgumentList '--dry-run','--smoke','--smoke-run' `
+            -RedirectStandardOutput "$PWD\artefakte\protokolle\rauchprobe.log" `
+            -RedirectStandardError "$PWD\artefakte\protokolle\rauchprobe.err" -PassThru
+          $i = 0
+          while (-not $p.HasExited -and $i -lt 100) {
+            $i++
+            Bild ("$PWD\artefakte\bilder\rauchprobe-{0:d2}.png" -f $i)
+            Start-Sleep -Milliseconds 1500
+          }
+          if (-not $p.HasExited) { $p.Kill(); throw "Rauchprobe hing - nach 150 s beendet." }
+          Get-Content "$PWD\artefakte\protokolle\rauchprobe.log", "$PWD\artefakte\protokolle\rauchprobe.err" `
+            -ErrorAction SilentlyContinue
+          Write-Host "Rueckgabewert $($p.ExitCode)"
+          exit $p.ExitCode
+
+      - name: Rauchprobe (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          ./target/debug/job-alert-monitor --dry-run --smoke --smoke-run \
+            > artefakte/protokolle/rauchprobe.log 2>&1 &
+          pid=$!
+          i=0
+          while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 100 ]; do
+            i=$((i + 1))
+            screencapture -x "$(printf 'artefakte/bilder/rauchprobe-%02d.png' "$i")" \
+              || echo "Bildschirmfoto $i fehlgeschlagen"
+            sleep 1.5
+          done
+          code=0
+          if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || true
+            code=99
+          else
+            wait "$pid" || code=$?
+          fi
+          cat artefakte/protokolle/rauchprobe.log
+          echo "Rueckgabewert $code"
+          exit $code
+
+      # ------------------------------------------------------------------ Bildschirmfotos
+      # Zweiter Durchgang ohne Rauchprobe: das ruhende Fenster, damit die Titelleiste
+      # (macOS: Ampelknöpfe, Überlappung) in Ruhe zu sehen ist. Nach 18 s beendet.
+      - name: Oberfläche aufnehmen (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $p = Start-Process -FilePath "$PWD\target\debug\job-alert-monitor.exe" `
+            -ArgumentList '--dry-run' `
+            -RedirectStandardOutput "$PWD\artefakte\protokolle\oberflaeche.log" `
+            -RedirectStandardError "$PWD\artefakte\protokolle\oberflaeche.err" -PassThru
+          Start-Sleep -Seconds 3
+          foreach ($i in 1..10) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object Drawing.Bitmap $b.Width, $b.Height
+            $g = [Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [Drawing.Point]::Empty, $b.Size)
+            $bmp.Save(("$PWD\artefakte\bilder\oberflaeche-{0:d2}.png" -f $i), [Drawing.Imaging.ImageFormat]::Png)
+            $g.Dispose(); $bmp.Dispose()
+            Start-Sleep -Milliseconds 1500
+          }
+          if (-not $p.HasExited) { $p.Kill() }
+
+      - name: Oberfläche aufnehmen (macOS)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        shell: bash
+        run: |
+          ./target/debug/job-alert-monitor --dry-run \
+            > artefakte/protokolle/oberflaeche.log 2>&1 &
+          pid=$!
+          sleep 3
+          for i in $(seq 1 10); do
+            screencapture -x "$(printf 'artefakte/bilder/oberflaeche-%02d.png' "$i")" \
+              || echo "Bildschirmfoto $i fehlgeschlagen"
+            sleep 1.5
+          done
+          kill "$pid" 2>/dev/null || true
+          sleep 1
+          kill -9 "$pid" 2>/dev/null || true
+          cat artefakte/protokolle/oberflaeche.log || true
+          ls -l artefakte/bilder
+          system_profiler SPDisplaysDataType | head -40 || true
+
+      - name: Protokolle der App einsammeln
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            # $LOCALAPPDATA kommt mit Rückwärtsstrichen – in der Bash sind das Fluchtzeichen.
+            quelle="$(printf '%s' "$LOCALAPPDATA" | tr '\\' '/')/de.cxecutives.job-alert-monitor/logs"
+          else
+            quelle="$HOME/Library/Application Support/de.cxecutives.job-alert-monitor/logs"
+          fi
+          if [ -d "$quelle" ]; then
+            cp -R "$quelle" artefakte/protokolle/app-logs
+          else
+            echo "keine App-Protokolle unter $quelle"
+          fi
+
+      # ------------------------------------------------------------------ Auslieferung
+      - name: Release-Build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cargo build --release -p job-alert-monitor
+          cp target/release/job-alert-monitor.exe artefakte/bau/
+
+      - name: Tauri-CLI (macOS)
+        if: runner.os == 'macOS'
+        run: npm i -g @tauri-apps/cli@2
+
+      # Ad-hoc-Signatur ("-") steht in tauri.macos.conf.json: auf Apple Silicon läuft ein
+      # unsigniertes Bündel sonst gar nicht. Kein Entwicklerkonto, keine Notarisierung.
+      - name: Release-Build (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        working-directory: src-tauri
+        run: |
+          code=0
+          tauri build --target universal-apple-darwin --bundles app,dmg || code=$?
+          if [ "$code" -ne 0 ]; then
+            echo "::warning::dmg auf dem Runner fehlgeschlagen – es wird nur das .app gebaut."
+            tauri build --target universal-apple-darwin --bundles app
+          fi
+
+      # Ein .app ist ein Ordner: upload-artifact verlöre das Ausführbar-Bit. ditto erhält es.
+      - name: Bündel packen (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          buendel=target/universal-apple-darwin/release/bundle
+          ditto -c -k --keepParent "$buendel/macos/Job-Alert-Monitor.app" \
+            artefakte/bau/Job-Alert-Monitor-macos.zip
+          cp "$buendel"/dmg/*.dmg artefakte/bau/ 2>/dev/null || echo "kein dmg"
+          ls -l artefakte/bau
+
+      - name: Bilder und Protokolle ablegen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bilder-${{ matrix.name }}
+          path: |
+            artefakte/bilder
+            artefakte/protokolle
+          if-no-files-found: warn
+
+      - name: Bau ablegen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bau-${{ matrix.name }}
+          path: artefakte/bau
+          if-no-files-found: warn
+
+      # Rollierendes Vorab-Release: immer derselbe Tag „latest“, keine Versionsnummern in
+      # den Dateinamen. Beide Läufe laden nacheinander hoch, deshalb --clobber.
+      - name: Vorab-Release „latest“
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view latest >/dev/null 2>&1; then
+            gh release create latest --prerelease --title latest \
+              --notes "Letzter erfolgreicher Stand von main. Ohne Signatur und Notarisierung." \
+              || echo "Release bestand bereits (anderer Lauf war schneller)."
+          fi
+          gh release upload latest artefakte/bau/* --clobber

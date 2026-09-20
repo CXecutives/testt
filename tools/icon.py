@@ -1,11 +1,17 @@
-"""App-Symbol (src-tauri/icons/icon.ico): Koralle mit weißer Projektmappe und Haken.
+"""App-Symbol: Koralle mit weißer Projektmappe und Haken – für Windows und für macOS.
+
+Erzeugt werden src-tauri/icons/icon.ico (Windows), icon.icns (macOS-Bündel) und
+icon.png (1024; Tauri braucht auf allen Nicht-Windows-Zielen ein PNG als Fenstersymbol).
 
 Jede Stufe liegt auf dem Pixelraster: gerade Kanten auf ganzen Pixeln, Ränder symmetrisch,
-gerendert mit 16-facher Überabtastung und Flächenmittel – dadurch bleiben sie scharf.
+gerendert mit Überabtastung und Flächenmittel – dadurch bleiben sie scharf.
 
 Die Reihenfolge im ICO ist wichtig: Tauri nimmt für das Fenstersymbol (Taskleiste, Alt+Tab)
 stur den ersten Eintrag. Er ist deshalb die 48er-Stufe – Windows rechnet daraus sauber
 herunter, statt eine kleine Stufe aufzublasen.
+
+Windows und macOS unterscheiden sich in der Form: Unter Windows füllt die farbige Platte
+die Kachel bis auf einen schmalen Rand, unter macOS steht sie frei (siehe MAC_PLATE).
 
     python tools/icon.py            (braucht Pillow)
 """
@@ -29,12 +35,31 @@ TAB_Y, TAB_X, BODY_R = 272, 436, 60
 CHECK_POINTS, CHECK_W = [(390, 548), (482, 640), (652, 468)], 68
 SIZES = [48, 16, 20, 24, 32, 40, 64, 96, 256]
 
+# macOS: Das Symbol steht frei auf seiner Kachel – die Platte nimmt 80 % der Kantenlänge
+# ein (1024 − 2·102 = 820) und trägt den üblichen Radius von rund 22 % ihrer Breite
+# (184/820). Randfüllend wie unter Windows wirkte es im Dock neben den Systemsymbolen
+# eine Nummer zu groß.
+MAC_PLATE, MAC_RADIUS = 102, 184
+# ICNS-Einträge: OSType und Kantenlänge. 256 und 512 stehen doppelt (einfach und @2x) –
+# genau so legt Apples iconutil sie ab. Nur PNG-Typen; die alten RLE-Typen (is32/il32)
+# braucht macOS nicht mehr, und 16 px zeichnet es aus der 32er-Stufe (ic11 = 16@2x).
+ICNS_ENTRIES = [('ic11', 32), ('ic12', 64), ('ic07', 128), ('ic13', 256),
+                ('ic08', 256), ('ic14', 512), ('ic09', 512), ('ic10', 1024)]
 
-def layout(s):
-    """Maße einer Stufe in Zielpixeln – waagerecht und senkrecht symmetrisch gerundet."""
+
+def layout(s, mac=False):
+    """Maße einer Stufe in Zielpixeln – waagerecht und senkrecht symmetrisch gerundet.
+
+    `mac`: schmalere Platte mit größerem Radius. Die Zeichnung darauf behält ihr Verhältnis
+    zur Platte, deshalb skalieren Mappenradius und Hakenbreite dort mit der Platte statt mit
+    der Kantenlänge. Unter Windows bleibt es bei der Kantenlänge, damit sich an den
+    ausgelieferten ICO-Stufen kein Pixel verschiebt.
+    """
     k = s / 1024
-    margin = max(1, round(PLATE * k))
+    inset, radius = (MAC_PLATE, MAC_RADIUS) if mac else (PLATE, RADIUS)
+    margin = max(1, round(inset * k))
     plate = s - 2 * margin
+    art = plate / (1024 - 2 * PLATE) if mac else k
     side = round((BODY[0] - PLATE) / (1024 - 2 * PLATE) * plate)
     top = round((BODY[1] - PLATE) / (1024 - 2 * PLATE) * plate)
     tab = round((TAB_Y - PLATE) / (1024 - 2 * PLATE) * plate)
@@ -47,29 +72,36 @@ def layout(s):
                 body[1] + (y - BODY[1]) / (BODY[3] - BODY[1]) * (body[3] - body[1]))
 
     return dict(
-        bg=(margin, margin, s - margin, s - margin, RADIUS * k),
+        bg=(margin, margin, s - margin, s - margin, radius * k),
         tab_y=margin + tab,
         tab_x=tab_x,
-        body=(*body, max(1, BODY_R * k)),
+        body=(*body, max(1, BODY_R * art)),
         check=[point(x, y) for x, y in CHECK_POINTS],
-        w=max(1.7, CHECK_W * k + 0.6),
+        w=max(1.7, CHECK_W * art + 0.6),
     )
 
 
 def gradient(size):
+    """Schräger Verlauf GLOW → VARIANT.
+
+    Die Farbe hängt allein von x+y ab, deshalb genügt eine Zeile mit allen 2·size−1 Werten;
+    jede Bildzeile ist ein Ausschnitt daraus. Pixelweise in Python gerechnet wäre die
+    überabgetastete Fläche (bis 4096²) sonst zu langsam.
+    """
+    span = 2 * (size - 1)
+    ramp = Image.new('RGB', (span + 1, 1))
+    ramp.putdata([tuple(round(a + (b - a) * (i / span)) for a, b in zip(GLOW, VARIANT))
+                  for i in range(span + 1)])
     g = Image.new('RGB', (size, size))
-    px = g.load()
     for y in range(size):
-        for x in range(size):
-            t = (x + y) / (2 * (size - 1))
-            px[x, y] = tuple(round(a + (b - a) * t) for a, b in zip(GLOW, VARIANT))
+        g.paste(ramp.crop((y, 0, y + size, 1)), (0, y))
     return g
 
 
-def render(s):
-    L = layout(s)
-    S = s * SS
-    sc = lambda v: v * SS
+def render(s, mac=False, ss=SS):
+    L = layout(s, mac)
+    S = s * ss
+    sc = lambda v: v * ss
     img = Image.new('RGBA', (S, S), (0, 0, 0, 0))
     mask = Image.new('L', (S, S), 0)
     x0, y0, x1, y1, r = L['bg']
@@ -142,5 +174,32 @@ def build(out):
     out.write_bytes(header + entries + blobs)
 
 
+def mac_stage(s):
+    """Eine macOS-Stufe. Die Überabtastung ist so gewählt, dass die Zwischenfläche stets
+    rund 4096 px breit bleibt – darüber wächst nur der Speicherbedarf, nicht die Schärfe."""
+    return render(s, mac=True, ss=min(SS, max(4, 4096 // s)))
+
+
+def build_mac(icns_out, png_out):
+    """ICNS und das 1024er PNG schreiben.
+
+    Ein ICNS ist ein einfacher Behälter: die Kennung `icns`, die Gesamtlänge, danach je
+    Eintrag OSType, Länge (einschließlich der 8 Kopfbytes) und ein vollständiges PNG –
+    dafür braucht es kein fremdes Werkzeug (iconutil gibt es nur auf einem Mac).
+    """
+    frames = {}
+    for _, s in ICNS_ENTRIES:
+        if s not in frames:
+            buf = BytesIO()
+            mac_stage(s).save(buf, 'PNG')
+            frames[s] = buf.getvalue()
+    body = b''.join(ostype.encode('ascii') + struct.pack('>I', len(frames[s]) + 8) + frames[s]
+                    for ostype, s in ICNS_ENTRIES)
+    icns_out.write_bytes(b'icns' + struct.pack('>I', len(body) + 8) + body)
+    png_out.write_bytes(frames[1024])
+
+
 if __name__ == '__main__':
-    build(Path(__file__).resolve().parent.parent / 'src-tauri' / 'icons' / 'icon.ico')
+    icons = Path(__file__).resolve().parent.parent / 'src-tauri' / 'icons'
+    build(icons / 'icon.ico')
+    build_mac(icons / 'icon.icns', icons / 'icon.png')
