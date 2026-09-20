@@ -1,6 +1,7 @@
 //! Ein-Klick-Lauf mit den Trockenlauf-Attrappen; simulierte Zeit (Tempo kostet nichts).
 
 use std::path::Path;
+use std::sync::Mutex;
 
 use jiff::SignedDuration;
 use tokio::time::Instant;
@@ -49,17 +50,10 @@ async fn go<B: Backends>(
     clock: &impl Fn() -> Timestamp,
 ) -> (RunSummary, Vec<RunEvent>) {
     let mut events = Vec::new();
-    let mut policy = Policy::in_memory();
-    let summary = run(
-        backends,
-        store,
-        &mut policy,
-        request,
-        ctx,
-        cancel,
-        clock,
-        |e| events.push(e),
-    )
+    let policy = Mutex::new(Policy::in_memory());
+    let summary = run(backends, store, &policy, request, ctx, cancel, clock, |e| {
+        events.push(e);
+    })
     .await;
     (summary, events)
 }
@@ -137,14 +131,17 @@ async fn one_click_run_writes_everything_and_finishes_once() {
             .iter()
             .all(|(text, _)| text.starts_with("Pause vor dem nächsten Abruf ("))
     );
-    // Nach jeder Wartezeit folgt wieder die Tätigkeit.
-    for pair in statuses.windows(2) {
-        if pair[0].1 {
-            assert!(
-                pair[1].0.starts_with("Jobdetails werden geholt"),
-                "{pair:?}"
-            );
-        }
+    // Nach einer Wartezeit folgt wieder eine Tätigkeit – dazwischen dürfen andere Portale
+    // ebenfalls warten, sie laufen ja nebeneinander. Die Statuszeile bleibt nie in der Pause
+    // stehen.
+    for (i, _) in statuses.iter().enumerate().filter(|(_, (_, wait))| *wait) {
+        let next = statuses[i + 1..].iter().find(|(_, wait)| !wait);
+        assert!(
+            next.is_some_and(|(text, _)| text.starts_with("Jobdetails werden geholt")
+                || text.starts_with("Anmeldung bei")
+                || text.starts_with("Ergebnisdateien")),
+            "{statuses:?}"
+        );
     }
     let status_json = serde_json::to_value(status("x")).unwrap();
     assert!(
@@ -182,11 +179,11 @@ async fn cancel_during_fetch_keeps_work_and_still_exports() {
     let store = Store::in_memory().unwrap();
     let cancel = CancellationToken::new();
     let mut events = Vec::new();
-    let mut policy = Policy::in_memory();
+    let policy = Mutex::new(Policy::in_memory());
     let s = run(
         &mut DemoBackends,
         &store,
-        &mut policy,
+        &policy,
         &request(),
         &ctx(dir.path(), false),
         &cancel,
@@ -220,7 +217,7 @@ async fn mail_failure_skips_fetch_but_exports() {
                 "[AUTHENTICATIONFAILED] Invalid credentials".into(),
             ))
         }
-        fn pages(&mut self) -> Result<DemoPages, String> {
+        fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
             Ok(DemoPages)
         }
     }
@@ -333,11 +330,11 @@ async fn cancel_after_k_of_n_keeps_exactly_k() {
         let cancel = CancellationToken::new();
         let mut events = Vec::new();
         let mut updated = 0;
-        let mut policy = Policy::in_memory();
+        let policy = Mutex::new(Policy::in_memory());
         run(
             &mut DemoBackends,
             &store,
-            &mut policy,
+            &policy,
             &request(),
             &ctx(dir.path(), false),
             &cancel,
@@ -527,7 +524,7 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
         async fn connect_mail(&mut self, _: &CancellationToken) -> Result<DemoMail, MailError> {
             Err(MailError::Timeout)
         }
-        fn pages(&mut self) -> Result<DemoPages, String> {
+        fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
             Ok(DemoPages)
         }
     }

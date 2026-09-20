@@ -8,6 +8,7 @@ pub mod demo;
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
@@ -60,7 +61,9 @@ pub trait Backends {
         &mut self,
         cancel: &CancellationToken,
     ) -> impl Future<Output = Result<Self::Mail, MailError>> + Send;
-    fn pages(&mut self) -> Result<Self::Pages, String>;
+    /// Abrufweg **eines** Portals: eigene HTTP-Sitzung, eigenes Fenster. Die Portale
+    /// laufen nebeneinander und teilen sich deshalb keinen.
+    fn pages(&mut self, portal: Portal) -> Result<Self::Pages, String>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -190,7 +193,7 @@ const MAX_FAILED_NAMES: usize = 20;
 pub async fn run<B: Backends>(
     backends: &mut B,
     store: &Store,
-    policy: &mut Policy,
+    policy: &Mutex<Policy>,
     request: &RunRequest,
     ctx: &RunContext,
     cancel: &CancellationToken,
@@ -438,7 +441,7 @@ async fn scan_step<B: Backends>(
 async fn fetch_step<B: Backends>(
     backends: &mut B,
     store: &Store,
-    policy: &mut Policy,
+    policy: &Mutex<Policy>,
     request: &RunRequest,
     ctx: &RunContext,
     targeted: Option<&[JobKey]>,
@@ -447,10 +450,6 @@ async fn fetch_step<B: Backends>(
     fetched: &mut FetchSummary,
     emit: &mut impl FnMut(RunEvent),
 ) -> Outcome {
-    let mut pages = match backends.pages() {
-        Ok(pages) => pages,
-        Err(e) => return failed("fetch", &format!("Abruf nicht möglich: {e}")),
-    };
     let selection = match targeted {
         Some(keys) => Selection::Jobs(keys),
         None => Selection::Queue(&request.portals),
@@ -458,7 +457,7 @@ async fn fetch_step<B: Backends>(
     // Tätigkeit in der Statuszeile – nicht bei jedem Job neu, nach einer Wartezeit wieder.
     let mut activity: Option<String> = None;
     let result = fetch_all(
-        &mut pages,
+        |portal| backends.pages(portal),
         store,
         policy,
         selection,
@@ -488,7 +487,7 @@ async fn fetch_step<B: Backends>(
                 });
             }
             FetchEvent::JobUpdated { key, .. } => {
-                if let Ok(Some(job)) = store.job(key) {
+                if let Ok(Some(job)) = store.job(&key) {
                     emit(RunEvent::JobUpdated {
                         job: Box::new(JobView::from(&job)),
                     });
@@ -500,11 +499,11 @@ async fn fetch_step<B: Backends>(
                 text,
                 ..
             } => {
-                emit(log_line(Level::Warn, text));
+                emit(log_line(Level::Warn, text.clone()));
                 emit(RunEvent::PortalStopped {
                     portal,
                     skipped,
-                    text: text.to_string(),
+                    text,
                 });
             }
             FetchEvent::Progress { done, total } => emit(RunEvent::Progress {

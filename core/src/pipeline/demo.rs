@@ -51,7 +51,7 @@ impl Backends for DemoBackends {
         })
     }
 
-    fn pages(&mut self) -> Result<DemoPages, String> {
+    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
         Ok(DemoPages)
     }
 }

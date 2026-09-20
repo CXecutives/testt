@@ -1,7 +1,13 @@
 //! Jobdetails holen: Warteschlange, Sicherheitsregeln, Ergebnis-Matrix.
 //!
-//! Streng nacheinander, nie parallel; jede Beschreibung wird sofort gespeichert. Nach einem
-//! Sperrsignal gibt es **keinen** automatischen Ausweichweg – das Portal pausiert.
+//! Die drei Portale laufen nebeneinander – **innerhalb** eines Portals aber streng
+//! nacheinander: gleiche Abstände, gleiche Obergrenzen, gleicher Schutzschalter. Das ist
+//! eine Sicherheitseigenschaft, keine Beschleunigung. Jede Beschreibung wird sofort
+//! gespeichert. Nach einem Sperrsignal gibt es **keinen** automatischen Ausweichweg – das
+//! Portal pausiert.
+//!
+//! Der Sicherheitsstand liegt hinter einer kurzen Sperre; sie wird nie über einen Schlaf
+//! oder einen Abruf gehalten, und `policy.json` hat dadurch genau einen Schreiber.
 
 mod freelance_de;
 mod freelancermap;
@@ -10,8 +16,12 @@ mod linkedin;
 pub mod policy;
 pub mod site;
 
+use std::collections::BTreeMap;
 use std::future::Future;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
+
+use tokio::sync::mpsc;
 
 use jiff::{SignedDuration, Timestamp};
 use tokio_util::sync::CancellationToken;
@@ -260,8 +270,8 @@ pub struct FetchSummary {
     pub per_portal: std::collections::BTreeMap<Portal, PortalCounts>,
 }
 
-#[derive(Debug)]
-pub enum FetchEvent<'a> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FetchEvent {
     Queued {
         total: usize,
     },
@@ -280,15 +290,15 @@ pub enum FetchEvent<'a> {
     },
     /// Ein Job hat einen neuen Stand (Tabelle aktualisieren).
     JobUpdated {
-        key: &'a JobKey,
+        key: JobKey,
         status: DescStatus,
     },
     PortalStopped {
         portal: Portal,
-        reason: &'a StopReason,
+        reason: StopReason,
         skipped: usize,
         /// Fertiger Stopptext.
-        text: &'a str,
+        text: String,
     },
     Progress {
         done: usize,
@@ -322,7 +332,7 @@ pub enum Admission {
 /// Wartezeiten), dann zählen und dauerhaft sichern – vor dem Zugriff, damit ein Absturz
 /// mittendrin die Obergrenze nicht aushebelt. Ohne gesicherten Stand kein Zugriff.
 pub async fn admit(
-    policy: &mut Policy,
+    policy: &Mutex<Policy>,
     portal: Portal,
     cancel: &CancellationToken,
     clock: &impl Fn() -> Timestamp,
@@ -331,14 +341,21 @@ pub async fn admit(
     if cancel.is_cancelled() {
         return Ok(Admission::Cancelled);
     }
-    match policy.allowance(portal, clock()) {
-        Allowance::Paused { until, reason } => {
-            return Ok(Admission::Stop(StopReason::Paused { until, reason }));
+    // Die Sperre gilt nur für das Prüfen und Rechnen, nie über den Schlaf.
+    let wait = {
+        let policy = lock(policy);
+        match policy.allowance(portal, clock()) {
+            Allowance::Paused { until, reason } => {
+                return Ok(Admission::Stop(StopReason::Paused { until, reason }));
+            }
+            Allowance::Quota { next_at } => {
+                return Ok(Admission::Stop(StopReason::Quota { next_at }));
+            }
+            Allowance::Go => {}
         }
-        Allowance::Quota { next_at } => return Ok(Admission::Stop(StopReason::Quota { next_at })),
-        Allowance::Go => {}
-    }
-    if let Some(wait) = policy.pace_wait(portal, clock()) {
+        policy.pace_wait(portal, clock())
+    };
+    if let Some(wait) = wait {
         if wait > WAIT_NOTICE {
             on_wait(until(clock(), wait));
         }
@@ -346,246 +363,386 @@ pub async fn admit(
             return Ok(Admission::Cancelled);
         }
     }
+    let mut policy = lock(policy);
     policy.record_access(portal, clock());
     policy.save()?;
     Ok(Admission::Go)
 }
 
-/// Holt die Jobdetails. `clock` liefert die aktuelle Zeit (in Tests steuerbar).
+/// Kurzer Zugriff auf den Sicherheitsstand. Ein vergifteter Stand ist kein Grund, den Lauf
+/// abzubrechen: Die Zähler darin sind gültig, und ohne sie gäbe es gar keine Grenze mehr.
+fn lock(policy: &Mutex<Policy>) -> MutexGuard<'_, Policy> {
+    policy.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Was alle Portal-Schleifen teilen.
+struct Shared<'a, C: Fn() -> Timestamp> {
+    store: &'a Store,
+    policy: &'a Mutex<Policy>,
+    session_portals: &'a [Portal],
+    /// Abbruch **dieses** Abrufs – auch ein Datenbankfehler in einem Portal stoppt so die
+    /// übrigen, statt sie ohne gesicherten Stand weiterlaufen zu lassen.
+    cancel: &'a CancellationToken,
+    clock: &'a C,
+}
+
+/// Was eine Portal-Schleife hinterlässt.
+struct PortalRun {
+    portal: Portal,
+    /// `None`: Das Portal hatte in diesem Lauf nichts zu holen.
+    counts: Option<PortalCounts>,
+    completed: bool,
+}
+
+/// Meldung einer Portal-Schleife an den einen Ereignis-Sammler.
+enum Note {
+    Event(FetchEvent),
+    /// Ein Job ist bewertet – der Fortschritt zählt über alle Portale zusammen.
+    Done,
+}
+
+fn note(notes: &mpsc::UnboundedSender<Note>, event: FetchEvent) {
+    let _ = notes.send(Note::Event(event));
+}
+
+/// Holt die Jobdetails. `pages` liefert den Abrufweg eines Portals – jedes Portal bekommt
+/// seinen eigenen (eigene HTTP-Sitzung, eigenes Fenster), damit die Portale nebeneinander
+/// laufen können. `clock` liefert die aktuelle Zeit (in Tests steuerbar).
 ///
 /// Fehler der Datenbank oder beim Sichern von `policy.json` brechen ab – ohne dauerhaften
 /// Sicherheitsstand wird kein Portal weiter abgerufen.
 #[expect(
-    clippy::too_many_lines,
     clippy::too_many_arguments,
-    reason = "die Ergebnis-Matrix liest sich am besten an einem Stück; Uhr und Ereignisse kommen einzeln (Tests)"
+    reason = "Lauf-Kontext: Speicher, Regeln, Auswahl, Uhr und Ereignisse kommen einzeln (Tests)"
 )]
 pub async fn fetch_all<F: PageFetcher>(
-    fetcher: &mut F,
+    mut pages: impl FnMut(Portal) -> Result<F, String>,
     store: &Store,
-    policy: &mut Policy,
+    policy: &Mutex<Policy>,
     selection: Selection<'_>,
     session_portals: &[Portal],
     cancel: &CancellationToken,
     clock: impl Fn() -> Timestamp,
     summary: &mut FetchSummary,
-    mut on_event: impl FnMut(FetchEvent<'_>),
+    mut on_event: impl FnMut(FetchEvent),
 ) -> crate::Result<bool> {
     let queue = queue(store, selection, clock())?;
-    summary.queued = queue.len();
-    on_event(FetchEvent::Queued { total: queue.len() });
-    let mut done = 0;
+    let total = queue.len();
+    summary.queued = total;
+    on_event(FetchEvent::Queued { total });
 
-    for portal in FETCH_ORDER {
-        let jobs: Vec<&JobRow> = queue.iter().filter(|j| j.key.portal == portal).collect();
-        if jobs.is_empty() {
-            continue;
-        }
-        let counts = summary.per_portal.entry(portal).or_default();
-        let mut route = route(portal, session_portals, policy);
-        // Eine Anmeldung je Portal und Lauf; danach wird derselbe Job erneut versucht.
-        let mut login_tried = false;
-        // Eine optionale Anmeldung geht höchstens einmal je Lauf verloren – danach wäre es
-        // keine verlorene Sitzung mehr, sondern eine Anmeldewand auch für Gäste.
-        let mut fell_back = false;
-        // Job, dessen Seite schon einmal wiederholt wurde (höchstens eine Wiederholung).
-        let mut retried: Option<usize> = None;
-        let mut index = 0;
-        while index < jobs.len() {
-            let job = jobs[index];
-            let remaining = jobs.len() - index;
-            let link = JobLink {
-                key: job.key.clone(),
-                url: job.url.clone(),
-            };
-            let mut outcome =
-                match access(fetcher, policy, &link, route, cancel, &clock, &mut on_event).await? {
-                    Ok(outcome) => outcome,
-                    Err(reason) => {
-                        stop(counts, &reason, remaining, portal, &mut on_event);
-                        break;
+    let mut by_portal: BTreeMap<Portal, Vec<JobRow>> = BTreeMap::new();
+    for job in queue {
+        by_portal.entry(job.key.portal).or_default().push(job);
+    }
+    // Der Abrufweg entsteht vor dem Start: Scheitert er, beginnt kein Portal.
+    let mut prepare = |portal: Portal| -> crate::Result<(Portal, Vec<JobRow>, Option<F>)> {
+        let jobs = by_portal.remove(&portal).unwrap_or_default();
+        let fetcher = if jobs.is_empty() {
+            None
+        } else {
+            Some(
+                pages(portal)
+                    .map_err(|e| crate::Error::Invalid(format!("Abruf nicht möglich: {e}")))?,
+            )
+        };
+        Ok((portal, jobs, fetcher))
+    };
+    let first = prepare(FETCH_ORDER[0])?;
+    let second = prepare(FETCH_ORDER[1])?;
+    let third = prepare(FETCH_ORDER[2])?;
+
+    // Eigenes Abbruch-Signal: Der Nutzer bricht über das übergebene ab, ein Fehler in einem
+    // Portal über dieses.
+    let inner = cancel.child_token();
+    let shared = Shared {
+        store,
+        policy,
+        session_portals,
+        cancel: &inner,
+        clock: &clock,
+    };
+    let (notes, mut incoming) = mpsc::unbounded_channel::<Note>();
+    // Je Schleife ein Absender; sind alle fertig, endet der Sammler von selbst.
+    let (n1, n2, n3) = (notes.clone(), notes.clone(), notes);
+    let (a, b, c, ()) = tokio::join!(
+        fetch_portal(first, &shared, n1),
+        fetch_portal(second, &shared, n2),
+        fetch_portal(third, &shared, n3),
+        async {
+            let mut done = 0;
+            while let Some(note) = incoming.recv().await {
+                match note {
+                    Note::Event(event) => on_event(event),
+                    Note::Done => {
+                        done += 1;
+                        on_event(FetchEvent::Progress { done, total });
                     }
-                };
-            if let PageOutcome::NetError { .. } = outcome {
-                // Einmal wiederholen – nach 30 s, wieder mit allen Regeln.
-                on_event(FetchEvent::Waiting {
+                }
+            }
+        }
+    );
+
+    let mut completed = true;
+    for result in [a, b, c] {
+        let run = result?;
+        completed &= run.completed;
+        if let Some(counts) = run.counts {
+            summary.per_portal.insert(run.portal, counts);
+        }
+    }
+    Ok(completed)
+}
+
+/// Eine Portal-Schleife: streng nacheinander, mit allen Regeln. Ein Fehler stoppt auch die
+/// übrigen Portale – ohne gesicherten Sicherheitsstand ruft niemand weiter ab.
+async fn fetch_portal<F: PageFetcher, C: Fn() -> Timestamp>(
+    work: (Portal, Vec<JobRow>, Option<F>),
+    shared: &Shared<'_, C>,
+    notes: mpsc::UnboundedSender<Note>,
+) -> crate::Result<PortalRun> {
+    let portal = work.0;
+    let result = portal_loop(work, shared, &notes).await;
+    if result.is_err() {
+        shared.cancel.cancel();
+    }
+    result.map(|(counts, completed)| PortalRun {
+        portal,
+        counts,
+        completed,
+    })
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "die Ergebnis-Matrix liest sich am besten an einem Stück"
+)]
+async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
+    (portal, jobs, fetcher): (Portal, Vec<JobRow>, Option<F>),
+    shared: &Shared<'_, C>,
+    notes: &mpsc::UnboundedSender<Note>,
+) -> crate::Result<(Option<PortalCounts>, bool)> {
+    let Some(mut fetcher) = fetcher else {
+        return Ok((None, true));
+    };
+    let (store, policy, cancel, clock) = (shared.store, shared.policy, shared.cancel, shared.clock);
+    let mut counts = PortalCounts::default();
+    let mut route = route(portal, shared.session_portals, &lock(policy));
+    // Eine Anmeldung je Portal und Lauf; danach wird derselbe Job erneut versucht.
+    let mut login_tried = false;
+    // Eine optionale Anmeldung geht höchstens einmal je Lauf verloren – danach wäre es
+    // keine verlorene Sitzung mehr, sondern eine Anmeldewand auch für Gäste.
+    let mut fell_back = false;
+    // Job, dessen Seite schon einmal wiederholt wurde (höchstens eine Wiederholung).
+    let mut retried: Option<usize> = None;
+    let mut index = 0;
+    while index < jobs.len() {
+        let job = &jobs[index];
+        let remaining = jobs.len() - index;
+        let link = JobLink {
+            key: job.key.clone(),
+            url: job.url.clone(),
+        };
+        let mut outcome =
+            match access(&mut fetcher, policy, &link, route, cancel, clock, notes).await? {
+                Ok(outcome) => outcome,
+                Err(reason) => {
+                    stop(&mut counts, &reason, remaining, portal, notes);
+                    break;
+                }
+            };
+        if let PageOutcome::NetError { .. } = outcome {
+            // Einmal wiederholen – nach 30 s, wieder mit allen Regeln.
+            note(
+                notes,
+                FetchEvent::Waiting {
                     portal,
                     until: until(clock(), NET_RETRY_DELAY),
-                });
-                if !sleep_for(NET_RETRY_DELAY, cancel).await {
-                    return Ok(false);
-                }
-                outcome = match access(fetcher, policy, &link, route, cancel, &clock, &mut on_event)
-                    .await?
-                {
-                    Ok(PageOutcome::NetError { timeout: true, .. }) => {
-                        PageOutcome::Throttled("zweimal keine Antwort".into())
-                    }
-                    Ok(outcome) => outcome,
-                    Err(reason) => {
-                        stop(counts, &reason, remaining, portal, &mut on_event);
-                        break;
-                    }
-                };
+                },
+            );
+            if !sleep_for(NET_RETRY_DELAY, cancel).await {
+                return Ok((Some(counts), false));
             }
-            // Leitet dieselbe Seite ein zweites Mal um, stimmt etwas nicht: verdächtig, damit
-            // der Schutzschalter greift.
-            let outcome = match outcome {
-                PageOutcome::Retry(reason) if retried == Some(index) => {
-                    PageOutcome::Suspicious(reason)
+            outcome = match access(&mut fetcher, policy, &link, route, cancel, clock, notes).await?
+            {
+                Ok(PageOutcome::NetError { timeout: true, .. }) => {
+                    PageOutcome::Throttled("zweimal keine Antwort".into())
                 }
-                other => other,
+                Ok(outcome) => outcome,
+                Err(reason) => {
+                    stop(&mut counts, &reason, remaining, portal, notes);
+                    break;
+                }
             };
+        }
+        // Leitet dieselbe Seite ein zweites Mal um, stimmt etwas nicht: verdächtig, damit
+        // der Schutzschalter greift.
+        let outcome = match outcome {
+            PageOutcome::Retry(reason) if retried == Some(index) => PageOutcome::Suspicious(reason),
+            other => other,
+        };
 
-            let now = clock();
-            policy.record_done(portal, now);
-            let stop_reason = match outcome {
-                PageOutcome::Cancelled => {
-                    // Die Antwortzeit gilt auch nach einem Abbruch für den nächsten Abstand.
-                    policy.save()?;
-                    return Ok(false);
+        let now = clock();
+        lock(policy).record_done(portal, now);
+        let stop_reason = match outcome {
+            PageOutcome::Cancelled => {
+                // Die Antwortzeit gilt auch nach einem Abbruch für den nächsten Abstand.
+                lock(policy).save()?;
+                return Ok((Some(counts), false));
+            }
+            PageOutcome::Retry(_) => {
+                retried = Some(index);
+                lock(policy).save()?;
+                continue;
+            }
+            PageOutcome::Text {
+                text,
+                short,
+                closed,
+                fields,
+            } => {
+                store.record_text(&job.key, &text, short, closed, now)?;
+                // Nur nicht-leere Felder überschreiben die Mail-Heuristik: Was die Seite
+                // verbirgt („für EXPERT-Mitglieder sichtbar“), kommt leer an.
+                if let Some(f) = fields {
+                    store.record_page_fields(&job.key, &f.title, &f.company, &f.location)?;
                 }
-                PageOutcome::Retry(_) => {
-                    retried = Some(index);
-                    policy.save()?;
-                    continue;
-                }
-                PageOutcome::Text {
-                    text,
-                    short,
-                    closed,
-                    fields,
-                } => {
-                    store.record_text(&job.key, &text, short, closed, now)?;
-                    // Nur nicht-leere Felder überschreiben die Mail-Heuristik: Was die Seite
-                    // verbirgt („für EXPERT-Mitglieder sichtbar“), kommt leer an.
-                    if let Some(f) = fields {
-                        store.record_page_fields(&job.key, &f.title, &f.company, &f.location)?;
-                    }
-                    // Eine gelesene Seite im Sitzungsfenster bestätigt die Anmeldung; über den
-                    // Gastweg sagt sie darüber nichts.
+                {
+                    let mut policy = lock(policy);
+                    // Eine gelesene Seite im Sitzungsfenster bestätigt die Anmeldung; über
+                    // den Gastweg sagt sie darüber nichts.
                     if route == Route::Session {
                         policy.set_session(portal, true, now);
                     }
-                    counts.ok += 1;
-                    counts.short += usize::from(short);
-                    counts.closed += usize::from(closed);
                     // Nur ein zweifelsfrei vollständiger Text setzt den Schutzschalter zurück.
                     if !short {
                         policy.clear_suspicious(portal);
                     }
-                    on_event(FetchEvent::JobUpdated {
-                        key: &job.key,
+                }
+                counts.ok += 1;
+                counts.short += usize::from(short);
+                counts.closed += usize::from(closed);
+                note(
+                    notes,
+                    FetchEvent::JobUpdated {
+                        key: job.key.clone(),
                         status: DescStatus::Ok,
-                    });
-                    None
-                }
-                PageOutcome::Gone => {
-                    store.record_gone(&job.key, now)?;
-                    counts.gone += 1;
-                    on_event(FetchEvent::JobUpdated {
-                        key: &job.key,
+                    },
+                );
+                None
+            }
+            PageOutcome::Gone => {
+                store.record_gone(&job.key, now)?;
+                counts.gone += 1;
+                note(
+                    notes,
+                    FetchEvent::JobUpdated {
+                        key: job.key.clone(),
                         status: DescStatus::Gone,
-                    });
-                    None
-                }
-                PageOutcome::Suspicious(reason) => {
-                    let status = store.record_failed(&job.key, &reason, now)?;
-                    counts.failed += 1;
-                    on_event(FetchEvent::JobUpdated {
-                        key: &job.key,
+                    },
+                );
+                None
+            }
+            PageOutcome::Suspicious(reason) => {
+                let status = store.record_failed(&job.key, &reason, now)?;
+                counts.failed += 1;
+                note(
+                    notes,
+                    FetchEvent::JobUpdated {
+                        key: job.key.clone(),
                         status,
-                    });
-                    // Zwei in Folge – auch über Läufe hinweg – stoppen das Portal und
-                    // pausieren es eine Stunde: vermutlich hat sich der Seitenaufbau geändert.
-                    (policy.count_suspicious(portal) >= SUSPICIOUS_STREAK).then(|| {
-                        StopReason::Breaker {
-                            until: policy.pause(portal, PauseKind::Throttled, BREAKER_REASON, now),
-                        }
-                    })
-                }
-                PageOutcome::LoginRequired(sign) => {
-                    log::info!("{portal}: Anmeldung nötig ({sign})");
+                    },
+                );
+                // Zwei in Folge – auch über Läufe hinweg – stoppen das Portal und
+                // pausieren es eine Stunde: vermutlich hat sich der Seitenaufbau geändert.
+                let mut policy = lock(policy);
+                (policy.count_suspicious(portal) >= SUSPICIOUS_STREAK).then(|| {
+                    StopReason::Breaker {
+                        until: policy.pause(portal, PauseKind::Throttled, BREAKER_REASON, now),
+                    }
+                })
+            }
+            PageOutcome::LoginRequired(sign) => {
+                log::info!("{portal}: Anmeldung nötig ({sign})");
+                {
+                    let mut policy = lock(policy);
                     policy.set_session(portal, false, now);
                     policy.save()?;
-                    // Optionale Anmeldung verloren: still zurück auf den Gastweg – keine
-                    // Pause, kein Fehlversuch, derselbe Job wird gleich als Gast geholt.
-                    if portal.login_mode() == LoginMode::Optional && !fell_back {
-                        log::info!("{portal}: ohne Anmeldung weiter (Gastweg)");
-                        fell_back = true;
-                        route = Route::Http;
-                        continue;
-                    }
-                    if login_tried {
-                        Some(StopReason::LoginRequired)
-                    } else {
-                        login_tried = true;
-                        // Die Anmeldeseite ist ein Portalzugriff wie jeder andere.
-                        let admission = admit(policy, portal, cancel, &clock, |until| {
-                            on_event(FetchEvent::Waiting { portal, until });
-                        })
-                        .await?;
-                        match admission {
-                            Admission::Stop(reason) => Some(reason),
-                            Admission::Cancelled => {
-                                policy.save()?;
-                                return Ok(false);
-                            }
-                            Admission::Go => {
-                                on_event(FetchEvent::SigningIn { portal });
-                                let login = fetcher.login(portal, cancel).await;
-                                // Auch nach der Anmeldung gilt der Abstand zur nächsten Seite.
-                                policy.record_done(portal, clock());
-                                match login {
-                                    Login::SignedIn => {
-                                        policy.set_session(portal, true, clock());
-                                        policy.save()?;
-                                        continue;
-                                    }
-                                    Login::Challenged => {
-                                        policy.set_session(portal, true, clock());
-                                        Some(StopReason::Challenged)
-                                    }
-                                    Login::NotSignedIn if cancel.is_cancelled() => {
-                                        policy.save()?;
-                                        return Ok(false);
-                                    }
-                                    Login::NotSignedIn => Some(StopReason::LoginRequired),
+                }
+                // Optionale Anmeldung verloren: still zurück auf den Gastweg – keine
+                // Pause, kein Fehlversuch, derselbe Job wird gleich als Gast geholt.
+                if portal.login_mode() == LoginMode::Optional && !fell_back {
+                    log::info!("{portal}: ohne Anmeldung weiter (Gastweg)");
+                    fell_back = true;
+                    route = Route::Http;
+                    continue;
+                }
+                if login_tried {
+                    Some(StopReason::LoginRequired)
+                } else {
+                    login_tried = true;
+                    // Die Anmeldeseite ist ein Portalzugriff wie jeder andere.
+                    let admission = admit(policy, portal, cancel, clock, |until| {
+                        note(notes, FetchEvent::Waiting { portal, until });
+                    })
+                    .await?;
+                    match admission {
+                        Admission::Stop(reason) => Some(reason),
+                        Admission::Cancelled => {
+                            lock(policy).save()?;
+                            return Ok((Some(counts), false));
+                        }
+                        Admission::Go => {
+                            note(notes, FetchEvent::SigningIn { portal });
+                            let login = fetcher.login(portal, cancel).await;
+                            // Auch nach der Anmeldung gilt der Abstand zur nächsten Seite.
+                            lock(policy).record_done(portal, clock());
+                            match login {
+                                Login::SignedIn => {
+                                    let mut policy = lock(policy);
+                                    policy.set_session(portal, true, clock());
+                                    policy.save()?;
+                                    continue;
                                 }
+                                Login::Challenged => {
+                                    lock(policy).set_session(portal, true, clock());
+                                    Some(StopReason::Challenged)
+                                }
+                                Login::NotSignedIn if cancel.is_cancelled() => {
+                                    lock(policy).save()?;
+                                    return Ok((Some(counts), false));
+                                }
+                                Login::NotSignedIn => Some(StopReason::LoginRequired),
                             }
                         }
                     }
                 }
-                PageOutcome::Throttled(reason) => {
-                    let until = policy.pause(portal, PauseKind::Throttled, &reason, now);
-                    Some(StopReason::Paused { until, reason })
-                }
-                PageOutcome::Blocked(reason) => {
-                    let until = policy.pause(portal, PauseKind::Blocked, &reason, now);
-                    Some(StopReason::Paused { until, reason })
-                }
-                PageOutcome::NetError { detail, .. } => Some(StopReason::Network { detail }),
-            };
-            policy.save()?;
-            done += 1;
-            on_event(FetchEvent::Progress {
-                done,
-                total: queue.len(),
-            });
-            if let Some(reason) = stop_reason {
-                // Der aktuelle Job zählt mit, wenn er nicht bewertet wurde.
-                let skipped = if matches!(reason, StopReason::Breaker { .. }) {
-                    remaining - 1
-                } else {
-                    remaining
-                };
-                stop(counts, &reason, skipped, portal, &mut on_event);
-                break;
             }
-            index += 1;
+            PageOutcome::Throttled(reason) => {
+                let until = lock(policy).pause(portal, PauseKind::Throttled, &reason, now);
+                Some(StopReason::Paused { until, reason })
+            }
+            PageOutcome::Blocked(reason) => {
+                let until = lock(policy).pause(portal, PauseKind::Blocked, &reason, now);
+                Some(StopReason::Paused { until, reason })
+            }
+            PageOutcome::NetError { detail, .. } => Some(StopReason::Network { detail }),
+        };
+        lock(policy).save()?;
+        let _ = notes.send(Note::Done);
+        if let Some(reason) = stop_reason {
+            // Der aktuelle Job zählt mit, wenn er nicht bewertet wurde.
+            let skipped = if matches!(reason, StopReason::Breaker { .. }) {
+                remaining - 1
+            } else {
+                remaining
+            };
+            stop(&mut counts, &reason, skipped, portal, notes);
+            break;
         }
+        index += 1;
     }
-    Ok(true)
+    Ok((Some(counts), true))
 }
 
 /// Offene Jobs: automatisch nur aus den letzten 30 Tagen; gezielt gewählte Jobs auch
@@ -616,21 +773,21 @@ fn queue(store: &Store, selection: Selection<'_>, now: Timestamp) -> crate::Resu
 /// dem Zugriff kommt als `PageOutcome::Cancelled`.
 async fn access<F: PageFetcher>(
     fetcher: &mut F,
-    policy: &mut Policy,
+    policy: &Mutex<Policy>,
     link: &JobLink,
     route: Route,
     cancel: &CancellationToken,
     clock: &impl Fn() -> Timestamp,
-    on_event: &mut impl FnMut(FetchEvent<'_>),
+    notes: &mpsc::UnboundedSender<Note>,
 ) -> crate::Result<Result<PageOutcome, StopReason>> {
     let portal = link.key.portal;
     let admission = admit(policy, portal, cancel, clock, |until| {
-        on_event(FetchEvent::Waiting { portal, until });
+        note(notes, FetchEvent::Waiting { portal, until });
     })
     .await?;
     match admission {
         Admission::Go => {
-            on_event(FetchEvent::Fetching { portal });
+            note(notes, FetchEvent::Fetching { portal });
             Ok(Ok(fetcher.fetch(link, route, cancel).await))
         }
         Admission::Stop(reason) => Ok(Err(reason)),
@@ -643,16 +800,19 @@ fn stop(
     reason: &StopReason,
     skipped: usize,
     portal: Portal,
-    on_event: &mut impl FnMut(FetchEvent<'_>),
+    notes: &mpsc::UnboundedSender<Note>,
 ) {
     let text = reason.text(portal, skipped);
     counts.skipped += skipped;
-    on_event(FetchEvent::PortalStopped {
-        portal,
-        reason,
-        skipped,
-        text: &text,
-    });
+    note(
+        notes,
+        FetchEvent::PortalStopped {
+            portal,
+            reason: reason.clone(),
+            skipped,
+            text: text.clone(),
+        },
+    );
     counts.stop = Some(text);
 }
 

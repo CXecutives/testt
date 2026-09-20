@@ -436,7 +436,9 @@ impl Backends for AppBackends {
         Gmail::connect(credentials, cancel.clone()).await
     }
 
-    fn pages(&mut self) -> Result<Self::Pages, String> {
+    /// Je Portal ein eigener Abrufweg – eigene HTTP-Sitzung, eigenes Fenster (eigenes
+    /// Label): Die Portale laufen nebeneinander und teilen sich nichts.
+    fn pages(&mut self, _portal: Portal) -> Result<Self::Pages, String> {
         Ok(Fetchers {
             http: HttpFetcher::new(&self.user_agent).map_err(|e| e.to_string())?,
             session: Sessions::new(self.app.clone(), self.data_dir.clone(), self.notify.clone()),
@@ -567,13 +569,13 @@ async fn drive<B: Backends>(
     cancel: CancellationToken,
     emit: impl FnMut(RunEvent),
 ) {
-    let mut policy = policy.map_or_else(Policy::in_memory, |path| {
+    let policy = Mutex::new(policy.map_or_else(Policy::in_memory, |path| {
         Policy::load(&path, Timestamp::now())
-    });
+    }));
     pipeline::run(
         &mut backends,
         &store,
-        &mut policy,
+        &policy,
         &request,
         &ctx,
         &cancel,
@@ -686,8 +688,8 @@ async fn claim_session(state: &AppState, portal: Portal) -> CmdResult<Option<Ses
         *activity = Activity::Session(cancel.clone());
     }
     let guard = SessionGuard { state, cancel };
-    let mut policy = Policy::load(&state.policy_path(), Timestamp::now());
-    match admit(&mut policy, portal, &guard.cancel, &Timestamp::now, |_| {}).await? {
+    let policy = Mutex::new(Policy::load(&state.policy_path(), Timestamp::now()));
+    match admit(&policy, portal, &guard.cancel, &Timestamp::now, |_| {}).await? {
         Admission::Go => Ok(Some(guard)),
         Admission::Cancelled => Ok(None),
         Admission::Stop(StopReason::Paused { until, reason }) => Err(CommandError::new(
