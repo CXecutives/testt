@@ -34,7 +34,7 @@ jobs:
             os: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Feste Version statt „stable“: Ab 1.98 meldet der neue Lint
       # clippy::unused_async_trait_impl vier Stellen in core/src/mail/scan.rs und
@@ -234,7 +234,7 @@ jobs:
 
       - name: Bilder und Protokolle ablegen
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: bilder-${{ matrix.name }}
           path: |
@@ -244,7 +244,7 @@ jobs:
 
       - name: Bau ablegen
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: bau-${{ matrix.name }}
           path: artefakte/bau
