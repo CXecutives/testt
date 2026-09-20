@@ -1,52 +1,41 @@
-// Die einzige Stelle mit `window.__TAURI__`: Befehle, Ereigniskanäle, Fenster.
-// Jeder Befehl ist ein dünner Aufruf; Fehler kommen als ApiError { kind, message }.
+// Die einzige Stelle mit Zugriff auf Tauri. Alles andere kennt nur diese Funktionen –
+// so lässt sich die Oberfläche im Prüfstand ohne Rust betreiben (ein Vertragstest hält das fest).
 
 const tauri = window.__TAURI__;
-const { invoke, Channel } = tauri.core;
 
-class ApiError extends Error {
+/** Fehler, die der Nutzer versteht: Das Backend nennt eine Art, sonst ist es ein Fehler von uns. */
+const EXPECTED = new Set(['busy', 'invalid', 'notFound', 'fileLocked', 'mailAuth', 'paused', 'dryRun']);
+
+class CommandError extends Error {
   constructor(kind, message) {
     super(message);
     this.kind = kind;
   }
 }
 
-/** Fehler, mit denen der Nutzer rechnen muss – alle anderen gehören ins Protokoll. */
-const EXPECTED = new Set(['busy', 'invalid', 'secret', 'notFound', 'fileLocked', 'io', 'dryRun', 'paused']);
+function fail(error) {
+  const kind = error?.kind;
+  if (EXPECTED.has(kind)) return new CommandError(kind, error.message);
+  const text = error?.message ?? String(error ?? 'unbekannter Fehler');
+  return new CommandError(kind ?? 'unknown', text);
+}
 
-async function call(command, args = {}) {
+async function call(name, args = undefined) {
   try {
-    return await invoke(command, args);
+    return await tauri.core.invoke(name, args);
   } catch (error) {
-    // Befehlsfehler kommen als { kind, message }, IPC-Fehler (Argumente, Rechte) als Text.
-    const failure = error && typeof error === 'object' && 'message' in error
-      ? new ApiError(error.kind || 'unknown', error.message)
-      : new ApiError('ipc', String(error));
-    if (!EXPECTED.has(failure.kind) && command !== 'report_ui_error') {
-      report(`${command}: ${failure.kind}: ${failure.message}`);
-    }
-    throw failure;
+    throw fail(error);
   }
 }
 
-// Höchstens 20 Berichte je Sitzung – ein Fehler in einer Schleife soll das Protokoll nicht
-// fluten. Fehler des Berichtens selbst werden verschluckt.
-let reports = 0;
-
-function report(message, source = null, line = null) {
-  if (reports >= 20) return;
-  reports += 1;
-  invoke('report_ui_error', { message: String(message).slice(0, 500), source, line }).catch(() => {});
-}
-
+/** Ereignisse eines Laufs kommen über einen Kanal – ein Rückruf je Ereignis. */
 function channel(onEvent) {
-  const ch = new Channel();
+  const ch = new tauri.core.Channel();
   ch.onmessage = onEvent;
   return ch;
 }
 
 export const api = {
-  /** Zustand beim Start und nach Neuladen; hängt die Seite an einen laufenden Lauf an. */
   appState: (onEvent) => call('app_state', { channel: channel(onEvent) }),
   saveSettings: (input) => call('save_settings', { input }),
   pickWorkspace: () => call('pick_workspace'),
@@ -59,32 +48,25 @@ export const api = {
   pickProfile: () => call('pick_profile'),
   removeProfile: () => call('remove_profile'),
   rewriteTxt: () => call('rewrite_txt'),
-  clearResultFiles: () => call('clear_result_files'),
+  clearTxtFiles: () => call('clear_txt_files'),
   openTarget: (target) => call('open_target', { target }),
   resetAll: () => call('reset_all'),
-  portalLogin: () => call('portal_login'),
-  portalLogout: () => call('portal_logout'),
-  /** Die Rückfrage „Beenden?“ ist beantwortet – der Wächter im Backend beginnt von vorn. */
-  closeAnswered: () => call('close_answered'),
-  quit: () => call('quit'),
+  portalLogin: (portal) => call('portal_login', { portal }),
+  portalLogout: (portal) => call('portal_logout', { portal }),
 };
-
-const current = tauri.window.getCurrentWindow();
 
 export const appWindow = {
-  minimize: () => current.minimize(),
-  toggleMaximize: () => current.toggleMaximize(),
-  close: () => current.close(),
-  isMaximized: () => current.isMaximized(),
-  /** Das Fenster soll während eines Laufs schließen – die Seite fragt nach. */
-  onCloseRequested: (handler) => tauri.event.listen('close-requested', handler),
+  minimize: () => tauri.window.getCurrentWindow().minimize(),
+  toggleMaximize: () => tauri.window.getCurrentWindow().toggleMaximize(),
+  close: () => tauri.window.getCurrentWindow().close(),
+  isMaximized: () => tauri.window.getCurrentWindow().isMaximized(),
+  /** Die App beendet sich – die Seite zeigt nur noch an, dass aufgeräumt wird. */
+  onClosing: (handler) => tauri.event.listen('closing', handler),
 };
 
-// Fehler der Seite landen im Protokoll der App (nie still verloren).
-window.addEventListener('error', (event) => {
-  report(event.message, event.filename, event.lineno);
-});
-window.addEventListener('unhandledrejection', (event) => {
-  const reason = event.reason;
-  report(reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason));
-});
+// Fehler der Seite landen im Protokoll der App, nicht in einer Konsole, die niemand sieht.
+const report = (message, source, line) => {
+  tauri.core.invoke('report_ui_error', { message, source, line }).catch(() => {});
+};
+addEventListener('error', (event) => report(String(event.message), event.filename, event.lineno));
+addEventListener('unhandledrejection', (event) => report(String(event.reason), null, null));

@@ -1,72 +1,61 @@
-// Ein Zustand für die ganze Oberfläche. Ansichten lesen ihn und zeichnen sich neu, wenn
-// sich ihr Thema ändert – sie stoßen sich nie gegenseitig im DOM an.
-
-const LOG_KEEP = 500;
+// Zustand der Oberfläche an einer Stelle. Wer ihn ändert, sagt es über `emit`;
+// wer ihn braucht, hört mit `subscribe` zu. Kein Modul liest den Zustand eines anderen.
 
 export const state = {
   /** Antwort von `app_state` (Einstellungen, Portale, Profil, Gmail, letzter Lauf …). */
   app: null,
-  view: 'alerts',
-  /** Läuft ein Lauf? */
+  view: 'jobs',
+  /** Ein Lauf arbeitet. */
   busy: false,
   cancelling: false,
-  /** Text, solange das freelance.de-Anmeldefenster für An-/Abmelden offen ist (sperrt wie ein Lauf). */
+  /** Text, solange ein Anmeldefenster offen ist (sperrt wie ein Lauf). */
   session: null,
-  run: freshRun(),
-  /** Verlauf – höchstens 500 Zeilen; Anzeige und „Verlauf kopieren“ sind identisch. */
+  run: emptyRun(),
   log: [],
-  /** Eingaben im Gmail-Formular (bleiben beim Neuzeichnen erhalten). */
-  gmailForm: { user: null, password: '' },
+  /** Eingabe im Postfach-Formular, bis sie gespeichert wird. */
+  gmailForm: { user: '', password: '' },
+  filter: 'new',
+  search: '',
+  /** Gewählter Job als `portal:id`. */
+  selection: null,
 };
 
-function freshRun() {
+function emptyRun() {
   return {
-    kind: null, // 'scan' | 'fetch' | 'job'
-    /** Was gerade geschieht; `until`: Ende einer Wartezeit (Countdown). */
+    kind: null,
     status: '',
+    level: '',
     until: null,
-    progress: null,
-    /** Je Portal [Alert-Mails, Einträge] dieses Laufs. */
-    alertCounts: {},
-    /** Je Portal der Stopp dieses Laufs { skipped, text }. */
+    done: 0,
+    total: 0,
+    /** Portale, die der laufende Lauf übersprungen hat. */
     stops: {},
-    /** Alert-Mails ohne Einträge aus diesem Lauf (bis der Zustand neu geladen ist). */
+    /** Schlüssel der in diesem Lauf neu gefundenen Jobs. */
+    fresh: [],
+    /** Alert-Mails ohne erkannte Jobs (nur während des Laufs). */
     emptyAlerts: [],
-    /** Das Anmeldefenster wartet gerade (LoginNeeded) – je Portal. */
     loginWaiting: {},
-    /** Abschluss: Zusammenfassung und Zeile für die Laufleiste. */
     summary: null,
-    summaryLine: '',
-    summaryLevel: '',
   };
 }
 
-const listeners = new Map();
+const handlers = new Map();
 
-/** Themen: 'app' · 'view' · 'busy' · 'run' · 'log' · 'job' (ein Job) · 'jobs' (Liste neu) · 'navigate'. */
 export function subscribe(topic, handler) {
-  if (!listeners.has(topic)) listeners.set(topic, new Set());
-  listeners.get(topic).add(handler);
+  handlers.set(topic, [...(handlers.get(topic) ?? []), handler]);
 }
 
 export function emit(topic, payload) {
-  for (const handler of listeners.get(topic) ?? []) {
-    try {
-      handler(payload);
-    } catch (error) {
-      // Ein Fehler in einer Ansicht darf die anderen nicht aufhalten.
-      queueMicrotask(() => { throw error; });
-    }
-  }
+  for (const handler of handlers.get(topic) ?? []) handler(payload);
 }
 
 export function setApp(app) {
   state.app = app;
-  if (state.gmailForm.user === null) state.gmailForm.user = app.gmailUser ?? '';
   emit('app', app);
 }
 
 export function setView(view) {
+  if (state.view === view) return;
   state.view = view;
   emit('view', view);
 }
@@ -74,28 +63,27 @@ export function setView(view) {
 export function setBusy(busy) {
   state.busy = busy;
   if (!busy) state.cancelling = false;
-  emit('busy');
+  emit('busy', busy);
+}
+
+export function setCancelling(on) {
+  state.cancelling = on;
+  emit('busy', state.busy);
 }
 
 export function setSession(text) {
   state.session = text;
-  if (!text) state.cancelling = false;
-  emit('busy');
+  emit('busy', state.busy);
 }
 
-/** Gesperrt für alles, was das Backend während eines Laufs oder einer Anmeldung ablehnt. */
+/** Läuft gerade etwas, das die Oberfläche sperrt? */
 export const locked = () => state.busy || Boolean(state.session);
 
 /** Warum ein Knopf gerade gesperrt ist – ein Satz für die ganze Oberfläche. */
 export const lockedWhy = () => (locked() ? 'Erst nach dem laufenden Vorgang möglich' : null);
 
-export function setCancelling(cancelling) {
-  state.cancelling = cancelling;
-  emit('busy');
-}
-
 export function resetRun(kind) {
-  state.run = freshRun();
+  state.run = emptyRun();
   state.run.kind = kind;
   emit('run', state.run);
 }
@@ -105,11 +93,25 @@ export function updateRun(patch) {
   emit('run', state.run);
 }
 
-/** Verlaufszeile (info · ok · warn · error); `at` ist die Zeit der Meldung (Backend) oder jetzt. */
+export function setFilter(filter) {
+  state.filter = filter;
+  emit('filter', filter);
+}
+
+export function setSearch(search) {
+  state.search = search;
+  emit('filter', state.filter);
+}
+
+export function setSelection(key) {
+  state.selection = key;
+  emit('selection', key);
+}
+
+const LOG_MAX = 400;
+
 export function addLog(level, text, at = new Date()) {
-  const entry = { level, text, at: at instanceof Date ? at : new Date(at) };
-  state.log.push(entry);
-  const drop = state.log.length - LOG_KEEP;
-  if (drop > 0) state.log.splice(0, drop);
-  emit('log', { entry, dropped: Math.max(0, drop) });
+  state.log.push({ level, text, at });
+  if (state.log.length > LOG_MAX) state.log.shift();
+  emit('log', state.log);
 }
