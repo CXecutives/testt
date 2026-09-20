@@ -3,11 +3,12 @@
 //! Streng nacheinander, nie parallel; jede Beschreibung wird sofort gespeichert. Nach einem
 //! Sperrsignal gibt es **keinen** automatischen Ausweichweg – das Portal pausiert.
 
-pub mod freelance_de;
+mod freelance_de;
 mod freelancermap;
 pub mod http;
 mod linkedin;
 pub mod policy;
+pub mod site;
 
 use std::future::Future;
 use std::time::Duration;
@@ -16,7 +17,7 @@ use jiff::{SignedDuration, Timestamp};
 use tokio_util::sync::CancellationToken;
 
 use crate::model::DescStatus;
-use crate::portal::{JobKey, JobLink, Portal};
+use crate::portal::{JobKey, JobLink, LoginMode, Portal};
 use crate::store::{JobRow, Store};
 use crate::time;
 use http::HttpFetcher;
@@ -70,7 +71,7 @@ pub enum PageOutcome {
         timeout: bool,
         detail: String,
     },
-    /// Das Portal leitete einmalig um (freelance.de nach der Anmeldung) – dieselbe Seite
+    /// Das Portal leitete einmalig um (nach der Anmeldung) – dieselbe Seite
     /// noch einmal abrufen, als neuer, gezählter Zugriff.
     Retry(String),
     Cancelled,
@@ -118,16 +119,45 @@ pub enum Login {
     NotSignedIn,
 }
 
-/// Holt eine Seite. HTTP für die öffentlichen Portale, das Sitzungsfenster für freelance.de.
+/// Auf welchem Weg eine Seite geholt wird.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Route {
+    /// Ohne Konto, als Gast.
+    Http,
+    /// Im Sitzungsfenster, mit der Anmeldung des Nutzers.
+    Session,
+}
+
+/// Der einzige Router. Sitzungsweg, wenn eine Anmeldung nötig ist – oder wenn sie gewollt
+/// **und** bestätigt ist. Ein Portal mit optionaler Anmeldung ohne bestätigte Sitzung geht
+/// als Gast: Das ist kein Fehler, nur weniger Text.
+pub fn route(portal: Portal, session_portals: &[Portal], policy: &Policy) -> Route {
+    match portal.login_mode() {
+        LoginMode::None => Route::Http,
+        LoginMode::Required => Route::Session,
+        LoginMode::Optional => {
+            let state = policy.state(portal);
+            let signed_in = !state.login_needed && state.session_confirmed_at.is_some();
+            if session_portals.contains(&portal) && signed_in {
+                Route::Session
+            } else {
+                Route::Http
+            }
+        }
+    }
+}
+
+/// Holt eine Seite – als Gast (HTTP) oder im Sitzungsfenster; den Weg bestimmt [`route`].
 pub trait PageFetcher {
     fn fetch(
         &mut self,
         link: &JobLink,
+        route: Route,
         cancel: &CancellationToken,
     ) -> impl Future<Output = PageOutcome> + Send;
 
-    /// Lässt den Nutzer sich anmelden (freelance.de: Sitzungsfenster sichtbar). Ohne
-    /// Anmeldemöglichkeit: nicht angemeldet.
+    /// Lässt den Nutzer sich anmelden (Sitzungsfenster sichtbar). Ohne Anmeldemöglichkeit:
+    /// nicht angemeldet.
     fn login(
         &mut self,
         portal: Portal,
@@ -138,17 +168,22 @@ pub trait PageFetcher {
     }
 }
 
-/// Die Abrufwege der App: HTTP für LinkedIn und freelancermap, die Sitzung für freelance.de.
+/// Die beiden Abrufwege der App nebeneinander.
 pub struct Fetchers<S> {
     pub http: HttpFetcher,
     pub session: S,
 }
 
 impl<S: PageFetcher + Send> PageFetcher for Fetchers<S> {
-    async fn fetch(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
-        match link.key.portal {
-            Portal::FreelanceDe => self.session.fetch(link, cancel).await,
-            Portal::LinkedIn | Portal::Freelancermap => self.http.fetch(link, cancel).await,
+    async fn fetch(
+        &mut self,
+        link: &JobLink,
+        route: Route,
+        cancel: &CancellationToken,
+    ) -> PageOutcome {
+        match route {
+            Route::Session => self.session.fetch(link, route, cancel).await,
+            Route::Http => self.http.fetch(link, route, cancel).await,
         }
     }
 
@@ -166,7 +201,7 @@ pub enum StopReason {
     Quota { next_at: Timestamp },
     /// Zwei verdächtige Seiten in Folge (Schutzschalter) – Portal pausiert bis `until`.
     Breaker { until: Timestamp },
-    /// Anmeldung nötig (freelance.de).
+    /// Anmeldung nötig und im Lauf nicht zustande gekommen.
     LoginRequired,
     /// Angemeldet, aber mit Sicherheitsprüfung – das Portal ruht bis zum nächsten Lauf.
     Challenged,
@@ -330,6 +365,7 @@ pub async fn fetch_all<F: PageFetcher>(
     store: &Store,
     policy: &mut Policy,
     selection: Selection<'_>,
+    session_portals: &[Portal],
     cancel: &CancellationToken,
     clock: impl Fn() -> Timestamp,
     summary: &mut FetchSummary,
@@ -346,8 +382,12 @@ pub async fn fetch_all<F: PageFetcher>(
             continue;
         }
         let counts = summary.per_portal.entry(portal).or_default();
+        let mut route = route(portal, session_portals, policy);
         // Eine Anmeldung je Portal und Lauf; danach wird derselbe Job erneut versucht.
         let mut login_tried = false;
+        // Eine optionale Anmeldung geht höchstens einmal je Lauf verloren – danach wäre es
+        // keine verlorene Sitzung mehr, sondern eine Anmeldewand auch für Gäste.
+        let mut fell_back = false;
         // Job, dessen Seite schon einmal wiederholt wurde (höchstens eine Wiederholung).
         let mut retried: Option<usize> = None;
         let mut index = 0;
@@ -359,7 +399,7 @@ pub async fn fetch_all<F: PageFetcher>(
                 url: job.url.clone(),
             };
             let mut outcome =
-                match access(fetcher, policy, &link, cancel, &clock, &mut on_event).await? {
+                match access(fetcher, policy, &link, route, cancel, &clock, &mut on_event).await? {
                     Ok(outcome) => outcome,
                     Err(reason) => {
                         stop(counts, &reason, remaining, portal, &mut on_event);
@@ -375,17 +415,18 @@ pub async fn fetch_all<F: PageFetcher>(
                 if !sleep_for(NET_RETRY_DELAY, cancel).await {
                     return Ok(false);
                 }
-                outcome =
-                    match access(fetcher, policy, &link, cancel, &clock, &mut on_event).await? {
-                        Ok(PageOutcome::NetError { timeout: true, .. }) => {
-                            PageOutcome::Throttled("zweimal keine Antwort".into())
-                        }
-                        Ok(outcome) => outcome,
-                        Err(reason) => {
-                            stop(counts, &reason, remaining, portal, &mut on_event);
-                            break;
-                        }
-                    };
+                outcome = match access(fetcher, policy, &link, route, cancel, &clock, &mut on_event)
+                    .await?
+                {
+                    Ok(PageOutcome::NetError { timeout: true, .. }) => {
+                        PageOutcome::Throttled("zweimal keine Antwort".into())
+                    }
+                    Ok(outcome) => outcome,
+                    Err(reason) => {
+                        stop(counts, &reason, remaining, portal, &mut on_event);
+                        break;
+                    }
+                };
             }
             // Leitet dieselbe Seite ein zweites Mal um, stimmt etwas nicht: verdächtig, damit
             // der Schutzschalter greift.
@@ -421,7 +462,9 @@ pub async fn fetch_all<F: PageFetcher>(
                     if let Some(f) = fields {
                         store.record_page_fields(&job.key, &f.title, &f.company, &f.location)?;
                     }
-                    if portal == Portal::FreelanceDe {
+                    // Eine gelesene Seite im Sitzungsfenster bestätigt die Anmeldung; über den
+                    // Gastweg sagt sie darüber nichts.
+                    if route == Route::Session {
                         policy.set_session(portal, true, now);
                     }
                     counts.ok += 1;
@@ -465,6 +508,14 @@ pub async fn fetch_all<F: PageFetcher>(
                     log::info!("{portal}: Anmeldung nötig ({sign})");
                     policy.set_session(portal, false, now);
                     policy.save()?;
+                    // Optionale Anmeldung verloren: still zurück auf den Gastweg – keine
+                    // Pause, kein Fehlversuch, derselbe Job wird gleich als Gast geholt.
+                    if portal.login_mode() == LoginMode::Optional && !fell_back {
+                        log::info!("{portal}: ohne Anmeldung weiter (Gastweg)");
+                        fell_back = true;
+                        route = Route::Http;
+                        continue;
+                    }
                     if login_tried {
                         Some(StopReason::LoginRequired)
                     } else {
@@ -567,6 +618,7 @@ async fn access<F: PageFetcher>(
     fetcher: &mut F,
     policy: &mut Policy,
     link: &JobLink,
+    route: Route,
     cancel: &CancellationToken,
     clock: &impl Fn() -> Timestamp,
     on_event: &mut impl FnMut(FetchEvent<'_>),
@@ -579,7 +631,7 @@ async fn access<F: PageFetcher>(
     match admission {
         Admission::Go => {
             on_event(FetchEvent::Fetching { portal });
-            Ok(Ok(fetcher.fetch(link, cancel).await))
+            Ok(Ok(fetcher.fetch(link, route, cancel).await))
         }
         Admission::Stop(reason) => Ok(Err(reason)),
         Admission::Cancelled => Ok(Ok(PageOutcome::Cancelled)),

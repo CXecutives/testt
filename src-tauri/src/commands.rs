@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex};
 use jiff::Timestamp;
 use jobalert_core::export::{self, RESULT_DIR};
 use jobalert_core::fetch::policy::Policy;
+use jobalert_core::fetch::site::PortalSite;
 use jobalert_core::fetch::{Admission, Fetchers, Login, StopReason, admit, http::HttpFetcher};
 use jobalert_core::mail::imap::{Credentials, Gmail, MailError};
 use jobalert_core::pipeline::{
@@ -35,7 +36,7 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tokio_util::sync::CancellationToken;
 
-use crate::session::{Notify, Session};
+use crate::session::{Notify, Session, Sessions};
 
 /// So viele Verlaufszeilen hält der Schnappschuss (für ein Neuladen der Seite).
 const LOG_KEEP: usize = 500;
@@ -83,7 +84,7 @@ pub enum GmailUser {
     Known(Option<String>),
 }
 
-/// Lauf oder An-/Abmelden bei freelance.de – nie beides zugleich.
+/// Lauf oder An-/Abmelden bei einem Portal – nie beides zugleich.
 pub enum Activity {
     Idle,
     Run(RunHandle),
@@ -94,10 +95,6 @@ pub enum Activity {
 impl AppState {
     fn policy_path(&self) -> PathBuf {
         self.data_dir.join(jobalert_core::POLICY_FILE)
-    }
-
-    fn session_dir(&self) -> PathBuf {
-        self.data_dir.join(jobalert_core::SESSION_DIR)
     }
 
     /// Gespeicherte Gmail-Adresse und ggf. warum der Tresor unlesbar ist. Ein Lesefehler
@@ -429,18 +426,18 @@ pub async fn delete_gmail_credentials(state: State<'_, AppState>) -> CmdResult<b
 
 // ------------------------------------------------------------------ Lauf
 
-/// Echte Abrufwege: Gmail, HTTP für LinkedIn/freelancermap, Sitzungsfenster für freelance.de.
+/// Echte Abrufwege: Gmail, HTTP für den Gastweg und je Portal ein Sitzungsfenster.
 struct AppBackends {
     credentials: Option<Credentials>,
     user_agent: String,
     app: AppHandle,
-    session_dir: PathBuf,
+    data_dir: PathBuf,
     notify: Notify,
 }
 
 impl Backends for AppBackends {
     type Mail = Gmail;
-    type Pages = Fetchers<Session>;
+    type Pages = Fetchers<Sessions>;
 
     async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<Gmail, MailError> {
         let credentials = self.credentials.as_ref().ok_or(MailError::NoCredentials)?;
@@ -450,11 +447,7 @@ impl Backends for AppBackends {
     fn pages(&mut self) -> Result<Self::Pages, String> {
         Ok(Fetchers {
             http: HttpFetcher::new(&self.user_agent).map_err(|e| e.to_string())?,
-            session: Session::new(
-                self.app.clone(),
-                self.session_dir.clone(),
-                self.notify.clone(),
-            ),
+            session: Sessions::new(self.app.clone(), self.data_dir.clone(), self.notify.clone()),
         })
     }
 }
@@ -473,6 +466,7 @@ fn run_context(
     };
     let ctx = RunContext {
         workspace: settings.workspace_or(&state.default_workspace),
+        session_portals: settings.session_portals.clone(),
         account: credentials
             .as_ref()
             .map(|c| c.user.clone())
@@ -500,7 +494,7 @@ pub async fn start_run(
         Activity::Session(_) => {
             return Err(CommandError::new(
                 "busy",
-                "Das freelance.de-Anmeldefenster ist gerade offen – bitte dort erst fertig werden.",
+                "Ein Anmeldefenster ist gerade offen – bitte dort erst fertig werden.",
             ));
         }
     }
@@ -552,7 +546,7 @@ pub async fn start_run(
             credentials,
             user_agent: state.user_agent.clone(),
             app: app.clone(),
-            session_dir: state.session_dir(),
+            data_dir: state.data_dir.clone(),
             notify,
         };
         tauri::async_runtime::spawn(drive(backends, store, policy, request, ctx, cancel, emit))
@@ -660,7 +654,7 @@ pub fn cancel_run(state: State<'_, AppState>) {
     state.cancel_run();
 }
 
-// ------------------------------------------------------------------ freelance.de
+// ------------------------------------------------------------------ Portal-Anmeldung
 
 /// Hält „Sitzungsfenster in Gebrauch“ und gibt es am Ende sicher frei.
 struct SessionGuard<'a> {
@@ -681,10 +675,16 @@ impl Drop for SessionGuard<'_> {
 /// Belegt das Sitzungsfenster für An- oder Abmelden – geprüft und belegt unter einer Sperre,
 /// nie neben einem Lauf. Danach gelten dieselben Regeln wie für jeden Abruf: keine
 /// Anmeldung während einer Pause oder über der Obergrenze, Abstand zum letzten Zugriff,
-/// gezählt und gesichert vor dem Kontakt. `None`: abgebrochen, bevor freelance.de
-/// kontaktiert wurde.
-async fn claim_session(state: &AppState) -> CmdResult<Option<SessionGuard<'_>>> {
+/// gezählt und gesichert vor dem Kontakt. `None`: abgebrochen, bevor das Portal kontaktiert
+/// wurde.
+async fn claim_session(state: &AppState, portal: Portal) -> CmdResult<Option<SessionGuard<'_>>> {
     state.ensure_real("Im Trockenlauf gibt es keine Portal-Anmeldung.")?;
+    if PortalSite::of(portal).is_none() {
+        return Err(CommandError::new(
+            "invalid",
+            format!("{portal} kennt keine Anmeldung."),
+        ));
+    }
     let cancel = CancellationToken::new();
     {
         let mut activity = lock(&state.activity);
@@ -694,7 +694,6 @@ async fn claim_session(state: &AppState) -> CmdResult<Option<SessionGuard<'_>>> 
         *activity = Activity::Session(cancel.clone());
     }
     let guard = SessionGuard { state, cancel };
-    let portal = Portal::FreelanceDe;
     let mut policy = Policy::load(&state.policy_path(), Timestamp::now());
     match admit(&mut policy, portal, &guard.cancel, &Timestamp::now, |_| {}).await? {
         Admission::Go => Ok(Some(guard)),
@@ -702,14 +701,14 @@ async fn claim_session(state: &AppState) -> CmdResult<Option<SessionGuard<'_>>> 
         Admission::Stop(StopReason::Paused { until, reason }) => Err(CommandError::new(
             "paused",
             format!(
-                "freelance.de ist pausiert bis {} ({reason}). Bis dahin meldet die App sich dort weder an noch ab – bei einer Sperre das Portal im eigenen Browser öffnen.",
+                "{portal} ist pausiert bis {} ({reason}). Bis dahin meldet die App sich dort weder an noch ab – bei einer Sperre das Portal im eigenen Browser öffnen.",
                 jobalert_core::time::display(until)
             ),
         )),
         Admission::Stop(StopReason::Quota { next_at }) => Err(CommandError::new(
             "paused",
             format!(
-                "Die Obergrenze für freelance.de ist erreicht – An- und Abmelden wieder ab {}.",
+                "Die Obergrenze für {portal} ist erreicht – An- und Abmelden wieder ab {}.",
                 jobalert_core::time::display(next_at)
             ),
         )),
@@ -717,29 +716,41 @@ async fn claim_session(state: &AppState) -> CmdResult<Option<SessionGuard<'_>>> 
     }
 }
 
-/// Ende einer An- oder Abmeldung: den Sitzungsstand, falls er feststeht, und – als letzte
-/// Antwort – den Zeitpunkt, ab dem der nächste Abruf Abstand hält.
-fn record_session(state: &AppState, signed_in: Option<bool>) {
+/// Ende einer An- oder Abmeldung bei einem Portal: den Sitzungsstand, falls er feststeht,
+/// und – als letzte Antwort – den Zeitpunkt, ab dem der nächste Abruf Abstand hält.
+fn record_session(state: &AppState, portal: Portal, signed_in: Option<bool>) {
     let now = Timestamp::now();
     let mut policy = Policy::load(&state.policy_path(), now);
     if let Some(signed_in) = signed_in {
-        policy.set_session(Portal::FreelanceDe, signed_in, now);
+        policy.set_session(portal, signed_in, now);
     }
-    policy.record_done(Portal::FreelanceDe, now);
+    policy.record_done(portal, now);
     if let Err(e) = policy.save() {
         log::warn!("Sitzungsstand nicht gespeichert: {e}");
     }
 }
 
-/// Einmal selbst bei freelance.de anmelden (Fenster sichtbar, höchstens 5 Minuten). Die App
+/// Ein Sitzungsfenster für An- oder Abmelden von Hand (ohne Lauf-Ereignisse).
+fn session_window(app: AppHandle, state: &AppState, portal: Portal) -> Option<Session> {
+    let site = PortalSite::of(portal)?;
+    Some(Session::new(app, &state.data_dir, site, Arc::new(|_| {})))
+}
+
+/// Einmal selbst bei einem Portal anmelden (Fenster sichtbar, höchstens 5 Minuten). Die App
 /// sieht und speichert das Passwort nie. Nach einer Sicherheitsprüfung gilt die Anmeldung
 /// trotzdem (der nächste Lauf ruft wieder ab).
 #[tauri::command]
-pub async fn portal_login(app: AppHandle, state: State<'_, AppState>) -> CmdResult<bool> {
-    let Some(guard) = claim_session(&state).await? else {
+pub async fn portal_login(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    portal: Portal,
+) -> CmdResult<bool> {
+    let Some(guard) = claim_session(&state, portal).await? else {
         return Ok(false);
     };
-    let mut session = Session::new(app, state.session_dir(), Arc::new(|_| {}));
+    let Some(mut session) = session_window(app, &state, portal) else {
+        return Ok(false);
+    };
     let login = session.sign_in(&guard.cancel).await;
     drop(session);
     let signed_in = login != Login::NotSignedIn;
@@ -749,21 +760,27 @@ pub async fn portal_login(app: AppHandle, state: State<'_, AppState>) -> CmdResu
     } else {
         None
     };
-    record_session(&state, known);
+    record_session(&state, portal, known);
     Ok(signed_in)
 }
 
-/// Bei freelance.de abmelden. Andere Portale sind nicht betroffen (eigenes Profil). Nur eine
+/// Bei einem Portal abmelden. Andere Portale sind nicht betroffen (eigenes Profil). Nur eine
 /// wirklich geladene Abmeldeseite beendet die Sitzung – sonst bleibt der Stand.
 #[tauri::command]
-pub async fn portal_logout(app: AppHandle, state: State<'_, AppState>) -> CmdResult<bool> {
-    let Some(guard) = claim_session(&state).await? else {
+pub async fn portal_logout(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    portal: Portal,
+) -> CmdResult<bool> {
+    let Some(guard) = claim_session(&state, portal).await? else {
         return Ok(false);
     };
-    let mut session = Session::new(app, state.session_dir(), Arc::new(|_| {}));
+    let Some(mut session) = session_window(app, &state, portal) else {
+        return Ok(false);
+    };
     let done = session.sign_out(&guard.cancel).await;
     drop(session);
-    record_session(&state, done.then_some(false));
+    record_session(&state, portal, done.then_some(false));
     Ok(done)
 }
 

@@ -30,6 +30,7 @@ fn request() -> RunRequest {
 fn ctx(workspace: &Path, dry_run: bool) -> RunContext {
     RunContext {
         workspace: workspace.to_path_buf(),
+        session_portals: Vec::new(),
         account: "ich@gmail.com".into(),
         dry_run,
     }

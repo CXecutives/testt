@@ -43,6 +43,9 @@ pub struct RunRequest {
 #[derive(Debug, Clone)]
 pub struct RunContext {
     pub workspace: PathBuf,
+    /// Portale, die über ein Sitzungsfenster abgerufen werden sollen (aus den
+    /// Einstellungen, nicht aus der Seite).
+    pub session_portals: Vec<Portal>,
     /// Gmail-Adresse fürs Info-Blatt (leer, wenn unbekannt).
     pub account: String,
     /// Trockenlauf: nichts wird geschrieben.
@@ -266,6 +269,7 @@ pub async fn run<B: Backends>(
             store,
             policy,
             request,
+            ctx,
             targeted,
             cancel,
             &clock,
@@ -436,6 +440,7 @@ async fn fetch_step<B: Backends>(
     store: &Store,
     policy: &mut Policy,
     request: &RunRequest,
+    ctx: &RunContext,
     targeted: Option<&[JobKey]>,
     cancel: &CancellationToken,
     clock: &impl Fn() -> Timestamp,
@@ -457,6 +462,7 @@ async fn fetch_step<B: Backends>(
         store,
         policy,
         selection,
+        &ctx.session_portals,
         cancel,
         clock,
         fetched,

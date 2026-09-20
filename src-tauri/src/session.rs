@@ -1,25 +1,27 @@
-//! freelance.de-Sitzungsfenster: ein unsichtbares WebView (echte Edge-Engine) mit eigenem,
+//! Sitzungsfenster eines Portals: ein unsichtbares WebView (echte Edge-Engine) mit eigenem,
 //! dauerhaftem Profil. Der Nutzer meldet sich darin einmal selbst an („angemeldet bleiben“);
-//! danach ruft die App Projektseiten wie ein ruhiger Browser ab – ohne Tarnung, ohne
-//! eigenen User-Agent, ohne Abbruch laufender Ladevorgänge, ohne blockierte Seitenteile.
+//! danach ruft die App Seiten wie ein ruhiger Browser ab – ohne Tarnung, ohne eigenen
+//! User-Agent, ohne Abbruch laufender Ladevorgänge, ohne blockierte Seitenteile.
+//!
+//! Welches Portal es ist, steht allein in [`PortalSite`]: Adressen, Befund-Skript und
+//! Bewertung kommen von dort. Dieses Modul kennt kein einzelnes Portal.
 //!
 //! Das Fenster steht in keiner Capability (kein Befehl der App ist von dort erreichbar),
-//! darf nur `*.freelance.de` laden, öffnet keine weiteren Fenster und lädt nichts herunter.
-//! Ausgewertet wird per Host-`eval` (kein IPC); Text entsteht in Rust.
+//! darf nur Adressen seines Portals laden, öffnet keine weiteren Fenster und lädt nichts
+//! herunter. Ausgewertet wird per Host-`eval` (kein IPC); Text entsteht in Rust.
 //!
 //! Bekanntes Restsignal: Tauri legt `__TAURI_INTERNALS__` und `isTauri` in jeder Seite als
 //! nicht löschbare Eigenschaften an (geprüft im Tauri-Quelltext 2.11.5) – ein Skript der Seite
 //! könnte sie sehen. Ein bekanntes Prüfen darauf gibt es nicht.
 
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use jobalert_core::fetch::freelance_de::{
-    self, LOGIN_URL, LOGOUT_URL, PROBE_JS, SessionPage, is_portal_url,
-};
 use jobalert_core::fetch::policy::DWELL_SECS;
-use jobalert_core::fetch::{Login, PageFetcher, PageOutcome};
+use jobalert_core::fetch::site::{PortalSite, SessionPage};
+use jobalert_core::fetch::{Login, PageFetcher, PageOutcome, Route};
 use jobalert_core::pipeline::RunEvent;
 use jobalert_core::portal::{JobLink, Portal};
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
@@ -28,8 +30,6 @@ use tokio::sync::mpsc;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-/// Fensterkennung – derselbe Name wie der Profilordner.
-const LABEL: &str = jobalert_core::SESSION_DIR;
 /// So lange darf eine Seite laden.
 const LOAD_TIMEOUT: Duration = Duration::from_secs(45);
 /// Nach dem Laden: Seite sich setzen lassen, dann **ein** Befund.
@@ -48,8 +48,61 @@ enum Nav {
 /// Meldungen an die Oberfläche (Anmeldung nötig / erledigt).
 pub type Notify = Arc<dyn Fn(RunEvent) + Send + Sync>;
 
+/// Die Sitzungsfenster eines Laufs – je Portal höchstens eines, erst beim ersten Bedarf
+/// geöffnet.
+pub struct Sessions {
+    app: AppHandle,
+    data_dir: PathBuf,
+    notify: Notify,
+    open: BTreeMap<Portal, Session>,
+}
+
+impl Sessions {
+    pub fn new(app: AppHandle, data_dir: PathBuf, notify: Notify) -> Sessions {
+        Sessions {
+            app,
+            data_dir,
+            notify,
+            open: BTreeMap::new(),
+        }
+    }
+
+    /// Fenster eines Portals; `None` für Portale ohne Anmeldung (LinkedIn).
+    fn of(&mut self, portal: Portal) -> Option<&mut Session> {
+        let site = PortalSite::of(portal)?;
+        let (app, data_dir, notify) = (&self.app, &self.data_dir, &self.notify);
+        Some(
+            self.open
+                .entry(portal)
+                .or_insert_with(|| Session::new(app.clone(), data_dir, site, notify.clone())),
+        )
+    }
+}
+
+impl PageFetcher for Sessions {
+    async fn fetch(
+        &mut self,
+        link: &JobLink,
+        _route: Route,
+        cancel: &CancellationToken,
+    ) -> PageOutcome {
+        match self.of(link.key.portal) {
+            Some(session) => session.fetch_page(link, cancel).await,
+            None => PageOutcome::Suspicious("kein Sitzungsfenster für dieses Portal".into()),
+        }
+    }
+
+    async fn login(&mut self, portal: Portal, cancel: &CancellationToken) -> Login {
+        match self.of(portal) {
+            Some(session) => session.sign_in(cancel).await,
+            None => Login::NotSignedIn,
+        }
+    }
+}
+
 pub struct Session {
     app: AppHandle,
+    site: &'static PortalSite,
     profile: PathBuf,
     window: Option<WebviewWindow>,
     events: Option<mpsc::UnboundedReceiver<Nav>>,
@@ -59,10 +112,18 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(app: AppHandle, profile: PathBuf, notify: Notify) -> Session {
+    /// `data_dir` ist der Datenordner der App; das Profil liegt darin unter dem Namen des
+    /// Portals.
+    pub fn new(
+        app: AppHandle,
+        data_dir: &Path,
+        site: &'static PortalSite,
+        notify: Notify,
+    ) -> Session {
         Session {
             app,
-            profile,
+            site,
+            profile: data_dir.join(jobalert_core::session_dir(site.portal)),
             window: None,
             events: None,
             next_at: None,
@@ -70,9 +131,9 @@ impl Session {
         }
     }
 
-    /// Nur freelance.de über https – verhindert auch den Sprung auf eigene App-Adressen.
-    fn allowed(url: &Url) -> bool {
-        url.as_str() == "about:blank" || is_portal_url(url)
+    /// Nur Adressen des eigenen Portals – verhindert auch den Sprung auf eigene App-Adressen.
+    fn allowed(site: &PortalSite, url: &Url) -> bool {
+        url.as_str() == "about:blank" || (site.is_allowed)(url)
     }
 
     fn open(&mut self, url: &Url, visible: bool) -> Result<(), String> {
@@ -81,31 +142,34 @@ impl Session {
         }
         let (tx, rx) = mpsc::unbounded_channel();
         let on_load = tx.clone();
-        let window = WebviewWindowBuilder::new(&self.app, LABEL, WebviewUrl::External(url.clone()))
-            .title("freelance.de – Anmeldung")
-            .data_directory(self.profile.clone())
-            .inner_size(1100.0, 820.0)
-            .center()
-            .visible(visible)
-            .on_page_load(move |_, payload| {
-                if payload.event() == PageLoadEvent::Finished {
-                    let _ = on_load.send(Nav::Finished(payload.url().clone()));
-                }
-            })
-            .on_navigation(|url| {
-                let ok = Session::allowed(url);
-                if !ok {
-                    log::warn!(
-                        "Sitzungsfenster: Navigation verweigert ({})",
-                        url.host_str().unwrap_or("?")
-                    );
-                }
-                ok
-            })
-            .on_new_window(|_, _| NewWindowResponse::Deny)
-            .on_download(|_, _| false)
-            .build()
-            .map_err(|e| format!("Sitzungsfenster nicht erzeugt: {e}"))?;
+        let site = self.site;
+        let window =
+            WebviewWindowBuilder::new(&self.app, site.label(), WebviewUrl::External(url.clone()))
+                .title(site.window_title)
+                .data_directory(self.profile.clone())
+                .inner_size(1100.0, 820.0)
+                .center()
+                .visible(visible)
+                .on_page_load(move |_, payload| {
+                    if payload.event() == PageLoadEvent::Finished {
+                        let _ = on_load.send(Nav::Finished(payload.url().clone()));
+                    }
+                })
+                .on_navigation(move |url| {
+                    let ok = Session::allowed(site, url);
+                    if !ok {
+                        log::warn!(
+                            "Sitzungsfenster {}: Navigation verweigert ({})",
+                            site.portal.key(),
+                            url.host_str().unwrap_or("?")
+                        );
+                    }
+                    ok
+                })
+                .on_new_window(|_, _| NewWindowResponse::Deny)
+                .on_download(|_, _| false)
+                .build()
+                .map_err(|e| format!("Sitzungsfenster nicht erzeugt: {e}"))?;
         window.on_window_event(move |event| {
             if matches!(event, WindowEvent::Destroyed) {
                 let _ = tx.send(Nav::Closed);
@@ -228,7 +292,7 @@ impl Session {
         let (tx, rx) = tokio::sync::oneshot::channel::<String>();
         let tx = Mutex::new(Some(tx));
         window
-            .eval_with_callback(PROBE_JS, move |raw| {
+            .eval_with_callback(self.site.probe_js, move |raw| {
                 if let Some(tx) = tx.lock().ok().and_then(|mut t| t.take()) {
                     let _ = tx.send(raw);
                 }
@@ -254,18 +318,34 @@ impl Session {
             .map_err(|e| PageOutcome::Suspicious(format!("Befund unlesbar: {e}")))
     }
 
+    async fn fetch_page(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
+        if let Err(outcome) = self.load(&link.url, cancel).await {
+            return outcome;
+        }
+        match self.probe(cancel).await {
+            // Manche Portale leiten die erste Seite nach der Anmeldung einmal um: Der Abruf
+            // wiederholt sie – als eigener, gezählter Zugriff mit Abstand.
+            Ok(page) if (self.site.is_postlogin)(&page.url) => {
+                PageOutcome::Retry("Weiterleitung nach der Anmeldung".into())
+            }
+            Ok(page) => (self.site.judge)(&page, &link.key.id),
+            Err(outcome) => outcome,
+        }
+    }
+
     /// Anmeldung durch den Nutzer: Fenster sichtbar auf der Anmeldeseite, höchstens fünf
-    /// Minuten warten – angemeldet, sobald eine Seite mit Abmelde-Link erscheint.
+    /// Minuten warten – angemeldet, sobald eine Seite das Portal als angemeldet zeigt.
     pub async fn sign_in(&mut self, cancel: &CancellationToken) -> Login {
         // Auch die Anmeldeseite folgt erst nach der Verweildauer der vorigen Seite.
         if !self.await_dwell(cancel).await {
             return Login::NotSignedIn;
         }
+        let portal = self.site.portal;
         (self.notify)(RunEvent::LoginNeeded {
-            portal: Portal::FreelanceDe,
+            portal,
             waiting: true,
         });
-        let login: Url = LOGIN_URL.parse().expect("feste Adresse");
+        let login: Url = self.site.login_url.parse().expect("feste Adresse");
         self.drain();
         let shown = match &self.window {
             Some(window) => window.navigate(login.clone()).is_ok() && window.show().is_ok(),
@@ -286,11 +366,11 @@ impl Session {
         // Auch die Seite nach der Anmeldung bekommt ihre Verweildauer.
         self.arm_dwell();
         (self.notify)(RunEvent::LoginNeeded {
-            portal: Portal::FreelanceDe,
+            portal,
             waiting: false,
         });
         log::info!(
-            "freelance.de-Anmeldung {}",
+            "{portal}-Anmeldung {}",
             match login {
                 Login::SignedIn => "erfolgreich",
                 Login::Challenged => "erfolgreich, aber mit Sicherheitsprüfung",
@@ -300,7 +380,7 @@ impl Session {
         login
     }
 
-    /// Wartet, bis eine Seite mit Abmelde-Link erscheint. Zeigte freelance.de dabei eine
+    /// Wartet, bis eine Seite das Portal als angemeldet zeigt. Zeigte es dabei eine
     /// Sicherheitsprüfung (Captcha), gilt die Sitzung – das Portal ruht aber bis zum
     /// nächsten Lauf (die App löst nie selbst eine Prüfung).
     async fn await_login(&mut self, cancel: &CancellationToken) -> Login {
@@ -336,7 +416,14 @@ impl Session {
                         continue;
                     };
                     challenged |= page.has_captcha;
-                    if page.has_logout && !url.path().starts_with("/login") {
+                    // Die Anmeldeseite selbst zählt nie als Anmeldung – auch nicht, wenn sie
+                    // schon ein Konto-Menü zeigt.
+                    let on_login_page = self
+                        .site
+                        .login_url
+                        .parse::<Url>()
+                        .is_ok_and(|l| l.path() == url.path());
+                    if (self.site.signed_in)(&page) && !on_login_page {
                         return if challenged {
                             Login::Challenged
                         } else {
@@ -354,19 +441,20 @@ impl Session {
     }
 
     /// Abmelden: die Abmeldeseite laden (unsichtbar), dann Fenster schließen. Erfolgreich
-    /// nur, wenn danach wirklich eine Seite des Portals ohne Abmelde-Link geladen ist – eine
+    /// nur, wenn danach wirklich eine Seite des Portals ohne Anmeldung geladen ist – eine
     /// gescheiterte Navigation meldet die WebView ebenfalls als „geladen“. Das Profil bleibt;
     /// ohne Sitzungs-Cookie ist es nur ein leerer Browser.
     ///
     /// `false` heißt „nicht bestätigt“, nicht „fehlgeschlagen“: Auch ein Abbruch endet hier –
     /// der Sitzungsstand bleibt dann unverändert (siehe `portal_logout`).
     pub async fn sign_out(&mut self, cancel: &CancellationToken) -> bool {
-        let logout: Url = LOGOUT_URL.parse().expect("feste Adresse");
+        let logout: Url = self.site.logout_url.parse().expect("feste Adresse");
+        let site = self.site;
         let done = match self.load(&logout, cancel).await {
             Ok(_) => self.probe(cancel).await.is_ok_and(|page| {
                 page.ok
-                    && !page.has_logout
-                    && Url::parse(&page.url).is_ok_and(|url| is_portal_url(&url))
+                    && !(site.signed_in)(&page)
+                    && Url::parse(&page.url).is_ok_and(|url| (site.is_allowed)(&url))
             }),
             Err(_) => false,
         };
@@ -378,31 +466,6 @@ impl Session {
 impl Drop for Session {
     fn drop(&mut self) {
         self.close();
-    }
-}
-
-impl PageFetcher for Session {
-    async fn fetch(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
-        if let Err(outcome) = self.load(&link.url, cancel).await {
-            return outcome;
-        }
-        match self.probe(cancel).await {
-            // Nach der Anmeldung leitet freelance.de die erste Seite einmal um: Der Abruf
-            // wiederholt sie – als eigener, gezählter Zugriff mit Abstand.
-            Ok(page) if freelance_de::is_postlogin(&page.url) => {
-                PageOutcome::Retry("Weiterleitung nach der Anmeldung".into())
-            }
-            Ok(page) => freelance_de::judge_page(&page, &link.key.id),
-            Err(outcome) => outcome,
-        }
-    }
-
-    async fn login(&mut self, portal: Portal, cancel: &CancellationToken) -> Login {
-        if portal == Portal::FreelanceDe {
-            self.sign_in(cancel).await
-        } else {
-            Login::NotSignedIn
-        }
     }
 }
 

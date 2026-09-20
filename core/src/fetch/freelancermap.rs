@@ -6,9 +6,99 @@ use std::sync::LazyLock;
 
 use scraper::{Html, Selector};
 use serde::Deserialize;
+use url::Url;
 
-use super::{PageFields, Parsed};
+use super::site::SessionPage;
+use super::{PageFields, PageOutcome, Parsed, judge};
+use crate::portal::host_is;
 use crate::text::{html_to_text, one_line};
+
+/// Befund-Skript des Sitzungsfensters: die ganze Seite, damit derselbe Parser wie beim
+/// Gastweg sie auswertet. In JS auf 2 MB gekappt – ein Befund geht als Zeichenkette über die
+/// Fenstergrenze, und so groß ist keine Anzeige.
+///
+/// `hasAccountMenu` ist die Anmelde-Erkennung und **vermutet, ungeprüft**: an einer echten
+/// angemeldeten Seite nachzumessen.
+pub const PROBE_JS: &str = r#"(() => { try {
+  return JSON.stringify({
+    ok: true,
+    status: performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0,
+    url: location.href,
+    hasCaptcha: !!document.querySelector('.g-recaptcha, .h-captcha, [data-sitekey], iframe[src*="captcha"], iframe[src*="challenges.cloudflare"]'),
+    hasLoginForm: !!document.querySelector('input[type="password"]'),
+    hasAccountMenu: !!document.querySelector('a[href*="logout"], a[href*="abmelden"], .user-menu, .js-user-menu, [data-testid="user-menu"]'),
+    html: (document.documentElement ? document.documentElement.outerHTML : '').slice(0, 2 * 1024 * 1024),
+  });
+} catch (e) { return JSON.stringify({ ok: false, err: String(e), url: String(location.href) }); } })()"#;
+
+/// Eine Seite des Portals: https auf `freelancermap.de`/`.com` oder einer Subdomain.
+pub fn is_portal_url(url: &Url) -> bool {
+    url.scheme() == "https"
+        && url.host_str().is_some_and(|host| {
+            host_is(host, "freelancermap.de") || host_is(host, "freelancermap.com")
+        })
+}
+
+/// freelancermap kennt keine gemessene Weiterleitung nach der Anmeldung.
+pub fn is_postlogin(_url: &str) -> bool {
+    false
+}
+
+/// **Vermutung, ungeprüft:** Angemeldet zeigt freelancermap ein Konto-Menü mit
+/// Abmelde-Eintrag. Nachzumessen an einer echten angemeldeten Seite – bis dahin heißt ein
+/// fehlendes Menü nur „Anmeldung nötig“, und das Portal fällt still auf den Gastweg zurück.
+pub fn signed_in(page: &SessionPage) -> bool {
+    page.has_account_menu
+}
+
+/// Befund des Sitzungsfensters → Ergebnis-Matrix. `project_id`: die ID aus der Mail (bei
+/// Slug-Links ein Hash, dann ist keine Prüfung möglich).
+pub fn judge_page(page: &SessionPage, project_id: &str) -> PageOutcome {
+    // Zuerst: Ist das überhaupt eine Seite des Portals? Eine gescheiterte Navigation meldet
+    // die WebView ebenfalls als „geladen“ – dann auf ihrer eigenen Fehlerseite.
+    if !Url::parse(&page.url).is_ok_and(|u| is_portal_url(&u)) {
+        return PageOutcome::NetError {
+            timeout: false,
+            detail: "Seite nicht geladen".into(),
+        };
+    }
+    if !page.ok {
+        return PageOutcome::Suspicious(format!(
+            "Seite nicht auswertbar ({})",
+            page.err.as_deref().unwrap_or("unbekannt")
+        ));
+    }
+    if page.has_captcha {
+        return PageOutcome::Blocked(
+            "Sicherheitsprüfung (Captcha) – bitte im Browser öffnen".into(),
+        );
+    }
+    match page.status {
+        429 => return PageOutcome::Throttled("HTTP 429 (zu viele Anfragen)".into()),
+        403 => return PageOutcome::Blocked("HTTP 403 (Zugriff verweigert)".into()),
+        404 | 410 => return PageOutcome::Gone,
+        500..=599 => return PageOutcome::Throttled(format!("HTTP {} (Serverfehler)", page.status)),
+        _ => {}
+    }
+    let Some(html) = page.html.as_deref().filter(|h| !h.is_empty()) else {
+        return PageOutcome::Suspicious("keine Seite übermittelt".into());
+    };
+    // Anmeldewand statt Projekt: Bei einem Portal mit optionaler Anmeldung ist das kein
+    // Fehler – der Abruf fällt still auf den Gastweg zurück.
+    let expected = expected_id(project_id);
+    match parse(html, expected) {
+        Ok(parsed) if parsed.text.is_some() => judge(parsed),
+        _ if !signed_in(page) => PageOutcome::LoginRequired("kein Konto-Menü".into()),
+        Ok(_) => PageOutcome::Suspicious("keine Beschreibung gefunden".into()),
+        Err(reason) => PageOutcome::Suspicious(reason),
+    }
+}
+
+/// Nur eine echte Portal-ID lässt sich auf der Seite wiederfinden; ein Hash aus einem
+/// Slug-Link nicht.
+fn expected_id(project_id: &str) -> Option<&str> {
+    (!project_id.starts_with('u')).then_some(project_id)
+}
 
 fn selector(css: &str) -> Selector {
     Selector::parse(css).expect("gültiger Selektor")

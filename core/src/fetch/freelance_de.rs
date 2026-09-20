@@ -3,9 +3,9 @@
 //! bewertet und in Text verwandelt wird hier in Rust. Firma und Ort stehen für
 //! Nicht-EXPERT-Mitglieder nur als Platzhalter auf der Seite – der bleibt außen vor.
 
-use serde::Deserialize;
 use url::Url;
 
+use super::site::SessionPage;
 use super::{PageFields, PageOutcome, Parsed, judge};
 use crate::portal::host_is;
 use crate::text::{html_to_text, one_line};
@@ -47,23 +47,9 @@ pub const PROBE_JS: &str = r#"(() => { try {
   });
 } catch (e) { return JSON.stringify({ ok: false, err: String(e), url: String(location.href) }); } })()"#;
 
-/// Was das Skript meldet (reine Befunde, daher die vielen Wahrheitswerte).
-#[expect(clippy::struct_excessive_bools, reason = "reine Befunde einer Seite")]
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase", default)]
-pub struct SessionPage {
-    pub ok: bool,
-    pub err: Option<String>,
-    pub status: u16,
-    pub url: String,
-    pub has_logout: bool,
-    pub has_expert_marker: bool,
-    pub has_login_form: bool,
-    pub has_captcha: bool,
-    pub title: String,
-    pub company: String,
-    pub location: String,
-    pub panel_html: Option<String>,
+/// Angemeldet: Es gibt einen Abmelde-Link (gemessen).
+pub fn signed_in(page: &SessionPage) -> bool {
+    page.has_logout
 }
 
 /// Nach der Anmeldung leitet freelance.de die erste Seite einmal hierher um. Auch hier gilt
@@ -82,11 +68,6 @@ pub fn is_portal_url(url: &Url) -> bool {
             .host_str()
             .is_some_and(|host| host_is(host, "freelance.de"))
 }
-
-/// Die Anmeldeseite.
-pub const LOGIN_URL: &str = "https://www.freelance.de/login.php";
-/// Abmelden.
-pub const LOGOUT_URL: &str = "https://www.freelance.de/logout.php";
 
 /// Kürzer als das und mit Registrierungsaufruf: nur der Teaser (gemessen 242–306 Zeichen).
 const TEASER_MAX_CHARS: usize = 500;

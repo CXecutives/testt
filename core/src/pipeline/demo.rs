@@ -8,7 +8,7 @@ use jiff::civil::Date;
 use tokio_util::sync::CancellationToken;
 
 use super::Backends;
-use crate::fetch::{PageFetcher, PageOutcome};
+use crate::fetch::{PageFetcher, PageOutcome, Route};
 use crate::mail::RawMail;
 use crate::mail::imap::{MailError, MailSource};
 use crate::portal::{JobLink, Portal};
@@ -99,7 +99,12 @@ impl MailSource for DemoMail {
 pub struct DemoPages;
 
 impl PageFetcher for DemoPages {
-    async fn fetch(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
+    async fn fetch(
+        &mut self,
+        link: &JobLink,
+        _route: Route,
+        cancel: &CancellationToken,
+    ) -> PageOutcome {
         if pause(Duration::from_millis(500), cancel).await.is_err() {
             return PageOutcome::Cancelled;
         }
