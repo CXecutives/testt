@@ -154,117 +154,119 @@ fn controls_come_from_the_factories() {
     }
 }
 
+// Die Bauteilliste der Oberfläche. Eine Klasse, die hier fehlt, ist entweder ein neuer
+// Baustein (dann gehört er auch in components.css) oder ein Alleingang.
+const KNOWN: [&str; 42] = [
+    // Bausteine
+    "btn",
+    "primary",
+    "ghost",
+    "danger",
+    "icon",
+    "seg",
+    "seg-thumb",
+    "seg-item",
+    "seg-count",
+    "switch",
+    "switch-track",
+    "field",
+    "field-label",
+    "field-hint",
+    "input",
+    "notice",
+    "notice-dot",
+    "notice-text",
+    "row",
+    "row-title",
+    "row-date",
+    "row-meta",
+    "row-new",
+    "row-flag",
+    "row-where",
+    "setting",
+    "setting-text",
+    "setting-label",
+    "setting-hint",
+    "setting-controls",
+    "steps",
+    "step",
+    "step-num",
+    "step-label",
+    "dialog",
+    "dialog-title",
+    "dialog-body",
+    "dialog-foot",
+    "spinner",
+    "skeleton",
+    "win-btn",
+    "win-close",
+];
+// Klassen, die den Aufbau beschreiben (app.css), nicht die Bausteine.
+const LAYOUT: [&str; 26] = [
+    "titlebar",
+    "brand",
+    "brand-mark",
+    "brand-text",
+    "titlebar-fill",
+    "mode-tag",
+    "win-buttons",
+    "app",
+    "toolbar",
+    "toolbar-fill",
+    "search",
+    "page",
+    "page-body",
+    "split",
+    "list",
+    "reader",
+    "reader-inner",
+    "reader-title",
+    "reader-meta",
+    "reader-actions",
+    "reader-rule",
+    "reader-text",
+    "reader-empty",
+    "reader-skeleton",
+    "reader-body",
+    "blank",
+];
+const EXTRA: [&str; 17] = [
+    "settings",
+    "settings-inner",
+    "group",
+    "group-title",
+    "form-grid",
+    "form-actions",
+    "statusbar",
+    "status-dot",
+    "status-text",
+    "status-count",
+    "status-line",
+    "panel",
+    "panel-list",
+    "log-line",
+    "boot",
+    "sheet",
+    "notices",
+];
+// Zustände, die nur gesetzt, nie als Baustein gemeint sind.
+const STATES: [&str; 8] = [
+    "is-open",
+    "is-new",
+    "is-swapping",
+    "indeterminate",
+    "stacked",
+    "compact",
+    "busy",
+    "pointer-away",
+];
+// Teile der beiden Zeichnungen (Marke, Fensterknopf) – Grafik, kein Bedienelement.
+const DRAWING: [&str; 4] = ["plate", "paper", "tick", "caption-glyph"];
+
 /// Die Klassenliste der Bausteine. Taucht eine neue auf, ist entweder ein Baustein
 /// dazugekommen (dann gehört er in components.css und hierher) oder es war ein Alleingang.
 #[test]
 fn only_known_components() {
-    const KNOWN: [&str; 42] = [
-        // Bausteine
-        "btn",
-        "primary",
-        "ghost",
-        "danger",
-        "icon",
-        "seg",
-        "seg-thumb",
-        "seg-item",
-        "seg-count",
-        "switch",
-        "switch-track",
-        "field",
-        "field-label",
-        "field-hint",
-        "input",
-        "notice",
-        "notice-dot",
-        "notice-text",
-        "row",
-        "row-title",
-        "row-date",
-        "row-meta",
-        "row-new",
-        "row-flag",
-        "row-where",
-        "setting",
-        "setting-text",
-        "setting-label",
-        "setting-hint",
-        "setting-controls",
-        "steps",
-        "step",
-        "step-num",
-        "step-label",
-        "dialog",
-        "dialog-title",
-        "dialog-body",
-        "dialog-foot",
-        "spinner",
-        "skeleton",
-        "win-btn",
-        "win-close",
-    ];
-    // Klassen, die den Aufbau beschreiben (app.css), nicht die Bausteine.
-    const LAYOUT: [&str; 26] = [
-        "titlebar",
-        "brand",
-        "brand-mark",
-        "brand-text",
-        "titlebar-fill",
-        "mode-tag",
-        "win-buttons",
-        "app",
-        "toolbar",
-        "toolbar-fill",
-        "search",
-        "page",
-        "page-body",
-        "split",
-        "list",
-        "reader",
-        "reader-inner",
-        "reader-title",
-        "reader-meta",
-        "reader-actions",
-        "reader-rule",
-        "reader-text",
-        "reader-empty",
-        "reader-skeleton",
-        "reader-body",
-        "blank",
-    ];
-    const EXTRA: [&str; 17] = [
-        "settings",
-        "settings-inner",
-        "group",
-        "group-title",
-        "form-grid",
-        "form-actions",
-        "statusbar",
-        "status-dot",
-        "status-text",
-        "status-count",
-        "status-line",
-        "panel",
-        "panel-list",
-        "log-line",
-        "boot",
-        "sheet",
-        "notices",
-    ];
-    // Zustände, die nur gesetzt, nie als Baustein gemeint sind.
-    const STATES: [&str; 8] = [
-        "is-open",
-        "is-new",
-        "is-swapping",
-        "indeterminate",
-        "stacked",
-        "compact",
-        "busy",
-        "pointer-away",
-    ];
-    // Teile der beiden Zeichnungen (Marke, Fensterknopf) – Grafik, kein Bedienelement.
-    const DRAWING: [&str; 4] = ["plate", "paper", "tick", "caption-glyph"];
-
     let mut allowed: Vec<&str> = KNOWN.into_iter().collect();
     allowed.extend(LAYOUT);
     allowed.extend(EXTRA);
@@ -321,7 +323,7 @@ fn colours_only_in_tokens() {
 }
 
 /// Was unter Windows funktioniert, muss auch unter macOS funktionieren: `-webkit-app-region`
-/// kennt WKWebView nicht, und die Symbolschrift „Segoe Fluent Icons“ gibt es dort nicht.
+/// kennt `WKWebView` nicht, und die Symbolschrift „Segoe Fluent Icons“ gibt es dort nicht.
 #[test]
 fn nothing_windows_only_in_the_interface() {
     let mut all: Vec<(String, String)> = files("ui", "css");
