@@ -77,7 +77,12 @@ fn tauri_only_in_api() {
 fn no_html_injection() {
     for (name, text) in scripts() {
         for (i, line) in code_lines(&text) {
-            for bad in ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write"] {
+            for bad in [
+                "innerHTML",
+                "outerHTML",
+                "insertAdjacentHTML",
+                "document.write",
+            ] {
                 assert!(
                     !line.contains(bad),
                     "{name}:{}: {bad} – Inhalte werden als Text gesetzt, nie als HTML",
@@ -118,7 +123,13 @@ fn input_handling_lives_in_one_file() {
     }
     // Diese muss input.js tatsächlich abfangen; die übrigen sind nur anderswo verboten.
     let input = read("ui/js/input.js");
-    for event in ["keydown", "contextmenu", "dblclick", "auxclick", "dragstart"] {
+    for event in [
+        "keydown",
+        "contextmenu",
+        "dblclick",
+        "auxclick",
+        "dragstart",
+    ] {
         assert!(input.contains(event), "input.js fängt „{event}“ nicht ab");
     }
 }
@@ -149,28 +160,106 @@ fn controls_come_from_the_factories() {
 fn only_known_components() {
     const KNOWN: [&str; 42] = [
         // Bausteine
-        "btn", "primary", "ghost", "danger", "icon", "seg", "seg-thumb", "seg-item", "seg-count",
-        "switch", "switch-track", "field", "field-label", "field-hint", "input", "notice",
-        "notice-dot", "notice-text", "row", "row-title", "row-date", "row-meta", "row-new",
-        "row-flag", "row-where", "setting", "setting-text", "setting-label", "setting-hint",
-        "setting-controls", "steps", "step", "step-num", "step-label", "dialog", "dialog-title",
-        "dialog-body", "dialog-foot", "spinner", "skeleton", "win-btn", "win-close",
+        "btn",
+        "primary",
+        "ghost",
+        "danger",
+        "icon",
+        "seg",
+        "seg-thumb",
+        "seg-item",
+        "seg-count",
+        "switch",
+        "switch-track",
+        "field",
+        "field-label",
+        "field-hint",
+        "input",
+        "notice",
+        "notice-dot",
+        "notice-text",
+        "row",
+        "row-title",
+        "row-date",
+        "row-meta",
+        "row-new",
+        "row-flag",
+        "row-where",
+        "setting",
+        "setting-text",
+        "setting-label",
+        "setting-hint",
+        "setting-controls",
+        "steps",
+        "step",
+        "step-num",
+        "step-label",
+        "dialog",
+        "dialog-title",
+        "dialog-body",
+        "dialog-foot",
+        "spinner",
+        "skeleton",
+        "win-btn",
+        "win-close",
     ];
     // Klassen, die den Aufbau beschreiben (app.css), nicht die Bausteine.
     const LAYOUT: [&str; 26] = [
-        "titlebar", "brand", "brand-mark", "brand-text", "titlebar-fill", "mode-tag",
-        "win-buttons", "app", "toolbar", "toolbar-fill", "search", "page", "page-body", "split",
-        "list", "reader", "reader-inner", "reader-title", "reader-meta", "reader-actions",
-        "reader-rule", "reader-text", "reader-empty", "reader-skeleton", "reader-body", "blank",
+        "titlebar",
+        "brand",
+        "brand-mark",
+        "brand-text",
+        "titlebar-fill",
+        "mode-tag",
+        "win-buttons",
+        "app",
+        "toolbar",
+        "toolbar-fill",
+        "search",
+        "page",
+        "page-body",
+        "split",
+        "list",
+        "reader",
+        "reader-inner",
+        "reader-title",
+        "reader-meta",
+        "reader-actions",
+        "reader-rule",
+        "reader-text",
+        "reader-empty",
+        "reader-skeleton",
+        "reader-body",
+        "blank",
     ];
     const EXTRA: [&str; 17] = [
-        "settings", "settings-inner", "group", "group-title", "form-grid", "form-actions",
-        "statusbar", "status-dot", "status-text", "status-count", "status-line", "panel",
-        "panel-list", "log-line", "boot", "sheet", "notices",
+        "settings",
+        "settings-inner",
+        "group",
+        "group-title",
+        "form-grid",
+        "form-actions",
+        "statusbar",
+        "status-dot",
+        "status-text",
+        "status-count",
+        "status-line",
+        "panel",
+        "panel-list",
+        "log-line",
+        "boot",
+        "sheet",
+        "notices",
     ];
     // Zustände, die nur gesetzt, nie als Baustein gemeint sind.
     const STATES: [&str; 8] = [
-        "is-open", "is-new", "is-swapping", "indeterminate", "stacked", "compact", "busy",
+        "is-open",
+        "is-new",
+        "is-swapping",
+        "indeterminate",
+        "stacked",
+        "compact",
+        "busy",
         "pointer-away",
     ];
     // Teile der beiden Zeichnungen (Marke, Fensterknopf) – Grafik, kein Bedienelement.
