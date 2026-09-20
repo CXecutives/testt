@@ -60,7 +60,7 @@ async fn go<B: Backends>(
 fn finished(events: &[RunEvent]) -> usize {
     events
         .iter()
-        .filter(|e| matches!(e, RunEvent::Finished(_)))
+        .filter(|e| matches!(e, RunEvent::Finished { .. }))
         .count()
 }
 

@@ -38,8 +38,10 @@ export function build(bar, panel) {
 function setPanel(open) {
   openPanel = open;
   n.panel.hidden = !open;
-  // Erst sichtbar, dann fahren – sonst gibt es keinen Übergang.
-  requestAnimationFrame(() => n.panel.classList.toggle('is-open', open));
+  // Erst sichtbar, dann fahren – sonst gibt es keinen Übergang. Das Maß wird hier gelesen,
+  // um den Aufbau zu erzwingen: Ein Bildschritt käme nicht, solange das Fenster verdeckt ist.
+  void n.panel.offsetHeight;
+  n.panel.classList.toggle('is-open', open);
   n.toggle.replaceChildren(...iconButton({ icon: open ? 'down' : 'up', label: 'Aktivität' }).childNodes);
   n.toggle.title = open ? 'Aktivität schließen' : 'Aktivität';
   if (open) n.log.scrollTop = n.log.scrollHeight;

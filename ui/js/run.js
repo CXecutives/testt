@@ -140,8 +140,10 @@ async function finished(event) {
   const summary = event.summary;
   updateRun({ status: 'Ergebnis wird übernommen …', summary });
   const fresh = await refreshApp().then(() => state.app.lastRun).catch(() => null);
+  // Erst der Abschlusssatz, dann den Kreisel weg: Andersherum stünde für einen Bildschritt
+  // der ruhende Punkt neben „Ergebnis wird übernommen …“.
+  updateRun({ summary, status: summaryLine(summary), until: null, level: levelOf(summary) });
   setBusy(false);
-  updateRun({ summary, status: summaryLine(summary), level: levelOf(summary) });
   emit('jobs', 'finished');
 
   // Fehler des Laufs stoppen nicht – sie stehen in der Statusleiste und im Verlauf.

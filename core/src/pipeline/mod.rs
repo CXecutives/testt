@@ -117,9 +117,7 @@ pub enum RunEvent {
         gmail_id: Option<String>,
     },
     /// Ein Job hat einen neuen Stand – die fertige Tabellenzeile.
-    JobUpdated {
-        job: Box<JobView>,
-    },
+    JobUpdated { job: Box<JobView> },
     /// Ein Portal ruht für den Rest des Laufs; `text` ist der fertige Stopptext.
     PortalStopped {
         portal: Portal,
@@ -127,11 +125,10 @@ pub enum RunEvent {
         text: String,
     },
     /// Anmeldung nötig: Das Sitzungsfenster ist offen (`waiting`) bzw. wieder zu.
-    LoginNeeded {
-        portal: Portal,
-        waiting: bool,
-    },
-    Finished(Box<RunSummary>),
+    LoginNeeded { portal: Portal, waiting: bool },
+    /// Abschluss. Benanntes Feld, kein Neutyp: Bei `tag = "type"` verschmölze ein Neutyp
+    /// mit dem Ereignis, und die Oberfläche fände keine `summary`.
+    Finished { summary: Box<RunSummary> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -218,7 +215,9 @@ pub async fn run<B: Backends>(
         Err(e) => {
             summary.outcome = failed(e.kind(), &e.to_string());
             summary.finished_at = clock();
-            emit(RunEvent::Finished(Box::new(summary.clone())));
+            emit(RunEvent::Finished {
+                summary: Box::new(summary.clone()),
+            });
             return summary;
         }
     };
@@ -295,7 +294,9 @@ pub async fn run<B: Backends>(
     {
         log::warn!("Laufzusammenfassung nicht gespeichert: {e}");
     }
-    emit(RunEvent::Finished(Box::new(summary.clone())));
+    emit(RunEvent::Finished {
+        summary: Box::new(summary.clone()),
+    });
     summary
 }
 

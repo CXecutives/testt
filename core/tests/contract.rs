@@ -117,3 +117,97 @@ fn the_session_window_downloads_nothing_and_opens_no_window() {
         "Portal-Fenster stehen in keiner Capability"
     );
 }
+
+/// Jedes Lauf-Ereignis trägt genau die Felder, die die Oberfläche ausliest. Der Abschluss
+/// war einmal ein Neutyp – mit `tag = "type"` verschmilzt so ein Neutyp mit dem Ereignis,
+/// `event.summary` war undefiniert und die Statusleiste blieb nach jedem Lauf auf „Bereit“.
+/// Die Attrappe des Prüfstands schickte die richtige Form, das Backend nicht: Der
+/// Unterschied fiel erst im echten Fenster auf.
+#[test]
+fn every_run_event_carries_the_fields_the_interface_reads() {
+    use jiff::Timestamp;
+    use jobalert_core::pipeline::{Outcome, RunEvent, RunSummary};
+
+    let now = Timestamp::now();
+    let event = serde_json::to_value(RunEvent::Finished {
+        summary: Box::new(RunSummary {
+            run: 1,
+            outcome: Outcome::Completed,
+            dry_run: true,
+            started_at: now,
+            finished_at: now,
+            scope: None,
+            scan: None,
+            fetch: None,
+            export: None,
+        }),
+    })
+    .unwrap();
+    assert_eq!(event["type"], "finished");
+    assert!(
+        event["summary"].is_object(),
+        "Abschluss ohne summary: {event}"
+    );
+    assert!(
+        event["summary"]["finishedAt"].is_string(),
+        "summary ist nicht die Zusammenfassung: {event}"
+    );
+
+    // Die Oberfläche liest `event.<feld>` – jedes Feld muss es im Ereignis-Typ geben. Die
+    // Namen kommen aus der Quelle, nicht aus einer gepflegten Liste: Sonst merkte der Test
+    // eine Umbenennung im Backend nicht.
+    let source = read("core/src/pipeline/mod.rs").expect("pipeline/mod.rs");
+    let enum_body = {
+        let from = source.find("pub enum RunEvent {").expect("RunEvent");
+        let to = from + source[from..].find("\n}\n").expect("Ende von RunEvent");
+        &source[from..to]
+    };
+    // Kommentare und Attribute raus, dann an Klammern, Kommas und Zeilenenden trennen: So
+    // zählt ein Feld gleich, ob `cargo fmt` die Variante auf eine oder mehrere Zeilen legt.
+    let known: BTreeSet<String> = enum_body
+        .lines()
+        .map(str::trim_start)
+        .filter(|line| !line.starts_with("//") && !line.starts_with("#["))
+        .flat_map(|line| line.split(['{', '}', ',']))
+        .filter_map(|token| token.split_once(": "))
+        .map(|(name, _)| name.trim())
+        .filter(|name| !name.is_empty() && name.chars().all(|c| c.is_ascii_lowercase() || c == '_'))
+        .map(camel_case)
+        .collect();
+    assert!(known.len() >= 10, "Felder nicht erkannt: {known:?}");
+
+    let run = read("ui/js/run.js").expect("ui/js/run.js");
+    let reads: BTreeSet<String> = run
+        .split("event.")
+        .skip(1)
+        .filter_map(|rest| {
+            let name: String = rest
+                .chars()
+                .take_while(char::is_ascii_alphanumeric)
+                .collect();
+            (!name.is_empty() && name != "type").then_some(name)
+        })
+        .collect();
+    let unknown: Vec<_> = reads.difference(&known).collect();
+    assert!(
+        unknown.is_empty(),
+        "run.js liest Felder, die kein Ereignis trägt: {unknown:?}"
+    );
+}
+
+/// `gmail_id` → `gmailId`: So heißen die Felder in der Seite (`rename_all_fields`).
+fn camel_case(name: &str) -> String {
+    let mut out = String::new();
+    let mut upper = false;
+    for c in name.chars() {
+        if c == '_' {
+            upper = true;
+        } else if upper {
+            out.extend(c.to_uppercase());
+            upper = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}

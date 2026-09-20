@@ -256,9 +256,12 @@ pub async fn app_state(
 ) -> CmdResult<AppStateView> {
     let settings = state.settings()?;
     let workspace = settings.workspace_or(&state.default_workspace);
-    // Der Trockenlauf fasst den Tresor nie an.
+    // Der Trockenlauf fasst den Tresor nie an, zeigt aber ein Postfach: Sonst stünde die
+    // App dauerhaft im Einrichtungszustand und „Abrufen“ bliebe gesperrt – zu sehen wäre
+    // dann gerade das nicht, was der Trockenlauf vorführen soll. `example.org` ist für
+    // Beispiele reserviert und kann kein echtes Postfach sein.
     let (gmail_user, gmail_error) = if state.dry_run {
-        (None, None)
+        (Some("trockenlauf@example.org".to_string()), None)
     } else {
         state.gmail_user()
     };
@@ -503,7 +506,7 @@ pub async fn start_run(
         let app = app.clone();
         let mine = mine.clone();
         move |event: RunEvent| {
-            if matches!(event, RunEvent::Finished(_)) {
+            if matches!(event, RunEvent::Finished { .. }) {
                 release_run(&app.state::<AppState>(), &mine);
             }
             send(event);
@@ -548,7 +551,9 @@ pub async fn start_run(
             log::error!("Lauf abgestürzt: {error}");
             release_run(&app.state::<AppState>(), &mine);
             let mut finish = finish;
-            finish(RunEvent::Finished(Box::new(crashed(dry_run, started))));
+            finish(RunEvent::Finished {
+                summary: Box::new(crashed(dry_run, started)),
+            });
         }
     });
     Ok(())

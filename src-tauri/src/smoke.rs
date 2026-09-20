@@ -1,8 +1,8 @@
 //! Selbstprüfung für Entwicklung und Abnahme: `job-alert-monitor --smoke` lädt die
 //! Oberfläche, liest ein paar Kennwerte per Host-`eval`, druckt sie als JSON und beendet
 //! sich mit 0 (in Ordnung), 1 (Kennwerte falsch) oder 2 (Zeitüberschreitung). Mit
-//! `--dry-run --smoke-run` klickt sie danach „Postfach abrufen“ und wartet, bis der
-//! Demo-Lauf fertig ist und seine Jobs in der Tabelle stehen.
+//! `--dry-run --smoke-run` klickt sie danach „Abrufen“ und wartet, bis der Demo-Lauf
+//! fertig ist und seine Jobs in der Liste stehen.
 //!
 //! Nur im Entwickler-Build (`#[cfg(debug_assertions)]` an der Einbindung in `main.rs`).
 
@@ -13,24 +13,28 @@ use serde_json::Value;
 use tauri::webview::PageLoadEvent;
 use tauri::{Manager, Runtime, WebviewWindow, WebviewWindowBuilder};
 
-const PROBE: &str = r"(() => { try { return JSON.stringify({
-    ready: document.documentElement.dataset.ready === '1',
-    views: document.querySelectorAll('.view').length,
-    primary: getComputedStyle(document.querySelector('#topbar-actions .btn.primary')).backgroundColor,
+const PROBE: &str = r"(() => { try { const q = (s) => document.querySelector(s); return JSON.stringify({
+    ready: q('#boot').hidden && !q('#app').hidden,
+    pages: document.querySelectorAll('.page').length,
+    primary: getComputedStyle(q('#run')).backgroundColor,
     tauri: typeof window.__TAURI__ === 'object',
-    runbarVisible: document.querySelector('#runbar').getBoundingClientRect().bottom <= window.innerHeight,
-    cards: document.querySelectorAll('.view .card').length,
-    actions: document.querySelectorAll('#topbar-actions .btn').length,
+    statusbarVisible: q('#statusbar').getBoundingClientRect().bottom <= window.innerHeight + 1,
+    actions: document.querySelectorAll('#toolbar .btn').length,
     busy: document.querySelectorAll('.btn[aria-busy=true]').length,
   }); } catch (e) { return JSON.stringify({ error: String(e) }); } })()";
 
-const START: &str = "document.querySelector('#topbar-actions .btn.primary').click()";
+// Der Stand des Verlaufs vor dem Klick: Nur daran lässt sich später sehen, dass dieser
+// Lauf stattgefunden hat und nicht ein Ergebnis von vorhin in der Liste steht.
+const START: &str = "window.__smokeLog = document.querySelectorAll('#log .log-line').length; \
+                     document.querySelector('#run').click()";
 
-const RUN_PROBE: &str = r"(() => { try { return JSON.stringify({
-    status: document.querySelector('#run-status').textContent,
-    rows: document.querySelectorAll('#view-alerts tbody tr[data-key]').length,
-    ok: document.querySelectorAll('#view-alerts tbody .badge.ok').length,
-    log: document.querySelectorAll('#log .log-line').length,
+const RUN_PROBE: &str = r"(() => { try { const q = (s) => document.querySelector(s); return JSON.stringify({
+    status: q('#status-text').textContent,
+    running: !q('#statusbar .spinner').hidden,
+    swapping: q('#status-text').classList.contains('is-swapping'),
+    level: q('#statusbar').dataset.level || '',
+    rows: document.querySelectorAll('#list .row').length,
+    ran: document.querySelectorAll('#log .log-line').length > (window.__smokeLog ?? 0),
     busy: document.querySelectorAll('.btn[aria-busy=true]').length,
   }); } catch (e) { return JSON.stringify({ error: String(e) }); } })()";
 
@@ -73,14 +77,13 @@ pub fn attach<R: Runtime, M: Manager<R>>(
 fn check_page<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
     // Die Markenfarbe wird am Primärknopf gemessen: ein aufgelöster Wert, der die
     // Palette (hsl-Tokens) nicht festschreibt, aber eine leere oder durchsichtige Fläche auffliegen lässt.
-    let ok = value["views"] == 4
+    let ok = value["pages"] == 2
         && value["primary"]
             .as_str()
             .is_some_and(|c| c.starts_with("rgb(") && !c.contains(", 0)"))
         && value["tauri"] == true
-        && value["runbarVisible"] == true
-        && value["cards"].as_u64().is_some_and(|n| n >= 9)
-        && value["actions"] == 2
+        && value["statusbarVisible"] == true
+        && value["actions"].as_u64().is_some_and(|n| n >= 3)
         && value["busy"] == 0;
     if ok && flag("--smoke-run") && flag("--dry-run") {
         if let Err(error) = window.eval(START) {
@@ -94,19 +97,19 @@ fn check_page<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
     }
 }
 
+/// Der Lauf ist vorbei, wenn der Kreisel weg ist **und** der Verlauf seit dem Klick
+/// gewachsen ist. Ohne das Zweite gälte ein Ergebnis von vorhin schon als fertig.
+/// Der Satz blendet über; solange er wechselt, steht dort noch der vorige.
 fn run_done(value: &Value) -> bool {
-    value["status"]
-        .as_str()
-        .is_some_and(|s| s.starts_with("Fertig") || s.starts_with("Fehler"))
-        && value["rows"].as_u64().is_some_and(|n| n > 0)
+    value["running"] == false && value["ran"] == true && value["swapping"] == false
 }
 
 fn check_run<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
-    let ok = value["status"]
-        .as_str()
-        .is_some_and(|s| s.starts_with("Fertig"))
+    let ok = value["running"] == false
+        && value["ran"] == true
+        && value["level"] != "error"
         && value["rows"].as_u64().is_some_and(|n| n >= 5)
-        && value["ok"].as_u64().is_some_and(|n| n >= 1)
+        && !value["status"].as_str().unwrap_or_default().is_empty()
         // Nach dem Lauf wartet kein Knopf mehr auf das Backend.
         && value["busy"] == 0;
     window.app_handle().exit(i32::from(!ok));
