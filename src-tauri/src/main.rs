@@ -225,7 +225,17 @@ mod tool_mode {
         })
     }
 
+    /// macOS (`WKWebView`): Es gibt keine entsprechenden Schalter. Das Kontextmenü hängt am
+    /// `WKUIDelegate` und der umgebenden `NSView`, die Tastenkürzel am Hauptmenü der App –
+    /// beides wäre nur über die Objective-C-Laufzeit zu erreichen und brächte eine zweite
+    /// `unsafe`-Stelle. Nötig ist es nicht: `WKWebView` bindet weder Neu laden noch Drucken,
+    /// Suchen oder die Entwicklertools auf Tasten, und die Oberfläche sperrt Kontextmenü
+    /// und Browser-Kürzel ohnehin plattformneutral in JavaScript. Hier bleibt nichts zu tun.
     #[cfg(not(windows))]
+    #[allow(
+        clippy::unnecessary_wraps,
+        reason = "dieselbe Signatur wie der Windows-Zweig"
+    )]
     pub fn apply<R: Runtime>(_window: &WebviewWindow<R>) -> tauri::Result<()> {
         Ok(())
     }
