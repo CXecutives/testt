@@ -93,6 +93,31 @@ fn command_names_agree_everywhere() {
     }
 }
 
+/// Sicherheits-Invariante des Sitzungsfensters, so weit sie sich ohne Fenster prüfen lässt:
+/// Es lädt nichts herunter, öffnet keine weiteren Fenster, prüft jede Navigation gegen sein
+/// Portal – und steht in keiner Capability (kein Befehl der App ist von dort erreichbar).
+#[test]
+fn the_session_window_downloads_nothing_and_opens_no_window() {
+    let session = read("src-tauri/src/session.rs").unwrap();
+    for required in [
+        ".on_download(|_, _| false)",
+        ".on_new_window(|_, _| NewWindowResponse::Deny)",
+        "Session::allowed(site, url)",
+    ] {
+        assert!(session.contains(required), "session.rs: {required} fehlt");
+    }
+    // Der Profilordner (und damit die Anmeldung) hängt am Portal, nicht an einem festen Namen.
+    assert!(session.contains("jobalert_core::session_dir(site.portal)"));
+
+    let capability: serde_json::Value =
+        serde_json::from_str(&read("src-tauri/capabilities/main.json").unwrap()).unwrap();
+    assert_eq!(
+        capability["windows"],
+        serde_json::json!(["main"]),
+        "Portal-Fenster stehen in keiner Capability"
+    );
+}
+
 /// Alle Skripte der Oberfläche als (Pfad, Inhalt).
 fn ui_scripts() -> Vec<(String, String)> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/js");

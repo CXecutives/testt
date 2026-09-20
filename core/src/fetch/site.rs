@@ -122,4 +122,30 @@ mod tests {
         assert!(!(fm.is_allowed)(&Url::parse(fl.login_url).unwrap()));
         assert_ne!(fl.label(), fm.label());
     }
+
+    /// Sicherheits-Invariante: Ein Sitzungsfenster lädt nur Adressen seines eigenen Portals –
+    /// kein fremder Host, kein anderes Schema, keine App-eigene Adresse.
+    #[test]
+    fn a_session_window_loads_nothing_but_its_own_portal() {
+        let elsewhere = [
+            "http://www.freelance.de/login.php",
+            "https://www.freelance.de.example.org/login.php",
+            "https://notfreelance.de/login.php",
+            "https://www.freelancermap.de.evil.example/",
+            "https://accounts.google.com/",
+            "tauri://localhost/index.html",
+            "file:///C:/Windows/system.ini",
+            "data:text/html,<script>fetch('/')</script>",
+            "javascript:fetch('https://www.freelance.de/')",
+        ];
+        for portal in Portal::ALL {
+            let Some(site) = PortalSite::of(portal) else {
+                continue;
+            };
+            for raw in elsewhere {
+                let Ok(url) = Url::parse(raw) else { continue };
+                assert!(!(site.is_allowed)(&url), "{portal}: {raw}");
+            }
+        }
+    }
 }

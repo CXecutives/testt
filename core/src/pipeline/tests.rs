@@ -575,6 +575,33 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
     );
 }
 
+/// Sicherheits-Invariante: Eine vom Nutzer gelöschte oder geleerte Textdatei legt der
+/// nächste Lauf nicht wieder an – die Marke bleibt verbraucht. Zurück holt sie nur
+/// „Textdateien neu schreiben“.
+#[test]
+fn a_text_file_the_user_removed_is_never_recreated_by_itself() {
+    let dir = tempfile::tempdir().unwrap();
+    let (store, keys) = store_with_texts();
+    let now = Timestamp::now();
+    assert_eq!(export_all(&store, dir.path(), &[], 1, now).txt_written, 2);
+    let txt_dir = dir.path().join(RESULT_DIR).join(TXT_DIR);
+    let name = |key| store.job(key).unwrap().unwrap().txt_name.unwrap();
+    let (deleted, emptied) = (txt_dir.join(name(&keys[0])), txt_dir.join(name(&keys[1])));
+    std::fs::remove_file(&deleted).unwrap();
+    std::fs::write(&emptied, b"").unwrap();
+
+    let next = export_all(&store, dir.path(), &[], 2, now);
+    assert_eq!((next.txt_written, next.txt_failed_count), (0, 0));
+    assert!(!deleted.exists(), "gelöschte Datei bleibt weg");
+    assert!(
+        std::fs::read(&emptied).unwrap().is_empty(),
+        "leer bleibt leer"
+    );
+    // Erst der ausdrückliche Befehl holt sie zurück.
+    assert_eq!(rewrite_txt(&store, dir.path(), now).txt_written, 2);
+    assert!(deleted.exists() && !std::fs::read(&emptied).unwrap().is_empty());
+}
+
 /// „Textdateien neu schreiben“: Was sich nicht schreiben lässt, behält seine Marke – der
 /// nächste Lauf legt es also nicht von selbst neu an.
 #[test]

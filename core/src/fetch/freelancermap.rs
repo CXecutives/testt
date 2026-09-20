@@ -288,6 +288,117 @@ pub(crate) mod tests {
         assert_eq!(parse("<p>Suche</p>", None).unwrap().text, None);
     }
 
+    fn session(url: &str, html: Option<&str>) -> SessionPage {
+        SessionPage {
+            ok: true,
+            status: 200,
+            url: url.into(),
+            has_account_menu: true,
+            html: html.map(str::to_string),
+            ..SessionPage::default()
+        }
+    }
+
+    const URL: &str = "https://www.freelancermap.de/nproj/2971857.html";
+
+    /// Sitzungsweg: Ein Sperrsignal führt zur Pause, nie zu einer Wiederholung – und eine
+    /// Sicherheitsprüfung wird nie gelöst, sondern gemeldet.
+    #[test]
+    fn a_blocked_session_page_is_never_retried() {
+        let long = page(
+            2_971_857,
+            &"<p>Aufgaben und Anforderungen.</p>".repeat(6),
+            false,
+        );
+        let mut captcha = session(URL, Some(&long));
+        captcha.has_captcha = true;
+        assert!(matches!(
+            judge_page(&captcha, "2971857"),
+            PageOutcome::Blocked(_)
+        ));
+        for (status, expected) in [
+            (403, "blocked"),
+            (429, "throttled"),
+            (503, "throttled"),
+            (404, "gone"),
+        ] {
+            let mut page = session(URL, Some(&long));
+            page.status = status;
+            let kind = match judge_page(&page, "2971857") {
+                PageOutcome::Blocked(_) => "blocked",
+                PageOutcome::Throttled(_) => "throttled",
+                PageOutcome::Gone => "gone",
+                other => panic!("{status}: {other:?}"),
+            };
+            assert_eq!(kind, expected, "HTTP {status}");
+        }
+        // Eine gescheiterte Navigation ist ein Netzfehler, keine Anmeldewand.
+        let mut offline = session("chrome-error://chromewebdata/", None);
+        offline.status = 0;
+        assert!(matches!(
+            judge_page(&offline, "2971857"),
+            PageOutcome::NetError { .. }
+        ));
+    }
+
+    /// Ohne Konto-Menü heißt eine Seite ohne Beschreibung „Anmeldung nötig“ – der Abruf
+    /// fällt dann still auf den Gastweg zurück. Mit Menü ist dieselbe Seite verdächtig.
+    #[test]
+    fn a_page_without_a_description_asks_for_a_login_only_when_signed_out() {
+        let mut anonymous = session(URL, Some("<html><body>2971857</body></html>"));
+        anonymous.has_account_menu = false;
+        assert!(matches!(
+            judge_page(&anonymous, "2971857"),
+            PageOutcome::LoginRequired(_)
+        ));
+        assert!(matches!(
+            judge_page(
+                &session(URL, Some("<html><body>2971857</body></html>")),
+                "2971857"
+            ),
+            PageOutcome::Suspicious(_)
+        ));
+        // Die richtige Projektseite liefert denselben Text wie auf dem Gastweg.
+        let html = page(
+            2_971_857,
+            "<p>Aufgaben und Anforderungen des Projekts.</p>",
+            false,
+        );
+        match judge_page(&session(URL, Some(&html)), "2971857") {
+            PageOutcome::Text { text, fields, .. } => {
+                assert!(text.contains("Aufgaben"));
+                assert_eq!(fields.unwrap().company, "Ferrum Systems SE");
+            }
+            other => panic!("{other:?}"),
+        }
+        // Slug-Link ohne echte ID: keine Prüfung möglich, der Text zählt trotzdem.
+        assert!(matches!(
+            judge_page(&session(URL, Some(&html)), "u0123456789ab"),
+            PageOutcome::Text { .. }
+        ));
+    }
+
+    #[test]
+    fn only_https_on_the_own_portal_is_a_portal_page() {
+        for yes in [
+            "https://www.freelancermap.de/nproj/1.html",
+            "https://freelancermap.com/project/x",
+            "https://m.freelancermap.de/",
+        ] {
+            assert!(is_portal_url(&Url::parse(yes).unwrap()), "{yes}");
+        }
+        for no in [
+            "http://www.freelancermap.de/nproj/1.html",
+            "https://www.freelance.de/login.php",
+            "https://freelancermap.de.example.org/",
+            "https://notfreelancermap.de/",
+            "about:blank",
+        ] {
+            assert!(!is_portal_url(&Url::parse(no).unwrap()), "{no}");
+        }
+        assert!(!is_postlogin(URL));
+    }
+
     #[test]
     fn real_page_when_available() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

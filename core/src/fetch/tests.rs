@@ -1217,3 +1217,53 @@ async fn portals_run_side_by_side_but_never_overlap_within_one() {
         "Portale laufen nacheinander statt nebeneinander"
     );
 }
+
+/// Sicherheits-Invariante: Obergrenzen, Pausen und Schutzschalter gelten auch im
+/// Parallelbetrieb und auf dem Sitzungsweg – hier je Portal eine der drei Bremsen zugleich.
+#[tokio::test(start_paused = true)]
+async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
+    let c = clock();
+    let mut jobs: Vec<(Portal, u64, i64)> = (1..=21).map(|i| (LI, 4_000_000_000 + i, 1)).collect();
+    jobs.extend([(FM, 10_001, 1), (FM, 10_002, 1), (FM, 10_003, 1)]);
+    jobs.extend([(FL, 1_255_001, 1), (FL, 1_255_002, 1)]);
+    let store = store_with(&jobs);
+    let fake = Fake::default()
+        .with("10001", [suspicious()])
+        .with("10002", [suspicious()])
+        .with("1255001", [PageOutcome::Blocked("HTTP 403".into())]);
+    let mut policy = Policy::in_memory();
+    policy.set_session(FM, true, c());
+    let r = run_via_session(
+        &fake,
+        &store,
+        &mut policy,
+        Selection::Queue(&Portal::ALL),
+        &c,
+    )
+    .await;
+    let calls = fake.calls();
+    let of = |portal: Portal| -> Vec<&Call> {
+        calls.iter().filter(|call| call.portal == portal).collect()
+    };
+    // Gastweg für LinkedIn, Sitzungsweg für die beiden Portale mit Anmeldung.
+    assert!(of(LI).iter().all(|call| call.route == Route::Http));
+    assert!(of(FM).iter().all(|call| call.route == Route::Session));
+    assert!(of(FL).iter().all(|call| call.route == Route::Session));
+    // Stundengrenze LinkedIn: 20 Abrufe, der Rest wartet.
+    assert_eq!(of(LI).len(), 20);
+    // Schutzschalter freelancermap: nach zwei Seiten ohne Beschreibung Schluss.
+    assert_eq!(of(FM).len(), 2);
+    assert!(matches!(
+        policy.allowance(FM, c()),
+        Allowance::Paused { .. }
+    ));
+    // Sperrsignal freelance.de: Pause statt Wiederholung.
+    assert_eq!(of(FL).len(), 1);
+    assert!(matches!(
+        policy.allowance(FL, c()),
+        Allowance::Paused { .. }
+    ));
+    let mut stopped: Vec<Portal> = r.stops.iter().map(|(portal, ..)| *portal).collect();
+    stopped.sort_unstable();
+    assert_eq!(stopped, Portal::ALL);
+}
