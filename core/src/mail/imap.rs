@@ -37,9 +37,7 @@ pub const BATCH: usize = 25;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MailError {
-    #[error(
-        "Es ist noch kein Gmail-Zugang hinterlegt – bitte unter „System“ Adresse und App-Passwort eintragen."
-    )]
+    #[error("Es ist noch kein Gmail-Zugang hinterlegt – bitte Adresse und App-Passwort eintragen.")]
     NoCredentials,
 
     #[error("Keine Verbindung zu imap.gmail.com.\n\nInternetverbindung und Firewall prüfen. ({0})")]

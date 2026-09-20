@@ -1,9 +1,7 @@
-//! Erzeugte Dateien im Arbeitsordner: `JobAlerts.xlsx`/`.csv` (Übersicht aller Jobs) und
-//! je Job eine Textdatei für das Matching. Alles wird aus der Datenbank erzeugt und
-//! atomar geschrieben – eine offene Excel-Datei oder ein Absturz hinterlässt nie eine
-//! halbe Datei.
+//! Erzeugte Dateien im Arbeitsordner: `JobAlerts.xlsx` (Übersicht aller Jobs) und je Job
+//! eine Textdatei für das Matching. Alles wird aus der Datenbank erzeugt und atomar
+//! geschrieben – eine offene Excel-Datei oder ein Absturz hinterlässt nie eine halbe Datei.
 
-mod csv_file;
 mod job_txt;
 mod xlsx;
 
@@ -15,30 +13,19 @@ use crate::error::{Error, Result};
 use crate::model::DescStatus;
 use crate::store::JobRow;
 use crate::text::split_company_location;
-use crate::time;
 
-pub use csv_file::write_csv;
 pub use job_txt::{TXT_DIR, write_job_txt};
 pub use xlsx::write_xlsx;
 
 pub const XLSX_NAME: &str = "JobAlerts.xlsx";
-pub const CSV_NAME: &str = "JobAlerts.csv";
+/// Übersicht früherer Versionen; nur noch, damit „Alles zurücksetzen“ sie mitnimmt.
+const LEGACY_CSV_NAME: &str = "JobAlerts.csv";
 /// Unterordner des Arbeitsordners für Ergebnisse (wie bisher).
 pub const RESULT_DIR: &str = "auswertung";
 /// Temporäre Dateien von [`write_atomic`] – bleiben nur nach einem Abbruch mitten im
 /// Schreiben liegen und gehören der App.
 const TMP_PREFIX: &str = ".jam-";
 const TMP_SUFFIX: &str = ".tmp";
-
-/// Welche Übersichtsdatei erzeugt wird.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Format {
-    Xlsx,
-    Csv,
-    /// Keine Excel-/CSV-Datei (Gedächtnis und Textdateien sind davon unabhängig).
-    None,
-}
 
 /// Spaltenköpfe der Übersicht (Reihenfolge wie bisher, ergänzt um den Jobdetails-Stand).
 /// Anders als die Textdateien liest die Übersicht niemand maschinell – sie heißt deshalb
@@ -57,17 +44,16 @@ pub const COLUMNS: [&str; 11] = [
     "Schlüssel",
 ];
 
-/// Eine Zeile der Übersicht als Text – gemeinsame Quelle für Excel und CSV.
+/// Eine Zeile der Übersicht als Text. Datumsspalten fehlen hier: Excel bekommt sie als
+/// echtes Datum, nicht als Text.
 pub(crate) struct Line {
     pub source: &'static str,
-    pub mail_date: String,
     pub title: String,
     pub company: String,
     pub location: String,
     pub url: String,
     pub subject: String,
     pub gmail_url: String,
-    pub saved_at: String,
     pub details: &'static str,
     pub key: String,
 }
@@ -77,7 +63,6 @@ impl Line {
         let (company, location) = split_company_location(&job.company, &job.location);
         Line {
             source: job.key.portal.label(),
-            mail_date: job.mail_date.map(time::display).unwrap_or_default(),
             title: job.title.clone(),
             company,
             location,
@@ -88,7 +73,6 @@ impl Line {
                 .and_then(crate::model::gmail_url)
                 .map(|u| u.to_string())
                 .unwrap_or_default(),
-            saved_at: time::display(job.first_seen_at),
             details: details_label(job),
             key: job.key.to_string(),
         }
@@ -109,12 +93,8 @@ pub fn details_label(job: &JobRow) -> &'static str {
 }
 
 /// Pfad der Übersichtsdatei im Ergebnisordner.
-pub fn overview_path(result_dir: &Path, format: Format) -> Option<PathBuf> {
-    match format {
-        Format::Xlsx => Some(result_dir.join(XLSX_NAME)),
-        Format::Csv => Some(result_dir.join(CSV_NAME)),
-        Format::None => None,
-    }
+pub fn overview_path(result_dir: &Path) -> PathBuf {
+    result_dir.join(XLSX_NAME)
 }
 
 /// Schreibt `bytes` atomar nach `path`: erst in eine temporäre Datei im selben Ordner,
@@ -164,23 +144,30 @@ fn long_path(path: &Path) -> PathBuf {
 
 /// Die Dateien der App im Ergebnisordner, die es gerade gibt: die Übersichten, die
 /// bekannten Textdateien (nur reine Dateinamen), liegen gebliebene temporäre Dateien und
-/// Reste eines früheren Zurücksetzens. Eine Liste für Zählen, „Ergebnisordner leeren“ und
-/// Zurücksetzen – fremde Dateien (Skript und Berichte des Matching-Skills, Beraterprofile …)
+/// Reste eines früheren Zurücksetzens. Die Liste fürs Zurücksetzen – fremde Dateien (Skript und Berichte des Matching-Skills, Beraterprofile …)
 /// sind nie dabei. Je Ordner eine Verzeichnisabfrage statt einer je Datei (Netzlaufwerk,
 /// tausende Textdateien).
 pub fn app_files(result_dir: &Path, txt_names: &[String]) -> Vec<PathBuf> {
+    let mut files = files_in(result_dir, |name| {
+        name.eq_ignore_ascii_case(XLSX_NAME)
+            || name.eq_ignore_ascii_case(LEGACY_CSV_NAME)
+            || is_tmp(name)
+    });
+    files.extend(txt_files(result_dir, txt_names));
+    files
+}
+
+/// Nur die Textdateien der App im Unterordner `beschreibungen_txt` – die Übersicht bleibt
+/// außen vor. Eine Liste für „Textdateien löschen“ und die Anzeige ihrer Zahl.
+pub fn txt_files(result_dir: &Path, txt_names: &[String]) -> Vec<PathBuf> {
     let known: HashSet<&str> = txt_names
         .iter()
         .map(String::as_str)
         .filter(|n| is_plain_file_name(n))
         .collect();
-    let mut files = files_in(result_dir, |name| {
-        name.eq_ignore_ascii_case(XLSX_NAME) || name.eq_ignore_ascii_case(CSV_NAME) || is_tmp(name)
-    });
-    files.extend(files_in(&result_dir.join(TXT_DIR), |name| {
+    files_in(&result_dir.join(TXT_DIR), |name| {
         known.contains(name) || is_tmp(name)
-    }));
-    files
+    })
 }
 
 fn files_in(dir: &Path, ours: impl Fn(&str) -> bool) -> Vec<PathBuf> {
@@ -206,14 +193,15 @@ fn is_tmp(name: &str) -> bool {
     name.starts_with(TMP_PREFIX) && name.ends_with(TMP_SUFFIX)
 }
 
-/// „Ergebnisordner leeren“: löscht **nur** die Dateien der App ([`app_files`]).
+/// „Textdateien löschen“: entfernt **nur** die Textdateien der App ([`txt_files`]) – die
+/// Excel-Übersicht und fremde Dateien bleiben.
 ///
 /// Liefert die Zahl gelöschter Dateien und die Namen der Dateien, die sich nicht löschen
 /// ließen (z. B. gerade geöffnet).
-pub fn clear_result_files(result_dir: &Path, txt_names: &[String]) -> (usize, Vec<String>) {
+pub fn clear_txt_files(result_dir: &Path, txt_names: &[String]) -> (usize, Vec<String>) {
     let mut removed = 0;
     let mut failed = Vec::new();
-    for path in app_files(result_dir, txt_names) {
+    for path in txt_files(result_dir, txt_names) {
         match std::fs::remove_file(long_path(&path)) {
             Ok(()) => removed += 1,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -308,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn clearing_removes_only_app_files() {
+    fn clearing_removes_only_the_app_text_files() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
         let txt = root.join(TXT_DIR);
@@ -336,10 +324,15 @@ mod tests {
         ];
         // Gezählt wird genau, was gelöscht wird.
         assert_eq!(app_files(root, &names).len(), 3);
-        let (removed, failed) = clear_result_files(root, &names);
-        assert_eq!(removed, 3);
+        assert_eq!(txt_files(root, &names).len(), 2);
+        let (removed, failed) = clear_txt_files(root, &names);
+        assert_eq!(removed, 2);
         assert!(failed.is_empty());
-        assert!(!root.join(XLSX_NAME).exists());
+        assert!(
+            root.join(XLSX_NAME).exists(),
+            "die Übersicht bleibt: sie ist keine Textdatei"
+        );
+        assert!(!txt.join("20260918_LinkedIn_A_4000000001.txt").exists());
         assert!(!txt.join(".jam-ab12cd.tmp").exists());
         assert!(txt.join("notiz.txt").exists(), "fremde Datei bleibt");
         assert!(root.join("fremd.tmp").exists());

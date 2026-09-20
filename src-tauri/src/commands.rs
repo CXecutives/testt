@@ -41,6 +41,21 @@ use crate::session::{Notify, Session};
 const LOG_KEEP: usize = 500;
 /// Seite zum Anlegen eines Gmail-App-Passworts.
 const APP_PASSWORD_URL: &str = "https://myaccount.google.com/apppasswords";
+/// Betriebssystem der Oberfläche – die Seite formuliert ihre Texte danach.
+const PLATFORM: &str = if cfg!(windows) {
+    "windows"
+} else if cfg!(target_os = "macos") {
+    "macos"
+} else {
+    "linux"
+};
+/// Wie der Ort des Gmail-App-Passworts hier heißt. Eine Stelle für alle Texte – das Backend
+/// nennt ihn nie selbst.
+const VAULT_NAME: &str = if cfg!(windows) {
+    "Windows-Tresor"
+} else {
+    "Schlüsselbund"
+};
 
 /// Zustand der App, von allen Befehlen geteilt.
 pub struct AppState {
@@ -49,7 +64,6 @@ pub struct AppState {
     pub default_workspace: PathBuf,
     pub dry_run: bool,
     pub user_agent: String,
-    pub webview_version: String,
     pub reset_report: Mutex<Option<ResetReport>>,
     /// Gmail-Adresse aus dem Tresor. So wird der Tresor samt Passwort nur einmal je Start für
     /// die Anzeige gelesen – sonst nur für den Postfach-Abruf.
@@ -214,7 +228,10 @@ type CmdResult<T> = Result<T, CommandError>;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppStateView {
-    webview_version: String,
+    /// Betriebssystem: „windows“ | „macos“ | „linux“ – die Seite formuliert danach.
+    platform: &'static str,
+    /// Wie der Ort des App-Passworts dort heißt.
+    vault_name: &'static str,
     dry_run: bool,
     data_dir: PathBuf,
     settings: Settings,
@@ -234,8 +251,9 @@ pub struct AppStateView {
     profile_dir: PathBuf,
     txt_dir: PathBuf,
     result_dir_exists: bool,
-    result_files: usize,
-    first_run_notice: bool,
+    /// Zahl der Textdateien der App in `auswertung/beschreibungen_txt` – genau das, was
+    /// „Textdateien löschen“ entfernt.
+    txt_files: usize,
     reset_report: Option<ResetReport>,
     running: Option<Snapshot>,
 }
@@ -249,7 +267,7 @@ pub async fn app_state(
 ) -> CmdResult<AppStateView> {
     let settings = state.settings()?;
     let workspace = settings.workspace_or(&state.default_workspace);
-    // Der Trockenlauf fasst den Windows-Tresor nie an.
+    // Der Trockenlauf fasst den Tresor nie an.
     let (gmail_user, gmail_error) = if state.dry_run {
         (None, None)
     } else {
@@ -270,21 +288,21 @@ pub async fn app_state(
     };
     let workspace_for_paths = workspace.clone();
     let result_dir = workspace.join(RESULT_DIR);
-    // Nur die App-Dateien – genau die, die „Ergebnisordner leeren“ löschen würde.
-    let result_files = export::app_files(&result_dir, &state.store.txt_names()?).len();
+    // Nur die eigenen Textdateien – genau die, die „Textdateien löschen“ entfernen würde.
+    let txt_files = export::txt_files(&result_dir, &state.store.txt_names()?).len();
     let (profile, profile_error) = match profile::info(&workspace) {
         Ok(info) => (info, None),
         Err(e) => (None, Some(e.to_string())),
     };
     let last_scan_run = pipeline::last_scan_run(&state.store)?;
     Ok(AppStateView {
-        webview_version: state.webview_version.clone(),
+        platform: PLATFORM,
+        vault_name: VAULT_NAME,
         dry_run: state.dry_run,
         data_dir: state.data_dir.clone(),
-        first_run_notice: !settings.first_run_seen,
         profile,
         profile_error,
-        portals: portal_views(&policy, &state.store, now)?,
+        portals: portal_views(&policy, &state.store, &settings, now)?,
         zero_posting_mails: state
             .store
             .zero_posting_mails(last_scan_run)?
@@ -306,7 +324,7 @@ pub async fn app_state(
         profile_dir: workspace_for_paths.join(profile::PROFILE_DIR),
         txt_dir: result_dir.join(export::TXT_DIR),
         result_dir,
-        result_files,
+        txt_files,
         running,
     })
 }
@@ -316,24 +334,20 @@ pub async fn app_state(
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingsInput {
-    format: export::Format,
-    scope: jobalert_core::mail::scan::Scope,
     portals: Vec<Portal>,
     #[serde(default)]
-    first_run_seen: bool,
+    session_portals: Vec<Portal>,
 }
 
-/// Speichert Format, Umfang und Quellen. Der Arbeitsordner ändert sich nur per Dialog.
+/// Speichert die Portalwahl. Der Arbeitsordner ändert sich nur per Dialog.
 #[tauri::command]
 pub async fn save_settings(
     state: State<'_, AppState>,
     input: SettingsInput,
 ) -> CmdResult<Settings> {
     let mut settings = state.settings()?;
-    settings.format = input.format;
-    settings.scope = input.scope;
     settings.portals = input.portals;
-    settings.first_run_seen |= input.first_run_seen;
+    settings.session_portals = input.session_portals;
     settings.save(&state.store)?;
     state.settings()
 }
@@ -446,8 +460,7 @@ impl Backends for AppBackends {
 }
 
 /// Einstellungen und Gmail-Zugang eines Laufs. Nur der Postfach-Schritt braucht Gmail:
-/// „Jobdetails extrahieren“ und „Details holen“ gehen auch, wenn der Tresor-Eintrag gerade
-/// unlesbar ist.
+/// Der Abruf der Jobdetails geht auch, wenn der Tresor-Eintrag gerade unlesbar ist.
 fn run_context(
     state: &AppState,
     request: &RunRequest,
@@ -460,7 +473,6 @@ fn run_context(
     };
     let ctx = RunContext {
         workspace: settings.workspace_or(&state.default_workspace),
-        format: settings.format,
         account: credentials
             .as_ref()
             .map(|c| c.user.clone())
@@ -844,13 +856,14 @@ pub struct Cleared {
     failed: Vec<String>,
 }
 
-/// Löscht nur App-Dateien im Ergebnisordner; die Datenbank bleibt (kein erneuter Abruf).
+/// Löscht nur die eigenen Textdateien; die Excel-Übersicht und die Datenbank bleiben
+/// (kein erneuter Abruf).
 #[tauri::command]
-pub async fn clear_result_files(state: State<'_, AppState>) -> CmdResult<Cleared> {
+pub async fn clear_txt_files(state: State<'_, AppState>) -> CmdResult<Cleared> {
     state.ensure_idle()?;
     state.ensure_real("Im Trockenlauf werden keine Dateien gelöscht.")?;
     let result_dir = state.workspace()?.join(RESULT_DIR);
-    let (removed, failed) = export::clear_result_files(&result_dir, &state.store.txt_names()?);
+    let (removed, failed) = export::clear_txt_files(&result_dir, &state.store.txt_names()?);
     Ok(Cleared { removed, failed })
 }
 
@@ -863,9 +876,6 @@ pub enum Target {
     JobUrl {
         key: JobKey,
     },
-    MailUrl {
-        key: JobKey,
-    },
     /// Alert-Mail per Gmail-ID (hexadezimal, z. B. aus einer grauen Zeile).
     Gmail {
         id: String,
@@ -875,7 +885,6 @@ pub enum Target {
         portal: Portal,
     },
     ResultFolder,
-    ProfileFolder,
     AppPasswordPage,
     LogFolder,
 }
@@ -884,14 +893,7 @@ pub enum Target {
 pub async fn open_target(state: State<'_, AppState>, target: Target) -> CmdResult<()> {
     let what: std::ffi::OsString = match target {
         Target::JobUrl { key } => job_view(&state, &key)?.url.into(),
-        Target::MailUrl { key } => job_view(&state, &key)?
-            .gmail_url
-            .ok_or_else(|| {
-                CommandError::new("notFound", "Zu diesem Job ist keine Gmail-Mail bekannt.")
-            })?
-            .into(),
         Target::ResultFolder => existing_dir(state.workspace()?.join(RESULT_DIR))?,
-        Target::ProfileFolder => existing_dir(state.workspace()?.join(profile::PROFILE_DIR))?,
         Target::Gmail { id } => u64::from_str_radix(&id, 16)
             .ok()
             .and_then(jobalert_core::model::gmail_url)
@@ -925,7 +927,7 @@ fn existing_dir(dir: PathBuf) -> CmdResult<std::ffi::OsString> {
     }
 }
 
-// ------------------------------------------------------------------ System
+// ------------------------------------------------------------------ App
 
 /// „Alles zurücksetzen“: Auftrag ablegen, dann neu starten – gelöscht wird beim Start.
 #[tauri::command]

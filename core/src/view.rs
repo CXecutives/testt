@@ -8,7 +8,8 @@ use crate::export::details_label;
 use crate::fetch::policy::{Allowance, PauseKind, Policy, limits};
 use crate::fetch::{MAX_AGE, RETRY_AFTER};
 use crate::model::{DescStatus, gmail_url};
-use crate::portal::{JobKey, Portal};
+use crate::portal::{JobKey, LoginMode, Portal};
+use crate::settings::Settings;
 use crate::store::{AlertMailRow, JobRow, Store};
 use crate::text::split_company_location;
 
@@ -93,8 +94,16 @@ impl From<&AlertMailRow> for AlertMailView {
 pub struct PortalView {
     pub portal: Portal,
     pub label: &'static str,
-    /// LinkedIn und freelancermap: kein Konto nötig.
-    pub needs_account: bool,
+    /// Steht in `Settings.portals` – wird also abgerufen.
+    pub enabled: bool,
+    /// Ob und wie eine Anmeldung möglich ist.
+    pub login: LoginMode,
+    /// Steht in `Settings.session_portals` – soll über ein Sitzungsfenster abgerufen werden
+    /// (nur bei `Optional`/`Required` sinnvoll).
+    pub session: bool,
+    /// `None` = unbekannt, `Some(false)` = Anmeldung nötig.
+    pub signed_in: Option<bool>,
+    pub confirmed_at: Option<Timestamp>,
     pub paused_until: Option<Timestamp>,
     pub pause_kind: Option<PauseKind>,
     pub pause_reason: Option<String>,
@@ -104,8 +113,6 @@ pub struct PortalView {
     pub cap_hour: usize,
     pub used_day: usize,
     pub cap_day: usize,
-    pub login_needed: bool,
-    pub session_confirmed_at: Option<Timestamp>,
     /// Jetzt automatisch abrufbar (Mails ≤ 30 Tage, Fehlschläge nach 12 h).
     pub due: usize,
     pub open: i64,
@@ -119,6 +126,7 @@ pub struct PortalView {
 pub fn portal_views(
     policy: &Policy,
     store: &Store,
+    settings: &Settings,
     now: Timestamp,
 ) -> crate::Result<Vec<PortalView>> {
     let counts = store.portal_counts()?;
@@ -149,7 +157,17 @@ pub fn portal_views(
             PortalView {
                 portal,
                 label: portal.label(),
-                needs_account: portal == Portal::FreelanceDe,
+                enabled: settings.portals.contains(&portal),
+                login: portal.login_mode(),
+                session: settings.session_portals.contains(&portal),
+                // Nichts gemerkt heißt „unbekannt“: Erst eine Anmeldung oder eine Seite, die
+                // eine verlangt, macht daraus eine Aussage.
+                signed_in: match (state.login_needed, state.session_confirmed_at) {
+                    (true, _) => Some(false),
+                    (false, Some(_)) => Some(true),
+                    (false, None) => None,
+                },
+                confirmed_at: state.session_confirmed_at,
                 paused_until: state.paused_until.filter(|_| paused),
                 pause_kind: state.pause_kind.filter(|_| paused),
                 pause_reason: state.pause_reason.filter(|_| paused),
@@ -158,8 +176,6 @@ pub fn portal_views(
                 cap_hour: limits.per_hour,
                 used_day,
                 cap_day: limits.per_day,
-                login_needed: state.login_needed,
-                session_confirmed_at: state.session_confirmed_at,
                 due: due
                     .iter()
                     .find(|(p, _)| *p == portal)
@@ -224,22 +240,52 @@ mod tests {
         for _ in 0..25 {
             policy.record_access(Portal::Freelancermap, now);
         }
-        let views = portal_views(&policy, &store, now).unwrap();
-        let li = views.iter().find(|v| v.portal == Portal::LinkedIn).unwrap();
+        let settings = Settings {
+            portals: vec![Portal::LinkedIn, Portal::Freelancermap],
+            session_portals: vec![Portal::Freelancermap],
+            ..Settings::default()
+        };
+        let views = portal_views(&policy, &store, &settings, now).unwrap();
+        let of = |portal| views.iter().find(|v| v.portal == portal).unwrap();
+        let li = of(Portal::LinkedIn);
         assert_eq!(li.pause_reason.as_deref(), Some("HTTP 999"));
-        assert!(!li.needs_account);
-        let fm = views
-            .iter()
-            .find(|v| v.portal == Portal::Freelancermap)
-            .unwrap();
+        assert_eq!(
+            (li.login, li.enabled, li.session),
+            (LoginMode::None, true, false)
+        );
+        let fm = of(Portal::Freelancermap);
         assert!(fm.next_free_at.is_some());
         assert_eq!((fm.used_hour, fm.cap_hour), (25, 25));
-        assert!(
-            views
-                .iter()
-                .find(|v| v.portal == Portal::FreelanceDe)
-                .unwrap()
-                .needs_account
+        assert_eq!(
+            (fm.login, fm.enabled, fm.session),
+            (LoginMode::Optional, true, true)
+        );
+        let fl = of(Portal::FreelanceDe);
+        assert_eq!(
+            (fl.login, fl.enabled, fl.session),
+            (LoginMode::Required, false, false)
+        );
+    }
+
+    /// Der Anmeldestand ist dreiwertig: nichts gemerkt = unbekannt.
+    #[test]
+    fn the_sign_in_state_is_unknown_until_something_happened() {
+        let store = Store::in_memory().unwrap();
+        let now = Timestamp::now();
+        let settings = Settings::default();
+        let mut policy = Policy::in_memory();
+        let state = |policy: &Policy, portal| {
+            let views = portal_views(policy, &store, &settings, now).unwrap();
+            let view = views.into_iter().find(|v| v.portal == portal).unwrap();
+            (view.signed_in, view.confirmed_at)
+        };
+        assert_eq!(state(&policy, Portal::FreelanceDe), (None, None));
+        policy.set_session(Portal::FreelanceDe, true, now);
+        assert_eq!(state(&policy, Portal::FreelanceDe), (Some(true), Some(now)));
+        policy.set_session(Portal::FreelanceDe, false, now);
+        assert_eq!(
+            state(&policy, Portal::FreelanceDe),
+            (Some(false), Some(now))
         );
     }
 }

@@ -22,7 +22,7 @@ fn main() {
             "pick_profile",
             "remove_profile",
             "rewrite_txt",
-            "clear_result_files",
+            "clear_txt_files",
             "open_target",
             "reset_all",
             "report_ui_error",

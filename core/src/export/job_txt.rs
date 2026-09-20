@@ -37,7 +37,7 @@ pub(crate) fn txt_contents(job: &JobRow, text: &str, fetched_at: Timestamp) -> S
 ///
 /// Ein einmal vergebener Name bleibt, auch wenn sich der Titel seither geändert hat –
 /// sonst entstünde beim Neuschreiben eine zweite Datei für denselben Job, die der Skill
-/// doppelt bewertet und „Ergebnisordner leeren“ nicht mehr kennt.
+/// doppelt bewertet und „Textdateien löschen“ nicht mehr kennt.
 pub fn write_job_txt(result_dir: &Path, job: &JobRow, text: &str) -> Result<String> {
     let name = job
         .txt_name

@@ -3,7 +3,8 @@
 //! eine Datei offen – Prozesse werden nie beendet.
 //!
 //! Gelöscht werden nur Dinge der App: Datenbank (Jobs, Einstellungen, Scan-Stand), das
-//! Profil des Sitzungsfensters (freelance.de-Anmeldung), der Gmail-Zugang im Tresor und im
+//! Profil des Sitzungsfensters (freelance.de-Anmeldung), der Gmail-Zugang im
+//! Schlüsselspeicher und im
 //! Arbeitsordner die App-Dateien samt `profil/beraterprofil.json`. `policy.json` bleibt –
 //! eine Sperrpause darf sich nicht wegklicken lassen. Fremde Dateien bleiben unberührt.
 
@@ -112,7 +113,9 @@ pub fn perform_pending(data_dir: &Path, vault: &Vault) -> Option<ResetReport> {
         let _ = std::fs::remove_dir(dir);
     }
     if let Err(e) = vault.delete_gmail() {
-        report.failed.push(format!("Gmail-Zugang im Tresor ({e})"));
+        report
+            .failed
+            .push(format!("Gmail-Zugang im Schlüsselspeicher ({e})"));
     }
     // Die freelance.de-Anmeldung ist mit dem Profil weg – Pausen und Zähler bleiben.
     let mut policy = Policy::load(&data_dir.join(POLICY_FILE), jiff::Timestamp::now());

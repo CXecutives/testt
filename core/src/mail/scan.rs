@@ -22,8 +22,6 @@ use crate::time::local_date;
 pub enum Scope {
     /// Seit dem letzten erfolgreichen Scan (einen Tag Überlappung); beim ersten Mal 7 Tage.
     New,
-    /// Die letzten 7 Tage.
-    Week,
     /// Der ganze Posteingang.
     All,
 }
@@ -77,7 +75,6 @@ fn scan_since(
     let week_ago = today.saturating_sub(FIRST_SCAN_DAYS.days());
     Ok(match scope {
         Scope::All => None,
-        Scope::Week => Some(week_ago),
         Scope::New => {
             let mut since = today;
             for &portal in portals {
@@ -354,21 +351,12 @@ mod tests {
         assert_eq!(store.last_scan(Portal::LinkedIn).unwrap(), Some(later));
     }
 
-    /// Grenzfall ohne Überlappung und ein Stand in der Zukunft rücken den
-    /// Stand nicht vor.
+    /// Ein Stand in der Zukunft (falsch gestellte Uhr) gilt als unbekannt: „Neu“ sucht
+    /// sieben Tage zurück und ersetzt ihn.
     #[tokio::test]
-    async fn boundary_and_future_state_do_not_advance() {
+    async fn a_state_in_the_future_is_replaced() {
         let store = Store::in_memory().unwrap();
         let mut source = fake(None);
-        // Letzter Scan 00:30 Berliner Zeit am 12.09.; „Letzte 7 Tage“ am 19.09. sucht ab 12.09.
-        let last: Timestamp = "2026-09-11T22:30:00Z".parse().unwrap();
-        store.set_last_scan(Portal::LinkedIn, last).unwrap();
-        run_scan(&store, &mut source, Scope::Week, now())
-            .await
-            .1
-            .unwrap();
-        assert_eq!(store.last_scan(Portal::LinkedIn).unwrap(), Some(last));
-        // Stand in der Zukunft: „Neu“ sucht 7 Tage zurück und überschreibt ihn.
         let future: Timestamp = "2027-01-01T08:00:00Z".parse().unwrap();
         store.set_last_scan(Portal::LinkedIn, future).unwrap();
         run_scan(&store, &mut source, Scope::New, now())
@@ -379,24 +367,6 @@ mod tests {
             source.searched.last().unwrap(),
             &Some("2026-09-12".parse().unwrap())
         );
-        assert_eq!(store.last_scan(Portal::LinkedIn).unwrap(), Some(now()));
-    }
-
-    /// „Letzte 7 Tage“ nach langer Pause deckt die Lücke nicht – der Stand bleibt stehen,
-    /// damit „Neu seit letztem Lauf“ danach nichts überspringt.
-    #[tokio::test]
-    async fn week_scan_does_not_skip_a_gap() {
-        let store = Store::in_memory().unwrap();
-        let mut source = fake(None);
-        run_scan(&store, &mut source, Scope::New, now())
-            .await
-            .1
-            .unwrap();
-        let month_later: Timestamp = "2026-10-19T08:00:00Z".parse().unwrap();
-        run_scan(&store, &mut source, Scope::Week, month_later)
-            .await
-            .1
-            .unwrap();
         assert_eq!(store.last_scan(Portal::LinkedIn).unwrap(), Some(now()));
     }
 

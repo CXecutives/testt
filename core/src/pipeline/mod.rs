@@ -13,7 +13,7 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
-use crate::export::{self, Format, RESULT_DIR, TXT_DIR, write_csv, write_job_txt, write_xlsx};
+use crate::export::{self, RESULT_DIR, TXT_DIR, write_job_txt, write_xlsx};
 use crate::fetch::policy::Policy;
 use crate::fetch::{FetchEvent, FetchSummary, PageFetcher, Selection, fetch_all};
 use crate::mail::imap::{MailError, MailSource};
@@ -43,7 +43,6 @@ pub struct RunRequest {
 #[derive(Debug, Clone)]
 pub struct RunContext {
     pub workspace: PathBuf,
-    pub format: Format,
     /// Gmail-Adresse fürs Info-Blatt (leer, wenn unbekannt).
     pub account: String,
     /// Trockenlauf: nichts wird geschrieben.
@@ -281,14 +280,7 @@ pub async fn run<B: Backends>(
     if request.export && !ctx.dry_run {
         emit(status("Ergebnisdateien werden geschrieben…"));
         let info = info_rows(store, started_at);
-        let exported = export_all(
-            store,
-            &ctx.workspace,
-            ctx.format,
-            &info,
-            run,
-            summary.finished_at,
-        );
+        let exported = export_all(store, &ctx.workspace, &info, run, summary.finished_at);
         log_export(&exported, &mut emit);
         summary.export = Some(exported);
     }
@@ -555,7 +547,6 @@ async fn fetch_step<B: Backends>(
 pub fn export_all(
     store: &Store,
     workspace: &Path,
-    format: Format,
     info: &[(String, String)],
     run: i64,
     now: Timestamp,
@@ -566,9 +557,14 @@ pub fn export_all(
         Ok(jobs) => write_txts(store, &result_dir, jobs, now, &mut summary),
         Err(e) => note_error(&mut summary, e.to_string()),
     }
-    if let Some(path) = export::overview_path(&result_dir, format) {
-        write_overview(store, &path, format, info, run, now, &mut summary);
-    }
+    write_overview(
+        store,
+        &export::overview_path(&result_dir),
+        info,
+        run,
+        now,
+        &mut summary,
+    );
     summary
 }
 
@@ -655,21 +651,19 @@ fn write_txts(
 
 /// Übersicht schreiben, wenn sie fehlt oder sich seit dem letzten Mal an diesem Pfad etwas
 /// geändert hat. Der Stand wird je Pfad gemerkt: Was die App dort schrieb, bleibt ihres –
-/// auch nach einem Wechsel des Formats oder des Ordners und zurück.
+/// auch nach einem Wechsel des Ordners und zurück.
 fn write_overview(
     store: &Store,
     path: &Path,
-    format: Format,
     info: &[(String, String)],
     run: i64,
     now: Timestamp,
     summary: &mut ExportSummary,
 ) {
-    // Die Lauf-Nummer zählt nur für Excel (Blatt „Info“); die CSV ändert sich nur mit den
-    // Daten – eine offene CSV stört dann nicht bei jedem Lauf.
+    // Die Lauf-Nummer gehört zum Blatt „Info“ und ändert die Datei bei jedem Lauf.
     let stamp = serde_json::json!({
         "rev": store.data_rev().unwrap_or(-1),
-        "run": if format == Format::Xlsx { run } else { 0 },
+        "run": run,
     })
     .to_string();
     let key = format!("{EXPORT_STAMP}{}", path.display());
@@ -713,11 +707,7 @@ fn write_overview(
     }
     let written = store
         .jobs(&JobFilter::default())
-        .and_then(|jobs| match format {
-            Format::Xlsx => write_xlsx(path, &jobs, info),
-            Format::Csv => write_csv(path, &jobs),
-            Format::None => Ok(()),
-        });
+        .and_then(|jobs| write_xlsx(path, &jobs, info));
     match written {
         Ok(()) => {
             if let Err(e) = store.kv_set(&key, &stamp) {
@@ -822,7 +812,6 @@ fn log_export(exported: &ExportSummary, emit: &mut impl FnMut(RunEvent)) {
 fn scope_text(scope: Scope) -> &'static str {
     match scope {
         Scope::New => "Neu seit letztem Lauf",
-        Scope::Week => "Letzte 7 Tage",
         Scope::All => "Alle",
     }
 }

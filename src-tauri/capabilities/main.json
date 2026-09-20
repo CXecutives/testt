@@ -8,7 +8,7 @@
   "permissions": [
     "allow-app-state",
     "allow-cancel-run",
-    "allow-clear-result-files",
+    "allow-clear-txt-files",
     "allow-close-answered",
     "allow-delete-gmail-credentials",
     "allow-job-detail",

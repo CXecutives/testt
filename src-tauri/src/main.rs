@@ -45,7 +45,7 @@ fn main() {
             commands::pick_profile,
             commands::remove_profile,
             commands::rewrite_txt,
-            commands::clear_result_files,
+            commands::clear_txt_files,
             commands::open_target,
             commands::reset_all,
             commands::report_ui_error,
@@ -171,16 +171,22 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
         data_dir,
         dry_run,
         user_agent: edge_user_agent(Some(&webview_version)),
-        webview_version,
         reset_report: Mutex::new(reset_report),
         gmail_user: Mutex::new(GmailUser::Unread),
         activity: Mutex::new(Activity::Idle),
         close_asked: Mutex::new(None),
     });
+    // Die WebView-Version steht nur im Protokoll: Die Oberfläche braucht sie nicht, für
+    // eine Fehlersuche ist sie dort verlässlicher als in einem Bildschirmfoto.
     log::info!(
-        "Start {}{}",
+        "Start {}{} (WebView {})",
         env!("CARGO_PKG_VERSION"),
-        if dry_run { " (Trockenlauf)" } else { "" }
+        if dry_run { " (Trockenlauf)" } else { "" },
+        if webview_version.is_empty() {
+            "unbekannt"
+        } else {
+            &webview_version
+        }
     );
 
     let config = app
