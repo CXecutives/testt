@@ -329,3 +329,5 @@ button { font: inherit; color: inherit; }
   .settings-inner { padding: var(--s5); }
   .form-grid { grid-template-columns: 1fr; }
 }
+
+.notices { flex: none; }

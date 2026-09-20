@@ -5,7 +5,7 @@ import { api } from '../api.js';
 import { startRun } from '../run.js';
 import { locked, setSelection, state, subscribe } from '../store.js';
 import {
-  button, el, formatShort, icon, notice, plural, skeleton,
+  button, el, formatShort, listRow, notice, plural, skeleton,
 } from '../ui.js';
 
 const n = {};
@@ -83,16 +83,7 @@ function render() {
 }
 
 function rowNode(job) {
-  const node = el('button', {
-    class: 'row', type: 'button', role: 'option', dataset: { key: keyOf(job.key) },
-  },
-  el('span', { class: 'row-title' }),
-  el('span', { class: 'row-date' }),
-  el('span', { class: 'row-meta' }));
-  node.addEventListener('click', () => {
-    node.blur();
-    select(keyOf(job.key));
-  });
+  const node = listRow({ key: keyOf(job.key), onSelect: select });
   fill(node, job);
   return node;
 }
@@ -247,12 +238,14 @@ function renderNotices() {
     list.push({ level: 'warn', text: `${stopped.label} ${why} – weiter ab ${until}.` });
   }
 
+  // Der Hinweis bleibt auch während eines Laufs stehen – er stimmt ja weiter. Nur die
+  // Aktion entfällt, sonst springt die Liste bei jedem Laufstart um eine Zeile.
   const due = app.portals.reduce((sum, p) => sum + p.due, 0);
-  if (due && !state.busy) {
+  if (due) {
     list.push({
       level: 'info',
       text: `${plural(due, 'Job', 'Jobs')} ohne Jobdetails.`,
-      action: { label: 'Nachholen', onClick: () => startRun('fetch') },
+      action: state.busy ? null : { label: 'Nachholen', onClick: () => startRun('fetch') },
     });
   }
 

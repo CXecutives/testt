@@ -210,11 +210,14 @@
 
 /* ------------------------------------------------------------------ Hinweiszeile */
 
+/* Feste Höhe: Ob die Zeile gerade eine Aktion trägt, darf die Liste darunter nicht
+   verschieben – sonst springt der Aufbau bei jedem Laufstart. */
 .notice {
   display: flex;
   align-items: center;
   gap: var(--s3);
-  padding: var(--s3) var(--s5);
+  min-height: 40px;
+  padding: 0 var(--s5);
   border-bottom: 1px solid var(--line);
   background: var(--surface);
   font: var(--t-sm);

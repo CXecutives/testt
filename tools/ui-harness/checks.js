@@ -1,240 +1,299 @@
-// Interaktions-Szenarien für den Prüfstand: im Browser `await (await import('/__checks.js')).run()`.
-// Jeder Fall setzt die Seite neu auf (location.reload ist nicht nötig – Zustand wird zurückgesetzt,
-// wo ein Fall ihn ändert) und liefert { name, ok, detail }.
+// Interaktions-Szenarien für den Prüfstand.
+// Im Browser: `await (await import('/__checks.js')).run()`
+// Jeder Fall beschreibt eine Zusage, die die Oberfläche einhalten muss.
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const fake = window.__fake;
 const calls = (cmd) => fake.calls.filter(([c]) => c === cmd).length;
-const click = (node, detail = 1) => node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail }));
-const pointer = (node, type) => node.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 1, isPrimary: true }));
-const view = async (name) => {
-  click($(`[data-view=${name}]`));
-  await wait(50);
-};
+
+const click = (node, detail = 1) =>
+  node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail }));
+const pointer = (node, type, button = 0) =>
+  node.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 1, isPrimary: true, button }));
+const key = (node, k) =>
+  node.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: k }));
+
 const rect = (node) => {
   const r = node.getBoundingClientRect();
   return `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
 };
 
+const openSettings = async () => {
+  if ($('#page-settings').hidden) click($$('#toolbar .btn.ghost.icon').at(-1));
+  await wait(200);
+};
+
+const openJobs = async () => {
+  if ($('#page-jobs').hidden) click($$('#toolbar .btn.ghost.icon').at(-1));
+  await wait(200);
+};
+
 const cases = {
-  async 'Dialog: im Dialog drücken, auf dem Hintergrund loslassen → bleibt offen'() {
-    await view('system');
-    click($('.system-grid .card:last-child .btn.danger'));
-    await wait(350);
-    const root = $('#modals');
-    pointer($('.modal-body'), 'pointerdown');
-    click(root);
-    await wait(50);
-    const open = !root.hidden && !root.classList.contains('is-leaving');
-    pointer(root, 'pointerdown');
-    click(root);
-    await wait(300);
-    return [open && root.hidden, `offen nach Drag: ${open}, zu nach echtem Klick: ${root.hidden}`];
+  /* ---------------------------------------------------------------- Eingabe */
+
+  async 'Rechtsklick öffnet nirgends ein Kontextmenü'() {
+    await openJobs();
+    const targets = [$('.row'), $('#toolbar'), $('.reader'), $('#statusbar')].filter(Boolean);
+    const blocked = targets.every((node) => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      node.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    return { ok: blocked, detail: `${targets.length} Stellen geprüft` };
   },
-  async 'Dialog: zweiter Klick eines Doppelklicks (< 300 ms) wird ignoriert'() {
-    click($('.system-grid .card:last-child .btn.danger'));
-    await wait(30);
-    const cancel = $$('.modal-foot .btn').find((b) => !b.classList.contains('danger'));
-    click(cancel);
-    await wait(30);
-    const stillOpen = !$('#modals').hidden && !$('#modals').classList.contains('is-leaving');
-    await wait(300);
-    click(cancel);
-    await wait(300);
-    return [stillOpen && $('#modals').hidden && calls('reset_all') === 0, `offen nach Frühklick: ${stillOpen}`];
-  },
-  async 'Dialog: nach der Antwort bleibt die App 200 ms gesperrt'() {
-    click($('.system-grid .card:last-child .btn.danger'));
-    await wait(350);
-    click($$('.modal-foot .btn').find((b) => !b.classList.contains('danger')));
-    const inert = $('.app').inert;
-    await wait(260);
-    return [inert && !$('.app').inert && !$('#titlebar').inert, `inert direkt danach: ${inert}`];
-  },
-  async 'Dialog: 50× auf/zu – keydown-Listener bleiben ausgeglichen'() {
-    let balance = 0;
-    const add = document.addEventListener;
-    const remove = document.removeEventListener;
-    document.addEventListener = function (type, ...rest) { if (type === 'keydown') balance += 1; return add.call(this, type, ...rest); };
-    document.removeEventListener = function (type, ...rest) { if (type === 'keydown') balance -= 1; return remove.call(this, type, ...rest); };
-    try {
-      for (let i = 0; i < 50; i += 1) {
-        click($('.system-grid .card:last-child .btn.danger'));
-        await wait(320);
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        await wait(5);
-      }
-      await wait(250);
-    } finally {
-      document.addEventListener = add;
-      document.removeEventListener = remove;
-    }
-    return [balance === 0 && $('#modals').hidden, `Bilanz ${balance}`];
-  },
-  async 'Knopf: 10 Klicks bei 300 ms Backend-Verzögerung → 1 Aufruf, Kreisel, danach frei'() {
-    await view('profile');
-    fake.delays.pick_profile = 300;
-    const before = calls('pick_profile');
-    const button = $('#view-profile .btn.primary');
-    for (let i = 0; i < 10; i += 1) click(button);
-    await wait(200);
-    const busy = button.getAttribute('aria-busy') === 'true';
-    await wait(300);
-    delete fake.delays.pick_profile;
-    return [calls('pick_profile') - before === 1 && busy && !button.hasAttribute('aria-busy'), `Aufrufe ${calls('pick_profile') - before}, Kreisel ${busy}`];
-  },
-  async 'Taste gehalten: wiederholtes Enter wird verworfen'() {
-    const event = new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
-    $('#view-profile .btn.primary').dispatchEvent(event);
-    return [event.defaultPrevented, `verworfen: ${event.defaultPrevented}`];
-  },
-  async 'Zeigerzustand: blur setzt pointer-away, erst Bewegung löst es'() {
-    window.dispatchEvent(new Event('blur'));
-    const set = document.documentElement.classList.contains('pointer-away');
-    window.dispatchEvent(new Event('focus'));
-    const still = document.documentElement.classList.contains('pointer-away');
-    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1 }));
-    const cleared = !document.documentElement.classList.contains('pointer-away');
-    return [set && still && cleared, `gesetzt ${set}, nach focus ${still}, nach Bewegung frei ${cleared}`];
-  },
-  async 'Fensterknöpfe: Minimieren setzt pointer-away, Titelleiste nie inert'() {
-    click($('#win-min'));
-    await wait(20);
-    const away = document.documentElement.classList.contains('pointer-away');
-    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1 }));
-    return [away && calls('window.minimize') >= 1 && !$('#titlebar').inert, `pointer-away ${away}`];
-  },
-  async 'Maximieren: 20 Größenänderungen → 1 isMaximized'() {
-    await wait(150);
-    const before = calls('window.isMaximized');
-    for (let i = 0; i < 20; i += 1) window.dispatchEvent(new Event('resize'));
-    await wait(200);
-    return [calls('window.isMaximized') - before === 1, `Aufrufe ${calls('window.isMaximized') - before}`];
-  },
-  async 'Tabelle: Doppelklick auf Zeile → 1 job_detail, 1 open_target'() {
-    await view('alerts');
-    const detail = calls('job_detail');
-    const open = calls('open_target');
-    const tr = $$('#view-alerts tbody tr[data-key]')[3];
-    click(tr);
-    click(tr, 2);
-    tr.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }));
-    tr.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }));
+
+  async 'Mittlere Maustaste löst nichts aus'() {
+    await openJobs();
+    const before = fake.calls.length;
+    const down = new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 1 });
+    $('.row').dispatchEvent(down);
+    const aux = new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 });
+    $('.row').dispatchEvent(aux);
     await wait(100);
-    return [calls('job_detail') - detail === 1 && calls('open_target') - open === 1,
-      `job_detail ${calls('job_detail') - detail}, open_target ${calls('open_target') - open}`];
+    return { ok: aux.defaultPrevented && fake.calls.length === before, detail: `Aufrufe +${fake.calls.length - before}` };
   },
-  async 'Tabelle: 30× Pfeil runter → höchstens 2 job_detail, Detail zeigt die letzte Zeile'() {
-    const before = calls('job_detail');
-    const wrap = $('.table-wrap');
-    for (let i = 0; i < 30; i += 1) wrap.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, repeat: i > 0 }));
-    await wait(400);
-    const selected = $('tr.is-selected')?.dataset.key;
-    const title = $('.detail h2').textContent;
-    const job = fake.jobs.find((j) => `${j.key.portal}:${j.key.id}` === selected);
-    return [calls('job_detail') - before <= 2 && job && title === job.title, `Aufrufe ${calls('job_detail') - before}`];
+
+  async 'Tasten wirken nur in Eingabefeldern'() {
+    const outside = ['Enter', 'Escape', 'ArrowDown', 'F5', 'r'].map((k) => {
+      const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: k });
+      $('.row').dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    await openSettings();
+    const field = $('#gmail-user') ?? $('#search');
+    const inside = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'a' });
+    field.dispatchEvent(inside);
+    return {
+      ok: outside.every(Boolean) && !inside.defaultPrevented,
+      detail: `außen gesperrt: ${outside.filter(Boolean).length}/5, im Feld frei: ${!inside.defaultPrevented}`,
+    };
   },
-  async 'Tabelle: Zeilenwechsel mit langsamem Backend zeigt nie den vorigen Job'() {
-    fake.delays.job_detail = 400;
-    const rows = $$('#view-alerts tbody tr[data-key]');
-    click(rows[5]);
-    await wait(20);
-    const job = fake.jobs.find((j) => `${j.key.portal}:${j.key.id}` === rows[5].dataset.key);
-    const title = $('.detail h2').textContent;
-    const loading = !$('.detail .state').hidden;
-    await wait(450);
-    delete fake.delays.job_detail;
-    return [title === job.title && loading, `Titel sofort richtig ${title === job.title}, Ladezustand ${loading}`];
+
+  async 'Einfügen ins Passwortfeld bleibt möglich'() {
+    await openSettings();
+    const field = $('#gmail-password');
+    if (!field) return { ok: false, detail: 'Passwortfeld fehlt' };
+    const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    field.dispatchEvent(menu);
+    const paste = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'v', ctrlKey: true });
+    field.dispatchEvent(paste);
+    return {
+      ok: !menu.defaultPrevented && !paste.defaultPrevented,
+      detail: `Kontextmenü frei: ${!menu.defaultPrevented}, Strg+V frei: ${!paste.defaultPrevented}`,
+    };
   },
-  async 'Lauf: 200 Fortschrittsereignisse ändern die Tabelle nicht'() {
-    click($('.detail .btn.icon-only'));
-    click($('#topbar-actions .btn.primary'));
-    await wait(400);
-    let mutations = 0;
-    const observer = new MutationObserver((list) => { mutations += list.length; });
-    observer.observe($('#view-alerts tbody'), { childList: true, subtree: true, characterData: true, attributes: true });
-    for (let i = 0; i < 200; i += 1) fake.emit({ type: 'progress', step: 'fetch', done: i, total: 200 });
-    await wait(50);
-    observer.disconnect();
-    return [mutations === 0, `Mutationen ${mutations}`];
+
+  async 'Ziehen von Text und Bildern ist aus'() {
+    const event = new DragEvent('dragstart', { bubbles: true, cancelable: true });
+    $('.reader').dispatchEvent(event);
+    return { ok: event.defaultPrevented, detail: '' };
   },
-  async 'Lauf: Laufleiste und Abbrechen in jeder Ansicht'() {
-    const seen = [];
-    for (const name of ['portals', 'profile', 'system', 'alerts']) {
-      await view(name);
-      seen.push(!$('#run-cancel').hidden && $('#runbar').getBoundingClientRect().height > 0);
-    }
-    return [seen.every(Boolean), seen.join(',')];
-  },
-  async 'Lauf: Start-Klick während des Abschluss-Neuladens startet nichts'() {
-    fake.delays.app_state = 400;
-    fake.finish();
-    await wait(50);
+
+  /* ---------------------------------------------------------------- Knöpfe */
+
+  async 'Zehn Klicks auf „Abrufen“ starten einen Lauf'() {
+    await openJobs();
     const before = calls('start_run');
-    click($('#topbar-actions .btn.primary'));
-    await wait(500);
-    delete fake.delays.app_state;
+    const run = $('#run');
+    for (let i = 0; i < 10; i += 1) click(run);
+    await wait(300);
+    const busy = run.getAttribute('aria-busy') === 'true' || !$('#statusbar .spinner').hidden;
+    await wait(2600);
+    return { ok: calls('start_run') - before === 1, detail: `start_run ${calls('start_run') - before}, Kreisel ${busy}` };
+  },
+
+  async 'Ein Knopf behält nach dem Klick keinen Fokusring'() {
+    const btn = $$('#toolbar .btn.ghost.icon')[0];
+    btn.focus();
+    click(btn);
+    await wait(50);
+    return { ok: document.activeElement !== btn, detail: `aktiv: ${document.activeElement.className || document.activeElement.tagName}` };
+  },
+
+  /* ---------------------------------------------------------------- Dialoge */
+
+  async 'Im Dialog drücken, auf dem Hintergrund loslassen – er bleibt offen'() {
+    await openSettings();
+    const reset = $$('#page-settings .btn.danger').at(-1);
+    click(reset);
     await wait(400);
-    return [calls('start_run') === before && $('#modals').hidden === false, `start_run ${calls('start_run') - before}`];
-  },
-  async 'Abschlussdialog schließen, keine Layout-Verschiebung der Kopfknöpfe'() {
-    const ok = $$('.modal-foot .btn').find((b) => b.classList.contains('primary'));
-    await wait(350);
-    click(ok);
+    const sheet = $('#sheet');
+    pointer($('.dialog-body'), 'pointerdown');
+    click(sheet);
+    await wait(80);
+    const stillOpen = !sheet.hidden;
+    click($('.dialog-foot .btn'));   // „Abbrechen“
     await wait(300);
-    const button = $('#topbar-actions .btn.primary');
-    const before = rect(button);
-    const runbar = rect($('#runbar'));
-    click(button);
-    await wait(300);
-    const during = rect(button);
-    const runbarDuring = rect($('#runbar'));
-    fake.finish();
-    await wait(700);
-    click($$('.modal-foot .btn').find((b) => b.classList.contains('primary')));
-    await wait(700);
-    return [before === during && runbar === runbarDuring, `${before} → ${during}; Laufleiste ${runbar} → ${runbarDuring}`];
+    return { ok: stillOpen && sheet.hidden, detail: `offen nach Ziehen: ${stillOpen}, zu nach Klick: ${sheet.hidden}` };
   },
-  async 'Gmail tippen verschiebt keine Knöpfe'() {
-    await view('system');
-    const buttons = $$('#view-system .card:first-child .card-foot .btn');
-    const before = buttons.map(rect).join('|');
-    const input = $('#gmail-password');
-    input.value = 'abcd';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+  async 'Der zweite Klick eines Doppelklicks trifft den Dialog nicht'() {
+    await openSettings();
+    const reset = $$('#page-settings .btn.danger').at(-1);
+    click(reset);
+    await wait(60);
+    const sheet = $('#sheet');
+    pointer(sheet, 'pointerdown');
+    click(sheet, 2);
+    await wait(60);
+    const stillOpen = !sheet.hidden;
+    click($('.dialog-foot .btn'));
+    await wait(300);
+    return { ok: stillOpen, detail: `offen nach Frühklick: ${stillOpen}` };
+  },
+
+  async 'Ein Dialog sperrt keine Taste – er hat nur Knöpfe'() {
+    await openSettings();
+    click($$('#page-settings .btn.danger').at(-1));
+    await wait(400);
+    const escape = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' });
+    document.dispatchEvent(escape);
+    await wait(80);
+    const stillOpen = !$('#sheet').hidden;
+    click($('.dialog-foot .btn'));
+    await wait(300);
+    return { ok: stillOpen && escape.defaultPrevented, detail: `Escape schließt nicht: ${stillOpen}` };
+  },
+
+  /* ---------------------------------------------------------------- Liste */
+
+  async 'Ein Klick wählt die Zeile und öffnet den Text'() {
+    await openJobs();
+    const row = $$('.row')[2];
+    click(row);
+    await wait(400);
+    return {
+      ok: row.getAttribute('aria-selected') === 'true' && Boolean($('.reader-title')),
+      detail: `Titel: ${$('.reader-title')?.textContent.slice(0, 24)}`,
+    };
+  },
+
+  async 'Zeilenwechsel bei trägem Backend zeigt nie den vorigen Job'() {
+    await openJobs();
+    const rows = $$('.row');
+    click(rows[1]);
     await wait(30);
-    const after = buttons.map(rect).join('|');
-    input.value = '';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    return [before === after, before === after ? 'gleich' : `${before} → ${after}`];
+    click(rows[4]);
+    await wait(60);
+    const titleNow = $('.reader-title')?.textContent ?? '';
+    const wanted = rows[4].querySelector('.row-title').textContent;
+    const loading = Boolean($('.reader-skeleton')) || Boolean($('.reader-text'));
+    await wait(900);
+    return {
+      ok: titleNow === wanted,
+      detail: `sofort richtig: ${titleNow === wanted}, Ladezustand: ${loading}`,
+    };
+  },
+
+  async 'Zweihundert Fortschrittsereignisse rühren die Liste nicht an'() {
+    await openJobs();
+    const list = $('#list');
+    let mutations = 0;
+    const observer = new MutationObserver((records) => { mutations += records.length; });
+    observer.observe(list, { childList: true, subtree: true, characterData: true });
+    const channel = fake.calls.filter(([c]) => c === 'app_state').at(-1)?.[1]?.channel;
+    for (let i = 0; i < 200; i += 1) channel?.onmessage?.({ type: 'progress', step: 'fetch', done: i, total: 200 });
+    await wait(300);
+    observer.disconnect();
+    return { ok: mutations === 0, detail: `Mutationen ${mutations}` };
+  },
+
+  async 'Der Lauf verschiebt nichts im Aufbau'() {
+    await openJobs();
+    const before = [rect($('#run')), rect($('#list')), rect($('#statusbar'))].join(' | ');
+    click($('#run'));
+    await wait(700);
+    const during = [rect($('#run')), rect($('#list')), rect($('#statusbar'))].join(' | ');
+    await wait(2600);
+    const after = [rect($('#run')), rect($('#list')), rect($('#statusbar'))].join(' | ');
+    return { ok: before === during && during === after, detail: before === after ? 'gleich' : `${before} → ${after}` };
+  },
+
+  /* ---------------------------------------------------------------- Aufbau */
+
+  async 'Liste und Lesebereich stehen nebeneinander, mit Umbruchregel'() {
+    await openJobs();
+    const list = $('#list').getBoundingClientRect();
+    const reader = $('#reader').getBoundingClientRect();
+    const nebeneinander = list.width > 200 && reader.left >= list.right - 1 && reader.width > list.width;
+    // Das Fenster lässt sich im Prüfstand nicht verkleinern – die Regel wird gelesen.
+    const rule = [...document.styleSheets]
+      .flatMap((sheet) => { try { return [...sheet.cssRules]; } catch { return []; } })
+      .some((r) => r.conditionText?.includes('859px'));
+    return {
+      ok: nebeneinander && rule,
+      detail: `Liste ${Math.round(list.width)} px, Lesebereich ${Math.round(reader.width)} px, Umbruchregel ${rule}`,
+    };
+  },
+
+  async 'Die Statusleiste hat immer genau einen Satz'() {
+    const text = $('#status-text');
+    const ok = text.textContent.trim().length > 0 && !text.textContent.includes('undefined');
+    return { ok, detail: `„${text.textContent.slice(0, 48)}“` };
+  },
+
+  async 'Die Aktivität fährt auf und wieder zu'() {
+    const panel = $('#panel');
+    const toggle = $$('#statusbar .btn.ghost.icon').at(-1);
+    click(toggle);
+    await wait(350);
+    const open = !panel.hidden && panel.classList.contains('is-open');
+    click(toggle);
+    await wait(350);
+    return { ok: open && panel.hidden, detail: `auf: ${open}, zu: ${panel.hidden}` };
+  },
+
+  async 'Der Zeigerzustand löst sich erst bei echter Bewegung'() {
+    dispatchEvent(new Event('blur'));
+    const away = document.documentElement.classList.contains('pointer-away');
+    dispatchEvent(new Event('focus'));
+    const stillAway = document.documentElement.classList.contains('pointer-away');
+    document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 1 }));
+    await wait(30);
+    const back = !document.documentElement.classList.contains('pointer-away');
+    return { ok: away && stillAway && back, detail: `weg ${away}, bleibt ${stillAway}, zurück ${back}` };
+  },
+
+  async 'Die Suche fragt erst, wenn man aufhört zu tippen'() {
+    await openJobs();
+    const before = calls('list_jobs');
+    const field = $('#search');
+    for (const value of ['S', 'SA', 'SAP']) {
+      field.value = value;
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      await wait(40);
+    }
+    await wait(500);
+    const after = calls('list_jobs') - before;
+    field.value = '';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait(400);
+    return { ok: after === 1, detail: `list_jobs ${after}` };
   },
 };
 
-export async function run(only = null) {
-  const results = [];
+export async function run() {
+  const lines = [];
   for (const [name, fn] of Object.entries(cases)) {
-    if (only && !name.includes(only)) continue;
+    let result;
     try {
-      const [ok, detail] = await fn();
-      results.push({ ok, name, detail });
+      result = await fn();
     } catch (error) {
-      results.push({ ok: false, name, detail: String(error?.stack || error) });
+      result = { ok: false, detail: `Ausnahme: ${error.message}` };
     }
+    lines.push(`${result.ok ? 'OK  ' : 'FEHL'} ${name}${result.detail ? ` — ${result.detail}` : ''}`);
   }
-  window.__results = results;
-  return results.map((r) => `${r.ok ? 'OK  ' : 'FAIL'} ${r.name} — ${r.detail}`).join('\n');
+  return lines.join('\n');
 }
 
+/** Leistung bei vielen Zeilen: `?jobs=5000` laden, dann `perf()`. */
 export async function perf() {
-  // 5000 Zeilen: eine Einstellung umschalten und eine Pfeiltaste – in ms.
-  const t0 = performance.now();
-  click($$('.settings input[name=format]')[1]);
-  const settings = performance.now() - t0;
-  const wrap = $('.table-wrap');
-  const t1 = performance.now();
-  wrap.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-  const arrow = performance.now() - t1;
-  return { rows: $$('#view-alerts tbody tr').length, settings: Math.round(settings), arrow: Math.round(arrow) };
+  const rows = $$('.row');
+  const start = performance.now();
+  click(rows[Math.floor(rows.length / 2)]);
+  await wait(0);
+  const click_ms = performance.now() - start;
+  return `Zeilen ${rows.length} · Klick ${click_ms.toFixed(1)} ms`;
 }

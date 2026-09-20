@@ -269,6 +269,19 @@ export function notice({ level = 'info', text = '', action: act = null } = {}) {
   return { node, update };
 }
 
+/** Zeile der Jobliste: zwei Zeilen Text, links ein Balken für die Auswahl. */
+export function listRow({ key, onSelect }) {
+  const node = el('button', { class: 'row', type: 'button', role: 'option', dataset: { key } },
+    el('span', { class: 'row-title' }),
+    el('span', { class: 'row-date' }),
+    el('span', { class: 'row-meta' }));
+  node.addEventListener('click', () => {
+    node.blur();
+    onSelect(key);
+  });
+  return node;
+}
+
 /* ------------------------------------------------------------------ Einstellungszeile */
 
 export function settingRow({ label, hint = null, controls = [], stacked = false } = {}) {
