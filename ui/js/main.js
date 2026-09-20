@@ -99,7 +99,10 @@ function renderShell() {
   n.run.disabled = Boolean(why) || !ready;
   n.run.title = why ?? (app && !app.gmailUser ? 'Erst das Postfach verbinden'
     : app && !app.settings.portals.length ? 'Kein Portal gewählt' : '');
-  n.filter.setCounts({ new: app?.lastRun?.scan?.new ?? 0, all: app?.jobsTotal ?? 0 });
+  // „Neu“ zählt, was der Filter auch zeigt: die Jobs des letzten Laufs. Nach einem Lauf
+  // steht das in state.run.fresh, davor in der gespeicherten Zusammenfassung.
+  const fresh = state.run.summary ? state.run.fresh.length : (app?.lastRun?.scan?.new ?? 0);
+  n.filter.setCounts({ new: fresh, all: app?.jobsTotal ?? 0 });
   $('#mode-tag').hidden = !app?.dryRun;
 }
 

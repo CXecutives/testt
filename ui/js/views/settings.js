@@ -39,7 +39,8 @@ function mailbox() {
     id: 'gmail-password', label: 'App-Passwort', type: 'password',
     onInput: (value) => { state.gmailForm.password = value; render(); },
   });
-  n.save = button({ label: 'Speichern', variant: 'primary', onAction: saveGmail });
+  // Kein Hauptknopf: Der gehört „Abrufen“ in der Werkzeugleiste, die auch hier steht.
+  n.save = button({ label: 'Speichern', onAction: saveGmail });
   n.create = button({
     label: 'App-Passwort anlegen', icon: 'external', variant: 'ghost',
     onAction: () => api.openTarget({ kind: 'appPasswordPage' }).catch(() => {}),

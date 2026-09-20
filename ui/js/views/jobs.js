@@ -27,7 +27,7 @@ export function build(page) {
   subscribe('app', renderNotices);
   subscribe('busy', renderNotices);
   subscribe('selection', renderSelection);
-  subscribe('jobs', () => load());
+  subscribe('jobs', (reason) => load(reason === 'finished'));
   subscribe('job', patch);
   renderReader();
   renderNotices();
@@ -35,7 +35,7 @@ export function build(page) {
 
 /* ------------------------------------------------------------------ Liste */
 
-export async function load() {
+export async function load(afterRun = false) {
   const query = { latestRun: state.filter === 'new', search: state.search.trim() };
   let list;
   try {
@@ -47,6 +47,11 @@ export async function load() {
   }
   jobs = list;
   render();
+  // Nach einem Lauf ist der erste neue Job der nächste Schritt – er geht von selbst auf.
+  if (afterRun) {
+    const first = state.run.fresh.find((key) => rows.has(key));
+    if (first) select(first);
+  }
 }
 
 function render() {
@@ -182,7 +187,10 @@ const NO_TEXT = {
 
 function renderReader(job = null, text = undefined, error = null) {
   if (!job) {
-    n.reader.replaceChildren(el('div', { class: 'blank', text: 'Links einen Job wählen.' }));
+    // Ohne Jobs gäbe es nichts zu wählen – dann bleibt der Lesebereich still, die Liste
+    // sagt bereits, was fehlt.
+    const hint = jobs.length ? 'Links einen Job wählen.' : '';
+    n.reader.replaceChildren(el('div', { class: 'blank', text: hint }));
     return;
   }
   const meta = [job.company, job.location, job.portalLabel, formatShort(job.mailDate ?? job.firstSeenAt)]
@@ -192,8 +200,10 @@ function renderReader(job = null, text = undefined, error = null) {
     matchMedia('(max-width: 859px)').matches
       ? button({ label: 'Liste', icon: 'back', variant: 'ghost', onClick: () => { n.split.dataset.pane = 'list'; } })
       : null,
+    // Kein Hauptknopf: Der gehört „Abrufen“ in der Werkzeugleiste. Zwei gefüllte Knöpfe
+    // nebeneinander stritten sich um denselben Blick.
     button({
-      label: 'Anzeige öffnen', variant: 'primary', icon: 'external',
+      label: 'Anzeige öffnen', icon: 'external',
       onAction: () => api.openTarget({ kind: 'jobUrl', key: job.key }).catch(() => {}),
     }),
     job.status === 'ok' ? null : button({

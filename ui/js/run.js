@@ -139,17 +139,22 @@ function onAlert(event) {
 async function finished(event) {
   const summary = event.summary;
   updateRun({ status: 'Ergebnis wird übernommen …', summary });
-  const fresh = await refreshApp().then(() => state.app.lastRun).catch(() => null);
+  await refreshApp().catch(() => null);
+  // Welche Jobs neu sind, beantwortet dieselbe Abfrage wie der Filter „Neu“ – nicht die
+  // Zusammenfassung. Sonst zeigten Zähler, Liste und Statussatz verschiedene Zahlen (der
+  // Trockenlauf speichert gar keine Zusammenfassung).
+  const fresh = await api.listJobs({ latestRun: true, search: '' })
+    .then((list) => list.map((job) => `${job.key.portal}:${job.key.id}`))
+    .catch(() => []);
   // Erst der Abschlusssatz, dann den Kreisel weg: Andersherum stünde für einen Bildschritt
   // der ruhende Punkt neben „Ergebnis wird übernommen …“.
-  updateRun({ summary, status: summaryLine(summary), until: null, level: levelOf(summary) });
+  updateRun({ summary, status: summaryLine(summary), until: null, level: levelOf(summary), fresh });
   setBusy(false);
   emit('jobs', 'finished');
 
   // Fehler des Laufs stoppen nicht – sie stehen in der Statusleiste und im Verlauf.
   // Nur ein Export-Fehler betrifft eine Datei, die der Nutzer gleich öffnen will.
   if (summary?.export?.error) await errorDialog('Ergebnisdateien nicht geschrieben', summary.export.error);
-  void fresh;
 }
 
 function levelOf(summary) {
@@ -177,11 +182,6 @@ export function summaryLine(summary) {
   const when = summary.finishedAt ? formatTime(summary.finishedAt) : '';
   const head = summary.outcome?.kind === 'cancelled' ? 'Abgebrochen' : when;
   return [head, parts.join(' · ')].filter(Boolean).join(' · ');
-}
-
-/** Nach einem Lauf öffnet die App den ersten neuen Job – das ist der nächste Schritt. */
-export function firstFresh() {
-  return state.run.fresh[0] ?? null;
 }
 
 export { setSelection };

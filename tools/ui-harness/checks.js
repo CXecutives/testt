@@ -228,6 +228,26 @@ const cases = {
     };
   },
 
+  async 'Höchstens ein gefüllter Hauptknopf je Bildschirm'() {
+    await openJobs();
+    const row = $$('#list .row')[0];
+    if (row) { click(row); await wait(300); }
+    // Sichtbar heißt sichtbar – die Werkzeugleiste steht außerhalb der Seiten.
+    const filled = () => $$('#app .btn.primary').filter((b) => b.offsetParent !== null);
+    const jobs = filled();
+    await openSettings();
+    // „Ändern“ blendet das Postfach-Formular ein – erst dann steht „Speichern“ da.
+    const change = $$('#page-settings .btn').find((b) => b.textContent.trim() === 'Ändern');
+    if (change) { click(change); await wait(200); }
+    const settings = filled();
+    await openJobs();
+    const label = (list) => list.map((b) => b.textContent.trim()).join(', ') || '–';
+    return {
+      ok: jobs.length <= 1 && settings.length <= 1,
+      detail: `Jobs: ${label(jobs)} · Einstellungen: ${label(settings)}`,
+    };
+  },
+
   async 'Die Statusleiste hat immer genau einen Satz'() {
     const text = $('#status-text');
     const ok = text.textContent.trim().length > 0 && !text.textContent.includes('undefined');
