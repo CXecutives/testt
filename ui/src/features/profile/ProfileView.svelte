@@ -199,12 +199,14 @@
       {profile}
       {quality}
       {rescoring}
-      rescored={saved && !rescoring}
+      rescored={saved && !rescoring && (app.state?.counts.all ?? 0) > 0}
       dirty={editor.dirty}
       picking={busy === 'pick'}
       {note}
       onpick={() => void pick()}
       onremove={() => (confirmRemove = true)}
+      onfromcv={() => void fromCv()}
+      onnext={saved && app.state?.firstRun ? () => navigation.go('jobs') : null}
     />
     <ProfileEditor
       {quality}

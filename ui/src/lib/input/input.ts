@@ -153,6 +153,9 @@ export interface FormKeyHandlers {
   save?: () => void;
   /** Esc anywhere inside the form. */
   cancel?: () => void;
+  /** Ctrl+S (Cmd+S on macOS) anywhere inside the form: saves a long form whose Enter
+   *  already means something else (the next row of a list). */
+  shortcut?: () => void;
 }
 
 const forms = new WeakMap<Element, FormKeyHandlers>();
@@ -182,6 +185,16 @@ function handlerFor(target: EventTarget | null, key: keyof FormKeyHandlers): (()
     if (handler) return handler;
   }
   return null;
+}
+
+/** Ctrl+S or Cmd+S (the command key of the OS), without Alt or Shift. */
+function isSaveShortcut(event: KeyboardEvent): boolean {
+  return (
+    event[keyConventions().command] &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === 's'
+  );
 }
 
 function dispatchFormKey(event: KeyboardEvent, target: EventTarget | null = event.target): void {
@@ -296,6 +309,12 @@ function onKeyDown(event: KeyboardEvent): void {
     }
   }
   if (isCopy(event)) return;
+  if (isSaveShortcut(event)) {
+    // Never the WebView's "save page"; a form that saves this way gets it.
+    event.preventDefault();
+    handlerFor(event.target, 'shortcut')?.();
+    return;
+  }
   if (inField(event.target)) {
     if (event.isComposing) return;
     if (!allowedInField(event)) {

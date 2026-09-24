@@ -40,6 +40,7 @@
   import MapPin from '@lucide/svelte/icons/map-pin';
   import Minus from '@lucide/svelte/icons/minus';
   import PauseCircle from '@lucide/svelte/icons/pause-circle';
+  import Plus from '@lucide/svelte/icons/plus';
   import RefreshCw from '@lucide/svelte/icons/refresh-cw';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import Search from '@lucide/svelte/icons/search';
@@ -81,6 +82,7 @@
     ban: Ban,
     info: Info,
     'pause-circle': PauseCircle,
+    plus: Plus,
     'wifi-off': WifiOff,
     minus: Minus,
     // The sort toggle of the list, the cancel of a run, the steps of a run.
