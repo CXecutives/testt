@@ -24,9 +24,9 @@ use crate::view::{
     JobFacet, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel, Mailbox,
     MatchDetail, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
     ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileDraft, ProfileForm,
-    ProfileInfo, ProfileLanguage, ProfileQuality, ProfileSave, ProfileUnderstanding,
-    ProfileWishes, Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary, Risk,
-    SettingsPatch, SettingsView, TextRange, VaultKind, WorkMode,
+    ProfileInfo, ProfileLanguage, ProfileQuality, ProfileSave, ProfileUnderstanding, ProfileWishes,
+    Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary, Risk, SettingsPatch,
+    SettingsView, TextRange, VaultKind, WorkMode,
 };
 
 /// A portal key.
