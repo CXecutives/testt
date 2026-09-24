@@ -1483,3 +1483,50 @@ async fn a_breaker_series_costs_one_attempt() {
     assert_eq!(attempts(4_000_000_001), (DescStatus::Failed, 1));
     assert_eq!(attempts(4_000_000_002), (DescStatus::Failed, 0));
 }
+
+/// The same job on two portals: the later one points to the earlier one - the list shows
+/// one row with the other portal in `alsoOn`, and only that row waits for a score. The same
+/// title with another text stays its own job.
+#[tokio::test(start_paused = true)]
+async fn the_same_job_on_two_portals_is_one_row() {
+    use crate::view::{JobFacet, JobQuery, JobSort, job_page};
+    let c = clock();
+    let store = store_with(&[(LI, 4_000_000_001, 1), (FM, 10_001, 2), (FM, 10_002, 3)]);
+    let same = "Für unseren Kunden suchen wir einen SAP FI/CO Berater. Aufgaben: Einführung \
+        von S/4HANA Finance, Abstimmung mit den Fachbereichen, Schulung der Key User. Profil: \
+        mehrjährige Projekterfahrung im Controlling, sehr gute Deutschkenntnisse.";
+    let fake = Fake::default()
+        .with("4000000001", [text(same)])
+        .with("10001", [text(&format!("{same}\n\nReferenz: 12"))])
+        .with(
+            "10002",
+            [text(
+                "Rollout eines Warenwirtschaftssystems in 40 Filialen: Planung, Steuerung der \
+                 Dienstleister, Berichtswesen an die Geschäftsführung, agile Methoden.",
+            )],
+        );
+    let mut policy = Policy::in_memory();
+    run(&fake, &store, &mut policy, Selection::Queue(&[LI]), &c).await;
+    run(&fake, &store, &mut policy, Selection::Queue(&[FM]), &c).await;
+    let (li, dup, other) = (key(LI, 4_000_000_001), key(FM, 10_001), key(FM, 10_002));
+    assert_eq!(store.dup_of(&dup).unwrap(), Some(li.clone()));
+    assert_eq!(store.dup_of(&other).unwrap(), None);
+    assert_eq!(store.dup_of(&li).unwrap(), None);
+    let page = job_page(
+        &store,
+        &JobQuery {
+            facet: JobFacet::All,
+            sort: JobSort::Newest,
+            search: None,
+            limit: 50,
+            offset: 0,
+        },
+    )
+    .unwrap();
+    assert_eq!(page.counts.all, 2);
+    let row = page.jobs.iter().find(|j| j.key == li).unwrap();
+    assert_eq!(row.also_on, [FM]);
+    assert!(page.jobs.iter().all(|j| j.key != dup));
+    // Scored once: the duplicate waits for no score of its own.
+    assert_eq!(store.match_pending("any").unwrap(), 2);
+}

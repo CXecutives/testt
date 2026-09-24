@@ -89,7 +89,9 @@ impl PortalAdapter for FreelanceDe {
             let (["projekte", segment, ..] | [segment, ..]) = segments.as_slice() else {
                 return None;
             };
-            let digits = segment.strip_prefix("projekt-")?.split('-').next()?;
+            // `projekt-<ID>`, in old links also `projekt<ID>`.
+            let rest = segment.strip_prefix("projekt")?;
+            let digits = rest.strip_prefix('-').unwrap_or(rest).split('-').next()?;
             all_digits(digits, 4).then(|| digits.to_string())?
         };
         super::link(Portal::FreelanceDe, id)

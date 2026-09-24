@@ -271,7 +271,8 @@ impl Store {
         let new = "read_at IS NULL AND match_status IS NOT 'excluded'";
         let sql = format!(
             "WITH base AS (
-                 SELECT * FROM job WHERE (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
+                 SELECT * FROM job WHERE dup_of IS NULL
+                                     AND (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
              ), counts AS (
                  SELECT COUNT(*) AS n_all,
                         COALESCE(SUM({new}), 0) AS n_new,

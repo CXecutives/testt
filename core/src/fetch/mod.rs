@@ -785,6 +785,8 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
             } => {
                 store.record_text(&job.key, &text, short, closed, now)?;
                 store.record_parse(&job.key, parser_version, Some(&facts))?;
+                // The same job from another portal: one row, scored once.
+                store.link_duplicate(&job.key)?;
                 // Only non-empty fields overwrite the mail heuristics: what the page hides
                 // ("visible for EXPERT members") arrives empty.
                 if let Some(f) = fields {

@@ -855,6 +855,95 @@ mod tests {
         assert_eq!(optional.path(true), Some(FetchPath::Session));
     }
 
+    /// Every link form of the old engine (`legacy-python`, `alerts.py`) keeps its id - and
+    /// the forms of one project share one key, so no job appears twice.
+    #[test]
+    fn every_legacy_url_form_keeps_its_id() {
+        let forms: [(&str, Option<(Portal, String)>); 17] = [
+            // LinkedIn: /jobs/view/<ID>, /comm/jobs/view/<ID>, a slug before the id.
+            (
+                "https://www.linkedin.com/jobs/view/4123456789",
+                li("4123456789"),
+            ),
+            (
+                "https://www.linkedin.com/comm/jobs/view/4123456789/",
+                li("4123456789"),
+            ),
+            (
+                "https://www.linkedin.com/jobs/view/cfo-4123456789",
+                li("4123456789"),
+            ),
+            // freelance.de: index.php?...id=, /projekte/projekt-<ID>, /projekt-<ID>,
+            // /projekt<ID> (optional dash).
+            (
+                "https://www.freelance.de/project/index.php?a=1&id=1255067",
+                fl("1255067"),
+            ),
+            (
+                "https://www.freelance.de/projekte/projekt-1255067-sap",
+                fl("1255067"),
+            ),
+            ("https://www.freelance.de/projekt-1255067", fl("1255067")),
+            ("https://www.freelance.de/projekt1255067", fl("1255067")),
+            // freelancermap: /nproj/<ID>, /projektboerse/projekte?/<categories>/<ID>-slug,
+            // /projekt/<slug>-<ID>, /project/<slug>-<ID> (.com).
+            ("https://www.freelancermap.de/nproj/2971857", fm("2971857")),
+            (
+                "https://www.freelancermap.de/nproj/2971857.html",
+                fm("2971857"),
+            ),
+            (
+                "https://www.freelancermap.de/projektboerse/projekte/it/sap/2971857-sap.html",
+                fm("2971857"),
+            ),
+            (
+                "https://www.freelancermap.de/projektboerse/projekt/2971857-sap-fi",
+                fm("2971857"),
+            ),
+            (
+                "https://www.freelancermap.de/projektboerse/projekte/it/2971857.html",
+                fm("2971857"),
+            ),
+            (
+                "https://www.freelancermap.de/projektboerse/projekte/it/sap-fi-2971857.html",
+                fm("2971857"),
+            ),
+            (
+                "https://www.freelancermap.de/projekt/sap-fi-co-berater-m-w-d-2971857",
+                fm("2971857"),
+            ),
+            (
+                "https://www.freelancermap.com/project/sap-fi-co-consultant-2971857",
+                fm("2971857"),
+            ),
+            // A postal code at the end of a slug is no id (the old engine read one).
+            (
+                "https://www.freelancermap.de/projekt/sap-berater-muenchen-80331",
+                None,
+            ),
+            (
+                "https://www.freelancermap.de/projektboerse/projekte/it",
+                None,
+            ),
+        ];
+        for (raw, expected) in forms {
+            match expected {
+                Some(_) => assert_eq!(key(raw), expected, "{raw}"),
+                // Without an id: a hash key, never a digit id.
+                None => assert!(
+                    job_link(raw).is_none_or(|l| !l.key.has_portal_id()),
+                    "{raw}"
+                ),
+            }
+        }
+        // The slug form with an id and the agent link are one job.
+        let slug =
+            job_link("https://www.freelancermap.de/projekt/sap-fi-co-berater-2971857").unwrap();
+        let agent = job_link("https://www.freelancermap.de/nproj/2971857.html").unwrap();
+        assert_eq!(slug.key, agent.key);
+        assert_eq!(slug.url, agent.url);
+    }
+
     /// The test portal is recognised through the registry alone.
     #[test]
     fn a_fourth_portal_through_the_registry() {

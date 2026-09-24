@@ -731,13 +731,24 @@ async fn fetch_step<B: Backends>(
                 emit(status(StatusCode::Waiting, Some(portal), Some(until)));
             }
             FetchEvent::JobUpdated { key, .. } => {
-                // Scored before the row goes out: the ring appears with the details.
-                if let Some(matcher) = matcher {
-                    score::score_one(store, matcher, &key, clock(), tally);
-                }
-                if let Ok(Some(job)) = store.job(&key) {
+                // A duplicate of another portal's job shows as that job's row (with
+                // `alsoOn`) and is scored with it; any other job is scored before its row
+                // goes out - the ring appears with the details.
+                let shown = if let Ok(Some(original)) = store.dup_of(&key) {
+                    original
+                } else {
+                    if let Some(matcher) = matcher {
+                        score::score_one(store, matcher, &key, clock(), tally);
+                    }
+                    key
+                };
+                if let Ok(Some(job)) = store.job(&shown)
+                    && let Ok(Some(view)) =
+                        crate::view::job_views(store, std::slice::from_ref(&job))
+                            .map(|mut views| views.pop())
+                {
                     emit(RunEvent::JobUpdated {
-                        job: Box::new(JobView::from(&job)),
+                        job: Box::new(view),
                     });
                 }
             }

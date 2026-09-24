@@ -72,6 +72,11 @@ impl PortalAdapter for Freelancermap {
         if !is_slug(slug) {
             return None;
         }
+        // `/projekt/<slug>-<ID>`: the id at the end of the slug - the same project as
+        // `/nproj/<ID>.html`, so the same key.
+        if let Some(id) = slug_end_id(slug) {
+            return link(Portal::Freelancermap, id);
+        }
         let path = format!("/{kind}/{slug}");
         let hash = Sha256::digest(format!("{domain}{path}").as_bytes());
         Some(JobLink {
@@ -122,7 +127,8 @@ impl PortalAdapter for Freelancermap {
 /// Bump whenever the parser reads pages differently (requeues failed jobs).
 const PARSER_VERSION: u32 = 1;
 
-/// `/nproj/<ID>.html` or `/projektboerse/projekte/.../<ID>-slug.html`.
+/// `/nproj/<ID>[.html]` or `/projektboerse/projekte/<category>.../<ID>[-slug][.html]`
+/// (also `<slug>-<ID>`) - the forms of the old engine (`legacy-python`, `alerts.py`).
 fn project_id(segments: &[&str]) -> Option<String> {
     match segments {
         ["nproj", file] => {
@@ -130,11 +136,23 @@ fn project_id(segments: &[&str]) -> Option<String> {
             all_digits(digits, 5).then(|| digits.to_string())
         }
         ["projektboerse", "projekte" | "projekt", .., last] => {
-            let digits = last.split('-').next()?;
-            (last.contains('-') && all_digits(digits, 5)).then(|| digits.to_string())
+            let stem = last.strip_suffix(".html").unwrap_or(last);
+            let first = stem.split('-').next()?;
+            if all_digits(first, 5) {
+                Some(first.to_string())
+            } else {
+                slug_end_id(stem)
+            }
         }
         _ => None,
     }
+}
+
+/// The id at the end of a slug (`sap-fi-co-berater-2971857`). At least six digits: a
+/// five-digit postal code at the end of a slug (`...-muenchen-80331`) is no id.
+fn slug_end_id(slug: &str) -> Option<String> {
+    let (_, digits) = slug.rsplit_once('-')?;
+    all_digits(digits, 6).then(|| digits.to_string())
 }
 
 fn is_slug(text: &str) -> bool {

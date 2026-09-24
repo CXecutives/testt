@@ -173,7 +173,7 @@ impl Store {
     }
 
     /// Up to `limit` jobs not scored with `rev` yet (after skipping `offset`), with their
-    /// full text; newest first.
+    /// full text; newest first. A duplicate of another portal's job is scored with that one.
     pub fn unscored(
         &self,
         rev: &str,
@@ -183,7 +183,7 @@ impl Store {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS}, desc_text FROM job
-             WHERE match_rev IS NOT ?1
+             WHERE match_rev IS NOT ?1 AND dup_of IS NULL
              ORDER BY first_seen_at DESC, portal, job_id LIMIT ?2 OFFSET ?3"
         ))?;
         let offset = i64::try_from(offset).unwrap_or(i64::MAX);
@@ -197,7 +197,7 @@ impl Store {
     /// Number of jobs not scored with `rev` yet.
     pub fn match_pending(&self, rev: &str) -> Result<u32> {
         Ok(self.conn().query_row(
-            "SELECT COUNT(*) FROM job WHERE match_rev IS NOT ?1",
+            "SELECT COUNT(*) FROM job WHERE match_rev IS NOT ?1 AND dup_of IS NULL",
             [rev],
             |r| r.get(0),
         )?)

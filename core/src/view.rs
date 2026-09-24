@@ -396,8 +396,23 @@ pub fn job_detail(store: &Store, key: &JobKey) -> crate::Result<Option<JobDetail
             gmail_url: job.gmail_id.and_then(gmail_url).map(|u| u.to_string()),
         },
         match_: None,
-        job: JobView::from(&job),
+        job: job_views(store, std::slice::from_ref(&job))?
+            .pop()
+            .unwrap_or_else(|| JobView::from(&job)),
     }))
+}
+
+/// List rows with the other portals that announced the same job (`alsoOn`).
+pub fn job_views(store: &Store, rows: &[JobRow]) -> crate::Result<Vec<JobView>> {
+    let keys: Vec<&JobKey> = rows.iter().map(|row| &row.key).collect();
+    let mut also = store.also_on(&keys)?;
+    Ok(rows
+        .iter()
+        .map(|row| JobView {
+            also_on: also.remove(&row.key).unwrap_or_default(),
+            ..JobView::from(row)
+        })
+        .collect())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -461,7 +476,7 @@ pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
         offset: query.offset,
     })?;
     Ok(JobPage {
-        jobs: rows.iter().map(JobView::from).collect(),
+        jobs: job_views(store, &rows)?,
         counts: JobCounts {
             new: counts.new,
             all: counts.all,

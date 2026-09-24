@@ -17,6 +17,7 @@ use crate::error::{Error, Result};
 use crate::portal::Portal;
 use crate::time::{from_db, to_db};
 
+mod duplicates;
 mod jobs;
 pub mod matches;
 mod pages;
