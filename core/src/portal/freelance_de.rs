@@ -127,7 +127,10 @@ impl PortalAdapter for FreelanceDe {
         }
         // The id from the mail is in the path of every project address; the fetch address
         // itself carries it in the query.
-        if !path.contains(&link.key.id) && path != "/project/index.php" {
+        let own_page = Url::parse("https://www.freelance.de")
+            .and_then(|base| base.join(path))
+            .is_ok_and(|url| is_project_page(&url, &link.key.id));
+        if !own_page && path != "/project/index.php" {
             return PageOutcome::Suspicious(Cause::WrongPage);
         }
         let full = page.panel_html.as_deref().map(html_to_text);
@@ -292,7 +295,8 @@ pub fn judge_page(page: &SessionPage, project_id: &str) -> PageOutcome {
     // (`/projekte?info_message=...`) or to the project's category. Measured only signed out;
     // "gone" therefore only counts in a confirmed session. A project page always has
     // "/projekt-<ID>" in its path.
-    if !page.url.contains(project_id) && is_listing(&path) {
+    let own_page = is_project_page(&url, project_id);
+    if !own_page && is_listing(&path) {
         return PageOutcome::Gone;
     }
     // Teaser: a short text with a registration call (measured 277 characters; the call is
@@ -304,7 +308,7 @@ pub fn judge_page(page: &SessionPage, project_id: &str) -> PageOutcome {
         return PageOutcome::Suspicious(Cause::TeaserDespiteSession);
     }
     // The right page? The id from the mail is in every form of the project address.
-    if !page.url.contains(project_id) {
+    if !own_page {
         return PageOutcome::Suspicious(Cause::WrongPage);
     }
     judge(Parsed {
@@ -313,6 +317,14 @@ pub fn judge_page(page: &SessionPage, project_id: &str) -> PageOutcome {
         facts: facts_of(page),
         ..Parsed::default()
     })
+}
+
+/// The page is the project `project_id`: its address names exactly that id in one of the
+/// project forms - not merely somewhere ("projekt-12550670" or "?ref=1255067" for 1255067).
+fn is_project_page(url: &Url, project_id: &str) -> bool {
+    FreelanceDe
+        .job_link(url)
+        .is_some_and(|link| link.key.id == project_id)
 }
 
 /// The findings of the probe script, read from the HTML of a guest page (same rules).
@@ -697,6 +709,22 @@ pub(crate) mod tests {
             ),
             other => panic!("{other:?}"),
         }
+    }
+
+    /// Another project whose id merely contains the searched one is the wrong page.
+    #[test]
+    fn a_longer_id_is_another_project() {
+        let long = format!("<p>{}</p>", "Aufgaben und Anforderungen. ".repeat(6));
+        let other = "https://www.freelance.de/projekte/projekt-12550670-sap";
+        assert_eq!(
+            judge_page(&page(other, true, Some(&long)), ID),
+            PageOutcome::Suspicious(Cause::WrongPage)
+        );
+        let listing = "https://www.freelance.de/projekte?ref=1255067";
+        assert_eq!(
+            judge_page(&page(listing, true, None), ID),
+            PageOutcome::Gone
+        );
     }
 
     #[test]
