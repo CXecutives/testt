@@ -44,6 +44,23 @@ use facts::{Availability, HardCriteria};
 /// Version of the scoring behaviour; part of the match revision (`match_rev`).
 pub const ENGINE_VERSION: u32 = 3;
 
+/// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
+/// the engine and for the pipeline that hands it the facts stored from the job page.
+pub mod fact_key {
+    /// Contract type as the page words it ("Freiberuflich", "Arbeitnehmerüberlassung").
+    pub const CONTRACT: &str = "contract";
+    /// Work location as the page states it; replaces the location of the alert mail.
+    pub const LOCATION: &str = "location";
+    /// Remote share in percent (a number).
+    pub const REMOTE_PERCENT: &str = "remotePercent";
+    /// Rate as the page words it ("95 €/h").
+    pub const RATE: &str = "rate";
+    /// Start as the page words it ("ab sofort", "01.11.2026").
+    pub const START: &str = "start";
+    /// Every key the engine reads.
+    pub const ALL: &[&str] = &[CONTRACT, LOCATION, REMOTE_PERCENT, RATE, START];
+}
+
 /// Profiles with fewer competences than this are `Thin`.
 const THIN_BELOW: usize = 5;
 /// Competences listed in the profile summary.

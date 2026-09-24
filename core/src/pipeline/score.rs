@@ -10,7 +10,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::{RunEvent, ScoreSummary, StatusCode, Step, status};
 use crate::matching::Assessment;
-use crate::model::{MatchRecord, MatchStatus};
+use crate::model::{MatchRecord, MatchStatus, Notice};
 use crate::portal::JobKey;
 use crate::store::{JobRow, Store};
 
@@ -64,6 +64,41 @@ impl Tally {
     }
 }
 
+/// Note code of a job the engine failed on (a panic): unscorable, never retried with the
+/// same revision, and the run goes on.
+pub const ENGINE_FAILED: &str = "engineFailed";
+
+/// The record of a job the engine failed on.
+pub fn engine_failed() -> MatchRecord {
+    MatchRecord {
+        status: MatchStatus::Unscorable,
+        score: 0,
+        note: Some(Notice {
+            code: ENGINE_FAILED.to_owned(),
+            params: serde_json::Map::new(),
+        }),
+        must_met: 0,
+        must_total: 0,
+        top: Vec::new(),
+    }
+}
+
+/// Runs `judge` for one job; a panic inside is caught and logged with the job key only (never
+/// the ad text) - `None` then.
+pub(crate) fn guarded<T>(key: &JobKey, judge: impl FnOnce() -> T) -> Option<T> {
+    let judged = std::panic::catch_unwind(std::panic::AssertUnwindSafe(judge)).ok();
+    if judged.is_none() {
+        log::error!("{key}: the engine failed on this job; it stays unscorable");
+    }
+    judged
+}
+
+/// [`Matcher::assess`] that survives a panic of the engine: the job becomes unscorable
+/// with [`ENGINE_FAILED`].
+fn assess_guarded(matcher: &dyn Matcher, job: &JobRow, text: Option<&str>) -> Option<MatchRecord> {
+    guarded(&job.key, || matcher.assess(job, text)).unwrap_or_else(|| Some(engine_failed()))
+}
+
 /// Scores one job right after its details changed. Errors only go to the log - the fetch
 /// goes on, and the catch-up step tries again.
 pub(super) fn score_one(
@@ -76,7 +111,7 @@ pub(super) fn score_one(
     let assessed = store.job(key).and_then(|job| {
         let Some(job) = job else { return Ok(None) };
         let text = store.description(key)?;
-        Ok(matcher.assess(&job, text.as_deref()))
+        Ok(assess_guarded(matcher, &job, text.as_deref()))
     });
     match assessed {
         Ok(Some(record)) => {
@@ -117,7 +152,7 @@ pub(super) fn catch_up(
         }
         let mut records = Vec::with_capacity(page.len());
         for (job, text) in &page {
-            match matcher.assess(job, text.as_deref()) {
+            match assess_guarded(matcher, job, text.as_deref()) {
                 Some(record) => records.push((job.key.clone(), record)),
                 None => skipped += 1,
             }

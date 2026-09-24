@@ -12,7 +12,7 @@ use crate::model::{
     AlertMail, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord, Posting,
     is_usable_title,
 };
-use crate::portal::{JobKey, Portal};
+use crate::portal::{Facts, JobKey, Portal};
 use crate::text::{one_line, page_location, split_company_location, truncate_chars};
 use crate::time::{from_db, to_db};
 
@@ -60,6 +60,8 @@ pub struct JobRow {
     pub match_: Option<MatchRecord>,
     /// Who scored it; `None` = to be scored (again).
     pub match_rev: Option<String>,
+    /// The facts the job page stated (unreadable JSON counts as none).
+    pub facts: Option<Facts>,
 }
 
 /// One page of the job list. The facet only narrows the page; the counts cover the
@@ -626,8 +628,8 @@ pub(super) const JOB_COLUMNS: &str = "portal, job_id, url, title, company, locat
     mail_subject, gmail_id, first_seen_at, first_seen_run, desc_status, desc_short, desc_closed,
     COALESCE(LENGTH(desc_text), 0) AS desc_len, desc_fetched_at, desc_attempts, desc_error,
     txt_name, desc_attempted_at, read_at, pinned_at, match_status, match_score, match_note,
-    match_rev";
-pub(super) const JOB_COLUMN_COUNT: usize = 26;
+    match_rev, desc_facts";
+pub(super) const JOB_COLUMN_COUNT: usize = 27;
 
 /// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
 /// or a teaser (right away, after a failed attempt like a failure, at most
@@ -701,6 +703,9 @@ fn job_row_at(r: &Row<'_>, at: usize) -> rusqlite::Result<Result<JobRow>> {
             r.get::<_, Option<String>>(col(24))?.as_deref(),
         ),
         match_rev: r.get(col(25))?,
+        facts: r
+            .get::<_, Option<String>>(col(26))?
+            .and_then(|json| serde_json::from_str(&json).ok()),
     }))
 }
 

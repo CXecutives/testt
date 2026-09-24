@@ -296,7 +296,7 @@ pub(crate) fn anue(job: &JobFacts<'_>, segments: &[Segment]) -> Vec<Finding> {
     let negated = |f: &str| any(f, lex::ANUE_NEGATION, lex::ANUE_NEGATION_PARTS);
     let optional = |f: &str| any(f, lex::ANUE_OPTION, lex::ANUE_OPTION_PARTS);
     let (mut decided, mut option, mut hidden) = (Vec::new(), Vec::new(), Vec::new());
-    let contract = fact(job.facts, "contract")
+    let contract = fact(job.facts, super::fact_key::CONTRACT)
         .and_then(Value::as_str)
         .map(fold);
     if let Some(f) = contract.as_deref().filter(|f| named(f) && !negated(f)) {
@@ -393,8 +393,9 @@ fn country(
             .map(|c| (*c).to_owned())
             .collect()
     };
-    let facts_remote = fact(job.facts, "remotePercent").and_then(Value::as_u64) == Some(100);
-    let location = fact(job.facts, "location")
+    let facts_remote =
+        fact(job.facts, super::fact_key::REMOTE_PERCENT).and_then(Value::as_u64) == Some(100);
+    let location = fact(job.facts, super::fact_key::LOCATION)
         .and_then(Value::as_str)
         .unwrap_or(job.location);
     let remote_full = facts_remote
@@ -544,7 +545,7 @@ fn day_rate(
     job: &JobFacts<'_>,
     segments: &[(Range<usize>, String)],
 ) -> Vec<Finding> {
-    let from_facts = fact(job.facts, "rate")
+    let from_facts = fact(job.facts, super::fact_key::RATE)
         .and_then(Value::as_str)
         .and_then(|s| parse_rate(&fold(s)))
         .map(|r| (r, None));
@@ -567,8 +568,10 @@ fn day_rate(
             spans,
         )];
     }
+    // `parse_rate` saturates absurd digit runs at `u64::MAX`: such an amount stays far
+    // above any minimum instead of wrapping below it.
     let per_day = if rate.hourly {
-        rate.upper * HOURS_PER_DAY
+        rate.upper.saturating_mul(HOURS_PER_DAY)
     } else {
         rate.upper
     };
@@ -657,7 +660,7 @@ fn availability(
     job: &JobFacts<'_>,
     segments: &[(Range<usize>, String)],
 ) -> Vec<Finding> {
-    let from_facts = fact(job.facts, "start")
+    let from_facts = fact(job.facts, super::fact_key::START)
         .and_then(Value::as_str)
         .and_then(parse_start);
     let from_text: Vec<(Start, Range<usize>)> = segments

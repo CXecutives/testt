@@ -1,19 +1,25 @@
 //! The matching engine behind [`Matcher`]: one compiled profile, its revision
-//! `e{ENGINE_VERSION}:{fingerprint}` and the mapping of an [`Assessment`] onto what the store
-//! keeps per job ([`MatchRecord`]).
+//! `e{ENGINE_VERSION}.{INPUTS}:{fingerprint}`, what a stored job hands the engine (text, page
+//! facts, teaser or full text) and the mapping of an [`Assessment`] onto what the store keeps
+//! per job ([`MatchRecord`]).
 
 use serde_json::{Map, Value};
 
 use super::Matcher;
 use crate::matching::{
     self, Assessment, CompiledProfile, JobInput, ProfileQuality, ReasonCode, ReasonKind, TextKind,
-    Verdict, Weight,
+    Verdict, Weight, fact_key,
 };
-use crate::model::{MatchRecord, MatchStatus, Notice, is_usable_title};
+use crate::model::{DescStatus, MatchRecord, MatchStatus, Notice, is_usable_title};
+use crate::portal::Facts;
 use crate::store::JobRow;
 
 /// Met requirements quoted in the list row.
 const TOP: usize = 2;
+
+/// Version of what a stored job hands the engine besides its text (2: page facts and the
+/// teaser flag). Part of the revision: a change scores every stored job again.
+const INPUTS: u32 = 2;
 
 /// The local engine with one profile.
 pub struct LocalMatcher {
@@ -23,7 +29,11 @@ pub struct LocalMatcher {
 
 impl LocalMatcher {
     pub fn new(profile: CompiledProfile) -> LocalMatcher {
-        let rev = format!("e{}:{}", matching::ENGINE_VERSION, profile.fingerprint());
+        let rev = format!(
+            "e{}.{INPUTS}:{}",
+            matching::ENGINE_VERSION,
+            profile.fingerprint()
+        );
         LocalMatcher { profile, rev }
     }
 
@@ -42,9 +52,9 @@ impl LocalMatcher {
         self.profile.quality() != ProfileQuality::Empty
     }
 
-    /// The full assessment of a job (`text`: its stored description, if any). A job without
-    /// text is judged from title and location alone - usually `unscorable`, but a clear
-    /// location can already exclude it.
+    /// The full assessment of a job (`text`: its stored description, if any) with the facts
+    /// its page stated; a teaser is judged as one. A job without text is judged from title
+    /// and location alone - usually `unscorable`, but a clear location can already exclude it.
     pub fn assessment(&self, job: &JobRow, text: Option<&str>) -> Option<Assessment> {
         let title = if is_usable_title(&job.title) {
             job.title.clone()
@@ -52,14 +62,20 @@ impl LocalMatcher {
             crate::view::slug_title(job.url.as_str()).unwrap_or_default()
         };
         let posted = crate::time::local_date(job.mail_date.unwrap_or(job.first_seen_at));
+        let facts = job.facts.as_ref().and_then(engine_facts);
+        let kind = if job.desc_status == DescStatus::Teaser {
+            TextKind::Teaser
+        } else {
+            TextKind::Full
+        };
         let input = JobInput {
             title: &title,
             location: &job.location,
             portal: job.key.portal,
             text: text.unwrap_or_default(),
-            facts: None,
+            facts: facts.as_ref(),
             posted: Some(posted),
-            kind: TextKind::Full,
+            kind,
         };
         matching::assess(&self.profile, &input, None)
     }
@@ -77,6 +93,28 @@ impl Matcher for LocalMatcher {
     fn explain(&self, job: &JobRow, text: Option<&str>) -> Option<Assessment> {
         self.assessment(job, text)
     }
+}
+
+/// The stored page facts under the keys the engine reads ([`fact_key`]); `None` if the page
+/// stated none of them. Pages state no location of their own: the engine keeps the job's.
+pub(crate) fn engine_facts(facts: &Facts) -> Option<Value> {
+    let mut map = Map::new();
+    let mut put = |key: &str, value: Option<Value>| {
+        if let Some(value) = value {
+            map.insert(key.to_owned(), value);
+        }
+    };
+    put(
+        fact_key::CONTRACT,
+        facts.employment_type.clone().map(Value::from),
+    );
+    put(
+        fact_key::REMOTE_PERCENT,
+        facts.remote_percent.map(Value::from),
+    );
+    put(fact_key::RATE, facts.rate.clone().map(Value::from));
+    put(fact_key::START, facts.start.clone().map(Value::from));
+    (!map.is_empty()).then_some(Value::Object(map))
 }
 
 /// What the list keeps of an assessment: status, score, the one note, must counts and up to
@@ -224,14 +262,9 @@ Rahmenbedingungen:
     fn the_revision_names_engine_and_profile() {
         let matcher = LocalMatcher::from_json(&profile());
         let rev = matcher.rev();
-        assert!(
-            rev.starts_with(&format!("e{}:", matching::ENGINE_VERSION)),
-            "{rev}"
-        );
-        assert_eq!(
-            rev.len(),
-            2 + matching::ENGINE_VERSION.to_string().len() + 16
-        );
+        let prefix = format!("e{}.{INPUTS}:", matching::ENGINE_VERSION);
+        assert!(rev.starts_with(&prefix), "{rev}");
+        assert_eq!(rev.len(), prefix.len() + 16);
         assert_eq!(rev, LocalMatcher::from_json(&profile()).rev(), "stable");
         let mut other = profile();
         other["keywords"] = json!(["Treasury"]);
@@ -314,5 +347,99 @@ Rahmenbedingungen:
             json!({"a": "DE, AT", "b": 3, "d": null, "e": "1, true"})
         );
         assert_eq!(code_name(&ReasonCode::AvailabilityGap), "availabilityGap");
+    }
+
+    /// The facts a job page stated and the teaser flag reach the engine: a rate only the
+    /// page head names excludes the job, and a teaser is judged as one.
+    #[test]
+    fn stored_facts_and_the_teaser_reach_the_engine() {
+        let matcher = LocalMatcher::from_json(&profile());
+        let (store, key) = job("Interim CFO (m/w/d)", "Hamburg", FIT);
+        let row = store.job(&key).unwrap().unwrap();
+        let plain = matcher.assess(&row, Some(FIT)).unwrap();
+        assert_eq!(plain.status, MatchStatus::Scored, "{plain:?}");
+        let facts = Facts {
+            rate: Some("700 € pro Tag".into()),
+            employment_type: Some("Freiberuflich".into()),
+            ..Facts::default()
+        };
+        store.record_parse(&key, 1, Some(&facts)).unwrap();
+        let row = store.job(&key).unwrap().unwrap();
+        assert_eq!(row.facts.as_ref(), Some(&facts));
+        let record = matcher.assess(&row, Some(FIT)).unwrap();
+        assert_eq!(record.status, MatchStatus::Excluded, "{record:?}");
+        assert_eq!(record.note.unwrap().code, "dayRate");
+
+        let (store, key) = job("Interim CFO (m/w/d)", "Hamburg", "");
+        store.record_teaser(&key, FIT, Timestamp::now()).unwrap();
+        let row = store.job(&key).unwrap().unwrap();
+        let text = store.description(&key).unwrap();
+        let teaser = matcher.assessment(&row, text.as_deref()).unwrap();
+        assert_eq!(teaser.summary.evidence, matching::EvidenceLevel::Teaser);
+    }
+
+    /// New page facts make a stored score stale.
+    #[test]
+    fn other_facts_score_the_job_again() {
+        let matcher = LocalMatcher::from_json(&profile());
+        let (store, key) = job("Interim CFO (m/w/d)", "Hamburg", FIT);
+        let row = store.job(&key).unwrap().unwrap();
+        let record = matcher.assess(&row, Some(FIT)).unwrap();
+        let now = Timestamp::now();
+        store
+            .save_matches(&[(key.clone(), record)], matcher.rev(), now)
+            .unwrap();
+        let facts = Facts {
+            start: Some("ab sofort".into()),
+            ..Facts::default()
+        };
+        store.record_parse(&key, 1, Some(&facts)).unwrap();
+        assert_eq!(store.match_rev(&key).unwrap(), None, "facts changed");
+        store
+            .save_matches(
+                &[(key.clone(), matcher.assess(&row, Some(FIT)).unwrap())],
+                matcher.rev(),
+                now,
+            )
+            .unwrap();
+        store.record_parse(&key, 1, Some(&facts)).unwrap();
+        assert_eq!(
+            store.match_rev(&key).unwrap().as_deref(),
+            Some(matcher.rev()),
+            "the same facts keep the score"
+        );
+    }
+
+    /// Every key the engine reads comes from a field of the stored facts - except the
+    /// location, which pages do not state apart from the job's own.
+    #[test]
+    fn the_stored_facts_feed_every_engine_key() {
+        let all = Facts {
+            employment_type: Some("Freiberuflich".into()),
+            level: Some("Direktor".into()),
+            remote_percent: Some(60),
+            remote: Some("teilweise".into()),
+            start: Some("ab sofort".into()),
+            duration: Some("6 Monate".into()),
+            rate: Some("95 €/h".into()),
+            skills: vec!["SAP".into()],
+        };
+        let fed = engine_facts(&all).unwrap();
+        let mut keys: Vec<&str> = fed
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        let mut expected: Vec<&str> = fact_key::ALL
+            .iter()
+            .copied()
+            .filter(|k| *k != fact_key::LOCATION)
+            .collect();
+        expected.sort_unstable();
+        assert_eq!(keys, expected);
+        assert_eq!(fed[fact_key::REMOTE_PERCENT], 60);
+        assert_eq!(engine_facts(&Facts::default()), None);
     }
 }

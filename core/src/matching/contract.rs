@@ -56,7 +56,7 @@ fn any(folded: &str, words: &[&str]) -> bool {
 
 /// Infers the contract type; `anue` holds the decided ANÜ findings of the ad.
 pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) -> Contract {
-    let contract_fact = fact(job.facts, "contract")
+    let contract_fact = fact(job.facts, super::fact_key::CONTRACT)
         .and_then(Value::as_str)
         .map(fold)
         .unwrap_or_default();
@@ -74,7 +74,7 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
     };
     let interim = interim_at(&title)
         || interim_at(&contract_fact)
-        || fact(job.facts, "rate").is_some()
+        || fact(job.facts, super::fact_key::RATE).is_some()
         || segments.iter().any(|(_, f)| interim_at(f));
     let stated = stated_at(&contract_fact) || segments.iter().any(|(_, f)| stated_at(f));
     let hinted = segments.iter().any(|(_, f)| hint_at(f));

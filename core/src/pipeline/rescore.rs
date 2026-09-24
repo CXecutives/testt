@@ -31,12 +31,17 @@ pub struct Rescore {
 impl Rescore {
     /// The profile changed: score everything again - now, or right after the run in progress
     /// (which still scores with the profile it started with).
+    ///
+    /// The debt is noted before the check: a run that ends right after `running()` said yes
+    /// then still finds it in [`Rescore::run_ended`]; whoever takes it first rescores, once.
     pub fn profile_changed(&self, host: &impl Host) {
+        self.due.store(true, Ordering::SeqCst);
         if host.running() {
-            self.due.store(true, Ordering::SeqCst);
             return;
         }
-        self.rescore(host);
+        if self.due.swap(false, Ordering::SeqCst) {
+            self.rescore(host);
+        }
     }
 
     /// The first page load: jobs that wait for a score are scored in the background.
@@ -170,6 +175,52 @@ mod tests {
         host.running.set(false);
         rules.run_ended(&host);
         assert_eq!(log(&host), ["run"]);
+        rules.run_ended(&host);
+        assert_eq!(log(&host), ["run"], "only once");
+    }
+
+    /// The app whose run ends right after `running()` answered yes: slot free and
+    /// `run_ended` done before `profile_changed` goes on.
+    struct EndsDuringCheck<'a> {
+        fake: &'a Fake,
+        rules: &'a Rescore,
+    }
+
+    impl Host for EndsDuringCheck<'_> {
+        fn running(&self) -> bool {
+            let was = self.fake.running.replace(false);
+            if was {
+                self.rules.run_ended(self.fake);
+            }
+            was
+        }
+        fn usable(&self) -> bool {
+            self.fake.usable()
+        }
+        fn pending(&self) -> u32 {
+            self.fake.pending()
+        }
+        fn has_jobs(&self) -> bool {
+            self.fake.has_jobs()
+        }
+        fn clear_matches(&self) {
+            self.fake.clear_matches();
+        }
+        fn launch_rescore(&self) -> Result<(), ErrorKind> {
+            self.fake.launch_rescore()
+        }
+    }
+
+    #[test]
+    fn a_change_is_not_lost_when_the_run_ends_during_the_check() {
+        let rules = Rescore::default();
+        let host = fake(true, true);
+        host.running.set(true);
+        rules.profile_changed(&EndsDuringCheck {
+            fake: &host,
+            rules: &rules,
+        });
+        assert_eq!(log(&host), ["run"], "scored with the new profile");
         rules.run_ended(&host);
         assert_eq!(log(&host), ["run"], "only once");
     }

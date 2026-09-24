@@ -140,8 +140,20 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
     {
         eprintln!("log file unavailable: {error}");
     }
-    // Without a console (GUI program) a panic would otherwise vanish without a trace.
-    std::panic::set_hook(Box::new(|info| log::error!("panic: {info}")));
+    // Without a console (GUI program) a panic would otherwise vanish without a trace. Only
+    // place and kind: the message of a slice panic quotes ad or mail text.
+    std::panic::set_hook(Box::new(|info| {
+        let payload = info.payload();
+        let message = payload
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+            .unwrap_or_default();
+        log::error!(
+            "{}",
+            jobalert_core::logging::panic_line(info.location(), message)
+        );
+    }));
     jobalert_core::install_crypto();
     // A requested reset runs before anything else - nothing holds a file open yet. The dry
     // run never deletes anything.

@@ -266,8 +266,10 @@ Private gold set (real ads, blind grades 0-3, NDCG@10, P@5, Spearman, high-band 
 
 ## In the app
 
-`pipeline::LocalMatcher` wraps one compiled profile; revision `e{ENGINE_VERSION}:{fingerprint}` (a stored
-score of another revision is stale). The profile is compiled once and kept until its file changes
+`pipeline::LocalMatcher` wraps one compiled profile; revision `e{ENGINE_VERSION}.{INPUTS}:{fingerprint}`
+(a stored score of another revision is stale; `INPUTS` counts what a stored job hands the engine besides
+its text - since 2 the page facts under `matching::fact_key` and the teaser flag). A panic of the engine
+leaves the job `unscorable` with the note `engineFailed` and the run goes on. The profile is compiled once and kept until its file changes
 (`src-tauri/src/commands/scoring.rs`); an empty profile or a parse error means no matcher, so nothing is
 scored and nothing is pending. Jobs without text are judged from title and location (usually
 `unscorable`, a clear location can exclude).

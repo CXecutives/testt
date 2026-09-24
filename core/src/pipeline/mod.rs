@@ -346,6 +346,45 @@ impl RunSummary {
             fetch: None,
         }
     }
+
+    /// The summary as the `Finished` event, below [`MAX_EVENT_BYTES`] whatever subjects,
+    /// paths and error params it holds: empty alert mails go from the end first, then error
+    /// params, then the file paths (the stored summary keeps everything).
+    pub fn finished_event(&self) -> RunEvent {
+        // `{"type":"finished","summary":...}` around the summary.
+        const ENVELOPE: usize = 64;
+        let mut summary = self.clone();
+        let fits = |s: &RunSummary| {
+            serde_json::to_vec(s).is_ok_and(|json| json.len() + ENVELOPE <= MAX_EVENT_BYTES)
+        };
+        while !fits(&summary) {
+            if summary.empty_alerts.pop().is_some() {
+                continue;
+            }
+            if let Outcome::Failed { error } = &mut summary.outcome
+                && !error.params.is_empty()
+            {
+                error.params.clear();
+                continue;
+            }
+            let Some(export) = summary.export.as_mut() else {
+                break;
+            };
+            if let Some(error) = export.error.as_mut()
+                && !error.params.is_empty()
+            {
+                error.params.clear();
+            } else if export.backup.take().is_none()
+                && export.overview_html.take().is_none()
+                && export.overview_xlsx.take().is_none()
+            {
+                break;
+            }
+        }
+        RunEvent::Finished {
+            summary: Box::new(summary),
+        }
+    }
 }
 
 /// A run in progress, for a page that attaches again (reload): what it is and the events
@@ -371,6 +410,9 @@ const LAST_SCAN_INFO: &str = "last_scan_info";
 const MAX_FAILED_NAMES: usize = 20;
 /// So many empty alert mails a summary carries (the event must stay small).
 pub const MAX_EMPTY_ALERTS: usize = 10;
+/// Largest `Finished` event in bytes of JSON: Tauri channel messages above 8 KB bypass the
+/// ACL (a margin for the channel's own framing).
+pub const MAX_EVENT_BYTES: usize = 7 * 1024;
 /// Start of the last successful mailbox scan (Unix seconds).
 const LAST_FETCH_AT: &str = "last_fetch_at";
 /// Label of the mail address row that earlier versions stored - do not translate.
@@ -436,9 +478,7 @@ pub async fn run<B: Backends>(
             log::error!("run could not begin: {e}");
             summary.outcome = failed(ErrorInfo::from(&e));
             summary.finished_at = clock();
-            emit(RunEvent::Finished {
-                summary: Box::new(summary.clone()),
-            });
+            emit(summary.finished_event());
             return summary;
         }
     };
@@ -546,9 +586,7 @@ pub async fn run<B: Backends>(
         log::warn!("run {run}: summary not stored: {e}");
     }
     log::info!("run {run}: finished {:?}", summary.outcome);
-    emit(RunEvent::Finished {
-        summary: Box::new(summary.clone()),
-    });
+    emit(summary.finished_event());
     summary
 }
 
@@ -672,6 +710,7 @@ async fn scan_step<B: Backends>(
         },
     )
     .await;
+    mail.logout().await;
     let s = &*scanned;
     // Per portal: as soon as all of a portal's alert mails came without a job, its mail
     // layout probably changed - even while the other portals are fine.

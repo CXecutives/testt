@@ -406,9 +406,12 @@ pub fn job_detail(
         return Ok(None);
     };
     let text = store.description(key)?;
-    let assessed = matcher
-        .filter(|m| m.usable())
-        .and_then(|m| Some((m, m.assessment(&job, text.as_deref())?)));
+    // An engine panic leaves the reader without a match instead of failing the command.
+    let assessed = matcher.filter(|m| m.usable()).and_then(|m| {
+        let assessment =
+            crate::pipeline::score::guarded(key, || m.assessment(&job, text.as_deref()))??;
+        Some((m, assessment))
+    });
     let match_ = match assessed {
         None => None,
         Some((matcher, assessment)) => {
@@ -416,9 +419,16 @@ pub fn job_detail(
                 store.match_at(key)?.unwrap_or(now)
             } else {
                 let record = local::record(&assessment);
+                // Only over the score read above: a run that started meanwhile may have
+                // stored its own (compare and set).
                 if save
-                    && let Err(e) =
-                        store.save_matches(&[(key.clone(), record.clone())], matcher.rev(), now)
+                    && let Err(e) = store.save_match_if(
+                        key,
+                        &record,
+                        matcher.rev(),
+                        job.match_rev.as_deref(),
+                        now,
+                    )
                 {
                     log::warn!("fresh score of {key} not stored: {e}");
                 }

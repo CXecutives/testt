@@ -21,9 +21,12 @@ impl Store {
         let json = facts
             .filter(|f| !f.is_empty())
             .map(|f| serde_json::to_string(f).expect("facts are always serialisable"));
+        // Other facts judge the job anew (the engine reads them); SET sees the old values.
         self.conn().execute(
             "UPDATE job SET parser_version = ?3,
-                            desc_facts = CASE WHEN ?4 THEN ?5 ELSE desc_facts END
+                            desc_facts = CASE WHEN ?4 THEN ?5 ELSE desc_facts END,
+                            match_rev = CASE WHEN ?4 AND desc_facts IS NOT ?5 THEN NULL
+                                             ELSE match_rev END
              WHERE portal = ?1 AND job_id = ?2",
             params![key.portal.key(), key.id, parser_version, replace, json],
         )?;

@@ -222,13 +222,13 @@ pub(crate) fn region(
         return Vec::new();
     };
     let remote_min = criteria.remote_min.unwrap_or(100);
-    let raw_location = fact(job.facts, "location")
+    let raw_location = fact(job.facts, super::fact_key::LOCATION)
         .and_then(Value::as_str)
         .unwrap_or(job.location)
         .trim();
     let location = fold(raw_location);
     // Proof of enough remote work.
-    let facts_remote = fact(job.facts, "remotePercent").and_then(Value::as_u64);
+    let facts_remote = fact(job.facts, super::fact_key::REMOTE_PERCENT).and_then(Value::as_u64);
     let remote_full = lex::FULL_REMOTE.iter().any(|w| folded.contains(w))
         || lex::REMOTE_FULL_EXTRA.iter().any(|w| folded.contains(w))
         || contains_word(&location, "remote");
