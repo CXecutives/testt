@@ -37,7 +37,7 @@
 
 <Section heading={t.stats} id="stats">
   <div class="row">
-    <StatTile label={t.statNew} value={12} icon="sparkles" hint={t.statHint} onclick={noop} />
+    <StatTile label={t.statNew} value={12} icon="inbox" hint={t.statHint} onclick={noop} />
     <StatTile label={t.statHigh} value={3} icon="star" tone="success" />
     <StatTile
       label={t.statIssues}

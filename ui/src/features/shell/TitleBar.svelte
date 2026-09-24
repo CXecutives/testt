@@ -6,7 +6,7 @@
   that has it, so decorative children ignore the pointer); the tab buttons do not.
 -->
 <script lang="ts">
-  import Icon from '$components/Icon.svelte';
+  import BrandMark from '$components/BrandMark.svelte';
   import NavTabs, { type NavTab } from '$components/NavTabs.svelte';
   import WindowControls from '$components/WindowControls.svelte';
   import { de } from '$lib/i18n/de';
@@ -25,7 +25,7 @@
 <header class="titlebar {os}" data-testid="titlebar" data-tauri-drag-region>
   <div class="cell start" data-tauri-drag-region>
     <div class="brand" data-tauri-drag-region data-testid="brand">
-      <span class="tile"><Icon name="sparkles" size="sm" /></span>
+      <BrandMark size="md" />
       <span class="name">{de.app.name}</span>
     </div>
   </div>
@@ -89,19 +89,6 @@
 
   .brand > * {
     pointer-events: none;
-  }
-
-  .tile {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: var(--brand-tile);
-    height: var(--brand-tile);
-    border-radius: var(--radius-sm);
-    background: var(--grad-coral);
-    box-shadow: var(--sh-elegant);
-    color: var(--text-on-accent);
   }
 
   .name {

@@ -96,7 +96,7 @@
     left: var(--space-12);
     height: var(--marker-height);
     border-radius: var(--radius-full);
-    background: var(--grad-edge);
+    background-color: var(--accent);
   }
 
   .interactive:hover {

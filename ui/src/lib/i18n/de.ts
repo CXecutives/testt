@@ -23,20 +23,21 @@ export const de = {
   },
   views: {
     jobs: {
-      heading: 'Jobs',
       text: 'Hier erscheinen die Jobs aus den Alert-Mails mit ihrer Passung.',
+      action: 'Postfach einrichten',
     },
     profile: {
-      heading: 'Profil',
       text: 'Hier liegt das Profil, gegen das jeder Job geprüft wird.',
+      action: 'Profil wählen',
     },
     settings: {
-      heading: 'Einstellungen',
       text: 'Hier liegen Postfach, Abruf, Portale und Dateien.',
+      action: 'Zu den Jobs',
     },
     firstRun: {
       heading: 'Willkommen',
       text: 'Drei Schritte, dann läuft der erste Abruf.',
+      action: 'Loslegen',
     },
   },
   common: {

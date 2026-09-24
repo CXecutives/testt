@@ -4,6 +4,7 @@
   every file in components/ is imported here.
 -->
 <script lang="ts">
+  import BrandMark from '$components/BrandMark.svelte';
   import Button, { BUTTON_SIZES, BUTTON_VARIANTS } from '$components/Button.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Icon, { ICON_NAMES } from '$components/Icon.svelte';
@@ -110,11 +111,12 @@
     {#each ['sm', 'md', 'lg'] as const as size (size)}
       <div class="tiles">
         {#each TILE_TONES as tone (tone)}
-          <IconTile {tone} {size} icon="sparkles" />
+          <IconTile {tone} {size} icon="inbox" />
         {/each}
         {#each Object.values(PORTAL_MONOGRAM) as monogram (monogram)}
-          <IconTile tone="slate" {size} {monogram} />
+          <IconTile tone="neutral" {size} {monogram} />
         {/each}
+        <BrandMark {size} label={text.title} />
       </div>
     {/each}
   </Section>
@@ -128,6 +130,9 @@
         action={{ label: text.empty.action, icon: 'refresh-cw', onclick: noop }}
         secondary={{ label: text.empty.secondary, onclick: noop }}
       />
+    </div>
+    <div class="empty">
+      <EmptyState text={text.empty.text} action={{ label: text.empty.action, onclick: noop }} />
     </div>
   </Section>
 
@@ -169,14 +174,9 @@
   }
 
   .title {
-    background: var(--grad-brand);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
+    color: var(--text-heading);
     font: var(--type-display);
     letter-spacing: var(--tracking-tight);
-    justify-self: start;
-    align-self: flex-start;
   }
 
   .lead {

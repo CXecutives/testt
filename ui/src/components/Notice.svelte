@@ -104,7 +104,7 @@
   .info {
     --notice-fg: var(--info-strong);
     --notice-bg: var(--info-soft);
-    --notice-line: var(--slate-soft);
+    --notice-line: var(--info-soft);
   }
 
   .success {

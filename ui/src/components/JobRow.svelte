@@ -71,7 +71,7 @@
     {#if alsoOn}<span class="also" use:tooltip={alsoOn}>+{job.alsoOn.length}</span>{/if}
     <span class="text">{job.company}</span>
     {#if job.location}<span class="sep">·</span><span class="text">{job.location}</span>{/if}
-    {#if job.workMode}<Badge label={de.job.workMode[job.workMode]} tone="slate" />{/if}
+    {#if job.workMode}<Badge label={de.job.workMode[job.workMode]} tone="neutral" />{/if}
   </span>
   {#if reason}
     <span class="reason"><ReasonItem kind={reason.kind} label={reason.label} compact /></span>
@@ -132,8 +132,8 @@
     flex: none;
     padding: 0 var(--space-4);
     border-radius: var(--radius-xs);
-    background-color: var(--slate-soft);
-    color: var(--text-heading);
+    background-color: var(--surface-muted);
+    color: var(--text-muted);
     font: var(--type-xs);
     font-weight: var(--weight-bold);
   }

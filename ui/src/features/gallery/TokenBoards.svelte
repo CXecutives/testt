@@ -113,7 +113,7 @@
     width: var(--size);
     height: var(--space-12);
     border-radius: var(--radius-full);
-    background: var(--grad-brand);
+    background-color: var(--accent);
   }
 
   .tiles {

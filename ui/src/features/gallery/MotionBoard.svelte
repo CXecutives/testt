@@ -109,7 +109,7 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: var(--grad-brand);
+    background-color: var(--accent);
     transform: scaleX(0);
     transform-origin: left center;
   }

@@ -43,7 +43,10 @@ test('score rings count up once visible; excluded and unscorable show no number'
   const high = page.getByTestId('ring-high-lg');
   await high.scrollIntoViewIfNeeded();
   await expect(high).toHaveText('91');
-  await expect(high).toHaveAttribute('aria-label', /Passung 91 % · Hohe Passung/);
+  await expect(high).toHaveAttribute(
+    'aria-label',
+    new RegExp(`Passung 91${String.fromCharCode(0x202f)}% · Hohe Passung`),
+  );
   await expect(page.getByTestId('ring-excluded-lg')).toHaveText('');
   await expect(page.getByTestId('ring-unscorable-lg')).toHaveText('–');
 });

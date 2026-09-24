@@ -91,7 +91,7 @@ export function onRun(handler: RunHandler): () => void {
   return () => runHandlers.delete(handler);
 }
 
-type ArgsTuple<K extends CommandName> = keyof CommandArgs<K> extends never
+type ArgsTuple<K extends CommandName> = [CommandArgs<K>] extends [Record<string, never>]
   ? [args?: CommandArgs<K>]
   : [args: CommandArgs<K>];
 

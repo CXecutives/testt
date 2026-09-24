@@ -1,12 +1,20 @@
 <!--
-  Own caption buttons for the frameless Windows window (macOS keeps its traffic lights).
-  46 × 48 like Windows 11; close turns red on hover.
+  Caption buttons of the frameless Windows window, drawn like the native Windows 11 ones:
+  Segoe Fluent Icons glyphs at 10 px, 46 px wide, full title-bar height, square, a quick
+  colour change and no lift or scale. macOS keeps its native traffic lights instead.
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
   import { de } from '$lib/i18n/de';
   import { appWindow } from '$lib/ipc/api';
-  import Icon from './Icon.svelte';
+
+  /** Code points of the Windows icon font (Segoe Fluent Icons / Segoe MDL2 Assets). */
+  const GLYPH = {
+    minimize: '',
+    maximize: '',
+    restore: '',
+    close: '',
+  } as const;
 
   let maximized = $state(false);
 
@@ -33,7 +41,7 @@
     use:tooltip={de.window.minimize}
     onclick={() => void appWindow.minimize()}
   >
-    <Icon name="minus" size="sm" />
+    <span class="glyph" aria-hidden="true">{GLYPH.minimize}</span>
   </button>
   <button
     type="button"
@@ -42,7 +50,7 @@
     use:tooltip={maximizeLabel}
     onclick={() => void appWindow.toggleMaximize()}
   >
-    <Icon name={maximized ? 'copy' : 'square'} size="sm" />
+    <span class="glyph" aria-hidden="true">{maximized ? GLYPH.restore : GLYPH.maximize}</span>
   </button>
   <button
     type="button"
@@ -51,7 +59,7 @@
     use:tooltip={de.window.close}
     onclick={() => void appWindow.close()}
   >
-    <Icon name="x" size="sm" />
+    <span class="glyph" aria-hidden="true">{GLYPH.close}</span>
   </button>
 </div>
 
@@ -67,29 +75,37 @@
     justify-content: center;
     width: var(--caption-width);
     height: var(--titlebar-height);
-    color: var(--text-muted);
+    border-radius: 0;
+    background-color: transparent;
+    color: var(--text);
     transition:
       background-color var(--dur-fast) var(--ease-standard),
       color var(--dur-fast) var(--ease-standard);
   }
 
+  .glyph {
+    font-family: var(--font-caption);
+    font-size: var(--caption-glyph);
+    font-weight: var(--weight-regular);
+    line-height: var(--leading-none);
+  }
+
   .caption:hover {
-    background-color: var(--surface-hover);
-    color: var(--text);
+    background-color: var(--caption-hover);
   }
 
   .caption:active {
-    background-color: var(--surface-press);
+    background-color: var(--caption-press);
   }
 
   .close:hover {
     background-color: var(--caption-close);
-    color: var(--text-on-accent);
+    color: var(--caption-close-glyph);
   }
 
   .close:active {
-    background-color: var(--caption-close-active);
-    color: var(--text-on-accent);
+    background-color: var(--caption-close-press);
+    color: var(--caption-close-glyph);
   }
 
   .caption:focus-visible {

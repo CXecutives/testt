@@ -2,11 +2,10 @@
 <script lang="ts" module>
   import type { IconName } from './Icon.svelte';
 
-  export type BadgeTone = 'neutral' | 'coral' | 'slate' | 'success' | 'warning' | 'danger' | 'info';
+  export type BadgeTone = 'neutral' | 'coral' | 'success' | 'warning' | 'danger' | 'info';
   export const BADGE_TONES: readonly BadgeTone[] = [
     'neutral',
     'coral',
-    'slate',
     'success',
     'warning',
     'danger',
@@ -57,11 +56,6 @@
   .coral {
     --badge-bg: var(--accent-soft);
     --badge-fg: var(--accent-text);
-  }
-
-  .slate {
-    --badge-bg: var(--slate-soft);
-    --badge-fg: var(--info-strong);
   }
 
   .success {

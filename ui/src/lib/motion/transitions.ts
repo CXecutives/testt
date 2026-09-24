@@ -166,9 +166,9 @@ export function scrim(
  * A number that counts up (score rings, stat tiles). Rounds to whole numbers; under
  * reduced motion it jumps to the target.
  */
-export function countUp(initial = 0): Tween<number> {
+export function countUp(initial = 0, length: Duration = 'reveal'): Tween<number> {
   return new Tween(initial, {
-    duration: () => duration('reveal'),
+    duration: () => duration(length),
     easing: easing('out'),
   });
 }

@@ -63,7 +63,7 @@
     left: 0;
     width: var(--row-bar);
     border-radius: var(--radius-full);
-    background: var(--grad-bar);
+    background-color: var(--accent);
     content: '';
     transform: scaleY(0);
     transition: transform var(--dur-base) var(--ease-out);

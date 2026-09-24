@@ -26,7 +26,7 @@
   };
 
   const WEIGHT_TONE: Record<ReasonWeight, BadgeTone> = {
-    must: 'slate',
+    must: 'coral',
     nice: 'neutral',
     hard: 'danger',
     info: 'neutral',

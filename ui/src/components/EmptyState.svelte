@@ -1,4 +1,8 @@
-<!-- An empty screen or section: tile, heading, one sentence, at most two actions. -->
+<!--
+  An empty screen or section never looks dead: a centred column with the app mark (or a
+  meaningful icon), an optional short heading, one sentence and one clear action
+  (plus at most one secondary).
+-->
 <script lang="ts" module>
   import type { IconName } from './Icon.svelte';
 
@@ -10,13 +14,15 @@
 </script>
 
 <script lang="ts">
+  import BrandMark from './BrandMark.svelte';
   import Button from './Button.svelte';
   import IconTile, { type TileTone } from './IconTile.svelte';
 
   interface Props {
-    icon: IconName;
+    /** A meaningful icon; without one the app mark is shown. */
+    icon?: IconName | null;
     tone?: TileTone;
-    heading: string;
+    heading?: string | null;
     text: string;
     /** The one primary action of the state. */
     action?: EmptyAction | null;
@@ -25,9 +31,9 @@
   }
 
   let {
-    icon,
+    icon = null,
     tone = 'coral',
-    heading,
+    heading = null,
     text,
     action = null,
     secondary = null,
@@ -36,9 +42,13 @@
 </script>
 
 <div class="empty" data-testid={testid ?? undefined}>
-  <IconTile {icon} {tone} size="lg" />
+  {#if icon}
+    <IconTile {icon} {tone} size="lg" />
+  {:else}
+    <BrandMark size="lg" />
+  {/if}
   <div class="copy">
-    <h2 class="heading">{heading}</h2>
+    {#if heading}<h2 class="heading">{heading}</h2>{/if}
     <p class="text">{text}</p>
   </div>
   {#if action || secondary}

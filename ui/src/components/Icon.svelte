@@ -18,6 +18,7 @@
   import FileText from '@lucide/svelte/icons/file-text';
   import FileUp from '@lucide/svelte/icons/file-up';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import Inbox from '@lucide/svelte/icons/inbox';
   import Info from '@lucide/svelte/icons/info';
   import KeyRound from '@lucide/svelte/icons/key-round';
   import LogIn from '@lucide/svelte/icons/log-in';
@@ -30,7 +31,6 @@
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import Search from '@lucide/svelte/icons/search';
   import Shield from '@lucide/svelte/icons/shield';
-  import Sparkles from '@lucide/svelte/icons/sparkles';
   import Square from '@lucide/svelte/icons/square';
   import Star from '@lucide/svelte/icons/star';
   import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -60,7 +60,6 @@
     'map-pin': MapPin,
     'building-2': Building2,
     clock: Clock,
-    sparkles: Sparkles,
     check: Check,
     'circle-dashed': CircleDashed,
     'triangle-alert': TriangleAlert,
@@ -75,6 +74,8 @@
     // Added for the password field (show / hide).
     eye: Eye,
     'eye-off': EyeOff,
+    // Empty states (the user ruled out "sparkles" as an AI cliché).
+    inbox: Inbox,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

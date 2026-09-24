@@ -250,7 +250,6 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'surface-press', role: 'surface' },
       { name: 'surface-selected', role: 'surface' },
       { name: 'surface-tinted', role: 'surface' },
-      { name: 'surface-slate', role: 'surface' },
       { name: 'surface-inverse', role: 'decor' },
       { name: 'scrim', role: 'decor' },
     ],
@@ -262,7 +261,6 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'text-muted', role: 'text' },
       { name: 'text-subtle', role: 'text' },
       { name: 'text-heading', role: 'text' },
-      { name: 'text-heading-strong', role: 'text' },
       { name: 'accent-text', role: 'text' },
     ],
   },
@@ -285,8 +283,6 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'primary-active', role: 'fill' },
       { name: 'focus', role: 'decor' },
       { name: 'selection', role: 'surface' },
-      { name: 'slate', role: 'fill' },
-      { name: 'slate-soft', role: 'surface' },
     ],
   },
   {
@@ -352,8 +348,7 @@ export const gradients = [
   'grad-hero',
   'grad-card',
   'grad-wash',
-  'grad-coral',
-  'grad-edge',
+  'grad-shimmer',
 ] as const;
 export const durations = ['instant', 'fast', 'base', 'slow', 'hero', 'reveal'] as const;
 export const easings = ['standard', 'out', 'in', 'pop'] as const;

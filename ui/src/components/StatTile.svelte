@@ -26,7 +26,8 @@
     testid = null,
   }: Props = $props();
 
-  const number = countUp(0);
+  // Short count (--dur-slow); only the score ring takes the longer reveal.
+  const number = countUp(0, 'slow');
   let revealed = $state(false);
 
   $effect(() => {

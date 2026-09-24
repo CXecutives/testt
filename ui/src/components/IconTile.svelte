@@ -2,11 +2,10 @@
 <script lang="ts" module>
   import type { Portal } from '$lib/ipc/types';
 
-  export type TileTone = 'coral' | 'slate' | 'success' | 'warning' | 'danger' | 'neutral';
+  export type TileTone = 'coral' | 'success' | 'warning' | 'danger' | 'neutral';
   export type TileSize = 'sm' | 'md' | 'lg';
   export const TILE_TONES: readonly TileTone[] = [
     'coral',
-    'slate',
     'success',
     'warning',
     'danger',
@@ -66,11 +65,6 @@
   .coral {
     --tile-bg: var(--accent-soft);
     --tile-fg: var(--accent-text);
-  }
-
-  .slate {
-    --tile-bg: var(--slate-soft);
-    --tile-fg: var(--text-heading);
   }
 
   .success {

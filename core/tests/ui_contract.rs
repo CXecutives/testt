@@ -529,6 +529,59 @@ fn per_os_markup_only_in_the_title_bar() {
         ),
         "per-OS differences live only in TitleBar, WindowControls and platform.ts",
     );
+    // The Windows icon font draws the native caption glyphs - nowhere else (macOS has none).
+    fail(
+        &find(&all, &["Segoe Fluent", "Segoe MDL2"], |s| {
+            s.is("styles/tokens.css")
+        }),
+        "the Windows icon font is only named in its token",
+    );
+    fail(
+        &find(&all, &["var(--font-caption)"], |s| {
+            s.is("components/WindowControls.svelte")
+        }),
+        "--font-caption is used only by WindowControls",
+    );
+}
+
+/// Coral-only brand (user decision): no second hue in a gradient, no gradient text, no
+/// "sparkles" cliché.
+#[test]
+fn the_brand_stays_coral() {
+    let all = scanned(MIN_FILES);
+    let tokens = all
+        .iter()
+        .find(|s| s.is("styles/tokens.css"))
+        .expect("styles/tokens.css");
+    let mut problems = Vec::new();
+    let mut in_gradient = false;
+    for (n, line) in tokens.lines() {
+        if line.contains("gradient(") {
+            in_gradient = true;
+        }
+        if in_gradient
+            && [
+                "--p-slate",
+                "--p-success",
+                "--p-info",
+                "--p-warning",
+                "--p-danger",
+            ]
+            .iter()
+            .any(|hue| line.contains(hue))
+        {
+            problems.push(format!("tokens.css:{n}: second hue in a gradient"));
+        }
+        if line.contains(';') {
+            in_gradient = false;
+        }
+    }
+    problems.extend(find(
+        &all,
+        &["background-clip: text", "'sparkles'", "\"sparkles\""],
+        |_| false,
+    ));
+    fail(&problems, "coral-only brand");
 }
 
 #[test]
