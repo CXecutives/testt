@@ -505,6 +505,20 @@ mod tests {
             ),
             li("4456653430")
         );
+        // A job selected in a list (recommendation and "similar jobs" mails): the same
+        // job, the same canonical link.
+        for raw in [
+            "https://www.linkedin.com/comm/jobs/collections/recommended/?currentJobId=4123456789",
+            "https://www.linkedin.com/jobs/search/?currentJobId=4123456789",
+            "https://www.linkedin.com/comm/jobs/search/?currentJobId=4123456789&geoId=1",
+            "https://www.linkedin.com/comm/jobs/search/?geoId=1&CURRENTJOBID=4123456789",
+        ] {
+            assert_eq!(key(raw), li("4123456789"), "{raw}");
+            assert_eq!(
+                job_link(raw).unwrap().url.as_str(),
+                "https://www.linkedin.com/jobs/view/4123456789/"
+            );
+        }
     }
 
     #[test]

@@ -55,23 +55,31 @@ impl PortalAdapter for LinkedIn {
     }
 
     /// `/jobs/view/<ID>` or `/comm/jobs/view/<ID>`; the segment is the id or ends with
-    /// `-<ID>` (`sap-berater-4456653430`).
+    /// `-<ID>` (`sap-berater-4456653430`). The recommendation and "similar jobs" mails link
+    /// a job as a list with it selected: `/jobs/search/?currentJobId=<ID>`,
+    /// `/comm/jobs/collections/recommended/?currentJobId=<ID>` - the same job.
     fn job_link(&self, url: &Url) -> Option<JobLink> {
         let (host, segments) = host_and_segments(url)?;
         if !host_is(&host, "linkedin.com") {
             return None;
         }
         let segments: Vec<&str> = segments.iter().map(String::as_str).collect();
-        let (["jobs", "view", rest @ ..] | ["comm", "jobs", "view", rest @ ..]) =
-            segments.as_slice()
-        else {
-            return None;
-        };
-        let digits = rest.first()?.rsplit('-').next()?;
-        if !all_digits(digits, 6) {
-            return None;
+        match segments.as_slice() {
+            ["jobs", "view", rest @ ..] | ["comm", "jobs", "view", rest @ ..] => {
+                let digits = rest.first()?.rsplit('-').next()?;
+                if !all_digits(digits, 6) {
+                    return None;
+                }
+                link(Portal::LinkedIn, digits.to_string())
+            }
+            ["jobs", ..] | ["comm", "jobs", ..] => {
+                let (_, id) = url
+                    .query_pairs()
+                    .find(|(key, _)| key.eq_ignore_ascii_case("currentjobid"))?;
+                all_digits(&id, 6).then(|| link(Portal::LinkedIn, id.into_owned()))?
+            }
+            _ => None,
         }
-        link(Portal::LinkedIn, digits.to_string())
     }
 
     fn canonical_url(&self, id: &str) -> Option<Url> {
