@@ -82,9 +82,9 @@ dry run deletes in its database only. `set_override(key, include)`: an excluded 
 Whether the user has to act comes from the backend: `actionNeeded` in `PortalState` and in the `PortalHealth` event
 (a sign-in, or alert mails without jobs; a pause, a cap or pages without a description resolve themselves). Both
 prompts carry `core/src/export/ai_rubric.de.md` whole (its preamble names no product). Mail healing: `mail_version`
-(`mail::MAIL_PARSER_VERSION`, 2 since a collection mail no longer gives the next job's title as company); a job an
+(`mail::MAIL_PARSER_VERSION`, 2 since a collection mail no longer gives the next job's title as company, 3 since the plain-text link forms of Outlook and Apple Mail give the title); a job an
 older parser read takes the current reading when a mail names it again (with its page read, only a pair that reads like
-a job title gives way), and the first scan after an update reads back once to the oldest such job (kv `mail_healed`,
+a job title gives way), and the first scan after an update reads back once to the oldest such job (kv `mail_healed:<portal>`, per portal: a portal switched off meanwhile reads back once it is on again;
 IMAP read-only).
 
 ### IPC v3 (types from Rust via ts-rs; camelCase; `null` instead of missing; backend never sends prose)

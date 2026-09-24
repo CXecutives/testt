@@ -23,7 +23,7 @@ use crate::time::local_date;
 pub enum Scope {
     /// Since the last successful scan (one day of overlap); 30 days the first time.
     New,
-    /// The whole inbox.
+    /// The whole mailbox (All Mail: archived and filtered alerts too), without a date limit.
     All,
 }
 
@@ -87,20 +87,26 @@ pub enum ScanEvent<'a> {
     Progress { done: usize, total: usize },
 }
 
-/// The mail parser version the mailbox was last read back with for the jobs an older one
-/// had read (see [`crate::mail::MAIL_PARSER_VERSION`]).
-const MAIL_HEALED: &str = "mail_healed";
+/// Per portal (`mail_healed:<portal>`): the mail parser version the mailbox was last read
+/// back with for the portal's jobs an older one had read (see
+/// [`crate::mail::MAIL_PARSER_VERSION`]). Per portal, because a scan searches only the
+/// portals switched on: a portal switched off during the read-back keeps its old readings
+/// until a scan that includes it reads back.
+fn heal_key(portal: Portal) -> String {
+    format!("mail_healed:{}", portal.key())
+}
 
-/// Jobs an older mail parser read, when they were not read back yet: the oldest mail date.
-fn heal_from(store: &Store) -> crate::Result<Option<Timestamp>> {
+/// Jobs of `portal` an older mail parser read, when they were not read back yet: the
+/// oldest mail date.
+fn heal_from(store: &Store, portal: Portal) -> crate::Result<Option<Timestamp>> {
     let healed = store
-        .kv_get(MAIL_HEALED)?
+        .kv_get(&heal_key(portal))?
         .and_then(|v| v.parse::<i64>().ok())
         .unwrap_or(0);
     if healed >= MAIL_PARSER_VERSION {
         return Ok(None);
     }
-    store.stale_mail_since()
+    store.stale_mail_since(portal)
 }
 
 /// The day the search starts from (`None` = everything). After an update of the mail
@@ -126,9 +132,9 @@ fn scan_since(
                     _ => first,
                 };
                 since = since.min(from);
-            }
-            if let Some(stale) = heal_from(store)?.filter(|at| *at <= now) {
-                since = since.min(local_date(stale).saturating_sub(1.day()));
+                if let Some(stale) = heal_from(store, portal)?.filter(|at| *at <= now) {
+                    since = since.min(local_date(stale).saturating_sub(1.day()));
+                }
             }
             Some(since)
         }
@@ -206,9 +212,10 @@ pub async fn scan<S: MailSource>(
         if covered {
             store.set_last_scan(portal, started)?;
         }
+        // A complete pass read back what an older mail parser had read of this portal:
+        // once is enough. Only for the portals searched - the others still read back.
+        store.kv_set(&heal_key(portal), &MAIL_PARSER_VERSION.to_string())?;
     }
-    // A complete pass read back what an older mail parser had read: once is enough.
-    store.kv_set(MAIL_HEALED, &MAIL_PARSER_VERSION.to_string())?;
     Ok(())
 }
 
@@ -475,8 +482,8 @@ mod tests {
             .unwrap()
             .key;
         store.make_mail_stale(&key);
-        store.kv_set(MAIL_HEALED, "1").unwrap();
-        assert!(store.stale_mail_since().unwrap().is_some());
+        store.kv_set(&heal_key(Portal::LinkedIn), "1").unwrap();
+        assert!(store.stale_mail_since(Portal::LinkedIn).unwrap().is_some());
         let later: Timestamp = "2026-09-25T08:00:00Z".parse().unwrap();
         for _ in 0..2 {
             run_scan(&store, &mut source, Scope::New, later)
@@ -490,7 +497,69 @@ mod tests {
             [day("2026-09-02"), day("2026-09-24")],
             "back to the old job's mail once, then from the last scan"
         );
-        assert_eq!(store.stale_mail_since().unwrap(), None, "read again");
+        assert_eq!(
+            store.stale_mail_since(Portal::LinkedIn).unwrap(),
+            None,
+            "read again"
+        );
+    }
+
+    /// A portal switched off while the mailbox is read back keeps its older readings only
+    /// until a scan includes it again: the read-back is tracked per portal.
+    #[tokio::test]
+    async fn a_portal_switched_off_during_the_read_back_reads_back_later() {
+        let store = Store::in_memory().unwrap();
+        let mut source = fake(None);
+        let bytes = "From: projekte@freelancermap.de\r\nSubject: Neue Projektanfragen\r\n\
+             Date: Tue, 25 Aug 2026 08:15:00 +0200\r\nContent-Type: text/html\r\n\r\n\
+             <p><a href=\"https://www.freelancermap.de/nproj/2971857.html\">SAP FI/CO Berater (m/w/d)</a></p>";
+        source.mails.push((
+            61,
+            RawMail {
+                gmail_id: Some(61),
+                bytes: bytes.as_bytes().to_vec(),
+            },
+        ));
+        let both = [Portal::LinkedIn, Portal::Freelancermap];
+        let scan_with = async |store: &Store, source: &mut Fake, portals: &[Portal], at| {
+            let run = store.begin_run().unwrap();
+            let mut summary = ScanSummary::default();
+            scan(
+                source,
+                store,
+                run,
+                Scope::New,
+                portals,
+                at,
+                &CancellationToken::new(),
+                &mut summary,
+                |_| {},
+            )
+            .await
+            .unwrap();
+        };
+        scan_with(&store, &mut source, &both, now()).await;
+        let key = crate::portal::job_link("https://www.freelancermap.de/nproj/2971857.html")
+            .unwrap()
+            .key;
+        store.make_mail_stale(&key);
+        store.kv_set(&heal_key(Portal::Freelancermap), "1").unwrap();
+        let later: Timestamp = "2026-09-25T08:00:00Z".parse().unwrap();
+        let day = |s: &str| Some(s.parse::<Date>().unwrap());
+
+        // Switched off: no read-back for it, and it is not marked as read back.
+        scan_with(&store, &mut source, &[Portal::LinkedIn], later).await;
+        assert_eq!(source.searched.last(), Some(&day("2026-09-18")));
+        assert!(
+            store
+                .stale_mail_since(Portal::Freelancermap)
+                .unwrap()
+                .is_some()
+        );
+        // Switched on again: back to its old job's mail, which heals.
+        scan_with(&store, &mut source, &both, later).await;
+        assert_eq!(source.searched.last(), Some(&day("2026-08-24")));
+        assert_eq!(store.stale_mail_since(Portal::Freelancermap).unwrap(), None);
     }
 
     /// A state in the future (clock set wrong) counts as unknown: "New" searches thirty

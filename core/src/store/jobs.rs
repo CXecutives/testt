@@ -466,13 +466,13 @@ impl Store {
         Ok(out)
     }
 
-    /// The oldest mail date (else first sighting) of a job an older mail parser read, or
-    /// `None` when every job is current.
-    pub fn stale_mail_since(&self) -> Result<Option<Timestamp>> {
+    /// The oldest mail date (else first sighting) of a job of `portal` an older mail parser
+    /// read, or `None` when every job of it is current.
+    pub fn stale_mail_since(&self, portal: Portal) -> Result<Option<Timestamp>> {
         let oldest: Option<i64> = self.conn().query_row(
             "SELECT MIN(COALESCE(mail_date, first_seen_at)) FROM job
-             WHERE mail_version IS NULL OR mail_version < ?1",
-            [MAIL_PARSER_VERSION],
+             WHERE portal = ?2 AND (mail_version IS NULL OR mail_version < ?1)",
+            params![MAIL_PARSER_VERSION, portal.key()],
             |r| r.get(0),
         )?;
         Ok(oldest.and_then(from_db))
@@ -1338,7 +1338,7 @@ mod tests {
         }
         // `kept` stands for a job the current parser read.
         seen(current, "Controller", "Nordlicht AG", "Hamburg");
-        assert!(store.stale_mail_since().unwrap().is_some());
+        assert!(store.stale_mail_since(Portal::LinkedIn).unwrap().is_some());
 
         seen(
             vmware,
@@ -1368,7 +1368,7 @@ mod tests {
         );
         assert_eq!(details(&page).1, "Seitenfirma GmbH", "the page wins");
         assert_eq!(details(&paged_wrong).1, "Beispiel IT GmbH");
-        assert_eq!(store.stale_mail_since().unwrap(), None);
+        assert_eq!(store.stale_mail_since(Portal::LinkedIn).unwrap(), None);
     }
 
     /// The page's company and location win over the mail heuristics; what the page leaves
