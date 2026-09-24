@@ -278,12 +278,13 @@ impl Store {
     }
 
     /// The best scored (not excluded) jobs first seen in `run`; duplicates show as their
-    /// original.
+    /// original, hidden jobs ("not interesting") are left out.
     pub fn top_matches(&self, run: i64, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE first_seen_run = ?1 AND match_status = 'scored' AND dup_of IS NULL
+               AND hidden_at IS NULL
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id LIMIT ?2"
         ))?;
         let rows = stmt.query_map(params![run, limit], job_row)?;
@@ -308,11 +309,11 @@ impl Store {
     }
 
     /// The jobs of the HTML overview: the pinned ones if there are any (`true`), else the
-    /// unread scored jobs of the mailbox run `run`; best first.
+    /// unread scored jobs of the mailbox run `run`; best first. Hidden jobs are in neither.
     pub fn overview_jobs(&self, run: i64) -> Result<(Vec<JobRow>, bool)> {
         let conn = self.conn();
         let mut pinned = conn.prepare_cached(&format!(
-            "SELECT {JOB_COLUMNS} FROM job WHERE pinned_at IS NOT NULL
+            "SELECT {JOB_COLUMNS} FROM job WHERE pinned_at IS NOT NULL AND hidden_at IS NULL
              ORDER BY (match_status IS 'excluded'), match_score DESC, pinned_at DESC"
         ))?;
         let jobs: Vec<JobRow> = pinned
@@ -325,7 +326,7 @@ impl Store {
         let mut new = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE first_seen_run = ?1 AND read_at IS NULL AND match_status = 'scored'
-               AND dup_of IS NULL
+               AND dup_of IS NULL AND hidden_at IS NULL
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id"
         ))?;
         let jobs = new

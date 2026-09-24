@@ -14,11 +14,16 @@
 //   next load puts it. The list re-sorts once, when the run finishes, and keeps the
 //   selection.
 // - `mark_read` only on a real click on a row (select(..., true)).
+// - The user's marks: the application status, a note and "not interesting" (hidden). A
+//   hidden job is in no list but "hidden" and in no count but its own; hiding or listing it
+//   again takes the row out of a list it no longer belongs to. A status change keeps the row
+//   where it is until the next load (the list does not jump under the pointer).
 
 import { SvelteSet } from 'svelte/reactivity';
 import { errorText } from '../i18n/texts';
 import { invoke } from '../ipc/api';
 import type {
+  AppStatus,
   JobCounts,
   JobDetail,
   JobFacet,
@@ -53,6 +58,8 @@ const ZERO: JobCounts = {
   high: 0,
   noDetail: 0,
   pinned: 0,
+  applications: 0,
+  hidden: 0,
   newByPortal: [],
 };
 
@@ -65,6 +72,20 @@ export function sameKey(a: JobKey | null, b: JobKey | null): boolean {
 }
 
 export const isExcluded = (job: JobView): boolean => job.match?.status === 'excluded';
+
+/** Does a job belong to the list of a facet (the backend's rule, store::ListFacet)? */
+export function inFacet(job: JobView, facet: JobFacet): boolean {
+  switch (facet) {
+    case 'new':
+      return !job.hidden && job.unread;
+    case 'all':
+      return !job.hidden;
+    case 'applications':
+      return !job.hidden && job.appStatus !== null;
+    case 'hidden':
+      return job.hidden;
+  }
+}
 const TILES: readonly string[] = ['high', 'noDetail', 'excluded', 'pinned'];
 const isPortal = (filter: JobFilter): filter is Portal => !TILES.includes(filter);
 
@@ -85,18 +106,25 @@ function matches(job: JobView, filter: JobFilter | null): boolean {
   }
 }
 
-/** What one job adds to the counts (the backend's definitions, store::job_page). */
+/**
+ * What one job adds to the counts (the backend's definitions, store::job_page): a hidden
+ * job only to "hidden".
+ */
 function add(counts: JobCounts, job: JobView | null, sign: 1 | -1): JobCounts {
   if (job === null) return counts;
+  const shown = job.hidden ? 0 : sign;
   const out = isExcluded(job);
-  const isNew = job.unread && !out ? sign : 0;
+  const isNew = job.unread && !out ? shown : 0;
+  const high = job.match?.status === 'scored' && job.match.score >= HIGH;
   return {
-    all: counts.all + sign,
+    all: counts.all + shown,
     new: counts.new + isNew,
-    excluded: counts.excluded + (out ? sign : 0),
-    high: counts.high + (job.match?.status === 'scored' && job.match.score >= HIGH ? sign : 0),
-    noDetail: counts.noDetail + (job.detail.kind !== 'ok' ? sign : 0),
-    pinned: counts.pinned + (job.pinned ? sign : 0),
+    excluded: counts.excluded + (out ? shown : 0),
+    high: counts.high + (high ? shown : 0),
+    noDetail: counts.noDetail + (job.detail.kind !== 'ok' ? shown : 0),
+    pinned: counts.pinned + (job.pinned ? shown : 0),
+    applications: counts.applications + (job.appStatus !== null ? shown : 0),
+    hidden: counts.hidden + (job.hidden ? sign : 0),
     newByPortal: counts.newByPortal.map((line) =>
       line.portal === job.portal ? { ...line, new: line.new + isNew } : line,
     ),
@@ -275,7 +303,16 @@ class JobsStore {
 
   /** Rows the query has: under Neu the unread excluded jobs come on top of the count. */
   private countOf(counts: JobCounts): number {
-    return this.facet === 'new' ? Number.MAX_SAFE_INTEGER : counts.all;
+    switch (this.facet) {
+      case 'new':
+        return Number.MAX_SAFE_INTEGER;
+      case 'all':
+        return counts.all;
+      case 'applications':
+        return counts.applications;
+      case 'hidden':
+        return counts.hidden;
+    }
   }
 
   private query(offset: number, limit = PAGE): JobQuery {
@@ -428,6 +465,83 @@ class JobsStore {
     }
   }
 
+  /** The job as the page holds it (a row or the reader). */
+  private held(key: JobKey): JobView | null {
+    const row = this.rows.find((job) => sameKey(job.key, key));
+    if (row) return row;
+    return this.detail && sameKey(this.detail.job.key, key) ? this.detail.job : null;
+  }
+
+  /**
+   * Where the application stands (`null` = none). Moves at once and back on an error;
+   * resolves with the error text, or null.
+   */
+  async setAppStatus(key: JobKey, status: AppStatus | null): Promise<string | null> {
+    const before = this.held(key);
+    const previous = { status: before?.appStatus ?? null, at: this.detailOf(key)?.appStatusAt };
+    this.patch(key, { appStatus: status });
+    this.patchDetail(key, { appStatusAt: status === null ? null : new Date().toISOString() });
+    try {
+      await invoke('set_app_status', { key, status });
+      return null;
+    } catch (error) {
+      this.patch(key, { appStatus: previous.status });
+      this.patchDetail(key, { appStatusAt: previous.at ?? null });
+      return errorText(error);
+    }
+  }
+
+  /** Stores the note of a job (blank = none); resolves with the error text, or null. */
+  async setNote(key: JobKey, note: string): Promise<string | null> {
+    try {
+      await invoke('set_note', { key, note });
+      this.patchDetail(key, { note: note.trim() === '' ? null : note });
+      return null;
+    } catch (error) {
+      return errorText(error);
+    }
+  }
+
+  /**
+   * Hides a job ("not interesting") or lists it again. The row leaves a list it no longer
+   * belongs to; on an error the list loads again. Resolves with the error text, or null.
+   */
+  async hide(key: JobKey, hidden: boolean): Promise<string | null> {
+    this.patch(key, { hidden });
+    this.dropStray(key);
+    try {
+      await invoke('set_hidden', { key, hidden });
+      return null;
+    } catch (error) {
+      this.patch(key, { hidden: !hidden });
+      void this.load(true);
+      return errorText(error);
+    }
+  }
+
+  /** The prompt for a deep analysis of a job in the user's own Claude. */
+  async claudePrompt(key: JobKey): Promise<string> {
+    return invoke('claude_prompt', { key });
+  }
+
+  /** A listed row that no longer belongs to the facet leaves the list. */
+  private dropStray(key: JobKey): void {
+    const row = this.rows.find((job) => sameKey(job.key, key));
+    if (!row || inFacet(row, this.facet)) return;
+    this.rows = this.rows.filter((job) => !sameKey(job.key, key));
+    this.total = Math.max(0, this.total - 1);
+  }
+
+  private detailOf(key: JobKey): JobDetail | null {
+    return this.detail && sameKey(this.detail.job.key, key) ? this.detail : null;
+  }
+
+  /** Change the reader's own fields (note, time of the status) of a job it shows. */
+  private patchDetail(key: JobKey, change: Partial<Pick<JobDetail, 'note' | 'appStatusAt'>>): void {
+    const detail = this.detailOf(key);
+    if (detail !== null) this.detail = { ...detail, ...change };
+  }
+
   /** Change a job the page holds (a row, the reader) in place, moving the counts with it. */
   private patch(key: JobKey, change: Partial<JobView>): void {
     const row = this.rows.find((job) => sameKey(job.key, key)) ?? null;
@@ -476,7 +590,7 @@ class JobsStore {
     } else if (
       (fresh || this.rows.length >= this.total) &&
       this.search.trim() === '' &&
-      (this.facet === 'all' || job.unread)
+      inFacet(job, this.facet)
     ) {
       // Under Neu an unread excluded job also shows (grey, behind the divider), uncounted.
       const at = isExcluded(job) ? this.rows.findIndex(isExcluded) : 0;

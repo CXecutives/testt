@@ -48,10 +48,22 @@ reset deletes `-wal`/`-shm`. No FTS5 (table is WITHOUT ROWID): search stays `LIK
 Reasons are not stored; `job_detail` recomputes them. Settings JSON: per portal `enabled`, `fetchDetails`,
 `loginEnabled` (freelance.de), plus `autoFetchOnStart`.
 
+### Schema 4 (the user's marks, one more step of the chain)
+New nullable `job` columns: `app_status TEXT` (applied|interview|offer|rejected), `app_status_at`, `note TEXT`
+(<= 2000 characters, no export shows it), `hidden_at` ("Nicht interessant"). Frozen fixture
+`core/tests/fixtures/schema_v3.sql`. A hidden job is in no list but "hidden" and in no count but its own; the HTML
+overview and `top_matches.json` leave it out. Excel gets a "Status" column (Beworben, Im Gespräch, Zusage, Absage); the
+TXT files stay byte-identical. `claude_prompt(key)` builds the German prompt for a deep analysis in the user's own
+Claude (`export/claude_prompt.rs`, external contract): the rubric intent of the skill in short, the profile without
+name, contact data, links and references, the ad (text <= 12,000 characters, profile <= 8,000).
+
 ### IPC v3 (types from Rust via ts-rs; camelCase; `null` instead of missing; backend never sends prose)
 Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | rescore | fullMailbox})` · `cancel_run` ·
-`list_jobs(JobQuery{facet: new|all, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{new, all, excluded, high, noDetail, pinned, newByPortal[{portal, new}] in Portal::ALL order}}`
-(list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only) · `job_detail(key)` · `mark_read(key) -> bool` · `set_pinned(key, on)` · `pick_profile` ·
+`list_jobs(JobQuery{facet: new|all|applications|hidden, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{new, all, excluded, high, noDetail, pinned, applications, hidden, newByPortal[{portal, new}] in Portal::ALL order}}`
+(list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only; applications
+newest status change first, hidden latest hidden first) · `job_detail(key)` · `mark_read(key) -> bool` · `set_pinned(key, on)` ·
+`set_app_status(key, status|null) -> bool` · `set_note(key, note) -> bool` · `set_hidden(key, hidden) -> bool` ·
+`claude_prompt(key) -> string` · `pick_profile` ·
 `remove_profile` · `save_profile_template` · `save_mailbox` · `remove_mailbox` · `portal_login` · `portal_logout` ·
 `pick_workspace` · `rewrite_txt` · `clear_txt` · `open_target({jobUrl|gmail|workspace|excel|overview|logDir})` ·
 `save_settings(SettingsPatch)` · `reset_all` · `report_ui_error` (truncated, <= 10/min).
@@ -63,8 +75,8 @@ starts itself) · `Progress{step: scan|fetch|score|export, portal?, done, total}
 `PortalHealth{portal, health}` · `LoginNeeded{portal, waiting}` ·
 `Finished{summary{kind, perPortal[{portal,new,known,dup,fetched,failed}], newJobs{count, high}?, score{scored,excluded,unscorable,pending,best}, export{..., error{kind, params.target}?}, stops[], emptyAlerts[]}}`
 (`newJobs` of a mailbox run: first seen, not a duplicate, not excluded; `high` of those; the export never fails a run but names what it could not write).
-Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[]}` ·
-`JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null}` ·
+Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[], appStatus|null, hidden}` ·
+`JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null, note|null, appStatusAt|null}` ·
 `Reason{id, kind: met|partial|open|violation|check, weight: must|nice|hard|info, code, label, evidence{profile, path, via, quote}|null, params, ranges[]}` ·
 `Highlight{id, start, end (UTF-16), kind, reason}` · `ProfileInfo{fileName, bytes, savedAt, quality: good|thin|empty, understood{competenceCount, competences[], sources[], criteria[], warnings[]}, scoredAt, pending}` ·
 `PortalHealth = ok | paused{until, reason} | quotaReached{until} | layoutSuspect{emptyMails, pages} | loginRequired` ·

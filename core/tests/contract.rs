@@ -123,7 +123,7 @@ fn command_names_agree_everywhere() {
     );
     assert!(capability.get("remote").is_none(), "never remote");
 
-    assert_eq!(names.len(), 21);
+    assert_eq!(names.len(), 25);
     assert_eq!(manifest, names, "build.rs <-> COMMANDS");
     assert_eq!(handler_names(), names, "generate_handler! <-> COMMANDS");
     assert_eq!(allowed, names, "capability <-> COMMANDS");
@@ -216,6 +216,7 @@ fn run_events_serialise_as_the_types_say() {
         "finishedAt",
         "scan",
         "perPortal",
+        "newJobs",
         "score",
         "export",
         "emptyAlerts",
@@ -226,7 +227,17 @@ fn run_events_serialise_as_the_types_say() {
         );
     }
     let ts = read("ui/src/lib/ipc/types/RunSummary.ts");
-    for field in ["perPortal", "emptyAlerts", "finishedAt"] {
+    for field in ["perPortal", "emptyAlerts", "finishedAt", "newJobs"] {
         assert!(ts.contains(field), "RunSummary.ts: {field}");
     }
+    // Every run begins with its kind.
+    let started = serde_json::to_value(RunEvent::Started {
+        kind: RunKindName::Rescore,
+    })
+    .unwrap();
+    assert_eq!(
+        started,
+        serde_json::json!({ "type": "started", "kind": "rescore" })
+    );
+    assert!(read("ui/src/lib/ipc/types/RunEvent.ts").contains("\"type\": \"started\""));
 }

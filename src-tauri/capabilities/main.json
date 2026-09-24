@@ -8,6 +8,7 @@
   "permissions": [
     "allow-app-state",
     "allow-cancel-run",
+    "allow-claude-prompt",
     "allow-clear-txt",
     "allow-job-detail",
     "allow-list-jobs",
@@ -25,6 +26,9 @@
     "allow-save-mailbox",
     "allow-save-profile-template",
     "allow-save-settings",
+    "allow-set-app-status",
+    "allow-set-hidden",
+    "allow-set-note",
     "allow-set-pinned",
     "allow-start-run",
     "core:event:allow-listen",

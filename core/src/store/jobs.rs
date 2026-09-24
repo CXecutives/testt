@@ -12,8 +12,8 @@ use crate::error::{Error, Result};
 use crate::fetch::policy::MAX_FETCH_ATTEMPTS;
 use crate::mail::extract::has_gender_tag;
 use crate::model::{
-    AlertMail, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord, Posting,
-    is_usable_title,
+    AlertMail, AppStatus, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord,
+    Posting, is_usable_title,
 };
 use crate::portal::{Facts, JobKey, Portal};
 use crate::text::{one_line, page_location, split_company_location, truncate_chars};
@@ -65,15 +65,48 @@ pub struct JobRow {
     pub match_rev: Option<String>,
     /// The facts the job page stated (unreadable JSON counts as none).
     pub facts: Option<Facts>,
+    /// Where the user's application stands (`None` = no application).
+    pub app_status: Option<AppStatus>,
+    /// When the application status was set last.
+    pub app_status_at: Option<Timestamp>,
+    /// When the user hid the job ("not interesting"); `None` = listed.
+    pub hidden_at: Option<Timestamp>,
+}
+
+/// Which jobs a page of the list holds. A hidden job is in no list but "Hidden".
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ListFacet {
+    /// The unread jobs, the excluded ones last. Its count leaves the excluded ones out.
+    New,
+    /// Every job.
+    #[default]
+    All,
+    /// The jobs with an application status, the latest change first.
+    Applications,
+    /// The hidden jobs, the latest hidden first.
+    Hidden,
+}
+
+impl ListFacet {
+    /// The condition of the facet on the rows of `base`.
+    const fn condition(self) -> &'static str {
+        match self {
+            ListFacet::New => "hidden_at IS NULL AND read_at IS NULL",
+            ListFacet::All => "hidden_at IS NULL",
+            ListFacet::Applications => "hidden_at IS NULL AND app_status IS NOT NULL",
+            ListFacet::Hidden => "hidden_at IS NOT NULL",
+        }
+    }
 }
 
 /// One page of the job list. The facet only narrows the page; the counts cover the
 /// search, whatever the facet.
 #[derive(Debug, Clone, Default)]
 pub struct PageQuery {
-    /// "New": the unread jobs, excluded ones last. Its count leaves the excluded ones out.
-    pub only_new: bool,
-    /// Best match first; otherwise newest first. Excluded jobs come last either way.
+    pub facet: ListFacet,
+    /// Best match first; otherwise newest first. Excluded jobs come last either way. Only
+    /// for "New" and "All": the applications follow their latest change, the hidden jobs
+    /// the moment they were hidden.
     pub by_match: bool,
     /// Search term in title, company, location and full text (case-insensitive).
     pub search: Option<String>,
@@ -82,7 +115,7 @@ pub struct PageQuery {
 }
 
 /// Column of the first per-portal count in the statement of [`Store::job_page`].
-const PER_PORTAL_AT: usize = 6;
+const PER_PORTAL_AT: usize = 8;
 
 /// Counts that belong to a page of the job list.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -97,6 +130,10 @@ pub struct PageCounts {
     pub no_detail: u32,
     /// Pinned ("Merken").
     pub pinned: u32,
+    /// With an application status.
+    pub applications: u32,
+    /// Hidden - the only count a hidden job is in.
+    pub hidden: u32,
     /// `new` per portal: every portal, in the order of `Portal::ALL`.
     pub new_by_portal: Vec<(Portal, u32)>,
 }
@@ -270,21 +307,28 @@ impl Store {
         let conn = self.conn();
         let pattern = like_pattern(query.search.as_deref());
         // Excluded jobs always come last; "match" puts the best score first (unscored after
-        // scored), "newest" the latest first sighting.
-        let order = |p: &str| {
-            let by_match = if query.by_match {
-                format!("({p}match_score IS NULL), {p}match_score DESC, ")
-            } else {
-                String::new()
-            };
-            format!(
-                "({p}match_status IS 'excluded'), {by_match}{p}first_seen_at DESC, \
-                 {p}portal, {p}job_id"
-            )
+        // scored), "newest" the latest first sighting. Applications follow their latest
+        // change, hidden jobs the moment they were hidden.
+        let order = |p: &str| match query.facet {
+            ListFacet::Applications => format!("{p}app_status_at DESC, {p}portal, {p}job_id"),
+            ListFacet::Hidden => format!("{p}hidden_at DESC, {p}portal, {p}job_id"),
+            ListFacet::New | ListFacet::All => {
+                let by_match = if query.by_match {
+                    format!("({p}match_score IS NULL), {p}match_score DESC, ")
+                } else {
+                    String::new()
+                };
+                format!(
+                    "({p}match_status IS 'excluded'), {by_match}{p}first_seen_at DESC, \
+                     {p}portal, {p}job_id"
+                )
+            }
         };
-        // "New" lists every unread job, the excluded ones last (grey in the list); its count
-        // leaves them out.
-        let new = "read_at IS NULL AND match_status IS NOT 'excluded'";
+        // Every count but "hidden" leaves the hidden jobs out. "New" lists every unread job,
+        // the excluded ones last (grey in the list); its count leaves them out.
+        let shown = "hidden_at IS NULL";
+        let new = "hidden_at IS NULL AND read_at IS NULL AND match_status IS NOT 'excluded'";
+        let facet = query.facet.condition();
         // "New" per portal: one column each, in the order of `Portal::ALL` (the keys are
         // constants of the code, never input).
         let mut per_portal = String::new();
@@ -302,22 +346,25 @@ impl Store {
                  SELECT * FROM job WHERE dup_of IS NULL
                                      AND (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
              ), counts AS (
-                 SELECT COUNT(*) AS n_all,
+                 SELECT COALESCE(SUM({shown}), 0) AS n_all,
                         COALESCE(SUM({new}), 0) AS n_new,
-                        COALESCE(SUM(match_status IS 'excluded'), 0) AS n_excluded,
-                        COALESCE(SUM(match_status IS 'scored' AND match_score >= ?5), 0)
-                            AS n_high,
-                        COALESCE(SUM(desc_status <> 'ok'), 0) AS n_no_detail,
-                        COALESCE(SUM(pinned_at IS NOT NULL), 0) AS n_pinned{per_portal}
+                        COALESCE(SUM({shown} AND match_status IS 'excluded'), 0) AS n_excluded,
+                        COALESCE(SUM({shown} AND match_status IS 'scored'
+                                     AND match_score >= ?4), 0) AS n_high,
+                        COALESCE(SUM({shown} AND desc_status <> 'ok'), 0) AS n_no_detail,
+                        COALESCE(SUM({shown} AND pinned_at IS NOT NULL), 0) AS n_pinned,
+                        COALESCE(SUM({shown} AND app_status IS NOT NULL), 0) AS n_applications,
+                        COALESCE(SUM(hidden_at IS NOT NULL), 0) AS n_hidden{per_portal}
                  FROM base
              ), page AS (
                  SELECT {JOB_COLUMNS} FROM base
-                 WHERE (?2 = 0 OR read_at IS NULL)
+                 WHERE {facet}
                  ORDER BY {}
-                 LIMIT ?3 OFFSET ?4
+                 LIMIT ?2 OFFSET ?3
              )
              SELECT counts.n_all, counts.n_new, counts.n_excluded, counts.n_high,
-                    counts.n_no_detail, counts.n_pinned{per_portal_out}, page.*
+                    counts.n_no_detail, counts.n_pinned, counts.n_applications,
+                    counts.n_hidden{per_portal_out}, page.*
              FROM counts LEFT JOIN page
              ORDER BY {}",
             order(""),
@@ -328,13 +375,7 @@ impl Store {
         let mut stmt = conn.prepare_cached(&sql)?;
         let mut counts = PageCounts::default();
         let mut jobs = Vec::new();
-        let mut rows = stmt.query(params![
-            pattern,
-            query.only_new,
-            query.limit,
-            query.offset,
-            HIGH_FROM
-        ])?;
+        let mut rows = stmt.query(params![pattern, query.limit, query.offset, HIGH_FROM])?;
         while let Some(row) = rows.next()? {
             let mut new_by_portal = Vec::with_capacity(Portal::ALL.len());
             for (i, portal) in Portal::ALL.into_iter().enumerate() {
@@ -347,6 +388,8 @@ impl Store {
                 high: row.get(3)?,
                 no_detail: row.get(4)?,
                 pinned: row.get(5)?,
+                applications: row.get(6)?,
+                hidden: row.get(7)?,
                 new_by_portal,
             };
             if row.get::<_, Option<String>>(first)?.is_some() {
@@ -677,8 +720,8 @@ pub(super) const JOB_COLUMNS: &str = "portal, job_id, url, title, company, locat
     mail_subject, gmail_id, first_seen_at, first_seen_run, desc_status, desc_short, desc_closed,
     COALESCE(LENGTH(desc_text), 0) AS desc_len, desc_fetched_at, desc_attempts, desc_error,
     txt_name, desc_attempted_at, read_at, pinned_at, match_status, match_score, match_note,
-    match_rev, desc_facts";
-pub(super) const JOB_COLUMN_COUNT: usize = 27;
+    match_rev, desc_facts, app_status, app_status_at, hidden_at";
+pub(super) const JOB_COLUMN_COUNT: usize = 30;
 
 /// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
 /// or a teaser (right away, after a failed attempt like a failure, at most
@@ -755,6 +798,12 @@ fn job_row_at(r: &Row<'_>, at: usize) -> rusqlite::Result<Result<JobRow>> {
         facts: r
             .get::<_, Option<String>>(col(26))?
             .and_then(|json| serde_json::from_str(&json).ok()),
+        app_status: r
+            .get::<_, Option<String>>(col(27))?
+            .as_deref()
+            .and_then(AppStatus::parse),
+        app_status_at: r.get::<_, Option<i64>>(col(28))?.and_then(from_db),
+        hidden_at: r.get::<_, Option<i64>>(col(29))?.and_then(from_db),
     }))
 }
 

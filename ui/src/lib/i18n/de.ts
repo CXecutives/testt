@@ -96,6 +96,7 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   mailAddress: 'Die Adresse ist unvollständig.',
   appPassword: 'Ein App-Passwort hat 16 Buchstaben.',
   noSignIn: (p) => `${portalOf(p.portal)} bietet keine Anmeldung.`,
+  noteTooLong: (p) => `Die Notiz ist länger als ${n(num(p.max))} Zeichen.`,
 };
 
 const status: Record<StatusCode, string> = {

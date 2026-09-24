@@ -23,6 +23,14 @@ noDetail: number,
  */
 pinned: number, 
 /**
+ * With an application status.
+ */
+applications: number, 
+/**
+ * Hidden - the only count a hidden job is in.
+ */
+hidden: number, 
+/**
  * `new` per portal: every portal, in the order of `Portal::ALL`.
  */
 newByPortal: Array<PortalNew>, };

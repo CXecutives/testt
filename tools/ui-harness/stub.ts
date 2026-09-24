@@ -208,6 +208,8 @@ function job(
     short: false,
     match: null,
     alsoOn: [],
+    appStatus: null,
+    hidden: false,
     ...extra,
   };
 }
@@ -306,11 +308,26 @@ function sampleJobs(): JobView[] {
       27,
       {
         match: scored(58, ['Konzernberichtswesen'], 2, 4),
+        appStatus: 'interview',
       },
     ),
     job('freelancermap', '2804', 'Interim Treasury Manager', 'Rheinhafen Chemie GmbH', 'Köln', 30, {
       match: scored(47, ['Liquiditätsplanung'], 1, 3),
+      appStatus: 'applied',
     }),
+    // "Not interesting": in no list but the hidden one and in no count but its own.
+    job(
+      'linkedin',
+      '4100200306',
+      'Sachbearbeitung Kreditoren',
+      'Nordhafen Logistik GmbH',
+      'Bremen',
+      40,
+      {
+        match: scored(18, [], 0, 4),
+        hidden: true,
+      },
+    ),
     job(
       'linkedin',
       '4100200304',
@@ -644,7 +661,10 @@ function initial(): void {
   refresh();
 }
 
-/** The counts of store::job_page: "Neu" is unread and not excluded, per portal too. */
+/**
+ * The counts of store::job_page: "Neu" is unread and not excluded, per portal too; a hidden
+ * job is only in "hidden".
+ */
 function countsOf(list: JobView[]): JobCounts {
   const c: JobCounts = {
     new: 0,
@@ -653,9 +673,15 @@ function countsOf(list: JobView[]): JobCounts {
     high: 0,
     noDetail: 0,
     pinned: 0,
+    applications: 0,
+    hidden: 0,
     newByPortal: PORTALS.map((portal) => ({ portal, new: 0 })),
   };
   for (const j of list) {
+    if (j.hidden) {
+      c.hidden += 1;
+      continue;
+    }
     const out = j.match?.status === 'excluded';
     const isNew = j.unread && !out;
     c.all += 1;
@@ -664,10 +690,36 @@ function countsOf(list: JobView[]): JobCounts {
     c.high += j.match?.status === 'scored' && j.match.score >= 80 ? 1 : 0;
     c.noDetail += j.detail.kind !== 'ok' ? 1 : 0;
     c.pinned += j.pinned ? 1 : 0;
+    c.applications += j.appStatus !== null ? 1 : 0;
     const line = c.newByPortal.find((p) => p.portal === j.portal);
     if (line && isNew) line.new += 1;
   }
   return c;
+}
+
+/* ------------------------------------------------------------------- marks */
+
+/** When a job's status was set, its note and when it was hidden (store::marks). */
+const statusAt = new Map<string, string>([
+  ['linkedin:4100200303', at(5)],
+  ['freelancermap:2804', at(20)],
+]);
+const notes = new Map<string, string>([['linkedin:4100200303', 'Zweites Gespräch am Freitag.']]);
+const hiddenAt = new Map<string, string>([['linkedin:4100200306', at(30)]]);
+const markKey = (key: JobKey): string => `${key.portal}:${key.id}`;
+
+/** The list of a facet (store::ListFacet): a hidden job is in "hidden" only. */
+function inFacet(j: JobView, facet: JobQuery['facet']): boolean {
+  switch (facet) {
+    case 'new':
+      return !j.hidden && j.unread;
+    case 'all':
+      return !j.hidden;
+    case 'applications':
+      return !j.hidden && j.appStatus !== null;
+    case 'hidden':
+      return j.hidden;
+  }
 }
 
 function refresh(): void {
@@ -692,8 +744,20 @@ function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
     ? jobs.filter((j) => fold(`${j.title} ${j.company} ${j.location}`).includes(needle))
     : jobs;
   // Neu lists every unread job, excluded ones too (grey behind the divider); only the count
-  // leaves them out (store::job_page).
-  const page = (query.facet === 'new' ? base.filter((j) => j.unread) : [...base]).sort((a, b) => {
+  // leaves them out (store::job_page). Applications follow their latest change, hidden jobs
+  // the moment they were hidden.
+  const latest = (times: Map<string, string>) => (a: JobView, b: JobView) =>
+    (times.get(markKey(b.key)) ?? '').localeCompare(times.get(markKey(a.key)) ?? '') ||
+    a.key.id.localeCompare(b.key.id);
+  const listed = base.filter((j) => inFacet(j, query.facet));
+  if (query.facet === 'applications' || query.facet === 'hidden') {
+    listed.sort(latest(query.facet === 'hidden' ? hiddenAt : statusAt));
+    return {
+      jobs: listed.slice(query.offset, query.offset + Math.min(query.limit, 500)),
+      counts: countsOf(base),
+    };
+  }
+  const page = listed.sort((a, b) => {
     const ex = Number(a.match?.status === 'excluded') - Number(b.match?.status === 'excluded');
     if (ex !== 0) return ex;
     if (query.sort === 'match') {
@@ -848,7 +912,30 @@ function detailOf(j: JobView): JobDetail {
             highlights: ok ? highlights : [],
             criteria,
           },
+    note: notes.get(markKey(j.key)) ?? null,
+    appStatusAt: j.appStatus === null ? null : (statusAt.get(markKey(j.key)) ?? at(0)),
   };
+}
+
+/** A prompt like core's export::claude_prompt: the rubric in short, the profile, the ad. */
+function promptOf(j: JobView): string {
+  const d = detailOf(j);
+  return [
+    'Bitte prüfe gründlich, wie gut diese Stellenanzeige zu meinem Beraterprofil passt.',
+    '',
+    'Mein Profil (JSON, ohne Name und Kontaktdaten)',
+    '```json',
+    JSON.stringify({ kernkompetenzen: PROFILE.understood?.competences ?? [] }, null, 2),
+    '```',
+    '',
+    'Die Anzeige',
+    `Titel: ${j.title}`,
+    `Unternehmen: ${j.company}`,
+    `Ort: ${j.location}`,
+    `Link: ${d.url}`,
+    '',
+    d.text ?? 'Den vollständigen Anzeigentext hat die App noch nicht.',
+  ].join('\n');
 }
 
 /* --------------------------------------------------------------------- runs */
@@ -1248,6 +1335,39 @@ const handlers: Handlers = {
     if (j === undefined || j.pinned === on) return false;
     j.pinned = on;
     return true;
+  },
+  set_app_status: ({ key, status }) => {
+    const j = find(key);
+    if (j === undefined || j.appStatus === status) return false;
+    j.appStatus = status;
+    if (status === null) statusAt.delete(markKey(key));
+    else statusAt.set(markKey(key), new Date(Date.now()).toISOString());
+    refresh();
+    return true;
+  },
+  set_note: ({ key, note }) => {
+    if ([...note].length > 2000) throw fail('invalid', { reason: 'noteTooLong', max: 2000 });
+    const j = find(key);
+    const next = note.trim() === '' ? null : note;
+    if (j === undefined || (notes.get(markKey(key)) ?? null) === next) return false;
+    if (next === null) notes.delete(markKey(key));
+    else notes.set(markKey(key), next);
+    return true;
+  },
+  set_hidden: ({ key, hidden }) => {
+    const j = find(key);
+    if (j === undefined || j.hidden === hidden) return false;
+    j.hidden = hidden;
+    if (hidden) hiddenAt.set(markKey(key), new Date(Date.now()).toISOString());
+    else hiddenAt.delete(markKey(key));
+    refresh();
+    return true;
+  },
+  claude_prompt: ({ key }) => {
+    const j = find(key);
+    if (j === undefined) throw fail('notFound', { what: 'job' });
+    if (state.profile === null) throw fail('notFound', { what: 'profile' });
+    return promptOf(j);
   },
   pick_profile: () => {
     state.profile = PROFILE;

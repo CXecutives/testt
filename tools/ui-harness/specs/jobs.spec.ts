@@ -98,6 +98,15 @@ test('counts equal the list, with and without search', async ({ page }) => {
     .toBe(true);
 });
 
+test('a hidden job is in no list and no count', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await expect(page.getByTestId('excluded-divider')).toBeVisible();
+  await expect(row(page, 'linkedin-4100200306')).toHaveCount(0);
+  const listed = (await rows(page).count()) + (await excludedRows(page).count());
+  expect(listed).toBe(await segmentCount(page, 'Alle'));
+});
+
 test('mark_read only on a real click, and only once', async ({ page }) => {
   await open(page, WIN);
   expect(await calls(page, 'mark_read')).toHaveLength(0);
