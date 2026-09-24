@@ -1,8 +1,8 @@
 <!--
   The calm sidebar (196 px, icons only below 1100 px) on the cream: no surface of its own,
-  the white sheet of the content is the divider. App icon and name live in the title bar
-  (Windows) or the native title bar (macOS), so the sidebar starts with the views: the first
-  sits on the line of the list's search field, each with its icon and the unread count, and
+  the white sheet of the content is the divider. App icon and name live in the native title
+  bar of the OS, so the sidebar starts with the views: the first sits on the line of the
+  list's search field, each with its icon and the unread count, and
   at the foot a quiet run status that opens the run in the Jobs view. The status is said
   once: while the run card is on screen it steps aside. "Abrufen" lives in the list header.
 -->

@@ -55,9 +55,6 @@
   --p-scrim: 30 8% 14%;
   --p-shade-xs: 30 20% 30%;
   --p-shade-pop: 30 20% 20%;
-  /* The close button: a warm red that sits well next to coral (user choice, not #C42B1C). */
-  --p-caption-close: 4 62% 50%;
-  --p-caption-close-press: 4 62% 44%;
 
   /* ---------------------------------------------------------------- surfaces */
   --bg: hsl(var(--p-cream));
@@ -106,17 +103,6 @@
   --selection: hsl(var(--p-coral) / 0.22);
   --scrollbar: hsl(var(--p-ink) / 0.2);
   --scrollbar-hover: hsl(var(--p-ink) / 0.34);
-  /* Caption buttons and title of the Windows title bar, like the native Windows 11 ones in
-     the app's colours: glyphs and title in ink, both fade while the window is inactive;
-     hover ink/.06, pressed ink/.10; close warm red with a white glyph. Colour only. */
-  --caption-glyph-rest: hsl(var(--p-ink) / 0.86);
-  --caption-glyph-hover: hsl(var(--p-ink));
-  --caption-inactive: hsl(var(--p-ink) / 0.42);
-  --caption-hover: hsl(var(--p-ink) / 0.06);
-  --caption-press: hsl(var(--p-ink) / 0.1);
-  --caption-close: hsl(var(--p-caption-close));
-  --caption-close-press: hsl(var(--p-caption-close-press));
-  --caption-close-glyph: hsl(var(--p-white));
 
   /* ------------------------------------------------------------------ status */
   --success: hsl(var(--p-success));
@@ -203,10 +189,6 @@
   --row-height: 86px;
   /* The gutter of the unread dot, left of the ring. */
   --dot-gutter: 12px;
-  /* The Windows title bar: 30 px below the 1 px window frame, like a native Windows 11 window
-     at 100 % (SM_CYCAPTION 23 + SM_CYSIZEFRAME 4 + SM_CXPADDEDBORDER 4 = 31 with the frame;
-     measured on the Command Prompt). */
-  --titlebar-height: 30px;
   --toolbar-height: 56px;
   --list-min: 360px;
   --list-max: 460px;
@@ -226,12 +208,9 @@
   --border-width: 1px;
   --focus-width: 2px;
   --marker-height: 2px;
-  --caption-width: 46px;
-  --brand-mark-xs: 16px;
   --brand-mark-sm: 24px;
   --brand-mark: 28px;
   --brand-mark-lg: 40px;
-  --caption-glyph: 10px;
   --tile-sm: 32px;
   --tile-md: 40px;
   --tile-lg: 56px;
@@ -268,12 +247,7 @@
 
   /* -------------------------------------------------------------- typography */
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  /* The window title in the system font, like every native Windows title bar (9 pt). */
-  --font-window: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
-  --font-window-size: 12px;
-  --leading-window: 16px;
-  /* The Windows system icon font, for the caption glyphs only (WindowControls). */
-  --font-caption: 'Segoe Fluent Icons', 'Segoe MDL2 Assets';
+
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -310,8 +284,7 @@
   --type-2xl: var(--weight-semibold) var(--font-2xl) / var(--leading-2xl) var(--font-sans);
   --type-display: var(--weight-semibold) var(--font-display) / var(--leading-display)
     var(--font-sans);
-  --type-window: var(--weight-regular) var(--font-window-size) / var(--leading-window)
-    var(--font-window);
+
   --leading-none: 1;
   --tracking-normal: 0;
   --tracking-tight: -0.01em;
@@ -347,7 +320,6 @@
   --z-base: 0;
   --z-raised: 1;
   --z-sticky: 10;
-  --z-titlebar: 20;
   --z-overlay: 100;
   --z-dialog: 110;
   --z-tooltip: 120;

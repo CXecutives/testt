@@ -29,6 +29,7 @@ import type {
   VaultKind,
   WorkMode,
 } from '../ipc/types';
+import type { Platform } from '../platform';
 import {
   formatCountdown,
   formatDate,
@@ -685,7 +686,11 @@ export const de = {
     workspace: 'Arbeitsordner',
     workspaceDefault: 'Standard',
     excel: 'Excel-Datei',
-    excelShow: 'Im Ordner zeigen',
+    /** Where the OS shows a file: the Explorer on Windows, the Finder on macOS. */
+    excelShow: {
+      windows: 'Im Explorer zeigen',
+      macos: 'Im Finder zeigen',
+    } satisfies Record<Platform, string>,
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
     txt: 'Textdateien',
     txtCount: (value: number) => count(value, 'Datei', 'Dateien'),

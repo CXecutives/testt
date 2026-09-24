@@ -1,25 +1,5 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "app": {
-    "windows": [
-      {
-        "label": "main",
-        "create": false,
-        "title": "Job-Alert-Monitor",
-        "width": 1360,
-        "height": 900,
-        "minWidth": 780,
-        "minHeight": 560,
-        "center": true,
-        "preventOverflow": true,
-        "visible": false,
-        "theme": "Light",
-        "backgroundColor": "#F8F5F1",
-        "dragDropEnabled": true,
-        "decorations": true
-      }
-    ]
-  },
   "bundle": {
     "active": true,
     "targets": [

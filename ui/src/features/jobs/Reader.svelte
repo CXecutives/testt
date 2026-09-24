@@ -212,7 +212,7 @@
         <ScoreRing
           ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
           size="md"
-          animate
+          animate={keyOf(job.key)}
           testid="reader-ring"
         />
       {/key}

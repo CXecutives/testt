@@ -40,10 +40,6 @@ test('right click, middle click and drag: what the page lets through', async ({ 
       selectstart: fire(view, new Event('selectstart', init)),
       selectstartInField: fire(field, new Event('selectstart', init)),
       dblclick: fire(view, new MouseEvent('dblclick', init)),
-      dblclickTitlebar: fire(
-        document.querySelector('[data-testid="titlebar"]')!,
-        new MouseEvent('dblclick', init),
-      ),
       ctrlWheel: fire(view, new WheelEvent('wheel', { ...init, ctrlKey: true, deltaY: 100 })),
       plainWheel: fire(view, new WheelEvent('wheel', { ...init, deltaY: 100 })),
     };
@@ -64,7 +60,6 @@ test('right click, middle click and drag: what the page lets through', async ({ 
     selectstart: true,
     selectstartInField: false,
     dblclick: true,
-    dblclickTitlebar: false,
     ctrlWheel: true,
     plainWheel: false,
   });
@@ -73,8 +68,8 @@ test('right click, middle click and drag: what the page lets through', async ({ 
 test('controls react to the left button only', async ({ page }) => {
   const focused = (): Promise<string | null> =>
     page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? null);
-  // Real middle and right clicks on a nav entry, a list row, a switch and a caption button:
-  // nothing is pressed, opened or focused.
+  // Real middle and right clicks on a nav entry, a list row and a switch: nothing is pressed,
+  // opened or focused.
   await page.getByTestId('nav-profile').click({ button: 'right' });
   await page.getByTestId('nav-settings').click({ button: 'middle' });
   await expect(page.getByTestId('view-jobs')).toBeVisible();
@@ -84,7 +79,6 @@ test('controls react to the left button only', async ({ page }) => {
   await row.click({ button: 'right' });
   await expect(page.getByTestId('reader')).toHaveCount(0);
   expect(await focused()).toBeNull();
-  await page.getByTestId('window-controls').getByRole('button').nth(1).click({ button: 'middle' });
   await page.getByTestId('nav-settings').click();
   const toggle = page.getByTestId('toggle-auto-fetch');
   await toggle.click({ button: 'right' });
@@ -93,7 +87,6 @@ test('controls react to the left button only', async ({ page }) => {
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   expect(await focused()).not.toBe('toggle-auto-fetch');
   const calls = await page.evaluate(() => window.__harness.calls.map(([name]) => name));
-  expect(calls).not.toContain('window.toggleMaximize');
   expect(calls).not.toContain('save_settings');
   // Over a scroll area the middle click started the autoscroll of the engine (Windows
   // behaviour): the next click only ends it. Then the left button works.

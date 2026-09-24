@@ -15,7 +15,6 @@
   import Toast from '$components/Toast.svelte';
   import Tooltip from '$components/Tooltip.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
-  import WindowControls from '$components/WindowControls.svelte';
   import { tooltip } from '$lib/actions/tooltip';
   import ColourBoard from './ColourBoard.svelte';
   import MotionBoard from './MotionBoard.svelte';
@@ -143,7 +142,6 @@
         label={text.navigation.toast}
         onclick={() => toasts.show(text.navigation.toastText)}
       />
-      <WindowControls />
     </div>
   </Section>
 
@@ -157,7 +155,6 @@
           <IconTile tone="neutral" {size} {monogram} />
         {/each}
         <BrandMark {size} label={text.title} />
-        {#if size === 'sm'}<BrandMark size="xs" label={text.title} />{/if}
       </div>
     {/each}
   </Section>
@@ -288,13 +285,6 @@
   .bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    height: var(--titlebar-height);
-    padding-left: var(--space-16);
-    border: var(--border-width) solid var(--border);
-    border-radius: var(--radius-md);
-    background-color: var(--surface);
-    overflow: hidden;
   }
 
   .empty {

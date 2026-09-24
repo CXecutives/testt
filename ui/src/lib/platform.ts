@@ -1,5 +1,12 @@
-// The one place that decides which OS the UI runs on. Per-OS markup exists only in
-// TitleBar and WindowControls; CSS may key off `:root[data-platform]` for font smoothing.
+// The one place that decides which OS the UI runs on, and the only place that knows how the
+// two differ. Inside the window both are the same app; what differs does so by the
+// convention of the OS (docs/PLAN.md, "Platforms"):
+//   - the window frame is the native one of the OS (nothing of it is drawn here),
+//   - dialog buttons: Windows puts the primary first, macOS last (right),
+//   - scrollbars: slim styled ones on Windows, the native overlay scrollbars on macOS
+//     (base.css keys them off `:root[data-platform]`, like the font smoothing),
+//   - words that name OS things (Explorer / Finder, the password store).
+// Components ask here (`primaryFirst()`, `platform()`), never compare OS names themselves.
 
 export type Platform = 'windows' | 'macos';
 
@@ -24,4 +31,9 @@ export function applyPlatform(): Platform {
 export function platform(): Platform {
   const value = document.documentElement.dataset.platform;
   return isPlatform(value) ? value : 'windows';
+}
+
+/** Dialog buttons: the primary action comes first on Windows, last (right) on macOS. */
+export function primaryFirst(): boolean {
+  return platform() === 'windows';
 }

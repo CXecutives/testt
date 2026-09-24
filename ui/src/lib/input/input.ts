@@ -8,7 +8,7 @@
 // - the middle button scrolls: pressed over a scroll area it starts the autoscroll of the
 //   OS (WebView2 on Windows; macOS has none); anywhere else it does nothing; a middle
 //   click never activates anything (no auxclick), the back/forward buttons do nothing
-// - double-click only in the title bar drag region (the OS maximizes the window there)
+// - a double click does nothing (in text that copies it selects a word, like everywhere)
 // - no dragging of text, links or images
 // - text is selectable only in fields and where a user would copy it (`data-copy`: the ad
 //   text, job title and facts, profile values, paths); Ctrl/Cmd+C copies such a selection
@@ -24,7 +24,6 @@ const FIELD = 'input, textarea, [contenteditable="true"], [contenteditable=""]';
 /** Text a user would copy (selectable, Ctrl/Cmd+C). */
 const COPY = '[data-copy]';
 const DIALOG = 'dialog, [role="dialog"], [role="alertdialog"]';
-const DRAG_REGION = '[data-tauri-drag-region]';
 const FORM = '[data-form-keys]';
 
 const CLIPBOARD_KEYS = new Set(['c', 'v', 'x', 'a', 'z']);
@@ -214,7 +213,7 @@ export function installInput(): void {
   document.addEventListener(
     'dblclick',
     (event) => {
-      if (closest(event.target, DRAG_REGION) === null) event.preventDefault();
+      if (!selectable(event.target)) event.preventDefault();
     },
     capture,
   );

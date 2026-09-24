@@ -23,7 +23,7 @@
         "theme": "Light",
         "backgroundColor": "#F8F5F1",
         "dragDropEnabled": true,
-        "decorations": false
+        "decorations": true
       }
     ],
     "security": {

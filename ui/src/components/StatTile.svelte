@@ -66,7 +66,7 @@
     flex-direction: column;
     gap: var(--space-4);
     min-width: 0;
-    padding: var(--space-12) var(--space-16);
+    padding: var(--space-12);
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
     background-color: var(--surface);

@@ -2,9 +2,10 @@
   The match of a job as a ring: sm 40 (list rows), md 56 (reader), lg 96.
   scored: the ring shows its value (r = 15.9155, circumference 100, no pathLength). It fills
   (360 ms, ease-out) with the number counting along only when that means something: when a
-  score arrives while the ring is on screen (live scoring during a run), or with `animate`
-  (the reader's ring of the job just opened). A list that comes back shows its rings as they
-  are. At most 10 rings fill at the same time, the others are placed at once.
+  score arrives while the ring is on screen (live scoring during a run), or the first time a
+  job is opened (`animate` names the job; once per job and session). A view that comes back
+  shows its rings as they are. At most 10 rings fill at the same time, the others are placed
+  at once.
   excluded: dashed track and a ban icon. unscorable: dashed track and a dash.
   pending: skeleton. none: empty track. A selected row passes a stronger --ring-track.
 -->
@@ -28,6 +29,8 @@
 
   const MAX_ANIMATING = 10;
   let animating = 0;
+  /** Jobs whose ring has filled on opening already (it does not replay). */
+  const filled = new Set<string>();
 </script>
 
 <script lang="ts">
@@ -43,12 +46,12 @@
   interface Props {
     ring: RingState;
     size?: 'sm' | 'md' | 'lg';
-    /** Fill on mount (the reader's ring of the job just opened). */
-    animate?: boolean;
+    /** Fill on mount the first time this job is shown (the reader passes the job's key). */
+    animate?: string | null;
     testid?: string | null;
   }
 
-  let { ring, size = 'sm', animate = false, testid = null }: Props = $props();
+  let { ring, size = 'sm', animate = null, testid = null }: Props = $props();
 
   const number = countUp(0);
   let shown = $state(0);
@@ -83,7 +86,9 @@
     const scored = ring.status === 'scored';
     const value = score;
     untrack(() => {
-      const grow = scored && ((animate && !mounted) || (mounted && !wasScored));
+      const first = !mounted && animate !== null && !filled.has(animate);
+      if (first && scored && animate !== null) filled.add(animate);
+      const grow = scored && (first || (mounted && !wasScored));
       mounted = true;
       wasScored = scored;
       if (!scored || counting) return;

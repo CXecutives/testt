@@ -15,6 +15,7 @@
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget } from '$lib/ipc/types';
+  import { platform } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -261,7 +262,7 @@
             variant="ghost"
             size="sm"
             icon="folder-open"
-            label={de.settings.excelShow}
+            label={de.settings.excelShow[platform()]}
             disabled={!cfg.settings.excelExists}
             disabledReason={de.settings.excelMissing}
             testid="excel-show"

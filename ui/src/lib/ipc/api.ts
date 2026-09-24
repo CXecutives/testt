@@ -13,7 +13,6 @@
 // Types: `Commands` is generated from the Rust command table (types/commands.ts).
 
 import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Commands, ErrorInfo, ErrorKind, RunEvent } from './types';
 
 export type CommandName = keyof Commands;
@@ -115,34 +114,6 @@ export async function invoke<K extends CommandName>(
     throw toIpcError(error);
   }
 }
-
-/** Window functions for the own caption buttons (Windows) and the title bar. */
-export const appWindow = {
-  minimize: (): Promise<void> => getCurrentWindow().minimize(),
-  toggleMaximize: (): Promise<void> => getCurrentWindow().toggleMaximize(),
-  close: (): Promise<void> => getCurrentWindow().close(),
-  startDragging: (): Promise<void> => getCurrentWindow().startDragging(),
-  isMaximized: (): Promise<boolean> => getCurrentWindow().isMaximized(),
-  /** Called with the new maximized state whenever the window is resized. */
-  onMaximizedChange(handler: (maximized: boolean) => void): () => void {
-    let stop: (() => void) | null = null;
-    let cancelled = false;
-    void getCurrentWindow()
-      .onResized(() => {
-        void getCurrentWindow()
-          .isMaximized()
-          .then(handler, () => undefined);
-      })
-      .then((unlisten) => {
-        if (cancelled) unlisten();
-        else stop = unlisten;
-      });
-    return () => {
-      cancelled = true;
-      stop?.();
-    };
-  },
-};
 
 const REPORT_LIMIT = 10;
 const REPORT_WINDOW = 60_000;

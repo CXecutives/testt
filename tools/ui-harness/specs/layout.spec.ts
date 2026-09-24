@@ -30,9 +30,9 @@ for (const size of SIZES) {
             );
           }
         }
-        // Every visible control of the shell lies fully inside the window.
+        // Every visible control of the list header lies fully inside the window.
         const width = document.documentElement.clientWidth;
-        for (const control of document.querySelectorAll('[data-testid="titlebar"] button')) {
+        for (const control of document.querySelectorAll('[data-testid="list-header"] button')) {
           const box = control.getBoundingClientRect();
           if (box.left < 0 || box.right > width + 0.5) {
             out.push(`clipped: ${control.getAttribute('aria-label') ?? control.textContent}`);
@@ -64,8 +64,6 @@ for (const [width, rail] of [
     } else {
       await expect(label).toHaveText('Profil');
     }
-    // The title bar names the app at every width.
-    await expect(page.getByTestId('brand')).toContainText('Job-Alert-Monitor');
   });
 }
 

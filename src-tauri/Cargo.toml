@@ -36,6 +36,8 @@ tokio-util = "0.7"
 
 [target.'cfg(windows)'.dependencies]
 # The same versions as in Tauri (nothing extra to compile): access to the WebView2 settings
-# that Tauri does not pass through (src/platform.rs).
+# that Tauri does not pass through, and the colours of the native title bar (DWM), both in
+# src/platform.rs.
 webview2-com = "0.38"
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
 windows-core = "0.61"

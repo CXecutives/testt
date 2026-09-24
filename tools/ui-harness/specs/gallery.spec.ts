@@ -36,7 +36,7 @@ test('the gallery renders every board and component section', async ({ page }) =
   await expect(page.getByTestId('swatch-text')).toContainText('AA');
 });
 
-test('score rings count up once visible; excluded and unscorable show no number', async ({
+test('score rings show their value; excluded and unscorable show no number', async ({
   page,
 }) => {
   await open(page, '?gallery');

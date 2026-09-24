@@ -171,7 +171,7 @@
 
 <div class="overview" data-testid="day-overview" aria-label={de.overview.label}>
   {#if tiles.length > 0}
-    <div class="tiles" use:cssVars={{ tiles: tiles.length }}>
+    <div class="tiles" class:many={tiles.length > 3} use:cssVars={{ tiles: tiles.length }}>
       {#each tiles as tile (tile.id)}
         <StatTile
           label={tile.label}
@@ -302,16 +302,24 @@
     container-type: inline-size;
   }
 
-  /* One row of tiles, as many columns as tiles; one column only when that would be too
-     narrow for their labels. */
+  /* One row of tiles, as many columns as tiles; four tiles take two rows where one row
+     would cut their labels (the reader column is at most 720 px), and one column only when
+     two would. */
   .tiles {
     display: grid;
     grid-template-columns: repeat(var(--tiles), minmax(0, 1fr));
     gap: var(--space-12);
   }
 
+  @container (width < 720px) {
+    .tiles.many {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
   @container (width < 460px) {
-    .tiles {
+    .tiles,
+    .tiles.many {
       grid-template-columns: 1fr;
     }
   }

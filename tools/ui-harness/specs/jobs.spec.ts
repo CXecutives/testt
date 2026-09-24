@@ -569,3 +569,9 @@ test('baseline: jobs at 780 x 560', async ({ page }) => {
   await open(page, WIN);
   await expectShot(page, 'jobs-narrow');
 });
+
+test('baseline: jobs without a profile', async ({ page }) => {
+  await open(page, `${WIN}&scenario=no-profile`);
+  await expect(page.getByTestId('no-profile')).toBeVisible();
+  await expectShot(page, 'jobs-no-profile');
+});

@@ -1,9 +1,8 @@
 <!--
-  The shell: on Windows the title bar across the full width, below it the sidebar and the
-  white sheet with the three views (macOS: the native title bar above the web content). A
-  view switch is quick: the old view leaves at once and the new one fades in rising 4 px
-  (150 ms). On start the app shows useful content at once: the first-run page while nothing
-  was ever fetched, otherwise the Jobs view with the last results.
+  The shell below the native title bar of the OS: the sidebar and the white sheet with the
+  three views. A view switch is quick: the old view leaves at once and the new one fades in
+  rising 4 px (150 ms). On start the app shows useful content at once: the first-run page
+  while nothing was ever fetched, otherwise the Jobs view with the last results.
 -->
 <script lang="ts">
   import EmptyState from '$components/EmptyState.svelte';
@@ -22,7 +21,6 @@
   import ProfileView from './features/profile/ProfileView.svelte';
   import SettingsView from './features/settings/SettingsView.svelte';
   import Sidebar from './features/shell/Sidebar.svelte';
-  import TitleBar from './features/shell/TitleBar.svelte';
 
   run.install();
   jobs.install();
@@ -32,7 +30,6 @@
 </script>
 
 <div class="shell" data-testid="shell">
-  <TitleBar />
   <div class="body">
     <Sidebar />
     <main class="views">
