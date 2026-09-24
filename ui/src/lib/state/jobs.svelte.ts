@@ -159,6 +159,8 @@ class JobsStore {
   /** First load after the app state: open "Alle" when nothing is new. */
   async start(): Promise<void> {
     const counts = app.state?.counts;
+    // The app state knows the counts already: no zeros while the first page loads.
+    if (counts) this.counts = counts;
     if (counts && counts.new === 0 && counts.all > 0) this.facet = 'all';
     await Promise.all([this.load(), this.loadOverview()]);
   }
