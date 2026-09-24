@@ -88,6 +88,7 @@ mod tests {
             pinned_at: None,
             match_: None,
             match_rev: None,
+            facts: None,
         }
     }
 

@@ -184,6 +184,7 @@ mod tests {
             pinned_at: None,
             match_: record,
             match_rev: None,
+            facts: None,
         }
     }
 
