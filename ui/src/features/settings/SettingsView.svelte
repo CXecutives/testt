@@ -1,6 +1,9 @@
 <!--
   Einstellungen (centred 720): Postfach, Abruf, Portale, Dateien, Wartung - each a card of
-  setting rows. Every action answers where it happened; dialogs only to confirm.
+  setting rows. Every action answers where it happened; dialogs only to confirm, and a
+  confirmed action that fails closes its dialog so the note beside the action can say why.
+  Switches move at once and are their own answer (no toast). The dry run changes nothing,
+  so what it cannot do is locked with that reason instead of failing.
 -->
 <script lang="ts">
   import Badge from '$components/Badge.svelte';
@@ -36,11 +39,18 @@
   let confirmFull = $state(false);
   let confirmReset = $state(false);
   let busy = $state<string | null>(null);
+  /** Only the answer to the latest save may replace the state (quick double flips). */
+  let saves = 0;
+  /** What the dry run cannot do, and why (the backend would refuse it). */
+  const dryRun = $derived(cfg?.dryRun ?? false);
+  const dryRunReason = de.error.text('dryRun', {});
+  const lockedReason = $derived(dryRun ? dryRunReason : de.settings.running);
 
   async function act(
     name: string,
     note: (f: Feedback) => void,
     work: () => Promise<Feedback>,
+    close: (() => void) | null = null,
   ): Promise<void> {
     busy = name;
     note(null);
@@ -50,6 +60,7 @@
       note({ tone: 'danger', text: errorText(error) });
     } finally {
       busy = null;
+      close?.();
     }
   }
 
@@ -65,18 +76,32 @@
   const setCare = (f: Feedback): void => void (careNote = f);
 
   function removeMailbox(): void {
-    void act('mailbox', setMailbox, async () => {
-      await invoke('remove_mailbox');
-      confirmRemove = false;
-      await app.load();
-      return null;
-    });
+    void act(
+      'mailbox',
+      setMailbox,
+      async () => {
+        await invoke('remove_mailbox');
+        await app.load();
+        return null;
+      },
+      () => (confirmRemove = false),
+    );
   }
 
+  /** The switch moves at once; a failure puts it back (reload) and says why below it. */
   function autoFetch(on: boolean): void {
+    const save = ++saves;
+    if (app.state) app.state.autoFetchOnStart = on;
     void act('fetch', setFetch, async () => {
-      app.set(await invoke('save_settings', { patch: { portals: [], autoFetchOnStart: on } }));
-      toasts.show(de.toast.saved);
+      try {
+        const next = await invoke('save_settings', {
+          patch: { portals: [], autoFetchOnStart: on },
+        });
+        if (save === saves) app.set(next);
+      } catch (error) {
+        void app.load();
+        throw error;
+      }
       return null;
     });
   }
@@ -103,16 +128,20 @@
   }
 
   function clear(): void {
-    void act('clear', setFiles, async () => {
-      const result = await invoke('clear_txt');
-      confirmClear = false;
-      await app.load();
-      if (result.failed.length > 0) {
-        return { tone: 'warning', text: de.settings.txtFailed(result.failed.length) };
-      }
-      toasts.show(de.settings.txtCleared(result.removed));
-      return null;
-    });
+    void act(
+      'clear',
+      setFiles,
+      async () => {
+        const result = await invoke('clear_txt');
+        await app.load();
+        if (result.failed.length > 0) {
+          return { tone: 'warning', text: de.settings.txtFailed(result.failed.length) };
+        }
+        toasts.show(de.settings.txtCleared(result.removed));
+        return null;
+      },
+      () => (confirmClear = false),
+    );
   }
 
   function readAll(): void {
@@ -123,11 +152,17 @@
     });
   }
 
+  /** On success the app restarts empty; a failure closes the dialog and says why here. */
   function reset(): void {
-    void act('reset', setCare, async () => {
-      await invoke('reset_all');
-      return null;
-    });
+    void act(
+      'reset',
+      setCare,
+      async () => {
+        await invoke('reset_all');
+        return null;
+      },
+      () => (confirmReset = false),
+    );
   }
 
   async function copyPath(path: string): Promise<void> {
@@ -173,6 +208,8 @@
                 variant="secondary"
                 size="sm"
                 label={de.common.change}
+                disabled={dryRun}
+                disabledReason={dryRunReason}
                 testid="mailbox-change"
                 onclick={() => (editing = true)}
               />
@@ -181,8 +218,8 @@
                 size="sm"
                 icon="trash-2"
                 label={de.common.remove}
-                disabled={run.active}
-                disabledReason={de.settings.running}
+                disabled={run.active || dryRun}
+                disabledReason={lockedReason}
                 testid="mailbox-remove"
                 onclick={() => (confirmRemove = true)}
               />
@@ -277,8 +314,8 @@
               icon="refresh-cw"
               label={de.settings.txtRewrite}
               loading={busy === 'rewrite'}
-              disabled={run.active}
-              disabledReason={de.settings.running}
+              disabled={run.active || dryRun}
+              disabledReason={lockedReason}
               testid="txt-rewrite"
               onclick={rewrite}
             />
@@ -287,8 +324,8 @@
               size="sm"
               icon="trash-2"
               label={de.settings.txtClear}
-              disabled={cfg.settings.txtFiles === 0}
-              disabledReason={de.settings.txtNone}
+              disabled={cfg.settings.txtFiles === 0 || dryRun}
+              disabledReason={dryRun ? dryRunReason : de.settings.txtNone}
               testid="txt-clear"
               onclick={() => (confirmClear = true)}
             />
@@ -306,7 +343,7 @@
             tone={cfg.resetReport.failed > 0 ? 'warning' : 'success'}
             variant="inline"
             text={cfg.resetReport.failed > 0
-              ? `${de.settings.resetDone} ${de.settings.resetFailed(cfg.resetReport.failed)}`
+              ? de.settings.resetPartly(cfg.resetReport.failed)
               : de.settings.resetDone}
             testid="reset-report"
           />
@@ -347,8 +384,8 @@
             size="sm"
             icon="rotate-ccw"
             label={de.settings.resetAction}
-            disabled={run.active}
-            disabledReason={de.settings.running}
+            disabled={run.active || dryRun}
+            disabledReason={lockedReason}
             testid="reset"
             onclick={() => (confirmReset = true)}
           />

@@ -1,9 +1,11 @@
 <!--
   First run (full page) on the white sheet: the app mark, one sentence of what the app
   does, one about privacy, and three real steps that tick themselves: connect the mailbox,
-  choose a profile (or save a template first), fetch. The next open step carries the one
-  primary button; "Abrufen" stays locked with its reason until a mailbox is connected.
-  Compact enough that the third step is in view at 1280 x 720; the sidebar is inert here.
+  a usable profile (created in the Profil view with its editor, or an existing file chosen
+  here), fetch. The next open step carries the one primary button; "Abrufen" stays locked
+  with its reason until a mailbox is connected. After "Alles zurücksetzen" the app starts
+  here again, so this is where the reset reports. Compact enough that the third step is in
+  view at 1280 x 720; the sidebar is inert here (the Profil view frees it again).
 -->
 <script lang="ts">
   import BrandMark from '$components/BrandMark.svelte';
@@ -15,14 +17,25 @@
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import { app } from '$lib/state/app.svelte';
+  import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
-  import { toasts } from '$lib/state/toasts.svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
 
   const mailboxDone = $derived(app.hasMailbox);
-  const profileDone = $derived(app.state?.profile != null);
+  /** Only a profile the engine can use counts; a broken or empty one keeps step 2 open. */
+  const profileDone = $derived(app.hasProfile);
+  const profile = $derived(app.state?.profile ?? null);
+  /** Why an existing profile does not count yet (null: there is none, or it is fine). */
+  const profileProblem = $derived(
+    profile === null || profileDone
+      ? null
+      : profile.parseError
+        ? de.profile.parseError
+        : de.profile.qualityText.empty,
+  );
   /** The step whose action is the primary one. */
   const current = $derived(!mailboxDone ? 1 : !profileDone ? 2 : 3);
+  const reset = $derived(app.state?.resetReport ?? null);
   let profileNote = $state<{ tone: 'danger'; text: string } | null>(null);
   let busy = $state(false);
 
@@ -35,17 +48,6 @@
       profileNote = { tone: 'danger', text: errorText(error) };
     } finally {
       busy = false;
-    }
-  }
-
-  async function template(): Promise<void> {
-    profileNote = null;
-    try {
-      if ((await invoke('save_profile_template')) !== null) {
-        toasts.show(de.profile.templateSaved);
-      }
-    } catch (error) {
-      profileNote = { tone: 'danger', text: errorText(error) };
     }
   }
 </script>
@@ -64,6 +66,14 @@
       <p class="benefit">{de.firstRun.benefit}</p>
       <p class="privacy"><Icon name="shield" size="sm" />{de.firstRun.privacy}</p>
     </header>
+
+    {#if reset}
+      <Notice
+        tone={reset.failed > 0 ? 'warning' : 'success'}
+        text={reset.failed > 0 ? de.settings.resetPartly(reset.failed) : de.settings.resetDone}
+        testid="first-reset-report"
+      />
+    {/if}
 
     <Card padding="md">
       <ol class="steps" aria-label={de.firstRun.steps}>
@@ -84,24 +94,33 @@
           <div class="body">
             <h2 class="name">{de.firstRun.profile}</h2>
             {#if profileDone}
-              <p class="done-text">{app.state?.profile?.fileName}</p>
+              <p class="done-text">{profile?.fileName}</p>
             {:else}
-              <p class="hint">{de.firstRun.profileOr}</p>
+              {#if profileProblem}
+                <Notice
+                  tone="warning"
+                  variant="inline"
+                  text={profileProblem}
+                  testid="first-profile-problem"
+                />
+              {:else}
+                <p class="hint">{de.profile.noneText}</p>
+              {/if}
               <div class="actions">
                 <Button
                   variant={current === 2 ? 'primary' : 'secondary'}
+                  icon="user-round"
+                  label={profile ? de.firstRun.openProfile : de.firstRun.createProfile}
+                  testid="first-open-profile"
+                  onclick={() => navigation.go('profile')}
+                />
+                <Button
+                  variant="ghost"
                   icon="file-up"
                   label={de.profile.pick}
                   loading={busy}
                   testid="first-pick-profile"
                   onclick={() => void pick()}
-                />
-                <Button
-                  variant="ghost"
-                  icon="download"
-                  label={de.profile.template}
-                  testid="first-template"
-                  onclick={() => void template()}
                 />
               </div>
               {#if profileNote}

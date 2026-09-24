@@ -1,7 +1,8 @@
 <!--
   Connect a Gmail mailbox: address and app password, Enter saves, Esc cancels. Errors land
   at the field they belong to; the password never leaves this form except to save_mailbox
-  (it goes straight into the OS keychain).
+  (it goes straight into the OS keychain). Save and cancel follow the OS like the dialogs:
+  save first on Windows, cancel first (save last) on macOS; the row stays left-aligned.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -12,6 +13,7 @@
   import { errorText } from '$lib/i18n/texts';
   import { formKeys } from '$lib/input/input';
   import { invoke, IpcError } from '$lib/ipc/api';
+  import { primaryFirst } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
 
@@ -28,6 +30,7 @@
   let { saveLabel, oncancel = null, onsaved = null }: Props = $props();
 
   const id = $props.id();
+  const saveFirst = primaryFirst();
   let user = $state(app.state?.mailbox.user ?? '');
   let password = $state('');
   let busy = $state(false);
@@ -115,6 +118,18 @@
     <Notice tone="danger" variant="inline" text={formError} testid="mailbox-error" />
   {/if}
   <div class="actions">
+    {#snippet dismiss()}
+      {#if oncancel}
+        <Button
+          variant="secondary"
+          label={de.common.cancel}
+          disabled={busy}
+          testid="mailbox-cancel"
+          onclick={() => oncancel?.()}
+        />
+      {/if}
+    {/snippet}
+    {#if !saveFirst}{@render dismiss()}{/if}
     <Button
       variant="primary"
       label={saveLabel}
@@ -122,9 +137,7 @@
       testid="mailbox-save"
       onclick={() => void save()}
     />
-    {#if oncancel}
-      <Button variant="secondary" label={de.common.cancel} onclick={() => oncancel?.()} />
-    {/if}
+    {#if saveFirst}{@render dismiss()}{/if}
   </div>
 </div>
 
