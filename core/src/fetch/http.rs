@@ -1,9 +1,11 @@
-//! HTTP-Abruf für LinkedIn (Gastansicht) und freelancermap – ohne Konto, ohne Fenster.
+//! HTTP fetching for LinkedIn (guest view) and freelancermap - no account, no window.
 //!
-//! Der Client sieht aus wie der installierte Edge: dessen User-Agent, `Accept` und
-//! `Accept-Language` wie gemessen, `Accept-Encoding` setzt reqwest selbst. Keine erfundenen
-//! Header, keine Rotation. Cookies leben nur für einen Lauf (neuer Client je Lauf) – eine
-//! LinkedIn-Anmeldung kann darin strukturell nie vorkommen.
+//! The client looks like a current browser of the OS the app runs on: the user agent is a
+//! plain parameter of [`HttpFetcher::new`], injected by the app (`src-tauri/src/platform.rs`
+//! keeps one maintained value per OS); `Accept` and `Accept-Language` as measured,
+//! `Accept-Encoding` is set by reqwest itself. No invented headers, no rotation. Cookies
+//! live for one run only (new client per run) - a LinkedIn sign-in can structurally never
+//! occur in it.
 
 use std::time::Duration;
 
@@ -15,29 +17,9 @@ use url::Url;
 use super::{PageFetcher, PageOutcome, Route, freelancermap, judge, linkedin};
 use crate::portal::{JobLink, Portal, fetch_url};
 
-/// Edge-Hauptversion, falls die installierte WebView2-Version unbekannt ist.
-const FALLBACK_EDGE_MAJOR: &str = "153";
 const TIMEOUT: Duration = Duration::from_secs(30);
 /// Größer ist keine Anzeige – dann stimmt etwas nicht.
 const MAX_BODY: usize = 5 * 1024 * 1024;
-
-/// User-Agent des installierten Edge (WebView2-Version, z. B. „153.0.3405.86“). Wie Edge
-/// selbst nennt er nur die Hauptversion („User-Agent Reduction“).
-pub fn edge_user_agent(webview_version: Option<&str>) -> String {
-    // Nur plausible Versionen übernehmen: WebView2-Hauptversionen sind dreistellig. Was
-    // sonst kommt (leer, Buchstaben, eine ganz andere Engine), ergäbe eine Kennung, die es
-    // nirgends gibt – genau darauf reagiert Bot-Erkennung.
-    let major = webview_version
-        .and_then(|v| v.split('.').next())
-        .filter(|m| {
-            m.bytes().all(|b| b.is_ascii_digit()) && (100..=999).contains(&m.parse().unwrap_or(0))
-        })
-        .unwrap_or(FALLBACK_EDGE_MAJOR);
-    format!(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) \
-         Chrome/{major}.0.0.0 Safari/537.36 Edg/{major}.0.0.0"
-    )
-}
 
 pub struct HttpFetcher {
     linkedin: Client,
@@ -48,6 +30,7 @@ pub struct HttpFetcher {
 }
 
 impl HttpFetcher {
+    /// `user_agent` is sent unchanged with every request (see the module docs).
     pub fn new(user_agent: &str) -> Result<HttpFetcher, reqwest::Error> {
         let (linkedin, freelancermap) = Self::clients(user_agent)?;
         Ok(HttpFetcher {
@@ -322,16 +305,6 @@ mod tests {
 
     use super::*;
     use crate::portal::job_link;
-
-    #[test]
-    fn user_agent_follows_the_installed_edge() {
-        assert_eq!(
-            edge_user_agent(Some("140.0.3485.54")),
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0"
-        );
-        assert!(edge_user_agent(None).contains("Edg/153.0.0.0"));
-        assert!(edge_user_agent(Some("kaputt")).contains("Edg/153.0.0.0"));
-    }
 
     #[test]
     fn redirects_of_the_guest_view() {
