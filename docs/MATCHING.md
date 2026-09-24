@@ -148,3 +148,24 @@ expected checks raised, no `mustOpen` item met.
 | K40 | 15-45 | 50 | 29 | 80-100 | 52 | 92 | - / countryUnclear, startVague |
 
 Private gold set (real ads, blind grades 0-3, NDCG@10, P@5, Spearman, high-band precision, bootstrap): pending (phase 5).
+
+## In the app
+
+`pipeline::LocalMatcher` wraps one compiled profile; revision `e{ENGINE_VERSION}:{fingerprint}` (a stored
+score of another revision is stale). The profile is compiled once and kept until its file changes
+(`src-tauri/src/commands/scoring.rs`); an empty profile or a parse error means no matcher, so nothing is
+scored and nothing is pending. Jobs without text are judged from title and location (usually
+`unscorable`, a clear location can exclude).
+
+| Output | Content |
+|---|---|
+| List (`JobMatch`, stored) | status, score, `mustMet`/`mustTotal`, `top` (<= 2 met musts, then nice), `note`: first violation code (excluded), `shortText` (unscorable), else first check code; params flattened to scalars (lists joined with `, `) |
+| Reader (`MatchDetail`, recomputed) | reasons `r{id}` (<= 40: violations, checks, musts, nice, info), highlights `h{id}` of kept reasons (<= 200, UTF-16), `summary` = `{code: "summary", params: mustMet, mustPartial, mustOpen, mustTotal, niceMet, niceTotal, evidence}`, criteria strip `c:{key}` for every criterion the profile sets (kind met/check/violation, profile values + `reason` id + its ranges) |
+| Profile (`ProfileInfo`) | quality, understood (competences, source path patterns, criteria `{code, params.set, ...}`, warnings), `scoredAt`, `pending` |
+| `auswertung/top_matches.json` | for the matching skill (optional stage 2): `{schema, generatedAt, rev, jobs[<=10]{key, title, company, location, portal, url, score, band, mustMet, mustTotal, met, partial, open, checks, txtFile}}`, scored jobs of the last mailbox run, best first |
+
+Rust starts a `rescore` run by itself (rules in `pipeline::rescore`): after choosing or removing the
+profile or another workspace with another profile (no usable profile: scores are cleared first), at the
+first page load when jobs are pending (new profile, engine update), and once after the current run when
+the profile changed during it. Never without jobs (the first-run state stays), never while closing.
+The reader saves a fresh score of a stale job only while no run is active.

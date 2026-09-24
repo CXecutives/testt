@@ -13,7 +13,7 @@ use crate::error::Result;
 use crate::model::{MatchRecord, MatchStatus, Notice};
 use crate::portal::JobKey;
 use crate::text::truncate_chars;
-use crate::time::to_db;
+use crate::time::{from_db, to_db};
 
 /// The nullable columns schema 3 adds to the `job` table, as `(name, sql_type)` pairs.
 /// Timestamps are Unix seconds, like every other time column.
@@ -203,6 +203,46 @@ impl Store {
         )?)
     }
 
+    /// Forgets every match (the profile is gone); the number of jobs that had one.
+    pub fn clear_matches(&self) -> Result<usize> {
+        self.write(|conn| {
+            let cleared = conn.execute(
+                "UPDATE job SET match_score = NULL, match_status = NULL, match_note = NULL,
+                                match_at = NULL, match_rev = NULL
+                 WHERE match_status IS NOT NULL OR match_rev IS NOT NULL",
+                [],
+            )?;
+            if cleared > 0 {
+                bump(conn)?;
+            }
+            Ok(cleared)
+        })
+    }
+
+    /// When a job was scored last (with whatever revision).
+    pub fn match_at(&self, key: &JobKey) -> Result<Option<Timestamp>> {
+        let at: Option<i64> = self
+            .conn()
+            .query_row(
+                "SELECT match_at FROM job WHERE portal = ?1 AND job_id = ?2",
+                params![key.portal.key(), key.id],
+                |r| r.get(0),
+            )
+            .optional()?
+            .flatten();
+        Ok(at.and_then(from_db))
+    }
+
+    /// When the last job was scored with `rev`; `None` if none was.
+    pub fn scored_at(&self, rev: &str) -> Result<Option<Timestamp>> {
+        let at: Option<i64> = self.conn().query_row(
+            "SELECT MAX(match_at) FROM job WHERE match_rev = ?1",
+            [rev],
+            |r| r.get(0),
+        )?;
+        Ok(at.and_then(from_db))
+    }
+
     /// The best scored (not excluded) jobs first seen in `run`.
     pub fn top_matches(&self, run: i64, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
@@ -334,5 +374,30 @@ mod tests {
         assert_eq!(store.match_rev(&key).unwrap(), None);
         assert_eq!(store.unscored("r1", 10, 0).unwrap().len(), 1);
         assert!(store.unscored("r1", 10, 1).unwrap().is_empty());
+    }
+
+    #[test]
+    fn match_times_and_clearing() {
+        let (store, key) = store_with_job();
+        assert_eq!(store.scored_at("r1").unwrap(), None);
+        assert_eq!(store.match_at(&key).unwrap(), None);
+        store
+            .save_matches(
+                &[(key.clone(), record(MatchStatus::Scored, 70))],
+                "r1",
+                now(),
+            )
+            .unwrap();
+        let at = store.match_at(&key).unwrap().unwrap();
+        assert_eq!(at.as_second(), now().as_second());
+        assert_eq!(store.scored_at("r1").unwrap(), Some(at));
+        assert_eq!(store.scored_at("r2").unwrap(), None);
+        let rev = store.data_rev().unwrap();
+        assert_eq!(store.clear_matches().unwrap(), 1);
+        assert!(store.data_rev().unwrap() > rev, "the export changes");
+        let job = store.job(&key).unwrap().unwrap();
+        assert!(job.match_.is_none() && job.match_rev.is_none());
+        assert_eq!(store.match_at(&key).unwrap(), None);
+        assert_eq!(store.clear_matches().unwrap(), 0, "nothing left");
     }
 }

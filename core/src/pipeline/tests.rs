@@ -127,8 +127,8 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     assert_eq!((fl.new, fl.fetched, fl.skipped), (1, 0, 1));
     assert_eq!(fl.stopped, Some(health));
     assert!(s.empty_alerts.is_empty());
-    // The demo matcher: scored at the details (high, mid, low, excluded), the job without
-    // details in the catch-up.
+    // The real engine with the sample profile: scored at the details (high, mid, low,
+    // excluded), the job without details in the catch-up.
     assert_eq!(
         s.score,
         Some(ScoreSummary {
@@ -136,13 +136,13 @@ async fn one_click_run_writes_everything_and_finishes_once() {
             excluded: 1,
             unscorable: 1,
             pending: 0,
-            best: Some(88)
+            best: Some(100)
         })
     );
     assert!(
         events.iter().any(|e| matches!(
             e,
-            RunEvent::JobUpdated { job } if job.match_.as_ref().is_some_and(|m| m.score == 88)
+            RunEvent::JobUpdated { job } if job.match_.as_ref().is_some_and(|m| m.score == 100)
         )),
         "the ring appears with the details"
     );
@@ -161,7 +161,7 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     // The HTML overview: the new scored jobs of this run, the excluded one not.
     let html = std::fs::read_to_string(export.overview_html.as_ref().unwrap()).unwrap();
     assert!(html.contains("Interim CFO") && !html.contains("Projektleiter S/4HANA"));
-    assert!(!html.contains("Beispieltext"), "never the full text");
+    assert!(!html.contains("Beispielanzeige"), "never the full text");
     assert_eq!(txt_files(dir.path()), 4);
     assert_eq!(finished(&events), 1);
     assert_small(&events);
@@ -1075,4 +1075,69 @@ fn run_requests_are_flat_json() {
         assert_eq!(serde_json::to_string(&request).unwrap(), json);
     }
     assert!(serde_json::from_str::<RunRequest>(r#"{"kind":"scan"}"#).is_err());
+}
+
+/// `top_matches.json` for the matching skill: the scored jobs of the mailbox run, best
+/// first, with met and open requirements, checks and the text file - excluded ones not.
+#[tokio::test(start_paused = true)]
+async fn the_skill_gets_the_top_matches() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let (s, _) = go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.outcome, Outcome::Completed);
+    let path = dir.path().join(RESULT_DIR).join(export::TOP_MATCHES_NAME);
+    let file: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(file["schema"], 1);
+    assert_eq!(file["rev"], demo::matcher().rev());
+    let jobs = file["jobs"].as_array().unwrap();
+    let titles: Vec<&str> = jobs.iter().map(|j| j["title"].as_str().unwrap()).collect();
+    assert_eq!(
+        titles,
+        [
+            "Interim CFO (m/w/d)",
+            "Leiter Controlling (m/w/d)",
+            "SAP FI/CO Berater (m/w/d)"
+        ],
+        "scored only, best first"
+    );
+    let best = &jobs[0];
+    assert_eq!(
+        (best["score"].as_u64(), best["band"].as_str()),
+        (Some(100), Some("high"))
+    );
+    assert_eq!(best["key"], "linkedin:4999000001");
+    assert!(
+        std::path::Path::new(best["txtFile"].as_str().unwrap())
+            .extension()
+            .is_some_and(|e| e == "txt")
+    );
+    let mid = &jobs[1];
+    assert!(!mid["met"].as_array().unwrap().is_empty());
+    assert!(
+        mid["open"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|o| o == "Staplerschein"),
+        "{mid}"
+    );
+    assert_eq!(mid["mustTotal"], 7);
+    assert!(mid["checks"].is_array() && best["url"].as_str().unwrap().starts_with("https://"));
+    // Without a profile the file stays, with no jobs.
+    write_top_matches(&store, dir.path(), None, c());
+    store.clear_matches().unwrap();
+    write_top_matches(&store, dir.path(), None, c());
+    let file: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(file["jobs"].as_array().unwrap().len(), 0);
+    assert_eq!(file["rev"], serde_json::Value::Null);
+    assert!(export::app_files(&dir.path().join(RESULT_DIR), &[]).contains(&path));
 }

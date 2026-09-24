@@ -17,8 +17,8 @@ use jobalert_core::fetch::http::HttpFetcher;
 use jobalert_core::fetch::policy::Policy;
 use jobalert_core::mail::imap::{Credentials, Gmail, MailError};
 use jobalert_core::pipeline::{
-    self, Backends, Outcome, RunContext, RunEvent, RunKind, RunKindName, RunRequest, RunSnapshot,
-    RunSummary, demo::DemoBackends,
+    self, Backends, Matcher, Outcome, RunContext, RunEvent, RunKind, RunKindName, RunRequest,
+    RunSnapshot, RunSummary, demo::DemoBackends,
 };
 use jobalert_core::portal::Portal;
 use jobalert_core::secrets::Vault;
@@ -123,6 +123,8 @@ struct AppBackends {
     app: AppHandle,
     data_dir: PathBuf,
     notify: Notify,
+    /// The engine with the profile as it was when the run started.
+    matcher: Option<Arc<dyn Matcher>>,
 }
 
 impl Backends for AppBackends {
@@ -141,6 +143,10 @@ impl Backends for AppBackends {
             http: HttpFetcher::new(&self.user_agent).map_err(|e| e.to_string())?,
             session: Sessions::new(self.app.clone(), self.data_dir.clone(), self.notify.clone()),
         })
+    }
+
+    fn matcher(&self) -> Option<Arc<dyn Matcher>> {
+        self.matcher.clone()
     }
 }
 
@@ -205,10 +211,14 @@ pub(super) fn launch(
         let app = app.clone();
         let mine = mine.clone();
         move |event: RunEvent| {
-            if matches!(event, RunEvent::Finished { .. }) {
+            let finished = matches!(event, RunEvent::Finished { .. });
+            if finished {
                 release_run(&app.state::<AppState>(), &mine);
             }
             send(event);
+            if finished {
+                super::scoring::after_run(&app);
+            }
         }
     };
     let finish = emitter(handle.sink.clone(), handle.snapshot.clone());
@@ -240,6 +250,7 @@ pub(super) fn launch(
             app: app.clone(),
             data_dir: state.data_dir.clone(),
             notify,
+            matcher: state.matcher().map(|m| m as Arc<dyn Matcher>),
         };
         tauri::async_runtime::spawn(drive(backends, store, policy, request, ctx, cancel, emit))
     };

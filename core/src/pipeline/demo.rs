@@ -1,20 +1,35 @@
 //! Dry run: a mailbox and portals to look at - without network, without an account. The run
 //! behaves like a real one (pace, events, summary) but writes nothing: database and safety
-//! state then only live in memory. The sample mails are German like real alert mails.
+//! state then only live in memory. The sample mails and ads are German like real ones; the
+//! jobs are scored by the real engine against the invented sample profile of the matching
+//! corpus, so the list shows real rings (high, mid, low, excluded and one without details).
 
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 use jiff::civil::Date;
 use tokio_util::sync::CancellationToken;
 
-use super::{Backends, Matcher};
+use super::{Backends, LocalMatcher, Matcher};
 use crate::fetch::{PageFetcher, PageOutcome, Route};
 use crate::mail::RawMail;
 use crate::mail::imap::{MailError, MailSource};
-use crate::model::{MatchRecord, MatchStatus, Notice};
 use crate::portal::{JobLink, Portal};
-use crate::store::JobRow;
+
+/// The profile of the dry run: the invented interim finance profile of the matching corpus.
+pub const PROFILE_JSON: &str = include_str!("../../tests/fixtures/matching/sample_profile.json");
+/// File name the dry run shows for it (a name, German like the profile keys).
+pub const PROFILE_NAME: &str = "beispielprofil.json";
+
+static MATCHER: LazyLock<Arc<LocalMatcher>> = LazyLock::new(|| {
+    let value = serde_json::from_str(PROFILE_JSON).unwrap_or_default();
+    Arc::new(LocalMatcher::from_json(&value))
+});
+
+/// The engine with the sample profile.
+pub fn matcher() -> Arc<LocalMatcher> {
+    MATCHER.clone()
+}
 
 /// Sample alerts per portal (invented companies).
 const MAILS: [(Portal, &str, &str, &str); 3] = [
@@ -59,44 +74,7 @@ impl Backends for DemoBackends {
     }
 
     fn matcher(&self) -> Option<Arc<dyn Matcher>> {
-        Some(Arc::new(DemoMatcher))
-    }
-}
-
-/// Scores to look at: one job of each band, one excluded, one without a judgement basis.
-pub struct DemoMatcher;
-
-impl Matcher for DemoMatcher {
-    fn rev(&self) -> &'static str {
-        "demo"
-    }
-
-    fn assess(&self, job: &JobRow, _text: Option<&str>) -> Option<MatchRecord> {
-        let (status, score, note) = match job.key.id.as_str() {
-            "4999000001" => (MatchStatus::Scored, 88, None),
-            "4999000002" => (MatchStatus::Scored, 62, None),
-            "2999001" => (MatchStatus::Scored, 24, None),
-            "2999002" => (
-                MatchStatus::Excluded,
-                71,
-                Some(Notice {
-                    code: "hardCriterion".into(),
-                    params: serde_json::Map::from_iter([("criterion".into(), "dayRate".into())]),
-                }),
-            ),
-            _ => (MatchStatus::Unscorable, 0, None),
-        };
-        Some(MatchRecord {
-            status,
-            score,
-            note,
-            must_met: 2,
-            must_total: 3,
-            top: vec![
-                "Projektleitung".into(),
-                "Abstimmung mit Fachbereichen".into(),
-            ],
-        })
+        Some(matcher())
     }
 }
 
@@ -155,10 +133,7 @@ impl PageFetcher for DemoPages {
             return PageOutcome::Throttled("dry run sample: too many requests".into());
         }
         PageOutcome::Text {
-            text: format!(
-                "Beispieltext (Trockenlauf) für {}.\n\nAufgaben:\n- Projektleitung\n- Abstimmung mit Fachbereichen\n\nProfil:\n- mehrjährige Erfahrung\n- sehr gute Deutschkenntnisse",
-                link.key
-            ),
+            text: ad(&link.key.id).to_owned(),
             short: false,
             closed: false,
             fields: None,
@@ -166,10 +141,133 @@ impl PageFetcher for DemoPages {
     }
 }
 
+/// The sample ad of a job: one fits the profile well, one partly, one hardly, one breaks a
+/// hard criterion (day rate below the minimum).
+fn ad(id: &str) -> &'static str {
+    match id {
+        "4999000001" => AD_HIGH,
+        "4999000002" => AD_MID,
+        "2999002" => AD_EXCLUDED,
+        _ => AD_LOW,
+    }
+}
+
+const AD_HIGH: &str = "Beispielanzeige (Trockenlauf)
+
+Für die Nordlicht AG suchen wir ab sofort einen Interim CFO (m/w/d) für neun Monate.
+
+Aufgaben:
+- Leitung von Controlling und Konzernrechnungslegung nach IFRS
+- Monatsabschlüsse und Jahresabschlüsse im Konzern
+- Budgetierung, Forecast und Liquiditätsplanung
+- Begleitung der Restrukturierung
+
+Anforderungen:
+- Mehrjährige Erfahrung im Interim Management
+- Fundierte Kenntnisse in Konsolidierung und IFRS
+- Erfahrung mit SAP S/4HANA
+- Sehr gute Deutschkenntnisse und gute Englischkenntnisse
+
+Rahmenbedingungen:
+- Tagessatz 1.200 €
+- Einsatzort Hamburg, 60 % remote";
+
+const AD_MID: &str = "Beispielanzeige (Trockenlauf)
+
+Die Hafenwerke GmbH sucht für ein Interim-Mandat von sechs Monaten eine Leitung Controlling (m/w/d).
+
+Aufgaben:
+- Führung des Controlling-Teams
+- Aufbau eines Hafenlogistik-Controllings
+
+Anforderungen:
+- Erfahrung im Controlling
+- Erfahrung mit Power BI
+- Budgetierung und Forecast
+- Kenntnisse in Zollabwicklung
+- Erfahrung in der Tarifkalkulation für Terminals
+- Staplerschein
+
+Rahmenbedingungen:
+- Einsatzort Bremen, zwei Tage remote";
+
+const AD_LOW: &str = "Beispielanzeige (Trockenlauf)
+
+Für ein Entwicklungsprojekt suchen wir Unterstützung (m/w/d).
+
+Anforderungen:
+- ABAP-Entwicklung
+- SAP BTP und SAP Fiori
+- Schnittstellen mit IDoc und OData
+- Erfahrung mit Java und Kubernetes
+
+Rahmenbedingungen:
+- Einsatzort München, remote möglich";
+
+const AD_EXCLUDED: &str = "Beispielanzeige (Trockenlauf)
+
+Für die Einführung von SAP S/4HANA im Finanzbereich suchen wir eine Projektleitung (m/w/d).
+
+Anforderungen:
+- Projektmanagement in SAP-Einführungen
+- Erfahrung mit SAP S/4HANA und SAP FI/CO
+- Prozessoptimierung im Finanzbereich
+
+Rahmenbedingungen:
+- Tagessatz bis 800 €
+- 100 % remote";
+
 async fn pause(length: Duration, cancel: &CancellationToken) -> Result<(), MailError> {
     tokio::select! {
         biased;
         () = cancel.cancelled() => Err(MailError::Cancelled),
         () = tokio::time::sleep(length) => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::matching::{self, JobInput, TextKind, Verdict};
+    use crate::model::{Band, band};
+
+    /// The sample ads give every ring the list knows, judged by the real engine.
+    #[test]
+    fn the_sample_ads_show_every_ring() {
+        let matcher = matcher();
+        assert!(matcher.usable());
+        let judge = |id: &str, title: &str, location: &str| {
+            let job = JobInput {
+                title,
+                location,
+                portal: Portal::LinkedIn,
+                text: ad(id),
+                facts: None,
+                posted: None,
+                kind: TextKind::Full,
+            };
+            let a = matching::assess(matcher.profile(), &job, None).unwrap();
+            (a.verdict, band(a.score))
+        };
+        assert_eq!(
+            judge("4999000001", "Interim CFO (m/w/d)", "Hamburg"),
+            (Verdict::Scored, Band::High)
+        );
+        assert_eq!(
+            judge(
+                "4999000002",
+                "Leiter Controlling (m/w/d)",
+                "Bremen (Hybrid)"
+            ),
+            (Verdict::Scored, Band::Mid)
+        );
+        assert_eq!(
+            judge("2999001", "SAP FI/CO Berater (m/w/d)", "München"),
+            (Verdict::Scored, Band::Low)
+        );
+        assert_eq!(
+            judge("2999002", "Projektleiter S/4HANA", "Remote").0,
+            Verdict::Excluded
+        );
     }
 }

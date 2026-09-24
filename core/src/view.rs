@@ -5,6 +5,7 @@
 //! prose - notices, states and errors are codes with data; the words live in the UI catalog.
 //! Company and location are cleaned here (the database holds the raw mail values).
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
@@ -15,10 +16,11 @@ use serde::{Deserialize, Serialize};
 use crate::error::ErrorInfo;
 use crate::fetch::policy::{Allowance, Policy, limits};
 use crate::fetch::{PortalHealth, RETRY_AFTER};
+use crate::matching::{self, Assessment, ProfileSummary};
 use crate::model::{
     Band, DescStatus, MatchRecord, MatchStatus, Notice, band, gmail_url, is_usable_title,
 };
-use crate::pipeline::{RunSnapshot, RunSummary};
+use crate::pipeline::{LocalMatcher, Matcher, RunSnapshot, RunSummary, local};
 use crate::portal::{JobKey, LoginMode, Portal};
 use crate::settings::{PortalSwitches, Settings};
 use crate::store::{AlertMailRow, JobRow, PageQuery, Store};
@@ -381,22 +383,219 @@ pub struct JobDetail {
     pub match_: Option<MatchDetail>,
 }
 
+/// Most reasons in the reader.
+pub const MAX_REASONS: usize = 40;
+/// Most highlighted passages in the reader.
+pub const MAX_HIGHLIGHTS: usize = 200;
+
 /// The reader data of a job; `None` if the job does not exist (any more).
-pub fn job_detail(store: &Store, key: &JobKey) -> crate::Result<Option<JobDetail>> {
-    let Some(job) = store.job(key)? else {
+///
+/// Reasons are not stored: with a usable `matcher` the job is assessed again from its stored
+/// text. If its stored score has another revision, the fresh one is saved - only with `save`
+/// (no run active); otherwise the run's catch-up takes care of it. Either way the reader
+/// shows the fresh result.
+pub fn job_detail(
+    store: &Store,
+    key: &JobKey,
+    matcher: Option<&LocalMatcher>,
+    save: bool,
+    now: Timestamp,
+) -> crate::Result<Option<JobDetail>> {
+    let Some(mut job) = store.job(key)? else {
         return Ok(None);
     };
+    let text = store.description(key)?;
+    let assessed = matcher
+        .filter(|m| m.usable())
+        .and_then(|m| Some((m, m.assessment(&job, text.as_deref())?)));
+    let match_ = match assessed {
+        None => None,
+        Some((matcher, assessment)) => {
+            let at = if job.match_rev.as_deref() == Some(matcher.rev()) {
+                store.match_at(key)?.unwrap_or(now)
+            } else {
+                let record = local::record(&assessment);
+                if save
+                    && let Err(e) =
+                        store.save_matches(&[(key.clone(), record.clone())], matcher.rev(), now)
+                {
+                    log::warn!("fresh score of {key} not stored: {e}");
+                }
+                job.match_ = Some(record);
+                job.match_rev = Some(matcher.rev().to_owned());
+                now
+            };
+            Some(match_detail(&assessment, matcher, at))
+        }
+    };
     Ok(Some(JobDetail {
-        text: store.description(key)?,
+        text,
         url: job.url.to_string(),
         fetched_at: job.desc_fetched_at,
         mail: JobMail {
             subject: job.mail_subject.clone(),
             gmail_url: job.gmail_id.and_then(gmail_url).map(|u| u.to_string()),
         },
-        match_: None,
+        match_,
         job: JobView::from(&job),
     }))
+}
+
+/// The reader's explanation of an assessment: at most [`MAX_REASONS`] reasons (violations,
+/// checks and musts before nice-to-haves and info), the highlights of those reasons (at most
+/// [`MAX_HIGHLIGHTS`]) and the hard-criteria strip with every criterion the profile sets.
+pub fn match_detail(assessment: &Assessment, matcher: &LocalMatcher, at: Timestamp) -> MatchDetail {
+    let rank = |r: &matching::Reason| match (r.kind, r.weight) {
+        (matching::ReasonKind::Violation, _) => 0,
+        (matching::ReasonKind::Check, _) => 1,
+        (_, matching::Weight::Must | matching::Weight::Hard) => 2,
+        (_, matching::Weight::Nice) => 3,
+        (_, matching::Weight::Info) => 4,
+    };
+    let mut ranked: Vec<&matching::Reason> = assessment.reasons.iter().collect();
+    ranked.sort_by_key(|r| rank(r));
+    let kept: BTreeSet<u16> = ranked.iter().take(MAX_REASONS).map(|r| r.id).collect();
+    let highlights: Vec<&matching::Highlight> = assessment
+        .highlights
+        .iter()
+        .filter(|h| kept.contains(&h.reason))
+        .take(MAX_HIGHLIGHTS)
+        .collect();
+    let ranges = |reason: &matching::Reason| -> Vec<TextRange> {
+        highlights
+            .iter()
+            .filter(|h| reason.ranges.contains(&h.id))
+            .map(|h| TextRange {
+                start: h.start,
+                end: h.end,
+            })
+            .collect()
+    };
+    let reasons = assessment
+        .reasons
+        .iter()
+        .filter(|r| kept.contains(&r.id))
+        .map(|r| Reason {
+            id: reason_id(r.id),
+            kind: reason_kind(r.kind),
+            weight: reason_weight(r.weight),
+            code: local::code_name(&r.code),
+            label: r.label.clone().unwrap_or_default(),
+            evidence: r.evidence.as_ref().map(|e| Evidence {
+                profile: e.profile.clone(),
+                path: e.path.clone(),
+                via: local::code_name(&e.via),
+                quote: e.quote.clone(),
+            }),
+            params: local::flat_params(&r.params),
+            ranges: ranges(r),
+        })
+        .collect();
+    let criteria = criteria_strip(assessment, matcher, &ranges);
+    let record = local::record(assessment);
+    MatchDetail {
+        score: record.score,
+        status: record.status,
+        band: band(record.score),
+        rev: matcher.rev().to_owned(),
+        at,
+        summary: Some(summary_notice(&assessment.summary)),
+        reasons,
+        highlights: highlights
+            .iter()
+            .map(|h| Highlight {
+                id: format!("h{}", h.id),
+                start: h.start,
+                end: h.end,
+                kind: reason_kind(h.kind),
+                reason: reason_id(h.reason),
+            })
+            .collect(),
+        criteria,
+    }
+}
+
+/// The hard-criteria strip: every criterion the profile sets, with the profile's values, the
+/// reason that decided it (`params.reason`) and that reason's passages.
+fn criteria_strip(
+    assessment: &Assessment,
+    matcher: &LocalMatcher,
+    ranges: &dyn Fn(&matching::Reason) -> Vec<TextRange>,
+) -> Vec<Reason> {
+    let set = &matcher.profile().summary().criteria;
+    assessment
+        .criteria
+        .iter()
+        .filter(|c| c.status != matching::CriterionStatus::Inactive)
+        .map(|c| {
+            let linked = c
+                .reason
+                .and_then(|id| assessment.reasons.iter().find(|r| r.id == id));
+            let mut params = set
+                .iter()
+                .find(|info| info.key == c.key)
+                .map(|info| local::flat_params(&info.params))
+                .unwrap_or_default();
+            if let Some(reason) = linked {
+                params.extend(local::flat_params(&reason.params));
+                params.insert("reason".into(), reason_id(reason.id).into());
+            }
+            let code = local::code_name(&c.key);
+            Reason {
+                id: format!("c:{code}"),
+                kind: match c.status {
+                    matching::CriterionStatus::Violated => ReasonKind::Violation,
+                    matching::CriterionStatus::Check => ReasonKind::Check,
+                    _ => ReasonKind::Met,
+                },
+                weight: ReasonWeight::Hard,
+                code,
+                label: linked.and_then(|r| r.label.clone()).unwrap_or_default(),
+                evidence: None,
+                params,
+                ranges: linked.map(ranges).unwrap_or_default(),
+            }
+        })
+        .collect()
+}
+
+/// The counts behind the score (`n of m must`) and how much text there was.
+fn summary_notice(s: &matching::Summary) -> Notice {
+    Notice {
+        code: "summary".into(),
+        params: serde_json::Map::from_iter([
+            ("mustMet".into(), s.must_met.into()),
+            ("mustPartial".into(), s.must_partial.into()),
+            ("mustOpen".into(), s.must_open.into()),
+            ("mustTotal".into(), s.must_total.into()),
+            ("niceMet".into(), s.nice_met.into()),
+            ("niceTotal".into(), s.nice_total.into()),
+            ("evidence".into(), local::code_name(&s.evidence).into()),
+        ]),
+    }
+}
+
+fn reason_id(id: u16) -> String {
+    format!("r{id}")
+}
+
+fn reason_kind(kind: matching::ReasonKind) -> ReasonKind {
+    match kind {
+        matching::ReasonKind::Met => ReasonKind::Met,
+        matching::ReasonKind::Partial => ReasonKind::Partial,
+        matching::ReasonKind::Open => ReasonKind::Open,
+        matching::ReasonKind::Violation => ReasonKind::Violation,
+        matching::ReasonKind::Check => ReasonKind::Check,
+    }
+}
+
+fn reason_weight(weight: matching::Weight) -> ReasonWeight {
+    match weight {
+        matching::Weight::Must => ReasonWeight::Must,
+        matching::Weight::Nice => ReasonWeight::Nice,
+        matching::Weight::Hard => ReasonWeight::Hard,
+        matching::Weight::Info => ReasonWeight::Info,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -749,6 +948,53 @@ impl ProfileInfo {
             parse_error: info.parse_error.as_ref().map(ErrorInfo::from),
         }
     }
+
+    /// Adds what the engine understood of the profile and how far the jobs are scored with
+    /// it (an empty profile scores nothing, so nothing is pending).
+    pub fn understood_by(mut self, matcher: &LocalMatcher, store: &Store) -> crate::Result<Self> {
+        let profile = matcher.profile();
+        self.quality = Some(match profile.quality() {
+            matching::ProfileQuality::Good => ProfileQuality::Good,
+            matching::ProfileQuality::Thin => ProfileQuality::Thin,
+            matching::ProfileQuality::Empty => ProfileQuality::Empty,
+        });
+        self.understood = Some(understanding(profile.summary()));
+        if matcher.usable() {
+            self.scored_at = store.scored_at(matcher.rev())?;
+            self.pending = store.match_pending(matcher.rev())?;
+        }
+        Ok(self)
+    }
+}
+
+/// The "understood" card: competences, where they were found (path patterns), every hard
+/// criterion as `{code, params}` with `set`, and the warnings.
+pub fn understanding(summary: &ProfileSummary) -> ProfileUnderstanding {
+    ProfileUnderstanding {
+        competence_count: u32::from(summary.competence_count),
+        competences: summary.competences.clone(),
+        sources: summary.sources.iter().map(|s| s.path.clone()).collect(),
+        criteria: summary
+            .criteria
+            .iter()
+            .map(|c| {
+                let mut params = local::flat_params(&c.params);
+                params.insert("set".into(), c.set.into());
+                Notice {
+                    code: local::code_name(&c.key),
+                    params,
+                }
+            })
+            .collect(),
+        warnings: summary
+            .warnings
+            .iter()
+            .map(|w| Notice {
+                code: local::code_name(&w.code),
+                params: local::flat_params(&w.params),
+            })
+            .collect(),
+    }
 }
 
 /// Result of "reset everything" after the restart.
@@ -871,7 +1117,10 @@ mod tests {
         assert_eq!(json["match"], serde_json::Value::Null, "null, not missing");
         assert_eq!(json["detail"]["kind"], "pending");
         assert_eq!(json["portal"], "freelancermap");
-        let detail = job_detail(&store, &key).unwrap().unwrap();
+        let detail = job_detail(&store, &key, None, true, Timestamp::now())
+            .unwrap()
+            .unwrap();
+        assert_eq!(detail.match_, None, "no profile, no match");
         assert_eq!(
             detail.mail.gmail_url.as_deref(),
             Some("https://mail.google.com/mail/u/0/#all/1a2b")
@@ -1082,5 +1331,198 @@ mod tests {
         policy.set_session(Portal::FreelanceDe, false, now);
         assert_eq!(state(&policy).signed_in, Some(false));
         assert_eq!(state(&policy).health, PortalHealth::LoginRequired);
+    }
+
+    const AD: &str = "Wir suchen einen Interim CFO (m/w/d).
+
+Anforderungen:
+- Erfahrung im Controlling
+- Konzernrechnungslegung nach IFRS
+- Kenntnisse in Zollabwicklung
+
+Rahmenbedingungen:
+- Tagessatz bis 700 €
+- Einsatzort Hamburg";
+
+    fn job_with_text(text: &str) -> (Store, JobKey) {
+        let (store, key) = store_with(
+            "https://www.linkedin.com/jobs/view/4000000009/",
+            "Interim CFO (m/w/d)",
+            "Nordlicht AG",
+            "Hamburg",
+        );
+        store
+            .record_text(&key, text, false, false, Timestamp::now())
+            .unwrap();
+        (store, key)
+    }
+
+    /// The reader recomputes the reasons; a stale stored score is replaced only when no run
+    /// is active (`save`), and a current one keeps its time.
+    #[test]
+    fn the_reader_recomputes_and_heals_a_stale_score() {
+        let matcher = crate::pipeline::demo::matcher();
+        let (store, key) = job_with_text(AD);
+        let t1: Timestamp = "2026-09-20T08:00:00Z".parse().unwrap();
+        let busy = job_detail(&store, &key, Some(&matcher), false, t1)
+            .unwrap()
+            .unwrap();
+        let fresh = busy.match_.as_ref().unwrap();
+        assert_eq!(fresh.status, MatchStatus::Excluded);
+        assert_eq!((fresh.rev.as_str(), fresh.at), (matcher.rev(), t1));
+        assert_eq!(
+            busy.job.match_.as_ref().unwrap().status,
+            MatchStatus::Excluded,
+            "the header shows the fresh result"
+        );
+        assert_eq!(
+            store.match_rev(&key).unwrap(),
+            None,
+            "a run is active: not saved"
+        );
+        let idle = job_detail(&store, &key, Some(&matcher), true, t1)
+            .unwrap()
+            .unwrap();
+        assert_eq!(idle.match_, busy.match_);
+        assert_eq!(
+            store.match_rev(&key).unwrap().as_deref(),
+            Some(matcher.rev())
+        );
+        let stored = store.job(&key).unwrap().unwrap().match_.unwrap();
+        assert_eq!(stored.note.unwrap().code, "dayRate");
+        let t2: Timestamp = "2026-09-21T08:00:00Z".parse().unwrap();
+        let later = job_detail(&store, &key, Some(&matcher), true, t2)
+            .unwrap()
+            .unwrap();
+        assert_eq!(later.match_.unwrap().at, t1, "current score: stored time");
+        // Without a usable profile there is no match to explain.
+        let empty = LocalMatcher::from_json(&serde_json::json!({}));
+        let none = job_detail(&store, &key, Some(&empty), true, t2)
+            .unwrap()
+            .unwrap();
+        assert_eq!(none.match_, None);
+    }
+
+    /// Reasons, highlights and the criteria strip reference each other consistently.
+    #[test]
+    fn the_explanation_is_bounded_and_linked() {
+        let matcher = crate::pipeline::demo::matcher();
+        let many = (0..60).fold(String::new(), |mut all, i| {
+            all.push_str("- Kenntnisse in Spezialthema Nummer");
+            all.push_str(&i.to_string());
+            all.push('\n');
+            all
+        });
+        let text = format!("{AD}\n\nAnforderungen:\n{many}");
+        let (store, key) = job_with_text(&text);
+        let detail = job_detail(&store, &key, Some(&matcher), true, Timestamp::now())
+            .unwrap()
+            .unwrap();
+        let m = detail.match_.unwrap();
+        assert_eq!(m.reasons.len(), MAX_REASONS);
+        assert!(m.highlights.len() <= MAX_HIGHLIGHTS);
+        assert!(m.reasons.iter().any(|r| r.kind == ReasonKind::Violation));
+        let ids: BTreeSet<&str> = m.reasons.iter().map(|r| r.id.as_str()).collect();
+        assert!(m.highlights.iter().all(|h| ids.contains(h.reason.as_str())));
+        let text16: Vec<u16> = text.encode_utf16().collect();
+        for h in &m.highlights {
+            assert!(h.start < h.end && h.end as usize <= text16.len(), "{h:?}");
+        }
+        let quoted = m
+            .reasons
+            .iter()
+            .find(|r| r.label == "Erfahrung im Controlling");
+        let quoted = quoted.expect("a met requirement");
+        assert_eq!(quoted.kind, ReasonKind::Met);
+        assert_eq!(quoted.evidence.as_ref().unwrap().via, "exact");
+        let range = quoted.ranges[0];
+        let passage = String::from_utf16(&text16[range.start as usize..range.end as usize]);
+        assert!(passage.unwrap().contains("Controlling"));
+        // The strip: every criterion the sample profile sets, the day rate violated and
+        // linked to its reason.
+        let codes: Vec<&str> = m.criteria.iter().map(|c| c.code.as_str()).collect();
+        assert_eq!(codes, ["minDayRate", "countries", "noAnue", "availability"]);
+        let rate = &m.criteria[0];
+        assert_eq!(
+            (rate.kind, rate.weight),
+            (ReasonKind::Violation, ReasonWeight::Hard)
+        );
+        let linked = rate.params["reason"].as_str().unwrap();
+        assert!(ids.contains(linked) && !rate.ranges.is_empty(), "{rate:?}");
+        assert_eq!(m.criteria[1].kind, ReasonKind::Met);
+        assert_eq!(m.criteria[1].params["countries"], "DE, AT, CH");
+        let summary = m.summary.unwrap();
+        assert_eq!(summary.params["evidence"], "full");
+        assert!(serde_json::to_vec(&m.reasons).unwrap().len() < 64 * 1024);
+    }
+
+    /// "What the app understood": quality, competences, sources, criteria and warnings as
+    /// codes; the pending count follows the stored revisions.
+    #[test]
+    fn the_profile_summary_reaches_the_interface() {
+        let matcher = crate::pipeline::demo::matcher();
+        let (store, key) = job_with_text(AD);
+        let file = crate::profile::ProfileInfo {
+            path: PathBuf::from("beraterprofil.json"),
+            bytes: 10,
+            saved_at: None,
+            parse_error: None,
+        };
+        let info = ProfileInfo::of(&file, None)
+            .understood_by(&matcher, &store)
+            .unwrap();
+        assert_eq!(info.quality, Some(ProfileQuality::Good));
+        assert_eq!((info.pending, info.scored_at), (1, None));
+        let understood = info.understood.unwrap();
+        assert!(understood.competences.len() <= 40);
+        assert!(understood.competence_count as usize >= understood.competences.len());
+        assert!(understood.competences.iter().any(|c| c == "Controlling"));
+        assert!(
+            understood
+                .sources
+                .iter()
+                .any(|s| s == "kernkompetenzen[].kompetenz")
+        );
+        let criteria: Vec<(&str, bool)> = understood
+            .criteria
+            .iter()
+            .map(|c| (c.code.as_str(), c.params["set"] == true))
+            .collect();
+        assert_eq!(
+            criteria,
+            [
+                ("minDayRate", true),
+                ("countries", true),
+                ("noAnue", true),
+                ("availability", true)
+            ]
+        );
+        assert!(understood.warnings.is_empty());
+        let now = Timestamp::now();
+        job_detail(&store, &key, Some(&matcher), true, now).unwrap();
+        let info = ProfileInfo::of(&file, None)
+            .understood_by(&matcher, &store)
+            .unwrap();
+        assert_eq!(info.pending, 0);
+        assert_eq!(
+            info.scored_at.map(Timestamp::as_second),
+            Some(now.as_second())
+        );
+        let thin = LocalMatcher::from_json(&serde_json::json!({"keywords": ["SAP FI"]}));
+        let info = ProfileInfo::of(&file, None)
+            .understood_by(&thin, &store)
+            .unwrap();
+        assert_eq!(info.quality, Some(ProfileQuality::Thin));
+        let warnings = info.understood.unwrap().warnings;
+        let codes: Vec<&str> = warnings.iter().map(|w| w.code.as_str()).collect();
+        assert_eq!(codes, ["fewCompetences", "noCriteria"]);
+        let empty = LocalMatcher::from_json(&serde_json::json!({}));
+        let info = ProfileInfo::of(&file, None)
+            .understood_by(&empty, &store)
+            .unwrap();
+        assert_eq!(
+            (info.quality, info.pending),
+            (Some(ProfileQuality::Empty), 0)
+        );
     }
 }

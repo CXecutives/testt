@@ -18,7 +18,7 @@ use jiff::Timestamp;
 use jobalert_core::error::{ErrorInfo, ErrorKind};
 use jobalert_core::export::{self, RESULT_DIR};
 use jobalert_core::fetch::policy::Policy;
-use jobalert_core::pipeline::{self, RunEvent};
+use jobalert_core::pipeline::{self, Matcher as _, RunEvent, demo};
 use jobalert_core::profile;
 use jobalert_core::reset::{self, ResetPlan};
 use jobalert_core::view::{
@@ -28,7 +28,7 @@ use jobalert_core::view::{
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State, WebviewWindow};
 
-use super::{Activity, AppState, CmdResult, lock, texts};
+use super::{Activity, AppState, CmdResult, lock, scoring, texts};
 
 /// Key of the name of the profile file the user chose last.
 pub(super) const PROFILE_SOURCE: &str = "profile_source";
@@ -56,16 +56,40 @@ pub(super) fn mailbox(state: &AppState) -> Mailbox {
     }
 }
 
-/// The stored profile for the interface; an unreadable file is logged and shown as none.
+/// The stored profile for the interface with what the engine understood of it; an
+/// unreadable file is logged and shown as none. The dry run shows its sample profile.
 pub(super) fn profile_info(state: &AppState, workspace: &std::path::Path) -> Option<ProfileInfo> {
-    match profile::info(workspace) {
-        Ok(info) => {
-            let source = state.store.kv_get(PROFILE_SOURCE).ok().flatten();
-            info.map(|info| ProfileInfo::of(&info, source))
+    let info = if state.dry_run {
+        let sample = profile::ProfileInfo {
+            path: PathBuf::from(demo::PROFILE_NAME),
+            bytes: demo::PROFILE_JSON.len() as u64,
+            saved_at: None,
+            parse_error: None,
+        };
+        ProfileInfo::of(&sample, Some(demo::PROFILE_NAME.to_owned()))
+    } else {
+        match profile::info(workspace) {
+            Ok(info) => {
+                let source = state.store.kv_get(PROFILE_SOURCE).ok().flatten();
+                ProfileInfo::of(&info?, source)
+            }
+            Err(e) => {
+                log::warn!("profile not readable: {e}");
+                return None;
+            }
         }
+    };
+    if info.parse_error.is_some() {
+        return Some(info);
+    }
+    let Some(matcher) = state.compiled_profile() else {
+        return Some(info);
+    };
+    match info.clone().understood_by(&matcher, &state.store) {
+        Ok(understood) => Some(understood),
         Err(e) => {
-            log::warn!("profile not readable: {e}");
-            None
+            log::warn!("profile state not read: {e}");
+            Some(info)
         }
     }
 }
@@ -125,8 +149,7 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
         last_run,
         counts,
         top_matches,
-        // Without a usable matcher nothing waits for a score (the engine is wired later).
-        match_pending: 0,
+        match_pending: state.match_pending(),
         log_dir: state.data_dir.join(jobalert_core::LOG_DIR),
         data_dir: state.data_dir.clone(),
         reset_report: lock(&state.reset_report)
@@ -149,19 +172,31 @@ pub async fn app_state(
     if let Activity::Run(run) = &*lock(&state.activity) {
         run.attach(channel.clone());
     }
-    auto_fetch(&app, &state, channel);
+    state.scoring.set_page(channel.clone());
+    at_start(&app, &state, channel);
     build_state(&state)
 }
 
-/// The auto fetch: once per app start, on the first page load - switched on, mailbox
-/// connected, last fetch older than 6 hours. Never in the dry run.
-fn auto_fetch(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) {
+/// Once per app start, on the first page load: the auto fetch if it is due, else a rescore
+/// if jobs wait for a score (new profile, engine update). A fetch scores them too.
+fn at_start(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) {
     static CHECKED: AtomicBool = AtomicBool::new(false);
-    if CHECKED.swap(true, Ordering::SeqCst) || state.dry_run || state.busy() {
+    if CHECKED.swap(true, Ordering::SeqCst) || state.busy() {
         return;
     }
+    if !auto_fetch(app, state, channel) {
+        scoring::rescore_if_pending(app, state);
+    }
+}
+
+/// The auto fetch: switched on, mailbox connected, last fetch older than 6 hours. Never in
+/// the dry run. `true` if it started.
+fn auto_fetch(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) -> bool {
+    if state.dry_run {
+        return false;
+    }
     let Ok(settings) = state.settings() else {
-        return;
+        return false;
     };
     let connected = state.gmail_user().0.is_some();
     let due = pipeline::auto_fetch_due(
@@ -175,10 +210,12 @@ fn auto_fetch(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) {
         let request = pipeline::RunRequest {
             kind: pipeline::RunKind::Fetch,
         };
-        if let Err(e) = super::run::launch(app, state, request, channel) {
-            log::warn!("auto fetch not started: {:?}", e.kind);
+        match super::run::launch(app, state, request, channel) {
+            Ok(()) => return true,
+            Err(e) => log::warn!("auto fetch not started: {:?}", e.kind),
         }
     }
+    false
 }
 
 /// Saves portal switches and the auto fetch. The workspace only changes through the dialog.
@@ -196,6 +233,7 @@ pub async fn save_settings(
 /// Folder dialog for the workspace; `None` if cancelled.
 #[tauri::command]
 pub async fn pick_workspace(
+    app: AppHandle,
     window: WebviewWindow,
     state: State<'_, AppState>,
 ) -> CmdResult<Option<PathBuf>> {
@@ -219,9 +257,14 @@ pub async fn pick_workspace(
             .map_err(|e| ErrorInfo::from(jobalert_core::Error::io(&folder, e)))?;
         let _ = std::fs::remove_file(probe);
     }
+    let before = state.matcher().map(|m| m.rev().to_owned());
     let mut settings = state.settings()?;
     settings.workspace = Some(folder.clone());
     settings.save(&state.store)?;
+    // The profile lives in the workspace: another folder can mean another profile.
+    if state.matcher().map(|m| m.rev().to_owned()) != before {
+        scoring::profile_changed(&app, &state);
+    }
     Ok(Some(folder))
 }
 
