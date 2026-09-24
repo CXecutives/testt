@@ -238,73 +238,36 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), Failure> {
 }
 
 /// Window placement (size, position, maximized) across restarts - only if it lies on an
-/// existing screen (otherwise the window stays centered).
+/// existing screen (otherwise the window stays centered). The rules live in
+/// `jobalert_core::window`; this only reads and moves the window.
 mod geometry {
     use jobalert_core::store::Store;
-    use serde::{Deserialize, Serialize};
+    use jobalert_core::window::{self, Placement, Screen};
     use tauri::{PhysicalPosition, PhysicalSize, Runtime, WebviewWindow};
-
-    const KEY: &str = "window";
-
-    #[derive(Serialize, Deserialize)]
-    struct Geometry {
-        x: i32,
-        y: i32,
-        width: u32,
-        height: u32,
-        maximized: bool,
-    }
-
-    fn load(store: &Store) -> Option<Geometry> {
-        store
-            .kv_get(KEY)
-            .ok()
-            .flatten()
-            .and_then(|json| serde_json::from_str(&json).ok())
-    }
 
     /// Moves and sizes the (still hidden) window. Returns whether it should be maximized:
     /// maximizing shows a window at once, so that waits for the first paint
     /// (`platform::reveal_after_first_load`).
     pub fn restore<R: Runtime>(window: &WebviewWindow<R>, store: &Store) -> bool {
-        let Some(g) = load(store) else { return false };
-        // Only "maximized" is known (first closed while maximized): placement stays default.
-        if g.width == 0 {
-            return g.maximized;
+        let screens: Vec<Screen> = window
+            .available_monitors()
+            .unwrap_or_default()
+            .iter()
+            .map(|m| Screen {
+                x: m.position().x,
+                y: m.position().y,
+                width: m.size().width,
+                height: m.size().height,
+            })
+            .collect();
+        let restore = window::restore(Placement::load(store), &screens);
+        if let Some(bounds) = restore.bounds {
+            // Move first, then size: moving to a screen with another scale factor would
+            // otherwise convert the size.
+            let _ = window.set_position(PhysicalPosition::new(bounds.x, bounds.y));
+            let _ = window.set_size(PhysicalSize::new(bounds.width, bounds.height));
         }
-        // The title bar must be reachable on an existing screen.
-        let monitors = window.available_monitors().unwrap_or_default();
-        let Some(monitor) = monitors.iter().find(|m| {
-            let (pos, size) = (m.position(), m.size());
-            let right = pos
-                .x
-                .saturating_add(i32::try_from(size.width).unwrap_or(i32::MAX));
-            let bottom = pos
-                .y
-                .saturating_add(i32::try_from(size.height).unwrap_or(i32::MAX));
-            let middle = g.x.saturating_add(i32::try_from(g.width / 2).unwrap_or(0));
-            middle > pos.x + 100 && middle < right - 100 && g.y >= pos.y && g.y < bottom - 40
-        }) else {
-            return false;
-        };
-        let fitted = fit(&g, *monitor.position(), *monitor.size());
-        // Move first, then size: moving to a screen with another scale factor would
-        // otherwise convert the size.
-        let _ = window.set_position(PhysicalPosition::new(g.x, g.y));
-        let _ = window.set_size(fitted);
-        g.maximized
-    }
-
-    /// Never beyond this screen - the size was perhaps saved on a larger one that is gone
-    /// now, and parts of the UI would lie outside. Trimmed from the window corner: what
-    /// still fits right of and below it stays.
-    fn fit(g: &Geometry, pos: PhysicalPosition<i32>, size: PhysicalSize<u32>) -> PhysicalSize<u32> {
-        let left = u32::try_from(g.x.saturating_sub(pos.x)).unwrap_or(0);
-        let above = u32::try_from(g.y.saturating_sub(pos.y)).unwrap_or(0);
-        PhysicalSize::new(
-            g.width.min(size.width.saturating_sub(left)),
-            g.height.min(size.height.saturating_sub(above)),
-        )
+        restore.maximized
     }
 
     pub fn save<R: Runtime>(window: &WebviewWindow<R>, store: &Store) {
@@ -316,70 +279,14 @@ mod geometry {
         let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) else {
             return;
         };
-        // Maximized: keep the last saved normal placement, remember only the state.
-        let g = match load(store) {
-            Some(previous) if maximized => Geometry {
-                maximized,
-                ..previous
-            },
-            // Maximized without a known normal placement: remember only the state.
-            None if maximized => Geometry {
-                x: 0,
-                y: 0,
-                width: 0,
-                height: 0,
-                maximized,
-            },
-            _ => Geometry {
-                x: pos.x,
-                y: pos.y,
-                width: size.width,
-                height: size.height,
-                maximized,
-            },
-        };
-        if let Ok(json) = serde_json::to_string(&g) {
-            let _ = store.kv_set(KEY, &json);
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::{Geometry, fit};
-        use tauri::{PhysicalPosition, PhysicalSize};
-
-        fn geometry(x: i32, y: i32, width: u32, height: u32) -> Geometry {
-            Geometry {
-                x,
-                y,
-                width,
-                height,
-                maximized: false,
-            }
-        }
-
-        /// Placement from a wider screen: the window ends at the right and bottom edge -
-        /// otherwise part of the UI would lie outside and be unreachable.
-        #[test]
-        fn a_window_near_the_edge_is_trimmed_in_both_directions() {
-            let fitted = fit(
-                &geometry(1000, 100, 1500, 1050),
-                PhysicalPosition::new(0, 0),
-                PhysicalSize::new(1920, 1080),
-            );
-            assert_eq!((fitted.width, fitted.height), (920, 980));
-        }
-
-        /// A fitting placement on a screen left of the main display (negative coordinates):
-        /// nothing is trimmed.
-        #[test]
-        fn a_window_that_fits_keeps_its_size() {
-            let fitted = fit(
-                &geometry(-1800, 60, 1200, 800),
-                PhysicalPosition::new(-1920, 0),
-                PhysicalSize::new(1920, 1080),
-            );
-            assert_eq!((fitted.width, fitted.height), (1200, 800));
+        let placement = Placement::on_close(
+            Placement::load(store),
+            maximized,
+            (pos.x, pos.y),
+            (size.width, size.height),
+        );
+        if let Err(e) = placement.save(store) {
+            log::warn!("window placement not saved: {e}");
         }
     }
 }
