@@ -206,13 +206,13 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 ### Phase 3 - screens and core workflow (two UI agents)
 - [x] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)
 - [x] Shell, Profil, Einstellungen, first run; all states; texts only from `de.ts`; `mark_read` only on a real click
-- [ ] >= 30 harness scenarios in Chromium + WebKit; screenshot baselines; smoke probe of the real app
+- [x] >= 30 harness scenarios (200 in Chromium + WebKit after the polish round) in Chromium + WebKit; screenshot baselines; smoke probe of the real app
 - Done when: core workflow works in both engines and the real app; every view in every state is captured; 0 lint
   exceptions; all 33 audit findings of the old UI are resolved. Send screenshots (Windows + macOS CI) to the user.
 
 ### Phase 4 - English sweep (parallel to phase 3)
-- [ ] Translate remaining comments, logs, errors, asserts, CI, hook, toml; new English README; `language.rs` with allowlist
-- [ ] Finish the dead-code list
+- [x] Translate remaining comments, logs, errors, asserts, CI, hook, toml; new English README; `language.rs` with allowlist
+- [x] Finish the dead-code list
 
 ### Phase 5 - verification, measurement, audit
 - [ ] Real runs through the app (gold set within limits and switches), blind labels, old/new report in `docs/MATCHING.md`
@@ -244,3 +244,11 @@ no sub-agents inside tracks, screenshots only at milestones, commit every finish
   gold-set labelling, consistency audit and the final review.
 - **Sonnet** for simple, fully verifiable work: phase 4 comment/log translation (checked by language.rs, build and
   tests), README and first-start guide from finished facts, collecting CI artifacts and screenshots, routine cleanup.
+
+## Status 2026-09-24 evening (pause until the usage limit resets)
+Done on main (pushed, CI green on Windows and a real macOS runner before the last push): phases 0-4, engine v3,
+scraping, all screens with navigation variant C and the polish round, macOS-shaped app icon, improved optional skill.
+Next: (1) check the CI run of e67e2ac incl. the macOS Dock screenshot of the new icon (shadow ok on macOS 26?);
+(2) independent design critique of every screen (screenshots in both engines) and fixes; (3) `ProfileUnderstanding`
+gets `packs`, `years`, `degrees` in view.rs (UI already renders them); (4) phase 5 real-data measurement - needs the
+user to connect the mailbox in the app first; (5) README + first-start guide, final review, installer on this PC.
