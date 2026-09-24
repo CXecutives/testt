@@ -3,7 +3,7 @@
   hairline, the icon small in the label line (navy for a neutral tile, the tone's colour
   otherwise), the value in ink. A clickable tile answers on hover with a navy hairline and a
   soft shadow that fades in (painted once on ::after, never animated as a shadow, no lift),
-  and gives a little under the pointer (0.985, 60 ms). The active tile (its filter is on)
+  and darkens a step while pressed (it never moves). The active tile (its filter is on)
   takes the navy trio of a chosen filter. A value of 0 is quiet (subtle) and not a filter:
   the tile is static then. The number rolls when it changes on screen, not when the view
   comes back.
@@ -104,8 +104,7 @@
     transition:
       border-color var(--dur-base) var(--ease-standard),
       background-color var(--dur-base) var(--ease-standard),
-      color var(--dur-base) var(--ease-standard),
-      transform var(--dur-base) var(--ease-emphasized);
+      color var(--dur-base) var(--ease-standard);
   }
 
   /* The hover shadow, painted once and shown by opacity. */
@@ -122,7 +121,7 @@
 
   .clickable:hover {
     border-color: var(--border-navy);
-    transition-duration: var(--dur-hover), var(--dur-hover), var(--dur-hover), var(--dur-base);
+    transition-duration: var(--dur-hover);
   }
 
   .clickable:hover::after {
@@ -132,7 +131,6 @@
 
   .clickable:active {
     background-color: var(--surface-muted);
-    transform: scale(var(--scale-press-soft));
     transition-duration: var(--dur-instant);
   }
 
@@ -161,7 +159,7 @@
 
   .icon {
     display: inline-flex;
-    color: var(--nav-active-icon);
+    color: var(--icon-accent);
   }
 
   .icon.success {

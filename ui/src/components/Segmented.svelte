@@ -1,10 +1,9 @@
 <!--
   Two or three equal-width options with an optional counter each. A white thumb slides
   under the chosen option (translateX by whole option widths, 180 ms, emphasized); the
-  chosen label is deep navy and its count a soft navy pill, the others stay muted with a
-  plain count (same box, so nothing moves). An unchosen option washes on hover; a press
-  scales its label a little (not the box, so the thumb never jitters). Counts roll when
-  they change.
+  chosen label is ink and its count a soft warm pill, the others stay muted with a
+  plain count (same box, so nothing moves). An unchosen option washes on hover and darkens
+  while pressed. Counts roll when they change.
 -->
 <script lang="ts" module>
   export interface SegmentedOption<Id extends string = string> {
@@ -135,22 +134,16 @@
     transition-duration: var(--dur-hover);
   }
 
+  .option[aria-checked='false']:active::before {
+    background-color: var(--surface-press);
+  }
+
   .option[aria-checked='true'] {
     color: var(--nav-active-fg);
   }
 
   :global(:root[data-window='inactive']) .option[aria-checked='true'] {
     color: var(--text);
-  }
-
-  .label {
-    display: inline-block;
-    transition: transform var(--dur-base) var(--ease-emphasized);
-  }
-
-  .option:active .label {
-    transform: scale(var(--scale-press));
-    transition-duration: var(--dur-instant);
   }
 
   .option:focus-visible {

@@ -2,8 +2,8 @@
   One reason of a match: met | partial | open | violation | check, weighted must | nice |
   hard | info. Quote and profile evidence appear in the tooltip; hovering can highlight
   the passage (onhover), a click can scroll to it (onselect). A reason that jumps washes
-  on hover and shows a small arrow down, gives a little when pressed, and takes the navy
-  wash while its passage is pinned (active).
+  on hover and shows a small arrow down, darkens while pressed, and takes the navy wash
+  while its passage is pinned (active).
 -->
 <script lang="ts" module>
   import type { ReasonKind, ReasonWeight } from '$lib/ipc/types';
@@ -99,15 +99,18 @@
     gap: var(--space-8);
     min-width: 0;
     padding: var(--space-6) var(--space-8);
-    border-radius: var(--radius-sm);
     color: var(--text);
     font: var(--type-md);
     text-align: left;
     transition: background-color var(--dur-base) var(--ease-standard);
   }
 
+  /* A reason that jumps is a row: edge to edge in its list, content padded by the list's
+     --row-inset (without one, a small inset of its own). */
   button.reason {
-    width: 100%;
+    width: calc(100% + 2 * var(--row-inset));
+    margin-inline: calc(-1 * var(--row-inset));
+    padding-inline: max(var(--row-inset), var(--space-8));
   }
 
   button.reason:hover {
@@ -130,38 +133,27 @@
     box-shadow: var(--focus-ring-inset);
   }
 
-  /* The content of a reason that jumps: it gives a little under the pointer (60 ms). */
   .face {
     display: flex;
     flex: 1;
     align-items: inherit;
     gap: var(--space-8);
     min-width: 0;
-    transition: transform var(--dur-base) var(--ease-emphasized);
   }
 
-  button.reason:active .face {
-    transform: scale(var(--scale-press));
-    transition-duration: var(--dur-instant);
-  }
-
-  /* The way to the passage: a small arrow that drops in on hover (100 ms). */
+  /* The way to the passage: a small arrow that appears on hover (100 ms). */
   .jump {
     display: inline-flex;
     flex: none;
     align-self: center;
     color: var(--text-subtle);
     opacity: 0;
-    transform: translateY(calc(-1 * var(--move-sm)));
-    transition:
-      opacity var(--dur-fast) var(--ease-standard),
-      transform var(--dur-fast) var(--ease-out);
+    transition: opacity var(--dur-fast) var(--ease-standard);
   }
 
   button.reason:hover .jump,
   button.reason:focus-visible .jump {
     opacity: 1;
-    transform: none;
   }
 
   .compact {

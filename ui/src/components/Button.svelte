@@ -2,8 +2,8 @@
   The button of the app: primary | secondary | ghost | danger | link × sm | md | lg. Native
   in feel, rich on contact: hover-in changes colour in 80 ms and relaxes in 150 ms, the
   icon nudges toward what it does (external link up-right, download down, refresh a
-  quarter turn, the star grows), a press scales the button a little for 60 ms (0.97, icon
-  only 0.94) and it settles back in 150 ms. No lift, no glow, no bounce.
+  quarter turn, the star grows), a press lets the button give a little, uniformly (0.98,
+  60 ms), and it settles back in 150 ms. Nothing stretches; no lift, no glow, no bounce.
   - Trailing actions inside a row are sm, action bars are md.
   - At most one primary per view (checked by core/tests/ui_contract.rs).
   - iconOnly needs its label: it becomes aria-label and tooltip.
@@ -356,13 +356,12 @@
     height: var(--border-width);
     background-color: currentcolor;
     content: '';
-    transform: scaleX(0);
-    transform-origin: left center;
-    transition: transform var(--dur-base) var(--ease-emphasized);
+    opacity: 0;
+    transition: opacity var(--dur-base) var(--ease-standard);
   }
 
   .link:not([aria-disabled='true'], .loading):hover .label::after {
-    transform: scaleX(1);
+    opacity: 1;
     transition-duration: var(--dur-hover);
   }
 
@@ -398,8 +397,6 @@
   }
 
   .icon-only {
-    --btn-press: var(--scale-press-icon);
-
     width: var(--btn-height);
     padding: 0;
   }

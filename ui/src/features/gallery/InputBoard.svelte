@@ -146,7 +146,9 @@
 
   .panel {
     max-width: var(--reader-width);
+    overflow: hidden;
     padding: 0 var(--space-24);
+    --row-inset: var(--space-24);
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
   }

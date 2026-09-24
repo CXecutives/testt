@@ -2,9 +2,9 @@
   A list row: leading, content, trailing, top-aligned, all rows of one fixed height (mail
   style: three lines of content). The one inner padding of the columns on the sides. Hover
   washes the row (80 ms in, 150 ms out), a press darkens it (60 ms); rows never move or
-  scale. The selected row takes the navy wash (one step deeper under the pointer) and a
-  deep navy bar on the left that grows in (150 ms, emphasized) and shrinks away in 100 ms;
-  a row created as selected is simply there. While the window is inactive the selection
+  scale. The selected row takes a very light warm wash (one step deeper under the pointer)
+  and a coral bar on the left that fades in (150 ms) and out (100 ms); a row created as
+  selected is simply there. While the window is inactive the selection
   turns grey, as in Mail and Explorer. While the list scrolls rows take no hover.
 -->
 <script lang="ts">
@@ -78,7 +78,7 @@
   .selected:active {
     background-color: var(--surface-selected);
 
-    /* The ring's track stays visible on the navy wash. */
+    /* The ring's track stays visible on the warm wash. */
     --ring-track: var(--ring-track-selected);
   }
 
@@ -86,7 +86,8 @@
     background-color: var(--surface-selected-hover);
   }
 
-  /* The selection bar on the left edge: always there, shown by opacity and scale. */
+  /* The selection bar on the left edge: always there, shown by opacity (it never
+     changes shape). */
   .row::before {
     position: absolute;
     top: var(--space-12);
@@ -97,19 +98,15 @@
     background-color: var(--selection-bar);
     content: '';
     opacity: 0;
-    transform: scaleY(var(--scale-bar-rest));
     transition:
-      transform var(--dur-fast) var(--ease-in),
       opacity var(--dur-fast) var(--ease-in),
       background-color var(--dur-base) var(--ease-standard);
   }
 
   .selected::before {
     opacity: 1;
-    transform: none;
     transition-duration: var(--dur-base);
-    transition-timing-function:
-      var(--ease-emphasized), var(--ease-emphasized), var(--ease-standard);
+    transition-timing-function: var(--ease-out), var(--ease-standard);
   }
 
   /* Like Mail and Explorer: the selection greys out while the window is in the back. */

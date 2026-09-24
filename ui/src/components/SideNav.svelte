@@ -1,9 +1,9 @@
 <!--
   The navigation of the sidebar: icon and label per view, an optional count (unread jobs).
   The active entry sits on one white pill that slides to it (180 ms, emphasized; the
-  sibling of the segmented thumb), its label deep navy and its icon navy. An idle entry
-  washes on hover and its icon turns navy. The count is the deep navy pill and rolls when
-  it changes. Collapsed (icon rail) the labels move into tooltips and a coral dot on the
+  sibling of the segmented thumb), its label ink and its icon coral. An idle entry washes
+  on hover and its icon turns coral. The count is the deep navy pill and rolls when it
+  changes. Collapsed (icon rail) the labels move into tooltips and a coral dot on the
   icon stands for the count. While the window is inactive the active label turns ink.
 -->
 <script lang="ts" module>
