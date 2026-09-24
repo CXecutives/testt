@@ -11,7 +11,7 @@
   When a job is read while its row is on screen the dot shrinks away; an excluded row has
   no dot (no count includes it). Under the date, on hover: archive (or bring back) and the
   star (a pinned star always shows). A quiet badge says where the user's application
-  stands (Beworben, Im Gespräch, Zusage, Absage) or that the job is pinned. A date older
+  stands (Beworben, Im Gespräch, Zusage, Absage); pinned needs none (the star). A date older
   than ten days sits on a quiet tint. A score from a teaser is a provisional ring. A cut-off
   title shows in full in a tooltip. Hover and paint stay inside the row (containment).
 -->
@@ -78,13 +78,12 @@
     aged ?? (now ?? new Date()).getTime() - new Date(when).getTime() > AGED_DAYS * DAY_MS,
   );
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
-  /** Where the user's application stands, else whether the job is pinned. */
-  const status = $derived.by((): { label: string; tone: BadgeTone } | null => {
-    if (job.appStatus) {
-      return { label: de.reader.appStatus[job.appStatus], tone: APP_TONE[job.appStatus] };
-    }
-    return job.pinned ? { label: de.job.pinned, tone: 'neutral' } : null;
-  });
+  /** Where the user's application stands (pinned needs no badge: the star says it). */
+  const status = $derived(
+    job.appStatus
+      ? { label: de.reader.appStatus[job.appStatus], tone: APP_TONE[job.appStatus] }
+      : null,
+  );
   const reason = $derived(ring ? rowReason(job) : null);
   const heading = $derived(job.title ? displayTitle(job.title) : de.job.untitled);
 

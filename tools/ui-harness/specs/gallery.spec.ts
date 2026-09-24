@@ -135,9 +135,9 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   await expect(archive).toHaveAttribute('aria-label', 'Archivieren');
   await archive.click();
   await expect(archive).toHaveAttribute('aria-label', 'Wiederherstellen');
-  // Where the application stands, else pinned; quiet badges.
+  // Where the application stands, in a quiet badge; pinned has only its star.
   await expect(job('linkedin-1002')).toContainText('Im Gespräch');
-  await expect(job('freelancermap-1001')).toContainText('Gemerkt');
+  await expect(job('freelancermap-1001')).not.toContainText('Gemerkt');
   // Older than ten days: the date sits on a tint.
   await expect(job('freelancermap-1005').locator('.date')).toHaveClass(/old/);
   await expect(job('freelancermap-1001').locator('.date')).not.toHaveClass(/old/);
