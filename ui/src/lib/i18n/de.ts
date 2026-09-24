@@ -975,6 +975,8 @@ export const de = {
     autoFetchHint: 'Wenn der letzte Abruf mehr als sechs Stunden her ist.',
     autoArchive: 'Jobs nach 30 Tagen archivieren',
     autoArchiveHint: 'Favoriten werden nie archiviert.',
+    autoEmptyTrash: 'Papierkorb nach 30 Tagen leeren',
+    autoEmptyTrashHint: 'Gelöschte Jobs sind danach endgültig weg.',
     active: 'Aktiv',
     details: 'Details holen',
     needsDetails: 'Erst Details holen einschalten.',

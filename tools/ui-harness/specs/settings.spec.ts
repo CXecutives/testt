@@ -143,12 +143,36 @@ test('removing the mailbox asks first', async ({ page }) => {
   expect(await calls(page, 'remove_mailbox')).toHaveLength(1);
 });
 
+test('the trash empties itself after 30 days unless switched off', async ({ page }) => {
+  await settings(page);
+  const trash = page.getByTestId('toggle-auto-empty-trash');
+  const fetch = page.getByTestId('settings-fetch');
+  await expect(fetch).toContainText('Papierkorb nach 30 Tagen leeren');
+  await expect(fetch).toContainText('Gelöschte Jobs sind danach endgültig weg.');
+  const on = (await trash.getAttribute('aria-checked')) === 'true';
+  await trash.click();
+  await expect(trash).toHaveAttribute('aria-checked', on ? 'false' : 'true');
+  expect((await calls(page, 'save_settings')).map(([, args]) => args)).toEqual([
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: null,
+        autoArchiveDays: null,
+        autoEmptyTrashDays: on ? 0 : 30,
+        language: null,
+      },
+    },
+  ]);
+});
+
 test('old jobs archive themselves unless switched off', async ({ page }) => {
   await settings(page);
   const archive = page.getByTestId('toggle-auto-archive');
   await expect(archive).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByTestId('settings-fetch')).toContainText('Jobs nach 30 Tagen archivieren');
-  await expect(page.getByTestId('settings-fetch')).toContainText('Favoriten werden nie archiviert.');
+  await expect(page.getByTestId('settings-fetch')).toContainText(
+    'Favoriten werden nie archiviert.',
+  );
   await archive.click();
   await expect(archive).toHaveAttribute('aria-checked', 'false');
   await archive.click();

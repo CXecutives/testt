@@ -119,8 +119,9 @@
     );
   }
 
-  /** Days after which old jobs archive themselves when the switch is on. */
+  /** Days after which old jobs archive themselves, and the trash empties itself, when on. */
   const AUTO_ARCHIVE_DAYS = 30;
+  const AUTO_EMPTY_TRASH_DAYS = 30;
 
   /** The switch moves at once; a failure puts it back (reload) and says why below it. */
   function autoFetch(on: boolean): Promise<void> {
@@ -140,6 +141,17 @@
       autoFetchOnStart: null,
       autoArchiveDays: days,
       autoEmptyTrashDays: null,
+      language: null,
+    });
+  }
+
+  function autoEmptyTrash(on: boolean): Promise<void> {
+    const days = on ? AUTO_EMPTY_TRASH_DAYS : 0;
+    if (app.state) app.state.autoEmptyTrashDays = days;
+    return saveFetch({
+      autoFetchOnStart: null,
+      autoArchiveDays: null,
+      autoEmptyTrashDays: days,
       language: null,
     });
   }
@@ -359,6 +371,19 @@
             label={t.settings.autoArchive}
             testid="toggle-auto-archive"
             onchange={autoArchive}
+          />
+        </SettingRow>
+        <SettingRow
+          label={t.settings.autoEmptyTrash}
+          hint={t.settings.autoEmptyTrashHint}
+          for="switch-auto-empty-trash"
+        >
+          <Toggle
+            id="switch-auto-empty-trash"
+            checked={cfg.autoEmptyTrashDays > 0}
+            label={t.settings.autoEmptyTrash}
+            testid="toggle-auto-empty-trash"
+            onchange={autoEmptyTrash}
           />
         </SettingRow>
         {@render note(fetchNote, 'fetch-note')}

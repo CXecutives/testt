@@ -921,6 +921,8 @@ export const en: Catalog = {
     autoFetchHint: 'When the last fetch is more than six hours ago.',
     autoArchive: 'Archive jobs after 30 days',
     autoArchiveHint: 'Favourites are never archived.',
+    autoEmptyTrash: 'Empty the trash after 30 days',
+    autoEmptyTrashHint: 'Deleted jobs are then gone for good.',
     active: 'Active',
     details: 'Fetch details',
     needsDetails: 'Turn on Fetch details first.',
