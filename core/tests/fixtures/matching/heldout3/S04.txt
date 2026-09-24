@@ -1,0 +1,40 @@
+Titel: BI Consultant Power BI / Datenmodellierung (m/w/d) – Vertriebscontrolling
+Unternehmen: Sternacker IT-Solutions GmbH
+Ort: Remote (Deutschland)
+Quelle: freelance.de
+Link: https://www.freelance.de/projekte/projekt-1187432-BI-Consultant-Power-BI-Datenmodellierung-m-w-d
+Abgerufen am: 20.09.2026 07:05
+
+Projektbeschreibung
+Im Auftrag unseres Endkunden, eines Großhändlers für Sanitär- und Heizungstechnik, suchen wir eine:n erfahrene:n BI-Berater:in zur Verstärkung des Business-Intelligence-Teams. Ziel des Projekts ist die Ablösung gewachsener Excel-Auswertungen durch eine zentrale Vertriebssteuerungsplattform auf Basis von Microsoft Power BI.
+
+Aufgaben
+- Anforderungsaufnahme mit Vertriebsleitung, Vertriebscontrolling und Key Account Management
+- Konzeption eines sauberen Datenmodells (Sternschema) auf Basis von SQL Server und Azure SQL
+- Entwicklung von Power-BI-Berichten und Dashboards (Umsatz-, Deckungsbeitrags- und Kundenwertanalysen)
+- Implementierung komplexer DAX-Measures sowie Datenaufbereitung mit Power Query (M)
+- Einrichtung von Row-Level-Security und Workspace-Konzept im Power BI Service
+- Durchführung von Datenqualitätsprüfungen und Dokumentation der Kennzahlendefinitionen
+- Schulung der Key User (Train-the-Trainer)
+
+Muss-Anforderungen
+- Mind. 5 Jahre Projekterfahrung als BI-Berater oder BI-Entwickler
+- Sehr gute Kenntnisse in Power BI (DAX, Power Query, Datenmodellierung)
+- Sehr gute SQL-Kenntnisse (T-SQL)
+- Erfahrung im Umfeld Vertriebscontrolling bzw. Sales Analytics
+- Sehr gute Deutschkenntnisse (mind. C1)
+
+Soll-Anforderungen
+- Erfahrung mit Azure Data Factory oder Microsoft Fabric
+- Kenntnisse in SAP BW oder SAP Analytics Cloud als Datenquelle
+- Microsoft Certified: Power BI Data Analyst Associate (PL-300)
+- Good English skills for documentation
+
+Projektdaten
+Start: 13.10.2026
+Laufzeit: bis 31.03.2027, Option auf Verlängerung
+Auslastung: 80 bis 100 %
+Einsatzort: 100 % remote, gelegentliche Workshops in Kassel nach Absprache
+Stundensatz: bis 95 € (all-in)
+
+Bitte beachten Sie, dass wir ausschließlich Einzelfreiberufler berücksichtigen. Profile über Dritte bzw. Arbeitnehmerüberlassungen können leider nicht berücksichtigt werden. Wir freuen uns auf Ihr Profil im Word-Format inkl. Stundensatz und Verfügbarkeit.

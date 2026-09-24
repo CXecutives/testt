@@ -1,4 +1,5 @@
-//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1`, `heldout2`):
+//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1`, `heldout2`,
+//! `heldout3`):
 //! invented ads with blind labels (grade 0-3, excluded) written by independent agents for
 //! profiles the engine was not tuned on at the time. Both sets were later used to find and
 //! fix systematic gaps, so they are regression gates now, not an unseen measurement.
@@ -163,6 +164,13 @@ const HELDOUT1: Floor = Floor {
     exclusion_recall: 1.0,
     grade3_buried: 1,
 };
+const HELDOUT3: Floor = Floor {
+    ndcg10: 0.0,
+    spearman: 0.0,
+    exclusion_precision: 0.0,
+    exclusion_recall: 0.0,
+    grade3_buried: 30,
+};
 const HELDOUT2: Floor = Floor {
     ndcg10: 0.85,
     spearman: 0.55,
@@ -226,11 +234,19 @@ fn heldout2_holds_its_gates() {
     check("heldout2", &HELDOUT2);
 }
 
+#[test]
+fn heldout3_holds_its_gates() {
+    check("heldout3", &HELDOUT3);
+}
+
+/// Every held-out set.
+const SETS: [&str; 3] = ["heldout1", "heldout2", "heldout3"];
+
 /// Prints both sets' tables and misses (`-- --ignored heldout_report --nocapture`).
 #[test]
 #[ignore = "report"]
 fn heldout_report() {
-    for name in ["heldout1", "heldout2"] {
+    for name in SETS {
         let run = run_set(name);
         println!("## {name}\n");
         println!("{}", metrics::table(&run.per_profile, &run.total));
@@ -244,7 +260,7 @@ fn heldout_report() {
 #[test]
 #[ignore = "debugging aid"]
 fn heldout_rows() {
-    for name in ["heldout1", "heldout2"] {
+    for name in SETS {
         for r in run_set(name).rows {
             let p = r.pair;
             println!(

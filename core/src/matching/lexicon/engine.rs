@@ -843,6 +843,33 @@ pub(crate) const RATE_WORDS: &[&str] = &[
     "€/h",
 ];
 pub(crate) const SALARY_WORDS: &[&str] = &["gehalt", "salary"];
+/// Currencies and rate units next to an amount (`950 €`, `EUR 950`, `95 €/h`).
+pub(crate) const RATE_UNITS: &[&str] = &[
+    "€",
+    "eur",
+    "euro",
+    "chf",
+    "usd",
+    "gbp",
+    "$",
+    "£",
+    "/h",
+    "/std",
+    "/tag",
+    "/day",
+    "pro tag",
+    "pro stunde",
+    "per day",
+    "per hour",
+    "k€",
+];
+/// Words of a rate range (`bis 1.100 €`, `ab 900`, `max. 1.000`).
+pub(crate) const RATE_RANGE_WORDS: &[&str] = &[
+    "maximal", "circa", "up to", "from", "rund", "max.", "max", "ca.", "ca", "bis", "von", "ab",
+    "to", "zu",
+];
+/// Separators of the parts of one line (`Start: 02/2027 · Dauer: 10 Monate · 78 €/h`).
+pub(crate) const SEGMENT_SEPARATORS: &[&str] = &[" // ", " · ", " | ", " • "];
 /// A rate to be agreed, without an amount (with a rate word in the same sentence).
 pub(crate) const RATE_OPEN: &[&str] = &[
     "nach absprache",

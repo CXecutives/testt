@@ -1,0 +1,1458 @@
+{
+  "P1.json": {
+    "R01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: bis 110 €' = 880/day < 1100; SAP FI/CO off-field",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'8+ years' below 10 without senior title; controlling off-field",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'ausschließlich über eine Anstellung bei uns nach AÜG' (ANÜ); off-field",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Luxembourg, Luxemburg' outside DE/AT/CH, 'Remote-Arbeit ist ... nicht möglich'",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'max. 62 € all-in' = 496/day < 1100",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "permanent controlling lead, off-field; profile sets no salary or permanent location",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance carve-out lead, off-field; 'bis 1.150 €' meets 1100",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim CFO', off-field",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Rate: 95 €/h' = 760/day < 1100",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "liquidity planning, off-field",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "procurement lead, off-field",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "supply planning, off-field; '7+ years' with Senior title only overqualified",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: bis 95 €' = 760/day < 1100",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Mindestens 5 Jahre' below 10 without senior title; off-field",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'At least 4 years' below 10; off-field",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: 85 bis 100 €' = 800/day < 1100",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Bauleiter Elektrotechnik', off-field",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'Active Sourcing, Personalbeschaffung' matches recruiting skill, but specialist role far below profile; thin ad",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP MM consultant, off-field",
+      "quote": ""
+    },
+    "T01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: 115 €/h' = 920/day < 1100; off-field",
+      "quote": ""
+    },
+    "T02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance business partner, off-field; Wien in AT",
+      "quote": ""
+    },
+    "T03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: 95 €/Std.' = 760/day < 1100",
+      "quote": ""
+    },
+    "T05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'bis 100 €/h' = 800/day < 1100",
+      "quote": ""
+    },
+    "T06": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "people-side change, 'Ansprechperson für Betriebsrat', moderation, conflicts; Changemanagement 14 y, mediation, interim",
+      "quote": ""
+    },
+    "T07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: 85 €/h' = 680/day < 1100",
+      "quote": ""
+    },
+    "T08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'85 € / Stunde' = 680/day < 1100",
+      "quote": ""
+    },
+    "T09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Junior Accountant', off-field; profile sets no salary rule",
+      "quote": ""
+    },
+    "T10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'78 €/h' = 624/day < 1100",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Core fit (Sozialplan, Betriebsrat, IG Metall, SuccessFactors, Automobilzulieferer), overqualified; 'Mindestens 8 Jahre' below 10 and 'HR Business Partner' no senior title",
+      "quote": ""
+    },
+    "T04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Werkstudent' job, off field; employment not interim so day-rate rule does not apply and profile sets no salary; no mandatory-worded formal duty",
+      "quote": ""
+    }
+  },
+  "P2.json": {
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO consultant, off-field; 880/day >= 850",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "group controller role, off-field",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "plant controller, off-field; ANÜ not excluded by profile",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Luxembourg outside NL/BE/DE, on site 'an fünf Tagen pro Woche'",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'max. 62 €' = 496/day < 850",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "controlling lead, off-field",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance carve-out, off-field",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim CFO', off-field",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 850",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "liquidity planning, off-field",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, off-field",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Warengruppenstrategien', 'Rahmenvertragsverhandlungen', 'SAP Ariba oder Coupa' fit; leading 22 people and '3 bis 4 Tage' on site open",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'monthly S&OP cycle', forecasting, safety stocks, Power BI fit; 'SAP IBP or SAP APO' missing (Kinaxis)",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 850",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "pharma QA, off-field",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "regulatory affairs, off-field",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 850",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Bauleiter Elektrotechnik', off-field",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "recruiter, off-field",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP MM and 'Kontraktmanagement' touch procurement, but SAP customizing role",
+      "quote": ""
+    },
+    "T01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "accounting lead, off-field; 920/day >= 850",
+      "quote": ""
+    },
+    "T02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Wien, Österreich' outside NL/BE/DE and 'gelegentlich vor Ort in Wien', not fully remote",
+      "quote": ""
+    },
+    "T03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 850",
+      "quote": ""
+    },
+    "T05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 850",
+      "quote": ""
+    },
+    "T06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "change management, off-field",
+      "quote": ""
+    },
+    "T07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "680/day < 850",
+      "quote": ""
+    },
+    "T08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "680/day < 850",
+      "quote": ""
+    },
+    "T09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Junior Accountant', off-field",
+      "quote": ""
+    },
+    "T10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "624/day < 850",
+      "quote": ""
+    },
+    "T04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Werkstudent' job, off field; employment pay not a day rate, profile sets no salary rule",
+      "quote": ""
+    }
+  },
+  "P3.json": {
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO migration, no BI content",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "controlling role, no BI",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "plant controller, off-field",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "group reporting lead, off-field; profile has no country rule",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "controlling lead, off-field",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance carve-out, off-field",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim CFO', off-field",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP CO-PC, off-field",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "liquidity planning, off-field",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, off-field",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "procurement, off-field",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "planning role; Power BI dashboards only a side task",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Power BI (DAX, Power Query, Datenmodellierung)', T-SQL, SQL Server, ADF nice all in profile; sales analytics not explicit",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "pharma QA, off-field",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "regulatory affairs, off-field",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Java backend development, off-field",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Bauleiter Elektrotechnik', off-field",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "recruiter, off-field",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP MM, off-field",
+      "quote": ""
+    },
+    "T01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "accounting lead, off-field",
+      "quote": ""
+    },
+    "T02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance business partner, off-field",
+      "quote": ""
+    },
+    "T03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP ABAP development, off-field",
+      "quote": ""
+    },
+    "T04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Werkstudent' with 'erste Erfahrungen mit Power BI', student level",
+      "quote": ""
+    },
+    "T05": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Python, SQL, 'Azure Data Factory', Databricks, dbt fit; PySpark, Terraform, Azure DevOps, 'SAP als Datenquelle' open",
+      "quote": ""
+    },
+    "T06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "change management, off-field",
+      "quote": ""
+    },
+    "T07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "treasury, off-field",
+      "quote": ""
+    },
+    "T08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "treasury, off-field",
+      "quote": ""
+    },
+    "T09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Junior Accountant', off-field",
+      "quote": ""
+    },
+    "T10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT project controlling, off-field",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Controller role with accounting musts open, but management reporting and 'Power BI von Vorteil' touch reporting/dashboards; no hard criteria set",
+      "quote": ""
+    }
+  },
+  "P4.json": {
+    "R01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'bis 110 €' = 880/day < 1050; off-field",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "off-field; '8+ years' meets 8",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'im Rahmen der Arbeitnehmerüberlassung (ANÜ)'; off-field",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Luxembourg outside DE/CH, no remote",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "496/day < 1050; off-field",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'72.000 € und 82.000 €' < 135000; Kassel not in permanent locations",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "off-field; 1150/day >= 1050",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim CFO', off-field",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 1050",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "liquidity planning, off-field",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, off-field; ANÜ only 'möglich'",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "procurement, off-field",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "planning role, off-field; GMP only an advantage",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 1050",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 1050",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Bauleiter Elektrotechnik', off-field",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "recruiter, off-field; 'befristet' contract unclear, Hamburg location open",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "off-field; 'Remote-Anteil 60 %' meets 60 if permanent",
+      "quote": ""
+    },
+    "T01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "920/day < 1050",
+      "quote": ""
+    },
+    "T02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Wien, Österreich' outside DE/CH",
+      "quote": ""
+    },
+    "T03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 1050",
+      "quote": ""
+    },
+    "T04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'16,50 € pro Stunde' far below 135000; Stuttgart not in permanent locations",
+      "quote": ""
+    },
+    "T05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 1050",
+      "quote": ""
+    },
+    "T06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "change management, off-field",
+      "quote": ""
+    },
+    "T07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "680/day < 1050",
+      "quote": ""
+    },
+    "T08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "680/day < 1050",
+      "quote": ""
+    },
+    "T09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'42.000 bis 48.000 €' < 135000; Bielefeld not in permanent locations",
+      "quote": ""
+    },
+    "T10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "624/day < 1050",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Core GMP QA sterile, CAPA, Change Control, Annex 1, TrackWise/Veeva, overqualified; 'Mindestens 5 Jahre' below 8 and 'Manager' no senior title",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "RA CMC, CTD Module 3, variations, eCTD, docuBridge, generics nearly all met; 'At least 4 years' below 8, 'Consultant' no senior title",
+      "quote": ""
+    }
+  },
+  "sample_profile.json": {
+    "R01": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'bis 110 €' = 880/day < 1000; SAP module consultant role, profile is controller",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'monthly close', 'IFRS and HGB', 'SAP FI/CO', budget and forecast; freelance contract, pay open",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Werkscontroller with 'SAP CO (CO-OM, CO-PC)' fits, but 'ausschließlich ... nach AÜG'",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "IFRS Konzernabschluss, 'Konsolidierung in LucaNet' fit, but Luxembourg on site, 'Remote-Arbeit ... nicht möglich'",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Monatsabschluss, Reporting, Power BI fit but 'max. 62 € all-in, nicht verhandelbar' = 496/day < 1000",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Leitung Controlling', budgeting, forecast, SAP CO fit; 'Festanstellung', profile sets no salary rule",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Carve-out', HGB/IFRS, 'SAP FI/CO', Liquiditätsplanung fit; 'bis 1.150 €', 100 % remote",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Interim CFO' fits interim finance profile; thin ad, refinancing not in profile",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'13-Wochen-Liquiditätsplanung' in 'Eigenverwaltung' fits Liquiditätsplanung, Restrukturierung; thin ad",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, off-field; 'Freiberuflich oder Arbeitnehmerüberlassung möglich'",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "procurement, off-field",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "supply planning, off-field",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "pharma QA, off-field",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "regulatory affairs, off-field",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 1000",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Bauleiter Elektrotechnik', off-field",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "recruiter, off-field",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP MM, off-field",
+      "quote": ""
+    },
+    "T01": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "HGB/IFRS closes, 'Carve-out', LucaNet, interim fit, but '115 €/h' = 920/day < 1000",
+      "quote": ""
+    },
+    "T02": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Interim Finance Business Partner' fits controlling; thin ad, pay open",
+      "quote": ""
+    },
+    "T03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 1000",
+      "quote": ""
+    },
+    "T05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 1000; 'nicht um eine Beratungsrolle im Controlling'",
+      "quote": ""
+    },
+    "T06": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "finance transformation, Changemanagement 7 y; people-focused role",
+      "quote": ""
+    },
+    "T07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Liquiditätsplanung partly fits, but 680/day < 1000",
+      "quote": ""
+    },
+    "T08": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Liquiditätsplanung partly fits, but 680/day < 1000",
+      "quote": ""
+    },
+    "T09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Junior Accountant', 'Berufseinstieg', far below profile",
+      "quote": ""
+    },
+    "T10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'Budgetplanung und Forecast' fits partly, but 624/day < 1000",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Technical CO-PC/Material Ledger consulting, only controlling and SAP FI/CO use overlap; '95 €/h' = 760/day < 1000",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "BI developer role, Power BI tool and controlling domain only tangential; 'bis zu 95 €' = 760/day < 1000",
+      "quote": ""
+    },
+    "T04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Werkstudent' job; employment pay not a day rate, profile sets no salary rule",
+      "quote": ""
+    }
+  },
+  "sample_profile_it.json": {
+    "R01": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'bis 110 €' = 880/day < tagessatz_ab 950; S/4 migration but FI/CO module role",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "controller role; S/4 roll-out only 'Support'",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "ANÜ only; off-field",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Luxembourg outside DE/AT; off-field",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "496/day < 950; off-field",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "controlling lead, off-field",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "project lead with 'SAP S/4HANA Cloud' introduction, but finance carve-out content",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim CFO', off-field",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 950; off-field",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "off-field",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, off-field",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "supply planning, off-field",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 950",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "pharma QA, off-field",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "regulatory affairs, off-field",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 950; Java developer",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Bauleiter Elektrotechnik', off-field",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "recruiter, off-field",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'SAP MM', 'S/4HANA Migration', 'Brownfield-Conversion' match; 'Inhouse' contract unclear, thin ad",
+      "quote": ""
+    },
+    "T01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "920/day < 950; off-field",
+      "quote": ""
+    },
+    "T02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance role, off-field",
+      "quote": ""
+    },
+    "T03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 950; ABAP developer",
+      "quote": ""
+    },
+    "T05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 950",
+      "quote": ""
+    },
+    "T06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "people change role, off-field",
+      "quote": ""
+    },
+    "T07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "680/day < 950",
+      "quote": ""
+    },
+    "T08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "680/day < 950",
+      "quote": ""
+    },
+    "T09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Junior Accountant', off-field",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement leadership is off the field; 'SAP MM bzw. S/4HANA' alone does not carry",
+      "quote": ""
+    },
+    "T04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Werkstudent' job, off field; profile sets no salary rule",
+      "quote": ""
+    },
+    "T10": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "S/4 rollout PMO, Jira, MS Project, programme management fit, thin ad, controller not lead; '78 €/h' = 624/day < 950",
+      "quote": ""
+    }
+  },
+  "sample_profile_sap.json": {
+    "R01": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "core fit 'SAP FI/CO Berater S/4HANA Brownfield-Migration' but 'bis 110 €' = 880/day < 950",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'Hands-on experience with SAP FI/CO' but controller role, not consultant",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "SAP CO relevant but controller role; 'Arbeitnehmerüberlassung (ANÜ)' only",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "496/day < 950; DATEV/Business One controller",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'zwischen 72.000 € und 82.000 €' < min_jahresgehalt 95000",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'SAP FI/CO' asked, but role is finance carve-out project lead",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim CFO', off-field",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "CO-PC 9 years fits 'CO-PC mind. 5 Jahre' but '95 €/h' = 760/day < 950; Material Ledger not in profile",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "off-field",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, off-field",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "procurement, off-field",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "supply planning, off-field",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 950",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "pharma QA, off-field; 5 years meets 5",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'At least 4 years' below 5 without senior title; off-field",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 950",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Bauleiter Elektrotechnik', off-field",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "recruiter, off-field",
+      "quote": ""
+    },
+    "T01": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "920/day < 950; accounting lead, 'SAP-Kenntnisse (FI) von Vorteil' only",
+      "quote": ""
+    },
+    "T02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance business partner, not SAP consulting",
+      "quote": ""
+    },
+    "T03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'95 €/Std.' = 760/day < 950; ABAP developer, profile is functional FI/CO",
+      "quote": ""
+    },
+    "T04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'16,50 € pro Stunde' far below min_jahresgehalt 95000",
+      "quote": ""
+    },
+    "T05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 950; data engineering role",
+      "quote": ""
+    },
+    "T06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "people change role, off-field",
+      "quote": ""
+    },
+    "T07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "680/day < 950",
+      "quote": ""
+    },
+    "T08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "680/day < 950",
+      "quote": ""
+    },
+    "T09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Jahresgehalt 42.000 bis 48.000 €' < 95000",
+      "quote": ""
+    },
+    "T10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "624/day < 950; project controller role",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Group reporting leadership, only 'SAP Group Reporting' (4 y) and closing support overlap; Luxembourg outside DE/AT/CH, 'Remote-Arbeit ist in diesem Mandat nicht möglich'",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 migration and customizing overlap, FI/CO-MM integration, but MM module not FI/CO; contract unclear, no salary, no location rule in profile",
+      "quote": ""
+    }
+  },
+  "sample_profile_senior.json": {
+    "R01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day < 1000; 'Mindestens 5 Jahre' below 10 without senior title",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "content fits (IFRS, HGB, forecast) but '8+ years' below 10 without senior title",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "plant controller too junior; ANÜ only",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "IFRS group close, consolidation, 1100-1250/day fit, but Luxembourg on site five days, no remote",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "junior support role; 496/day < 1000",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Carve-out', 'Private-Equity-Gesellschaftern', '13-Wochen-Liquiditätsplanung', 1150/day",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim CFO ... Begleitung einer Refinanzierung' core field; thin ad",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 1000; 'mind. 5 Jahre' below 10",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "restructuring 'Eigenverwaltung' and liquidity planning fit; 'Unterstützung' role, thin ad",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "off-field; 'Mindestens 8 Jahre' below 10 without senior title",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "procurement, off-field",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "supply planning, off-field",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 1000",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Mindestens 5 Jahre' below 10 without senior title; off-field",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'At least 4 years' below 10; off-field",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 1000",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Bauleiter Elektrotechnik', off-field",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "recruiter, off-field; contract unclear",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP MM, off-field",
+      "quote": ""
+    },
+    "T01": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Jahresabschluss HGB/IFRS, Carve-out, PE fit, but '115 €/h' = 920/day < 1000",
+      "quote": ""
+    },
+    "T02": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Finance Business Partnering fits; thin ad, likely below level",
+      "quote": ""
+    },
+    "T03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 1000",
+      "quote": ""
+    },
+    "T04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'16,50 € pro Stunde' below 150000; Stuttgart outside Munich area, 'bis zu 50 % mobiles Arbeiten' < 60",
+      "quote": ""
+    },
+    "T05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "800/day < 1000",
+      "quote": ""
+    },
+    "T06": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Finanztransformation and Changemanagement 15 y fit; people-side role, not finance lead",
+      "quote": ""
+    },
+    "T09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'48.000 €' < 150000; Bielefeld outside Munich area",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Controlling, budgeting, Kostenrechnung, SAP CO fit, overqualified and permanent; '82.000 €' < 150000, Kassel outside list, 'Zwei Tage mobiles Arbeiten' proves no 60 % remote",
+      "quote": ""
+    },
+    "T07": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Treasury, cash management, liquidity core, overqualified, but TMS experience must open (cap 6); '85 €/h' = 680/day < 1000",
+      "quote": ""
+    },
+    "T08": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Same role as T07: treasury core, TMS must open, overqualified; '85 € / Stunde' = 680/day < 1000",
+      "quote": ""
+    },
+    "T10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "IT project controlling, only budget/forecast and programme management overlap; '78 €/h' = 624/day < 1000",
+      "quote": ""
+    }
+  }
+}
