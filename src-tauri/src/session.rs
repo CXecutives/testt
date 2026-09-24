@@ -1,25 +1,30 @@
-//! Sitzungsfenster eines Portals: ein unsichtbares WebView (echte Edge-Engine) mit eigenem,
-//! dauerhaftem Profil. Der Nutzer meldet sich darin einmal selbst an („angemeldet bleiben“);
-//! danach ruft die App Seiten wie ein ruhiger Browser ab – ohne Tarnung, ohne eigenen
-//! User-Agent, ohne Abbruch laufender Ladevorgänge, ohne blockierte Seitenteile.
+//! Session window of a portal: a hidden web view (the real engine, WebView2 or `WKWebView`)
+//! with its own persistent storage. The user signs in there once ("stay signed in");
+//! afterwards the app fetches pages like a quiet browser - no disguise, no own user agent,
+//! no aborting of running loads, no blocked page parts.
 //!
-//! Welches Portal es ist, steht allein in [`PortalSite`]: Adressen, Befund-Skript und
-//! Bewertung kommen von dort. Dieses Modul kennt kein einzelnes Portal.
+//! Which portal it is lives only in [`PortalSite`]: addresses, probe script and judgement
+//! come from there. This module knows no single portal. Where the storage lives differs per
+//! OS and is `platform.rs`'s business.
 //!
-//! Das Fenster steht in keiner Capability (kein Befehl der App ist von dort erreichbar),
-//! darf nur Adressen seines Portals laden, öffnet keine weiteren Fenster und lädt nichts
-//! herunter. Ausgewertet wird per Host-`eval` (kein IPC); Text entsteht in Rust.
+//! The window is in no capability (no app command is reachable from it), may only load
+//! addresses of its portal, opens no further windows and downloads nothing. Evaluation runs
+//! via host `eval` (no IPC); text is produced in Rust.
 //!
-//! Bekanntes Restsignal: Tauri legt `__TAURI_INTERNALS__` und `isTauri` in jeder Seite als
-//! nicht löschbare Eigenschaften an (geprüft im Tauri-Quelltext 2.11.5) – ein Skript der Seite
-//! könnte sie sehen. Ein bekanntes Prüfen darauf gibt es nicht.
+//! A run never opens the sign-in window unasked: only portals switched to "sign in" via
+//! [`Sessions::allow_login`] may show it. The user's own "sign in" action always may.
+//!
+//! Known residual signal: Tauri defines `__TAURI_INTERNALS__` and `isTauri` in every page as
+//! non-deletable properties (checked in the Tauri 2.11.5 source) - a page script could see
+//! them. No known check looks for them.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use jobalert_core::fetch::policy::DWELL_SECS;
+use jiff::Timestamp;
+use jobalert_core::fetch::policy::{DWELL_SECS, Policy};
 use jobalert_core::fetch::site::{PortalSite, SessionPage};
 use jobalert_core::fetch::{Login, PageFetcher, PageOutcome, Route};
 use jobalert_core::pipeline::RunEvent;
@@ -30,31 +35,44 @@ use tokio::sync::mpsc;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-/// So lange darf eine Seite laden.
+use crate::platform;
+
+// ------------------------------------------------------------------ window title
+// User-facing text, German by product decision (UI language).
+/// Title of the visible sign-in window, after the portal's name ("freelance.de – Anmeldung").
+const TEXT_SIGN_IN_TITLE: &str = "Anmeldung";
+// ------------------------------------------------------------------ end of user-facing text
+
+/// How long a page may load.
 const LOAD_TIMEOUT: Duration = Duration::from_secs(45);
-/// Nach dem Laden: Seite sich setzen lassen, dann **ein** Befund.
+/// After loading: let the page settle, then **one** probe.
 const SETTLE: Duration = Duration::from_secs(2);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(10);
-/// So lange wartet die App auf die Anmeldung des Nutzers.
+/// How long the app waits for the user to sign in.
 const LOGIN_WAIT: Duration = Duration::from_secs(5 * 60);
+/// Clearing browsing data completes inside the engine; the cookie jar is polled this long.
+const CLEAR_WAIT: Duration = Duration::from_secs(5);
+const CLEAR_STEP: Duration = Duration::from_millis(200);
 
-/// Was das Fenster meldet (die Handler tun nichts anderes).
+/// What the window reports (the handlers do nothing else).
 #[derive(Debug)]
 enum Nav {
     Finished(Url),
     Closed,
 }
 
-/// Meldungen an die Oberfläche (Anmeldung nötig / erledigt).
+/// Messages to the UI (sign-in needed / done).
 pub type Notify = Arc<dyn Fn(RunEvent) + Send + Sync>;
 
-/// Die Sitzungsfenster eines Laufs – je Portal höchstens eines, erst beim ersten Bedarf
-/// geöffnet.
+/// The session windows of a run - at most one per portal, opened on first need.
 pub struct Sessions {
     app: AppHandle,
     data_dir: PathBuf,
     notify: Notify,
     open: BTreeMap<Portal, Session>,
+    /// Portals whose sign-in window this run may show. Empty by default: a run never opens
+    /// a window unasked.
+    login_allowed: BTreeSet<Portal>,
 }
 
 impl Sessions {
@@ -64,10 +82,32 @@ impl Sessions {
             data_dir,
             notify,
             open: BTreeMap::new(),
+            login_allowed: BTreeSet::new(),
         }
     }
 
-    /// Fenster eines Portals; `None` für Portale ohne Anmeldung (LinkedIn).
+    /// Lets this run show the sign-in window of `portal` when the portal asks for a sign-in
+    /// (setting "sign in" of that portal). Without it the run treats a sign-in wall as
+    /// "not signed in" and never shows a window.
+    #[expect(
+        dead_code,
+        reason = "the integrator wires it to the per-portal loginEnabled setting"
+    )]
+    pub fn allow_login(mut self, portal: Portal, enabled: bool) -> Sessions {
+        if enabled {
+            self.login_allowed.insert(portal);
+        } else {
+            self.login_allowed.remove(&portal);
+        }
+        self
+    }
+
+    /// Whether this run may show the sign-in window of `portal`.
+    pub fn login_allowed(&self, portal: Portal) -> bool {
+        self.login_allowed.contains(&portal)
+    }
+
+    /// Window of a portal; `None` for portals without sign-in (LinkedIn).
     fn of(&mut self, portal: Portal) -> Option<&mut Session> {
         let site = PortalSite::of(portal)?;
         let (app, data_dir, notify) = (&self.app, &self.data_dir, &self.notify);
@@ -88,11 +128,15 @@ impl PageFetcher for Sessions {
     ) -> PageOutcome {
         match self.of(link.key.portal) {
             Some(session) => session.fetch_page(link, cancel).await,
-            None => PageOutcome::Suspicious("kein Sitzungsfenster für dieses Portal".into()),
+            None => PageOutcome::Suspicious("no session window for this portal".into()),
         }
     }
 
     async fn login(&mut self, portal: Portal, cancel: &CancellationToken) -> Login {
+        if !self.login_allowed(portal) {
+            log::info!("{portal}: sign-in is switched off - the run shows no sign-in window");
+            return Login::NotSignedIn;
+        }
         match self.of(portal) {
             Some(session) => session.sign_in(cancel).await,
             None => Login::NotSignedIn,
@@ -103,17 +147,17 @@ impl PageFetcher for Sessions {
 pub struct Session {
     app: AppHandle,
     site: &'static PortalSite,
+    data_dir: PathBuf,
     profile: PathBuf,
     window: Option<WebviewWindow>,
     events: Option<mpsc::UnboundedReceiver<Nav>>,
-    /// Frühester Zeitpunkt der nächsten Navigation (Verweildauer).
+    /// Earliest time of the next navigation (dwell time).
     next_at: Option<Instant>,
     notify: Notify,
 }
 
 impl Session {
-    /// `data_dir` ist der Datenordner der App; das Profil liegt darin unter dem Namen des
-    /// Portals.
+    /// `data_dir` is the app's data folder; the profile lies in it under the portal's name.
     pub fn new(
         app: AppHandle,
         data_dir: &Path,
@@ -123,6 +167,7 @@ impl Session {
         Session {
             app,
             site,
+            data_dir: data_dir.to_path_buf(),
             profile: data_dir.join(jobalert_core::session_dir(site.portal)),
             window: None,
             events: None,
@@ -131,7 +176,7 @@ impl Session {
         }
     }
 
-    /// Nur Adressen des eigenen Portals – verhindert auch den Sprung auf eigene App-Adressen.
+    /// Only addresses of the own portal - this also prevents a jump to the app's own pages.
     fn allowed(site: &PortalSite, url: &Url) -> bool {
         url.as_str() == "about:blank" || (site.is_allowed)(url)
     }
@@ -143,33 +188,33 @@ impl Session {
         let (tx, rx) = mpsc::unbounded_channel();
         let on_load = tx.clone();
         let site = self.site;
-        let window =
+        let builder =
             WebviewWindowBuilder::new(&self.app, site.label(), WebviewUrl::External(url.clone()))
-                .title(site.window_title)
-                .data_directory(self.profile.clone())
-                .inner_size(1100.0, 820.0)
-                .center()
-                .visible(visible)
-                .on_page_load(move |_, payload| {
-                    if payload.event() == PageLoadEvent::Finished {
-                        let _ = on_load.send(Nav::Finished(payload.url().clone()));
-                    }
-                })
-                .on_navigation(move |url| {
-                    let ok = Session::allowed(site, url);
-                    if !ok {
-                        log::warn!(
-                            "Sitzungsfenster {}: Navigation verweigert ({})",
-                            site.portal.key(),
-                            url.host_str().unwrap_or("?")
-                        );
-                    }
-                    ok
-                })
-                .on_new_window(|_, _| NewWindowResponse::Deny)
-                .on_download(|_, _| false)
-                .build()
-                .map_err(|e| format!("Sitzungsfenster nicht erzeugt: {e}"))?;
+                .title(format!("{} – {TEXT_SIGN_IN_TITLE}", site.portal.label()));
+        let window = platform::session_storage(builder, site.portal.key(), &self.profile)
+            .inner_size(1100.0, 820.0)
+            .center()
+            .visible(visible)
+            .on_page_load(move |_, payload| {
+                if payload.event() == PageLoadEvent::Finished {
+                    let _ = on_load.send(Nav::Finished(payload.url().clone()));
+                }
+            })
+            .on_navigation(move |url| {
+                let ok = Session::allowed(site, url);
+                if !ok {
+                    log::warn!(
+                        "session window {}: navigation refused ({})",
+                        site.portal.key(),
+                        url.host_str().unwrap_or("?")
+                    );
+                }
+                ok
+            })
+            .on_new_window(|_, _| NewWindowResponse::Deny)
+            .on_download(|_, _| false)
+            .build()
+            .map_err(|e| format!("session window not created: {e}"))?;
         window.on_window_event(move |event| {
             if matches!(event, WindowEvent::Destroyed) {
                 let _ = tx.send(Nav::Closed);
@@ -180,7 +225,7 @@ impl Session {
         Ok(())
     }
 
-    /// Alte Meldungen verwerfen; ein inzwischen geschlossenes Fenster bemerken.
+    /// Drops old messages; notices a window closed in the meantime.
     fn drain(&mut self) {
         let Some(events) = self.events.as_mut() else {
             return;
@@ -202,7 +247,7 @@ impl Session {
         self.events = None;
     }
 
-    /// Verweildauer der vorigen Seite abwarten; `false` bei Abbruch.
+    /// Waits out the dwell time of the previous page; `false` on cancel.
     async fn await_dwell(&mut self, cancel: &CancellationToken) -> bool {
         match self.next_at {
             Some(at) => sleep_until(at, cancel).await,
@@ -210,13 +255,13 @@ impl Session {
         }
     }
 
-    /// Die Verweildauer für die nächste Seite setzen (zufällig im Bereich).
+    /// Sets the dwell time for the next page (random within the range).
     fn arm_dwell(&mut self) {
         self.next_at = Some(Instant::now() + Duration::from_secs(fastrand::u64(DWELL_SECS)));
     }
 
-    /// Lädt `url` und wartet, bis die Seite fertig ist (samt Umleitungen). Beachtet die
-    /// Verweildauer der vorigen Seite.
+    /// Loads `url` and waits until the page is finished (redirects included). Honours the
+    /// dwell time of the previous page.
     async fn load(&mut self, url: &Url, cancel: &CancellationToken) -> Result<Url, PageOutcome> {
         if !self.await_dwell(cancel).await {
             return Err(PageOutcome::Cancelled);
@@ -236,8 +281,8 @@ impl Session {
                     detail,
                 })?;
         }
-        // Ab hier ist die Seite angefragt: Die Verweildauer gilt auch, wenn sie nicht
-        // fertig wird – gerade bei Zeitüberschreitungen ist Zurückhaltung richtig.
+        // From here on the page is requested: the dwell time applies even if it never
+        // finishes - restraint is right especially after a timeout.
         self.arm_dwell();
         let finished = self.wait_finished(cancel).await?;
         self.arm_dwell();
@@ -251,14 +296,14 @@ impl Session {
         let Some(events) = self.events.as_mut() else {
             return Err(PageOutcome::NetError {
                 timeout: false,
-                detail: "kein Fenster".into(),
+                detail: "no window".into(),
             });
         };
         let event = tokio::select! {
             biased;
             () = cancel.cancelled() => return Err(PageOutcome::Cancelled),
             () = tokio::time::sleep(LOAD_TIMEOUT) => {
-                return Err(PageOutcome::NetError { timeout: true, detail: "Seite lädt nicht".into() });
+                return Err(PageOutcome::NetError { timeout: true, detail: "page does not load".into() });
             }
             event = events.recv() => event,
         };
@@ -268,25 +313,24 @@ impl Session {
                 self.window = None;
                 Err(PageOutcome::NetError {
                     timeout: false,
-                    detail: "Fenster geschlossen".into(),
+                    detail: "window closed".into(),
                 })
             }
         }
     }
 
-    /// Ein Befund der aktuellen Seite (Host-`eval`, kein IPC). Eine hängende Seite hält
-    /// „Abbrechen“ und „Beenden“ nicht auf: Der Abbruch gilt sofort, nicht erst nach
-    /// [`PROBE_TIMEOUT`].
+    /// One probe of the current page (host `eval`, no IPC). A hanging page does not hold up
+    /// "cancel" and "quit": the cancel applies at once, not only after [`PROBE_TIMEOUT`].
     ///
-    /// Der Fehlerfall ist bereits das Ergebnis der Seite: Nur ein wirklich ausgebliebener
-    /// oder unlesbarer Befund ist verdächtig (Seitenaufbau geändert?). Abbruch und ein
-    /// geschlossenes Fenster sind kein Seitenbefund – sie dürfen weder als Fehlversuch
-    /// gebucht werden noch den Schutzschalter füttern.
+    /// The error case is already the page's result: only a probe that truly failed to
+    /// arrive or is unreadable is suspicious (page layout changed?). A cancel and a closed
+    /// window are no page result - they must neither count as a failed attempt nor feed the
+    /// circuit breaker.
     async fn probe(&self, cancel: &CancellationToken) -> Result<SessionPage, PageOutcome> {
         let Some(window) = self.window.as_ref() else {
             return Err(PageOutcome::NetError {
                 timeout: false,
-                detail: "kein Fenster".into(),
+                detail: "no window".into(),
             });
         };
         let (tx, rx) = tokio::sync::oneshot::channel::<String>();
@@ -307,15 +351,15 @@ impl Session {
             answer = tokio::time::timeout(PROBE_TIMEOUT, rx) => answer,
         };
         let raw = answer
-            .map_err(|_| PageOutcome::Suspicious("keine Antwort der Seite".into()))?
+            .map_err(|_| PageOutcome::Suspicious("no answer from the page".into()))?
             .map_err(|_| PageOutcome::NetError {
                 timeout: false,
-                detail: "Fenster geschlossen".into(),
+                detail: "window closed".into(),
             })?;
-        // Das Ergebnis ist JSON-kodiert – hier also ein JSON-Text in einem JSON-String.
+        // The result is JSON-encoded - so here a JSON text inside a JSON string.
         let json: String = serde_json::from_str(&raw).unwrap_or(raw);
         serde_json::from_str(&json)
-            .map_err(|e| PageOutcome::Suspicious(format!("Befund unlesbar: {e}")))
+            .map_err(|e| PageOutcome::Suspicious(format!("probe unreadable: {e}")))
     }
 
     async fn fetch_page(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
@@ -323,20 +367,20 @@ impl Session {
             return outcome;
         }
         match self.probe(cancel).await {
-            // Manche Portale leiten die erste Seite nach der Anmeldung einmal um: Der Abruf
-            // wiederholt sie – als eigener, gezählter Zugriff mit Abstand.
+            // Some portals redirect the first page after sign-in once: the fetch repeats it -
+            // as its own, counted access with a pause.
             Ok(page) if (self.site.is_postlogin)(&page.url) => {
-                PageOutcome::Retry("Weiterleitung nach der Anmeldung".into())
+                PageOutcome::Retry("redirect after sign-in".into())
             }
             Ok(page) => (self.site.judge)(&page, &link.key.id),
             Err(outcome) => outcome,
         }
     }
 
-    /// Anmeldung durch den Nutzer: Fenster sichtbar auf der Anmeldeseite, höchstens fünf
-    /// Minuten warten – angemeldet, sobald eine Seite das Portal als angemeldet zeigt.
+    /// Sign-in by the user: window visible on the sign-in page, wait at most five minutes -
+    /// signed in as soon as a page shows the portal as signed in.
     pub async fn sign_in(&mut self, cancel: &CancellationToken) -> Login {
-        // Auch die Anmeldeseite folgt erst nach der Verweildauer der vorigen Seite.
+        // The sign-in page too follows only after the dwell time of the previous page.
         if !self.await_dwell(cancel).await {
             return Login::NotSignedIn;
         }
@@ -345,7 +389,7 @@ impl Session {
             portal,
             waiting: true,
         });
-        let login: Url = self.site.login_url.parse().expect("feste Adresse");
+        let login: Url = self.site.login_url.parse().expect("fixed address");
         self.drain();
         let shown = match &self.window {
             Some(window) => window.navigate(login.clone()).is_ok() && window.show().is_ok(),
@@ -363,26 +407,26 @@ impl Session {
         if let Some(window) = &self.window {
             let _ = window.hide();
         }
-        // Auch die Seite nach der Anmeldung bekommt ihre Verweildauer.
+        // The page after the sign-in gets its dwell time too.
         self.arm_dwell();
         (self.notify)(RunEvent::LoginNeeded {
             portal,
             waiting: false,
         });
         log::info!(
-            "{portal}-Anmeldung {}",
+            "{portal} sign-in {}",
             match login {
-                Login::SignedIn => "erfolgreich",
-                Login::Challenged => "erfolgreich, aber mit Sicherheitsprüfung",
-                Login::NotSignedIn => "nicht abgeschlossen",
+                Login::SignedIn => "succeeded",
+                Login::Challenged => "succeeded, but with a security check",
+                Login::NotSignedIn => "not completed",
             }
         );
         login
     }
 
-    /// Wartet, bis eine Seite das Portal als angemeldet zeigt. Zeigte es dabei eine
-    /// Sicherheitsprüfung (Captcha), gilt die Sitzung – das Portal ruht aber bis zum
-    /// nächsten Lauf (die App löst nie selbst eine Prüfung).
+    /// Waits until a page shows the portal as signed in. If it showed a security check
+    /// (captcha) on the way, the session counts - but the portal rests until the next run
+    /// (the app never solves a check itself).
     async fn await_login(&mut self, cancel: &CancellationToken) -> Login {
         let deadline = Instant::now() + LOGIN_WAIT;
         let mut challenged = false;
@@ -398,9 +442,9 @@ impl Session {
             };
             match event {
                 Some(Nav::Finished(url)) => {
-                    // Bleibt der Befund einmal aus (Seite noch beschäftigt), auf derselben
-                    // Seite erneut fragen. Sonst wartete die Anmeldung auf eine Navigation,
-                    // die nach einem erfolgreichen Login gar nicht mehr kommt.
+                    // If the probe fails once (page still busy), ask again on the same page.
+                    // Otherwise the sign-in would wait for a navigation that never comes
+                    // after a successful login.
                     let mut found = None;
                     for _ in 0..3 {
                         match self.probe(cancel).await {
@@ -416,8 +460,8 @@ impl Session {
                         continue;
                     };
                     challenged |= page.has_captcha;
-                    // Die Anmeldeseite selbst zählt nie als Anmeldung – auch nicht, wenn sie
-                    // schon ein Konto-Menü zeigt.
+                    // The sign-in page itself never counts as signed in - not even if it
+                    // already shows an account menu.
                     let on_login_page = self
                         .site
                         .login_url
@@ -440,17 +484,20 @@ impl Session {
         }
     }
 
-    /// Abmelden: die Abmeldeseite laden (unsichtbar), dann Fenster schließen. Erfolgreich
-    /// nur, wenn danach wirklich eine Seite des Portals ohne Anmeldung geladen ist – eine
-    /// gescheiterte Navigation meldet die WebView ebenfalls als „geladen“. Das Profil bleibt;
-    /// ohne Sitzungs-Cookie ist es nur ein leerer Browser.
+    /// Sign out and delete the session: load the portal's logout page (hidden), clear all
+    /// browsing data of the window, close it, delete its storage (`platform.rs`) and forget
+    /// the confirmed session in `policy.json`. `true` only once the local session is
+    /// verifiably gone: no cookie left in the window, storage deleted. The portal's own
+    /// logout is best effort (offline, changed page) - without cookies and storage the app
+    /// is signed out either way.
     ///
-    /// `false` heißt „nicht bestätigt“, nicht „fehlgeschlagen“: Auch ein Abbruch endet hier –
-    /// der Sitzungsstand bleibt dann unverändert (siehe `portal_logout`).
+    /// `false` means "not confirmed", not "failed". A cancel ends here too, before anything
+    /// is deleted - the session state then stays unchanged (see `portal_logout`).
     pub async fn sign_out(&mut self, cancel: &CancellationToken) -> bool {
-        let logout: Url = self.site.logout_url.parse().expect("feste Adresse");
+        let logout: Url = self.site.logout_url.parse().expect("fixed address");
         let site = self.site;
-        let done = match self.load(&logout, cancel).await {
+        let portal = site.portal.key();
+        let remote = match self.load(&logout, cancel).await {
             Ok(_) => self.probe(cancel).await.is_ok_and(|page| {
                 page.ok
                     && !(site.signed_in)(&page)
@@ -458,8 +505,66 @@ impl Session {
             }),
             Err(_) => false,
         };
+        if cancel.is_cancelled() {
+            self.close();
+            return false;
+        }
+        if !remote {
+            log::warn!("{portal}: logout page not confirmed - deleting the local session anyway");
+        }
+        let cookies_gone = self.clear_browsing_data().await;
         self.close();
+        let storage_gone = platform::delete_session_storage(&self.app, portal, &self.profile).await;
+        self.forget_session();
+        let done = cookies_gone && storage_gone;
+        log::info!(
+            "{portal} sign-out: remote logout {remote}, cookies gone {cookies_gone}, storage gone {storage_gone}"
+        );
         done
+    }
+
+    /// Clears cookies, cache and storage of the open window and waits until its cookie jar
+    /// is empty. Without a window there is nothing in memory to clear (`true`).
+    async fn clear_browsing_data(&self) -> bool {
+        let Some(window) = self.window.clone() else {
+            return true;
+        };
+        if let Err(error) = window.clear_all_browsing_data() {
+            log::warn!("browsing data not cleared: {error}");
+            return false;
+        }
+        for _ in 0..(CLEAR_WAIT.as_millis() / CLEAR_STEP.as_millis()) {
+            // Reading cookies blocks until the engine answers on the UI thread (WebView2
+            // deadlocks if that happens on it): ask from a worker thread.
+            let jar = window.clone();
+            let left =
+                tauri::async_runtime::spawn_blocking(move || jar.cookies().map(|c| c.len())).await;
+            match left {
+                Ok(Ok(0)) => return true,
+                Ok(Ok(_)) => tokio::time::sleep(CLEAR_STEP).await,
+                Ok(Err(error)) => {
+                    log::warn!("cookies not readable: {error}");
+                    return false;
+                }
+                Err(error) => {
+                    log::warn!("cookie check failed: {error}");
+                    return false;
+                }
+            }
+        }
+        false
+    }
+
+    /// The confirmed session is gone: the next run needs a sign-in again.
+    fn forget_session(&self) {
+        let mut policy = Policy::load(
+            &self.data_dir.join(jobalert_core::POLICY_FILE),
+            Timestamp::now(),
+        );
+        policy.forget_session(self.site.portal);
+        if let Err(error) = policy.save() {
+            log::warn!("session state not saved: {error}");
+        }
     }
 }
 

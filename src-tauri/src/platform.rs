@@ -9,11 +9,12 @@
 //! Documented differences: WebView2 switches (Windows) vs. a minimal app menu, link preview
 //! and first-mouse clicks (macOS), and the user agent of the HTTP client.
 
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tauri::webview::{NewWindowResponse, PageLoadEvent, PageLoadPayload};
-use tauri::{Manager, Runtime, Url, Webview, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, Runtime, Url, Webview, WebviewWindow, WebviewWindowBuilder};
 
 /// Label of the app's own window (`tauri.conf.json`).
 pub const MAIN: &str = "main";
@@ -305,6 +306,118 @@ impl AppOrigins {
         })
     }
 }
+
+// ------------------------------------------------------------------ portal sessions
+
+/// How long deleting a session's storage may retry: after its window closes, the engine
+/// still holds the files (WebView2) or the data store (`WKWebView`) for a moment.
+const STORAGE_RELEASE: Duration = Duration::from_secs(6);
+const STORAGE_STEP: Duration = Duration::from_millis(250);
+
+/// Where a portal's session window keeps cookies and cache: its own profile folder
+/// (WebView2 user data folder) on Windows, its own persistent data store on macOS, where
+/// `WKWebView` has no folder option (`data_store_identifier` needs macOS 14, the minimum).
+pub fn session_storage<'a, R: Runtime, M: Manager<R>>(
+    builder: WebviewWindowBuilder<'a, R, M>,
+    portal_key: &str,
+    profile: &Path,
+) -> WebviewWindowBuilder<'a, R, M> {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = profile;
+        builder.data_store_identifier(session_store_id(portal_key))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = portal_key;
+        builder.data_directory(profile.to_path_buf())
+    }
+}
+
+/// Deletes a portal's session storage once its window is closed. `true` only if it is
+/// verifiably gone: the profile folder (all OS; older versions created it on macOS too)
+/// and, on macOS, the data store.
+pub async fn delete_session_storage<R: Runtime>(
+    app: &AppHandle<R>,
+    portal_key: &str,
+    profile: &Path,
+) -> bool {
+    let mut folder_gone = false;
+    let mut store_gone = !cfg!(target_os = "macos");
+    for _ in 0..(STORAGE_RELEASE.as_millis() / STORAGE_STEP.as_millis()) {
+        folder_gone = folder_gone
+            || match std::fs::remove_dir_all(profile) {
+                Ok(()) => true,
+                Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+            };
+        store_gone = store_gone || remove_data_store(app, portal_key).await;
+        if folder_gone && store_gone {
+            return true;
+        }
+        tokio::time::sleep(STORAGE_STEP).await;
+    }
+    log::warn!(
+        "session storage of {portal_key} not deleted (folder gone: {folder_gone}, data store gone: {store_gone})"
+    );
+    false
+}
+
+/// macOS: removes the portal's data store and checks it is no longer listed.
+#[cfg(target_os = "macos")]
+async fn remove_data_store<R: Runtime>(app: &AppHandle<R>, portal_key: &str) -> bool {
+    let id = session_store_id(portal_key);
+    if let Err(error) = app.remove_data_store(id).await {
+        log::debug!("data store of {portal_key} not removed yet: {error}");
+    }
+    app.fetch_data_store_identifiers()
+        .await
+        .is_ok_and(|ids| !ids.contains(&id))
+}
+
+#[cfg(not(target_os = "macos"))]
+#[allow(clippy::unused_async, reason = "same signature as the macOS variant")]
+async fn remove_data_store<R: Runtime>(_app: &AppHandle<R>, _portal_key: &str) -> bool {
+    true
+}
+
+/// Stable data store identifier of a portal session (macOS): a UUID (version 8, RFC 9562)
+/// from the 128-bit FNV-1a hash of the app id and the portal key. It must never change -
+/// a new identifier would silently lose the user's sign-in.
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(
+        dead_code,
+        reason = "only macOS has data stores; checked at compile time"
+    )
+)]
+const fn session_store_id(portal_key: &str) -> [u8; 16] {
+    const PREFIX: &[u8] = b"de.cxecutives.job-alert-monitor/session/";
+    const PRIME: u128 = 0x0000_0000_0100_0000_0000_0000_0000_013B;
+    let mut hash: u128 = 0x6c62_272e_07bb_0142_62b8_2175_6295_c58d;
+    let mut i = 0;
+    while i < PREFIX.len() + portal_key.len() {
+        let byte = if i < PREFIX.len() {
+            PREFIX[i]
+        } else {
+            portal_key.as_bytes()[i - PREFIX.len()]
+        };
+        hash = (hash ^ byte as u128).wrapping_mul(PRIME);
+        i += 1;
+    }
+    let mut id = hash.to_be_bytes();
+    id[6] = (id[6] & 0x0f) | 0x80;
+    id[8] = (id[8] & 0x3f) | 0x80;
+    id
+}
+
+// Golden values: the identifiers of existing sessions never change.
+const _: () = {
+    let freelance = session_store_id("freelance");
+    assert!(freelance[0] == 0xde && freelance[1] == 0x11 && freelance[15] == 0xad);
+    let freelancermap = session_store_id("freelancermap");
+    assert!(freelancermap[0] == 0xa6 && freelancermap[15] == 0xa1);
+    assert!(freelance[6] >> 4 == 8 && freelance[8] >> 6 == 0b10);
+};
 
 // ------------------------------------------------------------------ macOS menu
 
