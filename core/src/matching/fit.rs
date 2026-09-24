@@ -458,8 +458,15 @@ fn degree_fit(skills: &Skills, text: &str) -> ItemFit {
 
 /// A licence requirement (`Zulassung als Steuerberater`): met only when a profile text
 /// names the same licence.
+/// A licence the profile holds under any of its names (`Sachkundige Person` for a
+/// `Qualified Person`).
 fn licence_fit(skills: &Skills, word: &str) -> ItemFit {
-    let value = if skills.folded.iter().any(|t| t.contains(word)) {
+    let names = lex::LICENCE_SYNONYMS
+        .iter()
+        .find(|names| names.contains(&word))
+        .map_or_else(|| vec![word], |names| names.to_vec());
+    let held = |t: &String| names.iter().any(|n| contains_word(t, n));
+    let value = if skills.folded.iter().any(held) {
         E_FULL
     } else {
         E_NONE
@@ -568,4 +575,22 @@ pub(crate) fn item_fit(skills: &Skills, item: &Item) -> ItemFit {
         }
     }
     fit
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    /// A licence counts under any of its names (`Sachkundige Person` for a `Qualified
+    /// Person`).
+    #[test]
+    fn licences_under_any_name() {
+        let data = json!({"kernkompetenzen": [{"kompetenz": "Sachkundige Person nach § 15 AMG"}]});
+        let skills = Skills::new(&LegacyProfile::new(&data), &data, &[]);
+        assert_eq!(licence_fit(&skills, "qualified person").value, E_FULL);
+        assert_eq!(licence_fit(&skills, "sachkundige person").value, E_FULL);
+        assert_eq!(licence_fit(&skills, "steuerberater").value, E_NONE);
+    }
 }

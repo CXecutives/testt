@@ -213,6 +213,31 @@ contract type (salary for a freelance role, day rate for a permanent one) is lef
 facts of every ad (`KeyFacts`: rate, hourly, currency, rateOpen, start `now`/`vague`/ISO date,
 months, remote from/to, contract) are stored in the match note and sent on `JobMatch.facts`.
 
+### Version 5: words, not prefixes
+
+Found by the domain-pack work; scores of the corpus unchanged, held-out 1 NDCG@10 0.930 to
+0.921 (a grade-2 job now meets `HGB-Kenntnisse` in full and passes a grade-3 one), held-out 2
+0.862 unchanged.
+
+- Frame words (weight 0) count as the word with an ending (`Verfügbarkeit`), before a frame
+  head (`Reisebereitschaft`, `Gehaltsvorstellung`, `Remote-Arbeit`) or at the end of a
+  compound with a modifier of four letters or more (`Projektlaufzeit`); a frame word before
+  another head is a skill (`Vergütungsmanagement`, `Gehaltsabrechnung`, `Standortleitung`,
+  `Start-up`), and so is an English frame word before a skill head (`Hybrid Cloud`,
+  `Travel Management`, `Salary Benchmarking`) or an item about compensation work.
+- Soft words count with an ending or a soft head (`Kommunikationsfähigkeit`, `analytisches
+  Denken`); `Kommunikationsstrategie` and `analytische Methodenvalidierung` are skills.
+- A compound needs a modifier of three letters or more (`Herstellung` is no `Erstellung`).
+- `SQL-Kenntnisse`, `CAPA-Erfahrung`, `SAP-Know-how` are the skill itself; `ISO 9001`,
+  `Annex 11`, `IEC 62304` keep their number; `QP`, `QC`, `ML`, `R`, `Go`, `5S`, `8D`,
+  `IQ/OQ/PQ`, `CI/CD`, `VP` survive the minimum length.
+- Lexicon terms with a stopword, filler or short word match with spaces (`US GAAP`, `Order to
+  Cash`, `Year End Closing`, `Working Capital`, `React Native`, `Customer Experience`,
+  `Job Evaluation`).
+- `Promotion` (not after sales words) and `Staatsexamen` are degrees; `Qualified Person` and
+  `Sachkundige Person` are one licence.
+- A lone adjective before an AND is no item (`Classic and agile project management`).
+
 ### Rubric of the Claude check
 
 `core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the
