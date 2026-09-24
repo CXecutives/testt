@@ -59,6 +59,8 @@
         : t.settings.quota(q.usedDay, q.capDay);
     return { share, text };
   });
+  /** A stored sign-in the switches no longer show: its Abmelden stays until it is gone. */
+  const leftover = $derived(portal.signedIn === true && !(portal.enabled && portal.loginEnabled));
   /** The risk of fetching details now: signed in it is the own account. */
   const risk = $derived<Risk>(portal.loginEnabled ? 'account' : portal.risk);
   const dryRun = $derived(app.state?.dryRun ?? false);
@@ -135,7 +137,7 @@
     </div>
   </div>
   <!-- Switching the portal on, its rows rise in; off, they fade (no height animation). -->
-  {#if portal.enabled || error}
+  {#if portal.enabled || error || leftover}
     <div class="body" in:rise={{ distance: 'sm' }} out:fade>
       {#if portal.enabled && health}
         <Notice
@@ -236,6 +238,23 @@
               </SettingRow>
             {/if}
           {/if}
+        </div>
+      {/if}
+      {#if leftover}
+        <div class="rows">
+          <SettingRow label={t.settings.signedIn} hint={t.settings.sessionLeft}>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="log-out"
+              label={t.settings.signOut}
+              loading={busy}
+              disabled={dryRun}
+              disabledReason={t.error.text('dryRun', {})}
+              testid="sign-out-{portal.portal}"
+              onclick={() => void session(false)}
+            />
+          </SettingRow>
         </div>
       {/if}
       {#if error}

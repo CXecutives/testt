@@ -1,7 +1,6 @@
 //! The job list, the reader and the per-job marks.
 
 use jiff::Timestamp;
-use jiff::civil::Date;
 use jobalert_core::export;
 use jobalert_core::model::AppStatus;
 use jobalert_core::pipeline::{self, Matcher, demo};
@@ -48,7 +47,7 @@ pub async fn set_pinned(state: State<'_, AppState>, key: JobKey, on: bool) -> Cm
     Ok(state.store.set_pinned(&key, on, Timestamp::now())?)
 }
 
-/// Sets or clears where the application for a job stands; `false` = nothing changed.
+/// Sets or clears the mark of a job (saved, sent); `false` = nothing changed.
 #[tauri::command]
 pub async fn set_app_status(
     state: State<'_, AppState>,
@@ -204,17 +203,6 @@ pub async fn ai_prompt_top(state: State<'_, AppState>, limit: u32) -> CmdResult<
     Ok(export::ai_prompt_top(&profile, &items, state.language()?))
 }
 
-/// The day to follow up an application (while applied or in talks; `null` clears it);
-/// `false` = nothing changed.
-#[tauri::command]
-pub async fn set_follow_up(
-    state: State<'_, AppState>,
-    key: JobKey,
-    on: Option<Date>,
-) -> CmdResult<bool> {
-    Ok(state.store.set_follow_up(&key, on)?)
-}
-
 /// "All read": every unread job of the facet's list; the keys come back for the undo.
 #[tauri::command]
 pub async fn mark_all_read(state: State<'_, AppState>, facet: JobFacet) -> CmdResult<Vec<JobKey>> {
@@ -222,7 +210,7 @@ pub async fn mark_all_read(state: State<'_, AppState>, facet: JobFacet) -> CmdRe
         JobFacet::New => ListFacet::New,
         JobFacet::All => ListFacet::All,
         JobFacet::Saved => ListFacet::Saved,
-        JobFacet::Applications => ListFacet::Applications,
+        JobFacet::Sent => ListFacet::Sent,
         JobFacet::Archived => ListFacet::Archived,
     };
     Ok(state.store.mark_all_read(facet, Timestamp::now())?)

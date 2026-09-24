@@ -15,36 +15,24 @@ use crate::text::{one_line, truncate_chars};
 const MAX_BYTES: u64 = 1024 * 1024;
 const MAX_LINE_CHARS: usize = 2_000;
 
-/// Third-party libraries that may write at most warnings.
-const QUIET: &[&str] = &[
-    "async_imap",
-    "imap_proto",
-    "rustls",
-    "tokio_rustls",
-    "hyper",
-    "h2",
-    "reqwest",
-    "html5ever",
-    "selectors",
-    "keyring",
-    "tao",
-    "wry",
-    "tauri",
-];
+/// The app's own crates: only they may write below warnings. Every other source - every
+/// library, today's and tomorrow's - writes at most warnings (async-imap's LOGIN, the cookie
+/// store's Set-Cookie values and the keyring never reach the log).
+const OURS: &[&str] = &["jobalert_core", "job_alert_monitor"];
 
 /// May a message go into the log? `max` is the chosen level (at most `Debug`).
 pub fn allowed(target: &str, level: Level, max: LevelFilter) -> bool {
     let max = max.min(LevelFilter::Debug);
-    let quiet = QUIET.iter().any(|q| {
-        target == *q
+    let ours = OURS.iter().any(|o| {
+        target == *o
             || target
-                .strip_prefix(q)
+                .strip_prefix(o)
                 .is_some_and(|rest| rest.starts_with("::"))
     });
-    let cap = if quiet {
-        max.min(LevelFilter::Warn)
-    } else {
+    let cap = if ours {
         max
+    } else {
+        max.min(LevelFilter::Warn)
     };
     level <= cap
 }
@@ -228,7 +216,40 @@ mod tests {
             Level::Debug,
             LevelFilter::Info
         ));
-        // Only whole module names: "taurus" is not "tauri".
-        assert!(allowed("taurus", Level::Info, LevelFilter::Info));
+        // Only whole crate names are ours.
+        assert!(!allowed(
+            "jobalert_core_fake",
+            Level::Info,
+            LevelFilter::Info
+        ));
+        assert!(allowed(
+            "job_alert_monitor::session",
+            Level::Info,
+            LevelFilter::Info
+        ));
+    }
+
+    /// Every library is capped, also the ones no list names: the cookie store (Set-Cookie
+    /// values at debug), keyring 4's real targets, tauri's runtime and plugins.
+    #[test]
+    fn libraries_write_warnings_at_most() {
+        for target in [
+            "cookie_store::cookie_store",
+            "keyring_core",
+            "windows_native_keyring_store",
+            "tauri_runtime_wry",
+            "tauri_plugin_single_instance",
+            "some_new_crate::client",
+        ] {
+            assert!(
+                !allowed(target, Level::Debug, LevelFilter::Debug),
+                "{target}"
+            );
+            assert!(
+                !allowed(target, Level::Info, LevelFilter::Debug),
+                "{target}"
+            );
+            assert!(allowed(target, Level::Warn, LevelFilter::Debug), "{target}");
+        }
     }
 }

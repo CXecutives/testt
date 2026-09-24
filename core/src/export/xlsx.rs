@@ -9,7 +9,7 @@ use super::Line;
 use super::scale::{SCORE_SCALE, score_step};
 use super::texts::Texts;
 use crate::error::Result;
-use crate::model::MatchStatus;
+use crate::model::{AppStatus, MatchStatus};
 use crate::settings::Language;
 use crate::store::JobRow;
 use crate::text::truncate_chars;
@@ -21,8 +21,8 @@ const MAX_CELL_CHARS: usize = 32_767;
 /// reports "unreadable content" and removes all links when repairing).
 const MAX_LINKS: usize = 65_530;
 /// Column widths in characters (order as in `COLUMNS`).
-const WIDTHS: [f64; 15] = [
-    15.0, 16.0, 50.0, 32.0, 22.0, 45.0, 40.0, 20.0, 16.0, 22.0, 24.0, 10.0, 14.0, 16.0, 50.0,
+const WIDTHS: [f64; 14] = [
+    15.0, 16.0, 50.0, 32.0, 22.0, 45.0, 40.0, 20.0, 16.0, 22.0, 24.0, 10.0, 16.0, 50.0,
 ];
 /// Grey of the header row and of excluded jobs.
 const HEADER_GREY: u32 = 0x00E7_E6E6;
@@ -99,14 +99,12 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow], texts: &Texts) -> Result<(
                 sheet.write_number(row, 11, f64::from(m.score))?;
             }
         }
-        if let Some(status) = job.app_status {
-            text(sheet, row, 12, texts.app_status_label(status))?;
-        }
-        if let Some(at) = job.app_status_at {
-            sheet.write_datetime_with_format(row, 13, time::local(at), date)?;
+        // "Beworben am": the day of the application.
+        if let (Some(AppStatus::Sent), Some(at)) = (job.app_status, job.app_status_at) {
+            sheet.write_datetime_with_format(row, 12, time::local(at), date)?;
         }
         if let Some(note) = &job.note {
-            text(sheet, row, 14, note)?;
+            text(sheet, row, 13, note)?;
         }
     }
     let last_row = u32::try_from(jobs.len()).unwrap_or(u32::MAX);
@@ -204,7 +202,7 @@ mod tests {
             facts: None,
             app_status: None,
             app_status_at: None,
-            follow_up_on: None,
+
             note: None,
             archived_at: None,
             override_include: false,
@@ -238,7 +236,7 @@ mod tests {
         };
         jobs[0].match_ = Some(scored(MatchStatus::Scored, 83));
         jobs[1].match_ = Some(scored(MatchStatus::Excluded, 71));
-        jobs[0].app_status = Some(crate::model::AppStatus::Interview);
+        jobs[0].app_status = Some(crate::model::AppStatus::Sent);
         jobs[0].app_status_at = Some("2026-09-20T08:00:00Z".parse().unwrap());
         jobs[0].note = Some("Zweites Gespräch am Freitag".into());
         let info = [(INFO_LAST_RUN.to_string(), "x".to_string())];
@@ -279,15 +277,14 @@ mod tests {
         // "Passung" last: a number, for excluded jobs the domain score.
         assert_eq!(first[11], &Data::Float(83.0));
         assert_eq!(range.get((2, 11)), Some(&Data::Float(71.0)));
-        // The application status in the words of the interface; none stays empty.
-        assert_eq!(first[12].to_string(), "Im Gespräch");
+        // "Beworben am" as a date; none stays empty.
         assert!(
-            matches!(first[13], Data::DateTime(_)),
-            "since when, as a date"
+            matches!(first[12], Data::DateTime(_)),
+            "the day of the application, as a date"
         );
-        assert_eq!(first[14].to_string(), "Zweites Gespräch am Freitag");
+        assert_eq!(first[13].to_string(), "Zweites Gespräch am Freitag");
         assert!(matches!(range.get((2, 12)), None | Some(Data::Empty)));
-        assert!(matches!(range.get((2, 14)), None | Some(Data::Empty)));
+        assert!(matches!(range.get((2, 13)), None | Some(Data::Empty)));
         assert_eq!(range.rows().count(), 3);
         let info = book.worksheet_range(INFO_SHEET).unwrap();
         assert_eq!(info.get((0, 1)).unwrap().to_string(), "x");
@@ -304,7 +301,7 @@ mod tests {
             "Interim CFO",
             DescStatus::Teaser,
         );
-        job.app_status = Some(crate::model::AppStatus::Offer);
+        job.note = Some("Call on Friday".into());
         let info = [(en::INFO_LAST_RUN.to_string(), "x".to_string())];
         write_xlsx(&path, &[job], &info, Language::En).unwrap();
 
@@ -322,7 +319,7 @@ mod tests {
         let first: Vec<&Data> = range.rows().nth(1).unwrap().iter().collect();
         assert_eq!(first[3].to_string(), "Muster GmbH");
         assert_eq!(first[9].to_string(), "Teaser only");
-        assert_eq!(first[12].to_string(), "Offer");
+        assert_eq!(first[13].to_string(), "Call on Friday");
         let info = book.worksheet_range(en::INFO_SHEET).unwrap();
         assert_eq!(info.get((0, 0)).unwrap().to_string(), en::INFO_LAST_RUN);
         assert_eq!(info.get((1, 0)).unwrap().to_string(), en::INFO_NOTE_LABEL);

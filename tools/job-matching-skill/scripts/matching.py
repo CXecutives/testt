@@ -37,14 +37,9 @@ TOP_DEFAULT, TOP_MAX = 5, 10
 TEXT_LIMIT = 12000
 HEADER_KEYS = ("Titel:", "Unternehmen:", "Ort:", "Quelle:", "Link:", "Abgerufen am:")
 
-# Profile keys left out of the brief: contact data and long testimonial or case-study prose.
-PERSONAL = {
-    "email", "e_mail", "mail", "telefon", "phone", "mobil", "mobile", "handy", "adresse",
-    "address", "anschrift", "strasse", "street", "plz", "zip", "geburtsdatum", "birthday",
-    "geburtsort", "linkedin", "xing", "website", "homepage", "foto", "photo", "bild", "iban",
-    "bic", "steuernummer", "ust_id", "ustid", "nationalitaet", "staatsangehoerigkeit",
-}
-PROSE = ("testimonial", "kundenstimme", "case_stud", "fallstudie", "zitat", "quote")
+# The contact-data filter the app's AI prompts use too (one file, the same cases in both
+# test suites): contact data, the consultant's name and testimonial prose stay out.
+PERSONAL_DATA = Path(__file__).resolve().parent.parent / "personal_data.json"
 STRING_LIMIT = 240
 
 REQ_WEIGHTS = ("must", "nice", "formal")
@@ -144,9 +139,75 @@ def _short(value) -> str:
     return s if len(s) <= STRING_LIMIT else s[: STRING_LIMIT - 3].rstrip() + "..."
 
 
-def _skip(key: str) -> bool:
-    k = key.lower()
-    return k in PERSONAL or any(p in k for p in PROSE)
+_RULES: dict | None = None
+_UMLAUTS = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}
+
+
+def _rules() -> dict:
+    global _RULES
+    if _RULES is None:
+        rules = json.loads(PERSONAL_DATA.read_text(encoding="utf-8"))
+        rules["patterns"] = [re.compile(p) for p in rules["valuePatterns"]]
+        _RULES = rules
+    return _RULES
+
+
+def _normalise(key: str) -> str:
+    """Lower case, umlauts spelled out, every other character an underscore."""
+    out: list[str] = []
+    for c in key.strip().lower():
+        if c in _UMLAUTS:
+            out.append(_UMLAUTS[c])
+        elif c.isascii() and c.isalnum():
+            out.append(c)
+        elif out and out[-1] != "_":
+            out.append("_")
+    return "".join(out).rstrip("_")
+
+
+def _personal_key(key: str, place: str) -> bool:
+    r = _rules()
+    k = _normalise(key)
+    return (
+        any(p in k for p in r["keyParts"])
+        or any(t in r["keyTokens"] for t in k.split("_"))
+        or any(p in k for p in r["proseParts"])
+        or (place != "inside" and k in r["nameKeys"])
+    )
+
+
+def _personal_section(key: str) -> bool:
+    k = "_" + _normalise(key)
+    return any("_" + s in k for s in _rules()["personalSections"])
+
+
+def scrub_text(text: str) -> str:
+    """A text without mail addresses, links and phone numbers (spaces collapsed where one went)."""
+    changed = False
+    for pattern in _rules()["patterns"]:
+        if pattern.search(text):
+            text = pattern.sub("", text)
+            changed = True
+    return " ".join(text.split()) if changed else text.strip()
+
+
+def _scrub(value, place: str):
+    if isinstance(value, dict):
+        return {
+            k: _scrub(v, "personal" if place == "personal" or _personal_section(k) else "inside")
+            for k, v in value.items()
+            if not _personal_key(k, place)
+        }
+    if isinstance(value, list):
+        return [_scrub(v, place) for v in value]
+    if isinstance(value, str):
+        return scrub_text(value)
+    return value
+
+
+def scrub_profile(profile):
+    """The profile without contact data, the consultant's name and testimonial prose."""
+    return _scrub(profile, "top" if isinstance(profile, dict) else "inside")
 
 
 def _item(value) -> str:
@@ -154,7 +215,7 @@ def _item(value) -> str:
     if isinstance(value, dict):
         parts = []
         for k, v in value.items():
-            if _skip(k) or v in (None, "", [], {}):
+            if v in (None, "", [], {}):
                 continue
             if isinstance(v, list):
                 parts.append(f"{k} " + ", ".join(_item(x) for x in v))
@@ -169,16 +230,17 @@ def _item(value) -> str:
 
 
 def profile_lines(profile: dict) -> list[str]:
+    """The profile for the brief, after the shared contact-data filter."""
     out = []
-    for key, value in profile.items():
-        if _skip(key) or value in (None, "", [], {}):
+    for key, value in scrub_profile(profile).items():
+        if value in (None, "", [], {}):
             continue
         if isinstance(value, list) and any(isinstance(x, dict) for x in value):
             out.append(f"{key}:")
             out += [f"  - {_item(x)}" for x in value]
         elif isinstance(value, dict):
             out.append(f"{key}:")
-            out += [f"  {k}: {_item(v)}" for k, v in value.items() if not _skip(k)]
+            out += [f"  {k}: {_item(v)}" for k, v in value.items()]
         else:
             out.append(f"{key}: {_item(value)}")
     return out

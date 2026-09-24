@@ -27,17 +27,13 @@ short: boolean, match: JobMatch | null,
  */
 alsoOn: Array<Portal>, 
 /**
- * The stage in the user's pipeline (`null` = none; `saved` is the star).
+ * The user's mark (`null` = none; `saved` is the star, `sent` "Beworben").
  */
 appStatus: AppStatus | null, 
 /**
- * When the stage was set last.
+ * When the mark was set.
  */
 statusAt: string | null, 
-/**
- * The day to follow up (while applied or in talks).
- */
-followUpOn: string | null, 
 /**
  * The job is archived (by the user or by age).
  */

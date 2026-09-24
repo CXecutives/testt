@@ -204,13 +204,8 @@
           secondary={{ label: t.list.clearFilter, onclick: () => jobs.setFilter(null) }}
           testid="empty-filter"
         />
-      {:else if jobs.facet === 'applications'}
-        <EmptyState
-          icon="inbox"
-          tone="neutral"
-          text={t.list.emptyApplications}
-          testid="empty-applications"
-        />
+      {:else if jobs.facet === 'sent'}
+        <EmptyState icon="inbox" tone="neutral" text={t.list.emptySent} testid="empty-sent" />
       {:else if jobs.facet === 'archived'}
         <EmptyState
           icon="inbox"

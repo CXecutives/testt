@@ -473,27 +473,29 @@ impl Session {
         }
     }
 
-    /// Sign out and delete the session: load the portal's logout page (hidden), clear all
-    /// browsing data of the window, close it, delete its storage (`platform.rs`) and forget
-    /// the confirmed session in `policy.json`. `true` only once the local session is
+    /// Sign out and delete the session: load the portal's logout page (hidden; only with
+    /// `remote`, i.e. when a request is allowed), clear all browsing data of the window,
+    /// close it, delete its storage (`platform.rs`) and forget the confirmed session in
+    /// `policy.json`. `true` only once the local session is
     /// verifiably gone: no cookie left in the window, storage deleted. The portal's own
     /// logout is best effort (offline, changed page) - without cookies and storage the app
     /// is signed out either way.
     ///
     /// `false` means "not confirmed", not "failed". A cancel ends here too, before anything
     /// is deleted - the session state then stays unchanged (see `portal_logout`).
-    pub async fn sign_out(&mut self, cancel: &CancellationToken) -> bool {
+    pub async fn sign_out(&mut self, cancel: &CancellationToken, remote: bool) -> bool {
         let logout: Url = self.site.logout_url.parse().expect("fixed address");
         let site = self.site;
         let portal = site.portal.key();
-        let remote = match self.load(&logout, cancel).await {
-            Ok(_) => self.probe(cancel).await.is_ok_and(|page| {
-                page.ok
-                    && !(site.signed_in)(&page)
-                    && Url::parse(&page.url).is_ok_and(|url| (site.is_allowed)(&url))
-            }),
-            Err(_) => false,
-        };
+        let remote = remote
+            && match self.load(&logout, cancel).await {
+                Ok(_) => self.probe(cancel).await.is_ok_and(|page| {
+                    page.ok
+                        && !(site.signed_in)(&page)
+                        && Url::parse(&page.url).is_ok_and(|url| (site.is_allowed)(&url))
+                }),
+                Err(_) => false,
+            };
         if cancel.is_cancelled() {
             self.close();
             return false;

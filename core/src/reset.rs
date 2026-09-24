@@ -14,10 +14,10 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use crate::export::{RESULT_DIR, app_files};
+use crate::export::{RESULT_DIR, app_files, files_in, is_tmp};
 use crate::fetch::policy::Policy;
 use crate::portal::Portal;
-use crate::profile::{PROFILE_DIR, PROFILE_FILE, profile_path};
+use crate::profile::{BACKUP_FILE, PROFILE_DIR, PROFILE_FILE, profile_path};
 use crate::secrets::Vault;
 use crate::{DB_FILE, POLICY_FILE, session_dir};
 
@@ -101,7 +101,11 @@ pub fn perform_pending(data_dir: &Path, vault: &Vault) -> Option<ResetReport> {
             || sessions.iter().any(|dir| dir == base)
     };
     targets.extend(leftovers(data_dir, names_in_data));
-    targets.extend(leftovers(&profile_dir, |base| base == PROFILE_FILE));
+    // The profile, its backup and remains of an interrupted write - the old profile may carry
+    // name and contact data. Foreign files in the folder stay.
+    targets.extend(files_in(&profile_dir, |name| {
+        name == PROFILE_FILE || name == BACKUP_FILE || is_tmp(name)
+    }));
     // Overviews, text files, temporary files and their leftovers in the result folder.
     targets.extend(app_files(&result_dir, &plan.txt_names));
     for target in targets {
@@ -229,6 +233,8 @@ mod tests {
         std::fs::write(txt.join(".jam-x1y2z3.tmp"), b"halb").unwrap();
         std::fs::create_dir_all(workspace.join("profil")).unwrap();
         std::fs::write(profile_path(&workspace), b"{}").unwrap();
+        std::fs::write(crate::profile::backup_path(&workspace), b"{}").unwrap();
+        std::fs::write(workspace.join("profil").join(".jam-p1q2r3.tmp"), b"halb").unwrap();
         std::fs::write(workspace.join("Profil_Erika.json"), b"{}").unwrap();
         let plan = ResetPlan {
             workspace,
@@ -251,6 +257,10 @@ mod tests {
         assert!(!data.join("jobs.db-wal").exists() && !data.join("jobs.db-shm").exists());
         assert!(!data.join("session-freelance").exists());
         assert!(!profile_path(&plan.workspace).exists());
+        assert!(
+            !plan.workspace.join("profil").exists(),
+            "profile, its backup and a half-written file go, and the folder with them"
+        );
         let txt = plan.workspace.join(RESULT_DIR).join(TXT_DIR);
         assert!(
             !txt.join(".jam-x1y2z3.tmp").exists(),

@@ -1,0 +1,91 @@
+[
+  {
+    "about": "A profile with contact data in every common spelling, a personal section, links and phone numbers in free text",
+    "input": {
+      "name": "Erika Beispiel",
+      "titel": "Interim CFO",
+      "E-Mail-Adresse": "erika@example.org",
+      "emailadresse": "erika@example.org",
+      "Telefonnummer": "+49 171 1234567",
+      "mobilnummer": "0171 1234567",
+      "Handy": "0171 1234567",
+      "wohnadresse": "Musterweg 1, 20095 Hamburg",
+      "Straße": "Musterweg 1",
+      "PLZ": "20095",
+      "geburtstag": "1970-01-01",
+      "linkedin_profil": "linkedin.com/in/erika-beispiel",
+      "xing-profil": "https://www.xing.com/profile/Erika_Beispiel",
+      "links": ["https://example.org"],
+      "persoenliche_daten": {
+        "name": "Erika Beispiel",
+        "vorname": "Erika",
+        "Nationalität": "deutsch",
+        "verfuegbarkeit": "ab sofort"
+      },
+      "kontakt": { "tel": "+49 40 123456", "ort": "Hamburg" },
+      "kernkompetenzen": [
+        { "name": "Controlling", "jahre": 15 },
+        { "name": "SAP FI" }
+      ],
+      "zusammenfassung": "Interim-Managerin, erreichbar unter erika@example.org oder +49 171 1234567, mehr auf linkedin.com/in/erika und example.de/cv",
+      "sprachen": ["Deutsch", "Englisch"],
+      "ausbildung": "Diplom-Kauffrau",
+      "mobilitaet": "deutschlandweit",
+      "einsatzort": "Hamburg",
+      "harte_kriterien": { "min_tagessatz": 900, "laender": ["DE", "AT"] },
+      "wuensche": { "tagessatz_wunsch": 1200, "remote": "hybrid" },
+      "referenzen": [{ "kunde": "Nordlicht AG", "zitat": "Sehr gut." }],
+      "stationen": [
+        {
+          "firma": "Nordlicht AG",
+          "rolle": "CFO",
+          "zeitraum": "2019 - 2023",
+          "tools": "ASP.NET, S/4HANA, Node.js",
+          "umfang": "0,5 FTE ab 01.11.2026"
+        }
+      ]
+    },
+    "expected": {
+      "titel": "Interim CFO",
+      "persoenliche_daten": { "verfuegbarkeit": "ab sofort" },
+      "kernkompetenzen": [
+        { "name": "Controlling", "jahre": 15 },
+        { "name": "SAP FI" }
+      ],
+      "zusammenfassung": "Interim-Managerin, erreichbar unter oder , mehr auf und",
+      "sprachen": ["Deutsch", "Englisch"],
+      "ausbildung": "Diplom-Kauffrau",
+      "mobilitaet": "deutschlandweit",
+      "einsatzort": "Hamburg",
+      "harte_kriterien": { "min_tagessatz": 900, "laender": ["DE", "AT"] },
+      "wuensche": { "tagessatz_wunsch": 1200, "remote": "hybrid" },
+      "stationen": [
+        {
+          "firma": "Nordlicht AG",
+          "rolle": "CFO",
+          "zeitraum": "2019 - 2023",
+          "tools": "ASP.NET, S/4HANA, Node.js",
+          "umfang": "0,5 FTE ab 01.11.2026"
+        }
+      ]
+    }
+  },
+  {
+    "about": "The name deep inside a personal section, English keys, and a tool called name that stays",
+    "input": {
+      "angaben_zur_person": {
+        "daten": { "name": "Erika Beispiel", "first_name": "Erika", "branche": "Energie" }
+      },
+      "about_me": { "lastName": "Beispiel", "summary": "Call me at 0049 171 1234567." },
+      "contact_details": { "phone": "+1 555 123 4567" },
+      "Website": "www.example.org",
+      "tools": [{ "name": "SAP S/4HANA", "level": "Experte" }],
+      "case_studies": ["Lange Geschichte eines Kunden"]
+    },
+    "expected": {
+      "angaben_zur_person": { "daten": { "branche": "Energie" } },
+      "about_me": { "summary": "Call me at ." },
+      "tools": [{ "name": "SAP S/4HANA", "level": "Experte" }]
+    }
+  }
+]

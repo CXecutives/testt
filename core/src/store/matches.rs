@@ -280,7 +280,7 @@ impl Store {
     }
 
     /// The jobs for the skill's `top_matches.json`: scored (not excluded), unread or saved,
-    /// not archived, not rejected, no duplicate, the alert mail at most since `since`; best
+    /// not archived, not sent, no duplicate, the alert mail at most since `since`; best
     /// first. A fetch without new jobs keeps the list (it does not depend on the last run).
     pub fn skill_matches(&self, since: Timestamp, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
@@ -288,7 +288,7 @@ impl Store {
             "SELECT {JOB_COLUMNS} FROM job
              WHERE match_status = 'scored' AND dup_of IS NULL AND archived_at IS NULL
                AND (read_at IS NULL OR app_status = 'saved')
-               AND app_status IS NOT 'rejected'
+               AND app_status IS NOT 'sent'
                AND COALESCE(mail_date, first_seen_at) >= ?1
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id LIMIT ?2"
         ))?;

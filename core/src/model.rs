@@ -161,51 +161,26 @@ impl MatchStatus {
     }
 }
 
-/// The stage of a job in the user's pipeline (set by the user, never by a run): saved
-/// ("Gemerkt", the star) comes first, then the application.
+/// The user's mark on a job (set by the user, never by a run, with the time it was set):
+/// saved ("Gemerkt", the star) or sent ("Beworben": the user applied).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub enum AppStatus {
     /// Saved for later ("Gemerkt").
     Saved,
-    /// Applied.
-    Applied,
-    /// In talks with the client.
-    Interview,
-    /// An offer came in.
-    Offer,
-    /// Turned down (by either side).
-    Rejected,
+    /// Applied ("Beworben").
+    Sent,
 }
 
 impl AppStatus {
-    pub const ALL: [AppStatus; 5] = [
-        AppStatus::Saved,
-        AppStatus::Applied,
-        AppStatus::Interview,
-        AppStatus::Offer,
-        AppStatus::Rejected,
-    ];
-
-    /// A stage of an application (not just saved).
-    pub const fn is_application(self) -> bool {
-        !matches!(self, AppStatus::Saved)
-    }
-
-    /// A stage that waits for the other side: a follow-up date belongs to it.
-    pub const fn takes_follow_up(self) -> bool {
-        matches!(self, AppStatus::Applied | AppStatus::Interview)
-    }
+    pub const ALL: [AppStatus; 2] = [AppStatus::Saved, AppStatus::Sent];
 
     /// The stored key (the same as the JSON value).
     pub const fn as_str(self) -> &'static str {
         match self {
             AppStatus::Saved => "saved",
-            AppStatus::Applied => "applied",
-            AppStatus::Interview => "interview",
-            AppStatus::Offer => "offer",
-            AppStatus::Rejected => "rejected",
+            AppStatus::Sent => "sent",
         }
     }
 

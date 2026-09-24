@@ -19,6 +19,7 @@
 // many (2000 jobs) · offline · paused · running · slow · list-error · profile-broken ·
 // profile-thin · reset (the state after
 // "reset everything": first run, no mailbox, no profile, the report) · first-run-empty-profile
+// · session-left (freelance.de still signed in with the sign-in switched off)
 // · dry-run (the demo: a Probelauf mailbox, every command that writes outside the database
 // refuses with `dryRun` like `ensure_real`).
 // `save_mailbox` refuses the app password `falschfalschfals` with `mailAuth` (Gmail said no).
@@ -237,7 +238,6 @@ function job(
     alsoOn: [],
     appStatus: null,
     statusAt: null,
-    followUpOn: null,
     archived: false,
     overridden: false,
     ...extra,
@@ -340,14 +340,13 @@ function sampleJobs(): JobView[] {
       27,
       {
         match: scored(58, ['Konzernberichtswesen'], 2, 4),
-        appStatus: 'interview',
+        appStatus: 'sent',
         statusAt: at(5),
-        followUpOn: '2026-09-25',
       },
     ),
     job('freelancermap', '2804', 'Interim Treasury Manager', 'Rheinhafen Chemie GmbH', 'Köln', 30, {
       match: scored(47, ['Liquiditätsplanung'], 1, 3),
-      appStatus: 'applied',
+      appStatus: 'sent',
       statusAt: at(20),
     }),
     // Archived: in no list but the archive and in no count but its own.
@@ -850,6 +849,10 @@ function initial(): void {
       state.settings.txtFiles = 0;
       state.resetReport = { removed: 12, failed: 1 };
       break;
+    case 'session-left':
+      // Signed in once, then "Mit Anmeldung" switched off: the stored sign-in stays.
+      state.portals[1]!.signedIn = true;
+      break;
     case 'dry-run':
       state.dryRun = true;
       state.mailbox = {
@@ -917,7 +920,6 @@ function initial(): void {
 /** "Neu" starts 14 days back at the start of that day, UTC (store::new_since). */
 const NEW_SINCE = Math.floor(NOW / DAY_MS) * DAY_MS - 14 * DAY_MS;
 const isRecent = (j: JobView): boolean => Date.parse(j.mailDate ?? j.firstSeenAt) >= NEW_SINCE;
-const isApplication = (j: JobView): boolean => j.appStatus !== null && j.appStatus !== 'saved';
 
 /**
  * The counts of store::job_page: "Neu" is unread, recent and not excluded, per portal too;
@@ -931,7 +933,7 @@ function countsOf(list: JobView[]): JobCounts {
     high: 0,
     noDetail: 0,
     saved: 0,
-    applications: 0,
+    sent: 0,
     archived: 0,
     newByPortal: PORTALS.map((portal) => ({ portal, new: 0 })),
   };
@@ -948,7 +950,7 @@ function countsOf(list: JobView[]): JobCounts {
     c.high += j.match?.status === 'scored' && j.match.score >= 80 ? 1 : 0;
     c.noDetail += j.detail.kind !== 'ok' ? 1 : 0;
     c.saved += j.appStatus === 'saved' ? 1 : 0;
-    c.applications += isApplication(j) ? 1 : 0;
+    c.sent += j.appStatus === 'sent' ? 1 : 0;
     const line = c.newByPortal.find((p) => p.portal === j.portal);
     if (line && isNew) line.new += 1;
   }
@@ -974,8 +976,8 @@ function inFacet(j: JobView, facet: JobQuery['facet']): boolean {
       return !j.archived;
     case 'saved':
       return !j.archived && j.appStatus === 'saved';
-    case 'applications':
-      return !j.archived && isApplication(j);
+    case 'sent':
+      return !j.archived && j.appStatus === 'sent';
     case 'archived':
       return j.archived;
   }
@@ -985,13 +987,12 @@ function refresh(): void {
   state.counts = countsOf(jobs);
 }
 
-/** Sets a stage: its time, the star, and no follow-up unless one is awaited. */
+/** Sets a mark: its time and the star. */
 function setStage(j: JobView, status: JobView['appStatus']): boolean {
   if (j.appStatus === status) return false;
   j.appStatus = status;
   j.statusAt = status === null ? null : new Date(Date.now()).toISOString();
   j.pinned = status === 'saved';
-  if (status !== 'applied' && status !== 'interview') j.followUpOn = null;
   refresh();
   return true;
 }
@@ -1024,19 +1025,15 @@ function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
     ? jobs.filter((j) => fold(`${j.title} ${j.company} ${j.location}`).includes(needle))
     : jobs;
   // Neu lists every unread job, excluded ones too (grey behind the divider); only the count
-  // leaves them out (store::job_page). Saved jobs follow their latest change, applications
-  // a due follow-up first (rejected ones last), archived jobs the moment they were archived.
+  // leaves them out (store::job_page). Saved and sent jobs follow the time of their mark,
+  // archived jobs the moment they were archived.
   const latest = (time: (j: JobView) => string) => (a: JobView, b: JobView) =>
     time(b).localeCompare(time(a)) || a.key.id.localeCompare(b.key.id);
   const byStatus = latest((j) => j.statusAt ?? '');
   const orders: Partial<Record<JobQuery['facet'], (a: JobView, b: JobView) => number>> = {
     saved: byStatus,
+    sent: byStatus,
     archived: latest((j) => archivedAt.get(markKey(j.key)) ?? ''),
-    applications: (a, b) =>
-      Number(a.appStatus === 'rejected') - Number(b.appStatus === 'rejected') ||
-      Number(a.followUpOn === null) - Number(b.followUpOn === null) ||
-      (a.followUpOn ?? '').localeCompare(b.followUpOn ?? '') ||
-      byStatus(a, b),
   };
   const listed = base.filter((j) => inFacet(j, query.facet));
   const order = orders[query.facet];
@@ -1210,7 +1207,24 @@ function detailOf(j: JobView): JobDetail {
 const PROMPT_PROFILE = [
   'Mein Profil (JSON, ohne Name und Kontaktdaten)',
   '```json',
-  JSON.stringify({ kernkompetenzen: PROFILE.understood?.competences ?? [] }, null, 2),
+  JSON.stringify(
+    {
+      titel: PROFILE_FORM.title,
+      kernkompetenzen: PROFILE.understood?.competences ?? [],
+      schwerpunkte: PROFILE_FORM.focus,
+      wunschrollen: PROFILE_FORM.roles,
+      harte_kriterien: {
+        min_tagessatz: PROFILE_FORM.criteria.minDayRate,
+        laender: PROFILE_FORM.criteria.countries,
+      },
+      einsatzpraeferenzen: {
+        tagessatz_wunsch: PROFILE_FORM.wishes.dayRate,
+        remote: PROFILE_FORM.wishes.remote,
+      },
+    },
+    null,
+    2,
+  ),
   '```',
 ];
 
@@ -1250,7 +1264,7 @@ function promptTopOf(limit: number): string {
       (j) =>
         j.match?.status === 'scored' &&
         !j.archived &&
-        !isApplication(j) &&
+        j.appStatus !== 'sent' &&
         j.detail.kind !== 'gone',
     )
     .sort(
@@ -1664,7 +1678,7 @@ const handlers: Handlers = {
     refresh();
     return true;
   },
-  // The star is the stage "saved": it never overwrites a later stage (store::set_pinned).
+  // The star is the mark "saved": it never overwrites "sent" (store::set_pinned).
   set_pinned: ({ key, on }) => {
     const j = find(key);
     if (j === undefined) return false;
@@ -1675,13 +1689,6 @@ const handlers: Handlers = {
   set_app_status: ({ key, status }) => {
     const j = find(key);
     return j !== undefined && setStage(j, status);
-  },
-  set_follow_up: ({ key, on }) => {
-    const j = find(key);
-    if (j === undefined || j.followUpOn === on) return false;
-    if (on !== null && j.appStatus !== 'applied' && j.appStatus !== 'interview') return false;
-    j.followUpOn = on;
-    return true;
   },
   mark_all_read: ({ facet }) => {
     const marked = jobs.filter((j) => j.unread && inFacet(j, facet));

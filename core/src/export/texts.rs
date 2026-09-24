@@ -8,7 +8,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::model::{AppStatus, DescStatus};
+use crate::model::DescStatus;
 use crate::settings::Language;
 use crate::store::JobRow;
 
@@ -19,10 +19,10 @@ pub const JOBS_SHEET: &str = "Job-Alerts";
 /// Name of the sheet with the run information.
 pub const INFO_SHEET: &str = "Info";
 
-/// Column headers of the Excel file (order as before, plus the job details state and the
-/// user's pipeline: stage, since when, note). Unlike the text files nobody reads it by
-/// machine - so it says "Portal" like the interface, not "Quelle" like the skill contract.
-pub const COLUMNS: [&str; 15] = [
+/// Column headers of the Excel file (order as before, plus the job details state, the day
+/// of the application and the note). Unlike the text files nobody reads it by machine - so
+/// it says "Portal" like the interface, not "Quelle" like the skill contract.
+pub const COLUMNS: [&str; 14] = [
     "Portal",
     "Datum der Alert-Mail",
     "Titel",
@@ -35,8 +35,7 @@ pub const COLUMNS: [&str; 15] = [
     "Details",
     "Schlüssel",
     "Passung",
-    "Status",
-    "Status seit",
+    "Beworben am",
     "Notiz",
 ];
 
@@ -93,17 +92,6 @@ pub fn exclusion_reason(code: &str, params: &Map<String, Value>) -> Option<&'sta
     })
 }
 
-/// Where the user's application stands, in the words of the interface.
-pub fn app_status_label(status: AppStatus) -> &'static str {
-    match status {
-        AppStatus::Saved => "Gemerkt",
-        AppStatus::Applied => "Beworben",
-        AppStatus::Interview => "Im Gespräch",
-        AppStatus::Offer => "Zusage",
-        AppStatus::Rejected => "Absage",
-    }
-}
-
 /// State of the job details in the words of the interface's badges.
 pub fn details_label(job: &JobRow) -> &'static str {
     match job.desc_status {
@@ -124,7 +112,7 @@ pub mod en {
     use serde_json::{Map, Value};
 
     use super::licence;
-    use crate::model::{AppStatus, DescStatus};
+    use crate::model::DescStatus;
     use crate::store::JobRow;
 
     // User-facing text, English.
@@ -145,8 +133,7 @@ pub mod en {
         "Details",
         "Key",
         "Match",
-        "Status",
-        "Status since",
+        "Applied on",
         "Note",
     ];
 
@@ -192,16 +179,6 @@ pub mod en {
             "hardCriterion" => "An exclusion criterion applies.",
             _ => return None,
         })
-    }
-
-    pub fn app_status_label(status: AppStatus) -> &'static str {
-        match status {
-            AppStatus::Saved => "Saved",
-            AppStatus::Applied => "Applied",
-            AppStatus::Interview => "Interviewing",
-            AppStatus::Offer => "Offer",
-            AppStatus::Rejected => "Rejected",
-        }
     }
 
     pub fn details_label(job: &JobRow) -> &'static str {
@@ -256,7 +233,6 @@ pub struct Texts {
     /// The number format of the date cells in Excel.
     pub excel_moment: &'static str,
     exclusion: fn(&str, &Map<String, Value>) -> Option<&'static str>,
-    app_status: fn(AppStatus) -> &'static str,
     details: fn(&JobRow) -> &'static str,
 }
 
@@ -290,7 +266,6 @@ pub const DE: Texts = Texts {
     moment: "%d.%m.%Y %H:%M",
     excel_moment: "dd.mm.yyyy hh:mm",
     exclusion: exclusion_reason,
-    app_status: app_status_label,
     details: details_label,
 };
 
@@ -324,7 +299,6 @@ pub const EN: Texts = Texts {
     moment: "%d/%m/%Y %H:%M",
     excel_moment: "dd/mm/yyyy hh:mm",
     exclusion: en::exclusion_reason,
-    app_status: en::app_status_label,
     details: en::details_label,
 };
 
@@ -344,11 +318,6 @@ impl Texts {
         params: &Map<String, Value>,
     ) -> Option<&'static str> {
         (self.exclusion)(code, params)
-    }
-
-    /// See [`app_status_label`].
-    pub fn app_status_label(&self, status: AppStatus) -> &'static str {
-        (self.app_status)(status)
     }
 
     /// See [`details_label`].
@@ -431,12 +400,9 @@ mod tests {
         assert_eq!(EN.from_german("3"), None);
         for (de, en) in DE.columns.iter().zip(EN.columns) {
             // Product and loan words are the same in both.
-            if !["Portal", "Link", "Details", "Status"].contains(de) {
+            if !["Portal", "Link", "Details"].contains(de) {
                 assert_ne!(*de, en);
             }
-        }
-        for status in AppStatus::ALL {
-            assert_ne!(DE.app_status_label(status), EN.app_status_label(status));
         }
         let ts: jiff::Timestamp = "2026-09-19T12:05:00Z".parse().unwrap();
         assert_eq!(DE.moment(ts), "19.09.2026 14:05");
