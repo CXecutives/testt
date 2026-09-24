@@ -7,7 +7,8 @@
 //! - Gates of the new engine: per-job band distance new <= old with a strictly smaller sum,
 //!   decided exclusions and status exactly as in `corpus.json`, expected checks raised,
 //!   `mustOpen` items never met; a golden digest of all corpus results (same on Windows
-//!   and macOS) and the speed budget (release builds).
+//!   and macOS) and the speed budget (release builds). Expectations written for a later
+//!   engine (`since`, `profileSince` in `corpus.json`) are gated from that `ENGINE_VERSION` on.
 
 mod common;
 
@@ -27,7 +28,7 @@ use sha2::Digest as _;
 
 /// SHA-256 (16 hex) over every profile x job result of the corpus. Update it only together
 /// with `ENGINE_VERSION` and the before/after table in `docs/MATCHING.md`.
-const GOLDEN_DIGEST: &str = "91f94408504828c9";
+const GOLDEN_DIGEST: &str = "df1d52ce75759f41";
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/matching")
@@ -88,7 +89,7 @@ fn parity_in(frozen: &Path, jobs: &Path) -> (usize, Vec<String>) {
 #[test]
 fn legacy_port_equals_frozen_corpus_outputs() {
     let (compared, mismatches) = parity("legacy.json", "corpus");
-    assert_eq!(compared, 80, "2 profiles x 40 jobs");
+    assert_eq!(compared, 208, "4 profiles x 52 jobs");
     assert!(
         mismatches.is_empty(),
         "{} of {compared} differ:\n{}",
@@ -133,7 +134,13 @@ fn legacy_port_equals_python_on_local_data() {
 fn new_engine_on_local_data() {
     let dir = std::env::var("JOBALERT_FIDELITY_DIR").expect("set JOBALERT_FIDELITY_DIR");
     let root = fixtures();
-    for name in ["sample_profile.json", "sample_profile_it.json"] {
+    let (corpus, _) = corpus();
+    for name in corpus["profiles"]
+        .as_object()
+        .expect("profiles")
+        .values()
+        .filter_map(Value::as_str)
+    {
         let data = read_json(&root.join(name));
         let profile = compile_profile(&data);
         let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
@@ -221,9 +228,11 @@ struct Expect {
     must_open: Vec<String>,
 }
 
-/// One corpus job with its expectations per profile key (`fin`, `it`).
+/// One corpus job with its expectations per profile key (`fin`, `it`, `senior`, `sap`).
 struct CorpusJob {
     id: String,
+    /// First `ENGINE_VERSION` whose gates check this job.
+    since: u32,
     file: legacy::JobFile,
     portal: Portal,
     mail_date: Option<jiff::civil::Date>,
@@ -285,11 +294,20 @@ fn corpus() -> (Value, Vec<CorpusJob>) {
                 },
                 facts: job["facts"].clone(),
                 expect,
+                since: since(&job["since"]),
                 id,
             }
         })
         .collect();
     (corpus, jobs)
+}
+
+/// A gate version (`since`); missing = the first gated engine.
+fn since(value: &Value) -> u32 {
+    value
+        .as_u64()
+        .and_then(|v| u32::try_from(v).ok())
+        .unwrap_or(2)
 }
 
 /// Header and body of a TXT file, also for bodies below the old 100-character minimum.
@@ -342,6 +360,8 @@ struct Row {
     must_open: Vec<String>,
     new: Option<Assessment>,
     old: u8,
+    /// The gates check this row (its expectations are for this engine or an older one).
+    gated: bool,
 }
 
 fn run() -> Run {
@@ -351,6 +371,7 @@ fn run() -> Run {
     let mut rows = Vec::new();
     for (key, file) in corpus["profiles"].as_object().expect("profiles") {
         let file = file.as_str().expect("profile file");
+        let profile_since = since(&corpus["profileSince"][key]);
         let data = read_json(&root.join(file));
         let profile = compile_profile(&data);
         for job in &jobs {
@@ -382,6 +403,7 @@ fn run() -> Run {
                 must_open: expect.must_open.clone(),
                 new,
                 old: u8::try_from(old).unwrap_or(0),
+                gated: profile_since.max(job.since) <= jobalert_core::matching::ENGINE_VERSION,
             });
         }
     }
@@ -393,7 +415,7 @@ fn new_engine_is_closer_to_the_bands_than_the_old_one() {
     let run = run();
     let mut worse = Vec::new();
     let (mut sum_new, mut sum_old) = (0u32, 0u32);
-    for row in &run.rows {
+    for row in run.rows.iter().filter(|r| r.gated) {
         let new = common::eval::band_distance(effective(row.new.as_ref()), row.expect_band);
         let old = common::eval::band_distance(row.old, row.expect_band);
         sum_new += u32::from(new);
@@ -420,7 +442,7 @@ fn new_engine_is_closer_to_the_bands_than_the_old_one() {
 fn decided_exclusions_are_exactly_the_expected_ones() {
     let run = run();
     let mut wrong = Vec::new();
-    for row in &run.rows {
+    for row in run.rows.iter().filter(|r| r.gated) {
         let Some(new) = &row.new else { continue };
         let mut actual: Vec<String> = new
             .reasons
@@ -450,7 +472,7 @@ fn decided_exclusions_are_exactly_the_expected_ones() {
 fn checks_and_open_musts_match_the_expectations() {
     let run = run();
     let mut wrong = Vec::new();
-    for row in &run.rows {
+    for row in run.rows.iter().filter(|r| r.gated) {
         let Some(new) = &row.new else { continue };
         let checks: Vec<String> = new
             .reasons
@@ -585,7 +607,9 @@ fn report() {
         let score = effective(new);
         let d_new = common::eval::band_distance(score, row.expect_band);
         let d_old = common::eval::band_distance(row.old, row.expect_band);
-        let flag = if d_new > d_old {
+        let flag = if !row.gated {
+            " (not gated yet)"
+        } else if d_new > d_old {
             " WORSE"
         } else if d_new > 0 {
             " off"
@@ -596,6 +620,45 @@ fn report() {
             "{} {} [{lo},{hi}] old {} new {score} {status}/{} {findings:?} exp {:?}{flag}",
             row.profile, row.job, row.old, row.expect_status, row.expect_checks
         );
+    }
+}
+
+/// Prints every reason of corpus rows (`profile:job`, comma-separated):
+/// `JOBALERT_ROWS=fin:K01,sap:K12 cargo test -p jobalert-core --test matching_corpus -- --ignored explain_rows --nocapture`
+#[test]
+#[ignore = "debugging aid"]
+fn explain_rows() {
+    let wanted = std::env::var("JOBALERT_ROWS").expect("set JOBALERT_ROWS");
+    let wanted: Vec<(&str, &str)> = wanted
+        .split(',')
+        .filter_map(|pair| pair.split_once(':'))
+        .collect();
+    let run = run();
+    for row in run
+        .rows
+        .iter()
+        .filter(|r| wanted.iter().any(|(p, j)| *p == r.profile && *j == r.job))
+    {
+        let Some(a) = &row.new else { continue };
+        println!(
+            "{} {} score {} {:?}",
+            row.profile, row.job, a.score, a.verdict
+        );
+        for r in &a.reasons {
+            let evidence = r
+                .evidence
+                .as_ref()
+                .map(|e| format!("<- {} ({:?}, {})", e.profile, e.via, e.path))
+                .unwrap_or_default();
+            println!(
+                "  {:?} {:?} {} {:?} {} {evidence}",
+                r.kind,
+                r.weight,
+                code(r.code),
+                r.label.as_deref().unwrap_or(""),
+                Value::Object(r.params.clone())
+            );
+        }
     }
 }
 

@@ -41,3 +41,19 @@ pub(crate) const MIN_TEXT_CHARS: usize = 100;
 pub(crate) const LOW_EVIDENCE_ITEMS: usize = 2;
 /// Hours per day for hourly rates.
 pub(crate) const HOURS_PER_DAY: u64 = 8;
+/// A profile entry with this many specific atoms is free text: containing a requirement
+/// proves nothing (USP sentences never do).
+pub(crate) const SENTENCE_ATOMS: usize = 4;
+/// Permanent roles are the second category of a consultant: the shrunk fit is scaled
+/// by this factor (per-mille).
+pub(crate) const PERMANENT_FACTOR: u64 = 900;
+/// Score caps of the rubric (1-10 scale times ten): an open formal must (degree field,
+/// licence) at most 4; several musts open (at least two and at least half) at most 4; an
+/// open must on the topic of the title (the core of the role) at most 6; no skill must
+/// met at all (at least two) is outside the field.
+pub(crate) const FORMAL_CAP: u8 = 40;
+pub(crate) const SEVERAL_OPEN_CAP: u8 = 40;
+pub(crate) const TITLE_OPEN_CAP: u8 = 60;
+pub(crate) const OFF_FIELD_CAP: u8 = 25;
+/// A scored ad keeps at least this (the rubric never shows a 1 of 10).
+pub(crate) const SCORE_FLOOR: u8 = 10;

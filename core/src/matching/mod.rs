@@ -5,6 +5,7 @@
 //! for parity tests. See `docs/MATCHING.md`.
 
 mod atoms;
+mod contract;
 mod criteria;
 mod engine;
 mod explain;
@@ -15,12 +16,14 @@ mod ladder;
 mod lexicon;
 mod normalize;
 mod params;
+mod permanent;
 mod profile;
 mod pyre;
 mod relevance;
 mod requirements;
 mod score;
 mod sections;
+mod seniority;
 mod signals;
 mod types;
 
@@ -36,10 +39,10 @@ use sha2::{Digest, Sha256};
 pub use types::*;
 
 use engine::EngineProfile;
-use facts::Availability;
+use facts::{Availability, HardCriteria};
 
 /// Version of the scoring behaviour; part of the match revision (`match_rev`).
-pub const ENGINE_VERSION: u32 = 2;
+pub const ENGINE_VERSION: u32 = 3;
 
 /// Profiles with fewer competences than this are `Thin`.
 const THIN_BELOW: usize = 5;
@@ -75,7 +78,7 @@ pub fn compile_profile(value: &Value) -> CompiledProfile {
     let empty = Value::Object(Map::new());
     let data = if value.is_object() { value } else { &empty };
     let engine = EngineProfile::new(data);
-    let quality = match engine.skills.entries.len() {
+    let quality = match engine.skills.competences().count() {
         0 => ProfileQuality::Empty,
         n if n < THIN_BELOW => ProfileQuality::Thin,
         _ => ProfileQuality::Good,
@@ -90,18 +93,8 @@ pub fn compile_profile(value: &Value) -> CompiledProfile {
     }
 }
 
-fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> ProfileSummary {
-    let core = &engine.legacy.signals.core;
-    let mut sources: BTreeMap<String, (u16, bool)> = BTreeMap::new();
-    for entry in core {
-        let slot = sources
-            .entry(path_pattern(&entry.path))
-            .or_insert((0, true));
-        slot.0 = slot.0.saturating_add(1);
-        slot.1 &= !entry.explicit;
-    }
-    let c = &engine.criteria;
-    let availability_raw = facts::availability_text(data);
+/// The hard criteria as understood from the profile.
+fn criteria_info(c: &HardCriteria) -> Vec<CriterionInfo> {
     let info = |key, set: bool, params: Value| CriterionInfo {
         key,
         set,
@@ -112,7 +105,7 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
         Availability::Now => json!("now"),
         Availability::From(day) => json!(day.to_string()),
     };
-    let criteria = vec![
+    vec![
         info(
             CriterionKey::MinDayRate,
             c.min_rate.is_some(),
@@ -129,7 +122,37 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
             c.available != Availability::Unset,
             json!({ "from": available }),
         ),
-    ];
+        info(
+            CriterionKey::MinSalary,
+            c.min_salary.is_some(),
+            json!({ "min": c.min_salary }),
+        ),
+        info(
+            CriterionKey::PermanentRegion,
+            c.places.is_some(),
+            json!({ "places": c.places, "remoteMin": c.remote_min }),
+        ),
+        info(
+            CriterionKey::TargetYears,
+            c.target_years.is_some(),
+            json!({ "min": c.target_years }),
+        ),
+    ]
+}
+
+fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> ProfileSummary {
+    let core = &engine.legacy.signals.core;
+    let mut sources: BTreeMap<String, (u16, bool)> = BTreeMap::new();
+    for entry in core {
+        let slot = sources
+            .entry(path_pattern(&entry.path))
+            .or_insert((0, true));
+        slot.0 = slot.0.saturating_add(1);
+        slot.1 &= !entry.explicit;
+    }
+    let c = &engine.criteria;
+    let availability_raw = facts::availability_text(data);
+    let criteria = criteria_info(c);
     let warn = |code, params: Value| ProfileWarning {
         code,
         params: params.as_object().cloned().unwrap_or_default(),
@@ -154,7 +177,37 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
             json!({ "value": raw }),
         ));
     }
+    for (key, value) in &c.not_understood {
+        warnings.push(warn(
+            ProfileWarningCode::CriterionNotUnderstood,
+            json!({ "key": key, "value": value }),
+        ));
+    }
+    if c.remote_min.is_some() && c.places.is_none() {
+        warnings.push(warn(ProfileWarningCode::RegionWithoutPlaces, json!({})));
+    }
+    let skills = &engine.skills;
+    let aliases = skills
+        .entries
+        .iter()
+        .filter_map(|e| {
+            Some(AliasInfo {
+                competence: e.alias_of.clone()?,
+                alias: e.text.clone(),
+                path: e.path.clone(),
+            })
+        })
+        .collect();
     ProfileSummary {
+        aliases,
+        packs: skills
+            .vocab
+            .packs()
+            .iter()
+            .map(|p| (*p).to_owned())
+            .collect(),
+        years: skills.total_years,
+        degrees: skills.degrees.clone(),
         competence_count: u16::try_from(core.len()).unwrap_or(u16::MAX),
         competences: core
             .iter()
@@ -206,16 +259,24 @@ fn fingerprint(engine: &EngineProfile) -> String {
     let c = &engine.criteria;
     let mut countries = c.countries.clone().unwrap_or_default();
     countries.sort();
+    let mut places: Vec<String> = c.places.iter().flatten().map(|p| atoms::fold(p)).collect();
+    places.sort();
     let canonical = format!(
-        "engine {ENGINE_VERSION}\nentries {}\nlanguages {languages:?}\ndegree {:?}\nyears {:?}\n\
-         min {:?}\ncountries {countries:?}\nremote {:?}\nanue {}\navailable {:?}\n",
+        "engine {ENGINE_VERSION}\nentries {}\nlanguages {languages:?}\ndegree {:?} {}\nyears {:?}\n\
+         min {:?}\ncountries {countries:?}\nremote {:?}\nanue {}\navailable {:?}\n\
+         salary {:?}\nplaces {places:?}\nremoteMin {:?}\ntarget {:?}\npacks {:?}\n",
         entries.join("|"),
         engine.skills.degree_fields,
+        engine.skills.degree_level,
         engine.skills.total_years,
         c.min_rate,
         c.remote_outside,
         c.anue_excluded,
         c.available,
+        c.min_salary,
+        c.remote_min,
+        c.target_years,
+        engine.skills.vocab.packs(),
     );
     let digest = Sha256::digest(canonical.as_bytes());
     digest.iter().take(8).fold(String::new(), |mut hex, b| {
@@ -242,6 +303,6 @@ pub fn assess(
 /// is known. The location is not used yet.
 pub fn prescore(profile: &CompiledProfile, title: &str, location: &str) -> u16 {
     let _ = location;
-    let fit = relevance::title_fit(&profile.engine.query, title);
+    let fit = relevance::title_fit(&profile.engine.query, title, &profile.engine.skills.vocab);
     u16::try_from(fit.min(1000)).unwrap_or(1000)
 }

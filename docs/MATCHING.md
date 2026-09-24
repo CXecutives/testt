@@ -56,96 +56,211 @@ marks that job); the script refuses to change them.
 
 ## Corpus and gates
 
-`core/tests/fixtures/matching`: two invented profiles (`sample_profile.json` interim finance,
-`sample_profile_it.json` SAP/IT project lead with the `tagessatz_ab` fallback and a later
-availability) and 40 invented ads K01-K40 in the TXT contract format. `corpus.json` fixes per
-job and profile, before any engine work and after an independent review: band (width <= 30),
-status (excluded > unscorable > scored), decided violations (anue, country, dayRate),
-expected check codes (anueOptional, anueHidden, countryUnclear, dayRateCurrency, startVague,
-availabilityGap, permanent, formalOpen, lowEvidence, shortText) and musts that must stay open.
+`core/tests/fixtures/matching`: four invented profiles and 52 invented ads K01-K52 in the TXT
+contract format.
+
+| Key | Profile | Notes |
+|---|---|---|
+| fin | `sample_profile.json` | interim finance |
+| it | `sample_profile_it.json` | SAP/IT project lead, `tagessatz_ab` fallback, later availability |
+| senior | `sample_profile_senior.json` | very senior interim finance and transformation consultant modelled on the job-matching rubric: about 30 years, Diplom-Kauffrau, 1,000 EUR/day, permanent roles from 150,000 EUR in the Munich region (or at least 60 % remote), target profiles from 10 years; CV-like stations and `auch` terms |
+| sap | `sample_profile_sap.json` | SAP FI/CO consultant: business bachelor, 950 EUR/day, permanent roles from 95,000 EUR, target profiles from 5 years, no region rule |
+
+`corpus.json` fixes per job and profile, before the engine work it gates: band (width <= 30),
+status (excluded > unscorable > scored), decided violations (anue, country, dayRate, salary,
+permanentRegion, tooJunior, formalOpen), expected checks and musts that must stay open, each
+with a one-line rationale. Version 3 added the senior and SAP profiles and K41-K52 (permanent
+roles with salary below, above or missing; Munich, outside, 80 % remote, hybrid only;
+"Deutschland" only; an agency without details; a closed junior range; "7+" with a senior title;
+a mandatory engineering degree; a Master's requirement against a Diplom-Kauffrau; a permanent
+role inferred from benefits; an optional computer science degree). These expectations were
+committed before the engine change and are gated from `ENGINE_VERSION` 3 on (`profileSince`,
+`since`). `legacy.json` grew only through `py -3.14 tools/eval/legacy_baseline.py corpus
+--extend`, which refuses when any frozen entry would change.
 
 Gates (`matching_corpus.rs`, all on):
-- parity: `legacy_percent` == `legacy.json`, 35 old tests green;
+- parity: `legacy_percent` == `legacy.json` (4 x 52), 35 old tests green;
 - per job and profile: band distance of the new score <= that of the old score (absent or
   unscorable = 0), and the sum strictly smaller;
 - decided exclusions and status exactly as in `corpus.json`; expected checks raised; `mustOpen`
   items never met;
-- no fixture ignored by git.
+- golden digest of all results; speed budget in release builds; no fixture ignored by git.
+
+`matching_profiles.rs`: an invented clinical project manager (no domain pack, own `auch` terms)
+scores a clinical ad high and a finance ad low; packs, aliases, the new keys, English aliases,
+warnings; a mandatory licence excludes, an optional one caps.
 
 Metrics for the private gold set (`common/eval.rs`): NDCG@k (gain 2^grade - 1), P@k,
 Spearman, high-band precision, paired bootstrap with a fixed seed.
 
-## The new engine (ENGINE_VERSION 2)
+## The new engine (ENGINE_VERSION 3)
 
-Integer-only, per-mille throughout; `core/src/matching/{job,atoms,fit,facts,relevance,engine,explain}.rs`,
-word lists in `lexicon/engine.rs` (external contract), parameters in `params.rs`.
+Integer-only, per-mille throughout; `core/src/matching/{job,atoms,fit,facts,contract,permanent,
+seniority,relevance,engine,explain}.rs`, parameters in `params.rs`. Word lists: the general core
+in `lexicon/engine.rs` and one file per domain pack in `lexicon/domains/` (external contract).
+Nothing person-specific is in code: every threshold comes from the profile.
 
 | Step | Rule |
 |---|---|
-| Reading (V5, V16) | Must/nice/other headings incl. English, inline (`Anforderungen: ...`), frame sections (`Rahmenbedingungen`, `Wir bieten`) end requirement sections; nice cues (`von Vorteil`, `idealerweise`) inside must sections make a nice-to-have; sentences split without breaking `z. B.`, `u. a.`, `inkl.`; requirement sentences only when no must section exists and never from nice sections; vocabulary only when nothing else was found |
-| Items (V6) | AND at `,` `;` `und` `sowie` `&` `and` `inkl.`; OR alternatives at `oder` `bzw.` `or` ` / ` (and commas in pure OR lists); examples after `z. B.`/`u. a.`/`e.g.` are alternatives of their head |
-| Kinds (V7) | skill, language (with CEFR level), degree, soft (weight 250, unproven = half), frame (weight 0: travel, availability, start) |
-| Ladder (V1-V4, V15) | umlauts folded, two-pass light stemming, bilingual concepts (`group accounting` = `Konzernrechnungslegung`), compounds: light modifier/head = equal (`Konzernkonsolidierung`, `Carve-out-Projekten`), other modifier = profile more general 0.5, profile more specific 1.0, two thirds of a long entry 0.5, generic atoms (`SAP`, `Management`) never alone |
-| Levels, years (V8, V9) | language below the required level stays open; years compared per competence (`jahre`) or with the total, 80 % of the years = half |
-| Criteria (V10-V13) | facts first; ANÜ decided only when named, not negated, not optional (else `anueOptional`, `anueHidden`); work country from location, on-site sentences, not fully remote (travel or contradictions = `countryUnclear`); EUR day rate upper bound, hourly x 8, no rule for permanent roles (`dayRateCurrency`, `permanent`); availability never decided (`availabilityGap {days}`, `startVague`); status excluded > unscorable > scored |
-| Relevance (V17, V18) | title fit T and BM25F-like lexical score (title x3, requirements x2, rest x1, k1 1.2, b 0.75, fixed length 2400, specific atoms 1000, generic 200, half mass 7000); `R = min(1000, R_lex + T/2)` |
-| Score (V19) | `M`, `K`, `P` as planned; `P' = (n*P + k*R)/(n + k)`, k = 2000; low evidence (teaser, vocabulary, nice only, < 2 items) also shrinks towards 400 with weight 1500; `score = round_half_even(P'/10)` |
+| Reading (V5, V16) | Must/nice/other headings incl. English (`Why join us`, `What we offer` end requirements), inline (`Anforderungen: ...`), frame sections; closing lines (`Interessiert? ...`) end a section; nice cues (`von Vorteil`) make a nice-to-have; requirement sentences only without a must section; vocabulary only when nothing else was found |
+| Items (V6) | AND at `,` `;` `und` `sowie` `&` `and` `inkl.`; OR alternatives at `oder` `bzw.` `or` ` / ` (an OR requirement is met when one branch is met); examples after `z. B.`/`e.g.` are alternatives of their head |
+| Kinds (V7) | skill, language (CEFR level), degree, licence (`Zulassung als Steuerberater`), soft (weight 250, unproven = half), frame (weight 0) |
+| Vocabulary | general core (languages, degrees, contract, remote and seniority words, general business pairs such as `project management` = `Projektmanagement`) plus domain packs (finance, sap, itProject) that switch on when a token of the profile's competences starts with a pack trigger; a pack never maps words for other profiles. `auch` / `aliases` terms of a competence count as that competence (the evidence path points to the alias) |
+| Ladder (V1-V4, V15) | umlauts folded, light stemming, concepts, compounds (light modifier or head = equal, other modifier = half, profile more specific = full), two thirds of a long entry = half; generic atoms (`SAP`, `Management`, `Finance`, `Einführung`, `ERP`, also in stemmed form) never alone and never reach a compound; atoms under five letters are no compound part; a USP sentence or a long free-text entry never proves a requirement; an ad that asks for more than the profile names (`Tableau im Reporting` against `Reporting`) is half |
+| Degrees | field (same = full, neighbouring such as business and business informatics = half, other = open), level (`Master` needs master level: `Diplom (Univ.)` counts as master, `Diplom (FH)` and a bachelor are half), `vergleichbar` accepts any field |
+| Levels, years (V8, V9) | language below the required level stays open; years per competence or the total (`berufserfahrung_jahre`); general experience without a topic uses the total, `5 Jahre Controlling` needs controlling |
+| Contract type | stated (`Festanstellung`, `Jahresgehalt`, `Werkvertrag`, `Tagessatz`, `Interim`) > hints (benefits, `Why join us`, work permit: permanent, inferred) > portal (freelance portals: interim); both stated = unclear; an agency without details = unclear with `anueRisk`; reason `contractType {type, inferred}` (interim met, permanent partial, unclear check); the `permanent` check as before |
+| Hard criteria (V10-V13) | ANÜ, country, day rate (not for permanent roles), availability as in v2 |
+| Permanent roles | minimum salary: upper bound, EUR per year; decided only for a stated permanent role (`salary`), else a check; no salary = `salaryUnknown`. Region: a place of `festanstellung_orte` in the location or a location line (`Standort: ... oder München`) is inside; a stated remote share of at least `festanstellung_remote_min` percent (or fully remote) accepts any place; hybrid wording and office days are no proof; outside = `permanentRegion` (decided when stated, a check when inferred), country only or an unclear contract = `permanentRegionUnclear` |
+| Seniority | `zielprofil_min_jahre` against the requirement lines: a closed range below it, or a minimum below it without a senior title (Senior, Lead, Principal, SME, Head, Director, Leiter/Leitung) = `tooJunior` (decided for career years or the role's own topic, else `seniorityUnclear`); an open minimum with a senior title = `overqualified` (partial, never an exclusion); any statement at or above the minimum is fine; a junior title without numbers = `seniorityUnclear` |
+| Formal duties | a must degree of another field or a missing licence = `formalOpen` check with a cap of 40; decided only when worded as mandatory (`zwingend`, `unabdingbar`, `mandatory`); no degree in the profile = a check as before |
+| Relevance (V17, V18) | title fit and BM25F-like lexical score as in v2; an atom only named in a USP sentence weighs half |
+| Score (V19) | `M`, `K`, `P` and the shrinkage as in v2; permanent roles x 0.9 (second category); rubric caps: open formal must 40, several musts open (at least two and at least half) 40, an open must on the title's topic 60, no skill must met (at least two) 25; a scored ad keeps at least 10 |
+
+### Profile keys (German, English aliases; missing key = rule off)
+
+| Key | Alias | Meaning |
+|---|---|---|
+| `harte_kriterien.min_jahresgehalt` | `hard_criteria.min_annual_salary`, `min_salary` | minimum annual salary (EUR) of permanent roles; numbers or strings (`150.000`, `150k`) |
+| `harte_kriterien.festanstellung_orte` | `permanent_locations`, `permanent_places` | places of the region for permanent roles |
+| `harte_kriterien.festanstellung_remote_min` | `permanent_remote_min` | remote share (percent) that accepts a place outside the region; without places the rule stays off (warning `regionWithoutPlaces`) |
+| `harte_kriterien.zielprofil_min_jahre` | `target_min_years` | minimum years an ad's target profile must ask for |
+| `berufserfahrung_jahre` | `years_of_experience`, `total_years` | total years of experience |
+| `<list>[].auch` | `aliases` | alternative terms of a competence |
+
+`ProfileSummary` adds the criteria `minSalary`, `permanentRegion`, `targetYears`, the fields
+`aliases`, `packs`, `years`, `degrees` and the warnings `criterionNotUnderstood {key, value}`
+and `regionWithoutPlaces`.
 
 ## New vs old
 
 Corpus results (`cargo test -p jobalert-core --test matching_corpus -- --ignored report --nocapture`).
-Old = frozen old engine (absent or crashed = 0), new = ENGINE_VERSION 2, `*` = outside the
-expected band, `excl` = excluded (score kept). Gates: no job further from its band than the old
-engine, total distance strictly smaller, decided exclusions/status exactly as expected, all
-expected checks raised, no `mustOpen` item met.
+Old = frozen old engine (absent or crashed = 0), v2 = ENGINE_VERSION 2, v3 = ENGINE_VERSION 3,
+`*` = outside the expected band, `excl` = excluded (score kept). Distance = sum of band
+distances, Spearman between score and band middle. The v2 columns of the senior and SAP
+profiles and of K41-K52 were measured before the engine change.
 
-| Profile | In band old | In band new | Band distance old | Band distance new | Spearman old | Spearman new |
-|---|---|---|---|---|---|---|
-| fin | 17 / 40 | 38 / 40 | 491 | 3 | 0.56 | 0.81 |
-| it | 30 / 40 | 39 / 40 | 188 | 1 | 0.55 | 0.86 |
+| Profile | Jobs | In band old | In band v2 | In band v3 | Distance old | Distance v2 | Distance v3 | Spearman old | Spearman v2 | Spearman v3 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| fin | 52 | 24 / 52 | 46 / 52 | 49 / 52 | 561 | 100 | 14 | 0.60 | 0.79 | 0.87 |
+| it | 52 | 41 / 52 | 45 / 52 | 51 / 52 | 193 | 71 | 5 | 0.60 | 0.70 | 0.84 |
+| senior | 52 | 20 / 52 | 44 / 52 | 49 / 52 | 549 | 127 | 14 | 0.62 | 0.60 | 0.75 |
+| sap | 52 | 35 / 52 | 15 / 52 | 51 / 52 | 224 | 795 | 6 | 0.68 | 0.56 | 0.89 |
+
+Remaining misses, none further from its band than the old engine: fin K31 72 (75-95, ERP
+migrations are not in the profile), K32 46 (teaser), K50 60 (group reporting is only a USP of
+the fin profile); it K39 40 (45-75); senior K02 55 (25-50), K17 93 (65-85), K32 46 (teaser);
+sap K32 71 (teaser).
 
 | Job | Band fin | Old fin | New fin | Band it | Old it | New it | Findings (new, fin / it) |
 |---|---|---|---|---|---|---|---|
 | K01 | 85-100 | 100 | 100 | 15-40 | 38 | 37 | - / availabilityGap |
-| K02 | 25-50 | 40 | 50 | 0-25 | 20 | 20 | - / availabilityGap |
+| K02 | 25-50 | 40 | 40 | 0-25 | 20 | 20 | - / availabilityGap |
 | K03 | 80-100 | 70 | 91 excl | 10-40 | 23 | 29 excl | anue / anue, availabilityGap |
 | K04 | 80-100 | 70 | 91 | 10-40 | 23 | 29 | - / availabilityGap |
-| K05 | 80-100 | 70 | 98 | 15-45 | 47 | 29 | anueOptional / anueOptional, availabilityGap |
-| K06 | 80-100 | 100 | 98 | 5-30 | 25 | 23 | anueHidden / anueHidden, availabilityGap |
-| K07 | 80-100 | 70 | 100 | 10-40 | 23 | 29 | - / availabilityGap |
+| K05 | 80-100 | 70 | 100 | 15-45 | 47 | 29 | anueOptional / anueOptional, availabilityGap |
+| K06 | 80-100 | 100 | 91 | 5-30 | 25 | 23 | anueHidden / anueHidden, availabilityGap |
+| K07 | 80-100 | 70 | 93 | 10-40 | 23 | 29 | - / availabilityGap |
 | K08 | 80-100 | 100 | 91 excl | 10-40 | 33 | 28 excl | dayRate / dayRate, availabilityGap |
 | K09 | 80-100 | 70 | 100 excl | 5-35 | 23 | 28 excl | dayRate / dayRate, availabilityGap |
-| K10 | 80-100 | 70 | 90 excl | 10-40 | 23 | 28 excl | country / country, availabilityGap |
-| K11 | 85-100 | 100 | 100 | 10-40 | 23 | 28 | - / availabilityGap |
+| K10 | 80-100 | 70 | 93 excl | 10-40 | 23 | 28 excl | country / country, availabilityGap |
+| K11 | 85-100 | 100 | 88 | 10-40 | 23 | 28 | - / availabilityGap |
 | K12 | 45-75 | 100 | 55 | 15-45 | 50 | 35 | - / availabilityGap |
-| K13 | 55-80 | 100 | 79 | 5-35 | 33 | 28 | - / availabilityGap |
-| K14 | 50-80 | 75 | 67 | 20-50 | 25 | 28 | lowEvidence / availabilityGap, lowEvidence |
+| K13 | 55-80 | 100 | 70 | 5-35 | 33 | 28 | - / availabilityGap |
+| K14 | 50-80 | 75 | 74 | 20-50 | 25 | 28 | lowEvidence / availabilityGap, lowEvidence |
 | K15 | 0-30 | 0 | - (unscorable) | 0-30 | 0 | - (unscorable) | shortText / availabilityGap, shortText |
-| K16 | 80-100 | 75 | 100 | 0-30 | 0 | 0 | - / availabilityGap |
-| K17 | 65-85 | 100 | 83 | 10-40 | 19 | 20 | - / availabilityGap |
-| K18 | 85-100 | 100 | 100 | 5-35 | 20 | 21 | - / availabilityGap |
+| K16 | 80-100 | 75 | 100 | 0-30 | 0 | 10 | - / availabilityGap |
+| K17 | 65-85 | 100 | 76 | 10-40 | 19 | 20 | - / availabilityGap |
+| K18 | 85-100 | 100 | 97 | 5-35 | 20 | 21 | - / availabilityGap |
 | K19 | 85-100 | 60 | 86 | 20-50 | 40 | 34 | - / availabilityGap |
-| K20 | 85-100 | 57 | 94 | 0-25 | 0 | 0 | - / availabilityGap |
+| K20 | 85-100 | 57 | 94 | 0-25 | 0 | 10 | - / availabilityGap |
 | K21 | 75-100 | 0 | 87 | 20-50 | 0 | 20 | - / availabilityGap |
-| K22 | 85-100 | 100 | 94 | 0-20 | 0 | 0 | - / availabilityGap |
-| K23 | 80-100 | 100 | 100 | 0-30 | 0 | 0 | - / availabilityGap |
-| K24 | 70-90 | 81 | 89 | 25-50 | 19 | 51 * | - / availabilityGap |
+| K22 | 85-100 | 100 | 86 | 0-20 | 0 | 10 | - / availabilityGap |
+| K23 | 80-100 | 100 | 100 | 0-30 | 0 | 10 | - / availabilityGap |
+| K24 | 70-90 | 81 | 82 | 25-50 | 19 | 45 | - / availabilityGap |
 | K25 | 65-95 | 33 | 68 | 25-50 | 33 | 28 | - / availabilityGap |
-| K26 | 70-95 | 29 | 86 | 5-35 | 0 | 8 | - / availabilityGap |
-| K27 | 85-100 | 100 | 100 | 5-35 | 25 | 23 | - / availabilityGap |
-| K28 | 85-100 | 70 | 86 | 5-35 | 33 | 28 | - / - |
-| K29 | 85-100 | 100 | 93 | 10-40 | 33 | 34 | - / startVague |
+| K26 | 70-95 | 29 | 76 | 5-35 | 0 | 10 | - / availabilityGap |
+| K27 | 85-100 | 100 | 93 | 5-35 | 25 | 16 | - / availabilityGap |
+| K28 | 85-100 | 70 | 90 | 5-35 | 33 | 28 | - / - |
+| K29 | 85-100 | 100 | 86 | 10-40 | 33 | 29 | - / startVague |
 | K30 | 85-100 | 100 | 93 | 5-35 | 23 | 28 excl | dayRateCurrency / country, dayRateCurrency, availabilityGap |
-| K31 | 75-95 | 69 | 79 | 45-75 | 50 | 67 | - / - |
-| K32 | 15-45 | 50 | 46 * | 50-80 | 100 | 74 | lowEvidence / lowEvidence |
-| K33 | 70-95 | 0 | 97 * | 15-45 | 0 | 31 | permanent / permanent |
-| K34 | 80-100 | 70 | 98 | 10-40 | 23 | 29 | - / availabilityGap |
-| K35 | 5-35 | 18 | 31 excl | 85-100 | 100 | 94 | anueOptional, dayRate / anueOptional |
-| K36 | 55-85 | 67 | 64 | 0-25 | 0 | 12 | lowEvidence / availabilityGap, lowEvidence |
-| K37 | 10-40 | 0 | 27 | 70-95 | 18 | 76 | - / - |
+| K31 | 75-95 | 69 | 72 * | 45-75 | 50 | 67 | - / - |
+| K32 | 15-45 | 50 | 46 * | 50-80 | 100 | 73 | lowEvidence / lowEvidence |
+| K33 | 70-95 | 0 | 82 | 15-45 | 0 | 27 | permanent / permanent |
+| K34 | 80-100 | 70 | 90 | 10-40 | 23 | 29 | - / availabilityGap |
+| K35 | 5-35 | 18 | 25 excl | 85-100 | 100 | 98 | anueOptional, dayRate / anueOptional |
+| K36 | 55-85 | 67 | 70 | 0-25 | 0 | 12 | lowEvidence / availabilityGap, lowEvidence |
+| K37 | 10-40 | 0 | 25 | 70-95 | 18 | 76 | - / - |
 | K38 | 0-30 | 0 | - (unscorable) | 0-30 | 0 | - (unscorable) | shortText / availabilityGap, shortText |
-| K39 | 65-90 | 21 | 80 | 45-75 | 10 | 54 | countryUnclear / countryUnclear |
+| K39 | 65-90 | 21 | 71 | 45-75 | 10 | 40 * | countryUnclear / countryUnclear |
 | K40 | 15-45 | 50 | 29 | 80-100 | 52 | 92 | - / countryUnclear, startVague |
+| K41 | 60-90 | 67 | 79 | 5-35 | 17 | 23 | permanent / permanent |
+| K42 | 25-55 | 38 | 29 | 0-25 | 12 | 12 | permanent / permanent |
+| K43 | 15-45 | 40 | 32 | 0-25 | 20 | 21 | permanent / permanent |
+| K44 | 55-85 | 71 | 74 | 30-60 | 43 | 49 | permanent / permanent |
+| K45 | 70-95 | 75 | 87 | 0-30 | 0 | 10 | permanent / permanent |
+| K46 | 70-100 | 60 | 95 | 5-35 | 20 | 10 | anueRisk / anueRisk |
+| K47 | 80-100 | 100 | 85 | 10-40 | 33 | 29 | - / availabilityGap |
+| K48 | 70-90 | 50 | 79 | 5-35 | 0 | 25 | - / availabilityGap |
+| K49 | 25-45 | 50 | 40 excl | 5-35 | 17 | 24 excl | formalOpen / availabilityGap, formalOpen |
+| K50 | 70-95 | 50 | 60 * | 10-40 | 25 | 25 | - / availabilityGap |
+| K51 | 45-75 | 50 | 54 | 0-30 | 0 | 25 | permanent / permanent |
+| K52 | 25-45 | 60 | 40 | 15-45 | 20 | 40 | formalOpen / availabilityGap |
+
+| Job | Band senior | Old senior | New senior | Band sap | Old sap | New sap | Findings (new, senior / sap) |
+|---|---|---|---|---|---|---|---|
+| K01 | 85-100 | 100 | 100 | 15-40 | 19 | 32 | - / - |
+| K02 | 25-50 | 60 | 55 * | 0-25 | 0 | 19 | - / - |
+| K03 | 80-100 | 70 | 93 excl | 10-40 | 23 | 38 excl | anue / anue |
+| K04 | 80-100 | 70 | 91 | 10-40 | 23 | 40 | - / - |
+| K05 | 80-100 | 70 | 98 | 15-45 | 0 | 39 | anueOptional / anueOptional |
+| K06 | 80-100 | 100 | 97 | 0-30 | 0 | 10 | anueHidden / anueHidden |
+| K07 | 80-100 | 70 | 95 | 10-40 | 23 | 40 | - / - |
+| K08 | 80-100 | 100 | 88 excl | 0-25 | 0 | 10 excl | dayRate / dayRate |
+| K09 | 80-100 | 70 | 100 excl | 0-25 | 0 | 10 excl | dayRate / dayRate |
+| K10 | 80-100 | 70 | 93 excl | 0-25 | 0 | 10 excl | country / country |
+| K11 | 85-100 | 100 | 99 | 5-35 | 0 | 18 | - / - |
+| K12 | 75-100 | 100 | 80 | 25-55 | 50 | 44 | - / - |
+| K13 | 85-100 | 100 | 99 | 0-25 | 0 | 10 | - / - |
+| K14 | 50-80 | 75 | 74 | 15-45 | 25 | 40 | lowEvidence / lowEvidence |
+| K15 | 0-30 | 0 | - (unscorable) | 0-30 | 0 | - (unscorable) | shortText / shortText |
+| K16 | 80-100 | 75 | 100 | 0-30 | 0 | 10 | - / - |
+| K17 | 65-85 | 100 | 93 * | 10-40 | 19 | 29 | - / - |
+| K18 | 85-100 | 100 | 92 | 5-35 | 20 | 28 | - / - |
+| K19 | 85-100 | 60 | 86 | 20-50 | 40 | 40 | - / - |
+| K20 | 85-100 | 57 | 94 | 0-25 | 0 | 11 | - / - |
+| K21 | 80-100 | 33 | 91 | 20-50 | 0 | 20 | - / - |
+| K22 | 85-100 | 75 | 86 | 0-25 | 0 | 10 | - / - |
+| K23 | 80-100 | 100 | 100 | 0-30 | 0 | 10 | - / - |
+| K24 | 85-100 | 81 | 100 | 30-60 | 19 | 50 | - / - |
+| K25 | 65-95 | 33 | 65 | 0-30 | 0 | 10 | - / - |
+| K26 | 70-95 | 29 | 86 | 5-35 | 0 | 20 | - / - |
+| K27 | 85-100 | 100 | 93 | 5-35 | 0 | 10 | - / - |
+| K28 | 85-100 | 70 | 87 | 5-35 | 0 | 10 | - / - |
+| K29 | 85-100 | 100 | 93 | 10-40 | 33 | 40 | - / - |
+| K30 | 85-100 | 100 | 91 | 0-30 | 0 | 10 | dayRateCurrency / dayRateCurrency |
+| K31 | 75-100 | 69 | 84 | 40-70 | 19 | 52 | - / - |
+| K32 | 15-45 | 50 | 46 * | 35-65 | 100 | 71 * | lowEvidence / lowEvidence |
+| K33 | 65-95 | 0 | 89 excl | 20-50 | 0 | 40 | permanent, salary, permanentRegion / permanent |
+| K34 | 80-100 | 70 | 91 | 10-40 | 23 | 40 | - / - |
+| K35 | 5-35 | 18 | 25 excl | 40-70 | 75 | 60 | anueOptional, dayRate / anueOptional |
+| K36 | 55-85 | 67 | 70 | 0-25 | 0 | 12 | lowEvidence / lowEvidence |
+| K37 | 10-40 | 0 | 25 | 5-35 | 0 | 25 | - / - |
+| K38 | 0-30 | 0 | - (unscorable) | 0-30 | 0 | - (unscorable) | shortText / shortText |
+| K39 | 75-100 | 22 | 80 | 35-65 | 8 | 40 | countryUnclear / countryUnclear |
+| K40 | 15-45 | 50 | 40 | 25-55 | 50 | 40 | - / - |
+| K41 | 65-95 | 67 | 90 excl | 15-45 | 17 | 35 | permanent, salary / permanent |
+| K42 | 65-95 | 62 | 70 | 5-30 | 12 | 15 | permanent / permanent |
+| K43 | 65-95 | 60 | 86 excl | 5-30 | 20 | 19 | permanent, salaryUnknown, permanentRegion / permanent, salaryUnknown |
+| K44 | 65-95 | 71 | 85 | 30-60 | 43 | 52 | permanent / permanent |
+| K45 | 70-95 | 75 | 89 | 5-35 | 0 | 23 | permanent, salaryUnknown, permanentRegionUnclear / permanent, salaryUnknown |
+| K46 | 70-100 | 60 | 96 | 35-65 | 20 | 60 | anueRisk, salaryUnknown, permanentRegionUnclear / anueRisk, salaryUnknown |
+| K47 | 80-100 | 100 | 90 excl | 15-45 | 33 | 40 | tooJunior / - |
+| K48 | 80-100 | 50 | 100 | 10-40 | 0 | 25 | - / - |
+| K49 | 25-45 | 50 | 40 excl | 5-35 | 17 | 34 excl | formalOpen / formalOpen |
+| K50 | 80-100 | 50 | 100 | 30-60 | 50 | 56 | - / - |
+| K51 | 55-85 | 50 | 68 excl | 15-45 | 0 | 25 | permanent, salaryUnknown, permanentRegion, tooJunior / permanent, salaryUnknown |
+| K52 | 25-45 | 60 | 40 | 10-40 | 20 | 31 | formalOpen / formalOpen |
 
 Private gold set (real ads, blind grades 0-3, NDCG@10, P@5, Spearman, high-band precision, bootstrap): pending (phase 5).
 

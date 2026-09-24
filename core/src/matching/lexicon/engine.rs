@@ -52,6 +52,7 @@ pub(crate) const FILLERS: &[&str] = &[
     "nachweisbare",
     "nachweislich",
     "niveau",
+    "proven",
     "record",
     "several",
     "sicher",
@@ -78,28 +79,40 @@ pub(crate) const FILLERS: &[&str] = &[
     "zudem",
 ];
 
-/// Atoms that never meet a requirement on their own (sorted).
+/// Atoms that never meet a requirement on their own (sorted; stemmed forms such as
+/// `financ`, `manag` included, since atoms are stemmed).
 pub(crate) const GENERIC_ATOMS: &[&str] = &[
+    "analys",
     "analyse",
+    "berat",
     "berater",
     "beratung",
     "business",
+    "consult",
     "consultant",
     "consulting",
     "digital",
+    "einfuhrung",
+    "erp",
+    "financ",
     "finance",
     "finanz",
     "it",
     "leitung",
+    "manag",
     "management",
     "manager",
+    "process",
+    "project",
     "projekt",
     "prozess",
     "sap",
     "system",
     "team",
+    "technologi",
     "technologie",
     "tool",
+    "unterstutzung",
     "werkzeug",
 ];
 
@@ -133,16 +146,9 @@ pub(crate) const LIGHT_HEADS: &[&str] = &[
     "vorhaben",
 ];
 
-/// Bilingual synonyms: phrase (space-separated stems) -> concept stem. Longer phrases first.
-pub(crate) const CONCEPTS: &[(&str, &str)] = &[
-    ("annual financial statement", "jahresabschluss"),
-    ("month-end closing", "monatsabschluss"),
-    ("month end closing", "monatsabschluss"),
-    ("monthly closing", "monatsabschluss"),
-    ("year-end closing", "jahresabschluss"),
-    ("group accounting", "konzernrechnungslegung"),
-    ("konzernrechnungswesen", "konzernrechnungslegung"),
-    ("group reporting", "konzernreporting"),
+/// Core bilingual synonyms and paraphrases of general business work (every profile):
+/// phrase (space-separated words) -> concept. Field-specific pairs live in `domains`.
+pub(crate) const CORE_CONCEPTS: &[(&str, &str)] = &[
     ("project management", "projektmanagement"),
     ("project manag", "projektmanagement"),
     ("programme management", "programmmanagement"),
@@ -150,25 +156,10 @@ pub(crate) const CONCEPTS: &[(&str, &str)] = &[
     ("change management", "changemanagement"),
     ("change managment", "changemanagement"),
     ("stakeholder management", "stakeholdermanagement"),
-    ("liquidity planning", "liquiditatsplanung"),
-    ("data migration", "datenmigration"),
-    ("test management", "testmanagement"),
-    ("master data", "stammdat"),
-    ("post merger integration", "post-merger-integration"),
-    ("shared service centre", "shared-service-cent"),
-    ("shared service center", "shared-service-cent"),
-    ("order to cash", "order-to-cash"),
-    ("procure to pay", "procure-to-pay"),
     ("project lead", "projektleitung"),
     ("interim management", "interimmanagement"),
-    ("working capital management", "working-capital-management"),
-    ("working capital", "working-capital-management"),
-    ("consolidation", "konsolidierung"),
-    ("controller", "controlling"),
-    ("budgeting", "budgetierung"),
-    ("budgetplanung", "budgetierung"),
-    ("forecasting", "forecast"),
-    ("restructuring", "restrukturierung"),
+    ("interim manag", "interimmanagement"),
+    ("interim mandat", "interimmanagement"),
     ("projektleiter", "projektleitung"),
     ("projektleiterin", "projektleitung"),
     ("gesamtprojektleitung", "projektleitung"),
@@ -181,10 +172,6 @@ pub(crate) const CONCEPTS: &[(&str, &str)] = &[
     ("english", "englisch"),
     ("french", "franzosisch"),
     ("spanish", "spanisch"),
-    ("otc", "order-to-cash"),
-    ("pmi", "post-merger-integration"),
-    ("s4hana", "s/4hana"),
-    ("s4", "s/4hana"),
 ];
 
 /// Language stems and their canonical name.
@@ -282,20 +269,107 @@ pub(crate) const DEGREE_WORDS: &[&str] = &[
     "university",
 ];
 
-/// Degree fields: stems in a requirement or profile degree -> field id.
+/// Degree fields: stems in a requirement or profile degree -> field id. A match inside a
+/// longer match (`informatik` in `wirtschaftsinformatik`) does not count.
 pub(crate) const DEGREE_FIELDS: &[(&str, &str)] = &[
     ("betriebswirt", "business"),
     ("bwl", "business"),
+    ("business administration", "business"),
     ("business", "business"),
     ("kauffrau", "business"),
     ("kaufmann", "business"),
     ("okonom", "business"),
+    ("economics", "business"),
+    ("volkswirt", "business"),
+    ("accounting", "business"),
     ("wirtschaftsinformat", "business-it"),
+    ("business informatics", "business-it"),
+    ("information systems", "business-it"),
     ("wirtschaftswissenschaft", "business"),
     ("finance", "business"),
     ("informatik", "it"),
     ("computer science", "it"),
+    ("wirtschaftsingenieur", "business-engineering"),
     ("ingenieur", "engineering"),
+    ("engineering", "engineering"),
+    ("maschinenbau", "engineering"),
+    ("elektrotechnik", "engineering"),
+    ("verfahrenstechnik", "engineering"),
+    ("technisches studium", "engineering"),
+    ("rechtswissenschaft", "law"),
+    ("jurist", "law"),
+    ("jura", "law"),
+    ("mathematik", "science"),
+    ("physik", "science"),
+    ("naturwissenschaft", "science"),
+];
+
+/// Neighbouring degree fields: a degree in one half-meets a requirement for the other.
+pub(crate) const DEGREE_RELATED: &[(&str, &str)] = &[
+    ("business", "business-it"),
+    ("it", "business-it"),
+    ("business", "business-engineering"),
+    ("engineering", "business-engineering"),
+];
+
+/// Degree levels: 1 bachelor, 2 master or university diploma, 3 doctorate.
+pub(crate) const DEGREE_LEVELS: &[(&str, u8)] = &[
+    ("bachelor", 1),
+    ("b.sc", 1),
+    ("b. sc", 1),
+    ("master", 2),
+    ("m.sc", 2),
+    ("m. sc", 2),
+    ("mba", 2),
+    ("diplom", 2),
+    ("magister", 2),
+    ("staatsexamen", 2),
+    ("promotion", 3),
+    ("phd", 3),
+];
+/// A university of applied sciences or a dual study: a diploma is a bachelor level.
+pub(crate) const DEGREE_APPLIED: &[&str] = &[
+    "(fh)",
+    "(ba)",
+    "fachhochschul",
+    "duale hochschule",
+    "berufsakademie",
+];
+
+/// Wording that makes a formal requirement mandatory.
+pub(crate) const MANDATORY_WORDS: &[&str] = &[
+    "zwingend",
+    "unabdingbar",
+    "unerlasslich",
+    "unbedingt erforderlich",
+    "verpflichtend",
+    "mandatory",
+    "is a must",
+    "must-have",
+];
+/// Licences and admissions that cannot be acquired within a project.
+pub(crate) const LICENCE_WORDS: &[&str] = &[
+    "steuerberater",
+    "wirtschaftsprufer",
+    "rechtsanwalt",
+    "volljurist",
+    "approbation",
+    "certified public accountant",
+    "chartered accountant",
+];
+/// A licence word counts only as a qualification (`Zulassung als ...`, `... examen`).
+pub(crate) const LICENCE_CONTEXT: &[&str] = &[
+    "zulassung",
+    "bestellung",
+    "examen",
+    "titel",
+    "qualifikation",
+    "als ",
+    "license",
+    "licence",
+    "qualified",
+    "volljurist",
+    "approbation",
 ];
 
 /// A degree requirement that accepts any comparable degree.
@@ -330,6 +404,8 @@ pub(crate) const KEY_LANGUAGES: &str = "sprachen";
 pub(crate) const KEY_LANGUAGE: &str = "sprache";
 pub(crate) const KEY_LEVEL: &str = "niveau";
 pub(crate) const KEYS_YEARS: &[&str] = &["jahre", "years", "erfahrung_jahre"];
+/// Free-text USPs (`alleinstellungsmerkmale`).
+pub(crate) const KEY_USP: &str = "alleinstellungsmerkmal";
 
 /// Extra must headings (normalised heading prefixes).
 pub(crate) const MUST_PREFIXES: &[&str] = &[
@@ -365,6 +441,11 @@ pub(crate) const OTHER_PREFIXES: &[&str] = &[
     "bewerbung",
     "your responsibilities",
     "responsibilities",
+    "why join",
+    "why us",
+    "your benefits",
+    "unser angebot",
+    "das bieten wir",
     "ihre aufgaben",
     "deine aufgaben",
     "projektbeschreibung",
@@ -589,4 +670,253 @@ pub(crate) const PERMANENT_WORDS: &[&str] = &[
     "permanent position",
     "permanent role",
     "annual salary",
+];
+
+/// Interim or freelance work (substrings of the folded text).
+pub(crate) const INTERIM_CUES: &[&str] = &[
+    "interim",
+    "freiberuf",
+    "freelance",
+    "werkvertrag",
+    "dienstvertrag",
+    "projektanfrage",
+    "projektlaufzeit",
+    "projektdauer",
+    "einsatzdauer",
+    "dauer:",
+    "duration",
+    "auslastung",
+    "tagessatz",
+    "stundensatz",
+    "honorar",
+    "day rate",
+    "daily rate",
+    "hourly rate",
+    "(contract)",
+    "contract role",
+    "contract basis",
+    "contractor",
+    "auf zeit",
+    "projektbasis",
+    "project basis",
+];
+/// A stated permanent position (in addition to [`PERMANENT_WORDS`]).
+pub(crate) const PERMANENT_STATED: &[&str] = &[
+    "festangestellt",
+    "permanent contract",
+    "permanent employment",
+    "zielgehalt",
+    "bruttojahresgehalt",
+];
+/// Indirect hints of a permanent position (benefits, work permit, career page).
+pub(crate) const PERMANENT_HINTS: &[&str] = &[
+    "why join",
+    "work permit",
+    "arbeitserlaubnis",
+    "aufenthaltstitel",
+    "tage urlaub",
+    "urlaubstage",
+    "days of vacation",
+    "vacation days",
+    "altersvorsorge",
+    "company pension",
+    "pension scheme",
+    "jobrad",
+    "dienstwagen",
+    "firmenwagen",
+    "company car",
+    "probezeit",
+    "karriereseite",
+    "career page",
+    "gehaltsvorstellung",
+    "salary expectation",
+];
+/// A staffing agency writing for a client.
+pub(crate) const AGENCY_CUES: &[&str] = &[
+    "personaldienstleist",
+    "personalvermittl",
+    "personalberatung",
+    "fur unseren kunden",
+    "im auftrag unseres kunden",
+    "our client",
+    "on behalf of our client",
+    "staffing",
+    "recruitment agency",
+];
+
+/// Salary statements: cue words, units and bounds.
+pub(crate) const SALARY_CUES: &[&str] = &[
+    "gehalt",
+    "salary",
+    "vergutung",
+    "compensation",
+    "brutto",
+    "einkommen",
+    "p. a.",
+    "p.a.",
+    "per annum",
+];
+pub(crate) const MONTHLY_WORDS: &[&str] = &["monat", "month", "/mo"];
+pub(crate) const LOWER_BOUND_WORDS: &[&str] =
+    &["ab ", "from ", "starting at", "mindestens", "at least"];
+/// Suffixes that multiply an amount by 1,000 (`120k`, `120 TEUR`).
+pub(crate) const THOUSAND_SUFFIXES: &[&str] = &["k€", "k ", "k,", "teur", "tsd", "t€"];
+/// Plausible annual salaries in EUR start here.
+pub(crate) const SALARY_MIN_AMOUNT: u64 = 10_000;
+
+/// Lines that name a work location.
+pub(crate) const LOCATION_LINES: &[&str] = &[
+    "standort",
+    "einsatzort",
+    "arbeitsort",
+    "dienstort",
+    "location",
+    "ort:",
+];
+/// Words of a remote share.
+pub(crate) const REMOTE_WORDS: &[&str] = &[
+    "remote",
+    "homeoffice",
+    "home-office",
+    "home office",
+    "mobil",
+    "work from home",
+];
+/// Fully remote wording for permanent roles (on top of [`FULL_REMOTE`]).
+pub(crate) const REMOTE_FULL_EXTRA: &[&str] = &[
+    "remote-first",
+    "work from anywhere",
+    "komplett remote",
+    "ausschliesslich remote",
+    "100 % mobil",
+    "100% mobil",
+];
+/// Words in a location field that name no place (countries, states, work modes).
+pub(crate) const LOCATION_NOISE: &[&str] = &[
+    "austria",
+    "baden-wurttemberg",
+    "bavaria",
+    "bayern",
+    "brandenburg",
+    "bundesweit",
+    "d",
+    "dach",
+    "de",
+    "deutschland",
+    "deutschlandweit",
+    "germany",
+    "hessen",
+    "hybrid",
+    "mecklenburg-vorpommern",
+    "niedersachsen",
+    "nordrhein-westfalen",
+    "on-site",
+    "onsite",
+    "ort",
+    "osterreich",
+    "rheinland-pfalz",
+    "saarland",
+    "sachsen",
+    "sachsen-anhalt",
+    "schleswig-holstein",
+    "schweiz",
+    "switzerland",
+    "thuringen",
+    "vor",
+];
+/// Larger German cities, to read on-site sentences when no location is given (sorted).
+pub(crate) const GERMAN_CITIES: &[&str] = &[
+    "aachen",
+    "augsburg",
+    "berlin",
+    "bielefeld",
+    "bochum",
+    "bonn",
+    "braunschweig",
+    "bremen",
+    "chemnitz",
+    "dortmund",
+    "dresden",
+    "duisburg",
+    "dusseldorf",
+    "erfurt",
+    "essen",
+    "frankfurt",
+    "freiburg",
+    "hamburg",
+    "hannover",
+    "heidelberg",
+    "ingolstadt",
+    "karlsruhe",
+    "kassel",
+    "kiel",
+    "koln",
+    "leipzig",
+    "mainz",
+    "mannheim",
+    "munchen",
+    "munster",
+    "nurnberg",
+    "regensburg",
+    "rostock",
+    "stuttgart",
+    "ulm",
+    "wiesbaden",
+    "wurzburg",
+];
+
+/// Experience statements: words and bounds.
+pub(crate) const EXPERIENCE_WORDS: &[&str] = &["erfahrung", "experience", "praxis"];
+/// The years refer to the whole career, not one topic.
+pub(crate) const CAREER_WORDS: &[&str] = &[
+    "berufserfahrung",
+    "berufspraxis",
+    "professional",
+    "work experience",
+    "relevant",
+    "einschlagig",
+];
+/// Title words of a senior role (whole words, or word endings for `...leiter`).
+pub(crate) const SENIOR_TITLES: &[&str] = &[
+    "senior",
+    "lead",
+    "principal",
+    "sme",
+    "head",
+    "director",
+    "direktor",
+    "chief",
+    "cfo",
+    "vp",
+    "leitung",
+    "leiter",
+    "leiterin",
+];
+/// Title words of a junior role.
+pub(crate) const JUNIOR_TITLES: &[&str] = &[
+    "junior",
+    "trainee",
+    "werkstudent",
+    "werkstudentin",
+    "praktikant",
+    "praktikantin",
+    "praktikum",
+    "internship",
+    "absolvent",
+    "absolventin",
+    "graduate",
+    "berufseinsteiger",
+    "berufseinsteigerin",
+    "entry level",
+    "entry-level",
+];
+
+/// Closing lines of an ad: they end a requirement section.
+pub(crate) const CLOSING_WORDS: &[&str] = &[
+    "interessiert?",
+    "freuen wir uns auf",
+    "freuen uns auf ihre",
+    "we look forward",
+    "jetzt bewerben",
+    "apply now",
 ];

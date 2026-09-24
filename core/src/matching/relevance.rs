@@ -5,17 +5,18 @@
 use std::collections::BTreeMap;
 use std::ops::Range;
 
-use super::atoms::{self, Fit};
+use super::atoms::{self, Fit, Vocab};
 use super::fit::Skills;
+use super::lexicon::engine::KEY_USP;
 use super::params::{
     BM25_B, BM25_K1, BM25_LENGTH, FIELD_REQUIREMENTS, FIELD_REST, FIELD_TITLE, GENERIC_WEIGHT,
     RELEVANCE_HALF, SPECIFIC_WEIGHT,
 };
 
-fn counts(text: &str) -> BTreeMap<String, u64> {
+fn counts(text: &str, vocab: &Vocab) -> BTreeMap<String, u64> {
     let mut map = BTreeMap::new();
     for line in text.lines() {
-        for atom in atoms::atoms(line) {
+        for atom in atoms::atoms(line, vocab) {
             *map.entry(atom).or_insert(0) += 1;
         }
     }
@@ -30,20 +31,27 @@ fn occurrences(counts: &BTreeMap<String, u64>, profile_atom: &str) -> u64 {
         .sum()
 }
 
-/// Distinct profile atoms with their static weight.
+/// Distinct profile atoms with their static weight: specific 1000, generic 200; an atom
+/// only named in a USP sentence counts half (free text is weaker evidence).
 pub(crate) fn query(skills: &Skills) -> Vec<(String, u64)> {
-    let mut atoms: Vec<String> = skills
+    let mut atoms: Vec<(String, bool)> = skills
         .entries
         .iter()
-        .flat_map(|e| e.atoms.iter().cloned())
+        .flat_map(|e| {
+            let usp = e.path.starts_with(KEY_USP);
+            e.atoms.iter().map(move |a| (a.clone(), usp))
+        })
         .collect();
+    // Competence occurrences (`false`) sort first and win the dedup.
     atoms.sort();
-    atoms.dedup();
+    atoms.dedup_by(|b, a| a.0 == b.0);
     atoms
         .into_iter()
-        .map(|a| {
+        .map(|(a, usp)| {
             let weight = if atoms::is_generic(&a) {
                 GENERIC_WEIGHT
+            } else if usp {
+                SPECIFIC_WEIGHT / 2
             } else {
                 SPECIFIC_WEIGHT
             };
@@ -52,9 +60,10 @@ pub(crate) fn query(skills: &Skills) -> Vec<(String, u64)> {
         .collect()
 }
 
-/// Title fit in per-mille: share of the title's content atoms the profile covers.
-pub(crate) fn title_fit(query: &[(String, u64)], title: &str) -> u64 {
-    let title_atoms: Vec<String> = atoms::atoms(title)
+/// Title fit in per-mille: share of the title's content atoms the profile covers, scaled
+/// by the static weight of the profile atom (specific 1000, USP-only 500).
+pub(crate) fn title_fit(query: &[(String, u64)], title: &str, vocab: &Vocab) -> u64 {
+    let title_atoms: Vec<String> = atoms::atoms(title, vocab)
         .into_iter()
         .filter(|a| !atoms::is_generic(a))
         .collect();
@@ -64,16 +73,18 @@ pub(crate) fn title_fit(query: &[(String, u64)], title: &str) -> u64 {
     let score: u64 = title_atoms
         .iter()
         .map(|t| {
-            match query
+            query
                 .iter()
-                .map(|(p, _)| atoms::fit(t, p))
+                .map(|(p, weight)| {
+                    let full = (*weight).clamp(SPECIFIC_WEIGHT / 2, SPECIFIC_WEIGHT);
+                    match atoms::fit(t, p) {
+                        Fit::Equal | Fit::Specific => full,
+                        Fit::General => full / 2,
+                        Fit::None => 0,
+                    }
+                })
                 .max()
-                .unwrap_or(Fit::None)
-            {
-                Fit::Equal | Fit::Specific => 1000,
-                Fit::General => 500,
-                Fit::None => 0,
-            }
+                .unwrap_or(0)
         })
         .sum();
     score / title_atoms.len() as u64
@@ -82,18 +93,19 @@ pub(crate) fn title_fit(query: &[(String, u64)], title: &str) -> u64 {
 /// Relevance `R = min(1000, R_lex + T/2)` in per-mille.
 pub(crate) fn relevance(
     query: &[(String, u64)],
+    vocab: &Vocab,
     title: &str,
     text: &str,
     requirement_lines: &[Range<usize>],
 ) -> u64 {
-    let title_counts = counts(title);
-    let all = counts(text);
+    let title_counts = counts(title, vocab);
+    let all = counts(text, vocab);
     let mut requirement_text = String::new();
     for range in requirement_lines {
         requirement_text.push_str(&text[range.clone()]);
         requirement_text.push('\n');
     }
-    let requirement_counts = counts(&requirement_text);
+    let requirement_counts = counts(&requirement_text, vocab);
     let length = text.chars().count() as u64;
     // Length normalisation in per-mille: 1 - b + b * len / avg.
     let norm = (1000 - BM25_B) + BM25_B * length / BM25_LENGTH;
@@ -112,6 +124,6 @@ pub(crate) fn relevance(
         mass += weight * saturation / 1000;
     }
     let lexical = 1000 * mass / (mass + RELEVANCE_HALF);
-    let title = title_fit(query, title);
+    let title = title_fit(query, title, vocab);
     (lexical + title / 2).min(1000)
 }
