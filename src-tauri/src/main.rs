@@ -182,6 +182,10 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), Failure> {
         Store::open(&database)
     };
     let store = Arc::new(store.map_err(|e| Failure::database(&database, &e))?);
+    // The sessions' storage outside the data folder (macOS data stores) goes too.
+    if reset_report.is_some() {
+        session::forget_all(app.handle().clone(), data_dir.clone());
+    }
     app.manage(AppState {
         store: store.clone(),
         default_workspace: app

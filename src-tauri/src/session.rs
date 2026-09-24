@@ -555,6 +555,30 @@ impl Drop for Session {
     }
 }
 
+/// After "reset everything": every portal's sign-in goes with its storage. The reset deleted
+/// the profile folders before the start, but on macOS a session lives in a `WKWebView` data
+/// store, which only the running app can remove. Runs in the background; a store that stays
+/// goes into the reset report (and the log).
+pub fn forget_all(app: AppHandle, data_dir: PathBuf) {
+    tauri::async_runtime::spawn(async move {
+        let portals = Portal::ALL
+            .into_iter()
+            .filter(|&p| PortalSite::of(p).is_some());
+        for portal in portals {
+            let profile = data_dir.join(jobalert_core::session_dir(portal));
+            if platform::delete_session_storage(&app, portal.key(), &profile).await {
+                continue;
+            }
+            let state = tauri::Manager::state::<crate::commands::AppState>(&app);
+            if let Some(report) = jobalert_core::sync::lock(&state.reset_report).as_mut() {
+                report
+                    .failed
+                    .push(format!("session storage of {}", portal.key()));
+            }
+        }
+    });
+}
+
 /// The window is gone or could not be used - a network-like error, never a page result.
 fn no_window() -> PageOutcome {
     PageOutcome::NetError {

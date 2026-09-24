@@ -4,9 +4,10 @@
 //!
 //! Only things of the app are deleted: the database (jobs, settings, scan state) with its
 //! journal, WAL and shared-memory files, the profiles of the session windows (freelance.de
-//! sign-in), the Gmail access in the keychain and, in the workspace, the app's files
-//! including `profil/beraterprofil.json`. `policy.json` stays - a block pause must not be
-//! clickable away. Foreign files stay untouched.
+//! sign-in; on macOS the app removes their `WKWebView` data stores right after the start,
+//! which needs the running app), the Gmail access in the keychain and, in the workspace, the
+//! app's files including `profil/beraterprofil.json`. `policy.json` stays - a block pause
+//! must not be clickable away. Foreign files stay untouched.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
