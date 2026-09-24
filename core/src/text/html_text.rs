@@ -1,17 +1,17 @@
-//! HTML zu Fließtext: Blockelemente werden Zeilen, Skripte und Stile fallen weg.
+//! HTML to running text: block elements become lines, scripts and styles fall away.
 
 use ego_tree::iter::Edge;
 use scraper::{Html, Node};
 
 use super::normalize;
 
-/// Elemente, deren Inhalt nie Text ist.
+/// Elements whose content is never text.
 pub(crate) const SKIP: &[&str] = &[
     "script", "style", "head", "title", "noscript", "template", "svg", "iframe", "object",
 ];
 
-/// Absatz-Elemente: davor und danach eine Leerzeile – so bleiben Abschnitte einer
-/// Stellenbeschreibung auch in der Textdatei als Abschnitte lesbar.
+/// Paragraph elements: a blank line before and after - so sections of a job
+/// description stay readable as sections in the text file too.
 const PARAGRAPH: &[&str] = &[
     "address",
     "article",
@@ -40,9 +40,9 @@ const PARAGRAPH: &[&str] = &[
     "ul",
 ];
 
-/// Zeilen-Elemente: eigene Zeile ohne Leerzeile. Tabellenzellen und Definitionslisten
-/// zählen mit – sonst klebten Eckdaten wie „Berlin“ und „Vollzeit“ zu `BerlinVollzeit`
-/// zusammen.
+/// Line elements: their own line, no blank line. Table cells and definition lists
+/// count too - otherwise key facts like "Berlin" and "Vollzeit" would stick together
+/// into `BerlinVollzeit`.
 const LINE: &[&str] = &[
     "br",
     "dd",
@@ -55,7 +55,7 @@ const LINE: &[&str] = &[
     "tr",
 ];
 
-/// Wandelt HTML (ganze Seite oder Ausschnitt) in normalisierten Text.
+/// Turns HTML (a whole page or a snippet) into normalised text.
 pub fn html_to_text(html: &str) -> String {
     let fragment = Html::parse_fragment(html);
     let mut out = String::with_capacity(html.len() / 2);
@@ -76,8 +76,9 @@ pub fn html_to_text(html: &str) -> String {
             _ if skip_depth > 0 => {}
             Node::Element(el) if PARAGRAPH.contains(&el.name()) => break_lines(&mut out, 2),
             Node::Element(el) if LINE.contains(&el.name()) => break_lines(&mut out, 1),
-            // Am Zeilenanfang zählt Quelltext-Einrückung nicht: Sonst erzeugt hübsch
-            // formatiertes HTML Leerzeilen zwischen Listenpunkten und Tabellenzellen.
+            // Source indentation doesn't count at the start of a line: otherwise
+            // prettily formatted HTML would create blank lines between list items and
+            // table cells.
             Node::Text(text) if opening => {
                 let at_line_start = {
                     let tail = out.trim_end_matches([' ', '\t']);
@@ -95,8 +96,8 @@ pub fn html_to_text(html: &str) -> String {
     normalize(&out)
 }
 
-/// Sorgt dafür, dass der Text mit mindestens `count` Zeilenumbrüchen endet (am Anfang
-/// nichts). Leerzeichen am Zeilenende zählen dabei nicht als Inhalt.
+/// Makes sure the text ends with at least `count` line breaks (nothing at the start).
+/// Trailing whitespace on the line does not count as content.
 fn break_lines(out: &mut String, count: usize) {
     out.truncate(out.trim_end_matches([' ', '\t']).len());
     if out.is_empty() {
@@ -126,8 +127,8 @@ mod tests {
         assert_eq!(text, "A\nB\n\nText");
     }
 
-    /// formatiertes HTML (Einrückung, Zeilenumbrüche im Quelltext) ergibt
-    /// denselben Text wie kompaktes.
+    /// Formatted HTML (indentation, line breaks in the source) yields the same text
+    /// as compact HTML.
     #[test]
     fn pretty_printed_html_equals_compact_html() {
         let pretty = "<ul>\n  <li>\n    <a href=\"/p\">Projekte finden</a>\n  </li>\n  <li>\n    <a href=\"/q\">Preise</a>\n  </li>\n</ul>";
@@ -166,7 +167,7 @@ mod tests {
         );
     }
 
-    /// Zellen einer Tabellenzeile bleiben getrennt.
+    /// Cells of a table row stay separate.
     #[test]
     fn table_cells_are_separated() {
         assert_eq!(

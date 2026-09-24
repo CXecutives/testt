@@ -1,10 +1,10 @@
-//! Firma und Ort: kurz und an der richtigen Stelle.
+//! Company and location: short and in the right field.
 //!
-//! Die Portale schreiben beides uneinheitlich an: freelancermap stellt „von:“ vor die
-//! Firma und liefert als Ort die volle Anschrift; freelance.de setzt hinter den Titel nur
-//! den Ort („D-20038 Hamburg“), der sonst in der Firmenspalte landet; LinkedIn hängt
-//! Länder an („Köln (Deutschland)“). Gespeichert werden die Rohwerte – diese Funktionen
-//! bereinigen nur für Anzeige und Export.
+//! Portals write both inconsistently: freelancermap puts "von:" before the company and
+//! gives the full address as the location; freelance.de puts only the location behind
+//! the title ("D-20038 Hamburg"), which would otherwise land in the company column;
+//! LinkedIn appends countries ("Köln (Deutschland)"). The raw values get stored - these
+//! functions only clean up for display and export.
 
 use std::sync::LazyLock;
 
@@ -12,8 +12,9 @@ use regex::Regex;
 
 use super::{normalize, strip_chars, truncate_chars};
 
-/// Floskeln vor dem Firmennamen – nur **mit** Doppelpunkt, sonst zerschnitte man echte
-/// Namen wie „von Rundstedt & Partner“.
+/// Filler words before the company name - only **with** a colon, otherwise real names
+/// like "von Rundstedt & Partner" would get cut apart. German field labels, do not
+/// translate.
 static FIRM_PREFIX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"(?i)^(?:von|firma|unternehmen|company|arbeitgeber|auftraggeber|kunde|endkunde|ansprechpartner)\s*:\s*",
@@ -21,15 +22,16 @@ static FIRM_PREFIX: LazyLock<Regex> = LazyLock::new(|| {
     .unwrap()
 });
 
-/// Arbeitsform in einer Ortsangabe („Berlin (Remote)“, „Hybrid“, „Vor Ort“).
+/// Work mode in a location ("Berlin (Remote)", "Hybrid", "Vor Ort"). German and English
+/// terms, do not translate.
 static WORKPLACE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(?:remote|hybrid|vor ort|on-site|onsite|home ?office)\b").unwrap()
 });
 
-/// Ort von der Anzeigenseite, ohne die Arbeitsform der Mail zu verlieren: LinkedIn und
-/// freelancermap nennen auf der Seite oft nur den Ort, die Mail aber „Berlin (Remote)“ –
-/// für das Matching ist das mitunter das einzige Remote-Signal.
-/// Höchstens `max` Zeichen – gekürzt wird der Ort, nie die Arbeitsform.
+/// Location from the job page, without losing the work mode from the mail: LinkedIn and
+/// freelancermap often name only the location on the page, but the mail says
+/// "Berlin (Remote)" - for matching that is sometimes the only remote signal.
+/// At most `max` characters - the location gets truncated, never the work mode.
 pub fn page_location(stored: &str, page: &str, max: usize) -> String {
     match WORKPLACE.find(stored) {
         Some(mode) if !page.is_empty() && !WORKPLACE.is_match(page) => {
@@ -41,29 +43,30 @@ pub fn page_location(stored: &str, page: &str, max: usize) -> String {
     }
 }
 
-/// Postleitzahl, auch mit Ländervorsatz („D-68159“, „A-1010“, „CH-4000“).
+/// A postcode, also with a country prefix ("D-68159", "A-1010", "CH-4000").
 const POSTCODE: &str = r"(?:D-|A-|CH-)?\d{4,5}";
 
-/// „Am Mühlenweg 68, 27356 Rotenburg Wümme“ → Ortsname.
+/// "Am Mühlenweg 68, 27356 Rotenburg Wümme" -> town name.
 static ADDRESS: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(&format!(r"^(?:.*?,\s*)?{POSTCODE}\s+(\S.*)$")).unwrap());
 
-/// Anschrift ohne Postleitzahl: „Am Mühlenweg 68, Rotenburg“ → „Rotenburg“.
+/// An address without a postcode: "Am Mühlenweg 68, Rotenburg" -> "Rotenburg".
 static STREET: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^.*?\d\s*[a-zA-Z]?,\s*(\S.*)$").unwrap());
 
-/// Postleitzahl + Ortsname am Anfang des Werts.
+/// Postcode plus town name at the start of the value.
 static POSTCODE_AT_START: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(&format!(r"^{POSTCODE}\s+\p{{L}}")).unwrap());
 
-/// Postleitzahl + Ortsname hinter einem Komma (Anschrift). Nur an diesen beiden Stellen
-/// gilt eine Ziffernfolge als Postleitzahl – „Vision 2030 Consulting“ ist kein Ort
-/// (früher: jede 4–5-stellige Zahl irgendwo im Wert zählte).
+/// Postcode plus town name behind a comma (an address). A digit sequence only counts as
+/// a postcode in these two spots - "Vision 2030 Consulting" is not a location
+/// (previously any 4-5 digit number anywhere in the value counted).
 static POSTCODE_AFTER_COMMA: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(&format!(r",\s*{POSTCODE}\s+\p{{L}}")).unwrap());
 
-/// Länder, die in den Alert-Mails hinter dem Ort stehen. Über den deutschsprachigen Raum
-/// hinaus, weil freelance.de auch „Krakow (Polen)“ schreibt (gemessen an echten Mails).
+/// Countries that show up behind the location in alert mails. Goes beyond the
+/// German-speaking area because freelance.de also writes "Krakow (Polen)" (observed in
+/// real mails). German and English country names, do not translate.
 const COUNTRIES: [&str; 30] = [
     "deutschland",
     "germany",
@@ -98,13 +101,13 @@ const COUNTRIES: [&str; 30] = [
 ];
 const COUNTRY_CODES: [&str; 4] = ["de", "at", "ch", "lu"];
 
-/// Aufbau, den nur eine Ortsangabe hat: Ländervorsatz ohne Postleitzahl („D-D8/D9 D8/D9“)
-/// oder ein leeres Klammerpaar am Ende („D1 ()“). Beides steht so in echten
-/// freelance.de-Mails, kein Firmenname sieht so aus.
+/// A shape that only a location has: a country prefix without a postcode
+/// ("D-D8/D9 D8/D9") or an empty pair of parentheses at the end ("D1 ()"). Both occur
+/// like this in real freelance.de mails; no company name looks like that.
 static PLACE_SHAPE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(?:D|A|CH)-\S|\(\s*\)$").unwrap());
 
-/// „Bayern (Bayern)“, „Genf (Genf)“: Ort mit sich selbst als Region in der Klammer.
+/// "Bayern (Bayern)", "Genf (Genf)": a location with itself as the region in brackets.
 fn repeats_itself_in_brackets(value: &str) -> bool {
     value
         .strip_suffix(')')
@@ -114,13 +117,13 @@ fn repeats_itself_in_brackets(value: &str) -> bool {
         })
 }
 
-/// Land als eigenes Wort im Wert („Hessen Deutschland“, „Berlin (Deutschland)“).
+/// A country as its own word in the value ("Hessen Deutschland", "Berlin (Deutschland)").
 static COUNTRY_WORD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(r"(?i)(?:^|[\s(])(?:{})\b", COUNTRIES.join("|"))).unwrap()
 });
 
-/// Rechtsform: Ein Wert damit ist eine Firma. Ausgeschriebene Formen in jeder
-/// Schreibweise, die kurzen Kürzel nur in Großbuchstaben – „Muster AG“ ist eine Firma.
+/// Legal form: a value with one is a company. Spelled-out forms in any casing, the short
+/// abbreviations only in upper case - "Muster AG" is a company.
 static LEGAL_FORM: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"(?i:\b(?:gmbh|mbh|ohg|gbr|partg|kgaa|e\.?\s?v\.?|e\.?\s?k\.?|inc|ltd|llc|sarl|plc|corp|s\.?r\.?l|s\.?p\.?a|b\.v|n\.v)\b)|\b(?:AG|SE|KG|UG|S\.A)\b",
@@ -128,7 +131,7 @@ static LEGAL_FORM: LazyLock<Regex> = LazyLock::new(|| {
     .unwrap()
 });
 
-/// Klammerzusätze wie „(AG)“ in „Zug (AG)“ sind Kantone oder Hinweise, keine Rechtsform.
+/// Bracketed extras like "(AG)" in "Zug (AG)" are cantons or notes, not a legal form.
 static PARENTHESES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\([^)]*\)").unwrap());
 
 const EDGE_TRIM: &str = " -–—,(/|";
@@ -141,7 +144,8 @@ fn flat(text: &str) -> String {
     normalize(text).replace('\n', " ")
 }
 
-/// Nur der Firmenname – Floskeln wie „von:“ davor fallen weg (höchstens 80 Zeichen).
+/// Just the company name - filler like "von:" before it falls away (at most 80
+/// characters).
 pub fn short_company(text: &str) -> String {
     let value = flat(text);
     let value = FIRM_PREFIX.replace(&value, "");
@@ -149,9 +153,9 @@ pub fn short_company(text: &str) -> String {
     truncate_chars(value, 80)
 }
 
-/// Landeszusätze entfernen: „Berlin, Deutschland“, „Hessen Deutschland“,
-/// „Berlin - Germany, 100% onsite work required (Deutschland)“. Firmen bleiben
-/// unangetastet („Telekom Deutschland GmbH“).
+/// Remove country suffixes: "Berlin, Deutschland", "Hessen Deutschland",
+/// "Berlin - Germany, 100% onsite work required (Deutschland)". Companies stay
+/// untouched ("Telekom Deutschland GmbH").
 fn without_country(value: &str) -> String {
     if has_legal_form(value) {
         return value.to_string();
@@ -176,7 +180,8 @@ fn without_country(value: &str) -> String {
     strip_chars(&value, EDGE_TRIM).to_string()
 }
 
-/// Nur der Ort – eine Anschrift wird auf den Ortsnamen gekürzt (höchstens 60 Zeichen).
+/// Just the location - an address gets shortened to the town name (at most 60
+/// characters).
 pub fn short_location(text: &str) -> String {
     let mut value = without_country(flat(text).trim());
     if let Some(town) = ADDRESS
@@ -186,7 +191,8 @@ pub fn short_location(text: &str) -> String {
     {
         value = town.as_str().to_string();
     }
-    // „D1 ()“: freelance.de hängt ein leeres Klammerpaar an, wenn die Region fehlt.
+    // "D1 ()": freelance.de appends an empty pair of parentheses when the region is
+    // missing.
     if let Some(head) = value.strip_suffix(')')
         && let Some((head, tail)) = head.rsplit_once('(')
         && tail.trim().is_empty()
@@ -196,12 +202,12 @@ pub fn short_location(text: &str) -> String {
     truncate_chars(strip_chars(&value, " -–—,·|"), 60)
 }
 
-/// Steht in dem Wert ein Ort statt einer Firma?
+/// Does the value hold a location instead of a company?
 ///
-/// Entschieden wird nach Aufbau, nicht nach Reihenfolge von Verboten: Postleitzahl am
-/// Anfang ⇒ Ort (auch „CH-6300 Zug (AG)“); sonst macht eine Rechtsform
-/// den Wert zur Firma; sonst sprechen eine Anschrift hinter einem Komma, ein Land mit
-/// Text davor oder ein reiner Ortsaufbau für einen Ort.
+/// Decided by shape, not by a priority order of bans: a postcode at the start means a
+/// location (even "CH-6300 Zug (AG)"); otherwise a legal form makes the value a
+/// company; otherwise an address behind a comma, a country with text before it, or a
+/// pure location shape speak for a location.
 pub fn looks_like_location(text: &str) -> bool {
     let value = flat(text);
     let value = value.trim();
@@ -222,8 +228,8 @@ pub fn looks_like_location(text: &str) -> bool {
         .any(|hit| !strip_chars(&value[..hit.start()], EDGE_TRIM).is_empty())
 }
 
-/// Firma und Ort getrennt, kurz und an der richtigen Stelle: Steht im Firmenfeld ein
-/// Ort und ist das Ortsfeld leer, wandert er hinüber.
+/// Company and location split apart, short, in the right field: if the company field
+/// holds a location and the location field is empty, it moves over.
 pub fn split_company_location(company: &str, location: &str) -> (String, String) {
     let firm = short_company(company);
     let town = short_location(location);
@@ -256,7 +262,7 @@ mod tests {
         );
         assert_eq!(loc("München (Remote)", "Remote"), "Remote");
         assert_eq!(loc("Berlin (Remote)", ""), "");
-        // Ein langer Seitenort wird gekürzt, die Arbeitsform bleibt vollständig.
+        // A long page location gets truncated, the work mode stays whole.
         let long = "Berlin, Hamburg, München, Köln, Frankfurt am Main, Stuttgart, Düsseldorf";
         let kept = page_location("Berlin (Remote)", long, 40);
         assert!(
@@ -378,8 +384,8 @@ mod tests {
         );
     }
 
-    /// Früher: Die Rechtsform-Sperre kam vor der Postleitzahl – ein Ort mit
-    /// Kantonskürzel blieb in der Firmenspalte.
+    /// Previously: the legal-form block came before the postcode check - a location
+    /// with a canton abbreviation stayed in the company column.
     #[test]
     fn postcode_at_start_wins_over_legal_form_in_parentheses() {
         let own = |a: &str, b: &str| (a.to_string(), b.to_string());
@@ -390,7 +396,7 @@ mod tests {
         assert!(looks_like_location("A-1010 Wien"));
     }
 
-    /// Früher: Jahreszahlen und Hausnummern galten als Postleitzahl.
+    /// Previously: years and house numbers counted as a postcode.
     #[test]
     fn numbers_inside_company_names_are_not_postcodes() {
         for value in [
@@ -402,9 +408,9 @@ mod tests {
             let own = (value.to_string(), String::new());
             assert_eq!(split_company_location(value, ""), own);
         }
-        // Firma mit Anschrift bleibt Firma (Rechtsform).
+        // A company with an address stays a company (legal form).
         assert!(!looks_like_location("Muster GmbH, 20038 Hamburg"));
-        // Anschrift ohne Firma ist ein Ort.
+        // An address without a company is a location.
         assert!(looks_like_location(
             "Am Mühlenweg 68, 27356 Rotenburg Wümme"
         ));
@@ -432,8 +438,8 @@ mod tests {
         assert_eq!(short_company(&long).chars().count(), 80);
         assert_eq!(short_location(&long).chars().count(), 60);
     }
-    /// Ortsangaben aus echten freelance.de-Mails, die vorher als Firma durchgingen: Die
-    /// Firmenspalte ist dort immer leer, der Wert hinter dem Titel ist der Ort.
+    /// Locations from real freelance.de mails that used to pass as a company: their
+    /// company column is always empty, the value behind the title is the location.
     #[test]
     fn odd_freelance_places_are_places_not_firms() {
         for place in [
@@ -447,13 +453,13 @@ mod tests {
             "D-80331 München, D-50667 Köln, D-10115 Berlin",
         ] {
             let (company, location) = split_company_location(place, "");
-            assert_eq!(company, "", "{place} ist keine Firma");
-            assert!(!location.is_empty(), "{place} hat einen Ort");
+            assert_eq!(company, "", "{place} is not a company");
+            assert!(!location.is_empty(), "{place} has a location");
         }
-        // Das leere Klammerpaar verschwindet, die Region bleibt.
+        // The empty pair of parentheses disappears, the region stays.
         assert_eq!(split_company_location("D1 ()", "").1, "D1");
         assert_eq!(split_company_location("Krakow (Polen)", "").1, "Krakow");
-        // Eine Firma bleibt eine Firma, auch mit Land in der Klammer.
+        // A company stays a company, even with a country in parentheses.
         let (company, location) = split_company_location("Muster (Deutschland) GmbH", "");
         assert_eq!(
             (company.as_str(), location.as_str()),

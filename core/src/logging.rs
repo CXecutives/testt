@@ -1,7 +1,7 @@
-//! Protokolldatei `logs/app.log` (1 MB, eine Rotation). Nie Geheimnisse, Mailinhalte oder
-//! Seiten-HTML – deshalb eine harte Obergrenze je Quelle: async-imap schreibt auf `trace`
-//! jeden Befehl wörtlich, also auch `LOGIN "adresse" "app-passwort"`. `trace` ist nie
-//! erreichbar, auch nicht per Einstellung oder Umgebungsvariable.
+//! Log file `logs/app.log` (1 MB, one rotation). Never secrets, mail content or page
+//! HTML - hence a hard cap per source: async-imap writes every command verbatim at
+//! `trace`, including `LOGIN "address" "app-password"`. `trace` is never reachable,
+//! not even through a setting or an environment variable.
 
 use std::fs::{File, OpenOptions};
 use std::io::Write as _;
@@ -15,7 +15,7 @@ use crate::text::{one_line, truncate_chars};
 const MAX_BYTES: u64 = 1024 * 1024;
 const MAX_LINE_CHARS: usize = 2_000;
 
-/// Fremdbibliotheken, die höchstens Warnungen schreiben dürfen.
+/// Third-party libraries that may write at most warnings.
 const QUIET: &[&str] = &[
     "async_imap",
     "imap_proto",
@@ -32,7 +32,7 @@ const QUIET: &[&str] = &[
     "tauri",
 ];
 
-/// Darf eine Meldung ins Protokoll? `max` ist die gewählte Stufe (höchstens `Debug`).
+/// May a message go into the log? `max` is the chosen level (at most `Debug`).
 pub fn allowed(target: &str, level: Level, max: LevelFilter) -> bool {
     let max = max.min(LevelFilter::Debug);
     let quiet = QUIET.iter().any(|q| {
@@ -56,7 +56,7 @@ pub struct FileLogger {
 }
 
 impl FileLogger {
-    /// Richtet das Protokoll ein (einmal je Prozess).
+    /// Sets up the log (once per process).
     pub fn install(dir: &Path, max: LevelFilter) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
         let logger = FileLogger {
@@ -125,7 +125,7 @@ impl Log for FileLogger {
 mod tests {
     use super::*;
 
-    /// async-imap nie unter `warn`, `trace` nie.
+    /// async-imap never below `warn`, `trace` never.
     #[test]
     fn imap_login_can_never_reach_the_log() {
         for max in [LevelFilter::Trace, LevelFilter::Debug, LevelFilter::Info] {
@@ -145,7 +145,7 @@ mod tests {
             Level::Debug,
             LevelFilter::Info
         ));
-        // Nur ganze Modulnamen: „taurus“ ist nicht „tauri“.
+        // Only whole module names: "taurus" is not "tauri".
         assert!(allowed("taurus", Level::Info, LevelFilter::Info));
     }
 }
