@@ -134,7 +134,9 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
     Ok(view::AppState {
         platform: crate::platform::platform(),
         dry_run: state.dry_run,
-        first_run: last_run.is_none() && counts.all == 0,
+        // The dry run is a demo with a mailbox and a sample profile: it starts in the app itself,
+        // never on the first-run page (the smoke probe on a fresh CI machine relies on it).
+        first_run: !state.dry_run && last_run.is_none() && counts.all == 0,
         running,
         settings: SettingsView {
             workspace_is_default: settings.workspace.is_none(),
