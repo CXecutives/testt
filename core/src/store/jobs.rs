@@ -197,6 +197,9 @@ pub struct JobFilter {
     pub first_seen_run: Option<i64>,
     /// Search term in title, company, location and full text (case-insensitive).
     pub search: Option<String>,
+    /// Only the jobs the app lists: neither archived nor another portal's duplicate (the
+    /// Excel overview shows what the app shows).
+    pub listed: bool,
 }
 
 /// Mail details a job takes over when it is first seen.
@@ -328,9 +331,13 @@ impl Store {
             "SELECT {JOB_COLUMNS} FROM job
              WHERE (?1 IS NULL OR first_seen_run = ?1)
                AND (?2 IS NULL OR search LIKE ?2 ESCAPE '\\')
+               AND (NOT ?3 OR (archived_at IS NULL AND dup_of IS NULL))
              ORDER BY first_seen_at DESC, mail_date DESC, portal, job_id"
         ))?;
-        let rows = stmt.query_map(params![filter.first_seen_run, pattern], job_row)?;
+        let rows = stmt.query_map(
+            params![filter.first_seen_run, pattern, filter.listed],
+            job_row,
+        )?;
         rows.map(|r| r?).collect()
     }
 
