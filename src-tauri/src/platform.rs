@@ -507,6 +507,10 @@ mod macos {
     /// would skip saving the placement, the closing blocker and the grace for a running
     /// fetch. Quitting from the Dock or at logout still goes through `terminate:`; main.rs
     /// covers that in `RunEvent::Exit`.
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "the signature of Tauri's menu event handler"
+    )]
     pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
         if event.id() != QUIT_ID {
             return;
