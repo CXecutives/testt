@@ -36,8 +36,16 @@ impl ParsedMail {
     }
 }
 
-/// `None` when the bytes are not a mail.
+/// `None` when the bytes are not a mail - also when the parser panics on them (a debug
+/// assertion of mail-parser on mangled multiparts): one broken mail never ends the scan.
 pub fn parse_mail(raw: &[u8]) -> Option<ParsedMail> {
+    std::panic::catch_unwind(|| parse_unguarded(raw)).unwrap_or_else(|_| {
+        log::warn!("a mail the parser failed on counts as unreadable");
+        None
+    })
+}
+
+fn parse_unguarded(raw: &[u8]) -> Option<ParsedMail> {
     let message = MessageParser::default().parse(raw)?;
     let from = message.from().and_then(|a| a.first());
     let address = from
@@ -204,6 +212,14 @@ Content-Type: text/html\r\n\
     #[test]
     fn garbage_is_no_mail() {
         assert!(parse_mail(b"").is_none());
+    }
+
+    /// A forwarded alert mangled into nested, unclosed multiparts trips a debug assertion
+    /// inside mail-parser: the mail counts as unreadable instead of ending the scan.
+    #[test]
+    fn a_parser_panic_is_no_mail() {
+        let raw = include_bytes!("../../tests/fixtures/mail_broken/nested_multipart.eml");
+        let _ = parse_mail(raw);
     }
 
     /// Base64 HTML with a foreign character and no closing MIME boundary is still
