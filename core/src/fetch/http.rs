@@ -81,7 +81,11 @@ impl HttpFetcher {
         Ok((
             client(redirect::Policy::none())?,
             // At most two redirects, only on the same host and scheme (freelancermap:
-            // /nproj/<ID>.html leads with 301 to the project page).
+            // /nproj/<ID>.html leads with 301 to the project page). The hops count as the
+            // one request `admit` let through, on purpose: a browser loads the same page with
+            // the same hops, the host stays the one the policy paces, and a third hop or
+            // another host stops - so a page never costs more than three requests to its
+            // own portal, and never reaches a host the policy does not know.
             client(redirect::Policy::custom(|attempt| {
                 let first = attempt.previous().first();
                 let same_origin = first.is_some_and(|f| {
