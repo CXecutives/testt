@@ -64,7 +64,7 @@ status (excluded > unscorable > scored), decided violations (anue, country, dayR
 expected check codes (anueOptional, anueHidden, countryUnclear, dayRateCurrency, startVague,
 availabilityGap, permanent, formalOpen, lowEvidence, shortText) and musts that must stay open.
 
-Gates (`matching_corpus.rs`; the new-engine gates switch on in phase 2A):
+Gates (`matching_corpus.rs`, all on):
 - parity: `legacy_percent` == `legacy.json`, 35 old tests green;
 - per job and profile: band distance of the new score <= that of the old score (absent or
   unscorable = 0), and the sum strictly smaller;
@@ -75,6 +75,76 @@ Gates (`matching_corpus.rs`; the new-engine gates switch on in phase 2A):
 Metrics for the private gold set (`common/eval.rs`): NDCG@k (gain 2^grade - 1), P@k,
 Spearman, high-band precision, paired bootstrap with a fixed seed.
 
+## The new engine (ENGINE_VERSION 2)
+
+Integer-only, per-mille throughout; `core/src/matching/{job,atoms,fit,facts,relevance,engine,explain}.rs`,
+word lists in `lexicon/engine.rs` (external contract), parameters in `params.rs`.
+
+| Step | Rule |
+|---|---|
+| Reading (V5, V16) | Must/nice/other headings incl. English, inline (`Anforderungen: ...`), frame sections (`Rahmenbedingungen`, `Wir bieten`) end requirement sections; nice cues (`von Vorteil`, `idealerweise`) inside must sections make a nice-to-have; sentences split without breaking `z. B.`, `u. a.`, `inkl.`; requirement sentences only when no must section exists and never from nice sections; vocabulary only when nothing else was found |
+| Items (V6) | AND at `,` `;` `und` `sowie` `&` `and` `inkl.`; OR alternatives at `oder` `bzw.` `or` ` / ` (and commas in pure OR lists); examples after `z. B.`/`u. a.`/`e.g.` are alternatives of their head |
+| Kinds (V7) | skill, language (with CEFR level), degree, soft (weight 250, unproven = half), frame (weight 0: travel, availability, start) |
+| Ladder (V1-V4, V15) | umlauts folded, two-pass light stemming, bilingual concepts (`group accounting` = `Konzernrechnungslegung`), compounds: light modifier/head = equal (`Konzernkonsolidierung`, `Carve-out-Projekten`), other modifier = profile more general 0.5, profile more specific 1.0, two thirds of a long entry 0.5, generic atoms (`SAP`, `Management`) never alone |
+| Levels, years (V8, V9) | language below the required level stays open; years compared per competence (`jahre`) or with the total, 80 % of the years = half |
+| Criteria (V10-V13) | facts first; ANÜ decided only when named, not negated, not optional (else `anueOptional`, `anueHidden`); work country from location, on-site sentences, not fully remote (travel or contradictions = `countryUnclear`); EUR day rate upper bound, hourly x 8, no rule for permanent roles (`dayRateCurrency`, `permanent`); availability never decided (`availabilityGap {days}`, `startVague`); status excluded > unscorable > scored |
+| Relevance (V17, V18) | title fit T and BM25F-like lexical score (title x3, requirements x2, rest x1, k1 1.2, b 0.75, fixed length 2400, specific atoms 1000, generic 200, half mass 7000); `R = min(1000, R_lex + T/2)` |
+| Score (V19) | `M`, `K`, `P` as planned; `P' = (n*P + k*R)/(n + k)`, k = 2000; low evidence (teaser, vocabulary, nice only, < 2 items) also shrinks towards 400 with weight 1500; `score = round_half_even(P'/10)` |
+
 ## New vs old
 
-(filled in phase 2A)
+Corpus results (`cargo test -p jobalert-core --test matching_corpus -- --ignored report --nocapture`).
+Old = frozen old engine (absent or crashed = 0), new = ENGINE_VERSION 2, `*` = outside the
+expected band, `excl` = excluded (score kept). Gates: no job further from its band than the old
+engine, total distance strictly smaller, decided exclusions/status exactly as expected, all
+expected checks raised, no `mustOpen` item met.
+
+| Profile | In band old | In band new | Band distance old | Band distance new | Spearman old | Spearman new |
+|---|---|---|---|---|---|---|
+| fin | 17 / 40 | 38 / 40 | 491 | 3 | 0.56 | 0.81 |
+| it | 30 / 40 | 39 / 40 | 188 | 1 | 0.55 | 0.86 |
+
+| Job | Band fin | Old fin | New fin | Band it | Old it | New it | Findings (new, fin / it) |
+|---|---|---|---|---|---|---|---|
+| K01 | 85-100 | 100 | 100 | 15-40 | 38 | 37 | - / availabilityGap |
+| K02 | 25-50 | 40 | 50 | 0-25 | 20 | 20 | - / availabilityGap |
+| K03 | 80-100 | 70 | 91 excl | 10-40 | 23 | 29 excl | anue / anue, availabilityGap |
+| K04 | 80-100 | 70 | 91 | 10-40 | 23 | 29 | - / availabilityGap |
+| K05 | 80-100 | 70 | 98 | 15-45 | 47 | 29 | anueOptional / anueOptional, availabilityGap |
+| K06 | 80-100 | 100 | 98 | 5-30 | 25 | 23 | anueHidden / anueHidden, availabilityGap |
+| K07 | 80-100 | 70 | 100 | 10-40 | 23 | 29 | - / availabilityGap |
+| K08 | 80-100 | 100 | 91 excl | 10-40 | 33 | 28 excl | dayRate / dayRate, availabilityGap |
+| K09 | 80-100 | 70 | 100 excl | 5-35 | 23 | 28 excl | dayRate / dayRate, availabilityGap |
+| K10 | 80-100 | 70 | 90 excl | 10-40 | 23 | 28 excl | country / country, availabilityGap |
+| K11 | 85-100 | 100 | 100 | 10-40 | 23 | 28 | - / availabilityGap |
+| K12 | 45-75 | 100 | 55 | 15-45 | 50 | 35 | - / availabilityGap |
+| K13 | 55-80 | 100 | 79 | 5-35 | 33 | 28 | - / availabilityGap |
+| K14 | 50-80 | 75 | 67 | 20-50 | 25 | 28 | lowEvidence / availabilityGap, lowEvidence |
+| K15 | 0-30 | 0 | - (unscorable) | 0-30 | 0 | - (unscorable) | shortText / availabilityGap, shortText |
+| K16 | 80-100 | 75 | 100 | 0-30 | 0 | 0 | - / availabilityGap |
+| K17 | 65-85 | 100 | 83 | 10-40 | 19 | 20 | - / availabilityGap |
+| K18 | 85-100 | 100 | 100 | 5-35 | 20 | 21 | - / availabilityGap |
+| K19 | 85-100 | 60 | 86 | 20-50 | 40 | 34 | - / availabilityGap |
+| K20 | 85-100 | 57 | 94 | 0-25 | 0 | 0 | - / availabilityGap |
+| K21 | 75-100 | 0 | 87 | 20-50 | 0 | 20 | - / availabilityGap |
+| K22 | 85-100 | 100 | 94 | 0-20 | 0 | 0 | - / availabilityGap |
+| K23 | 80-100 | 100 | 100 | 0-30 | 0 | 0 | - / availabilityGap |
+| K24 | 70-90 | 81 | 89 | 25-50 | 19 | 51 * | - / availabilityGap |
+| K25 | 65-95 | 33 | 68 | 25-50 | 33 | 28 | - / availabilityGap |
+| K26 | 70-95 | 29 | 86 | 5-35 | 0 | 8 | - / availabilityGap |
+| K27 | 85-100 | 100 | 100 | 5-35 | 25 | 23 | - / availabilityGap |
+| K28 | 85-100 | 70 | 86 | 5-35 | 33 | 28 | - / - |
+| K29 | 85-100 | 100 | 93 | 10-40 | 33 | 34 | - / startVague |
+| K30 | 85-100 | 100 | 93 | 5-35 | 23 | 28 excl | dayRateCurrency / country, dayRateCurrency, availabilityGap |
+| K31 | 75-95 | 69 | 79 | 45-75 | 50 | 67 | - / - |
+| K32 | 15-45 | 50 | 46 * | 50-80 | 100 | 74 | lowEvidence / lowEvidence |
+| K33 | 70-95 | 0 | 97 * | 15-45 | 0 | 31 | permanent / permanent |
+| K34 | 80-100 | 70 | 98 | 10-40 | 23 | 29 | - / availabilityGap |
+| K35 | 5-35 | 18 | 31 excl | 85-100 | 100 | 94 | anueOptional, dayRate / anueOptional |
+| K36 | 55-85 | 67 | 64 | 0-25 | 0 | 12 | lowEvidence / availabilityGap, lowEvidence |
+| K37 | 10-40 | 0 | 27 | 70-95 | 18 | 76 | - / - |
+| K38 | 0-30 | 0 | - (unscorable) | 0-30 | 0 | - (unscorable) | shortText / availabilityGap, shortText |
+| K39 | 65-90 | 21 | 80 | 45-75 | 10 | 54 | countryUnclear / countryUnclear |
+| K40 | 15-45 | 50 | 29 | 80-100 | 52 | 92 | - / countryUnclear, startVague |
+
+Private gold set (real ads, blind grades 0-3, NDCG@10, P@5, Spearman, high-band precision, bootstrap): pending (phase 5).
