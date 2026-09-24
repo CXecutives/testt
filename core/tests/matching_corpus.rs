@@ -4,13 +4,17 @@
 //!   of the real old Python engine (`legacy.json`, `legacy_edge.json`) for every profile
 //!   and job.
 //! - Hygiene: no fixture is ignored by git (the repository is public, fixtures must ship).
-//! - Gates of the new engine (phase 2A): per-job band distance new <= old with a strictly
-//!   smaller sum, decided exclusions exactly as in `corpus.json`.
+//! - Gates of the new engine: per-job band distance new <= old with a strictly smaller sum,
+//!   decided exclusions and status exactly as in `corpus.json`, expected checks raised,
+//!   `mustOpen` items never met; a golden digest of all corpus results (same on Windows
+//!   and macOS) and the speed budget (release builds).
 
 mod common;
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Instant;
 
 use jobalert_core::matching::legacy::{self, LegacyOutcome, legacy_outcome, parse_job_file};
 use jobalert_core::matching::{
@@ -19,6 +23,11 @@ use jobalert_core::matching::{
 };
 use jobalert_core::portal::Portal;
 use serde_json::Value;
+use sha2::Digest as _;
+
+/// SHA-256 (16 hex) over every profile x job result of the corpus. Update it only together
+/// with `ENGINE_VERSION` and the before/after table in `docs/MATCHING.md`.
+const GOLDEN_DIGEST: &str = "91f94408504828c9";
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/matching")
@@ -341,7 +350,6 @@ fn run() -> Run {
 }
 
 #[test]
-#[ignore = "phase 2A"]
 fn new_engine_is_closer_to_the_bands_than_the_old_one() {
     let run = run();
     let mut worse = Vec::new();
@@ -370,7 +378,6 @@ fn new_engine_is_closer_to_the_bands_than_the_old_one() {
 }
 
 #[test]
-#[ignore = "phase 2A"]
 fn decided_exclusions_are_exactly_the_expected_ones() {
     let run = run();
     let mut wrong = Vec::new();
@@ -401,7 +408,6 @@ fn decided_exclusions_are_exactly_the_expected_ones() {
 }
 
 #[test]
-#[ignore = "phase 2A"]
 fn checks_and_open_musts_match_the_expectations() {
     let run = run();
     let mut wrong = Vec::new();
@@ -439,6 +445,119 @@ fn checks_and_open_musts_match_the_expectations() {
         }
     }
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
+fn golden_digest_of_all_corpus_results() {
+    let run = run();
+    let mut canonical = format!("engine {}\n", jobalert_core::matching::ENGINE_VERSION);
+    for row in &run.rows {
+        let Some(a) = &row.new else {
+            let _ = writeln!(canonical, "{} {} none", row.profile, row.job);
+            continue;
+        };
+        let codes: Vec<String> = a
+            .reasons
+            .iter()
+            .map(|r| format!("{}:{}", code(r.code), code_of_kind(r.kind)))
+            .collect();
+        let _ = writeln!(
+            canonical,
+            "{} {} {} {} {}/{}/{} {}",
+            row.profile,
+            row.job,
+            code_of_verdict(a.verdict),
+            a.score,
+            a.summary.must_met,
+            a.summary.must_total,
+            a.highlights.len(),
+            codes.join(",")
+        );
+    }
+    let digest = sha2::Sha256::digest(canonical.as_bytes());
+    let hex = digest.iter().take(8).fold(String::new(), |mut s, b| {
+        let _ = write!(s, "{b:02x}");
+        s
+    });
+    assert_eq!(hex, GOLDEN_DIGEST, "corpus results changed:\n{canonical}");
+}
+
+fn code_of_kind(kind: ReasonKind) -> String {
+    serde_json::to_value(kind)
+        .expect("kind")
+        .as_str()
+        .expect("string")
+        .to_owned()
+}
+
+/// Median <= 0.5 ms per job and 2000 jobs <= 3 s (engine part; measured in release builds).
+#[test]
+fn engine_is_fast_enough() {
+    if cfg!(debug_assertions) {
+        eprintln!("speed budget is checked in release builds only");
+        return;
+    }
+    let root = fixtures();
+    let (_, jobs) = corpus();
+    let profile = compile_profile(&read_json(&root.join("sample_profile.json")));
+    let mut times = Vec::with_capacity(2000);
+    let started = Instant::now();
+    for i in 0..2000 {
+        let job = &jobs[i % jobs.len()];
+        let input = JobInput {
+            title: &job.file.title,
+            location: &job.file.location,
+            portal: job.portal,
+            text: &job.file.text,
+            facts: (!job.facts.is_null()).then_some(&job.facts),
+            posted: job.mail_date,
+            kind: job.kind,
+        };
+        let one = Instant::now();
+        let _ = assess(&profile, &input, None);
+        times.push(one.elapsed());
+    }
+    let total = started.elapsed();
+    times.sort();
+    let median = times[times.len() / 2];
+    assert!(median.as_micros() <= 500, "median {median:?} per job");
+    assert!(total.as_millis() <= 3000, "2000 jobs took {total:?}");
+}
+
+/// Prints the before/after table of the corpus (`-- --ignored report --nocapture`).
+#[test]
+#[ignore = "report"]
+fn report() {
+    let run = run();
+    println!("profile job band old new status/expected findings");
+    for row in &run.rows {
+        let new = row.new.as_ref();
+        let status = new.map_or("-".to_owned(), |a| code_of_verdict(a.verdict));
+        let findings: Vec<String> = new
+            .map(|a| {
+                a.reasons
+                    .iter()
+                    .filter(|r| matches!(r.kind, ReasonKind::Violation | ReasonKind::Check))
+                    .map(|r| code(r.code))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let (lo, hi) = row.expect_band;
+        let score = effective(new);
+        let d_new = common::eval::band_distance(score, row.expect_band);
+        let d_old = common::eval::band_distance(row.old, row.expect_band);
+        let flag = if d_new > d_old {
+            " WORSE"
+        } else if d_new > 0 {
+            " off"
+        } else {
+            ""
+        };
+        println!(
+            "{} {} [{lo},{hi}] old {} new {score} {status}/{} {findings:?} exp {:?}{flag}",
+            row.profile, row.job, row.old, row.expect_status, row.expect_checks
+        );
+    }
 }
 
 fn code_of_verdict(verdict: Verdict) -> String {

@@ -6,6 +6,7 @@
 //! verbatim from `ca9a2cd^:matcher.py`; `tables.rs` is generated from
 //! `core/tests/fixtures/matching/legacy_lexicon.json`.
 
+pub(crate) mod engine;
 mod tables;
 
 pub(crate) use tables::*;

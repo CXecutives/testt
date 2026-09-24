@@ -1,18 +1,23 @@
 //! Matching engine: scores a job text against the consultant profile.
 //!
-//! Pure, synchronous and deterministic; no I/O. [`compile_profile`] once per profile,
-//! then [`assess`] per job. [`legacy`] reproduces the old Python engine for parity tests.
-//!
-//! Phase 1 skeleton: `assess` runs the old engine's logic (with the old crash on inline
-//! headings fixed) and explains it with reasons, highlights and criteria.
+//! Pure, synchronous and deterministic; no I/O, integer arithmetic. [`compile_profile`]
+//! once per profile, then [`assess`] per job. [`legacy`] reproduces the old Python engine
+//! for parity tests. See `docs/MATCHING.md`.
 
+mod atoms;
 mod criteria;
+mod engine;
 mod explain;
+mod facts;
+mod fit;
+mod job;
 mod ladder;
 mod lexicon;
 mod normalize;
+mod params;
 mod profile;
 mod pyre;
+mod relevance;
 mod requirements;
 mod score;
 mod sections;
@@ -30,10 +35,11 @@ use sha2::{Digest, Sha256};
 
 pub use types::*;
 
-use legacy::LegacyProfile;
+use engine::EngineProfile;
+use facts::Availability;
 
 /// Version of the scoring behaviour; part of the match revision (`match_rev`).
-pub const ENGINE_VERSION: u32 = 1;
+pub const ENGINE_VERSION: u32 = 2;
 
 /// Profiles with fewer competences than this are `Thin`.
 const THIN_BELOW: usize = 5;
@@ -42,7 +48,7 @@ const SUMMARY_COMPETENCES: usize = 40;
 
 /// A profile prepared for matching. Building it never fails.
 pub struct CompiledProfile {
-    legacy: LegacyProfile,
+    engine: EngineProfile,
     quality: ProfileQuality,
     summary: ProfileSummary,
     fingerprint: String,
@@ -68,91 +74,81 @@ impl CompiledProfile {
 pub fn compile_profile(value: &Value) -> CompiledProfile {
     let empty = Value::Object(Map::new());
     let data = if value.is_object() { value } else { &empty };
-    let legacy = LegacyProfile::new(data);
-    let count = legacy.phrases.len();
-    let quality = match count {
+    let engine = EngineProfile::new(data);
+    let quality = match engine.skills.entries.len() {
         0 => ProfileQuality::Empty,
         n if n < THIN_BELOW => ProfileQuality::Thin,
         _ => ProfileQuality::Good,
     };
-    let summary = summarize(&legacy, data, quality);
-    let fingerprint = fingerprint(&legacy);
+    let summary = summarize(&engine, data, quality);
+    let fingerprint = fingerprint(&engine);
     CompiledProfile {
-        legacy,
+        engine,
         quality,
         summary,
         fingerprint,
     }
 }
 
-fn summarize(legacy: &LegacyProfile, data: &Value, quality: ProfileQuality) -> ProfileSummary {
-    let core = &legacy.signals.core;
+fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> ProfileSummary {
+    let core = &engine.legacy.signals.core;
     let mut sources: BTreeMap<String, (u16, bool)> = BTreeMap::new();
     for entry in core {
-        let pattern = path_pattern(&entry.path);
-        let slot = sources.entry(pattern).or_insert((0, true));
+        let slot = sources
+            .entry(path_pattern(&entry.path))
+            .or_insert((0, true));
         slot.0 = slot.0.saturating_add(1);
         slot.1 &= !entry.explicit;
     }
-    let criteria = &legacy.criteria;
-    let availability_raw = data
-        .get(lexicon::KEY_CRITERIA)
-        .and_then(|h| h.get(lexicon::KEY_AVAILABLE))
-        .filter(|v| profile::truthy(v))
-        .or_else(|| {
-            data.get(lexicon::KEY_PREFERENCES)
-                .and_then(|p| p.get(lexicon::KEY_AVAILABLE))
-        })
-        .and_then(Value::as_str);
+    let c = &engine.criteria;
+    let availability_raw = facts::availability_text(data);
     let info = |key, set: bool, params: Value| CriterionInfo {
         key,
         set,
         params: params.as_object().cloned().unwrap_or_default(),
     };
-    let criteria_info = vec![
+    let available = match c.available {
+        Availability::Unset => Value::Null,
+        Availability::Now => json!("now"),
+        Availability::From(day) => json!(day.to_string()),
+    };
+    let criteria = vec![
         info(
             CriterionKey::MinDayRate,
-            criteria.min_day_rate.is_some_and(|m| m != 0),
-            json!({
-                "min": criteria.min_day_rate.map(|m| m.to_string()),
-            }),
+            c.min_rate.is_some(),
+            json!({ "min": c.min_rate.map(|m| m.to_string()) }),
         ),
         info(
             CriterionKey::Countries,
-            criteria.countries.as_ref().is_some_and(|c| !c.is_empty()),
-            json!({
-                "countries": criteria.countries,
-                "remoteOutsideAllowed": criteria.remote_outside_allowed,
-            }),
+            c.countries.is_some(),
+            json!({ "countries": c.countries, "remoteOutsideAllowed": c.remote_outside }),
         ),
-        info(
-            CriterionKey::NoAnue,
-            criteria.anue_excluded == Some(true),
-            json!({}),
-        ),
+        info(CriterionKey::NoAnue, c.anue_excluded, json!({})),
         info(
             CriterionKey::Availability,
-            criteria.available_now,
-            json!({ "from": availability_raw }),
+            c.available != Availability::Unset,
+            json!({ "from": available }),
         ),
     ];
-    let mut warnings = Vec::new();
     let warn = |code, params: Value| ProfileWarning {
         code,
         params: params.as_object().cloned().unwrap_or_default(),
     };
+    let mut warnings = Vec::new();
     match quality {
         ProfileQuality::Empty => warnings.push(warn(ProfileWarningCode::NoCompetences, json!({}))),
-        ProfileQuality::Thin => warnings.push(warn(
-            ProfileWarningCode::FewCompetences,
-            json!({ "count": core.len() }),
-        )),
+        ProfileQuality::Thin => {
+            warnings.push(warn(
+                ProfileWarningCode::FewCompetences,
+                json!({ "count": core.len() }),
+            ));
+        }
         ProfileQuality::Good => {}
     }
-    if criteria_info.iter().all(|c| !c.set) {
+    if criteria.iter().all(|c| !c.set) {
         warnings.push(warn(ProfileWarningCode::NoCriteria, json!({})));
     }
-    if let Some(raw) = availability_raw.filter(|_| !criteria.available_now) {
+    if let Some(raw) = availability_raw.filter(|_| c.available == Availability::Unset) {
         warnings.push(warn(
             ProfileWarningCode::AvailabilityNotUnderstood,
             json!({ "value": raw }),
@@ -173,7 +169,7 @@ fn summarize(legacy: &LegacyProfile, data: &Value, quality: ProfileQuality) -> P
                 guessed,
             })
             .collect(),
-        criteria: criteria_info,
+        criteria,
         warnings,
     }
 }
@@ -196,21 +192,30 @@ fn path_pattern(path: &str) -> String {
     out
 }
 
-fn fingerprint(legacy: &LegacyProfile) -> String {
-    let mut keys: Vec<&str> = legacy.phrases.iter().map(|p| p.key.as_str()).collect();
-    keys.sort_unstable();
-    keys.dedup();
-    let c = &legacy.criteria;
+fn fingerprint(engine: &EngineProfile) -> String {
+    let mut entries: Vec<String> = engine
+        .skills
+        .entries
+        .iter()
+        .map(|e| format!("{}:{:?}", e.atoms.join(" "), e.years))
+        .collect();
+    entries.sort();
+    entries.dedup();
+    let mut languages = engine.skills.languages.clone();
+    languages.sort();
+    let c = &engine.criteria;
     let mut countries = c.countries.clone().unwrap_or_default();
     countries.sort();
     let canonical = format!(
-        "engine {ENGINE_VERSION}\nphrases {}\nmin {:?}\ncountries {:?}\nanue {:?}\nnow {}\nremote {:?}\n",
-        keys.join("|"),
-        c.min_day_rate,
-        countries,
+        "engine {ENGINE_VERSION}\nentries {}\nlanguages {languages:?}\ndegree {:?}\nyears {:?}\n\
+         min {:?}\ncountries {countries:?}\nremote {:?}\nanue {}\navailable {:?}\n",
+        entries.join("|"),
+        engine.skills.degree_fields,
+        engine.skills.total_years,
+        c.min_rate,
+        c.remote_outside,
         c.anue_excluded,
-        c.available_now,
-        c.remote_outside_allowed,
+        c.available,
     );
     let digest = Sha256::digest(canonical.as_bytes());
     digest.iter().take(8).fold(String::new(), |mut hex, b| {
@@ -229,20 +234,14 @@ pub fn assess(
     if profile.quality == ProfileQuality::Empty {
         return None;
     }
-    Some(explain::assess(&profile.legacy, job))
+    let evaluation = engine::evaluate(&profile.engine, job);
+    Some(explain::assessment(&profile.engine, job.text, &evaluation))
 }
 
-/// Cheap relevance of a job from title and location only (per-mille), to order fetches.
+/// Cheap relevance of a job from its title (per-mille), to order fetches before any text
+/// is known. The location is not used yet.
 pub fn prescore(profile: &CompiledProfile, title: &str, location: &str) -> u16 {
     let _ = location;
-    let title_tokens = legacy::canonical_tokens(title);
-    if title_tokens.is_empty() {
-        return 0;
-    }
-    let known = title_tokens
-        .iter()
-        .filter(|t| profile.legacy.phrases.iter().any(|p| p.tokens.contains(t)))
-        .count();
-    let permille = score::div_round_half_even(1000 * known as u64, title_tokens.len() as u64);
-    u16::try_from(permille.min(1000)).unwrap_or(1000)
+    let fit = relevance::title_fit(&profile.engine.query, title);
+    u16::try_from(fit.min(1000)).unwrap_or(1000)
 }

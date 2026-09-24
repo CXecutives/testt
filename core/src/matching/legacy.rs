@@ -148,31 +148,21 @@ pub(crate) struct LegacyProfile {
     pub signals: Signals,
     /// Phrase terms in term order.
     pub phrases: Vec<Phrase>,
-    /// Index into `signals.core` of the text each phrase came from.
-    pub phrase_source: Vec<usize>,
     pub criteria: Criteria,
 }
 
 impl LegacyProfile {
     pub(crate) fn new(data: &Value) -> Self {
         let signals = profile::signals(data);
-        let terms = profile::build_terms(&signals);
-        let mut phrases = Vec::new();
-        let mut phrase_source = Vec::new();
-        for term in terms.iter().filter(|t| t.phrase) {
-            let source = signals
-                .core
-                .iter()
-                .position(|c| c.text == term.display)
-                .unwrap_or(0);
-            phrases.push(Phrase::new(term.match_key()));
-            phrase_source.push(source);
-        }
+        let phrases = profile::build_terms(&signals)
+            .iter()
+            .filter(|t| t.phrase)
+            .map(|t| Phrase::new(t.match_key()))
+            .collect();
         Self {
             criteria: profile::criteria(data),
             signals,
             phrases,
-            phrase_source,
         }
     }
 }
@@ -190,7 +180,6 @@ pub(crate) struct ItemResult<'a> {
 pub(crate) struct Evaluation<'a> {
     pub items: Vec<ItemResult<'a>>,
     pub vocab: Vec<(String, Vec<Hit>)>,
-    pub signals: JobSignals,
     pub violations: Vec<Violation>,
     pub counts: LegacyCounts,
 }
@@ -243,7 +232,6 @@ pub(crate) fn evaluate<'a>(
     Ok(Evaluation {
         items,
         vocab,
-        signals,
         violations,
         counts,
     })

@@ -24,20 +24,11 @@ static VOCAB_KEYS: LazyLock<Vec<String>> = LazyLock::new(|| {
         .collect()
 });
 
-/// Where a requirement came from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Origin {
-    Section,
-    Inline,
-    Cue,
-}
-
 /// One requirement phrase: a slice of the job text.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Requirement<'a> {
     pub phrase: &'a str,
     pub kind: ReqKind,
-    pub origin: Origin,
 }
 
 /// The old engine raised `IndexError` on an inline heading.
@@ -65,11 +56,7 @@ pub(crate) fn collect_sections(text: &str, legacy: bool) -> Result<Vec<Requireme
             });
             let phrase = sections::clean_phrase(rest);
             if !phrase.is_empty() {
-                requirements.push(Requirement {
-                    phrase,
-                    kind,
-                    origin: Origin::Inline,
-                });
+                requirements.push(Requirement { phrase, kind });
             }
             continue;
         }
@@ -90,11 +77,7 @@ pub(crate) fn collect_sections(text: &str, legacy: bool) -> Result<Vec<Requireme
         for sentence in sections::split_sentences(stripped) {
             let phrase = sections::clean_phrase(sentence);
             if !phrase.is_empty() {
-                requirements.push(Requirement {
-                    phrase,
-                    kind,
-                    origin: Origin::Section,
-                });
+                requirements.push(Requirement { phrase, kind });
             }
         }
     }
@@ -112,11 +95,7 @@ pub(crate) fn collect_cues(text: &str) -> Vec<Requirement<'_>> {
         for sentence in sections::split_sentences(stripped) {
             let phrase = sections::clean_phrase(sentence);
             if let Some(kind) = sections::cue_kind(phrase) {
-                requirements.push(Requirement {
-                    phrase,
-                    kind,
-                    origin: Origin::Cue,
-                });
+                requirements.push(Requirement { phrase, kind });
             }
         }
     }

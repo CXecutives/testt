@@ -124,21 +124,6 @@ fn push_folded(out: &mut String, c: char) {
     }
 }
 
-/// Case-folded text plus, for every byte of the result, the byte offset of the source
-/// character it came from (to map matches back for highlights).
-pub(crate) fn casefold_mapped(text: &str) -> (String, Vec<usize>) {
-    let mut out = String::with_capacity(text.len());
-    let mut origin = Vec::with_capacity(text.len());
-    for (at, c) in text.char_indices() {
-        let before = out.len();
-        push_folded(&mut out, c);
-        origin.resize(out.len(), at);
-        debug_assert!(out.len() >= before);
-    }
-    origin.push(text.len());
-    (out, origin)
-}
-
 /// Python `str.strip()`.
 pub(crate) fn strip(text: &str) -> &str {
     text.trim_matches(is_space)
