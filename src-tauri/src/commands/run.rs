@@ -288,9 +288,7 @@ pub(super) fn launch(
             log::error!("run crashed: {error}");
             release_run(&app.state::<AppState>(), &mine);
             let mut finish = finish;
-            finish(RunEvent::Finished {
-                summary: Box::new(crashed(kind, dry_run, started)),
-            });
+            finish(crashed(kind, dry_run, started).finished_event());
             // A profile change during the crashed run is still owed its rescore.
             super::scoring::after_run(&app);
         }

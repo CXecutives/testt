@@ -192,6 +192,15 @@ pub trait MailSource {
         &mut self,
         uids: &[u32],
     ) -> impl Future<Output = Result<Vec<RawMail>, MailError>> + Send;
+
+    /// Ends the session after the scan (IMAP `LOGOUT`); errors do not matter. Sources
+    /// without a session do nothing.
+    fn logout(self) -> impl Future<Output = ()> + Send
+    where
+        Self: Sized,
+    {
+        async {}
+    }
 }
 
 /// The head fields a scan needs to decide whether a mail may be an alert.
@@ -319,6 +328,10 @@ impl<T> MailSource for Gmail<T>
 where
     T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + fmt::Debug + Send,
 {
+    async fn logout(self) {
+        self.close().await;
+    }
+
     async fn search(
         &mut self,
         since: Option<Date>,

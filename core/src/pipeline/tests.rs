@@ -274,6 +274,61 @@ async fn cancel_during_fetch_keeps_work_and_still_exports() {
     assert_eq!(finished(&events), 1);
 }
 
+/// The mailbox session ends with a logout once the scan is done.
+#[tokio::test(start_paused = true)]
+async fn the_scan_logs_out() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use crate::mail::imap::MailSource;
+    use crate::mail::{RawHead, RawMail};
+
+    static LOGGED_OUT: AtomicBool = AtomicBool::new(false);
+    struct Tracked(DemoMail);
+    impl MailSource for Tracked {
+        async fn search(
+            &mut self,
+            since: Option<jiff::civil::Date>,
+            portals: &[Portal],
+        ) -> Result<Vec<u32>, MailError> {
+            self.0.search(since, portals).await
+        }
+        async fn heads(&mut self, uids: &[u32]) -> Result<Vec<RawHead>, MailError> {
+            self.0.heads(uids).await
+        }
+        async fn fetch(&mut self, uids: &[u32]) -> Result<Vec<RawMail>, MailError> {
+            self.0.fetch(uids).await
+        }
+        async fn logout(self) {
+            LOGGED_OUT.store(true, Ordering::SeqCst);
+        }
+    }
+    struct WithTracked;
+    impl Backends for WithTracked {
+        type Mail = Tracked;
+        type Pages = DemoPages;
+        async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<Tracked, MailError> {
+            Ok(Tracked(DemoBackends.connect_mail(cancel).await?))
+        }
+        fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
+            Ok(DemoPages)
+        }
+    }
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let (s, _) = go(
+        &mut WithTracked,
+        &store,
+        &request(),
+        &scan_only(dir.path()),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.outcome, Outcome::Completed);
+    assert!(LOGGED_OUT.load(Ordering::SeqCst));
+}
+
 /// If the mailbox fails, nothing is fetched - the export still runs.
 #[tokio::test(start_paused = true)]
 async fn mail_failure_skips_fetch_but_exports() {
@@ -974,6 +1029,63 @@ async fn scoring_follows_the_matcher() {
     )
     .await;
     assert_eq!(s.score.unwrap().scored, 2, "a new revision scores again");
+}
+
+/// Whatever subjects and paths a summary holds, its `Finished` event stays below 8 KB.
+#[test]
+fn the_finished_event_always_fits_the_channel() {
+    let mut summary = RunSummary::new(RunKindName::Fetch, false, Timestamp::now());
+    let wide = "\u{1f600}".repeat(crate::view::MAX_SUBJECT_CHARS);
+    summary.empty_alerts = (0..MAX_EMPTY_ALERTS)
+        .map(|_| crate::view::EmptyAlert {
+            portal: Portal::LinkedIn,
+            subject: wide.clone(),
+            date: None,
+            gmail_id: Some("18f0a1b2c3d4e5f6".into()),
+        })
+        .collect();
+    let long = PathBuf::from("C:/".to_owned() + &"verzeichnis/".repeat(20));
+    let mut error = ErrorInfo::new(ErrorKind::Io);
+    error
+        .params
+        .insert("target".into(), long.display().to_string().into());
+    summary.export = Some(ExportSummary {
+        overview_xlsx: Some(long.join("a.xlsx")),
+        overview_html: Some(long.join("a.html")),
+        backup: Some(long.join("b.xlsx")),
+        txt_written: 3,
+        txt_failed: 0,
+        txt_failed_keys: Vec::new(),
+        error: Some(error),
+    });
+    assert!(
+        serde_json::to_vec(&summary).unwrap().len() > 8 * 1024,
+        "too big at first"
+    );
+    let event = summary.finished_event();
+    assert_small(std::slice::from_ref(&event));
+    let RunEvent::Finished { summary: fitted } = event else {
+        panic!("finished");
+    };
+    assert!(
+        !fitted.empty_alerts.is_empty(),
+        "only as much goes as needed"
+    );
+    assert_eq!(fitted.export.as_ref().unwrap().txt_written, 3);
+    // Absurd paths go too.
+    let huge = PathBuf::from("C:/".to_owned() + &"verzeichnis/".repeat(400));
+    let export = summary.export.as_mut().unwrap();
+    export.overview_html = Some(huge.clone());
+    export.overview_xlsx = Some(huge);
+    assert_small(&[summary.finished_event()]);
+    let small = RunSummary::new(RunKindName::Fetch, false, Timestamp::now());
+    assert_eq!(
+        small.finished_event(),
+        RunEvent::Finished {
+            summary: Box::new(small.clone())
+        },
+        "a small summary goes out unchanged"
+    );
 }
 
 /// An engine that panics on LinkedIn jobs (like the splitter once did on some ads).
