@@ -1,0 +1,35 @@
+Titel: Freelance Finance Transformation Lead (SAP S/4HANA) - Retail
+Unternehmen: Vantaro Solutions GmbH
+Ort: München
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3187408.html
+Abgerufen am: 19.09.2026 07:30
+
+Projekt-ID: 3187408
+Start: 01/2027
+Dauer: 12 months
+Auslastung: 100 %
+Einsatzort: München
+Remote-Anteil: 60 %
+Tagessatz: 1,150 EUR
+Vertragsart: Freelance
+
+Project description
+On behalf of our client, a retail group with more than 300 stores in the DACH region, we are looking for an experienced Finance Transformation Lead for their SAP S/4HANA programme. The client is redesigning its finance target operating model in parallel.
+
+Tasks
+- Business lead for the finance stream of the S/4HANA programme
+- Design of R2R, P2P and controlling processes
+- Change management and communication for approx. 180 users in finance
+- KPI reporting for CFO and steering committee
+- Steering of implementation partners
+
+Profile
+- Extensive finance background (controlling / accounting), 10 years or more
+- At least two finance transformation or ERP implementation projects
+- C-level stakeholder management
+- Classic and agile project management
+- English and German fluent
+- Retail experience and Power BI / SAC are a plus
+
+Two days per week on-site in Munich are required.

@@ -82,6 +82,19 @@ fn heading(line: &str) -> Option<HeadingKind> {
     }
 }
 
+/// A stripped line without a leading glyph bullet (`✅`, `👉`, `→`), and whether it had
+/// one: such a line is a bullet, never a heading.
+fn line_of(line: &str) -> (&str, bool) {
+    let stripped = strip(line);
+    let rest = stripped.trim_start_matches(lex::EXTRA_BULLETS);
+    (strip(rest), rest.len() != stripped.len())
+}
+
+/// A heading, unless the line is a glyph bullet.
+fn heading_of(stripped: &str, bullet: bool) -> Option<HeadingKind> {
+    if bullet { None } else { heading(stripped) }
+}
+
 fn offset(text: &str, part: &str) -> usize {
     (part.as_ptr() as usize).saturating_sub(text.as_ptr() as usize)
 }
@@ -89,6 +102,14 @@ fn offset(text: &str, part: &str) -> usize {
 fn nice_cue(line: &str) -> bool {
     let folded = fold(line);
     NICE_CUES.iter().any(|c| folded.contains(c))
+}
+
+/// An item that says something is not needed (`Keine SAP-Kenntnisse erforderlich`).
+fn not_needed(item: &str) -> bool {
+    let folded = fold(item);
+    lex::NOT_NEEDED.iter().any(|w| folded.contains(w))
+        || folded.starts_with("kein ")
+        || folded.starts_with("keine ")
 }
 
 type Phrase<'a> = (&'a str, ReqKind, Stage);
@@ -99,7 +120,7 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
     let mut phrases: Vec<Phrase<'_>> = Vec::new();
     let mut in_nice = Vec::new();
     for line in splitlines(text) {
-        let stripped = strip(line);
+        let (stripped, bullet) = line_of(line);
         if stripped.is_empty() {
             continue;
         }
@@ -122,7 +143,7 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
             }
             Inline::None => {}
         }
-        if let Some(kind) = heading(stripped) {
+        if let Some(kind) = heading_of(stripped, bullet) {
             current = Some(kind);
             continue;
         }
@@ -135,7 +156,7 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
             continue;
         }
         let kind = match current {
-            Some(HeadingKind::Must) if nice_cue(stripped) => ReqKind::Nice,
+            // A nice cue inside a must line marks items, not the line (see `read`).
             Some(HeadingKind::Must) => ReqKind::Must,
             Some(HeadingKind::Nice) => {
                 in_nice.push(offset(text, stripped));
@@ -153,15 +174,52 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
     (phrases, in_nice)
 }
 
+/// Byte ranges of the lines outside requirement and task sections (the introduction, the
+/// company, the frame): where an ad says what the client does.
+pub(crate) fn context_lines(text: &str) -> Vec<Range<usize>> {
+    let mut current: Option<HeadingKind> = None;
+    let mut out = Vec::new();
+    for line in splitlines(text) {
+        let (stripped, bullet) = line_of(line);
+        if stripped.is_empty() {
+            continue;
+        }
+        match sections::inline_heading(stripped) {
+            Inline::Section(..) => {
+                current = Some(HeadingKind::Must);
+                continue;
+            }
+            Inline::Other => {
+                current = Some(HeadingKind::Neutral);
+                continue;
+            }
+            Inline::None => {}
+        }
+        if let Some(kind) = heading_of(stripped, bullet) {
+            let norm = fold(&sections::norm_heading(stripped));
+            let task = super::lexicon::wishes::TASK_HEADINGS
+                .iter()
+                .any(|p| norm.starts_with(p));
+            current = Some(if task { HeadingKind::Task } else { kind });
+            continue;
+        }
+        if matches!(current, None | Some(HeadingKind::Neutral)) {
+            let start = offset(text, stripped);
+            out.push(start..start + stripped.len());
+        }
+    }
+    out
+}
+
 /// Reads the requirements of a job text.
 pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
     let mut doc = JobDoc::default();
     let (mut phrases, in_nice) = section_phrases(text);
     if !phrases.iter().any(|(_, kind, _)| *kind == ReqKind::Must) {
         for line in splitlines(text) {
-            let stripped = strip(line);
+            let (stripped, bullet) = line_of(line);
             if stripped.is_empty()
-                || heading(stripped).is_some()
+                || heading_of(stripped, bullet).is_some()
                 || in_nice.contains(&offset(text, stripped))
             {
                 continue;
@@ -185,11 +243,21 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
         let start = offset(text, phrase);
         doc.requirement_lines.push(start..start + phrase.len());
         let level = level_in(phrase);
-        for (span, alternatives) in split(phrase) {
+        let parts = split(phrase);
+        // `X, idealerweise Y`: nice from the cue on; `X und Y von Vorteil`: a closing cue
+        // makes the whole line nice.
+        let closing = parts.last().is_some_and(|(r, _)| {
+            let folded = fold(&phrase[r.clone()]);
+            lex::NICE_CLOSING.iter().any(|c| folded.contains(c))
+        });
+        let mut nice = kind == ReqKind::Nice || closing;
+        for (span, alternatives) in parts {
             let whole = &phrase[span.clone()];
-            if atoms::atoms(whole, vocab).is_empty() {
+            if atoms::atoms(whole, vocab).is_empty() || not_needed(whole) {
                 continue;
             }
+            nice |= nice_cue(whole);
+            let kind = if nice { ReqKind::Nice } else { kind };
             let class = classify(whole, level, vocab);
             doc.items.push(Item {
                 span: Some(start + span.start..start + span.end),
@@ -277,7 +345,9 @@ fn separators(text: &str, words: &[&str]) -> Vec<Range<usize>> {
             b')' | b']' => depth -= 1,
             _ => {}
         }
+        let after_hyphen = i > 0 && bytes[i - 1] == b'-';
         if depth == 0
+            && !after_hyphen
             && let Some(word) = words.iter().find(|w| {
                 bytes
                     .get(i..i + w.len())
@@ -532,6 +602,47 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    /// (item, must) of an ad's requirement section.
+    fn musts(section: &str) -> Vec<(String, bool)> {
+        read(&format!("Ihr Profil\n{section}\n"), &Vocab::all())
+            .items
+            .into_iter()
+            .map(|i| (i.text, i.kind == ReqKind::Must))
+            .collect()
+    }
+
+    #[test]
+    fn nice_cues_per_item_negated_items_and_frame_blocks() {
+        assert_eq!(
+            musts("- Erfahrung im Controlling, idealerweise im Maschinenbau"),
+            [
+                ("Erfahrung im Controlling".to_owned(), true),
+                ("idealerweise im Maschinenbau".to_owned(), false)
+            ]
+        );
+        assert!(
+            musts("- Kenntnisse in LucaNet und Power BI von Vorteil")
+                .iter()
+                .all(|(_, must)| !must)
+        );
+        assert_eq!(musts("- Keine SAP-Kenntnisse erforderlich").len(), 0);
+        assert_eq!(
+            musts("- Sehr gute Deutsch- und Englischkenntnisse").len(),
+            1,
+            "a hyphenated shared ending is one item"
+        );
+        // A frame block ends the requirements.
+        let frame = musts(
+            "- Erfahrung im Controlling\nRahmendaten\n- Laufzeit 6 Monate\n- Tagessatz 1.000 €",
+        );
+        assert_eq!(frame.len(), 1, "{frame:?}");
+        assert_eq!(
+            musts("✅ Erfahrung im Treasury").len(),
+            1,
+            "a glyph bullet is a bullet"
+        );
     }
 
     #[test]

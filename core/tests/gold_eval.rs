@@ -221,7 +221,8 @@ fn perfect_new_ranking_beats_reversed_old_one() {
     assert_eq!(m.n, 5);
     assert!(close(m.new.ndcg10, 1.0) && close(m.new.ndcg20, 1.0));
     assert!(m.old.ndcg10 < 0.6, "{}", m.old.ndcg10);
-    assert!(close(m.new.p5, 0.4) && close(m.old.p5, 0.4));
+    // Two relevant jobs, both in every top 5: P@5 is measured against what is reachable.
+    assert!(close(m.new.p5, 1.0) && close(m.old.p5, 1.0));
     assert!(
         close(m.new.spearman, 0.974_679_434_480_896_4),
         "{}",

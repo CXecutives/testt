@@ -1,0 +1,30 @@
+Titel: SAP ABAP Entwickler (m/w/d) S/4HANA Group Reporting
+Unternehmen: von: Quellwerk IT Solutions GmbH
+Ort: Königstraße 40, 70173 Stuttgart
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3200203.html
+Abgerufen am: 08.09.2026 07:30
+
+Ort: 70173 Stuttgart // Vertragsart: Freiberuflich // Start: 01.10.2026
+
+Projektbeschreibung
+Für einen Kunden aus der Automobilzulieferindustrie suchen wir einen erfahrenen ABAP Entwickler für Erweiterungen im Umfeld SAP S/4HANA Group Reporting. Das Fachkonzept liegt vor. Ansprechpartner für die fachlichen Anforderungen ist die Abteilung Konzernrechnungslegung (IFRS).
+
+Aufgaben:
+- Entwicklung von Custom Code in ABAP OO und im ABAP RESTful Application Programming Model (RAP)
+- Erstellung von CDS Views und AMDP für Konsolidierungsauswertungen
+- Anbindung von Fiori Apps über OData
+- Code Reviews, Unit Tests mit ABAP Unit und Transportmanagement über gCTS
+- Technische Dokumentation in Jira und Confluence
+
+Anforderungen:
+- Mindestens 5 Jahre Erfahrung in der ABAP Entwicklung
+- Sehr gute Kenntnisse in CDS, RAP, OData und SAP Fiori/UI5
+- Erfahrung mit SAP S/4HANA, idealerweise Group Reporting oder FI/CO
+- Grundverständnis von Konsolidierungsprozessen wünschenswert
+- Deutsch fließend
+
+Rahmenbedingungen:
+Tagessatz: 1.050 € pro Tag
+Laufzeit 6 Monate mit Option auf Verlängerung
+80 % remote, 20 % vor Ort in Stuttgart

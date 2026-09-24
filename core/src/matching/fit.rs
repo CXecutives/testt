@@ -100,6 +100,25 @@ pub(crate) fn degree_level_in(folded: &str) -> u8 {
     }
 }
 
+/// Languages of the profile with their CEFR level (4 when the level is not readable).
+fn languages_of(data: &Value) -> Vec<(String, u8)> {
+    data.get(lex::KEY_LANGUAGES)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|item| {
+            let name = fold(item.get(lex::KEY_LANGUAGE)?.as_str()?);
+            let language = lex::LANGUAGES.iter().find(|l| name.starts_with(**l))?;
+            let level = item
+                .get(lex::KEY_LEVEL)
+                .and_then(Value::as_str)
+                .and_then(level_in)
+                .unwrap_or(4);
+            Some(((*language).to_owned(), level))
+        })
+        .collect()
+}
+
 /// Alternative terms of profile competences: (competence, alias, path, years).
 fn aliases(data: &Value, core: &[String]) -> Vec<(String, String, String, Option<u32>)> {
     let mut out = Vec::new();
@@ -137,7 +156,9 @@ fn aliases(data: &Value, core: &[String]) -> Vec<(String, String, String, Option
 }
 
 impl Skills {
-    pub(crate) fn new(legacy: &LegacyProfile, data: &Value) -> Self {
+    /// `extra`: competences (text, JSON path) that must be entries although the profile
+    /// walk did not find them (Schwerpunkte under an English key or in objects).
+    pub(crate) fn new(legacy: &LegacyProfile, data: &Value, extra: &[(String, String)]) -> Self {
         // Years per competence text: list items with a `jahre` number.
         let mut years: BTreeMap<String, u32> = BTreeMap::new();
         if let Value::Object(map) = data {
@@ -157,11 +178,17 @@ impl Skills {
         }
         let core_texts: Vec<String> = legacy.signals.core.iter().map(|c| c.text.clone()).collect();
         let aliases = aliases(data, &core_texts);
+        let folded_core: Vec<String> = core_texts.iter().map(|t| fold(t)).collect();
+        let extra: Vec<&(String, String)> = extra
+            .iter()
+            .filter(|(text, _)| !folded_core.contains(&fold(text)))
+            .collect();
         let vocab = Vocab::for_texts(
             core_texts
                 .iter()
                 .map(String::as_str)
-                .chain(aliases.iter().map(|(_, alias, _, _)| alias.as_str())),
+                .chain(aliases.iter().map(|(_, alias, _, _)| alias.as_str()))
+                .chain(extra.iter().map(|(text, _)| text.as_str())),
         );
         let mut entries: Vec<Entry> = legacy
             .signals
@@ -186,23 +213,15 @@ impl Skills {
                     alias_of: Some(competence),
                 }),
         );
+        entries.extend(extra.iter().map(|(text, path)| Entry {
+            atoms: atoms::atoms(text, &vocab),
+            years: None,
+            text: text.clone(),
+            path: path.clone(),
+            alias_of: None,
+        }));
         entries.retain(|e| !e.atoms.is_empty());
-        let languages = data
-            .get(lex::KEY_LANGUAGES)
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|item| {
-                let name = fold(item.get(lex::KEY_LANGUAGE)?.as_str()?);
-                let language = lex::LANGUAGES.iter().find(|l| name.starts_with(**l))?;
-                let level = item
-                    .get(lex::KEY_LEVEL)
-                    .and_then(Value::as_str)
-                    .and_then(level_in)
-                    .unwrap_or(4);
-                Some(((*language).to_owned(), level))
-            })
-            .collect();
+        let languages = languages_of(data);
         let mut degree_fields: Option<Vec<&'static str>> = None;
         let (mut degree_level, mut degrees) = (0, Vec::new());
         for core in &legacy.signals.core {
@@ -340,6 +359,11 @@ fn covered(skills: &Skills, atom: &str) -> bool {
 }
 
 fn skill_fit(skills: &Skills, text: &str) -> ItemFit {
+    skill_fit_in(skills, text, None)
+}
+
+/// The ladder over all entries, or only over `only` (entry indices).
+fn skill_fit_in(skills: &Skills, text: &str, only: Option<&[usize]>) -> ItemFit {
     let job = atoms::atoms(text, &skills.vocab);
     if job.is_empty() {
         return NONE;
@@ -347,6 +371,9 @@ fn skill_fit(skills: &Skills, text: &str) -> ItemFit {
     let expanded = expand(&job);
     let mut best = NONE;
     for (index, entry) in skills.entries.iter().enumerate() {
+        if only.is_some_and(|only| !only.contains(&index)) {
+            continue;
+        }
         let (value, via) = entry_fit(&job, &expanded, entry);
         if value > best.value {
             best = ItemFit {
@@ -373,9 +400,15 @@ fn language_fit(skills: &Skills, language: &str, level: Option<u8>) -> ItemFit {
     let Some(&(_, have)) = skills.languages.iter().find(|(l, _)| l == language) else {
         return NONE;
     };
-    // A level below the requirement (B2 for "fluent") stays open.
+    // One level below the requirement (B2 for "fluent") is half, further below open.
     let need = level.unwrap_or(3);
-    let value = if have >= need { E_FULL } else { E_NONE };
+    let value = if have >= need {
+        E_FULL
+    } else if have + 1 >= need {
+        E_HALF
+    } else {
+        E_NONE
+    };
     ItemFit {
         value,
         entry: None,
@@ -438,6 +471,47 @@ fn licence_fit(skills: &Skills, word: &str) -> ItemFit {
     }
 }
 
+/// The alternatives of a skill item (the item itself when it has none).
+fn alternatives(item: &Item) -> Vec<&str> {
+    let mut alternatives: Vec<&str> = item.alternatives.iter().map(String::as_str).collect();
+    if alternatives.is_empty() {
+        alternatives.push(&item.text);
+    }
+    alternatives
+}
+
+/// How well only the entries `only` meet a skill item (best alternative, no years). `via`
+/// tells whether the item names the entry (exact), something narrower (general, half) or
+/// only a broader term inside the entry (specific).
+pub(crate) fn focus_fit(skills: &Skills, item: &Item, only: &[usize]) -> ItemFit {
+    // An entry that names the item beats one it only lies inside at the same value.
+    let rank = |fit: &ItemFit| (fit.value, fit.via != Via::Specific);
+    alternatives(item)
+        .iter()
+        .flat_map(|alt| {
+            only.iter()
+                .map(move |&index| skill_fit_in(skills, alt, Some(&[index])))
+        })
+        .fold(
+            NONE,
+            |best, fit| {
+                if rank(&fit) > rank(&best) { fit } else { best }
+            },
+        )
+}
+
+/// Does the title name one of the entries `only` (every atom of the entry, equal)?
+pub(crate) fn title_names(skills: &Skills, title: &str, only: &[usize]) -> bool {
+    let job = atoms::atoms(title, &skills.vocab);
+    if job.is_empty() {
+        return false;
+    }
+    let expanded = expand(&job);
+    only.iter()
+        .filter_map(|&index| skills.entries.get(index))
+        .any(|entry| entry_fit(&job, &expanded, entry) == (E_FULL, Via::Exact))
+}
+
 /// The ladder for one item (best alternative), then the years requirement.
 pub(crate) fn item_fit(skills: &Skills, item: &Item) -> ItemFit {
     let mut fit = match &item.class {
@@ -445,18 +519,11 @@ pub(crate) fn item_fit(skills: &Skills, item: &Item) -> ItemFit {
         Class::Language(language, level) => language_fit(skills, language, *level),
         Class::Degree => degree_fit(skills, &item.text),
         Class::Licence(word) => licence_fit(skills, word),
-        Class::Soft | Class::Skill => {
-            let mut alternatives: Vec<&str> =
-                item.alternatives.iter().map(String::as_str).collect();
-            if alternatives.is_empty() {
-                alternatives.push(&item.text);
-            }
-            alternatives
-                .iter()
-                .map(|alt| skill_fit(skills, alt))
-                .max_by_key(|f| f.value)
-                .unwrap_or(NONE)
-        }
+        Class::Soft | Class::Skill => alternatives(item)
+            .iter()
+            .map(|alt| skill_fit(skills, alt))
+            .max_by_key(|f| f.value)
+            .unwrap_or(NONE),
     };
     if let Some(needed) = item.years {
         let folded = fold(&item.text);

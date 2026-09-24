@@ -181,6 +181,76 @@ function contractName(p: Params): string {
   return p.inferred && type !== 'unclear' ? `Vermutlich ${contract[type]}` : contract[type];
 }
 
+/** Wishes of the profile (`state` met, near, missed or unknown). */
+function dayRateWish(p: Params): string {
+  const rate = formatEuro(p.rate);
+  const wish = formatEuro(p.wish);
+  switch (p.state) {
+    case 'met':
+      return `Der Tagessatz von ${rate} erreicht den Wunsch von ${wish}.`;
+    case 'near':
+      return `Der Tagessatz von ${rate} liegt knapp unter dem Wunsch von ${wish}.`;
+    case 'missed':
+      return `Der Tagessatz von ${rate} liegt unter dem Wunsch von ${wish}.`;
+    default:
+      return p.currency
+        ? `Der Tagessatz ist in ${str(p.currency)} angegeben.`
+        : 'Die Anzeige nennt keinen Tagessatz.';
+  }
+}
+
+function remoteWish(p: Params): string {
+  if (p.state === 'unknown') return 'Die Anzeige nennt keinen Remote-Anteil.';
+  if (p.onsite === true) {
+    if (p.state === 'met') return 'Die Stelle ist vor Ort, wie gewünscht.';
+    return p.state === 'near'
+      ? 'Die Stelle ist überwiegend remote, gewünscht ist vor Ort.'
+      : 'Die Stelle ist ganz remote, gewünscht ist vor Ort.';
+  }
+  if (p.share === 0) return 'Die Stelle ist ganz vor Ort.';
+  const share = typeof p.share === 'number' ? `Mit ${formatPercent(p.share)} remote` : null;
+  switch (p.state) {
+    case 'met':
+      return share
+        ? `${share} passt die Stelle zum Wunsch.`
+        : 'Der Remote-Anteil passt zum Wunsch.';
+    case 'near':
+      return share
+        ? `${share} liegt die Stelle knapp unter dem Wunsch.`
+        : 'Der Remote-Anteil liegt knapp unter dem Wunsch.';
+    default:
+      return share
+        ? `${share} liegt die Stelle unter dem Wunsch.`
+        : 'Der Remote-Anteil liegt unter dem Wunsch.';
+  }
+}
+
+function regionWish(p: Params): string {
+  switch (p.state) {
+    case 'met':
+      return p.remote === true
+        ? 'Die Stelle ist voll remote, die Region spielt keine Rolle.'
+        : `${str(p.location)} liegt in einer Wunschregion.`;
+    case 'near':
+      return `${str(p.location)} liegt außerhalb der Wunschregionen, die Stelle ist überwiegend remote.`;
+    case 'missed':
+      return `${str(p.location)} liegt außerhalb der Wunschregionen.`;
+    default:
+      return 'Ob der Einsatzort in einer Wunschregion liegt, ist offen.';
+  }
+}
+
+function industryWish(p: Params): string {
+  switch (p.state) {
+    case 'met':
+      return `Die Branche ${str(p.wish)} ist gewünscht.`;
+    case 'missed':
+      return `${str(p.industry)} gehört nicht zu den Wunschbranchen.`;
+    default:
+      return 'Die Anzeige nennt keine Branche.';
+  }
+}
+
 /**
  * Reason codes of the matching engine (`Reason.code`, core/src/matching/types.rs). One entry
  * per code: a new engine code needs exactly one line here. `requirement` and `term` show the
@@ -248,6 +318,18 @@ const reasonCode = {
   },
   lowEvidence: LOW_TEXT,
   shortText: SHORT_TEXT,
+  focus: (p) =>
+    num(p.met) > 0 || p.inTitle === true
+      ? `Gefragt ist der Schwerpunkt ${str(p.focus)}.`
+      : `Die Anzeige streift den Schwerpunkt ${str(p.focus)}.`,
+  targetRole: (p) =>
+    p.fit === 'half'
+      ? `Der Titel kommt der Wunschrolle ${str(p.role)} nahe.`
+      : `Der Titel passt zur Wunschrolle ${str(p.role)}.`,
+  dayRateWish,
+  remoteWish,
+  regionWish,
+  industryWish,
 } satisfies Record<string, Text>;
 export type ReasonCode = keyof typeof reasonCode;
 
@@ -354,6 +436,18 @@ const profileKey: Record<string, string> = {
   permanent_remote_min: 'Region',
   zielprofil_min_jahre: 'Seniorität',
   target_min_years: 'Seniorität',
+  // Schwerpunkte, target roles and wishes (German and English keys).
+  schwerpunkte: 'Schwerpunkte',
+  focus_areas: 'Schwerpunkte',
+  wunschrollen: 'Wunschrollen',
+  target_roles: 'Wunschrollen',
+  tagessatz_wunsch: 'Wunschtagessatz',
+  desired_day_rate: 'Wunschtagessatz',
+  remote: 'Remote-Wunsch',
+  regionen: 'Regionen',
+  regions: 'Regionen',
+  branchen: 'Branchen',
+  industries: 'Branchen',
 };
 const keyLabel = (key: string): string =>
   profileKey[key] ?? key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
@@ -379,6 +473,7 @@ const warning = {
   },
   criterionNotUnderstood: (p) => `Der Wert von ${keyLabel(str(p.key))} ist nicht lesbar.`,
   regionWithoutPlaces: 'Für die Region fehlen die Orte, die Regel bleibt aus.',
+  focusTrimmed: (p) => `Nur die ersten ${n(num(p.max))} Schwerpunkte zählen.`,
 } satisfies Record<string, Text>;
 export type ProfileWarning = keyof typeof warning;
 

@@ -163,8 +163,24 @@ fn macro_mean(pairs: &[Pair], metric: impl Fn(&[Pair]) -> f64) -> f64 {
     groups.iter().map(|g| metric(g)).sum::<f64>() / groups.len() as f64
 }
 
+/// P@5 of the profiles that have relevant jobs, each divided by what it can reach
+/// (`min(5, relevant jobs)`: a profile with two relevant jobs scores 1.0 when both are in its
+/// top 5); 0 when no profile has a relevant job.
+fn reachable_p5(pairs: &[Pair], key: fn(&Pair) -> f64) -> f64 {
+    let values: Vec<f64> = by_profile(pairs)
+        .iter()
+        .filter_map(|g| eval::reachable_precision_at(&keys(g, key), &grades(g), 5, RELEVANT))
+        .collect();
+    if values.is_empty() {
+        0.0
+    } else {
+        values.iter().sum::<f64>() / values.len() as f64
+    }
+}
+
 /// Ranking metrics of one engine. NDCG and P@5 are means over the profiles (one ranking per
-/// profile); Spearman, the high band and the grade-3 count are pooled over all pairs.
+/// profile; P@5 over the profiles with relevant jobs, against what each can reach);
+/// Spearman, the high band and the grade-3 count are pooled over all pairs.
 pub fn ranking(pairs: &[Pair], key: fn(&Pair) -> f64, buried: fn(&Pair) -> bool) -> Ranking {
     let scores = keys(pairs, key);
     let gains = grades(pairs);
@@ -172,9 +188,7 @@ pub fn ranking(pairs: &[Pair], key: fn(&Pair) -> f64, buried: fn(&Pair) -> bool)
     Ranking {
         ndcg10: macro_mean(pairs, |g| ndcg(g, key, 10)),
         ndcg20: macro_mean(pairs, |g| ndcg(g, key, 20)),
-        p5: macro_mean(pairs, |g| {
-            eval::precision_at(&keys(g, key), &grades(g), 5, RELEVANT)
-        }),
+        p5: reachable_p5(pairs, key),
         spearman: if pairs.is_empty() {
             0.0
         } else {

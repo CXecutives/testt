@@ -57,3 +57,45 @@ pub(crate) const TITLE_OPEN_CAP: u8 = 60;
 pub(crate) const OFF_FIELD_CAP: u8 = 25;
 /// A scored ad keeps at least this (the rubric never shows a 1 of 10).
 pub(crate) const SCORE_FLOOR: u8 = 10;
+
+// --- ENGINE_VERSION 4: Schwerpunkte, target roles and wishes (all off without their key) ---
+
+/// Schwerpunkte that count (profiles name three to five; more are cut with a warning).
+pub(crate) const FOCUS_MAX: usize = 5;
+/// A requirement met in full through a Schwerpunkt weighs this many times in `M` and `K`;
+/// the evidence `n` stays as it was, so the shrinkage does not change.
+pub(crate) const FOCUS_FACTOR: u64 = 2;
+/// Relevance (per-mille) a Schwerpunkt demanded in the title or a requirement adds, for at
+/// most `FOCUS_RELEVANCE_MAX` Schwerpunkte (in profile order).
+pub(crate) const FOCUS_RELEVANCE: u64 = 100;
+pub(crate) const FOCUS_RELEVANCE_MAX: usize = 3;
+/// Target roles: per-mille added to the shrunk fit when the title matches a target role in
+/// full or in half (the best role counts; the caps still apply afterwards).
+pub(crate) const ROLE_FULL: i64 = 80;
+pub(crate) const ROLE_HALF: i64 = 40;
+/// Wishes: per-mille added for a wish met and taken for a wish clearly missed; near and
+/// unknown add nothing. The four together reach at most `WISH_MAX`.
+pub(crate) const WISH_RATE: i64 = 30;
+pub(crate) const WISH_REMOTE: i64 = 30;
+pub(crate) const WISH_REGION: i64 = 20;
+pub(crate) const WISH_INDUSTRY: i64 = 20;
+/// Bound of the summed wish effect (per-mille, both directions).
+pub(crate) const WISH_MAX: i64 = 100;
+/// A day rate of at least this share of the wish (per-mille) is near, below it missed.
+pub(crate) const WISH_RATE_NEAR: u64 = 950;
+/// Remote wishes as minimum remote shares (percent): `voll`, `ueberwiegend`, `teilweise`.
+pub(crate) const REMOTE_FULL: u64 = 100;
+pub(crate) const REMOTE_MOSTLY: u64 = 60;
+pub(crate) const REMOTE_PARTLY: u64 = 20;
+/// `vor_ort`: the largest remote share that still means presence on site.
+pub(crate) const ONSITE_MAX: u64 = 60;
+/// A remote share at most this many points short of the wish is near, not missed.
+pub(crate) const REMOTE_MARGIN: u64 = 30;
+/// Remote share (percent, from-to) of hybrid wording without numbers, and of remote work
+/// named without numbers and without presence on site.
+pub(crate) const HYBRID_SHARE: (u64, u64) = (20, 60);
+pub(crate) const REMOTE_NAMED_SHARE: (u64, u64) = (60, 100);
+/// Workdays of a week (`zwei Tage vor Ort` = 60 % remote).
+pub(crate) const WORKDAYS: u64 = 5;
+/// A place outside the wished regions with at least this remote share is near, not missed.
+pub(crate) const REGION_REMOTE_NEAR: u64 = 60;

@@ -1,0 +1,37 @@
+Titel: SAP SuccessFactors Employee Central Berater (m/w/d) - HR Transformation
+Unternehmen: von: Quellstein IT-Personal GmbH
+Ort: N7 13, 68161 Mannheim
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/2984417.html
+Abgerufen am: 18.09.2026 07:31
+
+Ort: 68161 Mannheim // Vertragsart: Freiberuflich // Start: 01.10.2026
+
+Projektbeschreibung
+Für unseren Kunden, einen Energieversorger in der Metropolregion Rhein-Neckar, suchen wir im Rahmen eines HR-Transformationsprojekts einen erfahrenen SAP SuccessFactors Berater (m/w/d) mit Schwerpunkt Employee Central.
+
+Hintergrund: Der Kunde migriert von SAP HCM on-premise nach SuccessFactors. Das Projekt befindet sich in der Realisierungsphase (Sprint 4 von 9).
+
+Aufgaben:
+- Konfiguration von Employee Central (Foundation Objects, MDF-Objekte, Business Rules, Workflows)
+- Umsetzung von Positionsmanagement und Time Off
+- Abstimmung der Schnittstellen zu SAP HCM Payroll (Employee Central Payroll ist nicht im Scope)
+- Unterstützung bei Datenmigration und Test (SIT/UAT)
+- Erstellung von Fachkonzepten und Dokumentation in Confluence
+- Zusammenarbeit mit dem Integrationsteam (SAP Integration Suite / BTP)
+
+Anforderungen:
+- Mind. 5 Jahre Erfahrung in SAP SuccessFactors EC-Projekten, davon mind. 2 Full-Cycle-Implementierungen
+- Zertifizierung SAP SuccessFactors Employee Central zwingend
+- Kenntnisse in SAP HCM (PA/OM) wünschenswert
+- Erfahrung mit agilen Methoden (Scrum, Jira)
+- Deutsch fließend, Englisch gut
+
+Rahmenbedingungen:
+Auslastung: 100 % (5 Tage/Woche)
+Dauer: 01.10.2026 - 31.03.2027, Option auf Verlängerung
+Remote-Anteil: 80 %, ca. 1 Tag pro Woche vor Ort in Mannheim
+Stundensatz: bis 105 € (all-in)
+Hinweis: Keine Arbeitnehmerüberlassung, die Beauftragung erfolgt als Dienstvertrag über uns.
+
+Bei Interesse senden Sie uns bitte Ihr aktuelles Profil (Word) mit Stundensatz und Verfügbarkeit unter Angabe der Referenz QS-26-0917.

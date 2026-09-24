@@ -1,0 +1,35 @@
+Titel: SAP IBP Berater Demand & Supply Planning (m/w/d) - remote
+Unternehmen: von: Brandungsweg Solutions GmbH
+Ort: Großer Burstah 31, 20457 Hamburg
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/2986025.html
+Abgerufen am: 20.09.2026 07:30
+
+Ort: 20457 Hamburg // Vertragsart: Freiberuflich // Start: ab sofort
+
+Projektbeschreibung
+Hallo zusammen,
+
+für unseren Endkunden aus dem Konsumgüterbereich (Food & Beverage) suchen wir ab sofort Verstärkung für ein laufendes SAP IBP Projekt.
+
+Ihre Aufgaben:
+* Customizing und Weiterentwicklung SAP IBP for Demand (Statistical Forecasting, Demand Sensing)
+* Aufbau von Planungsansichten und Key Figures im IBP Excel Add-In und in Fiori Apps
+* Integration SAP S/4HANA <-> IBP via CPI-DS
+* Fehleranalyse und 3rd-Level-Support nach Go-Live Welle 1
+* Mitarbeit im Rollout Welle 2 (Benelux, Nordics)
+
+Ihr Profil:
+* Mehrjährige Projekterfahrung als SAP IBP Consultant (Demand und/oder Supply)
+* Fundiertes Know-how im Bereich Supply Chain Planning / S&OP
+* Erfahrung mit CPI-DS und Planungsdatenmodellen
+* Sehr gutes Englisch (Projektsprache), Deutsch von Vorteil
+
+Eckdaten:
+Start: asap
+Laufzeit: 6 Monate + Option
+Auslastung: 4-5 PT/Woche
+Remote: 100 %
+Rate: 90-110 €/h
+
+Wir freuen uns auf Ihre Rückmeldung!

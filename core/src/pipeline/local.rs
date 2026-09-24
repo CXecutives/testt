@@ -18,8 +18,9 @@ use crate::store::JobRow;
 const TOP: usize = 2;
 
 /// Version of what a stored job hands the engine besides its text (2: page facts and the
-/// teaser flag). Part of the revision: a change scores every stored job again.
-const INPUTS: u32 = 2;
+/// teaser flag; 3: the company, for the industry wish). Part of the revision: a change
+/// scores every stored job again.
+const INPUTS: u32 = 3;
 
 /// The local engine with one profile.
 pub struct LocalMatcher {
@@ -70,6 +71,7 @@ impl LocalMatcher {
         };
         let input = JobInput {
             title: &title,
+            company: &job.company,
             location: &job.location,
             portal: job.key.portal,
             text: text.unwrap_or_default(),
