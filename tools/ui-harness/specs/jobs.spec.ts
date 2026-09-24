@@ -55,13 +55,21 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await expect(
     page.getByTestId('criteria').locator('li:not([data-testid="contract"])'),
   ).toHaveCount(4);
+  // The click marks the job read; wait until the list and the reader have taken that in (a
+  // slow machine would otherwise re-render the reader under the pointer).
+  await expect(top.locator('.title')).not.toHaveClass(/unread/);
+  await expect(page.locator('.ad mark').first()).toBeAttached();
+  await settle(page);
 
   const reason = page.getByTestId('reasons-met').getByRole('button').first();
   await reason.hover();
   await expect(page.getByRole('tooltip')).toContainText('im Profil');
   await expect(page.locator('mark.active')).toHaveCount(1);
-  await reason.click();
-  await expect(page.locator('mark.active')).toBeInViewport();
+  // A click scrolls the passage into view (smooth; retried until it has arrived).
+  await expect(async () => {
+    await reason.click();
+    await expect(page.locator('mark.active')).toBeInViewport({ timeout: 2000 });
+  }).toPass({ timeout: 10_000 });
 
   await page.getByTestId('open-ad').click();
   const opened = await calls(page, 'open_target');
@@ -181,10 +189,15 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
   const keys = await rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
   let checked = 0;
   for (const key of keys) {
-    await page.getByTestId(key!).click();
+    const row = page.getByTestId(key!);
+    await row.click();
+    // Wait until the reader shows this job (a slow machine would still show the last one).
+    await expect(page.getByTestId('reader-title')).toHaveText(
+      await row.locator('.title').innerText(),
+    );
+    await expect(page.getByTestId('reader')).toHaveCount(1);
     const must = page.getByTestId('must');
     if ((await must.count()) === 0) continue;
-    await expect(page.getByTestId('reader-title')).toBeVisible();
     const text = await must.innerText();
     const numbers = text.match(/^(\d+) von (\d+)/);
     if (numbers === null) continue;
@@ -355,7 +368,23 @@ test('2000 jobs render in windows without long tasks', async ({ page, browserNam
   });
   await open(page, `${WIN}&scenario=many`);
   await expect(rows(page).first()).toBeVisible();
-  // Only the list work counts, not the start of the app.
+  // Only the list work counts, not the start of the app: wait until the first window has
+  // mounted completely and the main thread is idle, then measure the interactions.
+  await expect
+    .poll(async () => {
+      const before = await rows(page).count();
+      await settle(page);
+      return before > 0 && before === (await rows(page).count());
+    })
+    .toBe(true);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        'requestIdleCallback' in window
+          ? requestIdleCallback(() => resolve(), { timeout: 2000 })
+          : setTimeout(resolve, 200),
+      ),
+  );
   const since = await page.evaluate(() => performance.now());
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   await expect(page.getByTestId('facet').getByRole('radio', { name: /Alle/ })).toContainText(

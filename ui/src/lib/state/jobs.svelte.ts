@@ -27,8 +27,9 @@ import { run } from './run.svelte';
 
 export const PAGE = 500;
 export const WINDOW = 60;
-/** Rows mounted per frame while a window fills. */
-const CHUNK = 15;
+/** Rows mounted per frame while a window fills (small: every frame stays well below 50 ms
+ *  on a slow machine, the window still fills within a few frames). */
+const CHUNK = 6;
 const HIGH = 80;
 
 /** A tile of the day overview, or a portal (its new jobs, from the last fetch). */

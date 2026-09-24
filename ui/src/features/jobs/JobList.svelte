@@ -1,6 +1,6 @@
 <!--
   The job list: rows in windows of 60 (a sentinel at the end shows the next window),
-  staggered entry, FLIP when sort or filter reorders up to 100 rows, excluded jobs grey
+  staggered entry, FLIP when sort or filter reorders a list of up to 100 rows, excluded jobs grey
   behind the divider "Ausgeschlossen n". Every empty state has exactly one reason and at
   most one way out (secondary: the toolbar holds the view's primary).
 -->
@@ -15,7 +15,7 @@
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { JobView } from '$lib/ipc/types';
-  import { flip, rowIn } from '$lib/motion/transitions';
+  import { FLIP_LIMIT, flip, rowIn } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -23,6 +23,9 @@
   const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
   const shown = $derived(jobs.shown);
+  // The whole list decides about FLIP, not the rows mounted so far.
+  const total = $derived(jobs.visible.length);
+  const animated = $derived(total <= FLIP_LIMIT);
   const active = $derived(shown.filter((job) => job.match?.status !== 'excluded'));
   const excluded = $derived(shown.filter((job) => job.match?.status === 'excluded'));
   const excludedCount = $derived(
@@ -145,47 +148,48 @@
       {/if}
     </div>
   {:else}
+    <!-- A list of up to FLIP_LIMIT rows moves with FLIP when sort or filter reorders it; a
+         longer one has no animate directive at all (Svelte would measure every mounted row
+         in every frame while the window fills). -->
+    {#snippet row(job: JobView)}
+      <JobRow
+        {job}
+        ring={!profileMissing}
+        pending={pending && job.match === null}
+        fresh={jobs.fresh.has(keyOf(job.key))}
+        selected={sameKey(jobs.selected, job.key)}
+        onselect={select}
+        onpin={pin}
+      />
+    {/snippet}
+    {#snippet group(items: JobView[], offset: number)}
+      {#if animated}
+        {#each items as job, index (keyOf(job.key))}
+          <div
+            class="item"
+            animate:flip={{ count: total }}
+            in:rowIn={{ index: offset + index, count: total }}
+          >
+            {@render row(job)}
+          </div>
+        {/each}
+      {:else}
+        {#each items as job, index (keyOf(job.key))}
+          <div class="item" in:rowIn={{ index: offset + index, count: total }}>
+            {@render row(job)}
+          </div>
+        {/each}
+      {/if}
+    {/snippet}
     <div class="rows" data-testid="job-rows">
-      {#each active as job, index (keyOf(job.key))}
-        <div
-          class="item"
-          animate:flip={{ count: shown.length }}
-          in:rowIn={{ index: index, count: shown.length }}
-        >
-          <JobRow
-            {job}
-            ring={!profileMissing}
-            pending={pending && job.match === null}
-            fresh={jobs.fresh.has(keyOf(job.key))}
-            selected={sameKey(jobs.selected, job.key)}
-            onselect={select}
-            onpin={pin}
-          />
-        </div>
-      {/each}
+      {@render group(active, 0)}
     </div>
     {#if excluded.length > 0}
       <div class="divider" data-testid="excluded-divider">
         <span>{de.list.excluded(excludedCount)}</span>
       </div>
       <div class="rows" data-testid="excluded-rows">
-        {#each excluded as job, index (keyOf(job.key))}
-          <div
-            class="item"
-            animate:flip={{ count: shown.length }}
-            in:rowIn={{ index: active.length + index, count: shown.length }}
-          >
-            <JobRow
-              {job}
-              ring={!profileMissing}
-              pending={pending && job.match === null}
-              fresh={jobs.fresh.has(keyOf(job.key))}
-              selected={sameKey(jobs.selected, job.key)}
-              onselect={select}
-              onpin={pin}
-            />
-          </div>
-        {/each}
+        {@render group(excluded, active.length)}
       </div>
     {/if}
     {#if jobs.more}

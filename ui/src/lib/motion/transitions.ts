@@ -18,6 +18,7 @@ import {
   isReducedMotion,
   move,
   staggerDelay,
+  staggerLimit,
   type Duration,
   type Easing,
   type Move,
@@ -115,10 +116,12 @@ export interface RowParams {
 }
 
 /**
- * Entry of a list row: the first --stagger-max rows rise one after another, the rest (and
- * every row of a list above FLIP_LIMIT) just fade in.
+ * Entry of a list row: the first --stagger-max rows rise one after another (in a list above
+ * FLIP_LIMIT they just fade in). Rows further down mount below the fold while the window
+ * fills: they appear without an animation, which keeps every frame of a long list light.
  */
 export function rowIn(node: Element, { index, count }: RowParams): TransitionConfig {
+  if (index >= staggerLimit()) return {};
   if (count > FLIP_LIMIT) return fade(node, { duration: 'fast' });
   return rise(node, { distance: 'md', duration: 'base', delay: stagger(index) });
 }
