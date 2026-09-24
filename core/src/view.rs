@@ -22,6 +22,10 @@ use crate::model::{
 };
 use crate::pipeline::{LocalMatcher, Matcher, RunSnapshot, RunSummary, local};
 use crate::portal::{JobKey, Portal};
+pub use crate::profile::{
+    LanguageLevel, ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileForm,
+    ProfileLanguage, ProfileWishes, RemoteWish,
+};
 use crate::settings::{PortalSwitches, Settings};
 use crate::store::{AlertMailRow, JobRow, PageQuery, Store};
 use crate::text::split_company_location;
@@ -919,6 +923,16 @@ pub enum ProfileQuality {
     Empty,
 }
 
+impl From<matching::ProfileQuality> for ProfileQuality {
+    fn from(quality: matching::ProfileQuality) -> ProfileQuality {
+        match quality {
+            matching::ProfileQuality::Good => ProfileQuality::Good,
+            matching::ProfileQuality::Thin => ProfileQuality::Thin,
+            matching::ProfileQuality::Empty => ProfileQuality::Empty,
+        }
+    }
+}
+
 /// "What the app understood" of the profile.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -935,6 +949,12 @@ pub struct ProfileUnderstanding {
     pub years: Option<u32>,
     /// Degrees as written in the profile.
     pub degrees: Vec<String>,
+    /// `schwerpunkte`: the competences that matter most.
+    pub focus: Vec<String>,
+    /// `wunschrollen`: the roles the consultant is looking for.
+    pub roles: Vec<String>,
+    /// `einsatzpraeferenzen`: wishes, they nudge the score and never exclude.
+    pub wishes: ProfileWishes,
 }
 
 /// The stored consultant profile.
@@ -953,6 +973,8 @@ pub struct ProfileInfo {
     pub pending: u32,
     /// The file is no valid JSON object any more (edited by hand).
     pub parse_error: Option<ErrorInfo>,
+    /// The profile as the editor shows it (`null` while the file does not read).
+    pub form: Option<ProfileForm>,
 }
 
 impl ProfileInfo {
@@ -966,19 +988,30 @@ impl ProfileInfo {
             scored_at: None,
             pending: 0,
             parse_error: info.parse_error.as_ref().map(ErrorInfo::from),
+            form: None,
         }
+    }
+
+    /// Adds the form of the editor.
+    #[must_use]
+    pub fn with_form(mut self, form: Option<ProfileForm>) -> Self {
+        self.form = form;
+        self
     }
 
     /// Adds what the engine understood of the profile and how far the jobs are scored with
     /// it (an empty profile scores nothing, so nothing is pending).
     pub fn understood_by(mut self, matcher: &LocalMatcher, store: &Store) -> crate::Result<Self> {
         let profile = matcher.profile();
-        self.quality = Some(match profile.quality() {
-            matching::ProfileQuality::Good => ProfileQuality::Good,
-            matching::ProfileQuality::Thin => ProfileQuality::Thin,
-            matching::ProfileQuality::Empty => ProfileQuality::Empty,
-        });
-        self.understood = Some(understanding(profile.summary()));
+        self.quality = Some(profile.quality().into());
+        let mut understood = understanding(profile.summary());
+        // The newer profile inputs, as the form reads them.
+        if let Some(form) = &self.form {
+            understood.focus.clone_from(&form.focus);
+            understood.roles.clone_from(&form.roles);
+            understood.wishes = form.wishes.clone();
+        }
+        self.understood = Some(understood);
         if matcher.usable() {
             self.scored_at = store.scored_at(matcher.rev())?;
             self.pending = store.match_pending(matcher.rev())?;
@@ -1017,7 +1050,44 @@ pub fn understanding(summary: &ProfileSummary) -> ProfileUnderstanding {
         packs: summary.packs.clone(),
         years: summary.years,
         degrees: summary.degrees.clone(),
+        focus: Vec::new(),
+        roles: Vec::new(),
+        wishes: ProfileWishes::default(),
     }
+}
+
+/// A profile read for the editor from a chosen file or a pasted answer: nothing is stored
+/// until the user saves it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct ProfileDraft {
+    pub form: ProfileForm,
+    /// The JSON the form came from; saving merges the form into it.
+    pub source: String,
+    pub quality: ProfileQuality,
+}
+
+impl From<crate::profile::Draft> for ProfileDraft {
+    fn from(draft: crate::profile::Draft) -> ProfileDraft {
+        ProfileDraft {
+            form: draft.form,
+            source: draft.source,
+            quality: draft.quality.into(),
+        }
+    }
+}
+
+/// Saving the editor: the form as it was handed out (`before`) and as the user left it;
+/// only what differs is written. `source` is the JSON of a draft (`{}` for a new profile),
+/// `null` for the stored profile.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct ProfileSave {
+    pub before: ProfileForm,
+    pub after: ProfileForm,
+    pub source: Option<String>,
 }
 
 /// Result of "reset everything" after the restart.

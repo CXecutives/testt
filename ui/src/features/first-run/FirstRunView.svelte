@@ -1,8 +1,8 @@
 <!--
   First run (full page) on the white sheet: the app mark, one sentence of what the app
   does, one about privacy, and three real steps that tick themselves: connect the mailbox,
-  a usable profile (created in the Profil view with its editor, or an existing file chosen
-  here), fetch. The next open step carries the one primary button; "Abrufen" stays locked
+  a usable profile (made in the Profil view, whose editor also imports a file or a CV),
+  fetch. The next open step carries the one primary button; "Abrufen" stays locked
   with its reason until a mailbox is connected. After "Alles zurücksetzen" the app starts
   here again, so this is where the reset reports. Compact enough that the third step is in
   view at 1280 x 720; the sidebar is inert here (the Profil view frees it again).
@@ -21,8 +21,6 @@
   import Icon from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
   import { de } from '$lib/i18n/de';
-  import { errorText } from '$lib/i18n/texts';
-  import { invoke } from '$lib/ipc/api';
   import { rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -44,8 +42,6 @@
   /** The step whose action is the primary one. */
   const current = $derived(!mailboxDone ? 1 : !profileDone ? 2 : 3);
   const reset = $derived(app.state?.resetReport ?? null);
-  let profileNote = $state<{ tone: 'danger'; text: string } | null>(null);
-  let busy = $state(false);
 
   /** Steps ticked while this page is open: only their check draws (never at mount). */
   let ticked = $state({ mailbox: false, profile: false });
@@ -56,18 +52,6 @@
     if (now.profile && !before.profile) ticked.profile = true;
     before = now;
   });
-
-  async function pick(): Promise<void> {
-    profileNote = null;
-    busy = true;
-    try {
-      if ((await invoke('pick_profile')) !== null) await app.load();
-    } catch (error) {
-      profileNote = { tone: 'danger', text: errorText(error) };
-    } finally {
-      busy = false;
-    }
-  }
 </script>
 
 {#snippet marker(step: number, done: boolean, drawn: boolean)}
@@ -148,28 +132,17 @@
                   testid="first-profile-problem"
                 />
               {:else}
-                <p class="hint">{de.profile.noneText}</p>
+                <p class="hint">{de.firstRun.profileText}</p>
               {/if}
               <div class="actions">
                 <Button
                   variant={current === 2 ? 'primary' : 'secondary'}
-                  icon="user-round"
-                  label={profile ? de.firstRun.openProfile : de.firstRun.createProfile}
-                  testid="first-open-profile"
+                  icon="file-text"
+                  label={profile ? de.list.openProfile : de.profile.create}
+                  testid="first-profile"
                   onclick={() => navigation.go('profile')}
                 />
-                <Button
-                  variant="ghost"
-                  icon="file-up"
-                  label={de.profile.pick}
-                  loading={busy}
-                  testid="first-pick-profile"
-                  onclick={() => void pick()}
-                />
               </div>
-              {#if profileNote}
-                <Notice tone={profileNote.tone} variant="inline" text={profileNote.text} />
-              {/if}
             {/if}
           </div>
         </li>

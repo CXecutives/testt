@@ -41,13 +41,15 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('step-mailbox')).not.toHaveAttribute('aria-current', 'step');
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
 
-  // The profile step leads to the Profil view (its editor); the sidebar leads back.
-  await page.getByTestId('first-open-profile').click();
+  // The profile is made in the Profil view; back on the first-run page its step is done.
+  await page.getByTestId('first-profile').click();
   await expect(page.getByTestId('view-profile')).toBeVisible();
+  await page.getByTestId('profile-empty').getByRole('button', { name: 'Profil anlegen' }).click();
+  await page.getByTestId('competence-add').click();
+  await page.getByTestId('competence-name').fill('Controlling');
+  await page.getByTestId('profile-save').click();
+  await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
   await page.getByTestId('nav-jobs').click();
-  await expect(page.getByTestId('first-run')).toBeVisible();
-  // An existing profile file can be chosen right here.
-  await page.getByTestId('first-pick-profile').click();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
 

@@ -9,10 +9,10 @@
 //     (base.css keys them off `:root[data-platform]`, like the font smoothing),
 //   - words that name OS things (Explorer / Finder, the password store),
 //   - the editing keys of text fields (`keyConventions()`, applied by lib/input/input.ts).
-// Components ask here (`dragBands()`, `primaryFirst()`, `platform()`), never compare OS names
-// themselves. The window's focus state is the same on both: `:root[data-window]` is
-// 'inactive' while the window is in the background, and selections grey out against it as
-// in Mail and Explorer.
+// Components ask here (`dragBands()`, `primaryFirst()`, `keyConventions()`, `platform()`),
+// never compare OS names themselves. The window's focus state is the same on both:
+// `:root[data-window]` is 'inactive' while the window is in the background, and selections
+// grey out against it as in Mail and Explorer.
 
 import { onWindowFocus } from './ipc/api';
 
