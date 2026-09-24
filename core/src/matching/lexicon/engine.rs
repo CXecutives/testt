@@ -359,6 +359,21 @@ pub(crate) const DEGREE_FIELDS: &[(&str, &str)] = &[
     ("biotechnolog", "life-science"),
     ("life science", "life-science"),
     ("lebenswissenschaft", "life-science"),
+    // Fields of the other domain packs (data, HR, operations, software, marketing).
+    ("statistik", "science"),
+    ("statistics", "science"),
+    ("medizin", "medicine"),
+    ("medicine", "medicine"),
+    ("medizintechnik", "engineering"),
+    ("mechatronik", "engineering"),
+    ("produktionstechnik", "engineering"),
+    ("fertigungstechnik", "engineering"),
+    ("fahrzeugtechnik", "engineering"),
+    ("psycholog", "psychology"),
+    ("softwaretechnik", "it"),
+    ("software engineering", "it"),
+    ("data science", "it"),
+    ("marketing", "business"),
 ];
 
 /// Neighbouring degree fields: a degree in one half-meets a requirement for the other.
