@@ -712,6 +712,32 @@ export const de = {
     },
     clearFilter: 'Filter entfernen',
   },
+  /** The key facts of an ad in short words (list row, criteria chips). */
+  facts: {
+    now: 'ab sofort',
+    from: (date: string) => `ab ${date}`,
+    vague: 'Start offen',
+    months: (value: number) => count(value, 'Monat', 'Monate'),
+    remote: (from: number, to: number) => {
+      if (from >= 100) return 'voll remote';
+      if (to <= 0) return 'vor Ort';
+      return from === to
+        ? `${formatPercent(from)} remote`
+        : `${n(from)} bis ${formatPercent(to)} remote`;
+    },
+    /** `1.100 €`, with the unit `1.100 €/Tag`, per hour `95 €/Std.`, `1.000 CHF/Tag`. */
+    rate: (amount: number, hourly: boolean, currency: string | null, unit: boolean) => {
+      const money = currency ? `${n(amount)} ${currency}` : formatEuro(amount);
+      return hourly ? `${money}/Std.` : unit ? `${money}/Tag` : money;
+    },
+    rateOpen: 'Satz nach Absprache',
+    salary: (amount: number) => `${formatEuro(amount)} im Jahr`,
+    years: (value: number) => `${count(value, 'Jahr', 'Jahre')} Erfahrung`,
+    fullRemote: 'Voll remote',
+    contract,
+    /** A criterion the ad does not mention. */
+    notMentioned: (label: string) => `${label} nicht genannt`,
+  },
   reader: {
     mustMet: (met: number, total: number, partial = 0) =>
       `${n(met)} von ${n(total)} Muss erfüllt` + (partial > 0 ? `, ${n(partial)} teilweise` : ''),
@@ -747,6 +773,7 @@ export const de = {
     mail: OPEN_MAIL,
     fetchDetails: 'Details holen',
     why: 'Warum',
+    wishes: 'Wünsche',
     met: 'Erfüllt',
     partial: 'Teilweise erfüllt',
     missing: 'Offen',
@@ -777,7 +804,7 @@ export const de = {
     excel: 'Excel öffnen',
     /** The best matches as one prompt for any AI chat (no brand named). */
     promptTop: 'Beste Treffer als Prompt kopieren',
-    promptTopNone: 'Noch keine bewerteten Treffer.',
+    promptTopNone: 'Noch kein Job bewertet.',
     newJobs: 'Neue Jobs',
     newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
     /** Under the portal's name, so the sentence does not name it again. */

@@ -339,12 +339,16 @@ function guardZoom(on: boolean): void {
  * passive listener: it never delays a scroll.
  */
 let scrollIdle: ReturnType<typeof setTimeout> | undefined;
+/** --scroll-idle, read once: reading a token inside the handler would force a style
+ *  recalculation on every scroll event (right after the attribute changed). */
+let scrollIdleMs: number | null = null;
 
 function onScroll(): void {
   const root = document.documentElement;
+  scrollIdleMs ??= tokenMs('--scroll-idle');
   if (root.dataset.scrolling === undefined) root.dataset.scrolling = '';
   clearTimeout(scrollIdle);
-  scrollIdle = setTimeout(() => delete root.dataset.scrolling, tokenMs('--scroll-idle'));
+  scrollIdle = setTimeout(() => delete root.dataset.scrolling, scrollIdleMs);
 }
 
 /**

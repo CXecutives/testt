@@ -6,7 +6,8 @@
 // codes from a newer core fall back to the ad's words or are left out, never to a raw code.
 
 import { IpcError } from '../ipc/api';
-import type { JobView, Notice, PortalHealth, Reason } from '../ipc/types';
+import type { JobView, KeyFacts, Notice, PortalHealth, Reason } from '../ipc/types';
+import { formatDate } from './format';
 import {
   de,
   textOf,
@@ -94,6 +95,80 @@ export function rowReason(job: JobView): { kind: 'met' | 'violation'; text: stri
   }
   const top = match.top[0];
   return top ? { kind: 'met', text: top } : null;
+}
+
+/** The start of an ad in words (`now`, `vague` or an ISO date); `vague` only when asked. */
+function startWords(start: unknown, vague: boolean): string | null {
+  if (start === 'now') return de.facts.now;
+  if (start === 'vague') return vague ? de.facts.vague : null;
+  if (typeof start === 'string' && start !== '') return de.facts.from(formatDate(start));
+  return null;
+}
+
+function rateWords(
+  rate: unknown,
+  hourly: unknown,
+  currency: unknown,
+  unit: boolean,
+): string | null {
+  if (typeof rate !== 'number') return null;
+  return de.facts.rate(
+    rate,
+    hourly === true,
+    typeof currency === 'string' && currency !== '' ? currency : null,
+    unit,
+  );
+}
+
+/**
+ * The key facts of an ad for its list row, in this order: start, duration, remote share,
+ * rate ("ab sofort", "6 Monate", "60 % remote", "1.100 €"). What the ad does not say is left out.
+ */
+export function factWords(facts: KeyFacts | null | undefined): string[] {
+  if (!facts) return [];
+  const out: string[] = [];
+  const start = startWords(facts.start, false);
+  if (start) out.push(start);
+  if (facts.months) out.push(de.facts.months(facts.months));
+  const from = facts.remoteFrom ?? facts.remoteTo;
+  const to = facts.remoteTo ?? facts.remoteFrom;
+  if (from !== null && to !== null) out.push(de.facts.remote(from, to));
+  const rate =
+    rateWords(facts.rate, facts.hourly, facts.currency, false) ??
+    (facts.rateOpen ? de.facts.rateOpen : null);
+  if (rate) out.push(rate);
+  return out;
+}
+
+/**
+ * What the ad says about a hard criterion, in its own value ("1.100 €/Tag", "ab sofort",
+ * "Hamburg", "Interim"); `null` when it says nothing (the chip then names the criterion).
+ */
+export function criterionValue(reason: Reason): string | null {
+  const p = reason.params;
+  switch (criterionKey(reason.code)) {
+    case 'minDayRate':
+      return (
+        rateWords(p.rate, p.hourly, p.currency, true) ??
+        (p.rateOpen === true ? de.facts.rateOpen : null)
+      );
+    case 'countries':
+    case 'permanentRegion':
+      if (p.remote === true) return de.facts.fullRemote;
+      return typeof p.location === 'string' && p.location !== '' ? p.location : null;
+    case 'noAnue':
+      return typeof p.contract === 'string' && has(de.facts.contract, p.contract)
+        ? de.facts.contract[p.contract]
+        : null;
+    case 'availability':
+      return startWords(p.start, true);
+    case 'minSalary':
+      return typeof p.salary === 'number' ? de.facts.salary(p.salary) : null;
+    case 'targetYears':
+      return typeof p.years === 'number' ? de.facts.years(p.years) : null;
+    default:
+      return null;
+  }
 }
 
 /** A criterion of the reader strip (kind met = fulfilled with the ad as evidence, violation, check = unclear, open = the ad does not mention it). */

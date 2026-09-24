@@ -22,6 +22,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
+  import Chip from '$components/Chip.svelte';
   import Count from '$components/Count.svelte';
   import Icon, { type IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
@@ -29,12 +30,12 @@
   import ReasonItem from '$components/ReasonItem.svelte';
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
   import { inView, scrollArea } from '$lib/actions/inView';
-  import { tooltip } from '$lib/actions/tooltip';
   import { de, type CriterionState } from '$lib/i18n/de';
   import { displayTitle, formatDate, formatRelative } from '$lib/i18n/format';
   import {
     criterionKey,
     criterionState,
+    criterionValue,
     errorText,
     noteText,
     reasonHint,
@@ -89,11 +90,23 @@
   const all = $derived(match?.reasons ?? []);
   // The contract type is a fact about the ad, not a requirement: it goes into the chips.
   const contract = $derived(all.find((r) => r.code === CONTRACT) ?? null);
-  const reasons = $derived(all.filter((r) => r.code !== CONTRACT));
+  // Wishes of the profile move a score a little and never exclude: their own block.
+  const WISHES: readonly string[] = ['dayRateWish', 'remoteWish', 'regionWish', 'industryWish'];
+  const wishes = $derived(all.filter((r) => WISHES.includes(r.code)));
+  const reasons = $derived(all.filter((r) => r.code !== CONTRACT && !WISHES.includes(r.code)));
   // Only passages a reason under "Warum" explains are marked (the contract type is a chip).
-  const passages = $derived(
-    (match?.highlights ?? []).filter((h) => contract === null || h.reason !== contract.id),
-  );
+  const passages = $derived([
+    ...(match?.highlights ?? []).filter((h) => contract === null || h.reason !== contract.id),
+    ...(match?.criteria ?? []).flatMap((reason) =>
+      reason.ranges.map((range, index) => ({
+        id: `${reason.id}:${index}`,
+        start: range.start,
+        end: range.end,
+        kind: reason.kind,
+        reason: reason.id,
+      })),
+    ),
+  ]);
   const met = $derived(reasons.filter((r) => r.kind === 'met').sort(byWeight));
   // Met only in part is not met: its own group, never under "Erfüllt".
   const partial = $derived(reasons.filter((r) => r.kind === 'partial').sort(byWeight));
@@ -118,15 +131,16 @@
     unknown: 'circle-help',
     unset: 'minus',
   };
-  interface Chip {
+  interface StripChip {
     id: string;
     label: string;
     state: CriterionState | 'plain';
     icon: IconName;
     hint: string;
+    reason: Reason | null;
   }
-  const chips = $derived.by((): Chip[] => {
-    const out: Chip[] = [];
+  const chips = $derived.by((): StripChip[] => {
+    const out: StripChip[] = [];
     // The contract chip steps back when a criterion chip carries the same word (ANÜ).
     const labels = new Set(
       (match?.criteria ?? []).flatMap((reason) => {
@@ -142,22 +156,34 @@
         state: unclear ? 'unknown' : 'plain',
         icon: unclear ? 'circle-help' : 'file-text',
         hint: de.reader.contractLabel,
+        reason: contract.ranges.length > 0 ? contract : null,
       });
     }
     for (const reason of match?.criteria ?? []) {
       const key = criterionKey(reason.code);
       if (key === null) continue;
       const state = criterionState(reason);
+      const name = de.reader.criterion[key].label;
+      const value = criterionValue(reason);
       out.push({
         id: reason.id,
-        label: de.reader.criterion[key].label,
+        // The ad's own value; what it does not mention says so, neutral.
+        label: value ?? (state === 'unset' ? de.facts.notMentioned(name) : name),
         state,
         icon: STATE_ICON[state],
-        hint: de.reader.criterionState[state],
+        hint: value
+          ? `${name}, ${de.reader.criterionState[state]}`
+          : de.reader.criterionState[state],
+        reason: reason.ranges.length > 0 ? reason : null,
       });
     }
     return out;
   });
+
+  // Every criterion met with the ad as evidence: one quiet line of the values, no chips.
+  const clean = $derived(
+    chips.length > 0 && chips.every((c) => c.state === 'met' || c.state === 'plain'),
+  );
 
   const headline = $derived.by((): { word: string; tone: string } | null => {
     if (!withRing) return null;
@@ -392,7 +418,7 @@
           variant="ghost"
           size="sm"
           iconOnly
-          icon={job.hidden ? 'eye' : 'eye-off'}
+          icon={job.hidden ? 'archive-restore' : 'archive'}
           label={job.hidden ? de.reader.unhide : de.reader.hide}
           testid="hide"
           onclick={() => void hide()}
@@ -463,17 +489,27 @@
             />
           </span>
         {/if}
-        {#if chips.length > 0}
+        {#if clean}
+          <p class="clean" aria-label={de.reader.criteria} data-testid="criteria-clean">
+            <span class="clean-icon"><Icon name="check" size="xs" /></span>
+            <span class="clean-values" data-copy
+              >{#each chips as chip (chip.id)}<span class="fact">{chip.label}</span>{/each}</span
+            >
+          </p>
+        {:else if chips.length > 0}
           <ul class="chips" aria-label={de.reader.criteria} data-testid="criteria">
             {#each chips as chip (chip.id)}
-              <li
-                class="chip {chip.state}"
-                use:tooltip={chip.hint}
-                data-state={chip.state}
-                data-testid={chip.id === contract?.id ? 'contract' : undefined}
-              >
-                <span class="chip-icon"><Icon name={chip.icon} size="xs" /></span>
-                <span>{chip.label}</span>
+              {@const target = chip.reason}
+              <li data-testid={chip.id === contract?.id ? 'contract' : `criterion-${chip.id}`}>
+                <Chip
+                  label={chip.label}
+                  state={chip.state}
+                  icon={chip.icon}
+                  hint={chip.hint}
+                  active={active === chip.id}
+                  onhover={target ? (on) => hover(target, on) : null}
+                  onselect={target ? () => scrollTo(target) : null}
+                />
               </li>
             {/each}
           </ul>
@@ -588,6 +624,12 @@
         <div class="group">
           {@render sub(de.reader.check, checks.length)}
           {@render reasonList(checks, 'reasons-check')}
+        </div>
+      {/if}
+      {#if wishes.length > 0}
+        <div class="group" data-testid="wishes">
+          {@render sub(de.reader.wishes, wishes.length)}
+          {@render reasonList(wishes, 'reasons-wish')}
         </div>
       {/if}
       {#if violations.length > 0}
@@ -823,51 +865,24 @@
     gap: var(--space-6);
   }
 
-  /* Quiet chips: a neutral name, the state only in the icon (and in red when violated). A
-     hover only deepens the chip a little while its tooltip comes. */
-  .chip {
-    display: inline-flex;
+  /* Every criterion met: the values in one quiet line after a green check. */
+  .clean {
+    display: flex;
     align-items: center;
-    gap: var(--space-4);
-    height: var(--badge-height);
-    padding: 0 var(--space-8) 0 var(--space-6);
-    border-radius: var(--radius-full);
-    background-color: var(--surface-muted);
+    gap: var(--space-6);
     color: var(--text-muted);
-    font: var(--type-xs);
-    font-weight: var(--weight-medium);
-    white-space: nowrap;
-    transition: background-color var(--dur-base) var(--ease-standard);
+    font: var(--type-sm);
   }
 
-  .chip:hover {
-    background-color: var(--border);
-    transition-duration: var(--dur-hover);
-  }
-
-  .chip-icon {
+  .clean-icon {
     display: inline-flex;
-    color: var(--chip-icon, var(--text-subtle));
+    color: var(--success-strong);
   }
 
-  .chip.met {
-    --chip-icon: var(--success-strong);
-  }
-
-  .chip.unknown {
-    --chip-icon: var(--warning-strong);
-  }
-
-  .chip.violated,
-  .chip.violated:hover {
-    --chip-icon: var(--danger-strong);
-
-    background-color: var(--danger-soft);
-    color: var(--danger-strong);
-  }
-
-  .chip.unset {
-    color: var(--text-muted);
+  .clean-values {
+    display: flex;
+    flex-wrap: wrap;
+    margin-left: calc(-1 * var(--space-20));
   }
 
   .actions {

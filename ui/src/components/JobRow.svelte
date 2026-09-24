@@ -2,8 +2,9 @@
   One job in the list, mail-style with fixed gutters: the unread dot (6 px, coral) centred
   in the pane padding on the axis of the ring (so a title never moves when the job is
   read), the ring, then the title on one line with the relative date at its end, company
-  and place, and one reason line with a status badge right after it only when something
-  deviates. Every row has the same height. Without a ring (no usable profile) the dot sits
+  and place, and one line with the ad's key facts ("ab sofort · 6 Monate · 60 % remote ·
+  1.100 €"; the best met requirement when the ad states none) and a status badge right after
+  it only when something deviates. Every row has the same height. Without a ring (no usable profile) the dot sits
   on the title axis and the row shows no reason line: the reasons belong to a match.
   The star to pin sits below the date: filled when pinned, otherwise it appears on hover (a
   sibling of the row button, so it never selects the row; the row keeps its hover while
@@ -13,14 +14,14 @@
   star (a pinned star always shows). A quiet badge says where the user's application
   stands (Beworben, Im Gespräch, Zusage, Absage); pinned needs none (the star). A date older
   than ten days sits on a quiet tint. A score from a teaser is a provisional ring. A cut-off
-  title shows in full in a tooltip. Hover and paint stay inside the row (containment); like the
+  title shows in full in a tooltip. Layout stays inside the row (containment); like the
   row, its hover waits while the list scrolls (`:root:not([data-scrolling])`).
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
   import { de } from '$lib/i18n/de';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
-  import { rowReason } from '$lib/i18n/texts';
+  import { factWords, rowReason } from '$lib/i18n/texts';
   import type { AppStatus, JobView } from '$lib/ipc/types';
   import { dotOut } from '$lib/motion/transitions';
   import Badge, { type BadgeTone } from './Badge.svelte';
@@ -86,6 +87,7 @@
       : null,
   );
   const reason = $derived(ring ? rowReason(job) : null);
+  const facts = $derived(ring ? factWords(job.match?.facts) : []);
   const heading = $derived(job.title ? displayTitle(job.title) : de.job.untitled);
 
   /** At most one badge, and only when something is not as usual. */
@@ -139,7 +141,11 @@
       {#if job.location}<span class="text place">{job.location}</span>{/if}
     </span>
     <span class="foot">
-      {#if reason}
+      {#if facts.length > 0}
+        <span class="facts" data-testid="row-facts"
+          >{#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}</span
+        >
+      {:else if reason}
         <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
       {/if}
       {#if status}<Badge label={status.label} tone={status.tone} />{/if}
@@ -184,7 +190,9 @@
 <style>
   .job {
     position: relative;
-    contain: layout paint;
+    /* Layout containment only: paint containment gave every row a clip of its own, and the
+       compositor's work each frame grows with such nodes (a long list, long frames). */
+    contain: layout;
   }
 
   /* The row keeps its hover while the pointer is on its star (a sibling of the row). */
@@ -285,6 +293,24 @@
     gap: var(--space-8);
     min-width: 0;
     height: var(--leading-title);
+  }
+
+  /* The ad's key facts, joined by middle dots; the line gives way at its end. */
+  .facts {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-muted);
+    font: var(--type-sm);
+    font-variant-numeric: var(--numeric);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fact + .fact::before {
+    padding: 0 var(--space-6);
+    color: var(--text-subtle);
+    content: '·';
   }
 
   .reason {
