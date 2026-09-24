@@ -248,8 +248,9 @@ test('reset asks with a danger dialog; the report shows after the restart', asyn
   await expect(dialog.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
   await dialog.getByRole('button', { name: 'Zurücksetzen' }).click();
   expect(await calls(page, 'reset_all')).toHaveLength(1);
-  await settings(page, `${WIN}&scenario=reset`);
-  await expect(page.getByTestId('reset-report')).toHaveText(
+  // After the restart the app starts at the first-run page, which reports the reset.
+  await open(page, `${WIN}&scenario=reset`);
+  await expect(page.getByTestId('first-reset-report')).toHaveText(
     'Die App ist zurückgesetzt, 1 Datei ließ sich nicht löschen.',
   );
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'false');
@@ -270,12 +271,11 @@ test('a refused app password says so in the form', async ({ page }) => {
 test('the dry run shows its mailbox and refuses what would write outside it', async ({ page }) => {
   await settings(page, `${WIN}&scenario=dry-run`);
   await expect(page.getByTestId('settings')).toContainText('probelauf@example.org');
-  await page.getByTestId('mailbox-remove').click();
-  await page
-    .getByTestId('dialog-remove-mailbox')
-    .getByRole('button', { name: 'Entfernen' })
-    .click();
-  await expect(page.getByTestId('settings')).toContainText('Im Probelauf geht das nicht.');
+  // What would write outside the dry run is locked and says why.
+  const remove = page.getByTestId('mailbox-remove');
+  await expect(remove).toHaveAttribute('aria-disabled', 'true');
+  await remove.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Im Probelauf geht das nicht.');
   await expect(page.getByTestId('settings')).toContainText('probelauf@example.org');
 });
 

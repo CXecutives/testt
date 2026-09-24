@@ -837,6 +837,27 @@ test('archive from the row: the toast takes it back, the Archiv brings it back',
   await expect(row(page, key)).toHaveCount(1);
 });
 
+test('the best matches as one prompt: in the overview and under Gemerkt', async ({
+  page,
+  browserName,
+}) => {
+  if (browserName === 'chromium') {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  }
+  await open(page, WIN);
+  await page.getByTestId('prompt-top').click();
+  await expect(page.getByTestId('toast').last()).toContainText(
+    'Prompt kopiert. In einen KI-Chat einfügen.',
+  );
+  await page
+    .getByTestId('facet')
+    .getByRole('radio', { name: /Gemerkt/ })
+    .click();
+  await page.getByTestId('prompt-pinned').click();
+  expect(await calls(page, 'ai_prompt_top')).toHaveLength(2);
+  expect((await calls(page, 'ai_prompt_top'))[0]?.[1]).toEqual({ limit: 5 });
+});
+
 test('an empty list says where jobs come from', async ({ page }) => {
   await open(page, `${WIN}&scenario=empty`);
   await expect(page.getByTestId('alert-linkedin')).toBeVisible();

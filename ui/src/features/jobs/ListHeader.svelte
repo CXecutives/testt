@@ -11,12 +11,14 @@
   (always there, also while the reader is open); the archive (hidden jobs), reached from the end of
   Alle, show as a pill with its x instead.
   Row 3 (with a profile): the order in words ("Beste Passung", "Neueste"), a quiet button
-  whose glyph stands half a turn for newest first; a click switches it.
+  whose glyph stands half a turn for newest first; a click switches it. Under Gemerkt the
+  pinned jobs can be copied as one prompt for any AI chat at its end.
   The bottom hairline shows only once the list below is scrolled.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import Segmented from '$components/Segmented.svelte';
+  import Notice from '$components/Notice.svelte';
   import TextField from '$components/TextField.svelte';
   import { de } from '$lib/i18n/de';
   import type { JobFacet } from '$lib/ipc/types';
@@ -25,6 +27,7 @@
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { copyTopPrompt } from './prompt';
 
   interface Props {
     /** The list below is scrolled away from its top. */
@@ -47,6 +50,8 @@
     },
   ]);
   const view = $derived<View>(jobs.filter === 'pinned' ? 'pinned' : jobs.facet);
+
+  let promptError = $state<string | null>(null);
 
   function choose(id: View): void {
     if (id === 'pinned') jobs.setFilter('pinned');
@@ -146,17 +151,32 @@
     {/if}
   </div>
   {#if app.hasProfile}
-    <span class="sort">
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="arrow-up-down"
-        label={de.toolbar.sortLabel[jobs.sortChoice]}
-        turned={jobs.sortChoice === 'newest'}
-        testid="sort"
-        onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
-      />
+    <span class="order">
+      <span class="sort">
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="arrow-up-down"
+          label={de.toolbar.sortLabel[jobs.sortChoice]}
+          turned={jobs.sortChoice === 'newest'}
+          testid="sort"
+          onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
+        />
+      </span>
+      {#if view === 'pinned' && counts.pinned > 0}
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="copy"
+          label={de.overview.promptTop}
+          testid="prompt-pinned"
+          onclick={() => void copyTopPrompt().then((error) => (promptError = error))}
+        />
+      {/if}
     </span>
+    {#if promptError}
+      <Notice tone="danger" variant="inline" text={promptError} />
+    {/if}
   {/if}
 </div>
 
@@ -244,6 +264,15 @@
   }
 
   /* The order in words; its glyph starts on the edge of the column. */
+  /* The order in words and, under Gemerkt, the pinned jobs as one prompt. */
+  .order {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    margin-right: calc(-1 * var(--space-12));
+  }
+
   .sort {
     display: flex;
     margin: calc(-1 * var(--space-4)) 0 calc(-1 * var(--space-4)) calc(-1 * var(--space-12));

@@ -683,6 +683,9 @@ export const de = {
     issues: 'Offene Punkte',
     best: 'Beste Passung',
     excel: 'Excel öffnen',
+    /** The best matches as one prompt for any AI chat (no brand named). */
+    promptTop: 'Beste Treffer als Prompt kopieren',
+    promptTopNone: 'Noch keine bewerteten Treffer.',
     newJobs: 'Neue Jobs',
     newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
     /** Under the portal's name, so the sentence does not name it again. */

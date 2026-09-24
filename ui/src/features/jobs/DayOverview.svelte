@@ -4,7 +4,8 @@
   a usable profile a calm card that leads to one, "Beste Passung" (the three best scored new
   jobs as list rows; a click opens the job), the open points (one per portal and problem, a
   failed fetch, each with its action) only when there are any, and at the end the overview
-  file, the Excel file and the folder, their one place in the Jobs view. "Nothing new" is
+  file, the Excel file and the folder, their one place in the Jobs view, and the best
+  matches as one prompt for any AI chat. "Nothing new" is
   said by the list and the run card, not here. The time of the last fetch is said once, in
   the sidebar. The portals keep the one order of the app (the settings').
 -->
@@ -21,6 +22,7 @@
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
+  import { copyTopPrompt } from './prompt';
   import { run } from '$lib/state/run.svelte';
 
   // The one order of the portals (the backend's, as in the settings).
@@ -214,6 +216,18 @@
 
   {#if fetchedOnce}
     <div class="files" data-testid="overview-files">
+      {#if app.hasProfile}
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="copy"
+          label={de.overview.promptTop}
+          disabled={best.length === 0}
+          disabledReason={de.overview.promptTopNone}
+          testid="prompt-top"
+          onclick={() => void copyTopPrompt().then((error) => (actionError = error))}
+        />
+      {/if}
       <Button
         variant="ghost"
         size="sm"
