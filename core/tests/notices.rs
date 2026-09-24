@@ -1,8 +1,8 @@
-//! `src-tauri/resources/THIRD-PARTY.txt` muss zu den Abhängigkeiten passen. MIT und
-//! Apache-2.0 verlangen, dass der Urheberhinweis bei der Weitergabe mitgeht – eine veraltete
-//! Liste wäre schlimmer als keine, weil sie Vollständigkeit vortäuscht.
+//! `src-tauri/resources/THIRD-PARTY.txt` must match the dependencies. MIT and
+//! Apache-2.0 require the copyright notice to travel along on redistribution - a stale
+//! list would be worse than none, because it fakes completeness.
 //!
-//! Erzeugt wird die Datei mit `node tools/third-party.mjs`.
+//! The file is generated with `node tools/third-party.mjs`.
 
 use std::path::Path;
 
@@ -17,14 +17,14 @@ fn read(relative: &str) -> String {
     .unwrap_or_else(|e| panic!("{relative}: {e}"))
 }
 
-/// Die Namen der Abhängigkeiten aus dem `[dependencies]`-Abschnitt einer Cargo.toml.
+/// The names of the dependencies from the `[dependencies]` section of a Cargo.toml.
 fn direct_dependencies(manifest: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut inside = false;
     for line in manifest.lines() {
         let line = line.trim();
         if line.starts_with('[') {
-            // Test-Abhängigkeiten landen nicht im Programm und brauchen keinen Hinweis.
+            // Test dependencies don't end up in the program and need no notice.
             inside = line.contains("dependencies") && !line.contains("dev-dependencies");
             continue;
         }
@@ -57,17 +57,17 @@ fn every_dependency_is_listed() {
     for manifest in ["core/Cargo.toml", "src-tauri/Cargo.toml"] {
         for name in direct_dependencies(&read(manifest)) {
             if name == "jobalert-core" {
-                continue; // eigener Code
+                continue; // our own code
             }
             if !notices.contains(&format!("\n{name} ")) {
-                missing.push(format!("{name} (aus {manifest})"));
+                missing.push(format!("{name} (from {manifest})"));
             }
         }
     }
     assert!(
         missing.is_empty(),
-        "Diese Abhängigkeiten fehlen in {NOTICES}: {}\n\
-         Neu erzeugen mit: node tools/third-party.mjs",
+        "These dependencies are missing from {NOTICES}: {}\n\
+         Regenerate with: node tools/third-party.mjs",
         missing.join(", ")
     );
 }
@@ -92,13 +92,13 @@ fn every_npm_runtime_package_is_listed() {
     );
 }
 
-/// Ein leerer oder abgeschnittener Hinweis wäre schlimmer als keiner.
+/// An empty or truncated notice would be worse than none.
 #[test]
 fn the_notice_file_is_complete() {
     let notices = read(NOTICES);
     assert!(
         notices.len() > 100_000,
-        "{NOTICES} ist nur {} Bytes groß – abgeschnitten?",
+        "{NOTICES} is only {} bytes - truncated?",
         notices.len()
     );
     for marker in [
@@ -109,13 +109,16 @@ fn the_notice_file_is_complete() {
         "Apache License",
         "SIL OPEN FONT LICENSE",
     ] {
-        assert!(notices.contains(marker), "„{marker}“ fehlt in {NOTICES}");
+        assert!(
+            notices.contains(marker),
+            "\"{marker}\" missing from {NOTICES}"
+        );
     }
-    // Die Schrift wird getrennt gehalten, der Verweis darauf muss stimmen.
+    // The font is kept separate, so the reference to it must be correct.
     assert!(
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../ui/src/assets/fonts/Inter-LICENSE.txt")
             .exists(),
-        "Die Lizenz der mitgelieferten Schrift fehlt"
+        "the licence of the bundled font is missing"
     );
 }

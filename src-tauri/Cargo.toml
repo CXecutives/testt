@@ -1,6 +1,6 @@
 [package]
 name = "job-alert-monitor"
-description = "Job-Alert-Monitor – Tauri-Oberfläche"
+description = "Job-Alert-Monitor - Tauri interface"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -5,18 +5,18 @@ resolver = "3"
 [workspace.package]
 version = "3.0.0"
 edition = "2024"
-# let-Ketten (`if let … && let …`) gibt es ab Rust 1.88.
+# let-chains (`if let … && let …`) exist from Rust 1.88.
 rust-version = "1.88"
 publish = false
 
 [workspace.lints.rust]
-# core verbietet unsafe per `#![forbid]`; die App-Schicht braucht genau eine
-# begründete Stelle (WebView2-Einstellungen), die sie ausdrücklich freigibt.
+# core forbids unsafe via `#![forbid]`; the app layer needs exactly one justified
+# spot (WebView2 settings) that it explicitly allows.
 unsafe_code = "deny"
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-# Für eine Anwendung (keine Bibliothek) ohne Nutzen:
+# No use for an application (not a library):
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
@@ -27,8 +27,8 @@ lto = true
 codegen-units = 1
 opt-level = "s"
 strip = true
-# Bewusst kein panic = "abort": Eine Panik in einem Hintergrund-Task darf die App nicht beenden.
+# Deliberately no panic = "abort": a panic in a background task must not end the app.
 
 [profile.dev.package."*"]
-# Abhängigkeiten (SQLite, Regex, HTML-Parser) auch im Debug-Build zügig.
+# Dependencies (SQLite, regex, HTML parser) stay fast in the debug build too.
 opt-level = 2

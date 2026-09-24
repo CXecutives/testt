@@ -1,7 +1,7 @@
-# Einheitlich LF im Repo, unabhängig von core.autocrlf.
+# Uniform LF in the repo, regardless of core.autocrlf.
 * text=auto eol=lf
 
-# Binärdateien nie umwandeln
+# Never convert binary files
 *.ico binary
 *.png binary
 *.eml -text
