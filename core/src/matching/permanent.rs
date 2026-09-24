@@ -5,8 +5,9 @@
 //!
 //! Salary: EUR per year, the upper bound counts (`110.000 bis 130.000 €` -> 130,000),
 //! `ab 100.000` is only a lower bound, monthly or foreign amounts are checks.
-//! Region: a profile place in the location field or a location line (`Standort: Frankfurt
-//! oder München`) is inside; a stated remote share of at least the minimum (`80 % remote`,
+//! Region: a profile place in the location field or a location line
+//! (`Standort: Frankfurt oder München`) is inside; a stated remote share of at least the
+//! minimum (`80 % remote`,
 //! `fully remote`) accepts any place; hybrid wording or office days are no proof; a
 //! location that names only the country is unclear.
 

@@ -73,7 +73,7 @@ fn normalize(text: &str) -> String {
     cleaned.join("\n")
 }
 
-/// Python `descriptions.write_job_text` (LinkedIn, Köln, fixed company).
+/// Python `descriptions.write_job_text` (LinkedIn, the city Köln and a fixed company).
 fn write_job(folder: &Path, job_id: &str, title: &str, text: &str) {
     let content = format!(
         "Titel: {title}\nUnternehmen: Firma GmbH\nOrt: Köln\nQuelle: LinkedIn\n\

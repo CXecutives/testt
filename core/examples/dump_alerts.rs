@@ -1,14 +1,14 @@
-//! Alert-Mails als lokale Testdaten sichern (vom Nutzer selbst auszuführen – fragt
-//! Gmail-Adresse und App-Passwort ab):
+//! Save alert mails as local test data (run by the user; asks for the Gmail address and the
+//! app password):
 //!
 //! ```text
 //! cargo run -p jobalert-core --example dump_alerts
 //! ```
 //!
-//! Liest nur (wie die App) alle Treffer der App-Suche der letzten 30 Tage und legt jede
-//! Mail unverändert als `core/tests/fixtures/private/mails/<Gmail-ID>.eml` ab – auch die,
-//! die die App nicht als Alert erkennt (für den Vergleich mit dem Altprogramm). Der Ordner
-//! ist von Git ausgeschlossen. Gedruckt werden nur Zahlen je Portal.
+//! Read-only (like the app): takes every hit of the app's search of the last 30 days and
+//! stores each mail unchanged as `core/tests/fixtures/private/mails/<Gmail-ID>.eml` - also
+//! those the app does not recognise as an alert (to compare with the old program). The
+//! folder is excluded from Git. Only counts per portal are printed.
 use std::collections::BTreeMap;
 use std::io::Write as _;
 use std::path::Path;
@@ -22,13 +22,13 @@ use tokio_util::sync::CancellationToken;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     jobalert_core::install_crypto();
-    print!("Gmail-Adresse: ");
+    print!("Gmail address: ");
     std::io::stdout().flush()?;
     let mut user = String::new();
     std::io::stdin().read_line(&mut user)?;
     let credentials = Credentials::new(
         &user,
-        &rpassword::prompt_password("App-Passwort (Eingabe unsichtbar): ")?,
+        &rpassword::prompt_password("App password (input hidden): ")?,
     );
     let mut gmail = Gmail::connect(&credentials, CancellationToken::new()).await?;
     drop(credentials);
@@ -58,9 +58,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     gmail.close().await;
-    println!("Treffer der Suche: {}", uids.len());
+    println!("Search hits: {}", uids.len());
     for (portal, (mails, postings)) in &per_portal {
-        println!("{portal}: {mails} Alert-Mails, {postings} Einträge");
+        println!("{portal}: {mails} alert mails, {postings} postings");
     }
     println!("keine Alerts: {other}, unlesbar: {defective}");
     println!("{saved} Mails gespeichert in {}", dir.display());

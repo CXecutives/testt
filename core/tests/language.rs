@@ -34,22 +34,14 @@ const ALLOWLIST_PATHS: &[&str] = &[
 /// `docs/PLAN.md` phase 4: matching and the UI). TODO(integrator): once both tracks have
 /// landed their English sweep, delete this list (and its use below) so the full repo is
 /// covered by `ALLOWLIST_PATHS` and the default deny-German rule alone.
-const PENDING_PATHS: &[&str] = &[
-    "ui/",
-    "core/src/matching/",
-    "core/tests/matching_corpus.rs",
-    "core/tests/matching_legacy.rs",
-    "core/tests/common/",
-    "core/tests/ui_contract.rs",
-    "tools/ui-harness/",
-];
+const PENDING_PATHS: &[&str] = &[];
 
 /// Not owned by another track, but outside the phase-4 English-sweep file list too (the
 /// task scope was `core/src/**`, `src-tauri/**`, `core/tests/**`, `tools/**` minus their
 /// exceptions - `core/examples/` was not covered by any granted glob). TODO: translate and
 /// remove once someone is scoped to touch it; flagged for follow-up rather than silently
 /// left out or edited outside the granted scope.
-const OUT_OF_SCOPE_PATHS: &[&str] = &["core/examples/"];
+const OUT_OF_SCOPE_PATHS: &[&str] = &[];
 
 /// Individual `path:line` false positives: a comment that is already English but quotes a
 /// real German example (a place name, a mail field label, a job title) to explain what the
@@ -111,20 +103,64 @@ const GERMAN_WORDS: &[&str] = &[
 ];
 
 fn looks_german(text: &str) -> bool {
-    if text.chars().any(|c| "äöüÄÖÜß".contains(c)) {
+    // Quoted examples (`code`, „...", "...") are data, not prose: drop them first.
+    let mut cleaned = String::new();
+    let mut quote: Option<char> = None;
+    for c in text.chars() {
+        match (quote, c) {
+            (None, '`' | '„' | '"' | '“') => quote = Some(if c == '„' { '“' } else { c }),
+            (Some(q), _) if c == q || (q == '“' && c == '"') => quote = None,
+            (Some(_), _) => {}
+            (None, _) => cleaned.push(c),
+        }
+    }
+    let words = whole_words(&cleaned);
+    if GERMAN_WORDS.iter().any(|w| words.contains(w)) {
         return true;
     }
-    // Normalise punctuation to spaces and pad the ends, so a word at the very start/end of
-    // the comment or next to a comma/period still matches as a whole word.
+    // A German term with umlauts inside an English sentence ("ANÜ named and not negated")
+    // is a quoted name; German prose has no English function words around it.
+    cleaned.chars().any(|c| "äöüÄÖÜß".contains(c))
+        && !ENGLISH_WORDS.iter().any(|w| words.contains(w))
+}
+
+/// English function words that mark a comment as English prose.
+const ENGLISH_WORDS: &[&str] = &[
+    " the ",
+    " a ",
+    " an ",
+    " of ",
+    " and ",
+    " or ",
+    " is ",
+    " to ",
+    " in ",
+    " with ",
+    " for ",
+    " not ",
+    " only ",
+    " as ",
+    " by ",
+    " from ",
+    " then ",
+    " without ",
+    " value ",
+    " meaning ",
+    " at ",
+    " on ",
+];
+
+/// Lower-cased words separated and padded by single spaces (punctuation becomes a space).
+fn whole_words(text: &str) -> String {
     let normalised: String = text
         .to_lowercase()
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { ' ' })
         .collect();
-    let padded = format!(" {normalised} ");
-    let squeezed = padded.split_whitespace().collect::<Vec<_>>().join(" ");
-    let squeezed = format!(" {squeezed} ");
-    GERMAN_WORDS.iter().any(|w| squeezed.contains(w))
+    format!(
+        " {} ",
+        normalised.split_whitespace().collect::<Vec<_>>().join(" ")
+    )
 }
 
 fn tracked_files() -> Vec<String> {
@@ -193,6 +229,11 @@ fn detector_catches_german_and_leaves_english_alone() {
     assert!(!looks_german("Consistent assistants list artists")); // "ist" as a substring
     assert!(!looks_german("Forward the request, keep it moving"));
     assert!(!looks_german(""));
+    assert!(!looks_german(
+        "ANÜ named and not negated anywhere in the text."
+    ));
+    assert!(!looks_german("Case-folded (`Übersicht` -> `ubersicht`)."));
+    assert!(looks_german("Grünwerk Übersicht Köln"));
 
     assert_eq!(comment_text("core/src/lib.rs", "// hello"), Some(" hello"));
     assert_eq!(
