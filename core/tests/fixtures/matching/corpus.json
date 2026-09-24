@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "note": "Expectations for the synthetic corpus, fixed before any engine work (track 1d). Judged like a careful recruiter with the job-matching skill rubric. band = expected score range 0-100 (width <= 30; the effective score of an unscorable or absent job is 0). status = scored | excluded | unscorable. violations = decided hard-criterion violations (anue, country, dayRate, availability). checks = codes the engine should raise instead of deciding. mustOpen = case-insensitive substrings of must requirements that must NOT count as met.",
+  "profiles": {
+    "fin": "sample_profile.json",
+    "it": "sample_profile_it.json"
+  },
+  "violationCodes": ["anue", "country", "dayRate", "availability"],
+  "checkCodes": ["anueOptional", "anueHidden", "countryUnclear", "dayRateCurrency", "startVague", "permanent", "formalOpen", "lowEvidence", "shortText"],
+  "jobs": [
+    {
+      "id": "K01", "portal": "linkedin", "location": "Köln (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "All four musts (Controlling, IFRS group accounting, S/4HANA, project management) and the Power BI nice-to-have are core skills; 1,200 EUR/day, remote from DE."},
+        "it": {"band": [15, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "Only S/4HANA and project management fit; the controller core of the role is missing."}
+      }
+    },
+    {
+      "id": "K02", "portal": "linkedin", "location": "Berlin (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [25, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Salesforce", "Tableau", "Python"],
+          "why": "Controlling and project management fit; three named tools (Salesforce, Tableau, Python) are missing."},
+        "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Salesforce", "Tableau", "Python"],
+          "why": "Product controlling role; only generic project management overlaps."}
+      }
+    },
+    {
+      "id": "K03", "portal": "freelancermap", "location": "Mainzer Landstraße 12, 60311 Frankfurt am Main", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "excluded", "violations": ["anue"], "checks": [], "mustOpen": [],
+          "why": "ANÜ is named as the contract type and is not negated; the domain fit itself is full."},
+        "it": {"band": [10, 40], "status": "excluded", "violations": ["anue"], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "Same explicit ANÜ; only S/4HANA fits."}
+      }
+    },
+    {
+      "id": "K04", "portal": "freelancermap", "location": "Königsallee 4, 40213 Düsseldorf", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "ANÜ is explicitly negated ('ausdrücklich nicht im Rahmen der Arbeitnehmerüberlassung'); full domain fit."},
+        "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "Explicitly no ANÜ; only S/4HANA fits."}
+      }
+    },
+    {
+      "id": "K05", "portal": "freelance", "location": "D-70173 Stuttgart", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "ANÜ is only one of two offered contract forms; Controlling, project management and SAP FI/CO fit."},
+        "it": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": ["Controlling", "SAP FI/CO"],
+          "why": "Only project management fits; FI/CO is not the module of an SD/MM project lead."}
+      }
+    },
+    {
+      "id": "K06", "portal": "freelancermap", "location": "Ballindamm 7, 20095 Hamburg", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["anueHidden"], "mustOpen": [],
+          "why": "Payrolling under iGZ/BAP with equal pay is ANÜ in substance but not named; Controlling, PM, budgeting and forecast fit."},
+        "it": {"band": [5, 30], "status": "scored", "violations": [], "checks": ["anueHidden"], "mustOpen": ["Controlling", "Budgetierung"],
+          "why": "Hidden ANÜ; only project management fits."}
+      }
+    },
+    {
+      "id": "K07", "portal": "freelance", "location": "D-80333 München", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Rate 900 - 1,100 EUR/day: the upper bound reaches the 1,000 EUR minimum, so no exclusion; full domain fit."},
+        "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "Upper bound 1,100 >= 950; only S/4HANA fits."}
+      }
+    },
+    {
+      "id": "K08", "portal": "freelance", "location": "D-90402 Nürnberg", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "95 EUR/hour x 8 = 760 EUR/day, clearly below 1,000; the domain fit is full."},
+        "it": {"band": [10, 40], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": ["Controlling", "Budgetierung"],
+          "why": "760 EUR/day below 950; only project management fits."}
+      }
+    },
+    {
+      "id": "K09", "portal": "freelancermap", "location": "Bahnhofstraße 9, 04109 Leipzig", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "750 EUR/day below 1,000; Controlling, consolidation and PM fit."},
+        "it": {"band": [5, 35], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": ["Controlling", "Konsolidierung"],
+          "why": "750 below 950; only project management fits."}
+      }
+    },
+    {
+      "id": "K10", "portal": "freelancermap", "location": "Aleje Jerozolimskie 1, Warschau", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "excluded", "violations": ["country"], "checks": [], "mustOpen": [],
+          "why": "On-site in Warsaw, Poland, not remote; PL is outside DE/AT/CH. Domain fit is full."},
+        "it": {"band": [10, 40], "status": "excluded", "violations": ["country"], "checks": [], "mustOpen": ["Controlling", "Changemanagement"],
+          "why": "On-site in Poland; only project management fits."}
+      }
+    },
+    {
+      "id": "K11", "portal": "linkedin", "location": "Remote (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "The USA is only the client's headquarters; work is 100 % remote from Germany; all three musts fit."},
+        "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "The US mention is not a work country (remote from DE); only PM fits."}
+      }
+    },
+    {
+      "id": "K12", "portal": "linkedin", "location": "Frankfurt am Main (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [45, 75], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Niveau C1"],
+          "why": "Controlling fits, but the profile states English B2 while C1 is required."},
+        "it": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling"],
+          "why": "English C1 fits; the controlling core of the role is missing."}
+      }
+    },
+    {
+      "id": "K13", "portal": "linkedin", "location": "Stuttgart (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [55, 80], "status": "scored", "violations": [], "checks": [], "mustOpen": ["15 Jahre Erfahrung in der Konsolidierung"],
+          "why": "Controlling (18 >= 10 years) and PM fit; consolidation has 11 of the required 15 years."},
+        "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konsolidierung"],
+          "why": "Only project management fits."}
+      }
+    },
+    {
+      "id": "K14", "portal": "freelance", "location": "D-45127 Essen", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [50, 80], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "No explicit requirements; the described environment (S/4HANA, Power BI, consolidation, LucaNet) matches well but evidence is thin."},
+        "it": {"band": [20, 50], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Only S/4HANA from the described environment fits; no explicit requirements."}
+      }
+    },
+    {
+      "id": "K15", "portal": "freelance", "location": "D-24103 Kiel", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "No description beyond ID, place and start."},
+        "it": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "No description beyond ID, place and start."}
+      }
+    },
+    {
+      "id": "K16", "portal": "freelance", "location": "D-70173 Stuttgart", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Carve-out projects, post merger integration and change management are core skills ('Carve-out-Projekten' must match 'Carve-out'); LucaNet nice-to-have fits."},
+        "it": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Carve-out", "Post Merger Integration", "Changemanagement"],
+          "why": "No transaction or change management background."}
+      }
+    },
+    {
+      "id": "K17", "portal": "linkedin", "location": "Dortmund (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [65, 85], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Oracle Hyperion"],
+          "why": "Controlling, IFRS, S/4HANA and Power BI fit ('Ihre Qualifikation' is a must heading); Oracle Hyperion is not in the profile."},
+        "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "IFRS", "Oracle Hyperion"],
+          "why": "Only S/4HANA fits."}
+      }
+    },
+    {
+      "id": "K18", "portal": "freelancermap", "location": "Georgstraße 3, 30159 Hannover", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Budgeting, forecast, liquidity planning, S/4HANA and Power BI are all profile skills."},
+        "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Budgetierung", "Liquiditätsplanung", "Power BI"],
+          "why": "Only S/4HANA fits."}
+      }
+    },
+    {
+      "id": "K19", "portal": "freelancermap", "location": "Unter Sachsenhausen 8, 50667 Köln", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "'LucaNet oder IBM Cognos', 'S/4HANA bzw. SAP ECC' and 'Power BI / Tableau' are alternatives; one option of each is in the profile."},
+        "it": {"band": [20, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["LucaNet", "Power BI"],
+          "why": "S/4HANA/ECC fits; the consolidation tool and BI tool alternatives are missing."}
+      }
+    },
+    {
+      "id": "K20", "portal": "linkedin", "location": "München (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Consolidation tools 'z. B. LucaNet', reporting tools 'u. a. Power BI' and controlling incl. budgeting are covered; examples must not become separate musts."},
+        "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": ["LucaNet", "Controlling"],
+          "why": "Nothing of the finance tool stack fits."}
+      }
+    },
+    {
+      "id": "K21", "portal": "freelance", "location": "D-28195 Bremen", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [75, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "'Finanztransformation', 'Restrukturierungsumfeld' and 'SAP-S/4HANA-Projekten' are compounds of profile skills (Business Transformation, Restrukturierung, SAP S/4HANA)."},
+        "it": {"band": [20, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Finanztransformation", "Restrukturierungsumfeld"],
+          "why": "Only S/4HANA projects fit."}
+      }
+    },
+    {
+      "id": "K22", "portal": "freelancermap", "location": "Seestraße 14, 78462 Konstanz", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Month-end and year-end closings, consolidation and restructuring are core skills in inflected forms."},
+        "it": {"band": [0, 20], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Monatsabschlüssen", "Konsolidierung", "Restrukturierungen"],
+          "why": "No finance closing background."}
+      }
+    },
+    {
+      "id": "K23", "portal": "linkedin", "location": "Zürich (Schweiz)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Großkonzern (Swiss spelling in the title), IFRS closings and process optimisation in finance fit; Switzerland allowed and work is remote from DE."},
+        "it": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": ["IFRS", "Prozessoptimierung im Finanzbereich"],
+          "why": "No accounting background; work is remote from DE, so the Swiss seat is no violation."}
+      }
+    },
+    {
+      "id": "K24", "portal": "linkedin", "location": "Hamburg (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [70, 90], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Controlling, IFRS group accounting, S/4HANA and German fit (English wording must map to German skills); English B2 against 'fluent'; Power BI nice-to-have fits."},
+        "it": {"band": [25, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["controlling", "IFRS"],
+          "why": "S/4HANA and both languages fit; the finance core is missing."}
+      }
+    },
+    {
+      "id": "K25", "portal": "freelance", "location": "D-50667 Köln", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [65, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "PM and group consolidation ('Konzernkonsolidierung' compound) fit; 'Management' is generic but covered by interim management."},
+        "it": {"band": [45, 75], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Konzernkonsolidierung"],
+          "why": "PM and management fit; consolidation is missing."}
+      }
+    },
+    {
+      "id": "K26", "portal": "linkedin", "location": "München (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [70, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Both hard musts fit; the other lines are soft skills, travel and availability that must not weigh like hard skills."},
+        "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "Hard musts missing; soft skills cannot rescue the fit."}
+      }
+    },
+    {
+      "id": "K27", "portal": "freelancermap", "location": "Königstraße 22, 90402 Nürnberg", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Requirement sentences ('Vorausgesetzt werden ...') name Controlling and IFRS; the PM certification nice-to-have fits (GPM)."},
+        "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "Only the PM certification nice-to-have fits (PMP)."}
+      }
+    },
+    {
+      "id": "K28", "portal": "freelance", "location": "D-04109 Leipzig", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "A start in January 2027 is later than immediate availability, which is no violation; full domain fit."},
+        "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konsolidierung"],
+          "why": "Start after 01.11.2026 is fine; only PM fits."}
+      }
+    },
+    {
+      "id": "K29", "portal": "freelancermap", "location": "Kärntner Ring 5, 1010 Wien", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Austria allowed, 60 % remote; Controlling, consolidation and S/4HANA fit; a vague start is harmless with immediate availability."},
+        "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["startVague"], "mustOpen": ["Controlling", "Konsolidierung"],
+          "why": "AT allowed; 'Start: nach Abstimmung' cannot be checked against availability from 01.11.2026; only S/4HANA fits."}
+      }
+    },
+    {
+      "id": "K30", "portal": "freelancermap", "location": "Bahnhofstrasse 30, 8001 Zürich", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": ["dayRateCurrency"], "mustOpen": [],
+          "why": "CHF 950/day cannot be compared with the EUR minimum without conversion; Switzerland allowed; full domain fit."},
+        "it": {"band": [5, 35], "status": "excluded", "violations": ["country"], "checks": ["dayRateCurrency"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "On-site in Zürich; CH is outside DE/AT; only PM fits."}
+      }
+    },
+    {
+      "id": "K31", "portal": "linkedin", "location": "Hamburg, Hamburg, Germany (Hybrid)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [75, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "English ad: S/4HANA finance projects, controlling and month-end closing, project management and German fit; English B2 vs fluent; LucaNet and a comparable certification (GPM) fit."},
+        "it": {"band": [45, 75], "status": "scored", "violations": [], "checks": [], "mustOpen": ["controlling and month-end closing"],
+          "why": "S/4HANA migration leadership, PM, languages and PMP fit; the finance/controlling background is missing."}
+      }
+    },
+    {
+      "id": "K32", "portal": "freelance", "location": "D-20095 Hamburg", "mailDate": "2026-09-16", "kind": "teaser", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Teaser only: S/4HANA rollout project lead; the finance profile knows S/4HANA but not rollout leadership."},
+        "it": {"band": [50, 80], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "The teaser matches the profile exactly (S/4HANA rollout project lead) but states almost no requirements."}
+      }
+    },
+    {
+      "id": "K33", "portal": "linkedin", "location": "Bielefeld (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [70, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent position with salary (check only, no day-rate rule); degree, group controlling leadership, IFRS/HGB and S/4HANA fit."},
+        "it": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": ["Konzerncontrolling", "IFRS"],
+          "why": "Permanent position; only S/4HANA and a business degree fit."}
+      }
+    },
+    {
+      "id": "K34", "portal": "freelancermap", "location": "Karlsplatz 5, 80333 München", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": "K07",
+      "expect": {
+        "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Same project as K07 on another portal; must score like K07 (upper bound 1,100 reaches the minimum)."},
+        "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "Same as K07."}
+      }
+    },
+    {
+      "id": "K35", "portal": "freelancermap", "location": "Oskar-von-Miller-Ring 3, 80333 München", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [5, 35], "status": "excluded", "violations": ["dayRate"], "checks": ["anueOptional"], "mustOpen": ["SAP MM", "Datenmigration", "Testmanagement"],
+          "why": "980 EUR/day below 1,000; an SAP MM role outside the finance profile; ANÜ only offered as an option."},
+        "it": {"band": [85, 100], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "SAP MM, data migration, test management and German fit; 980 >= 950; ANÜ only optional ('direkt oder über einen Personaldienstleister ... Überlassung')."}
+      }
+    },
+    {
+      "id": "K36", "portal": "freelance", "location": "D-01067 Dresden", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [55, 85], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Only nice-to-haves; year-end closing under HGB and LucaNet fit, DATEV does not; nice-to-haves must not turn into musts."},
+        "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Only nice-to-haves and none fits."}
+      }
+    },
+    {
+      "id": "K37", "portal": "linkedin", "location": "Bremen (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["SAP EWM"],
+          "why": "Project lead of SAP implementations and SAP EWM are outside the finance profile; soft skills do not decide."},
+        "it": {"band": [70, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Project lead of SAP implementations and SAP EWM fit; seven soft-skill lines must not drag the score down."}
+      }
+    },
+    {
+      "id": "K38", "portal": "freelance", "location": "D-60311 Frankfurt am Main", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Title only; 'Interim CFO' looks relevant but there is no text to assess."},
+        "it": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Title only."}
+      }
+    },
+    {
+      "id": "K39", "portal": "freelancermap", "location": "Am Sandtorkai 2, 20457 Hamburg", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [65, 90], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": [],
+          "why": "Degree, transformation leadership, controlling/IFRS, change management and German fit; S/4HANA overall lead only partly; ANÜ explicitly excluded by the client; travel to PL/CZ sites while based in Hamburg."},
+        "it": {"band": [45, 75], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": ["Controlling und Konzernrechnungslegung"],
+          "why": "Degree (Wirtschaftsinformatik named), programme lead, S/4HANA, stakeholders and languages fit; finance core missing; PL/CZ travel unclear for DE/AT."}
+      }
+    },
+    {
+      "id": "K40", "portal": "freelance", "location": "Remote", "mailDate": "2026-09-16", "kind": "full",
+      "facts": {"location": "Remote", "remotePercent": 100, "start": "sofort", "contract": "Freiberuflich", "rate": "1.000 € pro Tag"},
+      "duplicateOf": null,
+      "expect": {
+        "fin": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["SAP SD", "Order-to-Cash"],
+          "why": "Only S/4HANA and (B2) English partly fit; Switzerland is allowed, so the remote/on-site conflict does not matter."},
+        "it": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": [],
+          "why": "SAP SD, order-to-cash, S/4HANA and English fit; facts say 100 % remote while the text says mostly on-site in Basel (CH): a check, not a decided exclusion."}
+      }
+    }
+  ]
+}
