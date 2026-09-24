@@ -1,28 +1,38 @@
 <!--
-  The button of the app: primary | secondary | ghost | danger × sm | md | lg. Flat like a
-  native button: hover and press change colour only (100 ms), no lift, no glow, no bounce.
+  The button of the app: primary | secondary | ghost | danger | link × sm | md | lg. Native
+  in feel, rich on contact: hover-in changes colour in 80 ms and relaxes in 150 ms, the
+  icon nudges toward what it does (external link up-right, download down, refresh a
+  quarter turn, the star grows), a press scales the button a little for 60 ms (0.97, icon
+  only 0.94) and it settles back in 150 ms. No lift, no glow, no bounce.
   - Trailing actions inside a row are sm, action bars are md.
   - At most one primary per view (checked by core/tests/ui_contract.rs).
   - iconOnly needs its label: it becomes aria-label and tooltip.
-  - Disabled buttons stay hoverable (aria-disabled) so the tooltip can say why.
-  - Loading keeps the width: the content stays in place, invisible, under the spinner.
+  - Disabled buttons stay hoverable (aria-disabled) so the tooltip can say why; they do
+    not react otherwise.
+  - Loading keeps the width: the content fades out under the spinner.
+  - A ghost toggle (the pin star) pops once when it is switched on by a click.
+  - turned: the glyph stands half a turn (the sort order); it turns in 180 ms.
+  - link: navy text that underlines on hover (a way on, e.g. under a field).
   - inField: a button inside a text field (show password, clear search), like the native
     ones: not in the Tab order, and a click leaves the caret in the field.
+  The icon sits on its own HTML wrapper: transforms on SVG children run on the main thread.
 -->
 <script lang="ts" module>
-  export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+  export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'link';
   export type ButtonSize = 'sm' | 'md' | 'lg';
   export const BUTTON_VARIANTS: readonly ButtonVariant[] = [
     'primary',
     'secondary',
     'ghost',
     'danger',
+    'link',
   ];
   export const BUTTON_SIZES: readonly ButtonSize[] = ['sm', 'md', 'lg'];
 </script>
 
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
+  import { fade, pulseOnce } from '$lib/motion/transitions';
   import Icon, { type IconName, type IconSize } from './Icon.svelte';
   import Spinner from './Spinner.svelte';
 
@@ -39,6 +49,10 @@
     type?: 'button' | 'submit';
     /** Toggle buttons (e.g. the pin star). */
     pressed?: boolean | null;
+    /** The glyph stands half a turn (the sort toggle: newest first). */
+    turned?: boolean;
+    /** Opens something outside the app (a link shows the hand then). */
+    external?: boolean;
     /** Fill the width of the container. */
     wide?: boolean;
     /** Sits inside a text field: skipped by Tab, a click keeps the focus in the field. */
@@ -58,6 +72,8 @@
     disabledReason = null,
     type = 'button',
     pressed = null,
+    turned = false,
+    external = false,
     wide = false,
     inField = false,
     testid = null,
@@ -70,12 +86,17 @@
   const inactive = $derived(disabled || loading);
   const hint = $derived(disabled && disabledReason ? disabledReason : iconOnly ? label : null);
 
+  let glyph = $state<HTMLElement | null>(null);
+
   function handle(event: MouseEvent): void {
     if (inactive) {
       event.preventDefault();
       return;
     }
+    // A ghost toggle that a click switches on pops once (the star when pinning).
+    const switchesOn = variant === 'ghost' && pressed === false;
     onclick?.(event);
+    if (switchesOn && glyph !== null) pulseOnce(glyph);
   }
 </script>
 
@@ -85,6 +106,9 @@
   class:icon-only={iconOnly}
   class:wide={wide && !iconOnly}
   class:loading
+  class:turned
+  class:external
+  class:warns={variant === 'ghost' && icon === 'trash-2'}
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
@@ -97,18 +121,20 @@
 >
   <span class="content">
     {#if icon}
-      <Icon
-        name={icon}
-        size={iconOnly ? ICON_ONLY_SIZE[size] : ICON_SIZE[size]}
-        filled={pressed === true}
-      />
+      <span class="glyph" data-icon={icon} bind:this={glyph}>
+        <Icon
+          name={icon}
+          size={iconOnly ? ICON_ONLY_SIZE[size] : ICON_SIZE[size]}
+          filled={pressed === true}
+        />
+      </span>
     {/if}
     {#if !iconOnly}
       <span class="label">{label}</span>
     {/if}
   </span>
   {#if loading}
-    <span class="busy"><Spinner size="sm" label={null} /></span>
+    <span class="busy" in:fade><Spinner size="sm" label={null} /></span>
   {/if}
 </button>
 
@@ -129,16 +155,25 @@
     font: var(--btn-type);
     font-weight: var(--weight-medium);
     white-space: nowrap;
+    --btn-press: var(--scale-press);
+
     transition:
-      background-color var(--dur-fast) var(--ease-standard),
-      border-color var(--dur-fast) var(--ease-standard),
-      color var(--dur-fast) var(--ease-standard);
+      background-color var(--dur-base) var(--ease-standard),
+      border-color var(--dur-base) var(--ease-standard),
+      color var(--dur-base) var(--ease-standard),
+      transform var(--dur-base) var(--ease-emphasized);
   }
 
   .content {
     display: inline-flex;
     align-items: center;
     gap: var(--btn-gap);
+    transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+
+  .glyph {
+    display: inline-flex;
+    transition: transform var(--dur-base) var(--ease-emphasized);
   }
 
   .busy {
@@ -153,17 +188,56 @@
     opacity: 0;
   }
 
+  /* Hover-in in 80 ms; the release of a press keeps its 150 ms (the last duration). */
   .btn:not([aria-disabled='true'], .loading):hover {
     border-color: var(--btn-border-hover);
     background-color: var(--btn-bg-hover);
     color: var(--btn-fg-hover);
+    transition-duration: var(--dur-hover), var(--dur-hover), var(--dur-hover), var(--dur-base);
   }
 
   /* Pressed: only while the left button is down (input.ts keeps the others from pressing). */
   .btn:not([aria-disabled='true'], .loading):active {
     border-color: var(--btn-border-active);
     background-color: var(--btn-bg-active);
+    transform: scale(var(--btn-press));
     transition-duration: var(--dur-instant);
+  }
+
+  /* The glyph nudges toward what the button does; it holds while pressed. */
+  .btn:not([aria-disabled='true'], .loading, .turned):hover .glyph {
+    transition-duration: var(--dur-hover);
+  }
+
+  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='external-link'] {
+    transform: translate(var(--move-xs), calc(-1 * var(--move-xs)));
+  }
+
+  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='chevron-left'] {
+    transform: translateX(calc(-1 * var(--move-sm)));
+  }
+
+  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='download'] {
+    transform: translateY(var(--move-xs));
+  }
+
+  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='file-up'],
+  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='mail'] {
+    transform: translateY(calc(-1 * var(--move-xs)));
+  }
+
+  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='refresh-cw'] {
+    transform: rotate(var(--turn-nudge));
+  }
+
+  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='star'] {
+    transform: scale(var(--scale-nudge));
+  }
+
+  /* A state, not a nudge: half a turn in 180 ms (the angle stays under reduced motion). */
+  .turned .glyph {
+    transform: rotate(var(--turn-half));
+    transition-duration: var(--dur-slow);
   }
 
   .btn:focus-visible {
@@ -189,7 +263,7 @@
     --btn-border-active: var(--primary-active);
     --btn-fg: var(--text-on-accent);
     --btn-fg-hover: var(--text-on-accent);
-    --btn-shadow: var(--sh-xs);
+    --btn-shadow: var(--sh-primary);
   }
 
   .secondary {
@@ -204,11 +278,16 @@
     --btn-shadow: var(--sh-xs);
   }
 
-  /* A secondary toggle that is on (a filter chip): the ink edge on a muted surface. */
+  /* A secondary toggle that is on (a filter chip): the navy trio of a chosen filter. */
   .secondary[aria-pressed='true'] {
-    --btn-bg: var(--surface-muted);
-    --btn-border: var(--text);
-    --btn-border-hover: var(--text);
+    --btn-bg: var(--active-surface);
+    --btn-bg-hover: var(--active-surface);
+    --btn-bg-active: var(--active-surface);
+    --btn-border: var(--active-edge);
+    --btn-border-hover: var(--active-edge);
+    --btn-border-active: var(--active-edge);
+    --btn-fg: var(--active-text);
+    --btn-fg-hover: var(--active-text);
   }
 
   .ghost {
@@ -221,6 +300,11 @@
     --btn-fg: var(--text-muted);
     --btn-fg-hover: var(--text);
     --btn-shadow: none;
+  }
+
+  /* Removing something: a quiet warning on hover, before the dialog asks. */
+  .ghost.warns {
+    --btn-fg-hover: var(--danger-strong);
   }
 
   .ghost[aria-pressed='true'] {
@@ -237,7 +321,58 @@
     --btn-border-active: var(--danger-active);
     --btn-fg: var(--text-on-accent);
     --btn-fg-hover: var(--text-on-accent);
-    --btn-shadow: var(--sh-xs);
+    --btn-shadow: var(--sh-primary);
+  }
+
+  /* Navy text, no box; it underlines on hover and dims while pressed (it is text). */
+  .btn.link {
+    --btn-bg: transparent;
+    --btn-bg-hover: transparent;
+    --btn-bg-active: transparent;
+    --btn-border: transparent;
+    --btn-border-hover: transparent;
+    --btn-border-active: transparent;
+    --btn-fg: var(--link);
+    --btn-fg-hover: var(--link-hover);
+    --btn-shadow: none;
+    --btn-height: var(--control-sm);
+    --btn-pad: 0;
+    --btn-press: 1;
+
+    transition:
+      color var(--dur-base) var(--ease-standard),
+      opacity var(--dur-base) var(--ease-standard);
+  }
+
+  .link .label {
+    position: relative;
+  }
+
+  .link .label::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: var(--border-width);
+    background-color: currentcolor;
+    content: '';
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--dur-base) var(--ease-emphasized);
+  }
+
+  .link:not([aria-disabled='true'], .loading):hover .label::after {
+    transform: scaleX(1);
+    transition-duration: var(--dur-hover);
+  }
+
+  .link:not([aria-disabled='true'], .loading):active {
+    opacity: var(--opacity-press);
+    transition-duration: var(--dur-instant);
+  }
+
+  .link.external {
+    cursor: pointer;
   }
 
   /* --------------------------------------------------------------- sizes */
@@ -263,6 +398,8 @@
   }
 
   .icon-only {
+    --btn-press: var(--scale-press-icon);
+
     width: var(--btn-height);
     padding: 0;
   }

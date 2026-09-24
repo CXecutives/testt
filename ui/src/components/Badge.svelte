@@ -1,11 +1,13 @@
-<!-- A short status word in a pill (12/600). -->
+<!-- A short status word in a pill (12/500). Static: a badge never reacts to the pointer
+     (a hint shows as a tooltip). navy: a data chip (a competence, a chosen value). -->
 <script lang="ts" module>
   import type { IconName } from './Icon.svelte';
 
-  export type BadgeTone = 'neutral' | 'coral' | 'success' | 'warning' | 'danger' | 'info';
+  export type BadgeTone = 'neutral' | 'coral' | 'navy' | 'success' | 'warning' | 'danger' | 'info';
   export const BADGE_TONES: readonly BadgeTone[] = [
     'neutral',
     'coral',
+    'navy',
     'success',
     'warning',
     'danger',
@@ -56,6 +58,11 @@
   .coral {
     --badge-bg: var(--accent-soft);
     --badge-fg: var(--accent-text);
+  }
+
+  .navy {
+    --badge-bg: var(--active-surface);
+    --badge-fg: var(--active-text);
   }
 
   .success {

@@ -293,6 +293,8 @@
   --tooltip-gap: 8px;
   --viewport-gap: 8px;
   --badge-height: 18px;
+  /* The narrowest count pill: 4 and 12 weigh the same. */
+  --count-min: 20px;
   /* Monogram tile of a portal in the run card: one width, so the names line up. */
   --monogram-width: 20px;
   /* Width of an intro sentence (first run). */
@@ -433,6 +435,9 @@
   --z-tooltip: 120;
   --opacity-disabled: 0.5;
   --opacity-muted: 0.6;
+  /* A muted (excluded) row under the pointer, and a link while it is pressed. */
+  --opacity-muted-hover: 0.8;
+  --opacity-press: 0.7;
 }
 
 /* Reduced motion, switched by lib/motion/motion.ts (Svelte and WAAPI ignore the media query,

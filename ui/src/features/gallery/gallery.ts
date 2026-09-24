@@ -100,6 +100,8 @@ export const text = {
     statHigh: 'Hohe Passung',
     statIssues: 'Offene Punkte',
     statHint: 'Seit dem letzten Abruf',
+    countMore: 'Einer mehr',
+    countLess: 'Einer weniger',
     notices: 'Hinweise',
     noticeHeading: 'Portal pausiert',
     noticeText: 'freelance.de meldet zu viele Anfragen und ist bis 14:30 pausiert.',
