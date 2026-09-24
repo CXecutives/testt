@@ -1,12 +1,15 @@
 // The one place that decides which OS the UI runs on, and the only place that knows how the
 // two differ. Inside the window both are the same app; what differs does so by the
 // convention of the OS (docs/PLAN.md, "Platforms"):
-//   - the window frame is the native one of the OS (nothing of it is drawn here),
+//   - the window frame is the native one of the OS (nothing of it is drawn here); on macOS
+//     its title bar is transparent over the page (unified toolbar row, base.css) and the
+//     page marks the empty parts of that row as drag regions (`dragBands()`),
 //   - dialog buttons: Windows puts the primary first, macOS last (right),
 //   - scrollbars: slim styled ones on Windows, the native overlay scrollbars on macOS
 //     (base.css keys them off `:root[data-platform]`, like the font smoothing),
 //   - words that name OS things (Explorer / Finder, the password store).
-// Components ask here (`primaryFirst()`, `platform()`), never compare OS names themselves.
+// Components ask here (`dragBands()`, `primaryFirst()`, `platform()`), never compare OS names
+// themselves.
 
 export type Platform = 'windows' | 'macos';
 
@@ -31,6 +34,15 @@ export function applyPlatform(): Platform {
 export function platform(): Platform {
   const value = document.documentElement.dataset.platform;
   return isPlatform(value) ? value : 'windows';
+}
+
+/**
+ * The page keeps the toolbar row free and marks its empty parts as drag regions (macOS: the
+ * title bar is transparent over the page and WKWebView has no app-region). Windows has its
+ * native title bar above the page.
+ */
+export function dragBands(): boolean {
+  return platform() === 'macos';
 }
 
 /** Dialog buttons: the primary action comes first on Windows, last (right) on macOS. */

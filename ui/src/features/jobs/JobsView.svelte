@@ -7,11 +7,13 @@
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
+  import DragBand from '$components/DragBand.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import { de } from '$lib/i18n/de';
   import { app } from '$lib/state/app.svelte';
   import { fade, rise } from '$lib/motion/transitions';
+  import { dragBands } from '$lib/platform';
   import { jobs, keyOf } from '$lib/state/jobs.svelte';
   import { shell } from '$lib/state/shell.svelte';
   import DayOverview from './DayOverview.svelte';
@@ -46,6 +48,7 @@
       </div>
     </aside>
     <section class="right" bind:this={pane} data-testid="reader-pane">
+      {#if dragBands()}<DragBand sheet />{/if}
       <div class="column">
         {#if jobs.selected !== null}
           <div class="back">

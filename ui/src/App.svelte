@@ -2,15 +2,19 @@
   The shell below the native title bar of the OS: the sidebar and the white sheet with the
   three views. A view switch is quick: the old view leaves at once and the new one fades in
   rising 4 px (150 ms). On start the app shows useful content at once: the first-run page
-  while nothing was ever fetched, otherwise the Jobs view with the last results.
+  while nothing was ever fetched, otherwise the Jobs view with the last results. Closing
+  while a fetch runs keeps the window until the run has stopped; a calm note says so.
 -->
 <script lang="ts">
+  import DragBand from '$components/DragBand.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Spinner from '$components/Spinner.svelte';
   import Toast from '$components/Toast.svelte';
   import Tooltip from '$components/Tooltip.svelte';
   import { de } from '$lib/i18n/de';
-  import { viewIn } from '$lib/motion/transitions';
+  import { onClosing } from '$lib/ipc/api';
+  import { fade, viewIn } from '$lib/motion/transitions';
+  import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -28,6 +32,10 @@
   void app.load().then((state) => run.attach(state?.running ?? null));
 
   const firstRun = $derived(shell.firstRun);
+  /** macOS: the views keep the toolbar row free (the Jobs view uses it for its list row). */
+  const band = dragBands();
+  let closing = $state(false);
+  $effect(() => onClosing(() => (closing = true)));
 </script>
 
 <div class="shell" data-testid="shell">
@@ -51,6 +59,7 @@
       {:else if navigation.current === 'jobs'}
         {#if firstRun}
           <section class="view" data-testid="view-first-run" in:viewIn>
+            {#if band}<DragBand sheet />{/if}
             <FirstRunView />
           </section>
         {:else}
@@ -60,14 +69,21 @@
         {/if}
       {:else if navigation.current === 'profile'}
         <section class="view" data-testid="view-profile" in:viewIn>
+          {#if band}<DragBand sheet />{/if}
           <ProfileView />
         </section>
       {:else}
         <section class="view" data-testid="view-settings" in:viewIn>
+          {#if band}<DragBand sheet />{/if}
           <SettingsView />
         </section>
       {/if}
     </main>
+    {#if closing}
+      <div class="closing" data-testid="closing" role="status" transition:fade>
+        <p class="closing-note"><Spinner size="sm" label={null} />{de.shell.closing}</p>
+      </div>
+    {/if}
   </div>
   <Toast />
   <Tooltip />
@@ -82,9 +98,33 @@
   }
 
   .body {
+    position: relative;
     display: flex;
     flex: 1;
     min-height: 0;
+  }
+
+  /* Closing during a fetch: the window waits until the run has stopped. */
+  .closing {
+    position: absolute;
+    z-index: var(--z-overlay);
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--scrim);
+  }
+
+  .closing-note {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--space-16) var(--space-20);
+    border-radius: var(--radius-dialog);
+    background-color: var(--surface);
+    box-shadow: var(--sh-pop);
+    color: var(--text);
+    font: var(--type-md);
   }
 
   /* One white sheet for every view: the sidebar stays on the cream, the sheet's hairline and
@@ -95,9 +135,9 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    border-top: var(--border-width) solid var(--border);
+    border-top: var(--sheet-top-edge) solid var(--border);
     border-left: var(--border-width) solid var(--border);
-    border-top-left-radius: var(--radius-card);
+    border-top-left-radius: var(--sheet-corner);
     background-color: var(--surface);
   }
 
