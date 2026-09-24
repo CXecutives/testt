@@ -190,7 +190,10 @@ function sample(
     match: null,
     alsoOn: [],
     appStatus: null,
-    hidden: false,
+    statusAt: null,
+    followUpOn: null,
+    archived: false,
+    overridden: false,
     ...extra,
   };
 }
@@ -218,6 +221,7 @@ export function sampleJobs(now: Date): JobView[] {
       {
         unread: true,
         pinned: true,
+        appStatus: 'saved',
         match: scored(91, 'Interim-Management im Mittelstand'),
         alsoOn: ['linkedin'],
       },

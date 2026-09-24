@@ -20,9 +20,9 @@ use crate::pipeline::{
 };
 use crate::portal::{JobKey, Portal};
 use crate::view::{
-    AppState, ClearedTxt, DetailState, EmptyAlert, Evidence, Highlight, JobCounts, JobDetail,
-    JobFacet, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel, Mailbox,
-    MatchDetail, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
+    AppState, ClearedTxt, Deleted, DetailState, EmptyAlert, Evidence, Highlight, JobCounts,
+    JobDetail, JobFacet, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel,
+    Mailbox, MatchDetail, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
     ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileDraft, ProfileForm,
     ProfileInfo, ProfileLanguage, ProfileQuality, ProfileSave, ProfileUnderstanding, ProfileWishes,
     Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary, Risk, SettingsPatch,
@@ -184,6 +184,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<AppState>();
     f.add::<OpenTarget>();
     f.add::<ClearedTxt>();
+    f.add::<Deleted>();
     f.add::<RunRequest>();
     f.add::<RunKind>();
     f.add::<RunKindName>();

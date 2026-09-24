@@ -36,7 +36,7 @@ use crate::portal::{FetchPath, JobKey, Portal};
 use crate::store::{JobFilter, JobRow, Store};
 use crate::text::truncate_chars;
 use crate::time;
-use crate::view::{EmptyAlert, JobView, MAX_SUBJECT_CHARS};
+use crate::view::{Deleted, EmptyAlert, JobView, MAX_SUBJECT_CHARS};
 pub use local::LocalMatcher;
 pub use score::Matcher;
 use score::Tally;
@@ -111,6 +111,9 @@ pub struct RunContext {
     /// Of those, the portals read in the session window (sign-in switched on); the others
     /// go as a guest. A run never opens a session window for any other portal.
     pub sign_in: Vec<Portal>,
+    /// Jobs without a stage archive themselves this many days after they were first seen,
+    /// at the end of the run; 0 = never (settings).
+    pub auto_archive_days: u32,
 }
 
 impl RunContext {
@@ -630,6 +633,7 @@ pub async fn run<B: Backends>(
             Err(e) => log::warn!("run {run}: new jobs not counted: {e}"),
         }
     }
+    auto_archive(store, run, ctx.auto_archive_days, clock());
 
     summary.finished_at = clock();
     if !ctx.dry_run {
@@ -682,6 +686,22 @@ fn score_step(
     let pending = store.match_pending(matcher.rev()).unwrap_or(0);
     summary.score = Some(tally.summary(usize::try_from(pending).unwrap_or(0)));
     log::info!("run {run}: score {:?}", summary.score);
+}
+
+/// Old jobs without a stage archive themselves (`days` after they were first seen; 0 =
+/// never). A failure only goes to the log: the run's results stand without it.
+fn auto_archive(store: &Store, run: i64, days: u32, now: Timestamp) {
+    if days == 0 {
+        return;
+    }
+    let before = now
+        .checked_sub(jiff::SignedDuration::from_hours(24 * i64::from(days)))
+        .unwrap_or(Timestamp::UNIX_EPOCH);
+    match store.auto_archive(before, now) {
+        Ok(0) => {}
+        Ok(n) => log::info!("run {run}: {n} old jobs archived"),
+        Err(e) => log::warn!("run {run}: old jobs not archived: {e}"),
+    }
 }
 
 fn failed(error: ErrorInfo) -> Outcome {
@@ -1037,15 +1057,42 @@ pub fn write_top_matches(
     now: Timestamp,
 ) {
     let path = workspace.join(RESULT_DIR).join(export::TOP_MATCHES_NAME);
-    let written = last_scan_run(store)
-        .and_then(|run| export::top_matches(store, matcher, run, now))
-        .and_then(|top| {
-            let json = serde_json::to_vec_pretty(&top).unwrap_or_default();
-            export::write_atomic(&path, &json)
-        });
+    let written = export::top_matches(store, matcher, now).and_then(|top| {
+        let json = serde_json::to_vec_pretty(&top).unwrap_or_default();
+        export::write_atomic(&path, &json)
+    });
     if let Err(e) = written {
         log::warn!("{} not written: {e}", export::TOP_MATCHES_NAME);
     }
+}
+
+/// Deletes jobs for good (see [`Store::delete_jobs`]): their text files go and the overview
+/// is written again without them. Without a workspace (the dry run) nothing on disk changes.
+pub fn delete_jobs(
+    store: &Store,
+    workspace: Option<&Path>,
+    matcher: Option<&dyn Matcher>,
+    keys: &[JobKey],
+    now: Timestamp,
+) -> crate::Result<Deleted> {
+    let (count, names) = store.delete_jobs(keys, now)?;
+    let mut deleted = Deleted {
+        count: u32::try_from(count).unwrap_or(u32::MAX),
+        export_error: None,
+    };
+    let Some(workspace) = workspace.filter(|_| count > 0) else {
+        return Ok(deleted);
+    };
+    let (_, failed) = export::clear_txt_files(&workspace.join(RESULT_DIR), &names);
+    if !failed.is_empty() {
+        log::warn!("delete: {} text files not removed (open)", failed.len());
+    }
+    let info = info_rows(store, last_fetch_at(store).unwrap_or(now));
+    let run = last_scan_run(store).unwrap_or(0);
+    let exported = export_all(store, workspace, &info, run, now);
+    write_top_matches(store, workspace, matcher, now);
+    deleted.export_error = exported.error;
+    Ok(deleted)
 }
 
 /// "Rewrite text files" (e.g. after a change of folder): all jobs with a full text, the

@@ -8,11 +8,11 @@ use std::fmt::Write as _;
 
 use rusqlite::Connection;
 
-use super::marks::SCHEMA_4_JOB_COLUMNS;
+use super::marks::{SCHEMA_4_JOB_COLUMNS, SCHEMA_5_EXTRA, SCHEMA_5_JOB_COLUMNS};
 use super::matches::SCHEMA_3_JOB_COLUMNS;
 use crate::error::{Error, Result};
 
-pub(super) const SCHEMA_VERSION: i64 = 4;
+pub(super) const SCHEMA_VERSION: i64 = 5;
 
 /// Schema 2, the base of every fresh database. Frozen: later changes are migration steps.
 /// The same layout lies in `core/tests/fixtures/schema_v2.sql` for the migration tests.
@@ -101,12 +101,26 @@ fn migrate_3_to_4() -> String {
     sql
 }
 
+/// From schema 4 to 5: follow-up day and "fits anyway", "hidden" becomes "archived", a
+/// pinned job becomes "saved" (the first stage; `pinned_at` stays unused) and deleted jobs
+/// leave a tombstone.
+fn migrate_4_to_5() -> String {
+    let mut sql = String::new();
+    for (name, sql_type) in SCHEMA_5_JOB_COLUMNS {
+        let _ = writeln!(sql, "ALTER TABLE job ADD COLUMN {name} {sql_type};");
+    }
+    sql.push_str(SCHEMA_5_EXTRA);
+    sql.push('\n');
+    sql
+}
+
 /// One step per version: `steps()[v - 1]` leads from `v` to `v + 1`.
 fn steps() -> Vec<String> {
     vec![
         MIGRATE_1_TO_2.to_string(),
         migrate_2_to_3(),
         migrate_3_to_4(),
+        migrate_4_to_5(),
     ]
 }
 
@@ -154,6 +168,8 @@ mod tests {
     const FIXTURE_V2: &str = include_str!("../../tests/fixtures/schema_v2.sql");
     /// The frozen schema 3 - the database before the user's marks.
     const FIXTURE_V3: &str = include_str!("../../tests/fixtures/schema_v3.sql");
+    /// The frozen schema 4 - the database before stages, archive and deleted jobs.
+    const FIXTURE_V4: &str = include_str!("../../tests/fixtures/schema_v4.sql");
 
     fn columns(conn: &Connection, table: &str) -> Vec<(String, String, bool)> {
         let mut stmt = conn
@@ -206,6 +222,81 @@ mod tests {
         assert_eq!(indexes(&fixture), indexes(&code));
     }
 
+    /// The frozen schema 4 is what the chain made of schema 3.
+    #[test]
+    fn the_fixture_is_schema_4() {
+        let fixture = Connection::open_in_memory().unwrap();
+        fixture.execute_batch(FIXTURE_V4).unwrap();
+        let code = Connection::open_in_memory().unwrap();
+        code.execute_batch(&format!(
+            "{SCHEMA_2}{}{}",
+            migrate_2_to_3(),
+            migrate_3_to_4()
+        ))
+        .unwrap();
+        for table in ["job", "alert_mail", "kv"] {
+            assert_eq!(columns(&fixture, table), columns(&code, table), "{table}");
+        }
+        assert_eq!(indexes(&fixture), indexes(&code));
+    }
+
+    /// Schema 4 with data: "hidden" is "archived", a pinned job without a status is saved, an
+    /// application stays one, and deleted jobs can leave their tombstone.
+    #[test]
+    fn a_schema_4_database_is_migrated_and_keeps_its_marks() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("jobs.db");
+        let old = Connection::open(&path).unwrap();
+        old.execute_batch(&format!(
+            "{FIXTURE_V4}
+             INSERT INTO job (portal, job_id, url, title, company, location, mail_subject,
+                              first_seen_at, first_seen_run, last_seen_run, search,
+                              pinned_at, app_status, app_status_at, note, hidden_at)
+             VALUES ('linkedin', '4000000001', 'https://www.linkedin.com/jobs/view/4000000001/',
+                     'A', '', '', 'x', 100, 1, 1, 'a', 160, NULL, NULL, 'Notiz', 170),
+                    ('linkedin', '4000000002', 'https://www.linkedin.com/jobs/view/4000000002/',
+                     'B', '', '', 'x', 100, 1, 1, 'b', 160, 'applied', 180, NULL, NULL);
+             PRAGMA user_version = 4;"
+        ))
+        .unwrap();
+        drop(old);
+        let store = Store::open(&path).unwrap();
+        assert_eq!(version(&store.conn()), SCHEMA_VERSION);
+        let key = |id: &str| {
+            crate::portal::job_link(&format!("https://www.linkedin.com/jobs/view/{id}/"))
+                .unwrap()
+                .key
+        };
+        let a = store.job(&key("4000000001")).unwrap().unwrap();
+        assert_eq!(
+            (a.app_status, a.app_status_at, a.archived_at),
+            (
+                Some(crate::model::AppStatus::Saved),
+                crate::time::from_db(160),
+                crate::time::from_db(170)
+            )
+        );
+        assert_eq!(a.note.as_deref(), Some("Notiz"));
+        assert!(!a.override_include);
+        let b = store.job(&key("4000000002")).unwrap().unwrap();
+        assert_eq!(
+            (b.app_status, b.app_status_at, b.archived_at),
+            (
+                Some(crate::model::AppStatus::Applied),
+                crate::time::from_db(180),
+                None
+            )
+        );
+        assert_eq!(
+            store
+                .delete_jobs(std::slice::from_ref(&a.key), now())
+                .unwrap()
+                .0,
+            1
+        );
+        assert!(store.is_deleted(&a.key).unwrap());
+    }
+
     /// Schema 3 with data: the jobs, their scores and marks stay as they were; the new
     /// columns start empty.
     #[test]
@@ -234,11 +325,16 @@ mod tests {
         let job = store.job(&key).unwrap().unwrap();
         assert_eq!(job.title, "Interim CFO");
         assert_eq!(job.match_.map(|m| m.score), Some(84));
-        assert!(job.read_at.is_some() && job.pinned_at.is_some());
+        assert!(job.read_at.is_some());
+        // The pinned job is saved now, since it was pinned.
         assert_eq!(
-            (job.app_status, job.app_status_at, job.hidden_at),
-            (None, None, None)
+            (job.app_status, job.app_status_at),
+            (
+                Some(crate::model::AppStatus::Saved),
+                crate::time::from_db(160)
+            )
         );
+        assert_eq!((job.follow_up_on, job.archived_at), (None, None));
         assert_eq!(store.note(&key).unwrap(), None);
         // The new marks work on the migrated database.
         assert!(
@@ -247,7 +343,7 @@ mod tests {
                 .unwrap()
         );
         assert!(store.set_note(&key, "Termin am Freitag").unwrap());
-        assert!(store.set_hidden(&key, true, now()).unwrap());
+        assert!(store.set_archived(&key, true, now()).unwrap());
     }
 
     #[test]
@@ -366,7 +462,7 @@ mod tests {
         drop(old);
         let migrated = Store::open(&path).unwrap();
         let fresh = Store::in_memory().unwrap();
-        for table in ["job", "alert_mail", "kv"] {
+        for table in ["job", "alert_mail", "kv", "tombstone"] {
             assert_eq!(
                 columns(&migrated.conn(), table),
                 columns(&fresh.conn(), table),
@@ -374,26 +470,43 @@ mod tests {
             );
         }
         assert_eq!(indexes(&migrated.conn()), indexes(&fresh.conn()));
+        assert_eq!(
+            columns(&fresh.conn(), "tombstone").len(),
+            3,
+            "deleted jobs are remembered"
+        );
         let names: Vec<String> = columns(&fresh.conn(), "job")
             .into_iter()
             .map(|(name, ..)| name)
             .collect();
-        for (column, _) in SCHEMA_3_JOB_COLUMNS.iter().chain(SCHEMA_4_JOB_COLUMNS) {
+        // `hidden_at` is `archived_at` since schema 5.
+        for (column, _) in SCHEMA_3_JOB_COLUMNS
+            .iter()
+            .chain(SCHEMA_4_JOB_COLUMNS)
+            .chain(SCHEMA_5_JOB_COLUMNS)
+        {
+            let column = if *column == "hidden_at" {
+                "archived_at"
+            } else {
+                column
+            };
             assert!(names.iter().any(|n| n == column), "{column}");
         }
-        // The same from the frozen schema 3.
-        let path = dir.path().join("v3.db");
-        let old = Connection::open(&path).unwrap();
-        old.execute_batch(&format!("{FIXTURE_V3} PRAGMA user_version = 3;"))
-            .unwrap();
-        drop(old);
-        let migrated = Store::open(&path).unwrap();
-        for table in ["job", "alert_mail", "kv"] {
-            assert_eq!(
-                columns(&migrated.conn(), table),
-                columns(&fresh.conn(), table),
-                "{table} from schema 3"
-            );
+        // The same from the frozen schemas 3 and 4.
+        for (version, fixture) in [(3, FIXTURE_V3), (4, FIXTURE_V4)] {
+            let path = dir.path().join(format!("v{version}.db"));
+            let old = Connection::open(&path).unwrap();
+            old.execute_batch(&format!("{fixture} PRAGMA user_version = {version};"))
+                .unwrap();
+            drop(old);
+            let migrated = Store::open(&path).unwrap();
+            for table in ["job", "alert_mail", "kv", "tombstone"] {
+                assert_eq!(
+                    columns(&migrated.conn(), table),
+                    columns(&fresh.conn(), table),
+                    "{table} from schema {version}"
+                );
+            }
         }
     }
 

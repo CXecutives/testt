@@ -150,6 +150,7 @@ pub struct JobView {
     pub mail_date: Option<Timestamp>,
     pub first_seen_at: Timestamp,
     pub unread: bool,
+    /// Saved ("Gemerkt", the star): the stage `saved`.
     pub pinned: bool,
     pub detail: DetailState,
     /// The full text is short (verified, but under 100 characters).
@@ -159,10 +160,18 @@ pub struct JobView {
     pub match_: Option<JobMatch>,
     /// The same job was also announced by these portals.
     pub also_on: Vec<Portal>,
-    /// Where the user's application stands (`null` = no application).
+    /// The stage in the user's pipeline (`null` = none; `saved` is the star).
     pub app_status: Option<AppStatus>,
-    /// The user hid the job ("not interesting").
-    pub hidden: bool,
+    /// When the stage was set last.
+    pub status_at: Option<Timestamp>,
+    /// The day to follow up (while applied or in talks).
+    #[cfg_attr(test, ts(type = "string | null"))]
+    pub follow_up_on: Option<jiff::civil::Date>,
+    /// The job is archived (by the user or by age).
+    pub archived: bool,
+    /// The user marked the job as fitting although the engine excludes it ("Trotzdem
+    /// passend"): it counts as scored with its fit score, its note is `userOverride`.
+    pub overridden: bool,
 }
 
 impl From<&JobRow> for JobView {
@@ -178,13 +187,26 @@ impl From<&JobRow> for JobView {
             mail_date: job.mail_date,
             first_seen_at: job.first_seen_at,
             unread: job.read_at.is_none(),
-            pinned: job.pinned_at.is_some(),
+            pinned: job.app_status == Some(AppStatus::Saved),
             detail: DetailState::of(job),
             short: job.desc_status == DescStatus::Ok && job.desc_short,
-            match_: job.match_.as_ref().map(JobMatch::from),
+            match_: job.match_.as_ref().map(|record| {
+                let mut shown = JobMatch::from(record);
+                if job.override_include {
+                    shown.status = MatchStatus::Scored;
+                    shown.note = Some(Notice {
+                        code: crate::store::marks::USER_OVERRIDE.to_owned(),
+                        params: serde_json::Map::new(),
+                    });
+                }
+                shown
+            }),
             also_on: Vec::new(),
             app_status: job.app_status,
-            hidden: job.hidden_at.is_some(),
+            status_at: job.app_status_at,
+            follow_up_on: job.follow_up_on,
+            archived: job.archived_at.is_some(),
+            overridden: job.override_include,
         }
     }
 }
@@ -398,8 +420,6 @@ pub struct JobDetail {
     pub match_: Option<MatchDetail>,
     /// The user's note (`null` = none).
     pub note: Option<String>,
-    /// When the application status was set last.
-    pub app_status_at: Option<Timestamp>,
 }
 
 /// Most reasons in the reader.
@@ -454,12 +474,18 @@ pub fn job_detail(
                 job.match_rev = Some(matcher.rev().to_owned());
                 now
             };
-            Some(match_detail(&assessment, matcher, at))
+            let mut detail = match_detail(&assessment, matcher, at);
+            if job.override_include {
+                overridden(&mut detail);
+                if let Some(record) = job.match_.as_mut() {
+                    record.status = MatchStatus::Scored;
+                }
+            }
+            Some(detail)
         }
     };
     Ok(Some(JobDetail {
         note: store.note(key)?,
-        app_status_at: job.app_status_at,
         text,
         url: job.url.to_string(),
         fetched_at: job.desc_fetched_at,
@@ -472,6 +498,32 @@ pub fn job_detail(
             .pop()
             .unwrap_or_else(|| JobView::from(&job)),
     }))
+}
+
+/// The reader of a job the user marked as fitting anyway: it counts as scored, its summary
+/// is `userOverride`, and a reason with that code comes first (the engine's violations stay
+/// listed: the user sees what the engine found).
+fn overridden(detail: &mut MatchDetail) {
+    let code = crate::store::marks::USER_OVERRIDE;
+    detail.status = MatchStatus::Scored;
+    detail.summary = Some(Notice {
+        code: code.to_owned(),
+        params: serde_json::Map::new(),
+    });
+    detail.reasons.insert(
+        0,
+        Reason {
+            id: code.to_owned(),
+            kind: ReasonKind::Met,
+            weight: ReasonWeight::Info,
+            code: code.to_owned(),
+            label: String::new(),
+            evidence: None,
+            params: serde_json::Map::new(),
+            ranges: Vec::new(),
+        },
+    );
+    detail.reasons.truncate(MAX_REASONS);
 }
 
 /// The reader's explanation of an assessment: at most [`MAX_REASONS`] reasons (violations,
@@ -648,13 +700,16 @@ pub fn job_views(store: &Store, rows: &[JobRow]) -> crate::Result<Vec<JobView>> 
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub enum JobFacet {
-    /// Unread (the excluded ones last, uncounted).
+    /// Unread of the last 14 days (the excluded ones last, uncounted).
     New,
     All,
-    /// With an application status, the latest change first.
+    /// Saved (the star), the latest saved first.
+    Saved,
+    /// In an application stage: a due follow-up first, then the latest change, the rejected
+    /// ones last.
     Applications,
-    /// Hidden ("not interesting"), the latest hidden first; in no other list or count.
-    Hidden,
+    /// Archived, the latest archived first; in no other list or count.
+    Archived,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -693,12 +748,12 @@ pub struct JobCounts {
     pub high: u32,
     /// Without a full text.
     pub no_detail: u32,
-    /// Pinned ("Merken").
-    pub pinned: u32,
-    /// With an application status.
+    /// Saved ("Gemerkt", the star).
+    pub saved: u32,
+    /// In an application stage (applied, interview, offer, rejected).
     pub applications: u32,
-    /// Hidden - the only count a hidden job is in.
-    pub hidden: u32,
+    /// Archived - the only count an archived job is in.
+    pub archived: u32,
     /// `new` per portal: every portal, in the order of `Portal::ALL`.
     pub new_by_portal: Vec<PortalNew>,
 }
@@ -722,15 +777,17 @@ pub struct JobPage {
 }
 
 /// List and counts from one store query. "New" lists the unread jobs, the excluded ones last;
-/// its count leaves the excluded ones out. A hidden job is only in "Hidden".
+/// its count leaves the excluded ones out. An archived job is only in "Archived".
 pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
     let (rows, counts) = store.job_page(&PageQuery {
         facet: match query.facet {
             JobFacet::New => ListFacet::New,
             JobFacet::All => ListFacet::All,
+            JobFacet::Saved => ListFacet::Saved,
             JobFacet::Applications => ListFacet::Applications,
-            JobFacet::Hidden => ListFacet::Hidden,
+            JobFacet::Archived => ListFacet::Archived,
         },
+        new_since: crate::store::new_since(Timestamp::now()),
         by_match: query.sort == JobSort::Match,
         search: query.search.clone(),
         limit: query.limit.min(MAX_PAGE),
@@ -744,9 +801,9 @@ pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
             excluded: counts.excluded,
             high: counts.high,
             no_detail: counts.no_detail,
-            pinned: counts.pinned,
+            saved: counts.saved,
             applications: counts.applications,
-            hidden: counts.hidden,
+            archived: counts.archived,
             new_by_portal: counts
                 .new_by_portal
                 .into_iter()
@@ -832,6 +889,8 @@ pub struct SettingsView {
 pub struct SettingsPatch {
     pub portals: Vec<PortalPatch>,
     pub auto_fetch_on_start: Option<bool>,
+    /// Days after which old jobs archive themselves; 0 = never (`null` = unchanged).
+    pub auto_archive_days: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -860,6 +919,9 @@ impl SettingsPatch {
         }
         if let Some(on) = self.auto_fetch_on_start {
             settings.auto_fetch_on_start = on;
+        }
+        if let Some(days) = self.auto_archive_days {
+            settings.auto_archive_days = days;
         }
     }
 }
@@ -1171,6 +1233,8 @@ pub struct AppState {
     pub profile: Option<ProfileInfo>,
     pub portals: Vec<PortalState>,
     pub auto_fetch_on_start: bool,
+    /// Days after which old jobs without a stage archive themselves; 0 = never.
+    pub auto_archive_days: u32,
     /// The last fetch (fetch or whole mailbox) - a rescore or a details run is none.
     pub last_run: Option<RunSummary>,
     pub counts: JobCounts,
@@ -1214,6 +1278,18 @@ pub enum OpenTarget {
     Excel,
     Overview,
     LogDir,
+}
+
+/// Result of a permanent delete of jobs.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct Deleted {
+    /// Jobs deleted (with the duplicates that stood for them).
+    pub count: u32,
+    /// The overview could not be written again (e.g. open in Excel); `params.target` names
+    /// what failed. The jobs are deleted anyway.
+    pub export_error: Option<ErrorInfo>,
 }
 
 /// Result of "delete text files".
@@ -1387,9 +1463,9 @@ mod tests {
             excluded: 1,
             high: 1,
             no_detail: 3,
-            pinned: 0,
+            saved: 0,
             applications: 0,
-            hidden: 0,
+            archived: 0,
             new_by_portal: vec![
                 PortalNew {
                     portal: Portal::LinkedIn,
@@ -1436,11 +1512,11 @@ mod tests {
         assert_eq!((found.jobs.len(), found.counts.all), (1, 1));
     }
 
-    /// Applications and hidden jobs: a hidden job leaves "New" and "All" and every count but
-    /// "hidden"; "applications" lists the jobs with a status, the latest change first. List
+    /// Applications and archived jobs: an archived job leaves "New" and "All" and every count but
+    /// "archived"; "applications" lists the jobs with a status, the latest change first. List
     /// and counts still agree for every facet.
     #[test]
-    fn applications_and_hidden_jobs_have_their_own_lists() {
+    fn applications_and_archived_jobs_have_their_own_lists() {
         let store = four_jobs();
         let key = |i: u8| {
             job_link(&format!("https://www.linkedin.com/jobs/view/400000000{i}/"))
@@ -1449,7 +1525,7 @@ mod tests {
         };
         let at = Timestamp::now();
         let later = at + jiff::SignedDuration::from_mins(5);
-        // B (high, unread) applied, D (unscored, unread) in talks later, C (excluded) hidden.
+        // B (high, unread) applied, D (unscored, unread) in talks later, C (excluded) archived.
         store
             .set_app_status(&key(2), Some(AppStatus::Applied), at)
             .unwrap();
@@ -1457,7 +1533,7 @@ mod tests {
             .set_app_status(&key(4), Some(AppStatus::Interview), later)
             .unwrap();
         store.set_pinned(&key(3), true, at).unwrap();
-        store.set_hidden(&key(3), true, at).unwrap();
+        store.set_archived(&key(3), true, at).unwrap();
         let page = |facet| {
             job_page(
                 &store,
@@ -1472,14 +1548,14 @@ mod tests {
             .unwrap()
         };
         let all = page(JobFacet::All);
-        assert_eq!(titles(&all), ["B", "A", "D"], "the hidden job is gone");
+        assert_eq!(titles(&all), ["B", "A", "D"], "the archived job is gone");
         let counts = &all.counts;
         assert_eq!(
-            (counts.all, counts.new, counts.excluded, counts.pinned),
+            (counts.all, counts.new, counts.excluded, counts.saved),
             (3, 2, 0, 0),
-            "hidden in no count but its own"
+            "archived in no count but its own"
         );
-        assert_eq!((counts.applications, counts.hidden), (2, 1));
+        assert_eq!((counts.applications, counts.archived), (2, 1));
         assert_eq!(titles(&page(JobFacet::New)), ["B", "D"]);
         let applications = page(JobFacet::Applications);
         assert_eq!(titles(&applications), ["D", "B"], "latest change first");
@@ -1488,25 +1564,25 @@ mod tests {
             applications.counts, all.counts,
             "the counts ignore the facet"
         );
-        let hidden = page(JobFacet::Hidden);
-        assert_eq!(titles(&hidden), ["C"]);
-        assert!(hidden.jobs[0].hidden);
+        let archived = page(JobFacet::Archived);
+        assert_eq!(titles(&archived), ["C"]);
+        assert!(archived.jobs[0].archived);
         // The facet lists exactly as many jobs as its count says.
         assert_eq!(u32::try_from(all.jobs.len()).unwrap(), counts.all);
         assert_eq!(
             u32::try_from(applications.jobs.len()).unwrap(),
             counts.applications
         );
-        assert_eq!(u32::try_from(hidden.jobs.len()).unwrap(), counts.hidden);
-        // An application that is hidden is in "hidden" only.
-        store.set_hidden(&key(2), true, later).unwrap();
+        assert_eq!(u32::try_from(archived.jobs.len()).unwrap(), counts.archived);
+        // An archived application is in "archived" only.
+        store.set_archived(&key(2), true, later).unwrap();
         let after = page(JobFacet::Applications);
         assert_eq!(titles(&after), ["D"]);
-        assert_eq!((after.counts.applications, after.counts.hidden), (1, 2));
+        assert_eq!((after.counts.applications, after.counts.archived), (1, 2));
         assert_eq!(
-            titles(&page(JobFacet::Hidden)),
+            titles(&page(JobFacet::Archived)),
             ["B", "C"],
-            "latest hidden first"
+            "latest archived first"
         );
     }
 
@@ -1525,11 +1601,11 @@ mod tests {
         store.set_note(&key, "Zusage per Mail").unwrap();
         let detail = job_detail(&store, &key, None, false, at).unwrap().unwrap();
         assert_eq!(detail.note.as_deref(), Some("Zusage per Mail"));
-        assert_eq!(detail.app_status_at, Some(at));
+        assert_eq!(detail.job.status_at, Some(at));
         assert_eq!(detail.job.app_status, Some(AppStatus::Offer));
         let json = serde_json::to_value(&detail).unwrap();
         assert_eq!(json["job"]["appStatus"], "offer");
-        assert_eq!(json["job"]["hidden"], false);
+        assert_eq!(json["job"]["archived"], false);
     }
 
     /// The new jobs per portal and the pinned ones come with every page, from the same
@@ -1609,7 +1685,7 @@ mod tests {
             all.new_by_portal.iter().map(|p| p.new).sum::<u32>(),
             all.new
         );
-        assert_eq!(all.pinned, 2);
+        assert_eq!(all.saved, 2);
         let found = counts(Some("interim"));
         assert_eq!(
             per_portal(&found),
@@ -1619,7 +1695,7 @@ mod tests {
                 (Portal::Freelancermap, 0)
             ]
         );
-        assert_eq!(found.pinned, 0);
+        assert_eq!(found.saved, 0);
     }
 
     #[test]
@@ -1774,6 +1850,38 @@ Rahmenbedingungen:
             .unwrap()
             .unwrap();
         assert_eq!(none.match_, None);
+    }
+
+    /// "Fits anyway": the excluded job shows as scored with the user's word first (the
+    /// engine's findings stay listed); taken back, the engine's verdict is stored again.
+    #[test]
+    fn an_override_shows_the_users_word_and_can_be_taken_back() {
+        let matcher = crate::pipeline::demo::matcher();
+        let (store, key) = job_with_text(AD);
+        let now = Timestamp::now();
+        job_detail(&store, &key, Some(&matcher), true, now).unwrap();
+        assert!(store.set_override(&key, true).unwrap());
+        let detail = job_detail(&store, &key, Some(&matcher), true, now)
+            .unwrap()
+            .unwrap();
+        assert!(detail.job.overridden);
+        let m = detail.match_.unwrap();
+        assert_eq!(m.status, MatchStatus::Scored);
+        assert_eq!(m.summary.unwrap().code, "userOverride");
+        assert_eq!(m.reasons[0].code, "userOverride");
+        assert!(m.reasons.iter().any(|r| r.kind == ReasonKind::Violation));
+        let row = JobView::from(&store.job(&key).unwrap().unwrap());
+        let shown = row.match_.unwrap();
+        assert_eq!(shown.status, MatchStatus::Scored);
+        assert_eq!(shown.note.unwrap().code, "userOverride");
+        assert!(store.set_override(&key, false).unwrap());
+        let back = job_detail(&store, &key, Some(&matcher), true, now)
+            .unwrap()
+            .unwrap();
+        assert!(!back.job.overridden);
+        assert_eq!(back.match_.unwrap().status, MatchStatus::Excluded);
+        let stored = store.job(&key).unwrap().unwrap().match_.unwrap();
+        assert_eq!(stored.status, MatchStatus::Excluded);
     }
 
     /// Reasons, highlights and the criteria strip reference each other consistently.
