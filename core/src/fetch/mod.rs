@@ -824,13 +824,14 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
             } => {
                 store.record_text(&job.key, &text, short, closed, now)?;
                 store.record_parse(&job.key, parser_version, Some(&facts))?;
-                // The same job from another portal: one row, scored once.
-                store.link_duplicate(&job.key)?;
                 // Only non-empty fields overwrite the mail heuristics: what the page hides
                 // ("visible for EXPERT members") arrives empty.
                 if let Some(f) = fields {
                     store.record_page_fields(&job.key, &f.title, &f.company, &f.location)?;
                 }
+                // The same job from another portal: one row, scored once. Compared after the
+                // page fields: the other portals' jobs carry theirs too.
+                store.link_duplicate(&job.key)?;
                 {
                     let mut policy = lock(policy);
                     // A page read in the session window confirms the sign-in; the guest

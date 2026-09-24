@@ -1343,6 +1343,53 @@ async fn a_guest_teaser_is_stored_and_marked() {
     assert_eq!(job.desc_status, DescStatus::Ok);
 }
 
+/// The mail hid the company, the page names it: the job is compared with the other portals'
+/// jobs on the page's fields - theirs came from their pages too.
+#[tokio::test(start_paused = true)]
+async fn a_duplicate_is_found_with_the_page_fields() {
+    let c = clock();
+    let store = Store::in_memory().unwrap();
+    let run_id = store.begin_run().unwrap();
+    let title = "SAP FI/CO Berater (m/w/d)";
+    let ad = "Für die Einführung von S/4HANA Finance suchen wir Unterstützung in der \
+        Hauptbuchhaltung, der Anlagenbuchhaltung und im Controlling. Start ab sofort.";
+    let mail = MailRef {
+        subject: "Neue Jobs",
+        date: Some(base()),
+        gmail_id: None,
+    };
+    let known = job_link(&url(FM, 12_345)).unwrap();
+    let posting = Posting::new(known.key.clone(), known.url, title, "Ferrum Systems SE", "");
+    store.upsert_posting(run_id, &posting, mail, base()).unwrap();
+    store
+        .record_text(&known.key, ad, false, false, base())
+        .unwrap();
+    let new = job_link(&url(LI, 4_000_000_001)).unwrap();
+    let posting = Posting::new(new.key.clone(), new.url, title, "", "");
+    store.upsert_posting(run_id, &posting, mail, base()).unwrap();
+    let page = PageOutcome::Text {
+        text: ad.into(),
+        short: false,
+        closed: false,
+        fields: Some(PageFields {
+            company: "Ferrum Systems SE".into(),
+            ..PageFields::default()
+        }),
+        facts: Facts::default(),
+    };
+    let fake = Fake::default().with("4000000001", [page]);
+    run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Queue(&[LI]),
+        &c,
+    )
+    .await;
+    assert_eq!(fake.ids(), ["4000000001"]);
+    assert_eq!(store.dup_of(&new.key).unwrap(), Some(known.key));
+}
+
 /// Sign-in switched off: even a sign-in wall never opens the sign-in window - the portal
 /// waits for the next run without another request.
 #[tokio::test(start_paused = true)]
