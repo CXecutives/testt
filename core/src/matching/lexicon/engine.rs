@@ -509,6 +509,30 @@ pub(crate) const NICE_CUES: &[&str] = &[
     "a plus",
     "vorteilhaft",
     "bonus",
+    "ein plus",
+    "strong plus",
+    "gerne mit",
+];
+/// Nice cues that close a line (`X und Y von Vorteil`): the whole line is nice.
+pub(crate) const NICE_CLOSING: &[&str] = &[
+    "von vorteil",
+    "wunschenswert",
+    "a plus",
+    "ein plus",
+    "strong plus",
+    "nice to have",
+    "nice-to-have",
+    "vorteilhaft",
+    "bonus",
+];
+/// A requirement item that says something is not needed.
+pub(crate) const NOT_NEEDED: &[&str] = &[
+    "nicht notwendig",
+    "nicht erforderlich",
+    "nicht notig",
+    "nicht zwingend",
+    "keine voraussetzung",
+    "not required",
 ];
 /// English requirement cues for the sentence stage.
 pub(crate) const EN_CUES: &[&str] = &[
@@ -534,7 +558,7 @@ pub(crate) const EXAMPLES: &[&str] = &[
 pub(crate) const EXAMPLE_SEPARATORS: &[&str] = &[", ", " und ", " oder ", " or ", " and "];
 /// Abbreviations that end with a dot but not a sentence.
 pub(crate) const ABBREVIATIONS: &[&str] = &[
-    "bzw", "ca", "dr", "evtl", "ggf", "inkl", "max", "min", "nr", "vgl", "zzgl",
+    "approx", "bzw", "ca", "dr", "evtl", "ggf", "inkl", "max", "min", "mind", "nr", "vgl", "zzgl",
 ];
 /// AND separators of requirement items.
 pub(crate) const AND: &[&str] = &[

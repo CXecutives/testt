@@ -104,6 +104,14 @@ fn nice_cue(line: &str) -> bool {
     NICE_CUES.iter().any(|c| folded.contains(c))
 }
 
+/// An item that says something is not needed (`Keine SAP-Kenntnisse erforderlich`).
+fn not_needed(item: &str) -> bool {
+    let folded = fold(item);
+    lex::NOT_NEEDED.iter().any(|w| folded.contains(w))
+        || folded.starts_with("kein ")
+        || folded.starts_with("keine ")
+}
+
 type Phrase<'a> = (&'a str, ReqKind, Stage);
 
 /// Stage 1: requirement and nice-to-have sections; also the offsets of nice lines.
@@ -148,7 +156,7 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
             continue;
         }
         let kind = match current {
-            Some(HeadingKind::Must) if nice_cue(stripped) => ReqKind::Nice,
+            // A nice cue inside a must line marks items, not the line (see `read`).
             Some(HeadingKind::Must) => ReqKind::Must,
             Some(HeadingKind::Nice) => {
                 in_nice.push(offset(text, stripped));
@@ -235,11 +243,21 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
         let start = offset(text, phrase);
         doc.requirement_lines.push(start..start + phrase.len());
         let level = level_in(phrase);
-        for (span, alternatives) in split(phrase) {
+        let parts = split(phrase);
+        // `X, idealerweise Y`: nice from the cue on; `X und Y von Vorteil`: a closing cue
+        // makes the whole line nice.
+        let closing = parts.last().is_some_and(|(r, _)| {
+            let folded = fold(&phrase[r.clone()]);
+            lex::NICE_CLOSING.iter().any(|c| folded.contains(c))
+        });
+        let mut nice = kind == ReqKind::Nice || closing;
+        for (span, alternatives) in parts {
             let whole = &phrase[span.clone()];
-            if atoms::atoms(whole, vocab).is_empty() {
+            if atoms::atoms(whole, vocab).is_empty() || not_needed(whole) {
                 continue;
             }
+            nice |= nice_cue(whole);
+            let kind = if nice { ReqKind::Nice } else { kind };
             let class = classify(whole, level, vocab);
             doc.items.push(Item {
                 span: Some(start + span.start..start + span.end),
@@ -327,7 +345,9 @@ fn separators(text: &str, words: &[&str]) -> Vec<Range<usize>> {
             b')' | b']' => depth -= 1,
             _ => {}
         }
+        let after_hyphen = i > 0 && bytes[i - 1] == b'-';
         if depth == 0
+            && !after_hyphen
             && let Some(word) = words.iter().find(|w| {
                 bytes
                     .get(i..i + w.len())
@@ -582,6 +602,47 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    /// (item, must) of an ad's requirement section.
+    fn musts(section: &str) -> Vec<(String, bool)> {
+        read(&format!("Ihr Profil\n{section}\n"), &Vocab::all())
+            .items
+            .into_iter()
+            .map(|i| (i.text, i.kind == ReqKind::Must))
+            .collect()
+    }
+
+    #[test]
+    fn nice_cues_per_item_negated_items_and_frame_blocks() {
+        assert_eq!(
+            musts("- Erfahrung im Controlling, idealerweise im Maschinenbau"),
+            [
+                ("Erfahrung im Controlling".to_owned(), true),
+                ("idealerweise im Maschinenbau".to_owned(), false)
+            ]
+        );
+        assert!(
+            musts("- Kenntnisse in LucaNet und Power BI von Vorteil")
+                .iter()
+                .all(|(_, must)| !must)
+        );
+        assert_eq!(musts("- Keine SAP-Kenntnisse erforderlich").len(), 0);
+        assert_eq!(
+            musts("- Sehr gute Deutsch- und Englischkenntnisse").len(),
+            1,
+            "a hyphenated shared ending is one item"
+        );
+        // A frame block ends the requirements.
+        let frame = musts(
+            "- Erfahrung im Controlling\nRahmendaten\n- Laufzeit 6 Monate\n- Tagessatz 1.000 €",
+        );
+        assert_eq!(frame.len(), 1, "{frame:?}");
+        assert_eq!(
+            musts("✅ Erfahrung im Treasury").len(),
+            1,
+            "a glyph bullet is a bullet"
+        );
     }
 
     #[test]
