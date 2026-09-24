@@ -112,7 +112,10 @@ const fn major_after(haystack: &str, marker: &str) -> u32 {
 pub fn app<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     let builder = builder.on_page_load(on_page_load);
     #[cfg(target_os = "macos")]
-    let builder = builder.enable_macos_default_menu(false).menu(macos::menu);
+    let builder = builder
+        .enable_macos_default_menu(false)
+        .menu(macos::menu)
+        .on_menu_event(macos::on_menu_event);
     builder
 }
 
@@ -423,8 +426,13 @@ const _: () = {
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use tauri::menu::{AboutMetadata, Menu, PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID};
-    use tauri::{AppHandle, Runtime};
+    use tauri::menu::{
+        AboutMetadata, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID,
+    };
+    use tauri::{AppHandle, Manager as _, Runtime};
+
+    /// Id of the app's own quit item (see [`on_menu_event`]).
+    const QUIT_ID: &str = "quit";
 
     // User-facing text, German by product decision.
     const ABOUT: &str = "Über Job-Alert-Monitor";
@@ -463,7 +471,7 @@ mod macos {
                 &PredefinedMenuItem::hide(app, Some(HIDE))?,
                 &PredefinedMenuItem::hide_others(app, Some(HIDE_OTHERS))?,
                 &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::quit(app, Some(QUIT))?,
+                &MenuItem::with_id(app, QUIT_ID, QUIT, true, Some("CmdOrCtrl+Q"))?,
             ],
         )?;
         let edit = Submenu::with_items(
@@ -492,6 +500,26 @@ mod macos {
             ],
         )?;
         Menu::with_items(app, &[&app_menu, &edit, &window])
+    }
+
+    /// Cmd+Q and the quit item close the main window like its close button: the standard
+    /// quit item ends the process through `terminate:` without any window event, which
+    /// would skip saving the placement, the closing blocker and the grace for a running
+    /// fetch. Quitting from the Dock or at logout still goes through `terminate:`; main.rs
+    /// covers that in `RunEvent::Exit`.
+    pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
+        if event.id() != QUIT_ID {
+            return;
+        }
+        match app.get_webview_window(super::MAIN) {
+            Some(window) => {
+                if let Err(e) = window.close() {
+                    log::warn!("quit: main window not closed ({e}), exiting");
+                    app.exit(0);
+                }
+            }
+            None => app.exit(0),
+        }
     }
 }
 

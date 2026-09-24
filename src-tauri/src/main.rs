@@ -65,13 +65,12 @@ fn main() {
     let app = platform::app(builder)
         .build(tauri::generate_context!())
         .unwrap_or_else(|error| fail(&Failure::window(&error)));
-    app.run_return(|_, event| {
-        if let tauri::RunEvent::ExitRequested {
+    app.run_return(|app, event| match event {
+        tauri::RunEvent::ExitRequested {
             code: Some(code), ..
-        } = event
-        {
-            EXIT_CODE.store(code, Ordering::SeqCst);
-        }
+        } => EXIT_CODE.store(code, Ordering::SeqCst),
+        tauri::RunEvent::Exit => lifecycle::exiting(app),
+        _ => {}
     });
     std::process::exit(EXIT_CODE.load(Ordering::SeqCst));
 }
@@ -295,14 +294,15 @@ mod geometry {
 /// stays briefly (the page shows a blocker on the `closing` event), the run is cancelled and
 /// gets at most ten seconds to finish writing its files - then the app ends in any case.
 /// Once the main window is gone the app ends too: no process stays behind the single-instance
-/// lock.
+/// lock. An end without any window event (macOS: quit from the Dock, logout) still saves the
+/// placement and gives a running fetch the same grace (`exiting`).
 mod lifecycle {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
 
     use jobalert_core::store::Store;
-    use tauri::{Emitter as _, Manager as _, Runtime, WebviewWindow, WindowEvent};
+    use tauri::{AppHandle, Emitter as _, Manager as _, Runtime, WebviewWindow, WindowEvent};
 
     use crate::commands::AppState;
 
@@ -310,10 +310,12 @@ mod lifecycle {
     const GRACE: Duration = Duration::from_secs(10);
     const STEP: Duration = Duration::from_millis(100);
 
+    /// The closing sequence runs exactly once: further clicks on the close button change
+    /// nothing, and the end of the process does not wait a second time.
+    static CLOSING: AtomicBool = AtomicBool::new(false);
+
     pub fn watch<R: Runtime>(window: &WebviewWindow<R>, store: Arc<Store>) {
         let win = window.clone();
-        // Further clicks on the close button change nothing: the sequence runs exactly once.
-        let closing = Arc::new(AtomicBool::new(false));
         window.on_window_event(move |event| match event {
             WindowEvent::CloseRequested { api, .. } => {
                 super::geometry::save(&win, &store);
@@ -322,7 +324,7 @@ mod lifecycle {
                     return;
                 }
                 api.prevent_close();
-                if closing.swap(true, Ordering::SeqCst) {
+                if CLOSING.swap(true, Ordering::SeqCst) {
                     return;
                 }
                 let _ = win.emit("closing", ());
@@ -345,5 +347,29 @@ mod lifecycle {
             }
             _ => {}
         });
+    }
+
+    /// The process ends (`RunEvent::Exit`). Without the closing sequence before it - macOS
+    /// quits from the Dock or at logout through `terminate:` without any window event - this
+    /// is the last chance: save the placement, start no own run any more, cancel a running
+    /// one and wait for it the same grace. The runtime threads keep running meanwhile.
+    pub fn exiting<R: Runtime>(app: &AppHandle<R>) {
+        if CLOSING.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let Some(state) = app.try_state::<AppState>() else {
+            return;
+        };
+        if let Some(window) = app.get_webview_window(crate::platform::MAIN) {
+            super::geometry::save(&window, &state.store);
+        }
+        state.scoring.stop();
+        state.cancel_run();
+        for _ in 0..(GRACE.as_millis() / STEP.as_millis()) {
+            if !state.busy() {
+                break;
+            }
+            std::thread::sleep(STEP);
+        }
     }
 }
