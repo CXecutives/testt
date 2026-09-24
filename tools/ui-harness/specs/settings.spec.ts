@@ -36,9 +36,15 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'true');
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
 
-  await page.getByTestId('first-template').click();
-  await expect(page.getByTestId('toast')).toHaveText('Die Vorlage ist gespeichert.');
-  await page.getByTestId('first-pick-profile').click();
+  // The profile is made in the Profil view; back on the first-run page its step is done.
+  await page.getByTestId('first-profile').click();
+  await expect(page.getByTestId('view-profile')).toBeVisible();
+  await page.getByRole('button', { name: 'Profil anlegen' }).click();
+  await page.getByTestId('competence-add').click();
+  await page.getByTestId('competence-name').fill('Controlling');
+  await page.getByTestId('profile-save').click();
+  await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
+  await page.getByTestId('nav-jobs').click();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
 
