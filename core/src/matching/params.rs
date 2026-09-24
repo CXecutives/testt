@@ -79,6 +79,8 @@ pub(crate) const WISH_RATE: i64 = 30;
 pub(crate) const WISH_REMOTE: i64 = 30;
 pub(crate) const WISH_REGION: i64 = 20;
 pub(crate) const WISH_INDUSTRY: i64 = 20;
+/// Tokens of the profile a domain pack needs among its triggers to switch on.
+pub(crate) const PACK_HITS: usize = 2;
 /// Bound of the summed wish effect (per-mille, both directions).
 pub(crate) const WISH_MAX: i64 = 100;
 /// While fewer than half of the musts are met, the target role and the wishes lift a score
