@@ -1,0 +1,42 @@
+Titel: Freelance Power BI Developer (Microsoft Fabric) - 100% Remote
+Unternehmen: Tidewater Data Collective B.V.
+Ort: Netherlands (Remote)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4316540982/
+Abgerufen am: 21.09.2026 07:32
+
+About the job
+Tidewater Data Collective is a boutique data consultancy based in Utrecht. We help retailers and wholesalers across the Benelux and DACH region turn their data into decisions.
+
+For a large wholesale client we are looking for a hands-on Power BI Developer who can start on short notice. You will join a scrum team of 6 (data engineers, analytics engineer, product owner) that migrates the existing Power BI Premium landscape to Microsoft Fabric.
+
+What you will do
+- Build and optimize semantic models (star schema, DAX, calculation groups, RLS)
+- Rebuild ~40 legacy reports in Power BI following the new design system
+- Develop dataflows gen2 and Power Query (M) transformations
+- Work with our data engineers on the Fabric Lakehouse (Delta tables, PySpark notebooks)
+- Set up deployment pipelines and Git integration with Azure DevOps
+- Performance tuning (DAX Studio, Tabular Editor)
+
+What you bring
+- 4+ years of hands-on Power BI development in an enterprise environment
+- Excellent DAX and data modelling skills
+- Experience with Microsoft Fabric or Azure Synapse
+- Certifications PL-300 and/or DP-600 are a plus
+- Fluent English, Dutch is a strong plus
+- You are an independent contractor (ZZP / freelancer) with your own company
+
+Details
+- Start: 05.10.2026
+- Duration: 4 months, likely extension
+- 32 hours per week, fully remote within CET +/- 1h
+- Rate: EUR 70 - 85 per hour
+
+Seniority level
+Mid-Senior level
+Employment type
+Contract
+Job function
+Information Technology
+Industries
+IT Services and IT Consulting

@@ -1,0 +1,22 @@
+Titel: SAP S/4HANA FI/CO Berater (m/w/d) - Migration Rechnungswesen
+Unternehmen: von: Quellbruck IT Solutions GmbH
+Ort: Remote
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3187512.html
+Abgerufen am: 21.09.2026 07:30
+
+Ort: Remote // Vertragsart: Freiberuflich // Start: 01/2027 // Dauer: 12 Monate+
+
+Projektbeschreibung
+Für die Migration von SAP ECC nach S/4HANA bei einem Handelskonzern suchen wir einen SAP FI/CO Berater mit Schwerpunkt Customizing.
+
+Anforderungen:
+- Mindestens 5 Jahre Erfahrung im SAP FI/CO Customizing
+- Erfahrung in S/4HANA Brownfield-Migrationen
+- Kenntnisse in New Asset Accounting, Universal Journal und Margin Analysis
+- Erfahrung mit SAP Group Reporting von Vorteil
+- ABAP-Grundkenntnisse wünschenswert
+
+Rahmenbedingungen:
+Tagessatz: 950 € pro Tag
+100 % remote, gelegentliche Workshops in Hamburg

@@ -1,0 +1,86 @@
+Titel: Gesamtprojektleitung (m/w/d) SAP S/4HANA Finance & Neuaufstellung Konzernrechnungswesen – kommunaler Versorger
+Unternehmen: Kreidebach Consulting Partners GmbH
+Ort: D-44137 Dortmund
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1349120
+Abgerufen am: 19.09.2026 07:30
+
+Projekt-ID: 1349120
+Ort: Dortmund
+Remote: 40 %
+Start: 01.12.2026
+Dauer: 18 Monate (Option auf Verlängerung um 6 Monate)
+Vertragsart: Freiberuflich
+Honorar: Nach Vereinbarung
+
+Projektbeschreibung
+Im Auftrag unseres Kunden suchen wir für ein langfristiges Transformationsvorhaben eine erfahrene Gesamtprojektleitung (m/w/d). Bitte lesen Sie die folgende Beschreibung vollständig, da wir ausschließlich Bewerbungen berücksichtigen können, die sich konkret auf die unten genannten Kriterien beziehen.
+
+1. Über unseren Kunden
+Unser Kunde ist eine kommunale Unternehmensgruppe aus dem Ruhrgebiet mit rund 3.200 Mitarbeitenden und einem Umsatz von ca. 2,1 Mrd. Euro. Zur Gruppe gehören neben der Holding eine Energievertriebsgesellschaft, ein Netzbetreiber (Strom, Gas, Wasser, Fernwärme), eine Verkehrsgesellschaft mit Bus- und Stadtbahnbetrieb, ein Entsorgungsunternehmen, eine Bädergesellschaft sowie mehrere Beteiligungen an Erzeugungsanlagen und Stadtwerkekooperationen. Insgesamt werden 27 Gesellschaften in den Konzernabschluss einbezogen, davon 19 vollkonsolidiert und acht at equity.
+
+Die Gruppe unterliegt als öffentliches Unternehmen besonderen Anforderungen: Neben dem handelsrechtlichen Konzernabschluss sind ein Beteiligungsbericht für die Kommune, Tätigkeitsabschlüsse nach § 6b EnWG sowie eine Reihe von Sonderauswertungen für Aufsichtsgremien und Regulierungsbehörden zu erstellen. Die Finanzorganisation ist dezentral aufgestellt, jede größere Tochtergesellschaft verfügt über eine eigene Buchhaltung und ein eigenes Controlling.
+
+2. Ausgangssituation
+Die Gruppe arbeitet derzeit mit SAP ECC 6.0 (EHP 7) in zwei getrennten Mandanten sowie mit einer Branchenlösung für die Verbrauchsabrechnung. Die Konsolidierung erfolgt mit einer Standardsoftware, die zum Ende des Jahres 2027 vom Hersteller abgekündigt wird. Viele Abstimmungen zwischen den Gesellschaften laufen manuell über Excel-Listen, der Intercompany-Abgleich bindet in jedem Quartalsabschluss erhebliche Kapazitäten. Der Konzernabschluss wird aktuell nach rund 95 Arbeitstagen festgestellt, Ziel des Vorstands ist eine deutliche Verkürzung auf unter 60 Arbeitstage.
+
+Der Aufsichtsrat hat im Frühjahr 2026 ein Programm zur Modernisierung des Finanz- und Rechnungswesens beschlossen. Eine Vorstudie mit Unterstützung einer Wirtschaftsprüfungsgesellschaft wurde im Sommer abgeschlossen. Die Ergebnisse (Zielbild, Grobkonzept, Roadmap, Business Case) liegen vor und bilden die Grundlage für die Umsetzung. Die Ausschreibung für den Implementierungspartner befindet sich in der finalen Phase, die Vergabe ist für November 2026 geplant.
+
+3. Projektziele
+- Einführung von SAP S/4HANA Finance als einheitliches Kernsystem für alle Gesellschaften der Gruppe (Greenfield-Ansatz mit selektiver Datenübernahme)
+- Harmonisierung von Kontenplan, Kostenstellen- und Profit-Center-Struktur sowie der Bilanzierungs- und Bewertungsrichtlinien
+- Ablösung der bisherigen Konsolidierungslösung durch SAP S/4HANA Group Reporting
+- Aufbau eines Fast Close und Verkürzung der Abschlusszeiten
+- Etablierung eines einheitlichen Management-Reportings für Holding, Aufsichtsrat und Gesellschafter
+- Vorbereitung der Organisation auf ein mögliches Shared Service Center für die Finanzbuchhaltung (Entscheidung 2027)
+
+4. Projektorganisation
+Das Programm ist beim kaufmännischen Vorstand angesiedelt. Es gibt einen Lenkungsausschuss, dem neben dem Vorstand die Geschäftsführungen der größeren Tochtergesellschaften sowie die Leitung IT angehören. Unterhalb der Gesamtprojektleitung sind sechs Teilprojekte geplant: Hauptbuch und Abschluss, Nebenbücher (Kreditoren, Debitoren, Anlagen), Controlling, Konsolidierung, Reporting sowie Datenmigration. Die Teilprojektleitungen werden überwiegend aus der Linie besetzt. Hinzu kommen ein PMO (extern, wird separat ausgeschrieben), der Implementierungspartner mit voraussichtlich 15 bis 20 Beratern sowie der Betriebsrat, der über eine Rahmenvereinbarung eingebunden ist.
+
+5. Ihre Aufgaben im Detail
+AP 1 - Programmsteuerung: Aufbau und Pflege des integrierten Projektplans, Steuerung von Terminen, Budget (ca. 14 Mio. Euro) und Ressourcen, Leitung der wöchentlichen Jour fixe mit den Teilprojekten
+AP 2 - Steuerung des Implementierungspartners: Mitwirkung an den Vertragsverhandlungen, Abnahme von Liefergegenständen, Change-Request-Verfahren, Eskalationsmanagement
+AP 3 - Fachliche Führung: Sicherstellung, dass die fachlichen Anforderungen aus Rechnungswesen und Controlling vollständig und korrekt umgesetzt werden, insbesondere mit Blick auf die regulatorischen Besonderheiten (Unbundling, § 6b EnWG, kommunales Beteiligungsmanagement)
+AP 4 - Gremienarbeit: Vorbereitung und Moderation der Lenkungsausschusssitzungen, Erstellung von Entscheidungsvorlagen für Vorstand und Aufsichtsrat, Berichterstattung an den Prüfungsausschuss
+AP 5 - Risiko- und Qualitätsmanagement: Führen des Risikoregisters, Abstimmung mit Innenrevision und Abschlussprüfer, Sicherstellung der Prüfungssicherheit der neuen Prozesse
+AP 6 - Change Management und Kommunikation: Begleitung der betroffenen Mitarbeitenden, Abstimmung mit dem Betriebsrat, Konzeption von Schulungen
+AP 7 - Übergabe in die Linie: Planung von Go-live, Hypercare und Übergabe in den Regelbetrieb, Wissenstransfer an die interne Organisation
+
+6. Liefergegenstände
+- Programmhandbuch inkl. Governance, Rollen und Eskalationswegen (bis 31.01.2027)
+- Integrierter Masterplan, monatlich fortgeschrieben
+- Monatlicher Statusbericht an Vorstand und Lenkungsausschuss (Termine, Kosten, Risiken, Qualität)
+- Entscheidungsvorlagen nach Bedarf
+- Go-live-Readiness-Bewertung je Einführungswelle
+- Abschlussbericht mit Lessons Learned
+
+7. Einsatzmodalitäten
+Der Einsatz erfolgt überwiegend vor Ort am Hauptsitz in Dortmund, in der Regel drei Tage pro Woche. Einzelne Termine finden an den Standorten der Tochtergesellschaften in Hagen, Unna und Hamm statt. Die restliche Zeit kann remote gearbeitet werden. Die Auslastung beträgt 100 % (5 Tage/Woche), in der Hochphase rund um die Go-lives kann eine erhöhte Präsenz erforderlich sein. Reisekosten innerhalb des Ruhrgebiets werden nicht gesondert vergütet. Die Abrechnung erfolgt monatlich auf Basis von Tätigkeitsnachweisen. Hard- und Software werden vom Kunden gestellt, die Nutzung privater Endgeräte ist aus Gründen der Informationssicherheit nicht gestattet.
+
+8. Auswahlprozess
+Nach Sichtung der Unterlagen stellen wir dem Kunden bis zu drei Kandidaten vor. Die Interviews finden in zwei Runden statt: ein erstes Gespräch per Videokonferenz mit der Leitung Rechnungswesen und der Leitung IT (KW 42/43), danach ein persönliches Gespräch mit dem kaufmännischen Vorstand in Dortmund (KW 44). Im zweiten Gespräch wird eine kurze Fallstudie besprochen, die vorab zugesandt wird. Bitte halten Sie mindestens zwei Referenzen aus vergleichbaren Projekten bereit, die wir nach Rücksprache mit Ihnen kontaktieren dürfen.
+
+9. Vertragliche Hinweise
+Die Beauftragung erfolgt über uns auf Basis eines Dienstvertrags. Unser Kunde legt großen Wert auf eine saubere Abgrenzung zur Arbeitnehmerüberlassung. Sie arbeiten eigenverantwortlich und ergebnisorientiert, eine Eingliederung in die Arbeitsorganisation des Kunden ist nicht vorgesehen. Eine Berufshaftpflichtversicherung mit einer Deckungssumme von mindestens 1 Mio. Euro ist nachzuweisen. Vor Projektstart ist eine Verschwiegenheitserklärung zu unterzeichnen sowie ein erweitertes Führungszeugnis vorzulegen, da der Kunde Teil der kritischen Infrastruktur ist.
+
+10. Anforderungen an Ihr Profil
+Bitte gehen Sie in Ihrer Bewerbung kurz auf jedes der folgenden Kriterien ein. Bewerbungen ohne Bezug auf die Muss-Kriterien können leider nicht berücksichtigt werden.
+
+Anforderungen:
+Muss-Kriterien
+- mind. 10 Jahre Berufserfahrung im Finanz- und Rechnungswesen, davon mind. 5 Jahre in leitender Funktion
+- Projektleitungserfahrung in mind. zwei SAP-S/4HANA-Finance-Einführungen als Gesamt- oder Teilprojektleitung
+- Fundierte Kenntnisse in der Konzernrechnungslegung nach HGB, Konsolidierungserfahrung
+- Erfahrung in der Steuerung externer Implementierungspartner
+- Verhandlungssichere Deutschkenntnisse (C2)
+
+Soll-Kriterien
+- Branchenerfahrung Energieversorgung / Stadtwerke / öffentliche Unternehmen
+- Kenntnisse in SAP S/4HANA Group Reporting oder einer vergleichbaren Konsolidierungslösung
+- Erfahrung mit regulatorischen Anforderungen (Unbundling, § 6b EnWG)
+- Zertifizierung im Projektmanagement (PMP, PRINCE2 oder IPMA)
+
+Wünschenswert
+- Erfahrung beim Aufbau von Shared Service Centern
+- Kenntnisse im kommunalen Beteiligungsmanagement
+- Erfahrung in der Zusammenarbeit mit Betriebsräten im Rahmen von IT-Einführungen
