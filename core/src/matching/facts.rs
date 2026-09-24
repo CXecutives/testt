@@ -567,8 +567,10 @@ fn day_rate(
             spans,
         )];
     }
+    // `parse_rate` saturates absurd digit runs at `u64::MAX`: such an amount stays far
+    // above any minimum instead of wrapping below it.
     let per_day = if rate.hourly {
-        rate.upper * HOURS_PER_DAY
+        rate.upper.saturating_mul(HOURS_PER_DAY)
     } else {
         rate.upper
     };

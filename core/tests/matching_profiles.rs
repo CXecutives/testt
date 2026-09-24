@@ -241,3 +241,24 @@ fn separator_edge_lines_assess_for_every_sample_profile() {
         }
     }
 }
+
+/// A rate beyond any plausible amount stays far above the minimum (1000 in the sample
+/// profile); it neither overflows nor wraps below it into a decided exclusion.
+#[test]
+fn an_absurd_hourly_rate_is_no_day_rate_violation() {
+    let text = "Für ein Transformationsprojekt im Finanzbereich eines Konzerns suchen wir ab \
+                sofort eine erfahrene Unterstützung.\n\n\
+                Ihr Profil:\n- Erfahrung im Controlling\n\nRahmenbedingungen\n\
+                - Stundensatz 99999999999999999999999 € pro Stunde\n";
+    let a = run(
+        &fixture("sample_profile.json"),
+        "Interim Controller (m/w/d)",
+        text,
+    );
+    assert!(
+        !has(&a, ReasonCode::DayRate, ReasonKind::Violation),
+        "{:?}",
+        a.reasons
+    );
+    assert_ne!(a.verdict, Verdict::Excluded, "{:?}", a.reasons);
+}
