@@ -121,9 +121,60 @@ impl Log for FileLogger {
     }
 }
 
+/// The log line of a panic: where it happened and what kind of failure it was - never the
+/// message itself, because a slice panic quotes the text it cut (ad text, mail content).
+pub fn panic_line(location: Option<&std::panic::Location<'_>>, message: &str) -> String {
+    let kind = if message.contains("byte index")
+        || message.contains("char boundary")
+        || message.starts_with("begin <= end")
+        || message.starts_with("begin > end")
+    {
+        "string slice"
+    } else if message.starts_with("index out of bounds")
+        || message.contains("out of range for slice")
+    {
+        "index"
+    } else if message.starts_with("attempt to") {
+        "arithmetic overflow"
+    } else if message.contains("on a `None` value") {
+        "unwrap on None"
+    } else if message.contains("on an `Err` value") {
+        "unwrap on Err"
+    } else if message.starts_with("assertion") {
+        "assertion"
+    } else {
+        "other"
+    };
+    match location {
+        Some(at) => format!(
+            "panic at {}:{}:{} ({kind})",
+            at.file(),
+            at.line(),
+            at.column()
+        ),
+        None => format!("panic ({kind})"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The ad text a slice panic quotes never reaches the log.
+    #[test]
+    fn a_panic_line_names_place_and_kind_only() {
+        let at = std::panic::Location::caller();
+        let message = "begin > end (55 > 54) when slicing `Abgeschlossenes Studium, oder etwas`";
+        let line = panic_line(Some(at), message);
+        assert!(line.starts_with("panic at "), "{line}");
+        assert!(line.ends_with("(string slice)"), "{line}");
+        assert!(!line.contains("Studium"), "{line}");
+        assert_eq!(
+            panic_line(None, "attempt to multiply with overflow"),
+            "panic (arithmetic overflow)"
+        );
+        assert_eq!(panic_line(None, "secret text"), "panic (other)");
+    }
 
     /// async-imap never below `warn`, `trace` never.
     #[test]
