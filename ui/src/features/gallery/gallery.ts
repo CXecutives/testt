@@ -227,6 +227,7 @@ export function sampleJobs(now: Date): JobView[] {
       key: { portal: 'linkedin', id: '1002' },
       unread: true,
       workMode: 'remote',
+      appStatus: 'interview',
       match: scored(64, 'Controlling mit SAP S/4HANA'),
     }),
     sample(now, '1003', 'Kaufmännische Leitung Projektgeschäft', 'Werft 7 GmbH', 'Kiel', 30, {
@@ -239,7 +240,7 @@ export function sampleJobs(now: Date): JobView[] {
       workMode: 'onsite',
       match: scored(28, 'SAP FI im Konzern'),
     }),
-    sample(now, '1005', 'Finance Manager Shared Service', 'Contoso Services', 'Leipzig', 80, {
+    sample(now, '1005', 'Finance Manager Shared Service', 'Contoso Services', 'Leipzig', 300, {
       match: null,
       detail: { kind: 'failed', attempts: 3, retryAt: null },
     }),
@@ -252,6 +253,7 @@ export function sampleJobs(now: Date): JobView[] {
       200,
       {
         workMode: null,
+        unread: true,
         match: {
           score: 55,
           band: 'mid',

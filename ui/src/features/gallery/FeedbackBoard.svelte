@@ -29,6 +29,7 @@
     { id: 'low', state: { status: 'scored', score: 28, band: 'low' } },
     { id: 'excluded', state: { status: 'excluded' } },
     { id: 'unscorable', state: { status: 'unscorable' } },
+    { id: 'provisional', state: { status: 'provisional', score: 58, band: 'mid' } },
     { id: 'pending', state: { status: 'pending' } },
     { id: 'none', state: { status: 'none' } },
   ];
