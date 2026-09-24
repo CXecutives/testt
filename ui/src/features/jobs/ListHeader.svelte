@@ -89,11 +89,15 @@
     border-bottom: var(--border-width) solid var(--border);
   }
 
+  /* The row spans the header's side padding too, so on macOS its empty ends move the window
+     like the rest of the toolbar row. */
   .top {
     display: flex;
     align-items: center;
     gap: var(--space-8);
     min-height: var(--list-toolbar);
+    margin: 0 calc(-1 * var(--pane-padding));
+    padding: 0 var(--pane-padding);
   }
 
   .search {

@@ -752,6 +752,20 @@ fn the_macos_toolbar_row_matches_the_traffic_lights() {
     ] {
         assert!(base.contains(rule), "base.css (macOS): {rule}");
     }
+    // The app places the lights itself (tao applies the inset only while its covered content
+    // view draws) and reads the position from this configuration: one source, no second
+    // number in the code.
+    let platform = std::fs::read_to_string(repo("src-tauri/src/platform.rs")).expect("platform.rs");
+    assert!(
+        platform.contains("traffic_light_position") && platform.contains("pub mod lights"),
+        "platform.rs places the traffic lights from trafficLightPosition"
+    );
+    for literal in [format!("{x}.0"), format!("{y}.0")] {
+        assert!(
+            !platform.contains(&literal),
+            "platform.rs repeats the position ({literal}); read it from the configuration"
+        );
+    }
 }
 
 /// `--p-*` HSL triplet of tokens.css as 8-bit RGB (rounded like a browser).
