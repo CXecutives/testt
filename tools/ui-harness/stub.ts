@@ -19,6 +19,7 @@
 // many (2000 jobs) · offline · paused · running · slow · list-error · profile-broken ·
 // profile-thin · reset (the state after
 // "reset everything": first run, no mailbox, no profile, the report) · first-run-empty-profile
+// · session-left (freelance.de still signed in with the sign-in switched off)
 // · dry-run (the demo: a Probelauf mailbox, every command that writes outside the database
 // refuses with `dryRun` like `ensure_real`).
 // `save_mailbox` refuses the app password `falschfalschfals` with `mailAuth` (Gmail said no).
@@ -842,6 +843,10 @@ function initial(): void {
       state.settings.excelExists = false;
       state.settings.txtFiles = 0;
       state.resetReport = { removed: 12, failed: 1 };
+      break;
+    case 'session-left':
+      // Signed in once, then "Mit Anmeldung" switched off: the stored sign-in stays.
+      state.portals[1]!.signedIn = true;
       break;
     case 'dry-run':
       state.dryRun = true;

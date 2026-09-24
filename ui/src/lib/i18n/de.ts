@@ -1019,6 +1019,8 @@ export const de = {
     quota: (used: number, cap: number) => `Heute ${n(used)} von ${n(cap)} Seiten`,
     quotaHour: (used: number, cap: number) => `Diese Stunde ${n(used)} von ${n(cap)} Seiten`,
     signedIn: 'Angemeldet',
+    /** A sign-in still stored while the portal or its sign-in is switched off. */
+    sessionLeft: 'Die Anmeldung ist noch gespeichert.',
     signedOut: 'Nicht angemeldet',
     signIn: 'Anmelden',
     signOut: 'Abmelden',

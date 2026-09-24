@@ -140,6 +140,18 @@ test('old jobs archive themselves unless switched off', async ({ page }) => {
   ]);
 });
 
+test('a stored sign-in can be removed whatever the switches say', async ({ page }) => {
+  await settings(page, `${WIN}&scenario=session-left`);
+  const card = page.getByTestId('portal-freelance');
+  await expect(card).toContainText('Die Anmeldung ist noch gespeichert.');
+  // The portal switched off: the row stays until the sign-in is gone.
+  await page.getByTestId('toggle-enabled-freelance').click();
+  await expect(card.getByTestId('sign-out-freelance')).toBeVisible();
+  await card.getByTestId('sign-out-freelance').click();
+  await expect(card.getByTestId('sign-out-freelance')).toHaveCount(0);
+  expect(await calls(page, 'portal_logout')).toHaveLength(1);
+});
+
 test('auto fetch and portal switches save at once', async ({ page }) => {
   await settings(page);
   await page.getByTestId('toggle-auto-fetch').click();
