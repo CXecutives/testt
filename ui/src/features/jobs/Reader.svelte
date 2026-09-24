@@ -40,7 +40,18 @@
   const job = $derived(detail.job);
   const match = $derived(detail.match);
   const withRing = $derived(app.hasProfile);
-  let active = $state<string | null>(null);
+  // The passage under the pointer wins; a clicked reason keeps its passage marked after the
+  // scroll moved the list away from under the pointer.
+  let hovered = $state<string | null>(null);
+  let pinned = $state<string | null>(null);
+  const active = $derived(hovered ?? pinned);
+  // Another job starts without a marked passage.
+  const shownKey = $derived(keyOf(job.key));
+  $effect(() => {
+    void shownKey;
+    pinned = null;
+    hovered = null;
+  });
   let textElement = $state<HTMLElement | null>(null);
   let actionError = $state<string | null>(null);
 
@@ -153,14 +164,14 @@
   }
 
   function scrollTo(reason: Reason): void {
-    active = reason.id;
+    pinned = reason.id;
     const mark = textElement?.querySelector(`[data-reason="${CSS.escape(reason.id)}"]`);
     mark?.scrollIntoView({ block: 'center', behavior: isReducedMotion() ? 'auto' : 'smooth' });
   }
 
   function hover(reason: Reason, on: boolean): void {
-    if (on) active = reason.id;
-    else if (active === reason.id) active = null;
+    if (on) hovered = reason.id;
+    else if (hovered === reason.id) hovered = null;
   }
 </script>
 
