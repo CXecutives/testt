@@ -61,11 +61,11 @@ for (const [width, rail] of [
       await expect(label).toHaveAttribute('aria-label', 'Profil');
       await label.hover();
       await expect(page.getByRole('tooltip')).toHaveText('Profil');
-      await expect(page.getByTestId('brand').getByText('Job-Alert-Monitor')).toHaveCount(0);
     } else {
       await expect(label).toHaveText('Profil');
-      await expect(page.getByTestId('brand')).toContainText('Job-Alert-Monitor');
     }
+    // The title bar names the app at every width.
+    await expect(page.getByTestId('brand')).toContainText('Job-Alert-Monitor');
   });
 }
 
@@ -76,9 +76,10 @@ test('empty screens are never dead: an icon, one sentence, one way on, centred',
   await page.getByTestId('nav-profile').click();
   const empty = page.getByTestId('profile-empty');
   await expect(empty).toBeVisible();
-  // The next step is the one primary on screen: "Profil wählen"; "Abrufen" steps back.
+  // The next step is the one primary on screen: "Profil wählen" ("Abrufen" lives in the
+  // list of the Jobs view).
   await expect(empty.locator('.btn.primary')).toHaveCount(1);
-  await expect(page.getByTestId('fetch')).toHaveClass(/secondary/);
+  await expect(page.getByTestId('fetch')).toHaveCount(0);
   await expect(empty.getByRole('button')).toHaveCount(2);
   // Centred across, at about 38 % of the height (not dead centre).
   const place = await empty.evaluate((node) => {

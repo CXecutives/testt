@@ -44,7 +44,7 @@
     background-color: var(--badge-bg);
     color: var(--badge-fg);
     font: var(--type-xs);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
     white-space: nowrap;
   }
 

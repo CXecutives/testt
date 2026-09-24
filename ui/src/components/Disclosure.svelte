@@ -1,7 +1,6 @@
 <!--
-  A heading that opens a section. The chevron turns 180°; the content grows via
-  grid-template-rows 0fr -> 1fr (the one documented exception to "animate transform and
-  opacity only", see stylelint.config.js).
+  A heading that opens a section. The chevron turns 180° (150 ms) and the content is there
+  at once: no height animation, which would lay out the page in every frame.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -48,7 +47,7 @@
     border-radius: var(--radius-sm);
     color: var(--text-muted);
     font: var(--type-sm);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
     transition: background-color var(--dur-fast) var(--ease-standard);
   }
 
@@ -72,22 +71,11 @@
   }
 
   .panel {
-    display: grid;
-    grid-template-rows: 0fr;
-    opacity: 0;
-    transition:
-      grid-template-rows var(--dur-base) var(--ease-out),
-      opacity var(--dur-base) var(--ease-standard);
+    display: none;
   }
 
   .open .panel {
-    grid-template-rows: 1fr;
-    opacity: 1;
-  }
-
-  .inner {
-    min-height: 0;
-    overflow: hidden;
+    display: block;
   }
 
   .open .inner {

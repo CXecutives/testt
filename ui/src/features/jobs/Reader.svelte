@@ -3,9 +3,10 @@
   (without gender tags), one line of facts, then one quiet match line (ring 56 counting up,
   the band word and the must requirements met, or for an excluded job the reason) with a
   strip of quiet chips for the contract type and the hard criteria (state by icon only), and
-  the actions in one row. "Warum" lists what is met and what is open (must before nice, only
-  "Kann" carries a badge), what to check and what excludes; hovering a reason lights its
-  passage in the ad text below, a click scrolls to it.
+  the actions in one row. "Warum" lists what is met, what is met only in part and what is
+  open (must before nice, only "Kann" carries a badge), what to check and what excludes;
+  hovering a reason lights its passage in the ad text below, a click scrolls to it. Title,
+  facts and the ad text are selectable and copy with Ctrl/Cmd+C (`data-copy`).
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -64,9 +65,9 @@
   // The contract type is a fact about the ad, not a requirement: it goes into the chips.
   const contract = $derived(all.find((r) => r.code === CONTRACT) ?? null);
   const reasons = $derived(all.filter((r) => r.code !== CONTRACT));
-  const met = $derived(
-    reasons.filter((r) => r.kind === 'met' || r.kind === 'partial').sort(byWeight),
-  );
+  const met = $derived(reasons.filter((r) => r.kind === 'met').sort(byWeight));
+  // Met only in part is not met: its own group, never under "Erfüllt".
+  const partial = $derived(reasons.filter((r) => r.kind === 'partial').sort(byWeight));
   const open = $derived(reasons.filter((r) => r.kind === 'open').sort(byWeight));
   const checks = $derived(reasons.filter((r) => r.kind === 'check'));
   const allViolations = $derived(reasons.filter((r) => r.kind === 'violation'));
@@ -195,10 +196,10 @@
 
 <article class="reader" data-testid="reader">
   <header class="head">
-    <h1 class="title" data-testid="reader-title">
+    <h1 class="title" data-testid="reader-title" data-copy>
       {job.title ? displayTitle(job.title) : de.job.untitled}
     </h1>
-    <p class="facts">
+    <p class="facts" data-copy>
       <span class="facts-line">
         {#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}
       </span>
@@ -211,6 +212,7 @@
         <ScoreRing
           ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
           size="md"
+          animate
           testid="reader-ring"
         />
       {/key}
@@ -291,14 +293,24 @@
   {#if match && match.status !== 'unscorable' && withRing}
     <section class="why" data-testid="why">
       <h2 class="section">{de.reader.why}</h2>
-      {#if met.length + open.length === 0}
+      {#if met.length + partial.length + open.length === 0}
         <p class="quiet">{de.reader.noReasons}</p>
       {:else}
         <div class="columns">
-          {#if met.length > 0}
-            <div class="group">
-              <h3 class="sub">{de.reader.met}</h3>
-              {@render reasonList(met, 'reasons-met')}
+          {#if met.length + partial.length > 0}
+            <div class="stack">
+              {#if met.length > 0}
+                <div class="group">
+                  <h3 class="sub">{de.reader.met}</h3>
+                  {@render reasonList(met, 'reasons-met')}
+                </div>
+              {/if}
+              {#if partial.length > 0}
+                <div class="group">
+                  <h3 class="sub">{de.reader.partial}</h3>
+                  {@render reasonList(partial, 'reasons-partial')}
+                </div>
+              {/if}
             </div>
           {/if}
           {#if open.length > 0}
@@ -414,7 +426,7 @@
   }
 
   .band {
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .must {
@@ -518,7 +530,7 @@
   .sub {
     color: var(--text-muted);
     font: var(--type-sm);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   /* One list; two columns only where there is room for them. */
@@ -539,6 +551,13 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
     min-width: 0;
   }
 

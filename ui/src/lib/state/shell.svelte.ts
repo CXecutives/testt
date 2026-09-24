@@ -1,5 +1,6 @@
-// What the shell shows: the first-run page (no mailbox yet, or nothing ever fetched and no
-// run going) instead of the Jobs view.
+// What the shell shows: the first-run page while nothing was ever fetched (and no run goes)
+// instead of the Jobs view. A mailbox removed later does not bring it back: the jobs stay
+// in view, "Abrufen" waits for a mailbox and the list says how to connect one.
 
 import { app } from './app.svelte';
 import { run } from './run.svelte';
@@ -7,9 +8,7 @@ import { run } from './run.svelte';
 class Shell {
   get firstRun(): boolean {
     const state = app.state;
-    return (
-      state !== null && (!app.hasMailbox || (state.firstRun && !run.active && run.summary === null))
-    );
+    return state !== null && state.firstRun && !run.active && run.summary === null;
   }
 
   /** The run card above the list is up: during a run, and after it until it is hidden. */

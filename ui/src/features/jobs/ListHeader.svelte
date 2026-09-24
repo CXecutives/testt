@@ -1,7 +1,9 @@
 <!--
-  The header of the list column: the search over the full width, below it Neu | Alle on the
-  left and (with a profile) the sort as one quiet icon button on the right. Its tooltip says
-  the current order; a click switches between best match and newest first.
+  The header of the list column: the search and next to it "Abrufen", the one primary of
+  the Jobs view, which fills this list ("Abbrechen" in its place while a run goes; without
+  a mailbox it stays locked and says why). Below, Neu | Alle on the left and (with a
+  profile) the sort as one quiet icon button on the right. Its tooltip says the current
+  order; a click switches between best match and newest first.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -11,6 +13,7 @@
   import type { JobFacet } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
+  import { run } from '$lib/state/run.svelte';
 
   const facets = $derived([
     { id: 'new' as JobFacet, label: de.toolbar.facetNew, count: jobs.counts.new },
@@ -19,14 +22,38 @@
 </script>
 
 <div class="header" data-testid="list-header">
-  <TextField
-    kind="search"
-    value={jobs.search}
-    label={de.toolbar.searchLabel}
-    placeholder={de.toolbar.search}
-    testid="search"
-    oninput={(value) => jobs.setSearch(value)}
-  />
+  <div class="top">
+    <span class="search">
+      <TextField
+        kind="search"
+        value={jobs.search}
+        label={de.toolbar.searchLabel}
+        placeholder={de.toolbar.search}
+        testid="search"
+        oninput={(value) => jobs.setSearch(value)}
+      />
+    </span>
+    {#if run.active}
+      <Button
+        variant="secondary"
+        icon="circle-stop"
+        label={de.toolbar.cancel}
+        loading={run.cancelling}
+        testid="cancel-run"
+        onclick={() => void run.cancel()}
+      />
+    {:else}
+      <Button
+        variant={app.hasMailbox ? 'primary' : 'secondary'}
+        icon="refresh-cw"
+        label={de.toolbar.fetch}
+        disabled={!app.hasMailbox}
+        disabledReason={de.toolbar.needsMailbox}
+        testid="fetch"
+        onclick={() => void run.start({ kind: 'fetch' })}
+      />
+    {/if}
+  </div>
   <div class="filters">
     <Segmented
       options={facets}
@@ -58,6 +85,18 @@
     gap: var(--space-12);
     padding: var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
+  }
+
+  .top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  .search {
+    display: flex;
+    flex: 1;
+    min-width: 0;
   }
 
   .filters {

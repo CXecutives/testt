@@ -1,61 +1,45 @@
 <!--
-  The thin 40 px strip on top of the content and the drag region of the window: "Abrufen" at
-  the left as the window's compact primary ("Abbrechen" during a run), on Windows the caption
-  buttons at the right. macOS keeps its traffic lights in the sidebar's top left.
-  One primary on screen: while the Profil view asks for a profile, its "Profil wählen" is
-  the primary and "Abrufen" steps back to secondary.
-  Tauri drags only on the element that carries data-tauri-drag-region, so the buttons do not.
+  The Windows title bar, like a native Windows 11 one in the app's colours: full width above
+  sidebar and content, 30 px (below the 1 px window frame), the app icon at 16 px 8 px from
+  the edge, the app name in the system caption font (12 px, regular), the caption buttons
+  at the right. The whole bar drags the window and a double click maximizes it (Tauri's
+  drag region, `deep`: every child but the buttons). While the window is inactive title and
+  glyphs fade like on a native window. macOS keeps its native title bar: nothing here.
+  Per-OS markup lives only in the shell and WindowControls.
 -->
 <script lang="ts">
-  import Button from '$components/Button.svelte';
+  import BrandMark from '$components/BrandMark.svelte';
   import WindowControls from '$components/WindowControls.svelte';
   import { de } from '$lib/i18n/de';
   import { platform } from '$lib/platform';
-  import { app } from '$lib/state/app.svelte';
-  import { navigation } from '$lib/state/navigation.svelte';
-  import { run } from '$lib/state/run.svelte';
-  import { shell } from '$lib/state/shell.svelte';
 
   const os = platform();
-  const profileAsked = $derived(
-    navigation.current === 'profile' && app.state !== null && app.state.profile === null,
-  );
+  let active = $state(document.hasFocus());
+
+  $effect(() => {
+    const focus = (): void => void (active = true);
+    const blur = (): void => void (active = false);
+    addEventListener('focus', focus);
+    addEventListener('blur', blur);
+    return () => {
+      removeEventListener('focus', focus);
+      removeEventListener('blur', blur);
+    };
+  });
 </script>
 
-<header class="strip {os}" data-testid="titlebar" data-tauri-drag-region>
-  <div class="fetch">
-    {#if shell.firstRun && !run.active}
-      <!-- The first-run page walks through its own "Abrufen". -->
-    {:else if run.active}
-      <Button
-        variant="secondary"
-        size="bar"
-        icon="circle-stop"
-        label={de.toolbar.cancel}
-        loading={run.cancelling}
-        testid="cancel-run"
-        onclick={() => void run.cancel()}
-      />
-    {:else}
-      <Button
-        variant={app.hasMailbox && !profileAsked ? 'primary' : 'secondary'}
-        size="bar"
-        icon="refresh-cw"
-        label={de.toolbar.fetch}
-        disabled={!app.hasMailbox}
-        disabledReason={de.toolbar.needsMailbox}
-        testid="fetch"
-        onclick={() => void run.start({ kind: 'fetch' })}
-      />
-    {/if}
-  </div>
-  {#if os === 'windows'}
-    <WindowControls />
-  {/if}
-</header>
+{#if os === 'windows'}
+  <header class="bar" class:inactive={!active} data-testid="titlebar" data-tauri-drag-region="deep">
+    <span class="brand" data-testid="brand">
+      <BrandMark size="xs" />
+      <span class="name">{de.app.name}</span>
+    </span>
+    <WindowControls inactive={!active} />
+  </header>
+{/if}
 
 <style>
-  .strip {
+  .bar {
     position: relative;
     z-index: var(--z-titlebar);
     display: flex;
@@ -63,12 +47,26 @@
     align-items: center;
     justify-content: space-between;
     height: var(--titlebar-height);
-    padding-left: var(--pane-padding);
     background-color: var(--bg);
   }
 
-  .fetch {
+  .brand {
     display: flex;
     align-items: center;
+    gap: var(--space-6);
+    min-width: 0;
+    padding-left: var(--space-8);
+  }
+
+  .name {
+    overflow: hidden;
+    color: var(--text);
+    font: var(--type-window);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .inactive .name {
+    color: var(--caption-inactive);
   }
 </style>

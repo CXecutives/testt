@@ -79,7 +79,7 @@
     width: calc((100% - 2 * var(--space-2)) / var(--count));
     border-radius: var(--radius-sm);
     background-color: var(--surface);
-    box-shadow: var(--sh-sm);
+    box-shadow: var(--sh-thumb);
     transform: translateX(calc(var(--index) * 100%));
     transition: transform var(--dur-base) var(--ease-out);
   }

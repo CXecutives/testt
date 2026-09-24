@@ -1,92 +1,215 @@
 <!--
   The reader's empty state: what the sheet shows while no job is selected, unboxed like the
-  reader. It never repeats the list: three tiles that filter it (their numbers are the
-  counts of those filters), the open points (portal health, alert mails without jobs,
-  missing profile, a failed fetch) only when there are any, and the last fetch: what is new
-  per portal (each a filter of the list) with the overview and the folder as quiet icon
-  buttons. The time of the last fetch is said once, in the sidebar.
+  reader. It never repeats the list and never looks empty: tiles that filter the list (their
+  numbers count over every job, whatever the search), without a profile the tiles Neu and
+  Ohne Details and a calm card that leads to choosing one, the open points (one per portal
+  and problem, a failed fetch) only when there are any, and the new jobs per portal (each a
+  filter of the list) with the overview and the folder as quiet icon buttons. The time of
+  the last fetch is said once, in the sidebar.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
+  import Card from '$components/Card.svelte';
   import Notice from '$components/Notice.svelte';
   import StatTile from '$components/StatTile.svelte';
+  import { cssVars } from '$lib/actions/cssVars';
   import { de } from '$lib/i18n/de';
   import { errorText, healthText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { OpenTarget, Portal } from '$lib/ipc/types';
+  import type { EmptyAlert, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
-  import { jobs } from '$lib/state/jobs.svelte';
+  import { isExcluded, jobs, type JobFilter } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
 
   const PORTALS: readonly Portal[] = ['linkedin', 'freelancermap', 'freelance'];
 
+  const counts = $derived(jobs.overviewCounts ?? app.state?.counts ?? null);
   // "Neu" is unread and not excluded, exactly like the facet Neu (they add up to its count).
   const unread = $derived(
-    PORTALS.map((portal) => ({
-      portal,
-      count: jobs.overview.filter(
-        (j) => j.portal === portal && j.unread && j.match?.status !== 'excluded',
-      ).length,
-    })).filter((line) => line.count > 0),
+    jobs.overviewStatus === 'ready'
+      ? PORTALS.map((portal) => ({
+          portal,
+          count: jobs.overview.filter((j) => j.portal === portal && j.unread && !isExcluded(j))
+            .length,
+        })).filter((line) => line.count > 0)
+      : [],
   );
+
+  interface Tile {
+    id: JobFilter | 'new';
+    label: string;
+    value: number;
+    icon: 'circle-check' | 'file-text' | 'ban' | 'star' | 'inbox';
+    tone?: 'success';
+  }
+  const tiles = $derived.by((): Tile[] => {
+    if (counts === null) return [];
+    const out: Tile[] = app.hasProfile
+      ? [
+          {
+            id: 'high',
+            label: de.overview.high,
+            value: counts.high,
+            icon: 'circle-check',
+            tone: 'success',
+          },
+          {
+            id: 'noDetail',
+            label: de.overview.noDetail,
+            value: counts.noDetail,
+            icon: 'file-text',
+          },
+          { id: 'excluded', label: de.overview.excluded, value: counts.excluded, icon: 'ban' },
+        ]
+      : [
+          { id: 'new', label: de.overview.new, value: counts.new, icon: 'inbox' },
+          {
+            id: 'noDetail',
+            label: de.overview.noDetail,
+            value: counts.noDetail,
+            icon: 'file-text',
+          },
+        ];
+    if (jobs.pinned > 0) {
+      out.push({ id: 'pinned', label: de.overview.pinned, value: jobs.pinned, icon: 'star' });
+    }
+    return out;
+  });
+
+  function toggle(tile: Tile): void {
+    if (tile.id === 'new') jobs.setFacet('new');
+    else jobs.setFilter(jobs.filter === tile.id ? null : tile.id);
+  }
+
   // While a run goes, the run card shows pauses and limits; they are not repeated here.
   const troubled = $derived(
     run.active ? [] : (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
   );
-  const last = $derived(run.summary ?? app.state?.lastRun ?? null);
   const emptyAlerts = $derived(app.state?.lastRun?.emptyAlerts ?? []);
-  // A missing profile is said once, above the list where the rings are missing.
-  const profileBroken = $derived(app.state?.profile?.parseError != null);
+
+  interface Issue {
+    id: string;
+    portal: Portal;
+    text: string;
+    /** An alert mail to open in Gmail. */
+    mail: string | null;
+  }
+
+  /**
+   * Each problem of a portal once: alert mails without jobs (the portal's "layout suspect"
+   * health and the empty alerts of the last fetch are one thing) with "In Gmail öffnen", and
+   * a pause, a limit or a sign-in as its own line.
+   */
+  function issuesOf(portal: Portal, state: PortalState | undefined, alerts: EmptyAlert[]): Issue[] {
+    const out: Issue[] = [];
+    const health = state?.health ?? null;
+    const suspect = health?.kind === 'layoutSuspect' ? health : null;
+    const mails = Math.max(alerts.length, suspect?.emptyMails ?? 0);
+    if (mails > 0) {
+      out.push({
+        id: `${portal}-mails`,
+        portal,
+        text: de.overview.emptyAlerts(portal, mails),
+        mail: alerts.find((a) => a.gmailId !== null)?.gmailId ?? null,
+      });
+    } else if (suspect !== null) {
+      out.push({ id: `${portal}-pages`, portal, text: de.health.layoutPages, mail: null });
+    }
+    if (health !== null && health.kind !== 'ok' && suspect === null) {
+      const said = healthText(health);
+      out.push({ id: `${portal}-health`, portal, text: said.text ?? said.label, mail: null });
+    }
+    return out;
+  }
+
+  const portalIssues = $derived(
+    PORTALS.flatMap((portal) =>
+      issuesOf(
+        portal,
+        troubled.find((p) => p.portal === portal),
+        emptyAlerts.filter((a) => a.portal === portal),
+      ),
+    ),
+  );
   // A failed fetch from before this session; a run of this session speaks in the run card.
   const lastFailure = $derived.by(() => {
     const previous = app.state?.lastRun;
     if (run.active || run.panel !== 'hidden' || previous?.outcome.kind !== 'failed') return null;
     return previous.outcome.error;
   });
-  const hasIssues = $derived(
-    troubled.length > 0 || emptyAlerts.length > 0 || profileBroken || lastFailure !== null,
-  );
+  const hasIssues = $derived(portalIssues.length > 0 || lastFailure !== null);
+  const profileMissing = $derived(app.state !== null && !app.hasProfile);
+  const fetchedOnce = $derived((run.summary ?? app.state?.lastRun ?? null) !== null);
   let actionError = $state<string | null>(null);
+  let picking = $state(false);
 
   function open(target: OpenTarget): void {
     actionError = null;
     invoke('open_target', { target }).catch((error: unknown) => (actionError = errorText(error)));
   }
+
+  /** No profile: choose one right here. A profile that no longer reads: the Profil view. */
+  function chooseProfile(): void {
+    if (app.state?.profile != null) {
+      navigation.go('profile');
+      return;
+    }
+    actionError = null;
+    picking = true;
+    invoke('pick_profile')
+      .then(async (profile) => {
+        if (profile === null) return;
+        await app.load();
+        void jobs.load(true);
+        void jobs.loadOverview();
+      })
+      .catch((error: unknown) => (actionError = errorText(error)))
+      .finally(() => (picking = false));
+  }
 </script>
 
 <div class="overview" data-testid="day-overview" aria-label={de.overview.label}>
-  <div class="tiles">
-    {#if app.hasProfile}
-      <StatTile
-        label={de.overview.high}
-        value={jobs.counts.high}
-        icon="circle-check"
-        tone="success"
-        active={jobs.filter === 'high'}
-        testid="tile-high"
-        onclick={() => jobs.setFilter(jobs.filter === 'high' ? null : 'high')}
-      />
-    {/if}
-    <StatTile
-      label={de.overview.noDetail}
-      value={jobs.counts.noDetail}
-      icon="file-text"
-      active={jobs.filter === 'noDetail'}
-      testid="tile-no-detail"
-      onclick={() => jobs.setFilter(jobs.filter === 'noDetail' ? null : 'noDetail')}
-    />
-    {#if app.hasProfile}
-      <StatTile
-        label={de.overview.excluded}
-        value={jobs.counts.excluded}
-        icon="ban"
-        active={jobs.filter === 'excluded'}
-        testid="tile-excluded"
-        onclick={() => jobs.setFilter(jobs.filter === 'excluded' ? null : 'excluded')}
-      />
-    {/if}
-  </div>
+  {#if tiles.length > 0}
+    <div class="tiles" use:cssVars={{ tiles: tiles.length }}>
+      {#each tiles as tile (tile.id)}
+        <StatTile
+          label={tile.label}
+          value={tile.value}
+          icon={tile.icon}
+          tone={tile.tone ?? 'neutral'}
+          active={tile.id !== 'new' && jobs.filter === tile.id}
+          testid="tile-{tile.id === 'noDetail' ? 'no-detail' : tile.id}"
+          onclick={() => toggle(tile)}
+        />
+      {/each}
+    </div>
+  {/if}
+
+  {#if profileMissing}
+    <Card variant="tinted" padding="md" testid="no-profile">
+      <div class="profile">
+        <div class="profile-copy">
+          <h2 class="card-heading">
+            {app.state?.profile == null
+              ? de.overview.noProfile
+              : app.state.profile.parseError
+                ? de.profile.parseError
+                : de.profile.qualityText.empty}
+          </h2>
+          <p class="card-text">{de.overview.noProfileText}</p>
+        </div>
+        <Button
+          variant="secondary"
+          icon="file-up"
+          label={de.list.pickProfile}
+          loading={picking}
+          testid="choose-profile"
+          onclick={chooseProfile}
+        />
+      </div>
+    </Card>
+  {/if}
 
   {#if hasIssues}
     <section class="block" data-testid="issues">
@@ -102,47 +225,29 @@
             testid="run-failed"
           />
         {/if}
-        {#if profileBroken}
-          <Notice
-            tone="info"
-            variant="row"
-            text={de.profile.parseError}
-            action={{ label: de.list.pickProfile, onclick: () => navigation.go('profile') }}
-          />
-        {/if}
-        {#each troubled as portal (portal.portal)}
-          {@const health = healthText(portal.health)}
+        {#each portalIssues as issue (issue.id)}
           <Notice
             tone="warning"
             variant="row"
-            heading={de.portal[portal.portal]}
-            text={health.text ?? health.label}
-            testid="issue-{portal.portal}"
-          />
-        {/each}
-        {#each emptyAlerts as alert, index (index)}
-          <Notice
-            tone="warning"
-            variant="row"
-            text={de.overview.emptyAlert(alert.portal)}
-            action={alert.gmailId
+            heading={de.portal[issue.portal]}
+            text={issue.text}
+            action={issue.mail
               ? {
                   label: de.overview.openGmail,
-                  onclick: () => open({ kind: 'alertMail', gmailId: alert.gmailId ?? '' }),
+                  onclick: () => open({ kind: 'alertMail', gmailId: issue.mail ?? '' }),
                 }
               : null}
-            testid="issue-alert"
+            testid="issue-{issue.id}"
           />
         {/each}
       </div>
     </section>
   {/if}
 
-  <!-- While the run card is open it tells the same; the overview does not repeat it. -->
-  {#if last && !run.active && run.panel === 'hidden'}
-    <section class="block" data-testid="last-run">
+  {#if fetchedOnce && jobs.overviewStatus === 'ready'}
+    <section class="block" data-testid="new-jobs">
       <div class="block-head">
-        <h2 class="heading">{de.overview.lastRun}</h2>
+        <h2 class="heading">{de.overview.newJobs}</h2>
         <span class="tools">
           <Button
             variant="ghost"
@@ -179,13 +284,13 @@
             </li>
           {/each}
         </ul>
-      {:else if jobs.overviewReady}
+      {:else}
         <p class="quiet">{de.overview.nothingNew}</p>
       {/if}
-      {#if actionError}
-        <Notice tone="danger" variant="inline" text={actionError} />
-      {/if}
     </section>
+  {/if}
+  {#if actionError}
+    <Notice tone="danger" variant="inline" text={actionError} />
   {/if}
 </div>
 
@@ -197,11 +302,11 @@
     container-type: inline-size;
   }
 
-  /* Always three columns (a missing tile leaves its place empty), one column only when
-     three would be too narrow for their labels. */
+  /* One row of tiles, as many columns as tiles; one column only when that would be too
+     narrow for their labels. */
   .tiles {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--tiles), minmax(0, 1fr));
     gap: var(--space-12);
   }
 
@@ -209,6 +314,32 @@
     .tiles {
       grid-template-columns: 1fr;
     }
+  }
+
+  .profile {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-12) var(--space-16);
+  }
+
+  .profile-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .card-heading {
+    color: var(--text-heading);
+    font: var(--type-md);
+    font-weight: var(--weight-medium);
+  }
+
+  .card-text {
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   /* Sections like the reader's: a hairline above, the heading, the content. */
@@ -233,9 +364,11 @@
     font: var(--type-lg);
   }
 
+  /* The ghost icons end on the edge of the column like the text above them. */
   .tools {
     display: flex;
     gap: var(--space-4);
+    margin-right: calc(-1 * var(--space-6));
   }
 
   .rows {

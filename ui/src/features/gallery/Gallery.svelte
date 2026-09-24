@@ -157,6 +157,7 @@
           <IconTile tone="neutral" {size} {monogram} />
         {/each}
         <BrandMark {size} label={text.title} />
+        {#if size === 'sm'}<BrandMark size="xs" label={text.title} />{/if}
       </div>
     {/each}
   </Section>
@@ -204,7 +205,6 @@
     height: 100%;
     padding: var(--space-32);
     overflow: auto;
-    background: var(--grad-wash);
     background-color: var(--bg);
   }
 
@@ -253,7 +253,7 @@
   .row-label {
     color: var(--text-muted);
     font: var(--type-sm);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .button-row {

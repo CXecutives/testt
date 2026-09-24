@@ -1,13 +1,13 @@
 <!--
-  Motion demo: every duration × easing as a bar, a staggered list (12 items, only 10
-  stagger) and a count-up. Everything follows reduced motion.
+  Motion demo: every duration × easing as a bar, a list whose items rise in together and a
+  count-up. Everything follows reduced motion.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import { cssVars } from '$lib/actions/cssVars';
   import { formatPercent } from '$lib/i18n/format';
   import { isReducedMotion, onMotionChange } from '$lib/motion/motion';
-  import { countUp, rise, stagger } from '$lib/motion/transitions';
+  import { countUp, rise } from '$lib/motion/transitions';
   import Section from './Section.svelte';
   import { durations, easings, text } from './gallery';
 
@@ -62,8 +62,8 @@
     </div>
     {#key run}
       <ol class="list">
-        {#each items as item, index (item)}
-          <li class="item" in:rise={{ delay: stagger(index) }}>{text.motion.item} {item}</li>
+        {#each items as item (item)}
+          <li class="item" in:rise|global>{text.motion.item} {item}</li>
         {/each}
       </ol>
     {/key}
@@ -149,7 +149,7 @@
     padding: var(--space-6) var(--space-12);
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-full);
-    background-color: var(--surface-tinted);
+    background-color: var(--surface-selected);
     color: var(--accent-text);
     font: var(--type-sm);
     font-weight: var(--weight-medium);

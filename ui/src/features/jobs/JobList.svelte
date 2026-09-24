@@ -1,8 +1,10 @@
 <!--
-  The job list: rows in windows of 60 (a sentinel at the end shows the next window),
-  staggered entry, FLIP when sort or filter reorders a list of up to 100 rows, excluded jobs grey
-  behind the divider "Ausgeschlossen n". Every empty state has exactly one reason and at
-  most one way out (secondary: the toolbar holds the view's primary).
+  The job list: rows in windows of 60 (a sentinel at the end shows the next window), a new
+  job of a run fades in, FLIP when sort or filter reorders a list of up to 100 rows, excluded
+  jobs grey behind the divider "Ausgeschlossen n" (under Neu too, uncounted). Every empty
+  state has exactly one reason and at most one way out (secondary: the header holds the
+  view's primary). Without a mailbox one note says how to connect one; a missing profile is
+  said once, in the day overview.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -12,12 +14,11 @@
   import Skeleton from '$components/Skeleton.svelte';
   import { nearEnd } from '$lib/actions/nearEnd';
   import { de } from '$lib/i18n/de';
-  import { errorText } from '$lib/i18n/texts';
-  import { invoke } from '$lib/ipc/api';
   import type { JobView } from '$lib/ipc/types';
   import { FLIP_LIMIT, flip, rowIn } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+  import { isExcluded, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+  import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
 
   const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
@@ -26,27 +27,18 @@
   // The whole list decides about FLIP, not the rows mounted so far.
   const total = $derived(jobs.visible.length);
   const animated = $derived(total <= FLIP_LIMIT);
-  const active = $derived(shown.filter((job) => job.match?.status !== 'excluded'));
-  const excluded = $derived(shown.filter((job) => job.match?.status === 'excluded'));
+  const active = $derived(shown.filter((job) => !isExcluded(job)));
+  const excluded = $derived(shown.filter(isExcluded));
   const excludedCount = $derived(
     jobs.filter === null && jobs.facet === 'all'
       ? jobs.counts.excluded
-      : jobs.visible.filter((job) => job.match?.status === 'excluded').length,
+      : jobs.visible.filter(isExcluded).length,
   );
   const searching = $derived(jobs.search.trim() !== '');
   const profileMissing = $derived(app.state !== null && !app.hasProfile);
+  const mailboxMissing = $derived(app.state !== null && !app.hasMailbox);
   // Jobs without a match get one soon while a run goes or a rescore is pending.
   const pending = $derived(app.hasProfile && (run.active || (app.state?.matchPending ?? 0) > 0));
-  let pickError = $state<string | null>(null);
-
-  function pick(): void {
-    pickError = null;
-    invoke('pick_profile')
-      .then((profile) => {
-        if (profile !== null) void app.load().then(() => jobs.load());
-      })
-      .catch((error: unknown) => (pickError = errorText(error)));
-  }
 
   function select(job: JobView): void {
     void jobs.select(job, true);
@@ -63,13 +55,13 @@
   aria-label={de.list.label}
   aria-busy={jobs.status === 'loading'}
 >
-  {#if profileMissing && app.state?.profile === null}
+  {#if mailboxMissing}
     <div class="note">
       <Notice
         tone="info"
-        text={pickError ?? de.list.noProfile}
-        action={{ label: de.list.pickProfile, onclick: pick }}
-        testid="no-profile"
+        text={de.list.noMailbox}
+        action={{ label: de.list.connectMailbox, onclick: () => navigation.go('settings') }}
+        testid="no-mailbox"
       />
     </div>
   {/if}
@@ -156,7 +148,6 @@
         {job}
         ring={!profileMissing}
         pending={pending && job.match === null}
-        fresh={jobs.fresh.has(keyOf(job.key))}
         selected={sameKey(jobs.selected, job.key)}
         onselect={select}
         onpin={pin}
@@ -168,14 +159,17 @@
           <div
             class="item"
             animate:flip={{ count: total }}
-            in:rowIn={{ index: offset + index, count: total }}
+            in:rowIn={{ index: offset + index, fresh: jobs.fresh.has(keyOf(job.key)) }}
           >
             {@render row(job)}
           </div>
         {/each}
       {:else}
         {#each items as job, index (keyOf(job.key))}
-          <div class="item" in:rowIn={{ index: offset + index, count: total }}>
+          <div
+            class="item"
+            in:rowIn={{ index: offset + index, fresh: jobs.fresh.has(keyOf(job.key)) }}
+          >
             {@render row(job)}
           </div>
         {/each}
@@ -211,7 +205,8 @@
   }
 
   .note {
-    padding: var(--pane-padding) var(--pane-padding) 0;
+    padding: var(--pane-padding);
+    border-bottom: var(--border-width) solid var(--border);
   }
 
   .filter {
@@ -240,7 +235,7 @@
     padding: var(--space-24) var(--pane-padding) var(--space-8);
     color: var(--text-muted);
     font: var(--type-sm);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .divider::after {

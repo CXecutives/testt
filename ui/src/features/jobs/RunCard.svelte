@@ -2,18 +2,16 @@
   The run panel on top of the list (flat on the sheet, a hairline below), shown only while a
   run is going or right after it (or when the run status in the sidebar is clicked); it
   collapses to its header line and closes.
-  running: the header with the countdown of a pause and the progress bar right below it,
-  the steps Postfach, Details, Bewertung (16 px check / loader / circle), one line per
-  portal (monogram tiles of one width) and every limit or pause with its reason and end.
+  running: the header (the status, naming the portal it is about, and the countdown of a
+  pause) and the progress bar right below it, the steps Postfach, Details, Bewertung (16 px
+  check / loader / circle) and every limit or pause with its reason and end.
   finished: how many new and well-fitting jobs, what went wrong with a fitting action, the
-  overview and the folder, the history with copy.
+  overview and the folder, the history with copy. A finished rescore only says so.
 -->
 <script lang="ts">
-  import Badge from '$components/Badge.svelte';
   import Button from '$components/Button.svelte';
   import Disclosure from '$components/Disclosure.svelte';
   import Icon from '$components/Icon.svelte';
-  import { PORTAL_MONOGRAM } from '$components/IconTile.svelte';
   import Meter from '$components/Meter.svelte';
   import Notice from '$components/Notice.svelte';
   import Spinner from '$components/Spinner.svelte';
@@ -24,7 +22,7 @@
   import type { OpenTarget, Portal, PortalHealth } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
-  import { run, STEPS } from '$lib/state/run.svelte';
+  import { outcomeText, run, STEPS } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
 
   const summary = $derived(run.summary ?? app.state?.lastRun ?? null);
@@ -35,23 +33,11 @@
   );
   const skipped = $derived(summary?.perPortal.reduce((sum, p) => sum + p.skipped, 0) ?? 0);
   const failure = $derived(summary?.outcome.kind === 'failed' ? summary.outcome.error : null);
-  const portalLines = $derived(
-    (Object.keys(run.portals) as Portal[]).map((portal) => ({
-      portal,
-      progress: run.portals[portal]!,
-      health: run.health[portal] ?? null,
-    })),
-  );
+  const rescore = $derived(summary?.kind === 'rescore');
   const pauses = $derived(
     (Object.entries(run.health) as [Portal, PortalHealth][]).filter(([, h]) => h.kind !== 'ok'),
   );
-  const title = $derived(
-    summary?.outcome.kind === 'failed'
-      ? de.run.failed
-      : summary?.outcome.kind === 'cancelled'
-        ? de.run.cancelled
-        : de.run.done,
-  );
+  const title = $derived(summary ? outcomeText(summary) : de.run.done);
   let actionError = $state<string | null>(null);
 
   function openTarget(target: OpenTarget): void {
@@ -149,7 +135,9 @@
       <div class="lead">
         <Spinner size="sm" label={null} />
         {@render head(
-          run.status ? de.run.status[run.status.code] : de.run.kind[run.kind ?? 'fetch'],
+          run.status
+            ? de.run.statusOf(run.status.code, run.status.portal)
+            : de.run.kind[run.kind ?? 'fetch'],
           run.waitLeft !== null ? de.run.resumesIn(run.waitLeft) : null,
         )}
       </div>
@@ -177,20 +165,6 @@
             </li>
           {/each}
         </ol>
-        {#if portalLines.length > 0}
-          <ul class="portals">
-            {#each portalLines as line (line.portal)}
-              <li class="portal" data-testid="run-portal-{line.portal}">
-                <span class="mono" aria-hidden="true">{PORTAL_MONOGRAM[line.portal]}</span>
-                <span class="name">{de.portal[line.portal]}</span>
-                {#if line.health && line.health.kind !== 'ok'}
-                  <Badge label={healthText(line.health).label} tone="warning" />
-                {/if}
-                <span class="count">{de.run.of(line.progress.done, line.progress.total)}</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
         {#each pauses as [portal, health] (portal)}
           <Notice
             tone="warning"
@@ -212,12 +186,14 @@
         {@render head(title, formatMoment(summary.finishedAt))}
       </div>
       {#if open}
-        <p class="numbers">
-          <span data-testid="last-new">{de.run.newCount(newJobs)}</span>
-          {#if app.hasProfile && topJobs > 0}
-            <span class="sep">·</span><span class="top">{de.run.topCount(topJobs)}</span>
-          {/if}
-        </p>
+        {#if !rescore}
+          <p class="numbers">
+            <span data-testid="last-new">{de.run.newCount(newJobs)}</span>
+            {#if app.hasProfile && topJobs > 0}
+              <span class="sep">·</span><span class="top">{de.run.topCount(topJobs)}</span>
+            {/if}
+          </p>
+        {/if}
         {#if failure}
           <Notice
             tone="danger"
@@ -226,7 +202,7 @@
             action={failureAction}
             testid="run-failed"
           />
-        {:else if summary.outcome.kind === 'completed' && newJobs === 0}
+        {:else if summary.outcome.kind === 'completed' && newJobs === 0 && !rescore}
           <Notice tone="info" variant="inline" text={de.run.nothingNew} testid="nothing-new" />
         {/if}
         {#if skipped > 0}
@@ -241,7 +217,7 @@
         {/if}
         {#if run.history.length > 0}
           <Disclosure label={de.run.history} testid="run-history">
-            <ol class="history">
+            <ol class="history" data-copy>
               {#each run.history as line, index (index)}
                 <li>
                   <span class="time">{formatTime(new Date(line.at).toISOString())}</span>{line.text}
@@ -305,7 +281,7 @@
     overflow: hidden;
     color: var(--text-heading);
     font: var(--type-md);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -322,8 +298,7 @@
     margin-left: auto;
   }
 
-  .steps,
-  .portals {
+  .steps {
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
@@ -344,7 +319,7 @@
   }
 
   .step.current .name {
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   /* 16 px markers: check when done, loader while current, an empty circle ahead. */
@@ -365,28 +340,6 @@
     color: var(--text-muted);
     font: var(--type-sm);
     font-variant-numeric: var(--numeric);
-  }
-
-  .portal {
-    display: flex;
-    align-items: center;
-    gap: var(--space-8);
-    font: var(--type-sm);
-  }
-
-  .portal .count {
-    margin-left: auto;
-  }
-
-  .mono {
-    flex: none;
-    width: var(--monogram-width);
-    border-radius: var(--radius-xs);
-    text-align: center;
-    background-color: var(--surface-muted);
-    color: var(--text-muted);
-    font: var(--type-xs);
-    font-weight: var(--weight-bold);
   }
 
   .numbers {

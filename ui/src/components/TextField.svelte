@@ -109,7 +109,7 @@
 
   .field:focus-within {
     border-color: var(--focus);
-    box-shadow: var(--glow-sm);
+    box-shadow: var(--focus-halo);
   }
 
   .invalid,

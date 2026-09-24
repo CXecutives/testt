@@ -1,4 +1,4 @@
-<!-- Gallery: reason items and the job list with staggered entry and FLIP reordering. -->
+<!-- Gallery: reason items and the job list with its entry and FLIP reordering. -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import JobRow from '$components/JobRow.svelte';
@@ -47,7 +47,7 @@
   {#key run}
     <div class="list" data-testid="job-list">
       {#each jobs as job, index (job.key.id)}
-        <div animate:flip={{ count: jobs.length }} in:rowIn={{ index, count: jobs.length }}>
+        <div animate:flip={{ count: jobs.length }} in:rowIn|global={{ index, fresh: true }}>
           <JobRow
             {job}
             {now}

@@ -1,5 +1,5 @@
 <!--
-  First run (full page): the app mark on a soft coral wash, one sentence of what the app
+  First run (full page) on the white sheet: the app mark, one sentence of what the app
   does, one about privacy, and three real steps that tick themselves: connect the mailbox,
   choose a profile (or save a template first), fetch. The next open step carries the one
   primary button; "Abrufen" stays locked with its reason until a mailbox is connected.
@@ -141,7 +141,6 @@
   .hero {
     min-height: 100%;
     padding: var(--space-16) var(--space-24) var(--space-24);
-    background: var(--grad-hero);
   }
 
   .column {
@@ -204,7 +203,7 @@
     border-radius: var(--radius-full);
     color: var(--text-muted);
     font: var(--type-md);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .marker.current {

@@ -1,14 +1,12 @@
 <!--
-  A number with a label; counts up once when first visible; optionally clickable (a filter).
-  Calm: a white tile with a hairline, the icon small in the label line, coloured only when
-  the tone means something. A clickable tile is a filter and looks like one: hover lifts it
-  1 px with a soft shadow, the active tile (its filter is on) takes an ink edge on a muted
-  surface (coral stays for the few accents).
+  A number with a label; optionally clickable (a filter). Calm: a white tile with a
+  hairline, the icon small in the label line, coloured only when the tone means something.
+  The number is simply there (no count-up each time the view comes back). A clickable tile
+  darkens its hairline on hover; the active tile (its filter is on) takes an ink edge on a
+  muted surface (coral stays for the few accents).
 -->
 <script lang="ts">
-  import { reveal } from '$lib/actions/reveal';
   import { formatNumber } from '$lib/i18n/format';
-  import { countUp } from '$lib/motion/transitions';
   import Icon, { type IconName } from './Icon.svelte';
   import type { TileTone } from './IconTile.svelte';
 
@@ -34,14 +32,6 @@
     onclick = null,
     testid = null,
   }: Props = $props();
-
-  // Short count (--dur-slow); only the score ring takes the longer reveal.
-  const number = countUp(0, 'slow');
-  let revealed = $state(false);
-
-  $effect(() => {
-    if (revealed) number.target = value;
-  });
 </script>
 
 {#snippet body()}
@@ -49,7 +39,7 @@
     {#if icon}<span class="icon {tone}"><Icon name={icon} size="sm" /></span>{/if}
     <span class="label">{label}</span>
   </span>
-  <span class="value">{formatNumber(Math.round(number.current))}</span>
+  <span class="value">{formatNumber(value)}</span>
   {#if hint}<span class="hint">{hint}</span>{/if}
 {/snippet}
 
@@ -60,13 +50,12 @@
     class:active
     aria-pressed={active}
     data-testid={testid ?? undefined}
-    use:reveal={() => (revealed = true)}
     onclick={() => onclick?.()}
   >
     {@render body()}
   </button>
 {:else}
-  <div class="tile" data-testid={testid ?? undefined} use:reveal={() => (revealed = true)}>
+  <div class="tile" data-testid={testid ?? undefined}>
     {@render body()}
   </div>
 {/if}
@@ -77,8 +66,6 @@
     flex-direction: column;
     gap: var(--space-4);
     min-width: 0;
-    position: relative;
-    isolation: isolate;
     padding: var(--space-12) var(--space-16);
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
@@ -88,35 +75,16 @@
 
   .clickable {
     transition:
-      transform var(--dur-fast) var(--ease-standard),
       border-color var(--dur-fast) var(--ease-standard),
       background-color var(--dur-fast) var(--ease-standard);
   }
 
-  /* The hover shadow fades in on ::after (box-shadow itself never animates). */
-  .clickable::after {
-    position: absolute;
-    z-index: var(--z-below);
-    inset: calc(-1 * var(--border-width));
-    border-radius: inherit;
-    box-shadow: var(--sh-sm);
-    content: '';
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--dur-fast) var(--ease-standard);
-  }
-
   .clickable:hover {
     border-color: var(--border-strong);
-    transform: translateY(var(--lift));
-  }
-
-  .clickable:hover::after {
-    opacity: 1;
   }
 
   .clickable:active {
-    transform: translateY(0) scale(var(--scale-press));
+    background-color: var(--surface-muted);
     transition-duration: var(--dur-instant);
   }
 
@@ -170,6 +138,7 @@
   .value {
     color: var(--text-heading);
     font: var(--type-xl);
+    font-weight: var(--weight-medium);
     font-variant-numeric: var(--numeric);
     letter-spacing: var(--tracking-tight);
   }

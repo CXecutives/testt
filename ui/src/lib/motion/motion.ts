@@ -8,8 +8,8 @@
 
 import { tokenMs, tokenNumber, tokenPx, token } from '../tokens';
 
-export type Duration = 'instant' | 'fast' | 'base' | 'slow' | 'reveal' | 'hero' | 'loop';
-export type Easing = 'standard' | 'out' | 'in' | 'pop';
+export type Duration = 'instant' | 'fast' | 'base' | 'slow' | 'reveal' | 'loop';
+export type Easing = 'standard' | 'out' | 'in';
 export type Move = 'sm' | 'md' | 'lg';
 export type EasingFn = (t: number) => number;
 
@@ -18,23 +18,13 @@ interface Values {
   crossfade: number;
   easings: Record<Easing, EasingFn>;
   moves: Record<Move, number>;
-  stagger: number;
   staggerMax: number;
-  pressScale: number;
   enterScale: number;
   tooltipDelay: number;
 }
 
-const DURATIONS: readonly Duration[] = [
-  'instant',
-  'fast',
-  'base',
-  'slow',
-  'reveal',
-  'hero',
-  'loop',
-];
-const EASINGS: readonly Easing[] = ['standard', 'out', 'in', 'pop'];
+const DURATIONS: readonly Duration[] = ['instant', 'fast', 'base', 'slow', 'reveal', 'loop'];
+const EASINGS: readonly Easing[] = ['standard', 'out', 'in'];
 const MOVES: readonly Move[] = ['sm', 'md', 'lg'];
 
 let values: Values | null = null;
@@ -97,9 +87,7 @@ function read(): Values {
       Move,
       number
     >,
-    stagger: tokenMs('--dur-stagger'),
     staggerMax: tokenNumber('--stagger-max'),
-    pressScale: tokenNumber('--scale-press'),
     enterScale: tokenNumber('--scale-enter'),
     tooltipDelay: tokenMs('--delay-tooltip'),
   };
@@ -155,24 +143,13 @@ export function move(name: Move): number {
   return reduced ? 0 : current().moves[name];
 }
 
-export function pressScale(): number {
-  return reduced ? 1 : current().pressScale;
-}
-
 export function enterScale(): number {
   return reduced ? 1 : current().enterScale;
 }
 
-/** How many items of a list animate in one after another; the rest appear with the last. */
+/** How many items of a list may animate at the same time; the others are simply there. */
 export function staggerLimit(): number {
   return current().staggerMax;
-}
-
-/** Entry delay of the n-th item of a list (capped at --stagger-max items). */
-export function staggerDelay(index: number): number {
-  if (reduced) return 0;
-  const { stagger, staggerMax } = current();
-  return Math.min(Math.max(index, 0), staggerMax - 1) * stagger;
 }
 
 export function tooltipDelay(): number {
@@ -183,7 +160,7 @@ export interface PlayOptions {
   duration: Duration;
   easing?: Easing;
   delay?: number;
-  /** Kept at 120 ms under reduced motion (opacity-only animations). */
+  /** Kept at --dur-crossfade under reduced motion (opacity-only animations). */
   crossfade?: boolean;
 }
 

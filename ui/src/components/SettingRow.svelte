@@ -1,4 +1,5 @@
-<!-- One setting: label and one-sentence hint on the left, badges and the control right. -->
+<!-- One setting: label and one-sentence hint on the left, badges and the control right. A
+     hint that is a value to copy (a path, the address) selects like text (`copy`). -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
@@ -7,11 +8,20 @@
     hint?: string | null;
     /** Badges next to the label (e.g. the risk of a portal switch). */
     badges?: Snippet | null;
+    /** The hint is a value a user would copy (a folder path). */
+    copy?: boolean;
     testid?: string | null;
     children: Snippet;
   }
 
-  let { label, hint = null, badges = null, testid = null, children }: Props = $props();
+  let {
+    label,
+    hint = null,
+    badges = null,
+    copy = false,
+    testid = null,
+    children,
+  }: Props = $props();
 </script>
 
 <div class="row" data-testid={testid ?? undefined}>
@@ -20,7 +30,7 @@
       <span class="label">{label}</span>
       {#if badges}{@render badges()}{/if}
     </div>
-    {#if hint}<p class="hint">{hint}</p>{/if}
+    {#if hint}<p class="hint" class:path={copy} data-copy={copy ? '' : undefined}>{hint}</p>{/if}
   </div>
   <div class="control">{@render children()}</div>
 </div>
@@ -63,6 +73,10 @@
   .hint {
     color: var(--text-muted);
     font: var(--type-sm);
+  }
+
+  .path {
+    overflow-wrap: anywhere;
   }
 
   .control {

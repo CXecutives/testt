@@ -2,9 +2,13 @@
 // talks to the backend through these functions, which is also what lets the harness swap
 // Tauri for a typed stub (vite `--mode harness`).
 //
-// Run events: one Tauri Channel, created lazily, is handed to the commands that take a
-// `channel` (`app_state` attaches - also to a run that is already going after a reload -,
-// `start_run` reports); `onRun` fans the events out. Callers never pass the channel.
+// Run events: every command that takes a `channel` (`app_state` attaches - also to a run
+// that is already going after a reload -, `start_run` reports) gets a Channel of its own;
+// `onRun` fans the events of all of them out. Callers never pass the channel.
+// One channel per call is required: Tauri numbers the messages of each Rust-side channel
+// from 0 and the JS channel delivers them in that order, and when the Rust side drops its
+// channel it unregisters the JS one. A shared JS channel therefore swallows every event of
+// the second run (the run finished in the backend, the UI never heard of it).
 //
 // Types: `Commands` is generated from the Rust command table (types/commands.ts).
 
@@ -78,16 +82,14 @@ function toIpcError(error: unknown): IpcError {
 
 type RunHandler = (event: RunEvent) => void;
 const runHandlers = new Set<RunHandler>();
-let runChannel: Channel<RunEvent> | null = null;
 
+/** A fresh channel for one command call; its events go to every run handler. */
 function channel(): Channel<RunEvent> {
-  if (runChannel === null) {
-    runChannel = new Channel<RunEvent>();
-    runChannel.onmessage = (event) => {
-      for (const handler of runHandlers) handler(event);
-    };
-  }
-  return runChannel;
+  const next = new Channel<RunEvent>();
+  next.onmessage = (event) => {
+    for (const handler of runHandlers) handler(event);
+  };
+  return next;
 }
 
 /** Subscribe to run events (progress, status, job updates, ...). Returns an unsubscribe. */

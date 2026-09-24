@@ -14,7 +14,7 @@ test('the profile shows what the app understood, in plain words', async ({ page 
   await expect(page.getByTestId('profile-name')).toHaveText('profil-interim-finance.json');
   await expect(page.getByTestId('profile-file')).toContainText('18 KB · 21.09.2026');
   await expect(page.getByTestId('profile-file')).toContainText('Gut lesbar');
-  // Label | value rows; what the profile leaves open says "offen", in the subtle tone.
+  // Label | value rows; what the profile leaves open says "nicht gesetzt", in the subtle tone.
   const list = page.getByTestId('criteria-list');
   await expect(list.locator('dt')).toHaveText([
     'Tagessatz',
@@ -29,9 +29,9 @@ test('the profile shows what the app understood, in plain words', async ({ page 
     'ab 1.100 €',
     'Deutschland, Österreich',
     'ausgeschlossen',
-    'offen',
-    'offen',
-    'offen',
+    'nicht gesetzt',
+    'nicht gesetzt',
+    'nicht gesetzt',
     'ab 15 Jahren Erfahrung',
   ]);
   await expect(list.locator('dd.unset')).toHaveCount(3);
@@ -65,7 +65,7 @@ test('remove asks first; choosing a profile again rescores', async ({ page }) =>
 test('saving the template confirms with a toast', async ({ page }) => {
   await profile(page);
   await page.getByTestId('profile-template').click();
-  await expect(page.getByTestId('toast')).toHaveText('Die Vorlage liegt im Arbeitsordner.');
+  await expect(page.getByTestId('toast')).toHaveText('Die Vorlage ist gespeichert.');
 });
 
 test('a profile edited into broken JSON says so and where', async ({ page }) => {

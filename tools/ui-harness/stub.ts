@@ -4,7 +4,8 @@
 // invented sample data, records the calls and lets a test push run events:
 //
 //   window.__harness.calls          [command, args][]
-//   window.__harness.emit(event)    deliver a RunEvent on every open channel
+//   window.__harness.emit(event)    send a RunEvent the way Rust does (the run's channel,
+//                                   else the page's channel from its last app_state)
 //   window.__harness.done           true once a started run has finished
 //
 // Scenarios (`?scenario=`): default · first-run · mailbox-only · no-profile · empty ·
@@ -42,11 +43,76 @@ declare global {
 
 /* ------------------------------------------------------------------ channel */
 
-const channels = new Set<Channel<RunEvent>>();
-
+/**
+ * Tauri's Channel as the page sees it (@tauri-apps/api/core): messages carry the index of
+ * their Rust-side sender and are delivered in that order; the message `end` (the Rust side
+ * dropped its channel) unregisters the callback, after which nothing arrives any more.
+ */
 export class Channel<T = unknown> {
   onmessage: (message: T) => void = () => undefined;
+  #next = 0;
+  #pending = new Map<number, T>();
+  #end: number | null = null;
+  #closed = false;
+
+  /** What `window.__TAURI_INTERNALS__.runCallback` does with one raw message. */
+  receive(raw: { index: number; message?: T; end?: true }): void {
+    if (this.#closed) return;
+    if (raw.end) {
+      if (raw.index === this.#next) this.#closed = true;
+      else this.#end = raw.index;
+      return;
+    }
+    if (raw.index !== this.#next) {
+      this.#pending.set(raw.index, raw.message as T);
+      return;
+    }
+    this.onmessage(raw.message as T);
+    this.#next += 1;
+    while (this.#pending.has(this.#next)) {
+      const message = this.#pending.get(this.#next) as T;
+      this.#pending.delete(this.#next);
+      this.onmessage(message);
+      this.#next += 1;
+    }
+    if (this.#next === this.#end) this.#closed = true;
+  }
 }
+
+/**
+ * The Rust side of one `channel` argument (tauri::ipc::Channel): its own message counter
+ * from 0, shared by its clones; once the last clone is dropped it sends `end`. Delivery is
+ * asynchronous, as with `webview.eval`.
+ */
+class Sender {
+  #index = 0;
+  #holders = 0;
+
+  constructor(readonly channel: Channel<RunEvent>) {}
+
+  hold(): Sender {
+    this.#holders += 1;
+    return this;
+  }
+
+  send(event: RunEvent): void {
+    const index = this.#index++;
+    const message = structuredClone(event);
+    queueMicrotask(() => this.channel.receive({ index, message }));
+  }
+
+  release(): void {
+    this.#holders -= 1;
+    if (this.#holders > 0) return;
+    const index = this.#index;
+    queueMicrotask(() => this.channel.receive({ index, end: true }));
+  }
+}
+
+/** The page's channel from its last `app_state` (commands::scoring keeps it). */
+let pageSender: Sender | null = null;
+/** The channel of the run in progress (commands::run::RunHandle). */
+let runSender: Sender | null = null;
 
 /* ----------------------------------------------------------------- scenario */
 
@@ -74,11 +140,16 @@ const scored = (score: number, top: string[], mustMet = 3, mustTotal = 4): Match
   top,
 });
 
-const excludedBy = (criterion: string, score: number): Match => ({
+/** Excluded by a hard criterion: the engine names the first violation's reason code. */
+const excludedBy = (
+  code: string,
+  score: number,
+  params: Record<string, string | number> = {},
+): Match => ({
   score,
   band: score >= 80 ? 'high' : score >= 40 ? 'mid' : 'low',
   status: 'excluded',
-  note: { code: 'hardCriterion', params: { criterion } },
+  note: { code, params },
   mustMet: 2,
   mustTotal: 4,
   top: [],
@@ -194,7 +265,7 @@ function sampleJobs(): JobView[] {
       {
         unread: true,
         workMode: null,
-        match: excludedBy('noAnue', 55),
+        match: excludedBy('anue', 55),
       },
     ),
     job(
@@ -240,7 +311,7 @@ function sampleJobs(): JobView[] {
       },
     ),
     job('linkedin', '4100200305', 'Payroll Specialist', 'Lakeside Payroll AG', 'Zürich', 80, {
-      match: excludedBy('countries', 38),
+      match: excludedBy('country', 38, { allowed: 'Deutschland, Österreich' }),
     }),
     job('freelancermap', '2806', 'Reporting Analyst', 'Hafenkontor GmbH', 'Hamburg', 96, {
       short: true,
@@ -288,7 +359,7 @@ function manyJobs(count: number): JobView[] {
           unread: i % 3 === 0,
           match:
             i % 17 === 5
-              ? excludedBy('minDayRate', score)
+              ? excludedBy('dayRate', score, { rate: 700, min: 1100 })
               : scored(score, ['Controlling im Konzern']),
         },
       ),
@@ -520,8 +591,7 @@ function initial(): void {
         startedAt: at(0.05),
         replay: [
           { type: 'progress', step: 'scan', portal: null, done: 9, total: 9 },
-          { type: 'progress', step: 'fetch', portal: 'linkedin', done: 3, total: 5 },
-          { type: 'progress', step: 'fetch', portal: 'freelancermap', done: 2, total: 2 },
+          { type: 'progress', step: 'fetch', portal: null, done: 5, total: 7 },
           {
             type: 'portalHealth',
             portal: 'freelance',
@@ -580,8 +650,9 @@ function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
   const base = needle
     ? jobs.filter((j) => fold(`${j.title} ${j.company} ${j.location}`).includes(needle))
     : jobs;
-  const isNew = (j: JobView): boolean => j.unread && j.match?.status !== 'excluded';
-  const page = (query.facet === 'new' ? base.filter(isNew) : [...base]).sort((a, b) => {
+  // Neu lists every unread job, excluded ones too (grey behind the divider); only the count
+  // leaves them out (store::job_page).
+  const page = (query.facet === 'new' ? base.filter((j) => j.unread) : [...base]).sort((a, b) => {
     const ex = Number(a.match?.status === 'excluded') - Number(b.match?.status === 'excluded');
     if (ex !== 0) return ex;
     if (query.sort === 'match') {
@@ -747,8 +818,26 @@ function fail(kind: ErrorInfo['kind'], params: ErrorInfo['params'] = {}): ErrorI
   return { kind, params };
 }
 
+/** Through the channel of the run, or without a run the page's channel (as Rust does). */
 function emit(event: RunEvent): void {
-  for (const channel of channels) channel.onmessage(event);
+  (runSender ?? pageSender)?.send(event);
+}
+
+/** `app_state`: the page's new channel replaces the old one and takes over a running run. */
+function attachPage(sender: Sender): void {
+  pageSender?.release();
+  pageSender = sender.hold();
+  if (runSender !== null) {
+    runSender.release();
+    runSender = sender.hold();
+  }
+}
+
+/** The run is over: its handle (and with it its channel) is dropped. */
+function endRun(): void {
+  running = false;
+  runSender?.release();
+  runSender = null;
 }
 
 const NEW_JOBS: JobView[] = [
@@ -815,10 +904,9 @@ function script(kind: RunSummary['kind']): RunEvent[] {
     { type: 'progress', step: 'scan', portal: null, done: 3, total: 3 },
     ...NEW_JOBS.map((j): RunEvent => ({ type: 'jobUpdated', job: j })),
     { type: 'status', code: 'fetchingDetails', portal: 'linkedin', until: null },
-    { type: 'progress', step: 'fetch', portal: 'linkedin', done: 0, total: 1 },
-    { type: 'progress', step: 'fetch', portal: 'freelancermap', done: 0, total: 1 },
-    { type: 'progress', step: 'fetch', portal: 'linkedin', done: 1, total: 1 },
-    { type: 'progress', step: 'fetch', portal: 'freelancermap', done: 1, total: 1 },
+    { type: 'progress', step: 'fetch', portal: null, done: 0, total: 2 },
+    { type: 'progress', step: 'fetch', portal: null, done: 1, total: 2 },
+    { type: 'progress', step: 'fetch', portal: null, done: 2, total: 2 },
     {
       type: 'portalHealth',
       portal: 'freelance',
@@ -831,7 +919,7 @@ function script(kind: RunSummary['kind']): RunEvent[] {
   const results: Match[] = [
     scored(88, ['Carve-out Erfahrung', 'Konzernabschluss nach HGB'], 4, 4),
     scored(61, ['Post-Merger-Integration'], 2, 4),
-    excludedBy('noAnue', 49),
+    excludedBy('anue', 49),
   ];
   NEW_JOBS.forEach((j, i) => {
     events.push({
@@ -890,12 +978,16 @@ function script(kind: RunSummary['kind']): RunEvent[] {
   return events;
 }
 
-function startRun(kind: RunSummary['kind']): void {
+function startRun(kind: RunSummary['kind'], sender: Sender | null): void {
   if (running) throw fail('busy');
-  if (state.mailbox.user === null) throw fail('mailMissing');
+  if (state.mailbox.user === null && kind !== 'rescore' && kind !== 'details') {
+    throw fail('mailMissing');
+  }
   running = true;
+  runSender = sender?.hold() ?? null;
   harness.done = false;
-  const events = scenario === 'offline' ? offlineScript() : script(kind);
+  const events =
+    scenario === 'offline' ? offlineScript() : kind === 'rescore' ? rescoreScript() : script(kind);
   let index = 0;
   const step = (): void => {
     if (!running) return;
@@ -904,13 +996,34 @@ function startRun(kind: RunSummary['kind']): void {
     apply(event);
     emit(event);
     if (event.type === 'finished') {
-      running = false;
+      endRun();
       harness.done = true;
       return;
     }
     setTimeout(step, TICK);
   };
   setTimeout(step, TICK);
+}
+
+/** The rescore the app starts after a profile change: scoring only, nothing fetched. */
+function rescoreScript(): RunEvent[] {
+  return [
+    { type: 'status', code: 'scoring', portal: null, until: null },
+    { type: 'progress', step: 'score', portal: null, done: 0, total: 1 },
+    { type: 'progress', step: 'score', portal: null, done: 1, total: 1 },
+    {
+      type: 'finished',
+      summary: {
+        ...lastRun(),
+        kind: 'rescore',
+        startedAt: at(0.01),
+        finishedAt: at(0),
+        perPortal: [],
+        emptyAlerts: [],
+        export: null,
+      },
+    },
+  ];
 }
 
 function offlineScript(): RunEvent[] {
@@ -951,6 +1064,7 @@ function cancelRun(): void {
     const event: RunEvent = { type: 'finished', summary };
     apply(event);
     emit(event);
+    endRun();
     harness.done = true;
   }, TICK);
 }
@@ -963,10 +1077,16 @@ type Handlers = { [K in keyof Commands]: (args: Args<K>) => Commands[K]['result'
 const find = (key: { portal: string; id: string }): JobView | undefined =>
   jobs.find((j) => j.key.portal === key.portal && j.key.id === key.id);
 
+/** The Rust side of the `channel` argument of the command being handled. */
+let sender: Sender | null = null;
+
 const handlers: Handlers = {
-  app_state: () => structuredClone(state),
+  app_state: () => {
+    if (sender !== null) attachPage(sender);
+    return structuredClone(state);
+  },
   start_run: ({ request }) => {
-    startRun(request.kind);
+    startRun(request.kind, sender);
     return null;
   },
   cancel_run: () => {
@@ -1079,13 +1199,20 @@ initial();
 
 export async function invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   harness.calls.push([command, args]);
-  if (args.channel instanceof Channel) channels.add(args.channel as Channel<RunEvent>);
   const handler = handlers[command as keyof Commands] as ((a: unknown) => unknown) | undefined;
   if (handler === undefined) throw fail('internal', { command });
   if (DELAY > 0 && command !== 'report_ui_error') {
     await new Promise((resolve) => setTimeout(resolve, DELAY));
   }
-  return handler(args) as T;
+  // Like Tauri: every call gets its own Rust-side channel, dropped when nothing holds it.
+  sender = args.channel instanceof Channel ? new Sender(args.channel as Channel<RunEvent>) : null;
+  const own = sender?.hold() ?? null;
+  try {
+    return handler(args) as T;
+  } finally {
+    sender = null;
+    own?.release();
+  }
 }
 
 /* ------------------------------------------------------------------- window */

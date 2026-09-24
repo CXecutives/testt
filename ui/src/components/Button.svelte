@@ -1,6 +1,6 @@
 <!--
-  The button of the app: primary | secondary | ghost | danger × sm | md | lg, plus `bar`
-  (32 px) for the one button of the title strip.
+  The button of the app: primary | secondary | ghost | danger × sm | md | lg. Flat like a
+  native button: hover and press change colour only (100 ms), no lift, no glow, no bounce.
   - Trailing actions inside a row are sm, action bars are md.
   - At most one primary per view (checked by core/tests/ui_contract.rs).
   - iconOnly needs its label: it becomes aria-label and tooltip.
@@ -9,14 +9,14 @@
 -->
 <script lang="ts" module>
   export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
-  export type ButtonSize = 'sm' | 'bar' | 'md' | 'lg';
+  export type ButtonSize = 'sm' | 'md' | 'lg';
   export const BUTTON_VARIANTS: readonly ButtonVariant[] = [
     'primary',
     'secondary',
     'ghost',
     'danger',
   ];
-  export const BUTTON_SIZES: readonly ButtonSize[] = ['sm', 'bar', 'md', 'lg'];
+  export const BUTTON_SIZES: readonly ButtonSize[] = ['sm', 'md', 'lg'];
 </script>
 
 <script lang="ts">
@@ -37,7 +37,7 @@
     type?: 'button' | 'submit';
     /** Toggle buttons (e.g. the pin star). */
     pressed?: boolean | null;
-    /** Fill the width of the container (the sidebar's "Abrufen"). */
+    /** Fill the width of the container. */
     wide?: boolean;
     testid?: string | null;
     onclick?: (event: MouseEvent) => void;
@@ -59,8 +59,8 @@
     onclick,
   }: Props = $props();
 
-  const ICON_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', bar: 'sm', md: 'sm', lg: 'md' };
-  const ICON_ONLY_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', bar: 'sm', md: 'md', lg: 'lg' };
+  const ICON_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', md: 'sm', lg: 'md' };
+  const ICON_ONLY_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', md: 'md', lg: 'lg' };
 
   const inactive = $derived(disabled || loading);
   const hint = $derived(disabled && disabledReason ? disabledReason : iconOnly ? label : null);
@@ -120,34 +120,18 @@
     box-shadow: var(--btn-shadow);
     color: var(--btn-fg);
     font: var(--btn-type);
-    font-weight: var(--btn-weight);
+    font-weight: var(--weight-medium);
     white-space: nowrap;
-    isolation: isolate;
     transition:
-      transform var(--dur-fast) var(--ease-pop),
       background-color var(--dur-fast) var(--ease-standard),
       border-color var(--dur-fast) var(--ease-standard),
       color var(--dur-fast) var(--ease-standard);
-  }
-
-  /* Shadow and glow never animate as box-shadow: they sit on ::after and fade. */
-  .btn::after {
-    position: absolute;
-    z-index: var(--z-below);
-    inset: calc(-1 * var(--border-width));
-    border-radius: inherit;
-    box-shadow: var(--btn-glow);
-    content: '';
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--dur-base) var(--ease-standard);
   }
 
   .content {
     display: inline-flex;
     align-items: center;
     gap: var(--btn-gap);
-    transition: opacity var(--dur-fast) var(--ease-standard);
   }
 
   .busy {
@@ -168,12 +152,11 @@
     color: var(--btn-fg-hover);
   }
 
+  /* Pressed: only while the left button is down (input.ts keeps the others from pressing). */
   .btn:not([aria-disabled='true'], .loading):active {
     border-color: var(--btn-border-active);
     background-color: var(--btn-bg-active);
-    transform: scale(var(--scale-press));
     transition-duration: var(--dur-instant);
-    transition-timing-function: var(--ease-standard);
   }
 
   .btn:focus-visible {
@@ -200,20 +183,6 @@
     --btn-fg: var(--text-on-accent);
     --btn-fg-hover: var(--text-on-accent);
     --btn-shadow: var(--sh-xs);
-    --btn-glow: var(--sh-elegant), var(--glow);
-    --btn-weight: var(--weight-semibold);
-  }
-
-  .primary:not([aria-disabled='true'], .loading):hover {
-    transform: translateY(var(--lift));
-  }
-
-  .primary:not([aria-disabled='true'], .loading):hover::after {
-    opacity: 1;
-  }
-
-  .primary:not([aria-disabled='true'], .loading):active {
-    transform: translateY(0) scale(var(--scale-press));
   }
 
   .secondary {
@@ -226,8 +195,6 @@
     --btn-fg: var(--text);
     --btn-fg-hover: var(--text);
     --btn-shadow: var(--sh-xs);
-    --btn-glow: none;
-    --btn-weight: var(--weight-medium);
   }
 
   /* A secondary toggle that is on (a filter chip): the ink edge on a muted surface. */
@@ -247,8 +214,6 @@
     --btn-fg: var(--text-muted);
     --btn-fg-hover: var(--text);
     --btn-shadow: none;
-    --btn-glow: none;
-    --btn-weight: var(--weight-medium);
   }
 
   .ghost[aria-pressed='true'] {
@@ -266,20 +231,11 @@
     --btn-fg: var(--text-on-accent);
     --btn-fg-hover: var(--text-on-accent);
     --btn-shadow: var(--sh-xs);
-    --btn-glow: none;
-    --btn-weight: var(--weight-semibold);
   }
 
   /* --------------------------------------------------------------- sizes */
   .sm {
     --btn-height: var(--control-sm);
-    --btn-pad: var(--space-12);
-    --btn-gap: var(--space-6);
-    --btn-type: var(--type-sm);
-  }
-
-  .bar {
-    --btn-height: var(--control-bar);
     --btn-pad: var(--space-12);
     --btn-gap: var(--space-6);
     --btn-type: var(--type-sm);

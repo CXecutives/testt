@@ -15,7 +15,7 @@ test('reduced motion: no movement, instant tokens, the new view is in place at o
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
   const tokens = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);
-    return ['--dur-base', '--move-lg', '--lift', '--loop-state'].map((name) =>
+    return ['--dur-base', '--move-lg', '--dur-reveal', '--loop-state'].map((name) =>
       style.getPropertyValue(name).trim(),
     );
   });

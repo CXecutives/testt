@@ -63,16 +63,26 @@ export function reasonHint(reason: Reason): string | null {
   return null;
 }
 
-/** Why a job is excluded or not scored (the note of its match), if there is one. */
+/**
+ * Why a job is excluded or not scored (the note of its match), if there is one. The engine
+ * names the first violation by its reason code (`dayRate`, `country`, `anue` ...) with that
+ * reason's params, so after the note table the reason catalog speaks, then the criterion.
+ */
 export function noteText(note: Notice | null): string | null {
   if (note === null) return null;
   if (note.code === 'hardCriterion') {
     const key = criterionKey(note.params.criterion);
     return key ? de.reader.criterion[key].exclusion : de.reader.note.hardCriterion;
   }
-  return has(de.reader.note, note.code)
-    ? textOf(de.reader.note[note.code as MatchNote], note.params)
-    : null;
+  if (has(de.reader.note, note.code)) {
+    return textOf(de.reader.note[note.code as MatchNote], note.params);
+  }
+  if (has(de.reason.code, note.code) && note.code !== 'requirement' && note.code !== 'term') {
+    const text = textOf(de.reason.code[note.code as ReasonCode], note.params);
+    if (text) return text;
+  }
+  const key = criterionKey(note.code);
+  return key ? de.reader.criterion[key].exclusion : null;
 }
 
 /** The reason line of a list row: the exclusion note, else the best met requirement. */
@@ -131,7 +141,12 @@ export function healthText(health: PortalHealth): { label: string; text: string 
     case 'quotaReached':
       return { label: de.health.quotaReached, text: de.run.quota(health.until) };
     case 'layoutSuspect':
-      return { label: de.health.layoutSuspect, text: de.health.layoutText(health.emptyMails) };
+      // Empty alert mails point at the mail format; otherwise the pages looked odd.
+      return {
+        label: de.health.layoutSuspect,
+        text:
+          health.emptyMails > 0 ? de.health.layoutText(health.emptyMails) : de.health.layoutPages,
+      };
     case 'loginRequired':
       return { label: de.health.loginRequired, text: de.health.loginText };
   }

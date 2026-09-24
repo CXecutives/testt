@@ -1,8 +1,7 @@
 <!--
-  A white card with a hairline, flat (it sits on the white sheet of the content: no shadow
-  at rest). plain | interactive | tinted.
-  Interactive cards (with onclick) lift 1 px on hover: the hairline darkens and a warm
-  shadow fades in on ::after. No colour: coral is kept for selection and the primary.
+  A white card with a hairline, flat (it sits on the white sheet of the content, no shadow).
+  plain | interactive | tinted (a calm muted surface).
+  Interactive cards (with onclick) only darken their hairline on hover: no lift, no shadow.
 -->
 <script lang="ts" module>
   export type CardVariant = 'plain' | 'interactive' | 'tinted';
@@ -51,52 +50,28 @@
 
 <style>
   .card {
-    position: relative;
     display: block;
     width: 100%;
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
     background-color: var(--surface);
     text-align: left;
-    isolation: isolate;
   }
 
   .tinted {
-    border-color: var(--border-accent);
-    background: var(--grad-card);
+    background-color: var(--surface-muted);
   }
 
   .interactive {
-    transition:
-      transform var(--dur-base) var(--ease-out),
-      border-color var(--dur-base) var(--ease-standard);
-  }
-
-  /* Card shadow, faded in (box-shadow itself never animates). */
-  .interactive::after {
-    position: absolute;
-    z-index: var(--z-below);
-    inset: calc(-1 * var(--border-width));
-    border-radius: inherit;
-    box-shadow: var(--sh-card);
-    content: '';
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--dur-base) var(--ease-standard);
+    transition: border-color var(--dur-fast) var(--ease-standard);
   }
 
   .interactive:hover {
     border-color: var(--border-strong);
-    transform: translateY(var(--lift));
-  }
-
-  .interactive:hover::after {
-    opacity: 1;
   }
 
   .interactive:active {
-    transform: translateY(0) scale(var(--scale-press));
-    transition-duration: var(--dur-instant);
+    border-color: var(--border-input);
   }
 
   .interactive:focus-visible {

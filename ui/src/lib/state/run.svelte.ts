@@ -1,7 +1,9 @@
-// The run in progress, built from the events of the one run channel: steps with progress,
-// one line per portal, the current status (with the countdown of a pause), portal health,
-// a short history and the summary of the finished run. After a reload the snapshot of
-// `app_state` replays the events that describe the current state.
+// The run in progress, built from the run events (api.ts: one channel per command call, all
+// fanned out to `onRun`): steps with progress, the current status (with the countdown of a
+// pause), portal health, a short history and the summary of the finished run. After a
+// reload the snapshot of `app_state` replays the events that describe the current state.
+// A rescore (the app starts it after a profile change) runs through here too, but it is no
+// fetch: it opens no run card and brings no "fetch done" news.
 
 import { de } from '../i18n/de';
 import { errorText } from '../i18n/texts';
@@ -41,7 +43,6 @@ class RunStore {
   kind = $state<RunKindName | null>(null);
   step = $state<Step | null>(null);
   progress = $state<Partial<Record<Step, Progress>>>({});
-  portals = $state<Partial<Record<Portal, Progress>>>({});
   status = $state<{ code: StatusCode; portal: Portal | null; until: string | null } | null>(null);
   health = $state<Partial<Record<Portal, PortalHealth>>>({});
   loginNeeded = $state<Portal | null>(null);
@@ -83,7 +84,6 @@ class RunStore {
     this.kind = kind;
     this.step = null;
     this.progress = {};
-    this.portals = {};
     this.status = null;
     this.health = {};
     this.loginNeeded = null;
@@ -91,7 +91,7 @@ class RunStore {
     this.summary = null;
     this.startError = null;
     this.cancelling = false;
-    if (this.panel === 'hidden') this.panel = 'open';
+    if (this.panel === 'hidden' && kind !== 'rescore') this.panel = 'open';
   }
 
   async start(request: RunRequest): Promise<boolean> {
@@ -163,14 +163,11 @@ class RunStore {
       case 'progress': {
         if (!this.active && live) this.reset(this.kind ?? 'fetch');
         this.step = event.step;
-        this.progress = {
-          ...this.progress,
-          [event.step]: { done: event.done, total: event.total },
-        };
-        if (event.portal !== null && event.step === 'fetch') {
-          this.portals = {
-            ...this.portals,
-            [event.portal]: { done: event.done, total: event.total },
+        // The step's progress counts over all portals (the backend sends `portal: null`).
+        if (event.portal === null) {
+          this.progress = {
+            ...this.progress,
+            [event.step]: { done: event.done, total: event.total },
           };
         }
         break;
@@ -179,10 +176,7 @@ class RunStore {
         const changed = this.status?.code !== event.code || this.status?.portal !== event.portal;
         this.status = { code: event.code, portal: event.portal, until: event.until };
         this.tick(event.code === 'waiting' && event.until !== null);
-        if (changed) {
-          const portal = event.portal ? ` · ${de.portal[event.portal]}` : '';
-          this.log(`${de.run.status[event.code]}${portal}`);
-        }
+        if (changed) this.log(de.run.statusOf(event.code, event.portal));
         break;
       }
       case 'alert':
@@ -191,7 +185,7 @@ class RunStore {
       case 'portalHealth':
         this.health = { ...this.health, [event.portal]: event.health };
         app.setHealth(event.portal, event.health);
-        if (event.health.kind !== 'ok') this.log(de.run.health(event.portal));
+        if (event.health.kind !== 'ok') this.log(de.run.health(event.portal, event.health.kind));
         break;
       case 'loginNeeded':
         this.loginNeeded = event.waiting ? event.portal : null;
@@ -203,18 +197,15 @@ class RunStore {
         this.cancelling = false;
         this.status = null;
         this.tick(false);
-        this.log(
-          event.summary.outcome.kind === 'completed'
-            ? de.run.done
-            : event.summary.outcome.kind === 'cancelled'
-              ? de.run.cancelled
-              : de.run.failed,
-        );
+        this.log(outcomeText(event.summary));
         if (live) {
-          if (this.panel === 'hidden') this.panel = 'open';
-          // In the Jobs view the run card says it; elsewhere a toast brings the news.
+          const rescore = event.summary.kind === 'rescore';
+          if (this.panel === 'hidden' && !rescore) this.panel = 'open';
+          // In the Jobs view the run card says it; elsewhere a toast brings the news. A rescore
+          // speaks where it was started (the Profil view), not as a fetch.
           if (event.summary.outcome.kind === 'completed' && navigation.current !== 'jobs') {
-            toasts.show(de.toast.runDone(this.newJobs));
+            if (!rescore) toasts.show(de.toast.runDone(this.newJobs));
+            else if (navigation.current !== 'profile') toasts.show(de.toast.rescored);
           }
           void app.load();
         }
@@ -228,6 +219,18 @@ class RunStore {
   /** New jobs of the finished run over all portals. */
   get newJobs(): number {
     return this.summary?.perPortal.reduce((sum, p) => sum + p.new, 0) ?? 0;
+  }
+}
+
+/** The line of a finished run: done, re-scored, cancelled or failed. */
+export function outcomeText(summary: RunSummary): string {
+  switch (summary.outcome.kind) {
+    case 'completed':
+      return summary.kind === 'rescore' ? de.run.rescored : de.run.done;
+    case 'cancelled':
+      return de.run.cancelled;
+    default:
+      return de.run.failed;
   }
 }
 

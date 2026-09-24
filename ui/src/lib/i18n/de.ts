@@ -18,6 +18,7 @@ import type {
   JobSort,
   PauseReason,
   Portal,
+  PortalHealth,
   ProfileQuality,
   ReasonKind,
   ReasonWeight,
@@ -101,15 +102,22 @@ const status: Record<StatusCode, string> = {
   searchingMail: 'Sucht Alert-Mails',
   readingMails: 'Liest Alert-Mails',
   fetchingDetails: 'Holt Details',
-  signingIn: 'Meldet an',
+  signingIn: 'Meldet sich an',
   waiting: 'Wartet auf das Portal',
   scoring: 'Bewertet die Jobs',
   writingFiles: 'Schreibt die Dateien',
 };
 
+/** The status of a run when the backend names the portal it is about. */
+const statusAt: Partial<Record<StatusCode, (portal: string) => string>> = {
+  fetchingDetails: (portal) => `Holt Details von ${portal}`,
+  signingIn: (portal) => `Meldet sich bei ${portal} an`,
+  waiting: (portal) => `Wartet auf ${portal}`,
+};
+
 const pause: Record<PauseReason, string> = {
-  throttled: 'Das Portal bremst die Abrufe.',
-  blocked: 'Das Portal blockiert die Abrufe.',
+  throttled: 'Das Portal bremst die Anfragen.',
+  blocked: 'Das Portal blockiert die Anfragen.',
   layoutChanged: 'Die Seiten sehen anders aus als erwartet.',
   stateUnreadable: 'Der Stand des Portals ist nicht lesbar.',
   network: 'Das Portal ist nicht erreichbar.',
@@ -155,7 +163,8 @@ const reasonCode = {
   anueHidden: 'Die Anzeige deutet auf Arbeitnehmerüberlassung hin.',
   countryUnclear: 'Der Einsatzort ist unklar.',
   dayRateCurrency: (p) => `Der Satz ist in ${str(p.currency)} angegeben.`,
-  availabilityGap: (p) => `Der Start liegt ${n(num(p.days))} Tage vor der Verfügbarkeit.`,
+  availabilityGap: (p) =>
+    `Der Start liegt ${count(num(p.days), 'Tag', 'Tage')} vor der Verfügbarkeit.`,
   startVague: 'Der Starttermin ist offen.',
   permanent: 'Das klingt nach einer Festanstellung.',
   permanentRegion: (p) =>
@@ -180,7 +189,7 @@ const reasonCode = {
   salaryUnknown: 'Die Anzeige nennt kein Gehalt.',
   tooJunior: (p) =>
     p.years !== undefined && p.years !== null
-      ? `Die Stelle verlangt ${n(num(p.years))} Jahre Erfahrung, das Profil zielt auf ${n(num(p.target))}.`
+      ? `Die Stelle verlangt ${count(num(p.years), 'Jahr', 'Jahre')} Erfahrung, das Profil zielt auf ${count(num(p.target), 'Jahr', 'Jahre')}.`
       : 'Die Stelle richtet sich an weniger Erfahrene.',
   seniorityUnclear: (p) =>
     p.junior
@@ -188,15 +197,16 @@ const reasonCode = {
       : 'Das gesuchte Erfahrungslevel ist unklar.',
   overqualified: (p) =>
     p.years !== undefined && p.years !== null
-      ? `Gesucht sind ${n(num(p.years))} Jahre Erfahrung, das Profil bringt deutlich mehr mit.`
+      ? `Gesucht ${num(p.years) === 1 ? 'ist' : 'sind'} ${count(num(p.years), 'Jahr', 'Jahre')} Erfahrung, das Profil bringt deutlich mehr mit.`
       : 'Das Profil ist deutlich erfahrener als gesucht.',
   contractType: (p) => contractName(p),
   formalOpen: (p) => {
     if (p.class === undefined || p.class === null) return 'Das Profil nennt keinen Abschluss.';
-    const what = p.class === 'licence' ? 'eine Zulassung' : 'einen Abschluss';
-    return p.mandatory
-      ? `Die Anzeige verlangt ${what}, den das Profil nicht nennt.`
-      : `Die Anzeige wünscht ${what}, den das Profil nicht nennt.`;
+    const what =
+      p.class === 'licence'
+        ? 'eine Zulassung, die das Profil nicht nennt'
+        : 'einen Abschluss, den das Profil nicht nennt';
+    return p.mandatory ? `Die Anzeige verlangt ${what}.` : `Die Anzeige wünscht ${what}.`;
   },
   lowEvidence: LOW_TEXT,
   shortText: SHORT_TEXT,
@@ -266,7 +276,10 @@ const criteria = {
   targetYears: {
     label: 'Seniorität',
     field: 'Seniorität',
-    value: (p) => `ab ${n(num(p.min ?? p.value))} Jahren Erfahrung`,
+    value: (p) => {
+      const years = num(p.min ?? p.value);
+      return `ab ${n(years)} ${years === 1 ? 'Jahr' : 'Jahren'} Erfahrung`;
+    },
     exclusion: 'Die Stelle verlangt deutlich weniger Erfahrung.',
   },
 } satisfies Record<string, CriterionText>;
@@ -292,6 +305,17 @@ const profileKey: Record<string, string> = {
   sprachen: 'Sprachen',
   zertifikate: 'Zertifikate',
   ausbildung: 'Ausbildung',
+  // The keys of the newer hard criteria (German and English), named like their field.
+  min_jahresgehalt: 'Mindestgehalt',
+  min_annual_salary: 'Mindestgehalt',
+  min_salary: 'Mindestgehalt',
+  festanstellung_orte: 'Region',
+  permanent_locations: 'Region',
+  permanent_places: 'Region',
+  festanstellung_remote_min: 'Region',
+  permanent_remote_min: 'Region',
+  zielprofil_min_jahre: 'Seniorität',
+  target_min_years: 'Seniorität',
 };
 const keyLabel = (key: string): string =>
   profileKey[key] ?? key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
@@ -399,7 +423,7 @@ export const de = {
     detail: {
       pending: 'Details folgen',
       teaser: 'Nur Anriss',
-      failed: 'Abruf fehlgeschlagen',
+      failed: 'Details fehlgeschlagen',
       unfetchable: 'Nicht abrufbar',
       gone: 'Nicht mehr online',
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
@@ -434,6 +458,11 @@ export const de = {
       export: 'Dateien',
     } satisfies Record<Step, string>,
     status,
+    /** The status, naming the portal where the backend says which one. */
+    statusOf: (code: StatusCode, portal: Portal | null): string => {
+      const at = portal === null ? undefined : statusAt[code];
+      return at !== undefined && portal !== null ? at(portalName[portal]) : status[code];
+    },
     of: (done: number, total: number) => `${n(done)} von ${n(total)}`,
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
     pause,
@@ -448,9 +477,10 @@ export const de = {
       fullMailbox: 'Ganzes Postfach',
     } satisfies Record<RunKindName, string>,
     done: 'Abruf fertig',
+    rescored: 'Neu bewertet',
     nothingNew: 'Nichts Neues seit dem letzten Abruf.',
-    cancelled: 'Der Abruf wurde abgebrochen.',
-    failed: 'Der Abruf ist fehlgeschlagen.',
+    cancelled: 'Abruf abgebrochen',
+    failed: 'Abruf fehlgeschlagen',
     skipped: (value: number) => `${count(value, 'Job folgt', 'Jobs folgen')} beim nächsten Abruf.`,
     filesFailed: (value: number) =>
       count(value, 'Datei ließ', 'Dateien ließen') + ' sich nicht schreiben.',
@@ -460,7 +490,20 @@ export const de = {
     expand: 'Ausklappen',
     alert: (portal: Portal, postings: number) =>
       `Alert-Mail von ${portalName[portal]} mit ${count(postings, 'Job', 'Jobs')}`,
-    health: (portal: Portal) => `${portalName[portal]} meldet sich`,
+    /** A line of the history when a portal's health changes. */
+    health: (portal: Portal, kind: Exclude<PortalHealth['kind'], 'ok'>): string => {
+      const name = portalName[portal];
+      switch (kind) {
+        case 'paused':
+          return `${name} pausiert`;
+        case 'quotaReached':
+          return `${name} hat das Limit erreicht`;
+        case 'layoutSuspect':
+          return `${name} sieht anders aus als erwartet`;
+        case 'loginRequired':
+          return `${name} verlangt eine Anmeldung`;
+      }
+    },
     checkMailbox: 'Postfach prüfen',
   },
   list: {
@@ -473,12 +516,14 @@ export const de = {
     noHit: (query: string) => `Keine Jobs zu „${query}“.`,
     showAll: 'Alle zeigen',
     loadFailed: 'Die Liste ließ sich nicht laden.',
-    noProfile: 'Ohne Profil gibt es keine Passung.',
     pickProfile: 'Profil wählen',
+    noMailbox: 'Ohne Postfach kommen keine neuen Jobs dazu.',
+    connectMailbox: 'Postfach verbinden',
     filter: {
       high: 'Hohe Passung',
       noDetail: 'Ohne Details',
       excluded: 'Ausgeschlossen',
+      pinned: 'Gemerkt',
       linkedin: `Neu auf ${portalName.linkedin}`,
       freelancermap: `Neu auf ${portalName.freelancermap}`,
       freelance: `Neu auf ${portalName.freelance}`,
@@ -506,6 +551,7 @@ export const de = {
     fetchDetails: 'Details holen',
     why: 'Warum',
     met: 'Erfüllt',
+    partial: 'Teilweise erfüllt',
     missing: 'Offen',
     check: 'Zu prüfen',
     violations: 'Ausgeschlossen',
@@ -524,17 +570,22 @@ export const de = {
   },
   overview: {
     label: 'Tagesüberblick',
+    new: 'Neu',
     high: 'Hohe Passung',
     noDetail: 'Ohne Details',
     excluded: 'Ausgeschlossen',
+    pinned: 'Gemerkt',
     issues: 'Offene Punkte',
-    lastRun: 'Letzter Abruf',
+    newJobs: 'Neue Jobs',
     newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
-    showNew: (portal: string) => `Neue Jobs von ${portal} zeigen`,
     nothingNew: 'Keine neuen Jobs',
-    emptyAlert: (portal: Portal) =>
-      `Eine Alert-Mail von ${portalName[portal]} enthielt keine Jobs.`,
+    emptyAlerts: (portal: Portal, value: number) =>
+      value === 1
+        ? `Eine Alert-Mail von ${portalName[portal]} enthielt keine Jobs.`
+        : `${n(value)} Alert-Mails von ${portalName[portal]} enthielten keine Jobs.`,
     openGmail: 'In Gmail öffnen',
+    noProfile: 'Noch kein Profil',
+    noProfileText: 'Mit einem Profil zeigt jeder Job, wie gut er passt.',
   },
   health: {
     ok: 'Bereit',
@@ -544,6 +595,7 @@ export const de = {
     loginRequired: 'Anmeldung nötig',
     layoutText: (mails: number) =>
       `${count(mails, 'Alert-Mail', 'Alert-Mails')} ohne erkannte Jobs, das Mail-Format hat sich vielleicht geändert.`,
+    layoutPages: 'Die Seiten des Portals sehen anders aus als erwartet.',
     loginText: 'Die Anmeldung ist abgelaufen.',
   },
   profile: {
@@ -551,7 +603,7 @@ export const de = {
     noneText: 'Gegen das Profil wird jeder Job geprüft.',
     pick: 'Profil wählen',
     template: 'Vorlage speichern',
-    templateSaved: 'Die Vorlage liegt im Arbeitsordner.',
+    templateSaved: 'Die Vorlage ist gespeichert.',
     remove: 'Entfernen',
     removeHeading: 'Profil entfernen?',
     removeText: 'Ohne Profil zeigen die Jobs keine Passung mehr.',
@@ -566,18 +618,18 @@ export const de = {
       thin: 'Wenige Kompetenzen, die Passung bleibt grob.',
       empty: 'Ohne Kompetenzen wird nichts bewertet.',
     } satisfies Record<ProfileQuality, string>,
-    rescoring: (value: number) => `${n(value)} Jobs werden neu bewertet.`,
+    rescoring: (value: number) => `${count(value, 'Job wird', 'Jobs werden')} neu bewertet.`,
     rescored: 'Neu bewertet.',
     parseError: 'Das Profil ist nicht mehr lesbar.',
     understood: 'Erkannt',
-    unset: 'offen',
+    unset: 'nicht gesetzt',
     competences: 'Kompetenzen',
     more: (value: number) => `+${n(value)}`,
     criteria: 'Ausschlusskriterien',
     warnings: 'Hinweise',
     warning,
     background: 'Werdegang',
-    years: (value: number) => `${n(value)} Jahre Berufserfahrung`,
+    years: (value: number) => `${count(value, 'Jahr', 'Jahre')} Berufserfahrung`,
     packs: 'Fachgebiete',
     pack: {
       finance: 'Finanzen',
@@ -623,7 +675,7 @@ export const de = {
       grey: 'Gastzugang, kein Konto ist betroffen.',
       account: 'Angemeldet steht das eigene Konto auf dem Spiel.',
     } satisfies Record<Risk, string>,
-    quota: (used: number, cap: number) => `Heute ${n(used)} von ${n(cap)} Abrufen`,
+    quota: (used: number, cap: number) => `Heute ${n(used)} von ${n(cap)} Seiten`,
     signedIn: 'Angemeldet',
     signedOut: 'Nicht angemeldet',
     signIn: 'Anmelden',
@@ -632,7 +684,7 @@ export const de = {
     signInWaiting: 'Das Anmeldefenster ist offen.',
     workspace: 'Arbeitsordner',
     workspaceDefault: 'Standard',
-    excel: 'Excel-Übersicht',
+    excel: 'Excel-Datei',
     excelShow: 'Im Ordner zeigen',
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
     txt: 'Textdateien',
@@ -682,6 +734,7 @@ export const de = {
   },
   toast: {
     saved: 'Gespeichert.',
+    rescored: 'Die Jobs sind neu bewertet.',
     copied: 'Kopiert.',
     runDone: (value: number) =>
       value === 0

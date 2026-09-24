@@ -1,6 +1,7 @@
 <!--
-  Label, control, hint and error. A new error shakes the message once (4 px; no movement
-  under reduced motion).
+  Label, control, hint (or the error in its place) and the hint's way on, which stays while
+  an error shows: it is what helps most then. The action's text lines up with the edges of
+  the field, next to the hint or on a line of its own.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -24,16 +25,16 @@
 <div class="field">
   <label class="label" for={control}>{label}</label>
   {@render children()}
-  {#if error}
-    {#key error}
-      <p class="error" id="{control}-message" role="alert">
-        <Icon name="triangle-alert" size="sm" />
-        <span>{error}</span>
-      </p>
-    {/key}
-  {:else if hint || action}
+  {#if error || hint || action}
     <div class="help">
-      {#if hint}<p class="hint" id="{control}-message">{hint}</p>{/if}
+      {#if error}
+        <p class="error" id="{control}-message" role="alert">
+          <Icon name="triangle-alert" size="sm" />
+          <span>{error}</span>
+        </p>
+      {:else if hint}
+        <p class="hint" id="{control}-message">{hint}</p>
+      {/if}
       {#if action}
         <span class="action">
           <Button
@@ -61,7 +62,7 @@
   .label {
     color: var(--text);
     font: var(--type-sm);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
     cursor: default;
   }
 
@@ -83,9 +84,10 @@
     min-height: var(--control-sm);
   }
 
-  /* The ghost button's own padding stays outside the field's right edge. */
+  /* The ghost button's own padding stays outside the field's edges: right of the hint its
+     text ends on the right edge, wrapped onto its own line it starts on the left edge. */
   .action {
-    margin-right: calc(-1 * var(--space-12));
+    margin: 0 calc(-1 * var(--space-12));
   }
 
   .error {
@@ -93,6 +95,5 @@
     align-items: center;
     gap: var(--space-6);
     color: var(--danger-strong);
-    animation: shake var(--dur-slow) var(--ease-standard) 1;
   }
 </style>

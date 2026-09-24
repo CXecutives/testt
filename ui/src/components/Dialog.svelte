@@ -1,7 +1,8 @@
 <!--
-  Modal question with at most two actions: confirm | danger. Scrim with a 4 px blur; the
-  dialog rises in slow/out and leaves in 0.7 × slow with ease-in. Esc cancels (formKeys);
-  Tab and Enter work inside. Pressing inside and releasing on the scrim keeps it open.
+  Modal question with at most two actions: confirm | danger. A plain scrim (no blur: a
+  blurred backdrop over the whole window drops frames in the web view); the dialog rises in
+  180 ms (ease-out) and leaves in 100 ms. Esc cancels (formKeys); Tab and Enter work inside.
+  Pressing inside and releasing on the scrim keeps it open; only the left button counts.
 -->
 <script lang="ts">
   import { de } from '$lib/i18n/de';
@@ -57,7 +58,8 @@
   <div
     class="scrim"
     transition:scrim
-    onpointerdown={(event) => (pressedOnScrim = event.target === event.currentTarget)}
+    onpointerdown={(event) =>
+      (pressedOnScrim = event.button === 0 && event.target === event.currentTarget)}
     onclick={(event) => {
       if (pressedOnScrim && event.target === event.currentTarget) cancel();
       pressedOnScrim = false;
@@ -101,8 +103,6 @@
     justify-content: center;
     padding: var(--space-16);
     background-color: var(--scrim);
-    -webkit-backdrop-filter: blur(var(--blur-scrim));
-    backdrop-filter: blur(var(--blur-scrim));
   }
 
   .dialog {

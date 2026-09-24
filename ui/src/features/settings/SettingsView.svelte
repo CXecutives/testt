@@ -233,7 +233,7 @@
     <section class="section" data-testid="settings-files">
       <h2 class="heading">{de.settings.files}</h2>
       <Card padding="rows">
-        <SettingRow label={de.settings.workspace} hint={cfg.settings.workspace}>
+        <SettingRow label={de.settings.workspace} hint={cfg.settings.workspace} copy>
           {#snippet badges()}
             {#if cfg.settings.workspaceIsDefault}
               <Badge label={de.settings.workspaceDefault} />
@@ -322,7 +322,7 @@
             onclick={() => (confirmFull = true)}
           />
         </SettingRow>
-        <SettingRow label={de.settings.logs} hint={cfg.logDir}>
+        <SettingRow label={de.settings.logs} hint={cfg.logDir} copy>
           <Button
             variant="ghost"
             size="sm"
@@ -331,7 +331,7 @@
             onclick={() => open({ kind: 'logDir' }, setCare)}
           />
         </SettingRow>
-        <SettingRow label={de.settings.data} hint={cfg.dataDir}>
+        <SettingRow label={de.settings.data} hint={cfg.dataDir} copy>
           <Button
             variant="ghost"
             size="sm"
