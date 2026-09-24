@@ -22,7 +22,7 @@ test('reduced motion: no movement, instant tokens, the new view is in place at o
   expect(tokens.slice(0, 3).map((value) => parseFloat(value))).toEqual([0, 0, 0]);
   expect(tokens[3]).toBe('paused');
 
-  await page.getByTestId('tab-settings').click();
+  await page.getByTestId('nav-settings').click();
   const view = page.getByTestId('view-settings');
   await expect(view).toBeVisible();
   // A cross-fade may remain; a rise may not: the view never starts below its place.

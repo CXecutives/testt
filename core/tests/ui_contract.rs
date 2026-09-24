@@ -528,7 +528,8 @@ fn per_os_markup_only_in_the_title_bar() {
                 "data-platform",
             ],
             |s| {
-                s.is("features/shell/TitleBar.svelte")
+                // The shell: the top strip (caption buttons) and the sidebar (traffic lights).
+                s.under("features/shell/")
                     || s.is("components/WindowControls.svelte")
                     || s.is("lib/platform.ts")
                     // Font smoothing on macOS only (documented platform difference).
@@ -537,7 +538,7 @@ fn per_os_markup_only_in_the_title_bar() {
                     || s.under("lib/ipc/types/")
             },
         ),
-        "per-OS differences live only in TitleBar, WindowControls and platform.ts",
+        "per-OS differences live only in the shell (strip, sidebar), WindowControls and platform.ts",
     );
     // The Windows icon font draws the native caption glyphs - nowhere else (macOS has none).
     fail(
@@ -641,7 +642,8 @@ fn the_catalog_keeps_the_glossary() {
             ("Treffer", "Passung"),
             ("Mailbox", "Postfach"),
         ] {
-            if line.contains(old) {
+            // Only the words the user reads count (keys like `fullMailbox` are code).
+            if literals(line).iter().any(|text| words(text).contains(old)) {
                 problems.push(format!("de.ts:{n}: \"{old}\" is called \"{new}\""));
             }
         }
@@ -655,6 +657,77 @@ fn the_catalog_keeps_the_glossary() {
         }
     }
     fail(&problems, "glossary and length of the UI catalog");
+}
+
+/// The string literals of one line: between single quotes and between backticks.
+fn literals(line: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    for quote in ['\'', '`'] {
+        out.extend(line.split(quote).skip(1).step_by(2));
+    }
+    out
+}
+
+/// The words of a literal: `${...}` expressions of a template blanked out.
+fn words(text: &str) -> String {
+    let mut out = String::new();
+    let mut depth = 0usize;
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if depth == 0 && c == '$' && chars.peek() == Some(&'{') {
+            chars.next();
+            depth = 1;
+            out.push(' ');
+        } else if depth > 0 {
+            match c {
+                '{' => depth += 1,
+                '}' => depth -= 1,
+                _ => {}
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// The catalog speaks plainly (CLAUDE.md): no dash or em dash as a separator, no colon at
+/// the end of a label or heading, no "X: Y" construction, no exclamation mark.
+#[test]
+fn the_catalog_has_no_ai_punctuation() {
+    let all = scanned(MIN_FILES);
+    let catalog = all
+        .iter()
+        .find(|s| s.is("lib/i18n/de.ts"))
+        .expect("lib/i18n/de.ts");
+    let mut problems = Vec::new();
+    let mut strings = 0;
+    for (n, line) in catalog.lines() {
+        for literal in literals(line) {
+            let text = words(literal);
+            let text = text.as_str();
+            strings += 1;
+            for dash in [" - ", " – ", "–", "—"] {
+                if text.contains(dash) {
+                    problems.push(format!("de.ts:{n}: dash as a separator in \"{text}\""));
+                }
+            }
+            if text.trim_end().ends_with(':') {
+                problems.push(format!("de.ts:{n}: colon at the end of \"{text}\""));
+            }
+            if text.contains(": ") {
+                problems.push(format!("de.ts:{n}: \"X: Y\" in \"{text}\""));
+            }
+            let mut chars = text.chars().peekable();
+            while let Some(c) = chars.next() {
+                if c == '!' && chars.peek() != Some(&'=') {
+                    problems.push(format!("de.ts:{n}: exclamation mark in \"{text}\""));
+                }
+            }
+        }
+    }
+    assert!(strings >= 200, "only {strings} strings in de.ts");
+    fail(&problems, "plain punctuation in the UI catalog");
 }
 
 /// The release build must not ship the gallery (it is compiled out via `__GALLERY__`).

@@ -27,6 +27,8 @@
     /** The one primary action of the state. */
     action?: EmptyAction | null;
     secondary?: EmptyAction | null;
+    /** The action as a secondary button (the window's primary already sits elsewhere). */
+    quiet?: boolean;
     testid?: string | null;
   }
 
@@ -37,6 +39,7 @@
     text,
     action = null,
     secondary = null,
+    quiet = false,
     testid = null,
   }: Props = $props();
 </script>
@@ -55,7 +58,7 @@
     <div class="actions">
       {#if action}
         <Button
-          variant="primary"
+          variant={quiet ? 'secondary' : 'primary'}
           label={action.label}
           icon={action.icon ?? null}
           onclick={action.onclick}

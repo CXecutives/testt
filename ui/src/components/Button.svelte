@@ -35,6 +35,8 @@
     type?: 'button' | 'submit';
     /** Toggle buttons (e.g. the pin star). */
     pressed?: boolean | null;
+    /** Fill the width of the container (the sidebar's "Abrufen"). */
+    wide?: boolean;
     testid?: string | null;
     onclick?: (event: MouseEvent) => void;
   }
@@ -50,6 +52,7 @@
     disabledReason = null,
     type = 'button',
     pressed = null,
+    wide = false,
     testid = null,
     onclick,
   }: Props = $props();
@@ -73,6 +76,7 @@
   {type}
   class="btn {variant} {size}"
   class:icon-only={iconOnly}
+  class:wide={wide && !iconOnly}
   class:loading
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}
@@ -282,5 +286,9 @@
   .icon-only {
     width: var(--btn-height);
     padding: 0;
+  }
+
+  .wide {
+    width: 100%;
   }
 </style>

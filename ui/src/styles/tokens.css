@@ -23,6 +23,8 @@
   --p-slate-deep: 212 30% 26%;
   --p-peach: 20 62% 71%;
   --p-muted: 45 23% 95%;
+  /* The sidebar: a warm surface a shade deeper than the cream content. */
+  --p-sidebar: 34 28% 92.5%;
   --p-muted-fg: 30 4% 35%;
   --p-line: 45 22% 90%;
   --p-accent-soft: 20 62% 91%;
@@ -60,8 +62,9 @@
   --p-shade-xs: 30 20% 30%;
   --p-shade-sm: 20 40% 40%;
   --p-shade-pop: 30 20% 20%;
-  /* #C42B1C, the close button of Windows 11 caption bars. */
-  --p-caption-close: 5.36 75% 43.92%;
+  /* The close button: a warm red that sits well next to coral (user choice, not #C42B1C). */
+  --p-caption-close: 4 62% 50%;
+  --p-caption-close-press: 4 62% 44%;
 
   /* ---------------------------------------------------------------- surfaces */
   --bg: hsl(var(--p-cream));
@@ -71,6 +74,7 @@
   --surface-press: hsl(var(--p-ink) / 0.08);
   --surface-selected: hsl(var(--p-accent-soft));
   --surface-tinted: hsl(var(--p-coral-50));
+  --surface-sidebar: hsl(var(--p-sidebar));
   --scrim: hsl(var(--p-scrim) / 0.4);
   --surface-inverse: hsl(var(--p-ink));
 
@@ -103,12 +107,15 @@
   --selection: hsl(var(--p-coral) / 0.22);
   --scrollbar: hsl(var(--p-ink) / 0.2);
   --scrollbar-hover: hsl(var(--p-ink) / 0.34);
-  /* Windows 11 caption buttons (WindowControls only): hover ink/.06, pressed ink/.10,
-     close #C42B1C with a white glyph, pressed at .9. */
+  /* Caption buttons (WindowControls only), flat like the Claude desktop app: thin glyphs in
+     ink, slightly muted at rest; warm hover ink/.06, pressed ink/.10; close warm red with a
+     white glyph. Colour changes only, no motion. */
+  --caption-glyph-rest: hsl(var(--p-ink) / 0.78);
+  --caption-glyph-hover: hsl(var(--p-ink));
   --caption-hover: hsl(var(--p-ink) / 0.06);
   --caption-press: hsl(var(--p-ink) / 0.1);
   --caption-close: hsl(var(--p-caption-close));
-  --caption-close-press: hsl(var(--p-caption-close) / 0.9);
+  --caption-close-press: hsl(var(--p-caption-close-press));
   --caption-close-glyph: hsl(var(--p-white));
 
   /* ------------------------------------------------------------------ status */
@@ -189,18 +196,18 @@
   --space-64: 64px;
 
   /* ------------------------------------------------------------------- sizes */
-  --control-sm: 32px;
-  --control-md: 40px;
-  --control-lg: 48px;
+  --control-sm: 28px;
+  --control-md: 36px;
+  --control-lg: 40px;
   --icon-sm: 16px;
   --icon-md: 20px;
   --icon-lg: 24px;
   --icon-stroke-sm: 1.75;
   --icon-stroke-md: 2;
   --icon-stroke-lg: 2;
-  --row-height: 76px;
-  --titlebar-height: 48px;
-  --toolbar-height: 64px;
+  --row-height: 72px;
+  --titlebar-height: 40px;
+  --toolbar-height: 56px;
   --list-min: 360px;
   --list-max: 440px;
   --reader-width: 720px;
@@ -238,6 +245,10 @@
   --row-bar: 3px;
   --dialog-width: 440px;
   --stat-min: 180px;
+  /* Sidebar (collapses to the icon rail below 1100 px) and the toast stack. */
+  --sidebar-width: 232px;
+  --rail-width: 64px;
+  --toast-width: 360px;
   --blur-scrim: 4px;
   /* Score ring: r = 15.9155 in a 36-unit viewBox (circumference 100). Stroke widths are
      scaled into viewBox units: 36/40 and 36/96. */
@@ -259,6 +270,9 @@
   --leading-sm: 18px;
   --font-md: 15px;
   --leading-md: 22px;
+  /* Word tabs of the title bar (14/20, weight 500, active 600). */
+  --font-tab: 14px;
+  --leading-tab: 20px;
   --font-body: 15px;
   --leading-body: 24px;
   --font-lg: 17px;
@@ -272,6 +286,7 @@
   --type-xs: var(--weight-regular) var(--font-xs) / var(--leading-xs) var(--font-sans);
   --type-sm: var(--weight-regular) var(--font-sm) / var(--leading-sm) var(--font-sans);
   --type-md: var(--weight-regular) var(--font-md) / var(--leading-md) var(--font-sans);
+  --type-tab: var(--weight-medium) var(--font-tab) / var(--leading-tab) var(--font-sans);
   --type-body: var(--weight-regular) var(--font-body) / var(--leading-body) var(--font-sans);
   --type-lg: var(--weight-semibold) var(--font-lg) / var(--leading-lg) var(--font-sans);
   --type-xl: var(--weight-semibold) var(--font-xl) / var(--leading-xl) var(--font-sans);
@@ -290,6 +305,8 @@
   --dur-reveal: 700ms;
   --dur-hero: 600ms;
   --dur-loop: 1400ms;
+  /* How long a toast stays (paused while hovered). */
+  --dur-toast: 4000ms;
   --dur-crossfade: 120ms;
   --dur-stagger: 30ms;
   --stagger-max: 10;

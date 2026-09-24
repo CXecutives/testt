@@ -9,9 +9,11 @@
   import EmptyState from '$components/EmptyState.svelte';
   import Icon, { ICON_NAMES } from '$components/Icon.svelte';
   import IconTile, { PORTAL_MONOGRAM, TILE_TONES } from '$components/IconTile.svelte';
-  import NavTabs from '$components/NavTabs.svelte';
+  import SideNav from '$components/SideNav.svelte';
   import Spinner from '$components/Spinner.svelte';
+  import Toast from '$components/Toast.svelte';
   import Tooltip from '$components/Tooltip.svelte';
+  import { toasts } from '$lib/state/toasts.svelte';
   import WindowControls from '$components/WindowControls.svelte';
   import { tooltip } from '$lib/actions/tooltip';
   import ColourBoard from './ColourBoard.svelte';
@@ -24,7 +26,13 @@
   import TokenBoards from './TokenBoards.svelte';
   import { text } from './gallery';
 
-  const tabs = text.navigation.tabs.map((label, index) => ({ id: String(index), label }));
+  const NAV_ICONS = ['briefcase', 'user-round', 'sliders-horizontal'] as const;
+  const tabs = text.navigation.tabs.map((label, index) => ({
+    id: String(index),
+    label,
+    icon: NAV_ICONS[index] ?? 'briefcase',
+    count: index === 0 ? 12 : null,
+  }));
   let activeTab = $state('0');
   const noop = (): void => undefined;
 </script>
@@ -96,12 +104,29 @@
   </Section>
 
   <Section heading={text.sections.navigation} id="navigation">
+    <div class="navs">
+      <div class="side">
+        <SideNav
+          items={tabs}
+          active={activeTab}
+          label={text.sections.navigation}
+          onselect={(id) => (activeTab = id)}
+        />
+      </div>
+      <div class="side rail">
+        <SideNav
+          items={tabs}
+          active={activeTab}
+          label={text.sections.navigation}
+          collapsed
+          onselect={(id) => (activeTab = id)}
+        />
+      </div>
+    </div>
     <div class="bar">
-      <NavTabs
-        {tabs}
-        active={activeTab}
-        label={text.sections.navigation}
-        onselect={(id) => (activeTab = id)}
+      <Button
+        label={text.navigation.toast}
+        onclick={() => toasts.show(text.navigation.toastText)}
       />
       <WindowControls />
     </div>
@@ -152,6 +177,7 @@
 
   <MatchBoard />
 
+  <Toast />
   <Tooltip />
 </div>
 
@@ -222,8 +248,27 @@
     gap: var(--space-12);
   }
 
+  .navs {
+    display: flex;
+    gap: var(--space-16);
+    margin-bottom: var(--space-16);
+  }
+
+  .side {
+    width: var(--sidebar-width);
+    padding: var(--space-12);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-sidebar);
+  }
+
+  .side.rail {
+    width: var(--rail-width);
+    padding: var(--space-12) var(--space-8);
+  }
+
   .bar {
     display: flex;
+    align-items: center;
     justify-content: space-between;
     height: var(--titlebar-height);
     padding-left: var(--space-16);

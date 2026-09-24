@@ -33,10 +33,36 @@ export const test = base.extend<{ problems: string[] }>({
 
 export { expect };
 
+/** The fixed "now" of the stub data (relative dates stay the same every day). */
+export const NOW = new Date('2026-09-24T09:30:00+02:00');
+
 /** Open a page of the harness build and wait until fonts and the first frame are ready. */
 export async function open(page: Page, query = ''): Promise<void> {
+  await page.clock.setFixedTime(NOW);
   await page.goto(`/${query}`);
   await settle(page);
+}
+
+/** Names of the IPC commands called so far. */
+export async function calls(page: Page, name?: string): Promise<[string, unknown][]> {
+  const all = await page.evaluate(() => window.__harness.calls);
+  return name ? all.filter(([command]) => command === name) : all;
+}
+
+/** Wait until a started run has finished in the stub. */
+export async function runFinished(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__harness.done, null, { timeout: 15_000 });
+  await settle(page);
+}
+
+/** Visible elements matching a selector. */
+export async function visibleCount(page: Page, selector: string): Promise<number> {
+  return page.evaluate((css) => {
+    return [...document.querySelectorAll(css)].filter((node) => {
+      const box = node.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    }).length;
+  }, selector);
 }
 
 export async function settle(page: Page): Promise<void> {

@@ -1,5 +1,5 @@
 //! Self-check for development and acceptance: `job-alert-monitor --smoke` loads the UI,
-//! checks the shell against the UI contract (`data-testid`), clicks through the three tabs
+//! checks the shell against the UI contract (`data-testid`), clicks through the three sidebar entries
 //! and exits with 0 (all fine), 1 (contract broken or a CSP violation) or 2 (timeout).
 //!
 //! Every view stays on screen for [`HOLD`], longer than two intervals of the CI screenshot
@@ -20,7 +20,7 @@ use serde_json::Value;
 use tauri::webview::PageLoadEvent;
 use tauri::{Manager, Runtime, WebviewWindow, WebviewWindowBuilder};
 
-/// Tabs in the order the probe visits them (`tab-<id>` opens `view-<id>`).
+/// Sidebar entries in the order the probe visits them (`nav-<id>` opens `view-<id>`).
 const TABS: [&str; 3] = ["jobs", "profile", "settings"];
 /// How long each view stays on screen for the CI screenshots.
 const HOLD: Duration = Duration::from_secs(3);
@@ -35,8 +35,8 @@ const PROBE: &str = r#"(() => { try {
     const shown = (el) => !!el && el.getBoundingClientRect().width > 0;
     return JSON.stringify({
       ready: shown(q('shell')) && shown(q('titlebar')),
-      tabs: document.querySelectorAll('[data-testid^="tab-"]').length,
-      named: ['tab-jobs', 'tab-profile', 'tab-settings'].every((id) => !!q(id)),
+      tabs: document.querySelectorAll('[data-testid^="nav-"]').length,
+      named: ['nav-jobs', 'nav-profile', 'nav-settings'].every((id) => !!q(id)),
       tauri: '__TAURI_INTERNALS__' in window,
       csp: window.__smokeCsp ?? null,
     });
@@ -103,7 +103,7 @@ fn show_next_tab<R: Runtime>(window: &WebviewWindow<R>) {
         ask(window, CSP_PROBE.to_owned(), |_| true, check_csp);
         return;
     };
-    let click = format!("document.querySelector('[data-testid=\"tab-{tab}\"]').click()");
+    let click = format!("document.querySelector('[data-testid=\"nav-{tab}\"]').click()");
     if let Err(error) = window.eval(click) {
         println!("SMOKE eval failed: {error}");
         window.app_handle().exit(1);

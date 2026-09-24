@@ -58,6 +58,8 @@ export const text = {
   },
   navigation: {
     tabs: ['Jobs', 'Profil', 'Einstellungen'],
+    toast: 'Toast zeigen',
+    toastText: 'Gespeichert.',
   },
   surfaces: {
     cards: 'Karten',
@@ -122,7 +124,7 @@ export const text = {
       violation: 'Arbeitnehmerüberlassung',
       check: 'Start in sechs Wochen',
     },
-    evidence: 'kompetenzen.controlling[2]',
+    evidence: '„Controlling im Konzern“ passt zu „Konzerncontrolling“ im Profil.',
   },
 } as const;
 
