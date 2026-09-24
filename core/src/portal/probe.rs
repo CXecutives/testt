@@ -3,7 +3,9 @@
 
 use url::Url;
 
-use super::{Access, JobLink, Portal, PortalAdapter, all_digits, host_and_segments, host_is};
+use super::{
+    Access, Facts, JobLink, Portal, PortalAdapter, all_digits, host_and_segments, host_is,
+};
 use crate::fetch::policy::Limits;
 use crate::fetch::{Cause, PageOutcome, Parsed, judge};
 use crate::text::html_to_text;
@@ -60,6 +62,12 @@ impl PortalAdapter for Probe {
     }
     fn redirect_outcome(&self, _path: &str) -> PageOutcome {
         PageOutcome::Suspicious(Cause::RedirectNotFollowed)
+    }
+    fn parser_version(&self) -> u32 {
+        1
+    }
+    fn parse_facts(&self, _html: &str) -> Facts {
+        Facts::default()
     }
     /// The whole body is the description.
     fn guest_page(&self, html: &str, _path: &str, _link: &JobLink) -> PageOutcome {

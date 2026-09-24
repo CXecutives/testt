@@ -10,8 +10,8 @@ use scraper::Html;
 use url::Url;
 
 use super::{
-    Access, Css, JobLink, Portal, PortalAdapter, Redirects, all_digits, host_and_segments, host_is,
-    link, selector,
+    Access, Css, Facts, JobLink, Portal, PortalAdapter, Redirects, all_digits, host_and_segments,
+    host_is, link, selector,
 };
 use crate::fetch::policy::Limits;
 use crate::fetch::{Cause, PageFields, PageOutcome, Parsed, judge};
@@ -110,6 +110,42 @@ impl PortalAdapter for LinkedIn {
     fn guest_page(&self, html: &str, _path: &str, _link: &JobLink) -> PageOutcome {
         judge(parse(html))
     }
+
+    fn parser_version(&self) -> u32 {
+        PARSER_VERSION
+    }
+
+    fn parse_facts(&self, html: &str) -> Facts {
+        facts(&Html::parse_document(html))
+    }
+}
+
+/// Bump whenever the parser reads pages differently (requeues failed jobs).
+const PARSER_VERSION: u32 = 1;
+
+static CRITERIA: Css = LazyLock::new(|| selector("li.description__job-criteria-item"));
+static CRITERION: Css = LazyLock::new(|| selector("h3"));
+static CRITERION_VALUE: Css = LazyLock::new(|| selector("span"));
+
+/// The criteria list under the ad: employment type and career level.
+fn facts(doc: &Html) -> Facts {
+    let mut facts = Facts::default();
+    let text = |e: scraper::ElementRef<'_>| one_line(&e.text().collect::<String>());
+    for item in doc.select(&CRITERIA) {
+        let label = item.select(&CRITERION).next().map(text).unwrap_or_default();
+        let Some(value) = item.select(&CRITERION_VALUE).next().map(text) else {
+            continue;
+        };
+        // German and English page labels, do not translate.
+        match label.to_lowercase().as_str() {
+            "beschäftigungsverhältnis" | "employment type" => {
+                facts.employment_type = Facts::value(&value);
+            }
+            "karrierestufe" | "seniority level" => facts.level = Facts::value(&value),
+            _ => {}
+        }
+    }
+    facts
 }
 
 static MARKUP: Css = LazyLock::new(|| selector("div.show-more-less-html__markup"));
@@ -147,6 +183,7 @@ pub(crate) fn parse(html: &str) -> Parsed {
             company: text_of(&COMPANY),
             location: text_of(&PLACE),
         },
+        facts: facts(&doc),
     }
 }
 
@@ -213,6 +250,15 @@ pub(crate) mod tests {
                 location: "Hamburg, Deutschland".into(),
             }
         );
+        assert_eq!(
+            p.facts,
+            Facts {
+                employment_type: Some("Vollzeit".into()),
+                level: Some("Direktor".into()),
+                ..Facts::default()
+            }
+        );
+        assert_eq!(LinkedIn.parse_facts(&page("x", false)), p.facts);
     }
 
     #[test]

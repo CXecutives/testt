@@ -106,6 +106,7 @@ fn text(t: &str) -> PageOutcome {
         short: t.chars().count() < MIN_TEXT_CHARS,
         closed: false,
         fields: None,
+        facts: Facts::default(),
     }
 }
 
@@ -291,6 +292,10 @@ async fn matrix_text_short_closed_gone_suspicious() {
                     company: "Seitenfirma".into(),
                     location: "Köln".into(),
                 }),
+                facts: Facts {
+                    employment_type: Some("Vollzeit".into()),
+                    ..Facts::default()
+                },
             }],
         )
         .with("10004", [PageOutcome::Gone])
@@ -338,6 +343,18 @@ async fn matrix_text_short_closed_gone_suspicious() {
     )
     .await;
     assert_eq!(fake.calls().len(), calls);
+    // The facts of the page and the parser version are kept with the text.
+    let closed = key(FM, 10_003);
+    assert_eq!(
+        store
+            .facts(&closed)
+            .unwrap()
+            .unwrap()
+            .employment_type
+            .as_deref(),
+        Some("Vollzeit")
+    );
+    assert_eq!(store.parser_version(&closed).unwrap(), Some(1));
 }
 
 #[tokio::test(start_paused = true)]
@@ -1274,6 +1291,10 @@ fn teaser() -> PageOutcome {
             title: "Interim Controller (m/w/d)".into(),
             ..PageFields::default()
         }),
+        facts: Facts {
+            start: Some("ab sofort".into()),
+            ..Facts::default()
+        },
     }
 }
 
@@ -1300,6 +1321,11 @@ async fn a_guest_teaser_is_stored_and_marked() {
         Some("Derzeit suchen wir einen Controller.")
     );
     assert!(store.txt_jobs(true).unwrap().is_empty(), "no text file");
+    // The facts of the page head, and the parser that read it.
+    assert_eq!(
+        store.facts(&job.key).unwrap().unwrap().start.as_deref(),
+        Some("ab sofort")
+    );
     assert!(fake.calls().iter().all(|call| !call.session));
     // As a guest the teaser is not fetched again.
     run(&fake, &store, &mut policy, Selection::Queue(&[FL]), &c).await;

@@ -137,6 +137,94 @@ pub trait PortalAdapter: Send + Sync {
     fn session(&self) -> Option<&'static PortalSite> {
         None
     }
+    /// Version of the page parsers (guest page and session window). Bumped whenever they
+    /// read pages differently; stored with every judged page (`parser_version`) - after a
+    /// bump the portal's failed jobs are fetched again.
+    fn parser_version(&self) -> u32;
+    /// The facts a guest page states in structured form (also part of `guest_page`).
+    fn parse_facts(&self, html: &str) -> Facts;
+}
+
+/// Most skills kept in the facts.
+const MAX_SKILLS: usize = 20;
+/// Most characters of one fact.
+const MAX_FACT_CHARS: usize = 80;
+
+/// Facts a job page states in structured form - stored as JSON in `desc_facts` for the
+/// matching engine. Values are the page's own words (external data, never translated);
+/// missing ones are left out of the JSON.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Facts {
+    /// "Vollzeit", "Freiberuflich", "Contract" ...
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub employment_type: Option<String>,
+    /// Career level ("Direktor", "Mid-Senior level").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level: Option<String>,
+    /// Share of remote work in percent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_percent: Option<u8>,
+    /// Remote as the page words it, when it gives no percentage.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<String>,
+    /// Rate as the page words it ("95 €/h").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub skills: Vec<String>,
+}
+
+impl Facts {
+    pub fn is_empty(&self) -> bool {
+        *self == Facts::default()
+    }
+
+    /// One fact: one line, at most [`MAX_FACT_CHARS`] characters, `None` when empty.
+    pub(crate) fn value(raw: &str) -> Option<String> {
+        let value = crate::text::one_line(raw);
+        (!value.is_empty()).then(|| crate::text::truncate_chars(&value, MAX_FACT_CHARS))
+    }
+
+    /// Remote in the page's words: a percentage becomes `remote_percent`, anything else
+    /// stays as text.
+    pub(crate) fn set_remote(&mut self, raw: &str) {
+        let Some(value) = Facts::value(raw) else {
+            return;
+        };
+        let digits: String = value
+            .split('%')
+            .next()
+            .unwrap_or_default()
+            .trim()
+            .chars()
+            .rev()
+            .take_while(char::is_ascii_digit)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        match digits.parse::<u8>() {
+            Ok(percent) if value.contains('%') && percent <= 100 => {
+                self.remote_percent = Some(percent);
+            }
+            _ => self.remote = Some(value),
+        }
+    }
+
+    /// Skills: each once, at most [`MAX_SKILLS`].
+    pub(crate) fn add_skill(&mut self, raw: &str) {
+        if self.skills.len() < MAX_SKILLS
+            && let Some(skill) = Facts::value(raw)
+            && !self.skills.contains(&skill)
+        {
+            self.skills.push(skill);
+        }
+    }
 }
 
 /// The registry: every portal once, in the order of the interface.

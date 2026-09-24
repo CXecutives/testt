@@ -157,6 +157,7 @@ impl PageFetcher for DemoPages {
             short: false,
             closed: false,
             fields: None,
+            facts: crate::portal::Facts::default(),
         }
     }
 }

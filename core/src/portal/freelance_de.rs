@@ -13,7 +13,8 @@ use scraper::{ElementRef, Html};
 use url::Url;
 
 use super::{
-    Access, Css, JobLink, Portal, PortalAdapter, all_digits, host_and_segments, host_is, selector,
+    Access, Css, Facts, JobLink, Portal, PortalAdapter, all_digits, host_and_segments, host_is,
+    selector,
 };
 use crate::fetch::policy::Limits;
 use crate::fetch::site::{PortalSite, SessionPage};
@@ -135,11 +136,13 @@ impl PortalAdapter for FreelanceDe {
             return PageOutcome::Teaser {
                 text: text.unwrap_or_default(),
                 fields: Some(fields).filter(|f| *f != PageFields::default()),
+                facts: facts_of(&page),
             };
         }
         judge(Parsed {
             text,
             fields,
+            facts: facts_of(&page),
             ..Parsed::default()
         })
     }
@@ -147,6 +150,28 @@ impl PortalAdapter for FreelanceDe {
     fn session(&self) -> Option<&'static PortalSite> {
         Some(&SITE)
     }
+
+    fn parser_version(&self) -> u32 {
+        PARSER_VERSION
+    }
+
+    fn parse_facts(&self, html: &str) -> Facts {
+        facts_of(&guest_findings(html))
+    }
+}
+
+/// Bump whenever the guest page or the probe is read differently (requeues failed jobs).
+const PARSER_VERSION: u32 = 1;
+
+/// The facts of the project head (as the page words them).
+fn facts_of(page: &SessionPage) -> Facts {
+    let mut facts = Facts {
+        start: Facts::value(&page.start),
+        duration: Facts::value(&page.duration),
+        ..Facts::default()
+    };
+    facts.set_remote(&page.remote);
+    facts
 }
 
 /// Probe script: synchronous, in `try/catch`, always returns JSON. No timers, no logic in
@@ -182,6 +207,9 @@ pub const PROBE_JS: &str = r#"(() => { try {
     title: text(header && header.querySelector('h1')),
     company: labelled(/^(?:Firma|Unternehmen|Projektanbieter|Auftraggeber|Kunde)\s*:?$/i),
     location: labelled(/^(?:Ort|Einsatzort|Standort|PLZ\s*\/?\s*Ort)\s*:?$/i),
+    start: labelled(/^(?:Start|Projektstart|Beginn)\s*:?$/i),
+    duration: labelled(/^(?:Dauer|Laufzeit|Projektdauer)\s*:?$/i),
+    remote: labelled(/^(?:Remote|Remoteanteil|Remote-Anteil|Homeoffice)\s*:?$/i),
     panelHtml: body ? body.innerHTML : null,
   });
 } catch (e) { return JSON.stringify({ ok: false, err: String(e), url: String(location.href) }); } })()"#;
@@ -280,6 +308,7 @@ pub fn judge_page(page: &SessionPage, project_id: &str) -> PageOutcome {
     judge(Parsed {
         text,
         fields: page_fields(&page.title, &page.company, &page.location),
+        facts: facts_of(page),
         ..Parsed::default()
     })
 }
@@ -358,6 +387,9 @@ fn guest_findings(html: &str) -> SessionPage {
             "kunde",
         ]),
         location: labelled(&["ort", "einsatzort", "standort", "plz / ort", "plz/ort"]),
+        start: labelled(&["start", "projektstart", "beginn"]),
+        duration: labelled(&["dauer", "laufzeit", "projektdauer"]),
+        remote: labelled(&["remote", "remoteanteil", "remote-anteil", "homeoffice"]),
         panel_html: panel.map(|p| p.inner_html()),
         ..SessionPage::default()
     }
@@ -442,7 +474,11 @@ pub(crate) mod tests {
     fn a_guest_gets_the_teaser_with_the_page_fields() {
         let teaser = guest_html(TEASER);
         match guest(&teaser, "/projekte/projekt-1255067-interim-controlling") {
-            PageOutcome::Teaser { text, fields } => {
+            PageOutcome::Teaser {
+                text,
+                fields,
+                facts,
+            } => {
                 assert_eq!(
                     text,
                     "Derzeit suchen wir für unseren Kunden einen Controller."
@@ -451,6 +487,17 @@ pub(crate) mod tests {
                 assert_eq!(fields.title, "Interim Controller (m/w/d)");
                 assert_eq!(fields.location, "Hamburg");
                 assert_eq!(fields.company, "");
+                // The facts of the project head.
+                assert_eq!(
+                    facts,
+                    Facts {
+                        start: Some("01.11.2026".into()),
+                        duration: Some("6 Monate".into()),
+                        remote_percent: Some(100),
+                        ..Facts::default()
+                    }
+                );
+                assert_eq!(FreelanceDe.parse_facts(&teaser), facts);
             }
             other => panic!("{other:?}"),
         }
@@ -465,7 +512,8 @@ pub(crate) mod tests {
             guest(expert, "/project/index.php"),
             PageOutcome::Teaser {
                 text: String::new(),
-                fields: None
+                fields: None,
+                facts: Facts::default(),
             }
         );
     }

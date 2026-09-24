@@ -7,12 +7,13 @@ use std::sync::LazyLock;
 
 use scraper::Html;
 use serde::Deserialize;
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use url::Url;
 
 use super::{
-    Access, Css, JobKey, JobLink, Portal, PortalAdapter, all_digits, hex12, host_and_segments,
-    host_is, link, selector,
+    Access, Css, Facts, JobKey, JobLink, Portal, PortalAdapter, all_digits, hex12,
+    host_and_segments, host_is, link, selector,
 };
 use crate::fetch::policy::Limits;
 use crate::fetch::{Cause, PageFields, PageOutcome, Parsed, judge};
@@ -108,7 +109,18 @@ impl PortalAdapter for Freelancermap {
             Ok(parsed) => judge(parsed),
         }
     }
+
+    fn parser_version(&self) -> u32 {
+        PARSER_VERSION
+    }
+
+    fn parse_facts(&self, html: &str) -> Facts {
+        parse(html, None).map(|p| p.facts).unwrap_or_default()
+    }
 }
+
+/// Bump whenever the parser reads pages differently (requeues failed jobs).
+const PARSER_VERSION: u32 = 1;
 
 /// `/nproj/<ID>.html` or `/projektboerse/projekte/.../<ID>-slug.html`.
 fn project_id(segments: &[&str]) -> Option<String> {
@@ -205,6 +217,53 @@ struct Project {
     #[serde(default)]
     disabled: bool,
     contract_type: Option<ContractType>,
+    /// Everything else - start, duration, rate and skills are read from here by several
+    /// possible names (an alias would refuse the island if two of them appeared).
+    #[serde(flatten)]
+    rest: serde_json::Map<String, Value>,
+}
+
+/// The first of `names` the island carries, as text.
+fn first_text(rest: &serde_json::Map<String, Value>, names: &[&str]) -> Option<String> {
+    names
+        .iter()
+        .filter_map(|name| rest.get(*name))
+        .find_map(value_text)
+}
+
+/// A value as text: a string, a number, or an object's name or label.
+fn value_text(value: &Value) -> Option<String> {
+    match value {
+        Value::String(text) => Facts::value(text),
+        Value::Number(number) => Some(number.to_string()),
+        Value::Object(object) => ["name", "localizedName", "label", "text"]
+            .iter()
+            .filter_map(|key| object.get(*key))
+            .find_map(value_text),
+        _ => None,
+    }
+}
+
+/// Facts of the island. `remoteInPercent` is measured; the names of start, duration, rate
+/// and skills are assumed - to be checked against a real page.
+fn facts(project: &Project) -> Facts {
+    let mut facts = Facts {
+        remote_percent: project
+            .contract_type
+            .as_ref()
+            .and_then(|c| c.remote_in_percent)
+            .and_then(|p| u8::try_from(p.min(100)).ok()),
+        start: first_text(&project.rest, &["start", "startText", "startDate"]),
+        duration: first_text(&project.rest, &["duration", "durationText"]),
+        rate: first_text(&project.rest, &["rate", "hourlyRate", "rateText"]),
+        ..Facts::default()
+    };
+    if let Some(Value::Array(skills)) = project.rest.get("skills") {
+        for skill in skills.iter().filter_map(value_text) {
+            facts.add_skill(&skill);
+        }
+    }
+    facts
 }
 
 #[derive(Deserialize)]
@@ -256,10 +315,8 @@ pub(crate) fn parse(html: &str, expected_id: Option<&str>) -> Result<Parsed, Cau
         .filter_map(|l| l.localized_name.as_deref().map(one_line))
         .filter(|l| !l.is_empty())
         .collect();
-    let remote = project
-        .contract_type
-        .and_then(|c| c.remote_in_percent)
-        .is_some_and(|p| p >= 100);
+    let facts = facts(&project);
+    let remote = facts.remote_percent.is_some_and(|p| p >= 100);
     let location = match project
         .city
         .as_deref()
@@ -279,6 +336,7 @@ pub(crate) fn parse(html: &str, expected_id: Option<&str>) -> Result<Parsed, Cau
             company: project.company.as_deref().map(one_line).unwrap_or_default(),
             location,
         },
+        facts,
     })
 }
 
@@ -326,6 +384,28 @@ pub(crate) mod tests {
                 location: "München, Remote".into(),
             }
         );
+        // Facts that used to be read and dropped.
+        assert_eq!(
+            p.facts,
+            Facts {
+                remote_percent: Some(50),
+                start: Some("ab sofort".into()),
+                duration: Some("6 Monate".into()),
+                rate: Some("95 €/h".into()),
+                skills: vec!["SAP FI".into(), "SAP CO".into()],
+                ..Facts::default()
+            }
+        );
+        // Plain names and plain strings are read too; two names for one fact do no harm.
+        let other = page(7, "x", false)
+            .replace(
+                r#""startText":"ab sofort""#,
+                r#""start":"01.11.2026","startDate":"2026-11-01""#,
+            )
+            .replace(r#"[{"name":"SAP FI"},{"name":"SAP CO"}]"#, r#"["ABAP"]"#);
+        let facts = parse(&other, Some("7")).unwrap().facts;
+        assert_eq!(facts.start.as_deref(), Some("01.11.2026"));
+        assert_eq!(facts.skills, ["ABAP"]);
     }
 
     #[test]

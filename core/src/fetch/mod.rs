@@ -30,7 +30,7 @@ use jiff::{SignedDuration, Timestamp};
 use tokio_util::sync::CancellationToken;
 
 use crate::model::DescStatus;
-use crate::portal::{Access, JobKey, JobLink, PORTALS, Portal, PortalAdapter};
+use crate::portal::{Access, Facts, JobKey, JobLink, PORTALS, Portal, PortalAdapter};
 use crate::store::{JobRow, Store};
 use http::HttpFetcher;
 use policy::{Allowance, PauseKind, PauseReason, Policy};
@@ -141,12 +141,14 @@ pub enum PageOutcome {
         short: bool,
         closed: bool,
         fields: Option<PageFields>,
+        facts: Facts,
     },
     /// Only the teaser a guest sees (freelance.de without sign-in): short, but the right
     /// page - stored for matching and marked, never as a text file.
     Teaser {
         text: String,
         fields: Option<PageFields>,
+        facts: Facts,
     },
     /// The ad no longer exists.
     Gone,
@@ -173,6 +175,7 @@ pub(crate) struct Parsed {
     pub text: Option<String>,
     pub closed: bool,
     pub fields: PageFields,
+    pub facts: Facts,
 }
 
 /// Parser result -> outcome matrix.
@@ -188,6 +191,7 @@ pub(crate) fn judge(parsed: Parsed) -> PageOutcome {
                 short,
                 closed: parsed.closed,
                 fields,
+                facts: parsed.facts,
             }
         }
     }
@@ -661,6 +665,7 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
     let (store, policy, cancel, clock) = (shared.store, shared.policy, shared.cancel, shared.clock);
     let mut counts = PortalCounts::default();
     let session = fetcher.session();
+    let parser_version = portal.adapter().parser_version();
     // One sign-in per portal and run; afterwards the same job is tried again.
     let mut login_tried = false;
     // Job whose page was already retried once (at most one retry).
@@ -730,8 +735,10 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 short,
                 closed,
                 fields,
+                facts,
             } => {
                 store.record_text(&job.key, &text, short, closed, now)?;
+                store.record_parse(&job.key, parser_version, Some(&facts))?;
                 // Only non-empty fields overwrite the mail heuristics: what the page hides
                 // ("visible for EXPERT members") arrives empty.
                 if let Some(f) = fields {
@@ -761,8 +768,13 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 );
                 None
             }
-            PageOutcome::Teaser { text, fields } => {
+            PageOutcome::Teaser {
+                text,
+                fields,
+                facts,
+            } => {
                 store.record_teaser(&job.key, &text, now)?;
+                store.record_parse(&job.key, parser_version, Some(&facts))?;
                 if let Some(f) = fields {
                     store.record_page_fields(&job.key, &f.title, &f.company, &f.location)?;
                 }
@@ -792,6 +804,7 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
             }
             PageOutcome::Suspicious(cause) => {
                 let status = store.record_failed(&job.key, &cause.to_string(), now)?;
+                store.record_parse(&job.key, parser_version, None)?;
                 counts.failed += 1;
                 note(
                     notes,

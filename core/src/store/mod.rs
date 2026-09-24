@@ -19,6 +19,7 @@ use crate::time::{from_db, to_db};
 
 mod jobs;
 pub mod matches;
+mod pages;
 mod schema;
 
 pub use jobs::{

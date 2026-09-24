@@ -25,6 +25,10 @@ pub struct SessionPage {
     pub title: String,
     pub company: String,
     pub location: String,
+    /// Facts of the page head, as the page words them.
+    pub start: String,
+    pub duration: String,
+    pub remote: String,
     /// HTML of the description field.
     pub panel_html: Option<String>,
 }
