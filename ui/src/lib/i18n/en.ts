@@ -34,16 +34,8 @@ import type {
   VaultKind,
   WorkMode,
 } from '../ipc/types';
-import type { Platform } from '../platform';
 import { textOf, type Catalog, type ContractKind, type CriterionState } from './de';
-import {
-  formatCountdown,
-  formatDate,
-  formatEuro,
-  formatMoment,
-  formatNumber,
-  formatPercent,
-} from './format';
+import { formatCountdown, formatEuro, formatMoment, formatNumber, formatPercent } from './format';
 
 type Params = Record<string, string | number | boolean | null>;
 type Text = string | ((params: Params) => string);
@@ -338,55 +330,30 @@ const reasonCode = {
 const criteria = {
   minDayRate: {
     label: 'Day rate',
-    field: 'Day rate',
-    value: (p) => `from ${formatEuro(p.min ?? p.rate ?? p.value)}`,
     exclusion: 'The day rate is below the minimum in the profile.',
   },
   countries: {
-    label: 'Country',
-    field: 'Country',
-    value: (p) => str(p.countries ?? p.value),
+    label: 'Countries',
     exclusion: 'The location is outside the countries in the profile.',
   },
   noAnue: {
     label: 'Agency work',
-    field: 'Temporary agency work',
-    value: () => 'excluded',
     exclusion: ANUE,
   },
   availability: {
     label: 'Availability',
-    field: 'Availability',
-    value: (p) => {
-      const from = p.from ?? p.value;
-      if (from === 'now') return 'now';
-      const date = typeof from === 'string' ? formatDate(from) : '';
-      return date ? `from ${date}` : 'given';
-    },
     exclusion: 'The start does not fit the availability.',
   },
   minSalary: {
-    label: 'Salary',
-    field: 'Minimum salary',
-    value: (p) => `${formatEuro(p.min ?? p.value)} a year`,
+    label: 'Annual salary',
     exclusion: 'The salary is below the minimum in the profile.',
   },
   permanentRegion: {
-    label: 'Region',
-    field: 'Region',
-    value: (p) =>
-      typeof p.remoteMin === 'number' && p.remoteMin > 0
-        ? `${str(p.places)} or from ${formatPercent(p.remoteMin)} remote`
-        : str(p.places),
+    label: 'Places',
     exclusion: 'The permanent role is outside the region in the profile.',
   },
   targetYears: {
-    label: 'Seniority',
-    field: 'Seniority',
-    value: (p) => {
-      const years = num(p.min ?? p.value);
-      return `from ${count(years, 'year', 'years')} of experience`;
-    },
+    label: 'Experience',
     exclusion: 'The role asks for much less experience.',
   },
 } satisfies Catalog['reader']['criterion'];
@@ -406,6 +373,17 @@ const profileKey: Record<string, string> = {
   sprachen: 'Languages',
   zertifikate: 'Certificates',
   ausbildung: 'Education',
+  min_tagessatz: 'Day rate from',
+  min_day_rate: 'Day rate from',
+  tagessatz_ab: 'Day rate from',
+  laender: 'Countries',
+  countries: 'Countries',
+  ausgeschlossene_vertragsarten: 'Exclude temporary agency work',
+  excluded_contract_types: 'Exclude temporary agency work',
+  remote_ausserhalb_erlaubt: 'Remote outside allowed',
+  remote_outside_allowed: 'Remote outside allowed',
+  verfuegbar_ab: 'Available from',
+  available_from: 'Available from',
   min_jahresgehalt: 'Annual salary from',
   min_annual_salary: 'Annual salary from',
   min_salary: 'Annual salary from',
@@ -422,9 +400,9 @@ const profileKey: Record<string, string> = {
   target_roles: 'Target roles',
   tagessatz_wunsch: 'Desired day rate',
   desired_day_rate: 'Desired day rate',
-  remote: 'Remote wish',
-  regionen: 'Regions',
-  regions: 'Regions',
+  remote: 'Remote',
+  regionen: 'Desired regions',
+  regions: 'Desired regions',
   branchen: 'Industries',
   industries: 'Industries',
 };
@@ -568,8 +546,6 @@ export const en: Catalog = {
   },
   run: {
     never: 'No fetch yet',
-    newCount: (value: number) => count(value, 'new job', 'new jobs'),
-    topCount: (value: number) => `${n(value)} with a high match`,
     step: {
       scan: 'Mailbox',
       fetch: 'Details',
@@ -709,7 +685,6 @@ export const en: Catalog = {
       offer: 'Offer',
       rejected: 'Rejected',
     } satisfies Record<AppStatus, string>,
-    statusSince: (status: string, when: string) => `${status} ${when}`,
     mail: OPEN_MAIL,
     fetchDetails: 'Fetch details',
     why: 'Why',
@@ -733,16 +708,9 @@ export const en: Catalog = {
   },
   overview: {
     label: 'Today at a glance',
-    new: 'New',
-    high: 'High match',
-    noDetail: 'No details',
-    excluded: 'Excluded',
-    pinned: 'Saved',
     issues: 'Open points',
     best: 'Best match',
     excel: 'Open Excel file',
-    newJobs: 'New jobs',
-    newOn: (portal: string, value: number) => `${n(value)} new on ${portal}`,
     emptyAlerts: (value: number) =>
       value === 1 ? 'One alert mail held no jobs.' : `${n(value)} alert mails held no jobs.`,
     lastRun: 'Last fetch',
@@ -878,19 +846,19 @@ export const en: Catalog = {
       minDayRate: 'Day rate from (€)',
       countries: 'Countries',
       remoteOutside: 'Remote outside allowed',
-      remoteOutsideHint: 'Fully remote jobs may be based in other countries.',
+      remoteOutsideHint: 'Then fully remote roles abroad count too.',
       noAnue: 'Exclude temporary agency work',
       available: 'Available from',
       date: 'Date',
       datePlaceholder: '01/11/2026',
-      dateInvalid: 'Enter the date like 01/11/2026.',
+      dateInvalid: 'Enter the date as 01/11/2026.',
       targetYears: 'Required experience from (years)',
       targetYearsHint: 'Roles for much less experience drop out.',
       minSalary: 'Annual salary from (€)',
       places: 'Places',
       placesPlaceholder: 'Munich',
       remoteMin: 'Remote share from (%)',
-      remoteMinHint: 'Outside these places a role with this much remote will do.',
+      remoteMinHint: 'Roles outside these places count only from this much remote.',
     },
     level: {
       a1: 'A1',
@@ -975,6 +943,12 @@ export const en: Catalog = {
       grey: 'Guest access, no account is affected.',
       account: 'Signed in, your own account is at stake.',
     } satisfies Record<Risk, string>,
+    riskInfo: {
+      low: 'The app opens only what anyone can see in a browser.',
+      grey: 'The portal does not expressly allow automated reading.',
+      account: 'At worst the portal locks your own account.',
+    } satisfies Record<Risk, string>,
+    detailsOff: 'Without details the jobs of this portal get no match.',
     quota: (used: number, cap: number) => `Today ${n(used)} of ${n(cap)} pages`,
     quotaHour: (used: number, cap: number) => `This hour ${n(used)} of ${n(cap)} pages`,
     signedIn: 'Signed in',
@@ -986,10 +960,6 @@ export const en: Catalog = {
     workspace: 'Work folder',
     workspaceDefault: 'Default',
     excel: 'Excel file',
-    excelShow: {
-      windows: 'Show in Explorer',
-      macos: 'Show in Finder',
-    } satisfies Record<Platform, string>,
     excelMissing: 'The Excel file is created at the first fetch.',
     txt: 'Text files',
     txtCount: (value: number) => count(value, 'file', 'files'),
@@ -1034,8 +1004,6 @@ export const en: Catalog = {
     mailbox: 'Mailbox',
     mailboxText: 'The alert mails of the portals must go to this Gmail address.',
     profile: 'Profile',
-    createProfile: 'Create profile',
-    openProfile: 'Open profile',
     profileText: 'The profile is made in the app, from the CV if you like.',
     fetch: 'First fetch',
     fetchHint: 'This takes a few minutes.',
@@ -1051,7 +1019,7 @@ export const en: Catalog = {
     saved: 'Saved.',
     rescored: 'The jobs are scored again.',
     copied: 'Copied.',
-    prompt: 'Prompt copied. Paste it into an AI chat.',
+    prompt: 'Prompt copied, ready for an AI chat.',
     hidden: 'Archived.',
     runDone: (value: number) =>
       value === 0

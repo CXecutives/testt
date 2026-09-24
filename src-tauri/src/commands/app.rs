@@ -134,6 +134,7 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
         settings: SettingsView {
             workspace_is_default: settings.workspace.is_none(),
             txt_files,
+            excel_path: export::overview_path(&result_dir),
             excel_exists: export::overview_path(&result_dir).is_file(),
             workspace: workspace.clone(),
         },

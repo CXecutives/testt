@@ -49,6 +49,8 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('step-mailbox').locator('.marker')).toHaveClass(/drawn/);
   await expect(page.getByTestId('step-mailbox')).not.toHaveAttribute('aria-current', 'step');
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
+  // The connect form is gone; the focus waits on the next step's action.
+  await expect(page.getByTestId('first-profile')).toBeFocused();
 
   // "Profil anlegen" opens the empty form in one click; after saving, a button leads on to
   // the first fetch and the step is done with the person's name.
@@ -188,6 +190,10 @@ test('a switch row toggles from its text like the system settings', async ({ pag
     'aria-checked',
     'false',
   );
+  // Off, the row says what that changes instead of the risk of the requests.
+  await expect(page.getByTestId('details-linkedin')).toContainText(
+    'Ohne Details bekommen die Jobs dieses Portals keine Passung.',
+  );
   // A copyable path is text to select, never a switch: the workspace row has no label.
   await expect(page.getByTestId('settings-files').locator('label')).toHaveCount(0);
 });
@@ -199,6 +205,15 @@ test('each switch carries its risk once; freelance.de sign in and out', async ({
   await expect(page.getByTestId('details-freelance')).toContainText('Graubereich');
   await expect(page.getByTestId('login-freelance')).toContainText('Kontorisiko');
   await expect(page.getByTestId('details-freelancermap')).toContainText('Geringes Risiko');
+  // Each risk word explains itself on hover.
+  await page.getByTestId('details-freelance').getByText('Graubereich').hover();
+  await expect(page.getByRole('tooltip')).toHaveText(
+    'Das Portal erlaubt automatisches Lesen nicht ausdrücklich.',
+  );
+  await page.getByTestId('login-freelance').getByText('Kontorisiko').hover();
+  await expect(page.getByRole('tooltip')).toHaveText(
+    'Im schlimmsten Fall sperrt das Portal das eigene Konto.',
+  );
   await page.getByTestId('toggle-login-freelance').click();
   // Signed in, the details carry the account risk and the warning is not said again.
   await expect(page.getByTestId('details-freelance')).toContainText('Kontorisiko');
@@ -239,6 +254,22 @@ test('first run: a profile that names nothing to score keeps step two open', asy
   await expect(step).toHaveAttribute('data-done', 'false');
   await expect(page.getByTestId('first-profile')).toHaveClass(/primary/);
   await expect(page.getByTestId('first-fetch')).not.toHaveClass(/primary/);
+});
+
+test('the Excel file says where it is: path to copy, and it opens', async ({
+  page,
+  browserName,
+}) => {
+  if (browserName === 'chromium') {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  }
+  await settings(page);
+  const row = page.getByTestId('excel');
+  await expect(row).toContainText('C:/Users/demo/Documents/Job-Alerts/auswertung/JobAlerts.xlsx');
+  await page.getByTestId('excel-copy').click();
+  await expect(page.getByTestId('toast').last()).toHaveText('Kopiert.');
+  await page.getByTestId('excel-open').click();
+  expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({ target: { kind: 'excel' } });
 });
 
 test('files: rewrite and delete the text files where they are', async ({ page }) => {
@@ -302,7 +333,7 @@ test('the dry run shows its mailbox and refuses what would write outside it', as
 test('locked buttons explain themselves', async ({ page }) => {
   // A workspace without files yet has no Excel file to show.
   await settings(page, `${WIN}&scenario=no-files`);
-  const excel = page.getByTestId('excel-show');
+  const excel = page.getByTestId('excel-open');
   await excel.hover();
   await expect(page.getByRole('tooltip')).toHaveText('Die Excel-Datei entsteht beim ersten Abruf.');
   // Without a mailbox reading the whole mailbox is locked.

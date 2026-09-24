@@ -1,9 +1,10 @@
 <!--
   Einstellungen (centred 720): Postfach, Abruf, Portale, Dateien, Sprache, Wartung - each a
   card of setting rows - and "Alles zurücksetzen" alone on the last card, apart from the
-  harmless rows. Sprache switches the whole app at once (Deutsch, English). Every action answers where it happened (a note rises in there, and fades when it
-  goes); dialogs only to confirm, and a
-  confirmed action that fails closes its dialog so the note beside the action can say why.
+  harmless rows. Sprache switches the whole app at once (Deutsch, English). Every action
+  answers where it happened (a note rises in there, and fades when it goes); dialogs only to
+  confirm, and a confirmed action that fails closes its dialog so the note beside the action
+  can say why.
   Switches move at once and are their own answer (no toast). The dry run changes nothing,
   so what it cannot do is locked with that reason instead of failing.
 -->
@@ -22,7 +23,6 @@
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { Language, OpenTarget, SettingsPatch } from '$lib/ipc/types';
-  import { platform } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -208,12 +208,12 @@
     );
   }
 
-  async function copyPath(path: string): Promise<void> {
+  async function copyPath(path: string, note: (f: Feedback) => void = setCare): Promise<void> {
     try {
       await navigator.clipboard.writeText(path);
       toasts.show(t.toast.copied);
     } catch (error) {
-      setCare({ tone: 'danger', text: errorText(error) });
+      note({ tone: 'danger', text: errorText(error) });
     }
   }
 </script>
@@ -356,17 +356,28 @@
             />
           </div>
         </SettingRow>
-        <SettingRow label={t.settings.excel}>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="folder-open"
-            label={t.settings.excelShow[platform()]}
-            disabled={!cfg.settings.excelExists}
-            disabledReason={t.settings.excelMissing}
-            testid="excel-show"
-            onclick={() => open({ kind: 'excel' }, setFiles)}
-          />
+        <!-- Where the Excel file is (or will be), to find it later or to tell someone. -->
+        <SettingRow label={t.settings.excel} hint={cfg.settings.excelPath} copy testid="excel">
+          <div class="buttons">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="copy"
+              label={t.settings.copyPath}
+              testid="excel-copy"
+              onclick={() => void copyPath(cfg.settings.excelPath, setFiles)}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="external-link"
+              label={t.common.open}
+              disabled={!cfg.settings.excelExists}
+              disabledReason={t.settings.excelMissing}
+              testid="excel-open"
+              onclick={() => open({ kind: 'excel' }, setFiles)}
+            />
+          </div>
         </SettingRow>
         <SettingRow label={t.settings.txt} hint={t.settings.txtCount(cfg.settings.txtFiles)}>
           <div class="buttons">

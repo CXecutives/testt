@@ -81,6 +81,7 @@ pub(crate) const DOMAIN: Domain = Domain {
         ("python3", "python"),
         ("react.js", "react"),
         ("reactjs", "react"),
+        ("react native", "react-native"),
         ("angularjs", "angular"),
         ("vue.js", "vue"),
         ("vuejs", "vue"),
