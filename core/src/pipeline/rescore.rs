@@ -53,7 +53,8 @@ impl Rescore {
         }
     }
 
-    /// A run is over: a profile change during it is scored now.
+    /// A run or a sign-in is over (the slot is free again): a profile change during it is
+    /// scored now.
     pub fn run_ended(&self, host: &impl Host) {
         if self.due.swap(false, Ordering::SeqCst) {
             self.rescore(host);
@@ -83,7 +84,7 @@ impl Rescore {
         }
         match host.launch_rescore() {
             Ok(()) => log::info!("rescore started"),
-            // A sign-in holds the slot: try again when the next run is over.
+            // A sign-in holds the slot: try again when it (or the next run) is over.
             Err(ErrorKind::Busy) => self.due.store(true, Ordering::SeqCst),
             Err(kind) => log::warn!("rescore not started: {kind:?}"),
         }

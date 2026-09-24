@@ -16,6 +16,7 @@ use crate::session::Session;
 
 /// Holds "session window in use" and frees it safely at the end.
 struct SessionGuard<'a> {
+    app: AppHandle,
     state: &'a AppState,
     /// Cancels signing in or out (`cancel_run`, quitting).
     cancel: CancellationToken,
@@ -23,10 +24,15 @@ struct SessionGuard<'a> {
 
 impl Drop for SessionGuard<'_> {
     fn drop(&mut self) {
-        let mut activity = lock(&self.state.activity);
-        if matches!(*activity, Activity::Session(_)) {
-            *activity = Activity::Idle;
+        {
+            let mut activity = lock(&self.state.activity);
+            if matches!(*activity, Activity::Session(_)) {
+                *activity = Activity::Idle;
+            }
         }
+        // A profile change while the window was open found the slot busy: its rescore is
+        // owed and starts now.
+        super::scoring::after_run(&self.app);
     }
 }
 
@@ -34,7 +40,11 @@ impl Drop for SessionGuard<'_> {
 /// never next to a run. Then the same rules apply as for every request: no sign-in during a
 /// pause or above the cap, gap to the last request, counted and saved before the contact.
 /// `None`: cancelled before the portal was contacted.
-async fn claim_session(state: &AppState, portal: Portal) -> CmdResult<Option<SessionGuard<'_>>> {
+async fn claim_session<'a>(
+    app: &AppHandle,
+    state: &'a AppState,
+    portal: Portal,
+) -> CmdResult<Option<SessionGuard<'a>>> {
     state.ensure_real()?;
     if PortalSite::of(portal).is_none() {
         return Err(ErrorInfo::from(&InvalidInput::NoSignIn { portal }));
@@ -47,7 +57,11 @@ async fn claim_session(state: &AppState, portal: Portal) -> CmdResult<Option<Ses
         }
         *activity = Activity::Session(cancel.clone());
     }
-    let guard = SessionGuard { state, cancel };
+    let guard = SessionGuard {
+        app: app.clone(),
+        state,
+        cancel,
+    };
     let policy = Mutex::new(Policy::load(&state.policy_path(), Timestamp::now()));
     match admit(&policy, portal, &guard.cancel, &Timestamp::now, |_| {}).await? {
         Admission::Go => Ok(Some(guard)),
@@ -100,7 +114,7 @@ pub async fn portal_login(
     state: State<'_, AppState>,
     portal: Portal,
 ) -> CmdResult<bool> {
-    let Some(guard) = claim_session(&state, portal).await? else {
+    let Some(guard) = claim_session(&app, &state, portal).await? else {
         return Ok(false);
     };
     let Some(mut session) = session_window(app, &state, portal) else {
@@ -128,7 +142,7 @@ pub async fn portal_logout(
     state: State<'_, AppState>,
     portal: Portal,
 ) -> CmdResult<bool> {
-    let Some(guard) = claim_session(&state, portal).await? else {
+    let Some(guard) = claim_session(&app, &state, portal).await? else {
         return Ok(false);
     };
     let Some(mut session) = session_window(app, &state, portal) else {

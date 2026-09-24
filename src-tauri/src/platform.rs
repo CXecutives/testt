@@ -112,7 +112,10 @@ const fn major_after(haystack: &str, marker: &str) -> u32 {
 pub fn app<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     let builder = builder.on_page_load(on_page_load);
     #[cfg(target_os = "macos")]
-    let builder = builder.enable_macos_default_menu(false).menu(macos::menu);
+    let builder = builder
+        .enable_macos_default_menu(false)
+        .menu(macos::menu)
+        .on_menu_event(macos::on_menu_event);
     builder
 }
 
@@ -423,8 +426,13 @@ const _: () = {
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use tauri::menu::{AboutMetadata, Menu, PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID};
-    use tauri::{AppHandle, Runtime};
+    use tauri::menu::{
+        AboutMetadata, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID,
+    };
+    use tauri::{AppHandle, Manager as _, Runtime};
+
+    /// Id of the app's own quit item (see [`on_menu_event`]).
+    const QUIT_ID: &str = "quit";
 
     // User-facing text, German by product decision.
     const ABOUT: &str = "Über Job-Alert-Monitor";
@@ -441,6 +449,7 @@ mod macos {
     const WINDOW: &str = "Fenster";
     const MINIMIZE: &str = "Minimieren";
     const CLOSE_WINDOW: &str = "Fenster schließen";
+    // end of user-facing text
 
     /// Minimal app menu instead of Tauri's default (no View menu with reload or zoom, no
     /// Help, no Services). It carries the system shortcuts the app keeps: Cmd+Q, Cmd+H,
@@ -462,7 +471,7 @@ mod macos {
                 &PredefinedMenuItem::hide(app, Some(HIDE))?,
                 &PredefinedMenuItem::hide_others(app, Some(HIDE_OTHERS))?,
                 &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::quit(app, Some(QUIT))?,
+                &MenuItem::with_id(app, QUIT_ID, QUIT, true, Some("CmdOrCtrl+Q"))?,
             ],
         )?;
         let edit = Submenu::with_items(
@@ -492,6 +501,30 @@ mod macos {
         )?;
         Menu::with_items(app, &[&app_menu, &edit, &window])
     }
+
+    /// Cmd+Q and the quit item close the main window like its close button: the standard
+    /// quit item ends the process through `terminate:` without any window event, which
+    /// would skip saving the placement, the closing blocker and the grace for a running
+    /// fetch. Quitting from the Dock or at logout still goes through `terminate:`; main.rs
+    /// covers that in `RunEvent::Exit`.
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "the signature of Tauri's menu event handler"
+    )]
+    pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
+        if event.id() != QUIT_ID {
+            return;
+        }
+        match app.get_webview_window(super::MAIN) {
+            Some(window) => {
+                if let Err(e) = window.close() {
+                    log::warn!("quit: main window not closed ({e}), exiting");
+                    app.exit(0);
+                }
+            }
+            None => app.exit(0),
+        }
+    }
 }
 
 /// Operating system of the interface (the page words its texts accordingly).
@@ -511,3 +544,26 @@ pub fn vault_kind() -> jobalert_core::view::VaultKind {
         jobalert_core::view::VaultKind::WindowsCredentialManager
     }
 }
+
+// ------------------------------------------------------------------ startup dialog
+
+/// The log folder the startup dialog names (it shows before there is an app handle): the
+/// app's local data folder of this OS, `logs` in it.
+pub const LOG_DIR_HINT: &str = if cfg!(target_os = "macos") {
+    "~/Library/Application Support/de.cxecutives.job-alert-monitor/logs"
+} else {
+    "%LOCALAPPDATA%\\de.cxecutives.job-alert-monitor\\logs"
+};
+
+// User-facing text, German by product decision.
+/// What helps when the window cannot open: on Windows the WebView2 runtime is usually
+/// missing; macOS brings its engine along.
+pub const WINDOW_HINT: Option<&str> = if cfg!(windows) {
+    Some(
+        "Fehlt die Microsoft-Edge-WebView2-Laufzeit, hilft deren Installation \
+         (https://developer.microsoft.com/microsoft-edge/webview2/).",
+    )
+} else {
+    None
+};
+// end of user-facing text

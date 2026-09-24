@@ -173,7 +173,8 @@ impl Store {
     }
 
     /// Stores the match of one job only while its revision is still `expected` (compare and
-    /// set): a run that scored the job in the meantime wins. `true` if stored.
+    /// set): a run that scored the job in the meantime wins. A duplicate of another portal's
+    /// job is never scored (it shows as that job's row). `true` if stored.
     pub fn save_match_if(
         &self,
         key: &JobKey,
@@ -186,7 +187,7 @@ impl Store {
             let changed = conn.execute(
                 "UPDATE job SET match_score = ?3, match_status = ?4, match_note = ?5,
                                 match_rev = ?6, match_at = ?7
-                 WHERE portal = ?1 AND job_id = ?2 AND match_rev IS ?8",
+                 WHERE portal = ?1 AND job_id = ?2 AND match_rev IS ?8 AND dup_of IS NULL",
                 params![
                     key.portal.key(),
                     key.id,

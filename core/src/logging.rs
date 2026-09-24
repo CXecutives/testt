@@ -156,9 +156,41 @@ pub fn panic_line(location: Option<&std::panic::Location<'_>>, message: &str) ->
     }
 }
 
+/// The log line of a background task that ended without finishing: `what` and whether it
+/// panicked or was cancelled - never the error's own text, whose `Display` repeats the panic
+/// message (for a slice panic: the ad or mail text it cut). The panic hook logs the place.
+pub fn task_failure_line(what: &str, error: &tokio::task::JoinError) -> String {
+    let kind = if error.is_panic() {
+        "panic"
+    } else if error.is_cancelled() {
+        "cancelled"
+    } else {
+        "unknown"
+    };
+    format!("{what} crashed ({kind})")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A crashed run logs its kind only: the panic message of a slice panic quotes ad text.
+    #[tokio::test]
+    async fn a_crashed_task_logs_no_panic_message() {
+        let secret = String::from("Abgeschlossenes Studium, geheimer Anzeigentext");
+        let error = tokio::spawn(async move {
+            let end = secret.len() + 1;
+            secret[..end].len()
+        })
+        .await
+        .unwrap_err();
+        assert!(
+            error.to_string().contains("geheimer Anzeigentext"),
+            "the Display of a join error quotes the cut text"
+        );
+        let line = task_failure_line("run", &error);
+        assert_eq!(line, "run crashed (panic)");
+    }
 
     /// The ad text a slice panic quotes never reaches the log.
     #[test]

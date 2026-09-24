@@ -1,0 +1,11 @@
+From: LinkedIn <security-noreply@linkedin.com>
+To: ich@example.org
+Subject: Erika, your pin is 482913. Please confirm your email address
+Date: Mon, 21 Sep 2026 01:15:00 +0200
+Message-ID: <promo-linkedin_pin@example.org>
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><body><p>Hi Erika,</p><p>Please use this verification code to confirm your email address: 482913</p>
+<p><a href="https://www.linkedin.com/comm/psettings/email">Email settings</a></p></body></html>

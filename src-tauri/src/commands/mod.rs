@@ -114,6 +114,7 @@ mod texts {
     pub const PROFILE_FILTER: &str = "Beraterprofil";
     pub const SAVE_TEMPLATE: &str = "Profilvorlage speichern";
     pub const TEMPLATE_NAME: &str = "beraterprofil-vorlage.json";
+    // end of user-facing text
 }
 
 /// State of the app, shared by all commands.
