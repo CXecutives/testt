@@ -1,36 +1,48 @@
-//! Zeit: intern UTC-Zeitstempel, für Anzeige, Dateinamen und Export deutsche Ortszeit.
+//! Time: UTC timestamps inside; German local time for display, file names and export.
+
+use std::time::Duration;
 
 use jiff::Timestamp;
 use jiff::civil::{Date, DateTime};
 use jiff::tz::TimeZone;
+use tokio_util::sync::CancellationToken;
 
-/// Zeitzone für alles, was der Nutzer sieht.
+/// Time zone of everything the user sees.
 pub fn berlin() -> TimeZone {
     TimeZone::get("Europe/Berlin").unwrap_or_else(|_| TimeZone::system())
 }
 
-/// Ortszeit (Europe/Berlin) eines Zeitstempels.
+/// Local time (Europe/Berlin) of a timestamp.
 pub fn local(ts: Timestamp) -> DateTime {
     ts.to_zoned(berlin()).datetime()
 }
 
-/// Kalendertag (Europe/Berlin) eines Zeitstempels.
+/// Calendar day (Europe/Berlin) of a timestamp.
 pub fn local_date(ts: Timestamp) -> Date {
     local(ts).date()
 }
 
-/// „19.09.2026 14:05“.
+/// "19.09.2026 14:05".
 pub fn display(ts: Timestamp) -> String {
     local(ts).strftime("%d.%m.%Y %H:%M").to_string()
 }
 
-/// Sekunden für die Datenbank.
+/// Seconds for the database.
 pub fn to_db(ts: Timestamp) -> i64 {
     ts.as_second()
 }
 
 pub fn from_db(seconds: i64) -> Option<Timestamp> {
     Timestamp::from_second(seconds).ok()
+}
+
+/// Waits `wait`; `false` if `cancel` came first - the one cancellable sleep of the app.
+pub async fn sleep_cancellable(wait: Duration, cancel: &CancellationToken) -> bool {
+    tokio::select! {
+        biased;
+        () = cancel.cancelled() => false,
+        () = tokio::time::sleep(wait) => true,
+    }
 }
 
 #[cfg(test)]

@@ -29,6 +29,7 @@ use jobalert_core::fetch::site::{PortalSite, SessionPage, eval_result};
 use jobalert_core::fetch::{Cause, Login, PageFetcher, PageOutcome};
 use jobalert_core::pipeline::RunEvent;
 use jobalert_core::portal::{JobLink, Portal};
+use jobalert_core::time::sleep_cancellable;
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
 use tauri::{AppHandle, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 use tokio::sync::mpsc;
@@ -245,7 +246,9 @@ impl Session {
     /// Waits out the dwell time of the previous page; `false` on cancel.
     async fn await_dwell(&mut self, cancel: &CancellationToken) -> bool {
         match self.next_at {
-            Some(at) => sleep_until(at, cancel).await,
+            Some(at) => {
+                sleep_cancellable(at.saturating_duration_since(Instant::now()), cancel).await
+            }
             None => true,
         }
     }
@@ -278,7 +281,7 @@ impl Session {
         self.arm_dwell();
         let finished = self.wait_finished(cancel).await?;
         self.arm_dwell();
-        if !sleep_until(Instant::now() + SETTLE, cancel).await {
+        if !sleep_cancellable(SETTLE, cancel).await {
             return Err(PageOutcome::Cancelled);
         }
         Ok(finished)
@@ -430,7 +433,7 @@ impl Session {
                                 found = Some(page);
                                 break;
                             }
-                            Err(_) if sleep_until(Instant::now() + SETTLE, cancel).await => {}
+                            Err(_) if sleep_cancellable(SETTLE, cancel).await => {}
                             Err(_) => return Login::NotSignedIn,
                         }
                     }
@@ -565,13 +568,5 @@ fn window_closed() -> PageOutcome {
     PageOutcome::NetError {
         timeout: false,
         cause: Cause::WindowClosed,
-    }
-}
-
-async fn sleep_until(at: Instant, cancel: &CancellationToken) -> bool {
-    tokio::select! {
-        biased;
-        () = cancel.cancelled() => false,
-        () = tokio::time::sleep_until(at) => true,
     }
 }

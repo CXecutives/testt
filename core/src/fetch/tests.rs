@@ -47,13 +47,13 @@ struct Fake {
 
 impl Fake {
     fn with(self, id: &str, outcomes: impl IntoIterator<Item = PageOutcome>) -> Fake {
-        lock_test(&self.script).insert(id.into(), outcomes.into_iter().collect());
+        lock(&self.script).insert(id.into(), outcomes.into_iter().collect());
         self
     }
 
     /// All requests in the order they started.
     fn calls(&self) -> Vec<Call> {
-        let mut calls = lock_test(&self.calls).clone();
+        let mut calls = lock(&self.calls).clone();
         calls.sort_by_key(|call| call.start);
         calls
     }
@@ -63,22 +63,18 @@ impl Fake {
     }
 
     fn logins(&self) -> Vec<(Instant, Instant)> {
-        lock_test(&self.logins).clone()
+        lock(&self.logins).clone()
     }
-}
-
-fn lock_test<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 impl PageFetcher for Fake {
     async fn fetch(&mut self, link: &JobLink, _: &CancellationToken) -> PageOutcome {
         let start = Instant::now();
         tokio::time::sleep(self.delay).await;
-        let outcome = lock_test(&self.script)
+        let outcome = lock(&self.script)
             .get_mut(&link.key.id)
             .and_then(VecDeque::pop_front);
-        lock_test(&self.calls).push(Call {
+        lock(&self.calls).push(Call {
             id: link.key.id.clone(),
             portal: link.key.portal,
             session: self.session,
@@ -91,7 +87,7 @@ impl PageFetcher for Fake {
     async fn login(&mut self, _: Portal, _: &CancellationToken) -> Login {
         let start = Instant::now();
         tokio::time::sleep(self.login_delay).await;
-        lock_test(&self.logins).push((start, Instant::now()));
+        lock(&self.logins).push((start, Instant::now()));
         self.login.unwrap_or(Login::NotSignedIn)
     }
 
@@ -233,7 +229,9 @@ async fn run_inner(
     )
     .await
     .unwrap();
-    *policy = shared.into_inner().unwrap_or_else(PoisonError::into_inner);
+    *policy = shared
+        .into_inner()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     // The stop is in the summary too.
     for (portal, reason, _) in &stops {
         let counts = &summary.per_portal[portal];

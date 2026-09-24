@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::task::Poll;
 use std::time::Duration;
 
@@ -32,6 +32,10 @@ use tokio_util::sync::CancellationToken;
 use crate::model::DescStatus;
 use crate::portal::{Access, Facts, JobKey, JobLink, PORTALS, Portal, PortalAdapter};
 use crate::store::{JobRow, Store};
+// A poisoned safety state is no reason to abort the run: its counters are valid, and
+// without them there would be no cap at all.
+use crate::sync::lock;
+use crate::time::sleep_cancellable as sleep_for;
 use http::HttpFetcher;
 use policy::{Allowance, NET_RETRY, PauseKind, PauseReason, Policy};
 pub use policy::{MAX_AGE, RETRY_AFTER};
@@ -521,12 +525,6 @@ pub async fn admit(
     policy.record_access(portal, clock());
     policy.save()?;
     Ok(Admission::Go)
-}
-
-/// Short access to the safety state. A poisoned state is no reason to abort the run: its
-/// counters are valid, and without them there would be no cap at all.
-fn lock(policy: &Mutex<Policy>) -> MutexGuard<'_, Policy> {
-    policy.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// What all portal loops share.
@@ -1072,15 +1070,6 @@ fn until(now: Timestamp, wait: Duration) -> Timestamp {
         .ok()
         .and_then(|wait| now.checked_add(wait).ok())
         .unwrap_or(Timestamp::MAX)
-}
-
-/// Waits `wait`; `false` if cancelled before.
-async fn sleep_for(wait: Duration, cancel: &CancellationToken) -> bool {
-    tokio::select! {
-        biased;
-        () = cancel.cancelled() => false,
-        () = tokio::time::sleep(wait) => true,
-    }
 }
 
 #[cfg(test)]

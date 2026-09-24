@@ -138,8 +138,10 @@ impl<'a> From<&'a AlertMail> for MailRef<'a> {
 impl Store {
     // ------------------------------------------------------------------ Intake
 
-    /// Records one entry from an alert mail (merge rule: [`upsert`]).
-    pub fn upsert_posting(
+    /// Records one entry from an alert mail (merge rule: [`upsert`]) - tests only; the app
+    /// records whole alert mails ([`Store::record_alert`]).
+    #[cfg(test)]
+    pub(crate) fn upsert_posting(
         &self,
         run: i64,
         posting: &Posting,

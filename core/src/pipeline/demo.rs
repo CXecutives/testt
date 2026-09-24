@@ -178,9 +178,9 @@ impl PageFetcher for DemoPages {
 }
 
 async fn pause(length: Duration, cancel: &CancellationToken) -> Result<(), MailError> {
-    tokio::select! {
-        biased;
-        () = cancel.cancelled() => Err(MailError::Cancelled),
-        () = tokio::time::sleep(length) => Ok(()),
+    if crate::time::sleep_cancellable(length, cancel).await {
+        Ok(())
+    } else {
+        Err(MailError::Cancelled)
     }
 }
