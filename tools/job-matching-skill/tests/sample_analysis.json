@@ -1,0 +1,129 @@
+{
+  "consultant": "Carla Exempel",
+  "jobs": [
+    {
+      "key": "linkedin:4100000050",
+      "score": 9,
+      "contract": "interim",
+      "verdict": "Sehr gute Passung, alle Pflichtpunkte sind belegt, nur die Migration auf SAP Group Reporting ist dünn belegt. Bewerben.",
+      "requirements": [
+        {"label": "Master in BWL oder VWL", "weight": "must", "status": "met", "quote": "Master's degree in Business Administration or Economics", "evidence": "Diplom-Kauffrau (Univ.) in BWL gilt als Master"},
+        {"label": "10 Jahre Konzernreporting und IFRS-Konsolidierung", "weight": "must", "status": "met", "quote": "10+ years of experience in group reporting and consolidation under IFRS", "evidence": "Konzernrechnungslegung nach IFRS 22 Jahre, Konsolidierung 20 Jahre"},
+        {"label": "LucaNet oder SAP Group Reporting", "weight": "must", "status": "met", "quote": "Experience with LucaNet or SAP Group Reporting", "evidence": "LucaNet im Profil, ein Zweig genügt"},
+        {"label": "Fließendes Englisch", "weight": "must", "status": "met", "quote": "Fluent English", "evidence": "Englisch C1"},
+        {"label": "Führung eines Reporting-Teams", "weight": "must", "status": "met", "quote": "Lead the group reporting team of six", "evidence": "Führung von Finanzteams 20 Jahre"},
+        {"label": "Migration auf SAP Group Reporting", "weight": "nice", "status": "partial", "quote": "Prepare the migration of the consolidation to SAP Group Reporting", "evidence": "SAP S/4HANA und SAP BPC im Profil, SAP Group Reporting selbst nicht genannt"}
+      ],
+      "frame": {
+        "contract": {"status": "met", "note": "Interim, neun Monate Vakanz"},
+        "pay": {"status": "met", "note": "1.250 EUR pro Tag, über dem Minimum von 1.000 EUR"},
+        "seniority": {"status": "met", "note": "10+ Jahre mit Head-Titel passen zu 30 Jahren Erfahrung"},
+        "availability": {"status": "met", "note": "Start sofort, verfügbar sofort"},
+        "location": {"status": "info", "note": "Stuttgart, zwei Tage pro Woche vor Ort"}
+      },
+      "emphasise": [
+        "22 Jahre Konzernrechnungslegung nach IFRS und 20 Jahre Konsolidierung",
+        "LucaNet und SAP S/4HANA als Basis für die Migration",
+        "Führung von Finanzteams seit 20 Jahren",
+        "Mehr als 30 Interim-Mandate, sofort verfügbar"
+      ]
+    },
+    {
+      "key": "linkedin:4100000048",
+      "score": 8,
+      "contract": "interim",
+      "verdict": "Fachlich voll passend, Tagessatz und Remote stimmen, die Rolle liegt aber unter dem gewohnten Level. Bewerben und die Planungsverantwortung für DACH betonen.",
+      "requirements": [
+        {"label": "7 Jahre FP&A oder Controlling", "weight": "must", "status": "met", "quote": "7+ years of experience in FP&A or controlling", "evidence": "Controlling 28 Jahre, FP&A als Alias"},
+        {"label": "Budgetierung und Forecast", "weight": "must", "status": "met", "quote": "Strong knowledge of budgeting and forecasting", "evidence": "Budgetierung und Forecast je 25 Jahre"},
+        {"label": "Power BI", "weight": "must", "status": "met", "quote": "Experience with Power BI", "evidence": "Power BI unter Methoden und Tools"},
+        {"label": "Fließend Englisch und Deutsch", "weight": "must", "status": "met", "quote": "Fluent English and German", "evidence": "Deutsch Muttersprache, Englisch C1"},
+        {"label": "Management Reporting und Abweichungsanalysen", "weight": "must", "status": "met", "quote": "Prepare the monthly management reporting and variance analyses", "evidence": "Management Reporting 28 Jahre"}
+      ],
+      "frame": {
+        "contract": {"status": "met", "note": "Interim, sechs Monate"},
+        "pay": {"status": "met", "note": "1.100 EUR pro Tag, über dem Minimum von 1.000 EUR"},
+        "seniority": {"status": "partial", "note": "7+ Jahre mit Senior-Titel, eher Überqualifizierung bei 30 Jahren"},
+        "availability": {"status": "met", "note": "Start am 01.10.2026, verfügbar sofort"},
+        "location": {"status": "info", "note": "Vollständig remote in Deutschland"}
+      },
+      "emphasise": [
+        "Planung, Budget und Forecast seit 25 Jahren",
+        "Power BI und Management Reporting aus der Praxis",
+        "Start zum 01.10.2026 möglich"
+      ]
+    },
+    {
+      "key": "linkedin:4100000045",
+      "score": 6,
+      "contract": "permanent",
+      "verdict": "Fachlich stark, aber eine Festanstellung mit offenem Gehalt und unklarem Standort. Vor der Bewerbung Standort und Gehaltsrahmen erfragen.",
+      "requirements": [
+        {"label": "10 Jahre Konzerncontrolling", "weight": "must", "status": "met", "quote": "Mindestens 10 Jahre Erfahrung im Konzerncontrolling", "evidence": "Controlling 28 Jahre, Konzernreporting als Alias"},
+        {"label": "Sehr gute IFRS-Kenntnisse", "weight": "must", "status": "met", "quote": "Sehr gute Kenntnisse in IFRS", "evidence": "Konzernrechnungslegung nach IFRS 22 Jahre"},
+        {"label": "LucaNet und Power BI", "weight": "must", "status": "met", "quote": "Erfahrung mit LucaNet und Power BI", "evidence": "Beide unter Methoden und Tools"},
+        {"label": "Planung, Forecast und Konzernreporting", "weight": "must", "status": "met", "quote": "Verantwortung für Planung, Forecast und Konzernreporting", "evidence": "Unternehmensplanung und Forecast je 25 Jahre"}
+      ],
+      "frame": {
+        "contract": {"status": "partial", "note": "Festanstellung in Vollzeit, Zweitkategorie"},
+        "pay": {"status": "partial", "note": "Nicht angegeben, 150.000 EUR im Mittelstand fraglich"},
+        "seniority": {"status": "met", "note": "Mindestens 10 Jahre, entspricht dem Ziel"},
+        "availability": {"status": "met", "note": "Kein Start genannt, verfügbar sofort"},
+        "location": {"status": "partial", "note": "Nur „Deutschland“ genannt, Werk und Remote-Anteil klären"}
+      },
+      "emphasise": [
+        "Konzerncontrolling und IFRS seit mehr als 20 Jahren",
+        "LucaNet und Power BI aus der Praxis",
+        "Aufbau von Planung und Forecast in Industriegruppen"
+      ]
+    },
+    {
+      "key": "linkedin:4100000046",
+      "score": 4,
+      "contract": "unclear",
+      "verdict": "Fachlich passend, aber ein Vermittler ohne Vertragsangaben, Nürnberg ohne Remote-Anteil und ein Gehalt unter dem Ziel sind wahrscheinlich. Nur nach Klärung weiterverfolgen.",
+      "requirements": [
+        {"label": "Mehrjährige Erfahrung im Controlling", "weight": "must", "status": "met", "quote": "Mehrjährige Erfahrung im Controlling", "evidence": "Controlling 28 Jahre"},
+        {"label": "SAP FI/CO", "weight": "must", "status": "met", "quote": "Sehr gute Kenntnisse in SAP FI/CO", "evidence": "SAP FI/CO im Profil"},
+        {"label": "Excel", "weight": "must", "status": "met", "quote": "Sicherer Umgang mit Excel", "evidence": "Excel im Profil"},
+        {"label": "Monatsabschlüsse und Management Reporting", "weight": "must", "status": "met", "quote": "Erstellung der Monatsabschlüsse und des Management-Reportings", "evidence": "Monatsabschlüsse 25 Jahre, Management Reporting 28 Jahre"}
+      ],
+      "frame": {
+        "contract": {"status": "partial", "note": "Personaldienstleister ohne Vertragsart, als Festanstellung geprüft, Überlassung möglich"},
+        "pay": {"status": "partial", "note": "Nicht angegeben, 150.000 EUR für Senior Controller unrealistisch"},
+        "seniority": {"status": "partial", "note": "Senior Controller ohne Jahreszahl, deutliche Überqualifizierung"},
+        "availability": {"status": "met", "note": "Kein Start genannt, verfügbar sofort"},
+        "location": {"status": "open", "note": "Nürnberg liegt außerhalb der Region München, kein Remote-Anteil genannt"}
+      },
+      "emphasise": [
+        "Vertragsart, Gehalt und Remote-Anteil vorab beim Vermittler klären",
+        "SAP FI/CO und Monatsabschlüsse seit 25 Jahren"
+      ]
+    },
+    {
+      "key": "freelancermap:4100052",
+      "score": 4,
+      "contract": "interim",
+      "verdict": "Fachlich passend, aber ein Informatikstudium wird verlangt. Nur bewerben, wenn der Auftraggeber eine vergleichbare Qualifikation akzeptiert.",
+      "requirements": [
+        {"label": "Studium der Informatik", "weight": "formal", "status": "open", "quote": "Abgeschlossenes Studium der Informatik", "evidence": "Diplom-Kauffrau in BWL, kein Informatikstudium; nicht als zwingend formuliert, daher kein Ausschluss"},
+        {"label": "Einführung von Konsolidierungssoftware", "weight": "must", "status": "met", "quote": "Erfahrung in der Einführung von Konsolidierungssoftware, z. B. LucaNet", "evidence": "LucaNet im Profil, Konsolidierung 20 Jahre"},
+        {"label": "Konzernrechnungslegung nach IFRS", "weight": "must", "status": "met", "quote": "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS", "evidence": "Konzernrechnungslegung nach IFRS 22 Jahre"},
+        {"label": "SAP S/4HANA", "weight": "must", "status": "met", "quote": "Sicherer Umgang mit SAP S/4HANA", "evidence": "SAP S/4HANA im Profil"}
+      ],
+      "frame": {
+        "contract": {"status": "met", "note": "Freiberuflich"},
+        "pay": {"status": "met", "note": "1.150 EUR pro Tag, über dem Minimum von 1.000 EUR"},
+        "seniority": {"status": "met", "note": "Leitungsrolle ohne Jahreszahl"},
+        "availability": {"status": "met", "note": "Ab sofort, verfügbar sofort"},
+        "location": {"status": "info", "note": "100 % remote aus Deutschland"}
+      },
+      "emphasise": [
+        "Einführung von Konsolidierungslösungen mit LucaNet",
+        "IFRS-Konzernabschluss und SAP S/4HANA",
+        "Nachfragen, ob Praxis statt Informatikstudium genügt"
+      ]
+    }
+  ],
+  "excluded": []
+}
