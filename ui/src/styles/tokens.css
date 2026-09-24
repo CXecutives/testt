@@ -232,6 +232,22 @@
   --tooltip-max: 280px;
   --tooltip-gap: 8px;
   --viewport-gap: 8px;
+  --badge-height: 22px;
+  --meter-sm: 2px;
+  --meter-md: 6px;
+  --meter-lg: 8px;
+  --toggle-width: 36px;
+  --toggle-height: 20px;
+  --toggle-thumb: 16px;
+  --toggle-travel: 16px;
+  --row-bar: 3px;
+  --dialog-width: 440px;
+  --stat-min: 180px;
+  --blur-scrim: 4px;
+  /* Score ring: r = 15.9155 in a 36-unit viewBox (circumference 100). Stroke widths are
+     scaled into viewBox units: 36/40 and 36/96. */
+  --ring-sm-scale: 0.9;
+  --ring-lg-scale: 0.375;
 
   /* -------------------------------------------------------------- typography */
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;

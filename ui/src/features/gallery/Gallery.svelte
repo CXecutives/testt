@@ -16,6 +16,8 @@
   import ColourBoard from './ColourBoard.svelte';
   import MotionBoard from './MotionBoard.svelte';
   import Section from './Section.svelte';
+  import InputBoard from './InputBoard.svelte';
+  import SurfaceBoard from './SurfaceBoard.svelte';
   import TokenBoards from './TokenBoards.svelte';
   import { text } from './gallery';
 
@@ -134,6 +136,10 @@
       <Spinner size="lg" />
     </div>
   </Section>
+
+  <SurfaceBoard />
+
+  <InputBoard />
 
   <Tooltip />
 </div>

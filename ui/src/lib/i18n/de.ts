@@ -41,6 +41,63 @@ export const de = {
   },
   common: {
     loading: 'Wird geladen',
+    cancel: 'Abbrechen',
+  },
+  portal: {
+    linkedin: 'LinkedIn',
+    freelance: 'freelance.de',
+    freelancermap: 'freelancermap',
+  },
+  field: {
+    reveal: 'Passwort zeigen',
+    conceal: 'Passwort verbergen',
+    clear: 'Suche leeren',
+  },
+  score: {
+    /** `Passung 87 %` - the number comes formatted from format.ts. */
+    value: (percent: string) => `Passung ${percent}`,
+    excluded: 'Ausgeschlossen',
+    unscorable: 'Nicht bewertbar',
+    pending: 'Wird bewertet',
+    none: 'Ohne Passung',
+    band: {
+      high: 'Hohe Passung',
+      mid: 'Mittlere Passung',
+      low: 'Geringe Passung',
+    },
+  },
+  reason: {
+    kind: {
+      met: 'Erfüllt',
+      partial: 'Teilweise erfüllt',
+      open: 'Offen',
+      violation: 'Ausschlussgrund',
+      check: 'Zu prüfen',
+    },
+    weight: {
+      must: 'Muss',
+      nice: 'Kann',
+      hard: 'Ausschluss',
+      info: 'Hinweis',
+    },
+    evidence: 'Beleg im Profil',
+  },
+  job: {
+    workMode: {
+      remote: 'Remote',
+      hybrid: 'Hybrid',
+      onSite: 'Vor Ort',
+    },
+    detail: {
+      missing: 'Ohne Details',
+      teaser: 'Nur Anriss',
+      failed: 'Abruf fehlgeschlagen',
+      unfetchable: 'Nicht abrufbar',
+      gone: 'Nicht mehr online',
+    },
+    unread: 'Neu',
+    pinned: 'Gemerkt',
+    alsoOn: (portals: string) => `Auch auf ${portals}`,
   },
 } as const;
 

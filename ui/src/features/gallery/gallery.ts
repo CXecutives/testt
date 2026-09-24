@@ -57,6 +57,36 @@ export const text = {
   navigation: {
     tabs: ['Jobs', 'Profil', 'Einstellungen'],
   },
+  surfaces: {
+    cards: 'Karten',
+    plain: 'Eine ruhige Fläche für Inhalte.',
+    interactive: 'Eine Karte, die sich anklicken lässt.',
+    tinted: 'Eine hervorgehobene Fläche.',
+    badges: 'Abzeichen',
+    badge: 'Hinweis',
+    loading: 'Platzhalter und Fortschritt',
+    meter: 'Fortschritt des Abrufs',
+  },
+  inputs: {
+    heading: 'Eingaben',
+    settings: 'Einstellungen',
+    toggle: 'Beim Start abrufen',
+    toggleHint: 'Ruft neue Alert-Mails ab, wenn der letzte Abruf über sechs Stunden her ist.',
+    locked: 'Anmelden',
+    lockedReason: 'Erst nach dem laufenden Abruf möglich.',
+    risk: 'Konto betroffen',
+    facet: 'Ansicht',
+    facets: ['Neu', 'Alle'],
+    sort: 'Sortierung',
+    sorts: ['Beste Passung', 'Neueste', 'Portal'],
+    address: 'Postfach',
+    addressHint: 'Die Gmail-Adresse, an die die Alert-Mails gehen.',
+    password: 'App-Passwort',
+    passwordError: 'Das App-Passwort hat 16 Zeichen.',
+    search: 'Jobs durchsuchen',
+    disclosure: 'Mehr zu diesem Portal',
+    disclosureText: 'Die App liest nur Links aus den eigenen Alert-Mails.',
+  },
 } as const;
 
 /** How a colour token is checked for contrast. */
