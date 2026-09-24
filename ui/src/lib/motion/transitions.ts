@@ -35,6 +35,8 @@ export interface MotionParams {
   easing?: Easing;
   /** Delay in ms. */
   delay?: number;
+  /** Play at all (false while the screen is still being built: it is simply there). */
+  on?: boolean;
 }
 
 export interface RiseParams extends MotionParams {
@@ -47,6 +49,7 @@ function crossfade(node: Element, delay = 0): TransitionConfig {
 
 /** Opacity only. */
 export function fade(node: Element, params: MotionParams = {}): TransitionConfig {
+  if (params.on === false) return {};
   if (isReducedMotion()) return crossfade(node);
   return svelteFade(node, {
     duration: duration(params.duration ?? 'fast'),

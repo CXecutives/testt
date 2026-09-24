@@ -5,6 +5,7 @@
 mod claude_prompt;
 mod job_txt;
 mod overview_html;
+pub mod scale;
 pub mod texts;
 mod top_matches;
 mod xlsx;
