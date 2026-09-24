@@ -241,7 +241,7 @@ mod tests {
     }
 
     /// Schema 4 with data: "hidden" is "archived", a pinned job without a status is saved, an
-    /// application stays one, and deleted jobs can leave their tombstone.
+    /// application status (here "interview") is "sent", and deleted jobs leave a tombstone.
     #[test]
     fn a_schema_4_database_is_migrated_and_keeps_its_marks() {
         let dir = tempfile::tempdir().unwrap();
@@ -255,7 +255,7 @@ mod tests {
              VALUES ('linkedin', '4000000001', 'https://www.linkedin.com/jobs/view/4000000001/',
                      'A', '', '', 'x', 100, 1, 1, 'a', 160, NULL, NULL, 'Notiz', 170),
                     ('linkedin', '4000000002', 'https://www.linkedin.com/jobs/view/4000000002/',
-                     'B', '', '', 'x', 100, 1, 1, 'b', 160, 'applied', 180, NULL, NULL);
+                     'B', '', '', 'x', 100, 1, 1, 'b', 160, 'interview', 180, NULL, NULL);
              PRAGMA user_version = 4;"
         ))
         .unwrap();
@@ -282,7 +282,7 @@ mod tests {
         assert_eq!(
             (b.app_status, b.app_status_at, b.archived_at),
             (
-                Some(crate::model::AppStatus::Applied),
+                Some(crate::model::AppStatus::Sent),
                 crate::time::from_db(180),
                 None
             )
@@ -334,12 +334,12 @@ mod tests {
                 crate::time::from_db(160)
             )
         );
-        assert_eq!((job.follow_up_on, job.archived_at), (None, None));
+        assert_eq!(job.archived_at, None);
         assert_eq!(store.note(&key).unwrap(), None);
         // The new marks work on the migrated database.
         assert!(
             store
-                .set_app_status(&key, Some(crate::model::AppStatus::Applied), now())
+                .set_app_status(&key, Some(crate::model::AppStatus::Sent), now())
                 .unwrap()
         );
         assert!(store.set_note(&key, "Termin am Freitag").unwrap());

@@ -45,7 +45,7 @@
   import type { AppStatus, JobDetail, JobKey, OpenTarget, Reason } from '$lib/ipc/types';
   import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
-  import { isApplication, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
@@ -209,7 +209,7 @@
   /** A score from a teaser only is a first guess. */
   const preliminary = $derived(match?.status === 'scored' && detailKind === 'teaser');
 
-  const STATUSES: readonly AppStatus[] = ['applied', 'interview', 'offer', 'rejected'];
+  const STATUSES: readonly AppStatus[] = ['sent'];
   /** The note as typed; the stored one is the detail's. */
   let note = $state(untrack(() => detail.note ?? ''));
 
@@ -545,7 +545,7 @@
           onclick={() => void setStatus(status)}
         />
       {/each}
-      {#if isApplication(job.appStatus) && job.statusAt}
+      {#if job.appStatus === 'sent' && job.statusAt}
         <span class="since" data-testid="status-since">{formatRelative(job.statusAt)}</span>
       {/if}
     </div>

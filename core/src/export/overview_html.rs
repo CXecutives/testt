@@ -213,7 +213,7 @@ mod tests {
             facts: None,
             app_status: None,
             app_status_at: None,
-            follow_up_on: None,
+
             note: None,
             archived_at: None,
             override_include: false,

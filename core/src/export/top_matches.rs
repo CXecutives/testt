@@ -1,6 +1,6 @@
 //! `top_matches.json` in the result folder: the best open scored jobs with what the engine
 //! found, for the external matching skill (an optional second stage): unread or saved, not
-//! archived, not rejected, the alert mail at most 14 days old. It does not depend on the last
+//! archived, not sent, the alert mail at most 14 days old. It does not depend on the last
 //! run, so a fetch without new jobs keeps the list; every run (a rescore too) writes it anew.
 //! The file name and the English keys are a contract with the skill - do not rename.
 

@@ -339,7 +339,7 @@ mod tests {
         let marks: [(&str, Mark<'_>); 4] = [
             ("4000000001", &|key| {
                 store
-                    .set_app_status(key, Some(AppStatus::Applied), now())
+                    .set_app_status(key, Some(AppStatus::Sent), now())
                     .unwrap();
             }),
             ("4000000002", &|key| {

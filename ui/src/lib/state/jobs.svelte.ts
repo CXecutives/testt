@@ -14,11 +14,11 @@
 //   next load puts it. The list re-sorts once, when the run finishes, and keeps the
 //   selection.
 // - `mark_read` only on a real click on a row (select(..., true)).
-// - The user's marks: one pipeline of stages (saved, the star, then the application) with a
-//   follow-up day, a note, "fits anyway" and the archive. An archived job is in no list but
-//   the archive and in no count but its own; archiving or listing it again takes the row out
-//   of a list it no longer belongs to. A stage change keeps the row where it is until the
-//   next load (the list does not jump under the pointer). Deleting for good removes the row.
+// - The user's marks: one mark (saved, the star, or "Beworben") with its time, a note,
+//   "fits anyway" and the archive. An archived job is in no list but the archive and in no
+//   count but its own; archiving or listing it again takes the row out of a list it no longer
+//   belongs to. A mark change keeps the row where it is until the next load (the list does
+//   not jump under the pointer). Deleting for good removes the row.
 // - "Neu" holds the unread jobs of the last 14 days (store::new_since): older unread ones
 //   stay under "Alle".
 
@@ -62,7 +62,7 @@ const ZERO: JobCounts = {
   high: 0,
   noDetail: 0,
   saved: 0,
-  applications: 0,
+  sent: 0,
   archived: 0,
   newByPortal: [],
 };
@@ -76,14 +76,6 @@ export function isRecent(job: JobView, now = Date.now()): boolean {
   const since = Math.floor(now / DAY) * DAY - NEW_DAYS * DAY;
   return Date.parse(job.mailDate ?? job.firstSeenAt) >= since;
 }
-
-/** A stage of an application (everything after "saved"). */
-export const isApplication = (status: AppStatus | null): boolean =>
-  status !== null && status !== 'saved';
-
-/** Stages that wait for an answer: only they keep a follow-up day. */
-const awaitsAnswer = (status: AppStatus | null): boolean =>
-  status === 'applied' || status === 'interview';
 
 export function keyOf(key: JobKey): string {
   return `${key.portal}:${key.id}`;
@@ -104,8 +96,8 @@ export function inFacet(job: JobView, facet: JobFacet): boolean {
       return !job.archived;
     case 'saved':
       return !job.archived && job.appStatus === 'saved';
-    case 'applications':
-      return !job.archived && isApplication(job.appStatus);
+    case 'sent':
+      return !job.archived && job.appStatus === 'sent';
     case 'archived':
       return job.archived;
   }
@@ -147,7 +139,7 @@ function add(counts: JobCounts, job: JobView | null, sign: 1 | -1): JobCounts {
     high: counts.high + (high ? shown : 0),
     noDetail: counts.noDetail + (job.detail.kind !== 'ok' ? shown : 0),
     saved: counts.saved + (job.appStatus === 'saved' ? shown : 0),
-    applications: counts.applications + (isApplication(job.appStatus) ? shown : 0),
+    sent: counts.sent + (job.appStatus === 'sent' ? shown : 0),
     archived: counts.archived + (job.archived ? sign : 0),
     newByPortal: counts.newByPortal.map((line) =>
       line.portal === job.portal ? { ...line, new: line.new + isNew } : line,
@@ -334,8 +326,8 @@ class JobsStore {
         return counts.all;
       case 'saved':
         return counts.saved;
-      case 'applications':
-        return counts.applications;
+      case 'sent':
+        return counts.sent;
       case 'archived':
         return counts.archived;
     }
@@ -483,8 +475,8 @@ class JobsStore {
   }
 
   /**
-   * The star is the stage "saved": it never overwrites a later stage, and taking it off
-   * clears only "saved" (store::set_pinned).
+   * The star is the mark "saved": it never overwrites "sent", and taking it off clears only
+   * "saved" (store::set_pinned).
    */
   async pin(key: JobKey, on: boolean): Promise<void> {
     const before = this.held(key);
@@ -499,13 +491,12 @@ class JobsStore {
     }
   }
 
-  /** The fields a new stage changes in a row (the backend's rule, store::set_app_status). */
+  /** The fields a new mark changes in a row (the backend's rule, store::set_app_status). */
   private stageChange(status: AppStatus | null): Partial<JobView> {
     return {
       appStatus: status,
       pinned: status === 'saved',
       statusAt: status === null ? null : new Date().toISOString(),
-      ...(awaitsAnswer(status) ? {} : { followUpOn: null }),
     };
   }
 
@@ -517,36 +508,19 @@ class JobsStore {
   }
 
   /**
-   * The stage of a job (`null` = none). Moves at once and back on an error; resolves with
-   * the error text, or null.
+   * The mark of a job (`saved`, `sent`, `null` = none). Moves at once and back on an error;
+   * resolves with the error text, or null.
    */
   async setAppStatus(key: JobKey, status: AppStatus | null): Promise<string | null> {
     const before = this.held(key);
     if (before === null || before.appStatus === status) return null;
-    const { pinned, appStatus, statusAt, followUpOn } = before;
+    const { pinned, appStatus, statusAt } = before;
     this.patch(key, this.stageChange(status));
     try {
       await invoke('set_app_status', { key, status });
       return null;
     } catch (error) {
-      this.patch(key, { pinned, appStatus, statusAt, followUpOn });
-      return errorText(error);
-    }
-  }
-
-  /**
-   * The day to follow up an application (`YYYY-MM-DD`, `null` clears it; only while applied
-   * or in talks). Resolves with the error text, or null.
-   */
-  async setFollowUp(key: JobKey, on: string | null): Promise<string | null> {
-    const before = this.held(key);
-    if (before === null || !awaitsAnswer(before.appStatus)) return null;
-    this.patch(key, { followUpOn: on });
-    try {
-      await invoke('set_follow_up', { key, on });
-      return null;
-    } catch (error) {
-      this.patch(key, { followUpOn: before.followUpOn });
+      this.patch(key, { pinned, appStatus, statusAt });
       return errorText(error);
     }
   }

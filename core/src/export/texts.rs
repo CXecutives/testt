@@ -5,7 +5,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::model::{AppStatus, DescStatus};
+use crate::model::DescStatus;
 use crate::store::JobRow;
 
 /// Name of the sheet with all jobs.
@@ -13,10 +13,10 @@ pub const JOBS_SHEET: &str = "Job-Alerts";
 /// Name of the sheet with the run information.
 pub const INFO_SHEET: &str = "Info";
 
-/// Column headers of the Excel file (order as before, plus the job details state and the
-/// user's pipeline: stage, since when, note). Unlike the text files nobody reads it by
-/// machine - so it says "Portal" like the interface, not "Quelle" like the skill contract.
-pub const COLUMNS: [&str; 15] = [
+/// Column headers of the Excel file (order as before, plus the job details state, the day
+/// of the application and the note). Unlike the text files nobody reads it by machine - so
+/// it says "Portal" like the interface, not "Quelle" like the skill contract.
+pub const COLUMNS: [&str; 14] = [
     "Portal",
     "Datum der Alert-Mail",
     "Titel",
@@ -29,8 +29,7 @@ pub const COLUMNS: [&str; 15] = [
     "Details",
     "Schlüssel",
     "Passung",
-    "Status",
-    "Status seit",
+    "Beworben am",
     "Notiz",
 ];
 
@@ -85,17 +84,6 @@ pub fn exclusion_reason(code: &str, params: &Map<String, Value>) -> Option<&'sta
         "hardCriterion" => "Ein Ausschlusskriterium greift.",
         _ => return None,
     })
-}
-
-/// Where the user's application stands, in the words of the interface.
-pub fn app_status_label(status: AppStatus) -> &'static str {
-    match status {
-        AppStatus::Saved => "Gemerkt",
-        AppStatus::Applied => "Beworben",
-        AppStatus::Interview => "Im Gespräch",
-        AppStatus::Offer => "Zusage",
-        AppStatus::Rejected => "Absage",
-    }
 }
 
 /// State of the job details in the words of the interface's badges.

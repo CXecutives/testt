@@ -66,12 +66,7 @@
   /** A date this old is marked (days). */
   const AGED_DAYS = 10;
   const DAY_MS = 86_400_000;
-  const APP_TONE: Record<Exclude<AppStatus, 'saved'>, BadgeTone> = {
-    applied: 'neutral',
-    interview: 'neutral',
-    offer: 'success',
-    rejected: 'neutral',
-  };
+  const APP_TONE: Record<Exclude<AppStatus, 'saved'>, BadgeTone> = { sent: 'neutral' };
 
   const excluded = $derived(job.match?.status === 'excluded');
   const when = $derived(job.mailDate ?? job.firstSeenAt);

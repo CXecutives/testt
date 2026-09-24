@@ -90,7 +90,7 @@ mod tests {
             facts: None,
             app_status: None,
             app_status_at: None,
-            follow_up_on: None,
+
             note: None,
             archived_at: None,
             override_include: false,
@@ -129,7 +129,7 @@ mod tests {
     fn the_user_marks_never_change_a_text_file() {
         let plain = job("Interim CFO", "Muster GmbH", "Hamburg", None);
         let mut marked = plain.clone();
-        marked.app_status = Some(crate::model::AppStatus::Interview);
+        marked.app_status = Some(crate::model::AppStatus::Sent);
         marked.app_status_at = Some("2026-09-20T10:00:00Z".parse().unwrap());
         marked.archived_at = Some("2026-09-21T10:00:00Z".parse().unwrap());
         let at = plain.desc_fetched_at.unwrap();

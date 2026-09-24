@@ -21,7 +21,6 @@ fn main() {
             "mark_unread",
             "set_pinned",
             "set_app_status",
-            "set_follow_up",
             "set_note",
             "set_archived",
             "set_override",

@@ -40,11 +40,7 @@
     { id: 'all' as View, label: de.toolbar.facetAll, count: jobs.counts.all },
     // An empty list of the user's own shows no zero (the row stays narrow).
     { id: 'pinned' as View, label: de.toolbar.facetPinned, count: counts.saved || null },
-    {
-      id: 'applications' as View,
-      label: de.toolbar.facetApplications,
-      count: counts.applications || null,
-    },
+    { id: 'sent' as View, label: de.toolbar.facetSent, count: counts.sent || null },
   ]);
   const view = $derived<View>(jobs.filter === 'pinned' ? 'pinned' : jobs.facet);
 
