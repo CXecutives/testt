@@ -15,7 +15,8 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | macOS minimum | 14.0 (Safari 17 baseline, `data_store_identifier` for sessions) |
 | Evaluation data | no access to Katharina: local real data + real runs through the app, two realistic invented profiles, blind labels by two independent agents + tie-breaker |
 | Embeddings | dropped (user, 2026-09-24): the rule engine covers the measured failures; the `Embedder` seam stays for later |
-| AI stage | none; the external `job-matching` skill is dropped (user, 2026-09-24). Its useful rubric knowledge moves into the engine instead |
+| AI stage | two-stage like professional systems: stage 1 = our engine for every job (incl. the skill rubric); stage 2 = the improved `job-matching` skill, optional, only for the app's top matches, in the user's own Claude (no API key). The app writes a machine-readable top-matches file for it |
+| Reuse | the app is generic: everything personal lives in the profile; lexicon = general core + domain packs; new portals via adapters |
 | Extra criteria | superseded: the engine adopts the skill rubric (contract type, permanent-role salary and region, seniority, formal requirements) via optional profile keys - exclusions only on clear wording, otherwise checks |
 | Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults, risk badge per switch |
 | HTML overview | no full text: title, company, location, portal, link, match, 3 met, 2 open, exclusion reason |
@@ -212,6 +213,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
 - [ ] Consistency audit per screen (checklist below) and fixes; one adversarial review workflow over the whole diff
 
 ### Phase 6 - delivery
+- [ ] Skill `job-matching` (stage 2): back up the original, drop the hard-coded foreign path (use the app's work folder, works on macOS), read the app's top-matches file instead of screening every ad, align the rubric wording with the engine, test, deliver as a folder with a short install guide
 - [ ] Final CI builds (artifacts only), first-start guide (SmartScreen, Gatekeeper, keychain), close this plan, hand over
 
 ## Consistency audit per screen
