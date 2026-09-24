@@ -54,6 +54,10 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   ]) {
     await expect(page.getByTestId(`section-${section}`)).toBeVisible();
   }
+  // Wishes say what they do: they nudge, they never exclude.
+  await expect(page.getByTestId('section-wishes')).toContainText(
+    'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.',
+  );
   await expect(page.getByTestId('profile-name-field')).toHaveValue('Erika Beispiel');
   await expect(chips(page.getByTestId('profile-roles'))).toHaveText(['Interim CFO']);
   const rows = page.getByTestId('competence-row');

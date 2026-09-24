@@ -687,7 +687,7 @@ export const de = {
       permanent: 'Festanstellung',
     },
     sectionHint: {
-      wishes: 'Wünsche heben passende Jobs hervor und schließen keinen aus.',
+      wishes: 'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.',
       criteria: 'Ein Job, der hier nicht passt, gilt als ausgeschlossen.',
     },
     field: {
