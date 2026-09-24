@@ -93,7 +93,7 @@ impl Store {
     }
 
     /// Forgets the scan state of every portal - after a switch of the Gmail account the new
-    /// mailbox starts with the first run (7 days) instead of at the state of the old one.
+    /// mailbox starts with the first run (30 days) instead of at the state of the old one.
     pub fn clear_scan_state(&self) -> Result<()> {
         self.conn()
             .execute("DELETE FROM kv WHERE key LIKE 'last_scan:%'", [])?;

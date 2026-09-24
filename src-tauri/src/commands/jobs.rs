@@ -68,22 +68,60 @@ pub async fn set_hidden(state: State<'_, AppState>, key: JobKey, hidden: bool) -
     Ok(state.store.set_hidden(&key, hidden, Timestamp::now())?)
 }
 
-/// The prompt for a deep analysis of a job in the user's own Claude: the rubric in short,
-/// the profile without name and contact data, the ad. The app sends it nowhere itself.
-#[tauri::command]
-pub async fn claude_prompt(state: State<'_, AppState>, key: JobKey) -> CmdResult<String> {
+/// The profile as the prompts use it (the sample profile in the dry run).
+fn prompt_profile(state: &AppState) -> CmdResult<serde_json::Value> {
     let profile = if state.dry_run {
         serde_json::from_str(demo::PROFILE_JSON).ok()
     } else {
         profile::load(&state.workspace()?)?
-    }
-    .ok_or_else(|| not_found("profile"))?;
+    };
+    profile.ok_or_else(|| not_found("profile"))
+}
+
+/// The prompt for a deep analysis of a job in any AI chat: the rubric in short, the profile
+/// without name and contact data, the ad. The app sends it nowhere itself.
+#[tauri::command]
+pub async fn ai_prompt(state: State<'_, AppState>, key: JobKey) -> CmdResult<String> {
+    let profile = prompt_profile(&state)?;
     let job = state.store.job(&key)?.ok_or_else(|| not_found("job"))?;
     let text = state.store.description(&key)?;
-    Ok(export::claude_prompt(
+    Ok(export::ai_prompt(
         &profile,
         &JobView::from(&job),
         job.url.as_str(),
         text.as_deref(),
     ))
+}
+
+/// One prompt that compares the best current matches (3 to 5; pinned first, then by score;
+/// never excluded or hidden) with the profile, for any AI chat.
+#[tauri::command]
+pub async fn ai_prompt_top(state: State<'_, AppState>, limit: u32) -> CmdResult<String> {
+    let profile = prompt_profile(&state)?;
+    let limit = usize::try_from(limit)
+        .unwrap_or(usize::MAX)
+        .clamp(*export::TOP_LIMITS.start(), *export::TOP_LIMITS.end());
+    let rows = state
+        .store
+        .best_matches(u32::try_from(limit).unwrap_or(u32::MAX))?;
+    if rows.is_empty() {
+        return Err(not_found("jobs"));
+    }
+    let mut jobs = Vec::with_capacity(rows.len());
+    for row in &rows {
+        jobs.push((
+            JobView::from(row),
+            row.url.to_string(),
+            state.store.description(&row.key)?,
+        ));
+    }
+    let items: Vec<export::PromptJob<'_>> = jobs
+        .iter()
+        .map(|(job, url, text)| export::PromptJob {
+            job,
+            url,
+            text: text.as_deref(),
+        })
+        .collect();
+    Ok(export::ai_prompt_top(&profile, &items))
 }

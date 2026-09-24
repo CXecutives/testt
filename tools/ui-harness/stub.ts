@@ -16,8 +16,12 @@
 //   window.__harness.job(key)       a copy of a job as the stub holds it
 //
 // Scenarios (`?scenario=`): default · first-run · mailbox-only · no-profile · empty ·
-// many (2000 jobs) · offline · paused · running · slow · list-error · reset · profile-broken ·
-// profile-thin · first-run-empty-profile.
+// many (2000 jobs) · offline · paused · running · slow · list-error · profile-broken ·
+// profile-thin · reset (the state after
+// "reset everything": first run, no mailbox, no profile, the report) · first-run-empty-profile
+// · dry-run (the demo: a Probelauf mailbox, every command that writes outside the database
+// refuses with `dryRun` like `ensure_real`).
+// `save_mailbox` refuses the app password `falschfalschfals` with `mailAuth` (Gmail said no).
 // `?tick=ms` sets the pace of a scripted run (default 40); `?export=locked` lets the export
 // of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail.
 // Dates are fixed so screenshots stay stable (the tests also fix the clock). The portals
@@ -359,7 +363,7 @@ function sampleJobs(): JobView[] {
       },
     ),
     job('linkedin', '4100200305', 'Payroll Specialist', 'Lakeside Payroll AG', 'Zürich', 80, {
-      match: excludedBy('country', 38, { allowed: 'Deutschland, Österreich' }),
+      match: excludedBy('country', 38, { allowed: 'DE, AT' }),
     }),
     job('freelancermap', '2806', 'Reporting Analyst', 'Hafenkontor GmbH', 'Hamburg', 96, {
       short: true,
@@ -507,7 +511,7 @@ const PROFILE: ProfileInfo = {
     sources: ['kernkompetenzen[].kompetenz', 'projekte[].rolle'],
     criteria: [
       { code: 'minDayRate', params: { set: true, min: '1100' } },
-      { code: 'countries', params: { set: true, countries: 'Deutschland, Österreich' } },
+      { code: 'countries', params: { set: true, countries: 'DE, AT' } },
       { code: 'noAnue', params: { set: true } },
       { code: 'availability', params: { set: false, from: null } },
       { code: 'minSalary', params: { set: false, min: null } },
@@ -800,7 +804,23 @@ function initial(): void {
       state.portals[2]!.quota = { usedHour: 38, capHour: 40, usedDay: 61, capDay: 100 };
       break;
     case 'reset':
+      // After "reset everything" the app starts empty: the first-run page, with the report.
+      jobs = [];
+      state.firstRun = true;
+      state.mailbox = { user: null, vault: 'windowsCredentialManager', error: null };
+      state.profile = null;
+      state.lastRun = null;
+      state.settings.excelExists = false;
+      state.settings.txtFiles = 0;
       state.resetReport = { removed: 12, failed: 1 };
+      break;
+    case 'dry-run':
+      state.dryRun = true;
+      state.mailbox = {
+        user: 'probelauf@example.org',
+        vault: 'windowsCredentialManager',
+        error: null,
+      };
       break;
     case 'profile-broken':
       state.profile = {
@@ -1113,24 +1133,62 @@ function detailOf(j: JobView): JobDetail {
   };
 }
 
-/** A prompt like core's export::claude_prompt: the rubric in short, the profile, the ad. */
-function promptOf(j: JobView): string {
+/** The profile part of the prompts (core leaves out name and contact data the same way). */
+const PROMPT_PROFILE = [
+  'Mein Profil (JSON, ohne Name und Kontaktdaten)',
+  '```json',
+  JSON.stringify({ kernkompetenzen: PROFILE.understood?.competences ?? [] }, null, 2),
+  '```',
+];
+
+/** The facts and text of one ad in a prompt. */
+function adOf(j: JobView): string[] {
   const d = detailOf(j);
   return [
-    'Bitte prüfe gründlich, wie gut diese Stellenanzeige zu meinem Beraterprofil passt.',
-    '',
-    'Mein Profil (JSON, ohne Name und Kontaktdaten)',
-    '```json',
-    JSON.stringify({ kernkompetenzen: PROFILE.understood?.competences ?? [] }, null, 2),
-    '```',
-    '',
-    'Die Anzeige',
     `Titel: ${j.title}`,
     `Unternehmen: ${j.company}`,
     `Ort: ${j.location}`,
     `Link: ${d.url}`,
+    ...(j.match ? [`Passung laut App: ${j.match.score} von 100`] : []),
     '',
     d.text ?? 'Den vollständigen Anzeigentext hat die App noch nicht.',
+  ];
+}
+
+/** A prompt like core's export::ai_prompt: the rubric in short, the profile, the ad. */
+function promptOf(j: JobView): string {
+  return [
+    'Du unterstützt mich als KI-Assistent bei der Auswahl von Projekten. Bitte prüfe gründlich, wie gut diese Stellenanzeige zu meinem Beraterprofil passt.',
+    '',
+    ...PROMPT_PROFILE,
+    '',
+    'Die Anzeige',
+    ...adOf(j),
+  ].join('\n');
+}
+
+/**
+ * Like core's export::ai_prompt_top: the best current matches (3 to 5; pinned first, then by
+ * score; never excluded, hidden or gone), compared in one prompt with a ranking.
+ */
+function promptTopOf(limit: number): string {
+  const best = jobs
+    .filter((j) => j.match?.status === 'scored' && !j.hidden && j.detail.kind !== 'gone')
+    .sort(
+      (a, b) =>
+        Number(b.pinned) - Number(a.pinned) ||
+        (b.match?.score ?? 0) - (a.match?.score ?? 0) ||
+        b.firstSeenAt.localeCompare(a.firstSeenAt),
+    )
+    .slice(0, Math.min(5, Math.max(3, limit)));
+  if (best.length === 0) throw fail('notFound', { what: 'jobs' });
+  return [
+    'Du unterstützt mich als KI-Assistent bei der Auswahl von Projekten. Bitte vergleiche die besten aktuellen Jobs aus meiner Job-Alert-App mit meinem Beraterprofil und bring sie in eine Reihenfolge.',
+    '',
+    ...PROMPT_PROFILE,
+    '',
+    'Die Jobs',
+    ...best.flatMap((j, i) => ['', `Job ${i + 1}`, ...adOf(j)]),
   ].join('\n');
 }
 
@@ -1559,11 +1617,15 @@ const handlers: Handlers = {
     refresh();
     return true;
   },
-  claude_prompt: ({ key }) => {
+  ai_prompt: ({ key }) => {
     const j = find(key);
     if (j === undefined) throw fail('notFound', { what: 'job' });
     if (state.profile === null) throw fail('notFound', { what: 'profile' });
     return promptOf(j);
+  },
+  ai_prompt_top: ({ limit }) => {
+    if (state.profile === null) throw fail('notFound', { what: 'profile' });
+    return promptTopOf(limit);
   },
   pick_profile: () => structuredClone(FILE_DRAFT),
   parse_profile: ({ text }) => answerDraft(text),
@@ -1612,6 +1674,7 @@ const handlers: Handlers = {
     if (!/^[a-z]{16}$/i.test(password.replace(/\s/g, ''))) {
       throw fail('invalid', { reason: 'appPassword' });
     }
+    if (password.replace(/\s/g, '').toLowerCase() === WRONG_PASSWORD) throw fail('mailAuth');
     state.mailbox = { user, vault: 'windowsCredentialManager', error: null };
     return state.mailbox;
   },
@@ -1703,10 +1766,28 @@ initial();
 
 /* --------------------------------------------------------------------- core */
 
+/** The app password Gmail refuses in the harness. */
+const WRONG_PASSWORD = 'falschfalschfals';
+
+/** Commands that refuse in the dry run (`ensure_real` in src-tauri): they write outside it. */
+const DRY_RUN_REFUSED: ReadonlySet<string> = new Set([
+  'pick_profile',
+  'remove_profile',
+  'save_profile_template',
+  'save_mailbox',
+  'remove_mailbox',
+  'portal_login',
+  'portal_logout',
+  'rewrite_txt',
+  'clear_txt',
+  'reset_all',
+]);
+
 export async function invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   harness.calls.push([command, args]);
   const handler = handlers[command as keyof Commands] as ((a: unknown) => unknown) | undefined;
   if (handler === undefined) throw fail('internal', { command });
+  if (state.dryRun && DRY_RUN_REFUSED.has(command)) throw fail('dryRun');
   const delay = command === 'job_detail' ? DELAY + harness.detailDelay : DELAY;
   if (delay > 0 && command !== 'report_ui_error') {
     await new Promise((resolve) => setTimeout(resolve, delay));

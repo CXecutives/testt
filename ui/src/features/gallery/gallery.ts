@@ -68,7 +68,7 @@ export const text = {
   },
   empty: {
     heading: 'Noch keine Jobs',
-    text: 'Der erste Abruf liest die Alert-Mails der letzten sieben Tage.',
+    text: 'Der erste Abruf liest die Alert-Mails der letzten 30 Tage.',
     action: 'Abrufen',
     secondary: 'Postfach prüfen',
   },

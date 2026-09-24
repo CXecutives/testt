@@ -234,7 +234,7 @@
   async function copyPrompt(): Promise<void> {
     actionError = null;
     try {
-      await navigator.clipboard.writeText(await jobs.claudePrompt(job.key));
+      await navigator.clipboard.writeText(await jobs.aiPrompt(job.key));
       toasts.show(de.toast.prompt);
     } catch (error) {
       actionError = errorText(error);

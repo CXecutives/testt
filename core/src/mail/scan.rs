@@ -21,14 +21,15 @@ use crate::time::local_date;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Scope {
-    /// Since the last successful scan (one day of overlap); 7 days the first time.
+    /// Since the last successful scan (one day of overlap); 30 days the first time.
     New,
     /// The whole inbox.
     All,
 }
 
-/// Without a previous scan: this far back.
-const FIRST_SCAN_DAYS: i32 = 7;
+/// Without a previous scan: this far back (a month of alerts: freelance projects are often
+/// taken within a few weeks, older ones are still worth a look on the first day).
+const FIRST_SCAN_DAYS: i32 = 30;
 
 /// Counters of a scan. Invariant: `postings_total = new + known_before + dup_in_run`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
@@ -94,7 +95,7 @@ fn scan_since(
     now: Timestamp,
 ) -> crate::Result<Option<Date>> {
     let today = local_date(now);
-    let week_ago = today.saturating_sub(FIRST_SCAN_DAYS.days());
+    let first = today.saturating_sub(FIRST_SCAN_DAYS.days());
     Ok(match scope {
         Scope::All => None,
         Scope::New => {
@@ -104,7 +105,7 @@ fn scan_since(
                     // One day of overlap: IMAP searches by day, in the server's time zone.
                     Some(at) if at <= now => local_date(at).saturating_sub(1.day()),
                     // State in the future (the clock was set wrong): treated as unknown.
-                    _ => week_ago,
+                    _ => first,
                 };
                 since = since.min(from);
             }
@@ -431,13 +432,13 @@ mod tests {
         let day = |s: &str| Some(s.parse::<Date>().unwrap());
         assert_eq!(
             source.searched,
-            [day("2026-09-12"), day("2026-09-18"), None],
-            "first run 7 days; then last state minus 1 day; \"All\" without a limit"
+            [day("2026-08-20"), day("2026-09-18"), None],
+            "first run 30 days; then last state minus 1 day; \"All\" without a limit"
         );
         assert_eq!(store.last_scan(Portal::LinkedIn).unwrap(), Some(later));
     }
 
-    /// A state in the future (clock set wrong) counts as unknown: "New" searches seven
+    /// A state in the future (clock set wrong) counts as unknown: "New" searches thirty
     /// days back and replaces it.
     #[tokio::test]
     async fn a_state_in_the_future_is_replaced() {
@@ -451,7 +452,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             source.searched.last().unwrap(),
-            &Some("2026-09-12".parse().unwrap())
+            &Some("2026-08-20".parse().unwrap())
         );
         assert_eq!(store.last_scan(Portal::LinkedIn).unwrap(), Some(now()));
     }

@@ -240,6 +240,80 @@ mod tests {
         assert_eq!(keys(store.top_matches(run, 5).unwrap()), [key]);
     }
 
+    /// The best matches for an AI chat: pinned first, then by score; never excluded, hidden,
+    /// unscored or gone.
+    #[test]
+    fn the_best_matches_put_the_pinned_first_and_leave_out_the_rest() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let mut keys = Vec::new();
+        for i in 1..=6 {
+            let p = posting(
+                &format!("https://www.linkedin.com/jobs/view/400000000{i}/"),
+                &format!("Job {i}"),
+                "",
+                "",
+            );
+            store.upsert_posting(run, &p, mail(), now()).unwrap();
+            keys.push(p.key);
+        }
+        let record = |status, score| crate::model::MatchRecord {
+            status,
+            score,
+            note: None,
+            must_met: 1,
+            must_total: 1,
+            top: Vec::new(),
+        };
+        store
+            .save_matches(
+                &[
+                    (
+                        keys[0].clone(),
+                        record(crate::model::MatchStatus::Scored, 60),
+                    ),
+                    (
+                        keys[1].clone(),
+                        record(crate::model::MatchStatus::Scored, 90),
+                    ),
+                    (
+                        keys[2].clone(),
+                        record(crate::model::MatchStatus::Excluded, 99),
+                    ),
+                    (
+                        keys[3].clone(),
+                        record(crate::model::MatchStatus::Scored, 95),
+                    ),
+                    (
+                        keys[4].clone(),
+                        record(crate::model::MatchStatus::Scored, 80),
+                    ),
+                ],
+                "r",
+                now(),
+            )
+            .unwrap();
+        // Job 6 has no score; job 4 is hidden; job 1 is pinned.
+        store.set_hidden(&keys[3], true, now()).unwrap();
+        store.set_pinned(&keys[0], true, now()).unwrap();
+        let titles = |limit| -> Vec<String> {
+            store
+                .best_matches(limit)
+                .unwrap()
+                .into_iter()
+                .map(|j| j.title)
+                .collect()
+        };
+        assert_eq!(titles(5), ["Job 1", "Job 2", "Job 5"]);
+        assert_eq!(titles(2), ["Job 1", "Job 2"]);
+        store.record_gone(&keys[1], now()).unwrap();
+        assert_eq!(
+            titles(5),
+            ["Job 1", "Job 5"],
+            "an ad no longer online is out"
+        );
+    }
+
     #[test]
     fn an_unknown_job_changes_nothing() {
         let (store, _) = store_with_job();

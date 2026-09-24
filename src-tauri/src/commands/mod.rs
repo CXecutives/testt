@@ -35,7 +35,7 @@ pub use scoring::Scoring;
     dead_code,
     reason = "read by core/tests/contract.rs, which generates the TypeScript command map"
 )]
-pub const COMMANDS: [(&str, &str, &str); 27] = [
+pub const COMMANDS: [(&str, &str, &str); 28] = [
     ("app_state", "{ channel: Channel<RunEvent> }", "AppState"),
     (
         "start_run",
@@ -54,7 +54,8 @@ pub const COMMANDS: [(&str, &str, &str); 27] = [
     ),
     ("set_note", "{ key: JobKey; note: string }", "boolean"),
     ("set_hidden", "{ key: JobKey; hidden: boolean }", "boolean"),
-    ("claude_prompt", "{ key: JobKey }", "string"),
+    ("ai_prompt", "{ key: JobKey }", "string"),
+    ("ai_prompt_top", "{ limit: number }", "string"),
     (
         "pick_profile",
         "Record<string, never>",
@@ -98,7 +99,8 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + '
         jobs::set_app_status,
         jobs::set_note,
         jobs::set_hidden,
-        jobs::claude_prompt,
+        jobs::ai_prompt,
+        jobs::ai_prompt_top,
         profile::pick_profile,
         profile::parse_profile,
         profile::profile_prompt,

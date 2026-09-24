@@ -308,6 +308,22 @@ impl Store {
         ))
     }
 
+    /// The best current matches for a comparison in an AI chat: scored (not excluded), not
+    /// hidden, not a duplicate, the ad still online; the pinned ones first (like the HTML
+    /// overview's choice), then the highest scores, the newest first among equals.
+    pub fn best_matches(&self, limit: u32) -> Result<Vec<JobRow>> {
+        let conn = self.conn();
+        let mut stmt = conn.prepare_cached(&format!(
+            "SELECT {JOB_COLUMNS} FROM job
+             WHERE match_status = 'scored' AND dup_of IS NULL AND hidden_at IS NULL
+               AND desc_status <> 'gone'
+             ORDER BY (pinned_at IS NULL), match_score DESC, first_seen_at DESC, portal, job_id
+             LIMIT ?1"
+        ))?;
+        let rows = stmt.query_map([limit], job_row)?;
+        rows.map(|r| r?).collect()
+    }
+
     /// The jobs of the HTML overview: the pinned ones if there are any (`true`), else the
     /// unread scored jobs of the mailbox run `run`; best first. Hidden jobs are in neither.
     pub fn overview_jobs(&self, run: i64) -> Result<(Vec<JobRow>, bool)> {
