@@ -68,6 +68,15 @@ export function primaryFirst(): boolean {
   return platform() === 'windows';
 }
 
+/**
+ * A text field's menu. Windows: Rückgängig | Ausschneiden, Kopieren, Einfügen, Löschen |
+ * Alles auswählen. macOS has no undo and no delete there: Ausschneiden, Kopieren,
+ * Einfügen | Alles auswählen.
+ */
+export function fieldMenuUndoDelete(): boolean {
+  return platform() === 'windows';
+}
+
 /** How the keyboard of the OS edits text in a field (lib/input/input.ts applies it). */
 export interface KeyConventions {
   /** Option types characters (@ is Option+L on a German Mac) and moves by word, like

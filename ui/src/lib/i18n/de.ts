@@ -493,9 +493,11 @@ export const de = {
   },
   /** The native context menu of fields and selected text (the OS's words). */
   edit: {
+    undo: 'Rückgängig',
     cut: 'Ausschneiden',
     copy: 'Kopieren',
     paste: 'Einfügen',
+    delete: 'Löschen',
     selectAll: 'Alles auswählen',
   },
   field: {

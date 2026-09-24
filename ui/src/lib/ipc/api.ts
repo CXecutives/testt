@@ -177,13 +177,15 @@ export function onNavigate(handler: (view: string) => void): () => void {
 }
 
 /** An edit command of the OS that a context menu entry runs. */
-export type EditCommand = 'Cut' | 'Copy' | 'Paste' | 'SelectAll';
+/** An edit command the OS has a menu item of its own for (it acts on the focused field). */
+export type EditCommand = 'Undo' | 'Cut' | 'Copy' | 'Paste' | 'SelectAll';
 
-export interface EditEntry {
-  command: EditCommand;
-  text: string;
-  enabled: boolean;
-}
+/** One entry of an edit menu: an OS command, Delete (the OS has no item of its own for it,
+ *  so the page runs it) or a separator between groups. */
+export type EditEntry =
+  | { command: EditCommand; text: string; enabled: boolean }
+  | { command: 'Delete'; text: string; enabled: boolean; run: () => void }
+  | { command: 'Separator' };
 
 /** The menu shown last; its native resources go when the next one opens. */
 let shownMenu: Menu | null = null;
@@ -237,11 +239,15 @@ export async function popupChoiceMenu(
 export async function popupEditMenu(entries: readonly EditEntry[]): Promise<void> {
   try {
     const items = await Promise.all(
-      entries.map((entry) =>
-        entry.enabled
+      entries.map((entry) => {
+        if (entry.command === 'Separator') return PredefinedMenuItem.new({ item: 'Separator' });
+        if (entry.command === 'Delete') {
+          return MenuItem.new({ text: entry.text, enabled: entry.enabled, action: entry.run });
+        }
+        return entry.enabled
           ? PredefinedMenuItem.new({ item: entry.command, text: entry.text })
-          : MenuItem.new({ text: entry.text, enabled: false }),
-      ),
+          : MenuItem.new({ text: entry.text, enabled: false });
+      }),
     );
     await show(await Menu.new({ items }));
   } catch (error) {

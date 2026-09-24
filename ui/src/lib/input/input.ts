@@ -5,8 +5,9 @@
 //
 // - controls react to the left button only: the right button never presses, focuses or
 //   selects anything. There is no browser context menu; the OS's own menu appears where
-//   a native app has one: in a text field (Ausschneiden, Kopieren, Einfügen, Alles
-//   auswählen, each enabled by the field's state) and on selected copyable text
+//   a native app has one: in a text field (Windows: Rückgängig | Ausschneiden, Kopieren,
+//   Einfügen, Löschen | Alles auswählen; macOS: Ausschneiden, Kopieren, Einfügen | Alles
+//   auswählen; each enabled by the field's state) and on selected copyable text
 //   (Kopieren). Everywhere else a right click does nothing.
 // - the middle button scrolls: pressed over a scroll area it starts the autoscroll of the
 //   OS (WebView2 on Windows; macOS has none); anywhere else it does nothing; a middle
@@ -34,7 +35,7 @@
 import type { Action } from 'svelte/action';
 import { t } from '../i18n/t';
 import { popupEditMenu, type EditEntry } from '../ipc/api';
-import { keyConventions, type KeyConventions } from '../platform';
+import { fieldMenuUndoDelete, keyConventions, type KeyConventions } from '../platform';
 import { tokenMs } from '../tokens';
 
 const FIELD = 'input, textarea, [contenteditable="true"], [contenteditable=""]';
@@ -363,17 +364,49 @@ export const escape: Action<HTMLElement, () => void> = (_node, handler) => {
 
 const prevent = (event: Event): void => event.preventDefault();
 
-/** The context menu of a text field, like the OS's own: what the field's state allows. */
+/** The Delete entry of a field's menu: the selection goes, as one step of the field's undo. */
+function deleteSelection(field: HTMLInputElement | HTMLTextAreaElement): void {
+  field.focus();
+  // The editing command keeps the step in the field's own undo (setRangeText would not).
+  if (document.execCommand('delete')) return;
+  field.setRangeText('', field.selectionStart ?? 0, field.selectionEnd ?? 0, 'end');
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+const SEPARATOR: EditEntry = { command: 'Separator' };
+
+/**
+ * The context menu of a text field, like the OS's own, its entries enabled by the field's
+ * state. Windows: Rückgängig | Ausschneiden, Kopieren, Einfügen, Löschen | Alles
+ * auswählen; macOS without undo and delete (platform.ts).
+ */
 function fieldMenu(field: HTMLInputElement | HTMLTextAreaElement): EditEntry[] {
   // A right click in a field that is not focused focuses it (the edit commands act on it).
   if (document.activeElement !== field) field.focus();
   const editable = !field.readOnly && !field.disabled;
   const hidden = field instanceof HTMLInputElement && field.type === 'password';
   const selected = (field.selectionStart ?? 0) !== (field.selectionEnd ?? 0);
+  const full = fieldMenuUndoDelete();
+  const undo: EditEntry[] = full
+    ? [{ command: 'Undo', text: t.edit.undo, enabled: editable }, SEPARATOR]
+    : [];
+  const remove: EditEntry[] = full
+    ? [
+        {
+          command: 'Delete',
+          text: t.edit.delete,
+          enabled: editable && selected,
+          run: () => deleteSelection(field),
+        },
+      ]
+    : [];
   return [
+    ...undo,
     { command: 'Cut', text: t.edit.cut, enabled: editable && selected && !hidden },
     { command: 'Copy', text: t.edit.copy, enabled: selected && !hidden },
     { command: 'Paste', text: t.edit.paste, enabled: editable },
+    ...remove,
+    SEPARATOR,
     { command: 'SelectAll', text: t.edit.selectAll, enabled: field.value !== '' },
   ];
 }

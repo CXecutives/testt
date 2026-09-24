@@ -469,9 +469,11 @@ export const en: Catalog = {
     clear: 'Clear selection',
   },
   edit: {
+    undo: 'Undo',
     cut: 'Cut',
     copy: 'Copy',
     paste: 'Paste',
+    delete: 'Delete',
     selectAll: 'Select all',
   },
   field: {

@@ -1924,12 +1924,22 @@ export class LogicalPosition {
 let lastItems: { choose: () => void }[] = [];
 
 export class MenuItem {
-  constructor(readonly entry: StubItem) {}
+  constructor(
+    readonly entry: StubItem,
+    readonly action: () => void,
+  ) {}
 
-  choose(): void {}
+  choose(): void {
+    if (this.entry.enabled) this.action();
+  }
 
-  static async new(options: { text: string; enabled?: boolean }): Promise<MenuItem> {
-    return new MenuItem({ text: options.text, enabled: options.enabled ?? true, command: null });
+  static async new(options: {
+    text: string;
+    enabled?: boolean;
+    action?: () => void;
+  }): Promise<MenuItem> {
+    const entry = { text: options.text, enabled: options.enabled ?? true, command: null };
+    return new MenuItem(entry, options.action ?? (() => undefined));
   }
 }
 
