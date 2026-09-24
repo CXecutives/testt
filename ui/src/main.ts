@@ -11,9 +11,10 @@ import App from './App.svelte';
 import { installInput } from './lib/input/input';
 import { installErrorReporting } from './lib/ipc/api';
 import { installMotion } from './lib/motion/motion';
-import { applyPlatform } from './lib/platform';
+import { applyPlatform, trackWindowFocus } from './lib/platform';
 
 applyPlatform();
+trackWindowFocus();
 installMotion();
 installInput();
 installErrorReporting();

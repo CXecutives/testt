@@ -30,8 +30,9 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | User test of the installed app (2026-09-24 evening) | Windows title bar like a native one (full width, 16 px app icon + app name at the left, caption buttons at the native height, no tooltips); macOS uses the normal native title bar; "Abrufen" lives in the list column header next to the search; the cxpertise palette again: light coral (13 73% 63%) for primary fills, hover 13 64% 56%, switches coral when on; lighter font weights; faster, snappier motion; no lag in the real app; native-feeling input (left click only for controls, middle-button scrolling in scroll areas, copyable text where it makes sense); no unneeded micro details |
 | UI round 2 (design critique) | one white sheet for all views (no floating cards), coral only for Abrufen, selection bar, unread dot, active nav (progress bars stay coral as Abrufen feedback) - amended by "cxpertise navy": the selection bar, active nav and progress are navy now; mid scores ochre; primary in deep coral (4.9:1); reader like an issue view (title, facts, match line, chips, actions); sort as icon toggle; switches ink when on |
 | Cleanup outside | `.notes` archived to `../_archive/TEST-notes`; user deletes `origin/ci-macos` and release `latest`; CI publishes nothing |
-| Native window frame on both OS (user, 2026-09-24 night) | Windows keeps its native title bar (icon, title, caption buttons, system menu on the icon, right click and Alt+Space, snap layouts), coloured like the app via DWM: caption = `--bg` cream (= `backgroundColor`), title = ink, dimmed to `--text-subtle` while inactive (Windows 11; Windows 10 keeps its light bar); macOS keeps its native title bar with the centred title. No title bar, caption buttons or drag region in the page; the sidebar has no brand row. Principle: two versions, as identical as possible inside the window; whatever differs by OS convention does differ (see Platforms) |
+| Native window frame on both OS (user, 2026-09-24 night) | Windows keeps its native title bar (icon, title, caption buttons, system menu on the icon, right click and Alt+Space, snap layouts), coloured like the app via DWM: caption = `--bg` cream (= `backgroundColor`), title = ink, dimmed to `--text-subtle` while inactive (Windows 11; Windows 10 keeps its light bar); macOS keeps its native title bar with the centred title (revised: the unified title bar, see "Title bars, final"). No title bar or caption buttons in the page; the sidebar has no brand row. Principle: two versions, as identical as possible inside the window; whatever differs by OS convention does differ (see Platforms) |
 | UI overhaul after the installed test (2026-09-24 night) | Abrufen next to the search in the list header (Abbrechen in its place during a run); light coral primary, coral switches; weights 400/500/600; motion 100/150/180 ms, ring fill 360 ms, ease-out, no stagger, no bounce, no glow/lift/shimmer, no backdrop blur (amended by "cxpertise navy": 80 ms hover-in, press scale, icon nudges, sliding indicators, the one-shot pop, draw and flash are allowed); rows and rings do not replay when a view comes back; one Tauri channel per streaming call (a shared one lost the second run); day overview without a profile: tiles Neu and Ohne Details plus a card to choose one; each portal problem once; a Gemerkt tile once something is pinned; excluded unread jobs under Neu behind the divider |
+| Title bars, final (user, 2026-09-24 late night) | Windows: the native title bar stays (the 36 px web-drawn bar and a snap-layouts overlay were tried and dropped); its colours are named constants in `platform.rs` (`TITLE_BAR_BACKGROUND`, `TITLE_BAR_TEXT`, `TITLE_BAR_TEXT_INACTIVE`, each checked against its token), so a later cxpertise blue is a one-line change there and in `tokens.css`. macOS: the unified title bar of Mail or Notes: `titleBarStyle` Overlay, hidden title, traffic lights at x 20 / y 18 (centred in a 52 px toolbar row; verified only by the macOS CI screenshot); the sidebar runs to the top with the lights in its first row, search and Abrufen sit in that row, the sheet reaches the top edge, and the empty parts of the row move the window (`data-tauri-drag-region` on `DragBand` and the list header row, macOS only, own capability `macos.json`). Minimum window 480 x 360 so every Windows 11 snap layout fits (quarters of 1366 x 768 included); snap layouts are the native ones. Later option: WebView2 `CoreWebView2WindowControlsOverlay` once it is stable |
 | cxpertise navy for structure and state (user, 2026-09-24) | two brand colours with two jobs: coral (13 73% 63%) means act or new - the one primary per view, switches that are on, the unread dot; navy (212 34% 37%) and deep navy (212 30% 26%) mean where you are and what the data says - the selection bar and wash, the active nav (a sliding white pill with a navy label), the chosen filter, focus, caret and text selection, progress, counts (a deep navy pill in the sidebar, soft pills elsewhere), tooltips, info, sub-labels and links. Navy only as small dense marks and 93-96 % washes, never a large fill, never on headings, switches, scores or row-title hover; navy and coral never share an element and never blend. Motion "quiet at rest, rich on contact": hover-in 80 ms, hover-out 150 ms, press 60 ms with a small scale (0.97 / 0.94 icon / 0.985 tiles), release with --ease-emphasized; icons nudge 1-2 px, indicators slide 180 ms, counts roll, the star pops once (1, 1.18, 1), checks draw, a passage flashes; no lift, glow, stagger, bounce, blur or replay (nothing animates on mount; `intro: false`) |
 | Self-decided | TXT header stays German and byte-identical · primary button brand-near (coral 56 %, label 600) · excluded jobs grey behind a divider, also under "Neu" but not counted · Excel for excluded: domain score, grey row · merge cross-portal duplicates · Smart App Control is off on the dev PC |
 
@@ -119,9 +120,13 @@ Sessions: Windows `data_directory`, macOS `data_store_identifier` + `clear_all_b
 cache, profile dir, marker, then verifies `signedIn=false`.
 
 ### UI
-- Shell (revised 2026-09-24 night, see Decisions "Native window frame"): the native title bar of the OS, below it
-  the sidebar (nav Jobs · Profil · Einstellungen, the run status) and the white sheet; "Abrufen" next to the search in
-  the list column header. No menu (Windows), no gear icon.
+- Shell (revised 2026-09-24 late night, see Decisions "Title bars, final"): Windows shows its native title bar, below
+  it the sidebar (nav Jobs · Profil · Einstellungen, the run status) and the white sheet; macOS shows the same under a
+  unified title bar (52 px toolbar row with the traffic lights over the sidebar). "Abrufen" next to the search in the
+  list column header. No menu (Windows), no gear icon. Closing during a run shows a short note until the run stops.
+  Every view switch is the same 100 ms cross-fade (new view on top, never an empty sheet); nothing animates at start;
+  `:root[data-window]` is 'inactive' while the OS window is in the background (selections grey out against it).
+  The sidebar run status shows only while there is a run to open.
 - Jobs: toolbar (Abrufen primary lg / Abbrechen · Neu n | Alle n · Beste Passung | Neueste · search) · left column
   run card + list (72 px rows: ring 40, title with unread dot, meta, reason line, date, status badge only on deviation;
   excluded grey behind divider; duplicates as one row) · reader card 720 px (ring 96 counting up, band word, n of m must,
@@ -134,14 +139,16 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   portal paused, no details, teaser, unscorable, excluded). Feedback where the action happened; no toasts.
 - Tokens (`tokens.css`, `:root`, light only, `color-scheme: light`): palette from the brief (coral 13 73% 63%, navy
   212 34% 37% with deep navy 212 30% 26% and washes 96/93/90/84 %, cream 32 33% 96%, ink 45 7% 17%, ...) plus shades (coral-800 13 62% 45% for text, *-strong/*-soft for
-  status, info), semantic tokens only in components, score colours (high 152 50% 31%, mid coral-800, low 30 4% 42%),
-  gradients coral-only (coral-glow -> coral-variant; NO coral -> slate, user 2026-09-24), card/wash/shimmer; brand mark = the real coral app icon (folder + check) as SVG, warm shadows incl. elegant and glow from the brief, radii 6/8/10/12/16,
-  4 px spacing, controls 28/36/40, type 12/13/14 (tabs)/15/15/17/20/26/34 (UI standard 15/22), motion 80/150/220/320/700/600/1400 ms,
-  stagger 30 ms, four easings.
-- 23 components (Button primary|secondary|ghost|danger x sm|md|lg, Icon, IconTile, Card, Badge, Segmented, Toggle,
-  TextField+Field, NavTabs, ScoreRing, Meter, Skeleton, Spinner, Notice, EmptyState, StatTile, Dialog, Tooltip,
-  Disclosure, SettingRow, ListRow/JobRow, ReasonItem, WindowControls; since phase 3 SideNav instead of NavTabs, and
-  Toast). Not: select, checkbox, radio, context menu.
+  status, info), semantic tokens only in components, score colours (high 152 50% 31%, mid ochre, low 30 4% 42%),
+  no decorative gradients or glow (one gradient: the light of a loading placeholder); brand mark = the real coral app
+  icon (folder + check) as SVG; small shadows only for what floats (dialog, toast, tooltip), none animated; radii
+  6/8/10/12/16, 4 px spacing, controls 28/36/40, type 12/13/14 (tabs)/15/15/17/20/26/34 (UI standard 15/22), weights
+  400/500/600, motion 60/80 (hover-in)/100/150/180 ms, ring fill 360 ms, loop 1400 ms, ease-out, no stagger, no bounce; window
+  tokens `--mac-toolbar` 52 px and `--traffic-lights-width` 80 px (macOS row, checked against `tauri.macos.conf.json`).
+- 29 components (Button primary|secondary|ghost|danger|link x sm|md|lg, Count, Icon, IconTile, BrandMark, Card, Badge, Segmented,
+  Toggle, TextField+Field, SideNav, ScoreRing, Meter, Skeleton, Spinner, Notice, EmptyState, StatTile, StatusLine,
+  Dialog, Tooltip, Disclosure, SettingRow, ListRow/JobRow, ReasonItem, Toast, DragBand (macOS toolbar row)). Not:
+  select, checkbox, radio, context menu, window controls.
 - Motion: only transform/opacity (colour on hover); shadows/glow on `::after` via opacity; whole-pixel end values;
   <= 10 staggered, <= 10 rings animating, FLIP <= 100 rows else cross-fade; reduced motion via `motion.ts`.
   Since "cxpertise navy": hover-in `--dur-hover` 80 ms on the :hover rule, hover-out 150 ms on the base rule, press
@@ -160,7 +167,8 @@ cache, profile dir, marker, then verifies `signedIn=false`.
 ### Platforms (documented differences only)
 Inside the window both OS show the same app; these differ by OS convention (UI: `ui/src/lib/platform.ts`, native:
 `src-tauri/src/platform.rs`): native window frame (Windows title bar in the app's colours via DWM, dimmed title while
-inactive; macOS title bar with centred title) · dialog buttons (Windows: action first; macOS: cancel left, action
+inactive; macOS unified title bar: traffic lights over the sidebar in a 52 px toolbar row that holds search and
+Abrufen and moves the window, no title text) · dialog buttons (Windows: action first; macOS: cancel left, action
 right) · scrollbars (Windows: slim styled, shown over their scroller; macOS: native overlay scrollbars) · middle-button
 autoscroll (Windows; macOS has none) · words for OS things (Explorer / Finder, Anmeldeinformationsverwaltung /
 Schlüsselbund) · menu (none vs. minimal App/Edit/Window) · font smoothing on macOS · keychain vs. credential manager

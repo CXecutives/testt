@@ -255,7 +255,24 @@
   --row-height: 86px;
   /* The gutter of the unread dot, left of the ring. */
   --dot-gutter: 12px;
-  --toolbar-height: 56px;
+  /* The window's title bar per OS (base.css switches the macOS values by data-platform).
+     Windows: the native title bar sits above the page, which starts right below it. macOS:
+     the unified toolbar row of a Mac app (Mail, Notes, Finder): the title bar is transparent
+     over the page, 52 px high, the traffic lights at x 20 centred in it (trafficLightPosition
+     in tauri.macos.conf.json) and 80 px wide in total. */
+  --mac-toolbar: 52px;
+  --traffic-lights-width: 80px;
+  /* The top band the page keeps free for the title bar: 0 on Windows, the toolbar row on
+     macOS (empty parts of it move the window). */
+  --window-top: 0px;
+  /* The first row of the list column (search and Abrufen): on Windows below the pane
+     padding, on macOS centred in the toolbar row next to the traffic lights. */
+  --list-header-top: var(--pane-padding);
+  --list-toolbar: var(--control-md);
+  /* The white sheet meets the title bar with a hairline and a rounded corner on Windows; on
+     macOS it runs up to the window edge. */
+  --sheet-top-edge: var(--border-width);
+  --sheet-corner: var(--radius-card);
   --list-min: 360px;
   --list-max: 460px;
   --reader-width: 720px;

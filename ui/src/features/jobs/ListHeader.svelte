@@ -1,7 +1,8 @@
 <!--
   The header of the list column: the search and next to it "Abrufen", the one primary of
   the Jobs view, which fills this list ("Abbrechen" in its place while a run goes; without
-  a mailbox it stays locked and says why). Below, Neu | Alle on the left and (with a
+  a mailbox it stays locked and says why). On macOS this first row is the list's part of the
+  toolbar row, centred on the traffic lights, and its empty parts move the window. Below, Neu | Alle on the left and (with a
   profile) the sort as one quiet icon button on the right. Its tooltip says the current
   order; a click switches between best match and newest first.
 -->
@@ -11,6 +12,7 @@
   import TextField from '$components/TextField.svelte';
   import { de } from '$lib/i18n/de';
   import type { JobFacet } from '$lib/ipc/types';
+  import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -22,7 +24,7 @@
 </script>
 
 <div class="header" data-testid="list-header">
-  <div class="top">
+  <div class="top" data-tauri-drag-region={dragBands() ? '' : undefined}>
     <span class="search">
       <TextField
         kind="search"
@@ -83,7 +85,7 @@
     flex: none;
     flex-direction: column;
     gap: var(--space-12);
-    padding: var(--pane-padding);
+    padding: var(--list-header-top) var(--pane-padding) var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
   }
 
@@ -91,6 +93,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-8);
+    min-height: var(--list-toolbar);
   }
 
   .search {

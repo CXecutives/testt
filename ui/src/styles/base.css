@@ -50,6 +50,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* macOS: the unified toolbar row under the transparent title bar (tokens.css). The sidebar
+   runs to the top with the traffic lights in its first 52 px (the icon rail is as wide as
+   the lights), the list's first row sits next to them, the sheet reaches the window edge. */
+:root[data-platform='macos'] {
+  --window-top: var(--mac-toolbar);
+  --list-header-top: 0;
+  --list-toolbar: var(--mac-toolbar);
+  --sheet-top-edge: 0;
+  --sheet-corner: 0;
+  --rail-width: var(--traffic-lights-width);
+}
+
 #app {
   height: 100%;
 }
