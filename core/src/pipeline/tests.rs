@@ -28,7 +28,6 @@ fn request() -> RunRequest {
 fn ctx(workspace: &Path, dry_run: bool) -> RunContext {
     RunContext {
         workspace: workspace.to_path_buf(),
-        account: "ich@gmail.com".into(),
         dry_run,
         portals: Portal::ALL.to_vec(),
         fetch_portals: Portal::ALL.to_vec(),
@@ -741,7 +740,8 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
     )
     .await;
     let after_good = store.kv_get(LAST_SCAN_INFO).unwrap().unwrap();
-    assert!(after_good.contains("ich@gmail.com") && after_good.contains("\"5\""));
+    assert!(after_good.contains("\"5\""));
+    assert!(!after_good.contains('@'), "no mail address in the file");
     let (failed, _) = go(
         &mut Failing,
         &store,

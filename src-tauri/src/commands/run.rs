@@ -159,10 +159,6 @@ fn run_context(
     };
     let ctx = RunContext {
         workspace: settings.workspace_or(&state.default_workspace),
-        account: credentials
-            .as_ref()
-            .map(|c| c.user.clone())
-            .unwrap_or_default(),
         dry_run: state.dry_run,
         portals: settings.enabled_portals(),
         fetch_portals: settings.fetch_portals(),

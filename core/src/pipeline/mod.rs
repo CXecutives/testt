@@ -86,8 +86,6 @@ impl RunKind {
 #[derive(Debug, Clone)]
 pub struct RunContext {
     pub workspace: PathBuf,
-    /// Gmail address for the info sheet (empty if unknown).
-    pub account: String,
     /// Dry run: nothing is written.
     pub dry_run: bool,
     /// Portals whose alert mails are read (settings: enabled).
@@ -350,6 +348,8 @@ const MAX_FAILED_NAMES: usize = 20;
 pub const MAX_EMPTY_ALERTS: usize = 10;
 /// Start of the last successful mailbox scan (Unix seconds).
 const LAST_FETCH_AT: &str = "last_fetch_at";
+/// Label of the mail address row that earlier versions stored - do not translate.
+const LEGACY_ACCOUNT_LABEL: &str = "Gmail-Konto";
 /// The app fetches by itself at the start when the last fetch is older than this.
 pub const AUTO_FETCH_AFTER: jiff::SignedDuration = jiff::SignedDuration::from_hours(6);
 
@@ -446,7 +446,7 @@ pub async fn run<B: Backends>(
             .await;
             summary.outcome = match result {
                 Ok(()) => {
-                    remember_scan(store, ctx, scope, &scanned, started_at);
+                    remember_scan(store, scope, &scanned, started_at);
                     Outcome::Completed
                 }
                 Err(ScanError::Mail(MailError::Cancelled)) => Outcome::Cancelled,
@@ -972,10 +972,10 @@ fn write_overview(
 }
 
 /// Remembers the numbers of a successful mailbox scan for the sheet "Info" - only then: a
-/// failed scan does not overwrite the last good state.
-fn remember_scan(store: &Store, ctx: &RunContext, scope: Scope, scan: &ScanSummary, at: Timestamp) {
+/// failed scan does not overwrite the last good state. The mail address stays out of the
+/// file - it may be passed on.
+fn remember_scan(store: &Store, scope: Scope, scan: &ScanSummary, at: Timestamp) {
     let rows = [
-        (texts::INFO_ACCOUNT, ctx.account.clone()),
         (texts::INFO_LAST_SCAN, time::display(at)),
         (texts::INFO_SCOPE, scope_text(scope).to_string()),
         (texts::INFO_NEW, scan.new.to_string()),
@@ -1020,8 +1020,8 @@ pub fn auto_fetch_due(
         && last_fetch_at(store).is_none_or(|at| now.duration_since(at) > AUTO_FETCH_AFTER)
 }
 
-/// Sheet "Info" of the Excel file (account, last run, counters, program). Account and
-/// numbers come from the last successful mailbox scan - after pure detail runs too.
+/// Sheet "Info" of the Excel file (last scan, last run, counters, program). The numbers
+/// come from the last successful mailbox scan - after pure detail runs too.
 fn info_rows(store: &Store, started_at: Timestamp) -> Vec<(String, String)> {
     let mut rows: Vec<(String, String)> = store
         .kv_get(LAST_SCAN_INFO)
@@ -1029,6 +1029,8 @@ fn info_rows(store: &Store, started_at: Timestamp) -> Vec<(String, String)> {
         .flatten()
         .and_then(|json| serde_json::from_str(&json).ok())
         .unwrap_or_default();
+    // Earlier versions stored the mail address among the rows; it stays out now.
+    rows.retain(|(label, _)| label != LEGACY_ACCOUNT_LABEL);
     rows.push((texts::INFO_LAST_RUN.into(), time::display(started_at)));
     rows.push((
         texts::INFO_JOBS_TOTAL.into(),

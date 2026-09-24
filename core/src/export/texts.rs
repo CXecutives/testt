@@ -12,7 +12,7 @@ pub const INFO_SHEET: &str = "Info";
 /// Column headers of the overview (order as before, plus the job details state). Unlike
 /// the text files nobody reads the overview by machine - so it says "Portal" like the
 /// interface, not "Quelle" like the skill contract.
-pub const COLUMNS: [&str; 11] = [
+pub const COLUMNS: [&str; 12] = [
     "Portal",
     "Mail-Datum",
     "Titel",
@@ -24,6 +24,7 @@ pub const COLUMNS: [&str; 11] = [
     "Gespeichert am",
     "Jobdetails",
     "Schlüssel",
+    "Passung",
 ];
 
 /// Label and warning of the last row of the info sheet.
@@ -31,8 +32,7 @@ pub const INFO_NOTE_LABEL: &str = "Hinweis";
 pub const INFO_NOTE: &str =
     "Diese Datei wird bei jedem Lauf vollständig neu erzeugt – eigene Notizen hier gehen verloren.";
 
-/// Labels of the info sheet.
-pub const INFO_ACCOUNT: &str = "Gmail-Konto";
+/// Labels of the info sheet (the mail address is deliberately not among them).
 pub const INFO_LAST_SCAN: &str = "Letzter Postfach-Abruf";
 pub const INFO_SCOPE: &str = "Umfang des letzten Laufs";
 pub const INFO_NEW: &str = "Neu (letzter Lauf)";
