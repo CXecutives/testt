@@ -7,6 +7,7 @@
   import { tooltip } from '$lib/actions/tooltip';
   import { de } from '$lib/i18n/de';
   import { formatRelative } from '$lib/i18n/format';
+  import { rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
   import Badge, { type BadgeTone } from './Badge.svelte';
   import Icon from './Icon.svelte';
@@ -20,19 +21,32 @@
     selected?: boolean;
     /** Scoring is still running for this job. */
     pending?: boolean;
+    /** Show the ring (off without a profile: there is no match to show). */
+    ring?: boolean;
+    /** Arrived during the current run. */
+    fresh?: boolean;
     /** Fixed "now" for relative dates (gallery and tests). */
     now?: Date;
     onselect?: ((job: JobView) => void) | null;
   }
 
-  let { job, selected = false, pending = false, now, onselect = null }: Props = $props();
+  let {
+    job,
+    selected = false,
+    pending = false,
+    ring = true,
+    fresh = false,
+    now,
+    onselect = null,
+  }: Props = $props();
 
   const excluded = $derived(job.match?.status === 'excluded');
-  const reason = $derived(job.match?.top[0] ?? null);
+  const reason = $derived(rowReason(job));
 
   /** At most one badge, and only when something is not as usual. */
   const deviation = $derived.by((): { label: string; tone: BadgeTone } | null => {
-    if (excluded) return { label: de.score.excluded, tone: 'danger' };
+    // Excluded rows speak through the ring, the grey and the divider.
+    if (excluded) return null;
     const detail = job.detail.kind;
     if (detail !== 'ok') {
       const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
@@ -47,19 +61,21 @@
   );
 </script>
 
+{#snippet ringCell()}
+  <ScoreRing ring={ringState(job.match, pending)} size="sm" />
+{/snippet}
+
 <ListRow
+  leading={ring ? ringCell : null}
   {selected}
   muted={excluded}
+  tint={fresh}
   onclick={onselect ? () => onselect?.(job) : null}
   testid="job-row-{job.key.portal}-{job.key.id}"
 >
-  {#snippet leading()}
-    <ScoreRing ring={ringState(job.match, pending)} size="sm" />
-  {/snippet}
-
   <span class="title-line">
     {#if job.unread}<span class="dot" role="img" aria-label={de.job.unread}></span>{/if}
-    <span class="title" class:unread={job.unread}>{job.title}</span>
+    <span class="title" class:unread={job.unread}>{job.title || de.job.untitled}</span>
   </span>
   <span class="meta">
     <span
@@ -70,11 +86,11 @@
     >
     {#if alsoOn}<span class="also" use:tooltip={alsoOn}>+{job.alsoOn.length}</span>{/if}
     <span class="text">{job.company}</span>
-    {#if job.location}<span class="sep">·</span><span class="text">{job.location}</span>{/if}
+    {#if job.location}<span class="sep">·</span><span class="text place">{job.location}</span>{/if}
     {#if job.workMode}<Badge label={de.job.workMode[job.workMode]} tone="neutral" />{/if}
   </span>
   {#if reason}
-    <span class="reason"><ReasonItem kind="met" label={reason} compact /></span>
+    <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
   {/if}
 
   {#snippet trailing()}
@@ -152,6 +168,12 @@
 
   .sep {
     color: var(--text-subtle);
+  }
+
+  /* The place is short and says more than the end of a long company name. */
+  .place {
+    flex: none;
+    max-width: 50%;
   }
 
   .reason {

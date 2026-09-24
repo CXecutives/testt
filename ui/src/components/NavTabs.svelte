@@ -103,8 +103,7 @@
     align-items: center;
     padding: 0 var(--space-12);
     color: var(--text-muted);
-    font: var(--type-md);
-    font-weight: var(--weight-medium);
+    font: var(--type-tab);
     transition:
       color var(--dur-fast) var(--ease-standard),
       transform var(--dur-fast) var(--ease-pop);

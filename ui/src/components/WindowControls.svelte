@@ -77,7 +77,7 @@
     height: var(--titlebar-height);
     border-radius: 0;
     background-color: transparent;
-    color: var(--text);
+    color: var(--caption-glyph-rest);
     transition:
       background-color var(--dur-fast) var(--ease-standard),
       color var(--dur-fast) var(--ease-standard);
@@ -92,10 +92,12 @@
 
   .caption:hover {
     background-color: var(--caption-hover);
+    color: var(--caption-glyph-hover);
   }
 
   .caption:active {
     background-color: var(--caption-press);
+    color: var(--caption-glyph-hover);
   }
 
   .close:hover {

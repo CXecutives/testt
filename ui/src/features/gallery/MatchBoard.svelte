@@ -27,7 +27,7 @@
         {kind}
         label={t.reasonLabels[kind]}
         weight={REASON_WEIGHTS[index % REASON_WEIGHTS.length] ?? null}
-        evidence={kind === 'met' ? t.evidence : null}
+        hint={kind === 'met' ? t.evidence : null}
         active={active === kind}
         onhover={(on) => (active = on ? kind : null)}
         onselect={() => undefined}

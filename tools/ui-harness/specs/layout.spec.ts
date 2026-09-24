@@ -60,7 +60,6 @@ test('the brand name hides below 900 px, the tabs stay centered', async ({ page 
 test('placeholders are never dead: mark, one sentence, one action, centred', async ({ page }) => {
   await open(page, '?platform=windows');
   for (const [tab, id] of [
-    ['tab-jobs', 'placeholder-jobs'],
     ['tab-profile', 'placeholder-profile'],
     ['tab-settings', 'placeholder-settings'],
   ] as const) {

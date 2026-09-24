@@ -1,14 +1,19 @@
 <!--
   A 76 px list row: leading, content, trailing. Hover tints the row and grows a gradient
-  bar on the left (scaleY); the selected row keeps both.
+  bar on the left (scaleY); the selected row keeps both. A `tint` row (new during a run)
+  starts with a soft accent wash that fades out once.
 -->
 <script lang="ts">
+  import { play } from '$lib/motion/motion';
   import type { Snippet } from 'svelte';
+  import type { Action } from 'svelte/action';
 
   interface Props {
     selected?: boolean;
     /** Greyed out (excluded jobs behind the divider). */
     muted?: boolean;
+    /** Just arrived: a short accent wash. */
+    tint?: boolean;
     onclick?: (() => void) | null;
     testid?: string | null;
     leading?: Snippet | null;
@@ -19,12 +24,21 @@
   let {
     selected = false,
     muted = false,
+    tint = false,
     onclick = null,
     testid = null,
     leading = null,
     trailing = null,
     children,
   }: Props = $props();
+
+  const fadeOut: Action<HTMLElement> = (node) => {
+    play(node, [{ opacity: 1 }, { opacity: 0 }], {
+      duration: 'hero',
+      easing: 'out',
+      crossfade: true,
+    });
+  };
 </script>
 
 <button
@@ -36,6 +50,7 @@
   data-testid={testid ?? undefined}
   onclick={() => onclick?.()}
 >
+  {#if tint}<span class="tint" aria-hidden="true" use:fadeOut></span>{/if}
   {#if leading}<span class="leading">{@render leading()}</span>{/if}
   <span class="content">{@render children()}</span>
   {#if trailing}<span class="trailing">{@render trailing()}</span>{/if}
@@ -44,6 +59,7 @@
 <style>
   .row {
     position: relative;
+    isolation: isolate;
     display: flex;
     align-items: center;
     gap: var(--space-12);
@@ -85,6 +101,14 @@
 
   .row:focus-visible {
     box-shadow: var(--focus-ring-inset);
+  }
+
+  .tint {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-below);
+    background-color: var(--surface-tinted);
+    opacity: 0;
   }
 
   .muted {

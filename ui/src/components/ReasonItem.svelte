@@ -1,6 +1,6 @@
 <!--
   One reason of a match: met | partial | open | violation | check, weighted must | nice |
-  hard | info. The evidence from the profile appears in the tooltip; hovering can highlight
+  hard | info. Quote and profile evidence appear in the tooltip; hovering can highlight
   the passage (onhover), a click can scroll to it (onselect).
 -->
 <script lang="ts" module>
@@ -43,7 +43,8 @@
     kind: ReasonKind;
     label: string;
     weight?: ReasonWeight | null;
-    evidence?: string | null;
+    /** Tooltip: the ad's words and the profile evidence (texts.ts reasonHint). */
+    hint?: string | null;
     /** One line without weight badge (list rows). */
     compact?: boolean;
     active?: boolean;
@@ -55,14 +56,12 @@
     kind,
     label,
     weight = null,
-    evidence = null,
+    hint = null,
     compact = false,
     active = false,
     onhover = null,
     onselect = null,
   }: Props = $props();
-
-  const hint = $derived(evidence ? `${de.reason.evidence}: ${evidence}` : null);
 </script>
 
 {#snippet body()}
@@ -134,6 +133,20 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Outside list rows a reason wraps instead of losing its end. */
+  .reason:not(.compact) {
+    align-items: flex-start;
+  }
+
+  .reason:not(.compact) .label {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .reason:not(.compact) .icon {
+    margin-top: var(--space-2);
   }
 
   .met {

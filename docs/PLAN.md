@@ -22,7 +22,8 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Extras | Pin (star) + auto fetch on start (> 6 h, switchable); no notifications, no "still open?" checks |
 | Logo | no CXpertise company logo; the coral app icon (folder + check) is the brand mark in the title bar |
 | Heading colour | warm dark ink (45 7% 17%), not slate; coral is the only accent colour (user chose variant A) |
-| Windows caption buttons | native Windows 11 look: Segoe Fluent Icons glyphs, 46 px wide, red close hover |
+| Windows caption buttons | flat like the Claude desktop app (user 2026-09-24): 46 x 40, Segoe Fluent glyphs 10 px in ink (muted at rest), warm hover ink/.06, pressed ink/.10, close hsl(4 62% 50%) with a white glyph |
+| Sizes | smaller (user 2026-09-24): title bar 40, tabs 14/500 (active 600), controls 28/36/40, toolbar 56, list rows 72; body text stays 15 |
 | Cleanup outside | `.notes` archived to `../_archive/TEST-notes`; user deletes `origin/ci-macos` and release `latest`; CI publishes nothing |
 | Self-decided | TXT header stays German and byte-identical · primary button brand-near (coral 56 %, label 600) · excluded jobs grey behind a divider, also under "Neu" but not counted · Excel for excluded: domain score, grey row · merge cross-portal duplicates · Smart App Control is off on the dev PC |
 
@@ -105,10 +106,10 @@ Sessions: Windows `data_directory`, macOS `data_store_identifier` + `clear_all_b
 cache, profile dir, marker, then verifies `signedIn=false`.
 
 ### UI
-- Title bar 48 px: brand tile + name, centered word tabs Jobs · Profil · Einstellungen with gliding gradient marker,
+- Title bar 40 px: brand tile + name, centered word tabs Jobs · Profil · Einstellungen with gliding gradient marker,
   Windows caption buttons right, macOS traffic lights left. No menu, no status bar, no gear icon.
 - Jobs: toolbar (Abrufen primary lg / Abbrechen · Neu n | Alle n · Beste Passung | Neueste · search) · left column
-  run card + list (76 px rows: ring 40, title with unread dot, meta, reason line, date, status badge only on deviation;
+  run card + list (72 px rows: ring 40, title with unread dot, meta, reason line, date, status badge only on deviation;
   excluded grey behind divider; duplicates as one row) · reader card 720 px (ring 96 counting up, band word, n of m must,
   hard-criteria strip, reasons met/open/check/violations, hover = tooltip + highlight, click = scroll to passage) ·
   day overview when nothing is selected (3 stat tiles, unread per portal, best 3, pinned, open issues, "Übersicht öffnen").
@@ -121,7 +122,7 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   212 34% 37%, cream 32 33% 96%, ink 45 7% 17%, ...) plus shades (coral-800 13 62% 45% for text, *-strong/*-soft for
   status, info), semantic tokens only in components, score colours (high 152 50% 31%, mid coral-800, low 30 4% 42%),
   gradients coral-only (coral-glow -> coral-variant; NO coral -> slate, user 2026-09-24), card/wash/shimmer; brand mark = the real coral app icon (folder + check) as SVG, warm shadows incl. elegant and glow from the brief, radii 6/8/10/12/16,
-  4 px spacing, controls 32/40/48, type 12/13/15/15/17/20/26/34 (UI standard 15/22), motion 80/150/220/320/700/600/1400 ms,
+  4 px spacing, controls 28/36/40, type 12/13/14 (tabs)/15/15/17/20/26/34 (UI standard 15/22), motion 80/150/220/320/700/600/1400 ms,
   stagger 30 ms, four easings.
 - 23 components (Button primary|secondary|ghost|danger x sm|md|lg, Icon, IconTile, Card, Badge, Segmented, Toggle,
   TextField+Field, NavTabs, ScoreRing, Meter, Skeleton, Spinner, Notice, EmptyState, StatTile, Dialog, Tooltip,
@@ -189,7 +190,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
 - [ ] Integration (integrator, serial): wire A + B + D into commands and view.
 
 ### Phase 3 - screens and core workflow (two UI agents)
-- [ ] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)
+- [x] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)
 - [ ] Shell, Profil, Einstellungen, first run; all states; texts only from `de.ts`; `mark_read` only on a real click
 - [ ] >= 30 harness scenarios in Chromium + WebKit; screenshot baselines; smoke probe of the real app
 - Done when: core workflow works in both engines and the real app; every view in every state is captured; 0 lint

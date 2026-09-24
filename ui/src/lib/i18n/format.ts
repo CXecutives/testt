@@ -60,3 +60,44 @@ export function formatTime(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? '' : clock.format(date);
 }
+
+/** `24.09.2026` */
+export function formatDate(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '' : dayMonthYear.format(date);
+}
+
+/** `14:05` today, `25.09. 14:05` on another day. */
+export function formatMoment(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return startOfDay(date) === startOfDay(now)
+    ? clock.format(date)
+    : `${dayMonth.format(date)} ${clock.format(date)}`;
+}
+
+const oneDecimal = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 });
+
+/** `18 KB`, `1,2 MB` */
+export function formatBytes(bytes: number): string {
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${integer.format(Math.max(1, Math.round(kb)))}${NARROW_NBSP}KB`;
+  return `${oneDecimal.format(kb / 1024)}${NARROW_NBSP}MB`;
+}
+
+/** `1.200 €` */
+export function formatEuro(value: number | string | boolean | null | undefined): string {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number)
+    ? `${integer.format(number)}${NARROW_NBSP}€`
+    : `${String(value ?? '')}${NARROW_NBSP}€`;
+}
+
+/** Remaining time as `4:05` (minutes and seconds) or `1:04:05`. */
+export function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}
