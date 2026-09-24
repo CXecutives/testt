@@ -33,15 +33,15 @@ import sys
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
-GLOW = (0xEA, 0x8F, 0x76)     # hsl(13 73% 69%) - a touch lighter than the coral-glow token
-VARIANT = (0xD6, 0x63, 0x43)  # hsl(13 64% 55%) - a touch deeper: slightly stronger gradient
+GLOW = (0xEB, 0x95, 0x7D)     # hsl(13 73% 70.5%) - lighter than the coral-glow token
+VARIANT = (0xD4, 0x5D, 0x3D)  # hsl(13 64% 53.5%) - deeper: a 5 % stronger gradient
 WHITE = (255, 255, 255)
 SMOOTHING = 0.6
-# The plate has the Apple app-icon shape: corner radius 22.37 % of the plate with 60 %
-# continuous-corner smoothing (as macOS and iOS icons).
-PLATE_SMOOTHING = 0.6
+# The plate has the macOS app-icon shape: straight sides and Apple's continuous corners
+# (see `apple_corner`) with a radius of 22.37 % of the plate.
+PLATE_SMOOTHING = 0.6  # used by the folder corners only
 
 # 1024 grid, Windows layout.
 PLATE, PLATE_R = 48, round(0.2237 * (1024 - 2 * 48))
@@ -200,13 +200,33 @@ def unit(dx, dy):
 RIGHT, DOWN, LEFT, UP = (1, 0), (0, 1), (-1, 0), (0, -1)
 
 
+# Apple's continuous-corner curve (the path UIKit draws for rounded rectangles since iOS 7),
+# as distances (back along the incoming edge, forward along the outgoing edge) in units of r.
+APPLE_CORNER = [
+    ((1.08849323, 0.0), (0.86840689, 0.0), (0.63149399, 0.07491100)),
+    ((0.37282392, 0.16905899), (0.16905883, 0.37282401), (0.07491176, 0.63149399)),
+    ((0.0, 0.86840701), (0.0, 1.08849299), (0.0, 1.52866483)),
+]
+APPLE_EXTENT = 1.52866483  # the curve starts this many r before the corner
+
+
+def apple_corner(path, v, e, f, r):
+    """One corner of the plate with Apple's continuous curvature; the path stands at
+    v - APPLE_EXTENT*r*e (incoming direction e, outgoing f)."""
+    def pt(u, w):
+        return add(v, (-u * r, e), (w * r, f))
+    for c1, c2, end in APPLE_CORNER:
+        path.cubic(pt(*c1), pt(*c2), pt(*end))
+
+
 def squircle(x0, y0, x1, y1, r):
-    p = (1 + PLATE_SMOOTHING) * r
+    """The plate: long straight sides, only the corners curve (iOS/macOS app-icon shape)."""
+    p = APPLE_EXTENT * r
     path = Path2((x0 + p, y0))
     for v, e, f in [((x1, y0), RIGHT, DOWN), ((x1, y1), DOWN, LEFT),
                     ((x0, y1), LEFT, UP), ((x0, y0), UP, RIGHT)]:
         path.line(add(v, (-p, e)))
-        smooth_corner(path, v, e, f, r, PLATE_SMOOTHING)
+        apple_corner(path, v, e, f, r)
     return path
 
 
@@ -343,6 +363,13 @@ def render(s, mac=False, ss=None):
     img = Image.new('RGBA', (S, S), (0, 0, 0, 0))
     img.paste(gradient(S, tuple(v * ss for v in g['plate'])), (0, 0), plate_mask)
     img.paste(Image.new('RGB', (S, S), WHITE), (0, 0), folder_mask)
+    if mac:
+        # macOS icons carry a soft drop shadow inside their canvas, like the Dock's icons.
+        shadow = plate_mask.point(lambda a: a * 0.28).filter(
+            ImageFilter.GaussianBlur(S * 0.0098))
+        base = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+        base.paste(Image.new('RGB', (S, S), (0, 0, 0)), (0, round(S * 0.0098)), shadow)
+        img = Image.alpha_composite(base, img)
     return img.resize((s, s), Image.BOX)
 
 
