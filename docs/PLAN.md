@@ -63,7 +63,7 @@ Types: `JobView{key, portal, title, company, location, workMode, mailDate, first
 Modules: mod, params, types, lexicon/ (external contract), normalize, profile, sections, requirements, signals,
 criteria, ladder, relevance, semantic (feature), score, explain.
 - Profile compiled once: core phrases with JSON path, languages + level, degrees, total years, criteria, quality
-  (empty => not scored). Profile keys stay German (shared with the skill); English aliases also understood.
+  (empty => not scored). Profile keys stay German (the existing profile format); English aliases also understood.
 - Requirements: sections (V5), 3 stages (V16), UND splits / ODER = alternatives (V6), kinds skill/formal/language/years/soft/frame (V7).
 - Match ladder: exact · stem · synonym/bilingual = 1.0 · profile more specific = 1.0 · profile more general = 0.5 ·
   2/3 rule (>= 3 atoms) = 0.5 · semantic = 0.5 (feature only). Generic atoms never count alone.
@@ -204,7 +204,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
 - [ ] Translate remaining comments, logs, errors, asserts, CI, hook, toml; new English README; `language.rs` with allowlist
 - [ ] Finish the dead-code list
 
-### Phase 5 - verification, measurement, audit, skill
+### Phase 5 - verification, measurement, audit
 - [ ] Real runs through the app (gold set within limits and switches), blind labels, old/new report in `docs/MATCHING.md`
 - [ ] Live canary per portal (one counted page via `admit`)
 - [ ] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios
@@ -230,6 +230,6 @@ The user's usage limit is tight: work token-efficiently without lowering quality
 no sub-agents inside tracks, screenshots only at milestones, commit every finished step. Models (no Haiku):
 - **Opus** for everything that shapes the product or the measurement: matching engine, contract, store/pipeline,
   scraping/sign-in logic, UI foundation, components and screens, integration and merges, corpus band review,
-  gold-set labelling, skill improvement, consistency audit and the final review.
+  gold-set labelling, consistency audit and the final review.
 - **Sonnet** for simple, fully verifiable work: phase 4 comment/log translation (checked by language.rs, build and
   tests), README and first-start guide from finished facts, collecting CI artifacts and screenshots, routine cleanup.
