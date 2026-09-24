@@ -39,7 +39,7 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   // The profile is made in the Profil view; back on the first-run page its step is done.
   await page.getByTestId('first-profile').click();
   await expect(page.getByTestId('view-profile')).toBeVisible();
-  await page.getByRole('button', { name: 'Profil anlegen' }).click();
+  await page.getByTestId('profile-empty').getByRole('button', { name: 'Profil anlegen' }).click();
   await page.getByTestId('competence-add').click();
   await page.getByTestId('competence-name').fill('Controlling');
   await page.getByTestId('profile-save').click();

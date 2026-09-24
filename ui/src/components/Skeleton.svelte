@@ -1,4 +1,8 @@
-<!-- Loading placeholder: line | block | circle, with a shimmer sweeping on ::after. -->
+<!--
+  Loading placeholder: line | block | circle, with a shimmer sweeping on ::after. It stays
+  invisible for --delay-placeholder after it is placed and then fades in, so a load that
+  ends sooner never flashes a placeholder.
+-->
 <script lang="ts">
   import { cssVars } from '$lib/actions/cssVars';
 
@@ -20,12 +24,14 @@
 ></span>
 
 <style>
+  /* The late fade-in is timing, not movement: it is not paused under reduced motion. */
   .skeleton {
     position: relative;
     display: block;
     overflow: hidden;
     background-color: var(--surface-muted);
     isolation: isolate;
+    animation: appear var(--dur-fast) var(--ease-standard) var(--delay-placeholder) both;
   }
 
   .skeleton::after {
@@ -34,7 +40,7 @@
     background: var(--grad-shimmer);
     content: '';
     transform: translateX(-100%);
-    animation: shimmer var(--dur-loop) var(--ease-standard) infinite;
+    animation: shimmer var(--dur-loop) linear infinite;
     animation-play-state: var(--loop-state);
   }
 

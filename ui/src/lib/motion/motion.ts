@@ -8,9 +8,9 @@
 
 import { tokenMs, tokenNumber, tokenPx, token } from '../tokens';
 
-export type Duration = 'instant' | 'fast' | 'base' | 'slow' | 'reveal' | 'loop';
-export type Easing = 'standard' | 'out' | 'in';
-export type Move = 'sm' | 'md' | 'lg';
+export type Duration = 'instant' | 'hover' | 'fast' | 'base' | 'slow' | 'reveal' | 'loop';
+export type Easing = 'standard' | 'out' | 'in' | 'emphasized';
+export type Move = 'xs' | 'sm' | 'md' | 'lg';
 export type EasingFn = (t: number) => number;
 
 interface Values {
@@ -20,12 +20,21 @@ interface Values {
   moves: Record<Move, number>;
   staggerMax: number;
   enterScale: number;
+  popScale: number;
   tooltipDelay: number;
 }
 
-const DURATIONS: readonly Duration[] = ['instant', 'fast', 'base', 'slow', 'reveal', 'loop'];
-const EASINGS: readonly Easing[] = ['standard', 'out', 'in'];
-const MOVES: readonly Move[] = ['sm', 'md', 'lg'];
+const DURATIONS: readonly Duration[] = [
+  'instant',
+  'hover',
+  'fast',
+  'base',
+  'slow',
+  'reveal',
+  'loop',
+];
+const EASINGS: readonly Easing[] = ['standard', 'out', 'in', 'emphasized'];
+const MOVES: readonly Move[] = ['xs', 'sm', 'md', 'lg'];
 
 let values: Values | null = null;
 let reduced = false;
@@ -89,6 +98,7 @@ function read(): Values {
     >,
     staggerMax: tokenNumber('--stagger-max'),
     enterScale: tokenNumber('--scale-enter'),
+    popScale: tokenNumber('--scale-pop'),
     tooltipDelay: tokenMs('--delay-tooltip'),
   };
 }
@@ -145,6 +155,12 @@ export function move(name: Move): number {
 
 export function enterScale(): number {
   return reduced ? 1 : current().enterScale;
+}
+
+/** Peak of the one-shot pop (the star on pin); 1 under reduced motion. WAAPI keyframes
+ *  cannot take var(), so the token is resolved here. */
+export function popScale(): number {
+  return reduced ? 1 : current().popScale;
 }
 
 /** How many items of a list may animate at the same time; the others are simply there. */

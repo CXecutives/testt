@@ -1,16 +1,21 @@
 <!--
   The calm sidebar (196 px, icons only below 1100 px) on the cream: no surface of its own,
   the white sheet of the content is the divider. App icon and name live in the native title
-  bar of the OS, so the sidebar starts with the views: the first sits on the line of the
-  list's search field, each with its icon and the unread count, and
-  at the foot a quiet run status that opens the run in the Jobs view. The status is said
-  once: while the run card is on screen it steps aside. "Abrufen" lives in the list header.
+  bar of the OS, so the sidebar starts with the views (on macOS below the traffic lights,
+  whose 52 px band moves the window): the first sits on the line of the list's search field
+  on Windows, each with its icon and the unread count, and
+  at the foot a quiet run status that opens the run in the Jobs view. It shows only while
+  there is a run to open (before the first fetch the first-run page says it all), and it is
+  said once: while the run card is on screen it steps aside. "Abrufen" lives in the list
+  header.
 -->
 <script lang="ts">
+  import DragBand from '$components/DragBand.svelte';
   import SideNav, { type SideNavItem } from '$components/SideNav.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import { de } from '$lib/i18n/de';
   import { fade } from '$lib/motion/transitions';
+  import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { navigation, type ViewId } from '$lib/state/navigation.svelte';
@@ -38,18 +43,23 @@
     return last ? de.shell.last(last.finishedAt) : de.run.never;
   });
   const setup = $derived(navigation.current === 'jobs' && shell.firstRun);
+  // A click opens the run card: without a run to open the status would be a dead button.
   // The run card says the same while it is on screen.
   const statusShown = $derived(
-    !(navigation.current === 'jobs' && !shell.firstRun && shell.runCard),
+    (run.active || last !== null) &&
+      !(navigation.current === 'jobs' && !shell.firstRun && shell.runCard),
   );
 
   function openRun(): void {
     navigation.go('jobs');
     run.panel = 'open';
+    // In one column an open job hides the list and its run card: back to the list.
+    if (viewport.narrow) jobs.clearSelection();
   }
 </script>
 
 <aside class="sidebar" class:rail={viewport.rail} data-testid="sidebar">
+  {#if dragBands()}<span class="lights"><DragBand /></span>{/if}
   <!-- Before the setup there is nowhere to go yet: the views wait (inert, faded). -->
   <div class="nav" class:waiting={setup} inert={setup}>
     <SideNav
@@ -92,6 +102,14 @@
   .rail {
     align-items: center;
     width: var(--rail-width);
+  }
+
+  /* The traffic lights' band spans the whole width of the sidebar. */
+  .lights {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    margin: 0 calc(-1 * var(--space-12));
   }
 
   /* The first view starts on the line of the list header's search field. */

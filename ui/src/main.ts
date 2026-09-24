@@ -11,9 +11,10 @@ import App from './App.svelte';
 import { installInput } from './lib/input/input';
 import { installErrorReporting } from './lib/ipc/api';
 import { installMotion } from './lib/motion/motion';
-import { applyPlatform } from './lib/platform';
+import { applyPlatform, trackWindowFocus } from './lib/platform';
 
 applyPlatform();
+trackWindowFocus();
 installMotion();
 installInput();
 installErrorReporting();
@@ -25,5 +26,6 @@ if (__GALLERY__ && new URLSearchParams(location.search).has('gallery')) {
   const { default: Gallery } = await import('./features/gallery/Gallery.svelte');
   mount(Gallery, { target });
 } else {
-  mount(App, { target });
+  // Nothing animates at start: the first view is simply there.
+  mount(App, { target, intro: false });
 }

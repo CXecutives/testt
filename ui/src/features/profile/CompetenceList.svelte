@@ -169,7 +169,7 @@
   }
 
   .head {
-    color: var(--text-muted);
+    color: var(--text-label);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
   }
@@ -196,7 +196,7 @@
 
   .focus-label {
     flex: none;
-    color: var(--text);
+    color: var(--text-label);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
   }

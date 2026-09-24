@@ -123,6 +123,7 @@
         type="button"
         class="remove"
         tabindex="-1"
+        data-keep-focus
         aria-label={de.chips.remove(value)}
         onclick={() => remove(index)}
       >
@@ -194,8 +195,8 @@
     min-height: calc(var(--control-sm) - var(--space-4));
     padding: 0 var(--space-2) 0 var(--space-8);
     border-radius: var(--radius-full);
-    background-color: var(--surface-muted);
-    color: var(--text);
+    background-color: var(--active-surface);
+    color: var(--active-text);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
     cursor: default;
@@ -214,15 +215,15 @@
     width: var(--icon-md);
     height: var(--icon-md);
     border-radius: var(--radius-full);
-    color: var(--text-muted);
+    color: var(--active-text);
     transition:
       background-color var(--dur-fast) var(--ease-standard),
       color var(--dur-fast) var(--ease-standard);
   }
 
   .remove:hover {
-    background-color: var(--surface-press);
-    color: var(--text);
+    background-color: var(--count-soft-hover);
+    transition-duration: var(--dur-hover);
   }
 
   .input {

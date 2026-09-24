@@ -74,8 +74,8 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   const english = page.getByTestId('language-row').nth(1);
   await expect(english.getByRole('button', { name: 'B2' })).toHaveAttribute('aria-pressed', 'true');
   await expect(
-    page.getByTestId('profile-remote').getByRole('radio', { name: 'Überwiegend' }),
-  ).toHaveAttribute('aria-checked', 'true');
+    page.getByTestId('profile-remote').getByRole('button', { name: 'Überwiegend' }),
+  ).toHaveAttribute('aria-pressed', 'true');
   const countries = page.getByTestId('profile-countries');
   await expect(countries.getByRole('button', { name: 'Deutschland' })).toHaveAttribute(
     'aria-pressed',
@@ -242,7 +242,7 @@ test('no profile: one sentence and the three ways in', async ({ page }) => {
 
 test('create from the empty form and save', async ({ page }) => {
   await profile(page, 'no-profile');
-  await page.getByRole('button', { name: 'Profil anlegen' }).click();
+  await page.getByTestId('profile-empty').getByRole('button', { name: 'Profil anlegen' }).click();
   await expect(page.getByTestId('profile-name')).toHaveText('Neues Profil');
   await expect(page.getByTestId('profile-file')).toContainText('Noch nicht gespeichert');
   await expect(save(page)).toHaveAttribute('aria-disabled', 'true');
@@ -325,7 +325,10 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   }
   await profile(page, 'no-profile');
-  await page.getByRole('button', { name: 'Aus Lebenslauf erstellen' }).click();
+  await page
+    .getByTestId('profile-empty')
+    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .click();
   const card = page.getByTestId('profile-paste');
   await expect(card).toBeVisible();
   await expect(card).toContainText('In Claude einfügen und den Lebenslauf anhängen.');
@@ -405,7 +408,10 @@ test('baseline: from a CV', async ({ page, browserName }) => {
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   }
   await profile(page, 'no-profile');
-  await page.getByRole('button', { name: 'Aus Lebenslauf erstellen' }).click();
+  await page
+    .getByTestId('profile-empty')
+    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .click();
   await expect(page.getByTestId('profile-paste')).toBeVisible();
   await page.getByTestId('paste-answer').fill(ANSWER.slice(0, 120));
   await expectShot(page, 'profile-paste');

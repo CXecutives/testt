@@ -27,6 +27,10 @@
   let industries = $state<string[]>([]);
   let focus = $state([...t.chipsShownValues]);
   let answer = $state('');
+
+  /** A save that fails after a round trip (the dry run refuses it). */
+  const failingSave = (): Promise<void> =>
+    new Promise((_, reject) => setTimeout(() => reject(new Error('dry run')), 400));
 </script>
 
 <Section heading={t.heading} id="inputs">
@@ -43,6 +47,8 @@
           onchange={() => undefined}
         />
         <Toggle checked={autoFetch} label={t.toggle} showLabel onchange={(v) => (autoFetch = v)} />
+        <!-- A save that fails after a while: the switch flips at once and slides back. -->
+        <Toggle checked={false} label={t.toggle} onchange={failingSave} testid="toggle-fails" />
       </div>
       <div class="row">
         <Segmented

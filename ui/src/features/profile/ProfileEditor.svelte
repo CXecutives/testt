@@ -56,9 +56,8 @@
       .map((code) => ({ id: code, label: code })),
   ]);
 
-  type Remote = RemoteWish | 'unset';
-  const REMOTE: { id: Remote; label: string }[] = (
-    ['unset', 'full', 'mostly', 'partly', 'onSite'] as const
+  const REMOTE: { id: RemoteWish; label: string }[] = (
+    ['full', 'mostly', 'partly', 'onSite'] as const
   ).map((wish) => ({ id: wish, label: de.profile.remoteWish[wish] }));
   const AVAILABLE: { id: ProfileAvailability['kind']; label: string }[] = (
     ['unset', 'now', 'from'] as const
@@ -225,16 +224,13 @@
     </div>
     <div class="block">
       <span class="label">{t.remote}</span>
-      <span class="choice">
-        <Segmented
-          options={REMOTE}
-          value={form.wishes.remote ?? 'unset'}
-          label={t.remote}
-          size="sm"
-          testid="profile-remote"
-          onchange={(wish) => (form.wishes.remote = wish === 'unset' ? null : wish)}
-        />
-      </span>
+      <ChoiceButtons
+        options={REMOTE}
+        selected={form.wishes.remote === null ? [] : [form.wishes.remote]}
+        label={t.remote}
+        testid="profile-remote"
+        onchange={(next) => (form.wishes.remote = (next[0] as RemoteWish | undefined) ?? null)}
+      />
     </div>
     <Field label={t.regions} for="{id}-regions">
       <ChipInput
@@ -418,10 +414,6 @@
     font-weight: var(--weight-medium);
   }
 
-  .choice {
-    display: flex;
-  }
-
   .available {
     display: flex;
     flex-wrap: wrap;
@@ -441,9 +433,10 @@
   }
 
   .sub {
-    color: var(--text-heading);
-    font: var(--type-md);
-    font-weight: var(--weight-semibold);
+    padding-top: var(--space-4);
+    color: var(--text-label);
+    font: var(--type-sm);
+    font-weight: var(--weight-medium);
   }
 
   /* The save bar stays in view at the bottom of the scrolling view. */

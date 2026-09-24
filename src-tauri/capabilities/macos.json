@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "macos-toolbar",
+  "description": "macOS only: the empty parts of the unified toolbar row move the window and a double click zooms it (Tauri's drag script for data-tauri-drag-region). Windows has its native title bar and needs no window rights.",
+  "platforms": [
+    "macOS"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize"
+  ]
+}

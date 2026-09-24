@@ -531,6 +531,73 @@ fn no_text_literals_in_markup() {
     fail(&problems, "UI text only from lib/i18n/de.ts");
 }
 
+/// The keyboard stays native (audit 2026-09-24): fields take every character the layout
+/// types, including `AltGr` (Windows) and Option (macOS, where @ is Option+L on a German
+/// keyboard), and the editing keys of the OS; the macOS menu keeps its Cmd shortcuts
+/// (Cmd+, too); Tab and Enter/Space work on controls; a modal dialog holds the focus; the
+/// zoom guard is a wheel listener that exists only while Ctrl/Cmd is held. The behaviour
+/// itself is tested in tools/ui-harness/specs/input.spec.ts on both engines.
+#[test]
+fn the_keyboard_stays_native() {
+    let all = scanned(MIN_FILES);
+    let file = |path: &str| -> &Source {
+        all.iter()
+            .find(|s| s.is(path))
+            .unwrap_or_else(|| panic!("{path} missing"))
+    };
+    let input = &file("lib/input/input.ts").code;
+    let platform = &file("lib/platform.ts").code;
+    let mut problems = Vec::new();
+    let mut need = |ok: bool, what: &str| {
+        if !ok {
+            problems.push(what.to_string());
+        }
+    };
+    need(
+        input.contains("getModifierState('AltGraph')") && input.contains("optionTypes"),
+        "input.ts: AltGr and Option characters must type in fields",
+    );
+    need(
+        platform.contains("optionTypes: mac"),
+        "platform.ts: Option types characters on macOS",
+    );
+    need(
+        input
+            .lines()
+            .any(|l| l.contains("MAC_MENU_KEYS = new Set(") && l.contains("','")),
+        "input.ts: Cmd+, (Settings) must reach the macOS menu",
+    );
+    need(
+        input.contains("EDITING_KEYS") && input.contains("redoWithY"),
+        "input.ts: the editing keys of native fields (word, line, redo)",
+    );
+    need(
+        input.contains("isFocusMove") && input.contains("pressesControl"),
+        "input.ts: Tab moves the focus and Enter/Space press controls everywhere",
+    );
+    need(
+        input.contains("[aria-modal=\"true\"]") && input.contains("cycleFocus"),
+        "input.ts: a modal dialog holds the focus",
+    );
+    need(
+        input.contains("removeEventListener('wheel'")
+            && !input.contains("addEventListener(\n    'wheel'")
+            && input.matches("addEventListener('wheel'").count() == 1,
+        "input.ts: the non-passive wheel listener is attached only while Ctrl/Cmd is held",
+    );
+    let dialog = &file("components/Dialog.svelte").code;
+    need(
+        dialog.contains("aria-modal=\"true\"") && dialog.contains("tabindex=\"-1\""),
+        "Dialog.svelte: modal and focusable (a click on its text keeps the focus inside)",
+    );
+    let field = &file("components/TextField.svelte").code;
+    need(
+        field.matches("inField").count() >= 2 && field.contains("use:formKeys"),
+        "TextField.svelte: in-field buttons keep the caret; a search clears on Esc",
+    );
+    fail(&problems, "the keyboard stays native");
+}
+
 #[test]
 fn per_os_code_only_in_platform_ts() {
     let all = scanned(MIN_FILES);
@@ -558,41 +625,132 @@ fn per_os_code_only_in_platform_ts() {
     );
 }
 
+fn config(name: &str) -> serde_json::Value {
+    serde_json::from_str(&std::fs::read_to_string(repo(&format!("src-tauri/{name}"))).expect(name))
+        .unwrap_or_else(|e| panic!("{name}: {e}"))
+}
+
 /// Both OS show their native window frame (title bar, caption buttons, system menu, snap
-/// layouts): the page draws no title bar and has no drag region of its own.
+/// layouts); the page draws no title bar and no caption buttons. Windows: the native bar
+/// above the page (coloured in platform.rs). macOS: the unified toolbar row of a Mac app -
+/// the title bar transparent over the page, the title hidden, the traffic lights moved into
+/// the 52 px row; the page keeps that row free and marks its empty parts as drag regions
+/// (only `DragBand` and the list's first row, through Tauri's drag script).
 #[test]
-fn the_window_frame_is_native() {
+fn the_window_frame_is_native_on_both_os() {
     let all = scanned(MIN_FILES);
+    fail(
+        &find(&all, &["data-tauri-drag-region"], |s| {
+            s.is("components/DragBand.svelte") || s.is("features/jobs/ListHeader.svelte")
+        }),
+        "drag regions only in DragBand and the list's toolbar row",
+    );
     fail(
         &find(
             &all,
             &[
-                "data-tauri-drag-region",
+                "app-region",
                 "@tauri-apps/api/window",
                 "getCurrentWindow",
+                "startDragging",
                 "Segoe Fluent",
                 "Segoe MDL2",
             ],
             |_| false,
         ),
-        "no title bar in the page: the frame of the OS carries it",
+        "no title bar and no caption buttons in the page: the frame of the OS carries them",
     );
-    let config: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(repo("src-tauri/tauri.conf.json")).expect("tauri.conf.json"),
-    )
-    .expect("tauri.conf.json is JSON");
+    // The list row sets the attribute only where dragBands() says so (macOS).
+    let header = all
+        .iter()
+        .find(|s| s.is("features/jobs/ListHeader.svelte"))
+        .expect("ListHeader.svelte");
+    assert!(
+        header
+            .code
+            .contains("data-tauri-drag-region={dragBands() ? '' : undefined}"),
+        "the list row is a drag region on macOS only"
+    );
+
+    let shared = config("tauri.conf.json");
+    let window = &shared["app"]["windows"][0];
     assert_eq!(
-        config["app"]["windows"][0]["decorations"], true,
-        "the main window keeps the native frame"
+        window["decorations"], true,
+        "Windows keeps the native frame"
     );
-    for name in ["tauri.macos.conf.json", "tauri.windows.conf.json"] {
-        let text = std::fs::read_to_string(repo(&format!("src-tauri/{name}"))).expect(name);
-        for bad in ["\"decorations\": false", "titleBarStyle", "hiddenTitle"] {
-            assert!(
-                !text.contains(bad),
-                "{name}: {bad} (the native frame stays)"
-            );
-        }
+    let windows = std::fs::read_to_string(repo("src-tauri/tauri.windows.conf.json"))
+        .expect("tauri.windows.conf.json");
+    for bad in ["decorations", "titleBarStyle", "hiddenTitle"] {
+        assert!(!windows.contains(bad), "tauri.windows.conf.json: {bad}");
+    }
+    let macos = config("tauri.macos.conf.json");
+    let mac = &macos["app"]["windows"][0];
+    assert_eq!(mac["decorations"], true, "macOS keeps its native frame");
+    assert_eq!(mac["titleBarStyle"], "Overlay", "unified toolbar row");
+    assert_eq!(mac["hiddenTitle"], true, "the title stays set but hidden");
+    assert_eq!(
+        mac["trafficLightPosition"]["x"], 20,
+        "traffic lights at x 20"
+    );
+    // The platform file replaces the window array: apart from the title bar it is the same
+    // window as the shared one.
+    let mut same = mac.clone();
+    for key in ["titleBarStyle", "hiddenTitle", "trafficLightPosition"] {
+        same.as_object_mut().expect("window").remove(key);
+    }
+    assert_eq!(&same, window, "one window, two title bars");
+    // Small enough to snap into every Windows 11 layout, quarters of 1366 x 768 included.
+    let (min_width, min_height) = (window["minWidth"].as_u64(), window["minHeight"].as_u64());
+    assert!(
+        min_width.is_some_and(|w| w <= 480),
+        "minWidth {min_width:?}"
+    );
+    assert!(
+        min_height.is_some_and(|h| h <= 360),
+        "minHeight {min_height:?}"
+    );
+}
+
+/// The macOS toolbar row in the page matches the window: the band is as high as the row the
+/// traffic lights are centred in, and the rail is as wide as the lights.
+#[test]
+fn the_macos_toolbar_row_matches_the_traffic_lights() {
+    let tokens = std::fs::read_to_string(repo("ui/src/styles/tokens.css")).expect("tokens.css");
+    let px = |name: &str| -> u64 {
+        let line = tokens
+            .lines()
+            .find(|l| l.trim_start().starts_with(&format!("{name}:")))
+            .unwrap_or_else(|| panic!("{name} missing"));
+        line.split(':')
+            .nth(1)
+            .expect("value")
+            .trim()
+            .trim_end_matches(';')
+            .trim_end_matches("px")
+            .parse()
+            .unwrap_or_else(|e| panic!("{name}: {e}"))
+    };
+    let row = px("--mac-toolbar");
+    let lights =
+        config("tauri.macos.conf.json")["app"]["windows"][0]["trafficLightPosition"].clone();
+    let (x, y) = (
+        lights["x"].as_u64().expect("x"),
+        lights["y"].as_u64().expect("y"),
+    );
+    // The buttons' frame is 16 pt high: centred in the row.
+    assert_eq!(y + 8, row / 2, "traffic lights centred in the {row} px row");
+    // Three buttons of 14 pt, 6 pt apart, and room to the right.
+    assert!(
+        x + 3 * 14 + 2 * 6 < px("--traffic-lights-width"),
+        "the rail holds the lights"
+    );
+    let base = std::fs::read_to_string(repo("ui/src/styles/base.css")).expect("base.css");
+    for rule in [
+        "--window-top: var(--mac-toolbar);",
+        "--list-toolbar: var(--mac-toolbar);",
+        "--rail-width: var(--traffic-lights-width);",
+    ] {
+        assert!(base.contains(rule), "base.css (macOS): {rule}");
     }
 }
 
@@ -633,18 +791,18 @@ fn palette_rgb(tokens: &str, name: &str) -> [u8; 3] {
     [byte(red), byte(green), byte(blue)]
 }
 
-/// A `const NAME: [u8; 3] = [0x.., 0x.., 0x..];` of src-tauri/src/platform.rs.
+/// A `pub const NAME: Rgb = [0x.., 0x.., 0x..];` of src-tauri/src/platform.rs.
 fn platform_rgb(source: &str, name: &str) -> [u8; 3] {
     let line = source
         .lines()
         .find(|l| {
             l.trim_start()
-                .starts_with(&format!("const {name}: [u8; 3]"))
+                .starts_with(&format!("pub const {name}: Rgb"))
         })
         .unwrap_or_else(|| panic!("{name} missing in platform.rs"));
     let list = line
         .split('[')
-        .nth(2)
+        .nth(1)
         .expect("array")
         .split(']')
         .next()
@@ -668,22 +826,23 @@ fn the_title_bar_colours_are_the_tokens() {
         tokens.contains("--bg: hsl(var(--p-cream));"),
         "--bg is the cream"
     );
-    assert_eq!(platform_rgb(&platform, "CAPTION"), cream, "caption = --bg");
     assert_eq!(
-        platform_rgb(&platform, "TITLE"),
+        platform_rgb(&platform, "TITLE_BAR_BACKGROUND"),
+        cream,
+        "caption = --bg"
+    );
+    assert_eq!(
+        platform_rgb(&platform, "TITLE_BAR_TEXT"),
         palette_rgb(&tokens, "ink"),
         "title = --text"
     );
     assert_eq!(
-        platform_rgb(&platform, "TITLE_INACTIVE"),
+        platform_rgb(&platform, "TITLE_BAR_TEXT_INACTIVE"),
         palette_rgb(&tokens, "fg-subtle"),
         "inactive title = --text-subtle"
     );
-    let config: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(repo("src-tauri/tauri.conf.json")).expect("tauri.conf.json"),
-    )
-    .expect("tauri.conf.json is JSON");
-    let background = config["app"]["windows"][0]["backgroundColor"]
+    let shared = config("tauri.conf.json");
+    let background = shared["app"]["windows"][0]["backgroundColor"]
         .as_str()
         .expect("backgroundColor");
     assert_eq!(
@@ -718,7 +877,13 @@ fn motion_stays_quick_and_calm() {
             .parse()
             .expect("milliseconds")
     };
-    for name in ["--dur-instant", "--dur-fast", "--dur-base", "--dur-slow"] {
+    for name in [
+        "--dur-instant",
+        "--dur-hover",
+        "--dur-fast",
+        "--dur-base",
+        "--dur-slow",
+    ] {
         assert!(ms(name) <= 180, "{name} is {} ms (at most 180)", ms(name));
     }
     assert!(ms("--dur-reveal") <= 400, "--dur-reveal above 400 ms");
@@ -751,7 +916,8 @@ fn motion_stays_quick_and_calm() {
     fail(&problems, "quick, calm and cheap motion");
 }
 
-/// Coral-only brand (user decision): no second hue in a gradient, no gradient text, no
+/// Two brand colours with two jobs (user decisions): coral acts, navy orients - and they
+/// never blend. No second hue in a gradient (no coral-to-navy), no gradient text, no
 /// "sparkles" cliché.
 #[test]
 fn the_brand_stays_coral() {
@@ -769,6 +935,7 @@ fn the_brand_stays_coral() {
         if in_gradient
             && [
                 "--p-slate",
+                "--p-navy",
                 "--p-success",
                 "--p-info",
                 "--p-warning",

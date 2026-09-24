@@ -386,12 +386,6 @@ export const de = {
     profile: 'Profil',
     settings: 'Einstellungen',
   },
-  window: {
-    minimize: 'Minimieren',
-    maximize: 'Maximieren',
-    restore: 'Verkleinern',
-    close: 'Schließen',
-  },
   common: {
     loading: 'Wird geladen',
     cancel: 'Abbrechen',
@@ -765,12 +759,11 @@ export const de = {
       native: 'Muttersprache',
     } satisfies Record<LanguageLevel, string>,
     remoteWish: {
-      unset: 'Offen',
       full: 'Voll',
       mostly: 'Überwiegend',
       partly: 'Teilweise',
       onSite: 'Vor Ort',
-    } satisfies Record<RemoteWish | 'unset', string>,
+    } satisfies Record<RemoteWish, string>,
     availability: {
       unset: 'Offen',
       now: 'Sofort',
@@ -897,6 +890,8 @@ export const de = {
     last: (iso: string) => `Zuletzt ${formatMoment(iso)}`,
     showRun: 'Abruf anzeigen',
     runFailed: 'Abruf fehlgeschlagen',
+    /** Closing while a fetch runs: the window waits until it has stopped. */
+    closing: 'Der Abruf wird beendet, dann schließt die App.',
   },
   toast: {
     saved: 'Gespeichert.',
