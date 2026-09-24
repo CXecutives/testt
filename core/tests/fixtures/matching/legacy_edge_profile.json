@@ -1,0 +1,59 @@
+{
+  "Name": "Kim Beispiel",
+  "E-Mail": "kim@example.invalid",
+  "Skills": [
+    "Controlling",
+    "  SAP S/4HANA  ",
+    "Power BI",
+    ""
+  ],
+  "Profil": {
+    "Kompetenz": [
+      "Konsolidierung",
+      {
+        "skill": "LucaNet"
+      }
+    ],
+    "zitat": "Teamfähigkeit und Kommunikationsstärke"
+  },
+  "Werdegang": [
+    {
+      "Titel": "Interim CFO",
+      "Beschreibung": "Projektmanagement und Restrukturierung"
+    }
+  ],
+  "methoden_tools": [
+    "Jira",
+    {
+      "name": "Scrum",
+      "kompetenz": "Kanban"
+    }
+  ],
+  "keywords": [
+    {
+      "a": "HGB",
+      "b": 5
+    }
+  ],
+  "Sprachen": [
+    {
+      "sprache": "Englisch"
+    }
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 0,
+    "laender": [
+      "de",
+      "at"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "ANUE"
+    ],
+    "verfuegbar_ab": "",
+    "remote_ausserhalb_erlaubt": "ja"
+  },
+  "einsatzpraeferenzen": {
+    "tagessatz_ab": 999.9,
+    "verfuegbar_ab": "Sofort verfügbar"
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "name": "Jonas Muster",
+  "email": "jonas.muster@example.invalid",
+  "telefon": "+49 151 0000000",
+  "abschluss": "Diplom-Wirtschaftsinformatiker (FH)",
+  "kernkompetenzen": [
+    {
+      "kompetenz": "SAP-Projektleitung",
+      "jahre": 12
+    },
+    {
+      "kompetenz": "SAP S/4HANA Migration",
+      "jahre": 6
+    },
+    {
+      "kompetenz": "Programmmanagement",
+      "jahre": 8
+    },
+    {
+      "kompetenz": "Projektmanagement",
+      "jahre": 15
+    },
+    {
+      "kompetenz": "Rollout",
+      "jahre": 10
+    },
+    {
+      "kompetenz": "Go-Live und Hypercare",
+      "jahre": 9
+    },
+    {
+      "kompetenz": "Datenmigration",
+      "jahre": 8
+    },
+    {
+      "kompetenz": "Stammdatenmanagement",
+      "jahre": 7
+    },
+    {
+      "kompetenz": "Schnittstellen",
+      "jahre": 9
+    },
+    {
+      "kompetenz": "Requirements Engineering",
+      "jahre": 10
+    },
+    {
+      "kompetenz": "Testmanagement",
+      "jahre": 8
+    },
+    {
+      "kompetenz": "Stakeholder Management",
+      "jahre": 12
+    },
+    {
+      "kompetenz": "SAP SD",
+      "jahre": 10
+    },
+    {
+      "kompetenz": "SAP MM",
+      "jahre": 8
+    },
+    {
+      "kompetenz": "SAP EWM",
+      "jahre": 4
+    },
+    {
+      "kompetenz": "Order-to-Cash",
+      "jahre": 10
+    },
+    {
+      "kompetenz": "Procure-to-Pay",
+      "jahre": 7
+    }
+  ],
+  "methoden_tools": [
+    {
+      "name": "SAP S/4HANA"
+    },
+    {
+      "name": "SAP ECC"
+    },
+    {
+      "name": "SAP Solution Manager"
+    },
+    {
+      "name": "SAP Activate"
+    },
+    {
+      "name": "Scrum"
+    },
+    {
+      "name": "SAFe"
+    },
+    {
+      "name": "Jira"
+    },
+    {
+      "name": "Confluence"
+    },
+    {
+      "name": "MS Project"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "PMP"
+    },
+    {
+      "name": "Certified ScrumMaster"
+    },
+    {
+      "name": "SAP Certified Associate - SAP Activate Project Manager"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Automotive"
+    },
+    {
+      "branche": "Handel"
+    },
+    {
+      "branche": "Logistik"
+    },
+    {
+      "branche": "Pharma"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C1"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Zwölf SAP-Rollouts in acht Ländern",
+    "Brücke zwischen Fachbereich und IT"
+  ],
+  "keywords": [
+    "SAP",
+    "S/4HANA",
+    "Projektleitung",
+    "PMO",
+    "Migration",
+    "Cutover"
+  ],
+  "einsatzpraeferenzen": {
+    "tagessatz_ab": 950,
+    "verfuegbar_ab": "01.11.2026",
+    "remote": "mindestens 50 %"
+  },
+  "harte_kriterien": {
+    "laender": [
+      "DE",
+      "AT"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "anue"
+    ],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "ab 01.11.2026"
+  }
+}

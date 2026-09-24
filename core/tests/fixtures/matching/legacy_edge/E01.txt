@@ -1,0 +1,13 @@
+Titel: Inline-Überschrift
+Unternehmen: Beispiel GmbH
+Ort: D-10115 Berlin
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=01000
+Abgerufen am: 16.09.2026 07:30
+
+Projektbeschreibung
+Aufbau eines Reportings für eine mittelständische Gruppe.
+
+Ihr Profil
+Anforderungen: Erfahrung mit SAP S/4HANA und im Controlling
+- Kenntnisse in Power BI

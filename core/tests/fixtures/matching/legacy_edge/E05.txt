@@ -1,0 +1,9 @@
+Titel: Nur Fachbegriffe
+Unternehmen: Beispiel GmbH
+Ort: D-10115 Berlin
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=05000
+Abgerufen am: 16.09.2026 07:30
+
+Unser Kunde arbeitet mit SAP, SAP S/4HANA, SAP HANA, Python, Kubernetes und Design Thinking
+in einem agilen Umfeld mit vielen Schnittstellen, Power BI Dashboards und Treasury-Themen.
