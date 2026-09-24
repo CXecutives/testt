@@ -4,15 +4,14 @@
   read), the ring, then the title on up to two lines with the relative date at its end,
   company and place, and one line with the ad's key facts ("ab sofort · 6 Monate · 60 %
   remote · 1.100 €"; the best met requirement when the ad states none) and a status badge
-  right after it only when something deviates. Without a ring (no usable profile) the dot sits
-  on the title axis and the row shows no reason line: the reasons belong to a match.
+  right after it only when something deviates. Without a usable profile the ring stays, empty
+  (a dash), and the row shows no reason line: the reasons belong to a match.
   The star to pin sits below the date: filled when pinned, otherwise it appears on hover (a
   sibling of the row button, so it never selects the row; the row keeps its hover while
   the pointer is on the star). An excluded row is muted as a whole, its dot and star too.
   When a job is read while its row is on screen the dot shrinks away; an excluded row has
   no dot (no count includes it). Under the date, on hover: archive (or bring back) and the
-  star (a pinned star always shows). A quiet badge says where the user's application
-  stands (Beworben, Im Gespräch, Zusage, Absage); pinned needs none (the star). A date older
+  star (a pinned star always shows). A date older
   than ten days sits on a quiet tint. A score from a teaser is a provisional ring. A cut-off
   title shows in full in a tooltip. Layout stays inside the row (containment); like the
   row, its hover waits while the list scrolls (`:root:not([data-scrolling])`).
@@ -22,7 +21,7 @@
   import { de } from '$lib/i18n/de';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
   import { factWords, rowReason } from '$lib/i18n/texts';
-  import type { AppStatus, JobView } from '$lib/ipc/types';
+  import type { JobView } from '$lib/ipc/types';
   import { dotOut } from '$lib/motion/transitions';
   import Badge, { type BadgeTone } from './Badge.svelte';
   import Button from './Button.svelte';
@@ -36,7 +35,7 @@
     selected?: boolean;
     /** Scoring is still running for this job. */
     pending?: boolean;
-    /** Show the ring (off without a profile: there is no match to show). */
+    /** A usable profile is there (without one the ring is an empty placeholder: no match). */
     ring?: boolean;
     /** Fixed "now" for relative dates (gallery and tests). */
     now?: Date;
@@ -67,7 +66,6 @@
   /** A date this old is marked (days). */
   const AGED_DAYS = 10;
   const DAY_MS = 86_400_000;
-  const APP_TONE: Record<Exclude<AppStatus, 'saved'>, BadgeTone> = { sent: 'neutral' };
 
   const excluded = $derived(job.match?.status === 'excluded');
   const when = $derived(job.mailDate ?? job.firstSeenAt);
@@ -75,12 +73,6 @@
     aged ?? (now ?? new Date()).getTime() - new Date(when).getTime() > AGED_DAYS * DAY_MS,
   );
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
-  /** Where the user's application stands (saved needs no badge: the star says it). */
-  const status = $derived(
-    job.appStatus && job.appStatus !== 'saved'
-      ? { label: de.reader.appStatus[job.appStatus], tone: APP_TONE[job.appStatus] }
-      : null,
-  );
   const reason = $derived(ring ? rowReason(job) : null);
   const facts = $derived(ring ? factWords(job.match?.facts) : []);
   const heading = $derived(job.title ? displayTitle(job.title) : de.job.untitled);
@@ -104,12 +96,10 @@
 </script>
 
 {#snippet ringCell()}
-  <ScoreRing ring={ringState(job.match, pending, job.detail.kind)} size="sm" />
-{/snippet}
-
-<!-- Without a ring an empty leading slot keeps the gap between the dot and the title. -->
-{#snippet gutter()}
-  <span class="gutter"></span>
+  <ScoreRing
+    ring={ring ? ringState(job.match, pending, job.detail.kind) : { status: 'off' }}
+    size="sm"
+  />
 {/snippet}
 
 {#snippet endCell()}
@@ -123,9 +113,9 @@
   {/if}
 {/snippet}
 
-<div class="job" class:pinned={job.pinned} class:muted={excluded} class:ringless={!ring}>
+<div class="job" class:pinned={job.pinned} class:muted={excluded}>
   <ListRow
-    leading={ring ? ringCell : gutter}
+    leading={ringCell}
     trailing={endCell}
     {selected}
     muted={excluded}
@@ -147,7 +137,6 @@
       {:else if reason}
         <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
       {/if}
-      {#if status}<Badge label={status.label} tone={status.tone} />{/if}
       {#if deviation}<Badge
           label={deviation.label}
           tone={deviation.tone}
@@ -219,11 +208,6 @@
     pointer-events: none;
   }
 
-  /* Without a ring the dot sits on the axis of the title line. */
-  .ringless .dot {
-    top: calc(var(--space-12) + (var(--leading-title) - var(--dot-unread)) / 2);
-  }
-
   /* A long title takes a second line (the row grows by one line); past that it ends in an
      ellipsis and shows in full in a tooltip. */
   .title {
@@ -239,10 +223,6 @@
 
   .title.unread {
     font-weight: var(--weight-semibold);
-  }
-
-  .gutter {
-    width: 0;
   }
 
   .meta {

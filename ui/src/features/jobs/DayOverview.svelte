@@ -1,7 +1,7 @@
 <!--
   The reader's empty state: what the sheet shows while no job is selected, unboxed like the
-  reader. It answers "what now" in a short list, no counts (the list header counts): without
-  a usable profile a calm card that leads to one, "Beste Passung" (the three best scored new
+  reader. It answers "what now" in a short list, no counts (the list header counts): "Neu
+  und passend" (the three best scored new
   jobs as list rows; a click opens the job), the open points (one per portal and problem, a
   failed fetch, each with its action) only when there are any, and at the end the overview
   file, the Excel file and the folder, their one place in the Jobs view, and the best
@@ -12,7 +12,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
-  import Card from '$components/Card.svelte';
   import JobRow from '$components/JobRow.svelte';
   import Notice from '$components/Notice.svelte';
   import { de } from '$lib/i18n/de';
@@ -21,8 +20,6 @@
   import type { EmptyAlert, JobView, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
-  import { navigation } from '$lib/state/navigation.svelte';
-  import { editor } from '$lib/state/profile.svelte';
   import { copyTopPrompt } from './prompt';
   import { run } from '$lib/state/run.svelte';
 
@@ -127,25 +124,6 @@
     return previous.outcome.error;
   });
   const hasIssues = $derived(portalIssues.length > 0 || lastFailure !== null);
-  const profileMissing = $derived(app.state !== null && !app.hasProfile);
-  // A profile that is there but cannot be used is named, and the card leads to it.
-  const profileCard = $derived.by(() => {
-    const profile = app.state?.profile ?? null;
-    if (profile === null) {
-      return {
-        heading: de.overview.noProfile,
-        text: de.overview.noProfileText,
-        label: de.list.createProfile,
-        icon: 'file-text' as const,
-      };
-    }
-    return {
-      heading: profile.parseError ? de.overview.profileUnreadable : de.overview.profileEmpty,
-      text: de.overview.profileBrokenText,
-      label: de.list.openProfile,
-      icon: 'user-round' as const,
-    };
-  });
   const fetchedOnce = $derived((run.summary ?? app.state?.lastRun ?? null) !== null);
   let actionError = $state<string | null>(null);
 
@@ -156,28 +134,6 @@
 </script>
 
 <div class="overview" data-testid="day-overview" aria-label={de.overview.label}>
-  {#if profileMissing}
-    <Card variant="tinted" padding="md" testid="no-profile">
-      <div class="profile">
-        <div class="profile-copy">
-          <h2 class="card-heading">{profileCard.heading}</h2>
-          <p class="card-text">{profileCard.text}</p>
-        </div>
-        <Button
-          variant="secondary"
-          icon={profileCard.icon}
-          label={profileCard.label}
-          testid="choose-profile"
-          onclick={() => {
-            // No profile yet: straight into the empty form, one click.
-            if (app.state?.profile == null) editor.create();
-            navigation.go('profile');
-          }}
-        />
-      </div>
-    </Card>
-  {/if}
-
   {#if topError}
     <section class="block" data-testid="best-error">
       <Notice
@@ -299,32 +255,6 @@
     flex-direction: column;
     margin: 0 calc(-1 * var(--pane-padding));
     clip-path: inset(0 0 var(--border-width) 0);
-  }
-
-  .profile {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-12) var(--space-16);
-  }
-
-  .profile-copy {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    min-width: 0;
-  }
-
-  .card-heading {
-    color: var(--text-heading);
-    font: var(--type-md);
-    font-weight: var(--weight-medium);
-  }
-
-  .card-text {
-    color: var(--text-muted);
-    font: var(--type-sm);
   }
 
   /* Sections like the reader's: a hairline above, the heading, the content (the first one

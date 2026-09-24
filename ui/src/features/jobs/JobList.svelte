@@ -11,8 +11,9 @@
   leads to the archived jobs. An empty list says where jobs come from (an alert on each
   portal, older mails). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
-  view's primary). Without a mailbox one note says how to connect one; a missing profile is
-  said once, in the day overview.
+  view's primary). Without a mailbox one slim note at the top says how to connect one;
+  without a usable profile one says that there is no fit without it and leads to the Profil
+  view (the rings stay, empty).
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
@@ -31,6 +32,7 @@
   import { app } from '$lib/state/app.svelte';
   import { isExcluded, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
+  import { editor } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
   import { archive } from './archive';
 
@@ -49,6 +51,24 @@
   const mailRead = $derived(lastFetch?.outcome.kind === 'completed' && lastFetch.scan !== null);
   const searching = $derived(jobs.search.trim() !== '');
   const profileMissing = $derived(app.state !== null && !app.hasProfile);
+  // No profile: the fit needs one. One that is there but cannot be used is named.
+  const profileNote = $derived.by(() => {
+    const profile = app.state?.profile ?? null;
+    if (profile === null) {
+      return { heading: null, text: de.list.noProfile, label: de.list.createProfile };
+    }
+    return {
+      heading: profile.parseError ? de.list.profileUnreadable : de.list.profileEmpty,
+      text: de.list.profileBrokenText,
+      label: de.list.openProfile,
+    };
+  });
+
+  function toProfile(): void {
+    // No profile yet: straight into the empty form, one click.
+    if (app.state?.profile == null) editor.create();
+    navigation.go('profile');
+  }
   const mailboxMissing = $derived(app.state !== null && !app.hasMailbox);
   // Jobs without a match get one soon while a run goes or a rescore is pending.
   const pending = $derived(app.hasProfile && (run.active || (app.state?.matchPending ?? 0) > 0));
@@ -179,9 +199,23 @@
     <div class="note">
       <Notice
         tone="info"
+        variant="row"
         text={de.list.noMailbox}
         action={{ label: de.list.connectMailbox, onclick: () => navigation.go('settings') }}
         testid="no-mailbox"
+      />
+    </div>
+  {/if}
+
+  {#if profileMissing}
+    <div class="note">
+      <Notice
+        tone="info"
+        variant="row"
+        heading={profileNote.heading}
+        text={profileNote.text}
+        action={{ label: profileNote.label, onclick: toProfile }}
+        testid="no-profile"
       />
     </div>
   {/if}
@@ -356,8 +390,9 @@
     min-height: 0;
   }
 
+  /* A slim line at the top of the list (no mailbox, no profile). */
   .note {
-    padding: var(--pane-padding);
+    padding: var(--space-12) var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
   }
 

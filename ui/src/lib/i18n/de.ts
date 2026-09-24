@@ -504,6 +504,8 @@ export const de = {
     unscorable: 'Nicht bewertbar',
     pending: 'Wird bewertet',
     none: 'Noch nicht bewertet',
+    /** A ring without a usable profile. */
+    off: 'Ohne Profil keine Passung',
     band: {
       high: 'Hohe Passung',
       mid: 'Mittlere Passung',
@@ -570,7 +572,6 @@ export const de = {
     facetNew: 'Neu',
     facetAll: 'Alle',
     facetSaved: 'Favoriten',
-    facetSent: 'Beworben',
     /** The order of the list in words (the sort button). */
     sortLabel: {
       match: 'Beste Passung',
@@ -701,6 +702,11 @@ export const de = {
     createProfile: 'Profil anlegen',
     openProfile: 'Profil öffnen',
     noMailbox: 'Ohne Postfach kommen keine neuen Jobs dazu.',
+    /** No usable profile: said once, at the top of the list. */
+    noProfile: 'Ohne Profil gibt es keine Passung.',
+    profileUnreadable: 'Profil nicht lesbar',
+    profileEmpty: 'Profil ohne Kompetenzen',
+    profileBrokenText: 'Die Jobs zeigen deshalb keine Passung.',
     connectMailbox: 'Postfach verbinden',
     filter: {
       high: 'Hohe Passung',
@@ -778,8 +784,6 @@ export const de = {
       'Kopiert Anzeige und Profil als fertigen Prompt für ChatGPT, Claude oder eine andere KI.',
     /** Under the band of a score that comes from a teaser only. */
     preliminary: 'Vorläufig, aus einem Anriss bewertet',
-    noteLabel: 'Notiz',
-    status: 'Bewerbung',
     appStatus: {
       saved: 'Favorit',
       sent: 'Beworben',
@@ -820,11 +824,6 @@ export const de = {
         ? 'Eine Alert-Mail enthielt keine Jobs.'
         : `${n(value)} Alert-Mails enthielten keine Jobs.`,
     lastRun: 'Letzter Abruf',
-    noProfile: 'Noch kein Profil',
-    noProfileText: 'Mit einem Profil zeigt jeder Job, wie gut er passt.',
-    profileUnreadable: 'Profil nicht lesbar',
-    profileEmpty: 'Profil ohne Kompetenzen',
-    profileBrokenText: 'Die Jobs zeigen deshalb keine Passung.',
   },
   health: {
     layoutText: (mails: number) =>

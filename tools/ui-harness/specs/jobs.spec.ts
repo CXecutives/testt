@@ -186,7 +186,7 @@ test('a job that cannot be scored says why, once', async ({ page }) => {
   await expect(page.getByTestId('why')).toHaveCount(0);
 });
 
-test('one place for filters: Neu, Alle, Favoriten, Beworben; the overview says what now', async ({
+test('one place for filters: Neu, Alle, Favoriten; the overview says what now', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -211,13 +211,12 @@ test('one place for filters: Neu, Alle, Favoriten, Beworben; the overview says w
     'true',
   );
   await expect(rows(page)).toHaveCount(await segmentCount(page, 'Favoriten'));
-  await facet.getByRole('radio', { name: /Beworben/ }).click();
-  await expect(page.getByTestId('list-scroll')).toBeVisible();
   expect(await calls(page, 'list_jobs')).toContainEqual([
     'list_jobs',
-    expect.objectContaining({ query: expect.objectContaining({ facet: 'sent' }) }),
+    expect.objectContaining({ query: expect.objectContaining({ facet: 'saved' }) }),
   ]);
-  await expect(rows(page)).toHaveCount(await segmentCount(page, 'Beworben'));
+  // No application marks: no "Beworben" anywhere.
+  await expect(facet.getByRole('radio', { name: /Beworben/ })).toHaveCount(0);
 });
 
 test('the reader summary agrees with the listed must requirements', async ({ page }) => {
@@ -338,31 +337,28 @@ test('no search hit: one empty state with a way back', async ({ page }) => {
   await expect(rows(page).first()).toBeVisible();
 });
 
-test('without a profile: no rings, newest first, the overview leads to one', async ({ page }) => {
+test('without a profile: empty rings, newest first, one line in the list leads to one', async ({
+  page,
+}) => {
   await open(page, `${WIN}&scenario=no-profile`);
-  // Said once, in the overview: a calm card, no best matches without a profile.
-  await expect(page.getByTestId('no-profile')).toBeVisible();
+  // Said once, at the top of the list; no best matches without a profile.
+  const notice = page.getByTestId('no-profile');
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveText(/Ohne Profil gibt es keine Passung\./);
+  expect(await page.getByTestId('job-list').getByTestId('no-profile').count()).toBe(1);
+  await expect(page.getByTestId('day-overview').getByTestId('no-profile')).toHaveCount(0);
   await expect(page.getByTestId('best')).toHaveCount(0);
-  await expect(page.getByTestId('no-profile').locator('.btn.primary')).toHaveCount(0);
+  await expect(notice.locator('.btn.primary')).toHaveCount(0);
   await expect(page.getByTestId('sort')).toHaveCount(0);
-  await expect(rows(page).first().locator('[role="img"][aria-label^="Passung"]')).toHaveCount(0);
-  // Without a ring the reasons of an old match are not shown either, and the unread dot
-  // keeps its gutter before the title.
+  // Every row keeps its ring, empty: the titles stand where they always do.
+  await expect(
+    rows(page).first().getByRole('img', { name: 'Ohne Profil keine Passung' }),
+  ).toHaveCount(1);
   await expect(rows(page).first().locator('.reason')).toHaveCount(0);
-  const gap = await rows(page)
-    .first()
-    .locator('xpath=..')
-    .evaluate((row) => {
-      const dot = row.querySelector('.dot')!.getBoundingClientRect();
-      const title = row.querySelector('.title')!.getBoundingClientRect();
-      return title.left - dot.right;
-    });
-  expect(gap).toBeGreaterThanOrEqual(10);
   const query = (await calls(page, 'list_jobs'))[0]?.[1] as { query: { sort: string } };
   expect(query.query.sort).toBe('newest');
-  // The way on is the Profil view with its three ways in.
   // The way on is the empty profile form, in one click.
-  await page.getByTestId('no-profile').getByRole('button').click();
+  await notice.getByRole('button', { name: 'Profil anlegen' }).click();
   await expect(page.getByTestId('profile-form')).toBeVisible();
   await expect(page.getByTestId('profile-name')).toHaveText('Neues Profil');
 });
@@ -378,14 +374,12 @@ test('an empty list and a first fetch without news', async ({ page }) => {
   await expect(page.getByTestId('overview-open')).toBeVisible();
 });
 
-test('an unusable profile: the overview names it and leads to the Profil view', async ({
-  page,
-}) => {
+test('an unusable profile: the list names it and leads to the Profil view', async ({ page }) => {
   await open(page, `${WIN}&scenario=profile-broken`);
-  const card = page.getByTestId('no-profile');
-  await expect(card.getByRole('heading')).toHaveText('Profil nicht lesbar');
-  await expect(card).toContainText('Die Jobs zeigen deshalb keine Passung.');
-  await card.getByRole('button', { name: 'Profil öffnen' }).click();
+  const notice = page.getByTestId('no-profile');
+  await expect(notice).toContainText('Profil nicht lesbar');
+  await expect(notice).toContainText('Die Jobs zeigen deshalb keine Passung.');
+  await notice.getByRole('button', { name: 'Profil öffnen' }).click();
   await expect(page.getByTestId('view-profile')).toBeVisible();
 });
 
@@ -787,7 +781,7 @@ test('the day overview: its best jobs open the reader', async ({ page }) => {
   await expect(page.getByTestId('reader-title')).toHaveText(title);
 });
 
-test('the reader marks a job: status, note, archive in place with undo, a prompt', async ({
+test('the reader: one row of alike actions, archive in place with undo, a prompt', async ({
   page,
   browserName,
 }) => {
@@ -796,27 +790,26 @@ test('the reader marks a job: status, note, archive in place with undo, a prompt
   const first = rows(page).first();
   await first.click();
   await expect(page.getByTestId('reader')).toBeVisible();
-  // One mark "Beworben" with its date; again clears it.
-  await page.getByTestId('status-sent').click();
-  await expect(page.getByTestId('status-sent')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('status-since')).toBeVisible();
-  await page.getByTestId('status-sent').click();
-  await expect(page.getByTestId('status-sent')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('status-since')).toHaveCount(0);
-  expect((await calls(page, 'set_app_status')).map(([, args]) => args)).toEqual([
-    expect.objectContaining({ status: 'sent' }),
-    expect.objectContaining({ status: null }),
-  ]);
-  // The note saves when the field is left; Esc takes the stored one back.
-  const note = page.getByTestId('note');
-  await note.fill('Agentur anrufen');
-  await page.getByTestId('reader-title').click();
-  await expect
-    .poll(async () => (await calls(page, 'set_note')).map(([, args]) => args))
-    .toEqual([expect.objectContaining({ note: 'Agentur anrufen' })]);
-  await note.fill('etwas anderes');
-  await note.press('Escape');
-  await expect(note).toHaveValue('Agentur anrufen');
+  // Open the ad, the alert mail, the prompt: one row, the same outlined buttons, no marks.
+  const actions = page.getByTestId('open-ad').locator('xpath=..');
+  expect(
+    await actions.evaluate((row) =>
+      [...row.querySelectorAll('.btn')].map((button) => button.getAttribute('data-testid')),
+    ),
+  ).toEqual(['open-ad', 'open-mail', 'prompt']);
+  await expect(actions.locator('.btn:not(.secondary)')).toHaveCount(0);
+  await expect(page.getByTestId('applied')).toHaveCount(0);
+  await expect(page.getByTestId('note')).toHaveCount(0);
+  // The action row stays one line: a narrow reader says only "KI-Bewertung", wide the whole.
+  const actionTops = async (): Promise<number> =>
+    actions.evaluate(
+      (row) => new Set([...row.children].map((child) => child.getBoundingClientRect().top)).size,
+    );
+  expect(await actionTops()).toBe(1);
+  await expect(page.getByTestId('prompt')).toHaveText('KI-Bewertung');
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await expect(page.getByTestId('prompt')).toHaveText('Prompt für KI-Bewertung kopieren');
+  expect(await actionTops()).toBe(1);
   // A prompt for any AI chat.
   if (browserName === 'chromium') {
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);

@@ -7,33 +7,31 @@
   open (must before nice, only "Kann" carries a badge), what to check and what excludes;
   hovering a reason lights its passage in the ad text below, a click scrolls to it. Title,
   facts and the ad text are selectable and copy with Ctrl/Cmd+C (`data-copy`).
-  Actions by weight: at the end of the title line the star (Merken), Archivieren and a quiet
+  Actions by weight: at the end of the title line the star (Favorit), Archivieren and a quiet
   close back to the day overview (below 900 px the view's back button does); below the match
-  line "Anzeige öffnen" first, then "Als Prompt kopieren" (the job as a prompt for any AI
-  chat), the alert mail and "Details holen" when the details are missing (right under the
-  band when the job has no score yet). Then the user's own marks: where the application
-  stands (one chip per step, the chosen one again clears it, with the time it was set) and
-  a note that saves when the field is left (Enter saves, Esc takes the stored one back).
+  line one row of outlined buttons, all alike: "Anzeige öffnen", "Alert-Mail öffnen",
+  "Prompt für KI-Bewertung kopieren" (the job as a prompt for any AI chat; "KI-Bewertung"
+  where the whole label does not fit) and "Details holen" when the details are missing (right
+  under the band when the job has no score yet).
   After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
   that jumps to its passage makes the passage flash once when it has arrived. Once the
   action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
   it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick } from 'svelte';
   import Button from '$components/Button.svelte';
   import Chip from '$components/Chip.svelte';
   import Count from '$components/Count.svelte';
   import Dialog from '$components/Dialog.svelte';
   import Icon, { type IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
-  import TextField from '$components/TextField.svelte';
   import ReasonItem from '$components/ReasonItem.svelte';
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
   import { inView, scrollArea } from '$lib/actions/inView';
   import { tooltip } from '$lib/actions/tooltip';
   import { de, type CriterionState } from '$lib/i18n/de';
-  import { displayTitle, formatDate, formatRelative } from '$lib/i18n/format';
+  import { displayTitle, formatDate } from '$lib/i18n/format';
   import {
     criterionKey,
     criterionState,
@@ -45,8 +43,7 @@
     reasonText,
   } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import { formKeys } from '$lib/input/input';
-  import type { AppStatus, JobDetail, OpenTarget, Reason } from '$lib/ipc/types';
+  import type { JobDetail, OpenTarget, Reason } from '$lib/ipc/types';
   import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf } from '$lib/state/jobs.svelte';
@@ -243,26 +240,43 @@
   /** A score from a teaser only is a first guess. */
   const preliminary = $derived(match?.status === 'scored' && detailKind === 'teaser');
 
-  const STATUSES: readonly AppStatus[] = ['sent'];
-  /** The note as typed; the stored one is the detail's. */
-  let note = $state(untrack(() => detail.note ?? ''));
+  /** The action row stays one line: where the whole label does not fit, the prompt action
+   *  says only "KI-Bewertung" (its tooltip says what it copies). Tried again whenever the
+   *  row's width changes (before the frame is painted). */
+  let actions = $state<HTMLElement | null>(null);
+  let promptShort = $state(false);
 
-  async function setStatus(status: AppStatus): Promise<void> {
-    actionError = null;
-    const error = await jobs.setAppStatus(job.key, job.appStatus === status ? null : status);
-    if (error !== null) actionError = error;
+  function oneLine(row: HTMLElement): boolean {
+    const first = row.firstElementChild;
+    const last = row.lastElementChild;
+    return !(first instanceof HTMLElement && last instanceof HTMLElement)
+      ? true
+      : first.offsetTop === last.offsetTop;
   }
 
-  async function saveNote(): Promise<void> {
-    if (note.trim() === (detail.note ?? '').trim()) return;
-    actionError = null;
-    const error = await jobs.setNote(job.key, note);
-    if (error !== null) actionError = error;
-  }
-
-  function revertNote(): void {
-    note = detail.note ?? '';
-  }
+  $effect(() => {
+    const row = actions;
+    if (row === null) return;
+    let width = -1;
+    let frame = 0;
+    const observer = new ResizeObserver(([entry]) => {
+      const next = entry?.contentRect.width ?? 0;
+      if (next === width) return;
+      width = next;
+      // In the next frame, before it is painted: changing the row inside the callback
+      // would make the observer report again in the same frame (a loop).
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        promptShort = false;
+        void tick().then(() => (promptShort = !oneLine(row)));
+      });
+    });
+    observer.observe(row);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  });
 
   async function copyPrompt(): Promise<void> {
     actionError = null;
@@ -592,7 +606,7 @@
     </div>
   {/if}
 
-  <div class="actions">
+  <div class="actions" bind:this={actions}>
     <Button
       variant="secondary"
       icon="external-link"
@@ -600,27 +614,27 @@
       testid="open-ad"
       onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
     />
-    <span class="with-hint" use:tooltip={de.reader.promptHint}>
-      <Button
-        variant="ghost"
-        icon="copy"
-        label={de.reader.prompt}
-        testid="prompt"
-        onclick={() => void copyPrompt()}
-      />
-    </span>
     {#if detail.mail.gmailUrl}
       <Button
-        variant="ghost"
+        variant="secondary"
         icon="mail"
         label={de.reader.mail}
         testid="open-mail"
         onclick={() => openTarget({ kind: 'gmail', key: job.key })}
       />
     {/if}
+    <span class="with-hint" use:tooltip={de.reader.promptHint}>
+      <Button
+        variant="secondary"
+        icon="copy"
+        label={promptShort ? de.reader.promptShort : de.reader.prompt}
+        testid="prompt"
+        onclick={() => void copyPrompt()}
+      />
+    </span>
     {#if canFetch && !fetchUnderBand}
       <Button
-        variant="ghost"
+        variant="secondary"
         icon="download"
         label={de.reader.fetchDetails}
         disabled={run.active}
@@ -629,36 +643,6 @@
         onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
       />
     {/if}
-  </div>
-  <div class="marks">
-    <div class="status" role="group" aria-label={de.reader.status} data-testid="status">
-      {#each STATUSES as status (status)}
-        <Button
-          variant="secondary"
-          size="sm"
-          label={de.reader.appStatus[status]}
-          pressed={job.appStatus === status}
-          testid="status-{status}"
-          onclick={() => void setStatus(status)}
-        />
-      {/each}
-      {#if job.appStatus === 'sent' && job.statusAt}
-        <span class="since" data-testid="status-since">{formatRelative(job.statusAt)}</span>
-      {/if}
-    </div>
-    <span
-      class="note"
-      onfocusout={() => void saveNote()}
-      use:formKeys={{ save: () => void saveNote(), cancel: revertNote }}
-    >
-      <TextField
-        value={note}
-        label={de.reader.noteLabel}
-        placeholder={de.reader.noteLabel}
-        testid="note"
-        oninput={(value) => (note = value)}
-      />
-    </span>
   </div>
   <span class="past-actions" use:inView={(place) => (compact = place === 'above')}></span>
   {#if actionError}
@@ -1014,32 +998,6 @@
   .fetch-here {
     display: flex;
     margin-top: var(--space-2);
-  }
-
-  /* The user's own marks: the step of the application, the note. */
-  .marks {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-  }
-
-  .status {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-6);
-  }
-
-  .since {
-    margin-left: var(--space-2);
-    color: var(--text-muted);
-    font: var(--type-sm);
-    font-variant-numeric: var(--numeric);
-  }
-
-  .note {
-    display: flex;
-    max-width: var(--list-max);
   }
 
   /* The evidence of a point, quiet under it (on the axis of its words). */
