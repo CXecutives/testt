@@ -1,15 +1,16 @@
 <!--
-  The run card above the list, shown only while a run is going or right after it (or when
-  the run status in the sidebar is clicked); it collapses to its header line and closes.
-  running: the steps Postfach, Details, Bewertung with the brand meter, one line per portal,
-  the countdown of a pause and every limit or pause with its reason and end.
+  The run panel on top of the list (flat on the sheet, a hairline below), shown only while a
+  run is going or right after it (or when the run status in the sidebar is clicked); it
+  collapses to its header line and closes.
+  running: the header with the countdown of a pause and the progress bar right below it,
+  the steps Postfach, Details, Bewertung (16 px check / loader / circle), one line per
+  portal (monogram tiles of one width) and every limit or pause with its reason and end.
   finished: how many new and well-fitting jobs, what went wrong with a fitting action, the
   overview and the folder, the history with copy.
 -->
 <script lang="ts">
   import Badge from '$components/Badge.svelte';
   import Button from '$components/Button.svelte';
-  import Card from '$components/Card.svelte';
   import Disclosure from '$components/Disclosure.svelte';
   import Icon from '$components/Icon.svelte';
   import { PORTAL_MONOGRAM } from '$components/IconTile.svelte';
@@ -97,6 +98,27 @@
     <span class="title">{text}</span>
     {#if extra}<span class="extra" data-testid="countdown">{extra}</span>{/if}
     <span class="tools">
+      {#if !run.active}
+        <!-- System actions stay quiet: icons with tooltips, like in the day overview. -->
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          icon="external-link"
+          label={de.run.openOverview}
+          testid="open-overview"
+          onclick={() => openTarget({ kind: 'overview' })}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          icon="folder-open"
+          label={de.common.openFolder}
+          testid="open-folder"
+          onclick={() => openTarget({ kind: 'workspace' })}
+        />
+      {/if}
       <Button
         variant="ghost"
         size="sm"
@@ -121,7 +143,7 @@
   </div>
 {/snippet}
 
-<Card padding="md" testid="run-card">
+<section class="panel" data-testid="run-card">
   {#if run.active}
     <div class="running" data-testid="run-running">
       <div class="lead">
@@ -131,6 +153,7 @@
           run.waitLeft !== null ? de.run.resumesIn(run.waitLeft) : null,
         )}
       </div>
+      <Meter value={run.fraction} size="sm" label={de.toolbar.progress} />
       {#if open}
         <ol class="steps">
           {#each STEPS as step (step)}
@@ -138,21 +161,18 @@
             {@const progress = run.progress[step]}
             <li class="step {state}" data-testid="step-{step}">
               <span class="mark">
-                {#if state === 'done'}<Icon name="check" size="sm" />{:else}<span class="dot"
-                  ></span>{/if}
+                <Icon
+                  name={state === 'done'
+                    ? 'check'
+                    : state === 'current'
+                      ? 'loader-circle'
+                      : 'circle'}
+                  size="sm"
+                />
               </span>
               <span class="name">{de.run.step[step]}</span>
               {#if progress && progress.total > 0}
                 <span class="count">{de.run.of(progress.done, progress.total)}</span>
-              {/if}
-              {#if state === 'current'}
-                <span class="meter">
-                  <Meter
-                    value={progress && progress.total > 0 ? progress.done / progress.total : null}
-                    size="md"
-                    label={de.run.step[step]}
-                  />
-                </span>
               {/if}
             </li>
           {/each}
@@ -174,14 +194,14 @@
         {#each pauses as [portal, health] (portal)}
           <Notice
             tone="warning"
-            variant="row"
+            variant="inline"
             heading={de.portal[portal]}
             text={healthText(health).text ?? ''}
             testid="pause-{portal}"
           />
         {/each}
         {#if run.loginNeeded}
-          <Notice tone="info" variant="row" text={de.settings.signInWaiting} />
+          <Notice tone="info" variant="inline" text={de.settings.signInWaiting} />
         {/if}
       {/if}
     </div>
@@ -219,23 +239,6 @@
             text={de.run.filesFailed(summary.export?.txtFailed ?? 0)}
           />
         {/if}
-        <div class="actions">
-          <Button
-            variant="secondary"
-            size="sm"
-            icon="external-link"
-            label={de.run.openOverview}
-            testid="open-overview"
-            onclick={() => openTarget({ kind: 'overview' })}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="folder-open"
-            label={de.common.openFolder}
-            onclick={() => openTarget({ kind: 'workspace' })}
-          />
-        </div>
         {#if run.history.length > 0}
           <Disclosure label={de.run.history} testid="run-history">
             <ol class="history">
@@ -257,9 +260,17 @@
   {#if actionError}
     <Notice tone="danger" variant="inline" text={actionError} />
   {/if}
-</Card>
+</section>
 
 <style>
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    padding: var(--space-12) var(--pane-padding) var(--pane-padding);
+    border-bottom: var(--border-width) solid var(--border);
+  }
+
   .running,
   .finished {
     display: flex;
@@ -323,7 +334,6 @@
     grid-template-columns: auto 1fr auto;
     align-items: center;
     column-gap: var(--space-8);
-    row-gap: var(--space-6);
     color: var(--text-muted);
     font: var(--type-sm);
   }
@@ -337,35 +347,24 @@
     font-weight: var(--weight-semibold);
   }
 
+  /* 16 px markers: check when done, loader while current, an empty circle ahead. */
   .mark {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--icon-sm);
-    height: var(--icon-sm);
+    color: var(--text-subtle);
+  }
+
+  .done .mark {
     color: var(--success-strong);
   }
 
-  .dot {
-    width: var(--dot);
-    height: var(--dot);
-    border: var(--border-width) solid var(--border-strong);
-    border-radius: var(--radius-full);
-  }
-
-  .current .dot {
-    border-color: var(--accent);
-    background-color: var(--accent);
+  .current .mark {
+    color: var(--text);
   }
 
   .count {
     color: var(--text-muted);
     font: var(--type-sm);
     font-variant-numeric: var(--numeric);
-  }
-
-  .meter {
-    grid-column: 1 / -1;
   }
 
   .portal {
@@ -380,8 +379,10 @@
   }
 
   .mono {
-    padding: 0 var(--space-4);
+    flex: none;
+    width: var(--monogram-width);
     border-radius: var(--radius-xs);
+    text-align: center;
     background-color: var(--surface-muted);
     color: var(--text-muted);
     font: var(--type-xs);
@@ -394,18 +395,11 @@
     gap: var(--space-6);
     color: var(--text-muted);
     font: var(--type-sm);
-    font-variant-numeric: var(--numeric);
   }
 
   .top {
     color: var(--score-high-text);
     font-weight: var(--weight-medium);
-  }
-
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-8);
   }
 
   .history {

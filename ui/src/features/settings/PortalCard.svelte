@@ -1,8 +1,9 @@
 <!--
-  One portal in the settings: its switches (Aktiv, Details holen, for freelance.de Mit
-  Anmeldung) with the risk as a badge and one sentence, its health, the quota only from
-  80 % or while paused, sign in / sign out (which deletes the session) and the portal in
-  the browser. A switch saves at once; a failure puts the switch back and says why here.
+  One portal in the settings: the header row carries the portal, its risk (badge and one
+  sentence), the portal in the browser and the switch Aktiv. Only an active portal shows
+  more: its health, the quota only from 80 % or while paused (a 6 px meter), Details holen,
+  for freelance.de Mit Anmeldung and sign in / sign out (which deletes the session).
+  A switch saves at once; a failure puts the switch back and says why here.
 -->
 <script lang="ts">
   import Badge, { type BadgeTone } from '$components/Badge.svelte';
@@ -105,94 +106,98 @@
         testid="open-portal-{portal.portal}"
         onclick={openPortal}
       />
+      <Toggle
+        checked={portal.enabled}
+        label={de.settings.active}
+        testid="toggle-enabled-{portal.portal}"
+        onchange={(on) => void change({ enabled: on })}
+      />
     </div>
   </div>
-  <div class="body">
-    {#if portal.enabled && health.text}
-      <Notice tone="warning" variant="inline" text={health.text} testid="health-{portal.portal}" />
-    {/if}
-    {#if quota}
-      <div class="quota" data-testid="quota-{portal.portal}">
-        <span>{de.settings.quota(quota.used, quota.cap)}</span>
-        <Meter
-          value={quota.share}
+  {#if portal.enabled || error}
+    <div class="body">
+      {#if portal.enabled && health.text}
+        <Notice
           tone="warning"
-          size="sm"
-          label={de.settings.quota(quota.used, quota.cap)}
+          variant="inline"
+          text={health.text}
+          testid="health-{portal.portal}"
         />
-      </div>
-    {/if}
-
-    <div class="rows">
-      <SettingRow label={de.settings.active}>
-        <Toggle
-          checked={portal.enabled}
-          label={de.settings.active}
-          testid="toggle-enabled-{portal.portal}"
-          onchange={(on) => void change({ enabled: on })}
-        />
-      </SettingRow>
-      <SettingRow label={de.settings.details}>
-        <Toggle
-          checked={portal.fetchDetails && portal.enabled}
-          label={de.settings.details}
-          disabled={!portal.enabled}
-          disabledReason={de.settings.needsActive}
-          testid="toggle-details-{portal.portal}"
-          onchange={(on) => void change({ fetchDetails: on })}
-        />
-      </SettingRow>
-      {#if portal.login === 'optional'}
-        <SettingRow label={de.settings.login} hint={de.settings.loginHint}>
-          {#snippet badges()}
-            <Badge label={de.settings.risk.account} tone="danger" />
-          {/snippet}
-          <Toggle
-            checked={portal.loginEnabled}
-            label={de.settings.login}
-            disabled={!portal.enabled || !portal.fetchDetails}
-            disabledReason={de.settings.needsDetails}
-            testid="toggle-login-{portal.portal}"
-            onchange={(on) => void change({ loginEnabled: on })}
+      {/if}
+      {#if quota}
+        <div class="quota" data-testid="quota-{portal.portal}">
+          <span>{de.settings.quota(quota.used, quota.cap)}</span>
+          <Meter
+            value={quota.share}
+            tone="warning"
+            size="md"
+            label={de.settings.quota(quota.used, quota.cap)}
           />
-        </SettingRow>
-        {#if portal.loginEnabled}
-          <SettingRow
-            label={portal.signedIn ? de.settings.signedIn : de.settings.signedOut}
-            hint={run.loginNeeded === portal.portal ? de.settings.signInWaiting : null}
-          >
-            {#if portal.signedIn}
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="log-out"
-                label={de.settings.signOut}
-                loading={busy}
-                testid="sign-out-{portal.portal}"
-                onclick={() => void session(false)}
-              />
-            {:else}
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="log-in"
-                label={de.settings.signIn}
-                loading={busy}
-                disabled={run.active}
-                disabledReason={de.settings.running}
-                testid="sign-in-{portal.portal}"
-                onclick={() => void session(true)}
-              />
-            {/if}
+        </div>
+      {/if}
+
+      {#if portal.enabled}
+        <div class="rows">
+          <SettingRow label={de.settings.details}>
+            <Toggle
+              checked={portal.fetchDetails}
+              label={de.settings.details}
+              testid="toggle-details-{portal.portal}"
+              onchange={(on) => void change({ fetchDetails: on })}
+            />
           </SettingRow>
-        {/if}
+          {#if portal.login === 'optional'}
+            <SettingRow label={de.settings.login} hint={de.settings.loginHint}>
+              {#snippet badges()}
+                <Badge label={de.settings.risk.account} tone="danger" />
+              {/snippet}
+              <Toggle
+                checked={portal.loginEnabled}
+                label={de.settings.login}
+                disabled={!portal.fetchDetails}
+                disabledReason={de.settings.needsDetails}
+                testid="toggle-login-{portal.portal}"
+                onchange={(on) => void change({ loginEnabled: on })}
+              />
+            </SettingRow>
+            {#if portal.loginEnabled}
+              <SettingRow
+                label={portal.signedIn ? de.settings.signedIn : de.settings.signedOut}
+                hint={run.loginNeeded === portal.portal ? de.settings.signInWaiting : null}
+              >
+                {#if portal.signedIn}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon="log-out"
+                    label={de.settings.signOut}
+                    loading={busy}
+                    testid="sign-out-{portal.portal}"
+                    onclick={() => void session(false)}
+                  />
+                {:else}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon="log-in"
+                    label={de.settings.signIn}
+                    loading={busy}
+                    disabled={run.active}
+                    disabledReason={de.settings.running}
+                    testid="sign-in-{portal.portal}"
+                    onclick={() => void session(true)}
+                  />
+                {/if}
+              </SettingRow>
+            {/if}
+          {/if}
+        </div>
+      {/if}
+      {#if error}
+        <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
       {/if}
     </div>
-
-    {#if error}
-      <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
-    {/if}
-  </div>
+  {/if}
 </Card>
 
 <style>
@@ -200,7 +205,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-12);
-    padding: var(--space-16) var(--space-20) var(--space-12);
+    padding: var(--space-16) var(--space-20);
   }
 
   .body {
@@ -214,6 +219,10 @@
 
   .body > :global(:first-child:not(.rows)) {
     margin-top: var(--space-12);
+  }
+
+  .body > :global(:last-child:not(.rows)) {
+    margin-bottom: var(--space-12);
   }
 
   .title {
@@ -240,11 +249,6 @@
     align-items: center;
     justify-content: flex-end;
     gap: var(--space-8);
-  }
-
-  /* The icon of the last ghost button lines up with the toggles below it. */
-  .badges :global(.btn.ghost:last-child) {
-    margin-right: calc((var(--icon-sm) - var(--control-sm)) / 2);
   }
 
   .quota {

@@ -11,6 +11,13 @@ class Shell {
       state !== null && (!app.hasMailbox || (state.firstRun && !run.active && run.summary === null))
     );
   }
+
+  /** The run card above the list is up: during a run, and after it until it is hidden. */
+  get runCard(): boolean {
+    return (
+      run.active || (run.panel !== 'hidden' && (run.summary ?? app.state?.lastRun ?? null) !== null)
+    );
+  }
 }
 
 export const shell = new Shell();

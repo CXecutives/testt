@@ -472,6 +472,11 @@ function initial(): void {
       state.settings.excelExists = false;
       state.settings.txtFiles = 0;
       break;
+    case 'no-files':
+      // A connected mailbox, but nothing written to the workspace yet.
+      state.settings.excelExists = false;
+      state.settings.txtFiles = 0;
+      break;
     case 'mailbox-only':
       jobs = [];
       state.firstRun = true;

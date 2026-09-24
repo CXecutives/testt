@@ -3,6 +3,7 @@
   does, one about privacy, and three real steps that tick themselves: connect the mailbox,
   choose a profile (or save a template first), fetch. The next open step carries the one
   primary button; "Abrufen" stays locked with its reason until a mailbox is connected.
+  Compact enough that the third step is in view at 1280 x 720; the sidebar is inert here.
 -->
 <script lang="ts">
   import BrandMark from '$components/BrandMark.svelte';
@@ -64,7 +65,7 @@
       <p class="privacy"><Icon name="shield" size="sm" />{de.firstRun.privacy}</p>
     </header>
 
-    <Card padding="lg">
+    <Card padding="md">
       <ol class="steps" aria-label={de.firstRun.steps}>
         <li class="step" data-testid="step-mailbox" data-done={mailboxDone}>
           {@render marker(1, mailboxDone)}
@@ -139,14 +140,14 @@
 <style>
   .hero {
     min-height: 100%;
-    padding: var(--space-48) var(--space-24);
+    padding: var(--space-16) var(--space-24) var(--space-24);
     background: var(--grad-hero);
   }
 
   .column {
     display: flex;
     flex-direction: column;
-    gap: var(--space-32);
+    gap: var(--space-20);
     max-width: var(--reader-width);
     margin: 0 auto;
   }
@@ -155,22 +156,22 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-12);
+    gap: var(--space-8);
     text-align: center;
   }
 
   .title {
-    margin-top: var(--space-8);
     color: var(--text-heading);
-    font: var(--type-display);
+    font: var(--type-2xl);
     letter-spacing: var(--tracking-tight);
   }
 
   .benefit {
-    max-width: var(--form-width);
+    max-width: var(--measure-intro);
     color: var(--text);
     font: var(--type-lg);
     font-weight: var(--weight-regular);
+    text-wrap: balance;
   }
 
   .privacy {
@@ -184,7 +185,7 @@
   .steps {
     display: flex;
     flex-direction: column;
-    gap: var(--space-32);
+    gap: var(--space-20);
   }
 
   .step {
@@ -204,12 +205,11 @@
     color: var(--text-muted);
     font: var(--type-md);
     font-weight: var(--weight-semibold);
-    font-variant-numeric: var(--numeric);
   }
 
   .marker.current {
-    border-color: var(--accent);
-    color: var(--accent-text);
+    border-color: var(--text);
+    color: var(--text);
   }
 
   .marker.done {
@@ -222,7 +222,7 @@
     display: flex;
     flex: 1;
     flex-direction: column;
-    gap: var(--space-12);
+    gap: var(--space-8);
     min-width: 0;
     padding-top: var(--space-4);
   }

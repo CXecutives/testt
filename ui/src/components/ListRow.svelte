@@ -1,7 +1,6 @@
 <!--
-  A list row: leading, content, trailing, top-aligned, at least 72 px high and growing with
-  its content (a title may take two lines). The one inner padding of the columns on the
-  sides. Hover tints the row and grows a coral bar on the left (scaleY); the selected row
+  A list row: leading, content, trailing, top-aligned, all rows of one fixed height (mail
+  style: three lines of content). The one inner padding of the columns on the sides. Hover tints the row and grows a coral bar on the left (scaleY); the selected row
   keeps both. A `tint` row (new during a run) starts with a soft accent wash that fades out
   once.
 -->
@@ -66,8 +65,9 @@
     align-items: flex-start;
     gap: var(--space-12);
     width: 100%;
-    min-height: var(--row-height);
-    padding: var(--space-12) var(--pane-padding);
+    height: var(--row-height);
+    overflow: hidden;
+    padding: var(--space-12) var(--pane-padding) calc(var(--space-12) - var(--border-width));
     border-bottom: var(--border-width) solid var(--border);
     background-color: transparent;
     text-align: left;

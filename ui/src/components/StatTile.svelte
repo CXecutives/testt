@@ -1,8 +1,9 @@
 <!--
   A number with a label; counts up once when first visible; optionally clickable (a filter).
   Calm: a white tile with a hairline, the icon small in the label line, coloured only when
-  the tone means something. Hover darkens the hairline; the active tile (its filter is on)
-  carries the coral selection edge.
+  the tone means something. A clickable tile is a filter and looks like one: hover lifts it
+  1 px with a soft shadow, the active tile (its filter is on) takes an ink edge on a muted
+  surface (coral stays for the few accents).
 -->
 <script lang="ts">
   import { reveal } from '$lib/actions/reveal';
@@ -76,11 +77,12 @@
     flex-direction: column;
     gap: var(--space-4);
     min-width: 0;
-    padding: var(--space-16) var(--space-20);
+    position: relative;
+    isolation: isolate;
+    padding: var(--space-12) var(--space-16);
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
     background-color: var(--surface);
-    box-shadow: var(--sh-sm);
     text-align: left;
   }
 
@@ -91,12 +93,30 @@
       background-color var(--dur-fast) var(--ease-standard);
   }
 
+  /* The hover shadow fades in on ::after (box-shadow itself never animates). */
+  .clickable::after {
+    position: absolute;
+    z-index: var(--z-below);
+    inset: calc(-1 * var(--border-width));
+    border-radius: inherit;
+    box-shadow: var(--sh-sm);
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+
   .clickable:hover {
     border-color: var(--border-strong);
+    transform: translateY(var(--lift));
+  }
+
+  .clickable:hover::after {
+    opacity: 1;
   }
 
   .clickable:active {
-    transform: scale(var(--scale-press));
+    transform: translateY(0) scale(var(--scale-press));
     transition-duration: var(--dur-instant);
   }
 
@@ -106,8 +126,8 @@
 
   .active,
   .active:hover {
-    border-color: var(--accent);
-    background-color: var(--surface-tinted);
+    border-color: var(--text);
+    background-color: var(--surface-muted);
   }
 
   .head {
@@ -149,7 +169,7 @@
 
   .value {
     color: var(--text-heading);
-    font: var(--type-2xl);
+    font: var(--type-xl);
     font-variant-numeric: var(--numeric);
     letter-spacing: var(--tracking-tight);
   }

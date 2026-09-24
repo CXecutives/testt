@@ -68,7 +68,6 @@
     border-radius: var(--radius-md);
     color: var(--text-muted);
     font: var(--type-sm);
-    font-variant-numeric: var(--numeric);
     text-align: left;
     transition:
       background-color var(--dur-fast) var(--ease-standard),

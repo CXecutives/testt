@@ -1,5 +1,5 @@
 <!--
-  The match of a job as a ring: sm 40 (list rows), lg 96 (reader).
+  The match of a job as a ring: sm 40 (list rows), md 56 (reader), lg 96.
   scored: the ring fills by stroke-dashoffset (r = 15.9155, circumference 100, no
   pathLength) and the number counts up once, the first time the ring is visible; a high
   band glows once. At most 10 rings animate at the same time, the rest are placed at once.
@@ -40,7 +40,7 @@
 
   interface Props {
     ring: RingState;
-    size?: 'sm' | 'lg';
+    size?: 'sm' | 'md' | 'lg';
     testid?: string | null;
   }
 
@@ -100,7 +100,7 @@
 
 {#if ring.status === 'pending'}
   <span class="ring {size}" role="img" aria-label={label} data-testid={testid ?? undefined}>
-    <Skeleton shape="circle" size={size === 'sm' ? 'sm' : 'lg'} />
+    <Skeleton shape="circle" {size} />
   </span>
 {:else}
   <span
@@ -123,7 +123,7 @@
       {#if ring.status === 'scored'}
         {Math.round(number.current)}
       {:else if ring.status === 'excluded'}
-        <Icon name="ban" size={size === 'sm' ? 'sm' : 'lg'} />
+        <Icon name="ban" size={size === 'sm' ? 'sm' : size === 'md' ? 'md' : 'lg'} />
       {:else if ring.status === 'unscorable'}
         –
       {/if}
@@ -235,6 +235,13 @@
     --ring-stroke: var(--ring-sm-stroke);
     --ring-scale: var(--ring-sm-scale);
     --ring-type: var(--weight-bold) var(--font-sm) / var(--leading-sm) var(--font-sans);
+  }
+
+  .md {
+    --ring-size: var(--ring-md);
+    --ring-stroke: var(--ring-md-stroke);
+    --ring-scale: var(--ring-md-scale);
+    --ring-type: var(--weight-bold) var(--font-lg) / var(--leading-lg) var(--font-sans);
   }
 
   .lg {

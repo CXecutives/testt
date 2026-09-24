@@ -15,6 +15,7 @@ import type {
   DetailState,
   ErrorKind,
   InvalidInput,
+  JobSort,
   PauseReason,
   Portal,
   ProfileQuality,
@@ -205,10 +206,10 @@ export type ReasonCode = keyof typeof reasonCode;
 interface CriterionText {
   /** Short name in the criteria strip of the reader. */
   label: string;
-  /** In the profile, when set (params carry the value). */
-  set: (p: Params) => string;
-  /** In the profile, when not set. */
-  unset: string;
+  /** Name of the row in the profile. */
+  field: string;
+  /** Value of the row in the profile when set (params carry the value). */
+  value: (p: Params) => string;
   /** Why a job is excluded by it. */
   exclusion: string;
 }
@@ -220,52 +221,52 @@ interface CriterionText {
 const criteria = {
   minDayRate: {
     label: 'Tagessatz',
-    set: (p) => `Tagessatz ab ${formatEuro(p.min ?? p.rate ?? p.value)}`,
-    unset: 'Kein Mindest-Tagessatz',
+    field: 'Tagessatz',
+    value: (p) => `ab ${formatEuro(p.min ?? p.rate ?? p.value)}`,
     exclusion: 'Der Tagessatz liegt unter dem Minimum im Profil.',
   },
   countries: {
     label: 'Einsatzland',
-    set: (p) => `Einsatz nur in ${str(p.countries ?? p.value)}`,
-    unset: 'Kein Einsatzland festgelegt',
+    field: 'Einsatzland',
+    value: (p) => str(p.countries ?? p.value),
     exclusion: 'Der Einsatzort liegt außerhalb der Länder im Profil.',
   },
   noAnue: {
     label: 'ANÜ',
-    set: () => 'Keine Arbeitnehmerüberlassung',
-    unset: 'Arbeitnehmerüberlassung ist erlaubt',
+    field: 'Arbeitnehmerüberlassung',
+    value: () => 'ausgeschlossen',
     exclusion: ANUE,
   },
   availability: {
     label: 'Verfügbarkeit',
-    set: (p) => {
+    field: 'Verfügbarkeit',
+    value: (p) => {
       const from = p.from ?? p.value;
-      if (from === 'now') return 'Sofort verfügbar';
+      if (from === 'now') return 'sofort';
       const date = typeof from === 'string' ? formatDate(from) : '';
-      return date ? `Verfügbar ab ${date}` : 'Verfügbarkeit angegeben';
+      return date ? `ab ${date}` : 'angegeben';
     },
-    unset: 'Keine Verfügbarkeit angegeben',
     exclusion: 'Der Start passt nicht zur Verfügbarkeit.',
   },
   minSalary: {
     label: 'Gehalt',
-    set: (p) => `Festanstellung ab ${formatEuro(p.min ?? p.value)} im Jahr`,
-    unset: 'Kein Mindestgehalt für Festanstellungen',
+    field: 'Mindestgehalt',
+    value: (p) => `${formatEuro(p.min ?? p.value)} im Jahr`,
     exclusion: 'Das Gehalt liegt unter dem Minimum im Profil.',
   },
   permanentRegion: {
     label: 'Region',
-    set: (p) =>
+    field: 'Region',
+    value: (p) =>
       typeof p.remoteMin === 'number' && p.remoteMin > 0
-        ? `Festanstellung in ${str(p.places)} oder ab ${formatPercent(p.remoteMin)} remote`
-        : `Festanstellung nur in ${str(p.places)}`,
-    unset: 'Keine Region für Festanstellungen',
+        ? `${str(p.places)} oder ab ${formatPercent(p.remoteMin)} remote`
+        : str(p.places),
     exclusion: 'Die Festanstellung liegt außerhalb der Region im Profil.',
   },
   targetYears: {
     label: 'Seniorität',
-    set: (p) => `Stellen ab ${n(num(p.min ?? p.value))} Jahren Erfahrung`,
-    unset: 'Kein Mindestlevel für Stellen',
+    field: 'Seniorität',
+    value: (p) => `ab ${n(num(p.min ?? p.value))} Jahren Erfahrung`,
     exclusion: 'Die Stelle verlangt deutlich weniger Erfahrung.',
   },
 } satisfies Record<string, CriterionText>;
@@ -283,13 +284,35 @@ const note = {
 export type MatchNote = keyof typeof note;
 
 /** Profile warnings of the engine, plus the keys the app does not evaluate. */
+/** Names of profile keys the app speaks about (the keys themselves are an external contract). */
+const profileKey: Record<string, string> = {
+  hobbys: 'Hobbys',
+  referenzen: 'Referenzen',
+  sprachen: 'Sprachen',
+  zertifikate: 'Zertifikate',
+  ausbildung: 'Ausbildung',
+};
+const keyLabel = (key: string): string =>
+  profileKey[key] ?? key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+const keyList = (value: unknown): string[] =>
+  str(value)
+    .split(',')
+    .map((key) => key.trim())
+    .filter((key) => key !== '')
+    .map(keyLabel);
+const joined = (items: string[]): string =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} und ${items.at(-1)}`;
+
 const warning = {
   noCompetences: 'Das Profil nennt keine Kompetenzen.',
   fewCompetences: 'Das Profil nennt nur wenige Kompetenzen.',
   noCriteria: 'Das Profil setzt keine Ausschlusskriterien.',
   availabilityNotUnderstood: 'Die Verfügbarkeit im Profil ist nicht lesbar.',
-  ignoredKeys: (p) => `Nicht ausgewertet ${str(p.keys)}.`,
-  criterionNotUnderstood: (p) => `Der Wert von ${str(p.key)} ist nicht lesbar.`,
+  ignoredKeys: (p) => {
+    const keys = keyList(p.keys);
+    return `${joined(keys)} ${keys.length === 1 ? 'bleibt' : 'bleiben'} unberücksichtigt.`;
+  },
+  criterionNotUnderstood: (p) => `Der Wert von ${keyLabel(str(p.key))} ist nicht lesbar.`,
   regionWithoutPlaces: 'Für die Region fehlen die Orte, die Regel bleibt aus.',
 } satisfies Record<string, Text>;
 export type ProfileWarning = keyof typeof warning;
@@ -391,9 +414,10 @@ export const de = {
     facet: 'Auswahl',
     facetNew: 'Neu',
     facetAll: 'Alle',
-    sort: 'Sortierung',
-    sortMatch: 'Beste Passung',
-    sortNewest: 'Neueste',
+    sortedBy: {
+      match: 'Beste Passung zuerst',
+      newest: 'Neueste zuerst',
+    } satisfies Record<JobSort, string>,
     search: 'Suchen',
     searchLabel: 'Jobs durchsuchen',
     needsMailbox: 'Erst ein Postfach verbinden.',
@@ -454,13 +478,15 @@ export const de = {
       high: 'Hohe Passung',
       noDetail: 'Ohne Details',
       excluded: 'Ausgeschlossen',
+      linkedin: `Neu auf ${portalName.linkedin}`,
+      freelancermap: `Neu auf ${portalName.freelancermap}`,
+      freelance: `Neu auf ${portalName.freelance}`,
     },
     clearFilter: 'Filter entfernen',
   },
   reader: {
     mustMet: (met: number, total: number, partial = 0) =>
-      `${n(met)} von ${n(total)} Muss-Anforderungen erfüllt` +
-      (partial > 0 ? `, ${n(partial)} teilweise` : ''),
+      `${n(met)} von ${n(total)} Muss erfüllt` + (partial > 0 ? `, ${n(partial)} teilweise` : ''),
     noMust: 'Keine Muss-Anforderungen erkannt',
     criteria: 'Ausschlusskriterien',
     contract,
@@ -481,7 +507,7 @@ export const de = {
     met: 'Erfüllt',
     missing: 'Offen',
     check: 'Zu prüfen',
-    violations: 'Verstöße',
+    violations: 'Ausgeschlossen',
     noReasons: 'Die Anzeige nennt keine klaren Anforderungen.',
     ad: 'Anzeige',
     detail: {
@@ -503,6 +529,7 @@ export const de = {
     issues: 'Offene Punkte',
     lastRun: 'Letzter Abruf',
     newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
+    showNew: (portal: string) => `Neue Jobs von ${portal} zeigen`,
     nothingNew: 'Keine neuen Jobs',
     emptyAlert: (portal: Portal) =>
       `Eine Alert-Mail von ${portalName[portal]} enthielt keine Jobs.`,
@@ -541,7 +568,8 @@ export const de = {
     rescoring: (value: number) => `${n(value)} Jobs werden neu bewertet.`,
     rescored: 'Neu bewertet.',
     parseError: 'Das Profil ist nicht mehr lesbar.',
-    understood: 'Das hat die App verstanden',
+    understood: 'Erkannt',
+    unset: 'offen',
     competences: 'Kompetenzen',
     more: (value: number) => `+${n(value)}`,
     criteria: 'Ausschlusskriterien',
@@ -581,7 +609,6 @@ export const de = {
     autoFetchHint: 'Wenn der letzte Abruf mehr als sechs Stunden her ist.',
     active: 'Aktiv',
     details: 'Details holen',
-    needsActive: 'Erst das Portal aktivieren.',
     needsDetails: 'Erst Details holen einschalten.',
     login: 'Mit Anmeldung',
     loginHint: 'Zeigt ganze Anzeigen statt eines Anrisses.',
@@ -642,7 +669,7 @@ export const de = {
     steps: 'Erste Schritte',
     mailbox: 'Postfach',
     profile: 'Profil',
-    profileOr: 'Oder erst eine Vorlage speichern und ausfüllen.',
+    profileOr: 'Wer noch keins hat, startet mit der Vorlage.',
     fetch: 'Erster Abruf',
     fetchHint: 'Das dauert ein paar Minuten.',
   },

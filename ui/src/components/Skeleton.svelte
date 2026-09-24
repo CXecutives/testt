@@ -61,7 +61,7 @@
   }
 
   .circle.md {
-    --circle: var(--tile-lg);
+    --circle: var(--ring-md);
   }
 
   .circle.lg {

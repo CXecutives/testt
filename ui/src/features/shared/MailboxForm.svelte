@@ -79,30 +79,38 @@
     ? { save: () => void save(), cancel: oncancel }
     : { save: () => void save() }}
 >
-  <Field label={de.settings.address} for="{id}-user" error={userError}>
-    <TextField
-      id="{id}-user"
-      bind:value={user}
-      invalid={userError !== null}
-      describedby="{id}-user-message"
-      testid="mailbox-user"
-    />
-  </Field>
-  <Field
-    label={de.settings.password}
-    for="{id}-password"
-    hint={de.settings.passwordHint}
-    error={passwordError}
-  >
-    <TextField
-      id="{id}-password"
-      kind="password"
-      bind:value={password}
-      invalid={passwordError !== null}
-      describedby="{id}-password-message"
-      testid="mailbox-password"
-    />
-  </Field>
+  <div class="fields">
+    <Field label={de.settings.address} for="{id}-user" error={userError}>
+      <TextField
+        id="{id}-user"
+        bind:value={user}
+        invalid={userError !== null}
+        describedby="{id}-user-message"
+        testid="mailbox-user"
+      />
+    </Field>
+    <Field
+      label={de.settings.password}
+      for="{id}-password"
+      hint={de.settings.passwordHint}
+      action={{
+        label: de.settings.createPassword,
+        icon: 'external-link',
+        testid: 'create-password',
+        onclick: openPasswordPage,
+      }}
+      error={passwordError}
+    >
+      <TextField
+        id="{id}-password"
+        kind="password"
+        bind:value={password}
+        invalid={passwordError !== null}
+        describedby="{id}-password-message"
+        testid="mailbox-password"
+      />
+    </Field>
+  </div>
   {#if formError}
     <Notice tone="danger" variant="inline" text={formError} testid="mailbox-error" />
   {/if}
@@ -117,16 +125,6 @@
     {#if oncancel}
       <Button variant="secondary" label={de.common.cancel} onclick={() => oncancel?.()} />
     {/if}
-    <span class="link">
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="external-link"
-        label={de.settings.createPassword}
-        testid="create-password"
-        onclick={openPasswordPage}
-      />
-    </span>
   </div>
 </div>
 
@@ -136,6 +134,21 @@
     flex-direction: column;
     gap: var(--space-16);
     max-width: var(--form-width);
+    container-type: inline-size;
+  }
+
+  /* Address and password side by side where there is room (the first run stays short). */
+  .fields {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: var(--space-16);
+  }
+
+  @container (width >= 520px) {
+    .fields {
+      grid-template-columns: 1fr 1fr;
+    }
   }
 
   .actions {
@@ -143,9 +156,5 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-8);
-  }
-
-  .link {
-    margin-left: auto;
   }
 </style>

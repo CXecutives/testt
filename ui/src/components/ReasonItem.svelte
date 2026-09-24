@@ -141,7 +141,9 @@
     align-items: flex-start;
   }
 
+  /* The weight badge follows the words instead of standing at the far end. */
   .reason:not(.compact) .label {
+    flex: 0 1 auto;
     white-space: normal;
     overflow-wrap: break-word;
   }

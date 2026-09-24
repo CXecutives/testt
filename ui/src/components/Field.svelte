@@ -4,18 +4,21 @@
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import Icon from './Icon.svelte';
+  import Button from './Button.svelte';
+  import Icon, { type IconName } from './Icon.svelte';
 
   interface Props {
     label: string;
     /** id of the control inside, for the label. */
     for: string;
     hint?: string | null;
+    /** A way on that belongs to the hint (opens a page), at the end of the helper line. */
+    action?: { label: string; icon?: IconName; testid?: string; onclick: () => void } | null;
     error?: string | null;
     children: Snippet;
   }
 
-  let { label, for: control, hint = null, error = null, children }: Props = $props();
+  let { label, for: control, hint = null, action = null, error = null, children }: Props = $props();
 </script>
 
 <div class="field">
@@ -28,8 +31,22 @@
         <span>{error}</span>
       </p>
     {/key}
-  {:else if hint}
-    <p class="hint" id="{control}-message">{hint}</p>
+  {:else if hint || action}
+    <div class="help">
+      {#if hint}<p class="hint" id="{control}-message">{hint}</p>{/if}
+      {#if action}
+        <span class="action">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={action.icon ?? null}
+            label={action.label}
+            testid={action.testid ?? null}
+            onclick={action.onclick}
+          />
+        </span>
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -55,6 +72,20 @@
 
   .hint {
     color: var(--text-muted);
+  }
+
+  .help {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4) var(--space-12);
+    min-height: var(--control-sm);
+  }
+
+  /* The ghost button's own padding stays outside the field's right edge. */
+  .action {
+    margin-right: calc(-1 * var(--space-12));
   }
 
   .error {

@@ -142,7 +142,6 @@
     flex-direction: column;
     min-width: 0;
     font: var(--type-xs);
-    font-variant-numeric: var(--numeric);
   }
 
   .name {

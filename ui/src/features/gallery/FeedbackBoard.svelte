@@ -26,7 +26,7 @@
 </script>
 
 <Section heading={t.rings} id="rings">
-  {#each ['lg', 'sm'] as const as size (size)}
+  {#each ['lg', 'md', 'sm'] as const as size (size)}
     <div class="row">
       {#each rings as ring (ring.id)}
         <ScoreRing ring={ring.state} {size} testid="ring-{ring.id}-{size}" />

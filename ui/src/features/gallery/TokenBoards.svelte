@@ -68,7 +68,6 @@
   .label {
     color: var(--text-subtle);
     font: var(--type-xs);
-    font-variant-numeric: var(--numeric);
   }
 
   .type-list,

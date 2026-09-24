@@ -1,14 +1,14 @@
 <!--
-  The reader card (max 720 px): ring 96 counting up, band word and the must requirements met;
-  a strip of quiet chips for the contract type and the hard criteria (state by icon only);
-  for an excluded job the reason first. Then title (without gender tags), one line of facts
-  and the actions. "Warum" lists what is met and what is open (must before nice), what to
-  check and the violations; hovering a reason lights its passage in the ad text below, a
-  click scrolls to it.
+  The reader, unboxed on the sheet (max 720 px), headed like an issue tracker: the title
+  (without gender tags), one line of facts, then one quiet match line (ring 56 counting up,
+  the band word and the must requirements met, or for an excluded job the reason) with a
+  strip of quiet chips for the contract type and the hard criteria (state by icon only), and
+  the actions in one row. "Warum" lists what is met and what is open (must before nice, only
+  "Kann" carries a badge), what to check and what excludes; hovering a reason lights its
+  passage in the ad text below, a click scrolls to it.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
-  import Card from '$components/Card.svelte';
   import Icon, { type IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
   import ReasonItem from '$components/ReasonItem.svelte';
@@ -78,7 +78,14 @@
   }
   const chips = $derived.by((): Chip[] => {
     const out: Chip[] = [];
-    if (contract) {
+    // The contract chip steps back when a criterion chip carries the same word (ANÜ).
+    const labels = new Set(
+      (match?.criteria ?? []).flatMap((reason) => {
+        const key = criterionKey(reason.code);
+        return key === null ? [] : [de.reader.criterion[key].label];
+      }),
+    );
+    if (contract && !labels.has(reasonText(contract))) {
       const unclear = contract.kind === 'check';
       out.push({
         id: contract.id,
@@ -118,7 +125,7 @@
           (allViolations[0] ? reasonText(allViolations[0]) : de.reader.note.hardCriterion))
       : null,
   );
-  // A violation that says exactly what the notice on top says is not repeated.
+  // A violation that says exactly what the match line says is not repeated.
   const violations = $derived(allViolations.filter((r) => reasonText(r) !== exclusion));
 
   const portalState = $derived(app.state?.portals.find((p) => p.portal === job.portal) ?? null);
@@ -160,10 +167,10 @@
 {#snippet reasonList(items: Reason[], testid: string)}
   <ul class="reasons" data-testid={testid}>
     {#each items as reason (reason.id)}
-      <li>
+      <li data-weight={reason.weight}>
         <ReasonItem
           kind={reason.kind}
-          weight={reason.weight === 'info' ? null : reason.weight}
+          weight={reason.weight === 'nice' ? 'nice' : null}
           label={reasonText(reason)}
           hint={reasonHint(reason)}
           active={active === reason.id}
@@ -175,182 +182,243 @@
   </ul>
 {/snippet}
 
-<Card padding="lg" testid="reader">
-  <article class="reader">
-    {#if exclusion}
-      <Notice tone="danger" text={exclusion} testid="exclusion" />
-    {/if}
+<article class="reader" data-testid="reader">
+  <header class="head">
+    <h1 class="title" data-testid="reader-title">
+      {job.title ? displayTitle(job.title) : de.job.untitled}
+    </h1>
+    <p class="facts">
+      <span class="facts-line">
+        {#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}
+      </span>
+    </p>
+  </header>
 
-    {#if headline}
-      <header class="score">
-        {#key keyOf(job.key)}
-          <ScoreRing
-            ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
-            size="lg"
-            testid="reader-ring"
-          />
-        {/key}
-        <div class="verdict">
-          <p class="band {headline.tone}" data-testid="band">{headline.word}</p>
-          {#if match && match.status !== 'unscorable'}
-            <p class="must" data-testid="must">
+  {#if headline}
+    <div class="match">
+      {#key keyOf(job.key)}
+        <ScoreRing
+          ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
+          size="md"
+          testid="reader-ring"
+        />
+      {/key}
+      <div class="verdict">
+        <p class="line">
+          <span class="band {headline.tone}" data-testid="band">{headline.word}</span>
+          {#if match && match.status === 'scored'}
+            <span class="must" data-testid="must">
               {job.match && job.match.mustTotal > 0
                 ? de.reader.mustMet(job.match.mustMet, job.match.mustTotal, partialMust)
                 : de.reader.noMust}
-            </p>
+            </span>
           {/if}
-          {#if chips.length > 0}
-            <ul class="chips" aria-label={de.reader.criteria} data-testid="criteria">
-              {#each chips as chip (chip.id)}
-                <li
-                  class="chip {chip.state}"
-                  use:tooltip={chip.hint}
-                  data-state={chip.state}
-                  data-testid={chip.id === contract?.id ? 'contract' : undefined}
-                >
-                  <span class="chip-icon"><Icon name={chip.icon} size="sm" /></span>
-                  <span>{chip.label}</span>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-      </header>
-    {/if}
-
-    <div class="title-block">
-      <h1 class="title" data-testid="reader-title">
-        {job.title ? displayTitle(job.title) : de.job.untitled}
-      </h1>
-      <p class="facts">
-        <span class="facts-line">
-          {#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}
-        </span>
-      </p>
+        </p>
+        {#if exclusion}
+          <p class="because" data-testid="exclusion">{exclusion}</p>
+        {/if}
+        {#if chips.length > 0}
+          <ul class="chips" aria-label={de.reader.criteria} data-testid="criteria">
+            {#each chips as chip (chip.id)}
+              <li
+                class="chip {chip.state}"
+                use:tooltip={chip.hint}
+                data-state={chip.state}
+                data-testid={chip.id === contract?.id ? 'contract' : undefined}
+              >
+                <span class="chip-icon"><Icon name={chip.icon} size="xs" /></span>
+                <span>{chip.label}</span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
     </div>
+  {/if}
 
-    <div class="actions">
-      <Button
-        variant="secondary"
-        icon="external-link"
-        label={de.reader.open}
-        testid="open-ad"
-        onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
-      />
+  <div class="actions">
+    <Button
+      variant="secondary"
+      icon="external-link"
+      label={de.reader.open}
+      testid="open-ad"
+      onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
+    />
+    <Button
+      variant="ghost"
+      icon="star"
+      label={de.reader.pin}
+      pressed={job.pinned}
+      testid="pin"
+      onclick={() => void jobs.pin(job.key, !job.pinned)}
+    />
+    {#if detail.mail.gmailUrl}
       <Button
         variant="ghost"
-        icon="star"
-        label={de.reader.pin}
-        pressed={job.pinned}
-        testid="pin"
-        onclick={() => void jobs.pin(job.key, !job.pinned)}
+        icon="mail"
+        label={de.reader.mail}
+        testid="open-mail"
+        onclick={() => openTarget({ kind: 'gmail', key: job.key })}
       />
-      {#if detail.mail.gmailUrl}
-        <Button
-          variant="ghost"
-          icon="mail"
-          label={de.reader.mail}
-          testid="open-mail"
-          onclick={() => openTarget({ kind: 'gmail', key: job.key })}
-        />
-      {/if}
-      {#if canFetch}
-        <Button
-          variant="ghost"
-          icon="download"
-          label={de.reader.fetchDetails}
-          disabled={run.active}
-          disabledReason={de.settings.running}
-          testid="fetch-details"
-          onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
-        />
-      {/if}
-    </div>
-    {#if actionError}
-      <Notice tone="danger" variant="inline" text={actionError} />
     {/if}
+    {#if canFetch}
+      <Button
+        variant="ghost"
+        icon="download"
+        label={de.reader.fetchDetails}
+        disabled={run.active}
+        disabledReason={de.settings.running}
+        testid="fetch-details"
+        onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
+      />
+    {/if}
+  </div>
+  {#if actionError}
+    <Notice tone="danger" variant="inline" text={actionError} />
+  {/if}
 
-    {#if match && match.status !== 'unscorable' && withRing}
-      <section class="why" data-testid="why">
-        <h2 class="section">{de.reader.why}</h2>
-        {#if met.length + open.length === 0}
-          <p class="quiet">{de.reader.noReasons}</p>
-        {:else}
-          <div class="columns">
-            <div class="column">
+  {#if match && match.status !== 'unscorable' && withRing}
+    <section class="why" data-testid="why">
+      <h2 class="section">{de.reader.why}</h2>
+      {#if met.length + open.length === 0}
+        <p class="quiet">{de.reader.noReasons}</p>
+      {:else}
+        <div class="columns">
+          {#if met.length > 0}
+            <div class="group">
               <h3 class="sub">{de.reader.met}</h3>
               {@render reasonList(met, 'reasons-met')}
             </div>
-            <div class="column">
+          {/if}
+          {#if open.length > 0}
+            <div class="group">
               <h3 class="sub">{de.reader.missing}</h3>
               {@render reasonList(open, 'reasons-open')}
             </div>
-          </div>
-        {/if}
-        {#if checks.length > 0}
-          <div class="column">
-            <h3 class="sub">{de.reader.check}</h3>
-            {@render reasonList(checks, 'reasons-check')}
-          </div>
-        {/if}
-        {#if violations.length > 0}
-          <div class="column">
-            <h3 class="sub">{de.reader.violations}</h3>
-            {@render reasonList(violations, 'reasons-violation')}
-          </div>
-        {/if}
-      </section>
-    {/if}
-
-    <section class="ad">
-      <h2 class="section">{de.reader.ad}</h2>
-      {#if detailKind !== 'ok'}
-        <Notice
-          tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
-          variant="inline"
-          text={portalState && !portalState.fetchDetails && detailKind === 'pending'
-            ? de.reader.detailsOff
-            : de.reader.detail[detailKind]}
-          testid="detail-note"
-        />
-      {:else if job.short}
-        <Notice tone="info" variant="inline" text={de.reader.short} />
+          {/if}
+        </div>
       {/if}
-      {#if detail.text}
-        <AdText
-          text={detail.text}
-          highlights={match?.highlights ?? []}
-          {active}
-          bind:element={textElement}
-        />
+      {#if checks.length > 0}
+        <div class="group">
+          <h3 class="sub">{de.reader.check}</h3>
+          {@render reasonList(checks, 'reasons-check')}
+        </div>
+      {/if}
+      {#if violations.length > 0}
+        <div class="group">
+          <h3 class="sub">{de.reader.violations}</h3>
+          {@render reasonList(violations, 'reasons-violation')}
+        </div>
       {/if}
     </section>
-  </article>
-</Card>
+  {/if}
+
+  <section class="ad">
+    <h2 class="section">{de.reader.ad}</h2>
+    {#if detailKind !== 'ok'}
+      <Notice
+        tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
+        variant="inline"
+        text={portalState && !portalState.fetchDetails && detailKind === 'pending'
+          ? de.reader.detailsOff
+          : de.reader.detail[detailKind]}
+        testid="detail-note"
+      />
+    {:else if job.short}
+      <Notice tone="info" variant="inline" text={de.reader.short} />
+    {/if}
+    {#if detail.text}
+      <AdText
+        text={detail.text}
+        highlights={match?.highlights ?? []}
+        {active}
+        bind:element={textElement}
+      />
+    {/if}
+  </section>
+</article>
 
 <style>
   .reader {
     display: flex;
     flex-direction: column;
-    gap: var(--space-24);
+    gap: var(--space-20);
     container-type: inline-size;
   }
 
-  .score {
+  .head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .title {
+    color: var(--text-heading);
+    font: var(--type-2xl);
+    letter-spacing: var(--tracking-tight);
+    text-wrap: balance;
+  }
+
+  /* Facts joined by middle dots; a dot that would start a wrapped line is clipped (every
+     fact carries its dot in front, the line is shifted left by one dot). */
+  .facts {
+    overflow: hidden;
+    color: var(--text-muted);
+    font: var(--type-sm);
+  }
+
+  .facts-line {
+    display: flex;
+    flex-wrap: wrap;
+    margin-left: calc(-1 * var(--space-20));
+  }
+
+  .fact::before {
+    display: inline-block;
+    width: var(--space-20);
+    color: var(--text-subtle);
+    text-align: center;
+    content: '·';
+  }
+
+  /* One quiet match line: the ring, the band word with the must count, the chips. */
+  .match {
     display: flex;
     align-items: center;
-    gap: var(--space-20);
+    gap: var(--space-16);
   }
 
   .verdict {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-6);
     min-width: 0;
   }
 
+  .line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    font: var(--type-md);
+  }
+
   .band {
-    font: var(--type-xl);
+    font-weight: var(--weight-semibold);
+  }
+
+  .must {
+    color: var(--text-muted);
+  }
+
+  .must::before {
+    padding: 0 var(--space-6);
+    color: var(--text-subtle);
+    content: '·';
+  }
+
+  .because {
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   .band.high {
@@ -370,17 +438,10 @@
     color: var(--danger-strong);
   }
 
-  .must {
-    color: var(--text-muted);
-    font: var(--type-sm);
-    font-variant-numeric: var(--numeric);
-  }
-
   .chips {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-6);
-    margin-top: var(--space-8);
   }
 
   /* Quiet chips: a neutral name, the state only in the icon (and in red when violated). */
@@ -422,46 +483,10 @@
     color: var(--text-muted);
   }
 
-  .title-block {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-  }
-
-  .title {
-    color: var(--text-heading);
-    font: var(--type-2xl);
-    letter-spacing: var(--tracking-tight);
-    text-wrap: balance;
-  }
-
-  /* Facts joined by middle dots; a dot that would start a wrapped line is clipped (every
-     fact carries its dot in front, the line is shifted left by one dot). */
-  .facts {
-    overflow: hidden;
-    color: var(--text-muted);
-    font: var(--type-sm);
-  }
-
-  .facts-line {
-    display: flex;
-    flex-wrap: wrap;
-    margin-left: calc(-1 * var(--space-20));
-  }
-
-  .fact::before {
-    display: inline-block;
-    width: var(--space-20);
-    color: var(--text-subtle);
-    text-align: center;
-    content: '·';
-  }
-
   .actions {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-8);
-    margin-top: calc(-1 * var(--space-8));
   }
 
   .why,
@@ -469,7 +494,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-16);
-    padding-top: var(--space-24);
+    padding-top: var(--space-20);
     border-top: var(--border-width) solid var(--border);
   }
 
@@ -478,25 +503,31 @@
     font: var(--type-lg);
   }
 
+  /* Sentence case, quiet: the groups of "Warum". */
   .sub {
-    padding-left: var(--space-8);
     color: var(--text-muted);
-    font: var(--type-xs);
+    font: var(--type-sm);
     font-weight: var(--weight-semibold);
-    letter-spacing: var(--tracking-caps);
-    text-transform: uppercase;
   }
 
+  /* One list; two columns only where there is room for them. */
   .columns {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-24);
+    grid-template-columns: 1fr;
+    gap: var(--space-16);
   }
 
-  .column {
+  @container (width >= 720px) {
+    .columns {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-24);
+    }
+  }
+
+  .group {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: var(--space-4);
     min-width: 0;
   }
 
@@ -504,18 +535,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
+    margin-left: calc(-1 * var(--space-8));
   }
 
   .quiet {
     color: var(--text-muted);
     font: var(--type-md);
-  }
-
-  /* Two reason columns need room; below it they stack. */
-  @container (width < 540px) {
-    .columns {
-      grid-template-columns: 1fr;
-      gap: var(--space-16);
-    }
   }
 </style>

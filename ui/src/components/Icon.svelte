@@ -3,6 +3,7 @@
   bundle small), size from the tokens, colour inherited from the text.
 -->
 <script lang="ts" module>
+  import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import Ban from '@lucide/svelte/icons/ban';
   import Briefcase from '@lucide/svelte/icons/briefcase';
   import Building2 from '@lucide/svelte/icons/building-2';
@@ -11,8 +12,10 @@
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronUp from '@lucide/svelte/icons/chevron-up';
+  import Circle from '@lucide/svelte/icons/circle';
   import CircleDashed from '@lucide/svelte/icons/circle-dashed';
   import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+  import CircleStop from '@lucide/svelte/icons/circle-stop';
   import Clock from '@lucide/svelte/icons/clock';
   import Contrast from '@lucide/svelte/icons/contrast';
   import Copy from '@lucide/svelte/icons/copy';
@@ -26,6 +29,7 @@
   import Inbox from '@lucide/svelte/icons/inbox';
   import Info from '@lucide/svelte/icons/info';
   import KeyRound from '@lucide/svelte/icons/key-round';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import LogIn from '@lucide/svelte/icons/log-in';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Mail from '@lucide/svelte/icons/mail';
@@ -37,7 +41,6 @@
   import Search from '@lucide/svelte/icons/search';
   import Shield from '@lucide/svelte/icons/shield';
   import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
-  import Square from '@lucide/svelte/icons/square';
   import Star from '@lucide/svelte/icons/star';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -76,7 +79,11 @@
     'pause-circle': PauseCircle,
     'wifi-off': WifiOff,
     minus: Minus,
-    square: Square,
+    // The sort toggle of the list, the cancel of a run, the steps of a run.
+    'arrow-up-down': ArrowUpDown,
+    'circle-stop': CircleStop,
+    'loader-circle': LoaderCircle,
+    circle: Circle,
     star: Star,
     shield: Shield,
     // Added for the password field (show / hide).
@@ -96,7 +103,7 @@
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;
-  export type IconSize = 'sm' | 'md' | 'lg';
+  export type IconSize = 'xs' | 'sm' | 'md' | 'lg';
   export const ICON_NAMES = Object.keys(ICONS) as IconName[];
 </script>
 
@@ -136,6 +143,11 @@
 
   .filled :global(svg) {
     fill: currentcolor;
+  }
+
+  .xs {
+    --icon-size: var(--icon-xs);
+    --icon-stroke: var(--icon-stroke-xs);
   }
 
   .sm {

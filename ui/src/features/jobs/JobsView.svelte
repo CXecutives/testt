@@ -1,19 +1,19 @@
 <!--
-  The Jobs view: left the list column (360-460 px) with its header (search and filters), the
-  run card and the list; right the reader or, with nothing selected, the day overview. Both
-  columns start at the same line and share one inner padding. Below 900 px one column: the
-  list, or the reader with a back button.
+  The Jobs view on the white sheet of the shell: left the list column (360-460 px) with its
+  header (search and filters), the run panel and the list; a hairline; right the reader, or
+  with nothing selected its empty state, the day overview. Nothing floats: no cards, no
+  shadows. Both columns start at the same line. Below 900 px one column: the list, or the
+  reader with a back button.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
-  import Card from '$components/Card.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import { de } from '$lib/i18n/de';
   import { app } from '$lib/state/app.svelte';
   import { fade, rise } from '$lib/motion/transitions';
   import { jobs, keyOf } from '$lib/state/jobs.svelte';
-  import { run } from '$lib/state/run.svelte';
+  import { shell } from '$lib/state/shell.svelte';
   import DayOverview from './DayOverview.svelte';
   import JobList from './JobList.svelte';
   import Reader from './Reader.svelte';
@@ -39,7 +39,7 @@
     <aside class="left">
       <ListHeader />
       <div class="scroll" data-testid="list-scroll">
-        {#if run.active || (run.panel !== 'hidden' && (run.summary ?? app.state?.lastRun))}
+        {#if shell.runCard}
           <div class="run" in:rise={{ distance: 'md' }}><RunCard /></div>
         {/if}
         <JobList />
@@ -74,14 +74,12 @@
               testid="reader-error"
             />
           {:else if jobs.detailSlow}
-            <Card padding="lg" testid="reader-skeleton">
-              <div class="skeleton">
-                <Skeleton shape="circle" size="lg" />
-                <Skeleton width={80} />
-                <Skeleton width={55} />
-                <Skeleton shape="block" />
-              </div>
-            </Card>
+            <div class="skeleton" data-testid="reader-skeleton">
+              <Skeleton width={80} />
+              <Skeleton width={55} />
+              <Skeleton shape="circle" size="md" />
+              <Skeleton shape="block" />
+            </div>
           {/if}
         {:else}
           <div in:fade={{ duration: 'base' }}><DayOverview /></div>
@@ -111,15 +109,11 @@
     width: clamp(var(--list-min), 40%, var(--list-max));
     container-type: inline-size;
     min-height: 0;
-    border-top: var(--border-width) solid var(--border);
     border-right: var(--border-width) solid var(--border);
-    border-top-right-radius: var(--radius-card);
-    background-color: var(--surface);
   }
 
   .run {
     flex: none;
-    padding: var(--pane-padding) var(--pane-padding) 0;
   }
 
   .scroll {
@@ -142,7 +136,7 @@
     gap: var(--space-12);
     max-width: var(--reader-width);
     margin: 0 auto;
-    padding: var(--pane-padding) var(--pane-padding) var(--space-64);
+    padding: var(--pane-padding) var(--reader-padding) var(--space-64);
   }
 
   .back {
@@ -182,10 +176,6 @@
 
     .back {
       display: block;
-    }
-
-    .left {
-      border-top-right-radius: 0;
     }
 
     .column {

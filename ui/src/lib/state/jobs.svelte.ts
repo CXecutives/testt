@@ -18,6 +18,7 @@ import type {
   JobKey,
   JobSort,
   JobView,
+  Portal,
   RunEvent,
 } from '../ipc/types';
 import { tokenMs } from '../tokens';
@@ -26,11 +27,13 @@ import { run } from './run.svelte';
 
 export const PAGE = 500;
 export const WINDOW = 60;
-/** Rows mounted per frame while a window fills. */
-const CHUNK = 15;
+/** Rows mounted per frame while a window fills (small: every frame stays well below 50 ms
+ *  on a slow machine, the window still fills within a few frames). */
+const CHUNK = 6;
 const HIGH = 80;
 
-export type JobFilter = 'high' | 'noDetail' | 'excluded';
+/** A tile of the day overview, or a portal (its new jobs, from the last fetch). */
+export type JobFilter = 'high' | 'noDetail' | 'excluded' | Portal;
 type Status = 'idle' | 'loading' | 'ready' | 'error';
 
 const ZERO: JobCounts = { new: 0, all: 0, excluded: 0, high: 0, noDetail: 0 };
@@ -44,6 +47,8 @@ export function sameKey(a: JobKey | null, b: JobKey | null): boolean {
 }
 
 const excluded = (job: JobView): boolean => job.match?.status === 'excluded';
+const TILES: readonly string[] = ['high', 'noDetail', 'excluded'];
+const isPortal = (filter: JobFilter): filter is Portal => !TILES.includes(filter);
 
 function matches(job: JobView, filter: JobFilter | null): boolean {
   switch (filter) {
@@ -55,6 +60,8 @@ function matches(job: JobView, filter: JobFilter | null): boolean {
       return job.detail.kind !== 'ok';
     case 'excluded':
       return excluded(job);
+    default:
+      return job.portal === filter;
   }
 }
 
@@ -189,7 +196,8 @@ class JobsStore {
 
   setFilter(filter: JobFilter | null): void {
     this.filter = filter;
-    if (filter !== null && this.facet !== 'all') this.facet = 'all';
+    // A tile counts over all jobs; a portal chip counts its new ones.
+    if (filter !== null) this.facet = isPortal(filter) ? 'new' : 'all';
     void this.load();
   }
 

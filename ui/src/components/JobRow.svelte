@@ -1,8 +1,10 @@
 <!--
-  One job in the list: ring, unread dot and the title (up to two lines, without gender tags),
-  company, place and relative date, one reason line and a status badge only when something
-  deviates. The star to pin sits at the top right: coral when pinned, otherwise an outline
-  that shows on hover (a sibling of the row button, so it never selects the row).
+  One job in the list, mail-style with fixed gutters: the unread dot in its own gutter left
+  of the ring (so a title never moves when the job is read), the ring, then the title on one
+  line with the relative date at its end, company and place, and one reason line with a
+  status badge right after it only when something deviates. Every row has the same height.
+  The star to pin sits below the date: filled when pinned, otherwise it shows on hover (a
+  sibling of the row button, so it never selects the row).
 -->
 <script lang="ts">
   import { de } from '$lib/i18n/de';
@@ -65,7 +67,8 @@
   <ScoreRing ring={ringState(job.match, pending)} size="sm" />
 {/snippet}
 
-{#snippet starCell()}
+{#snippet endCell()}
+  <span class="date">{formatRelative(job.mailDate ?? job.firstSeenAt, now, true)}</span>
   {#if onpin}
     <span class="star-slot" aria-hidden="true"></span>
   {:else if job.pinned}
@@ -78,31 +81,26 @@
 <div class="job" class:pinned={job.pinned}>
   <ListRow
     leading={ring ? ringCell : null}
-    trailing={onpin || job.pinned ? starCell : null}
+    trailing={endCell}
     {selected}
     muted={excluded}
     tint={fresh}
     onclick={onselect ? () => onselect?.(job) : null}
     testid="job-row-{job.key.portal}-{job.key.id}"
   >
-    <span class="title-line">
-      {#if job.unread}<span class="dot" role="img" aria-label={de.job.unread}></span>{/if}
-      <span class="title" class:unread={job.unread}>{heading}</span>
-    </span>
+    <span class="title" class:unread={job.unread}>{heading}</span>
     <span class="meta">
       {#if job.company}<span class="text company">{job.company}</span>{/if}
       {#if job.location}<span class="text place">{job.location}</span>{/if}
-      <span class="date">{formatRelative(job.mailDate ?? job.firstSeenAt, now, true)}</span>
     </span>
-    {#if reason || deviation}
-      <span class="foot">
-        {#if reason}
-          <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
-        {/if}
-        {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
-      </span>
-    {/if}
+    <span class="foot">
+      {#if reason}
+        <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
+      {/if}
+      {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
+    </span>
   </ListRow>
+  {#if job.unread}<span class="dot" role="img" aria-label={de.job.unread}></span>{/if}
   {#if onpin}
     <span class="pin">
       <Button
@@ -124,32 +122,24 @@
     position: relative;
   }
 
-  .title-line {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-6);
-    min-width: 0;
-  }
-
-  /* Centred on the first line of the title. */
+  /* The unread dot in its own gutter left of the ring, on the axis of the title line. */
   .dot {
-    flex: none;
+    position: absolute;
+    top: calc(var(--space-12) + (var(--leading-title) - var(--dot)) / 2);
+    left: calc(var(--pane-padding) - var(--dot-gutter) + (var(--dot-gutter) - var(--dot)) / 2);
     width: var(--dot);
     height: var(--dot);
-    margin-top: var(--space-6);
     border-radius: var(--radius-full);
     background-color: var(--accent);
+    pointer-events: none;
   }
 
   .title {
-    display: -webkit-box;
     overflow: hidden;
     color: var(--text);
     font: var(--type-title);
-    overflow-wrap: break-word;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .title.unread {
@@ -164,7 +154,7 @@
     font: var(--type-sm);
   }
 
-  /* Parts joined by a middle dot; the date never shrinks, the company gives way first. */
+  /* Parts joined by a middle dot. */
   .meta > * + *::before {
     padding: 0 var(--space-6);
     color: var(--text-subtle);
@@ -189,40 +179,48 @@
     max-width: 40%;
   }
 
+  /* The relative date on the title line, right-aligned in the trailing slot. */
   .date {
-    flex: none;
+    color: var(--text-subtle);
+    font: var(--type-xs);
+    line-height: var(--leading-title);
     font-variant-numeric: var(--numeric);
     white-space: nowrap;
   }
 
+  /* One line of 20 px for every row: the reason, the badge right after it. */
   .foot {
     display: flex;
     align-items: center;
     gap: var(--space-8);
     min-width: 0;
-    margin-top: var(--space-2);
+    height: var(--leading-title);
   }
 
   .reason {
     display: flex;
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
   }
 
   .star-slot {
     width: var(--control-sm);
+    height: var(--control-sm);
   }
 
   .star {
     display: inline-flex;
-    padding-top: var(--space-2);
-    color: var(--accent);
+    align-items: center;
+    justify-content: center;
+    width: var(--control-sm);
+    height: var(--control-sm);
+    color: var(--pressed);
   }
 
-  /* The pin button over the reserved slot: centred on the first title line. */
+  /* The pin button over the reserved slot below the date. */
   .pin {
     position: absolute;
-    top: var(--space-8);
+    top: calc(var(--space-12) + var(--leading-title) + var(--space-4));
     right: var(--pane-padding);
     opacity: 0;
     transition: opacity var(--dur-fast) var(--ease-standard);

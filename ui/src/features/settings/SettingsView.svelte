@@ -414,7 +414,6 @@
   }
 
   .heading {
-    padding-left: var(--space-4);
     color: var(--text-heading);
     font: var(--type-lg);
   }
