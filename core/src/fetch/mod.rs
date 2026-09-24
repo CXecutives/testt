@@ -110,6 +110,25 @@ pub enum Cause {
     DrySample,
 }
 
+impl Cause {
+    /// Does a suspicious page with this cause speak about the portal (its layout changed, a
+    /// forced interstitial) rather than about one job? Only such pages feed the breaker and
+    /// the "layout changed" health. A per-job verdict - another job's page, an expired
+    /// project that leads to the search, an odd redirect, a 4xx status, an oversized page -
+    /// costs that job an attempt and says nothing about the portal.
+    pub fn is_layout_signal(self) -> bool {
+        !matches!(
+            self,
+            Cause::WrongPage
+                | Cause::NotAProjectPage
+                | Cause::UnexpectedRedirect
+                | Cause::RedirectNotFollowed
+                | Cause::PageTooLarge
+                | Cause::Http(400..=499)
+        )
+    }
+}
+
 impl fmt::Display for Cause {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -323,7 +342,9 @@ impl PortalHealth {
             },
             Allowance::Quota { next_at } => PortalHealth::QuotaReached { until: next_at },
             Allowance::Go if login_enabled && state.login_needed => PortalHealth::LoginRequired,
-            Allowance::Go if empty_mails > 0 || state.suspicious_streak > 0 => {
+            // One odd page is no sign of a changed layout; a series of them (the breaker's
+            // length) is.
+            Allowance::Go if empty_mails > 0 || state.suspicious_streak >= SUSPICIOUS_STREAK => {
                 PortalHealth::LayoutSuspect {
                     empty_mails,
                     pages: state.suspicious_streak,
@@ -617,11 +638,15 @@ pub fn neutral_prescore() -> Prescore {
 }
 
 /// The fetch order within a portal: open jobs before retries, then the higher pre-score,
-/// then the newer mail. A stable sort - equal jobs keep the store's order.
+/// then the newer mail. Retries go by their last attempt, the longest waiting first - so
+/// one failing job is never always the first of every run while the others behind it wait.
+/// A stable sort - equal jobs keep the store's order.
 fn order(jobs: &mut [JobRow], prescore: &PrescoreFn) {
     jobs.sort_by_cached_key(|job| {
+        let failed = job.desc_status == DescStatus::Failed;
         (
-            job.desc_status == DescStatus::Failed,
+            failed,
+            failed.then_some(job.desc_attempted_at).flatten(),
             std::cmp::Reverse(guarded_prescore(prescore, job)),
             std::cmp::Reverse(job.mail_date.unwrap_or(job.first_seen_at)),
         )
@@ -689,6 +714,8 @@ pub async fn fetch_all<F: PageFetcher>(
     // Only portals with work get a fetch path - built before the start: if one fails, no
     // portal begins.
     let mut work = Vec::new();
+    // Chosen teasers the guest path cannot improve: only a sign-in brings their full text.
+    let mut need_sign_in: BTreeMap<Portal, usize> = BTreeMap::new();
     for adapter in fetch_order() {
         let portal = adapter.portal();
         if let Some(mut jobs) = by_portal.remove(&portal) {
@@ -697,7 +724,12 @@ pub async fn fetch_all<F: PageFetcher>(
             // A teaser is only worth another request where the full text can come: in the
             // session window.
             if !fetcher.session() {
+                let before = jobs.len();
                 jobs.retain(|job| job.desc_status != DescStatus::Teaser);
+                let teasers = before - jobs.len();
+                if teasers > 0 && matches!(selection, Selection::Jobs(..)) {
+                    need_sign_in.insert(portal, teasers);
+                }
             }
             // The automatic queue goes by pre-score; chosen jobs keep the user's order.
             if matches!(selection, Selection::Queue(_)) {
@@ -766,6 +798,21 @@ pub async fn fetch_all<F: PageFetcher>(
         completed &= run.completed;
         summary.per_portal.insert(run.portal, run.counts);
     }
+    // "Details holen" on a teaser without the sign-in: nothing was requested, and the user
+    // learns why - the portal wants a sign-in for the full text.
+    for (portal, teasers) in need_sign_in {
+        let counts = summary.per_portal.entry(portal).or_default();
+        counts.skipped += teasers;
+        if counts.stop.is_none() {
+            let reason = StopReason::LoginRequired;
+            counts.stop = Some(reason.clone());
+            on_event(FetchEvent::PortalStopped {
+                portal,
+                reason,
+                skipped: teasers,
+            });
+        }
+    }
     Ok(completed)
 }
 
@@ -806,6 +853,10 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
     let mut login_tried = false;
     // Job whose page was already retried once (at most one retry).
     let mut retried: Option<usize> = None;
+    // A layout-suspicious page already cost its job an attempt in this run. The first one
+    // of every run always does: a series that never ends (the streak persists across runs)
+    // must not keep requesting the same page for free.
+    let mut charged = false;
     let mut index = 0;
     while index < jobs.len() {
         let job = &jobs[index];
@@ -900,10 +951,9 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                     if session {
                         policy.set_session(portal, true, now);
                     }
-                    // Only an undoubtedly complete text resets the breaker.
-                    if !short {
-                        policy.clear_suspicious(portal);
-                    }
+                    // The page was understood - a short text too is verified (container
+                    // present, no wall, the right page): the layout is fine.
+                    policy.clear_suspicious(portal);
                 }
                 counts.ok += 1;
                 counts.short += usize::from(short);
@@ -927,8 +977,14 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 if let Some(f) = fields {
                     store.record_page_fields(&job.key, &f.title, &f.company, &f.location)?;
                 }
-                // The right page, read as far as a guest can: the layout is fine.
-                lock(policy).clear_suspicious(portal);
+                // The same project announced on another portal with its full text: the
+                // teaser row points to it.
+                store.link_duplicate(&job.key)?;
+                // The right page, read as far as a guest can: the layout is fine - but only
+                // when the teaser says something. An empty one is no proof of the layout.
+                if !text.trim().is_empty() {
+                    lock(policy).clear_suspicious(portal);
+                }
                 counts.teaser += 1;
                 note(
                     notes,
@@ -941,6 +997,8 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
             }
             PageOutcome::Gone => {
                 store.record_gone(&job.key, now)?;
+                // The portal answered clearly: nothing about its layout is suspect.
+                lock(policy).clear_suspicious(portal);
                 counts.gone += 1;
                 note(
                     notes,
@@ -951,12 +1009,30 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 );
                 None
             }
+            // One job's own odd page (another job, an expired project, an odd redirect, a
+            // 4xx): the job's attempt, nothing about the portal's layout.
+            PageOutcome::Suspicious(cause) if !cause.is_layout_signal() => {
+                let status = store.record_failure(&job.key, &cause.to_string(), now, true)?;
+                store.record_parse(&job.key, parser_version, None)?;
+                counts.failed += 1;
+                note(
+                    notes,
+                    FetchEvent::JobUpdated {
+                        key: job.key.clone(),
+                        status,
+                    },
+                );
+                None
+            }
             PageOutcome::Suspicious(cause) => {
                 // A series of suspicious pages in a row (layout changed?) is the portal's
-                // fault, not the jobs': the whole series costs ONE attempt - its first page.
+                // fault, not the jobs': the series costs ONE attempt - its first page, and
+                // the first page of every later run (otherwise a series that never ends
+                // would request the same page run after run, and the jobs behind it never).
                 let streak = lock(policy).count_suspicious(portal);
-                let status =
-                    store.record_failure(&job.key, &cause.to_string(), now, streak <= 1)?;
+                let charge = streak <= 1 || !charged;
+                charged = true;
+                let status = store.record_failure(&job.key, &cause.to_string(), now, charge)?;
                 store.record_parse(&job.key, parser_version, None)?;
                 counts.failed += 1;
                 note(
