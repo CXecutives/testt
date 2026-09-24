@@ -1,7 +1,9 @@
 <!--
   One reason of a match: met | partial | open | violation | check, weighted must | nice |
   hard | info. Quote and profile evidence appear in the tooltip; hovering can highlight
-  the passage (onhover), a click can scroll to it (onselect).
+  the passage (onhover), a click can scroll to it (onselect). A reason that jumps washes
+  on hover and shows a small arrow down, gives a little when pressed, and takes the navy
+  wash while its passage is pinned (active).
 -->
 <script lang="ts" module>
   import type { ReasonKind, ReasonWeight } from '$lib/ipc/types';
@@ -83,7 +85,8 @@
     onpointerleave={() => onhover?.(false)}
     onclick={() => onselect?.()}
   >
-    {@render body()}
+    <span class="face">{@render body()}</span>
+    <span class="jump" aria-hidden="true"><Icon name="arrow-down" size="xs" /></span>
   </button>
 {:else}
   <span class="reason {kind}" class:compact use:tooltip={hint}>{@render body()}</span>
@@ -100,20 +103,65 @@
     color: var(--text);
     font: var(--type-md);
     text-align: left;
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--dur-base) var(--ease-standard);
   }
 
   button.reason {
     width: 100%;
   }
 
-  button.reason:hover,
-  .active {
+  button.reason:hover {
     background-color: var(--surface-hover);
+    transition-duration: var(--dur-hover);
+  }
+
+  button.reason:active {
+    background-color: var(--surface-press);
+    transition-duration: var(--dur-instant);
+  }
+
+  /* The pinned passage: the navy wash of a chosen filter. */
+  .active,
+  .active:hover {
+    background-color: var(--active-surface);
   }
 
   button.reason:focus-visible {
     box-shadow: var(--focus-ring-inset);
+  }
+
+  /* The content of a reason that jumps: it gives a little under the pointer (60 ms). */
+  .face {
+    display: flex;
+    flex: 1;
+    align-items: inherit;
+    gap: var(--space-8);
+    min-width: 0;
+    transition: transform var(--dur-base) var(--ease-emphasized);
+  }
+
+  button.reason:active .face {
+    transform: scale(var(--scale-press));
+    transition-duration: var(--dur-instant);
+  }
+
+  /* The way to the passage: a small arrow that drops in on hover (100 ms). */
+  .jump {
+    display: inline-flex;
+    flex: none;
+    align-self: center;
+    color: var(--text-subtle);
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--move-sm)));
+    transition:
+      opacity var(--dur-fast) var(--ease-standard),
+      transform var(--dur-fast) var(--ease-out);
+  }
+
+  button.reason:hover .jump,
+  button.reason:focus-visible .jump {
+    opacity: 1;
+    transform: none;
   }
 
   .compact {

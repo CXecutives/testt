@@ -1,7 +1,10 @@
 <!--
   The navigation of the sidebar: icon and label per view, an optional count (unread jobs).
-  Active item in accent-soft with ink text, hover surface-hover, the count in muted text.
-  Collapsed (icon rail) the labels move into tooltips and a dot on the icon stands for the count.
+  The active entry sits on one white pill that slides to it (180 ms, emphasized; the
+  sibling of the segmented thumb), its label deep navy and its icon navy. An idle entry
+  washes on hover and its icon turns navy. The count is the deep navy pill and rolls when
+  it changes. Collapsed (icon rail) the labels move into tooltips and a coral dot on the
+  icon stands for the count. While the window is inactive the active label turns ink.
 -->
 <script lang="ts" module>
   import type { IconName } from './Icon.svelte';
@@ -17,8 +20,9 @@
 
 <script lang="ts" generics="Id extends string">
   import { tooltip } from '$lib/actions/tooltip';
-  import { formatNumber } from '$lib/i18n/format';
-  import { fade } from '$lib/motion/transitions';
+  import { cssVars } from '$lib/actions/cssVars';
+  import { fade, pop } from '$lib/motion/transitions';
+  import Count from './Count.svelte';
   import Icon from './Icon.svelte';
 
   interface Props {
@@ -29,9 +33,15 @@
     onselect: (id: Id) => void;
   }
   let { items, active, label, collapsed = false, onselect }: Props = $props();
+
+  const index = $derived(items.findIndex((item) => item.id === active));
 </script>
 
-<nav class="nav" class:collapsed aria-label={label}>
+<nav class="nav" class:collapsed aria-label={label} use:cssVars={{ index: Math.max(0, index) }}>
+  <!-- Re-created when the rail flips, so crossing 1100 px places it without sliding. -->
+  {#key collapsed}
+    <span class="indicator" class:none={index < 0} aria-hidden="true"></span>
+  {/key}
   {#each items as item (item.id)}
     <button
       type="button"
@@ -44,11 +54,12 @@
     >
       <span class="glyph">
         <Icon name={item.icon} size="md" />
-        {#if collapsed && item.count}<span class="dot" aria-hidden="true"></span>{/if}
+        {#if collapsed && item.count}<span class="dot" aria-hidden="true" in:pop></span>{/if}
       </span>
       {#if !collapsed}
         <span class="label" in:fade>{item.label}</span>
-        {#if item.count}<span class="count" in:fade>{formatNumber(item.count)}</span>{/if}
+        {#if item.count}<span class="count" in:fade><Count value={item.count} tone="strong" /></span
+          >{/if}
       {/if}
     </button>
   {/each}
@@ -56,9 +67,39 @@
 
 <style>
   .nav {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
+    isolation: isolate;
+  }
+
+  /* The one white pill behind the active entry. */
+  .indicator {
+    position: absolute;
+    z-index: var(--z-below);
+    top: 0;
+    right: 0;
+    left: 0;
+    height: var(--control-md);
+    border: var(--border-width) solid var(--nav-active-border);
+    border-radius: var(--radius-md);
+    background-color: var(--nav-active-bg);
+    box-shadow: var(--sh-xs);
+    transform: translateY(calc(var(--index) * var(--nav-step)));
+    transition: transform var(--dur-slow) var(--ease-emphasized);
+    will-change: transform;
+  }
+
+  .indicator.none {
+    opacity: 0;
+  }
+
+  .collapsed .indicator {
+    right: auto;
+    width: var(--control-lg);
+    height: var(--control-lg);
+    transform: translateY(calc(var(--index) * var(--nav-step-rail)));
   }
 
   .item {
@@ -71,19 +112,31 @@
     color: var(--text-muted);
     font: var(--type-tab);
     transition:
-      background-color var(--dur-fast) var(--ease-standard),
-      color var(--dur-fast) var(--ease-standard);
+      background-color var(--dur-base) var(--ease-standard),
+      color var(--dur-base) var(--ease-standard);
   }
 
-  .item:hover {
+  .item:not([aria-current='page']):hover {
     background-color: var(--surface-hover);
     color: var(--text);
+    transition-duration: var(--dur-hover);
+    --nav-glyph: var(--nav-active-icon);
+  }
+
+  .item:not([aria-current='page']):active {
+    background-color: var(--surface-press);
+    transition-duration: var(--dur-instant);
   }
 
   .item[aria-current='page'] {
-    background-color: var(--surface-selected);
-    color: var(--text-heading);
-    font-weight: var(--weight-medium);
+    color: var(--nav-active-fg);
+    --nav-glyph: var(--nav-active-icon);
+  }
+
+  /* Like Mail and Explorer: the selection greys out while the window is in the back. */
+  :global(:root[data-window='inactive']) .item[aria-current='page'] {
+    color: var(--text);
+    --nav-glyph: var(--text);
   }
 
   .item:focus-visible {
@@ -100,6 +153,8 @@
   .glyph {
     position: relative;
     display: inline-flex;
+    color: var(--nav-glyph, currentcolor);
+    transition: color var(--dur-base) var(--ease-standard);
   }
 
   .dot {
@@ -110,7 +165,7 @@
     height: var(--dot);
     border: var(--border-width) solid var(--bg);
     border-radius: var(--radius-full);
-    background-color: var(--accent);
+    background-color: var(--unread);
   }
 
   .label {
@@ -121,11 +176,7 @@
     white-space: nowrap;
   }
 
-  /* The unread count: muted text, no pill (coral stays for the accents). */
   .count {
-    color: var(--text-muted);
-    font: var(--type-xs);
-    font-weight: var(--weight-medium);
-    font-variant-numeric: var(--numeric);
+    display: inline-flex;
   }
 </style>

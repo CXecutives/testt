@@ -3,11 +3,16 @@
   autocorrect and autocapitalize are off. Use inside Field for label, hint and error.
   Like the native ones: the show and clear buttons are not in the Tab order and leave the
   caret in the field; a search clears on Esc, and a click on its magnifier lands in it.
+  Focus turns the edge navy (100 ms) and fades in a soft halo painted once on ::after; the
+  magnifier turns navy. The clear button pops in with the first character and leaves at
+  once. `shake()` shakes the field once (a wrong password; never under reduced motion).
 -->
 <script lang="ts">
   import { tick } from 'svelte';
   import { FIELD_ATTRIBUTES, formKeys } from '$lib/input/input';
   import { de } from '$lib/i18n/de';
+  import { move, play } from '$lib/motion/motion';
+  import { pop } from '$lib/motion/transitions';
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
 
@@ -69,9 +74,33 @@
 
   /** Esc clears a search that has text; otherwise it goes on to the form around. */
   const keys = $derived(kind === 'search' && value !== '' ? { cancel: clear } : {});
+
+  let box = $state<HTMLElement | null>(null);
+
+  /** Shake the field once (180 ms): the answer to a wrong password, where it was typed. */
+  export function shake(): void {
+    if (box === null) return;
+    const far = move('md');
+    const near = move('sm');
+    const animation = play(
+      box,
+      [
+        { transform: 'none' },
+        { transform: `translateX(${-far}px)`, offset: 0.25 },
+        { transform: `translateX(${far}px)`, offset: 0.6 },
+        { transform: `translateX(${-near}px)`, offset: 0.85 },
+        { transform: 'none' },
+      ],
+      { duration: 'slow', easing: 'standard' },
+    );
+    void animation?.finished.then(
+      () => animation.cancel(),
+      () => undefined,
+    );
+  }
 </script>
 
-<div class="field {kind}" class:invalid class:disabled use:formKeys={keys}>
+<div bind:this={box} class="field {kind}" class:invalid class:disabled use:formKeys={keys}>
   {#if kind === 'search'}
     <span class="lead"><Icon name="search" size="sm" /></span>
   {/if}
@@ -106,7 +135,7 @@
       />
     </span>
   {:else if kind === 'search' && value !== ''}
-    <span class="trail">
+    <span class="trail" in:pop>
       <Button
         variant="ghost"
         size="sm"
@@ -130,20 +159,38 @@
     border: var(--border-width) solid var(--border-strong);
     border-radius: var(--radius-control);
     background-color: var(--surface);
-    transition: border-color var(--dur-fast) var(--ease-standard);
+    transition: border-color var(--dur-base) var(--ease-standard);
+  }
+
+  /* The focus halo: painted once, shown by opacity (a box-shadow never animates). */
+  .field::after {
+    position: absolute;
+    inset: calc(-1 * var(--border-width));
+    border-radius: inherit;
+    box-shadow: var(--focus-halo);
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease-standard);
   }
 
   .field:hover {
     border-color: var(--border-input);
+    transition-duration: var(--dur-hover);
   }
 
   .field:focus-within {
     border-color: var(--focus);
-    box-shadow: var(--focus-halo);
+    transition-duration: var(--dur-fast);
+  }
+
+  .field:focus-within::after {
+    opacity: 1;
   }
 
   .invalid,
-  .invalid:hover {
+  .invalid:hover,
+  .invalid:focus-within {
     border-color: var(--danger-strong);
   }
 
@@ -181,6 +228,11 @@
     align-items: center;
     color: var(--text-subtle);
     pointer-events: none;
+    transition: color var(--dur-fast) var(--ease-standard);
+  }
+
+  .field:focus-within .lead {
+    color: var(--nav-active-icon);
   }
 
   .trail {
