@@ -1,10 +1,21 @@
 /*
- * The only keyframes of the UI, all loops of something that waits: the light of a loading
- * placeholder, a spinner and the sweep of an indeterminate progress bar. Components
- * reference them by name with token durations (`animation: spin var(--dur-loop) linear
- * infinite`) and `animation-play-state: var(--loop-state)`, which reduced motion sets to
- * `paused`. Only transform is animated.
+ * The only keyframes of the UI, all for something that waits: the light of a loading
+ * placeholder, a spinner and the sweep of an indeterminate progress bar (loops, linear, so
+ * no turn seems to stall), and the late appearance of a placeholder. Components reference
+ * them by name with token durations (`animation: spin var(--dur-loop) linear infinite`);
+ * loops take `animation-play-state: var(--loop-state)`, which reduced motion sets to
+ * `paused`. Only transform and opacity are animated.
  */
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
 
 @keyframes shimmer {
   from {

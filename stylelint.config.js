@@ -16,7 +16,7 @@ const ANIMATABLE = [
   'border-color',
   'stroke-dashoffset',
 ];
-const KEYFRAMES = ['shimmer', 'spin', 'pulse', 'breathe', 'sweep', 'shake', 'draw'];
+const KEYFRAMES = ['shimmer', 'spin', 'pulse', 'breathe', 'sweep', 'shake', 'draw', 'appear'];
 
 /** `transition` shorthand: every comma-separated item starts with an allowed property. */
 const transitionShorthand = (properties) => {

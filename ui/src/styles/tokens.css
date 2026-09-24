@@ -95,8 +95,10 @@
   /* Switches are coral when on. */
   --toggle-on: hsl(var(--p-coral));
   --toggle-on-hover: hsl(var(--p-coral-variant));
-  /* The fill of a progress bar. */
+  /* The fill of a progress bar; a bar that nears a limit takes the calm ochre, not the
+     dark warning text colour. */
   --meter-fill: hsl(var(--p-coral));
+  --meter-warning: hsl(var(--p-score-mid));
   /* The pinned star: ink, not coral. */
   --pressed: hsl(var(--p-ink));
   --focus: hsl(var(--p-coral));
@@ -306,6 +308,9 @@
   /* At most this many list rows animate at the same time; the others are simply there. */
   --stagger-max: 10;
   --delay-tooltip: 400ms;
+  /* A loading placeholder shows only once a load has taken this long (a quicker load
+     never flashes one). */
+  --delay-placeholder: 300ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
