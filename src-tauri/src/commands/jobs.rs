@@ -13,9 +13,21 @@ pub async fn list_jobs(state: State<'_, AppState>, query: JobQuery) -> CmdResult
     Ok(view::job_page(&state.store, &query)?)
 }
 
+/// The reader: the match is assessed again from the stored text (reasons are not stored).
+/// A stale stored score is replaced only while no run is active - else the run's catch-up
+/// does it.
 #[tauri::command]
 pub async fn job_detail(state: State<'_, AppState>, key: JobKey) -> CmdResult<JobDetail> {
-    view::job_detail(&state.store, &key)?.ok_or_else(|| not_found("job"))
+    let matcher = state.matcher();
+    let save = !state.running();
+    view::job_detail(
+        &state.store,
+        &key,
+        matcher.as_deref(),
+        save,
+        Timestamp::now(),
+    )?
+    .ok_or_else(|| not_found("job"))
 }
 
 /// Marks a job as read - only on a real click in the list; `false` = it was read already.

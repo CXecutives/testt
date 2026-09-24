@@ -176,7 +176,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
 ### Phase 2 - core work (parallel, disjoint files; contracts frozen)
 - [ ] 2A Matching better: V5, V6, V3, V2, V1, V4, V15, V7, V9, V8, V16, V10-V13, decided/check model, V17, V18, V19,
       explain.rs, prescore - one commit each with corpus guard; calibrate, freeze.
-- [ ] 2B Store, runs, export (done with 1a except: wiring the real engine as LocalMatcher, profile quality/understood, topMatches, alsoOn, freelance.de guest teaser): schema 3 + chain + WAL; save_match(es), mark_read, set_pinned, job_page; settings
+- [ ] 2B Store, runs, export (done with 1a and the integration track except: alsoOn, freelance.de guest teaser; the engine is wired as `LocalMatcher`, see `docs/MATCHING.md`): schema 3 + chain + WAL; save_match(es), mark_read, set_pinned, job_page; settings
       (portal switches, autoFetchOnStart); LocalMatcher, scoring at JobUpdated + catch-up, Rust-triggered rescore and
       auto fetch; profile summary + template; Excel column + grey header, mail address out of info sheet; HTML
       overview; TXT byte tests; demo with high/mid/low/excluded.
@@ -186,7 +186,9 @@ macOS: universal, ad-hoc signed, minimum 14.0.
       Done when: 26 fetch tests + new (4th test portal via registry only, health, teaser, Retry-After, requeue, slug
       URL = same id, duplicate group, IMAP loads candidates only, details off => zero portal requests, sign-out
       verified on both OS).
-- [ ] Integration (integrator, serial): wire A + B + D into commands and view.
+- [ ] Integration (integrator, serial): wire A + B + D into commands and view. A + B done (LocalMatcher, Rust-triggered
+      rescore, reader recompute, profile summary, template, demo on the real engine, `auswertung/top_matches.json` for the
+      skill as optional stage 2); D open (prescore hook not exposed by the fetch queue yet).
 
 ### Phase 3 - screens and core workflow (two UI agents)
 - [ ] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)

@@ -5,6 +5,7 @@
 mod job_txt;
 mod overview_html;
 pub mod texts;
+mod top_matches;
 mod xlsx;
 
 use std::collections::HashSet;
@@ -18,6 +19,7 @@ use crate::text::split_company_location;
 pub use job_txt::{TXT_DIR, write_job_txt};
 pub use overview_html::write_overview_html;
 pub use texts::{COLUMNS, details_label};
+pub use top_matches::{TOP_MATCHES_MAX, TOP_MATCHES_NAME, TopMatch, TopMatches, top_matches};
 pub use xlsx::write_xlsx;
 
 /// File and folder names below are a contract with the user's workspace and the matching
@@ -133,6 +135,7 @@ pub fn app_files(result_dir: &Path, txt_names: &[String]) -> Vec<PathBuf> {
     let mut files = files_in(result_dir, |name| {
         name.eq_ignore_ascii_case(XLSX_NAME)
             || name.eq_ignore_ascii_case(HTML_NAME)
+            || name.eq_ignore_ascii_case(TOP_MATCHES_NAME)
             || name.eq_ignore_ascii_case(LEGACY_CSV_NAME)
             || is_tmp(name)
     });

@@ -7,6 +7,8 @@
 //! English lines with the run id (never content, addresses or passwords).
 
 pub mod demo;
+pub mod local;
+pub mod rescore;
 pub mod score;
 
 use std::collections::BTreeMap;
@@ -29,6 +31,7 @@ use crate::store::{JobFilter, JobRow, Store};
 use crate::text::truncate_chars;
 use crate::time;
 use crate::view::{EmptyAlert, JobView, MAX_SUBJECT_CHARS};
+pub use local::LocalMatcher;
 pub use score::Matcher;
 use score::Tally;
 
@@ -504,6 +507,12 @@ pub async fn run<B: Backends>(
         emit(status(StatusCode::WritingFiles, None, None));
         let info = info_rows(store, started_at);
         let exported = export_all(store, &ctx.workspace, &info, run, summary.finished_at);
+        write_top_matches(
+            store,
+            &ctx.workspace,
+            matcher.as_deref(),
+            summary.finished_at,
+        );
         log_export(run, &exported);
         summary.export = Some(exported);
     }
@@ -846,6 +855,26 @@ pub fn export_all(
         Err(e) => note_error(&mut summary, &e, Target::OverviewHtml),
     }
     summary
+}
+
+/// `top_matches.json` for the matching skill; a failure only goes to the log (the file is an
+/// extra for the skill, the run's own results are complete without it).
+pub fn write_top_matches(
+    store: &Store,
+    workspace: &Path,
+    matcher: Option<&dyn Matcher>,
+    now: Timestamp,
+) {
+    let path = workspace.join(RESULT_DIR).join(export::TOP_MATCHES_NAME);
+    let written = last_scan_run(store)
+        .and_then(|run| export::top_matches(store, matcher, run, now))
+        .and_then(|top| {
+            let json = serde_json::to_vec_pretty(&top).unwrap_or_default();
+            export::write_atomic(&path, &json)
+        });
+    if let Err(e) = written {
+        log::warn!("{} not written: {e}", export::TOP_MATCHES_NAME);
+    }
 }
 
 /// "Rewrite text files" (e.g. after a change of folder): all jobs with a full text, the

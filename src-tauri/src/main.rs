@@ -10,7 +10,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Mutex};
 
-use commands::{Activity, AppState, GmailUser};
+use commands::{Activity, AppState, GmailUser, Scoring};
 use jobalert_core::secrets::Vault;
 use jobalert_core::store::Store;
 use tauri::Manager;
@@ -168,6 +168,7 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
         reset_report: Mutex::new(reset_report),
         gmail_user: Mutex::new(GmailUser::Unread),
         activity: Mutex::new(Activity::Idle),
+        scoring: Scoring::default(),
     });
     // The web view version goes to the log only: the UI does not need it, and for debugging
     // the log is more reliable than a screenshot.
@@ -390,6 +391,7 @@ mod lifecycle {
                     return;
                 }
                 let _ = win.emit("closing", ());
+                state.scoring.stop();
                 state.cancel_run();
                 let app = win.app_handle().clone();
                 tauri::async_runtime::spawn(async move {

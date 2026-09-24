@@ -9,6 +9,7 @@ use jiff::Timestamp;
 use tokio_util::sync::CancellationToken;
 
 use super::{RunEvent, ScoreSummary, StatusCode, Step, status};
+use crate::matching::Assessment;
 use crate::model::{MatchRecord, MatchStatus};
 use crate::portal::JobKey;
 use crate::store::{JobRow, Store};
@@ -23,6 +24,12 @@ pub trait Matcher: Send + Sync {
     /// The match of one job (`text`: its full text, if fetched); `None` = no judgement, the
     /// job stays pending.
     fn assess(&self, job: &JobRow, text: Option<&str>) -> Option<MatchRecord>;
+    /// The full assessment behind [`Matcher::assess`] (reasons for the exports); `None` if
+    /// the matcher has none.
+    fn explain(&self, job: &JobRow, text: Option<&str>) -> Option<Assessment> {
+        let _ = (job, text);
+        None
+    }
 }
 
 /// Counters of the scoring in one run.

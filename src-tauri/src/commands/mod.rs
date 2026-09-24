@@ -14,6 +14,7 @@ mod mailbox;
 mod portals;
 mod profile;
 mod run;
+mod scoring;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -26,6 +27,7 @@ use jobalert_core::store::Store;
 use tokio_util::sync::CancellationToken;
 
 pub use run::RunHandle;
+pub use scoring::Scoring;
 
 /// Every command: name, arguments and result in TypeScript. `core/tests/contract.rs`
 /// writes `ui/src/lib/ipc/types/commands.ts` from this table.
@@ -128,6 +130,8 @@ pub struct AppState {
     /// What the app is doing right now. Checked and claimed under the same lock - a run and a
     /// sign-in exclude each other (two writers of `policy.json` would lose requests).
     pub activity: Mutex<Activity>,
+    /// The compiled profile and the rescore runs the app starts itself.
+    pub scoring: Scoring,
 }
 
 /// Stored Gmail address in the cache.
