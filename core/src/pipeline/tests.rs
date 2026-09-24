@@ -31,6 +31,7 @@ fn ctx(workspace: &Path, dry_run: bool) -> RunContext {
         dry_run,
         portals: Portal::ALL.to_vec(),
         fetch_portals: Portal::ALL.to_vec(),
+        sign_in: vec![Portal::FreelanceDe],
     }
 }
 
@@ -285,7 +286,7 @@ async fn mail_failure_skips_fetch_but_exports() {
                 "[AUTHENTICATIONFAILED] Invalid credentials".into(),
             ))
         }
-        fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+        fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
             Ok(DemoPages)
         }
     }
@@ -726,7 +727,7 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
         async fn connect_mail(&mut self, _: &CancellationToken) -> Result<DemoMail, MailError> {
             Err(MailError::Timeout)
         }
-        fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+        fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
             Ok(DemoPages)
         }
     }
@@ -881,7 +882,7 @@ impl Backends for Unscored {
     async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
         DemoBackends.connect_mail(cancel).await
     }
-    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+    fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
         Ok(DemoPages)
     }
 }
@@ -913,7 +914,7 @@ impl Backends for WithPicky {
     async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
         DemoBackends.connect_mail(cancel).await
     }
-    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+    fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
         Ok(DemoPages)
     }
     fn matcher(&self) -> Option<Arc<dyn Matcher>> {
@@ -1140,4 +1141,77 @@ async fn the_skill_gets_the_top_matches() {
     assert_eq!(file["jobs"].as_array().unwrap().len(), 0);
     assert_eq!(file["rev"], serde_json::Value::Null);
     assert!(export::app_files(&dir.path().join(RESULT_DIR), &[]).contains(&path));
+}
+
+/// Records which fetch path the run builds per portal (mails and pages from the demo).
+#[derive(Default)]
+struct Paths(Vec<(Portal, FetchPath)>);
+
+impl Backends for Paths {
+    type Mail = DemoMail;
+    type Pages = DemoPages;
+    async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
+        DemoBackends.connect_mail(cancel).await
+    }
+    fn pages(&mut self, portal: Portal, path: FetchPath) -> Result<DemoPages, String> {
+        self.0.push((portal, path));
+        Ok(DemoPages)
+    }
+}
+
+/// The switches reach the fetch: details off = no fetch path at all (zero requests);
+/// sign-in off = the guest path, never a session window; sign-in on = the session window.
+#[tokio::test(start_paused = true)]
+async fn switches_decide_the_fetch_path() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let mut settings = crate::settings::Settings::default();
+    settings
+        .portals
+        .get_mut(&Portal::LinkedIn)
+        .unwrap()
+        .fetch_details = false;
+    let context = RunContext {
+        fetch_portals: settings.fetch_portals(),
+        sign_in: Vec::new(),
+        ..ctx(dir.path(), false)
+    };
+    let mut paths = Paths::default();
+    let (s, _) = go(
+        &mut paths,
+        &store,
+        &request(),
+        &context,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.outcome, Outcome::Completed);
+    assert_eq!(
+        paths.0,
+        [
+            (Portal::Freelancermap, FetchPath::Guest),
+            (Portal::FreelanceDe, FetchPath::Guest)
+        ]
+    );
+    let fetch = s.fetch.unwrap();
+    assert!(!fetch.per_portal.contains_key(&Portal::LinkedIn));
+
+    let context = RunContext {
+        sign_in: vec![Portal::FreelanceDe],
+        ..context
+    };
+    let mut paths = Paths::default();
+    let store = Store::in_memory().unwrap();
+    go(
+        &mut paths,
+        &store,
+        &request(),
+        &context,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert!(paths.0.contains(&(Portal::FreelanceDe, FetchPath::Session)));
 }

@@ -95,6 +95,9 @@ pub enum DescStatus {
     Missing,
     /// Full text is available.
     Ok,
+    /// Only the teaser a guest sees (freelance.de without sign-in) - short, but worth
+    /// matching; no text file is written for it.
+    Teaser,
     /// Page loaded but no valid text - retried later.
     Failed,
     /// The ad no longer exists.
@@ -108,6 +111,7 @@ impl DescStatus {
         match self {
             DescStatus::Missing => "missing",
             DescStatus::Ok => "ok",
+            DescStatus::Teaser => "teaser",
             DescStatus::Failed => "failed",
             DescStatus::Gone => "gone",
             DescStatus::Unfetchable => "unfetchable",
@@ -118,6 +122,7 @@ impl DescStatus {
         [
             Self::Missing,
             Self::Ok,
+            Self::Teaser,
             Self::Failed,
             Self::Gone,
             Self::Unfetchable,
@@ -242,6 +247,7 @@ mod tests {
         for s in [
             DescStatus::Missing,
             DescStatus::Ok,
+            DescStatus::Teaser,
             DescStatus::Failed,
             DescStatus::Gone,
             DescStatus::Unfetchable,

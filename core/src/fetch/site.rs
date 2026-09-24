@@ -1,16 +1,16 @@
-//! Ein Portal im Sitzungsfenster – alles, was die Fensterschicht über ein Portal wissen
-//! muss, an einer Stelle. Das Fenster selbst kennt danach kein einzelnes Portal mehr: Es
-//! lädt Adressen, sammelt einen Befund und reicht ihn hierher zurück.
+//! A portal in the session window - everything the window layer needs to know about a
+//! portal, in one place. The window itself knows no single portal: it loads addresses,
+//! collects findings and hands them back here.
 
 use serde::Deserialize;
 use url::Url;
 
-use super::{PageOutcome, freelance_de};
+use super::PageOutcome;
 use crate::portal::Portal;
 
-/// Was das Befund-Skript einer Seite meldet – reine Befunde, kein Urteil. Nicht jedes Portal
-/// füllt jedes Feld; was es nicht kennt, bleibt leer.
-#[expect(clippy::struct_excessive_bools, reason = "reine Befunde einer Seite")]
+/// What the probe script of a page reports - findings only, no judgement. Not every portal
+/// fills every field; what it does not know stays empty.
+#[expect(clippy::struct_excessive_bools, reason = "plain findings of a page")]
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SessionPage {
@@ -22,76 +22,64 @@ pub struct SessionPage {
     pub has_expert_marker: bool,
     pub has_login_form: bool,
     pub has_captcha: bool,
-    /// Konto-Menü oder Abmelde-Eintrag (freelancermap: Zeichen einer Anmeldung).
-    pub has_account_menu: bool,
     pub title: String,
     pub company: String,
     pub location: String,
-    /// HTML des Beschreibungsfelds.
+    /// Facts of the page head, as the page words them.
+    pub start: String,
+    pub duration: String,
+    pub remote: String,
+    /// HTML of the description field.
     pub panel_html: Option<String>,
 }
 
-/// Ein Portal, das über ein Sitzungsfenster abgerufen werden kann.
+/// A portal that can be read in a session window.
 pub struct PortalSite {
     pub portal: Portal,
-    pub window_title: &'static str,
     pub login_url: &'static str,
     pub logout_url: &'static str,
-    /// Befund-Skript: synchron, in `try/catch`, liefert immer JSON ([`SessionPage`]).
+    /// Probe script: synchronous, in `try/catch`, always returns JSON ([`SessionPage`]).
     pub probe_js: &'static str,
-    /// Adressen, die das Fenster laden darf (Hosts dieses Portals).
+    /// Addresses the window may load (hosts of this portal).
     pub is_allowed: fn(&Url) -> bool,
-    /// Einmalige Weiterleitung direkt nach der Anmeldung – dieselbe Seite noch einmal holen.
+    /// One-off redirect right after the sign-in - fetch the same page again.
     pub is_postlogin: fn(&str) -> bool,
-    /// Zeigt der Befund eine bestehende Anmeldung?
+    /// Do the findings show an existing sign-in?
     pub signed_in: fn(&SessionPage) -> bool,
-    /// Befund → Ergebnis-Matrix; der zweite Wert ist die Job-ID aus der Mail.
+    /// Findings -> outcome matrix; the second value is the job id from the mail.
     pub judge: fn(&SessionPage, &str) -> PageOutcome,
 }
 
-static FREELANCE_DE: PortalSite = PortalSite {
-    portal: Portal::FreelanceDe,
-    window_title: "freelance.de – Anmeldung",
-    login_url: "https://www.freelance.de/login.php",
-    logout_url: "https://www.freelance.de/logout.php",
-    probe_js: freelance_de::PROBE_JS,
-    is_allowed: freelance_de::is_portal_url,
-    is_postlogin: freelance_de::is_postlogin,
-    signed_in: freelance_de::signed_in,
-    judge: freelance_de::judge_page,
-};
-
 impl PortalSite {
-    /// Beschreibung eines Portals; `None` für Portale ohne Anmeldung.
+    /// The session window of a portal (from its adapter); `None` for portals without a
+    /// sign-in.
     pub fn of(portal: Portal) -> Option<&'static PortalSite> {
-        match portal {
-            Portal::FreelanceDe => Some(&FREELANCE_DE),
-            Portal::LinkedIn | Portal::Freelancermap => None,
-        }
+        portal.adapter().session()
     }
 
-    /// Fensterkennung – derselbe Name wie der Profilordner.
+    /// Window label - the same name as the profile folder.
     pub fn label(&self) -> String {
         crate::session_dir(self.portal)
     }
 }
 
+/// The result of a web view `eval`: JSON-encoded, so a JSON text inside a JSON string. A
+/// raw value (not a string) is returned as it came.
+pub fn eval_result(raw: String) -> String {
+    serde_json::from_str(&raw).unwrap_or(raw)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::portal::LoginMode;
 
-    /// Jedes Portal mit Anmeldung hat eine Beschreibung, LinkedIn keine – und jede
-    /// beschriebene Adresse gehört zu ihrem eigenen Portal.
+    /// Every portal with a sign-in has a session site, the others none - and every address a
+    /// site names belongs to its own portal.
     #[test]
     fn every_portal_with_a_login_has_a_site() {
         for portal in Portal::ALL {
             let site = PortalSite::of(portal);
-            assert_eq!(
-                site.is_some(),
-                portal.login_mode() != LoginMode::None,
-                "{portal}"
-            );
+            assert_eq!(site.is_some(), portal.access().can_sign_in(), "{portal}");
             let Some(site) = site else { continue };
             assert_eq!(site.portal, portal);
             assert_eq!(site.label(), crate::session_dir(portal));
@@ -102,8 +90,8 @@ mod tests {
         }
     }
 
-    /// Sicherheits-Invariante: Ein Sitzungsfenster lädt nur Adressen seines eigenen Portals –
-    /// kein fremder Host, kein anderes Schema, keine App-eigene Adresse.
+    /// Safety invariant: a session window loads nothing but addresses of its own portal - no
+    /// foreign host, no other scheme, no address of the app itself.
     #[test]
     fn a_session_window_loads_nothing_but_its_own_portal() {
         let elsewhere = [
@@ -111,7 +99,7 @@ mod tests {
             "https://www.freelance.de.example.org/login.php",
             "https://notfreelance.de/login.php",
             "https://www.freelancermap.de.evil.example/",
-            // Ein anderes Portal ist genauso fremd wie jede andere Adresse.
+            // Another portal is as foreign as any other address.
             "https://www.freelancermap.de/login.html",
             "https://accounts.google.com/",
             "tauri://localhost/index.html",
@@ -128,5 +116,12 @@ mod tests {
                 assert!(!(site.is_allowed)(&url), "{portal}: {raw}");
             }
         }
+    }
+
+    #[test]
+    fn eval_results_are_unwrapped_once() {
+        assert_eq!(eval_result(r#""{\"ok\":true}""#.into()), r#"{"ok":true}"#);
+        assert_eq!(eval_result(r#"{"ok":true}"#.into()), r#"{"ok":true}"#);
+        assert_eq!(eval_result("not json".into()), "not json");
     }
 }

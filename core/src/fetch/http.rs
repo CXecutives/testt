@@ -1,30 +1,34 @@
-//! HTTP fetching for LinkedIn (guest view) and freelancermap - no account, no window.
+//! HTTP fetching of guest pages - no account, no window. Which address, how redirects are
+//! treated and how a page reads is the portal adapter's business; this client only speaks
+//! HTTP.
 //!
 //! The client looks like a current browser of the OS the app runs on: the user agent is a
 //! plain parameter of [`HttpFetcher::new`], injected by the app (`src-tauri/src/platform.rs`
 //! keeps one maintained value per OS); `Accept` and `Accept-Language` as measured,
 //! `Accept-Encoding` is set by reqwest itself. No invented headers, no rotation. Cookies
-//! live for one run only (new client per run) - a LinkedIn sign-in can structurally never
-//! occur in it.
+//! live for one run only (new client per run) - a sign-in can structurally never occur in
+//! it.
 
 use std::time::Duration;
 
-use reqwest::header::{ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderValue, LOCATION};
+use reqwest::header::{ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderValue, LOCATION, RETRY_AFTER};
 use reqwest::{Client, Response, StatusCode, redirect};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-use super::{PageFetcher, PageOutcome, Route, freelancermap, judge, linkedin};
-use crate::portal::{JobLink, Portal, fetch_url};
+use super::{Cause, PageFetcher, PageOutcome};
+use crate::portal::{JobLink, Redirects};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
-/// Größer ist keine Anzeige – dann stimmt etwas nicht.
+/// Bigger is no ad - then something is wrong.
 const MAX_BODY: usize = 5 * 1024 * 1024;
 
 pub struct HttpFetcher {
-    linkedin: Client,
-    freelancermap: Client,
-    /// Nur Tests: alle Anfragen an diesen Server statt an die Portale.
+    /// Judges every redirect itself.
+    direct: Client,
+    /// Follows at most two redirects on the same host and scheme.
+    follow: Client,
+    /// Tests only: every request goes to this server instead of the portals.
     #[cfg(test)]
     base: Option<Url>,
 }
@@ -32,28 +36,27 @@ pub struct HttpFetcher {
 impl HttpFetcher {
     /// `user_agent` is sent unchanged with every request (see the module docs).
     pub fn new(user_agent: &str) -> Result<HttpFetcher, reqwest::Error> {
-        let (linkedin, freelancermap) = Self::clients(user_agent)?;
+        let (direct, follow) = Self::clients(user_agent)?;
         Ok(HttpFetcher {
-            linkedin,
-            freelancermap,
+            direct,
+            follow,
             #[cfg(test)]
             base: None,
         })
     }
 
-    /// Wie [`HttpFetcher::new`], aber jede Anfrage geht an `base` (lokaler Testserver).
+    /// Like [`HttpFetcher::new`], but every request goes to `base` (local test server).
     #[cfg(test)]
-    fn with_base(user_agent: &str, base: Url) -> Result<HttpFetcher, reqwest::Error> {
-        let (linkedin, freelancermap) = Self::clients(user_agent)?;
+    pub(crate) fn with_base(user_agent: &str, base: Url) -> Result<HttpFetcher, reqwest::Error> {
+        let (direct, follow) = Self::clients(user_agent)?;
         Ok(HttpFetcher {
-            linkedin,
-            freelancermap,
+            direct,
+            follow,
             base: Some(base),
         })
     }
 
-    /// Ein Client je Portal – sie unterscheiden sich nur darin, wie sie mit Umleitungen
-    /// umgehen.
+    /// Two clients - they only differ in how they treat redirects.
     fn clients(user_agent: &str) -> Result<(Client, Client), reqwest::Error> {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -68,18 +71,17 @@ impl HttpFetcher {
                 .user_agent(user_agent)
                 .default_headers(headers.clone())
                 .cookie_store(true)
-                // Wie ein Browser nach einer eingetippten Adresse: kein Referer, auch nicht
-                // auf der Umleitung (nur die gemessenen Kopfzeilen).
+                // Like a browser after a typed address: no referer, not even on the redirect
+                // (only the measured headers).
                 .referer(false)
                 .timeout(TIMEOUT)
                 .redirect(redirects)
                 .build()
         };
         Ok((
-            // LinkedIn: jede Umleitung selbst beurteilen – sie führt meist zur Anmeldung.
             client(redirect::Policy::none())?,
-            // freelancermap: /nproj/<ID>.html leitet (301) auf die Projektseite; höchstens
-            // zwei Umleitungen, nur auf demselben Host und Schema.
+            // At most two redirects, only on the same host and scheme (freelancermap:
+            // /nproj/<ID>.html leads with 301 to the project page).
             client(redirect::Policy::custom(|attempt| {
                 let first = attempt.previous().first();
                 let same_origin = first.is_some_and(|f| {
@@ -94,7 +96,7 @@ impl HttpFetcher {
         ))
     }
 
-    /// Im Test geht jede Anfrage an den lokalen Server, sonst an das Portal selbst.
+    /// In tests every request goes to the local server, otherwise to the portal itself.
     #[cfg(test)]
     fn target(&self, url: Url) -> Url {
         let Some(base) = &self.base else { return url };
@@ -105,33 +107,19 @@ impl HttpFetcher {
     }
 
     #[cfg(not(test))]
-    #[expect(clippy::unused_self, reason = "im Test lenkt sie auf den Testserver")]
+    #[expect(clippy::unused_self, reason = "in tests it points to the test server")]
     fn target(&self, url: Url) -> Url {
         url
     }
 
-    async fn linkedin(&self, link: &JobLink) -> PageOutcome {
-        let response = match self.linkedin.get(self.target(fetch_url(link))).send().await {
-            Ok(r) => r,
-            Err(e) => return net_error(&e),
+    async fn page(&self, link: &JobLink) -> PageOutcome {
+        let adapter = link.key.portal.adapter();
+        let client = match adapter.redirects() {
+            Redirects::Never => &self.direct,
+            Redirects::SameOrigin => &self.follow,
         };
-        let status = response.status();
-        if status.is_redirection() {
-            return linkedin_redirect(&location_path(&response));
-        }
-        if let Some(outcome) = status_outcome(status) {
-            return outcome;
-        }
-        match body(response).await {
-            Ok(html) => judge(linkedin::parse(&html)),
-            Err(outcome) => outcome,
-        }
-    }
-
-    async fn freelancermap(&self, link: &JobLink) -> PageOutcome {
-        let response = match self
-            .freelancermap
-            .get(self.target(fetch_url(link)))
+        let response = match client
+            .get(self.target(adapter.fetch_url(link)))
             .send()
             .await
         {
@@ -140,113 +128,58 @@ impl HttpFetcher {
         };
         let status = response.status();
         if status.is_redirection() {
-            // Nicht gefolgt (fremder Host, dritte Umleitung): das Ziel trotzdem beurteilen –
-            // eine Anmelde- oder Prüfseite ist auch dort ein Sperrsignal.
-            return match freelancermap_landing(&location_path(&response)) {
-                PageOutcome::Blocked(reason) => PageOutcome::Blocked(reason),
-                _ => PageOutcome::Suspicious("Umleitung nicht verfolgt".into()),
-            };
+            return adapter.redirect_outcome(&location_path(&response));
         }
-        if let Some(outcome) = status_outcome(status) {
+        if let Some(outcome) = status_outcome(status, retry_after(&response)) {
             return outcome;
         }
         let path = response.url().path().to_ascii_lowercase();
-        let html = match body(response).await {
-            Ok(html) => html,
-            Err(outcome) => return outcome,
-        };
-        let expected = link.key.has_portal_id().then_some(link.key.id.as_str());
-        match freelancermap::parse(&html, expected) {
-            // Auf einer Anmelde- oder Prüfseite ist auch ein unerkennbarer Inhalt ein Sperrsignal.
-            Err(_) if !is_project_path(&path) => freelancermap_landing(&path),
-            Err(reason) => PageOutcome::Suspicious(reason),
-            Ok(parsed) if parsed.text.is_none() && !is_project_path(&path) => {
-                freelancermap_landing(&path)
-            }
-            Ok(parsed) => judge(parsed),
+        match body(response).await {
+            Ok(html) => adapter.guest_page(&html, &path, link),
+            Err(outcome) => outcome,
         }
     }
 }
 
 impl PageFetcher for HttpFetcher {
-    async fn fetch(
-        &mut self,
-        link: &JobLink,
-        _route: Route,
-        cancel: &CancellationToken,
-    ) -> PageOutcome {
-        let work = async {
-            match link.key.portal {
-                Portal::LinkedIn => self.linkedin(link).await,
-                Portal::Freelancermap => self.freelancermap(link).await,
-                Portal::FreelanceDe => PageOutcome::Suspicious("nur im Sitzungsfenster".into()),
-            }
-        };
+    async fn fetch(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
         tokio::select! {
             biased;
             () = cancel.cancelled() => PageOutcome::Cancelled,
-            outcome = work => outcome,
+            outcome = self.page(link) => outcome,
         }
     }
 }
 
-/// Statuscodes, die ohne Blick auf den Inhalt entscheiden (`None` = Seite auswerten).
-fn status_outcome(status: StatusCode) -> Option<PageOutcome> {
+/// Status codes that decide without looking at the content (`None` = judge the page).
+/// `retry_after`: the portal's own wish, the shortest pause after a throttle.
+fn status_outcome(status: StatusCode, retry_after: Option<Duration>) -> Option<PageOutcome> {
     let code = status.as_u16();
     Some(match code {
         200 => return None,
         404 | 410 => PageOutcome::Gone,
-        429 => PageOutcome::Throttled(format!("HTTP {code} (zu viele Anfragen)")),
-        // 999 ist LinkedIns eigenes „Bot erkannt“.
-        403 | 999 => PageOutcome::Blocked(format!("HTTP {code} (Zugriff verweigert)")),
-        500..=599 => PageOutcome::Throttled(format!("HTTP {code} (Serverfehler)")),
-        _ => PageOutcome::Suspicious(format!("HTTP {code}")),
+        429 | 500..=599 => PageOutcome::Throttled {
+            cause: Cause::Http(code),
+            retry_after,
+        },
+        // 999 is LinkedIn's own "bot detected".
+        403 | 999 => PageOutcome::Blocked(Cause::Http(code)),
+        _ => PageOutcome::Suspicious(Cause::Http(code)),
     })
 }
 
-fn is_project_path(path: &str) -> bool {
-    ["/projekt/", "/project/", "/nproj/"]
-        .iter()
-        .any(|prefix| path.starts_with(prefix))
-}
-
-/// freelancermap hat auf eine Seite ohne Projekttext umgeleitet. „Gibt es nicht mehr“
-/// entscheiden allein 404/410 (nie gemessen, wohin ein gelöschtes Projekt führt): Eine
-/// Anmelde- oder Prüfseite ist ein Sperrsignal, alles andere bleibt verdächtig – der Job
-/// wird später erneut versucht, und der Schutzschalter greift.
-fn freelancermap_landing(path: &str) -> PageOutcome {
-    // Ganze Pfadteile, ohne Endung und mit „_“ wie „-“: „/users/sign_in“, „/login.php“.
-    let wall = path.split('/').any(|segment| {
-        let stem = segment
-            .split('.')
-            .next()
-            .unwrap_or_default()
-            .replace('_', "-");
-        matches!(
-            stem.as_str(),
-            "login"
-                | "log-in"
-                | "signin"
-                | "sign-in"
-                | "anmelden"
-                | "anmeldung"
-                | "register"
-                | "registrieren"
-                | "authwall"
-                | "checkpoint"
-                | "captcha"
-                | "challenge"
-                | "cdn-cgi"
-        )
-    });
-    if wall {
-        PageOutcome::Blocked("Umleitung zur Anmeldung/Sicherheitsprüfung".into())
-    } else {
-        PageOutcome::Suspicious(format!("keine Projektseite ({path})"))
+/// The portal's `Retry-After`: seconds or an HTTP date (a date in the past is none).
+fn retry_after(response: &Response) -> Option<Duration> {
+    let value = response.headers().get(RETRY_AFTER)?.to_str().ok()?.trim();
+    if let Ok(seconds) = value.parse::<u64>() {
+        return Some(Duration::from_secs(seconds));
     }
+    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
+    let wait = at.duration_since(jiff::Timestamp::now());
+    wait.is_positive().then(|| wait.unsigned_abs())
 }
 
-/// Pfad des Umleitungsziels (klein geschrieben) – auch bei einer relativen Adresse.
+/// Path of the redirect target (lower case) - for a relative address too.
 fn location_path(response: &Response) -> String {
     let target = response
         .headers()
@@ -259,30 +192,15 @@ fn location_path(response: &Response) -> String {
         .unwrap_or_default()
 }
 
-/// Umleitungen der Gastansicht führen fast immer in die Anmeldewand – ein Sperrsignal.
-fn linkedin_redirect(path: &str) -> PageOutcome {
-    // Ganze Pfadteile vergleichen: „/loginhilfe“ ist keine Anmeldeseite.
-    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-    let wall = matches!(
-        segments.as_slice(),
-        ["authwall" | "login" | "checkpoint" | "signup", ..] | ["uas", "login", ..]
-    );
-    if wall {
-        PageOutcome::Blocked("Umleitung zur Anmeldung/Sicherheitsprüfung".into())
-    } else {
-        PageOutcome::Suspicious(format!("unerwartete Umleitung nach {path}"))
-    }
-}
-
 fn net_error(error: &reqwest::Error) -> PageOutcome {
     PageOutcome::NetError {
         timeout: error.is_timeout(),
-        detail: if error.is_timeout() {
-            "keine Antwort nach 30 Sekunden".into()
+        cause: if error.is_timeout() {
+            Cause::Timeout
         } else if error.is_connect() {
-            "keine Verbindung".into()
+            Cause::NoConnection
         } else {
-            "Verbindung abgebrochen".into()
+            Cause::ConnectionLost
         },
     }
 }
@@ -291,7 +209,7 @@ async fn body(mut response: Response) -> Result<String, PageOutcome> {
     let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|e| net_error(&e))? {
         if bytes.len() + chunk.len() > MAX_BODY {
-            return Err(PageOutcome::Suspicious("Seite ungewöhnlich groß".into()));
+            return Err(PageOutcome::Suspicious(Cause::PageTooLarge));
         }
         bytes.extend_from_slice(&chunk);
     }
@@ -304,32 +222,10 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     use super::*;
+    use crate::portal::freelancermap_page as fm_page;
     use crate::portal::job_link;
-
-    #[test]
-    fn redirects_of_the_guest_view() {
-        for wall in [
-            "/authwall",
-            "/uas/login",
-            "/checkpoint/challenge/agf",
-            "/login",
-            "/signup/cold-join",
-        ] {
-            assert!(
-                matches!(linkedin_redirect(wall), PageOutcome::Blocked(_)),
-                "{wall}"
-            );
-        }
-        assert!(matches!(
-            linkedin_redirect("/jobs/view/4123456789/"),
-            PageOutcome::Suspicious(_)
-        ));
-        // „/loginhilfe“ ist keine Anmeldeseite.
-        assert!(matches!(
-            linkedin_redirect("/loginhilfe"),
-            PageOutcome::Suspicious(_)
-        ));
-    }
+    use crate::portal::linkedin_page as li_page;
+    use crate::portal::{FREELANCE_DE_TEASER, freelance_de_page as fl_page};
 
     const UA: &str = "Mozilla/5.0 Test";
 
@@ -342,15 +238,11 @@ mod tests {
 
     async fn fetch(fetcher: &mut HttpFetcher, url: &str) -> PageOutcome {
         fetcher
-            .fetch(
-                &job_link(url).unwrap(),
-                Route::Http,
-                &CancellationToken::new(),
-            )
+            .fetch(&job_link(url).unwrap(), &CancellationToken::new())
             .await
     }
 
-    /// Antwort des Testservers und erwartetes Ergebnis.
+    /// Answer of the test server and the expected outcome.
     type Case = (ResponseTemplate, fn(&PageOutcome) -> bool);
 
     const LI: &str = "https://www.linkedin.com/jobs/view/4123456789/";
@@ -362,7 +254,7 @@ mod tests {
         let long = "Ausführliche Beschreibung. ".repeat(10);
         let cases: Vec<Case> = vec![
             (
-                ResponseTemplate::new(200).set_body_string(linkedin::tests::page(&long, false)),
+                ResponseTemplate::new(200).set_body_string(li_page(&long, false)),
                 |o| {
                     matches!(
                         o,
@@ -376,29 +268,34 @@ mod tests {
                 },
             ),
             (
-                ResponseTemplate::new(200)
-                    .set_body_string(linkedin::tests::page("Kurz, aber echt.", false)),
+                ResponseTemplate::new(200).set_body_string(li_page("Kurz, aber echt.", false)),
                 |o| matches!(o, PageOutcome::Text { short: true, .. }),
             ),
             (
-                ResponseTemplate::new(200).set_body_string(linkedin::tests::page(&long, true)),
+                ResponseTemplate::new(200).set_body_string(li_page(&long, true)),
                 |o| matches!(o, PageOutcome::Text { closed: true, .. }),
             ),
             (
                 ResponseTemplate::new(200).set_body_string("<html>Bitte anmelden</html>"),
-                |o| matches!(o, PageOutcome::Suspicious(_)),
+                |o| matches!(o, PageOutcome::Suspicious(Cause::NoDescription)),
             ),
             (ResponseTemplate::new(404), |o| {
                 matches!(o, PageOutcome::Gone)
             }),
             (ResponseTemplate::new(429), |o| {
-                matches!(o, PageOutcome::Throttled(_))
+                matches!(
+                    o,
+                    PageOutcome::Throttled {
+                        cause: Cause::Http(429),
+                        retry_after: None
+                    }
+                )
             }),
             (ResponseTemplate::new(503), |o| {
-                matches!(o, PageOutcome::Throttled(_))
+                matches!(o, PageOutcome::Throttled { .. })
             }),
             (ResponseTemplate::new(999), |o| {
-                matches!(o, PageOutcome::Blocked(_))
+                matches!(o, PageOutcome::Blocked(Cause::Http(999)))
             }),
             (ResponseTemplate::new(403), |o| {
                 matches!(o, PageOutcome::Blocked(_))
@@ -406,7 +303,7 @@ mod tests {
             (
                 ResponseTemplate::new(302)
                     .insert_header("location", "https://www.linkedin.com/authwall?trk=x"),
-                |o| matches!(o, PageOutcome::Blocked(_)),
+                |o| matches!(o, PageOutcome::Blocked(Cause::LoginWall)),
             ),
         ];
         for (i, (response, expected)) in cases.into_iter().enumerate() {
@@ -418,8 +315,8 @@ mod tests {
                 .mount(&server)
                 .await;
             let outcome = fetch(&mut f, LI).await;
-            assert!(expected(&outcome), "Fall {i}: {outcome:?}");
-            // Genau die gemessenen Header – nichts erfunden, nichts von Hand komprimiert.
+            assert!(expected(&outcome), "case {i}: {outcome:?}");
+            // Exactly the measured headers - nothing invented, nothing compressed by hand.
             let request = &server.received_requests().await.unwrap()[0];
             let head = |name: &str| {
                 request
@@ -434,12 +331,12 @@ mod tests {
         }
     }
 
-    /// Komprimierte Antworten entpackt reqwest selbst (Accept-Encoding nie von Hand).
+    /// reqwest unpacks compressed answers itself (Accept-Encoding never by hand).
     #[tokio::test]
     async fn gzip_body() {
         use std::io::Write as _;
         let (server, mut f) = server().await;
-        let html = linkedin::tests::page(&"Text ".repeat(40), false);
+        let html = li_page(&"Text ".repeat(40), false);
         let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         gz.write_all(html.as_bytes()).unwrap();
         Mock::given(path(LI_GUEST))
@@ -468,8 +365,7 @@ mod tests {
             .await;
         Mock::given(path("/projekt/sap-fi-co-berater"))
             .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_string(freelancermap::tests::page(2_971_857, &long, false)),
+                ResponseTemplate::new(200).set_body_string(fm_page(2_971_857, &long, false)),
             )
             .mount(&server)
             .await;
@@ -479,32 +375,32 @@ mod tests {
             "{outcome:?}"
         );
 
-        // Falsches Projekt hinter der Umleitung.
+        // The wrong project behind the redirect.
         Mock::given(path("/nproj/2971858.html"))
             .respond_with(
                 ResponseTemplate::new(301).insert_header("location", "/projekt/sap-fi-co-berater"),
             )
             .mount(&server)
             .await;
-        assert!(matches!(
+        assert_eq!(
             fetch(&mut f, "https://www.freelancermap.de/nproj/2971858.html").await,
-            PageOutcome::Suspicious(_)
-        ));
+            PageOutcome::Suspicious(Cause::WrongPage)
+        );
 
-        // Umleitung auf einen fremden Host wird nicht verfolgt.
+        // A redirect to a foreign host is not followed.
         Mock::given(path("/nproj/2971859.html"))
             .respond_with(
                 ResponseTemplate::new(301).insert_header("location", "https://example.org/x"),
             )
             .mount(&server)
             .await;
-        assert!(matches!(
+        assert_eq!(
             fetch(&mut f, "https://www.freelancermap.de/nproj/2971859.html").await,
-            PageOutcome::Suspicious(_)
-        ));
+            PageOutcome::Suspicious(Cause::RedirectNotFollowed)
+        );
 
-        // Umleitung auf die Suche: vielleicht entfernt, vielleicht eine Wand – verdächtig,
-        // nie endgültig „gibt es nicht mehr“.
+        // A redirect to the search: maybe removed, maybe a wall - suspicious, never finally
+        // "no longer exists".
         Mock::given(path("/nproj/2971860.html"))
             .respond_with(ResponseTemplate::new(301).insert_header("location", "/projektboerse"))
             .mount(&server)
@@ -513,12 +409,12 @@ mod tests {
             .respond_with(ResponseTemplate::new(200).set_body_string("<html>Suche</html>"))
             .mount(&server)
             .await;
-        assert!(matches!(
+        assert_eq!(
             fetch(&mut f, "https://www.freelancermap.de/nproj/2971860.html").await,
-            PageOutcome::Suspicious(_)
-        ));
+            PageOutcome::Suspicious(Cause::NotAProjectPage)
+        );
 
-        // Umleitung zur Anmeldung: Sperrsignal.
+        // A redirect to the sign-in: a block signal.
         Mock::given(path("/nproj/2971862.html"))
             .respond_with(ResponseTemplate::new(302).insert_header("location", "/login?next=x"))
             .mount(&server)
@@ -527,25 +423,12 @@ mod tests {
             .respond_with(ResponseTemplate::new(200).set_body_string("<html>Anmelden</html>"))
             .mount(&server)
             .await;
-        assert!(matches!(
+        assert_eq!(
             fetch(&mut f, "https://www.freelancermap.de/nproj/2971862.html").await,
-            PageOutcome::Blocked(_)
-        ));
-        for wall in ["/users/sign_in", "/login.php", "/de/Anmelden/"] {
-            assert!(
-                matches!(
-                    freelancermap_landing(&wall.to_ascii_lowercase()),
-                    PageOutcome::Blocked(_)
-                ),
-                "{wall}"
-            );
-        }
-        assert!(matches!(
-            freelancermap_landing("/projektboerse"),
-            PageOutcome::Suspicious(_)
-        ));
+            PageOutcome::Blocked(Cause::LoginWall)
+        );
 
-        // Endlose Umleitungen: nach zwei Schritten Schluss.
+        // Endless redirects: done after two steps.
         for (from, to) in [("/nproj/2971861.html", "/a"), ("/a", "/b"), ("/b", "/c")] {
             Mock::given(path(from))
                 .respond_with(ResponseTemplate::new(301).insert_header("location", to))
@@ -558,8 +441,8 @@ mod tests {
         ));
     }
 
-    /// Auch eine Umleitung auf einen fremden Host wird am Ziel gemessen: Anmeldeseite =
-    /// Sperrsignal. Der verfolgten Umleitung schickt der Client keinen Referer mit.
+    /// A redirect to a foreign host is judged at its target too: a sign-in page = a block
+    /// signal. The followed redirect carries no referer.
     #[tokio::test]
     async fn a_redirect_to_a_foreign_login_is_a_block() {
         let (server, mut f) = server().await;
@@ -583,7 +466,7 @@ mod tests {
             PageOutcome::Blocked(_)
         ));
 
-        // Verfolgte Umleitung auf demselben Host: kein Referer.
+        // A followed redirect on the same host: no referer.
         server.reset().await;
         let long = "Projektbeschreibung mit allen Details. ".repeat(5);
         Mock::given(path("/nproj/2971857.html"))
@@ -594,14 +477,112 @@ mod tests {
             .await;
         Mock::given(path("/projekt/sap-fi-co-berater"))
             .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_string(freelancermap::tests::page(2_971_857, &long, false)),
+                ResponseTemplate::new(200).set_body_string(fm_page(2_971_857, &long, false)),
             )
             .mount(&server)
             .await;
         fetch(&mut f, "https://www.freelancermap.de/nproj/2971857.html").await;
         let followed = &server.received_requests().await.unwrap()[1];
         assert!(followed.headers.get("referer").is_none());
+    }
+
+    /// The test-only fourth portal goes through the same client - address, redirects and
+    /// page come from its adapter alone.
+    #[tokio::test]
+    async fn a_fourth_portal_through_the_same_client() {
+        let (server, mut f) = server().await;
+        Mock::given(path("/job/4711"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(format!("<p>{}</p>", "Probe text. ".repeat(20))),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        assert!(matches!(
+            fetch(&mut f, "https://jobs.probe.example/job/4711").await,
+            PageOutcome::Text { short: false, .. }
+        ));
+    }
+
+    /// freelance.de without the sign-in: the public page as a guest gives the teaser; an
+    /// expired project leads to a project list and is gone.
+    #[tokio::test]
+    async fn freelance_de_as_a_guest_gives_the_teaser() {
+        let (server, mut f) = server().await;
+        Mock::given(path("/project/index.php"))
+            .respond_with(
+                ResponseTemplate::new(301)
+                    .insert_header("location", "/projekte/projekt-1255067-interim"),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(path("/projekte/projekt-1255067-interim"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(fl_page(FREELANCE_DE_TEASER)))
+            .mount(&server)
+            .await;
+        let outcome = fetch(
+            &mut f,
+            "https://www.freelance.de/project/index.php?id=1255067",
+        )
+        .await;
+        assert!(
+            matches!(&outcome, PageOutcome::Teaser { text, .. } if text.contains("Controller")),
+            "{outcome:?}"
+        );
+
+        server.reset().await;
+        Mock::given(path("/project/index.php"))
+            .respond_with(ResponseTemplate::new(302).insert_header("location", "/projekte/it"))
+            .mount(&server)
+            .await;
+        Mock::given(path("/projekte/it"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("<html>Liste</html>"))
+            .mount(&server)
+            .await;
+        assert_eq!(
+            fetch(
+                &mut f,
+                "https://www.freelance.de/project/index.php?id=1255068"
+            )
+            .await,
+            PageOutcome::Gone
+        );
+    }
+
+    /// Retry-After in seconds or as an HTTP date travels with the throttle; a date in the
+    /// past or garbage is none.
+    #[tokio::test]
+    async fn retry_after_travels_with_the_throttle() {
+        let (server, mut f) = server().await;
+        let in_two_hours = (jiff::Timestamp::now() + jiff::SignedDuration::from_hours(2))
+            .strftime("%a, %d %b %Y %H:%M:%S GMT")
+            .to_string();
+        let cases = [
+            ("3600", Some((3600, 3600))),
+            (in_two_hours.as_str(), Some((7000, 7200))),
+            ("Wed, 21 Oct 2015 07:28:00 GMT", None),
+            ("bald", None),
+        ];
+        for (header, expected) in cases {
+            server.reset().await;
+            Mock::given(path(LI_GUEST))
+                .respond_with(ResponseTemplate::new(429).insert_header("retry-after", header))
+                .mount(&server)
+                .await;
+            let outcome = fetch(&mut f, LI).await;
+            let PageOutcome::Throttled { retry_after, .. } = outcome else {
+                panic!("{outcome:?}");
+            };
+            let seconds = retry_after.map(|d| d.as_secs());
+            match expected {
+                Some((min, max)) => assert!(
+                    seconds.is_some_and(|s| (min..=max).contains(&s)),
+                    "{header}: {seconds:?}"
+                ),
+                None => assert_eq!(seconds, None, "{header}"),
+            }
+        }
     }
 
     #[tokio::test]
@@ -613,7 +594,7 @@ mod tests {
             .await;
         let cancel = CancellationToken::new();
         let link = job_link(LI).unwrap();
-        let (outcome, ()) = tokio::join!(f.fetch(&link, Route::Http, &cancel), async {
+        let (outcome, ()) = tokio::join!(f.fetch(&link, &cancel), async {
             tokio::time::sleep(Duration::from_millis(100)).await;
             cancel.cancel();
         });

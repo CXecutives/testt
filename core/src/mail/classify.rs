@@ -1,4 +1,4 @@
-//! Welchem Portal gehört eine Mail – und ist sie überhaupt ein Job-Alert?
+//! Which portal a mail belongs to - and whether it is a job alert at all.
 
 use std::sync::LazyLock;
 
@@ -8,23 +8,29 @@ use super::extract::Found;
 use super::parse::ParsedMail;
 use crate::portal::Portal;
 
-/// Betreff eines Alerts, in dem kein einziger Stellen-Link erkannt wurde (Layout-Wächter).
-/// Enger als früher: „neue“, „new“, „passend“ oder ein einzelnes „Job“ („… zum neuen
-/// Job gratulieren“) machten jede Netzwerk-Mail zum Alert ohne Einträge – und am Ende
-/// meldete der Lauf fälschlich ein geändertes Mail-Layout.
+/// Subject of an alert in which not a single job link was recognised (layout guard).
+/// Narrower than before: "neue", "new", "passend" or a single "Job" ("... zum neuen Job
+/// gratulieren") made every network mail an alert without entries - and in the end the run
+/// wrongly reported a changed mail layout. German mail patterns, do not translate.
 static ALERT_SUBJECT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"(?i)\b(?:jobs|job[\s-]?alerts?|jobalerts?|job-?benachrichtigung\w*|job[\s-]?(?:recommendations?|empfehlung\w*)|jobangebot\w*|stellen(?:angebot|anzeige|markt|börse|empfehlung)\w*|projekt(?:e|en|angebot|anfrage|vorschl|agent)\w*|projects?\s+(?:requests?|agent|alerts?)|projects|vakanz\w*)\b",
     )
-    .expect("gültiges Muster")
+    .expect("valid pattern")
 });
 
-/// Portal der Mail unter den gewählten (`allowed`); `found` enthält nur deren Einträge.
+/// Forward prefixes of mail programs. German mail patterns, do not translate.
+static FORWARD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^\s*(?:(?:re|aw|antw)\s*:\s*)*(?:fwd?|wg|weitergeleitet|weiterleitung)\s*:")
+        .expect("valid pattern")
+});
+
+/// Portal of the mail among the chosen ones (`allowed`); `found` holds only their entries.
 ///
-/// Zuerst der Absender (Original-Alert). Weitergeleitete Alerts kommen vom Nutzer selbst –
-/// dann entscheiden die erkannten Stellen-Links, ohne Links nur ein Portalname im Betreff
-/// oder Absender (ein „LinkedIn“-Symbol in der Fußzeile eines Newsletters macht noch
-/// keinen Alert). Eine Sammelmail zählt zu dem gewählten Portal mit den meisten Einträgen.
+/// The sender first (original alert). Forwarded alerts come from the user themselves - then
+/// the recognised job links decide, without links only a portal name in subject or sender
+/// (a "LinkedIn" icon in the footer of a newsletter makes no alert). A collection mail
+/// counts for the chosen portal with the most entries.
 pub(crate) fn portal_of(mail: &ParsedMail, found: &[Found], allowed: &[Portal]) -> Option<Portal> {
     let sender = mail.sender_domain().and_then(Portal::from_sender_domain);
     if let Some(portal) = sender.filter(|p| allowed.contains(p)) {
@@ -37,7 +43,7 @@ pub(crate) fn portal_of(mail: &ParsedMail, found: &[Found], allowed: &[Portal]) 
         let head = format!("{} {} {}", mail.subject, mail.sender, mail.sender_address);
         return most_mentioned(&head, allowed.to_vec());
     }
-    // Die meisten Stellen-Links gewinnen; bei Gleichstand die häufiger genannte Marke.
+    // The most job links win; on a tie the brand named more often.
     let links = |p: Portal| found.iter().filter(|f| f.link.key.portal == p).count();
     let top = allowed.iter().map(|&p| links(p)).max().unwrap_or(0);
     let leaders: Vec<Portal> = allowed
@@ -58,9 +64,29 @@ pub(crate) fn portal_of(mail: &ParsedMail, found: &[Found], allowed: &[Portal]) 
     most_mentioned(&everything, leaders.clone()).or(leaders.first().copied())
 }
 
-/// Ist eine Mail ohne erkannte Einträge trotzdem ein Alert (Layout geändert)?
+/// Is a mail without recognised entries an alert all the same (layout changed)?
 pub(crate) fn is_alert_subject(subject: &str) -> bool {
     ALERT_SUBJECT.is_match(subject)
+}
+
+/// Could the mail be an alert of the chosen portals, judged by its head alone? Mails from a
+/// portal's domain always (the body decides which portal's jobs they carry); from anyone
+/// else only with a forward prefix, an alert word or a chosen portal's name in subject or
+/// sender - a newsletter that mentions a portal in its footer is never loaded whole.
+pub(crate) fn head_is_candidate(mail: &ParsedMail, allowed: &[Portal]) -> bool {
+    if mail
+        .sender_domain()
+        .and_then(Portal::from_sender_domain)
+        .is_some()
+    {
+        return true;
+    }
+    let head = format!("{} {}", mail.subject, mail.sender).to_lowercase();
+    FORWARD.is_match(&mail.subject)
+        || is_alert_subject(&mail.subject)
+        || allowed
+            .iter()
+            .any(|p| p.search_terms().iter().any(|term| head.contains(term)))
 }
 
 fn most_mentioned(text: &str, candidates: Vec<Portal>) -> Option<Portal> {
@@ -116,13 +142,12 @@ mod tests {
         );
         let m = mail("kollege@firma.de", "Neue Termine", "Hallo");
         assert_eq!(portal_of(&m, &[], &Portal::ALL), None);
-        // Absender-Portal nicht gewählt und keine Einträge der gewählten: keine Zuordnung.
+        // Sender portal not chosen and no entries of the chosen ones: no portal.
         let m = mail("jobalerts-noreply@linkedin.com", "Neue Jobs", "");
         assert_eq!(portal_of(&m, &[], &[Portal::FreelanceDe]), None);
     }
 
-    /// Weitergeleitet: Der Stellen-Link entscheidet, nicht die Fußzeile „Folgen Sie uns
-    /// auf LinkedIn“.
+    /// Forwarded: the job link decides, not the footer "Folgen Sie uns auf LinkedIn".
     #[test]
     fn job_links_beat_brand_names() {
         let m = mail(
@@ -148,8 +173,8 @@ mod tests {
         assert_eq!(portal_of(&m, &f, &Portal::ALL), Some(Portal::FreelanceDe));
     }
 
-    /// Ohne Stellen-Link zählt nur der Kopf (früher: ein Newsletter mit LinkedIn-Symbol
-    /// in der Fußzeile wurde zum LinkedIn-Alert).
+    /// Without a job link only the head counts (formerly a newsletter with a LinkedIn icon
+    /// in its footer became a LinkedIn alert).
     #[test]
     fn without_links_only_the_head_counts() {
         let m = mail(
@@ -177,7 +202,7 @@ mod tests {
             "Neue Stellenangebote",
             "Ihre Jobempfehlungen",
             "New projects for you",
-            // echte Alert-Betreffe, die fehlten.
+            // real alert subjects that were missing.
             "Your job alert for controller",
             "Jobbenachrichtigung: Controller in Köln",
             "New project requests for you",
@@ -191,7 +216,7 @@ mod tests {
             "Gratulieren Sie Max zum neuen Job",
             "Sie wurden in 5 Suchen gefunden",
             "Neue Termine",
-            // das Verb „stellen“ und beliebige Projekt-Wörter nicht.
+            // the verb "stellen" and any project words are not.
             "Stellen Sie Ihr Netzwerk vor",
             "Ihr Projektmanagement-Kurs wartet",
         ] {

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::Result;
-use crate::portal::{LoginMode, Portal};
+use crate::portal::{FetchPath, Portal};
 use crate::store::Store;
 
 const KEY: &str = "settings";
@@ -88,7 +88,7 @@ impl Settings {
     fn normalized(mut self) -> Settings {
         for portal in Portal::ALL {
             let switches = self.portals.entry(portal).or_default();
-            if portal.login_mode() == LoginMode::None {
+            if !portal.access().can_sign_in() {
                 switches.login_enabled = false;
             }
         }
@@ -114,12 +114,18 @@ impl Settings {
     pub fn fetch_portals(&self) -> Vec<Portal> {
         Portal::ALL
             .into_iter()
-            .filter(|&p| {
-                let switches = self.portal(p);
-                let readable = p.login_mode() == LoginMode::None || switches.login_enabled;
-                switches.enabled && switches.fetch_details && readable
-            })
+            .filter(|&p| self.fetch_path(p).is_some())
             .collect()
+    }
+
+    /// The fetch path of a portal: `None` = zero requests; the session window only with
+    /// the sign-in switched on.
+    pub fn fetch_path(&self, portal: Portal) -> Option<FetchPath> {
+        let switches = self.portal(portal);
+        if !(switches.enabled && switches.fetch_details) {
+            return None;
+        }
+        portal.access().path(switches.login_enabled)
     }
 
     /// Workspace (chosen or default).
@@ -234,19 +240,29 @@ mod tests {
         let mut s = Settings::default();
         s.portals.get_mut(&Portal::LinkedIn).unwrap().fetch_details = false;
         assert_eq!(s.enabled_portals(), Portal::ALL);
-        assert_eq!(s.fetch_portals(), [Portal::Freelancermap]);
+        assert_eq!(
+            s.fetch_portals(),
+            [Portal::FreelanceDe, Portal::Freelancermap]
+        );
     }
 
-    /// freelance.de is only readable signed in: without the sign-in switch it gets no
-    /// request at all (no session fetch, no sign-in window).
+    /// freelance.de without the sign-in switch goes as a guest (the public teaser) - never
+    /// in the session window; with the switch in the session window.
     #[test]
-    fn a_portal_behind_a_sign_in_is_fetched_only_with_the_switch() {
+    fn a_portal_with_a_sign_in_goes_as_a_guest_until_the_switch() {
         let mut s = Settings::default();
-        assert!(!s.fetch_portals().contains(&Portal::FreelanceDe));
+        assert_eq!(s.fetch_portals(), Portal::ALL);
+        assert_eq!(s.fetch_path(Portal::FreelanceDe), Some(FetchPath::Guest));
         s.portals
             .get_mut(&Portal::FreelanceDe)
             .unwrap()
             .login_enabled = true;
-        assert_eq!(s.fetch_portals(), Portal::ALL);
+        assert_eq!(s.fetch_path(Portal::FreelanceDe), Some(FetchPath::Session));
+        assert_eq!(s.fetch_path(Portal::LinkedIn), Some(FetchPath::Guest));
+        s.portals
+            .get_mut(&Portal::FreelanceDe)
+            .unwrap()
+            .fetch_details = false;
+        assert_eq!(s.fetch_path(Portal::FreelanceDe), None);
     }
 }

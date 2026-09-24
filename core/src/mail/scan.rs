@@ -4,12 +4,14 @@
 //! already processed. Ingestion is idempotent: overlapping periods do no harm, so there
 //! are no UID pointers (and no UIDVALIDITY traps), only one timestamp per portal.
 
+use std::collections::BTreeMap;
+
 use jiff::civil::Date;
 use jiff::{Timestamp, ToSpan as _};
 use tokio_util::sync::CancellationToken;
 
 use super::imap::{BATCH, MailError, MailSource};
-use super::{MailKind, classify_mail};
+use super::{MailKind, classify_mail, is_candidate};
 use crate::model::AlertMail;
 use crate::portal::Portal;
 use crate::store::{Seen, Store};
@@ -34,7 +36,7 @@ const FIRST_SCAN_DAYS: i32 = 7;
 pub struct ScanSummary {
     /// Search matches.
     pub mails_found: usize,
-    /// Of those, fetched and checked.
+    /// Of those, checked (by their head; only possible alerts are loaded whole).
     pub mails_checked: usize,
     /// Unreadable (counted instead of silently dropped).
     pub mails_defective: usize,
@@ -45,6 +47,27 @@ pub struct ScanSummary {
     pub new: usize,
     pub known_before: usize,
     pub dup_in_run: usize,
+    /// Per portal: its alert mails and the jobs they carried - a portal whose mails carry
+    /// no job at all probably changed its mail layout.
+    #[serde(skip)]
+    pub per_portal: BTreeMap<Portal, PortalScan>,
+}
+
+/// Alert mails of one portal in a scan.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PortalScan {
+    pub alert_mails: usize,
+    pub postings: usize,
+}
+
+impl ScanSummary {
+    /// Portals whose alert mails all came without a single job, with their mail count.
+    pub fn empty_portals(&self) -> impl Iterator<Item = (Portal, usize)> + '_ {
+        self.per_portal
+            .iter()
+            .filter(|(_, s)| s.alert_mails > 0 && s.postings == 0)
+            .map(|(&portal, s)| (portal, s.alert_mails))
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -121,8 +144,15 @@ pub async fn scan<S: MailSource>(
         if cancel.is_cancelled() {
             return Err(MailError::Cancelled.into());
         }
-        for raw in source.fetch(chunk).await? {
-            summary.mails_checked += 1;
+        // Heads first: only a mail that may be an alert is loaded whole (up to 4 MB each).
+        let heads = source.heads(chunk).await?;
+        summary.mails_checked += heads.len();
+        let candidates: Vec<u32> = heads
+            .iter()
+            .filter(|head| is_candidate(&head.bytes, portals))
+            .map(|head| head.uid)
+            .collect();
+        for raw in source.fetch(&candidates).await? {
             match classify_mail(&raw, portals) {
                 MailKind::Defective => summary.mails_defective += 1,
                 MailKind::Other => {}
@@ -169,6 +199,9 @@ fn take_alert(
     // holds even after an error.
     let seen = store.record_alert(run, alert, now)?;
     summary.alert_mails += 1;
+    let portal = summary.per_portal.entry(alert.portal).or_default();
+    portal.alert_mails += 1;
+    portal.postings += alert.postings.len();
     if alert.postings.is_empty() {
         summary.zero_posting_mails += 1;
     }
@@ -186,13 +219,15 @@ fn take_alert(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mail::RawMail;
+    use crate::mail::{RawHead, RawMail, head_part};
 
-    /// Mailbox fake: every mail has a UID; optionally, fetching fails at a given UID.
+    /// Mailbox fake: every mail has a UID; optionally, fetching fails at a given UID. It
+    /// remembers which mails were loaded whole.
     struct Fake {
         mails: Vec<(u32, RawMail)>,
         fail_at: Option<u32>,
         searched: Vec<Option<Date>>,
+        loaded: Vec<u32>,
     }
 
     impl MailSource for Fake {
@@ -205,10 +240,26 @@ mod tests {
             Ok(self.mails.iter().map(|(uid, _)| *uid).collect())
         }
 
+        async fn heads(&mut self, uids: &[u32]) -> Result<Vec<RawHead>, MailError> {
+            if let Some(fail) = self.fail_at.filter(|f| uids.contains(f)) {
+                return Err(MailError::Lost(format!("at {fail}")));
+            }
+            Ok(self
+                .mails
+                .iter()
+                .filter(|(uid, _)| uids.contains(uid))
+                .map(|(uid, m)| RawHead {
+                    uid: *uid,
+                    bytes: head_part(&m.bytes).to_vec(),
+                })
+                .collect())
+        }
+
         async fn fetch(&mut self, uids: &[u32]) -> Result<Vec<RawMail>, MailError> {
             if let Some(fail) = self.fail_at.filter(|f| uids.contains(f)) {
                 return Err(MailError::Lost(format!("at {fail}")));
             }
+            self.loaded.extend_from_slice(uids);
             Ok(self
                 .mails
                 .iter()
@@ -260,6 +311,7 @@ mod tests {
             mails,
             fail_at,
             searched: Vec::new(),
+            loaded: Vec::new(),
         }
     }
 
@@ -321,6 +373,42 @@ mod tests {
         // Second run: nothing new.
         let (s, _) = run_scan(&store, &mut fake(None), Scope::New, now()).await;
         assert_eq!((s.new, s.known_before, s.dup_in_run), (0, 3, 1));
+    }
+
+    /// Two phases: only a mail whose head may be an alert is loaded whole - a mail from
+    /// anyone else about anything else never leaves the server.
+    #[tokio::test]
+    async fn only_candidates_are_loaded_whole() {
+        let store = Store::in_memory().unwrap();
+        let mut source = fake(None);
+        let (s, result) = run_scan(&store, &mut source, Scope::New, now()).await;
+        result.unwrap();
+        assert_eq!(s.mails_checked, 60, "every head is checked");
+        assert!(
+            !source.loaded.contains(&4),
+            "the private mail stays on the server"
+        );
+        assert!(
+            source.loaded.contains(&3),
+            "an unreadable head is loaded (defective)"
+        );
+        assert_eq!(source.loaded.len(), 59);
+    }
+
+    /// A portal whose alert mails all came without a job is named - others with jobs not.
+    #[tokio::test]
+    async fn a_portal_with_only_empty_alerts_is_named() {
+        let store = Store::in_memory().unwrap();
+        let (s, result) = run_scan(&store, &mut fake(None), Scope::New, now()).await;
+        result.unwrap();
+        assert_eq!(s.empty_portals().count(), 0, "LinkedIn mails carried jobs");
+        let mut empty = fake(None);
+        empty.mails.retain(|(uid, _)| *uid >= 5);
+        let (s, _) = run_scan(&Store::in_memory().unwrap(), &mut empty, Scope::New, now()).await;
+        assert_eq!(
+            s.empty_portals().collect::<Vec<_>>(),
+            [(Portal::LinkedIn, 56)]
+        );
     }
 
     #[tokio::test]

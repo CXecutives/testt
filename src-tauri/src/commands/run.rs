@@ -20,7 +20,7 @@ use jobalert_core::pipeline::{
     self, Backends, Matcher, Outcome, RunContext, RunEvent, RunKind, RunKindName, RunRequest,
     RunSnapshot, RunSummary, demo::DemoBackends,
 };
-use jobalert_core::portal::Portal;
+use jobalert_core::portal::{FetchPath, Portal};
 use jobalert_core::secrets::Vault;
 use jobalert_core::store::Store;
 use tauri::ipc::Channel;
@@ -116,7 +116,7 @@ impl Snapshot {
     }
 }
 
-/// Real fetch routes: Gmail, HTTP for the guest route and one session window per portal.
+/// Real fetch paths: Gmail, and per portal either HTTP as a guest or a session window.
 struct AppBackends {
     credentials: Option<Credentials>,
     user_agent: String,
@@ -125,6 +125,8 @@ struct AppBackends {
     notify: Notify,
     /// The engine with the profile as it was when the run started.
     matcher: Option<Arc<dyn Matcher>>,
+    /// The same engine, typed: it also orders the fetch queue (likely matches first).
+    local: Option<Arc<jobalert_core::pipeline::LocalMatcher>>,
 }
 
 impl Backends for AppBackends {
@@ -136,17 +138,36 @@ impl Backends for AppBackends {
         Gmail::connect(credentials, cancel.clone()).await
     }
 
-    /// One fetch route per portal - own HTTP session, own window (own label): the portals
-    /// run side by side and share nothing.
-    fn pages(&mut self, _portal: Portal) -> Result<Self::Pages, String> {
-        Ok(Fetchers {
-            http: HttpFetcher::new(&self.user_agent).map_err(|e| e.to_string())?,
-            session: Sessions::new(self.app.clone(), self.data_dir.clone(), self.notify.clone()),
+    /// One fetch path per portal, and only the one it needs - own HTTP session or own
+    /// window (own label): the portals run side by side and share nothing. The session path
+    /// exists only with the portal's sign-in switched on, so only then may this run show its
+    /// sign-in window.
+    fn pages(&mut self, portal: Portal, path: FetchPath) -> Result<Self::Pages, String> {
+        Ok(match path {
+            FetchPath::Guest => {
+                Fetchers::Guest(HttpFetcher::new(&self.user_agent).map_err(|e| e.to_string())?)
+            }
+            FetchPath::Session => Fetchers::Session(
+                Sessions::new(self.app.clone(), self.data_dir.clone(), self.notify.clone())
+                    .allow_login(portal, true),
+            ),
         })
     }
 
     fn matcher(&self) -> Option<Arc<dyn Matcher>> {
         self.matcher.clone()
+    }
+
+    fn prescore(&self) -> jobalert_core::fetch::Prescore {
+        match &self.local {
+            Some(local) => {
+                let local = Arc::clone(local);
+                Arc::new(move |title: &str, location: &str| {
+                    jobalert_core::matching::prescore(local.profile(), title, location)
+                })
+            }
+            None => jobalert_core::fetch::neutral_prescore(),
+        }
     }
 }
 
@@ -168,6 +189,10 @@ fn run_context(
         dry_run: state.dry_run,
         portals: settings.enabled_portals(),
         fetch_portals: settings.fetch_portals(),
+        sign_in: Portal::ALL
+            .into_iter()
+            .filter(|&p| settings.fetch_path(p) == Some(FetchPath::Session))
+            .collect(),
     };
     Ok((ctx, credentials))
 }
@@ -251,6 +276,7 @@ pub(super) fn launch(
             data_dir: state.data_dir.clone(),
             notify,
             matcher: state.matcher().map(|m| m as Arc<dyn Matcher>),
+            local: state.matcher(),
         };
         tauri::async_runtime::spawn(drive(backends, store, policy, request, ctx, cancel, emit))
     };

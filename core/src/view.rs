@@ -14,14 +14,14 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::error::ErrorInfo;
-use crate::fetch::policy::{Allowance, Policy, limits};
+use crate::fetch::policy::{Policy, limits};
 use crate::fetch::{PortalHealth, RETRY_AFTER};
 use crate::matching::{self, Assessment, ProfileSummary};
 use crate::model::{
     Band, DescStatus, MatchRecord, MatchStatus, Notice, band, gmail_url, is_usable_title,
 };
 use crate::pipeline::{LocalMatcher, Matcher, RunSnapshot, RunSummary, local};
-use crate::portal::{JobKey, LoginMode, Portal};
+use crate::portal::{JobKey, Portal};
 use crate::settings::{PortalSwitches, Settings};
 use crate::store::{AlertMailRow, JobRow, PageQuery, Store};
 use crate::text::split_company_location;
@@ -104,6 +104,7 @@ impl DetailState {
                     .desc_attempted_at
                     .and_then(|at| at.checked_add(RETRY_AFTER).ok()),
             },
+            DescStatus::Teaser => DetailState::Teaser,
             DescStatus::Gone => DetailState::Gone,
             DescStatus::Unfetchable => DetailState::Unfetchable,
         }
@@ -437,7 +438,9 @@ pub fn job_detail(
             gmail_url: job.gmail_id.and_then(gmail_url).map(|u| u.to_string()),
         },
         match_,
-        job: JobView::from(&job),
+        job: job_views(store, std::slice::from_ref(&job))?
+            .pop()
+            .unwrap_or_else(|| JobView::from(&job)),
     }))
 }
 
@@ -598,6 +601,19 @@ fn reason_weight(weight: matching::Weight) -> ReasonWeight {
     }
 }
 
+/// List rows with the other portals that announced the same job (`alsoOn`).
+pub fn job_views(store: &Store, rows: &[JobRow]) -> crate::Result<Vec<JobView>> {
+    let keys: Vec<&JobKey> = rows.iter().map(|row| &row.key).collect();
+    let mut also = store.also_on(&keys)?;
+    Ok(rows
+        .iter()
+        .map(|row| JobView {
+            also_on: also.remove(&row.key).unwrap_or_default(),
+            ..JobView::from(row)
+        })
+        .collect())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -659,7 +675,7 @@ pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
         offset: query.offset,
     })?;
     Ok(JobPage {
-        jobs: rows.iter().map(JobView::from).collect(),
+        jobs: job_views(store, &rows)?,
         counts: JobCounts {
             new: counts.new,
             all: counts.all,
@@ -840,9 +856,10 @@ pub fn portal_states(
             let switches = settings.portal(portal);
             let limits = limits(portal);
             let (used_hour, used_day) = policy.usage(portal, now);
-            let login = match portal.login_mode() {
-                LoginMode::None => PortalLogin::None,
-                LoginMode::Required => PortalLogin::Optional,
+            let login = if portal.access().can_sign_in() {
+                PortalLogin::Optional
+            } else {
+                PortalLogin::None
             };
             // Nothing remembered means "unknown": only a sign-in or a page that asks for one
             // turns it into a statement.
@@ -859,21 +876,7 @@ pub fn portal_states(
                 _ => Risk::Grey,
             };
             let empty = empty_mails.iter().filter(|m| m.portal == portal).count();
-            let health = match policy.allowance(portal, now) {
-                Allowance::Paused { until, reason, .. } => PortalHealth::Paused {
-                    until: Some(until),
-                    reason,
-                },
-                Allowance::Quota { next_at } => PortalHealth::QuotaReached { until: next_at },
-                Allowance::Go if signed_in == Some(false) => PortalHealth::LoginRequired,
-                Allowance::Go if empty > 0 || state.suspicious_streak > 0 => {
-                    PortalHealth::LayoutSuspect {
-                        empty_mails: empty,
-                        pages: state.suspicious_streak,
-                    }
-                }
-                Allowance::Go => PortalHealth::Ok,
-            };
+            let health = PortalHealth::of(policy, portal, now, switches.login_enabled, empty);
             PortalState {
                 portal,
                 enabled: switches.enabled,
@@ -1330,7 +1333,20 @@ mod tests {
         assert_eq!(state(&policy).risk, Risk::Account);
         policy.set_session(Portal::FreelanceDe, false, now);
         assert_eq!(state(&policy).signed_in, Some(false));
-        assert_eq!(state(&policy).health, PortalHealth::LoginRequired);
+        // Sign-in switched off: the portal goes as a guest, nothing is wrong.
+        assert_eq!(state(&policy).health, PortalHealth::Ok);
+        let mut settings = settings.clone();
+        settings
+            .portals
+            .get_mut(&Portal::FreelanceDe)
+            .unwrap()
+            .login_enabled = true;
+        let health = portal_states(&policy, &settings, &[], now)
+            .into_iter()
+            .find(|s| s.portal == Portal::FreelanceDe)
+            .unwrap()
+            .health;
+        assert_eq!(health, PortalHealth::LoginRequired);
     }
 
     const AD: &str = "Wir suchen einen Interim CFO (m/w/d).

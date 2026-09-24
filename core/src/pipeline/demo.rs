@@ -11,10 +11,10 @@ use jiff::civil::Date;
 use tokio_util::sync::CancellationToken;
 
 use super::{Backends, LocalMatcher, Matcher};
-use crate::fetch::{PageFetcher, PageOutcome, Route};
-use crate::mail::RawMail;
+use crate::fetch::{Cause, PageFetcher, PageOutcome};
 use crate::mail::imap::{MailError, MailSource};
-use crate::portal::{JobLink, Portal};
+use crate::mail::{RawHead, RawMail, head_part};
+use crate::portal::{FetchPath, JobLink, Portal};
 
 /// The profile of the dry run: the invented interim finance profile of the matching corpus.
 pub const PROFILE_JSON: &str = include_str!("../../tests/fixtures/matching/sample_profile.json");
@@ -69,7 +69,7 @@ impl Backends for DemoBackends {
         })
     }
 
-    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+    fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
         Ok(DemoPages)
     }
 
@@ -93,26 +93,38 @@ impl MailSource for DemoMail {
             .collect())
     }
 
-    async fn fetch(&mut self, uids: &[u32]) -> Result<Vec<RawMail>, MailError> {
-        pause(Duration::from_millis(300), &self.cancel).await?;
-        // Today's date: the sample jobs always lie within the 30-day window of the fetch.
-        let date = jiff::Timestamp::now().strftime("%a, %d %b %Y %H:%M:%S +0000");
+    async fn heads(&mut self, uids: &[u32]) -> Result<Vec<RawHead>, MailError> {
+        pause(Duration::from_millis(100), &self.cancel).await?;
         Ok(uids
             .iter()
             .filter_map(|&uid| {
-                let (_, from, subject, html) =
-                    MAILS.get(usize::try_from(uid.checked_sub(1)?).ok()?)?;
-                let bytes = format!(
-                    "From: {from}\r\nSubject: {subject}\r\nDate: {date}\r\n\
-                     MIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{html}"
-                );
-                Some(RawMail {
-                    gmail_id: Some(0x1990_0000 + u64::from(uid)),
-                    bytes: bytes.into_bytes(),
+                Some(RawHead {
+                    uid,
+                    bytes: head_part(&sample(uid)?.bytes).to_vec(),
                 })
             })
             .collect())
     }
+
+    async fn fetch(&mut self, uids: &[u32]) -> Result<Vec<RawMail>, MailError> {
+        pause(Duration::from_millis(300), &self.cancel).await?;
+        Ok(uids.iter().filter_map(|&uid| sample(uid)).collect())
+    }
+}
+
+/// Sample mail `uid` (1-based).
+fn sample(uid: u32) -> Option<RawMail> {
+    let (_, from, subject, html) = MAILS.get(usize::try_from(uid.checked_sub(1)?).ok()?)?;
+    // Today's date: the sample jobs always lie within the 30-day window of the fetch.
+    let date = jiff::Timestamp::now().strftime("%a, %d %b %Y %H:%M:%S +0000");
+    let bytes = format!(
+        "From: {from}\r\nSubject: {subject}\r\nDate: {date}\r\n\
+         MIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{html}"
+    );
+    Some(RawMail {
+        gmail_id: Some(0x1990_0000 + u64::from(uid)),
+        bytes: bytes.into_bytes(),
+    })
 }
 
 /// Pages to look at. Between the requests the real pace applies (waits with a countdown);
@@ -120,23 +132,22 @@ impl MailSource for DemoMail {
 pub struct DemoPages;
 
 impl PageFetcher for DemoPages {
-    async fn fetch(
-        &mut self,
-        link: &JobLink,
-        _route: Route,
-        cancel: &CancellationToken,
-    ) -> PageOutcome {
+    async fn fetch(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
         if pause(Duration::from_millis(500), cancel).await.is_err() {
             return PageOutcome::Cancelled;
         }
         if link.key.portal == Portal::FreelanceDe {
-            return PageOutcome::Throttled("dry run sample: too many requests".into());
+            return PageOutcome::Throttled {
+                cause: Cause::DrySample,
+                retry_after: None,
+            };
         }
         PageOutcome::Text {
             text: ad(&link.key.id).to_owned(),
             short: false,
             closed: false,
             fields: None,
+            facts: crate::portal::Facts::default(),
         }
     }
 }
@@ -218,10 +229,10 @@ Rahmenbedingungen:
 - 100 % remote";
 
 async fn pause(length: Duration, cancel: &CancellationToken) -> Result<(), MailError> {
-    tokio::select! {
-        biased;
-        () = cancel.cancelled() => Err(MailError::Cancelled),
-        () = tokio::time::sleep(length) => Ok(()),
+    if crate::time::sleep_cancellable(length, cancel).await {
+        Ok(())
+    } else {
+        Err(MailError::Cancelled)
     }
 }
 

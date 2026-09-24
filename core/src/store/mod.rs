@@ -17,8 +17,10 @@ use crate::error::{Error, Result};
 use crate::portal::Portal;
 use crate::time::{from_db, to_db};
 
+mod duplicates;
 mod jobs;
 pub mod matches;
+mod pages;
 mod schema;
 
 pub use jobs::{
@@ -59,9 +61,7 @@ impl Store {
     fn conn(&self) -> MutexGuard<'_, Connection> {
         // A panic in another caller leaves the connection intact (SQLite rolls back open
         // transactions itself) - so the poisoning is ignored.
-        self.conn
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        crate::sync::lock(&self.conn)
     }
 
     /// Several statements as **one** change: all or nothing - a crash in between would

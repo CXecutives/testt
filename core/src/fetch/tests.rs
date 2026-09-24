@@ -18,14 +18,15 @@ use crate::store::MailRef;
 struct Call {
     id: String,
     portal: Portal,
-    route: Route,
+    /// Read in the session window (not as a guest).
+    session: bool,
     start: Instant,
     end: Instant,
 }
 
 /// Fake fetcher: a sequence of outcomes per job id, otherwise a complete text.
 ///
-/// Every portal gets its own fetch route; the copies share their memory so that a test sees
+/// Every portal gets its own fetch path; the copies share their memory so that a test sees
 /// all requests in one place.
 #[derive(Clone, Default)]
 struct Fake {
@@ -38,17 +39,21 @@ struct Fake {
     /// Duration of every request (slow answers) or sign-in.
     delay: Duration,
     login_delay: Duration,
+    /// This copy is a session window (like freelance.de with the sign-in switched on).
+    session: bool,
+    /// Every portal goes as a guest (freelance.de with the sign-in switched off).
+    guest_only: bool,
 }
 
 impl Fake {
     fn with(self, id: &str, outcomes: impl IntoIterator<Item = PageOutcome>) -> Fake {
-        lock_test(&self.script).insert(id.into(), outcomes.into_iter().collect());
+        lock(&self.script).insert(id.into(), outcomes.into_iter().collect());
         self
     }
 
     /// All requests in the order they started.
     fn calls(&self) -> Vec<Call> {
-        let mut calls = lock_test(&self.calls).clone();
+        let mut calls = lock(&self.calls).clone();
         calls.sort_by_key(|call| call.start);
         calls
     }
@@ -58,25 +63,21 @@ impl Fake {
     }
 
     fn logins(&self) -> Vec<(Instant, Instant)> {
-        lock_test(&self.logins).clone()
+        lock(&self.logins).clone()
     }
 }
 
-fn lock_test<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(PoisonError::into_inner)
-}
-
 impl PageFetcher for Fake {
-    async fn fetch(&mut self, link: &JobLink, route: Route, _: &CancellationToken) -> PageOutcome {
+    async fn fetch(&mut self, link: &JobLink, _: &CancellationToken) -> PageOutcome {
         let start = Instant::now();
         tokio::time::sleep(self.delay).await;
-        let outcome = lock_test(&self.script)
+        let outcome = lock(&self.script)
             .get_mut(&link.key.id)
             .and_then(VecDeque::pop_front);
-        lock_test(&self.calls).push(Call {
+        lock(&self.calls).push(Call {
             id: link.key.id.clone(),
             portal: link.key.portal,
-            route,
+            session: self.session,
             start,
             end: Instant::now(),
         });
@@ -86,8 +87,12 @@ impl PageFetcher for Fake {
     async fn login(&mut self, _: Portal, _: &CancellationToken) -> Login {
         let start = Instant::now();
         tokio::time::sleep(self.login_delay).await;
-        lock_test(&self.logins).push((start, Instant::now()));
+        lock(&self.logins).push((start, Instant::now()));
         self.login.unwrap_or(Login::NotSignedIn)
+    }
+
+    fn session(&self) -> bool {
+        self.session
     }
 }
 
@@ -97,11 +102,12 @@ fn text(t: &str) -> PageOutcome {
         short: t.chars().count() < MIN_TEXT_CHARS,
         closed: false,
         fields: None,
+        facts: Facts::default(),
     }
 }
 
 fn suspicious() -> PageOutcome {
-    PageOutcome::Suspicious("no description".into())
+    PageOutcome::Suspicious(Cause::NoDescription)
 }
 
 fn base() -> Timestamp {
@@ -119,6 +125,7 @@ fn url(portal: Portal, id: u64) -> String {
         Portal::LinkedIn => format!("https://www.linkedin.com/jobs/view/{id}/"),
         Portal::Freelancermap => format!("https://www.freelancermap.de/nproj/{id}.html"),
         Portal::FreelanceDe => format!("https://www.freelance.de/project/index.php?id={id}"),
+        Portal::Probe => format!("https://jobs.probe.example/job/{id}"),
     }
 }
 
@@ -194,10 +201,17 @@ async fn run_inner(
     let mut waits = Vec::new();
     let shared = Mutex::new(std::mem::take(policy));
     let completed = fetch_all(
-        |_portal| Ok(fake.clone()),
+        // Like the app with freelance.de's sign-in switched on: a session window there, the
+        // guest path everywhere else.
+        |portal| {
+            Ok(Fake {
+                session: portal == FL && !fake.guest_only,
+                ..fake.clone()
+            })
+        },
         store,
         &shared,
-        selection,
+        (selection, &|_: &str, _: &str| 0),
         cancel,
         clock,
         &mut summary,
@@ -215,7 +229,9 @@ async fn run_inner(
     )
     .await
     .unwrap();
-    *policy = shared.into_inner().unwrap_or_else(PoisonError::into_inner);
+    *policy = shared
+        .into_inner()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     // The stop is in the summary too.
     for (portal, reason, _) in &stops {
         let counts = &summary.per_portal[portal];
@@ -239,15 +255,16 @@ fn sorted(ids: &[String]) -> Vec<String> {
 const FM: Portal = Portal::Freelancermap;
 const LI: Portal = Portal::LinkedIn;
 const FL: Portal = Portal::FreelanceDe;
+/// The test-only fourth portal (`portal::probe`).
+const PR: Portal = Portal::Probe;
 
-/// The router has no choice any more: a session window exists only where nothing can be
-/// read without a sign-in. freelancermap signed in is character-identical to the guest
-/// view (measured), LinkedIn too - both go as a guest.
+/// A session window exists only where a portal offers a sign-in. freelancermap signed in is
+/// character-identical to the guest view (measured), LinkedIn too - both go as a guest.
 #[test]
-fn only_a_portal_that_needs_an_account_uses_a_window() {
-    assert_eq!(route(LI), Route::Http);
-    assert_eq!(route(FM), Route::Http);
-    assert_eq!(route(FL), Route::Session);
+fn only_a_portal_with_a_sign_in_uses_a_window() {
+    assert_eq!(LI.access(), Access::Guest);
+    assert_eq!(FM.access(), Access::Guest);
+    assert!(FL.access().can_sign_in());
 }
 
 #[tokio::test(start_paused = true)]
@@ -273,6 +290,10 @@ async fn matrix_text_short_closed_gone_suspicious() {
                     company: "Seitenfirma".into(),
                     location: "Köln".into(),
                 }),
+                facts: Facts {
+                    employment_type: Some("Vollzeit".into()),
+                    ..Facts::default()
+                },
             }],
         )
         .with("10004", [PageOutcome::Gone])
@@ -320,6 +341,18 @@ async fn matrix_text_short_closed_gone_suspicious() {
     )
     .await;
     assert_eq!(fake.calls().len(), calls);
+    // The facts of the page and the parser version are kept with the text.
+    let closed = key(FM, 10_003);
+    assert_eq!(
+        store
+            .facts(&closed)
+            .unwrap()
+            .unwrap()
+            .employment_type
+            .as_deref(),
+        Some("Vollzeit")
+    );
+    assert_eq!(store.parser_version(&closed).unwrap(), Some(1));
 }
 
 #[tokio::test(start_paused = true)]
@@ -451,7 +484,13 @@ async fn a_full_text_between_resets_the_breaker_but_a_short_one_does_not() {
 async fn throttle_pauses_the_portal_across_runs_without_costing_attempts() {
     let c = clock();
     let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 2), (LI, 4_000_000_001, 1)]);
-    let fake = Fake::default().with("10001", [PageOutcome::Throttled("HTTP 429".into())]);
+    let fake = Fake::default().with(
+        "10001",
+        [PageOutcome::Throttled {
+            cause: Cause::Http(429),
+            retry_after: None,
+        }],
+    );
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -490,8 +529,8 @@ async fn block_pauses_a_day_and_a_second_block_a_week() {
     let fake = Fake::default().with(
         "4000000001",
         [
-            PageOutcome::Blocked("HTTP 999".into()),
-            PageOutcome::Blocked("HTTP 999".into()),
+            PageOutcome::Blocked(Cause::Http(999)),
+            PageOutcome::Blocked(Cause::Http(999)),
         ],
     );
     let mut policy = Policy::in_memory();
@@ -549,7 +588,7 @@ async fn network_error_is_retried_once_after_30_seconds() {
             "10001",
             [PageOutcome::NetError {
                 timeout: false,
-                detail: "no connection".into(),
+                cause: Cause::NoConnection,
             }],
         )
         .with(
@@ -557,11 +596,11 @@ async fn network_error_is_retried_once_after_30_seconds() {
             [
                 PageOutcome::NetError {
                     timeout: true,
-                    detail: "no answer".into(),
+                    cause: Cause::Timeout,
                 },
                 PageOutcome::NetError {
                     timeout: true,
-                    detail: "no answer".into(),
+                    cause: Cause::Timeout,
                 },
             ],
         );
@@ -576,7 +615,7 @@ async fn network_error_is_retried_once_after_30_seconds() {
     .await;
     assert_eq!(fake.ids(), ["10001", "10001", "10002", "10002"]);
     let calls = fake.calls();
-    assert!(calls[1].start - calls[0].start >= NET_RETRY_DELAY);
+    assert!(calls[1].start - calls[0].start >= NET_RETRY);
     assert_eq!(
         store.job(&key(FM, 10_001)).unwrap().unwrap().desc_status,
         DescStatus::Ok
@@ -655,7 +694,7 @@ async fn hourly_cap_stops_with_the_next_possible_time() {
 async fn login_required_stops_freelance_and_marks_the_session() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
-    let fake = Fake::default().with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    let fake = Fake::default().with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -852,7 +891,7 @@ async fn login_during_the_run_retries_the_same_job() {
         login_delay: Duration::from_secs(60),
         ..Fake::default()
     }
-    .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -887,7 +926,7 @@ async fn login_during_the_run_retries_the_same_job() {
         login: Some(Login::NotSignedIn),
         ..Fake::default()
     }
-    .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let r = run(
         &fake,
         &store,
@@ -910,7 +949,7 @@ async fn a_challenged_login_keeps_the_session_but_rests_the_portal() {
         login: Some(Login::Challenged),
         ..Fake::default()
     }
-    .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -980,7 +1019,7 @@ async fn the_login_page_counts_and_respects_the_cap() {
         login: Some(Login::SignedIn),
         ..Fake::default()
     }
-    .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let r = run(
         &fake,
         &store,
@@ -1003,7 +1042,7 @@ async fn the_login_page_counts_and_respects_the_cap() {
 async fn a_retry_is_a_counted_access_and_happens_once() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
-    let retry = || PageOutcome::Retry("Weiterleitung nach der Anmeldung".into());
+    let retry = || PageOutcome::Retry(Cause::PostLoginRedirect);
     let fake = Fake::default()
         .with("1255067", [retry()])
         .with("1255068", [retry(), retry()]);
@@ -1036,7 +1075,7 @@ async fn a_retry_is_a_counted_access_and_happens_once() {
 async fn repeated_redirects_trip_the_breaker() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1), (FL, 1_255_069, 1)]);
-    let retry = || PageOutcome::Retry("Weiterleitung nach der Anmeldung".into());
+    let retry = || PageOutcome::Retry(Cause::PostLoginRedirect);
     let fake = Fake::default()
         .with("1255067", [retry(), retry()])
         .with("1255068", [retry(), retry()])
@@ -1071,7 +1110,7 @@ async fn long_waits_are_announced() {
         "4000000001",
         [PageOutcome::NetError {
             timeout: false,
-            detail: "no connection".into(),
+            cause: Cause::NoConnection,
         }],
     );
     let r = run(
@@ -1163,7 +1202,7 @@ async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
     let fake = Fake::default()
         .with("10001", [suspicious()])
         .with("10002", [suspicious()])
-        .with("1255001", [PageOutcome::Blocked("HTTP 403".into())]);
+        .with("1255001", [PageOutcome::Blocked(Cause::Http(403))]);
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -1178,9 +1217,9 @@ async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
         calls.iter().filter(|call| call.portal == portal).collect()
     };
     // Guest route for LinkedIn and freelancermap, session route only for freelance.de.
-    assert!(of(LI).iter().all(|call| call.route == Route::Http));
-    assert!(of(FM).iter().all(|call| call.route == Route::Http));
-    assert!(of(FL).iter().all(|call| call.route == Route::Session));
+    assert!(of(LI).iter().all(|call| !call.session));
+    assert!(of(FM).iter().all(|call| !call.session));
+    assert!(of(FL).iter().all(|call| call.session));
     // Hourly cap LinkedIn: 20 requests, the rest waits.
     assert_eq!(of(LI).len(), 20);
     // Breaker freelancermap: stop after two pages without a description.
@@ -1198,4 +1237,344 @@ async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
     let mut stopped: Vec<Portal> = r.stops.iter().map(|(portal, ..)| *portal).collect();
     stopped.sort_unstable();
     assert_eq!(stopped, Portal::ALL);
+}
+
+/// A fourth portal runs through the registry alone: its jobs are fetched with its own pace
+/// and caps, side by side with the others - this module knows nothing about it.
+#[tokio::test(start_paused = true)]
+async fn a_fourth_portal_runs_through_the_registry_alone() {
+    let c = clock();
+    let store = store_with(&[
+        (PR, 1, 1),
+        (PR, 2, 1),
+        (PR, 3, 1),
+        (PR, 4, 1),
+        (FM, 10_001, 1),
+    ]);
+    let fake = Fake::default();
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[PR, FM]), &c).await;
+    // The probe's hourly cap is 3: three pages, then its own cap stops it.
+    assert_eq!(r.summary.per_portal[&PR].ok, 3);
+    assert!(
+        matches!(r.stops.as_slice(), [(PR, StopReason::Quota { .. }, 1)]),
+        "{:?}",
+        r.stops
+    );
+    assert_eq!(r.summary.per_portal[&FM].ok, 1);
+    let probe: Vec<Call> = fake
+        .calls()
+        .into_iter()
+        .filter(|c| c.portal == PR)
+        .collect();
+    assert_eq!(probe.len(), 3);
+    // Its own gap of one second, as a guest.
+    for pair in probe.windows(2) {
+        assert!(pair[1].start - pair[0].end >= Duration::from_secs(1));
+    }
+    assert!(probe.iter().all(|call| !call.session));
+    assert_eq!(policy.state(PR).accesses.len(), 3);
+    // Not selected: zero requests.
+    let fake = Fake::default();
+    let store = store_with(&[(PR, 5, 1)]);
+    run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Queue(&[FM]),
+        &c,
+    )
+    .await;
+    assert!(fake.calls().is_empty());
+}
+
+fn teaser() -> PageOutcome {
+    PageOutcome::Teaser {
+        text: "Derzeit suchen wir einen Controller.".into(),
+        fields: Some(PageFields {
+            title: "Interim Controller (m/w/d)".into(),
+            ..PageFields::default()
+        }),
+        facts: Facts {
+            start: Some("ab sofort".into()),
+            ..Facts::default()
+        },
+    }
+}
+
+/// Without the sign-in freelance.de goes as a guest: the teaser is stored for matching and
+/// marked as such - no text file, and it counts as no full text.
+#[tokio::test(start_paused = true)]
+async fn a_guest_teaser_is_stored_and_marked() {
+    let c = clock();
+    let store = store_with(&[(FL, 1_255_067, 1)]);
+    let fake = Fake {
+        guest_only: true,
+        ..Fake::default()
+    }
+    .with("1255067", [teaser()]);
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[FL]), &c).await;
+    assert_eq!(r.summary.per_portal[&FL].teaser, 1);
+    assert_eq!(r.summary.per_portal[&FL].ok, 0);
+    let job = store.job(&key(FL, 1_255_067)).unwrap().unwrap();
+    assert_eq!(job.desc_status, DescStatus::Teaser);
+    assert_eq!(job.title, "Interim Controller (m/w/d)");
+    assert_eq!(
+        store.description(&job.key).unwrap().as_deref(),
+        Some("Derzeit suchen wir einen Controller.")
+    );
+    assert!(store.txt_jobs(true).unwrap().is_empty(), "no text file");
+    // The facts of the page head, and the parser that read it.
+    assert_eq!(
+        store.facts(&job.key).unwrap().unwrap().start.as_deref(),
+        Some("ab sofort")
+    );
+    assert!(fake.calls().iter().all(|call| !call.session));
+    // As a guest the teaser is not fetched again.
+    run(&fake, &store, &mut policy, Selection::Queue(&[FL]), &c).await;
+    assert_eq!(fake.calls().len(), 1);
+    // With the sign-in switched on, the full text comes in the session window.
+    let signed_in = Fake::default();
+    let r = run(&signed_in, &store, &mut policy, Selection::Queue(&[FL]), &c).await;
+    assert_eq!(r.summary.per_portal[&FL].ok, 1);
+    assert!(signed_in.calls().iter().all(|call| call.session));
+    let job = store.job(&key(FL, 1_255_067)).unwrap().unwrap();
+    assert_eq!(job.desc_status, DescStatus::Ok);
+}
+
+/// Sign-in switched off: even a sign-in wall never opens the sign-in window - the portal
+/// waits for the next run without another request.
+#[tokio::test(start_paused = true)]
+async fn without_the_sign_in_switch_no_window_ever_opens() {
+    let c = clock();
+    let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
+    let fake = Fake {
+        guest_only: true,
+        login: Some(Login::SignedIn),
+        ..Fake::default()
+    }
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[FL]), &c).await;
+    assert!(fake.logins().is_empty(), "no sign-in window");
+    assert!(matches!(
+        r.stops.as_slice(),
+        [(FL, StopReason::LoginRequired, 2)]
+    ));
+    assert_eq!(
+        policy.state(FL).accesses.len(),
+        1,
+        "no sign-in page requested"
+    );
+    assert!(
+        !policy.state(FL).login_needed,
+        "the guest path says nothing about a session"
+    );
+}
+
+/// The portal's own Retry-After is the shortest pause - longer than the usual hour here.
+#[tokio::test(start_paused = true)]
+async fn retry_after_is_honoured_as_the_shortest_pause() {
+    let c = clock();
+    let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 1)]);
+    let fake = Fake::default().with(
+        "10001",
+        [PageOutcome::Throttled {
+            cause: Cause::Http(429),
+            retry_after: Some(Duration::from_secs(3 * 3600)),
+        }],
+    );
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[FM]), &c).await;
+    let wished = base() + SignedDuration::from_hours(3);
+    assert!(
+        matches!(&r.stops[0], (FM, StopReason::Paused { until, .. }, 2) if *until >= wished),
+        "{:?}",
+        r.stops
+    );
+    // Two hours later - past the usual hour - the portal still rests.
+    assert!(matches!(
+        policy.allowance(FM, base() + SignedDuration::from_hours(2)),
+        Allowance::Paused { .. }
+    ));
+    // A shorter wish never shortens the usual pause.
+    let mut policy = Policy::in_memory();
+    let until = policy.pause_at_least(
+        FM,
+        PauseKind::Throttled,
+        "http429",
+        base(),
+        Some(Duration::from_secs(60)),
+    );
+    assert_eq!(until, base() + SignedDuration::from_hours(1));
+}
+
+/// After a parser update the failed and given-up jobs of that portal are fetched again -
+/// the others, and jobs the current parser judged, stay as they are.
+#[tokio::test(start_paused = true)]
+async fn a_parser_update_requeues_the_failed_jobs_of_its_portal() {
+    let c = clock();
+    let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 1), (FM, 10_003, 1)]);
+    let (old, current, gone) = (key(FM, 10_001), key(FM, 10_002), key(FM, 10_003));
+    for _ in 0..3 {
+        store.record_failed(&old, "noDescription", base()).unwrap();
+    }
+    store.record_parse(&old, 0, None).unwrap();
+    store
+        .record_failed(&current, "noDescription", base())
+        .unwrap();
+    store
+        .record_parse(&current, FM.adapter().parser_version(), None)
+        .unwrap();
+    store.record_gone(&gone, base()).unwrap();
+    assert_eq!(
+        store.job(&old).unwrap().unwrap().desc_status,
+        DescStatus::Unfetchable
+    );
+    let fake = Fake::default();
+    let r = run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Queue(&[FM]),
+        &c,
+    )
+    .await;
+    assert_eq!(fake.ids(), ["10001"], "only the job of the older parser");
+    assert_eq!(r.summary.per_portal[&FM].ok, 1);
+    let job = store.job(&old).unwrap().unwrap();
+    assert_eq!((job.desc_status, job.desc_attempts), (DescStatus::Ok, 0));
+    assert_eq!(
+        store.parser_version(&old).unwrap(),
+        Some(FM.adapter().parser_version())
+    );
+    assert_eq!(
+        store.job(&current).unwrap().unwrap().desc_status,
+        DescStatus::Failed
+    );
+    assert_eq!(
+        store.job(&gone).unwrap().unwrap().desc_status,
+        DescStatus::Gone
+    );
+}
+
+/// A series of suspicious pages (layout changed?) costs ONE attempt - the portal's fault
+/// must not use up the attempts of every job it touched.
+#[tokio::test(start_paused = true)]
+async fn a_breaker_series_costs_one_attempt() {
+    let c = clock();
+    let store = store_with(&[(LI, 4_000_000_001, 1), (LI, 4_000_000_002, 2)]);
+    let fake = Fake::default()
+        .with("4000000001", [suspicious()])
+        .with("4000000002", [suspicious()]);
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[LI]), &c).await;
+    assert!(matches!(
+        r.stops.as_slice(),
+        [(LI, StopReason::Breaker { .. }, 0)]
+    ));
+    let attempts = |id| {
+        let job = store.job(&key(LI, id)).unwrap().unwrap();
+        (job.desc_status, job.desc_attempts)
+    };
+    assert_eq!(attempts(4_000_000_001), (DescStatus::Failed, 1));
+    assert_eq!(attempts(4_000_000_002), (DescStatus::Failed, 0));
+}
+
+/// The same job on two portals: the later one points to the earlier one - the list shows
+/// one row with the other portal in `alsoOn`, and only that row waits for a score. The same
+/// title with another text stays its own job.
+#[tokio::test(start_paused = true)]
+async fn the_same_job_on_two_portals_is_one_row() {
+    use crate::view::{JobFacet, JobQuery, JobSort, job_page};
+    let c = clock();
+    let store = store_with(&[(LI, 4_000_000_001, 1), (FM, 10_001, 2), (FM, 10_002, 3)]);
+    let same = "Für unseren Kunden suchen wir einen SAP FI/CO Berater. Aufgaben: Einführung \
+        von S/4HANA Finance, Abstimmung mit den Fachbereichen, Schulung der Key User. Profil: \
+        mehrjährige Projekterfahrung im Controlling, sehr gute Deutschkenntnisse.";
+    let fake = Fake::default()
+        .with("4000000001", [text(same)])
+        .with("10001", [text(&format!("{same}\n\nReferenz: 12"))])
+        .with(
+            "10002",
+            [text(
+                "Rollout eines Warenwirtschaftssystems in 40 Filialen: Planung, Steuerung der \
+                 Dienstleister, Berichtswesen an die Geschäftsführung, agile Methoden.",
+            )],
+        );
+    let mut policy = Policy::in_memory();
+    run(&fake, &store, &mut policy, Selection::Queue(&[LI]), &c).await;
+    run(&fake, &store, &mut policy, Selection::Queue(&[FM]), &c).await;
+    let (li, dup, other) = (key(LI, 4_000_000_001), key(FM, 10_001), key(FM, 10_002));
+    assert_eq!(store.dup_of(&dup).unwrap(), Some(li.clone()));
+    assert_eq!(store.dup_of(&other).unwrap(), None);
+    assert_eq!(store.dup_of(&li).unwrap(), None);
+    let page = job_page(
+        &store,
+        &JobQuery {
+            facet: JobFacet::All,
+            sort: JobSort::Newest,
+            search: None,
+            limit: 50,
+            offset: 0,
+        },
+    )
+    .unwrap();
+    assert_eq!(page.counts.all, 2);
+    let row = page.jobs.iter().find(|j| j.key == li).unwrap();
+    assert_eq!(row.also_on, [FM]);
+    assert!(page.jobs.iter().all(|j| j.key != dup));
+    // Scored once: the duplicate waits for no score of its own.
+    assert_eq!(store.match_pending("any").unwrap(), 2);
+}
+
+/// The queue of a portal goes by the injected pre-score, then by the newest mail - and
+/// nothing is skipped. Retries of failed jobs come after the open ones.
+#[tokio::test(start_paused = true)]
+async fn the_queue_follows_the_prescore_then_recency() {
+    let c = clock();
+    let store = Store::in_memory().unwrap();
+    let run_id = store.begin_run().unwrap();
+    for (id, days_ago, title) in [
+        (10_001, 1, "Projektleiter Logistik"),
+        (10_002, 5, "SAP FI/CO Berater"),
+        (10_003, 2, "SAP MM Berater"),
+        (10_004, 0, "Werkstudent"),
+    ] {
+        let link = job_link(&url(FM, id)).unwrap();
+        let posting = Posting::new(link.key, link.url, title, "Firma", "Hamburg");
+        let date = base() - SignedDuration::from_hours(days_ago * 24);
+        let mail = MailRef {
+            subject: "Neue Projekte",
+            date: Some(date),
+            gmail_id: None,
+        };
+        store.upsert_posting(run_id, &posting, mail, date).unwrap();
+    }
+    let prescore = |title: &str, _: &str| if title.contains("SAP") { 90 } else { 10 };
+    let fake = Fake::default();
+    let shared = Mutex::new(Policy::in_memory());
+    let mut summary = FetchSummary::default();
+    fetch_all(
+        |_| Ok(fake.clone()),
+        &store,
+        &shared,
+        (Selection::Queue(&[FM]), &prescore),
+        &CancellationToken::new(),
+        &c,
+        &mut summary,
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(fake.ids(), ["10003", "10002", "10004", "10001"]);
+    // The neutral order: newest mail first.
+    let mut jobs = store.fetch_queue(c(), MAX_AGE, RETRY_AFTER).unwrap();
+    assert!(jobs.is_empty(), "everything was fetched");
+    let all = store.jobs(&crate::store::JobFilter::default()).unwrap();
+    jobs.extend(all);
+    order(&mut jobs, &*neutral_prescore());
+    let ids: Vec<&str> = jobs.iter().map(|j| j.key.id.as_str()).collect();
+    assert_eq!(ids, ["10004", "10001", "10003", "10002"]);
 }

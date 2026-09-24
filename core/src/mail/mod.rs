@@ -1,4 +1,4 @@
-//! Alert-Mails: zerlegen, Jobs herausziehen, dem Portal zuordnen.
+//! Alert mails: take them apart, pull out the jobs, assign them to a portal.
 
 mod classify;
 pub(crate) mod extract;
@@ -15,39 +15,71 @@ use crate::text::truncate_chars;
 pub(crate) use extract::Found;
 pub(crate) use parse::{ParsedMail, parse_mail};
 
-/// Eine Mail, wie sie aus dem Postfach kommt.
+/// A mail as it comes from the mailbox.
 #[derive(Debug, Clone, Default)]
 pub struct RawMail {
-    /// Gmail-Nachrichten-ID (`X-GM-MSGID`).
+    /// Gmail message id (`X-GM-MSGID`).
     pub gmail_id: Option<u64>,
     pub bytes: Vec<u8>,
 }
 
-/// Was eine Mail ist.
+/// The head of a mail (sender, subject, date, message id) - loaded before any body.
+#[derive(Debug, Clone, Default)]
+pub struct RawHead {
+    pub uid: u32,
+    pub bytes: Vec<u8>,
+}
+
+/// What a mail is.
 #[derive(Debug)]
 pub enum MailKind {
     Alert(AlertMail),
-    /// Keine Job-Alert-Mail (oder ein nicht gewähltes Portal).
+    /// No job alert mail (or a portal that is not chosen).
     Other,
-    /// Nicht lesbar – wird gezählt und gemeldet, nie still verworfen.
+    /// Unreadable - counted and reported, never silently dropped.
     Defective,
 }
 
-/// Erkennt eine Job-Alert-Mail der gewählten Portale.
+/// Is the mail worth loading whole, judged by its head alone? Original alerts come from a
+/// portal's domain; forwarded ones carry a forward prefix, an alert word or a portal name in
+/// the subject or sender. An unreadable head is loaded too (and then counted as defective,
+/// never silently dropped).
+pub fn is_candidate(head: &[u8], allowed: &[Portal]) -> bool {
+    let Some(mail) = parse_mail(head) else {
+        return true;
+    };
+    if mail.sender_address.is_empty() && mail.subject.is_empty() && mail.date.is_none() {
+        return true;
+    }
+    classify::head_is_candidate(&mail, allowed)
+}
+
+/// The head part of a raw mail (up to and including the blank line).
+pub fn head_part(bytes: &[u8]) -> &[u8] {
+    let end = bytes
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|at| at + 4)
+        .or_else(|| bytes.windows(2).position(|w| w == b"\n\n").map(|at| at + 2))
+        .unwrap_or(bytes.len());
+    &bytes[..end]
+}
+
+/// Recognises a job alert mail of the chosen portals.
 ///
-/// Einträge tragen ihr eigenes Portal: Eine weitergeleitete Sammelmail kann Jobs mehrerer
-/// Portale enthalten (früher: das zweite Portal ging verloren). Ein Alert ohne einen
-/// einzigen erkannten Eintrag bleibt als solcher erhalten (Layout-Wächter), wenn sein
-/// Betreff nach Alert aussieht.
+/// Entries carry their own portal: a forwarded collection mail can hold jobs of several
+/// portals (formerly the second portal got lost). An alert without a single recognised
+/// entry stays an alert (layout guard) when its subject reads like one.
 pub fn classify_mail(raw: &RawMail, allowed: &[Portal]) -> MailKind {
     let Some(mail) = parse_mail(&raw.bytes) else {
         return MailKind::Defective;
     };
-    // Ohne Absender, Betreff und Datum ist es keine lesbare Mail (z. B. Binärmüll).
+    // Without sender, subject and date it is no readable mail (binary garbage, say).
     if mail.sender_address.is_empty() && mail.subject.is_empty() && mail.date.is_none() {
         return MailKind::Defective;
     }
-    // Beschädigt und trotzdem nichts erkannt: zählt als unlesbar, nicht still als „kein Alert“.
+    // Damaged and still nothing recognised: counts as unreadable, not silently as "no
+    // alert".
     let nothing = if mail.damaged {
         MailKind::Defective
     } else {
@@ -78,7 +110,7 @@ pub fn classify_mail(raw: &RawMail, allowed: &[Portal]) -> MailKind {
     })
 }
 
-/// Dauerhafter Schlüssel einer Mail: Gmail-ID, sonst Message-ID, sonst Inhalts-Hash.
+/// Lasting key of a mail: Gmail id, else message id, else a hash of the content.
 fn mail_key(raw: &RawMail, mail: &ParsedMail) -> String {
     if let Some(id) = raw.gmail_id {
         return format!("gm:{id:x}");

@@ -7,6 +7,7 @@ use url::Url;
 
 use super::{Store, bump};
 use crate::error::{Error, Result};
+use crate::fetch::policy::MAX_FETCH_ATTEMPTS;
 use crate::model::{
     AlertMail, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord, Posting,
     is_usable_title,
@@ -15,8 +16,6 @@ use crate::portal::{JobKey, Portal};
 use crate::text::{one_line, page_location, split_company_location, truncate_chars};
 use crate::time::{from_db, to_db};
 
-/// After this many failed attempts a job counts as unfetchable.
-const MAX_FETCH_ATTEMPTS: i64 = 3;
 /// Maximum length of a stored failure reason (in characters).
 const MAX_ERROR_CHARS: usize = 200;
 
@@ -139,8 +138,10 @@ impl<'a> From<&'a AlertMail> for MailRef<'a> {
 impl Store {
     // ------------------------------------------------------------------ Intake
 
-    /// Records one entry from an alert mail (merge rule: [`upsert`]).
-    pub fn upsert_posting(
+    /// Records one entry from an alert mail (merge rule: [`upsert`]) - tests only; the app
+    /// records whole alert mails ([`Store::record_alert`]).
+    #[cfg(test)]
+    pub(crate) fn upsert_posting(
         &self,
         run: i64,
         posting: &Posting,
@@ -223,12 +224,13 @@ impl Store {
         row.transpose()
     }
 
-    /// Full text of a job (only with status `ok`).
+    /// Text of a job: the full text (status `ok`) or the teaser a guest sees (`teaser`).
     pub fn description(&self, key: &JobKey) -> Result<Option<String>> {
         Ok(self
             .conn()
             .query_row(
-                "SELECT desc_text FROM job WHERE portal = ?1 AND job_id = ?2 AND desc_status = 'ok'",
+                "SELECT desc_text FROM job WHERE portal = ?1 AND job_id = ?2
+                 AND desc_status IN ('ok', 'teaser')",
                 params![key.portal.key(), key.id],
                 |r| r.get(0),
             )
@@ -271,7 +273,8 @@ impl Store {
         let new = "read_at IS NULL AND match_status IS NOT 'excluded'";
         let sql = format!(
             "WITH base AS (
-                 SELECT * FROM job WHERE (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
+                 SELECT * FROM job WHERE dup_of IS NULL
+                                     AND (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
              ), counts AS (
                  SELECT COUNT(*) AS n_all,
                         COALESCE(SUM({new}), 0) AS n_new,
@@ -449,6 +452,26 @@ impl Store {
         })
     }
 
+    /// Only the teaser a guest sees: stored for matching and marked, never as a text file.
+    /// A full text is never downgraded. The attempt counter starts again, so that a sign-in
+    /// switched on later fetches the full text right away.
+    pub fn record_teaser(&self, key: &JobKey, text: &str, now: Timestamp) -> Result<()> {
+        self.write(|conn| {
+            let changed = conn.execute(
+                "UPDATE job SET desc_status = 'teaser', desc_text = ?3, desc_short = 0,
+                                desc_closed = 0, desc_fetched_at = ?4, desc_attempted_at = ?4,
+                                desc_attempts = 0, desc_error = NULL, match_rev = NULL
+                 WHERE portal = ?1 AND job_id = ?2 AND desc_status <> 'ok'",
+                params![key.portal.key(), key.id, text, to_db(now)],
+            )?;
+            if changed > 0 {
+                bump(conn)?;
+                refresh_search(conn, key)?;
+            }
+            Ok(())
+        })
+    }
+
     /// The ad no longer exists.
     pub fn record_gone(&self, key: &JobKey, now: Timestamp) -> Result<()> {
         self.write(|conn| {
@@ -466,19 +489,42 @@ impl Store {
     }
 
     /// Page loaded, but no valid text: count the attempt; after `MAX_FETCH_ATTEMPTS` the job
-    /// counts as unfetchable. A job with a valid text stays unchanged (returns its status).
+    /// counts as unfetchable. A job with a valid text stays unchanged (returns its status); a
+    /// teaser stays a teaser (it is only fetched again with a sign-in, see `DUE`).
     /// The reason often comes from the page (redirect target, script error) - it is stored
     /// as one short line.
     pub fn record_failed(&self, key: &JobKey, error: &str, now: Timestamp) -> Result<DescStatus> {
+        self.record_failure(key, error, now, true)
+    }
+
+    /// Like [`Store::record_failed`]; `count_attempt: false` records the failure without
+    /// costing the job an attempt (a page in a series of suspicious pages - the portal's
+    /// fault, not the job's).
+    pub fn record_failure(
+        &self,
+        key: &JobKey,
+        error: &str,
+        now: Timestamp,
+        count_attempt: bool,
+    ) -> Result<DescStatus> {
         let error = truncate_chars(&one_line(error), MAX_ERROR_CHARS);
         let status: String = self.write(|conn| {
             let updated: Option<String> = conn
                 .query_row(
-                    "UPDATE job SET desc_attempts = desc_attempts + 1, desc_attempted_at = ?3, desc_error = ?4,
-                                    desc_status = CASE WHEN desc_attempts + 1 >= ?5 THEN 'unfetchable' ELSE 'failed' END
+                    "UPDATE job SET desc_attempts = desc_attempts + ?6, desc_attempted_at = ?3, desc_error = ?4,
+                                    desc_status = CASE WHEN desc_status = 'teaser' THEN 'teaser'
+                                                       WHEN desc_attempts + ?6 >= ?5 THEN 'unfetchable'
+                                                       ELSE 'failed' END
                      WHERE portal = ?1 AND job_id = ?2 AND desc_status <> 'ok'
                      RETURNING desc_status",
-                    params![key.portal.key(), key.id, to_db(now), error, MAX_FETCH_ATTEMPTS],
+                    params![
+                        key.portal.key(),
+                        key.id,
+                        to_db(now),
+                        error,
+                        MAX_FETCH_ATTEMPTS,
+                        i64::from(count_attempt)
+                    ],
                     |r| r.get(0),
                 )
                 .optional()?;
@@ -584,15 +630,20 @@ pub(super) const JOB_COLUMNS: &str = "portal, job_id, url, title, company, locat
 pub(super) const JOB_COLUMN_COUNT: usize = 26;
 
 /// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
-/// mail not older than `?1`.
+/// or a teaser (right away, after a failed attempt like a failure, at most
+/// `MAX_FETCH_ATTEMPTS` = `?3` times) - mail not older than `?1`. Teasers are only fetched
+/// on a session path (`fetch::fetch_all`).
 const DUE: &str = "COALESCE(mail_date, first_seen_at) >= ?1
     AND (desc_status = 'missing'
-         OR (desc_status = 'failed' AND COALESCE(desc_attempted_at, 0) <= ?2))";
+         OR (desc_status = 'failed' AND COALESCE(desc_attempted_at, 0) <= ?2)
+         OR (desc_status = 'teaser' AND desc_attempts < ?3
+             AND (desc_attempts = 0 OR COALESCE(desc_attempted_at, 0) <= ?2)))";
 
-fn due_params(now: Timestamp, max_age: SignedDuration, retry_after: SignedDuration) -> [i64; 2] {
+fn due_params(now: Timestamp, max_age: SignedDuration, retry_after: SignedDuration) -> [i64; 3] {
     [
         to_db(now.saturating_sub(max_age).unwrap_or(Timestamp::MIN)),
         to_db(now.saturating_sub(retry_after).unwrap_or(Timestamp::MIN)),
+        i64::from(MAX_FETCH_ATTEMPTS),
     ]
 }
 

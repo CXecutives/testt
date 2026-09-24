@@ -23,10 +23,13 @@ use tokio_util::sync::CancellationToken;
 use crate::error::{ErrorInfo, InvalidInput};
 use crate::export::{self, RESULT_DIR, TXT_DIR, texts, write_job_txt, write_xlsx};
 use crate::fetch::policy::Policy;
-use crate::fetch::{FetchEvent, FetchSummary, PageFetcher, PortalHealth, Selection, fetch_all};
+use crate::fetch::{
+    FetchEvent, FetchSummary, PageFetcher, PortalHealth, Prescore, Selection, fetch_all,
+    neutral_prescore,
+};
 use crate::mail::imap::{MailError, MailSource};
 use crate::mail::scan::{ScanError, ScanEvent, ScanSummary, Scope, scan};
-use crate::portal::{JobKey, Portal};
+use crate::portal::{FetchPath, JobKey, Portal};
 use crate::store::{JobFilter, JobRow, Store};
 use crate::text::truncate_chars;
 use crate::time;
@@ -95,6 +98,20 @@ pub struct RunContext {
     pub portals: Vec<Portal>,
     /// Portals whose job pages may be fetched (settings: enabled and details on).
     pub fetch_portals: Vec<Portal>,
+    /// Of those, the portals read in the session window (sign-in switched on); the others
+    /// go as a guest. A run never opens a session window for any other portal.
+    pub sign_in: Vec<Portal>,
+}
+
+impl RunContext {
+    /// The fetch path of a portal in this run.
+    pub fn path(&self, portal: Portal) -> FetchPath {
+        if self.sign_in.contains(&portal) {
+            FetchPath::Session
+        } else {
+            FetchPath::Guest
+        }
+    }
 }
 
 /// Mailbox and fetch routes of a run (dummies in tests and in the dry run).
@@ -105,12 +122,17 @@ pub trait Backends {
         &mut self,
         cancel: &CancellationToken,
     ) -> impl Future<Output = Result<Self::Mail, MailError>> + Send;
-    /// Fetch route of **one** portal: own HTTP session, own window. The portals run side by
-    /// side and therefore share none.
-    fn pages(&mut self, portal: Portal) -> Result<Self::Pages, String>;
+    /// Fetch path of **one** portal - only the one `path` names: own HTTP session or own
+    /// window. The portals run side by side and therefore share none.
+    fn pages(&mut self, portal: Portal, path: FetchPath) -> Result<Self::Pages, String>;
     /// The matcher of the run; `None` = nothing is scored (no usable profile or engine).
     fn matcher(&self) -> Option<Arc<dyn Matcher>> {
         None
+    }
+    /// The pre-score that orders the fetch queue of a portal (`matching::prescore` with the
+    /// profile); neutral by default - then the newest mail comes first.
+    fn prescore(&self) -> Prescore {
+        neutral_prescore()
     }
 }
 
@@ -478,6 +500,7 @@ pub async fn run<B: Backends>(
         let mut fetched = FetchSummary::default();
         summary.outcome = fetch_step(
             backends,
+            ctx,
             (store, policy, matcher.as_deref()),
             run,
             selection,
@@ -650,11 +673,22 @@ async fn scan_step<B: Backends>(
     )
     .await;
     let s = &*scanned;
+    // Per portal: as soon as all of a portal's alert mails came without a job, its mail
+    // layout probably changed - even while the other portals are fine.
+    for (portal, mails) in s.empty_portals() {
+        log::warn!(
+            "run {run}: {}: {mails} alert mails but no jobs recognised - mail layout changed?",
+            portal.key()
+        );
+        emit(RunEvent::PortalHealth {
+            portal,
+            health: PortalHealth::LayoutSuspect {
+                empty_mails: mails,
+                pages: 0,
+            },
+        });
+    }
     match &result {
-        Ok(()) if s.alert_mails > 0 && s.postings_total == 0 => log::warn!(
-            "run {run}: {} alert mails but no jobs recognised - mail layout changed?",
-            s.alert_mails
-        ),
         Ok(()) => log::info!(
             "run {run}: mailbox checked: {} mails, {} alert mails, {} new, {} known, {} duplicates",
             s.mails_checked,
@@ -678,6 +712,7 @@ async fn scan_step<B: Backends>(
 )]
 async fn fetch_step<B: Backends>(
     backends: &mut B,
+    ctx: &RunContext,
     (store, policy, matcher): (&Store, &Mutex<Policy>, Option<&dyn Matcher>),
     run: i64,
     selection: Selection<'_>,
@@ -688,15 +723,20 @@ async fn fetch_step<B: Backends>(
 ) -> Outcome {
     // Activity in the status line - not anew for every job, again after a wait.
     let mut activity: Option<(StatusCode, Portal)> = None;
+    let prescore = backends.prescore();
     let result = fetch_all(
-        |portal| backends.pages(portal),
+        |portal| backends.pages(portal, ctx.path(portal)),
         store,
         policy,
-        selection,
+        (selection, &*prescore),
         cancel,
         clock,
         fetched,
         |event| match event {
+            FetchEvent::Requeued { portal, count } => log::info!(
+                "run {run}: {}: {count} failed jobs open again after a parser update",
+                portal.key()
+            ),
             FetchEvent::Queued { total } => log::info!("run {run}: job details: {total} open"),
             FetchEvent::Fetching { portal } => {
                 announce(&mut activity, StatusCode::FetchingDetails, portal, emit);
@@ -709,17 +749,33 @@ async fn fetch_step<B: Backends>(
                 emit(status(StatusCode::Waiting, Some(portal), Some(until)));
             }
             FetchEvent::JobUpdated { key, .. } => {
-                // Scored before the row goes out: the ring appears with the details.
-                if let Some(matcher) = matcher {
-                    score::score_one(store, matcher, &key, clock(), tally);
-                }
-                if let Ok(Some(job)) = store.job(&key) {
+                // A duplicate of another portal's job shows as that job's row (with
+                // `alsoOn`) and is scored with it; any other job is scored before its row
+                // goes out - the ring appears with the details.
+                let shown = if let Ok(Some(original)) = store.dup_of(&key) {
+                    original
+                } else {
+                    if let Some(matcher) = matcher {
+                        score::score_one(store, matcher, &key, clock(), tally);
+                    }
+                    key
+                };
+                if let Ok(Some(job)) = store.job(&shown)
+                    && let Ok(Some(view)) =
+                        crate::view::job_views(store, std::slice::from_ref(&job))
+                            .map(|mut views| views.pop())
+                {
                     emit(RunEvent::JobUpdated {
-                        job: Box::new(JobView::from(&job)),
+                        job: Box::new(view),
                     });
                 }
             }
-            FetchEvent::PortalStopped { portal, reason, .. } => {
+            FetchEvent::PortalStopped {
+                portal,
+                reason,
+                skipped,
+            } => {
+                log::info!("run {run}: {}", reason.log_line(portal, skipped));
                 emit(RunEvent::PortalHealth {
                     portal,
                     health: reason.health(),

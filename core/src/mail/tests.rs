@@ -1,12 +1,12 @@
-//! Fälle aus dem Altprogramm samt Regressionen für seine Fehler.
+//! Cases from the old program, with regressions for its bugs.
 
 use super::*;
 use crate::model::TITLE_PLACEHOLDER;
 
 const ALL: &[Portal] = &Portal::ALL;
 
-/// Baut eine Mail wie `_mail()` im Alt-Test: nur Text, nur HTML (mit Text-Hinweis) oder
-/// beides.
+/// Builds a mail like `_mail()` in the old test: text only, HTML only (with a text hint) or
+/// both.
 fn mail(sender: &str, subject: &str, html: Option<&str>, plain: Option<&str>) -> RawMail {
     let head = format!(
         "From: {sender}\r\nTo: ich@gmail.com\r\nSubject: {subject}\r\n\
@@ -33,7 +33,7 @@ fn mail(sender: &str, subject: &str, html: Option<&str>, plain: Option<&str>) ->
 fn alert(raw: &RawMail, allowed: &[Portal]) -> AlertMail {
     match classify_mail(raw, allowed) {
         MailKind::Alert(alert) => alert,
-        other => panic!("kein Alert: {other:?}"),
+        other => panic!("no alert: {other:?}"),
     }
 }
 
@@ -41,8 +41,8 @@ fn is_other(raw: &RawMail, allowed: &[Portal]) -> bool {
     matches!(classify_mail(raw, allowed), MailKind::Other)
 }
 
-/// (Titel, Firma, Ort, URL) je Eintrag – Firma/Ort so bereinigt, wie Anzeige und Export
-/// sie zeigen.
+/// (title, company, location, URL) per entry - company and location cleaned as list and
+/// export show them.
 fn rows(alert: &AlertMail) -> Vec<(String, String, String, String)> {
     alert
         .postings
@@ -179,7 +179,7 @@ fn freelancermap_html() {
                 "München",
                 "https://www.freelancermap.de/nproj/2900001.html"
             ),
-            // Wie im Altcode: „Remote“ steht allein hinter dem Titel und bleibt Firma.
+            // As in the old code: "Remote" stands alone behind the title and stays the company.
             row(
                 "Projektleiter Finance",
                 "Remote",
@@ -211,8 +211,8 @@ fn freelance_plain_text() {
     );
 }
 
-/// „Projektvorschläge der Woche“: derselbe Job als zweiter Link erzeugt keine Dublette
-/// und löscht Firma/Ort nicht.
+/// "Projektvorschläge der Woche": the same job as a second link makes no duplicate and
+/// does not erase company and location.
 #[test]
 fn freelance_project_index_php() {
     let raw = mail(
@@ -281,7 +281,7 @@ fn non_alert_mail_is_ignored() {
     assert!(is_other(&raw, ALL));
 }
 
-/// Layout-Wächter: ein Alert ohne erkannte Links bleibt als Alert ohne Einträge.
+/// Layout guard: an alert without recognised links stays an alert without entries.
 #[test]
 fn alert_without_recognised_links_is_reported() {
     let raw = mail(
@@ -374,8 +374,8 @@ fn unrelated_mail_is_ignored() {
     assert!(is_other(&raw, ALL));
 }
 
-/// Gemessen an einem echten Newsletter: „linkedin“ viermal in der Fußzeile, kein
-/// Stellen-Link – kein Alert.
+/// Measured on a real newsletter: "linkedin" four times in the footer, no job link - no
+/// alert.
 #[test]
 fn newsletter_footer_is_not_a_portal_alert() {
     let html = r#"<img src="https://assets.example/1746739598700_linkedin-4x_01jtrw.png" alt="linkedin" height="38" width="38"><a href="https://www.linkedin.com/company/flownotes/">linkedin</a>"#;
@@ -410,10 +410,10 @@ fn mail_from_a_portal_domain_still_wins() {
     assert_eq!(alert(&raw, ALL).portal, Portal::LinkedIn);
 }
 
-// ----------------------------------------------------------- neue Regressionen
+// ------------------------------------------------------------ new regressions
 
-/// Eine weitergeleitete Sammelmail mit Jobs zweier Portale
-/// verlor das zweite. Heute trägt jeder Eintrag sein eigenes Portal.
+/// A forwarded collection mail with jobs of two portals
+/// lost the second. Today every entry carries its own portal.
 #[test]
 fn collection_mail_keeps_both_portals() {
     let html = format!("{LINKEDIN_HTML}{FREELANCERMAP_AGENT_HTML}");
@@ -429,13 +429,13 @@ fn collection_mail_keeps_both_portals() {
             Portal::Freelancermap
         ]
     );
-    // Nur die gewählten Portale kommen in die Liste.
+    // Only the chosen portals make it into the list.
     let only_fm = alert(&raw, &[Portal::Freelancermap]);
     assert_eq!(only_fm.portal, Portal::Freelancermap);
     assert_eq!(only_fm.postings.len(), 2);
 }
 
-/// Als Anhang weitergeleitet (`message/rfc822`): früher gab das 0 Einträge.
+/// Forwarded as an attachment (`message/rfc822`): formerly that gave 0 entries.
 #[test]
 fn forwarded_as_attachment() {
     let raw = format!(
@@ -459,7 +459,7 @@ fn forwarded_as_attachment() {
     );
 }
 
-/// Klartext ergänzt das HTML, statt nur einzuspringen, wenn das HTML gar nichts liefert.
+/// Plain text adds to the HTML instead of only stepping in when the HTML gives nothing.
 #[test]
 fn plain_text_adds_what_html_missed() {
     let raw = mail(
@@ -480,13 +480,13 @@ fn plain_text_adds_what_html_missed() {
 fn defective_and_placeholder() {
     let garbage = RawMail::default();
     assert!(matches!(classify_mail(&garbage, ALL), MailKind::Defective));
-    // Binärmüll ohne Kopfzeilen ist unlesbar, nicht „kein Alert“.
+    // Binary garbage without head lines is unreadable, not "no alert".
     let junk = RawMail {
         bytes: vec![0x00, 0xff, 0x13, 0x37, 0x0a, 0x80],
         ..RawMail::default()
     };
     assert!(matches!(classify_mail(&junk, ALL), MailKind::Defective));
-    // Link ohne erkennbaren Titel: Platzhalter statt leerer Zeile.
+    // A link without a recognisable title: the placeholder instead of an empty row.
     let raw = mail(
         "jobalerts-noreply@linkedin.com",
         "Neue Jobs",
@@ -494,4 +494,45 @@ fn defective_and_placeholder() {
         None,
     );
     assert_eq!(alert(&raw, ALL).postings[0].title, TITLE_PLACEHOLDER);
+}
+
+/// Two phases must lose no alert: every checked-in alert mail is a candidate by its head
+/// alone, the newsletter is not - so it is never loaded whole.
+#[test]
+fn every_alert_is_a_candidate_by_its_head() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mails");
+    let mut alerts = 0;
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        let bytes = std::fs::read(&path).unwrap();
+        let raw = RawMail {
+            gmail_id: None,
+            bytes: bytes.clone(),
+        };
+        let head = head_part(&bytes);
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        match classify_mail(&raw, ALL) {
+            MailKind::Alert(_) => {
+                alerts += 1;
+                assert!(is_candidate(head, ALL), "{name}");
+            }
+            _ if name.starts_with("no_alert") => assert!(!is_candidate(head, ALL), "{name}"),
+            _ => {}
+        }
+    }
+    assert!(alerts >= 12, "{alerts}");
+    // The unit test mails too: forwarded ones by their prefix, originals by their sender.
+    for (sender, subject, expected) in [
+        ("Ich <ich@example.org>", "Fwd: Neue Projekte", true),
+        ("Ich <ich@example.org>", "WG: Suchagent vom 18.09.", true),
+        ("Ich <ich@example.org>", "Mein LinkedIn-Alert", true),
+        ("Jobs <jobs-listings@linkedin.com>", "Irgendwas", true),
+        ("Kollege <max@firma.de>", "Neue Termine", false),
+        ("News <news@example.org>", "Unlocked: your notetaker", false),
+    ] {
+        let head = format!("From: {sender}\r\nSubject: {subject}\r\n\r\n");
+        assert_eq!(is_candidate(head.as_bytes(), ALL), expected, "{subject}");
+    }
+    // An unreadable head is loaded (and then counted as defective).
+    assert!(is_candidate(b"", ALL));
 }

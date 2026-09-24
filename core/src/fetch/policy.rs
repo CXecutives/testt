@@ -26,32 +26,24 @@ pub struct Limits {
     pub per_day: usize,
 }
 
-/// The rules in one place.
+/// Pace and caps of a portal - from its adapter.
 pub fn limits(portal: Portal) -> Limits {
-    match portal {
-        Portal::LinkedIn => Limits {
-            pace_ms: 4_000..=7_000,
-            per_hour: 20,
-            per_day: 40,
-        },
-        Portal::Freelancermap => Limits {
-            pace_ms: 3_000..=5_000,
-            per_hour: 25,
-            per_day: 60,
-        },
-        // On top comes the dwell time in the session window (`DWELL_SECS`). The gap here also
-        // holds across runs, cancellations and restarts.
-        Portal::FreelanceDe => Limits {
-            pace_ms: 10_000..=20_000,
-            per_hour: 15,
-            per_day: 30,
-        },
-    }
+    portal.adapter().limits()
 }
 
-/// freelance.de session window: dwell time per page (from "fully loaded") like a reader -
+/// Session window: dwell time per page (from "fully loaded") like a reader -
 /// in addition to the gap, deliberately double restraint.
 pub const DWELL_SECS: RangeInclusive<u64> = 8..=20;
+
+/// Only jobs from mails of the last 30 days are fetched automatically (older ones per click).
+pub const MAX_AGE: SignedDuration = SignedDuration::from_hours(30 * 24);
+/// A failed fetch is retried after 12 hours at the earliest.
+pub const RETRY_AFTER: SignedDuration = SignedDuration::from_hours(12);
+/// After a network error: retry once, after this wait.
+pub const NET_RETRY: Duration = Duration::from_secs(30);
+/// After this many failed attempts a job counts as unfetchable (a teaser stops being
+/// fetched again).
+pub const MAX_FETCH_ATTEMPTS: u32 = 3;
 
 /// Pause after throttling (429, server errors, second timeout).
 const THROTTLE_PAUSE: SignedDuration = SignedDuration::from_hours(1);
@@ -308,6 +300,22 @@ impl Policy {
         self.pause_for(portal, kind, kind.into(), detail, now)
     }
 
+    /// Like [`Policy::pause`], but at least `at_least` long - the portal's own
+    /// `Retry-After` (capped at the longest pause of all, seven days).
+    pub fn pause_at_least(
+        &mut self,
+        portal: Portal,
+        kind: PauseKind,
+        detail: &str,
+        now: Timestamp,
+        at_least: Option<Duration>,
+    ) -> Timestamp {
+        let at_least = at_least
+            .and_then(|d| SignedDuration::try_from(d).ok())
+            .map(|d| d.min(REPEAT_BLOCK_PAUSE));
+        self.pause_with(portal, kind, kind.into(), detail, now, at_least)
+    }
+
     /// Pauses a portal with an explicit reason and returns the end of the pause. A second
     /// block signal within seven days extends to seven days; a running longer pause is
     /// never shortened.
@@ -318,6 +326,18 @@ impl Policy {
         reason: PauseReason,
         detail: &str,
         now: Timestamp,
+    ) -> Timestamp {
+        self.pause_with(portal, kind, reason, detail, now, None)
+    }
+
+    fn pause_with(
+        &mut self,
+        portal: Portal,
+        kind: PauseKind,
+        reason: PauseReason,
+        detail: &str,
+        now: Timestamp,
+        at_least: Option<SignedDuration>,
     ) -> Timestamp {
         let state = self.portals.entry(portal).or_default();
         let length = match kind {
@@ -334,6 +354,7 @@ impl Policy {
                 }
             }
         };
+        let length = at_least.map_or(length, |min| length.max(min));
         let until = now.saturating_add(length).unwrap_or(Timestamp::MAX);
         if kind == PauseKind::Blocked {
             state.block_until = Some(until);

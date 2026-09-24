@@ -5,12 +5,12 @@
 use std::path::Path;
 
 use jiff::Timestamp;
+use jobalert_core::fetch::PortalHealth;
 use jobalert_core::fetch::policy::{Allowance, PauseKind, PauseReason, Policy};
-use jobalert_core::fetch::{PortalHealth, Route, route};
-use jobalert_core::model::Posting;
+use jobalert_core::model::{AlertMail, Posting};
 use jobalert_core::portal::{Portal, job_link};
 use jobalert_core::settings::Settings;
-use jobalert_core::store::{JobFilter, MailRef, Store};
+use jobalert_core::store::{JobFilter, Store};
 use jobalert_core::view::portal_states;
 
 /// Settings as an earlier version wrote them.
@@ -47,18 +47,33 @@ fn now() -> Timestamp {
 fn existing_database(path: &Path) {
     let store = Store::open(path).unwrap();
     let run = store.begin_run().unwrap();
-    for url in [
+    let links = [
         "https://www.linkedin.com/jobs/view/4123456789/",
         "https://www.freelance.de/project/index.php?id=1255067",
-    ] {
-        let link = job_link(url).unwrap();
-        let posting = Posting::new(link.key.clone(), link.url, "Rolle", "Muster GmbH", "Köln");
-        let mail = MailRef {
-            subject: "Neue Jobs",
-            date: Some(now()),
-            gmail_id: Some(0x1a2b),
-        };
-        store.upsert_posting(run, &posting, mail, now()).unwrap();
+    ]
+    .map(|url| job_link(url).unwrap());
+    let alert = AlertMail {
+        key: "gm:1a2b".into(),
+        portal: Portal::LinkedIn,
+        subject: "Neue Jobs".into(),
+        sender: "LinkedIn".into(),
+        date: Some(now()),
+        gmail_id: Some(0x1a2b),
+        postings: links
+            .iter()
+            .map(|link| {
+                Posting::new(
+                    link.key.clone(),
+                    link.url.clone(),
+                    "Rolle",
+                    "Muster GmbH",
+                    "Köln",
+                )
+            })
+            .collect(),
+    };
+    store.record_alert(run, &alert, now()).unwrap();
+    for link in links {
         store
             .record_text(&link.key, &"Volltext. ".repeat(20), false, false, now())
             .unwrap();
@@ -120,7 +135,7 @@ fn settings_policy_and_database_of_an_earlier_version_keep_working() {
     // The confirmed freelance.de sign-in stays.
     let freelance = policy.state(Portal::FreelanceDe);
     assert!(!freelance.login_needed && freelance.session_confirmed_at.is_some());
-    assert_eq!(route(Portal::FreelanceDe), Route::Session);
+    assert!(Portal::FreelanceDe.access().can_sign_in());
     // A portal the old file did not know starts unburdened.
     assert_eq!(
         policy.allowance(Portal::Freelancermap, now()),
