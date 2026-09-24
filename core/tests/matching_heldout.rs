@@ -140,18 +140,18 @@ struct Floor {
 }
 
 const HELDOUT1: Floor = Floor {
-    ndcg10: 0.82,
-    spearman: 0.60,
+    ndcg10: 0.92,
+    spearman: 0.69,
     exclusion_precision: 1.0,
-    exclusion_recall: 0.88,
-    grade3_buried: 6,
+    exclusion_recall: 1.0,
+    grade3_buried: 1,
 };
 const HELDOUT2: Floor = Floor {
-    ndcg10: 0.63,
-    spearman: 0.36,
-    exclusion_precision: 0.82,
-    exclusion_recall: 0.81,
-    grade3_buried: 3,
+    ndcg10: 0.79,
+    spearman: 0.54,
+    exclusion_precision: 1.0,
+    exclusion_recall: 0.94,
+    grade3_buried: 1,
 };
 
 fn misses(run: &SetRun) -> String {
