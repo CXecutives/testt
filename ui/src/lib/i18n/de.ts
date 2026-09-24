@@ -374,6 +374,9 @@ export const de = {
     openLog: 'Protokoll öffnen',
   },
   portal: portalName,
+  chips: {
+    remove: (value: string) => `${value} entfernen`,
+  },
   field: {
     reveal: 'Passwort zeigen',
     conceal: 'Passwort verbergen',
