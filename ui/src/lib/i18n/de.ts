@@ -61,7 +61,7 @@ const portalName: Record<Portal, string> = {
 const portalOf = (value: unknown): string =>
   typeof value === 'string' && value in portalName ? portalName[value as Portal] : str(value);
 
-const INTERNAL = 'Ein interner Fehler, Details stehen im Protokoll.';
+const INTERNAL = 'Ein interner Fehler, mehr steht im Protokoll.';
 
 const errors: Record<ErrorKind | 'unknown', Text> = {
   db: 'Die Datenbank meldet einen Fehler.',
@@ -149,14 +149,18 @@ const statusAt: Partial<Record<StatusCode, (portal: string) => string>> = {
   waiting: (portal) => `Wartet auf ${portal}`,
 };
 
+/** Why a portal pauses, as the second half of one sentence (`run.pausedWhy`). */
 const pause: Record<PauseReason, string> = {
-  throttled: 'Das Portal bremst die Anfragen.',
-  blocked: 'Das Portal blockiert die Anfragen.',
-  layoutChanged: 'Die Seiten sehen anders aus als erwartet.',
-  stateUnreadable: 'Der Stand des Portals ist nicht lesbar.',
-  network: 'Das Portal ist nicht erreichbar.',
-  challenged: 'Das Portal verlangt eine Prüfung.',
+  throttled: 'das Portal bremst die Anfragen',
+  blocked: 'das Portal blockiert die Anfragen',
+  layoutChanged: 'die Seiten sehen anders aus als erwartet',
+  stateUnreadable: 'der Stand des Portals ist nicht lesbar',
+  network: 'das Portal ist nicht erreichbar',
+  challenged: 'das Portal verlangt eine Prüfung',
 };
+
+/** Opening the alert mail of a job in Gmail, the same words wherever it is offered. */
+const OPEN_MAIL = 'Alert-Mail öffnen';
 
 const ANUE = 'Die Anzeige nennt Arbeitnehmerüberlassung.';
 const LOW_TEXT = 'Die Anzeige hat wenig Text.';
@@ -331,9 +335,9 @@ const note = {
 } satisfies Record<string, Text>;
 export type MatchNote = keyof typeof note;
 
-/** Profile warnings of the engine, plus the keys the app does not evaluate. */
 /** Names of profile keys the app speaks about (the keys themselves are an external contract). */
 const profileKey: Record<string, string> = {
+  // Only for `ignoredKeys`, which the core never sends (the harness stub does): they go with it.
   hobbys: 'Hobbys',
   referenzen: 'Referenzen',
   sprachen: 'Sprachen',
@@ -362,11 +366,13 @@ const keyList = (value: unknown): string[] =>
 const joined = (items: string[]): string =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} und ${items.at(-1)}`;
 
+/** Profile warnings of the engine (`ProfileWarningCode`, core/src/matching/types.rs). */
 const warning = {
   noCompetences: 'Das Profil nennt keine Kompetenzen.',
   fewCompetences: 'Das Profil nennt nur wenige Kompetenzen.',
   noCriteria: 'Das Profil setzt keine Ausschlusskriterien.',
   availabilityNotUnderstood: 'Die Verfügbarkeit im Profil ist nicht lesbar.',
+  // Not a core code: only the harness stub sends it. Goes with ProfileView's ignored branch.
   ignoredKeys: (p) => {
     const keys = keyList(p.keys);
     return `${joined(keys)} ${keys.length === 1 ? 'bleibt' : 'bleiben'} unberücksichtigt.`;
@@ -454,7 +460,7 @@ export const de = {
     detail: {
       pending: 'Details folgen',
       teaser: 'Nur Anriss',
-      failed: 'Details fehlgeschlagen',
+      failed: 'Details fehlen',
       unfetchable: 'Nicht abrufbar',
       gone: 'Nicht mehr online',
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
@@ -496,11 +502,12 @@ export const de = {
     },
     of: (done: number, total: number) => `${n(done)} von ${n(total)}`,
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
-    pause,
-    pausedUntil: (iso: string | null) =>
-      iso ? `Pause bis ${formatMoment(iso)}.` : 'Pause bis zum nächsten Abruf.',
+    /** A paused portal in one sentence: until when, then why. */
+    pausedWhy: (reason: PauseReason, iso: string | null) =>
+      iso
+        ? `Pause bis ${formatMoment(iso)}, ${pause[reason]}.`
+        : `Pause bis zum nächsten Abruf, ${pause[reason]}.`,
     quota: (iso: string) => `Das Limit ist erreicht, weiter ab ${formatMoment(iso)}.`,
-    loginNeeded: 'Die Anmeldung ist abgelaufen.',
     kind: {
       fetch: 'Abruf',
       details: 'Details holen',
@@ -567,7 +574,6 @@ export const de = {
       `${n(met)} von ${n(total)} Muss erfüllt` + (partial > 0 ? `, ${n(partial)} teilweise` : ''),
     noMust: 'Keine Muss-Anforderungen erkannt',
     criteria: 'Ausschlusskriterien',
-    contract,
     contractLabel: 'Vertragsart',
     criterion: criteria,
     criterionState: {
@@ -579,7 +585,7 @@ export const de = {
     note,
     open: 'Anzeige öffnen',
     pin: 'Merken',
-    mail: 'Alert-Mail öffnen',
+    mail: OPEN_MAIL,
     fetchDetails: 'Details holen',
     why: 'Warum',
     met: 'Erfüllt',
@@ -615,20 +621,31 @@ export const de = {
       value === 1
         ? `Eine Alert-Mail von ${portalName[portal]} enthielt keine Jobs.`
         : `${n(value)} Alert-Mails von ${portalName[portal]} enthielten keine Jobs.`,
-    openGmail: 'In Gmail öffnen',
+    openGmail: OPEN_MAIL,
     noProfile: 'Noch kein Profil',
     noProfileText: 'Mit einem Profil zeigt jeder Job, wie gut er passt.',
   },
   health: {
-    ok: 'Bereit',
-    paused: 'Pausiert',
-    quotaReached: 'Limit erreicht',
-    layoutSuspect: 'Auffällig',
-    loginRequired: 'Anmeldung nötig',
     layoutText: (mails: number) =>
-      `${count(mails, 'Alert-Mail', 'Alert-Mails')} ohne erkannte Jobs, das Mail-Format hat sich vielleicht geändert.`,
+      `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, vielleicht hat sich das Mail-Format geändert.`,
     layoutPages: 'Die Seiten des Portals sehen anders aus als erwartet.',
     loginText: 'Die Anmeldung ist abgelaufen.',
+    /** A portal problem in the settings, in one sentence that says whether to act. */
+    advice: {
+      paused: (reason: PauseReason, iso: string | null) => {
+        const why = pause[reason].charAt(0).toUpperCase() + pause[reason].slice(1);
+        return iso
+          ? `${why}, der Abruf macht ab ${formatMoment(iso)} von selbst weiter.`
+          : `${why}, der nächste Abruf versucht es von selbst wieder.`;
+      },
+      quota: (iso: string) =>
+        `Das Limit ist erreicht, der Abruf macht ab ${formatMoment(iso)} von selbst weiter.`,
+      emptyMails: (mails: number) =>
+        `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte in Gmail nachsehen, ob dort welche stehen.`,
+      pages:
+        'Die Seiten des Portals sehen anders aus, der nächste Abruf versucht es von selbst wieder.',
+      login: 'Die Anmeldung ist abgelaufen, bitte neu anmelden.',
+    },
   },
   profile: {
     none: 'Noch kein Profil',
@@ -810,6 +827,8 @@ export const de = {
     password: 'App-Passwort',
     passwordHint: '16 Buchstaben, erstellt im Google-Konto.',
     createPassword: 'App-Passwort erstellen',
+    twoStep: 'Ein App-Passwort gibt es nur mit der Bestätigung in zwei Schritten.',
+    twoStepAction: 'Bestätigung einschalten',
     connect: 'Verbinden',
     removeMailbox: 'Postfach entfernen?',
     removeMailboxText: 'Das App-Passwort wird gelöscht, die Jobs bleiben.',
@@ -831,6 +850,7 @@ export const de = {
       account: 'Angemeldet steht das eigene Konto auf dem Spiel.',
     } satisfies Record<Risk, string>,
     quota: (used: number, cap: number) => `Heute ${n(used)} von ${n(cap)} Seiten`,
+    quotaHour: (used: number, cap: number) => `Diese Stunde ${n(used)} von ${n(cap)} Seiten`,
     signedIn: 'Angemeldet',
     signedOut: 'Nicht angemeldet',
     signIn: 'Anmelden',
@@ -869,17 +889,18 @@ export const de = {
     resetAction: 'Zurücksetzen',
     resetHeading: 'Alles zurücksetzen?',
     resetText: 'Die App startet neu und ist danach leer.',
-    resetDone: 'Die App wurde zurückgesetzt.',
-    resetFailed: (value: number) =>
-      `${count(value, 'Datei ließ', 'Dateien ließen')} sich nicht löschen.`,
+    resetDone: 'Die App ist zurückgesetzt.',
+    resetPartly: (value: number) =>
+      `Die App ist zurückgesetzt, ${count(value, 'Datei ließ', 'Dateien ließen')} sich nicht löschen.`,
     running: 'Ein Abruf läuft gerade.',
     dryRun: 'Probelauf, es werden keine Daten verändert.',
   },
   firstRun: {
-    benefit: 'Die App liest die Job-Alerts aus Gmail und zeigt, welche Jobs zum Profil passen.',
+    benefit: 'Die App liest die Alert-Mails aus Gmail und zeigt, welche Jobs zum Profil passen.',
     privacy: 'Alles bleibt auf diesem Rechner.',
     steps: 'Erste Schritte',
     mailbox: 'Postfach',
+    mailboxText: 'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
     profile: 'Profil',
     profileText: 'Das Profil entsteht in der App, auf Wunsch aus dem Lebenslauf.',
     fetch: 'Erster Abruf',

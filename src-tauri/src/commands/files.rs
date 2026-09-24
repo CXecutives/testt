@@ -13,6 +13,8 @@ use super::{AppState, CmdResult, not_found};
 
 /// Google page to create an app password.
 const APP_PASSWORD_URL: &str = "https://myaccount.google.com/apppasswords";
+/// Google page to turn on 2-step verification, which an app password requires.
+const TWO_STEP_URL: &str = "https://myaccount.google.com/signinoptions/twosv";
 
 /// Rewrites all text files (e.g. after a change of folder). The names stay.
 #[tauri::command]
@@ -66,6 +68,7 @@ pub async fn open_target(state: State<'_, AppState>, target: OpenTarget) -> CmdR
             .into(),
         OpenTarget::PortalHome { portal } => portal.home_url().into(),
         OpenTarget::AppPasswordPage => APP_PASSWORD_URL.into(),
+        OpenTarget::TwoStepPage => TWO_STEP_URL.into(),
         OpenTarget::Workspace => existing(state.workspace()?, "folder")?,
         OpenTarget::Excel => existing(
             export::overview_path(&state.workspace()?.join(RESULT_DIR)),

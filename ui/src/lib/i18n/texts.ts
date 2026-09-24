@@ -128,26 +128,52 @@ export function warningText(notice: Notice): string | null {
     : null;
 }
 
-/** Label and one sentence for a portal's health (`ok` has no sentence). */
-export function healthText(health: PortalHealth): { label: string; text: string | null } {
+/** One sentence for a portal's health (`ok` has none). */
+export function healthSentence(health: PortalHealth): string | null {
   switch (health.kind) {
     case 'ok':
-      return { label: de.health.ok, text: null };
+      return null;
     case 'paused':
-      return {
-        label: de.health.paused,
-        text: `${de.run.pause[health.reason]} ${de.run.pausedUntil(health.until)}`,
-      };
+      return de.run.pausedWhy(health.reason, health.until);
     case 'quotaReached':
-      return { label: de.health.quotaReached, text: de.run.quota(health.until) };
+      return de.run.quota(health.until);
     case 'layoutSuspect':
       // Empty alert mails point at the mail format; otherwise the pages looked odd.
-      return {
-        label: de.health.layoutSuspect,
-        text:
-          health.emptyMails > 0 ? de.health.layoutText(health.emptyMails) : de.health.layoutPages,
-      };
+      return health.emptyMails > 0
+        ? de.health.layoutText(health.emptyMails)
+        : de.health.layoutPages;
     case 'loginRequired':
-      return { label: de.health.loginRequired, text: de.health.loginText };
+      return de.health.loginText;
   }
+}
+
+/**
+ * A portal problem as the settings say it: one sentence that says whether anything is to
+ * be done (`act`), or that the app carries on by itself.
+ */
+export function healthAdvice(health: PortalHealth): { text: string; act: boolean } | null {
+  switch (health.kind) {
+    case 'ok':
+      return null;
+    case 'paused':
+      return { text: de.health.advice.paused(health.reason, health.until), act: false };
+    case 'quotaReached':
+      return { text: de.health.advice.quota(health.until), act: false };
+    case 'layoutSuspect':
+      return health.emptyMails > 0
+        ? { text: de.health.advice.emptyMails(health.emptyMails), act: true }
+        : { text: de.health.advice.pages, act: false };
+    case 'loginRequired':
+      return { text: de.health.advice.login, act: true };
+  }
+}
+
+/**
+ * The old shape of `healthSentence`, kept only until DayOverview and RunCard switch to it.
+ * The short labels it once returned never showed (every problem has its sentence), so
+ * `label` is that sentence too.
+ */
+export function healthText(health: PortalHealth): { label: string; text: string | null } {
+  const text = healthSentence(health);
+  return { label: text ?? '', text };
 }

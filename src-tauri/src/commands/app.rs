@@ -45,7 +45,7 @@ const TOP_MATCHES: u32 = 5;
 /// be a real mailbox.
 pub(super) fn mailbox(state: &AppState) -> Mailbox {
     let (user, error) = if state.dry_run {
-        (Some("trockenlauf@example.org".to_string()), None)
+        (Some("probelauf@example.org".to_string()), None)
     } else {
         state.gmail_user()
     };
