@@ -105,13 +105,23 @@
   /** The switch moves at once; a failure puts it back (reload) and says why below it. */
   function autoFetch(on: boolean): Promise<void> {
     if (app.state) app.state.autoFetchOnStart = on;
-    return saveFetch({ autoFetchOnStart: on, autoArchiveDays: null, language: null });
+    return saveFetch({
+      autoFetchOnStart: on,
+      autoArchiveDays: null,
+      autoEmptyTrashDays: null,
+      language: null,
+    });
   }
 
   function autoArchive(on: boolean): Promise<void> {
     const days = on ? AUTO_ARCHIVE_DAYS : 0;
     if (app.state) app.state.autoArchiveDays = days;
-    return saveFetch({ autoFetchOnStart: null, autoArchiveDays: days, language: null });
+    return saveFetch({
+      autoFetchOnStart: null,
+      autoArchiveDays: days,
+      autoEmptyTrashDays: null,
+      language: null,
+    });
   }
 
   /**
@@ -124,7 +134,7 @@
     language.set(next);
     if (app.state) app.state.language = next;
     return saveFetch(
-      { autoFetchOnStart: null, autoArchiveDays: null, language: next },
+      { autoFetchOnStart: null, autoArchiveDays: null, autoEmptyTrashDays: null, language: next },
       setLanguageNote,
       () => language.set(before),
     );

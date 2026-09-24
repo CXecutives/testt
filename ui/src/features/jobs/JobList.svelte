@@ -57,7 +57,7 @@
     if (sameKey(jobs.selected, job.key)) jobs.clearSelection();
     else void jobs.select(job, true);
   }
-  const hiddenCount = $derived((jobs.overviewCounts ?? jobs.counts).archived);
+  const hiddenCount = $derived(jobs.counts.archive);
   const PORTALS = $derived((app.state?.portals ?? []).filter((p) => p.enabled));
   function openPortal(portal: Portal): void {
     invoke('open_target', { target: { kind: 'portalHome', portal } }).catch(() => undefined);
@@ -204,8 +204,6 @@
           secondary={{ label: t.list.clearFilter, onclick: () => jobs.setFilter(null) }}
           testid="empty-filter"
         />
-      {:else if jobs.facet === 'sent'}
-        <EmptyState icon="inbox" tone="neutral" text={t.list.emptySent} testid="empty-sent" />
       {:else if jobs.facet === 'archived'}
         <EmptyState
           icon="inbox"
@@ -214,7 +212,7 @@
           secondary={{ label: t.list.showAll, onclick: () => jobs.setFacet('all') }}
           testid="empty-hidden"
         />
-      {:else if jobs.facet === 'new' && jobs.counts.all > 0}
+      {:else if jobs.facet === 'new' && jobs.counts.inbox > 0}
         <EmptyState
           icon="check"
           tone="success"

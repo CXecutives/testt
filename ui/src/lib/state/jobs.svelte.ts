@@ -5,8 +5,8 @@
 // - Rows are plain objects (`$state.raw`): a change replaces the row, so only that row
 //   renders again, and no proxy sits between the template and 2000 jobs.
 // - Every number comes from the backend (one truth): the counts of the list (with the
-//   search) and the counts over every job (tiles, sidebar, new jobs per portal, saved).
-//   A change the page makes itself (read, a stage) or a run update of a listed row moves
+//   search) and the counts over every job (tiles, sidebar, new jobs per portal, favourites).
+//   A change the page makes itself (read, a move) or a run update of a listed row moves
 //   them at once; during a run a counts-only query follows every update (throttled), so
 //   they stay exact for rows the page does not hold.
 // - During a run the new jobs of the run are inserted at the top (they fade in) and listed
@@ -14,27 +14,23 @@
 //   next load puts it. The list re-sorts once, when the run finishes, and keeps the
 //   selection.
 // - `mark_read` only on a real click on a row (select(..., true)).
-// - The user's marks: one mark (saved, the star, or "Beworben") with its time, a note,
-//   "fits anyway" and the archive. An archived job is in no list but the archive and in no
-//   count but its own; archiving or listing it again takes the row out of a list it no longer
-//   belongs to. A mark change keeps the row where it is until the next load (the list does
-//   not jump under the pointer). Deleting for good removes the row.
-// - "Neu" holds the unread jobs of the last 14 days (store::new_since): older unread ones
-//   stay under "Alle".
+// - Like mail: every job is in one place (inbox, archive, trash); the favourite (the star)
+//   is a flag of its own, and "fits anyway" another. A move takes the row out of a list it
+//   no longer belongs to; deleting for good (only from the trash) removes it.
+// - "Neu" is the unread jobs of the inbox; "Favoriten" the starred jobs of inbox and archive.
 
 import { SvelteSet } from 'svelte/reactivity';
 import { errorText } from '../i18n/texts';
 import { invoke } from '../ipc/api';
 import type {
-  AppStatus,
   Deleted,
   JobCounts,
   JobDetail,
-  JobFacet,
   JobKey,
   JobQuery,
   JobSort,
   JobView,
+  Place,
   Portal,
   RunEvent,
 } from '../ipc/types';
@@ -54,27 +50,24 @@ const COUNTS_EVERY = 400;
 /** A tile of the day overview, or a portal (its new jobs). */
 export type JobFilter = 'high' | 'noDetail' | 'excluded' | 'pinned' | Portal;
 type Status = 'idle' | 'loading' | 'ready' | 'error';
+/** What the list shows: the unread or all jobs of the inbox, the favourites, a place. */
+export type JobFacet = 'new' | 'all' | 'favourites' | 'archived' | 'trash';
 
 const ZERO: JobCounts = {
-  new: 0,
-  all: 0,
+  inbox: 0,
+  unread: 0,
+  favourites: 0,
+  archive: 0,
+  trash: 0,
   excluded: 0,
   high: 0,
   noDetail: 0,
-  saved: 0,
-  sent: 0,
-  archived: 0,
   newByPortal: [],
 };
 
-/** "Neu" holds the unread jobs of this many days (store::NEW_DAYS). */
-const NEW_DAYS = 14;
-const DAY = 86_400_000;
-
-/** Is the job recent enough for "Neu" (by the date of its alert mail; store::new_since)? */
-export function isRecent(job: JobView, now = Date.now()): boolean {
-  const since = Math.floor(now / DAY) * DAY - NEW_DAYS * DAY;
-  return Date.parse(job.mailDate ?? job.firstSeenAt) >= since;
+/** The place a facet lists. */
+export function placeOf(facet: JobFacet): Place {
+  return facet === 'archived' ? 'archive' : facet === 'trash' ? 'trash' : 'inbox';
 }
 
 export function keyOf(key: JobKey): string {
@@ -87,19 +80,19 @@ export function sameKey(a: JobKey | null, b: JobKey | null): boolean {
 
 export const isExcluded = (job: JobView): boolean => job.match?.status === 'excluded';
 
-/** Does a job belong to the list of a facet (the backend's rule, store::ListFacet)? */
+/** Does a job belong to the list of a facet (the backend's rule, store::job_page)? */
 export function inFacet(job: JobView, facet: JobFacet): boolean {
   switch (facet) {
     case 'new':
-      return !job.archived && job.unread && isRecent(job);
+      return job.place === 'inbox' && job.unread;
     case 'all':
-      return !job.archived;
-    case 'saved':
-      return !job.archived && job.appStatus === 'saved';
-    case 'sent':
-      return !job.archived && job.appStatus === 'sent';
+      return job.place === 'inbox';
+    case 'favourites':
+      return job.pinned && job.place !== 'trash';
     case 'archived':
-      return job.archived;
+      return job.place === 'archive';
+    case 'trash':
+      return job.place === 'trash';
   }
 }
 const TILES: readonly string[] = ['high', 'noDetail', 'excluded', 'pinned'];
@@ -123,24 +116,24 @@ function matches(job: JobView, filter: JobFilter | null): boolean {
 }
 
 /**
- * What one job adds to the counts (the backend's definitions, store::job_page): an archived
- * job only to "archived".
+ * What one job adds to the counts (the backend's definitions, store::job_page): the inbox
+ * counts only inbox jobs, a favourite counts until it goes to the trash.
  */
 function add(counts: JobCounts, job: JobView | null, sign: 1 | -1): JobCounts {
   if (job === null) return counts;
-  const shown = job.archived ? 0 : sign;
+  const shown = job.place === 'inbox' ? sign : 0;
   const out = isExcluded(job);
-  const isNew = job.unread && !out && isRecent(job) ? shown : 0;
+  const isNew = job.unread && !out ? shown : 0;
   const high = job.match?.status === 'scored' && job.match.score >= HIGH;
   return {
-    all: counts.all + shown,
-    new: counts.new + isNew,
+    inbox: counts.inbox + shown,
+    unread: counts.unread + isNew,
+    favourites: counts.favourites + (job.pinned && job.place !== 'trash' ? sign : 0),
+    archive: counts.archive + (job.place === 'archive' ? sign : 0),
+    trash: counts.trash + (job.place === 'trash' ? sign : 0),
     excluded: counts.excluded + (out ? shown : 0),
     high: counts.high + (high ? shown : 0),
     noDetail: counts.noDetail + (job.detail.kind !== 'ok' ? shown : 0),
-    saved: counts.saved + (job.appStatus === 'saved' ? shown : 0),
-    sent: counts.sent + (job.appStatus === 'sent' ? shown : 0),
-    archived: counts.archived + (job.archived ? sign : 0),
     newByPortal: counts.newByPortal.map((line) =>
       line.portal === job.portal ? { ...line, new: line.new + isNew } : line,
     ),
@@ -220,9 +213,9 @@ class JobsStore {
       (this.window < this.visible.length || this.rows.length < this.total),
   );
 
-  /** Jobs the user saved (the star), over every job. */
+  /** The favourites (the star) of inbox and archive. */
   get pinned(): number {
-    return this.overviewCounts?.saved ?? 0;
+    return this.overviewCounts?.favourites ?? 0;
   }
 
   /** Mount the window in chunks, one per frame: no frame builds 60 rows at once. */
@@ -252,7 +245,7 @@ class JobsStore {
       this.counts = counts;
       this.overviewCounts = counts;
     }
-    if (counts && counts.new === 0 && counts.all > 0) this.facet = 'all';
+    if (counts && counts.unread === 0 && counts.inbox > 0) this.facet = 'all';
     await Promise.all([this.load(), this.loadOverview()]);
   }
 
@@ -323,19 +316,21 @@ class JobsStore {
       case 'new':
         return Number.MAX_SAFE_INTEGER;
       case 'all':
-        return counts.all;
-      case 'saved':
-        return counts.saved;
-      case 'sent':
-        return counts.sent;
+        return counts.inbox;
+      case 'favourites':
+        return counts.favourites;
       case 'archived':
-        return counts.archived;
+        return counts.archive;
+      case 'trash':
+        return counts.trash;
     }
   }
 
   private query(offset: number, limit = PAGE): JobQuery {
     return {
-      facet: this.facet,
+      place: placeOf(this.facet),
+      unread: this.facet === 'new',
+      favourites: this.facet === 'favourites',
       sort: this.sort,
       search: this.search.trim() === '' ? null : this.search.trim(),
       limit,
@@ -387,7 +382,15 @@ class JobsStore {
     if (this.overviewStatus !== 'ready') this.overviewStatus = 'loading';
     try {
       const page = await invoke('list_jobs', {
-        query: { facet: 'all', sort: 'newest', search: null, limit: 0, offset: 0 },
+        query: {
+          place: 'inbox',
+          unread: false,
+          favourites: false,
+          sort: 'newest',
+          search: null,
+          limit: 0,
+          offset: 0,
+        },
       });
       if (request !== this.#overviewRequest) return;
       this.overviewCounts = page.counts;
@@ -474,30 +477,16 @@ class JobsStore {
     }
   }
 
-  /**
-   * The star is the mark "saved": it never overwrites "sent", and taking it off clears only
-   * "saved" (store::set_pinned).
-   */
+  /** The favourite (the star), a flag of its own whatever the place. */
   async pin(key: JobKey, on: boolean): Promise<void> {
     const before = this.held(key);
-    if (before === null) return;
-    const stage = before.appStatus;
-    if (on ? stage !== null : stage !== 'saved') return;
-    this.patch(key, this.stageChange(on ? 'saved' : null));
+    if (before === null || before.pinned === on) return;
+    this.patch(key, { pinned: on });
     try {
       await invoke('set_pinned', { key, on });
     } catch {
-      this.patch(key, { pinned: before.pinned, appStatus: stage, statusAt: before.statusAt });
+      this.patch(key, { pinned: before.pinned });
     }
-  }
-
-  /** The fields a new mark changes in a row (the backend's rule, store::set_app_status). */
-  private stageChange(status: AppStatus | null): Partial<JobView> {
-    return {
-      appStatus: status,
-      pinned: status === 'saved',
-      statusAt: status === null ? null : new Date().toISOString(),
-    };
   }
 
   /** The job as the page holds it (a row or the reader). */
@@ -508,30 +497,12 @@ class JobsStore {
   }
 
   /**
-   * The mark of a job (`saved`, `sent`, `null` = none). Moves at once and back on an error;
-   * resolves with the error text, or null.
-   */
-  async setAppStatus(key: JobKey, status: AppStatus | null): Promise<string | null> {
-    const before = this.held(key);
-    if (before === null || before.appStatus === status) return null;
-    const { pinned, appStatus, statusAt } = before;
-    this.patch(key, this.stageChange(status));
-    try {
-      await invoke('set_app_status', { key, status });
-      return null;
-    } catch (error) {
-      this.patch(key, { pinned, appStatus, statusAt });
-      return errorText(error);
-    }
-  }
-
-  /**
    * "All read": every unread job of the current facet. Resolves with the keys for the undo
    * (`markUnread`), or the error text.
    */
   async markAllRead(): Promise<{ keys: JobKey[] } | { error: string }> {
     try {
-      const keys = await invoke('mark_all_read', { facet: this.facet });
+      const keys = await invoke('mark_all_read', { place: placeOf(this.facet) });
       for (const key of keys) this.patch(key, { unread: false });
       void this.refreshCounts();
       return { keys };
@@ -578,17 +549,17 @@ class JobsStore {
   }
 
   /**
-   * Deletes jobs for good (rows, text files and Excel rows; a later scan never brings them
-   * back). Resolves with what the backend did, or the error text.
+   * "Endgültig löschen": deletes jobs of the trash for good (rows, text files; a later scan
+   * never brings them back). Resolves with what the backend did, or the error text.
    */
-  async deleteJobs(keys: JobKey[]): Promise<Deleted | { error: string }> {
-    return this.forget(() => invoke('delete_jobs', { keys }), keys);
+  async purge(keys: JobKey[]): Promise<Deleted | { error: string }> {
+    return this.forget(() => invoke('purge_jobs', { keys }), keys);
   }
 
-  /** Deletes every archived job for good. */
-  async emptyArchive(): Promise<Deleted | { error: string }> {
-    const archived = this.rows.filter((job) => job.archived).map((job) => job.key);
-    return this.forget(() => invoke('empty_archive'), archived);
+  /** Empties the trash: every job in it is deleted for good. */
+  async emptyTrash(): Promise<Deleted | { error: string }> {
+    const trashed = this.rows.filter((job) => job.place === 'trash').map((job) => job.key);
+    return this.forget(() => invoke('empty_trash'), trashed);
   }
 
   private async forget(
@@ -609,32 +580,30 @@ class JobsStore {
     }
   }
 
-  /** Stores the note of a job (blank = none); resolves with the error text, or null. */
-  async setNote(key: JobKey, note: string): Promise<string | null> {
+  /**
+   * Moves jobs to the inbox, the archive or the trash. The rows leave a list they no longer
+   * belong to; on an error they come back and the list loads again. Resolves with the error
+   * text, or null.
+   */
+  async move(keys: JobKey[], to: Place): Promise<string | null> {
+    const before = keys.map((key) => this.held(key)).filter((job): job is JobView => job !== null);
+    for (const job of before) {
+      this.patch(job.key, { place: to });
+      this.dropStray(job.key);
+    }
     try {
-      await invoke('set_note', { key, note });
-      this.patchDetail(key, { note: note.trim() === '' ? null : note });
+      await invoke('move_jobs', { keys, to });
       return null;
     } catch (error) {
+      for (const job of before) this.patch(job.key, { place: job.place });
+      void this.load(true);
       return errorText(error);
     }
   }
 
-  /**
-   * Archives a job or lists it again. The row leaves a list it no longer belongs to; on an
-   * error the list loads again. Resolves with the error text, or null.
-   */
+  /** Archives a job or brings it back to the inbox (the reader's and the row's tool). */
   async archive(key: JobKey, archived: boolean): Promise<string | null> {
-    this.patch(key, { archived });
-    this.dropStray(key);
-    try {
-      await invoke('set_archived', { key, archived });
-      return null;
-    } catch (error) {
-      this.patch(key, { archived: !archived });
-      void this.load(true);
-      return errorText(error);
-    }
+    return this.move([key], archived ? 'archive' : 'inbox');
   }
 
   /** The prompt for a deep analysis of a job in any AI chat. */
@@ -653,16 +622,6 @@ class JobsStore {
     if (!row || inFacet(row, this.facet)) return;
     this.rows = this.rows.filter((job) => !sameKey(job.key, key));
     this.total = Math.max(0, this.total - 1);
-  }
-
-  private detailOf(key: JobKey): JobDetail | null {
-    return this.detail && sameKey(this.detail.job.key, key) ? this.detail : null;
-  }
-
-  /** Change the reader's own fields (the note) of a job it shows. */
-  private patchDetail(key: JobKey, change: Partial<Pick<JobDetail, 'note'>>): void {
-    const detail = this.detailOf(key);
-    if (detail !== null) this.detail = { ...detail, ...change };
   }
 
   /** Change a job the page holds (a row, the reader) in place, moving the counts with it. */
