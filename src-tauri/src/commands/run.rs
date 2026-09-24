@@ -291,6 +291,8 @@ pub(super) fn launch(
             finish(RunEvent::Finished {
                 summary: Box::new(crashed(kind, dry_run, started)),
             });
+            // A profile change during the crashed run is still owed its rescore.
+            super::scoring::after_run(&app);
         }
     });
     Ok(())
