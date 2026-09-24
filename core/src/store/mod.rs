@@ -35,7 +35,12 @@ impl Store {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir).map_err(|e| Error::io(dir, e))?;
         }
-        Self::init(Connection::open(path)?)
+        let conn = Connection::open(path)?;
+        // Write-ahead log: readers never wait for the writer, and a commit is one append.
+        // NORMAL is durable in WAL mode except for the last commits on a power loss.
+        conn.pragma_update_and_check(None, "journal_mode", "WAL", |_| Ok(()))?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        Self::init(conn)
     }
 
     /// Database in memory only (dry run, tests).

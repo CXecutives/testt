@@ -84,6 +84,10 @@ mod tests {
             desc_error: None,
             txt_name: None,
             desc_attempted_at: None,
+            read_at: None,
+            pinned_at: None,
+            match_: None,
+            match_rev: None,
         }
     }
 

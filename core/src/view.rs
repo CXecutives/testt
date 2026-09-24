@@ -15,7 +15,9 @@ use serde::{Deserialize, Serialize};
 use crate::error::ErrorInfo;
 use crate::fetch::policy::{Allowance, Policy, limits};
 use crate::fetch::{PortalHealth, RETRY_AFTER};
-use crate::model::{Band, DescStatus, MatchStatus, Notice, gmail_url, is_usable_title};
+use crate::model::{
+    Band, DescStatus, MatchRecord, MatchStatus, Notice, band, gmail_url, is_usable_title,
+};
 use crate::pipeline::{RunSnapshot, RunSummary};
 use crate::portal::{JobKey, LoginMode, Portal};
 use crate::settings::{PortalSwitches, Settings};
@@ -160,12 +162,26 @@ impl From<&JobRow> for JobView {
             work_mode: work_mode(&job.location),
             mail_date: job.mail_date,
             first_seen_at: job.first_seen_at,
-            unread: false,
-            pinned: false,
+            unread: job.read_at.is_none(),
+            pinned: job.pinned_at.is_some(),
             detail: DetailState::of(job),
             short: job.desc_status == DescStatus::Ok && job.desc_short,
-            match_: None,
+            match_: job.match_.as_ref().map(JobMatch::from),
             also_on: Vec::new(),
+        }
+    }
+}
+
+impl From<&MatchRecord> for JobMatch {
+    fn from(record: &MatchRecord) -> JobMatch {
+        JobMatch {
+            score: record.score,
+            band: band(record.score),
+            status: record.status,
+            note: record.note.clone(),
+            must_met: record.must_met,
+            must_total: record.must_total,
+            top: record.top.clone(),
         }
     }
 }
@@ -434,12 +450,11 @@ pub struct JobPage {
     pub counts: JobCounts,
 }
 
-/// List and counts from one store query. "New" today means first seen in the last
-/// mailbox run (`new_run`).
-pub fn job_page(store: &Store, query: &JobQuery, new_run: i64) -> crate::Result<JobPage> {
+/// List and counts from one store query. "New" means unread and not excluded.
+pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
     let (rows, counts) = store.job_page(&PageQuery {
-        new_run,
         only_new: query.facet == JobFacet::New,
+        by_match: query.sort == JobSort::Match,
         search: query.search.clone(),
         limit: query.limit.min(MAX_PAGE),
         offset: query.offset,
@@ -449,8 +464,8 @@ pub fn job_page(store: &Store, query: &JobQuery, new_run: i64) -> crate::Result<
         counts: JobCounts {
             new: counts.new,
             all: counts.all,
-            excluded: 0,
-            high: 0,
+            excluded: counts.excluded,
+            high: counts.high,
             no_detail: counts.no_detail,
         },
     })
@@ -902,58 +917,99 @@ mod tests {
         assert_eq!(view.title, "Interim controller remote");
     }
 
-    #[test]
-    fn a_page_and_its_counts_come_together() {
-        let (store, _) = store_with(
+    fn record(status: MatchStatus, score: u8) -> MatchRecord {
+        MatchRecord {
+            status,
+            score,
+            note: None,
+            must_met: 1,
+            must_total: 2,
+            top: Vec::new(),
+        }
+    }
+
+    /// Four jobs: A read, B high, C excluded with a higher score, D unscored.
+    fn four_jobs() -> Store {
+        let (store, a) = store_with(
             "https://www.linkedin.com/jobs/view/4000000001/",
             "A",
             "",
             "",
         );
-        let run2 = store.begin_run().unwrap();
-        let link = job_link("https://www.linkedin.com/jobs/view/4000000002/").unwrap();
-        let posting = Posting::new(link.key.clone(), link.url, "B", "", "");
-        let mail = MailRef {
-            subject: "x",
-            date: None,
-            gmail_id: None,
-        };
-        let later = Timestamp::now() + jiff::SignedDuration::from_mins(1);
-        store.upsert_posting(run2, &posting, mail, later).unwrap();
+        let run = store.begin_run().unwrap();
+        let mut keys = Vec::new();
+        for (i, title) in [(2, "B"), (3, "C"), (4, "D")] {
+            let link =
+                job_link(&format!("https://www.linkedin.com/jobs/view/400000000{i}/")).unwrap();
+            let posting = Posting::new(link.key.clone(), link.url, title, "", "");
+            let mail = MailRef {
+                subject: "x",
+                date: None,
+                gmail_id: None,
+            };
+            let at = Timestamp::now() + jiff::SignedDuration::from_mins(i);
+            store.upsert_posting(run, &posting, mail, at).unwrap();
+            keys.push(link.key);
+        }
         store
-            .record_text(&link.key, "Volltext", false, false, later)
+            .record_text(&keys[0], "Volltext", false, false, Timestamp::now())
             .unwrap();
-        let query = |facet, limit, offset| JobQuery {
+        store.mark_read(&a, Timestamp::now()).unwrap();
+        store
+            .save_matches(
+                &[
+                    (a, record(MatchStatus::Scored, 50)),
+                    (keys[0].clone(), record(MatchStatus::Scored, 85)),
+                    (keys[1].clone(), record(MatchStatus::Excluded, 95)),
+                ],
+                "r",
+                Timestamp::now(),
+            )
+            .unwrap();
+        store
+    }
+
+    fn titles(page: &JobPage) -> Vec<&str> {
+        page.jobs.iter().map(|j| j.title.as_str()).collect()
+    }
+
+    #[test]
+    fn a_page_and_its_counts_come_together() {
+        let store = four_jobs();
+        let query = |facet, sort, limit, offset| JobQuery {
             facet,
-            sort: JobSort::Newest,
+            sort,
             search: None,
             limit,
             offset,
         };
-        let new = job_page(&store, &query(JobFacet::New, 50, 0), run2).unwrap();
-        assert_eq!(new.jobs.len(), 1);
-        assert_eq!(new.jobs[0].title, "B");
         let expected = JobCounts {
-            new: 1,
-            all: 2,
-            excluded: 0,
-            high: 0,
-            no_detail: 1,
+            new: 2,
+            all: 4,
+            excluded: 1,
+            high: 1,
+            no_detail: 3,
         };
+        // New = unread and not excluded; excluded behind the others, unscored after scored.
+        let new = job_page(&store, &query(JobFacet::New, JobSort::Match, 50, 0)).unwrap();
+        assert_eq!(titles(&new), ["B", "D"]);
         assert_eq!(new.counts, expected);
+        assert!(new.jobs[0].unread && new.jobs[0].match_.is_some());
+        let by_match = job_page(&store, &query(JobFacet::All, JobSort::Match, 50, 0)).unwrap();
+        assert_eq!(titles(&by_match), ["B", "A", "D", "C"]);
+        let newest = job_page(&store, &query(JobFacet::All, JobSort::Newest, 50, 0)).unwrap();
+        assert_eq!(titles(&newest), ["D", "B", "A", "C"]);
+        assert!(!newest.jobs[2].unread);
         // Past the end or counts only: no rows, the same counts.
-        let past = job_page(&store, &query(JobFacet::All, 50, 10), run2).unwrap();
+        let past = job_page(&store, &query(JobFacet::All, JobSort::Match, 50, 10)).unwrap();
         assert!(past.jobs.is_empty());
         assert_eq!(past.counts, expected);
-        let counts_only = job_page(&store, &query(JobFacet::All, 0, 0), run2).unwrap();
+        let counts_only = job_page(&store, &query(JobFacet::All, JobSort::Match, 0, 0)).unwrap();
         assert_eq!((counts_only.jobs.len(), counts_only.counts), (0, expected));
-        let all = job_page(&store, &query(JobFacet::All, 50, 0), run2).unwrap();
-        let titles: Vec<&str> = all.jobs.iter().map(|j| j.title.as_str()).collect();
-        assert_eq!(titles, ["B", "A"]);
         // The search narrows list and counts alike.
-        let mut search = query(JobFacet::All, 50, 0);
+        let mut search = query(JobFacet::All, JobSort::Match, 50, 0);
         search.search = Some("volltext".into());
-        let found = job_page(&store, &search, run2).unwrap();
+        let found = job_page(&store, &search).unwrap();
         assert_eq!((found.jobs.len(), found.counts.all), (1, 1));
     }
 

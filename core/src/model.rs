@@ -166,10 +166,10 @@ pub enum Band {
     Low,
 }
 
-/// Minimum score of the high band.
-const HIGH_FROM: u8 = 80;
+/// Minimum score of the high band (the store counts "high" with it).
+pub const HIGH_FROM: u8 = 80;
 /// Minimum score of the mid band.
-const MID_FROM: u8 = 40;
+pub const MID_FROM: u8 = 40;
 
 /// The band of a score - the only place with the thresholds (80 and 40).
 pub const fn band(score: u8) -> Band {
@@ -180,6 +180,20 @@ pub const fn band(score: u8) -> Band {
     } else {
         Band::Low
     }
+}
+
+/// The stored match of a job - what a matcher says about it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchRecord {
+    pub status: MatchStatus,
+    /// 0-100; kept for excluded jobs too.
+    pub score: u8,
+    /// The one statement the list shows (e.g. why excluded).
+    pub note: Option<Notice>,
+    pub must_met: u16,
+    pub must_total: u16,
+    /// At most two met requirements, quoted from the ad.
+    pub top: Vec<String>,
 }
 
 /// A statement for the interface as a code with data - the core never sends prose.

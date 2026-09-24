@@ -8,7 +8,8 @@ use url::Url;
 use super::{Store, bump};
 use crate::error::{Error, Result};
 use crate::model::{
-    AlertMail, DescStatus, MAX_FIELD_CHARS, MAX_TITLE_CHARS, Posting, is_usable_title,
+    AlertMail, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord, Posting,
+    is_usable_title,
 };
 use crate::portal::{JobKey, Portal};
 use crate::text::{one_line, page_location, split_company_location, truncate_chars};
@@ -31,7 +32,7 @@ pub enum Seen {
 }
 
 /// A job as the UI and the exports see it (without the full text).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct JobRow {
     pub key: JobKey,
     pub url: Url,
@@ -53,15 +54,23 @@ pub struct JobRow {
     pub txt_name: Option<String>,
     /// Last fetch attempt (success or failure).
     pub desc_attempted_at: Option<Timestamp>,
+    /// `None` = unread.
+    pub read_at: Option<Timestamp>,
+    pub pinned_at: Option<Timestamp>,
+    /// `None` = not scored yet.
+    pub match_: Option<MatchRecord>,
+    /// Who scored it; `None` = to be scored (again).
+    pub match_rev: Option<String>,
 }
 
 /// One page of the job list. The facet only narrows the page; the counts cover the
 /// search, whatever the facet.
 #[derive(Debug, Clone, Default)]
 pub struct PageQuery {
-    /// "New" = first seen in this mailbox run (schema 2).
-    pub new_run: i64,
+    /// "New" = unread and not excluded.
     pub only_new: bool,
+    /// Best match first; otherwise newest first. Excluded jobs come last either way.
+    pub by_match: bool,
     /// Search term in title, company, location and full text (case-insensitive).
     pub search: Option<String>,
     pub limit: u32,
@@ -71,8 +80,12 @@ pub struct PageQuery {
 /// Counts that belong to a page of the job list.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PageCounts {
+    /// Unread and not excluded.
     pub new: u32,
     pub all: u32,
+    pub excluded: u32,
+    /// Scored in the high band.
+    pub high: u32,
     /// Jobs without a full text.
     pub no_detail: u32,
 }
@@ -242,41 +255,64 @@ impl Store {
     pub fn job_page(&self, query: &PageQuery) -> Result<(Vec<JobRow>, PageCounts)> {
         let conn = self.conn();
         let pattern = like_pattern(query.search.as_deref());
-        let mut stmt = conn.prepare_cached(&format!(
+        // Excluded jobs always come last; "match" puts the best score first (unscored after
+        // scored), "newest" the latest first sighting.
+        let order = |p: &str| {
+            let by_match = if query.by_match {
+                format!("({p}match_score IS NULL), {p}match_score DESC, ")
+            } else {
+                String::new()
+            };
+            format!(
+                "({p}match_status IS 'excluded'), {by_match}{p}first_seen_at DESC, \
+                 {p}portal, {p}job_id"
+            )
+        };
+        let new = "read_at IS NULL AND match_status IS NOT 'excluded'";
+        let sql = format!(
             "WITH base AS (
                  SELECT * FROM job WHERE (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
              ), counts AS (
                  SELECT COUNT(*) AS n_all,
-                        COALESCE(SUM(first_seen_run = ?2), 0) AS n_new,
+                        COALESCE(SUM({new}), 0) AS n_new,
+                        COALESCE(SUM(match_status IS 'excluded'), 0) AS n_excluded,
+                        COALESCE(SUM(match_status IS 'scored' AND match_score >= ?5), 0)
+                            AS n_high,
                         COALESCE(SUM(desc_status <> 'ok'), 0) AS n_no_detail
                  FROM base
              ), page AS (
                  SELECT {JOB_COLUMNS} FROM base
-                 WHERE (?3 = 0 OR first_seen_run = ?2)
-                 ORDER BY first_seen_at DESC, mail_date DESC, portal, job_id
-                 LIMIT ?4 OFFSET ?5
+                 WHERE (?2 = 0 OR ({new}))
+                 ORDER BY {}
+                 LIMIT ?3 OFFSET ?4
              )
-             SELECT counts.n_all, counts.n_new, counts.n_no_detail, page.*
+             SELECT counts.n_all, counts.n_new, counts.n_excluded, counts.n_high,
+                    counts.n_no_detail, page.*
              FROM counts LEFT JOIN page
-             ORDER BY page.first_seen_at DESC, page.mail_date DESC, page.portal, page.job_id"
-        ))?;
+             ORDER BY {}",
+            order(""),
+            order("page.")
+        );
+        let mut stmt = conn.prepare_cached(&sql)?;
         let mut counts = PageCounts::default();
         let mut jobs = Vec::new();
         let mut rows = stmt.query(params![
             pattern,
-            query.new_run,
             query.only_new,
             query.limit,
-            query.offset
+            query.offset,
+            HIGH_FROM
         ])?;
         while let Some(row) = rows.next()? {
             counts = PageCounts {
                 all: row.get(0)?,
                 new: row.get(1)?,
-                no_detail: row.get(2)?,
+                excluded: row.get(2)?,
+                high: row.get(3)?,
+                no_detail: row.get(4)?,
             };
-            if row.get::<_, Option<String>>(3)?.is_some() {
-                jobs.push(job_row_at(row, 3)??);
+            if row.get::<_, Option<String>>(5)?.is_some() {
+                jobs.push(job_row_at(row, 5)??);
             }
         }
         Ok((jobs, counts))
@@ -403,7 +439,8 @@ impl Store {
         self.write(|conn| {
             conn.execute(
                 "UPDATE job SET desc_status = 'ok', desc_text = ?3, desc_short = ?4, desc_closed = ?5,
-                                desc_fetched_at = ?6, desc_attempted_at = ?6, desc_error = NULL
+                                desc_fetched_at = ?6, desc_attempted_at = ?6, desc_error = NULL,
+                                match_rev = NULL
                  WHERE portal = ?1 AND job_id = ?2",
                 params![key.portal.key(), key.id, text, short, closed, to_db(now)],
             )?;
@@ -486,6 +523,7 @@ impl Store {
             let location = page_location(&stored, &location, MAX_FIELD_CHARS);
             conn.execute(
                 "UPDATE job SET
+                    match_rev = CASE WHEN ?3 <> '' AND ?3 <> title THEN NULL ELSE match_rev END,
                     title    = CASE WHEN ?3 <> '' THEN ?3 ELSE title END,
                     company  = CASE WHEN ?4 <> '' THEN ?4 ELSE company END,
                     location = CASE WHEN ?5 <> '' THEN ?5 ELSE location END
@@ -538,11 +576,12 @@ impl Store {
 
 // ---------------------------------------------------------------------- Helpers
 
-const JOB_COLUMNS: &str = "portal, job_id, url, title, company, location, mail_date, mail_subject,
-    gmail_id, first_seen_at, first_seen_run, desc_status, desc_short, desc_closed,
+pub(super) const JOB_COLUMNS: &str = "portal, job_id, url, title, company, location, mail_date,
+    mail_subject, gmail_id, first_seen_at, first_seen_run, desc_status, desc_short, desc_closed,
     COALESCE(LENGTH(desc_text), 0) AS desc_len, desc_fetched_at, desc_attempts, desc_error,
-    txt_name, desc_attempted_at";
-const JOB_COLUMN_COUNT: usize = 20;
+    txt_name, desc_attempted_at, read_at, pinned_at, match_status, match_score, match_note,
+    match_rev";
+pub(super) const JOB_COLUMN_COUNT: usize = 26;
 
 /// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
 /// mail not older than `?1`.
@@ -558,7 +597,7 @@ fn due_params(now: Timestamp, max_age: SignedDuration, retry_after: SignedDurati
 }
 
 /// Reads one row; unknown values become `Error::Corrupt` (the inner `Result`).
-fn job_row(r: &Row<'_>) -> rusqlite::Result<Result<JobRow>> {
+pub(super) fn job_row(r: &Row<'_>) -> rusqlite::Result<Result<JobRow>> {
     job_row_at(r, 0)
 }
 
@@ -603,6 +642,14 @@ fn job_row_at(r: &Row<'_>, at: usize) -> rusqlite::Result<Result<JobRow>> {
         desc_error: r.get(col(17))?,
         txt_name: r.get(col(18))?,
         desc_attempted_at: r.get::<_, Option<i64>>(col(19))?.and_then(from_db),
+        read_at: r.get::<_, Option<i64>>(col(20))?.and_then(from_db),
+        pinned_at: r.get::<_, Option<i64>>(col(21))?.and_then(from_db),
+        match_: super::matches::decode_match(
+            r.get::<_, Option<String>>(col(22))?.as_deref(),
+            r.get(col(23))?,
+            r.get::<_, Option<String>>(col(24))?.as_deref(),
+        ),
+        match_rev: r.get(col(25))?,
     }))
 }
 
@@ -663,8 +710,16 @@ fn upsert(
         merge_details((&company, &location), (&posting.company, &posting.location));
     if new_title != title || new_company != company || new_location != location {
         conn.execute(
-            "UPDATE job SET title = ?3, company = ?4, location = ?5 WHERE portal = ?1 AND job_id = ?2",
-            params![key.portal.key(), key.id, new_title, new_company, new_location],
+            "UPDATE job SET title = ?3, company = ?4, location = ?5,
+                            match_rev = CASE WHEN title <> ?3 THEN NULL ELSE match_rev END
+             WHERE portal = ?1 AND job_id = ?2",
+            params![
+                key.portal.key(),
+                key.id,
+                new_title,
+                new_company,
+                new_location
+            ],
         )?;
         refresh_search(conn, key)?;
         bump(conn)?;

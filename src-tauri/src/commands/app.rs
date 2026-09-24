@@ -21,8 +21,8 @@ use jobalert_core::pipeline::{self, RunEvent};
 use jobalert_core::profile;
 use jobalert_core::reset::{self, ResetPlan};
 use jobalert_core::view::{
-    self, JobFacet, JobQuery, JobSort, Mailbox, Platform, ProfileInfo, ResetSummary, SettingsPatch,
-    SettingsView, VaultKind,
+    self, JobFacet, JobQuery, JobSort, JobView, Mailbox, Platform, ProfileInfo, ResetSummary,
+    SettingsPatch, SettingsView, VaultKind,
 };
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State, WebviewWindow};
@@ -35,6 +35,8 @@ pub(super) const PROFILE_SOURCE: &str = "profile_source";
 const UI_ERRORS_PER_MINUTE: usize = 10;
 const MAX_UI_MESSAGE_CHARS: usize = 500;
 const MAX_UI_SOURCE_CHARS: usize = 200;
+/// Best matches of the last mailbox run on the day overview.
+const TOP_MATCHES: u32 = 5;
 
 /// Operating system of the interface (the page words its texts accordingly). Per-OS
 /// code - the integrator moves it into `platform.rs`.
@@ -106,9 +108,14 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
             limit: 0,
             offset: 0,
         },
-        last_scan_run,
     )?
     .counts;
+    let top_matches = state
+        .store
+        .top_matches(last_scan_run, TOP_MATCHES)?
+        .iter()
+        .map(JobView::from)
+        .collect();
     let last_run = pipeline::last_run(&state.store)?;
     let result_dir = workspace.join(RESULT_DIR);
     // Only the app's own text files - exactly those "delete text files" would remove.
@@ -134,7 +141,8 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
         auto_fetch_on_start: settings.auto_fetch_on_start,
         last_run,
         counts,
-        top_matches: Vec::new(),
+        top_matches,
+        // Without a usable matcher nothing waits for a score (the engine is wired later).
         match_pending: 0,
         log_dir: state.data_dir.join(jobalert_core::LOG_DIR),
         data_dir: state.data_dir.clone(),

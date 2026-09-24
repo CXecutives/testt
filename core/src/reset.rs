@@ -1,12 +1,12 @@
-//! „Alles zurücksetzen“ über einen Neustart: Die App legt einen Auftrag ab und startet neu;
-//! der neue Prozess löscht **vor** dem Öffnen von Datenbank und Fenster. So hält nichts mehr
-//! eine Datei offen – Prozesse werden nie beendet.
+//! "Reset everything" through a restart: the app leaves an order and restarts; the new
+//! process deletes **before** it opens database and window. So nothing holds a file open
+//! any more - processes are never killed.
 //!
-//! Gelöscht werden nur Dinge der App: Datenbank (Jobs, Einstellungen, Scan-Stand), das
-//! Profil des Sitzungsfensters (freelance.de-Anmeldung), der Gmail-Zugang im
-//! Schlüsselspeicher und im
-//! Arbeitsordner die App-Dateien samt `profil/beraterprofil.json`. `policy.json` bleibt –
-//! eine Sperrpause darf sich nicht wegklicken lassen. Fremde Dateien bleiben unberührt.
+//! Only things of the app are deleted: the database (jobs, settings, scan state) with its
+//! journal, WAL and shared-memory files, the profiles of the session windows (freelance.de
+//! sign-in), the Gmail access in the keychain and, in the workspace, the app's files
+//! including `profil/beraterprofil.json`. `policy.json` stays - a block pause must not be
+//! clickable away. Foreign files stay untouched.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -21,94 +21,99 @@ use crate::secrets::Vault;
 use crate::{DB_FILE, POLICY_FILE, session_dir};
 
 const MARKER: &str = "reset.pending";
-/// Namensteil umbenannter Reste, die sich (noch) nicht löschen ließen.
+/// Name part of renamed leftovers that could not be deleted (yet).
 pub(crate) const LEFTOVER: &str = ".delete-";
+/// Files `SQLite` keeps next to the database (rollback journal, write-ahead log, shared
+/// memory of the log).
+const SIDECARS: [&str; 3] = ["-journal", "-wal", "-shm"];
 const ATTEMPTS: usize = 10;
 const PAUSE: Duration = Duration::from_millis(300);
 
-/// Was beim nächsten Start gelöscht wird – nur, was sich nicht aus dem Datenordner ergibt
-/// (ein alter oder veränderter Auftrag kann so nie einen beliebigen Ordner treffen).
+/// What is deleted at the next start - only what does not follow from the data folder (an
+/// old or altered order can thus never hit an arbitrary folder).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResetPlan {
     pub workspace: PathBuf,
-    /// Namen der geschriebenen Textdateien (aus der Datenbank, bevor sie weg ist).
+    /// Names of the written text files (from the database, before it is gone).
     pub txt_names: Vec<String>,
 }
 
-/// Ergebnis nach dem Neustart.
+/// Result after the restart.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResetReport {
     pub removed: usize,
-    /// Was sich nicht löschen ließ (Anzeige: „Zurücksetzen unvollständig“).
+    /// What could not be deleted (paths and short English notes, for the log).
     pub failed: Vec<String>,
 }
 
-/// Legt den Auftrag ab; danach startet die App neu.
+/// Leaves the order; afterwards the app restarts.
 pub fn request(data_dir: &Path, plan: &ResetPlan) -> crate::Result<()> {
-    let json = serde_json::to_vec_pretty(plan).expect("serialisierbar");
+    let json = serde_json::to_vec_pretty(plan).expect("serialisable");
     crate::export::write_atomic(&data_dir.join(MARKER), &json)
 }
 
-/// Beim Start aufrufen, bevor die Datenbank geöffnet wird. `None`: kein Zurücksetzen offen.
+/// Call at the start, before the database is opened. `None`: no reset pending.
 ///
-/// Der Auftrag wird zuerst verbraucht und läuft so genau einmal: Was sich nicht löschen
-/// ließ, steht im Bericht – ein zweiter Durchgang bei einem späteren Start löschte
-/// inzwischen neu Angelegtes (Datenbank, Anmeldung, Profil, Gmail-Zugang) ungefragt.
+/// The order is used up first and so runs exactly once: what could not be deleted is in the
+/// report - a second pass at a later start would delete things created in the meantime
+/// (database, sign-in, profile, Gmail access) without asking.
 pub fn perform_pending(data_dir: &Path, vault: &Vault) -> Option<ResetReport> {
     let marker = data_dir.join(MARKER);
     let bytes = match std::fs::read(&marker) {
         Ok(bytes) => Some(bytes),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return None,
         Err(e) => {
-            log::warn!("Zurücksetzen: Auftrag nicht lesbar ({e})");
+            log::warn!("reset: order not readable ({e})");
             None
         }
     };
     let mut report = ResetReport::default();
     if let Err(e) = std::fs::remove_file(&marker) {
-        log::warn!("Zurücksetzen: Auftrag ließ sich nicht entfernen ({e}) – nicht ausgeführt");
-        report.failed.push(format!(
-            "Zurücksetzen nicht ausgeführt – der Auftrag ließ sich nicht entfernen ({e})"
-        ));
+        log::warn!("reset: order could not be removed ({e}), not performed");
+        report
+            .failed
+            .push(format!("reset not performed: order not removable ({e})"));
         return Some(report);
     }
     let Some(plan) = bytes.and_then(|b| serde_json::from_slice::<ResetPlan>(&b).ok()) else {
-        log::warn!("Zurücksetzen: Auftrag unlesbar – verworfen");
-        report.failed.push("Auftrag unlesbar".into());
+        log::warn!("reset: order unreadable, discarded");
+        report.failed.push("order unreadable".into());
         return Some(report);
     };
 
     let db = data_dir.join(DB_FILE);
-    let journal = journal(&db);
     let profile = profile_path(&plan.workspace);
     let profile_dir = plan.workspace.join(PROFILE_DIR);
     let result_dir = plan.workspace.join(RESULT_DIR);
     let sessions: Vec<String> = Portal::ALL.into_iter().map(session_dir).collect();
-    let mut targets = vec![db, journal, profile];
+    let sidecars: Vec<String> = SIDECARS.iter().map(|s| format!("{DB_FILE}{s}")).collect();
+    let mut targets = vec![db, profile];
+    targets.extend(sidecars.iter().map(|name| data_dir.join(name)));
     targets.extend(sessions.iter().map(|dir| data_dir.join(dir)));
-    // Reste früherer Versuche mitnehmen – ein umbenanntes Sitzungsprofil samt Anmelde-Cookie
-    // bliebe sonst für immer liegen.
-    let journal_name = format!("{DB_FILE}-journal");
+    // Take along the leftovers of earlier attempts - a renamed session profile with its
+    // sign-in cookie would otherwise stay forever.
     let names_in_data = |base: &str| {
-        base == DB_FILE || base == journal_name || sessions.iter().any(|dir| dir == base)
+        base == DB_FILE
+            || sidecars.iter().any(|name| name == base)
+            || sessions.iter().any(|dir| dir == base)
     };
     targets.extend(leftovers(data_dir, names_in_data));
     targets.extend(leftovers(&profile_dir, |base| base == PROFILE_FILE));
-    // Übersichten, Textdateien, temporäre Dateien und deren Reste im Ergebnisordner.
+    // Overviews, text files, temporary files and their leftovers in the result folder.
     targets.extend(app_files(&result_dir, &plan.txt_names));
     for target in targets {
         match remove(&target) {
             Ok(true) => report.removed += 1,
             Ok(false) => {}
             Err((rest, e)) => {
-                log::warn!("Zurücksetzen: {} nicht gelöscht: {e}", rest.display());
+                log::warn!("reset: {} not deleted: {e}", rest.display());
                 report.failed.push(rest.display().to_string());
             }
         }
     }
-    // Leer gewordene App-Ordner mit aufräumen (nie mit Inhalt).
+    // Clean up app folders that became empty (never with content).
     for dir in [
         result_dir.join(crate::export::TXT_DIR),
         result_dir,
@@ -119,9 +124,9 @@ pub fn perform_pending(data_dir: &Path, vault: &Vault) -> Option<ResetReport> {
     if let Err(e) = vault.delete_gmail() {
         report
             .failed
-            .push(format!("Gmail-Zugang im Schlüsselspeicher ({e})"));
+            .push(format!("Gmail access in the keychain ({e})"));
     }
-    // Jede Portal-Anmeldung ist mit ihrem Profil weg – Pausen und Zähler bleiben.
+    // Every portal sign-in is gone with its profile - pauses and counters stay.
     let mut policy = Policy::load(&data_dir.join(POLICY_FILE), jiff::Timestamp::now());
     for portal in Portal::ALL {
         policy.forget_session(portal);
@@ -129,19 +134,13 @@ pub fn perform_pending(data_dir: &Path, vault: &Vault) -> Option<ResetReport> {
     if let Err(e) = policy.save() {
         report
             .failed
-            .push(format!("Anmeldestand in {POLICY_FILE} ({e})"));
+            .push(format!("sign-in state in {POLICY_FILE} ({e})"));
     }
     Some(report)
 }
 
-fn journal(database: &Path) -> PathBuf {
-    let mut name = database.as_os_str().to_owned();
-    name.push("-journal");
-    PathBuf::from(name)
-}
-
-/// Umbenannte Reste früherer Versuche (`<Name>.delete-<Zeit>`) in `dir`, deren Name zu
-/// `ours` passt.
+/// Renamed leftovers of earlier attempts (`<name>.delete-<time>`) in `dir` whose name fits
+/// `ours`.
 fn leftovers(dir: &Path, ours: impl Fn(&str) -> bool) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -158,9 +157,9 @@ fn leftovers(dir: &Path, ours: impl Fn(&str) -> bool) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Erst umbenennen (dann ist der Name sofort frei), dann löschen – mit bis zu zehn Versuchen,
-/// falls ein gerade beendeter WebView2-Prozess die Datei noch kurz hält. Scheitert es, nennt
-/// der Fehler den Rest unter seinem tatsächlichen (neuen) Namen.
+/// First rename (then the name is free at once), then delete - with up to ten attempts in
+/// case a WebView2 process that just ended still holds the file for a moment. If it fails,
+/// the error names the leftover by its actual (new) name.
 fn remove(path: &Path) -> Result<bool, (PathBuf, std::io::Error)> {
     if std::fs::symlink_metadata(path).is_err() {
         return Ok(false);
@@ -194,7 +193,7 @@ fn remove(path: &Path) -> Result<bool, (PathBuf, std::io::Error)> {
     }
     Err((
         target,
-        last.unwrap_or_else(|| std::io::Error::other("unbekannt")),
+        last.unwrap_or_else(|| std::io::Error::other("unknown")),
     ))
 }
 
@@ -219,6 +218,8 @@ mod tests {
         std::fs::create_dir_all(&txt).unwrap();
         std::fs::create_dir_all(data.join("session-freelance/Default")).unwrap();
         std::fs::write(data.join("jobs.db"), b"db").unwrap();
+        std::fs::write(data.join("jobs.db-wal"), b"wal").unwrap();
+        std::fs::write(data.join("jobs.db-shm"), b"shm").unwrap();
         std::fs::write(data.join("policy.json"), b"{}").unwrap();
         std::fs::write(data.join("session-freelance/Default/Cookies"), b"c").unwrap();
         std::fs::write(workspace.join(RESULT_DIR).join(XLSX_NAME), b"x").unwrap();
@@ -246,26 +247,27 @@ mod tests {
         let report = perform_pending(&data, &Vault::for_tests("reset")).unwrap();
         assert!(report.failed.is_empty(), "{report:?}");
         assert!(!data.join("jobs.db").exists());
+        assert!(!data.join("jobs.db-wal").exists() && !data.join("jobs.db-shm").exists());
         assert!(!data.join("session-freelance").exists());
         assert!(!profile_path(&plan.workspace).exists());
         let txt = plan.workspace.join(RESULT_DIR).join(TXT_DIR);
         assert!(
             !txt.join(".jam-x1y2z3.tmp").exists(),
-            "Rest eines abgebrochenen Schreibens"
+            "remains of an interrupted write"
         );
-        // Bleibt: Sicherheitsstand, fremde Dateien (Skill, eigenes Profil), manipulierter Name.
+        // Stays: safety state, foreign files (skill, own profile), manipulated name.
         assert!(data.join("policy.json").exists());
         assert!(txt.join("fremd.txt").exists());
         assert!(plan.workspace.join("Profil_Erika.json").exists());
         assert!(!data.join(MARKER).exists());
         assert!(
             perform_pending(&data, &Vault::for_tests("reset")).is_none(),
-            "nur einmal"
+            "only once"
         );
     }
 
-    /// Eine gesperrte Datei: Der Rest ist gelöscht, der Bericht nennt sie – und der Auftrag
-    /// läuft nie ein zweites Mal (sonst löschte der nächste Start inzwischen neu Angelegtes).
+    /// A locked file: the rest is deleted, the report names it - and the order never runs a
+    /// second time (otherwise the next start would delete things created in the meantime).
     #[cfg(windows)]
     #[test]
     fn locked_file_is_reported_and_the_plan_runs_once() {
@@ -283,14 +285,14 @@ mod tests {
         assert_eq!(report.failed.len(), 1, "{report:?}");
         assert!(!data.join(MARKER).exists());
         assert!(!data.join("jobs.db").exists());
-        // Neu Angelegtes nach dem Zurücksetzen bleibt beim nächsten Start unangetastet.
+        // What is created after the reset stays untouched at the next start.
         std::fs::write(data.join("jobs.db"), b"neu").unwrap();
         assert!(perform_pending(&data, &Vault::for_tests("reset")).is_none());
         assert!(data.join("jobs.db").exists());
     }
 
-    /// Reste früherer Versuche (umbenannt, aber nicht gelöscht) nimmt ein späteres
-    /// Zurücksetzen mit – fremde Dateien mit ähnlichem Namen nicht.
+    /// Leftovers of earlier attempts (renamed but not deleted) are taken along by a later
+    /// reset - foreign files with a similar name are not.
     #[test]
     fn leftovers_of_earlier_attempts_are_swept() {
         let root = tempfile::tempdir().unwrap();
@@ -306,6 +308,7 @@ mod tests {
             plan.workspace
                 .join("profil")
                 .join("beraterprofil.json.delete-555"),
+            data.join("jobs.db-wal.delete-666"),
         ];
         for rest in &rests[..4] {
             std::fs::write(rest, b"rest").unwrap();
@@ -314,6 +317,7 @@ mod tests {
         std::fs::create_dir_all(rests[1].join("Default")).unwrap();
         std::fs::write(rests[1].join("Default").join("Cookies"), b"c").unwrap();
         std::fs::write(&rests[4], b"rest").unwrap();
+        std::fs::write(&rests[5], b"rest").unwrap();
         std::fs::write(txt.join("fremd.txt.delete-1"), b"fremd").unwrap();
 
         request(&data, &plan).unwrap();
@@ -325,7 +329,7 @@ mod tests {
         assert!(txt.join("fremd.txt.delete-1").exists());
     }
 
-    /// Scheitert das Löschen, nennt der Fehler den Rest unter seinem tatsächlichen Namen.
+    /// If deleting fails, the error names the leftover by its actual name.
     #[cfg(windows)]
     #[test]
     fn a_locked_target_is_reported_by_its_actual_name() {
@@ -350,9 +354,9 @@ mod tests {
         let (data, _) = setup(root.path());
         std::fs::write(data.join(MARKER), b"{ kaputt").unwrap();
         let report = perform_pending(&data, &Vault::for_tests("reset")).unwrap();
-        assert_eq!(report.failed, ["Auftrag unlesbar"]);
+        assert_eq!(report.failed, ["order unreadable"]);
         assert!(!data.join(MARKER).exists());
-        assert!(data.join("jobs.db").exists(), "nichts gelöscht");
+        assert!(data.join("jobs.db").exists(), "nothing deleted");
     }
 
     #[test]
@@ -374,6 +378,6 @@ mod tests {
         let state = Policy::load(&data.join(POLICY_FILE), now).state(Portal::FreelanceDe);
         assert!(state.login_needed);
         assert_eq!(state.session_confirmed_at, None);
-        assert_eq!(state.paused_until, Some(until), "Pause bleibt");
+        assert_eq!(state.paused_until, Some(until), "the pause stays");
     }
 }
