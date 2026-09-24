@@ -13,11 +13,13 @@
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
+  import DragBand from '$components/DragBand.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import { de } from '$lib/i18n/de';
   import { play } from '$lib/motion/motion';
   import { fade, rise } from '$lib/motion/transitions';
+  import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf } from '$lib/state/jobs.svelte';
   import { shell } from '$lib/state/shell.svelte';
@@ -106,6 +108,7 @@
     <section class="right" data-testid="reader-pane">
       {#key stage}
         <div class="stage" data-testid="stage" in:enter={stage !== OVERVIEW} out:leave>
+          {#if dragBands()}<DragBand sheet />{/if}
           <div class="column">
             {#if stage === OVERVIEW}
               <DayOverview />
