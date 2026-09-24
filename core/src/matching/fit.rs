@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use super::atoms::{self, Fit, Vocab, fold};
-use super::job::{Class, Item, contains_word, level_in};
+use super::job::{Class, Item, contains_word, level_in, names_degree};
 use super::legacy::LegacyProfile;
 use super::lexicon::{self, engine as lex};
 use super::params::{E_FULL, E_HALF, E_NONE, SENTENCE_ATOMS};
@@ -226,8 +226,8 @@ impl Skills {
         let (mut degree_level, mut degrees) = (0, Vec::new());
         for core in &legacy.signals.core {
             let folded = fold(&core.text);
-            let is_degree = core.path.ends_with("abschluss")
-                || lex::DEGREE_WORDS.iter().any(|w| folded.contains(w));
+            let tokens: Vec<&str> = atoms::raw_tokens(&folded).collect();
+            let is_degree = core.path.ends_with("abschluss") || names_degree(&tokens);
             if is_degree {
                 let fields = degree_fields.get_or_insert_with(Vec::new);
                 fields.extend(degree_fields_in(&folded));
