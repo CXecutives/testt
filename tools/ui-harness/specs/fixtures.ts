@@ -57,6 +57,7 @@ export async function runFinished(page: Page): Promise<void> {
 
 /** Visible elements matching a selector. */
 export async function visibleCount(page: Page, selector: string): Promise<number> {
+  await viewsSettled(page);
   return page.evaluate((css) => {
     return [...document.querySelectorAll(css)].filter((node) => {
       const box = node.getBoundingClientRect();
@@ -65,7 +66,16 @@ export async function visibleCount(page: Page, selector: string): Promise<number
   }, selector);
 }
 
+/**
+ * A view switch cross-fades: for 100 ms the old view fades out below the new one. What the
+ * screen shows is counted once only the new view is left.
+ */
+export async function viewsSettled(page: Page): Promise<void> {
+  await page.waitForFunction(() => document.querySelectorAll('main.views > section').length <= 1);
+}
+
 export async function settle(page: Page): Promise<void> {
+  await viewsSettled(page);
   await page.evaluate(async () => {
     await document.fonts.ready;
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));

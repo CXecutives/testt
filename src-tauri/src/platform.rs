@@ -22,6 +22,35 @@ use tauri::{AppHandle, Manager, Runtime, Url, Webview, WebviewWindow, WebviewWin
 /// Label of the app's own window (`tauri.conf.json`).
 pub const MAIN: &str = "main";
 
+// ------------------------------------------------------------------ title bar colours
+
+// The colours of the native Windows title bar (Windows 11; DWM). Change them here: each one
+// follows a token of `ui/src/styles/tokens.css`, which `core/tests/ui_contract.rs` checks
+// (`the_title_bar_colours_are_the_tokens`), so a new colour changes the token or the test too.
+
+/// Background of the bar: `--bg` (`--p-cream`, hsl 32 33% 96%), the cream of the sidebar
+/// below it and the window's `backgroundColor`.
+#[cfg_attr(
+    not(windows),
+    allow(dead_code, reason = "only Windows colours its title bar")
+)]
+pub const TITLE_BAR_BACKGROUND: Rgb = [0xF8, 0xF5, 0xF1];
+/// Title text of the active window: `--text` (`--p-ink`, hsl 45 7% 17%).
+#[cfg_attr(
+    not(windows),
+    allow(dead_code, reason = "only Windows colours its title bar")
+)]
+pub const TITLE_BAR_TEXT: Rgb = [0x2E, 0x2D, 0x28];
+/// Title text while the window is inactive: `--text-subtle` (`--p-fg-subtle`, hsl 30 4% 48%).
+#[cfg_attr(
+    not(windows),
+    allow(dead_code, reason = "only Windows colours its title bar")
+)]
+pub const TITLE_BAR_TEXT_INACTIVE: Rgb = [0x7F, 0x7A, 0x76];
+
+/// A colour as red, green and blue bytes.
+pub type Rgb = [u8; 3];
+
 // ------------------------------------------------------------------ user agent
 
 /// Current stable Edge on Windows (checked 2026-09-24: Edge stable 153.0.4234.48, the same
@@ -244,11 +273,9 @@ mod webview2 {
     }
 }
 
-/// The native title bar in the app's colours. Windows 11 only: Windows 10 ignores the
-/// attributes (its bar stays light through the Light theme), so the result is not checked.
-/// The caption is the cream of the sidebar below it, the title the ink of the text, dimmed
-/// to the subtle text while the window is inactive. `core/tests/ui_contract.rs` keeps these
-/// values equal to the tokens and to `backgroundColor` in tauri.conf.json.
+/// The native title bar in the app's colours ([`TITLE_BAR_BACKGROUND`] and the title
+/// colours above). Windows 11 only: Windows 10 ignores the attributes (its bar stays light
+/// through the Light theme), so the result is not checked.
 #[cfg(windows)]
 mod frame {
     use windows::Win32::Foundation::{COLORREF, HWND};
@@ -256,26 +283,26 @@ mod frame {
         DWMWA_CAPTION_COLOR, DWMWA_TEXT_COLOR, DWMWINDOWATTRIBUTE, DwmSetWindowAttribute,
     };
 
-    /// `--bg` (`--p-cream`, hsl 32 33% 96%).
-    const CAPTION: [u8; 3] = [0xF8, 0xF5, 0xF1];
-    /// `--text` (`--p-ink`, hsl 45 7% 17%).
-    const TITLE: [u8; 3] = [0x2E, 0x2D, 0x28];
-    /// `--text-subtle` (`--p-fg-subtle`, hsl 30 4% 48%).
-    const TITLE_INACTIVE: [u8; 3] = [0x7F, 0x7A, 0x76];
+    use super::{Rgb, TITLE_BAR_BACKGROUND, TITLE_BAR_TEXT, TITLE_BAR_TEXT_INACTIVE};
+
     /// Bytes of a COLORREF (a `u32`).
     const COLORREF_SIZE: u32 = 4;
     const _: () = assert!(size_of::<COLORREF>() == COLORREF_SIZE as usize);
 
     pub fn paint(hwnd: HWND) {
-        set(hwnd, DWMWA_CAPTION_COLOR, CAPTION);
-        set(hwnd, DWMWA_TEXT_COLOR, TITLE);
+        set(hwnd, DWMWA_CAPTION_COLOR, TITLE_BAR_BACKGROUND);
+        set(hwnd, DWMWA_TEXT_COLOR, TITLE_BAR_TEXT);
     }
 
     pub fn focus(hwnd: HWND, focused: bool) {
         set(
             hwnd,
             DWMWA_TEXT_COLOR,
-            if focused { TITLE } else { TITLE_INACTIVE },
+            if focused {
+                TITLE_BAR_TEXT
+            } else {
+                TITLE_BAR_TEXT_INACTIVE
+            },
         );
     }
 
@@ -283,7 +310,7 @@ mod frame {
         unsafe_code,
         reason = "DWM colours of the native title bar, which Tauri does not set"
     )]
-    fn set(hwnd: HWND, attribute: DWMWINDOWATTRIBUTE, [r, g, b]: [u8; 3]) {
+    fn set(hwnd: HWND, attribute: DWMWINDOWATTRIBUTE, [r, g, b]: Rgb) {
         let value = COLORREF(u32::from(r) | (u32::from(g) << 8) | (u32::from(b) << 16));
         // SAFETY: `hwnd` is the live main window handed out by Tauri; the pointer and the
         // size describe `value`, a COLORREF on this stack frame that outlives the call.

@@ -116,14 +116,11 @@ export async function invoke<K extends CommandName>(
   }
 }
 
-/**
- * The native menu asks for a view (macOS: "Einstellungen …" with Cmd+, in the app menu,
- * src-tauri/src/platform.rs). Returns an unsubscribe function.
- */
-export function onNavigate(handler: (view: string) => void): () => void {
+/** Subscribes to a Tauri event and returns a synchronous unsubscribe function. */
+function subscribe(start: () => Promise<() => void>): () => void {
   let stop: (() => void) | null = null;
   let cancelled = false;
-  void listen<string>('navigate', (event) => handler(event.payload)).then(
+  void start().then(
     (unlisten) => {
       if (cancelled) unlisten();
       else stop = unlisten;
@@ -134,6 +131,35 @@ export function onNavigate(handler: (view: string) => void): () => void {
     cancelled = true;
     stop?.();
   };
+}
+
+/**
+ * The window has been asked to close while a fetch runs: it stays until the run has stopped
+ * (at most ten seconds, src-tauri/src/main.rs). Returns an unsubscribe function.
+ */
+export function onClosing(handler: () => void): () => void {
+  return subscribe(() => listen('closing', () => handler()));
+}
+
+/**
+ * The OS window gained (true) or lost (false) the focus: Tauri's window events, the moment
+ * the native title bar dims. Returns an unsubscribe function.
+ */
+export function onWindowFocus(handler: (focused: boolean) => void): () => void {
+  const stopFocus = subscribe(() => listen('tauri://focus', () => handler(true)));
+  const stopBlur = subscribe(() => listen('tauri://blur', () => handler(false)));
+  return () => {
+    stopFocus();
+    stopBlur();
+  };
+}
+
+/**
+ * The native menu asks for a view (macOS: "Einstellungen …" with Cmd+, in the app menu,
+ * src-tauri/src/platform.rs). Returns an unsubscribe function.
+ */
+export function onNavigate(handler: (view: string) => void): () => void {
+  return subscribe(() => listen<string>('navigate', (event) => handler(event.payload)));
 }
 
 const REPORT_LIMIT = 10;
