@@ -15,8 +15,11 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
   modules marked `external contract - do not translate` (TXT header, folder names, profile JSON keys, German mail
   patterns, matching lexicon) and the German UI catalog `ui/src/lib/i18n/de.ts`. `core/tests/language.rs` enforces it.
 - The TXT files stay byte-identical (`header_is_exactly_the_contract`, `txt_is_blind_to_the_match`).
-- UI: light mode only, no theme infrastructure. Only left click and hover; keys only inside fields (Tab, Enter, Esc,
-  Ctrl/Cmd+C/V/X/A/Z). All input handling in `ui/src/lib/input/input.ts`.
+- UI: light mode only, no theme infrastructure. It must feel like a native app: buttons and controls react to the left
+  click only; scroll areas also scroll with the middle mouse button (autoscroll where the OS offers it); text a user
+  would want to copy (ad text, job title, company, facts) is selectable and copies with Ctrl/Cmd+C; everything else is
+  not selectable. Keys inside fields: Tab, Enter, Esc, Ctrl/Cmd+C/V/X/A/Z. No browser context menu, no zoom, no
+  reload. All input handling in `ui/src/lib/input/input.ts`.
 - Styling only via tokens in `ui/src/styles/tokens.css`; controls only from `ui/src/components/`; Tauri only via
   `ui/src/lib/ipc/api.ts`; motion only via `ui/src/lib/motion/`. At most one primary button per view. Lint enforces it.
 - UI text (German): little text, only what is needed, plain and human. No AI-style writing: no dashes or
