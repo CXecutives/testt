@@ -1,0 +1,1170 @@
+{
+  "P1.json": {
+    "X01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim HR lead with 'Interessenausgleich und Sozialplan', 'HR-Business-Partner-Modell', SuccessFactors; start 15.10.2026 matches availability",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'Stundensatz: bis 105 €' = 840/day < 1100; 'Mind. 5 Jahre' below 10; EC config consultant, 'Zertifizierung ... zwingend' not held",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim Head of Procurement', HR profile off field",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; '90-110 €/h' = 880/day < 1100",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Vertragsart: Arbeitnehmerüberlassung' (anue excluded); '42 - 48 € pro Stunde'",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 'EUR 70 - 85 per hour' = 680/day < 1100; 'Netherlands (Remote)' outside DE/AT/CH",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Data governance program, HR profile off field",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BI team lead, HR profile off field; no salary rule in profile",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Pharma QA off field; 'Mind. 8 Jahre' below 10 without senior title",
+      "quote": ""
+    },
+    "X11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 'Min. 5 years' below 10, 'Specialist' no senior title",
+      "quote": ""
+    },
+    "X12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CSV in pharma, off field",
+      "quote": ""
+    },
+    "Y01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim Leiter Finanzen', HR profile off field",
+      "quote": ""
+    },
+    "Y02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "S/4 Finance program lead, HR profile off field",
+      "quote": ""
+    },
+    "Y03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 'bis 115,- €/h' = 920/day < 1100",
+      "quote": ""
+    },
+    "Y04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation lead off field; CH allowed, CHF rate partial",
+      "quote": ""
+    },
+    "Y05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI project lead, HR off field; 'ANUE moeglich, aber nicht zwingend' only partial",
+      "quote": ""
+    },
+    "Y06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 'Honorar: 950 € pro Tag' < 1100",
+      "quote": ""
+    },
+    "Y07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS conversion off field; 'mind. 7 Jahre' with 'Projektleiter' title only partial",
+      "quote": ""
+    },
+    "Y08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS conversion off field; 145 €/h x 8 = 1160 ok",
+      "quote": ""
+    },
+    "Y09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Controlling lead, HR profile off field",
+      "quote": ""
+    },
+    "Y10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, HR off field",
+      "quote": ""
+    },
+    "Y11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; '85 €/Std.' = 680/day < 1100",
+      "quote": ""
+    },
+    "Y12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; '7+ years' below 10, 'Manager' no senior title",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Title 'Interim Personalleiter (m/w/d) Werksschließung' is exactly her core (11 interim HR mandates, two site closures, Interessenausgleich/Sozialplan). 'Start: 11/2026' is after 15.10.2026. Thin ad: pay not stated (partial, not open), so nothing blocks a top grade.",
+      "quote": ""
+    }
+  },
+  "P2.json": {
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR head role ('Gesamtverantwortung für den HR-Bereich'), procurement profile off field",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SuccessFactors config off field; 'bis 105 €' = 840/day < 850",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR interim role, off field",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Category management, savings, should-cost, SAP MM/Ariba/Coupa met; gaps 'Fluent English and German', '5 of them in a leadership role'; 1,300/day ok, start 01.11.2026",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S&OP and demand planning fit, but 'SAP IBP Consultant' customizing and 'CPI-DS' missing; 880/day >= 850; 'asap' before 01.11",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Operative buyer far below level; '42 - 48 € pro Stunde' = 384/day < 850",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Power BI dev off field; 680/day < 850",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BI team lead, off field",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA, off field",
+      "quote": ""
+    },
+    "X11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 'On-site in Basel ... no full remote possible', CH outside NL/BE/DE",
+      "quote": ""
+    },
+    "X12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CSV in pharma, off field",
+      "quote": ""
+    },
+    "Y01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance lead, off field",
+      "quote": ""
+    },
+    "Y02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance program, off field",
+      "quote": ""
+    },
+    "Y03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group controlling, off field; 920/day >= 850",
+      "quote": ""
+    },
+    "Y04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; Zürich CH outside NL/BE/DE, 'gelegentlich vor Ort in Zürich' not fully remote",
+      "quote": ""
+    },
+    "Y05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance processes, off field",
+      "quote": ""
+    },
+    "Y06": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Rahmenverträge, Lieferantenmanagement, Warengruppenstrategie, SAP MM, interim met; 'Mehrjährige Führungserfahrung' and German open; 950 >= 850",
+      "quote": ""
+    },
+    "Y07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, off field",
+      "quote": ""
+    },
+    "Y08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, off field",
+      "quote": ""
+    },
+    "Y09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Controlling, off field",
+      "quote": ""
+    },
+    "Y10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role, off field",
+      "quote": ""
+    },
+    "Y11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 680/day < 850",
+      "quote": ""
+    },
+    "Y12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance transformation, off field",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Adjacent: chemicals industry, supplier master data, S/4 migration context, Power BI and project management 8y. But 'Data Governance und Master Data Management' and 'SAP MDG' musts are open. Several musts open, not fully off field. Rate 1.000-1.150 >= 850.",
+      "quote": ""
+    }
+  },
+  "P3.json": {
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR interim role, no BI content",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP SuccessFactors EC configuration, not BI",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR interim role, off field",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement leadership, off field",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP IBP planning consultant, not BI",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operative purchasing, off field",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'4+ years ... Power BI', 'DAX and data modelling', 'Azure Synapse', Git, Power Query all in profile; Dutch plus missing",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Power BI and SQL met, but 'Leitung von Daten- oder BI-Programmen', 'Data Governance und Master Data Management', 'SAP MDG' not in profile",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Power BI und SQL', DWH, 'dbt ist ein Plus' met; 'Erste Führungserfahrung' not evidenced; permanent role",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA, off field",
+      "quote": ""
+    },
+    "X11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Regulatory CMC, off field",
+      "quote": ""
+    },
+    "X12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CSV validation, off field",
+      "quote": ""
+    },
+    "Y01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance lead, off field",
+      "quote": ""
+    },
+    "Y02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance program, off field",
+      "quote": ""
+    },
+    "Y03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group controller; only 'Reporting in Power BI' overlaps",
+      "quote": ""
+    },
+    "Y04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation, off field",
+      "quote": ""
+    },
+    "Y05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance processes, off field",
+      "quote": ""
+    },
+    "Y06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement, off field",
+      "quote": ""
+    },
+    "Y07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, off field",
+      "quote": ""
+    },
+    "Y08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, off field",
+      "quote": ""
+    },
+    "Y09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Controlling, off field",
+      "quote": ""
+    },
+    "Y10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role, off field",
+      "quote": ""
+    },
+    "Y11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bookkeeping lead, off field",
+      "quote": ""
+    },
+    "Y12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance transformation, off field",
+      "quote": ""
+    }
+  },
+  "P4.json": {
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR interim role, pharma QA profile off field",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 'bis 105 €' = 840/day < 1050",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR interim role, off field",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement leadership, off field",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 880/day < 1050",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerüberlassung' excluded; off field",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 680/day < 1050; NL outside DE/CH",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Off field",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Permanent, 'Jahresgehalt zwischen 85.000 und 98.000 €' < 135000; Oldenburg outside locations with only 'Bis zu 2 Tage mobiles Arbeiten'",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Sterile CDMO, 'Annex 1', CAPA, 'Behördeninspektionen und Remediation', ICH Q9/Q10, interim all met; 'Mind. 8 Jahre' meets 8",
+      "quote": ""
+    },
+    "X11": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "RA 8y, 'eCTD Module 3' met, biologics gap; but 'Min. 5 years' below 8 with 'Specialist' title; CHF rate and 'via our staffing partner' partial",
+      "quote": ""
+    },
+    "X12": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Computersystemvalidierung (CSV) GxP' matches Validierung incl. CSV 12y and SAP QM; ad truncated, no rate",
+      "quote": ""
+    },
+    "Y01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance lead, off field",
+      "quote": ""
+    },
+    "Y02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance program, off field",
+      "quote": ""
+    },
+    "Y03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 920/day < 1050",
+      "quote": ""
+    },
+    "Y04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation, off field; CH allowed",
+      "quote": ""
+    },
+    "Y05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Off field; ANÜ optional only",
+      "quote": ""
+    },
+    "Y06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 950/day < 1050",
+      "quote": ""
+    },
+    "Y07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, off field",
+      "quote": ""
+    },
+    "Y08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, off field",
+      "quote": ""
+    },
+    "Y09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Off field; salary/location not a clear exclusion since 'offen für einen Einstieg als Interim Manager'",
+      "quote": ""
+    },
+    "Y10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role, off field",
+      "quote": ""
+    },
+    "Y11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 680/day < 1050",
+      "quote": ""
+    },
+    "Y12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; '7+ years' below 8 without senior title",
+      "quote": ""
+    }
+  },
+  "sample_profile.json": {
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim Head of HR / Personalleitung', finance profile off field despite restructuring overlap",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 840/day < 1000",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim Personalleiter', finance profile off field",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement head, finance profile off field",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 880/day < 1000",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerüberlassung' excluded; off field",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 680/day < 1000",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BI team lead, off field",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA, off field",
+      "quote": ""
+    },
+    "X11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Regulatory CMC off field; CH allowed, CHF rate only partial",
+      "quote": ""
+    },
+    "X12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CSV validation, off field",
+      "quote": ""
+    },
+    "Y01": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Interimslösung in der kaufmännischen Leitung' fits interim finance; thin ad, agency, no details",
+      "quote": ""
+    },
+    "Y02": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Finance 18y, Konsolidierung, PM 15y, SSC met; 'mind. zwei SAP-S/4HANA-Finance-Einführungen' as lead and HGB group focus not evidenced",
+      "quote": ""
+    },
+    "Y03": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Controlling, IFRS, S/4 FI/CO, Power BI met, English B2 vs 'ausschließlich auf Englisch'; 'bis 115,- €/h' = 920/day < 1000",
+      "quote": ""
+    },
+    "Y04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Konsolidierung 11y, IFRS 14y, LucaNet as comparable tool; 'IFRS-Umstellung (IFRS 1) zwingend' not evidenced; CHF 1'350 partial",
+      "quote": ""
+    },
+    "Y06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 950/day < 1000",
+      "quote": ""
+    },
+    "Y07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "IFRS 14y, Konsolidierung 11y, 'LucaNet-Kenntnisse', PM 15y met; 1.150/day ok",
+      "quote": ""
+    },
+    "Y08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Konzernabschluss IFRS, Konsolidierung, 'Kenntnisse in Lucanet', finance project lead met; 1160/day ok",
+      "quote": ""
+    },
+    "Y09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Controlling 18y, Budget/Forecast, SAP CO met; permanent with interim option; leadership not evidenced",
+      "quote": ""
+    },
+    "Y10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Interim, Liquiditätsplanung, Controlling met; 'Erfahrung als CFO' and 'Englisch verhandlungssicher' (B2) open",
+      "quote": ""
+    },
+    "Y12": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Business Transformation, S/4, SAP FI/CO, PM, IFRS, Konsumgüter, PMI met; EUR 950-1,100 upper end ok",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Program lead with Projektmanagement 15y, Changemanagement, Power BI and Chemie as overlap. Data Governance/MDM and SAP MDG musts are open. Several musts open, so marginal but not zero. Rate upper 1.150 >= 1000.",
+      "quote": ""
+    },
+    "Y05": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Harmonisierung der Finanzprozesse' matches Prozessoptimierung im Finanzbereich 9y. 'Projekt Management von Finanzprojekten' matches Projektmanagement 15y. 'SAP FI, idealerweise SAP S/4 HANA' is in the tools. Abschlüsse cover Rechnungswesen, and Konsumgüter is met. '1.100 - 1.250 EUR' >= 1000. 'ANUE moeglich, aber nicht zwingend' is only a partial contract row.",
+      "quote": ""
+    },
+    "Y11": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "'Monatsabschlüsse und Vorbereitung der Jahresabschlüsse nach HGB' match Monats-/Jahresabschlüsse 16y. 'Bilanzbuchhalter (IHK) oder vergleichbare Qualifikation' is met via Diplom-Kauffrau plus experience. Only 'Sehr gute DATEV-Kenntnisse' is open (one must open, so 5-6). Excluded: '85 €/Std.' x8 = 680 < 1000.",
+      "quote": ""
+    }
+  },
+  "sample_profile_it.json": {
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR line role, SAP project lead off field",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, off field",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Line procurement leadership; only 'Support the rollout of SAP S/4HANA MM' touches profile",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "IBP consultant, not SD/MM PM; 880/day < 950",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerüberlassung' excluded; 384/day < 950",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 680/day < 950; NL outside DE/AT, remote outside not allowed",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Projektmanagement 15y, Stammdatenmanagement 7y, S/4 migration context; Data Governance/Power BI gaps; 1.150/day >= 950, start 02.11 ok",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BI team lead, off field",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA, off field",
+      "quote": ""
+    },
+    "X11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; on-site Basel, CH outside DE/AT",
+      "quote": ""
+    },
+    "X12": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'SAP S/4HANA-Rollout' and pharma industry fit, but 'CSV-Experten' role not in profile",
+      "quote": ""
+    },
+    "Y01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance line lead, off field",
+      "quote": ""
+    },
+    "Y02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP PL and program mgmt, PMP met; 'mind. 10 Jahre ... Finanz- und Rechnungswesen' and HGB consolidation missing",
+      "quote": ""
+    },
+    "Y03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 920/day < 950",
+      "quote": ""
+    },
+    "Y04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; Zürich CH outside DE/AT, remote outside not allowed",
+      "quote": ""
+    },
+    "Y05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP PL fits, but 'sehr gute Kentnisse in SAP FI' and accounting background missing",
+      "quote": ""
+    },
+    "Y07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting, off field",
+      "quote": ""
+    },
+    "Y08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting, off field",
+      "quote": ""
+    },
+    "Y09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Controlling, off field",
+      "quote": ""
+    },
+    "Y10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role, off field",
+      "quote": ""
+    },
+    "Y11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 680/day < 950",
+      "quote": ""
+    },
+    "Y12": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 rollout, P2P, cutover, PMP fit; '7+ years ... finance, controlling or accounting' and FI/CO missing",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Specialist SuccessFactors EC configuration role ('Mind. 5 Jahre Erfahrung in SAP SuccessFactors EC-Projekten'). An SAP SD/MM project lead is off field, and the generic migration, test and Jira overlap does not carry. Excluded: 'bis 105 €' x8 = 840 < tagessatz_ab 950, and the mandatory EC certification is missing.",
+      "quote": ""
+    },
+    "Y06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "The must 'Sehr gute Kenntnise in SAP MM' is met (SAP MM 8y), and P2P and project management overlap. But 'Mehrjährige Führungserfahrung im Einkauf', negotiation and interim mandates are open. Marginal fit. '950 € pro Tag' = 950, ok.",
+      "quote": ""
+    }
+  },
+  "sample_profile_sap.json": {
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR line role, SAP FI/CO off field",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, off field",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement head, off field",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Not FI/CO; 880/day < 950",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerüberlassung' excluded; off field",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 680/day < 950; NL outside list",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Datenmigration and S/4 context, but program lead for 'Data Governance' and MDM not in profile",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BI team lead off field; 98.000 >= 95000",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA, off field",
+      "quote": ""
+    },
+    "X11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Regulatory CMC off field; 5 years meets 5",
+      "quote": ""
+    },
+    "Y01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Commercial leadership, SAP consultant off field",
+      "quote": ""
+    },
+    "Y02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 Finance projects and Group Reporting met, but 'Gesamtprojektleitung', 'leitender Funktion' and HGB Konzernrechnungslegung missing",
+      "quote": ""
+    },
+    "Y03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "SAP FI/CO overlap but group controlling role; 920/day < 950",
+      "quote": ""
+    },
+    "Y04": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Group Reporting 4y only; consolidation lead and IFRS conversion missing",
+      "quote": ""
+    },
+    "Y05": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "SAP FI GL/AP/AR/AA, S/4, tests met; 'Projekt Management von Finanzprojekten' partial; ANÜ optional",
+      "quote": ""
+    },
+    "Y06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement, off field",
+      "quote": ""
+    },
+    "Y09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'Sehr gute SAP CO Kenntnisse' met, but controlling line leadership missing; 100.000 >= 95000",
+      "quote": ""
+    },
+    "Y10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role, off field; 'SAP? Nicht nötig'",
+      "quote": ""
+    },
+    "Y12": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'S/4HANA finance implementation (FI/CO)', migration, testing met; 'Strong project management skills' partial; 1,100 >= 950",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR module (EC) configuration, while the profile is FI/CO only. Off field. Excluded: 840/day < 950, and 'Zertifizierung SAP SuccessFactors Employee Central zwingend' is not met.",
+      "quote": ""
+    },
+    "X12": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "The core CSV/GxP validation expertise is missing, so the must is open. S/4HANA rollout (Rollout 8y), Testmanagement 6y and Pharma industry overlap make it marginal rather than off field. Thin, truncated ad.",
+      "quote": ""
+    },
+    "Y07": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Finance-adjacent SAP consultant (SAP Group Reporting 4y, Abschlussunterstützung 10y). But 'Konzernabschlusserfahrung nach HGB und IFRS (mind. 7 Jahre)', project leadership and 'LucaNet-Kenntnisse' are open. Several musts open, same domain, so 1 rather than 0.",
+      "quote": ""
+    },
+    "Y08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'Lucanet oder einem vergleichbaren Konsolidierungs Tool' is met through SAP Group Reporting 4y. Group accounts under HGB/IFRS and finance project leadership are open. Several musts open, so marginal. 145 €/Std. x8 = 1160 >= 950.",
+      "quote": ""
+    },
+    "Y11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Operational bookkeeping lead with 'Keine SAP-Kenntnisse erforderlich, wir arbeiten ausschließlich mit DATEV'. The profile is entirely SAP FI/CO consulting, so it is off field. DATEV and team leadership are open. Excluded: 680/day < 950.",
+      "quote": ""
+    }
+  },
+  "sample_profile_senior.json": {
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR leadership ('Personalleitung'), CFO profile off field",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 840/day < 1000",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, off field",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement head, CFO profile off field",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 880/day < 1000",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerüberlassung' excluded; off field",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 680/day < 1000",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Data governance program, off field",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Unbefristeter Arbeitsvertrag', 98.000 € < 150000; Oldenburg not in Munich region, 'Bis zu 2 Tage mobiles Arbeiten'",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 'Mind. 8 Jahre' below 10 without senior title",
+      "quote": ""
+    },
+    "X11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 'Min. 5 years' below 10 without senior title",
+      "quote": ""
+    },
+    "X12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CSV validation, off field",
+      "quote": ""
+    },
+    "Y01": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Interim Leiter Finanzen' is core field; thin ad, 'alle weiteren Details ... im Telefonat'",
+      "quote": ""
+    },
+    "Y02": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "HGB/Konsolidierung 20y, Programmmanagement, PRINCE2, SSC met; two S/4 Finance lead implementations not evidenced",
+      "quote": ""
+    },
+    "Y03": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Controlling/IFRS fit, overqualified; 920/day < 1000; '5+ years' below 10 without senior title",
+      "quote": ""
+    },
+    "Y04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Konsolidierung 20y, IFRS 22y, team leadership met; IFRS 1 conversion 'zwingend' not evidenced; CHF rate partial",
+      "quote": ""
+    },
+    "Y06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Off field; 950/day < 1000",
+      "quote": ""
+    },
+    "Y07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "IFRS 22y, HGB 28y, LucaNet, WP background ('Big4 von Vorteil') met; 'mind. 7 Jahre' with Projektleiter only overqualified",
+      "quote": ""
+    },
+    "Y08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "HGB and IFRS group accounts, LucaNet, 'Erfahrung aus der Wirtschaftsprüfung' met; 1160/day ok",
+      "quote": ""
+    },
+    "Y09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Controlling, Kostenrechnung, team leadership met, overqualified; 100.000 € < 150000 but interim option open, so not clear",
+      "quote": ""
+    },
+    "Y10": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim CFO', Treasury, Liquiditätsplanung, Due Diligence, finance team lead, PE environment met; 1.300/day",
+      "quote": ""
+    },
+    "Y11": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "HGB fit but far below level, 'Kein Projektmanagement'; 680/day < 1000",
+      "quote": ""
+    },
+    "Y12": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Finanztransformation, S/4, PRINCE2 fit, overqualified; '7+ years' below 10 with 'Manager' title excludes by rubric",
+      "quote": ""
+    },
+    "Y05": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Content fits: Prozessoptimierung Finanzbereich 18y, Projektmanagement 25y, SAP FI/CO. An interim CFO is overqualified for 'Leitung des Teilprojekts Finanzen' (rubric: overqualified = 7-8). Rate ok, ANÜ only optional.",
+      "quote": ""
+    }
+  }
+}

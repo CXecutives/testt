@@ -1,0 +1,1162 @@
+{
+  "sample_profile_it.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO carve-out, finance leadership, off the SAP project lead field",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS group reporting lead, off field",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance PMI with IFRS/PPA focus, off field",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury manager, off field",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CRO restructuring, off field; 'ab sofort' before availability only partial",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Consolidation role off field; '95 EUR pro Stunde' = 760/day below 950",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of Controlling, off field",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 migration fits, but 'SAP FI/CO Customizing' is not his SD/MM focus; 950 EUR meets minimum",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Kaufmaennischer Leiter, off field",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Zug, Switzerland (On-site)' outside DE/AT",
+      "quote": ""
+    },
+    "A11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury transformation, off field",
+      "quote": ""
+    },
+    "A12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting lead, off field",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 introduction, MM/SD integration, cutover fit, but core is 'Konzeption und Umsetzung in FI und CO'",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BW developer, not project lead",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Vertragsart: Payrolling'; 92 EUR/h below 950/day",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'must be tax resident in Romania'; 42 EUR/h",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BI consultant, off field",
+      "quote": ""
+    },
+    "B11": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'Vertragsart: Arbeitnehmerueberlassung'; 64 EUR/h",
+      "quote": ""
+    },
+    "B12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'based in the UK' outside DE/AT",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior controller, off field",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Performance marketing, off field",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ABAP developer, off field",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'55 EUR pro Stunde' below 950/day",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'On site in Warsaw' outside DE/AT",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'On site in Pune, India'",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Fully on site ... Chicago'",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance support, no details",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Werkstudent'",
+      "quote": ""
+    },
+    "C11": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP project lead fits, but 'SAP SuccessFactors und SAP HCM' must not in profile",
+      "quote": ""
+    },
+    "C12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Software sales, off field",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting, off field",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group closing project, off field",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group closing project, off field",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, off field",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'110 EUR/h' = 880/day below 950",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 programme and P2P, but '10+ years in finance' business lead",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95-105 EUR/Std.' below 950/day",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 programme, but 'Extensive finance background ... 10 years'",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Einsatzort: Zuerich (Schweiz)', four days on site, outside DE/AT",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role",
+      "quote": ""
+    },
+    "D11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of accounting, off field",
+      "quote": ""
+    },
+    "D12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of accounting carve-out, off field",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "SAP PM; ANUE; 68 EUR/h",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "S/4 PMO lead fits; daily rate 620 EUR; Hungary",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Content core; 115 EUR pro Stunde",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Datenmigration fit; Zuerich CH not in DE/AT",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Thin ad but core: SAP template rollout, Handel, Logistik, Projektleitung auf Zeit",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "off field",
+      "quote": ""
+    }
+  },
+  "sample_profile_senior.json": {
+    "A01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim CFO ... Carve-out', IFRS/HGB, Treasury, M&A all in profile; 1.400-1.600 EUR above minimum",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "IFRS consolidation 22y, LucaNet, team lead; 'At least 8 years' with Head title only overqualified",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "PMI 12y, IFRS 22y, M&A/Due Diligence, board communication; 1.300 EUR ok",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Treasury/Cash Management and Liquiditaetsplanung in profile; thin teaser",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Restrukturierung/Sanierung 15y, certified, Automobilzulieferer, Interim CFO; 1.800 EUR",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Tagessatz: 950 EUR' below 1.000; 'Mindestens 5 Jahre' consultant role below 10-year target",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Former kaufm. Geschaeftsfuehrerin, Maschinenbau, HGB, Finanzierung/Banken",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Interim finance leadership during ERP transition fits; thin teaser",
+      "quote": ""
+    },
+    "A11": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Treasury/Cash Management 15y and finance transformation; TMS and 'hedge accounting under IFRS 9' open",
+      "quote": ""
+    },
+    "A12": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Thin teaser; Konzernrechnungswesen fits profile",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Mindestens fuenf Jahre' consultant role, below 10-year target without senior title",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Vertragsart: Arbeitnehmerueberlassung'",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'daily rate 620 EUR' below 1.000",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BW developer, off field",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Permanent full-time position' in Zuerich with 3 on-site days, outside Munich region",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP rollout lead, off field",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Hourly rate 42 EUR' far below minimum",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Controlling background and Power BI, but technical BI role",
+      "quote": ""
+    },
+    "B11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerueberlassung'",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Einstiegsgehalt zwischen 48.000 und 54.000' below 150.000; Hamburg",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'EUR 75,000 to 90,000' below 150.000; Berlin office days",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Mindestens 5 Jahre' developer role below 10-year target, no senior title",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'maximal 440 EUR pro Tag' below 1.000",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Finance project support, no details",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Werkstudent', 20 hours",
+      "quote": ""
+    },
+    "C11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR-IT project, off field",
+      "quote": ""
+    },
+    "C12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales role off field; OTE 190k and Muenchen meet frame",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Konzernrechnungslegung HGB/IFRS 22y, PM; ANUE only optional",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Konzernabschluss HGB/IFRS project lead; ANUE optional",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Finanztransformation 15y, Handel, C-level; freelance",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Finanztransformation, Handel, C-level; 1.150 EUR",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role",
+      "quote": ""
+    },
+    "D12": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Carve-out 10y, HGB/IFRS, Private-Equity portfolio experience; up to 1.300 EUR",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "support role; 95 EUR pro Stunde",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "120-140k below 150000, Berlin 2 remote days",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "IT programme; 115 EUR pro Stunde",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "CO-PC; Payrolling",
+      "quote": ""
+    },
+    "B12": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "based in the UK",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Content core; On site in Warsaw",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "On site in Pune",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Chicago",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Core; late start",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "IFRS consolidation, PPA, LucaNet",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Thin ad but Interim CFO Maschinenbau",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "110 EUR/h",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "95-105 EUR/Std",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "IFRS/consolidation fit, CHF rate",
+      "quote": ""
+    },
+    "D11": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Festanstellung 95-110k below 150000, Nuernberg 10 % remote",
+      "quote": ""
+    }
+  },
+  "sample_profile_sap.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role, not SAP FI/CO consulting",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP Group Reporting as tool option, but role is IFRS group reporting leadership",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "PMI finance project lead with IFRS 3, not SAP FI/CO",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury role, not SAP FI/CO",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Restructuring officer, off field",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'SAP FI/CO Customizing', S/4 migration, Asset Accounting, Group Reporting, Handel all in profile; 950 EUR = minimum",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role, off field",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance director role, off field",
+      "quote": ""
+    },
+    "A11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury consultant, SAP TRM not in profile",
+      "quote": ""
+    },
+    "A12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting leadership, not SAP consulting",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "FI-GL/AP/AR/AA, CO-PA, customizing, MM/SD integration all in profile; 'bis 1.050 EUR'",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerueberlassung'; SAP PM not in profile; 68 EUR/h",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'daily rate 620 EUR'; Hungarian entity, remote outside DE/AT/CH not allowed",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BW data modelling, not FI/CO",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Datenmigration and S/4 partly fit; Migration Cockpit/SQL lead role; CHF salary to check",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Rollout with Finance focus partly fits; project lead role, thin",
+      "quote": ""
+    },
+    "B11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerueberlassung'",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Einstiegsgehalt ... 54.000' below 95.000",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'EUR 75,000 to 90,000' below 95.000",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 Group Reporting/FI-CO context, but 'ABAP Entwicklung', CDS, RAP are must and not in profile",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'maximal 440 EUR pro Tag' below 950",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'On site in Pune, India' outside allowed countries",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Fully on site ... Chicago'",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "No details, no SAP",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Werkstudent'",
+      "quote": ""
+    },
+    "C11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP HR, not FI/CO",
+      "quote": ""
+    },
+    "C12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Software sales, off field",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP Group Reporting plus, but role is IFRS group accounting",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Consolidation HGB/IFRS lead, only indirect SAP fit",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Consolidation project lead, not SAP FI/CO",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO, off field",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'110 EUR/h' = 880/day below 950",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Finance processes in S/4, but transformation lead role",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95-105 EUR/Std.' below 950/day",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "R2R processes in S/4, but business transformation lead",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP Group Reporting helps, but IFRS 16/Konzernrechnungslegung expert role",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role",
+      "quote": ""
+    },
+    "D11": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP FI and S/4 migration prep, but permanent head of accounting; 110k ok",
+      "quote": ""
+    },
+    "D12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting leadership, not SAP consulting",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "LucaNet not SAP; 95 EUR pro Stunde",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Line Head of Controlling",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Programme leadership; 115 EUR pro Stunde",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Content core; Payrolling and 92 EUR/h",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "AMS; fully remote from Romania; 42 EUR/h",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAC/Power BI dev musts open",
+      "quote": ""
+    },
+    "B12": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Central Finance fit; based in the UK",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "On site in Warsaw",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Group Reporting system part",
+      "quote": ""
+    }
+  },
+  "sample_profile.json": {
+    "A02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'group consolidation ... IFRS consolidated financial statements', LucaNet named; interim freelance option",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "PMI Finance, IFRS, Konzernreporting fit; 'Kaufpreisallokation nach IFRS 3' open; 1.300 EUR ok",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Restrukturierung, Liquiditaetsplanung, WCM, Automotive fit; 'Erfahrung als CRO oder Interim CFO' only partial",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI/CO customizing consultant, off field; 'Tagessatz: 950 EUR' below 1.000",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Interim, Maschinenbau, HGB Abschluesse, Liquiditaetsplanung fit; 'Erfahrung als kaufmaennischer Leiter oder CFO' and Steuerrecht open",
+      "quote": ""
+    },
+    "A11": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'cash pooling ... in-house banking' treasury specialist, not core controlling",
+      "quote": ""
+    },
+    "A12": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Thin teaser 'Interim Leitung Konzernrechnungswesen' matches consolidation/IFRS",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO customizing consultant, off field",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Vertragsart: Arbeitnehmerueberlassung'",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'daily rate 620 EUR' below 1.000",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'115 EUR pro Stunde' = 920/day below 1.000; IT programme off field",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "BW/4HANA developer, off field",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP data migration lead, off field (permanent)",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP template rollout project lead, off field",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Hourly rate 42 EUR' far below 1.000/day",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Power BI, Budgetierung/Forecast understanding, but 'SAC Planning ... DAX' BI developer role",
+      "quote": ""
+    },
+    "B11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerueberlassung ... Equal Pay'",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Junior Controller', permanent entry role",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Performance marketing, off field",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ABAP developer, off field",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'maximal 440 EUR pro Tag' below 1.000",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'Projektunterstuetzung Finance', 'Weitere Details auf Anfrage', no evidence",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Werkstudent', student job",
+      "quote": ""
+    },
+    "C11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR transformation SuccessFactors, off field",
+      "quote": ""
+    },
+    "C12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Senior Sales Executive', software sales",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'consolidated financial statements under IFRS', LucaNet, S/4; 1.050-1.250 EUR",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Konzernabschluss HGB/IFRS, LucaNet, Projektleitung; 'Freiberuflich, ANUE optional' only partial; upper 1.100 ok",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Same project as D02; 'Freiberuflich, ANUE optional', 900-1100 upper end ok",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Thin teaser 'Interim CFO' in Maschinenbau",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Finance transformation, controlling 18y, change management, S/4; rate not stated",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'95-105 EUR/Std.' = max 840/day below 1.000",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Finance transformation lead S/4, controlling 10y+; 'Tagessatz: 1,150 EUR'",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "IFRS Konzernreporting fits, IFRS 16 not explicit; CHF 1400, 'Personalverleih' only option",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim HR Business Partner', off field",
+      "quote": ""
+    },
+    "D11": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "HGB Abschluesse, SAP FI, Automotive fit; 'Vertragsart: Festanstellung', interim only 'denkbar'",
+      "quote": ""
+    },
+    "A01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Core fit",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Thin ad; Liquiditaetsplanung und Cash Management",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Content core; 95 EUR pro Stunde",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Controlling fit, medtech open, permanent",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Thin ad; Interim Finance Director DACH",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "SAP CO-PC; Payrolling",
+      "quote": ""
+    },
+    "B12": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "based in the UK",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Content core; On site in Warsaw",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "On site in Pune",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Chicago",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Core; start 01.04.2027 availability gap",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "110 EUR/h",
+      "quote": ""
+    },
+    "D12": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Carve-out fit; PE lender reporting open",
+      "quote": ""
+    }
+  }
+}

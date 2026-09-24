@@ -21,6 +21,9 @@ const ALLOWLIST_PATHS: &[&str] = &[
     "docs/PLAN.md",
     "docs/MATCHING.md",
     "ui/src/lib/i18n/de.ts",
+    // The German scoring rubric of the Claude check and the skill (the same text twice).
+    "core/src/export/ai_rubric.de.md",
+    "tools/job-matching-skill/rubric.de.md",
     // Real or invented German mail/page/profile data, and recorded output.
     "core/tests/fixtures/",
     "core/tests/snapshots/",

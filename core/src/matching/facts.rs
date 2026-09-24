@@ -58,7 +58,7 @@ fn criterion<'a>(data: &'a Value, keys: &[&'static str]) -> Option<(&'static str
 }
 
 /// A whole number from a JSON number or a string (`150000`, `150.000`, `150k`, `60 %`).
-fn number(value: &Value) -> Option<u64> {
+pub(crate) fn number(value: &Value) -> Option<u64> {
     if let Some(n) = value.as_u64() {
         return Some(n);
     }
@@ -79,22 +79,120 @@ fn number(value: &Value) -> Option<u64> {
     };
     let digits: String = digits
         .chars()
-        .filter(|c| !matches!(c, '.' | ',' | ' '))
+        .filter(|c| !matches!(c, '.' | ',' | ' ' | '\''))
         .collect();
-    digits.parse::<u64>().ok().map(|n| n * factor)
+    digits.parse::<u64>().ok()?.checked_mul(factor)
+}
+
+/// Countries of a criteria value: a list, or one text (`DE` or `DE, AT`).
+fn countries_of(value: &Value) -> Option<Vec<String>> {
+    let list: Vec<String> = match value {
+        Value::Array(items) => items
+            .iter()
+            .map(|v| v.as_str().map(|s| s.trim().to_uppercase()))
+            .collect::<Option<Vec<String>>>()?,
+        Value::String(text) => text
+            .split([',', ';', '/'])
+            .map(|s| s.trim().to_uppercase())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        _ => return None,
+    };
+    (!list.is_empty() && list.iter().all(|c| c.len() == 2)).then_some(list)
+}
+
+/// Does a criteria value exclude temporary agency work (a list or a text naming ANÜ)?
+fn excludes_anue(value: &Value) -> Option<bool> {
+    let texts: Vec<String> = match value {
+        Value::Array(items) => items.iter().filter_map(Value::as_str).map(fold).collect(),
+        Value::String(text) => vec![fold(text)],
+        _ => return None,
+    };
+    Some(texts.iter().any(|t| {
+        t.trim() == lexicon::CONTRACT_ANUE
+            || lex::ANUE_PARTS.iter().any(|p| t.contains(p))
+            || contains_word(t, "anu")
+    }))
+}
+
+/// A yes or no of a criteria value (`true`, `"ja"`, `"yes"`).
+fn yes_no(value: &Value) -> Option<bool> {
+    match value {
+        Value::Bool(b) => Some(*b),
+        Value::String(text) => match fold(text).trim() {
+            "ja" | "yes" | "true" => Some(true),
+            "nein" | "no" | "false" => Some(false),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 impl HardCriteria {
     pub(crate) fn new(legacy: &Criteria, data: &Value) -> Self {
+        let mut not_understood = Vec::new();
         let available = match availability_text(data) {
             None => Availability::Unset,
             Some(text) => match parse_start(text) {
                 Some(Start::Date(from)) => Availability::From(from),
-                _ if fold(text).contains(lex::NOW_WORD) => Availability::Now,
+                _ if fold(text).contains(lex::NOW_WORD) || fold(text).contains("now") => {
+                    Availability::Now
+                }
                 _ => Availability::Unset,
             },
         };
-        let mut not_understood = Vec::new();
+        // The old keys also under `hard_criteria`, with their English names and values of
+        // another type. The minimum rate, else (also for a minimum of 0) the old fallback
+        // `einsatzpraeferenzen.tagessatz_ab`.
+        let fallback = || {
+            lexicon::KEY_PREFERENCES_ALIASES
+                .iter()
+                .find_map(|s| data.get(*s)?.get(lexicon::KEY_RATE_FROM))
+                .and_then(number)
+                .filter(|n| *n > 0)
+                .map(i128::from)
+        };
+        let min_rate = match criterion(data, lexicon::KEYS_MIN_RATE) {
+            None => legacy.min_day_rate.filter(|m| *m > 0).or_else(fallback),
+            Some((key, value)) => match number(value) {
+                Some(n) if n > 0 => Some(i128::from(n)),
+                Some(_) => fallback(),
+                None => {
+                    if value.as_str().is_none_or(|s| !s.trim().is_empty()) {
+                        not_understood.push((key, value.to_string()));
+                    }
+                    fallback()
+                }
+            },
+        };
+        let countries = legacy
+            .countries
+            .clone()
+            .filter(|c| !c.is_empty())
+            .or_else(|| {
+                let (key, value) = criterion(data, lexicon::KEYS_COUNTRIES)?;
+                let list = countries_of(value);
+                if list.is_none() {
+                    not_understood.push((key, value.to_string()));
+                }
+                list
+            });
+        let anue_excluded = legacy.anue_excluded == Some(true)
+            || criterion(data, lexicon::KEYS_EXCLUDED_CONTRACTS).is_some_and(|(key, value)| {
+                let excluded = excludes_anue(value);
+                if excluded.is_none() {
+                    not_understood.push((key, value.to_string()));
+                }
+                excluded == Some(true)
+            });
+        let remote_outside = legacy.remote_outside_allowed.or_else(|| {
+            let (key, value) = criterion(data, lexicon::KEYS_REMOTE_OUTSIDE)?;
+            let allowed = yes_no(value);
+            if allowed.is_none() {
+                not_understood.push((key, value.to_string()));
+            }
+            allowed
+        });
         let mut read = |keys: &[&'static str]| {
             let (key, value) = criterion(data, keys)?;
             let n = number(value).filter(|n| *n > 0);
@@ -124,10 +222,10 @@ impl HardCriteria {
             }
         });
         Self {
-            min_rate: legacy.min_day_rate.filter(|m| *m > 0),
-            countries: legacy.countries.clone().filter(|c| !c.is_empty()),
-            remote_outside: legacy.remote_outside_allowed,
-            anue_excluded: legacy.anue_excluded == Some(true),
+            min_rate,
+            countries,
+            remote_outside,
+            anue_excluded,
             available,
             min_salary,
             places,
@@ -138,11 +236,33 @@ impl HardCriteria {
     }
 }
 
-/// The profile's availability text (hard criteria first, then preferences).
-pub(crate) fn availability_text(data: &Value) -> Option<&str> {
-    [lexicon::KEY_CRITERIA, lexicon::KEY_PREFERENCES]
+/// Keys of the criteria sections the engine does not read (a typo, an unknown rule).
+pub(crate) fn ignored_criteria_keys(data: &Value) -> Vec<String> {
+    lexicon::KEY_CRITERIA_ALIASES
         .iter()
-        .filter_map(|section| data.get(*section)?.get(lexicon::KEY_AVAILABLE)?.as_str())
+        .filter_map(|section| data.get(*section)?.as_object())
+        .flat_map(|map| map.keys())
+        .filter(|key| {
+            !lexicon::KEYS_ALL_CRITERIA
+                .iter()
+                .any(|keys| keys.contains(&key.as_str()))
+        })
+        .cloned()
+        .collect()
+}
+
+/// The profile's availability text (hard criteria first, then preferences; German keys
+/// and sections first, English after).
+pub(crate) fn availability_text(data: &Value) -> Option<&str> {
+    lexicon::KEY_CRITERIA_ALIASES
+        .iter()
+        .chain(lexicon::KEY_PREFERENCES_ALIASES)
+        .flat_map(|section| {
+            lexicon::KEYS_AVAILABLE
+                .iter()
+                .map(move |key| (section, key))
+        })
+        .filter_map(|(section, key)| data.get(*section)?.get(*key)?.as_str())
         .find(|s| !s.trim().is_empty())
 }
 
@@ -322,7 +442,9 @@ pub(crate) fn anue(job: &JobFacts<'_>, segments: &[Segment]) -> Vec<Finding> {
         }
     }
     let spans = |v: Vec<Range<usize>>| v.into_iter().filter(|r| !r.is_empty()).collect();
-    if !decided.is_empty() {
+    // An ad that offers ANÜ as one option somewhere is optional, even where another
+    // sentence names it plainly (`bei ANÜ entsprechender Stundenlohn`).
+    if !decided.is_empty() && option.is_empty() {
         vec![Finding::new(
             ReasonCode::Anue,
             true,
@@ -331,6 +453,7 @@ pub(crate) fn anue(job: &JobFacts<'_>, segments: &[Segment]) -> Vec<Finding> {
             spans(decided),
         )]
     } else if !option.is_empty() {
+        option.extend(decided);
         vec![Finding::new(
             ReasonCode::AnueOptional,
             false,
@@ -364,7 +487,7 @@ fn countries_in(folded: &str) -> Vec<&'static str> {
     found
 }
 
-fn location_countries(location: &str) -> Vec<&'static str> {
+pub(crate) fn location_countries(location: &str) -> Vec<&'static str> {
     let folded = fold(location);
     let named = countries_in(&folded);
     if !named.is_empty() {
@@ -475,10 +598,39 @@ fn country(
 }
 
 /// A rate statement: highest amount, hourly or daily, EUR or not.
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct Rate {
-    upper: u64,
-    hourly: bool,
-    currency: Option<&'static str>,
+    pub upper: u64,
+    pub hourly: bool,
+    pub currency: Option<&'static str>,
+}
+
+impl Rate {
+    /// The rate per day (an hourly rate times eight); absurd digit runs saturate.
+    pub(crate) fn per_day(&self) -> u64 {
+        if self.hourly {
+            self.upper.saturating_mul(HOURS_PER_DAY)
+        } else {
+            self.upper
+        }
+    }
+}
+
+/// The rate the ad states: the page facts first, then the first sentence with a rate (and
+/// its range).
+pub(crate) fn stated_rate(
+    job: &JobFacts<'_>,
+    segments: &[Segment],
+) -> Option<(Rate, Option<Range<usize>>)> {
+    let from_facts = fact(job.facts, super::fact_key::RATE)
+        .and_then(Value::as_str)
+        .and_then(|s| parse_rate(&fold(s)))
+        .map(|r| (r, None));
+    from_facts.or_else(|| {
+        segments
+            .iter()
+            .find_map(|(range, f)| parse_rate(f).map(|r| (r, Some(range.clone()))))
+    })
 }
 
 pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
@@ -545,16 +697,7 @@ fn day_rate(
     job: &JobFacts<'_>,
     segments: &[(Range<usize>, String)],
 ) -> Vec<Finding> {
-    let from_facts = fact(job.facts, super::fact_key::RATE)
-        .and_then(Value::as_str)
-        .and_then(|s| parse_rate(&fold(s)))
-        .map(|r| (r, None));
-    let rate = from_facts.or_else(|| {
-        segments
-            .iter()
-            .find_map(|(range, f)| parse_rate(f).map(|r| (r, Some(range.clone()))))
-    });
-    let Some((rate, span)) = rate else {
+    let Some((rate, span)) = stated_rate(job, segments) else {
         return Vec::new();
     };
     let spans: Vec<Range<usize>> = span.into_iter().collect();
@@ -570,11 +713,7 @@ fn day_rate(
     }
     // `parse_rate` saturates absurd digit runs at `u64::MAX`: such an amount stays far
     // above any minimum instead of wrapping below it.
-    let per_day = if rate.hourly {
-        rate.upper.saturating_mul(HOURS_PER_DAY)
-    } else {
-        rate.upper
-    };
+    let per_day = rate.per_day();
     match criteria.min_rate {
         Some(min) if i128::from(per_day) < min => {
             let params = json!({ "rate": per_day, "min": min.to_string(), "hourly": rate.hourly });
@@ -602,29 +741,33 @@ pub(crate) enum Start {
 pub(crate) fn parse_start(text: &str) -> Option<Start> {
     let folded = fold(text);
     let words: Vec<&str> = folded
-        .split(|c: char| !c.is_ascii_alphanumeric() && c != '.' && c != '/')
-        .map(|w| w.trim_matches('.'))
+        .split(|c: char| !c.is_ascii_alphanumeric() && c != '.' && c != '/' && c != '-')
+        .map(|w| w.trim_matches(['.', '-']))
         .filter(|w| !w.is_empty())
         .collect();
     for (i, word) in words.iter().enumerate() {
-        let parts: Vec<&str> = word.split(['.', '/']).collect();
-        let number = |s: &str| s.parse::<i16>().ok();
-        match parts.as_slice() {
-            [d, m, y] if y.len() == 4 => {
-                if let (Some(d), Some(m), Some(y)) = (number(d), number(m), number(y))
-                    && let Ok(date) = Date::new(y, i8::try_from(m).ok()?, i8::try_from(d).ok()?)
-                {
-                    return Some(Start::Date(date));
-                }
-            }
-            [m, y] if y.len() == 4 && m.len() <= 2 => {
-                if let (Some(m), Some(y)) = (number(m), number(y))
-                    && let Ok(date) = Date::new(y, i8::try_from(m).ok()?, 1)
-                {
-                    return Some(Start::Date(date));
-                }
-            }
-            _ => {}
+        let parts: Vec<&str> = word.split(['.', '/', '-']).collect();
+        let year_of = |s: &str| s.parse::<i16>().ok().filter(|_| s.len() == 4);
+        let small = |s: &str| s.parse::<i8>().ok().filter(|_| s.len() <= 2);
+        // A part that is no date (a phone number `0170.1234.5678`) is skipped, it does not
+        // end the search.
+        let date = match parts.as_slice() {
+            // ISO: 2026-11-01.
+            [y, m, d] if word.contains('-') => year_of(y)
+                .zip(small(m))
+                .zip(small(d))
+                .and_then(|((y, m), d)| Date::new(y, m, d).ok()),
+            [d, m, y] => year_of(y)
+                .zip(small(m))
+                .zip(small(d))
+                .and_then(|((y, m), d)| Date::new(y, m, d).ok()),
+            [m, y] => year_of(y)
+                .zip(small(m))
+                .and_then(|(y, m)| Date::new(y, m, 1).ok()),
+            _ => None,
+        };
+        if let Some(date) = date {
+            return Some(Start::Date(date));
         }
         let year = words
             .get(i + 1)
@@ -698,7 +841,11 @@ fn availability(
             Some(posted) => posted,
             None => return Vec::new(),
         },
-        Start::Date(date) => date,
+        // A start before the ad was posted means now.
+        Start::Date(date) => match job.posted {
+            Some(posted) if date < posted => posted,
+            _ => date,
+        },
     };
     let days = (available - start).get_days();
     if days > 0 {
@@ -717,6 +864,40 @@ fn availability(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn anue_codes(text: &str) -> Vec<(ReasonCode, bool)> {
+        let job = JobFacts {
+            title: "Controller",
+            text,
+            location: "",
+            portal: Portal::LinkedIn,
+            facts: None,
+            posted: None,
+        };
+        anue(&job, &segments(text))
+            .into_iter()
+            .map(|f| (f.code, f.decided))
+            .collect()
+    }
+
+    #[test]
+    fn anue_decided_only_without_an_option_or_a_distinction() {
+        assert_eq!(
+            anue_codes("Die Besetzung erfolgt im Rahmen der Arbeitnehmerüberlassung."),
+            [(ReasonCode::Anue, true)]
+        );
+        assert!(
+            anue_codes("Wir achten auf eine saubere Abgrenzung zur Arbeitnehmerüberlassung.")
+                .is_empty()
+        );
+        assert_eq!(
+            anue_codes(
+                "Vertragsart: Freiberuflich oder Arbeitnehmerüberlassung.\n\
+                 Bei ANÜ gilt ein entsprechender Stundenlohn."
+            ),
+            [(ReasonCode::AnueOptional, false)]
+        );
+    }
 
     #[test]
     fn rates() {
@@ -745,5 +926,52 @@ mod tests {
         assert_eq!(parse_start("Start: ab Januar 2027"), d(2027, 1, 1));
         assert_eq!(parse_start("Start ab sofort"), Some(Start::Now));
         assert_eq!(parse_start("Start: nach Abstimmung"), Some(Start::Vague));
+        assert_eq!(parse_start("2026-11-01"), d(2026, 11, 1));
+        // A number that is no date does not end the search.
+        assert_eq!(
+            parse_start("Start: ab sofort, Rückfragen unter 0170.1234.5678"),
+            Some(Start::Now)
+        );
+        assert_eq!(parse_start("Start: 31.02.2026"), None);
+    }
+
+    #[test]
+    fn criteria_under_english_keys_and_other_types() {
+        let read =
+            |data: Value| HardCriteria::new(&crate::matching::profile::criteria(&data), &data);
+        let english = read(serde_json::json!({ "hard_criteria": {
+            "min_day_rate": "1.050 €",
+            "countries": "DE, CH",
+            "excluded_contract_types": ["ANÜ"],
+            "remote_outside_allowed": "nein",
+            "available_from": "2026-11-01"
+        }}));
+        assert_eq!(english.min_rate, Some(1050));
+        assert_eq!(
+            english.countries,
+            Some(vec!["DE".to_owned(), "CH".to_owned()])
+        );
+        assert!(english.anue_excluded);
+        assert_eq!(english.remote_outside, Some(false));
+        assert_eq!(
+            english.available,
+            Availability::From(Date::new(2026, 11, 1).unwrap())
+        );
+        let german = read(serde_json::json!({ "hard_criteria": {
+            "min_tagessatz": 1050, "laender": ["DE"], "ausgeschlossene_vertragsarten": ["anue"]
+        }}));
+        assert_eq!(german.min_rate, Some(1050));
+        assert!(german.anue_excluded);
+        let odd = read(serde_json::json!({ "harte_kriterien": {
+            "min_tagessatz": "viel", "min_jahresgehalt": "99999999999999999k", "tagessatz_max": 2
+        }}));
+        let keys: Vec<&str> = odd.not_understood.iter().map(|(k, _)| *k).collect();
+        assert_eq!(keys, ["min_tagessatz", "min_jahresgehalt"]);
+        assert_eq!(
+            ignored_criteria_keys(
+                &serde_json::json!({ "harte_kriterien": { "tagessatz_max": 2 } })
+            ),
+            ["tagessatz_max"]
+        );
     }
 }

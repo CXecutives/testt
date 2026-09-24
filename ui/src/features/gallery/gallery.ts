@@ -195,6 +195,19 @@ function sample(
   };
 }
 
+/** A job whose ad states no key facts. */
+const NO_FACTS = {
+  rate: null,
+  hourly: null,
+  currency: null,
+  rateOpen: null,
+  start: null,
+  months: null,
+  remoteFrom: null,
+  remoteTo: null,
+  contract: null,
+};
+
 const scored = (score: number, top: string): JobView['match'] => ({
   score,
   band: score >= 80 ? 'high' : score >= 40 ? 'mid' : 'low',
@@ -203,6 +216,7 @@ const scored = (score: number, top: string): JobView['match'] => ({
   mustMet: 3,
   mustTotal: 4,
   top: [top],
+  facts: NO_FACTS,
 });
 
 /** Jobs in every state a row can show. */
@@ -262,6 +276,7 @@ export function sampleJobs(now: Date): JobView[] {
           mustMet: 2,
           mustTotal: 4,
           top: ['Controlling im Konzern'],
+          facts: NO_FACTS,
         },
       },
     ),

@@ -23,6 +23,8 @@ const PROFILES: &[&str] = &[
     "sample_profile_it.json",
     "sample_profile_sap.json",
     "sample_profile_senior.json",
+    "sample_profile_senior_wishes.json",
+    "sample_profile_sap_wishes.json",
     "legacy_edge_profile.json",
 ];
 
@@ -169,6 +171,7 @@ fn check(
 ) {
     let job = JobInput {
         title: "Interim Controller (m/w/d)",
+        company: "Muster AG",
         location: "Hamburg",
         portal: Portal::LinkedIn,
         text,

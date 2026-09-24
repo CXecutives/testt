@@ -1,0 +1,30 @@
+Titel: Data Migration Lead SAP S/4HANA (f/m/d)
+Unternehmen: Graufels Pharma AG
+Ort: Zürich (Schweiz)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4187502871/
+Abgerufen am: 12.09.2026 09:30
+
+About the job
+Graufels Pharma is moving its global finance and supply chain processes to SAP S/4HANA. We are hiring a Data Migration Lead to own the migration of master and transactional data across twelve legal entities.
+
+Your responsibilities
+Define the migration strategy, object list and load sequence
+Lead a team of four data analysts and coordinate the system integrator
+Design mappings and transformation rules together with the business data owners
+Run mock loads with the SAP S/4HANA Migration Cockpit and SAP Data Services
+Establish data quality KPIs, reconciliation and sign-off procedures for GxP relevant data
+Plan the data cutover together with the programme lead
+
+Your profile
+University degree in business informatics or a comparable field
+At least six years of experience in SAP data migration, including two S/4HANA projects
+Hands-on knowledge of the Migration Cockpit (LTMC/LTMOM), SQL and reconciliation reporting
+Experience in a regulated environment (GMP/GxP) is a strong advantage
+Fluent English; German is an advantage
+
+What we offer
+Permanent full-time position
+Annual salary CHF 145,000 to 165,000 plus bonus
+Hybrid working with three days per week on site in Zürich
+Relocation support

@@ -13,7 +13,7 @@ use ts_rs::{Config, TS, TypeVisitor};
 use crate::error::{ErrorInfo, ErrorKind, InvalidInput};
 use crate::fetch::PortalHealth;
 use crate::fetch::policy::PauseReason;
-use crate::model::{AppStatus, Band, MatchStatus, Notice};
+use crate::model::{AppStatus, Band, KeyFacts, MatchStatus, Notice};
 use crate::pipeline::{
     ExportSummary, NewJobs, Outcome, PortalSummary, RunEvent, RunKind, RunKindName, RunRequest,
     RunSnapshot, RunSummary, ScanCounts, ScoreSummary, StatusCode, Step,
@@ -135,6 +135,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<AppStatus>();
     f.add::<Band>();
     f.add::<Notice>();
+    f.add::<KeyFacts>();
     f.add::<PauseReason>();
     f.add::<PortalHealth>();
     f.add::<WorkMode>();

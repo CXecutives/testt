@@ -918,6 +918,116 @@
     "mustTotal": 5,
     "niceTotal": 0,
     "niceCovered": 0
+   },
+   "K53": {
+    "pct": 60,
+    "coverage": 60,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in der Restrukturierung",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "in der Liquiditätsplanung"
+    ],
+    "missing": [
+     "Erfahrung im Treasury",
+     "Erfahrung in der Führung von Finanzteams"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K54": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung mit Monatsabschlüssen",
+     "Jahresabschlüssen nach HGB",
+     "Kenntnisse in der Budgetierung"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K55": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Krankenhausbuchhaltung nach KHBV",
+     "Fundierte Kenntnisse im DRG-Abrechnungssystem",
+     "Erfahrung in Pflegesatzverhandlungen",
+     "Kenntnisse im Krankenhausentgeltgesetz"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K56": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in SAP FI",
+     "SAP CO",
+     "Erfahrung mit S/4HANA-Migrationen im Finanzwesen",
+     "Kenntnisse in Central Finance",
+     "Erfahrung in der Datenmigration"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K57": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung mit SAP S/4HANA Finance",
+     "Kenntnisse in IFRS 17"
+    ],
+    "missing": [
+     "Erfahrung in der Datenmigration",
+     "Kenntnisse in SAP FI",
+     "SAP CO",
+     "Erfahrung im Testmanagement"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K58": {
+    "pct": 20,
+    "coverage": 20,
+    "mode": "requirements",
+    "matched": [
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS"
+    ],
+    "missing": [
+     "Mindestens 12 Jahre Berufserfahrung im Finanzbereich",
+     "Erfahrung im Treasury",
+     "in der Unternehmensfinanzierung",
+     "Führungserfahrung"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
    }
   },
   "sample_profile_it.json": {
@@ -1840,6 +1950,115 @@
     "mustTotal": 5,
     "niceTotal": 0,
     "niceCovered": 0
+   },
+   "K53": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Restrukturierung",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury",
+     "in der Liquiditätsplanung",
+     "Erfahrung in der Führung von Finanzteams"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K54": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung mit Monatsabschlüssen",
+     "Jahresabschlüssen nach HGB",
+     "Kenntnisse in der Budgetierung"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K55": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Krankenhausbuchhaltung nach KHBV",
+     "Fundierte Kenntnisse im DRG-Abrechnungssystem",
+     "Erfahrung in Pflegesatzverhandlungen",
+     "Kenntnisse im Krankenhausentgeltgesetz"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K56": {
+    "pct": 60,
+    "coverage": 60,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in SAP FI",
+     "SAP CO",
+     "Erfahrung in der Datenmigration"
+    ],
+    "missing": [
+     "Erfahrung mit S/4HANA-Migrationen im Finanzwesen",
+     "Kenntnisse in Central Finance"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K57": {
+    "pct": 83,
+    "coverage": 83,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung mit SAP S/4HANA Finance",
+     "Erfahrung in der Datenmigration",
+     "Kenntnisse in SAP FI",
+     "SAP CO",
+     "Erfahrung im Testmanagement"
+    ],
+    "missing": [
+     "Kenntnisse in IFRS 17"
+    ],
+    "violations": [],
+    "termHits": 8,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K58": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mindestens 12 Jahre Berufserfahrung im Finanzbereich",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury",
+     "in der Unternehmensfinanzierung",
+     "Führungserfahrung"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
    }
   },
   "sample_profile_senior.json": {
@@ -2758,6 +2977,115 @@
     "mustTotal": 5,
     "niceTotal": 0,
     "niceCovered": 0
+   },
+   "K53": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in der Restrukturierung",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury",
+     "in der Liquiditätsplanung",
+     "Erfahrung in der Führung von Finanzteams"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 6,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K54": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung mit Monatsabschlüssen",
+     "Jahresabschlüssen nach HGB",
+     "Kenntnisse in der Budgetierung"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K55": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Krankenhausbuchhaltung nach KHBV",
+     "Fundierte Kenntnisse im DRG-Abrechnungssystem",
+     "Erfahrung in Pflegesatzverhandlungen",
+     "Kenntnisse im Krankenhausentgeltgesetz"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K56": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in SAP FI",
+     "SAP CO",
+     "Erfahrung mit S/4HANA-Migrationen im Finanzwesen",
+     "Kenntnisse in Central Finance",
+     "Erfahrung in der Datenmigration"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K57": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung mit SAP S/4HANA Finance",
+     "Kenntnisse in IFRS 17"
+    ],
+    "missing": [
+     "Erfahrung in der Datenmigration",
+     "Kenntnisse in SAP FI",
+     "SAP CO",
+     "Erfahrung im Testmanagement"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K58": {
+    "pct": 40,
+    "coverage": 40,
+    "mode": "requirements",
+    "matched": [
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury"
+    ],
+    "missing": [
+     "Mindestens 12 Jahre Berufserfahrung im Finanzbereich",
+     "in der Unternehmensfinanzierung",
+     "Führungserfahrung"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
    }
   },
   "sample_profile_sap.json": {
@@ -3660,6 +3988,2154 @@
     ],
     "violations": [],
     "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K53": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Restrukturierung",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury",
+     "in der Liquiditätsplanung",
+     "Erfahrung in der Führung von Finanzteams"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K54": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung mit Monatsabschlüssen",
+     "Jahresabschlüssen nach HGB",
+     "Kenntnisse in der Budgetierung"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K55": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Krankenhausbuchhaltung nach KHBV",
+     "Fundierte Kenntnisse im DRG-Abrechnungssystem",
+     "Erfahrung in Pflegesatzverhandlungen",
+     "Kenntnisse im Krankenhausentgeltgesetz"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K56": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in SAP FI",
+     "SAP CO",
+     "Erfahrung mit S/4HANA-Migrationen im Finanzwesen",
+     "Kenntnisse in Central Finance",
+     "Erfahrung in der Datenmigration"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K57": {
+    "pct": 83,
+    "coverage": 83,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung mit SAP S/4HANA Finance",
+     "Erfahrung in der Datenmigration",
+     "Kenntnisse in SAP FI",
+     "SAP CO",
+     "Erfahrung im Testmanagement"
+    ],
+    "missing": [
+     "Kenntnisse in IFRS 17"
+    ],
+    "violations": [],
+    "termHits": 7,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K58": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mindestens 12 Jahre Berufserfahrung im Finanzbereich",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury",
+     "in der Unternehmensfinanzierung",
+     "Führungserfahrung"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   }
+  },
+  "sample_profile_senior_wishes.json": {
+   "K01": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Sicherer Umgang mit SAP S/4HANA",
+     "Erfahrung im Projektmanagement",
+     "Kenntnisse in Power BI (wünschenswert)"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 6,
+    "mustTotal": 4,
+    "niceTotal": 1,
+    "niceCovered": 1
+   },
+   "K02": {
+    "pct": 60,
+    "coverage": 60,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Erfahrung mit Tableau im Reporting",
+     "Erfahrung im Projektmanagement"
+    ],
+    "missing": [
+     "Fundierte Kenntnisse in Salesforce",
+     "Sicherer Umgang mit Python für Auswertungen"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K03": {
+    "pct": 70,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [],
+    "violations": [
+     "Arbeitnehmerüberlassung (ANÜ) ist ausgeschlossen"
+    ],
+    "termHits": 4,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K04": {
+    "pct": 70,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [],
+    "violations": [
+     "Arbeitnehmerüberlassung (ANÜ) ist ausgeschlossen"
+    ],
+    "termHits": 4,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K05": {
+    "pct": 70,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Erfahrung im Projektmanagement",
+     "Fundierte Kenntnisse in SAP FI/CO"
+    ],
+    "missing": [],
+    "violations": [
+     "Arbeitnehmerüberlassung (ANÜ) ist ausgeschlossen"
+    ],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K06": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Erfahrung im Projektmanagement",
+     "Fundierte Kenntnisse in der Budgetierung",
+     "im Forecast"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K07": {
+    "pct": 70,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [],
+    "violations": [
+     "Tagessatz 100 € unter 1000 €"
+    ],
+    "termHits": 4,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K08": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Budgetierung",
+     "Erfahrung im Projektmanagement"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K09": {
+    "pct": 70,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Kenntnisse in der Konsolidierung",
+     "Erfahrung im Projektmanagement"
+    ],
+    "missing": [],
+    "violations": [
+     "Tagessatz 750 € unter 1000 €"
+    ],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K10": {
+    "pct": 70,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Erfahrung im Changemanagement",
+     "Erfahrung im Projektmanagement"
+    ],
+    "missing": [],
+    "violations": [
+     "Einsatzland PL außerhalb DE/AT/CH"
+    ],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K11": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Projektmanagement"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K12": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Englischkenntnisse auf Niveau C1"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 2,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K13": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mindestens 10 Jahre Erfahrung im Controlling",
+     "Mindestens 15 Jahre Erfahrung in der Konsolidierung",
+     "Erfahrung im Projektmanagement"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K14": {
+    "pct": 75,
+    "coverage": 75,
+    "mode": "vocab",
+    "matched": [
+     "konsolidierung (Job-Fachbegriff)",
+     "sap s/4hana (Job-Fachbegriff)",
+     "power bi (Job-Fachbegriff)"
+    ],
+    "missing": [
+     "rechnungswesen"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 0,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K15": {
+    "pct": null
+   },
+   "K16": {
+    "pct": 75,
+    "coverage": 67,
+    "mode": "requirements",
+    "matched": [
+     "Fundierte Kenntnisse in der Post Merger Integration",
+     "Mehrjährige Erfahrung im Changemanagement",
+     "Kenntnisse in LucaNet (wünschenswert)"
+    ],
+    "missing": [
+     "Erfahrung mit Carve-out-Projekten"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 3,
+    "niceTotal": 1,
+    "niceCovered": 1
+   },
+   "K17": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Kenntnisse in Power BI (wünschenswert)",
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse im Bereich IFRS",
+     "Erfahrung mit SAP S/4HANA",
+     "Kenntnisse in Power BI"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 4,
+    "niceTotal": 1,
+    "niceCovered": 1
+   },
+   "K18": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung in der Budgetierung",
+     "im Forecast",
+     "in der Liquiditätsplanung",
+     "Sicherer Umgang mit SAP S/4HANA",
+     "Power BI"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K19": {
+    "pct": 60,
+    "coverage": 60,
+    "mode": "requirements",
+    "matched": [
+     "Kenntnisse in LucaNet",
+     "Erfahrung mit SAP S/4HANA bzw.",
+     "Sicherer Umgang mit Power BI / Tableau"
+    ],
+    "missing": [
+     "IBM Cognos",
+     "SAP ECC"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K20": {
+    "pct": 57,
+    "coverage": 57,
+    "mode": "requirements",
+    "matched": [
+     "LucaNet",
+     "Power BI",
+     "Mehrjährige Erfahrung im Controlling",
+     "Budgetierung"
+    ],
+    "missing": [
+     "Fundierte Kenntnisse in Konsolidierungswerkzeugen",
+     "Erfahrung mit Reporting-Werkzeugen",
+     "inkl."
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 7,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K21": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung in der Finanztransformation"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Restrukturierungsumfeld",
+     "Sicherer Umgang mit SAP-S/4HANA-Projekten"
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K22": {
+    "pct": 75,
+    "coverage": 75,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung mit Monatsabschlüssen",
+     "Kenntnisse in der Konsolidierung von Beteiligungen",
+     "Mehrjährige Erfahrung in Restrukturierungen"
+    ],
+    "missing": [
+     "Jahresabschlüssen"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K23": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung im Großkonzern",
+     "Sicherer Umgang mit Abschlüssen nach IFRS",
+     "Kenntnisse in der Prozessoptimierung im Finanzbereich"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K24": {
+    "pct": 81,
+    "coverage": 75,
+    "mode": "requirements",
+    "matched": [
+     "Several years of experience in controlling",
+     "Solid knowledge of IFRS group accounting",
+     "Hands-on experience with SAP S/4HANA",
+     "Experience with Power BI (wünschenswert)"
+    ],
+    "missing": [
+     "Fluent German and English"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 4,
+    "niceTotal": 1,
+    "niceCovered": 1
+   },
+   "K25": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung im Projektmanagement"
+    ],
+    "missing": [
+     "Kenntnisse in der Konzernkonsolidierung",
+     "Erfahrung im Management"
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K26": {
+    "pct": 29,
+    "coverage": 29,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS"
+    ],
+    "missing": [
+     "Ausgeprägte Kommunikationsstärke",
+     "Hohe Eigeninitiative",
+     "Teamfähigkeit",
+     "Bereitschaft zu Reisen innerhalb Deutschlands",
+     "Verfügbarkeit ab sofort"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 7,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K27": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Vorausgesetzt werden mehrjährige Erfahrung im Controlling",
+     "fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS.",
+     "Eine Zertifizierung im Projektmanagement ist von Vorteil. (wünschenswert)"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 2,
+    "niceTotal": 1,
+    "niceCovered": 1
+   },
+   "K28": {
+    "pct": 70,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Kenntnisse in der Konsolidierung",
+     "Erfahrung im Projektmanagement"
+    ],
+    "missing": [],
+    "violations": [
+     "Start liegt in der Zukunft (Verfügbarkeit: sofort)"
+    ],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K29": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Kenntnisse in der Konsolidierung",
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K30": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Projektmanagement"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K31": {
+    "pct": 69,
+    "coverage": 75,
+    "mode": "requirements",
+    "matched": [
+     "At least 8 years of experience in SAP S/4HANA or SAP ECC finance projects",
+     "Strong background in controlling and month-end closing",
+     "Proven track record in project management of ERP migrations",
+     "Experience with LucaNet or another consolidation tool (wünschenswert)"
+    ],
+    "missing": [
+     "Fluent German and English"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 4,
+    "niceTotal": 2,
+    "niceCovered": 1
+   },
+   "K32": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "vocab",
+    "matched": [
+     "sap s/4hana (Job-Fachbegriff)"
+    ],
+    "missing": [
+     "rollout"
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 0,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K33": {
+    "pct": null,
+    "error": "IndexError: no such group"
+   },
+   "K34": {
+    "pct": 70,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [],
+    "violations": [
+     "Tagessatz 100 € unter 1000 €"
+    ],
+    "termHits": 4,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K35": {
+    "pct": 18,
+    "coverage": 25,
+    "mode": "requirements",
+    "matched": [
+     "Verhandlungssichere Deutschkenntnisse"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung in SAP MM",
+     "Erfahrung in der Datenmigration",
+     "Kenntnisse im Testmanagement"
+    ],
+    "violations": [
+     "Tagessatz 980 € unter 1000 €"
+    ],
+    "termHits": 1,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K36": {
+    "pct": 67,
+    "coverage": 67,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung mit Jahresabschlüssen nach HGB (wünschenswert)",
+     "Erfahrung mit LucaNet (wünschenswert)",
+     "Erfahrung mit Jahresabschlüssen nach HGB",
+     "Erfahrung mit LucaNet"
+    ],
+    "missing": [
+     "Kenntnisse in DATEV"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 3,
+    "niceTotal": 3,
+    "niceCovered": 2
+   },
+   "K37": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Erfahrung in der Projektleitung von SAP-Einführungen",
+     "Kenntnisse in SAP EWM",
+     "Ausgeprägte Kommunikationsstärke",
+     "Durchsetzungsvermögen",
+     "Verhandlungsgeschick",
+     "Hohe Belastbarkeit",
+     "Analytisches Denkvermögen",
+     "Teamfähigkeit",
+     "Empathie",
+     "Hands-on-Mentalität",
+     "Reisebereitschaft"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 11,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K38": {
+    "pct": null
+   },
+   "K39": {
+    "pct": 22,
+    "coverage": 42,
+    "mode": "requirements",
+    "matched": [
+     "Fundierte Kenntnisse in Controlling",
+     "Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Changemanagement",
+     "Verhandlungssichere Deutsch-",
+     "Englischkenntnisse",
+     "Erfahrung mit SAP Group Reporting (wünschenswert)",
+     "LucaNet (wünschenswert)",
+     "Branchenkenntnisse im Maschinenbau (wünschenswert)",
+     "Erfahrung mit dem Aufbau von Shared Service Centern (wünschenswert)"
+    ],
+    "missing": [
+     "Abgeschlossenes Studium der Wirtschaftswissenschaften",
+     "der Wirtschaftsinformatik",
+     "eine vergleichbare Qualifikation",
+     "Mindestens zehn Jahre Berufserfahrung in der Leitung großer Transformationsprojekte",
+     "Erfahrung als Gesamtprojektleitung in mindestens einer SAP-S/4HANA-Einführung im Finanzbereich",
+     "Sicherer Umgang mit Stakeholdern bis auf Vorstandsebene",
+     "Reisebereitschaft innerhalb Europas  ca."
+    ],
+    "violations": [
+     "Arbeitnehmerüberlassung (ANÜ) ist ausgeschlossen",
+     "Einsatzland CZ, PL außerhalb DE/AT/CH"
+    ],
+    "termHits": 10,
+    "mustTotal": 12,
+    "niceTotal": 7,
+    "niceCovered": 4
+   },
+   "K40": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "Kenntnisse in SAP S/4HANA",
+     "Englisch verhandlungssicher"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung in SAP SD",
+     "Erfahrung mit Order-to-Cash-Prozessen"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K41": {
+    "pct": 67,
+    "coverage": 67,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in der Konzernrechnungslegung nach IFRS",
+     "HGB",
+     "Fundierte Kenntnisse in der Konsolidierung",
+     "Erfahrung mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Abgeschlossenes Studium der Betriebswirtschaftslehre",
+     "Führungserfahrung"
+    ],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K42": {
+    "pct": 62,
+    "coverage": 62,
+    "mode": "requirements",
+    "matched": [
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "HGB",
+     "Erfahrung in Treasury",
+     "Erfahrung mit M&A-Transaktionen",
+     "Verhandlungssichere Englischkenntnisse"
+    ],
+    "missing": [
+     "15+ Jahre Berufserfahrung im Finanzbereich",
+     "davon mehrere Jahre in kaufmännischer Leitungsfunktion",
+     "Unternehmensfinanzierung"
+    ],
+    "violations": [],
+    "termHits": 6,
+    "mustTotal": 8,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K43": {
+    "pct": 60,
+    "coverage": 60,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Treasury eines Konzerns",
+     "in der Liquiditätsplanung",
+     "Sehr gute Englischkenntnisse"
+    ],
+    "missing": [
+     "Fundierte Kenntnisse im Cash Management",
+     "Erfahrung mit Treasury-Management-Systemen"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K44": {
+    "pct": 71,
+    "coverage": 71,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung in der Prozessoptimierung im Finanzbereich",
+     "Erfahrung im Changemanagement",
+     "Kenntnisse in SAP S/4HANA",
+     "Verhandlungssichere Deutsch-",
+     "Englischkenntnisse"
+    ],
+    "missing": [
+     "Mindestens 12 Jahre Berufserfahrung",
+     "davon mehrere in Transformationsprogrammen im Finanzbereich"
+    ],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 7,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K45": {
+    "pct": 75,
+    "coverage": 75,
+    "mode": "requirements",
+    "matched": [
+     "Sehr gute Kenntnisse in IFRS",
+     "Erfahrung mit LucaNet",
+     "Power BI"
+    ],
+    "missing": [
+     "Mindestens 10 Jahre Erfahrung im Konzerncontrolling"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K46": {
+    "pct": 60,
+    "coverage": 60,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Sehr gute Kenntnisse in SAP FI/CO",
+     "Sicherer Umgang mit Excel"
+    ],
+    "missing": [
+     "Interessiert?",
+     "Dann freuen wir uns auf Ihre Bewerbung."
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K47": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "3-5 Jahre Berufserfahrung im Controlling",
+     "Erfahrung mit Monatsabschlüssen nach HGB",
+     "Kenntnisse in SAP S/4HANA"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K48": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "7+ years of experience in FP&A or controlling",
+     "Experience with Power BI"
+    ],
+    "missing": [
+     "Strong knowledge of budgeting and forecasting",
+     "Fluent English and German"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K49": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "Abgeschlossenes technisches Studium  Maschinenbau",
+     "Erfahrung mit Restrukturierungen",
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Verfahrenstechnik",
+     "Elektrotechnik  zwingend erforderlich",
+     "Mehrjährige Erfahrung im Projektcontrolling"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K50": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "10+ years of experience in group reporting and consolidation under IFRS",
+     "Experience with LucaNet or SAP Group Reporting"
+    ],
+    "missing": [
+     "Master's degree in Business Administration or Economics",
+     "Fluent English"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K51": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "At least 5 years of professional experience in accounting or controlling",
+     "Experience with month-end closing under HGB"
+    ],
+    "missing": [
+     "Good knowledge of DATEV",
+     "Fluent German and English"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K52": {
+    "pct": 60,
+    "coverage": 60,
+    "mode": "requirements",
+    "matched": [
+     "LucaNet",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Abgeschlossenes Studium der Informatik",
+     "Erfahrung in der Einführung von Konsolidierungssoftware"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K53": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in der Restrukturierung",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury",
+     "in der Liquiditätsplanung",
+     "Erfahrung in der Führung von Finanzteams"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 6,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K54": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung mit Monatsabschlüssen",
+     "Jahresabschlüssen nach HGB",
+     "Kenntnisse in der Budgetierung"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K55": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Krankenhausbuchhaltung nach KHBV",
+     "Fundierte Kenntnisse im DRG-Abrechnungssystem",
+     "Erfahrung in Pflegesatzverhandlungen",
+     "Kenntnisse im Krankenhausentgeltgesetz"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K56": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in SAP FI",
+     "SAP CO",
+     "Erfahrung mit S/4HANA-Migrationen im Finanzwesen",
+     "Kenntnisse in Central Finance",
+     "Erfahrung in der Datenmigration"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K57": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung mit SAP S/4HANA Finance",
+     "Kenntnisse in IFRS 17"
+    ],
+    "missing": [
+     "Erfahrung in der Datenmigration",
+     "Kenntnisse in SAP FI",
+     "SAP CO",
+     "Erfahrung im Testmanagement"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K58": {
+    "pct": 40,
+    "coverage": 40,
+    "mode": "requirements",
+    "matched": [
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury"
+    ],
+    "missing": [
+     "Mindestens 12 Jahre Berufserfahrung im Finanzbereich",
+     "in der Unternehmensfinanzierung",
+     "Führungserfahrung"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   }
+  },
+  "sample_profile_sap_wishes.json": {
+   "K01": {
+    "pct": 19,
+    "coverage": 25,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Projektmanagement"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 4,
+    "niceTotal": 1,
+    "niceCovered": 0
+   },
+   "K02": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in Salesforce",
+     "Erfahrung mit Tableau im Reporting",
+     "Sicherer Umgang mit Python für Auswertungen",
+     "Erfahrung im Projektmanagement"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K03": {
+    "pct": 23,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS"
+    ],
+    "violations": [
+     "Arbeitnehmerüberlassung (ANÜ) ist ausgeschlossen"
+    ],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K04": {
+    "pct": 23,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS"
+    ],
+    "violations": [
+     "Arbeitnehmerüberlassung (ANÜ) ist ausgeschlossen"
+    ],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K05": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Erfahrung im Projektmanagement",
+     "Fundierte Kenntnisse in SAP FI/CO"
+    ],
+    "violations": [
+     "Arbeitnehmerüberlassung (ANÜ) ist ausgeschlossen"
+    ],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K06": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Erfahrung im Projektmanagement",
+     "Fundierte Kenntnisse in der Budgetierung",
+     "im Forecast"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K07": {
+    "pct": 23,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS"
+    ],
+    "violations": [
+     "Tagessatz 100 € unter 950 €"
+    ],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K08": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Budgetierung",
+     "Erfahrung im Projektmanagement"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K09": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Kenntnisse in der Konsolidierung",
+     "Erfahrung im Projektmanagement"
+    ],
+    "violations": [
+     "Tagessatz 750 € unter 950 €"
+    ],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K10": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Erfahrung im Changemanagement",
+     "Erfahrung im Projektmanagement"
+    ],
+    "violations": [
+     "Einsatzland PL außerhalb DE/AT/CH"
+    ],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K11": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Projektmanagement"
+    ],
+    "violations": [
+     "Einsatzland US außerhalb DE/AT/CH"
+    ],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K12": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "Englischkenntnisse auf Niveau C1"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling"
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 2,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K13": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mindestens 10 Jahre Erfahrung im Controlling",
+     "Mindestens 15 Jahre Erfahrung in der Konsolidierung",
+     "Erfahrung im Projektmanagement"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K14": {
+    "pct": 25,
+    "coverage": 25,
+    "mode": "vocab",
+    "matched": [
+     "sap s/4hana (Job-Fachbegriff)"
+    ],
+    "missing": [
+     "rechnungswesen",
+     "konsolidierung",
+     "power bi"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 0,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K15": {
+    "pct": null
+   },
+   "K16": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Erfahrung mit Carve-out-Projekten",
+     "Fundierte Kenntnisse in der Post Merger Integration",
+     "Mehrjährige Erfahrung im Changemanagement"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 1,
+    "niceCovered": 0
+   },
+   "K17": {
+    "pct": 19,
+    "coverage": 25,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse im Bereich IFRS",
+     "Kenntnisse in Power BI"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 4,
+    "niceTotal": 1,
+    "niceCovered": 0
+   },
+   "K18": {
+    "pct": 20,
+    "coverage": 20,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Erfahrung in der Budgetierung",
+     "im Forecast",
+     "in der Liquiditätsplanung",
+     "Power BI"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K19": {
+    "pct": 40,
+    "coverage": 40,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung mit SAP S/4HANA bzw.",
+     "SAP ECC"
+    ],
+    "missing": [
+     "Kenntnisse in LucaNet",
+     "IBM Cognos",
+     "Sicherer Umgang mit Power BI / Tableau"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K20": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Fundierte Kenntnisse in Konsolidierungswerkzeugen",
+     "LucaNet",
+     "Erfahrung mit Reporting-Werkzeugen",
+     "Power BI",
+     "Mehrjährige Erfahrung im Controlling",
+     "inkl.",
+     "Budgetierung"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 7,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K21": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Erfahrung in der Finanztransformation",
+     "Mehrjährige Erfahrung im Restrukturierungsumfeld",
+     "Sicherer Umgang mit SAP-S/4HANA-Projekten"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K22": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Erfahrung mit Monatsabschlüssen",
+     "Jahresabschlüssen",
+     "Kenntnisse in der Konsolidierung von Beteiligungen",
+     "Mehrjährige Erfahrung in Restrukturierungen"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K23": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Erfahrung im Großkonzern",
+     "Sicherer Umgang mit Abschlüssen nach IFRS",
+     "Kenntnisse in der Prozessoptimierung im Finanzbereich"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K24": {
+    "pct": 19,
+    "coverage": 25,
+    "mode": "requirements",
+    "matched": [
+     "Hands-on experience with SAP S/4HANA"
+    ],
+    "missing": [
+     "Several years of experience in controlling",
+     "Solid knowledge of IFRS group accounting",
+     "Fluent German and English"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 4,
+    "niceTotal": 1,
+    "niceCovered": 0
+   },
+   "K25": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Erfahrung im Projektmanagement",
+     "Kenntnisse in der Konzernkonsolidierung",
+     "Erfahrung im Management"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K26": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Ausgeprägte Kommunikationsstärke",
+     "Hohe Eigeninitiative",
+     "Teamfähigkeit",
+     "Bereitschaft zu Reisen innerhalb Deutschlands",
+     "Verfügbarkeit ab sofort"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 7,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K27": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Vorausgesetzt werden mehrjährige Erfahrung im Controlling",
+     "fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS."
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 2,
+    "niceTotal": 1,
+    "niceCovered": 0
+   },
+   "K28": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Kenntnisse in der Konsolidierung",
+     "Erfahrung im Projektmanagement"
+    ],
+    "violations": [
+     "Start liegt in der Zukunft (Verfügbarkeit: sofort)"
+    ],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K29": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Kenntnisse in der Konsolidierung"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K30": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Projektmanagement"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K31": {
+    "pct": 19,
+    "coverage": 25,
+    "mode": "requirements",
+    "matched": [
+     "At least 8 years of experience in SAP S/4HANA or SAP ECC finance projects"
+    ],
+    "missing": [
+     "Strong background in controlling and month-end closing",
+     "Proven track record in project management of ERP migrations",
+     "Fluent German and English"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 4,
+    "niceTotal": 2,
+    "niceCovered": 0
+   },
+   "K32": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "vocab",
+    "matched": [
+     "sap s/4hana (Job-Fachbegriff)",
+     "rollout (Job-Fachbegriff)"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 0,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K33": {
+    "pct": null,
+    "error": "IndexError: no such group"
+   },
+   "K34": {
+    "pct": 23,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS"
+    ],
+    "violations": [
+     "Tagessatz 100 € unter 950 €"
+    ],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K35": {
+    "pct": 75,
+    "coverage": 75,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung in der Datenmigration",
+     "Kenntnisse im Testmanagement",
+     "Verhandlungssichere Deutschkenntnisse"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung in SAP MM"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K36": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Erfahrung mit Jahresabschlüssen nach HGB",
+     "Kenntnisse in DATEV",
+     "Erfahrung mit LucaNet"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 3,
+    "niceTotal": 3,
+    "niceCovered": 0
+   },
+   "K37": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Erfahrung in der Projektleitung von SAP-Einführungen",
+     "Kenntnisse in SAP EWM",
+     "Ausgeprägte Kommunikationsstärke",
+     "Durchsetzungsvermögen",
+     "Verhandlungsgeschick",
+     "Hohe Belastbarkeit",
+     "Analytisches Denkvermögen",
+     "Teamfähigkeit",
+     "Empathie",
+     "Hands-on-Mentalität",
+     "Reisebereitschaft"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 11,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K38": {
+    "pct": null
+   },
+   "K39": {
+    "pct": 8,
+    "coverage": 17,
+    "mode": "requirements",
+    "matched": [
+     "Verhandlungssichere Deutsch-",
+     "Englischkenntnisse",
+     "Erfahrung mit SAP Group Reporting (wünschenswert)"
+    ],
+    "missing": [
+     "Abgeschlossenes Studium der Wirtschaftswissenschaften",
+     "der Wirtschaftsinformatik",
+     "eine vergleichbare Qualifikation",
+     "Mindestens zehn Jahre Berufserfahrung in der Leitung großer Transformationsprojekte",
+     "Erfahrung als Gesamtprojektleitung in mindestens einer SAP-S/4HANA-Einführung im Finanzbereich",
+     "Fundierte Kenntnisse in Controlling",
+     "Konzernrechnungslegung nach IFRS",
+     "Sicherer Umgang mit Stakeholdern bis auf Vorstandsebene",
+     "Erfahrung im Changemanagement",
+     "Reisebereitschaft innerhalb Europas  ca."
+    ],
+    "violations": [
+     "Arbeitnehmerüberlassung (ANÜ) ist ausgeschlossen",
+     "Einsatzland CZ, PL außerhalb DE/AT/CH"
+    ],
+    "termHits": 3,
+    "mustTotal": 12,
+    "niceTotal": 7,
+    "niceCovered": 1
+   },
+   "K40": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "Kenntnisse in SAP S/4HANA",
+     "Englisch verhandlungssicher"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung in SAP SD",
+     "Erfahrung mit Order-to-Cash-Prozessen"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K41": {
+    "pct": 17,
+    "coverage": 17,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Abgeschlossenes Studium der Betriebswirtschaftslehre",
+     "Mehrjährige Erfahrung in der Konzernrechnungslegung nach IFRS",
+     "HGB",
+     "Fundierte Kenntnisse in der Konsolidierung",
+     "Führungserfahrung"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K42": {
+    "pct": 12,
+    "coverage": 12,
+    "mode": "requirements",
+    "matched": [
+     "Verhandlungssichere Englischkenntnisse"
+    ],
+    "missing": [
+     "15+ Jahre Berufserfahrung im Finanzbereich",
+     "davon mehrere Jahre in kaufmännischer Leitungsfunktion",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "HGB",
+     "Erfahrung in Treasury",
+     "Unternehmensfinanzierung",
+     "Erfahrung mit M&A-Transaktionen"
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 8,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K43": {
+    "pct": 20,
+    "coverage": 20,
+    "mode": "requirements",
+    "matched": [
+     "Sehr gute Englischkenntnisse"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Treasury eines Konzerns",
+     "Fundierte Kenntnisse im Cash Management",
+     "in der Liquiditätsplanung",
+     "Erfahrung mit Treasury-Management-Systemen"
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K44": {
+    "pct": 43,
+    "coverage": 43,
+    "mode": "requirements",
+    "matched": [
+     "Kenntnisse in SAP S/4HANA",
+     "Verhandlungssichere Deutsch-",
+     "Englischkenntnisse"
+    ],
+    "missing": [
+     "Mindestens 12 Jahre Berufserfahrung",
+     "davon mehrere in Transformationsprogrammen im Finanzbereich",
+     "Erfahrung in der Prozessoptimierung im Finanzbereich",
+     "Erfahrung im Changemanagement"
+    ],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 7,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K45": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mindestens 10 Jahre Erfahrung im Konzerncontrolling",
+     "Sehr gute Kenntnisse in IFRS",
+     "Erfahrung mit LucaNet",
+     "Power BI"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K46": {
+    "pct": 20,
+    "coverage": 20,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit Excel"
+    ],
+    "missing": [
+     "Mehrjährige Erfahrung im Controlling",
+     "Sehr gute Kenntnisse in SAP FI/CO",
+     "Interessiert?",
+     "Dann freuen wir uns auf Ihre Bewerbung."
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K47": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Kenntnisse in SAP S/4HANA"
+    ],
+    "missing": [
+     "3-5 Jahre Berufserfahrung im Controlling",
+     "Erfahrung mit Monatsabschlüssen nach HGB"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K48": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "7+ years of experience in FP&A or controlling",
+     "Strong knowledge of budgeting and forecasting",
+     "Experience with Power BI",
+     "Fluent English and German"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K49": {
+    "pct": 17,
+    "coverage": 17,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Abgeschlossenes technisches Studium  Maschinenbau",
+     "Verfahrenstechnik",
+     "Elektrotechnik  zwingend erforderlich",
+     "Mehrjährige Erfahrung im Projektcontrolling",
+     "Erfahrung mit Restrukturierungen"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K50": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "10+ years of experience in group reporting and consolidation under IFRS",
+     "Experience with LucaNet or SAP Group Reporting"
+    ],
+    "missing": [
+     "Master's degree in Business Administration or Economics",
+     "Fluent English"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K51": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "At least 5 years of professional experience in accounting or controlling",
+     "Experience with month-end closing under HGB",
+     "Good knowledge of DATEV",
+     "Fluent German and English"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K52": {
+    "pct": 20,
+    "coverage": 20,
+    "mode": "requirements",
+    "matched": [
+     "Sicherer Umgang mit SAP S/4HANA"
+    ],
+    "missing": [
+     "Abgeschlossenes Studium der Informatik",
+     "Erfahrung in der Einführung von Konsolidierungssoftware",
+     "LucaNet",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K53": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Restrukturierung",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury",
+     "in der Liquiditätsplanung",
+     "Erfahrung in der Führung von Finanzteams"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K54": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung mit Monatsabschlüssen",
+     "Jahresabschlüssen nach HGB",
+     "Kenntnisse in der Budgetierung"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K55": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mehrjährige Erfahrung in der Krankenhausbuchhaltung nach KHBV",
+     "Fundierte Kenntnisse im DRG-Abrechnungssystem",
+     "Erfahrung in Pflegesatzverhandlungen",
+     "Kenntnisse im Krankenhausentgeltgesetz"
+    ],
+    "violations": [],
+    "termHits": 0,
+    "mustTotal": 4,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K56": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung in SAP FI",
+     "SAP CO",
+     "Erfahrung mit S/4HANA-Migrationen im Finanzwesen",
+     "Kenntnisse in Central Finance",
+     "Erfahrung in der Datenmigration"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 5,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K57": {
+    "pct": 83,
+    "coverage": 83,
+    "mode": "requirements",
+    "matched": [
+     "Mehrjährige Erfahrung mit SAP S/4HANA Finance",
+     "Erfahrung in der Datenmigration",
+     "Kenntnisse in SAP FI",
+     "SAP CO",
+     "Erfahrung im Testmanagement"
+    ],
+    "missing": [
+     "Kenntnisse in IFRS 17"
+    ],
+    "violations": [],
+    "termHits": 7,
+    "mustTotal": 6,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "K58": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Mindestens 12 Jahre Berufserfahrung im Finanzbereich",
+     "Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS",
+     "Erfahrung im Treasury",
+     "in der Unternehmensfinanzierung",
+     "Führungserfahrung"
+    ],
+    "violations": [],
+    "termHits": 0,
     "mustTotal": 5,
     "niceTotal": 0,
     "niceCovered": 0
