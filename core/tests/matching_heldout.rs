@@ -97,6 +97,23 @@ fn run_set(name: &str) -> SetRun {
                 },
             };
             let a = assess(&profile, &input, None).expect("a usable profile");
+            // Debugging aid: `HELDOUT_EXPLAIN="heldout1 sample_profile D11"` prints the
+            // reasons of that pair (with `heldout_rows -- --nocapture`).
+            let pair_name = format!(
+                "{name} {} {}",
+                profile_name.trim_end_matches(".json"),
+                job.file
+            );
+            if std::env::var("HELDOUT_EXPLAIN").is_ok_and(|v| v == pair_name) {
+                println!("{pair_name} score {}", a.score);
+                for r in &a.reasons {
+                    let evidence = r.evidence.as_ref().map(|e| e.profile.as_str());
+                    println!(
+                        "  {:?} {:?} {:?} {:?} <- {evidence:?}",
+                        r.kind, r.weight, r.code, r.label
+                    );
+                }
+            }
             let outcome = match a.verdict {
                 Verdict::Scored => Outcome::Scored,
                 Verdict::Excluded => Outcome::Excluded,
@@ -147,8 +164,8 @@ const HELDOUT1: Floor = Floor {
     grade3_buried: 1,
 };
 const HELDOUT2: Floor = Floor {
-    ndcg10: 0.79,
-    spearman: 0.54,
+    ndcg10: 0.85,
+    spearman: 0.55,
     exclusion_precision: 1.0,
     exclusion_recall: 0.94,
     grade3_buried: 1,

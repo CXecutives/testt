@@ -144,6 +144,7 @@ pub(crate) const DOMAIN: Domain = Domain {
         ("dispute resolution", "streitbeilegung"),
         // In-house legal roles (`General` is a filler, so `General Counsel` is `Counsel`).
         ("legal counsel", "syndikus"),
+        ("general counsel", "leitung-recht"),
         ("in-house counsel", "syndikus"),
         ("syndikusrechtsanwalt", "syndikus"),
         ("syndikusrechtsanwaltin", "syndikus"),

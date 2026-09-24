@@ -75,6 +75,7 @@ pub(crate) const DOMAIN: Domain = Domain {
         ("bestandskundenmanagement", "kundenbetreuung"),
         ("accounting", "rechnungswesen"),
         ("customer success", "customer-success"),
+        ("customer experience", "customer-experience"),
         ("customer service", "kundenservice"),
         // Business development and new business.
         ("business development", "business-development"),

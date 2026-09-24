@@ -406,6 +406,15 @@ fn example_marker(text: &str) -> Option<(usize, usize)> {
 }
 
 /// Items of a requirement phrase: (item range, alternative ranges), relative to `phrase`.
+/// A part that is one adjective (`Classic`, `klassische`, `strategic`).
+fn lone_adjective(text: &str) -> bool {
+    let word = fold(text.trim());
+    !word.is_empty()
+        && !word.contains(char::is_whitespace)
+        && word.chars().all(char::is_alphabetic)
+        && lex::ADJECTIVE_ENDINGS.iter().any(|e| word.ends_with(e))
+}
+
 pub(crate) fn split(phrase: &str) -> Vec<(Range<usize>, Vec<Range<usize>>)> {
     let lower = fold(phrase);
     let has_or = OR.iter().any(|w| lower.contains(w));
@@ -416,8 +425,18 @@ pub(crate) fn split(phrase: &str) -> Vec<(Range<usize>, Vec<Range<usize>>)> {
         separators(phrase, AND)
     };
     let mut items: Vec<(Range<usize>, Vec<Range<usize>>)> = Vec::new();
-    for part in cut(phrase, &and_seps) {
+    let parts = cut(phrase, &and_seps);
+    for (index, part) in parts.iter().cloned().enumerate() {
         let text = &phrase[part.clone()];
+        // `Classic and agile project management`: the lone adjective shares the next
+        // part's noun, it is no requirement of its own.
+        if lone_adjective(text)
+            && parts
+                .get(index + 1)
+                .is_some_and(|next| phrase[next.clone()].split_whitespace().count() >= 2)
+        {
+            continue;
+        }
         let marker = example_marker(text);
         // "z. B. LucaNet" after a comma: examples of the previous item.
         if let Some((0, after)) = marker
@@ -523,10 +542,118 @@ fn starts_with_any(atom: &str, stems: &[&str]) -> bool {
     stems.iter().any(|s| atom.starts_with(s))
 }
 
+/// A word with one of `WORD_ENDINGS` (or none) after `stem`.
+fn ending_after<'w>(word: &'w str, stem: &str) -> Option<&'w str> {
+    word.strip_prefix(stem)
+        .filter(|rest| rest.is_empty() || lex::WORD_ENDINGS.contains(rest))
+}
+
+/// Is `part` one of `heads`, perhaps with an ending?
+fn is_head(part: &str, heads: &[&str]) -> bool {
+    heads.iter().any(|h| ending_after(part, h).is_some())
+}
+
+/// The compound head after a modifier (and its linking letters) in `rest`.
+fn heads_after(rest: &str) -> impl Iterator<Item = &str> {
+    std::iter::once(rest).chain(
+        lex::LINKERS
+            .iter()
+            .filter_map(move |l| rest.strip_prefix(l)),
+    )
+}
+
+/// Does a word (folded) stand for a frame condition? The frame word itself or with an
+/// ending (`Verfügbarkeit`), a compound of a frame word and a frame head
+/// (`Reisebereitschaft`, `Gehaltsvorstellung`, `Remote-Arbeit`) or a compound that ends in
+/// a frame word (`Projektlaufzeit`, `Dienstreise`). A frame word that only modifies another
+/// head is a skill (`Vergütungsmanagement`, `Gehaltsabrechnung`, `Standortleitung`,
+/// `Start-up`).
+pub(crate) fn frame_word(word: &str) -> bool {
+    let frame = |part: &str| {
+        lex::FRAME_WORDS
+            .iter()
+            .any(|f| ending_after(part, f).is_some())
+    };
+    let head = |part: &str| is_head(part, lex::FRAME_HEADS) || frame(part);
+    if frame(word) {
+        return true;
+    }
+    if let (Some((first, _)), Some((_, last))) = (word.split_once('-'), word.rsplit_once('-')) {
+        return (frame(first) && head(last))
+            || (frame(last) && !lex::NOT_FRAME_MODIFIERS.contains(&first));
+    }
+    lex::FRAME_WORDS.iter().any(|f| {
+        let compound = word
+            .strip_prefix(f)
+            .is_some_and(|rest| heads_after(rest).any(|h| !h.is_empty() && head(h)));
+        // `Projektlaufzeit`: a real modifier (four letters or more) before a frame word of
+        // five letters or more (`corporate` does not end in the frame word `rate`).
+        let ends = f.len() >= 5
+            && word.len() >= f.len() + 4
+            && word.find(f).is_some_and(|at| {
+                at >= 4
+                    && ending_after(&word[at..], f).is_some()
+                    && !lex::NOT_FRAME_MODIFIERS.iter().any(|m| word.starts_with(m))
+            });
+        compound || ends
+    })
+}
+
+/// Is the item a frame condition? A frame word counts unless an English skill head follows
+/// it (`Hybrid Cloud`, `Travel Management`) or the item names compensation work
+/// (`Vergütung und Benefits`).
+fn is_frame(folded: &str, tokens: &[&str]) -> bool {
+    if tokens
+        .iter()
+        .any(|t| lex::FRAME_SKILL_CONTEXT.iter().any(|c| t.starts_with(c)))
+    {
+        return false;
+    }
+    tokens.iter().enumerate().any(|(i, t)| {
+        frame_word(t)
+            && !tokens.get(i + 1).is_some_and(|next| {
+                lex::FRAME_MODIFIED_HEADS.contains(next) && joined_by_space(folded, t, next)
+            })
+    })
+}
+
+/// Are two tokens of `folded` (slices of it) separated by spaces only?
+fn joined_by_space(folded: &str, first: &str, second: &str) -> bool {
+    let start = folded.as_ptr() as usize;
+    let end_first = first.as_ptr() as usize + first.len() - start;
+    let begin_second = second.as_ptr() as usize - start;
+    folded
+        .get(end_first..begin_second)
+        .is_some_and(|gap| !gap.is_empty() && gap.chars().all(char::is_whitespace))
+}
+
+/// Is a token a soft skill? The soft word with an ending (`analytische`, `Flexibilität`) or
+/// a compound with a soft head (`Kommunikationsfähigkeit`); a soft adjective before another
+/// noun is a modifier (`analytische Methodenvalidierung`), and a compound with another head
+/// is a skill (`Kommunikationsstrategie`).
+fn soft_token(folded: &str, tokens: &[&str], i: usize) -> bool {
+    let t = tokens[i];
+    lex::SOFT_SKILLS.iter().any(|s| {
+        if ending_after(t, s).is_some() {
+            let modifies = tokens.get(i + 1).is_some_and(|next| {
+                joined_by_space(folded, t, next)
+                    && next.len() >= 4
+                    && next.chars().all(|c| c.is_alphabetic() || c == '-')
+                    && !atoms::is_filler(next)
+                    && !is_head(next, lex::SOFT_HEADS)
+                    && !lex::SOFT_SKILLS.iter().any(|o| next.starts_with(o))
+            });
+            return !modifies;
+        }
+        t.strip_prefix(s)
+            .is_some_and(|rest| heads_after(rest).any(|h| is_head(h, lex::SOFT_HEADS)))
+    })
+}
+
 fn classify(text: &str, phrase_level: Option<u8>, vocab: &Vocab) -> Class {
     let folded = fold(text);
     let tokens: Vec<&str> = atoms::raw_tokens(&folded).collect();
-    if tokens.iter().any(|t| starts_with_any(t, lex::FRAME_WORDS)) {
+    if is_frame(&folded, &tokens) {
         return Class::Frame;
     }
     if let Some(word) = lex::LICENCE_WORDS.iter().find(|w| folded.contains(**w))
@@ -535,9 +662,8 @@ fn classify(text: &str, phrase_level: Option<u8>, vocab: &Vocab) -> Class {
         return Class::Licence(word);
     }
     let content = atoms::atoms(text, vocab);
-    let soft = tokens
-        .iter()
-        .filter(|t| starts_with_any(t, lex::SOFT_SKILLS))
+    let soft = (0..tokens.len())
+        .filter(|&i| soft_token(&folded, &tokens, i))
         .count();
     if soft > 0 && 2 * soft >= content.len() {
         return Class::Soft;
@@ -558,8 +684,12 @@ fn classify(text: &str, phrase_level: Option<u8>, vocab: &Vocab) -> Class {
 
 /// Do the tokens name a degree (`Master Data Management` does not)?
 pub(crate) fn names_degree(tokens: &[&str]) -> bool {
+    let sales = tokens
+        .iter()
+        .any(|t| starts_with_any(t, lex::PROMOTION_NOT_DEGREE));
     tokens.iter().enumerate().any(|(i, t)| {
         starts_with_any(t, lex::DEGREE_WORDS)
+            && !(sales && t.starts_with("promotion"))
             && !(t.starts_with("master")
                 && (lex::MASTER_NOT_DEGREE
                     .iter()
@@ -616,6 +746,9 @@ mod tests {
         assert!(degree("Master in Business Administration"));
         assert!(!degree("Erfahrung im Master Data Management"));
         assert!(!degree("Masterdaten und Stammdatenpflege"));
+        assert!(degree("Promotion in Chemie oder Pharmazie"));
+        assert!(degree("Zweites Staatsexamen in Pharmazie"));
+        assert!(!degree("Erfahrung in Sales Promotion und Handel"));
         let fields = |text: &str| super::super::fit::degree_fields_in(&fold(text));
         assert_eq!(
             fields("Naturwissenschaftliches Studium (Pharmazie, Chemie, Biologie)"),
@@ -625,6 +758,85 @@ mod tests {
             fields("Dr. rer. nat., approbierte Apothekerin"),
             ["life-science", "science"]
         );
+    }
+
+    fn class(text: &str) -> Class {
+        classify(text, None, &Vocab::all())
+    }
+
+    /// Frame words count as whole words, with an ending, before a frame head or at the end
+    /// of a compound; as a modifier of another head they are part of a skill.
+    #[test]
+    fn frame_words_are_words_not_prefixes() {
+        for frame in [
+            "Reisebereitschaft",
+            "Reisetätigkeit bis 50 %",
+            "Verfügbarkeit ab sofort",
+            "Startdatum 01.11.2026",
+            "Gehaltsvorstellung",
+            "Remote-Arbeit möglich",
+            "Projektlaufzeit 6 Monate",
+            "Hybrid, 2 Tage vor Ort",
+            "Travel willingness",
+            "Remote work",
+            "Location: Munich",
+            "Präsenzpflicht in Hamburg",
+        ] {
+            assert_eq!(class(frame), Class::Frame, "{frame}");
+        }
+        for skill in [
+            "Vergütungsmanagement",
+            "Gehaltsabrechnung",
+            "Standortschließung",
+            "Standortleitung",
+            "Salary Benchmarking",
+            "Hybrid Cloud",
+            "Travel Management",
+            "Start-up-Erfahrung",
+            "Erfahrung mit Vergütung und Benefits",
+            "Aufbau der Online-Präsenz",
+            "Corporate Finance",
+            "Resource allocation",
+        ] {
+            assert_eq!(class(skill), Class::Skill, "{skill}");
+        }
+    }
+
+    /// Soft words are soft with an ending or a soft head; a compound with another head or
+    /// a soft adjective before another noun is a skill.
+    #[test]
+    fn soft_words_are_words_not_prefixes() {
+        for soft in [
+            "Kommunikationsstärke",
+            "Kommunikationsfähigkeit",
+            "Analytisches Denken",
+            "Analytische und konzeptionelle Fähigkeiten",
+            "Flexibilität und Belastbarkeit",
+            "Selbstständige Arbeitsweise",
+            "Communication skills",
+        ] {
+            assert_eq!(class(soft), Class::Soft, "{soft}");
+        }
+        for skill in [
+            "Kommunikationsstrategie",
+            "Analytische Methodenvalidierung",
+            "Communication strategy",
+        ] {
+            assert_eq!(class(skill), Class::Skill, "{skill}");
+        }
+    }
+
+    /// `Qualified Person` and `Sachkundige Person` are one licence.
+    #[test]
+    fn qualified_person_is_a_licence() {
+        assert!(matches!(
+            class("Qualified Person according to EU directive"),
+            Class::Licence(_)
+        ));
+        assert!(matches!(
+            class("Sachkundige Person nach § 15 AMG"),
+            Class::Licence(_)
+        ));
     }
 
     fn items(phrase: &str) -> Vec<(String, Vec<String>)> {
@@ -703,6 +915,23 @@ mod tests {
         );
         assert_eq!(got.len(), 2);
         assert!(got[0].1.contains(&"Power BI".to_owned()), "{got:?}");
+    }
+
+    /// A lone adjective shares the next part's noun and is no item of its own.
+    #[test]
+    fn lone_adjectives_are_no_items() {
+        let texts =
+            |phrase: &str| -> Vec<String> { items(phrase).into_iter().map(|(t, _)| t).collect() };
+        assert_eq!(
+            texts("Classic and agile project management"),
+            ["agile project management"]
+        );
+        assert_eq!(texts("Klassische und agile Methoden"), ["agile Methoden"]);
+        assert_eq!(
+            texts("Controlling und Reporting"),
+            ["Controlling", "Reporting"]
+        );
+        assert_eq!(texts("Excel und Power BI"), ["Excel", "Power BI"]);
     }
 
     #[test]
