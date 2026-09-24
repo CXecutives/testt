@@ -459,6 +459,10 @@ export const de = {
       return at !== undefined && portal !== null ? at(portalName[portal]) : status[code];
     },
     of: (done: number, total: number) => `${n(done)} von ${n(total)}`,
+    /** After the rolling number of a step counter: "von 7". */
+    ofTotal: (total: number) => `von ${n(total)}`,
+    newPill: (value: number) => `${n(value)} neu`,
+    topPill: (value: number) => `${n(value)} passen gut`,
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
     pause,
     pausedUntil: (iso: string | null) =>
@@ -503,7 +507,7 @@ export const de = {
   },
   list: {
     label: 'Jobs',
-    excluded: (value: number) => `Ausgeschlossen ${n(value)}`,
+    excluded: 'Ausgeschlossen',
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
     emptyAfterRun: 'Die Alert-Mails enthielten bisher keine Jobs.',
@@ -572,6 +576,7 @@ export const de = {
     excluded: 'Ausgeschlossen',
     pinned: 'Gemerkt',
     issues: 'Offene Punkte',
+    best: 'Beste Passung',
     newJobs: 'Neue Jobs',
     newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
     /** Under the portal's name, so the sentence does not name it again. */

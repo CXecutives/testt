@@ -1,15 +1,21 @@
 <!--
   The run panel on top of the list (flat on the sheet, a hairline below), shown only while a
   run is going or right after it (or when the run status in the sidebar is clicked); it
-  collapses to its header line and closes.
-  running: the header (the status, naming the portal it is about, and the countdown of a
-  pause) and the progress bar right below it, the steps Postfach, Details, Bewertung (16 px
-  check / loader / circle) and every limit or pause with its reason and end.
-  finished: how many new and well-fitting jobs (nothing when there are none: the note says
-  it), what went wrong with a fitting action, the history with copy. The overview file and
-  the folder have their one place in the day overview. A finished rescore only says so.
+  collapses to its header line (the chevron turns, the rest fades in when it opens and is
+  gone at once when it closes) and closes.
+  running: the header line (the spinner, the status naming the portal it is about, which
+  cross-fades when it changes, and the countdown of a pause as a soft navy pill), the navy
+  progress bar right below it, the steps Postfach, Details, Bewertung side by side (a navy
+  dot for the current one, a check that draws itself when a step finishes while the card is
+  on screen, the counters roll), then every limit or pause with its reason and end.
+  finished: the outcome and its time (the header cross-fades from the running one), the
+  pills "n neu" and "n passen gut" (nothing when there are none: the note says it), what
+  went wrong with a fitting action, the history with copy. The overview file and the folder
+  have their one place in the day overview. A finished rescore only says so.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import Badge from '$components/Badge.svelte';
   import Button from '$components/Button.svelte';
   import Disclosure from '$components/Disclosure.svelte';
   import Icon from '$components/Icon.svelte';
@@ -17,10 +23,11 @@
   import Notice from '$components/Notice.svelte';
   import Spinner from '$components/Spinner.svelte';
   import { de } from '$lib/i18n/de';
-  import { formatMoment, formatTime } from '$lib/i18n/format';
+  import { formatMoment, formatNumber, formatTime } from '$lib/i18n/format';
   import { errorText, healthText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { OpenTarget, Portal, PortalHealth } from '$lib/ipc/types';
+  import type { OpenTarget, Portal, PortalHealth, Step } from '$lib/ipc/types';
+  import { fade, roll } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { outcomeText, run, STEPS } from '$lib/state/run.svelte';
@@ -62,6 +69,21 @@
     run.panel = open ? 'collapsed' : 'open';
   }
 
+  // A step that finishes while the card is on screen draws its check once; a card that
+  // mounts with steps already done shows plain checks.
+  const drawn = $state<Partial<Record<Step, true>>>({});
+  let states: Partial<Record<Step, string>> = {};
+  $effect.pre(() => {
+    const now = STEPS.map((step) => [step, run.active ? run.stepState(step) : 'idle'] as const);
+    untrack(() => {
+      for (const [step, state] of now) {
+        if (state === 'done' && states[step] === 'current') drawn[step] = true;
+        if (state !== 'done') delete drawn[step];
+        states[step] = state;
+      }
+    });
+  });
+
   /** A fitting action for a failed run. */
   const failureAction = $derived.by(() => {
     if (failure === null) return null;
@@ -82,14 +104,15 @@
 
 {#snippet head(text: string, extra: string | null)}
   <div class="head">
-    <span class="title">{text}</span>
-    {#if extra}<span class="extra" data-testid="countdown">{extra}</span>{/if}
+    {#key text}<span class="title" in:fade>{text}</span>{/key}
+    {#if extra}<span class="pill" data-testid="countdown">{extra}</span>{/if}
     <span class="tools">
       <Button
         variant="ghost"
         size="sm"
         iconOnly
-        icon={open ? 'chevron-up' : 'chevron-down'}
+        icon="chevron-down"
+        turned={open}
         label={open ? de.run.collapse : de.run.expand}
         testid="run-toggle"
         onclick={toggle}
@@ -111,7 +134,7 @@
 
 <section class="panel" data-testid="run-card">
   {#if run.active}
-    <div class="running" data-testid="run-running">
+    <div class="running" data-testid="run-running" in:fade>
       <div class="lead">
         <Spinner size="sm" label={null} />
         {@render head(
@@ -123,91 +146,105 @@
       </div>
       <Meter value={run.fraction} size="sm" label={de.toolbar.progress} />
       {#if open}
-        <ol class="steps">
-          {#each STEPS as step (step)}
-            {@const state = run.stepState(step)}
-            {@const progress = run.progress[step]}
-            <li class="step {state}" data-testid="step-{step}">
-              <span class="mark">
-                <Icon
-                  name={state === 'done'
-                    ? 'check'
-                    : state === 'current'
-                      ? 'loader-circle'
-                      : 'circle'}
-                  size="sm"
-                />
-              </span>
-              <span class="name">{de.run.step[step]}</span>
-              {#if progress && progress.total > 0}
-                <span class="count">{de.run.of(progress.done, progress.total)}</span>
-              {/if}
-            </li>
+        <div class="more" in:fade>
+          <ol class="steps">
+            {#each STEPS as step (step)}
+              {@const state = run.stepState(step)}
+              {@const progress = run.progress[step]}
+              <li class="step {state}" data-testid="step-{step}">
+                <span class="step-head">
+                  <span class="mark" class:drawn={drawn[step]}>
+                    <Icon
+                      name={state === 'done'
+                        ? 'circle-check'
+                        : state === 'current'
+                          ? 'circle-dot'
+                          : 'circle'}
+                      size="sm"
+                    />
+                  </span>
+                  <span class="name">{de.run.step[step]}</span>
+                </span>
+                <span class="count">
+                  {#if progress && progress.total > 0}
+                    {#key progress.done}<span class="value" in:roll={{ up: true }}
+                        >{formatNumber(progress.done)}</span
+                      >{/key}
+                    {de.run.ofTotal(progress.total)}
+                  {/if}
+                </span>
+              </li>
+            {/each}
+          </ol>
+          {#each pauses as [portal, health] (portal)}
+            <Notice
+              tone="warning"
+              variant="inline"
+              heading={de.portal[portal]}
+              text={healthText(health).text ?? ''}
+              testid="pause-{portal}"
+            />
           {/each}
-        </ol>
-        {#each pauses as [portal, health] (portal)}
-          <Notice
-            tone="warning"
-            variant="inline"
-            heading={de.portal[portal]}
-            text={healthText(health).text ?? ''}
-            testid="pause-{portal}"
-          />
-        {/each}
-        {#if run.loginNeeded}
-          <Notice tone="info" variant="inline" text={de.settings.signInWaiting} />
-        {/if}
+          {#if run.loginNeeded}
+            <Notice tone="info" variant="inline" text={de.settings.signInWaiting} />
+          {/if}
+        </div>
       {/if}
     </div>
   {:else if summary}
-    <div class="finished" data-testid="run-finished">
+    <div class="finished" data-testid="run-finished" in:fade>
       <div class="lead" class:failed={failure !== null}>
         <Icon name={failure ? 'triangle-alert' : 'circle-check'} size="sm" />
-        {@render head(title, formatMoment(summary.finishedAt))}
+        {@render head(title, null)}
       </div>
       {#if open}
-        {#if !rescore && newJobs > 0}
-          <p class="numbers">
-            <span data-testid="last-new">{de.run.newCount(newJobs)}</span>
-            {#if app.hasProfile && topJobs > 0}
-              <span class="sep">·</span><span class="top">{de.run.topCount(topJobs)}</span>
+        <div class="more" in:fade>
+          <p class="facts">
+            <span class="time">{formatMoment(summary.finishedAt)}</span>
+            {#if !rescore && newJobs > 0}
+              <span data-testid="last-new"
+                ><Badge label={de.run.newPill(newJobs)} tone="navy" /></span
+              >
+              {#if app.hasProfile && topJobs > 0}
+                <Badge label={de.run.topPill(topJobs)} tone="success" />
+              {/if}
             {/if}
           </p>
-        {/if}
-        {#if failure}
-          <Notice
-            tone="danger"
-            variant="row"
-            text={de.error.text(failure.kind, failure.params)}
-            action={failureAction}
-            testid="run-failed"
-          />
-        {:else if summary.outcome.kind === 'completed' && newJobs === 0 && !rescore}
-          <Notice tone="info" variant="inline" text={de.run.nothingNew} testid="nothing-new" />
-        {/if}
-        {#if skipped > 0}
-          <Notice tone="info" variant="inline" text={de.run.skipped(skipped)} />
-        {/if}
-        {#if (summary.export?.txtFailed ?? 0) > 0}
-          <Notice
-            tone="warning"
-            variant="inline"
-            text={de.run.filesFailed(summary.export?.txtFailed ?? 0)}
-          />
-        {/if}
-        {#if run.history.length > 0}
-          <Disclosure label={de.run.history} testid="run-history">
-            <ol class="history" data-copy>
-              {#each run.history as line, index (index)}
-                <li>
-                  <span class="time">{formatTime(new Date(line.at).toISOString())}</span>
-                  {line.text}
-                </li>
-              {/each}
-            </ol>
-            <Button variant="ghost" size="sm" icon="copy" label={de.common.copy} onclick={copy} />
-          </Disclosure>
-        {/if}
+          {#if failure}
+            <Notice
+              tone="danger"
+              variant="row"
+              text={de.error.text(failure.kind, failure.params)}
+              action={failureAction}
+              testid="run-failed"
+            />
+          {:else if summary.outcome.kind === 'completed' && newJobs === 0 && !rescore}
+            <Notice tone="info" variant="inline" text={de.run.nothingNew} testid="nothing-new" />
+          {/if}
+          {#if skipped > 0}
+            <Notice tone="info" variant="inline" text={de.run.skipped(skipped)} />
+          {/if}
+          {#if (summary.export?.txtFailed ?? 0) > 0}
+            <Notice
+              tone="warning"
+              variant="inline"
+              text={de.run.filesFailed(summary.export?.txtFailed ?? 0)}
+            />
+          {/if}
+          {#if run.history.length > 0}
+            <Disclosure label={de.run.history} testid="run-history">
+              <ol class="history" data-copy>
+                {#each run.history as line, index (index)}
+                  <li>
+                    <span class="stamp">{formatTime(new Date(line.at).toISOString())}</span>
+                    {line.text}
+                  </li>
+                {/each}
+              </ol>
+              <Button variant="ghost" size="sm" icon="copy" label={de.common.copy} onclick={copy} />
+            </Disclosure>
+          {/if}
+        </div>
       {/if}
     </div>
   {/if}
@@ -229,7 +266,8 @@
   }
 
   .running,
-  .finished {
+  .finished,
+  .more {
     display: flex;
     flex-direction: column;
     gap: var(--space-12);
@@ -243,7 +281,7 @@
   }
 
   .running .lead {
-    color: var(--text-heading);
+    color: var(--meter-fill);
   }
 
   .lead.failed {
@@ -267,9 +305,18 @@
     white-space: nowrap;
   }
 
-  .extra {
-    color: var(--text-muted);
-    font: var(--type-sm);
+  /* The countdown of a pause: a soft navy pill; tabular digits, so the ticking stays still. */
+  .pill {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: var(--badge-height);
+    padding: 0 var(--space-8);
+    border-radius: var(--radius-full);
+    background-color: var(--count-soft-bg);
+    color: var(--count-soft-fg);
+    font: var(--type-xs);
+    font-weight: var(--weight-medium);
     font-variant-numeric: var(--numeric);
     white-space: nowrap;
   }
@@ -279,19 +326,27 @@
     margin-left: auto;
   }
 
+  /* The steps side by side: marker and name, below them the counter. */
   .steps {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-8);
   }
 
   .step {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    column-gap: var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
     color: var(--text-muted);
     font: var(--type-sm);
+  }
+
+  .step-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    min-width: 0;
   }
 
   .step.current,
@@ -303,9 +358,16 @@
     font-weight: var(--weight-medium);
   }
 
-  /* 16 px markers: check when done, loader while current, an empty circle ahead. */
+  .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 16 px markers: a check when done, the navy dot while current, an empty circle ahead. */
   .mark {
     display: flex;
+    flex: none;
     color: var(--text-subtle);
   }
 
@@ -314,26 +376,43 @@
   }
 
   .current .mark {
-    color: var(--text);
+    color: var(--meter-fill);
+  }
+
+  /* The check of a step that just finished draws itself once (180 ms). */
+  .drawn :global(svg path) {
+    stroke-dasharray: var(--draw-length);
+    animation: draw var(--dur-slow) var(--ease-out) both;
   }
 
   .count {
+    min-height: var(--leading-xs);
+    padding-left: calc(var(--icon-sm) + var(--space-6));
+    color: var(--text-subtle);
+    font: var(--type-xs);
+    font-variant-numeric: var(--numeric);
+  }
+
+  .value {
+    display: inline-block;
+  }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-6);
     color: var(--text-muted);
     font: var(--type-sm);
     font-variant-numeric: var(--numeric);
   }
 
-  .numbers {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-6);
-    color: var(--text-muted);
-    font: var(--type-sm);
+  .facts > * + * {
+    display: inline-flex;
   }
 
-  .top {
-    color: var(--score-high-text);
-    font-weight: var(--weight-medium);
+  .time {
+    margin-right: var(--space-2);
   }
 
   .history {
@@ -348,7 +427,7 @@
   }
 
   /* The space after the time is a real one, so a selection copies like "Kopieren". */
-  .time {
+  .stamp {
     margin-right: var(--space-4);
     font-variant-numeric: var(--numeric);
   }

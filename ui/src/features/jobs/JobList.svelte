@@ -1,10 +1,10 @@
 <!--
   The job list: rows in windows of 60 (a sentinel at the end shows the next window), a new
-  job of a run fades in where it lands (the rows below simply make room), and only a real
-  re-sort moves rows: when the rows come back in another order (the sort switch, the re-sort
-  at the end of a run) the rows on screen glide to their new place. Filtering, searching and
-  live updates never move anything. Excluded jobs sit grey behind the divider
-  "Ausgeschlossen n" (under Neu too, uncounted). Clicking the selected row again changes
+  job of a run fades in where it lands (the rows below simply make room). Rows move only for
+  the user's own change and for the re-sort at the end of a run: after the sort switch, Neu |
+  Alle or a filter the rows on screen glide to their new place (150 ms); rows off screen and
+  new rows are simply there. A search and live updates never move anything. Excluded jobs
+  sit grey behind the divider "Ausgeschlossen" with a soft count (under Neu too, uncounted). Clicking the selected row again changes
   nothing (a native list keeps its selection). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
   view's primary). Without a mailbox one note says how to connect one; a missing profile is
@@ -12,7 +12,7 @@
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import Button from '$components/Button.svelte';
+  import Count from '$components/Count.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import JobRow from '$components/JobRow.svelte';
   import Notice from '$components/Notice.svelte';
@@ -48,26 +48,20 @@
     void jobs.select(job, true);
   }
 
-  /* ------------------------------------------------------------------ re-sort glide */
+  /* --------------------------------------------------------------------- glides */
 
   let list = $state<HTMLElement | null>(null);
-  /** Keys of the mounted rows as the DOM shows them now. */
-  let order: string[] = [];
-  /** Top edges of the rows before a re-sort, until the DOM has the new order. */
+  /** The next new rows come from the user's own change (sort, facet, filter) or from the
+   *  re-sort at the end of a run: the rows on screen glide to their new place. */
+  let armed = false;
+  /** Top edges of the rows before such a change, until the DOM has the new rows. */
   let before: Map<string, number> | null = null;
-
-  /** Some rows that were there before now stand in another order among themselves. */
-  function resorted(previous: readonly string[], next: readonly string[]): boolean {
-    const at = new Map(previous.map((key, index) => [key, index]));
-    let last = -1;
-    for (const key of next) {
-      const index = at.get(key);
-      if (index === undefined) continue;
-      if (index < last) return true;
-      last = index;
-    }
-    return false;
-  }
+  let last = untrack(() => ({
+    sort: jobs.sortChoice,
+    facet: jobs.facet,
+    filter: jobs.filter,
+    active: run.active,
+  }));
 
   function rowsOf(root: HTMLElement): HTMLElement[] {
     return [...root.querySelectorAll<HTMLElement>('[data-key]')];
@@ -91,20 +85,37 @@
     }
   }
 
-  // Before the DOM changes: note where the rows stand when the new rows are a re-sort.
+  // What changed the list: the user's sort, facet or filter (never while a run streams new
+  // rows in), or the end of a run. A search and live updates arm nothing.
   $effect.pre(() => {
-    const next = shown.map((job) => keyOf(job.key));
+    const now = {
+      sort: jobs.sortChoice,
+      facet: jobs.facet,
+      filter: jobs.filter,
+      active: run.active,
+    };
     untrack(() => {
-      if (list !== null && resorted(order, next)) {
-        before = new Map(
-          rowsOf(list).map((row) => [row.dataset.key ?? '', row.getBoundingClientRect().top]),
-        );
-      }
-      order = next;
+      const chosen =
+        now.sort !== last.sort || now.facet !== last.facet || now.filter !== last.filter;
+      if ((chosen && !now.active) || (last.active && !now.active)) armed = true;
+      last = now;
     });
   });
 
-  // After the DOM has the new order: glide from the noted places.
+  // Before the DOM changes: note where the rows stand. The glide stays armed until the
+  // change has loaded (a filter shows its rows at once and again once every page is in).
+  $effect.pre(() => {
+    void shown;
+    untrack(() => {
+      if (!armed || list === null) return;
+      before = new Map(
+        rowsOf(list).map((row) => [row.dataset.key ?? '', row.getBoundingClientRect().top]),
+      );
+      if (jobs.status !== 'loading') armed = false;
+    });
+  });
+
+  // After the DOM has the new rows: glide from the noted places.
   $effect(() => {
     void shown;
     untrack(() => {
@@ -132,20 +143,6 @@
         text={de.list.noMailbox}
         action={{ label: de.list.connectMailbox, onclick: () => navigation.go('settings') }}
         testid="no-mailbox"
-      />
-    </div>
-  {/if}
-  {#if jobs.filter !== null}
-    <div class="filter" data-testid="filter">
-      <span class="filter-label">{de.list.filter[jobs.filter]}</span>
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="x"
-        iconOnly
-        label={de.list.clearFilter}
-        testid="clear-filter"
-        onclick={() => jobs.setFilter(null)}
       />
     </div>
   {/if}
@@ -237,7 +234,8 @@
     </div>
     {#if excluded.length > 0}
       <div class="divider" data-testid="excluded-divider">
-        <span>{de.list.excluded(excludedCount)}</span>
+        <span class="divider-label">{de.list.excluded}</span>
+        <Count value={excludedCount} testid="excluded-count" />
       </div>
       <div class="rows" data-testid="excluded-rows">
         {@render group(excluded, active.length)}
@@ -266,36 +264,24 @@
     border-bottom: var(--border-width) solid var(--border);
   }
 
-  .filter {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-    align-self: flex-start;
-    margin: var(--pane-padding) var(--pane-padding) var(--space-4);
-    padding-left: var(--space-12);
-    border-radius: var(--radius-full);
-    background-color: var(--surface-muted);
-    color: var(--text);
-    font: var(--type-sm);
-    font-weight: var(--weight-medium);
-  }
-
   .rows {
     display: flex;
     flex-direction: column;
   }
 
+  /* A navy sub-label with its soft count, then the hairline. */
   .divider {
     display: flex;
     align-items: center;
-    gap: var(--space-12);
+    gap: var(--space-8);
     padding: var(--space-24) var(--pane-padding) var(--space-8);
-    color: var(--text-muted);
+    color: var(--text-label);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
   }
 
   .divider::after {
+    margin-left: var(--space-4);
     flex: 1;
     height: var(--border-width);
     background-color: var(--border);

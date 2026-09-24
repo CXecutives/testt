@@ -186,8 +186,12 @@ test('the day overview tiles filter the list and match the counts', async ({ pag
     'Eine Alert-Mail enthielt keine Jobs.',
   );
 
-  // The overview does not repeat the list: no job rows, and "neu" per portal adds up to Neu.
-  await expect(overview.locator('[data-testid^="job-row-"]')).toHaveCount(0);
+  // Of the list the overview shows only the best three of the last fetch, as rows that
+  // open the job; "neu" per portal adds up to Neu.
+  const best = page.getByTestId('best').locator('[data-testid^="job-row-"]');
+  expect(await best.count()).toBeGreaterThan(0);
+  expect(await best.count()).toBeLessThanOrEqual(3);
+  await expect(overview.locator('[data-testid^="job-row-"]')).toHaveCount(await best.count());
   const perPortal = await page
     .getByTestId('new-per-portal')
     .locator('li')
@@ -201,7 +205,7 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
   const keys = await rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
   let checked = 0;
   for (const key of keys) {
-    const row = page.getByTestId(key!);
+    const row = page.getByTestId('job-rows').getByTestId(key!);
     await row.click();
     // Wait until the reader shows this job (a slow machine would still show the last one).
     await expect(page.getByTestId('reader-title')).toHaveText(
@@ -636,6 +640,117 @@ test('only a re-sort moves rows: new jobs of a run land in place, the sort switc
   await watchGlides(page, 120);
   await page.getByTestId('sort').click();
   expect(await glides(page)).toBeGreaterThan(0);
+});
+
+test('the list header: one slot for Abrufen and Abbrechen, the filter, a line once scrolled', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&tick=200`);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const header = page.getByTestId('list-header');
+  const clear = 'rgba(0, 0, 0, 0)';
+  // The bottom line only once the list is scrolled.
+  await expect(header).toHaveCSS('border-bottom-color', clear);
+  const list = page.getByTestId('list-scroll');
+  await list.evaluate((node) => node.scrollTo({ top: 300 }));
+  await expect(header).not.toHaveCSS('border-bottom-color', clear);
+  await list.evaluate((node) => node.scrollTo({ top: 0 }));
+  await expect(header).toHaveCSS('border-bottom-color', clear);
+  // The search keeps its width when Abbrechen takes the place of Abrufen.
+  const search = page.getByTestId('search');
+  const before = (await search.boundingBox())!.width;
+  await page.getByTestId('fetch').click();
+  await expect(page.getByTestId('cancel-run')).toBeVisible();
+  expect((await search.boundingBox())!.width).toBe(before);
+  await expect(page.getByRole('button', { name: 'Abrufen' })).toHaveCount(0);
+  await page.getByTestId('cancel-run').click();
+  await runFinished(page);
+  // A tile's filter sits in the header, next to Neu | Alle; the sort glyph turns.
+  await page.getByTestId('tile-high').click();
+  await expect(header.getByTestId('filter')).toContainText('Hohe Passung');
+  await header.getByTestId('clear-filter').click();
+  await expect(page.getByTestId('filter')).toHaveCount(0);
+  await expect(page.getByTestId('sort')).not.toHaveClass(/turned/);
+  await page.getByTestId('sort').click();
+  await expect(page.getByTestId('sort')).toHaveClass(/turned/);
+});
+
+test('the reader: a compact bar once the actions scroll away, a jump flashes its passage', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await rows(page).first().click();
+  await expect(page.getByTestId('reader-ring')).toContainText('91');
+  const bar = page.getByTestId('reader-compact');
+  await expect(bar).toHaveCSS('opacity', '0');
+  await expect(bar).toHaveAttribute('inert', '');
+  const stage = page.getByTestId('stage');
+  await stage.evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
+  await expect(bar).toHaveCSS('opacity', '1');
+  await expect(bar).not.toHaveAttribute('inert');
+  await expect(bar).toContainText('Interim CFO für Familienunternehmen');
+  const pinned = await page.getByTestId('pin').getAttribute('aria-pressed');
+  await bar.getByTestId('compact-pin').click();
+  await expect(page.getByTestId('pin')).not.toHaveAttribute('aria-pressed', pinned ?? '');
+  await stage.evaluate((node) => node.scrollTo({ top: 0 }));
+  await expect(bar).toHaveCSS('opacity', '0');
+
+  // A reason that jumps to its passage makes the passage flash once it has arrived.
+  await page.evaluate(() => {
+    const w = window as unknown as { __flashes: string[] };
+    w.__flashes = [];
+    new MutationObserver((records) => {
+      for (const record of records) {
+        const mark = record.target as Element;
+        if (mark.classList.contains('flash')) w.__flashes.push(mark.getAttribute('data-reason')!);
+      }
+    }).observe(document.querySelector('[data-testid="ad-text"]')!, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  });
+  await settle(page);
+  await page.getByTestId('reasons-met').getByRole('button').first().click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __flashes: string[] }).__flashes))
+    .not.toEqual([]);
+  await expect(page.locator('mark.flash')).toHaveCount(0);
+});
+
+test('the run card: steps side by side, a finished step draws its check once', async ({ page }) => {
+  // A card that mounts with a step already done shows a plain check.
+  await open(page, `${WIN}&scenario=running`);
+  const tops = await Promise.all(
+    ['scan', 'fetch', 'score'].map(async (step) =>
+      Math.round((await page.getByTestId(`step-${step}`).boundingBox())!.y),
+    ),
+  );
+  expect(new Set(tops).size).toBe(1);
+  await expect(page.getByTestId('step-scan').locator('.mark')).not.toHaveClass(/drawn/);
+  await expect(page.getByTestId('countdown')).toHaveText('Weiter in 0:42');
+  // A step that finishes while the card is on screen draws its check.
+  await open(page, `${WIN}&tick=80`);
+  await page.getByTestId('fetch').click();
+  await expect(page.getByTestId('step-scan')).toHaveClass(/current/);
+  await expect(page.getByTestId('step-scan')).toHaveClass(/done/, { timeout: 10_000 });
+  await expect(page.getByTestId('step-scan').locator('.mark')).toHaveClass(/drawn/);
+  await runFinished(page);
+  // Finished: the time and the pills; the chevron turns when the card collapses.
+  await expect(page.getByTestId('last-new')).toContainText('3 neu');
+  const toggle = page.getByTestId('run-toggle');
+  await expect(toggle).toHaveClass(/turned/);
+  await toggle.click();
+  await expect(toggle).not.toHaveClass(/turned/);
+  await expect(page.getByTestId('last-new')).toHaveCount(0);
+});
+
+test('the day overview: its best jobs open the reader', async ({ page }) => {
+  await open(page, WIN);
+  const best = page.getByTestId('best').locator('[data-testid^="job-row-"]').first();
+  const title = await best.locator('.title').innerText();
+  await best.click();
+  await expect(page.getByTestId('reader-title')).toHaveText(title);
 });
 
 test('2000 jobs render in windows without long tasks', async ({ page, browserName }) => {

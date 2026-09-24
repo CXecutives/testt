@@ -3,7 +3,8 @@
   header (search, "Abrufen", filters), the run panel and the list; a hairline; right the
   reader, or with nothing selected its empty state, the day overview. Nothing floats: no
   cards, no shadows. Both columns start at the same line. Below 900 px one column: the list,
-  or the reader with a back button.
+  or the reader with a back button. The run card rises in above the list and fades out when
+  it is closed (the list moves up without animation).
 
   The right pane is a stage with its own scroll position. A job opens once its details are
   there: until then the pane keeps what it shows (the overview or the previous job), so it
@@ -19,6 +20,7 @@
   import { de } from '$lib/i18n/de';
   import { play } from '$lib/motion/motion';
   import { fade, rise } from '$lib/motion/transitions';
+  import { inView } from '$lib/actions/inView';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf } from '$lib/state/jobs.svelte';
@@ -55,6 +57,8 @@
     return last;
   });
   const reading = $derived(stage !== OVERVIEW);
+  /** The list is scrolled away from its top (the header shows its hairline). */
+  let scrolled = $state(false);
 
   function close(): void {
     jobs.clearSelection();
@@ -97,10 +101,13 @@
 <div class="jobs" class:reading data-testid="jobs">
   <div class="body">
     <aside class="left">
-      <ListHeader />
+      <ListHeader {scrolled} />
       <div class="scroll" data-testid="list-scroll">
+        <span class="top" use:inView={(place) => (scrolled = place === 'above')}></span>
         {#if shell.runCard}
-          <div class="run" in:rise={{ distance: 'md' }}><RunCard /></div>
+          <div class="run" in:rise={{ distance: 'md' }} out:fade>
+            <RunCard />
+          </div>
         {/if}
         <JobList />
       </div>
@@ -177,6 +184,12 @@
 
   .run {
     flex: none;
+  }
+
+  /* Watched: once it has scrolled away, the list header draws its bottom line. */
+  .top {
+    flex: none;
+    height: 0;
   }
 
   .scroll {

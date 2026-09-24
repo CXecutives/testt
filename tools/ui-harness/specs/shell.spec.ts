@@ -217,7 +217,7 @@ test('the run status in the sidebar opens the last run', async ({ page }) => {
   await page.getByTestId('nav-settings').click();
   await page.getByTestId('run-status').click();
   await expect(page.getByTestId('view-jobs')).toBeVisible();
-  await expect(page.getByTestId('run-finished')).toContainText('7 neue Jobs');
+  await expect(page.getByTestId('run-finished')).toContainText('7 neu');
   await page.getByTestId('run-toggle').click();
   await expect(page.getByTestId('last-new')).toHaveCount(0);
   await page.getByTestId('run-close').click();

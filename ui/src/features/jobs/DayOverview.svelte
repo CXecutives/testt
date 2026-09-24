@@ -1,25 +1,29 @@
 <!--
   The reader's empty state: what the sheet shows while no job is selected, unboxed like the
-  reader. It never repeats the list and never looks empty: tiles that filter the list (their
-  numbers count over every job, whatever the search), without a usable profile the tiles Neu
-  and Ohne Details and a calm card that leads to one, the open points (one per portal and
-  problem, a failed fetch) only when there are any, the new jobs per portal (each a filter of
-  the list) only when there are any, and at the end the overview file and the folder, their
-  one place in the Jobs view. "Nothing new" is said by the list and the run card, not here.
-  The time of the last fetch is said once, in the sidebar.
+  reader. It answers "what is worth my time today" first and never looks empty: tiles that
+  filter the list (their numbers count over every job, whatever the search; a tile that
+  appears later, Gemerkt, rises in), without a usable profile the tiles Neu and Ohne Details
+  and a calm card that leads to one, with one "Beste Passung" (up to three best scored jobs
+  of the last fetch as list rows; a click opens the job), the open points (one per portal
+  and problem, a failed fetch) only when there are any, the new jobs per portal (each a
+  filter of the list) only when there are any, and at the end the overview file and the
+  folder, their one place in the Jobs view. "Nothing new" is said by the list and the run
+  card, not here. The time of the last fetch is said once, in the sidebar.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import Card from '$components/Card.svelte';
+  import JobRow from '$components/JobRow.svelte';
   import Notice from '$components/Notice.svelte';
   import StatTile from '$components/StatTile.svelte';
   import { cssVars } from '$lib/actions/cssVars';
   import { de } from '$lib/i18n/de';
   import { errorText, healthText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { EmptyAlert, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
+  import type { EmptyAlert, JobView, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
+  import { rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
-  import { isExcluded, jobs, type JobFilter } from '$lib/state/jobs.svelte';
+  import { isExcluded, jobs, keyOf, sameKey, type JobFilter } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
 
@@ -76,6 +80,16 @@
       out.push({ id: 'pinned', label: de.overview.pinned, value: jobs.pinned, icon: 'star' });
     }
     return out;
+  });
+
+  const BEST = 3;
+  // The best scored jobs of the last fetch, as the list knows them now (read, pinned).
+  const best = $derived.by((): JobView[] => {
+    if (!app.hasProfile) return [];
+    return (app.state?.topMatches ?? [])
+      .filter((job) => job.match?.status === 'scored')
+      .slice(0, BEST)
+      .map((job) => jobs.overview.find((row) => sameKey(row.key, job.key)) ?? job);
   });
 
   function toggle(tile: Tile): void {
@@ -192,15 +206,17 @@
   {#if tiles.length > 0}
     <div class="tiles" class:many={tiles.length > 3} use:cssVars={{ tiles: tiles.length }}>
       {#each tiles as tile (tile.id)}
-        <StatTile
-          label={tile.label}
-          value={tile.value}
-          icon={tile.icon}
-          tone={tile.tone ?? 'neutral'}
-          active={tile.id !== 'new' && jobs.filter === tile.id}
-          testid="tile-{tile.id === 'noDetail' ? 'no-detail' : tile.id}"
-          onclick={() => toggle(tile)}
-        />
+        <div class="tile" in:rise={{ distance: 'md' }}>
+          <StatTile
+            label={tile.label}
+            value={tile.value}
+            icon={tile.icon}
+            tone={tile.tone ?? 'neutral'}
+            active={tile.id !== 'new' && jobs.filter === tile.id}
+            testid="tile-{tile.id === 'noDetail' ? 'no-detail' : tile.id}"
+            onclick={() => toggle(tile)}
+          />
+        </div>
       {/each}
     </div>
   {/if}
@@ -222,6 +238,17 @@
         />
       </div>
     </Card>
+  {/if}
+
+  {#if best.length > 0}
+    <section class="block" data-testid="best">
+      <h2 class="heading">{de.overview.best}</h2>
+      <div class="best">
+        {#each best as job (keyOf(job.key))}
+          <JobRow {job} onselect={(chosen) => void jobs.select(chosen, true)} />
+        {/each}
+      </div>
+    </section>
   {/if}
 
   {#if hasIssues}
@@ -330,6 +357,19 @@
     .tiles.many {
       grid-template-columns: 1fr;
     }
+  }
+
+  .tile {
+    display: grid;
+  }
+
+  /* The rows of "Beste Passung" like the list's: their ring on the edge of the column; the
+     last row's own line gives way to the hairline of the next block. */
+  .best {
+    display: flex;
+    flex-direction: column;
+    margin: 0 calc(-1 * var(--pane-padding));
+    clip-path: inset(0 0 var(--border-width) 0);
   }
 
   .profile {

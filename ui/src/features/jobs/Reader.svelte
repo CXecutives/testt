@@ -8,14 +8,19 @@
   hovering a reason lights its passage in the ad text below, a click scrolls to it. Title,
   facts and the ad text are selectable and copy with Ctrl/Cmd+C (`data-copy`). A quiet close
   button at the end of the title line goes back to the day overview (below 900 px the view's
-  back button does).
+  back button does). The groups of "Warum" carry navy sub-labels with a soft count; a reason
+  that jumps to its passage makes the passage flash once when it has arrived. Once the
+  action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
+  it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
+  import Count from '$components/Count.svelte';
   import Icon, { type IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
   import ReasonItem from '$components/ReasonItem.svelte';
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
+  import { inView, scrollArea } from '$lib/actions/inView';
   import { tooltip } from '$lib/actions/tooltip';
   import { de, type CriterionState } from '$lib/i18n/de';
   import { displayTitle, formatDate } from '$lib/i18n/format';
@@ -29,7 +34,7 @@
   } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { JobDetail, OpenTarget, Reason } from '$lib/ipc/types';
-  import { isReducedMotion } from '$lib/motion/motion';
+  import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -59,6 +64,11 @@
   });
   let textElement = $state<HTMLElement | null>(null);
   let actionError = $state<string | null>(null);
+  /** The action row has scrolled away: the compact bar is up. */
+  let compact = $state(false);
+  /** The passage that flashes once after a jump to it. */
+  let flash = $state<string | null>(null);
+  let flashTimer: ReturnType<typeof setTimeout> | null = null;
 
   const WEIGHT_ORDER = { must: 0, hard: 1, nice: 2, info: 3 } as const;
   const byWeight = (a: Reason, b: Reason): number =>
@@ -172,10 +182,46 @@
     invoke('open_target', { target }).catch((error: unknown) => (actionError = errorText(error)));
   }
 
+  function flashPassage(id: string): void {
+    if (flashTimer !== null) clearTimeout(flashTimer);
+    flash = null;
+    requestAnimationFrame(() => {
+      flash = id;
+      flashTimer = setTimeout(() => (flash = null), duration('base'));
+    });
+  }
+
+  /** Once the scroll area has come to rest (at the latest after the time a scroll takes). */
+  function afterScroll(area: Element | null, then: () => void): void {
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      area?.removeEventListener('scrollend', finish);
+      then();
+    };
+    area?.addEventListener('scrollend', finish);
+    setTimeout(finish, 2 * duration('reveal'));
+  }
+
   function scrollTo(reason: Reason): void {
     pinned = reason.id;
     const mark = textElement?.querySelector(`[data-reason="${CSS.escape(reason.id)}"]`);
-    mark?.scrollIntoView({ block: 'center', behavior: isReducedMotion() ? 'auto' : 'smooth' });
+    if (!mark) return;
+    const area = scrollArea(mark);
+    const box = mark.getBoundingClientRect();
+    const view = area?.getBoundingClientRect() ?? { top: 0, bottom: innerHeight };
+    const inside = box.top >= view.top && box.bottom <= view.bottom;
+    if (isReducedMotion()) {
+      if (!inside) mark.scrollIntoView({ block: 'center' });
+      return;
+    }
+    if (inside) {
+      flashPassage(reason.id);
+      return;
+    }
+    afterScroll(area, () => flashPassage(reason.id));
+    mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
   function hover(reason: Reason, on: boolean): void {
@@ -183,6 +229,10 @@
     else if (hovered === reason.id) hovered = null;
   }
 </script>
+
+{#snippet sub(label: string, count: number)}
+  <h3 class="sub">{label}<Count value={count} /></h3>
+{/snippet}
 
 {#snippet reasonList(items: Reason[], testid: string)}
   <ul class="reasons" data-testid={testid}>
@@ -203,6 +253,46 @@
 {/snippet}
 
 <article class="reader" data-testid="reader">
+  <!-- Sticks to the top of the stage; up only while the action row is scrolled away. -->
+  <div class="compact-anchor">
+    <div
+      class="compact"
+      class:shown={compact}
+      aria-hidden={!compact}
+      inert={!compact}
+      data-testid="reader-compact"
+    >
+      {#if withRing}
+        <ScoreRing
+          ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
+          size="sm"
+        />
+      {/if}
+      <span class="compact-title">{job.title ? displayTitle(job.title) : de.job.untitled}</span>
+      <span class="compact-tools">
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          icon="external-link"
+          label={de.reader.open}
+          testid="compact-open"
+          onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          icon="star"
+          label={de.reader.pin}
+          pressed={job.pinned}
+          testid="compact-pin"
+          onclick={() => void jobs.pin(job.key, !job.pinned)}
+        />
+      </span>
+    </div>
+  </div>
+
   <header class="head">
     <div class="title-line">
       <h1 class="title" data-testid="reader-title" data-copy>
@@ -307,6 +397,7 @@
       />
     {/if}
   </div>
+  <span class="past-actions" use:inView={(place) => (compact = place === 'above')}></span>
   {#if actionError}
     <Notice tone="danger" variant="inline" text={actionError} />
   {/if}
@@ -322,13 +413,13 @@
             <div class="stack">
               {#if met.length > 0}
                 <div class="group">
-                  <h3 class="sub">{de.reader.met}</h3>
+                  {@render sub(de.reader.met, met.length)}
                   {@render reasonList(met, 'reasons-met')}
                 </div>
               {/if}
               {#if partial.length > 0}
                 <div class="group">
-                  <h3 class="sub">{de.reader.partial}</h3>
+                  {@render sub(de.reader.partial, partial.length)}
                   {@render reasonList(partial, 'reasons-partial')}
                 </div>
               {/if}
@@ -336,7 +427,7 @@
           {/if}
           {#if open.length > 0}
             <div class="group">
-              <h3 class="sub">{de.reader.missing}</h3>
+              {@render sub(de.reader.missing, open.length)}
               {@render reasonList(open, 'reasons-open')}
             </div>
           {/if}
@@ -344,13 +435,13 @@
       {/if}
       {#if checks.length > 0}
         <div class="group">
-          <h3 class="sub">{de.reader.check}</h3>
+          {@render sub(de.reader.check, checks.length)}
           {@render reasonList(checks, 'reasons-check')}
         </div>
       {/if}
       {#if violations.length > 0}
         <div class="group">
-          <h3 class="sub">{de.reader.violations}</h3>
+          {@render sub(de.reader.violations, violations.length)}
           {@render reasonList(violations, 'reasons-violation')}
         </div>
       {/if}
@@ -372,7 +463,13 @@
       <Notice tone="info" variant="inline" text={de.reader.short} />
     {/if}
     {#if detail.text}
-      <AdText text={detail.text} highlights={passages} {active} bind:element={textElement} />
+      <AdText
+        text={detail.text}
+        highlights={passages}
+        {active}
+        {flash}
+        bind:element={textElement}
+      />
     {/if}
   </section>
 </article>
@@ -389,6 +486,71 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
+  }
+
+  /* No room of its own: it sticks to the top of the stage (under the macOS toolbar row)
+     and cancels the gap it would add. */
+  .compact-anchor {
+    position: sticky;
+    top: var(--window-top);
+    z-index: var(--z-sticky);
+    height: 0;
+    margin-bottom: calc(-1 * var(--space-20));
+  }
+
+  /* The compact bar over the whole column: ring, title, open, pin. Enters in 150 ms with
+     ease-out sliding down 4 px, leaves in 100 ms with ease-in. */
+  .compact {
+    position: absolute;
+    top: 0;
+    right: calc(-1 * var(--reader-padding));
+    left: calc(-1 * var(--reader-padding));
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    height: var(--compact-header);
+    padding: 0 var(--reader-padding);
+    border-bottom: var(--border-width) solid var(--border);
+    background-color: var(--surface);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(calc(-1 * var(--move-md)));
+    transition:
+      opacity var(--dur-fast) var(--ease-in),
+      transform var(--dur-fast) var(--ease-in);
+    will-change: transform;
+  }
+
+  .compact.shown {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    transition-duration: var(--dur-base);
+    transition-timing-function: var(--ease-out);
+  }
+
+  .compact-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-heading);
+    font: var(--type-title);
+    font-weight: var(--weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .compact-tools {
+    display: flex;
+    flex: none;
+    gap: var(--space-2);
+    margin-right: calc(-1 * var(--space-6));
+  }
+
+  /* Watched: once it has scrolled away, the compact bar comes up. No room of its own. */
+  .past-actions {
+    height: 0;
+    margin-top: calc(-1 * var(--space-20));
   }
 
   .title-line {
@@ -504,7 +666,8 @@
     gap: var(--space-6);
   }
 
-  /* Quiet chips: a neutral name, the state only in the icon (and in red when violated). */
+  /* Quiet chips: a neutral name, the state only in the icon (and in red when violated). A
+     hover only deepens the chip a little while its tooltip comes. */
   .chip {
     display: inline-flex;
     align-items: center;
@@ -517,6 +680,12 @@
     font: var(--type-xs);
     font-weight: var(--weight-medium);
     white-space: nowrap;
+    transition: background-color var(--dur-base) var(--ease-standard);
+  }
+
+  .chip:hover {
+    background-color: var(--border);
+    transition-duration: var(--dur-hover);
   }
 
   .chip-icon {
@@ -532,7 +701,8 @@
     --chip-icon: var(--warning-strong);
   }
 
-  .chip.violated {
+  .chip.violated,
+  .chip.violated:hover {
     --chip-icon: var(--danger-strong);
 
     background-color: var(--danger-soft);
@@ -563,9 +733,12 @@
     font: var(--type-lg);
   }
 
-  /* Sentence case, quiet: the groups of "Warum". */
+  /* The groups of "Warum": navy sub-labels with a soft count. */
   .sub {
-    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    color: var(--text-label);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
   }
