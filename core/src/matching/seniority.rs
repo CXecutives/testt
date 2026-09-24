@@ -21,7 +21,10 @@ use super::types::{CriterionKey, ReasonCode, ReasonKind};
 /// Years of experience in one requirement: lower bound and, for a closed range, the
 /// upper bound.
 pub(crate) fn experience_years(folded: &str) -> Option<(u32, Option<u32>)> {
-    if !lex::EXPERIENCE_WORDS.iter().any(|w| folded.contains(w)) {
+    // `Min. 5 years in Regulatory Affairs` states years without the word experience.
+    if !lex::EXPERIENCE_WORDS.iter().any(|w| folded.contains(w))
+        && !lex::MIN_MARKERS.iter().any(|w| folded.contains(w))
+    {
         return None;
     }
     let text = folded.replace(['–', '—'], "-");
@@ -179,6 +182,7 @@ mod tests {
         assert_eq!(y("Mindestens zehn Jahre Berufserfahrung"), Some((10, None)));
         assert_eq!(y("between 3 and 5 years of experience"), Some((3, Some(5))));
         assert_eq!(y("Laufzeit 2 Jahre"), None);
+        assert_eq!(y("Min. 5 years in Regulatory Affairs CMC"), Some((5, None)));
         assert!(senior_title("Interim Senior Finance Manager FP&A (m/w/d)"));
         assert!(senior_title("Leiter Konzerncontrolling (Interim)"));
         assert!(senior_title(

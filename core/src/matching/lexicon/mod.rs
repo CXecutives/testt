@@ -132,6 +132,26 @@ pub(crate) const KEYS_PERMANENT_PLACES: &[&str] = &[
 pub(crate) const KEYS_PERMANENT_REMOTE: &[&str] =
     &["festanstellung_remote_min", "permanent_remote_min"];
 pub(crate) const KEYS_TARGET_YEARS: &[&str] = &["zielprofil_min_jahre", "target_min_years"];
+/// The old criteria under their German and English names (read in `harte_kriterien` and
+/// `hard_criteria`).
+pub(crate) const KEYS_MIN_RATE: &[&str] = &[KEY_MIN_RATE, "min_day_rate"];
+pub(crate) const KEYS_COUNTRIES: &[&str] = &[KEY_COUNTRIES, "countries"];
+pub(crate) const KEYS_EXCLUDED_CONTRACTS: &[&str] =
+    &[KEY_EXCLUDED_CONTRACTS, "excluded_contract_types"];
+pub(crate) const KEYS_REMOTE_OUTSIDE: &[&str] = &[KEY_REMOTE_OUTSIDE, "remote_outside_allowed"];
+pub(crate) const KEYS_AVAILABLE: &[&str] = &[KEY_AVAILABLE, "available_from"];
+/// Every key a criteria section may hold (others are reported as not evaluated).
+pub(crate) const KEYS_ALL_CRITERIA: &[&[&str]] = &[
+    KEYS_MIN_RATE,
+    KEYS_COUNTRIES,
+    KEYS_EXCLUDED_CONTRACTS,
+    KEYS_REMOTE_OUTSIDE,
+    KEYS_AVAILABLE,
+    KEYS_MIN_SALARY,
+    KEYS_PERMANENT_PLACES,
+    KEYS_PERMANENT_REMOTE,
+    KEYS_TARGET_YEARS,
+];
 /// Top-level total years of experience.
 pub(crate) const KEYS_TOTAL_YEARS: &[&str] = &[
     "berufserfahrung_jahre",

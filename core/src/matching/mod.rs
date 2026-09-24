@@ -208,6 +208,13 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
     if c.remote_min.is_some() && c.places.is_none() {
         warnings.push(warn(ProfileWarningCode::RegionWithoutPlaces, json!({})));
     }
+    let ignored = facts::ignored_criteria_keys(data);
+    if !ignored.is_empty() {
+        warnings.push(warn(
+            ProfileWarningCode::IgnoredKeys,
+            json!({ "keys": ignored }),
+        ));
+    }
     for (key, value) in &engine.unreadable {
         warnings.push(warn(
             ProfileWarningCode::CriterionNotUnderstood,

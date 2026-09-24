@@ -317,6 +317,8 @@ pub enum ProfileWarningCode {
     RegionWithoutPlaces,
     /// More Schwerpunkte than count (`count`, `max`): the first ones are used.
     FocusTrimmed,
+    /// Keys of a criteria section the engine does not read (`keys`).
+    IgnoredKeys,
 }
 
 /// A wish of the profile (`einsatzpraeferenzen`).

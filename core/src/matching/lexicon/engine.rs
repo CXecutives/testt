@@ -967,6 +967,8 @@ pub(crate) const GERMAN_CITIES: &[&str] = &[
 
 /// Experience statements: words and bounds.
 pub(crate) const EXPERIENCE_WORDS: &[&str] = &["erfahrung", "experience", "praxis"];
+/// A minimum of years without the word experience (`Min. 5 years in ...`).
+pub(crate) const MIN_MARKERS: &[&str] = &["min.", "mind.", "mindestens", "at least", "minimum"];
 /// The years refer to the whole career, not one topic.
 pub(crate) const CAREER_WORDS: &[&str] = &[
     "berufserfahrung",
