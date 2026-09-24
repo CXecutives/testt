@@ -199,6 +199,7 @@ fn run_context(
             .into_iter()
             .filter(|&p| settings.fetch_path(p) == Some(FetchPath::Session))
             .collect(),
+        language: settings.language_or(state.system_language),
     };
     Ok((ctx, credentials))
 }

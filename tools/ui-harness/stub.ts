@@ -758,6 +758,7 @@ function initial(): void {
       portal('freelancermap', { quota: { usedHour: 9, capHour: 40, usedDay: 86, capDay: 100 } }),
     ],
     autoFetchOnStart: true,
+    language: 'de',
     lastRun: lastRun(),
     counts: countsOf([]),
     matchPending: 0,
@@ -1673,6 +1674,7 @@ const handlers: Handlers = {
     }
     if (state.portals.every((p) => !p.enabled)) throw fail('invalid', { reason: 'noPortal' });
     if (patch.autoFetchOnStart !== null) state.autoFetchOnStart = patch.autoFetchOnStart;
+    if (patch.language !== null) state.language = patch.language;
     return structuredClone(state);
   },
   reset_all: () => null,

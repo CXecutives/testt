@@ -1,9 +1,12 @@
 //! The request a user hands to Claude together with a CV ("Aus Lebenslauf erstellen" in the
 //! Profil view): Claude answers with a profile in exactly the JSON the editor reads, and the
-//! user pastes the answer back into the app. German, because the user sends it as it is.
+//! user pastes the answer back into the app. In the app's language, because the user sends it
+//! as it is; the JSON keys stay German in both (they are the profile format).
 //!
-//! external contract - do not translate: the text and the profile JSON keys it names (a
-//! test checks that the editor reads every key of the skeleton).
+//! external contract - do not translate: the German text and the profile JSON keys it names
+//! (a test checks that the editor reads every key of the skeleton).
+
+use crate::settings::Language;
 
 /// The skeleton Claude fills: the keys of the form in the order the app writes them. Wishes,
 /// target roles and hard criteria are left out on purpose: they are preferences, not facts
@@ -55,9 +58,35 @@ dieselbe Kompetenz, etwa auf Englisch.
 
 Antworte nur mit dem JSON in genau diesem Aufbau, ohne Erklärung davor oder danach.";
 
-/// The whole request: rules, then the skeleton.
-pub fn text() -> String {
-    format!("{RULES}\n\n{SKELETON}\n")
+/// The same rules in English (the keys they name stay German).
+const RULES_EN: &str = "Create a consultant profile for the Job-Alert-Monitor from my attached \
+CV. The app compares job ads with my profile.
+
+Rules
+- Take only what the CV says. Invent nothing and estimate nothing.
+- Whatever the CV does not give stays empty, numbers stay null.
+- titel is my professional role in a few words, such as Interim CFO.
+- berufserfahrung_jahre are my years of professional experience in total.
+- kernkompetenzen are my professional strengths, each named on its own and briefly, with the \
+years of experience where the CV proves them. Under auch go other common terms for the same \
+competence, for example in German.
+- schwerpunkte are three to five of the kernkompetenzen that carry the most weight in the CV, written exactly as there.
+- methoden_tools are software, systems and methods, zertifizierungen my certificates.
+- niveau is A1, A2, B1, B2, C1, C2 or Muttersprache for a native language.
+- alleinstellungsmerkmale are up to five short sentences on what sets me apart.
+- keywords are technical terms that appear in matching ads.
+- No contact details, no address, no date of birth.
+- Keep every key of the JSON exactly as it is written below.
+
+Answer only with the JSON in exactly this structure, without any explanation before or after it.";
+
+/// The whole request in the app's language: rules, then the skeleton.
+pub fn text(language: Language) -> String {
+    let rules = match language {
+        Language::De => RULES,
+        Language::En => RULES_EN,
+    };
+    format!("{rules}\n\n{SKELETON}\n")
 }
 
 #[cfg(test)]
@@ -136,8 +165,28 @@ mod tests {
 
     #[test]
     fn the_text_ends_with_the_skeleton() {
-        let text = text();
-        assert!(text.contains("nur mit dem JSON"));
-        assert!(text.trim_end().ends_with(SKELETON));
+        let german = text(Language::De);
+        assert!(german.contains("nur mit dem JSON"));
+        assert!(german.trim_end().ends_with(SKELETON));
+        let english = text(Language::En);
+        assert!(english.contains("only with the JSON"));
+        assert!(english.trim_end().ends_with(SKELETON));
+        assert!(!english.contains("Lebenslauf") && !english.contains("Antworte"));
+        // Both name the same keys of the skeleton (and the level the form reads as native).
+        for key in [
+            "titel",
+            "berufserfahrung_jahre",
+            "kernkompetenzen",
+            "auch",
+            "schwerpunkte",
+            "methoden_tools",
+            "zertifizierungen",
+            "niveau",
+            "Muttersprache",
+            "alleinstellungsmerkmale",
+            "keywords",
+        ] {
+            assert!(RULES.contains(key) && RULES_EN.contains(key), "{key}");
+        }
     }
 }

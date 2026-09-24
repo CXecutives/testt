@@ -99,7 +99,7 @@
     return act('fetch', setFetch, async () => {
       try {
         const next = await invoke('save_settings', {
-          patch: { portals: [], autoFetchOnStart: on },
+          patch: { portals: [], autoFetchOnStart: on, language: null },
         });
         if (save === saves) app.set(next);
       } catch (error) {

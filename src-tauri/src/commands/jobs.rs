@@ -85,5 +85,6 @@ pub async fn claude_prompt(state: State<'_, AppState>, key: JobKey) -> CmdResult
         &JobView::from(&job),
         job.url.as_str(),
         text.as_deref(),
+        state.language()?,
     ))
 }

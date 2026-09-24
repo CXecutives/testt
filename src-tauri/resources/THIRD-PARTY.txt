@@ -12,7 +12,7 @@ the source information of the MPL-2.0.
 The font Inter is licensed under the SIL Open Font License 1.1; its text is
 at the end of this file.
 
-Rust crates: 391
+Rust crates: 392
 npm packages: 23
 
 ---------------------------------------------------------------------------
@@ -565,6 +565,8 @@ syn 3.0.6 - MIT OR Apache-2.0  [8] [3]
 sync_wrapper 1.0.2 - Apache-2.0  [32]
 synstructure 0.14.0 - MIT  [22]
     Copyright 2016 Nika Layzell
+sys-locale 0.3.2 - MIT OR Apache-2.0  [23] [16]
+    Copyright (c) 2021 1Password
 system-configuration 0.7.0 - MIT OR Apache-2.0  [9] [3]
     Copyright (c) 2024 Mullvad VPN AB
 system-configuration-sys 0.6.0 - MIT OR Apache-2.0  [9] [3]

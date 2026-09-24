@@ -19,6 +19,7 @@ use crate::pipeline::{
     RunSnapshot, RunSummary, ScanCounts, ScoreSummary, StatusCode, Step,
 };
 use crate::portal::{JobKey, Portal};
+use crate::settings::Language;
 use crate::view::{
     AppState, ClearedTxt, DetailState, EmptyAlert, Evidence, Highlight, JobCounts, JobDetail,
     JobFacet, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel, Mailbox,
@@ -119,6 +120,10 @@ impl Generated {
 }
 
 /// Every type of the contract.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one line per type of the contract, a list and not logic"
+)]
 fn contract() -> BTreeMap<String, String> {
     // Integers are JSON numbers, never `bigint`.
     let mut f = Generated {
@@ -159,6 +164,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<JobPage>();
     f.add::<EmptyAlert>();
     f.add::<Platform>();
+    f.add::<Language>();
     f.add::<VaultKind>();
     f.add::<Mailbox>();
     f.add::<SettingsView>();

@@ -17,6 +17,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use jobalert_core::settings::Language;
 use tauri::webview::{NewWindowResponse, PageLoadEvent, PageLoadPayload};
 use tauri::{AppHandle, Manager, Runtime, Url, Webview, WebviewWindow, WebviewWindowBuilder};
 
@@ -136,6 +137,15 @@ const fn major_after(haystack: &str, marker: &str) -> u32 {
         i += 1;
     }
     major
+}
+
+// ------------------------------------------------------------------ language
+
+/// The language of the OS, the app's language until the user chooses one: the first
+/// preferred language of the user (Windows: the display language, macOS: the first of
+/// Language & Region), German only when it is German.
+pub fn system_language() -> Language {
+    Language::from_locale(sys_locale::get_locale().as_deref())
 }
 
 // ------------------------------------------------------------------ app

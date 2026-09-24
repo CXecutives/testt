@@ -27,7 +27,7 @@ pub use crate::profile::{
     LanguageLevel, ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileForm,
     ProfileLanguage, ProfileWishes, RemoteWish,
 };
-use crate::settings::{PortalSwitches, Settings};
+use crate::settings::{Language, PortalSwitches, Settings};
 use crate::store::{AlertMailRow, JobRow, ListFacet, PageQuery, Store};
 use crate::text::split_company_location;
 
@@ -846,6 +846,8 @@ pub struct SettingsView {
 pub struct SettingsPatch {
     pub portals: Vec<PortalPatch>,
     pub auto_fetch_on_start: Option<bool>,
+    /// The language the user chose (from then on the OS language no longer counts).
+    pub language: Option<Language>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -874,6 +876,9 @@ impl SettingsPatch {
         }
         if let Some(on) = self.auto_fetch_on_start {
             settings.auto_fetch_on_start = on;
+        }
+        if let Some(language) = self.language {
+            settings.language = Some(language);
         }
     }
 }
@@ -1185,6 +1190,8 @@ pub struct AppState {
     pub profile: Option<ProfileInfo>,
     pub portals: Vec<PortalState>,
     pub auto_fetch_on_start: bool,
+    /// The language of the interface and the exports: the chosen one, else the OS language.
+    pub language: Language,
     /// The last fetch (fetch or whole mailbox) - a rescore or a details run is none.
     pub last_run: Option<RunSummary>,
     pub counts: JobCounts,

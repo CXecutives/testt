@@ -142,11 +142,12 @@ test('auto fetch and portal switches save at once', async ({ page }) => {
   await expect(page.getByTestId('toast')).toHaveCount(0);
   const saved = (await calls(page, 'save_settings')).map(([, args]) => args);
   expect(saved).toEqual([
-    { patch: { portals: [], autoFetchOnStart: false } },
+    { patch: { portals: [], autoFetchOnStart: false, language: null } },
     {
       patch: {
         portals: [{ portal: 'linkedin', enabled: false, fetchDetails: null, loginEnabled: null }],
         autoFetchOnStart: null,
+        language: null,
       },
     },
   ]);

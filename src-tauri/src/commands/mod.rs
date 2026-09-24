@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex};
 use jobalert_core::error::{ErrorInfo, ErrorKind};
 use jobalert_core::reset::ResetReport;
 use jobalert_core::secrets::Vault;
-use jobalert_core::settings::Settings;
+use jobalert_core::settings::{Language, Settings};
 use jobalert_core::store::Store;
 use tokio_util::sync::CancellationToken;
 
@@ -118,12 +118,38 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + '
     ]
 }
 
-/// User-facing text, German by product decision: titles of the native file dialogs (the
-/// only words the backend shows itself).
+/// Titles of the native file dialogs (the only words the backend shows itself), in the
+/// app's language.
 mod texts {
-    pub const PICK_WORKSPACE: &str = "Arbeitsordner wählen";
-    pub const PICK_PROFILE: &str = "Beraterprofil (JSON) wählen";
-    pub const PROFILE_FILTER: &str = "Beraterprofil";
+    use jobalert_core::settings::Language;
+
+    pub struct Dialogs {
+        pub pick_workspace: &'static str,
+        pub pick_profile: &'static str,
+        pub profile_filter: &'static str,
+    }
+
+    pub fn of(language: Language) -> &'static Dialogs {
+        match language {
+            Language::De => &DE,
+            Language::En => &EN,
+        }
+    }
+
+    // User-facing text, German.
+    const DE: Dialogs = Dialogs {
+        pick_workspace: "Arbeitsordner wählen",
+        pick_profile: "Beraterprofil (JSON) wählen",
+        profile_filter: "Beraterprofil",
+    };
+    // end of user-facing text
+
+    // User-facing text, English.
+    const EN: Dialogs = Dialogs {
+        pick_workspace: "Choose the work folder",
+        pick_profile: "Choose a consultant profile (JSON)",
+        profile_filter: "Consultant profile",
+    };
     // end of user-facing text
 }
 
@@ -134,6 +160,8 @@ pub struct AppState {
     pub default_workspace: PathBuf,
     pub dry_run: bool,
     pub user_agent: String,
+    /// The language of the OS at the start: the app's language until the user chooses one.
+    pub system_language: Language,
     pub reset_report: Mutex<Option<ResetReport>>,
     /// Gmail address from the vault. The vault (with the password) is thus read only once per
     /// start for the display - otherwise only for the mailbox scan.
@@ -192,6 +220,11 @@ impl AppState {
         Ok(self.settings()?.workspace_or(&self.default_workspace))
     }
 
+    /// The app's language: the chosen one, else the OS language.
+    fn language(&self) -> CmdResult<Language> {
+        Ok(self.settings()?.language_or(self.system_language))
+    }
+
     pub fn busy(&self) -> bool {
         !matches!(*lock(&self.activity), Activity::Idle)
     }
@@ -219,6 +252,14 @@ impl AppState {
             Activity::Idle => {}
         }
     }
+}
+
+/// The app's language for the windows the backend opens itself (the sign-in window).
+pub fn language<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Language {
+    use tauri::Manager as _;
+    app.try_state::<AppState>()
+        .and_then(|state| state.language().ok())
+        .unwrap_or_else(crate::platform::system_language)
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {

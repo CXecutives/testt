@@ -10,12 +10,12 @@ use std::path::Path;
 use jiff::Timestamp;
 
 use super::scale::{SCORE_SCALE, score_step};
-use super::texts;
+use super::texts::Texts;
 use crate::error::Result;
 use crate::model::MatchStatus;
+use crate::settings::Language;
 use crate::store::JobRow;
 use crate::text::split_company_location;
-use crate::time;
 
 /// Colours of the app (tokens of the interface).
 const STYLE: &str = "
@@ -45,14 +45,19 @@ li { display: flex; gap: 16px; padding: 16px; margin: 0 0 8px; background: #fff;
 .excluded .tag { background: hsl(13 73% 92%); color: var(--coral-800); }
 ";
 
-/// Writes the overview; `pinned`: the jobs are the pinned ones (else the new matches).
+/// Writes the overview in the app's language; `pinned`: the jobs are the pinned ones (else
+/// the new matches).
 pub fn write_overview_html(
     path: &Path,
     jobs: &[JobRow],
     pinned: bool,
     now: Timestamp,
+    language: Language,
 ) -> Result<()> {
-    super::write_atomic(path, render(jobs, pinned, now).as_bytes())
+    super::write_atomic(
+        path,
+        render(jobs, pinned, now, Texts::of(language)).as_bytes(),
+    )
 }
 
 /// The class of each colour step of a score ring (`.s0` ... `.s9`).
@@ -67,31 +72,32 @@ fn scale_style() -> String {
     css
 }
 
-fn render(jobs: &[JobRow], pinned: bool, now: Timestamp) -> String {
+fn render(jobs: &[JobRow], pinned: bool, now: Timestamp, texts: &Texts) -> String {
     let heading = if pinned {
-        texts::HTML_PINNED
+        texts.html_pinned
     } else {
-        texts::HTML_NEW
+        texts.html_new
     };
     let mut out = String::new();
     let _ = write!(
         out,
-        "<!doctype html>\n<html lang=\"de\"><head><meta charset=\"utf-8\">\
+        "<!doctype html>\n<html lang=\"{}\"><head><meta charset=\"utf-8\">\
          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
          <title>{}</title><style>{STYLE}{}</style></head>\n<body><main>\
          <h1>{}</h1><p class=\"meta\">{} {}</p>\n",
-        esc(texts::HTML_TITLE),
+        texts.language.code(),
+        esc(texts.html_title),
         scale_style(),
         esc(heading),
-        esc(texts::HTML_CREATED),
-        esc(&time::display(now)),
+        esc(texts.html_created),
+        esc(&texts.moment(now)),
     );
     if jobs.is_empty() {
-        let _ = write!(out, "<p>{}</p>", esc(texts::HTML_EMPTY));
+        let _ = write!(out, "<p>{}</p>", esc(texts.html_empty));
     } else {
         out.push_str("<ol>\n");
         for job in jobs {
-            item(&mut out, job);
+            item(&mut out, job, texts);
         }
         out.push_str("</ol>");
     }
@@ -99,7 +105,7 @@ fn render(jobs: &[JobRow], pinned: bool, now: Timestamp) -> String {
     out
 }
 
-fn item(out: &mut String, job: &JobRow) {
+fn item(out: &mut String, job: &JobRow, texts: &Texts) {
     let (company, location) = split_company_location(&job.company, &job.location);
     // An excluded job keeps its score, but its ring shows no number (like in the app).
     let (class, score) = match &job.match_ {
@@ -118,7 +124,7 @@ fn item(out: &mut String, job: &JobRow) {
         out,
         "<li><div class=\"score {class}\" title=\"{}\">{}</div><div class=\"job\">\
          <a href=\"{}\" rel=\"noopener noreferrer\">{}</a><div class=\"sub\">{}</div>",
-        esc(texts::HTML_MATCH),
+        esc(texts.html_match),
         esc(&score),
         esc(job.url.as_str()),
         esc(&job.title),
@@ -130,7 +136,7 @@ fn item(out: &mut String, job: &JobRow) {
             let _ = write!(
                 out,
                 "<p class=\"met\"><span class=\"tag\">{}</span>",
-                esc(texts::HTML_MET)
+                esc(texts.html_met)
             );
             for met in &m.top {
                 let _ = write!(out, "<span class=\"tag\">{}</span>", esc(met));
@@ -142,20 +148,20 @@ fn item(out: &mut String, job: &JobRow) {
                 let _ = write!(
                     out,
                     "<p class=\"excluded\"><span class=\"tag\">{}</span>",
-                    esc(texts::HTML_EXCLUDED)
+                    esc(texts.html_excluded)
                 );
                 // The reason in words - never the engine's code.
                 if let Some(why) = m
                     .note
                     .as_ref()
-                    .and_then(|n| texts::exclusion_reason(&n.code, &n.params))
+                    .and_then(|n| texts.exclusion_reason(&n.code, &n.params))
                 {
                     out.push_str(&esc(why));
                 }
                 out.push_str("</p>");
             }
             MatchStatus::Unscorable => {
-                let _ = write!(out, "<p class=\"sub\">{}</p>", esc(texts::HTML_UNSCORABLE));
+                let _ = write!(out, "<p class=\"sub\">{}</p>", esc(texts.html_unscorable));
             }
             MatchStatus::Scored => {}
         }
@@ -182,6 +188,7 @@ fn esc(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::export::texts;
     use crate::model::{DescStatus, MatchRecord, Notice};
     use crate::portal::job_link;
 
@@ -240,6 +247,7 @@ mod tests {
             &[job("<script>alert(1)</script>", Some(scored))],
             true,
             Timestamp::now(),
+            &texts::DE,
         );
         assert!(!html.contains("<script>"), "{html}");
         assert!(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
@@ -264,6 +272,7 @@ mod tests {
             &[job("A", Some(record(MatchStatus::Scored, 83, None)))],
             false,
             Timestamp::now(),
+            &texts::DE,
         );
         assert!(!html.contains(&format!("{}:", texts::HTML_MET)), "{html}");
         assert!(html.contains("<span class=\"tag\">Konzernabschluss</span>"));
@@ -276,7 +285,12 @@ mod tests {
     #[test]
     fn an_excluded_job_shows_its_reason_in_words() {
         let excluded = record(MatchStatus::Excluded, 86, Some("dayRate"));
-        let html = render(&[job("A", Some(excluded))], true, Timestamp::now());
+        let html = render(
+            &[job("A", Some(excluded))],
+            true,
+            Timestamp::now(),
+            &texts::DE,
+        );
         assert!(html.contains("<div class=\"score none\" title=\"Passung\"></div>"));
         assert!(
             !html.contains(">86<") && !html.contains("score high"),
@@ -286,13 +300,51 @@ mod tests {
         assert!(html.contains("Der Tagessatz liegt unter dem Minimum im Profil."));
         assert!(!html.contains("dayRate"), "{html}");
         let unknown = record(MatchStatus::Excluded, 50, Some("somethingNew"));
-        let html = render(&[job("A", Some(unknown))], true, Timestamp::now());
+        let html = render(
+            &[job("A", Some(unknown))],
+            true,
+            Timestamp::now(),
+            &texts::DE,
+        );
         assert!(html.contains(texts::HTML_EXCLUDED) && !html.contains("somethingNew"));
     }
 
     #[test]
     fn an_empty_overview_says_so() {
-        let html = render(&[], false, Timestamp::now());
+        let html = render(&[], false, Timestamp::now(), &texts::DE);
         assert!(html.contains(texts::HTML_EMPTY) && html.contains(texts::HTML_NEW));
+    }
+
+    /// In English every word of the page is English; the job's own data stays as it came.
+    #[test]
+    fn the_overview_in_english() {
+        let excluded = record(MatchStatus::Excluded, 86, Some("dayRate"));
+        let at: Timestamp = "2026-09-19T12:05:00Z".parse().unwrap();
+        let html = render(
+            &[
+                job("Interim CFO", Some(record(MatchStatus::Scored, 83, None))),
+                job("B", Some(excluded)),
+            ],
+            true,
+            at,
+            &texts::EN,
+        );
+        assert!(html.contains("<html lang=\"en\">"), "{html}");
+        for word in [
+            texts::en::HTML_TITLE,
+            texts::en::HTML_PINNED,
+            texts::en::HTML_MET,
+            texts::en::HTML_EXCLUDED,
+            "The day rate is below the minimum in the profile.",
+            "19/09/2026 14:05",
+            "Konzernabschluss",
+        ] {
+            assert!(html.contains(word), "{word}: {html}");
+        }
+        for german in [texts::HTML_MET, texts::HTML_PINNED, "Tagessatz", "Erstellt"] {
+            assert!(!html.contains(german), "{german}: {html}");
+        }
+        let html = render(&[], false, at, &texts::EN);
+        assert!(html.contains(texts::en::HTML_EMPTY) && html.contains(texts::en::HTML_NEW));
     }
 }
