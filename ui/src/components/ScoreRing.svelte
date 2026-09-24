@@ -11,7 +11,8 @@
   the band. The centre and the track say the state:
   provisional: a score from a teaser only, not final: the value and its colour on a dashed
   track. none: not scored yet: a dashed track alone. excluded: a pale red track and a ban
-  icon. unscorable: the track and a dash. pending: in the reader the track and a quarter
+  icon. unscorable, and off (no usable profile, so no match at all): the track and a dash.
+  pending: in the reader the track and a quarter
   arc that turns; in the list (sm, where many turning arcs would cost frames and a still
   arc looks like a frozen spinner) the dashed track breathes slowly (2 s, opacity only);
   under reduced motion both stand still. A score of 100 sets its digits smaller in the list
@@ -26,7 +27,8 @@
     | { status: 'excluded' }
     | { status: 'unscorable' }
     | { status: 'pending' }
-    | { status: 'none' };
+    | { status: 'none' }
+    | { status: 'off' };
 
   /**
    * The ring state of a job's match (null = not scored yet). `detail` is the state of the
@@ -100,6 +102,8 @@
         return t.score.unscorable;
       case 'pending':
         return t.score.pending;
+      case 'off':
+        return t.score.off;
       default:
         return t.score.none;
     }
@@ -187,7 +191,7 @@
       {Math.round(number.current)}
     {:else if ring.status === 'excluded'}
       <Icon name="ban" size={size === 'sm' ? 'sm' : size === 'md' ? 'md' : 'lg'} />
-    {:else if ring.status === 'unscorable'}
+    {:else if ring.status === 'unscorable' || ring.status === 'off'}
       –
     {/if}
   </span>

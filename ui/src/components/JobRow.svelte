@@ -2,19 +2,18 @@
   One job in the list, mail-style with fixed gutters: the unread dot (6 px, coral) centred
   in the pane padding on the axis of the ring (so a title never moves when the job is
   read), the ring, then the title on up to two lines with the relative date at its end,
-  company
-  and place, and one reason line with a status badge right after it only when something
-  deviates. Every row has the same height. Without a ring (no usable profile) the dot sits
-  on the title axis and the row shows no reason line: the reasons belong to a match.
+  company and place, and one line with the ad's key facts ("ab sofort · 6 Monate · 60 %
+  remote · 1.100 €"; the best met requirement when the ad states none) and a status badge
+  right after it only when something deviates. Without a usable profile the ring stays, empty
+  (a dash), and the row has no third line unless a badge needs one.
   The star to pin sits below the date: filled when pinned, otherwise it appears on hover (a
   sibling of the row button, so it never selects the row; the row keeps its hover while
   the pointer is on the star). An excluded row is muted as a whole, its dot and star too.
   When a job is read while its row is on screen the dot shrinks away; an excluded row has
   no dot (no count includes it). Under the date, on hover: archive (or bring back) and the
-  star (a pinned star always shows). A quiet badge says where the user's application
-  stands (Beworben, Im Gespräch, Zusage, Absage); pinned needs none (the star). A date older
+  star (a pinned star always shows). A date older
   than ten days sits on a quiet tint. A score from a teaser is a provisional ring. A cut-off
-  title shows in full in a tooltip. Hover and paint stay inside the row (containment); like the
+  title shows in full in a tooltip. Layout stays inside the row (containment); like the
   row, its hover waits while the list scrolls (`:root:not([data-scrolling])`).
 -->
 <script lang="ts" module>
@@ -29,7 +28,7 @@
   import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
-  import { rowReason } from '$lib/i18n/texts';
+  import { factWords, rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
   import { dotOut } from '$lib/motion/transitions';
   import { keyConventions } from '$lib/platform';
@@ -45,7 +44,7 @@
     selected?: boolean;
     /** Scoring is still running for this job. */
     pending?: boolean;
-    /** Show the ring (off without a profile: there is no match to show). */
+    /** A usable profile is there (without one the ring is an empty placeholder: no match). */
     ring?: boolean;
     /** Fixed "now" for relative dates (gallery and tests). */
     now?: Date;
@@ -91,29 +90,34 @@
   );
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
   const reason = $derived(ring ? rowReason(job) : null);
+  const facts = $derived(ring ? factWords(job.match?.facts) : []);
   const heading = $derived(job.title ? displayTitle(job.title) : t.job.untitled);
 
   /** At most one badge, and only when something is not as usual. */
-  const deviation = $derived.by((): { label: string; tone: BadgeTone } | null => {
-    // Excluded rows speak through the ring, the grey and the divider.
-    if (excluded) return null;
-    const detail = job.detail.kind;
-    if (detail !== 'ok') {
-      const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
-      return { label: t.job.detail[detail], tone };
-    }
-    if (job.match?.status === 'unscorable') return { label: t.score.unscorable, tone: 'neutral' };
-    return null;
-  });
+  const deviation = $derived.by(
+    (): { label: string; tone: BadgeTone; hint: string | null } | null => {
+      // Excluded rows speak through the ring, the grey and the divider.
+      if (excluded) return null;
+      const detail = job.detail.kind;
+      // While a run brings the details, "Details folgen" is no deviation.
+      if (detail === 'pending' && pending) return null;
+      if (detail !== 'ok') {
+        const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
+        return { label: t.job.detail[detail], tone, hint: t.job.detailHint[detail] };
+      }
+      if (job.match?.status === 'unscorable') {
+        return { label: t.score.unscorable, tone: 'neutral', hint: null };
+      }
+      return null;
+    },
+  );
 </script>
 
 {#snippet ringCell()}
-  <ScoreRing ring={ringState(job.match, pending, job.detail.kind)} size="sm" />
-{/snippet}
-
-<!-- Without a ring an empty leading slot keeps the gap between the dot and the title. -->
-{#snippet gutter()}
-  <span class="gutter"></span>
+  <ScoreRing
+    ring={ring ? ringState(job.match, pending, job.detail.kind) : { status: 'off' }}
+    size="sm"
+  />
 {/snippet}
 
 {#snippet endCell()}
@@ -127,9 +131,9 @@
   {/if}
 {/snippet}
 
-<div class="job" class:pinned={job.pinned} class:muted={excluded} class:ringless={!ring}>
+<div class="job" class:pinned={job.pinned} class:muted={excluded}>
   <ListRow
-    leading={ring ? ringCell : gutter}
+    leading={ringCell}
     trailing={endCell}
     {selected}
     muted={excluded}
@@ -143,12 +147,20 @@
       {#if job.company}<span class="text company">{job.company}</span>{/if}
       {#if job.location}<span class="text place">{job.location}</span>{/if}
     </span>
-    <span class="foot">
-      {#if reason}
-        <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
-      {/if}
-      {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
-    </span>
+    {#if ring || facts.length > 0 || reason || deviation}<span class="foot">
+        {#if facts.length > 0}
+          <span class="facts" data-testid="row-facts"
+            >{#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}</span
+          >
+        {:else if reason}
+          <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
+        {/if}
+        {#if deviation}<Badge
+            label={deviation.label}
+            tone={deviation.tone}
+            hint={deviation.hint}
+          />{/if}
+      </span>{/if}
   </ListRow>
   {#if job.unread && !excluded}<span class="dot" role="img" aria-label={t.job.unread} out:dotOut
     ></span>{/if}
@@ -161,7 +173,7 @@
             size="sm"
             iconOnly
             icon={job.place === 'archive' ? 'archive-restore' : 'archive'}
-            label={job.place === 'archive' ? t.reader.unhide : t.reader.hide}
+            label={job.place === 'archive' ? t.reader.restore : t.reader.archive}
             testid="archive-{job.key.portal}-{job.key.id}"
             onclick={() => onarchive?.(job)}
           />
@@ -174,7 +186,7 @@
             size="sm"
             iconOnly
             icon="star"
-            label={t.reader.pin}
+            label={job.pinned ? t.reader.unpin : t.reader.pin}
             pressed={job.pinned}
             testid="pin-{job.key.portal}-{job.key.id}"
             onclick={() => onpin?.(job)}
@@ -188,7 +200,9 @@
 <style>
   .job {
     position: relative;
-    contain: layout paint;
+    /* Layout containment only: paint containment gave every row a clip of its own, and the
+       compositor's work each frame grows with such nodes (a long list, long frames). */
+    contain: layout;
   }
 
   /* The row keeps its hover while the pointer is on its star (a sibling of the row). */
@@ -212,11 +226,6 @@
     pointer-events: none;
   }
 
-  /* Without a ring the dot sits on the axis of the title line. */
-  .ringless .dot {
-    top: calc(var(--space-12) + (var(--leading-title) - var(--dot-unread)) / 2);
-  }
-
   /* A long title takes a second line (the row grows by one line); past that it ends in an
      ellipsis and shows in full in a tooltip. */
   .title {
@@ -232,10 +241,6 @@
 
   .title.unread {
     font-weight: var(--weight-semibold);
-  }
-
-  .gutter {
-    width: 0;
   }
 
   .meta {
@@ -294,6 +299,24 @@
     gap: var(--space-8);
     min-width: 0;
     height: var(--leading-title);
+  }
+
+  /* The ad's key facts, joined by middle dots; the line gives way at its end. */
+  .facts {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-muted);
+    font: var(--type-sm);
+    font-variant-numeric: var(--numeric);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fact + .fact::before {
+    padding: 0 var(--space-6);
+    color: var(--text-subtle);
+    content: '·';
   }
 
   .reason {

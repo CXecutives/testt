@@ -2,6 +2,8 @@
      app's selection (Ctrl/Cmd+click toggles, Shift+click a range, the selection bar). -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
+  import Chip, { CHIP_STATES, type ChipState } from '$components/Chip.svelte';
+  import type { IconName } from '$components/Icon.svelte';
   import JobRow, { type SelectHow } from '$components/JobRow.svelte';
   import SelectionBar from '$components/SelectionBar.svelte';
   import ListRow from '$components/ListRow.svelte';
@@ -13,6 +15,13 @@
   import { sampleJobs, text } from './gallery';
 
   const t = text.match;
+  const CHIP_ICON: Record<ChipState, IconName> = {
+    met: 'check',
+    unknown: 'circle-help',
+    violated: 'x',
+    unset: 'minus',
+    plain: 'file-text',
+  };
   const now = new Date();
   let jobs = $state(sampleJobs(now));
   /** The selected jobs (ids) and where a Shift range starts. */
@@ -87,6 +96,18 @@
       <ReasonItem {kind} label={t.reasonLabels[kind]} compact />
     {/each}
   </div>
+  <div class="chips">
+    {#each CHIP_STATES as state (state)}
+      <Chip
+        {state}
+        label={t.chipLabels[state]}
+        icon={CHIP_ICON[state]}
+        active={active === state}
+        onhover={(on) => (active = on ? state : null)}
+        onselect={state === 'plain' ? null : () => undefined}
+      />
+    {/each}
+  </div>
 </Section>
 
 <Section heading={t.rows} id="rows">
@@ -133,6 +154,13 @@
 </Section>
 
 <style>
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+    margin-top: var(--space-16);
+  }
+
   .reasons {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(var(--list-min), 1fr));

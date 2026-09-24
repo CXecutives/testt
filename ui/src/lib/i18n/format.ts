@@ -15,6 +15,7 @@ interface Formats {
   relative: Intl.RelativeTimeFormat;
   relativeShort: Intl.RelativeTimeFormat;
   dayMonth: Intl.DateTimeFormat;
+  weekday: Intl.DateTimeFormat;
   dayMonthYear: Intl.DateTimeFormat;
   clock: Intl.DateTimeFormat;
 }
@@ -33,6 +34,7 @@ function formats(): Formats {
       relative: new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }),
       relativeShort: new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' }),
       dayMonth: new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }),
+      weekday: new Intl.DateTimeFormat(locale, { weekday: 'short' }),
       dayMonthYear: new Intl.DateTimeFormat(locale, {
         day: '2-digit',
         month: '2-digit',
@@ -66,7 +68,7 @@ function startOfDay(date: Date): number {
 }
 
 /**
- * `jetzt` · `vor 5 Minuten` · `vor 3 Stunden` · `gestern` · `vor 4 Tagen`, then `12.09.`
+ * `jetzt` · `vor 5 Minuten` · `vor 3 Stunden` · `gestern` · `vor 4 Tagen`, then `Sa 12.09.`
  * (with the year if it is not the current one); in English `now` · `5 minutes ago` ·
  * `yesterday` ... `12/09`. `short` abbreviates the units for dense lines (`vor 3 Std.`,
  * `3 hr ago`).
@@ -75,7 +77,7 @@ export function formatRelative(iso: string, now: Date = new Date(), short = fals
   const date = new Date(iso);
   const time = date.getTime();
   if (Number.isNaN(time)) return '';
-  const { relative, relativeShort, dayMonth, dayMonthYear } = formats();
+  const { relative, relativeShort, dayMonth, weekday, dayMonthYear } = formats();
   const format = short ? relativeShort : relative;
   const diff = now.getTime() - time;
   const days = Math.round((startOfDay(now) - startOfDay(date)) / DAY);
@@ -85,9 +87,10 @@ export function formatRelative(iso: string, now: Date = new Date(), short = fals
     return format.format(-Math.floor(diff / HOUR), 'hour');
   }
   if (days > 0 && days <= RELATIVE_DAYS) return format.format(-days, 'day');
-  return date.getFullYear() === now.getFullYear()
-    ? dayMonth.format(date)
-    : dayMonthYear.format(date);
+  // Older: the weekday with the date ("So 20.09.", "Sun 20/09"), so last week is found
+  // without counting.
+  if (date.getFullYear() !== now.getFullYear()) return dayMonthYear.format(date);
+  return `${weekday.format(date).replace(/\.$/, '')} ${dayMonth.format(date)}`;
 }
 
 /** `14:05` */

@@ -1,17 +1,19 @@
 <!--
   The reader's empty state: what the sheet shows while no job is selected, unboxed like the
-  reader. It answers "what now" in a short list, no counts (the list header counts): without
-  a usable profile a calm card that leads to one, "Beste Passung" (the three best scored new
+  reader. It answers "what now" in a short list, no counts (the list header counts): "Neu
+  und passend" with the prompt of the best matches for any AI chat at the end of its heading
+  (the rows only where the list beside does not show them on top already, else one quiet
+  line), the three best scored new
   jobs as list rows; a click opens the job), the open points (one per portal and problem, a
   failed fetch, each with its action) only when there are any, and at the end the overview
-  file, the Excel file and the folder, their one place in the Jobs view. "Nothing new" is
+  file, the Excel file and the folder, their one place in the Jobs view, and the best
+  matches as one prompt for any AI chat. "Nothing new" is
   said by the list and the run card, not here. The time of the last fetch is said once, in
   the sidebar. The portals keep the one order of the app (the settings').
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
-  import Card from '$components/Card.svelte';
   import JobRow from '$components/JobRow.svelte';
   import Notice from '$components/Notice.svelte';
   import { t } from '$lib/i18n/t';
@@ -20,8 +22,7 @@
   import type { EmptyAlert, JobView, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
-  import { navigation } from '$lib/state/navigation.svelte';
-  import { editor } from '$lib/state/profile.svelte';
+  import { copyTopPrompt } from './prompt';
   import { run } from '$lib/state/run.svelte';
 
   // The one order of the portals (the backend's, as in the settings).
@@ -30,31 +31,41 @@
   /** The best scored new jobs (one small query; again whenever the counts move). */
   let top = $state.raw<JobView[]>([]);
   let topRequest = 0;
+  /** The best matches did not load: a quiet retry in their place. */
+  let topError = $state<string | null>(null);
+
+  function loadTop(): void {
+    const request = ++topRequest;
+    if (!app.hasProfile) {
+      top = [];
+      topError = null;
+      return;
+    }
+    invoke('list_jobs', {
+      query: {
+        place: 'inbox',
+        unread: true,
+        favourites: false,
+        sort: 'match',
+        search: null,
+        limit: BEST,
+        offset: 0,
+      },
+    })
+      .then((page) => {
+        if (request !== topRequest) return;
+        top = page.jobs;
+        topError = null;
+      })
+      .catch((error: unknown) => {
+        if (request === topRequest) topError = errorText(error);
+      });
+  }
+
   $effect(() => {
     void jobs.overviewCounts;
-    const scoring = app.hasProfile;
-    untrack(() => {
-      const request = ++topRequest;
-      if (!scoring) {
-        top = [];
-        return;
-      }
-      invoke('list_jobs', {
-        query: {
-          place: 'inbox',
-          unread: true,
-          favourites: false,
-          sort: 'match',
-          search: null,
-          limit: BEST,
-          offset: 0,
-        },
-      })
-        .then((page) => {
-          if (request === topRequest) top = page.jobs;
-        })
-        .catch((error: unknown) => (actionError = errorText(error)));
-    });
+    void app.hasProfile;
+    untrack(loadTop);
   });
   // As the list knows them now (read, pinned); only scored ones are a match.
   const best = $derived(
@@ -123,26 +134,14 @@
     return previous.outcome.error;
   });
   const hasIssues = $derived(portalIssues.length > 0 || lastFailure !== null);
-  const profileMissing = $derived(app.state !== null && !app.hasProfile);
-  // A profile that is there but cannot be used is named, and the card leads to it.
-  const profileCard = $derived.by(() => {
-    const profile = app.state?.profile ?? null;
-    if (profile === null) {
-      return {
-        heading: t.overview.noProfile,
-        text: t.overview.noProfileText,
-        label: t.list.createProfile,
-        icon: 'file-text' as const,
-      };
-    }
-    return {
-      heading: profile.parseError ? t.overview.profileUnreadable : t.overview.profileEmpty,
-      text: t.overview.profileBrokenText,
-      label: t.list.openProfile,
-      icon: 'user-round' as const,
-    };
-  });
   const fetchedOnce = $derived((run.summary ?? app.state?.lastRun ?? null) !== null);
+  /** The list beside shows the best new jobs on top already (Neu, by fit, no search). */
+  const listShowsBest = $derived(
+    jobs.facet === 'new' &&
+      jobs.sortChoice === 'match' &&
+      jobs.search.trim() === '' &&
+      jobs.filter === null,
+  );
   let actionError = $state<string | null>(null);
 
   function open(target: OpenTarget): void {
@@ -152,36 +151,41 @@
 </script>
 
 <div class="overview" data-testid="day-overview" aria-label={t.overview.label}>
-  {#if profileMissing}
-    <Card variant="tinted" padding="md" testid="no-profile">
-      <div class="profile">
-        <div class="profile-copy">
-          <h2 class="card-heading">{profileCard.heading}</h2>
-          <p class="card-text">{profileCard.text}</p>
-        </div>
+  {#if topError && jobs.status !== 'error'}
+    <section class="block" data-testid="best-error">
+      <Notice
+        tone="warning"
+        variant="row"
+        text={topError}
+        action={{ label: t.common.retry, onclick: loadTop }}
+      />
+    </section>
+  {:else if best.length > 0}
+    <section class="block" data-testid="best">
+      <div class="heading-line">
+        <h2 class="heading">{t.overview.best}</h2>
         <Button
-          variant="secondary"
-          icon={profileCard.icon}
-          label={profileCard.label}
-          testid="choose-profile"
-          onclick={() => {
-            // No profile yet: straight into the empty form, one click.
-            if (app.state?.profile == null) editor.create();
-            navigation.go('profile');
-          }}
+          variant="ghost"
+          size="sm"
+          icon="copy"
+          label={t.overview.promptTop}
+          testid="prompt-top"
+          onclick={() => void copyTopPrompt().then((error) => (actionError = error))}
         />
       </div>
-    </Card>
-  {/if}
-
-  {#if best.length > 0}
-    <section class="block" data-testid="best">
-      <h2 class="heading">{t.overview.best}</h2>
-      <div class="best">
-        {#each best as job (keyOf(job.key))}
-          <JobRow {job} onselect={(chosen) => void jobs.select(chosen, true)} />
-        {/each}
-      </div>
+      {#if listShowsBest}
+        <p class="quiet" data-testid="top-in-list">{t.overview.bestInList}</p>
+      {:else}
+        <div class="best">
+          {#each best as job (keyOf(job.key))}
+            <JobRow
+              {job}
+              testid="best-{job.key.portal}-{job.key.id}"
+              onselect={(chosen) => void jobs.select(chosen, true)}
+            />
+          {/each}
+        </div>
+      {/if}
     </section>
   {/if}
 
@@ -222,32 +226,35 @@
   {/if}
 
   {#if fetchedOnce}
-    <div class="files" data-testid="overview-files">
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="external-link"
-        label={t.run.openOverview}
-        testid="overview-open"
-        onclick={() => open({ kind: 'overview' })}
-      />
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="file-text"
-        label={t.overview.excel}
-        testid="overview-excel"
-        onclick={() => open({ kind: 'excel' })}
-      />
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="folder-open"
-        label={t.common.openFolder}
-        testid="overview-folder"
-        onclick={() => open({ kind: 'workspace' })}
-      />
-    </div>
+    <section class="block" data-testid="files">
+      <h2 class="heading">{t.overview.files}</h2>
+      <div class="files" data-testid="overview-files">
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="file-text"
+          label={t.run.openOverview}
+          testid="overview-open"
+          onclick={() => open({ kind: 'overview' })}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="file-spreadsheet"
+          label={t.overview.excel}
+          testid="overview-excel"
+          onclick={() => open({ kind: 'excel' })}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="folder-open"
+          label={t.common.openFolder}
+          testid="overview-folder"
+          onclick={() => open({ kind: 'workspace' })}
+        />
+      </div>
+    </section>
   {/if}
   {#if actionError}
     <Notice tone="danger" variant="inline" text={actionError} />
@@ -272,32 +279,6 @@
     clip-path: inset(0 0 var(--border-width) 0);
   }
 
-  .profile {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-12) var(--space-16);
-  }
-
-  .profile-copy {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    min-width: 0;
-  }
-
-  .card-heading {
-    color: var(--text-heading);
-    font: var(--type-md);
-    font-weight: var(--weight-medium);
-  }
-
-  .card-text {
-    color: var(--text-muted);
-    font: var(--type-sm);
-  }
-
   /* Sections like the reader's: a hairline above, the heading, the content (the first one
      starts the overview without a line). */
   .overview > .block:first-child {
@@ -316,6 +297,20 @@
   .heading {
     color: var(--text-heading);
     font: var(--type-lg);
+  }
+
+  /* A heading with its one action at the end (the prompt of the best matches). */
+  .heading-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-12);
+    margin-right: calc(-1 * var(--space-12));
+  }
+
+  .quiet {
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   /* Quiet file actions below everything; their icons start on the edge of the column. */

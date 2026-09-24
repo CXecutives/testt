@@ -21,6 +21,10 @@
 //   layout types (AltGr on Windows, Option on macOS: @ is Option+L on a German Mac) and
 //   the editing keys of the OS (word and line moves, delete word, Shift selection,
 //   Ctrl/Cmd+C/V/X/A/Z, redo) work. Enter saves and Esc cancels a form or dialog.
+// - a list with a reader (the Jobs view, `listKeys`) moves like a mail app: outside a field
+//   ArrowUp/ArrowDown open the previous/next item, Home/End the first/last, Esc closes the
+//   open item (in the search field Esc first clears the search), and Ctrl+F (Cmd+F on
+//   macOS) goes to its search field from anywhere.
 //   Everything else, including every WebView shortcut (reload, find, print, zoom,
 //   devtools, caret browsing, Alt+Arrow back/forward), is swallowed.
 // - a modal dialog holds the focus: Tab cycles inside it, Esc cancels it wherever the
@@ -45,6 +49,7 @@ const DIALOG = 'dialog, [role="dialog"], [role="alertdialog"]';
 /** An open modal dialog: it holds the focus. */
 const MODAL = '[aria-modal="true"]';
 const FORM = '[data-form-keys]';
+const LIST = '[data-list-keys]';
 /** Controls that Enter and Space press. */
 const PRESSABLE = 'button, [role="button"], [role="switch"], [role="radio"]';
 /** Buttons inside a field (show password, clear search): a press leaves the focus there. */
@@ -205,19 +210,115 @@ function isSaveShortcut(event: KeyboardEvent): boolean {
   );
 }
 
-function dispatchFormKey(event: KeyboardEvent, target: EventTarget | null = event.target): void {
-  if (event.isComposing || hasModifier(event)) return;
+/** Enter and Esc for the nearest form that handles them; `true` if one did. */
+function dispatchFormKey(event: KeyboardEvent, target: EventTarget | null = event.target): boolean {
+  if (event.isComposing || hasModifier(event)) return false;
   let handler: (() => void) | null = null;
   if (event.key === 'Escape') {
     handler = handlerFor(target, 'cancel');
   } else if (event.key === 'Enter') {
     // Enter on a button presses that button; in a text area it starts a new line.
-    if (closest(target, 'textarea') !== null || closest(target, PRESSABLE) !== null) return;
+    if (closest(target, 'textarea') !== null || closest(target, PRESSABLE) !== null) {
+      return false;
+    }
     handler = handlerFor(target, 'save');
   }
-  if (handler === null) return;
+  if (handler === null) return false;
   event.preventDefault();
   handler();
+  return true;
+}
+
+export interface ListKeyHandlers {
+  /** ArrowUp (-1) / ArrowDown (1): open the previous or next item. */
+  step: (by: -1 | 1) => void;
+  /** Home / End: open the first or the last item. */
+  edge: (last: boolean) => void;
+  /** Esc: close the open item. */
+  close: () => void;
+  /** Ctrl+F (Cmd+F on macOS): the search field. */
+  find: () => void;
+}
+
+const lists = new Map<HTMLElement, ListKeyHandlers>();
+
+/**
+ * The keys of a list with a reader (the Jobs view): the one keydown handler below
+ * dispatches to it while the focus is inside it or nowhere (a click on plain text leaves
+ * the focus on the page).
+ */
+export const listKeys: Action<HTMLElement, ListKeyHandlers> = (node, handlers) => {
+  lists.set(node, handlers);
+  node.dataset.listKeys = '';
+  return {
+    update(next: ListKeyHandlers) {
+      lists.set(node, next);
+    },
+    destroy() {
+      lists.delete(node);
+      delete node.dataset.listKeys;
+    },
+  };
+};
+
+/** A registered list the user sees (a view kept underneath another one is inert). */
+function shownList(): ListKeyHandlers | null {
+  for (const [node, handlers] of lists) {
+    if (!node.isConnected || node.closest('[inert]') !== null) continue;
+    if (node.getClientRects().length === 0 || getComputedStyle(node).visibility === 'hidden') {
+      continue;
+    }
+    return handlers;
+  }
+  return null;
+}
+
+/** The list the key belongs to: the one around the focus, or the shown one without a focus. */
+function listFor(target: EventTarget | null): ListKeyHandlers | null {
+  const node = closest(target, LIST);
+  if (node instanceof HTMLElement) return lists.get(node) ?? null;
+  const nowhere = target === document.body || target === document.documentElement;
+  return nowhere ? shownList() : null;
+}
+
+/** Ctrl+F or Cmd+F (the command key of the OS), without Alt or Shift. */
+function isFindShortcut(event: KeyboardEvent): boolean {
+  return (
+    event[keyConventions().command] &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === 'f'
+  );
+}
+
+/** Arrows, Home, End and Esc outside a field; `true` if a list took the key. */
+function dispatchListKey(event: KeyboardEvent): boolean {
+  if (event.isComposing || hasModifier(event) || event.shiftKey) return false;
+  // The arrows of a radio group (the segments) are the group's.
+  if (closest(event.target, '[role="radio"]') !== null && event.key.startsWith('Arrow')) {
+    return false;
+  }
+  const list = listFor(event.target);
+  if (list === null) return false;
+  switch (event.key) {
+    case 'ArrowUp':
+      list.step(-1);
+      return true;
+    case 'ArrowDown':
+      list.step(1);
+      return true;
+    case 'Home':
+      list.edge(false);
+      return true;
+    case 'End':
+      list.edge(true);
+      return true;
+    case 'Escape':
+      list.close();
+      return true;
+    default:
+      return false;
+  }
 }
 
 const isFocusMove = (event: KeyboardEvent): boolean => event.key === 'Tab' && !hasModifier(event);
@@ -317,6 +418,12 @@ function onKeyDown(event: KeyboardEvent): void {
     }
   }
   if (isCopy(event)) return;
+  if (isFindShortcut(event)) {
+    // Never the WebView's find bar; a list with a search field takes it.
+    event.preventDefault();
+    if (modal === null) shownList()?.find();
+    return;
+  }
   if (isSaveShortcut(event)) {
     // Never the WebView's "save page"; a form that saves this way gets it.
     event.preventDefault();
@@ -330,15 +437,19 @@ function onKeyDown(event: KeyboardEvent): void {
       return;
     }
     if (dispatchChipKey(event)) return;
-    dispatchFormKey(event);
+    // Esc that no form takes (a search that is empty already) closes the list's open item.
+    if (dispatchFormKey(event) || event.key !== 'Escape' || modal !== null) return;
+    if (closest(event.target, LIST) !== null) dispatchListKey(event);
     return;
   }
   if (isFocusMove(event) || pressesControl(event)) return;
-  if (closest(event.target, `${FORM}, ${DIALOG}`) !== null) dispatchFormKey(event);
-  if (!event.defaultPrevented && event.key === 'Escape' && !hasModifier(event)) {
-    escapes.at(-1)?.();
-  }
   event.preventDefault();
+  if (closest(event.target, `${FORM}, ${DIALOG}`) !== null && dispatchFormKey(event)) return;
+  if (event.key === 'Escape' && !hasModifier(event) && escapes.length > 0) {
+    escapes.at(-1)?.();
+    return;
+  }
+  if (modal === null) dispatchListKey(event);
 }
 
 /** What Esc clears outside fields and dialogs; the newest first. */
@@ -456,12 +567,16 @@ function guardZoom(on: boolean): void {
  * passive listener: it never delays a scroll.
  */
 let scrollIdle: ReturnType<typeof setTimeout> | undefined;
+/** --scroll-idle, read once: reading a token inside the handler would force a style
+ *  recalculation on every scroll event (right after the attribute changed). */
+let scrollIdleMs: number | null = null;
 
 function onScroll(): void {
   const root = document.documentElement;
+  scrollIdleMs ??= tokenMs('--scroll-idle');
   if (root.dataset.scrolling === undefined) root.dataset.scrolling = '';
   clearTimeout(scrollIdle);
-  scrollIdle = setTimeout(() => delete root.dataset.scrolling, tokenMs('--scroll-idle'));
+  scrollIdle = setTimeout(() => delete root.dataset.scrolling, scrollIdleMs);
 }
 
 /**

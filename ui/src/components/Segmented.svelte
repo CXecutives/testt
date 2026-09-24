@@ -4,7 +4,8 @@
   exactly its option whatever the labels, counts or window width (it cross-fades, 100 ms).
   When the track has less room than the options want, the labels shorten with an ellipsis
   (the counts stay); nothing ever overlaps. The chosen label is ink and its count a soft
-  warm pill, the others stay muted with a plain count (same box, so nothing moves). An
+  warm pill, the others stay muted with a plain count (same box, so nothing moves); an option
+  may keep one tone whatever is chosen (the unread count stays warm). An
   unchosen option washes on hover and darkens while pressed. Counts roll when they change.
 -->
 <script lang="ts" module>
@@ -12,6 +13,8 @@
     id: Id;
     label: string;
     count?: number | null;
+    /** The count's tone whatever is chosen (default: soft when chosen, plain otherwise). */
+    tone?: 'soft' | 'plain' | null;
   }
 </script>
 
@@ -50,7 +53,7 @@
       <span class="label" use:tooltip={{ text: option.label, truncated: true }}>{option.label}</span
       >
       {#if option.count !== undefined && option.count !== null}
-        <Count value={option.count} tone={chosen ? 'soft' : 'plain'} />
+        <Count value={option.count} tone={option.tone ?? (chosen ? 'soft' : 'plain')} />
       {/if}
     </button>
   {/each}

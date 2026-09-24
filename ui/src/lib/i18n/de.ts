@@ -49,10 +49,11 @@ const n = (value: number): string => formatNumber(value);
 const count = (value: number, one: string, many: string): string =>
   `${n(value)} ${value === 1 ? one : many}`;
 
+/** The portals by their web address, everywhere (a sentence never starts with one). */
 const portalName: Record<Portal, string> = {
-  linkedin: 'LinkedIn',
+  linkedin: 'linkedin.com',
   freelance: 'freelance.de',
-  freelancermap: 'freelancermap',
+  freelancermap: 'freelancermap.de',
 };
 const portalOf = (value: unknown): string =>
   typeof value === 'string' && value in portalName ? portalName[value as Portal] : str(value);
@@ -80,8 +81,8 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   mailCancelled: 'Abgebrochen.',
   secretStore: 'Der Passwortspeicher des Systems ist nicht erreichbar.',
   secretCorrupt: 'Das gespeicherte App-Passwort ist nicht lesbar.',
-  portalUnavailable: (p) => `${portalOf(p.portal)} ist gerade nicht erreichbar.`,
-  portalPaused: (p) => `${portalOf(p.portal)} pausiert gerade.`,
+  portalUnavailable: (p) => `Keine Verbindung zu ${portalOf(p.portal)}.`,
+  portalPaused: (p) => `Die Abrufe bei ${portalOf(p.portal)} pausieren gerade.`,
   portalQuota: (p) => `Das Limit für ${portalOf(p.portal)} ist erreicht.`,
   internal: INTERNAL,
   unknown: INTERNAL,
@@ -124,7 +125,7 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   profileAnswer: 'In der Antwort steht kein Profil.',
   mailAddress: 'Die Adresse ist unvollständig.',
   appPassword: 'Ein App-Passwort hat 16 Buchstaben.',
-  noSignIn: (p) => `${portalOf(p.portal)} bietet keine Anmeldung.`,
+  noSignIn: (p) => `Für ${portalOf(p.portal)} gibt es keine Anmeldung.`,
 };
 
 const status: Record<StatusCode, string> = {
@@ -166,7 +167,7 @@ const SHORT_TEXT = 'Die Anzeige ist sehr kurz.';
 const contract = {
   interim: 'Interim',
   permanent: 'Festanstellung',
-  anue: 'ANÜ',
+  anue: 'Arbeitnehmerüberlassung',
   unclear: 'Vertragsart unklar',
 } as const;
 export type ContractKind = keyof typeof contract;
@@ -229,7 +230,7 @@ function regionWish(p: Params): string {
     case 'missed':
       return `${str(p.location)} liegt außerhalb der Wunschregionen.`;
     default:
-      return 'Ob der Einsatzort in einer Wunschregion liegt, ist offen.';
+      return 'Ob der Einsatzort in einer Wunschregion liegt, steht nicht fest.';
   }
 }
 
@@ -266,7 +267,7 @@ const reasonCode = {
   dayRateCurrency: (p) => `Der Satz ist in ${str(p.currency)} angegeben.`,
   availabilityGap: (p) =>
     `Der Start liegt ${count(num(p.days), 'Tag', 'Tage')} vor der Verfügbarkeit.`,
-  startVague: 'Der Starttermin ist offen.',
+  startVague: 'Der Starttermin ist unklar.',
   permanent: 'Das klingt nach einer Festanstellung.',
   permanentRegion: (p) =>
     p.location
@@ -329,6 +330,8 @@ export type ReasonCode = keyof typeof reasonCode;
 interface CriterionText {
   /** Short name in the criteria strip of the reader. */
   label: string;
+  /** Why a job is excluded by it, in the short words of a list row. */
+  short: string;
   /** Why a job is excluded by it. */
   exclusion: string;
 }
@@ -340,30 +343,37 @@ interface CriterionText {
 const criteria = {
   minDayRate: {
     label: 'Tagessatz',
+    short: 'Tagessatz zu niedrig',
     exclusion: 'Der Tagessatz liegt unter dem Minimum im Profil.',
   },
   countries: {
     label: 'Einsatzländer',
+    short: 'Einsatzort außerhalb',
     exclusion: 'Der Einsatzort liegt außerhalb der Länder im Profil.',
   },
   noAnue: {
-    label: 'ANÜ',
+    label: 'Arbeitnehmerüberlassung',
+    short: 'Arbeitnehmerüberlassung',
     exclusion: ANUE,
   },
   availability: {
     label: 'Verfügbarkeit',
+    short: 'Start passt nicht',
     exclusion: 'Der Start passt nicht zur Verfügbarkeit.',
   },
   minSalary: {
     label: 'Jahresgehalt',
+    short: 'Gehalt zu niedrig',
     exclusion: 'Das Gehalt liegt unter dem Minimum im Profil.',
   },
   permanentRegion: {
     label: 'Orte',
+    short: 'Ort außerhalb der Region',
     exclusion: 'Die Festanstellung liegt außerhalb der Region im Profil.',
   },
   targetYears: {
     label: 'Erfahrung',
+    short: 'Erfahrung passt nicht',
     exclusion: 'Die Stelle verlangt deutlich weniger Erfahrung.',
   },
 } satisfies Record<string, CriterionText>;
@@ -512,6 +522,8 @@ export const de = {
     unscorable: 'Nicht bewertbar',
     pending: 'Wird bewertet',
     none: 'Noch nicht bewertet',
+    /** A ring without a usable profile. */
+    off: 'Ohne Profil keine Passung',
     band: {
       high: 'Hohe Passung',
       mid: 'Mittlere Passung',
@@ -522,16 +534,19 @@ export const de = {
     kind: {
       met: 'Erfüllt',
       partial: 'Teilweise erfüllt',
-      open: 'Offen',
+      open: 'Nicht im Profil',
       violation: 'Ausschlussgrund',
       check: 'Zu prüfen',
     } satisfies Record<ReasonKind, string>,
     weight: {
-      must: 'Muss',
-      nice: 'Kann',
+      must: 'Pflicht',
+      nice: 'Optional',
       hard: 'Ausschluss',
       info: 'Hinweis',
     } satisfies Record<ReasonWeight, string>,
+    /** The line under a reason: only the profile's side (the ad's words stand above it). */
+    evidenceLine: (profile: string, partial: boolean) =>
+      partial ? `Passt teilweise zu „${profile}“ im Profil.` : `Passt zu „${profile}“ im Profil.`,
     /** Tooltip of a reason: the ad's words and what the profile says. */
     evidence: (quote: string, profile: string, partial: boolean) =>
       partial
@@ -548,14 +563,22 @@ export const de = {
     } satisfies Record<WorkMode, string>,
     /** Badge per DetailState kind (`ok` shows none). */
     detail: {
-      pending: 'Ohne Details',
+      pending: 'Details folgen',
       teaser: 'Nur Anriss',
       failed: 'Details fehlen',
       unfetchable: 'Nicht abrufbar',
       gone: 'Nicht mehr online',
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
+    /** What a detail badge means, in its tooltip. */
+    detailHint: {
+      pending: 'Die ganze Anzeige ist noch nicht geholt.',
+      teaser: 'Das Portal zeigt ohne Anmeldung nur einen Anriss.',
+      failed: 'Die ganze Anzeige ließ sich nicht holen.',
+      unfetchable: 'Von diesem Portal lassen sich keine Details holen.',
+      gone: 'Die Anzeige ist nicht mehr online.',
+    } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     unread: 'Neu',
-    pinned: 'Gemerkt',
+    pinned: 'Favorit',
     alsoOn: (portals: string) => `auch auf ${portals}`,
     untitled: 'Job ohne Titel',
   },
@@ -566,12 +589,14 @@ export const de = {
     facet: 'Auswahl',
     facetNew: 'Neu',
     facetAll: 'Alle',
-    facetPinned: 'Gemerkt',
+    facetSaved: 'Favoriten',
     /** The order of the list in words (the sort button). */
     sortLabel: {
-      match: 'Beste Passung',
-      newest: 'Neueste',
+      match: 'Nach Passung',
+      newest: 'Nach Datum',
     } satisfies Record<JobSort, string>,
+    /** The order without a usable profile: there is no fit to sort by. */
+    sortNoProfile: 'Ohne Profil nur nach Datum.',
     search: 'Suchen',
     searchLabel: 'Jobs durchsuchen',
     needsMailbox: 'Erst ein Postfach verbinden.',
@@ -594,7 +619,7 @@ export const de = {
     /** After the rolling number of a step counter: "von 7". */
     ofTotal: (total: number) => `von ${n(total)}`,
     newPill: (value: number) => `${n(value)} neu`,
-    topPill: (value: number) => `${n(value)} passen gut`,
+    topPill: (value: number) => count(value, 'passt gut', 'passen gut'),
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
     /** A paused portal in one sentence: until when, then why. */
     pausedWhy: (reason: PauseReason, iso: string | null) =>
@@ -606,7 +631,7 @@ export const de = {
       fetch: 'Abruf',
       details: 'Details holen',
       rescore: 'Neu bewerten',
-      fullMailbox: 'Ganzes Postfach',
+      fullMailbox: 'Ältere Mails lesen',
     } satisfies Record<RunKindName, string>,
     done: 'Abruf fertig',
     rescored: 'Neu bewertet',
@@ -657,13 +682,13 @@ export const de = {
       const name = portalName[portal];
       switch (kind) {
         case 'paused':
-          return `${name} pausiert`;
+          return `Pause bei ${name}`;
         case 'quotaReached':
-          return `${name} hat das Limit erreicht`;
+          return `Limit bei ${name} erreicht`;
         case 'layoutSuspect':
-          return `${name} sieht anders aus als erwartet`;
+          return `Seiten von ${name} sehen anders aus als erwartet`;
         case 'loginRequired':
-          return `${name} verlangt eine Anmeldung`;
+          return `Anmeldung bei ${name} nötig`;
       }
     },
     checkMailbox: 'Postfach prüfen',
@@ -672,13 +697,21 @@ export const de = {
     label: 'Jobs',
     /** The divider (its count is a pill of its own, left out where the rows are a part). */
     excluded: 'Ausgeschlossen',
-    hidden: 'Archiv',
-    showHidden: 'Anzeigen',
+    archive: 'Archiv',
+    showArchive: 'Anzeigen',
+    archiveLink: (value: number) => `Archiv ${n(value)}`,
+    /** Search hits among the archived jobs, under the live ones. */
+    inArchive: 'Im Archiv',
+    emptyArchive: 'Archiv leeren',
+    emptyArchiveHeading: 'Archiv leeren?',
+    emptyArchiveText: 'Die Jobs werden gelöscht und kommen nicht wieder.',
     /** The empty list says where jobs come from and how to get more. */
-    emptySources: 'Die Jobs kommen aus den Alert-Mails der Portale.',
+    emptySources: 'Ein Alert pro Portal bringt neue Jobs.',
+    /** FR-03: while the first fetch runs, the empty list only says what comes. */
+    emptyWhileRun: 'Die Jobs erscheinen, sobald der Abruf fertig ist.',
     createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
     readOlder: 'Ältere Mails lesen',
-    emptyHidden: 'Das Archiv ist leer.',
+    emptyArchived: 'Das Archiv ist leer.',
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
     emptyAfterRun: 'Die Alert-Mails enthielten bisher keine Jobs.',
@@ -690,23 +723,59 @@ export const de = {
     createProfile: 'Profil anlegen',
     openProfile: 'Profil öffnen',
     noMailbox: 'Ohne Postfach kommen keine neuen Jobs dazu.',
+    /** No usable profile: said once, at the top of the list. */
+    noProfile: 'Ohne Profil gibt es keine Passung.',
+    profileUnreadable: 'Profil nicht lesbar',
+    profileEmpty: 'Profil ohne Kompetenzen',
+    profileBrokenText: 'Die Jobs zeigen deshalb keine Passung.',
     connectMailbox: 'Postfach verbinden',
     filter: {
       high: 'Hohe Passung',
       noDetail: 'Ohne Details',
       excluded: 'Ausgeschlossen',
-      pinned: 'Gemerkt',
+      pinned: 'Favoriten',
       linkedin: `Neu auf ${portalName.linkedin}`,
       freelancermap: `Neu auf ${portalName.freelancermap}`,
       freelance: `Neu auf ${portalName.freelance}`,
     },
     clearFilter: 'Filter entfernen',
   },
+  /** The key facts of an ad in short words (list row, criteria chips). */
+  facts: {
+    now: 'ab sofort',
+    from: (date: string) => `ab ${date}`,
+    vague: 'Start offen',
+    months: (value: number) => count(value, 'Monat', 'Monate'),
+    remote: (from: number, to: number) => {
+      if (from >= 100) return 'voll remote';
+      if (to <= 0) return 'vor Ort';
+      return from === to
+        ? `${formatPercent(from)} remote`
+        : `${n(from)} bis ${formatPercent(to)} remote`;
+    },
+    /** `1.100 €`, with the unit `1.100 €/Tag`, per hour `95 €/Std.`, `1.000 CHF/Tag`. */
+    rate: (amount: number, hourly: boolean, currency: string | null, unit: boolean) => {
+      const money = currency ? `${n(amount)} ${currency}` : formatEuro(amount);
+      return hourly ? `${money}/Std.` : unit ? `${money}/Tag` : money;
+    },
+    rateOpen: 'Satz nach Absprache',
+    salary: (amount: number) => `${formatEuro(amount)} im Jahr`,
+    years: (value: number) => `${count(value, 'Jahr', 'Jahre')} Erfahrung`,
+    fullRemote: 'voll remote',
+    contract,
+    /** A criterion the ad does not mention. */
+    notMentioned: (label: string) => `${label} nicht genannt`,
+  },
   reader: {
     mustMet: (met: number, total: number, partial = 0) =>
-      `${n(met)} von ${n(total)} Muss erfüllt` + (partial > 0 ? `, ${n(partial)} teilweise` : ''),
-    noMust: 'Keine Muss-Anforderungen erkannt',
+      `${n(met)} von ${n(total)} Pflichtanforderungen erfüllt` +
+      (partial > 0 ? `, ${n(partial)} teilweise` : ''),
+    noMust: 'Keine Pflichtanforderungen erkannt',
     criteria: 'Ausschlusskriterien',
+    /** The label of the strip of hard criteria next to the score. */
+    frame: 'Rahmen',
+    /** Why the temporary agency criterion needs a look. */
+    anueCheck: 'Ob die Stelle über Arbeitnehmerüberlassung läuft, steht nicht fest.',
     contractLabel: 'Vertragsart',
     criterion: criteria,
     criterionState: {
@@ -718,18 +787,39 @@ export const de = {
     note,
     open: 'Anzeige öffnen',
     close: 'Schließen',
-    pin: 'Merken',
-    hide: 'Archivieren',
-    unhide: 'Wiederherstellen',
-    prompt: 'Als Prompt kopieren',
+    pin: 'Als Favorit markieren',
+    unpin: 'Favorit entfernen',
+    archive: 'Archivieren',
+    restore: 'Wiederherstellen',
+    archived: 'Dieser Job ist archiviert.',
+    deleteForGood: 'Endgültig löschen',
+    deleteHeading: 'Job endgültig löschen?',
+    deleteText: 'Der Job wird gelöscht und kommt auch mit alten Alert-Mails nicht wieder.',
+    /** An excluded job the user counts anyway, and back. */
+    override: 'Trotzdem werten',
+    overrideUndo: 'Wieder ausschließen',
+    overridden: 'Von dir als passend markiert.',
+    prompt: 'Prompt für KI-Bewertung kopieren',
+    promptShort: 'KI-Bewertung',
+    promptHint:
+      'Kopiert Anzeige und Profil als fertigen Prompt für ChatGPT, Claude oder eine andere KI.',
     /** Under the band of a score that comes from a teaser only. */
     preliminary: 'Vorläufig, aus einem Anriss bewertet',
     mail: OPEN_MAIL,
+    noMail: 'Zu diesem Job gibt es keine Alert-Mail.',
+    /** The teaser note names the portal; the sign-in is set up in Einstellungen. */
+    teaserOf: (portal: string) => `Ohne Anmeldung zeigt ${portal} nur einen Anriss.`,
+    setUpSignIn: 'Anmeldung einrichten',
+    promptNoProfile: 'Ohne Profil gibt es nichts zu bewerten.',
+    promptNoText: 'Der Text der Anzeige fehlt noch.',
+    /** The exact moment of the mail, in the tooltip of its date. */
+    mailAt: (moment: string) => `Alert-Mail vom ${moment}`,
     fetchDetails: 'Details holen',
     why: 'Warum',
+    wishes: 'Wünsche',
     met: 'Erfüllt',
     partial: 'Teilweise erfüllt',
-    missing: 'Offen',
+    missing: 'Nicht im Profil',
     check: 'Zu prüfen',
     violations: 'Ausgeschlossen',
     noReasons: 'Die Anzeige nennt keine klaren Anforderungen.',
@@ -748,19 +838,20 @@ export const de = {
   overview: {
     label: 'Tagesüberblick',
     issues: 'Offene Punkte',
-    best: 'Beste Passung',
+    best: 'Neu und passend',
     excel: 'Excel öffnen',
+    /** The best matches as one prompt for any AI chat. */
+    promptTop: 'Prompt für KI-Vergleich kopieren',
+    promptTopNone: 'Noch kein Job bewertet.',
+    /** When the list beside shows the best new jobs on top already. */
+    bestInList: 'Die besten neuen Jobs stehen oben in der Liste.',
+    files: 'Dateien',
     /** Under the portal's name, so the sentence does not name it again. */
     emptyAlerts: (value: number) =>
       value === 1
         ? 'Eine Alert-Mail enthielt keine Jobs.'
         : `${n(value)} Alert-Mails enthielten keine Jobs.`,
     lastRun: 'Letzter Abruf',
-    noProfile: 'Noch kein Profil',
-    noProfileText: 'Mit einem Profil zeigt jeder Job, wie gut er passt.',
-    profileUnreadable: 'Profil nicht lesbar',
-    profileEmpty: 'Profil ohne Kompetenzen',
-    profileBrokenText: 'Die Jobs zeigen deshalb keine Passung.',
   },
   health: {
     layoutText: (mails: number) =>
@@ -922,7 +1013,7 @@ export const de = {
       onSite: 'Vor Ort',
     } satisfies Record<RemoteWish, string>,
     availability: {
-      unset: 'Offen',
+      unset: 'Keine Angabe',
       now: 'Sofort',
       from: 'Ab Datum',
     } satisfies Record<ProfileAvailability['kind'], string>,
@@ -1090,7 +1181,11 @@ export const de = {
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
     prompt: 'Prompt kopiert, bereit für einen KI-Chat.',
-    hidden: 'Archiviert.',
+    archivedOne: (name: string) => `„${name}“ archiviert.`,
+    archivedMany: (value: number) => `${n(value)} Jobs archiviert.`,
+    restored: (name: string) => `„${name}“ wiederhergestellt.`,
+    deleted: (value: number) =>
+      value === 1 ? 'Der Job ist gelöscht.' : `${n(value)} Jobs sind gelöscht.`,
     runDone: (value: number) =>
       value === 0
         ? 'Abruf fertig, nichts Neues.'

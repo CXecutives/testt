@@ -11,7 +11,7 @@
     not react otherwise.
   - Loading keeps the width: the content fades out under the spinner.
   - A ghost toggle (the pin star) pops once when it is switched on by a click.
-  - turned: the glyph stands half a turn (the sort order); it turns in 180 ms.
+  - turned: the glyph stands half a turn; it turns in 180 ms.
   - link: navy text that underlines on hover (a way on, e.g. under a field).
   - inField: a button inside a text field (show password, clear search), like the native
     ones: not in the Tab order, and a click leaves the caret in the field.
@@ -52,7 +52,7 @@
     type?: 'button' | 'submit';
     /** Toggle buttons (e.g. the pin star). */
     pressed?: boolean | null;
-    /** The glyph stands half a turn (the sort toggle: newest first). */
+    /** The glyph stands half a turn. */
     turned?: boolean;
     /** Opens something outside the app (a link shows the hand then). */
     external?: boolean;
