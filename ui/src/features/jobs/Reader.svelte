@@ -42,13 +42,14 @@
   } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import { formKeys } from '$lib/input/input';
-  import type { AppStatus, JobDetail, JobKey, OpenTarget, Reason } from '$lib/ipc/types';
+  import type { AppStatus, JobDetail, OpenTarget, Reason } from '$lib/ipc/types';
   import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
+  import { archive } from './archive';
 
   interface Props {
     detail: JobDetail;
@@ -240,33 +241,9 @@
     }
   }
 
-  /** Hide the job and open the next one of the list (the toast takes it back). */
+  /** Archive the job (the next one opens, the toast takes it back), or bring it back. */
   async function hide(): Promise<void> {
-    actionError = null;
-    const key = job.key;
-    if (job.hidden) {
-      const error = await jobs.hide(key, false);
-      if (error !== null) actionError = error;
-      return;
-    }
-    const list = jobs.visible;
-    const at = list.findIndex((row) => sameKey(row.key, key));
-    const next = at < 0 ? null : (list[at + 1] ?? list[at - 1] ?? null);
-    const error = await jobs.hide(key, true);
-    if (error !== null) {
-      actionError = error;
-      return;
-    }
-    toasts.show(de.toast.hidden, 'success', {
-      label: de.common.undo,
-      onclick: () => void undoHide(key),
-    });
-    if (next !== null) void jobs.select(next, false);
-    else jobs.clearSelection();
-  }
-
-  async function undoHide(key: JobKey): Promise<void> {
-    if ((await jobs.hide(key, false)) === null) void jobs.load(true);
+    actionError = await archive(job);
   }
 
   function openTarget(target: OpenTarget): void {
@@ -362,7 +339,11 @@
     >
       {#if withRing}
         <ScoreRing
-          ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
+          ring={ringState(
+            job.match,
+            job.match === null && Boolean(app.state?.matchPending),
+            job.detail.kind,
+          )}
           size="sm"
         />
       {/if}
@@ -441,7 +422,11 @@
   {#if headline}
     <div class="match">
       <ScoreRing
-        ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
+        ring={ringState(
+          job.match,
+          job.match === null && Boolean(app.state?.matchPending),
+          job.detail.kind,
+        )}
         size="md"
         animate={keyOf(job.key)}
         testid="reader-ring"

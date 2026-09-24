@@ -166,7 +166,11 @@
       <h2 class="heading">{de.overview.best}</h2>
       <div class="best">
         {#each best as job (keyOf(job.key))}
-          <JobRow {job} onselect={(chosen) => void jobs.select(chosen, true)} />
+          <JobRow
+            {job}
+            testid="best-{job.key.portal}-{job.key.id}"
+            onselect={(chosen) => void jobs.select(chosen, true)}
+          />
         {/each}
       </div>
     </section>

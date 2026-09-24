@@ -194,7 +194,7 @@ test('one place for filters: Neu, Alle, Gemerkt, Bewerbungen; the overview says 
   // points with their action, the files.
   await expect(overview.getByTestId('tile-high')).toHaveCount(0);
   await expect(overview.getByTestId('new-per-portal')).toHaveCount(0);
-  const best = page.getByTestId('best').locator('[data-testid^="job-row-"]');
+  const best = page.getByTestId('best').locator('[data-testid^="best-"]');
   expect(await best.count()).toBeGreaterThan(0);
   expect(await best.count()).toBeLessThanOrEqual(3);
   await expect(page.getByTestId('issue-freelance-mails')).toContainText(
@@ -760,7 +760,7 @@ test('the run card: steps side by side, a finished step draws its check once', a
 
 test('the day overview: its best jobs open the reader', async ({ page }) => {
   await open(page, WIN);
-  const best = page.getByTestId('best').locator('[data-testid^="job-row-"]').first();
+  const best = page.getByTestId('best').locator('[data-testid^="best-"]').first();
   const title = await best.locator('.title').innerText();
   await best.click();
   await expect(page.getByTestId('reader-title')).toHaveText(title);
@@ -810,6 +810,31 @@ test('the reader marks a job: status, note, hide with undo, copy as a prompt', a
   await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(0);
   await page.getByTestId('toast-action').click();
   await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(1);
+});
+
+test('archive from the row: the toast takes it back, the Archiv brings it back', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const key = 'freelancermap-2802';
+  const target = row(page, key);
+  await target.hover();
+  await page.getByTestId(`archive-${key}`).click();
+  await expect(row(page, key)).toHaveCount(0);
+  await expect(page.getByTestId('toast').last()).toContainText('Archiviert.');
+  await page.getByTestId('toast-action').click();
+  await expect(row(page, key)).toHaveCount(1);
+  // Archived again, the job is in the Archiv at the end of Alle and comes back from there.
+  await row(page, key).hover();
+  await page.getByTestId(`archive-${key}`).click();
+  await expect(row(page, key)).toHaveCount(0);
+  await page.getByTestId('show-hidden').click();
+  await row(page, key).hover();
+  await page.getByTestId(`archive-${key}`).click();
+  await expect(row(page, key)).toHaveCount(0);
+  await page.getByTestId('clear-filter').click();
+  await expect(row(page, key)).toHaveCount(1);
 });
 
 test('an empty list says where jobs come from', async ({ page }) => {

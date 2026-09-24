@@ -32,6 +32,7 @@
   import { isExcluded, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { archive } from './archive';
 
   const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
@@ -142,6 +143,11 @@
   function pin(job: JobView): void {
     void jobs.pin(job.key, !job.pinned);
   }
+
+  let rowError = $state<string | null>(null);
+  async function toArchive(job: JobView): Promise<void> {
+    rowError = await archive(job);
+  }
 </script>
 
 <div
@@ -159,6 +165,12 @@
         action={{ label: de.list.connectMailbox, onclick: () => navigation.go('settings') }}
         testid="no-mailbox"
       />
+    </div>
+  {/if}
+
+  {#if rowError}
+    <div class="note">
+      <Notice tone="danger" variant="inline" text={rowError} testid="row-error" />
     </div>
   {/if}
 
@@ -272,6 +284,7 @@
         selected={sameKey(jobs.selected, job.key)}
         onselect={select}
         onpin={pin}
+        onarchive={toArchive}
       />
     {/snippet}
     {#snippet group(items: JobView[], offset: number)}
