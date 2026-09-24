@@ -1,10 +1,78 @@
 /*
- * The only keyframes of the UI, all loops of something that waits: the light of a loading
- * placeholder, a spinner and the sweep of an indeterminate progress bar. Components
- * reference them by name with token durations (`animation: spin var(--dur-loop) linear
- * infinite`) and `animation-play-state: var(--loop-state)`, which reduced motion sets to
- * `paused`. Only transform is animated.
+ * The only keyframes of the UI. Two kinds:
+ *   - loops of something that waits: the light of a loading placeholder, a spinner, the
+ *     sweep of an indeterminate progress bar (linear, so no turn seems to stall). They take
+ *     `animation-play-state: var(--loop-state)`, which reduced motion sets to `paused`.
+ *   - one-shots started by a state change the user caused, never on mount (no replay): the
+ *     late appearance of a placeholder, the flash of a passage (pulse), a drawn check
+ *     (draw, on stroke-dashoffset), the shake of a field after a wrong password, and the
+ *     lifetime line of a toast (drain).
+ * Components reference them by name with token durations (`animation: spin var(--dur-loop)
+ * linear infinite`). Only transform and opacity move (stroke-dashoffset for the check).
  */
+
+@keyframes pulse {
+  0% {
+    opacity: 0;
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: var(--draw-length);
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: none;
+  }
+
+  25% {
+    transform: translateX(calc(-1 * var(--move-md)));
+  }
+
+  60% {
+    transform: translateX(var(--move-md));
+  }
+
+  85% {
+    transform: translateX(calc(-1 * var(--move-sm)));
+  }
+}
+
+@keyframes drain {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
 
 @keyframes shimmer {
   from {

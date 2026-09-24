@@ -58,7 +58,7 @@
 
   .monogram {
     font: var(--tile-type);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
     letter-spacing: var(--tracking-tight);
   }
 

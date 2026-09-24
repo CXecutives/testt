@@ -15,7 +15,7 @@ const FILES: [(&str, usize); 5] = [
     ("src-tauri/src/main.rs", 12),
     ("src-tauri/src/session.rs", 1),
     ("src-tauri/src/platform.rs", 15),
-    ("src-tauri/src/commands/mod.rs", 5),
+    ("src-tauri/src/commands/mod.rs", 3),
 ];
 
 const START: &str = "User-facing text, German by product decision";

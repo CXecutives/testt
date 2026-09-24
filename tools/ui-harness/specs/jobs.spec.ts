@@ -304,9 +304,9 @@ test('without a profile: no rings, newest first, the overview leads to one', asy
   expect(gap).toBeGreaterThanOrEqual(10);
   const query = (await calls(page, 'list_jobs'))[0]?.[1] as { query: { sort: string } };
   expect(query.query.sort).toBe('newest');
+  // The way on is the Profil view with its three ways in.
   await page.getByTestId('no-profile').getByRole('button').click();
-  await expect(page.getByTestId('sort')).toBeVisible();
-  await expect(page.getByTestId('no-profile')).toHaveCount(0);
+  await expect(page.getByTestId('profile-empty')).toBeVisible();
 });
 
 test('an empty list and a first fetch without news', async ({ page }) => {
@@ -574,4 +574,18 @@ test('baseline: jobs without a profile', async ({ page }) => {
   await open(page, `${WIN}&scenario=no-profile`);
   await expect(page.getByTestId('no-profile')).toBeVisible();
   await expectShot(page, 'jobs-no-profile');
+});
+
+test('baseline: jobs at the minimum size 480 x 360', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 360 });
+  await open(page, WIN);
+  await expectShot(page, 'jobs-min');
+});
+
+test('baseline: a job at the minimum size 480 x 360', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 360 });
+  await open(page, WIN);
+  await rows(page).first().click();
+  await expect(page.getByTestId('reader-ring')).toContainText('91');
+  await expectShot(page, 'jobs-min-reader');
 });

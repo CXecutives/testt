@@ -11,10 +11,12 @@
 //!   EUR rate per day (hourly x 8) at or above the wish is met, at least `WISH_RATE_NEAR`
 //!   of it near, below that missed; no rate or another currency is unknown.
 //! - Remote (`remote`: `voll`, `ueberwiegend`, `teilweise`, `vor_ort`, or old free text such
-//!   as `mindestens 50 %`) against the ad's remote share (facts, `N % remote`, office or
-//!   remote days, full-remote wording, hybrid wording, on site only): a minimum `m` is met
-//!   when the share is at least `m`, missed when the ad is on site only or its share stays
-//!   more than `REMOTE_MARGIN` below `m`; `vor_ort` is met up to `ONSITE_MAX` percent.
+//!   as `mindestens 50 %`, read by the profile editor's parser: a share of 100 is `voll`,
+//!   above half `ueberwiegend`, above zero `teilweise`) as a minimum share (100, 60, 20)
+//!   against the ad's remote share (facts, `N % remote`, office or remote days, full-remote
+//!   wording, hybrid wording, on site only): met when the share is at least the minimum,
+//!   missed when the ad is on site only or its share stays more than `REMOTE_MARGIN` below
+//!   it; `vor_ort` is met up to `ONSITE_MAX` percent.
 //! - Regions (`regionen`: places, German states, regions such as `Rhein-Main`, countries):
 //!   a fully remote ad is met; a wished place in the location, a location line or an
 //!   on-site sentence is met; another known place (larger German cities, states, foreign
@@ -41,9 +43,9 @@ use super::params::{
     REMOTE_NAMED_SHARE, REMOTE_PARTLY, WISH_INDUSTRY, WISH_RATE, WISH_RATE_NEAR, WISH_REGION,
     WISH_REMOTE, WORKDAYS,
 };
-use super::permanent::percents;
 use super::types::{ReasonCode, ReasonKind, WishInfo, WishKey};
 use crate::portal::Portal;
+use crate::profile::RemoteWish as Level;
 
 /// The remote share a profile wishes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,31 +91,19 @@ fn entry<'a>(section: &'a Value, keys: &[&'static str]) -> Option<(&'static str,
         .find_map(|k| section.get(*k).filter(|v| !v.is_null()).map(|v| (*k, v)))
 }
 
-/// The remote wish of a value: a level word or a percentage (`mindestens 50 %`).
+/// The remote wish of a value, read like the profile editor reads it (one parser for the
+/// four levels and the old free text such as `mindestens 50 %`), as a minimum share.
 pub(crate) fn remote_wish(value: &Value) -> Option<RemoteWish> {
-    let share = |p: u64| {
-        if p == 0 {
-            RemoteWish::OnSite
-        } else {
-            RemoteWish::Min(p.min(100))
-        }
+    let text = match value {
+        Value::String(text) => text.clone(),
+        Value::Number(n) => format!("{n} %"),
+        _ => return None,
     };
-    if let Some(p) = value.as_u64() {
-        return Some(share(p));
-    }
-    let folded = fold(value.as_str()?).replace(['_', '-'], " ");
-    if let Some(&p) = percents(&folded).first() {
-        return Some(share(p));
-    }
-    let level = lex::REMOTE_WISH_WORDS
-        .iter()
-        .find(|(word, _)| contains_word(&folded, word))
-        .map(|&(_, level)| level)?;
-    Some(match level {
-        "onsite" => RemoteWish::OnSite,
-        "full" => RemoteWish::Min(REMOTE_FULL),
-        "mostly" => RemoteWish::Min(REMOTE_MOSTLY),
-        _ => RemoteWish::Min(REMOTE_PARTLY),
+    Some(match Level::read(&text)? {
+        Level::Full => RemoteWish::Min(REMOTE_FULL),
+        Level::Mostly => RemoteWish::Min(REMOTE_MOSTLY),
+        Level::Partly => RemoteWish::Min(REMOTE_PARTLY),
+        Level::OnSite => RemoteWish::OnSite,
     })
 }
 
@@ -823,7 +813,10 @@ mod tests {
             Some(RemoteWish::Min(REMOTE_PARTLY))
         );
         assert_eq!(wish(json!("vor_ort")), Some(RemoteWish::OnSite));
-        assert_eq!(wish(json!("mindestens 50 %")), Some(RemoteWish::Min(50)));
+        assert_eq!(
+            wish(json!("mindestens 50 %")),
+            Some(RemoteWish::Min(REMOTE_PARTLY))
+        );
         assert_eq!(wish(json!("100%")), Some(RemoteWish::Min(100)));
         assert_eq!(wish(json!(0)), Some(RemoteWish::OnSite));
         assert_eq!(wish(json!("gern")), None);
@@ -968,13 +961,6 @@ mod tests {
         }
         for (phrase, replacement) in lex::ROLE_PHRASES {
             assert!(folded(phrase) && folded(replacement), "{phrase}");
-        }
-        for (word, level) in lex::REMOTE_WISH_WORDS {
-            assert!(folded(word), "{word}");
-            assert!(
-                ["onsite", "full", "mostly", "partly"].contains(level),
-                "{level}"
-            );
         }
     }
 }

@@ -12,27 +12,65 @@
 // - no dragging of text, links or images
 // - text is selectable only in fields and where a user would copy it (`data-copy`: the ad
 //   text, job title and facts, profile values, paths); Ctrl/Cmd+C copies such a selection
-// - keys only inside fields and dialogs: Tab/Shift+Tab, Enter, Esc and the editing keys;
-//   with Ctrl/Cmd only C/V/X/A/Z. Everything else, including every WebView shortcut
-//   (reload, find, print, zoom, devtools), is swallowed.
-// - OS window functions stay: Alt+F4 and Cmd+Q/W/M/H.
-// - no Ctrl/Cmd+wheel zoom and no pinch zoom
+// - keys like in a native window: Tab and Shift+Tab move the focus, Enter and Space press
+//   the focused button, switch or radio. Inside a field every character the keyboard
+//   layout types (AltGr on Windows, Option on macOS: @ is Option+L on a German Mac) and
+//   the editing keys of the OS (word and line moves, delete word, Shift selection,
+//   Ctrl/Cmd+C/V/X/A/Z, redo) work. Enter saves and Esc cancels a form or dialog.
+//   Everything else, including every WebView shortcut (reload, find, print, zoom,
+//   devtools, caret browsing, Alt+Arrow back/forward), is swallowed.
+// - a modal dialog holds the focus: Tab cycles inside it, Esc cancels it wherever the
+//   focus is.
+// - OS window and menu functions stay: Alt+F4 and Cmd+Q/W/M/H/, (Settings), Cmd+Option+H.
+// - no Ctrl/Cmd+wheel zoom (the wheel is watched only while Ctrl or Cmd is held, so plain
+//   scrolling never waits for the page) and no pinch zoom
 
 import type { Action } from 'svelte/action';
+import { keyConventions, type KeyConventions } from '../platform';
 
 const FIELD = 'input, textarea, [contenteditable="true"], [contenteditable=""]';
 /** Text a user would copy (selectable, Ctrl/Cmd+C). */
 const COPY = '[data-copy]';
 const DIALOG = 'dialog, [role="dialog"], [role="alertdialog"]';
+/** An open modal dialog: it holds the focus. */
+const MODAL = '[aria-modal="true"]';
 const FORM = '[data-form-keys]';
+/** Controls that Enter and Space press. */
+const PRESSABLE = 'button, [role="button"], [role="switch"], [role="radio"]';
+/** Buttons inside a field (show password, clear search): a press leaves the focus there. */
+const KEEP_FOCUS = '[data-keep-focus]';
+const FOCUSABLE = [
+  'button:not([tabindex="-1"])',
+  'input:not([tabindex="-1"])',
+  'textarea:not([tabindex="-1"])',
+  'a[href]:not([tabindex="-1"])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
 
 const CLIPBOARD_KEYS = new Set(['c', 'v', 'x', 'a', 'z']);
+/** Caret moves and deletes native fields do with Ctrl (Windows) or Cmd (macOS), with or
+ *  without Shift: by word, to the line or text start and end, delete a word or line. */
+const EDITING_KEYS = new Set([
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Home',
+  'End',
+  'Backspace',
+  'Delete',
+  'Insert',
+]);
+/** macOS text fields: Ctrl+A/E line start and end, B/F/N/P caret, D/H/K delete. */
+const CONTROL_EDIT_KEYS = new Set(['a', 'e', 'b', 'f', 'n', 'p', 'd', 'h', 'k']);
 const LEFT = 0;
 const MIDDLE = 1;
 /** Back and forward (buttons 3 and 4). */
 const BACK = 3;
-const MAC_WINDOW_KEYS = new Set(['q', 'w', 'm', 'h']);
-const DIALOG_KEYS = new Set(['Tab', 'Enter', 'Escape']);
+/** The Cmd shortcuts of the macOS menu (Quit, Close, Minimize, Hide, Settings). WKWebView
+ *  hands a key equivalent to the menu only if the page lets it through. Matched by the
+ *  character, like macOS matches key equivalents (Cmd+Q stays Q on AZERTY). */
+const MAC_MENU_KEYS = new Set(['q', 'w', 'm', 'h', ',']);
 
 /** The nearest match from `target` up (a text node - the target of selectstart - counts
  *  as its parent element). */
@@ -44,6 +82,10 @@ function closest(target: EventTarget | null, selector: string): Element | null {
 const inField = (target: EventTarget | null): boolean => closest(target, FIELD) !== null;
 const selectable = (target: EventTarget | null): boolean =>
   inField(target) || closest(target, COPY) !== null;
+
+/** Ctrl, Alt or Cmd (Shift alone makes no shortcut). */
+const hasModifier = (event: KeyboardEvent): boolean =>
+  event.ctrlKey || event.altKey || event.metaKey;
 
 /** Ctrl/Cmd+C over a selection of copyable text. */
 function isCopy(event: KeyboardEvent): boolean {
@@ -67,21 +109,45 @@ function inScrollArea(target: EventTarget | null): boolean {
 
 function isWindowShortcut(event: KeyboardEvent): boolean {
   if (event.altKey && event.key === 'F4') return true;
-  return event.metaKey && !event.ctrlKey && MAC_WINDOW_KEYS.has(event.key.toLowerCase());
+  if (!event.metaKey || event.ctrlKey) return false;
+  // Hide Others (Cmd+Option+H): Option changes the character, so the key itself counts.
+  if (event.altKey) return event.code === 'KeyH';
+  return MAC_MENU_KEYS.has(event.key.toLowerCase());
+}
+
+/** One printed character that no shortcut reports (a shortcut reports its plain letter or
+ *  digit): @, €, {, |, ~, ą and so on. */
+function isTypedCharacter(key: string): boolean {
+  return [...key].length === 1 && !/^[a-z0-9]$/i.test(key);
+}
+
+/** A key typed with AltGr (Windows, where Ctrl+Alt works as AltGr too) or with Option
+ *  (macOS: characters, dead keys, Option+Arrow and Option+Backspace by word). */
+function typesWithAltGraph(event: KeyboardEvent, os: KeyConventions): boolean {
+  if (event.getModifierState('AltGraph')) return true;
+  if (os.optionTypes) return event.altKey && !event.ctrlKey && !event.metaKey;
+  return event.ctrlKey && event.altKey && !event.metaKey && isTypedCharacter(event.key);
 }
 
 function allowedInField(event: KeyboardEvent): boolean {
-  // AltGr (Ctrl+Alt on Windows) types characters such as @, € and { on German keyboards.
-  const altGraph = event.getModifierState('AltGraph');
-  const command = (event.ctrlKey || event.metaKey) && !altGraph;
-  if (command) return CLIPBOARD_KEYS.has(event.key.toLowerCase()) && !event.altKey;
-  if (event.altKey && !altGraph) return false;
   // Function keys (F1-F12) reach the WebView (reload, caret browsing, devtools).
-  return !/^F\d{1,2}$/.test(event.key);
+  if (/^F\d{1,2}$/.test(event.key)) return false;
+  const os = keyConventions();
+  if (typesWithAltGraph(event, os)) return true;
+  // A plain Alt is the menu key on Windows, and Alt+Arrow navigates back and forward.
+  if (event.altKey) return false;
+  if (!event.ctrlKey && !event.metaKey) return true;
+  if (event.ctrlKey && event.metaKey) return false;
+  const key = event.key.toLowerCase();
+  // Copy, paste, cut, select all, undo; with Shift, Z redoes.
+  if (CLIPBOARD_KEYS.has(key)) return true;
+  if (event[os.command] && EDITING_KEYS.has(event.key)) return true;
+  if (os.redoWithY && event.ctrlKey && key === 'y') return true;
+  return os.controlEdits && event.ctrlKey && CONTROL_EDIT_KEYS.has(key);
 }
 
 export interface FormKeyHandlers {
-  /** Enter inside a single-line field. */
+  /** Enter inside a single-line field (or on the dialog itself: its default button). */
   save?: () => void;
   /** Esc anywhere inside the form. */
   cancel?: () => void;
@@ -91,7 +157,8 @@ const forms = new WeakMap<Element, FormKeyHandlers>();
 
 /**
  * Enter = save, Esc = cancel for a form or dialog. No listener of its own: the one
- * keydown handler below dispatches to the nearest registered form.
+ * keydown handler below dispatches to the nearest registered form that handles the key
+ * (a search field that clears on Esc may sit inside a form that cancels on Esc).
  */
 export const formKeys: Action<HTMLElement, FormKeyHandlers> = (node, handlers) => {
   forms.set(node, handlers);
@@ -107,22 +174,125 @@ export const formKeys: Action<HTMLElement, FormKeyHandlers> = (node, handlers) =
   };
 };
 
-function dispatchFormKey(event: KeyboardEvent): void {
-  if (event.isComposing || (event.key !== 'Enter' && event.key !== 'Escape')) return;
-  const form = closest(event.target, FORM);
-  const handlers = form === null ? undefined : forms.get(form);
-  if (handlers === undefined) return;
-  if (event.key === 'Escape' && handlers.cancel) {
-    event.preventDefault();
-    handlers.cancel();
-  } else if (event.key === 'Enter' && handlers.save && closest(event.target, 'textarea') === null) {
-    event.preventDefault();
-    handlers.save();
+function handlerFor(target: EventTarget | null, key: keyof FormKeyHandlers): (() => void) | null {
+  for (let form = closest(target, FORM); form !== null; form = closest(form.parentElement, FORM)) {
+    const handler = forms.get(form)?.[key];
+    if (handler) return handler;
   }
+  return null;
+}
+
+function dispatchFormKey(event: KeyboardEvent, target: EventTarget | null = event.target): void {
+  if (event.isComposing || hasModifier(event)) return;
+  let handler: (() => void) | null = null;
+  if (event.key === 'Escape') {
+    handler = handlerFor(target, 'cancel');
+  } else if (event.key === 'Enter') {
+    // Enter on a button presses that button; in a text area it starts a new line.
+    if (closest(target, 'textarea') !== null || closest(target, PRESSABLE) !== null) return;
+    handler = handlerFor(target, 'save');
+  }
+  if (handler === null) return;
+  event.preventDefault();
+  handler();
+}
+
+const isFocusMove = (event: KeyboardEvent): boolean => event.key === 'Tab' && !hasModifier(event);
+
+/** Enter and Space press the focused button, switch or radio (the engine clicks it). */
+const pressesControl = (event: KeyboardEvent): boolean =>
+  (event.key === 'Enter' || event.key === ' ') &&
+  !hasModifier(event) &&
+  closest(event.target, PRESSABLE) !== null;
+
+/** The open modal dialog on top, if any. */
+function topModal(): HTMLElement | null {
+  const open = document.querySelectorAll<HTMLElement>(MODAL);
+  return open.item(open.length - 1);
+}
+
+/** Tab and Shift+Tab cycle through the controls of the modal and never leave it. */
+function cycleFocus(modal: HTMLElement, back: boolean): void {
+  const items = [...modal.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (node) => !node.matches(':disabled') && node.getClientRects().length > 0,
+  );
+  if (items.length === 0) {
+    modal.focus();
+    return;
+  }
+  const active = document.activeElement;
+  const at = active instanceof HTMLElement ? items.indexOf(active) : -1;
+  const step = back ? -1 : 1;
+  const next =
+    at === -1 ? (back ? items.length - 1 : 0) : (at + step + items.length) % items.length;
+  items[next]?.focus();
+}
+
+export interface ChipKeyHandlers {
+  /** Enter: turn the typed text into chips; `true` if there was text. */
+  commit: () => boolean;
+  /** Backspace in an empty field: remove the last chip; `true` if one went. */
+  removeLast: () => boolean;
+  /** Esc: drop the typed text; `true` if there was some. */
+  clear: () => boolean;
+}
+
+const CHIPS = '[data-chip-keys]';
+const chipFields = new WeakMap<Element, ChipKeyHandlers>();
+
+/**
+ * The keys of a chip field (components/ChipInput.svelte): Enter adds, Backspace in the empty
+ * field removes the last chip, Esc drops the typed text. What a chip field does not use
+ * goes on to the form (Enter on an empty chip field saves it).
+ */
+export const chipKeys: Action<HTMLElement, ChipKeyHandlers> = (node, handlers) => {
+  chipFields.set(node, handlers);
+  node.dataset.chipKeys = '';
+  return {
+    update(next: ChipKeyHandlers) {
+      chipFields.set(node, next);
+    },
+    destroy() {
+      chipFields.delete(node);
+      delete node.dataset.chipKeys;
+    },
+  };
+};
+
+function dispatchChipKey(event: KeyboardEvent): boolean {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
+  const field = closest(event.target, CHIPS);
+  const handlers = field === null ? undefined : chipFields.get(field);
+  if (handlers === undefined) return false;
+  const handled =
+    event.key === 'Enter'
+      ? handlers.commit()
+      : event.key === 'Backspace'
+        ? handlers.removeLast()
+        : event.key === 'Escape'
+          ? handlers.clear()
+          : false;
+  if (handled) event.preventDefault();
+  return handled;
 }
 
 function onKeyDown(event: KeyboardEvent): void {
+  if (event.ctrlKey || event.metaKey) guardZoom(true);
   if (isWindowShortcut(event)) return;
+  const modal = topModal();
+  if (modal !== null) {
+    if (isFocusMove(event)) {
+      event.preventDefault();
+      cycleFocus(modal, event.shiftKey);
+      return;
+    }
+    if (!(event.target instanceof Node) || !modal.contains(event.target)) {
+      // The focus is behind the dialog: Esc and Enter still answer the dialog.
+      dispatchFormKey(event, modal);
+      event.preventDefault();
+      return;
+    }
+  }
   if (isCopy(event)) return;
   if (inField(event.target)) {
     if (event.isComposing) return;
@@ -130,23 +300,35 @@ function onKeyDown(event: KeyboardEvent): void {
       event.preventDefault();
       return;
     }
+    if (dispatchChipKey(event)) return;
     dispatchFormKey(event);
     return;
   }
-  if (
-    closest(event.target, DIALOG) !== null &&
-    DIALOG_KEYS.has(event.key) &&
-    !event.ctrlKey &&
-    !event.metaKey &&
-    !event.altKey
-  ) {
-    dispatchFormKey(event);
-    return;
-  }
+  if (isFocusMove(event) || pressesControl(event)) return;
+  if (closest(event.target, `${FORM}, ${DIALOG}`) !== null) dispatchFormKey(event);
   event.preventDefault();
 }
 
 const prevent = (event: Event): void => event.preventDefault();
+
+/**
+ * Ctrl/Cmd+wheel would zoom. A wheel listener that may cancel is not passive, and a
+ * page-wide one makes every scroll wait for the main thread, so it is attached only
+ * while Ctrl or Cmd is held (WebView2 turns its zoom off natively as well).
+ */
+function blockZoom(event: WheelEvent): void {
+  if (event.ctrlKey || event.metaKey) event.preventDefault();
+  else guardZoom(false);
+}
+
+let zoomGuarded = false;
+
+function guardZoom(on: boolean): void {
+  if (on === zoomGuarded) return;
+  zoomGuarded = on;
+  if (on) document.addEventListener('wheel', blockZoom, { capture: true, passive: false });
+  else document.removeEventListener('wheel', blockZoom, { capture: true });
+}
 
 /**
  * The middle button keeps its default over a scroll area (the autoscroll needs it), but a
@@ -174,7 +356,11 @@ export function installInput(): void {
   document.addEventListener(
     'mousedown',
     (event) => {
-      if (event.button === LEFT) return;
+      if (event.button === LEFT) {
+        // A button inside a field (show password, clear) leaves the caret in the field.
+        if (closest(event.target, KEEP_FOCUS) !== null) event.preventDefault();
+        return;
+      }
       // The middle button starts the autoscroll over a scroll area; nothing else gets it.
       if (event.button === MIDDLE && inScrollArea(event.target)) {
         keepFocus();
@@ -227,12 +413,13 @@ export function installInput(): void {
   );
   document.addEventListener('keydown', onKeyDown, capture);
   document.addEventListener(
-    'wheel',
+    'keyup',
     (event) => {
-      if (event.ctrlKey || event.metaKey) event.preventDefault();
+      if (!event.ctrlKey && !event.metaKey) guardZoom(false);
     },
-    { capture: true, passive: false },
+    capture,
   );
+  window.addEventListener('blur', () => guardZoom(false));
   // Safari/WKWebView pinch zoom.
   document.addEventListener('gesturestart', prevent, capture);
   document.addEventListener('gesturechange', prevent, capture);

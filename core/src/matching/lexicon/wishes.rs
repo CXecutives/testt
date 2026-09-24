@@ -51,35 +51,6 @@ pub(crate) const ROLE_PHRASES: &[(&str, &str)] = &[
     ("finanzbereich", "finance"),
 ];
 
-/// Remote wish values (after folding; `_` and `-` read as spaces) and their level
-/// (`onsite`, `full`, `mostly`, `partly`), checked in this order as whole words.
-pub(crate) const REMOTE_WISH_WORDS: &[(&str, &str)] = &[
-    ("kein remote", "onsite"),
-    ("keine remote", "onsite"),
-    ("vor ort", "onsite"),
-    ("onsite", "onsite"),
-    ("on site", "onsite"),
-    ("prasenz", "onsite"),
-    ("voll", "full"),
-    ("vollstandig", "full"),
-    ("komplett", "full"),
-    ("ausschliesslich", "full"),
-    ("nur remote", "full"),
-    ("full", "full"),
-    ("fully", "full"),
-    ("remote only", "full"),
-    ("ueberwiegend", "mostly"),
-    ("uberwiegend", "mostly"),
-    ("mehrheitlich", "mostly"),
-    ("hauptsachlich", "mostly"),
-    ("mostly", "mostly"),
-    ("teilweise", "partly"),
-    ("hybrid", "partly"),
-    ("anteilig", "partly"),
-    ("partly", "partly"),
-    ("partial", "partly"),
-];
-
 /// Words of remote work in an ad (whole words or word starts).
 pub(crate) const REMOTE_AD_WORDS: &[&str] = &[
     "remote",

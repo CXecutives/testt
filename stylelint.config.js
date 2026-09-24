@@ -5,7 +5,6 @@
 // Documented exceptions:
 //   - tokens.css: the value source itself.
 //   - motion.css: the only place with @keyframes.
-//   - components/Disclosure.svelte: may transition grid-template-rows (0fr -> 1fr).
 //   - `@media (width < 900px)`: px in width media features (custom properties do not work there).
 
 const ANIMATABLE = [
@@ -16,7 +15,17 @@ const ANIMATABLE = [
   'border-color',
   'stroke-dashoffset',
 ];
-const KEYFRAMES = ['shimmer', 'spin', 'pulse', 'breathe', 'sweep', 'shake', 'draw'];
+const KEYFRAMES = [
+  'shimmer',
+  'spin',
+  'pulse',
+  'breathe',
+  'sweep',
+  'shake',
+  'draw',
+  'appear',
+  'drain',
+];
 
 /** `transition` shorthand: every comma-separated item starts with an allowed property. */
 const transitionShorthand = (properties) => {
@@ -89,12 +98,7 @@ const strictValues = [
         'border-box',
         'center',
       ],
-      '/^transition/': [
-        ...KEYWORDS,
-        ...ANIMATABLE,
-        'grid-template-rows',
-        '/^var\\(--[a-z0-9-]+\\),?$/',
-      ],
+      '/^transition/': [...KEYWORDS, ...ANIMATABLE, '/^var\\(--[a-z0-9-]+\\),?$/'],
       '/^animation/': [
         ...KEYWORDS,
         ...KEYFRAMES,
@@ -188,15 +192,6 @@ export default {
           strictValues[0],
           { ...strictValues[1], ignoreAtRules: ['@font-face'] },
         ],
-      },
-    },
-    {
-      files: ['ui/src/components/Disclosure.svelte'],
-      rules: {
-        'declaration-property-value-allowed-list': {
-          transition: [transitionShorthand([...ANIMATABLE, 'grid-template-rows'])],
-          'transition-property': [transitionProperty([...ANIMATABLE, 'grid-template-rows'])],
-        },
       },
     },
   ],

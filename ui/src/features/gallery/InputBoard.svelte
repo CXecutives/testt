@@ -1,10 +1,12 @@
-<!-- Gallery: toggles, segmented controls, fields, disclosure and setting rows. -->
+<!-- Gallery: toggles, segmented controls, fields, chip fields, disclosure and setting rows. -->
 <script lang="ts">
   import Badge from '$components/Badge.svelte';
+  import ChipInput from '$components/ChipInput.svelte';
   import Disclosure from '$components/Disclosure.svelte';
   import Field from '$components/Field.svelte';
   import Segmented from '$components/Segmented.svelte';
   import SettingRow from '$components/SettingRow.svelte';
+  import TextArea from '$components/TextArea.svelte';
   import TextField from '$components/TextField.svelte';
   import Toggle from '$components/Toggle.svelte';
   import Section from './Section.svelte';
@@ -21,6 +23,14 @@
   let search = $state('Controlling');
   let empty = $state('');
   let open = $state(true);
+  let tools = $state([...t.chipValues]);
+  let industries = $state<string[]>([]);
+  let focus = $state([...t.chipsShownValues]);
+  let answer = $state('');
+
+  /** A save that fails after a round trip (the dry run refuses it). */
+  const failingSave = (): Promise<void> =>
+    new Promise((_, reject) => setTimeout(() => reject(new Error('dry run')), 400));
 </script>
 
 <Section heading={t.heading} id="inputs">
@@ -37,6 +47,8 @@
           onchange={() => undefined}
         />
         <Toggle checked={autoFetch} label={t.toggle} showLabel onchange={(v) => (autoFetch = v)} />
+        <!-- A save that fails after a while: the switch flips at once and slides back. -->
+        <Toggle checked={false} label={t.toggle} onchange={failingSave} testid="toggle-fails" />
       </div>
       <div class="row">
         <Segmented
@@ -82,6 +94,27 @@
       <TextField kind="search" label={t.search} placeholder={t.search} bind:value={search} />
       <TextField kind="search" label={t.search} placeholder={t.search} bind:value={empty} />
       <TextField label={t.address} bind:value={address} disabled />
+    </div>
+    <div class="stack">
+      <Field label={t.chips} for="gallery-chips" hint={t.chipsHint}>
+        <ChipInput
+          id="gallery-chips"
+          bind:values={tools}
+          describedby="gallery-chips-message"
+          testid="gallery-chips"
+        />
+      </Field>
+      <Field label={t.chipsEmpty} for="gallery-chips-empty">
+        <ChipInput
+          id="gallery-chips-empty"
+          bind:values={industries}
+          placeholder={t.chipsPlaceholder}
+        />
+      </Field>
+      <ChipInput label={t.chipsShown} bind:values={focus} entry={false} />
+      <Field label={t.area} for="gallery-area">
+        <TextArea id="gallery-area" bind:value={answer} rows={4} />
+      </Field>
     </div>
   </div>
 

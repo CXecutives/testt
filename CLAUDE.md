@@ -16,7 +16,9 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
   patterns, matching lexicon) and the German UI catalog `ui/src/lib/i18n/de.ts`. `core/tests/language.rs` enforces it.
 - The TXT files stay byte-identical (`header_is_exactly_the_contract`, `txt_is_blind_to_the_match`).
 - UI: light mode only, no theme infrastructure. It must feel like a native app: the native window frame of the OS on
-  both (Windows: its title bar in the app's colours via DWM in `platform.rs`; no title bar drawn in the page); the
+  both (Windows: its title bar in the app's colours via DWM, named constants in `platform.rs`; macOS: the unified
+  title bar, traffic lights over the page's 52 px toolbar row whose empty parts move the window; no title bar or
+  caption buttons drawn in the page; minimum window 480 x 360 for the snap layouts); the
   content inside the window is identical, and it differs between Windows and macOS only where the OS convention does
   (listed in docs/PLAN.md "Platforms", decided in `ui/src/lib/platform.ts` and `src-tauri/src/platform.rs` only).
   Buttons and controls react to the left click only; scroll areas also scroll with the middle mouse button

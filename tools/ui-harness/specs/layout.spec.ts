@@ -1,9 +1,11 @@
-// Window sizes the app must survive: the minimum-ish 780 × 560, typical laptops at 125 %
-// scaling (1280 × 720, 1536 × 864) and common desktops.
+// Window sizes the app must survive: the minimum 480 × 360 (small enough to snap into every
+// Windows 11 layout, quarters of 1366 × 768 included), typical laptops at 125 % scaling
+// (1280 × 720, 1536 × 864) and common desktops.
 
 import { expect, open, test } from './fixtures';
 
 const SIZES = [
+  { width: 480, height: 360 },
   { width: 780, height: 560 },
   { width: 1280, height: 720 },
   { width: 1360, height: 900 },
@@ -74,11 +76,11 @@ test('empty screens are never dead: an icon, one sentence, one way on, centred',
   await page.getByTestId('nav-profile').click();
   const empty = page.getByTestId('profile-empty');
   await expect(empty).toBeVisible();
-  // The next step is the one primary on screen: "Profil wählen" ("Abrufen" lives in the
-  // list of the Jobs view).
+  // The next step is the one primary on screen: "Profil anlegen" ("Abrufen" lives in the
+  // list of the Jobs view), with the two other ways in next to it.
   await expect(empty.locator('.btn.primary')).toHaveCount(1);
   await expect(page.getByTestId('fetch')).toHaveCount(0);
-  await expect(empty.getByRole('button')).toHaveCount(2);
+  await expect(empty.getByRole('button')).toHaveCount(3);
   // Centred across, at about 38 % of the height (not dead centre).
   const place = await empty.evaluate((node) => {
     const view = node.closest('.view')!.getBoundingClientRect();
@@ -112,29 +114,38 @@ test('toasts: at most three, they stay while hovered and leave on their own', as
 
 // The first-run page keeps the sidebar inert, so only its Jobs tab is reachable there;
 // Profil and Einstellungen without a profile come from the no-profile scenario.
-for (const scenario of ['default', 'first-run', 'running', 'no-profile']) {
-  for (const tab of scenario === 'first-run'
-    ? ['nav-jobs']
-    : ['nav-jobs', 'nav-profile', 'nav-settings']) {
-    test(`nothing clipped or scrolling sideways at 780x560: ${scenario} ${tab}`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({ width: 780, height: 560 });
-      await open(page, `?platform=windows&scenario=${scenario}`);
-      if (scenario !== 'first-run') await page.getByTestId(tab).click();
-      await page.waitForTimeout(300);
-      const wide = await page.evaluate(() =>
-        [...document.querySelectorAll('.view, .view *')]
-          .filter(
-            (node) =>
-              node.scrollWidth > node.clientWidth + 1 &&
-              getComputedStyle(node).overflowX !== 'visible' &&
-              // Meters and skeletons clip their moving light on purpose.
-              node.closest('[role="progressbar"], [aria-hidden="true"]') === null,
-          )
-          .map((node) => `${node.tagName}.${node.className}`),
-      );
-      expect(wide).toEqual([]);
-    });
+for (const [width, height] of [
+  [480, 360],
+  [780, 560],
+] as const) {
+  for (const scenario of ['default', 'first-run', 'running', 'no-profile']) {
+    for (const tab of scenario === 'first-run'
+      ? ['nav-jobs']
+      : ['nav-jobs', 'nav-profile', 'nav-settings']) {
+      test(`nothing clipped or scrolling sideways at ${width}x${height}: ${scenario} ${tab}`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height });
+        await open(page, `?platform=windows&scenario=${scenario}`);
+        if (scenario !== 'first-run') await page.getByTestId(tab).click();
+        await page.waitForTimeout(300);
+        const wide = await page.evaluate(() =>
+          [...document.querySelectorAll('.view, .view *')]
+            .filter(
+              (node) =>
+                node.scrollWidth > node.clientWidth + 1 &&
+                getComputedStyle(node).overflowX !== 'visible' &&
+                // A one-line text that ends in an ellipsis is cut on purpose.
+                getComputedStyle(node).textOverflow !== 'ellipsis' &&
+                // Meters and skeletons clip their moving light on purpose.
+                node.closest('[role="progressbar"], [aria-hidden="true"]') === null &&
+                // A long value scrolls inside its own field, as in every native field.
+                !node.matches('input, textarea'),
+            )
+            .map((node) => `${node.tagName}.${node.className}`),
+        );
+        expect(wide).toEqual([]);
+      });
+    }
   }
 }

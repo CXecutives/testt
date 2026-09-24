@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import BrandMark from '$components/BrandMark.svelte';
+  import DragBand from '$components/DragBand.svelte';
   import Button, { BUTTON_SIZES, BUTTON_VARIANTS } from '$components/Button.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Icon, { ICON_NAMES } from '$components/Icon.svelte';
@@ -143,6 +144,8 @@
         onclick={() => toasts.show(text.navigation.toastText)}
       />
     </div>
+    <!-- The empty part of the macOS toolbar row (as high as --window-top: 0 here). -->
+    <DragBand sheet />
   </Section>
 
   <Section heading={text.sections.tiles} id="tiles">

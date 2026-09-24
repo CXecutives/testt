@@ -1,6 +1,9 @@
 <!--
   On/off switch, coral when on. The thumb slides across in 150 ms (ease-out, no bounce);
   disabled switches stay hoverable so the tooltip can say why (disabledReason).
+  It flips at once, like a native switch: when `onchange` returns a promise (the save),
+  the switch shows the new state until it settles, then `checked` again - which is the old
+  state if the save failed, so the thumb slides back.
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
@@ -13,7 +16,8 @@
     disabled?: boolean;
     disabledReason?: string | null;
     testid?: string | null;
-    onchange: (checked: boolean) => void;
+    /** Return the save's promise: the switch shows the new state until it settles. */
+    onchange: (checked: boolean) => unknown;
   }
 
   let {
@@ -26,8 +30,21 @@
     onchange,
   }: Props = $props();
 
-  function toggle(): void {
-    if (!disabled) onchange(!checked);
+  /** The state shown while a save is on its way (null: show `checked`). */
+  let pending = $state<boolean | null>(null);
+  let attempt = 0;
+  const shown = $derived(pending ?? checked);
+
+  async function toggle(): Promise<void> {
+    if (disabled) return;
+    const next = !shown;
+    const mine = ++attempt;
+    pending = next;
+    // Settled either way: the caller reports a failure, the switch shows `checked` again.
+    const settle = (): void => {
+      if (mine === attempt) pending = null;
+    };
+    await Promise.resolve(onchange(next)).then(settle, settle);
   }
 </script>
 
@@ -35,12 +52,12 @@
   type="button"
   role="switch"
   class="toggle"
-  aria-checked={checked}
+  aria-checked={shown}
   aria-label={showLabel ? undefined : label}
   aria-disabled={disabled ? 'true' : undefined}
   data-testid={testid ?? undefined}
   use:tooltip={disabled ? disabledReason : null}
-  onclick={toggle}
+  onclick={() => void toggle()}
 >
   <span class="track"><span class="thumb"></span></span>
   {#if showLabel}<span class="label">{label}</span>{/if}

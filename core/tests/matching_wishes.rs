@@ -307,11 +307,14 @@ fn remote_wish_levels_and_old_free_text() {
         case(json!("teilweise"), "Einsatz vor Ort in Hamburg"),
         "missed"
     );
-    assert_eq!(case(json!("mindestens 50 %"), "Remote-Anteil 40 %"), "near");
+    assert_eq!(case(json!("ueberwiegend"), "Remote-Anteil 40 %"), "near");
+    // Old free text reads like the profile editor reads it (up to half: `teilweise`).
+    assert_eq!(case(json!("mindestens 50 %"), "Remote-Anteil 40 %"), "met");
     assert_eq!(
-        case(json!("mindestens 50 %"), "Einsatz zu 60 % remote"),
-        "met"
+        case(json!("mindestens 50 %"), "Einsatz vor Ort in Hamburg"),
+        "missed"
     );
+    assert_eq!(case(json!("80 % remote"), "Einsatz zu 60 % remote"), "met");
     assert_eq!(case(json!("vor_ort"), "Einsatz zu 100 % remote"), "missed");
     assert_eq!(case(json!("vor_ort"), "Einsatz vor Ort in Hamburg"), "met");
     assert_eq!(case(json!("voll"), "Start ab sofort"), "unknown");
