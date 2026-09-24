@@ -242,7 +242,7 @@ mod tests {
             .collect();
         assert_eq!(header, COLUMNS);
         let first: Vec<&Data> = range.rows().nth(1).unwrap().iter().collect();
-        assert_eq!(first[0].to_string(), "LinkedIn");
+        assert_eq!(first[0].to_string(), "linkedin.com");
         assert!(
             matches!(first[1], Data::DateTime(_)),
             "the mail date is an Excel date"

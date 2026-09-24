@@ -1,8 +1,8 @@
 ---
 source: core/tests/mail_fixtures.rs
-expression: "describe(std::fs::read(&path).unwrap())"
+expression: describe(bytes)
 ---
-LinkedIn | Fwd: Neue Projekte und Jobs | Ich
+linkedin.com | Fwd: Neue Projekte und Jobs | Ich
 - linkedin:4468805907 | Senior Controller (m/w/d) |  |  | https://www.linkedin.com/jobs/view/4468805907/
 - freelancermap:u4a8e4e727af1 | Test Automation Engineer Lead |  |  | https://www.freelancermap.de/projekt/test-automation-engineer-lead
 - freelance:1292304 | VMware Lead Solution Architect (m/f/d) |  |  | https://www.freelance.de/project/index.php?id=1292304

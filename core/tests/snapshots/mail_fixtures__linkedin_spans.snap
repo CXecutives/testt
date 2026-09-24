@@ -1,7 +1,7 @@
 ---
 source: core/tests/mail_fixtures.rs
-expression: "describe(std::fs::read(&path).unwrap())"
+expression: describe(bytes)
 ---
-LinkedIn | Jobbenachrichtigung: Leiter Qualitätsmanagement | LinkedIn
+linkedin.com | Jobbenachrichtigung: Leiter Qualitätsmanagement | LinkedIn
 - linkedin:4990000003 | Leiter Qualitätsmanagement (m/w/d) | Beispiel Kunststoff GmbH | Saarbrücken | https://www.linkedin.com/jobs/view/4990000003/
 - linkedin:4990000004 | QM-Ingenieur | Muster Verpackung AG | Homburg | https://www.linkedin.com/jobs/view/4990000004/

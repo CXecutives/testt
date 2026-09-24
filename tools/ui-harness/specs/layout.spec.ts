@@ -104,8 +104,13 @@ test('empty screens are never dead: an icon, one sentence, one way on, centred',
 test('toasts: at most three, they stay while hovered and leave on their own', async ({ page }) => {
   await open(page, '?platform=windows');
   await page.getByTestId('nav-settings').click();
-  // Switches answer by themselves; rewriting the text files still reports by toast.
-  for (let i = 0; i < 4; i += 1) await page.getByTestId('txt-rewrite').click();
+  // Switches and file actions answer in place; a changed mailbox still reports by toast.
+  for (let i = 0; i < 4; i += 1) {
+    await page.getByTestId('mailbox-change').click();
+    await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
+    await page.getByTestId('mailbox-save').click();
+    await expect(page.getByTestId('mailbox-change')).toBeVisible();
+  }
   const toasts = page.getByTestId('toast');
   await expect(toasts).toHaveCount(3);
   await toasts.first().hover();
