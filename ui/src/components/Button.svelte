@@ -15,6 +15,7 @@
   - link: navy text that underlines on hover (a way on, e.g. under a field).
   - inField: a button inside a text field (show password, clear search), like the native
     ones: not in the Tab order, and a click leaves the caret in the field.
+  - isDefault: the default of a dialog, the one Enter presses; the dialog marks it.
   The icon sits on its own HTML wrapper: transforms on SVG children run on the main thread.
 -->
 <script lang="ts" module>
@@ -61,6 +62,8 @@
     trailing?: IconName | null;
     /** It opens a menu (announced as such). */
     menu?: boolean;
+    /** The default of a dialog (Enter presses it); Dialog marks it with the focus ring. */
+    isDefault?: boolean;
     testid?: string | null;
     onclick?: (event: MouseEvent) => void;
   }
@@ -82,6 +85,7 @@
     inField = false,
     trailing = null,
     menu = false,
+    isDefault = false,
     testid = null,
     onclick,
   }: Props = $props();
@@ -114,6 +118,7 @@
   class:loading
   class:turned
   class:external
+  class:default={isDefault}
   class:warns={variant === 'ghost' && icon === 'trash-2'}
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}

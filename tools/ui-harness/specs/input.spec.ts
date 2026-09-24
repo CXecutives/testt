@@ -460,6 +460,29 @@ test('a dialog holds the focus: Tab cycles, a click on its text keeps Esc workin
   await expect(dialog).toHaveCount(0);
 });
 
+test('a dialog marks its default button, the one Enter presses, until Tab moves on', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  // Opened with the mouse: no :focus-visible, yet the default button carries the ring.
+  await page.getByTestId('open-danger').click();
+  const dialog = page.getByTestId('dialog-danger');
+  const cancel = dialog.getByTestId('dialog-cancel');
+  const confirm = dialog.getByTestId('dialog-confirm');
+  await expect(cancel).toBeFocused();
+  const ring = (button: typeof cancel): Promise<string> =>
+    button.evaluate((node) => getComputedStyle(node).boxShadow);
+  const atOpen = await ring(cancel);
+  // Tab moves the ring to the next button; the default is no longer marked.
+  await page.keyboard.press('Tab');
+  await expect(confirm).toBeFocused();
+  const focusRing = await ring(confirm);
+  expect(atOpen).toBe(focusRing);
+  expect(await ring(cancel)).not.toBe(focusRing);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+});
+
 test('a dialog shows the failure of its action inside and stays open', async ({ page }) => {
   await open(page, '?gallery&platform=windows');
   await page.getByTestId('open-danger').click();
