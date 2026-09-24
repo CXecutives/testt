@@ -666,7 +666,7 @@ export const de = {
       met: 'Erfüllt',
       violated: 'Verletzt',
       unknown: 'Zu prüfen',
-      unset: 'Nicht gesetzt',
+      unset: 'Nicht genannt',
     } satisfies Record<CriterionState, string>,
     note,
     open: 'Anzeige öffnen',

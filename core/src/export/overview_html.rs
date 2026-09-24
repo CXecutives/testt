@@ -217,6 +217,7 @@ mod tests {
             must_met: 1,
             must_total: 2,
             top: vec!["SAP <FI>".into(), "Konzernabschluss".into()],
+            facts: crate::model::KeyFacts::default(),
         }
     }
 

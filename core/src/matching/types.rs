@@ -4,6 +4,7 @@
 use serde::Serialize;
 use serde_json::{Map, Value};
 
+pub use crate::model::KeyFacts;
 use crate::portal::Portal;
 
 /// How complete the job text is.
@@ -86,6 +87,8 @@ pub struct Assessment {
     pub reasons: Vec<Reason>,
     pub highlights: Vec<Highlight>,
     pub criteria: Vec<CriterionState>,
+    /// Rate, start, duration, remote share and contract type as read from the ad.
+    pub facts: KeyFacts,
 }
 
 /// Kind of a reason.
@@ -248,20 +251,29 @@ pub enum CriterionKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CriterionStatus {
-    /// Not set in the profile.
+    /// Not set in the profile, or not for this kind of job (a salary for a freelance role).
     Inactive,
+    /// Set, and the ad says nothing that shows whether it is met.
+    NotMentioned,
+    /// Met, with the ad's value as evidence.
     Ok,
     Check,
     Violated,
 }
 
-/// A hard criterion for one job, with the reason that decided it.
+/// A hard criterion for one job, with the reason that decided it and the ad's value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CriterionState {
     pub key: CriterionKey,
     pub status: CriterionStatus,
     pub reason: Option<u16>,
+    /// The ad's value: `rate`, `hourly`, `currency`, `rateOpen` (day rate); `start` (`now`,
+    /// `vague` or an ISO date); `location` or `remote` (countries, region); `contract`
+    /// (ANUE); `salary`; `years` (target years).
+    pub params: Map<String, Value>,
+    /// Where the ad states it, in UTF-16 offsets (start, end).
+    pub range: Option<(u32, u32)>,
 }
 
 /// How usable the profile is.

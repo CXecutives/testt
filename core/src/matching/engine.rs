@@ -14,8 +14,9 @@ use std::ops::Range;
 
 use serde_json::{Value, json};
 
+use super::ad_facts::{self, AdFacts};
 use super::atoms::{self, Fit, Vocab, fold};
-use super::contract::{self, ContractKind};
+use super::contract::{self, Contract, ContractKind};
 use super::facts::{self, Finding, HardCriteria, JobFacts, Segment};
 use super::fit::{self, ItemFit, Skills};
 use super::focus::{self, Focus};
@@ -121,6 +122,8 @@ pub(crate) struct Evaluation {
     pub role: Option<(RoleFit, i64, String)>,
     /// The wishes with their points (per-mille).
     pub wishes: Vec<WishResult>,
+    /// What the ad states about rate, start, duration, remote share, place and contract.
+    pub facts: AdFacts,
 }
 
 fn weight(item: &Item) -> u64 {
@@ -258,7 +261,7 @@ fn criteria_findings(
     facts: &JobFacts<'_>,
     segments: &[Segment],
     folded: &str,
-) -> (Vec<Finding>, ContractKind) {
+) -> (Vec<Finding>, Contract) {
     let anue = facts::anue(facts, segments);
     let contract = contract::infer(facts, segments, &anue);
     let criteria = &profile.criteria;
@@ -267,7 +270,7 @@ fn criteria_findings(
     findings.extend(permanent::region(
         criteria, &contract, facts, segments, folded,
     ));
-    (findings, contract.kind)
+    (findings, contract)
 }
 
 /// Demanded Schwerpunkte in profile order; the first `FOCUS_RELEVANCE_MAX` add relevance.
@@ -404,22 +407,28 @@ fn scored(profile: &EngineProfile, items: Vec<Item>) -> Vec<Scored> {
         .collect()
 }
 
-/// Assesses one job.
-pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluation {
-    let text = job.text;
-    let vocab = &profile.skills.vocab;
-    let criteria = &profile.criteria;
-    let facts = JobFacts {
+/// The fields of a job the hard criteria read.
+fn job_facts<'a>(job: &JobInput<'a>) -> JobFacts<'a> {
+    JobFacts {
         title: job.title,
         text: job.text,
         location: job.location,
         portal: job.portal,
         facts: job.facts,
         posted: job.posted,
-    };
+    }
+}
+
+/// Assesses one job.
+pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluation {
+    let text = job.text;
+    let vocab = &profile.skills.vocab;
+    let criteria = &profile.criteria;
+    let facts = job_facts(job);
     let segments = facts::segments(job.text);
     let folded = fold(job.text);
-    let (mut findings, contract) = criteria_findings(profile, &facts, &segments, &folded);
+    let (mut findings, stated_contract) = criteria_findings(profile, &facts, &segments, &folded);
+    let contract = stated_contract.kind;
     let short = char_len(strip(text)) < MIN_TEXT_CHARS;
     let doc = if short {
         job::JobDoc::default()
@@ -433,6 +442,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
         &doc,
         vocab,
     ));
+    let ad_facts = ad_facts::read(&facts, &segments, &folded, &stated_contract, &doc);
     let items = scored(profile, doc.items);
     let (fit_score, must_weight, nice_count) = fit_score(&items);
     let evidence = evidence_level(job.kind, &items, must_weight);
@@ -505,6 +515,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
         focus,
         role,
         wishes,
+        facts: ad_facts,
     }
 }
 

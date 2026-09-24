@@ -96,7 +96,7 @@ export function rowReason(job: JobView): { kind: 'met' | 'violation'; text: stri
   return top ? { kind: 'met', text: top } : null;
 }
 
-/** A criterion of the reader strip (kind met = fulfilled, violation, check = unclear, open = not set). */
+/** A criterion of the reader strip (kind met = fulfilled with the ad as evidence, violation, check = unclear, open = the ad does not mention it). */
 export function criterionState(reason: Reason): CriterionState {
   switch (reason.kind) {
     case 'met':

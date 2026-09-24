@@ -20,6 +20,7 @@ export type { JobPage } from "./JobPage";
 export type { JobQuery } from "./JobQuery";
 export type { JobSort } from "./JobSort";
 export type { JobView } from "./JobView";
+export type { KeyFacts } from "./KeyFacts";
 export type { LanguageLevel } from "./LanguageLevel";
 export type { Mailbox } from "./Mailbox";
 export type { MatchDetail } from "./MatchDetail";

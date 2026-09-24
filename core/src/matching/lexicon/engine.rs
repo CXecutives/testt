@@ -605,6 +605,29 @@ pub(crate) const RATE_WORDS: &[&str] = &[
     "€/h",
 ];
 pub(crate) const SALARY_WORDS: &[&str] = &["gehalt", "salary"];
+/// A rate to be agreed, without an amount (with a rate word in the same sentence).
+pub(crate) const RATE_OPEN: &[&str] = &[
+    "nach absprache",
+    "nach vereinbarung",
+    "auf anfrage",
+    "verhandelbar",
+    "verhandlungssache",
+    "negotiable",
+    "on request",
+    "to be agreed",
+    "tbd",
+];
+/// Sentences that state a duration, and the units of one.
+pub(crate) const DURATION_WORDS: &[&str] = &[
+    "laufzeit",
+    "dauer",
+    "duration",
+    "zeitraum",
+    "einsatzzeitraum",
+    "length",
+];
+pub(crate) const MONTH_UNITS: &[&str] = &["monat", "month"];
+pub(crate) const WEEK_UNITS: &[&str] = &["woche", "week"];
 pub(crate) const HOURLY_WORDS: &[&str] = &["stunde", "std", "hour", "/h", "stundensatz"];
 pub(crate) const OTHER_CURRENCIES: &[&str] = &["chf", "usd", "gbp", "$", "£"];
 /// Sentences that state a start.
