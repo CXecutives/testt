@@ -74,8 +74,8 @@ criteria, ladder, relevance, semantic (feature), score, explain.
 - Order: `(match_status IS 'excluded'), (match_score IS NULL), match_score DESC, first_seen_at DESC, portal, job_id`.
 - Hard criteria (no threshold in code, missing key = inactive). Decided only on clear wording, otherwise `check`:
   ANUE (named, not negated, not optional) · country (location field/line/on-site sentence/facts, remote not full) ·
-  day rate (EUR, upper bound, hourly x8, no clear permanent role) · availability (explicit start > 30 days before
-  profile date, vs. mail date; "sofort" never violates) · permanent position detected = check only.
+  day rate (EUR, upper bound, hourly x8, no clear permanent role) · availability gap is a check only (`availabilityGap {days}`, never an exclusion; decided after the corpus review) ·
+  day-rate fallback `einsatzpraeferenzen.tagessatz_ab` kept (old behaviour) · status precedence excluded > unscorable > scored · permanent position detected = check only.
 - Scored at `JobUpdated` (rings appear live) + catch-up `Step::Score` (pages of 250) + `rescore` run.
 - `legacy_percent()` reproduces the old path for parity tests only.
 
