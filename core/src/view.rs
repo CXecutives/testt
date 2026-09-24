@@ -703,6 +703,7 @@ pub fn job_views(store: &Store, rows: &[JobRow]) -> crate::Result<Vec<JobView>> 
 pub enum JobSort {
     /// Best match first (excluded jobs behind the others).
     Match,
+    /// By date: the alert mail's, in the trash the day the job went there.
     Newest,
 }
 
@@ -714,8 +715,10 @@ pub struct JobQuery {
     pub place: Place,
     /// Only the unread jobs (the excluded ones last, uncounted).
     pub unread: bool,
-    /// For the inbox; the archive lists the latest archived first, the trash the latest
-    /// trashed.
+    /// The favourites of the inbox and the archive instead of the place (each row keeps its
+    /// place).
+    pub favourites: bool,
+    /// By match, or by date: the alert mail's, in the trash the day the job went there.
     pub sort: JobSort,
     pub search: Option<String>,
     /// At most [`MAX_PAGE`]; 0 = counts only.
@@ -773,6 +776,7 @@ pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
     let (rows, counts) = store.job_page(&PageQuery {
         place: query.place,
         unread: query.unread,
+        favourites: query.favourites,
         by_match: query.sort == JobSort::Match,
         search: query.search.clone(),
         limit: query.limit.min(MAX_PAGE),
@@ -1460,6 +1464,7 @@ mod tests {
         JobQuery {
             place,
             unread,
+            favourites: false,
             sort,
             search: None,
             limit,
@@ -1579,14 +1584,31 @@ mod tests {
         assert_eq!(u32::try_from(inbox.jobs.len()).unwrap(), counts.inbox);
         assert_eq!(u32::try_from(archive.jobs.len()).unwrap(), counts.archive);
         assert_eq!(u32::try_from(trash.jobs.len()).unwrap(), counts.trash);
-        // A favourite in the trash no longer counts; the latest trashed first.
+        // A favourite in the trash no longer counts; by date the latest trashed first.
         store.move_jobs(&[key(1)], Place::Trash, at).unwrap();
-        let after = page(Place::Trash);
+        let after = job_page(&store, &query(Place::Trash, false, JobSort::Newest, 50, 0)).unwrap();
         assert_eq!(titles(&after), ["D", "A"]);
+        assert_eq!(
+            titles(&page(Place::Trash)),
+            ["A", "D"],
+            "by match the scored first"
+        );
         assert_eq!((after.counts.favourites, after.counts.trash), (1, 2));
         let json = serde_json::to_value(&after.jobs[1]).unwrap();
         assert_eq!(json["place"], "trash");
         assert_eq!(json["pinned"], true);
+        // The favourites view: starred jobs of the inbox and the archive, each in its place.
+        store.set_pinned(&key(2), true, at).unwrap();
+        let mut favourites = query(Place::Inbox, false, JobSort::Match, 50, 0);
+        favourites.favourites = true;
+        let starred = job_page(&store, &favourites).unwrap();
+        assert_eq!(
+            titles(&starred),
+            ["B", "C"],
+            "the excluded one last, no trash"
+        );
+        assert_eq!(starred.jobs[1].place, Place::Archive);
+        assert_eq!(starred.counts.favourites, 2);
     }
 
     /// The new jobs per portal and the pinned ones come with every page, from the same
@@ -1638,6 +1660,7 @@ mod tests {
                 &JobQuery {
                     place: Place::Inbox,
                     unread: true,
+                    favourites: false,
                     sort: JobSort::Match,
                     search: search.map(str::to_owned),
                     limit: 0,

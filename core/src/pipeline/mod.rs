@@ -729,26 +729,43 @@ fn auto_archive(store: &Store, run: i64, days: u32, now: Timestamp) {
     }
 }
 
-/// The trash empties itself of jobs that lie there `auto_empty_trash_days` (0 = never): they
-/// are deleted for good with their text files (the export of the run follows). A failure only
-/// goes to the log.
+/// The trash empties itself at the end of a run (the export of the run follows).
 fn auto_empty_trash(store: &Store, run: i64, ctx: &RunContext, now: Timestamp) {
-    if ctx.auto_empty_trash_days == 0 {
-        return;
+    let workspace = (!ctx.dry_run).then_some(ctx.workspace.as_path());
+    let n = empty_old_trash(store, workspace, ctx.auto_empty_trash_days, now);
+    if n > 0 {
+        log::info!("run {run}: {n} jobs deleted from the trash");
     }
-    let before = days_before(now, ctx.auto_empty_trash_days);
+}
+
+/// The trash empties itself of the jobs that lie there `days` (0 = never): they are deleted
+/// for good with their text files (without a workspace, the dry run, only in the database);
+/// a tombstone stays. Runs at the end of every run and at the start of the app; the Excel
+/// file lists only the inbox, so it needs no new write. Returns how many went; a failure only
+/// goes to the log.
+pub fn empty_old_trash(
+    store: &Store,
+    workspace: Option<&Path>,
+    days: u32,
+    now: Timestamp,
+) -> usize {
+    if days == 0 {
+        return 0;
+    }
     let deleted = store
-        .trashed_keys(Some(before))
+        .trashed_keys(Some(days_before(now, days)))
         .and_then(|keys| store.delete_jobs(&keys, now));
     match deleted {
-        Ok((0, _)) => {}
-        Ok((n, names)) => {
-            log::info!("run {run}: {n} jobs deleted from the trash");
-            if !ctx.dry_run {
-                export::clear_txt_files(&ctx.workspace.join(RESULT_DIR), &names);
+        Ok((count, names)) => {
+            if let Some(workspace) = workspace.filter(|_| count > 0) {
+                export::clear_txt_files(&workspace.join(RESULT_DIR), &names);
             }
+            count
         }
-        Err(e) => log::warn!("run {run}: trash not emptied: {e}"),
+        Err(e) => {
+            log::warn!("trash not emptied: {e}");
+            0
+        }
     }
 }
 

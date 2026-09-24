@@ -7,7 +7,7 @@ use jiff::{SignedDuration, Timestamp};
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use url::Url;
 
-use super::marks::{INBOX, place_condition};
+use super::marks::{FAVOURITES, INBOX, place_condition};
 use super::{Store, bump};
 use crate::error::{Error, Result};
 use crate::fetch::policy::MAX_FETCH_ATTEMPTS;
@@ -107,8 +107,10 @@ pub struct PageQuery {
     pub place: Place,
     /// Only unread jobs (the excluded ones last, uncounted).
     pub unread: bool,
-    /// Best match first; otherwise newest first; excluded jobs last either way. Only for the
-    /// inbox: the archive lists the latest archived first, the trash the latest trashed.
+    /// The favourites of the inbox and the archive instead of a place (each keeps its place).
+    pub favourites: bool,
+    /// Best match first; otherwise by date: the alert mail's, in the trash the day it went
+    /// there; excluded jobs last either way.
     pub by_match: bool,
     /// Search term in title, company, location and full text (case-insensitive).
     pub search: Option<String>,
@@ -318,30 +320,34 @@ impl Store {
         // Excluded jobs always come last; "match" puts the best score first (unscored after
         // scored), "newest" the latest first sighting. The archive lists the latest archived
         // first, the trash the latest trashed.
-        let order = |p: &str| match query.place {
-            Place::Archive => format!("{p}archived_at DESC, {p}portal, {p}job_id"),
-            Place::Trash => format!("{p}trashed_at DESC, {p}portal, {p}job_id"),
-            Place::Inbox => {
-                let by_match = if query.by_match {
-                    format!("({p}match_score IS NULL), {p}match_score DESC, ")
-                } else {
-                    String::new()
-                };
-                format!(
-                    "({p}match_status IS 'excluded'), {by_match}{p}first_seen_at DESC, \
-                     {p}portal, {p}job_id"
-                )
-            }
+        let order = |p: &str| {
+            // "By date": the date of the alert mail; in the trash the day it went there.
+            let date = if query.place == Place::Trash && !query.favourites {
+                format!("{p}trashed_at")
+            } else {
+                format!("COALESCE({p}mail_date, {p}first_seen_at)")
+            };
+            let by_match = if query.by_match {
+                format!("({p}match_score IS NULL), {p}match_score DESC, ")
+            } else {
+                String::new()
+            };
+            format!("({p}match_status IS 'excluded'), {by_match}{date} DESC, {p}portal, {p}job_id")
         };
         // The counts of the inbox leave the archive and the trash out. The unread filter lists
         // every unread job, the excluded ones last (grey in the list); its count leaves them
         // out. A favourite counts until it goes to the trash.
         let shown = INBOX;
         let new = format!("{INBOX} AND read_at IS NULL AND match_status IS NOT 'excluded'");
-        let facet = if query.unread {
-            format!("{} AND read_at IS NULL", place_condition(query.place))
+        let place = if query.favourites {
+            FAVOURITES
         } else {
-            place_condition(query.place).to_owned()
+            place_condition(query.place)
+        };
+        let facet = if query.unread {
+            format!("{place} AND read_at IS NULL")
+        } else {
+            place.to_owned()
         };
         // Unread per portal: one column each, in the order of `Portal::ALL` (the keys are
         // constants of the code, never input).
@@ -366,8 +372,7 @@ impl Store {
                         COALESCE(SUM({shown} AND match_status IS 'scored'
                                      AND match_score >= ?4), 0) AS n_high,
                         COALESCE(SUM({shown} AND desc_status <> 'ok'), 0) AS n_no_detail,
-                        COALESCE(SUM(app_status IS NOT NULL AND trashed_at IS NULL), 0)
-                            AS n_favourites,
+                        COALESCE(SUM({FAVOURITES}), 0) AS n_favourites,
                         COALESCE(SUM({archive}), 0) AS n_archive,
                         COALESCE(SUM({trash}), 0) AS n_trash{per_portal}
                  FROM base

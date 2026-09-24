@@ -18,12 +18,12 @@ use jiff::Timestamp;
 use jobalert_core::error::{ErrorInfo, ErrorKind};
 use jobalert_core::export::{self, RESULT_DIR};
 use jobalert_core::fetch::policy::Policy;
+use jobalert_core::model::Place;
 use jobalert_core::pipeline::{self, Matcher as _, RunEvent, demo};
 use jobalert_core::profile;
 use jobalert_core::reset::{self, ResetPlan};
 use jobalert_core::view::{
-    self, JobFacet, JobQuery, JobSort, Mailbox, ProfileInfo, ResetSummary, SettingsPatch,
-    SettingsView,
+    self, JobQuery, JobSort, Mailbox, ProfileInfo, ResetSummary, SettingsPatch, SettingsView,
 };
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State, WebviewWindow};
@@ -108,7 +108,9 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
     let counts = view::job_page(
         &state.store,
         &JobQuery {
-            facet: JobFacet::All,
+            place: Place::Inbox,
+            unread: false,
+            favourites: false,
             sort: JobSort::Newest,
             search: None,
             limit: 0,
@@ -129,7 +131,9 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
         dry_run: state.dry_run,
         // The dry run is a demo with a mailbox and a sample profile: it starts in the app itself,
         // never on the first-run page (the smoke probe on a fresh CI machine relies on it).
-        first_run: !state.dry_run && last_run.is_none() && counts.all == 0,
+        first_run: !state.dry_run
+            && last_run.is_none()
+            && counts.inbox + counts.archive + counts.trash == 0,
         running,
         settings: SettingsView {
             workspace_is_default: settings.workspace.is_none(),

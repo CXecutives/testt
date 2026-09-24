@@ -66,6 +66,9 @@ pub const USER_OVERRIDE: &str = "userOverride";
 /// trash's).
 pub(crate) const INBOX: &str = "archived_at IS NULL AND trashed_at IS NULL";
 
+/// The favourites: starred jobs in the inbox or the archive (never the trash).
+pub(crate) const FAVOURITES: &str = "app_status IS NOT NULL AND trashed_at IS NULL";
+
 /// The condition of a place on the `job` table.
 pub(crate) const fn place_condition(place: Place) -> &'static str {
     match place {

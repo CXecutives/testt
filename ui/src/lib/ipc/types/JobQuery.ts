@@ -11,8 +11,12 @@ export type JobQuery = { place: Place,
  */
 unread: boolean, 
 /**
- * For the inbox; the archive lists the latest archived first, the trash the latest
- * trashed.
+ * The favourites of the inbox and the archive instead of the place (each row keeps its
+ * place).
+ */
+favourites: boolean, 
+/**
+ * By match, or by date: the alert mail's, in the trash the day the job went there.
  */
 sort: JobSort, search: string | null, 
 /**
