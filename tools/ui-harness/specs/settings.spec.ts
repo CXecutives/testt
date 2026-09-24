@@ -35,8 +35,9 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
   await page.getByTestId('mailbox-password').press('Enter');
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'true');
-  // The stepper moves on: the profile is the current step now.
+  // The stepper moves on: the profile is the current step now, the ticked check draws.
   await expect(page.getByTestId('step-profile')).toHaveAttribute('aria-current', 'step');
+  await expect(page.getByTestId('step-mailbox').locator('.marker')).toHaveClass(/drawn/);
   await expect(page.getByTestId('step-mailbox')).not.toHaveAttribute('aria-current', 'step');
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
 
@@ -53,6 +54,15 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await fetch.click();
   await expect(page.getByTestId('view-jobs')).toBeVisible();
   await expect(page.getByTestId('run-running')).toBeVisible();
+});
+
+test('first run: a step done before the page opened is simply there', async ({ page }) => {
+  await open(page, `${WIN}&scenario=mailbox-only`);
+  const mailbox = page.getByTestId('step-mailbox');
+  await expect(mailbox).toHaveAttribute('data-done', 'true');
+  await expect(mailbox.locator('.marker')).not.toHaveClass(/drawn/);
+  await expect(page.getByTestId('step-profile')).toHaveAttribute('aria-current', 'step');
+  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
 });
 
 test('settings: sections, no primary while nothing asks for one', async ({ page }) => {

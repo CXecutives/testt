@@ -126,7 +126,7 @@
         checked={portal.enabled}
         label={de.settings.active}
         testid="toggle-enabled-{portal.portal}"
-        onchange={(on) => void change({ enabled: on })}
+        onchange={(on) => change({ enabled: on })}
       />
     </div>
   </div>
@@ -159,7 +159,7 @@
               checked={portal.fetchDetails}
               label={de.settings.details}
               testid="toggle-details-{portal.portal}"
-              onchange={(on) => void change({ fetchDetails: on })}
+              onchange={(on) => change({ fetchDetails: on })}
             />
           </SettingRow>
           {#if portal.login === 'optional'}
@@ -179,7 +179,7 @@
                 disabled={!portal.fetchDetails}
                 disabledReason={de.settings.needsDetails}
                 testid="toggle-login-{portal.portal}"
-                onchange={(on) => void change({ loginEnabled: on })}
+                onchange={(on) => change({ loginEnabled: on })}
               />
             </SettingRow>
             {#if portal.loginEnabled}

@@ -7,13 +7,14 @@
   here again, so this is where the reset reports. Compact enough that the third step is in
   view at 1280 x 720; the sidebar is inert here (the Profil view frees it again).
 
-  A vertical stepper: 28 px markers (the current one filled dark, upcoming ones outlined,
-  done ones green with a check) joined by a hairline that fills green below a done step.
-  Ticking a step is a class change, so it moves only while the page is open: the marker
-  cross-fades to its check, the line fills downwards, the done text rises in. Nothing plays
-  when the page appears.
+  A vertical stepper: 28 px markers (the current one deep navy, "you are here"; upcoming
+  ones outlined; done ones green with a check) joined by a hairline that fills green below
+  a done step. Ticking a step is a class change, so it moves only while the page is open:
+  the marker cross-fades to its check, which draws itself, the line fills downwards, the
+  next marker turns navy and the done text rises in. Nothing plays when the page appears.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import BrandMark from '$components/BrandMark.svelte';
   import Button from '$components/Button.svelte';
   import Card from '$components/Card.svelte';
@@ -46,6 +47,16 @@
   let profileNote = $state<{ tone: 'danger'; text: string } | null>(null);
   let busy = $state(false);
 
+  /** Steps ticked while this page is open: only their check draws (never at mount). */
+  let ticked = $state({ mailbox: false, profile: false });
+  let before = untrack(() => ({ mailbox: mailboxDone, profile: profileDone }));
+  $effect(() => {
+    const now = { mailbox: mailboxDone, profile: profileDone };
+    if (now.mailbox && !before.mailbox) ticked.mailbox = true;
+    if (now.profile && !before.profile) ticked.profile = true;
+    before = now;
+  });
+
   async function pick(): Promise<void> {
     profileNote = null;
     busy = true;
@@ -59,16 +70,22 @@
   }
 </script>
 
-{#snippet marker(step: number, done: boolean)}
-  <span class="marker" class:done class:current={current === step && !done} aria-hidden="true">
+{#snippet marker(step: number, done: boolean, drawn: boolean)}
+  <span
+    class="marker"
+    class:done
+    class:drawn
+    class:current={current === step && !done}
+    aria-hidden="true"
+  >
     <span class="number">{step}</span>
     <span class="check"><Icon name="check" size="sm" /></span>
   </span>
 {/snippet}
 
-{#snippet rail(step: number, done: boolean, last = false)}
+{#snippet rail(step: number, done: boolean, drawn = false, last = false)}
   <div class="rail">
-    {@render marker(step, done)}
+    {@render marker(step, done, drawn)}
     {#if !last}<span class="line"><span class="fill"></span></span>{/if}
   </div>
 {/snippet}
@@ -99,7 +116,7 @@
           data-testid="step-mailbox"
           data-done={mailboxDone}
         >
-          {@render rail(1, mailboxDone)}
+          {@render rail(1, mailboxDone, ticked.mailbox)}
           <div class="body">
             <h2 class="name">{de.firstRun.mailbox}</h2>
             {#if mailboxDone}
@@ -117,7 +134,7 @@
           data-testid="step-profile"
           data-done={profileDone}
         >
-          {@render rail(2, profileDone)}
+          {@render rail(2, profileDone, ticked.profile)}
           <div class="body">
             <h2 class="name">{de.firstRun.profile}</h2>
             {#if profileDone}
@@ -160,7 +177,7 @@
         </li>
 
         <li class="step" aria-current={current === 3 ? 'step' : undefined} data-testid="step-fetch">
-          {@render rail(3, false, true)}
+          {@render rail(3, false, false, true)}
           <div class="body">
             <h2 class="name">{de.firstRun.fetch}</h2>
             <p class="hint">{de.firstRun.fetchHint}</p>
@@ -265,7 +282,7 @@
     background-color: var(--success-strong);
     transform: scaleY(0);
     transform-origin: top;
-    transition: transform var(--dur-slow) var(--ease-standard);
+    transition: transform var(--dur-slow) var(--ease-emphasized);
   }
 
   .step.done .fill {
@@ -304,6 +321,12 @@
 
   .done .check {
     opacity: 1;
+  }
+
+  /* A step ticked while the page is open draws its check once (a class set by a change). */
+  .drawn .check :global(path) {
+    stroke-dasharray: var(--draw-length);
+    animation: draw var(--dur-slow) var(--ease-out) both;
   }
 
   .marker.current {

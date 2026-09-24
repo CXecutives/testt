@@ -94,10 +94,10 @@
   }
 
   /** The switch moves at once; a failure puts it back (reload) and says why below it. */
-  function autoFetch(on: boolean): void {
+  function autoFetch(on: boolean): Promise<void> {
     const save = ++saves;
     if (app.state) app.state.autoFetchOnStart = on;
-    void act('fetch', setFetch, async () => {
+    return act('fetch', setFetch, async () => {
       try {
         const next = await invoke('save_settings', {
           patch: { portals: [], autoFetchOnStart: on },
