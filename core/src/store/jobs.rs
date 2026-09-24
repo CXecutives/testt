@@ -583,9 +583,12 @@ impl Store {
             } else {
                 page_location(stored_location, &location, MAX_FIELD_CHARS)
             };
+            // The engine reads title and location: a change to either makes the score
+            // pending again (SET expressions see the old row).
             conn.execute(
                 "UPDATE job SET
-                    match_rev = CASE WHEN ?3 <> '' AND ?3 <> title THEN NULL ELSE match_rev END,
+                    match_rev = CASE WHEN (?3 <> '' AND ?3 <> title) OR ?5 <> location
+                                     THEN NULL ELSE match_rev END,
                     title    = CASE WHEN ?3 <> '' THEN ?3 ELSE title END,
                     company  = ?4,
                     location = ?5
@@ -779,9 +782,12 @@ fn upsert(
     let (new_company, new_location) =
         merge_details((&company, &location), (&posting.company, &posting.location));
     if new_title != title || new_company != company || new_location != location {
+        // The engine reads title and location (the country criterion): a change to either
+        // makes the score pending again - the same rule as for page fields.
         conn.execute(
             "UPDATE job SET title = ?3, company = ?4, location = ?5,
-                            match_rev = CASE WHEN title <> ?3 THEN NULL ELSE match_rev END
+                            match_rev = CASE WHEN title <> ?3 OR location <> ?5
+                                             THEN NULL ELSE match_rev END
              WHERE portal = ?1 AND job_id = ?2",
             params![
                 key.portal.key(),
@@ -1046,6 +1052,61 @@ mod tests {
         };
         assert_eq!(seen(title), (title.to_string(), String::new()));
         assert_eq!(seen(""), (String::new(), String::new()));
+    }
+
+    /// The engine reads title and location (the country criterion): a later mail or page
+    /// that changes either makes the stored score pending again. Previously a later mail
+    /// could move a scored job to London while its score stayed current.
+    #[test]
+    fn a_new_location_makes_the_score_pending() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let url = "https://www.linkedin.com/jobs/view/4123456780/";
+        let key = job_link(url).unwrap().key;
+        let seen = |company: &str, location: &str| {
+            store
+                .upsert_posting(
+                    run,
+                    &posting(url, "Controller", company, location),
+                    mail(),
+                    now(),
+                )
+                .unwrap();
+        };
+        let scored = || {
+            let record = MatchRecord {
+                status: crate::model::MatchStatus::Scored,
+                score: 67,
+                note: None,
+                must_met: 1,
+                must_total: 1,
+                top: Vec::new(),
+            };
+            store
+                .save_matches(&[(key.clone(), record)], "r1", now())
+                .unwrap();
+            assert_eq!(store.match_pending("r1").unwrap(), 0);
+        };
+        let pending = || store.match_pending("r1").unwrap();
+
+        seen("", "");
+        scored();
+        seen("Acme Ltd", "London, England");
+        assert_eq!(pending(), 1, "a mail named the location");
+        scored();
+        store
+            .record_page_fields(&key, "", "Acme Holdings Ltd", "")
+            .unwrap();
+        assert_eq!(pending(), 0, "the engine does not read the company");
+        store
+            .record_page_fields(&key, "", "", "Manchester")
+            .unwrap();
+        assert_eq!(pending(), 1, "the page named another location");
+        scored();
+        store
+            .record_page_fields(&key, "", "", "Manchester")
+            .unwrap();
+        assert_eq!(pending(), 0, "the same location changes nothing");
     }
 
     /// The page's company and location win over the mail heuristics; what the page leaves

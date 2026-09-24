@@ -217,6 +217,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 
 ### Phase 5 - verification, measurement, audit
 - [ ] Real runs through the app (gold set within limits and switches), blind labels, old/new report in `docs/MATCHING.md`
+      Run 9 on the test mailbox, fixed: portal promo/onboarding mails are no alerts (no false "layout changed?"),
+      a collection mail never takes another job's title as company or location, a stored title-like pair gives
+      way, a new location makes the score pending (fixtures `promo_mails/`, `forward_composite.eml`).
 - [ ] Live canary per portal (one counted page via `admit`)
 - [ ] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios
 - [ ] Performance (start time, long tasks at 2000 jobs), contrast
