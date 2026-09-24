@@ -69,6 +69,26 @@ test("a ring that waits: the reader's arc turns, the list's dashed track breathe
   expect(list.dashes).toMatch(/^2\.5(px)?,? 2\.5(px)?$/);
 });
 
+test('the evidence of a reason is part of it: its wash and its click cover the line', async ({
+  page,
+}) => {
+  await open(page, '?gallery');
+  const reason = page.getByTestId('gallery-reasons').locator('button.reason').first();
+  const evidence = reason.getByTestId('evidence');
+  await evidence.scrollIntoViewIfNeeded();
+  await expect(evidence).toContainText('Konzerncontrolling');
+  // Under the words, on their axis, inside the reason's box.
+  const row = (await reason.boundingBox())!;
+  const line = (await evidence.boundingBox())!;
+  const words = (await reason.locator('.head > .label').boundingBox())!;
+  expect(line.y).toBeGreaterThan(words.y + words.height - 1);
+  expect(Math.abs(line.x - words.x)).toBeLessThan(1);
+  expect(line.y + line.height).toBeLessThanOrEqual(row.y + row.height);
+  // Hovering the evidence washes the whole reason.
+  await evidence.hover();
+  await expect(reason).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+});
+
 test('under reduced motion the rings jump to their value', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '?gallery');
