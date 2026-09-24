@@ -6,8 +6,10 @@
   job is opened (`animate` names the job; once per job and session). A view that comes back
   shows its rings as they are. At most 10 rings fill at the same time, the others are placed
   at once.
-  excluded: dashed track and a ban icon. unscorable: dashed track and a dash.
-  pending: skeleton. none: empty track. A selected row passes a stronger --ring-track.
+  One silhouette for every state, a solid track everywhere; the centre says the state:
+  excluded: a pale red track and a ban icon. unscorable: the track and a dash. pending: the
+  track and a quarter arc (turning only in the reader). none: the track alone. A score of
+  100 sets its digits smaller in the list ring. A selected row passes a navy --ring-track.
 -->
 <script lang="ts" module>
   import type { Band, JobMatch } from '$lib/ipc/types';
@@ -41,7 +43,6 @@
   import { duration, isReducedMotion, play } from '$lib/motion/motion';
   import { countUp } from '$lib/motion/transitions';
   import Icon from './Icon.svelte';
-  import Skeleton from './Skeleton.svelte';
 
   interface Props {
     ring: RingState;
@@ -124,42 +125,46 @@
   });
 </script>
 
-{#if ring.status === 'pending'}
-  <span class="ring {size}" role="img" aria-label={label} data-testid={testid ?? undefined}>
-    <Skeleton shape="circle" {size} />
-  </span>
-{:else}
-  <span
-    class="ring {size} {ring.status} {band ?? ''}"
-    role="img"
-    aria-label={label}
-    data-testid={testid ?? undefined}
-  >
-    <svg class="svg" viewBox="0 0 36 36" aria-hidden="true">
-      <circle class="disc" cx="18" cy="18" r="15.9155" />
-      <circle class="track" cx="18" cy="18" r="15.9155" />
-      {#if ring.status === 'scored'}
-        <circle
-          bind:this={arc}
-          class="value"
-          cx="18"
-          cy="18"
-          r="15.9155"
-          use:cssVars={{ value: shown }}
-        />
-      {/if}
-    </svg>
-    <span class="center">
-      {#if ring.status === 'scored'}
-        {Math.round(number.current)}
-      {:else if ring.status === 'excluded'}
-        <Icon name="ban" size={size === 'sm' ? 'sm' : size === 'md' ? 'md' : 'lg'} />
-      {:else if ring.status === 'unscorable'}
-        –
-      {/if}
+<span
+  class="ring {size} {ring.status} {band ?? ''}"
+  class:full={ring.status === 'scored' && score === 100}
+  role="img"
+  aria-label={label}
+  data-testid={testid ?? undefined}
+>
+  <svg class="svg" viewBox="0 0 36 36" aria-hidden="true">
+    <circle class="disc" cx="18" cy="18" r="15.9155" />
+    <circle class="track" cx="18" cy="18" r="15.9155" />
+    {#if ring.status === 'scored'}
+      <circle
+        bind:this={arc}
+        class="value"
+        cx="18"
+        cy="18"
+        r="15.9155"
+        use:cssVars={{ value: shown }}
+      />
+    {/if}
+  </svg>
+  {#if ring.status === 'pending'}
+    <!-- A quarter arc on its own HTML wrapper: it turns only in the reader (md), never in
+         the list, and stops under reduced motion. -->
+    <span class="wait" aria-hidden="true">
+      <svg class="svg" viewBox="0 0 36 36">
+        <circle class="arc" cx="18" cy="18" r="15.9155" />
+      </svg>
     </span>
+  {/if}
+  <span class="center">
+    {#if ring.status === 'scored'}
+      {Math.round(number.current)}
+    {:else if ring.status === 'excluded'}
+      <Icon name="ban" size={size === 'sm' ? 'sm' : size === 'md' ? 'md' : 'lg'} />
+    {:else if ring.status === 'unscorable'}
+      –
+    {/if}
   </span>
-{/if}
+</span>
 
 <style>
   .ring {
@@ -194,9 +199,30 @@
     stroke: var(--ring-track, var(--score-track));
   }
 
-  .excluded .track,
-  .unscorable .track {
-    stroke-dasharray: 2.5 2.5;
+  .excluded .track {
+    stroke: var(--score-excluded-track);
+  }
+
+  /* Pending: a quarter arc over the track (25 of the 100 units), from 12 o'clock. */
+  .wait {
+    position: absolute;
+    inset: 0;
+    display: flex;
+  }
+
+  .arc {
+    fill: none;
+    stroke: var(--border-strong);
+    stroke-width: calc(var(--ring-stroke) * var(--ring-scale));
+    stroke-dasharray: 25 75;
+    stroke-dashoffset: 25;
+    stroke-linecap: round;
+  }
+
+  /* Only the reader's ring turns while it waits; many turning rings in a list cost frames. */
+  .md .wait {
+    animation: spin var(--dur-loop) linear infinite;
+    animation-play-state: var(--loop-state);
   }
 
   .value {
@@ -265,5 +291,10 @@
   /* The small ring stays calm: no tinted disc inside a 40 px row. */
   .sm.scored {
     --ring-surface: transparent;
+  }
+
+  /* Three digits would touch the 4 px stroke of the 40 px ring. */
+  .sm.full {
+    --ring-type: var(--weight-semibold) var(--font-xs) / var(--leading-xs) var(--font-sans);
   }
 </style>

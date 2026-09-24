@@ -1,18 +1,23 @@
 <!--
-  One job in the list, mail-style with fixed gutters: the unread dot in its own gutter left
-  of the ring (so a title never moves when the job is read), the ring, then the title on one
-  line with the relative date at its end, company and place, and one reason line with a
-  status badge right after it only when something deviates. Every row has the same height.
-  Without a ring (no usable profile) the row keeps the dot's gutter and shows no reason
-  line: the reasons belong to a match. The star to pin sits below the date: filled when
-  pinned, otherwise it shows on hover (a sibling of the row button, so it never selects
-  the row).
+  One job in the list, mail-style with fixed gutters: the unread dot (6 px, coral) centred
+  in the pane padding on the axis of the ring (so a title never moves when the job is
+  read), the ring, then the title on one line with the relative date at its end, company
+  and place, and one reason line with a status badge right after it only when something
+  deviates. Every row has the same height. Without a ring (no usable profile) the dot sits
+  on the title axis and the row shows no reason line: the reasons belong to a match.
+  The star to pin sits below the date: filled when pinned, otherwise it appears on hover (a
+  sibling of the row button, so it never selects the row; the row keeps its hover while
+  the pointer is on the star). An excluded row is muted as a whole, its dot and star too.
+  When a job is read while its row is on screen the dot shrinks away. A cut-off title
+  shows in full in a tooltip. Hover and paint stay inside the row (containment).
 -->
 <script lang="ts">
+  import { tooltip } from '$lib/actions/tooltip';
   import { de } from '$lib/i18n/de';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
   import { rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
+  import { dotOut } from '$lib/motion/transitions';
   import Badge, { type BadgeTone } from './Badge.svelte';
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
@@ -82,7 +87,7 @@
   {/if}
 {/snippet}
 
-<div class="job" class:pinned={job.pinned}>
+<div class="job" class:pinned={job.pinned} class:muted={excluded} class:ringless={!ring}>
   <ListRow
     leading={ring ? ringCell : gutter}
     trailing={endCell}
@@ -91,7 +96,9 @@
     onclick={onselect ? () => onselect?.(job) : null}
     testid="job-row-{job.key.portal}-{job.key.id}"
   >
-    <span class="title" class:unread={job.unread}>{heading}</span>
+    <span class="title" class:unread={job.unread} use:tooltip={{ text: heading, truncated: true }}
+      >{heading}</span
+    >
     <span class="meta">
       {#if job.company}<span class="text company">{job.company}</span>{/if}
       {#if job.location}<span class="text place">{job.location}</span>{/if}
@@ -103,7 +110,7 @@
       {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
     </span>
   </ListRow>
-  {#if job.unread}<span class="dot" role="img" aria-label={de.job.unread}></span>{/if}
+  {#if job.unread}<span class="dot" role="img" aria-label={de.job.unread} out:dotOut></span>{/if}
   {#if onpin}
     <span class="pin">
       <Button
@@ -123,18 +130,37 @@
 <style>
   .job {
     position: relative;
+    contain: layout paint;
   }
 
-  /* The unread dot in its own gutter left of the ring, on the axis of the title line. */
+  /* The row keeps its hover while the pointer is on its star (a sibling of the row). */
+  .job:hover :global(.row:not(.selected, :active)) {
+    background-color: var(--surface-hover);
+  }
+
+  .job:hover :global(.row.selected) {
+    background-color: var(--surface-selected-hover);
+  }
+
+  /* The unread dot: centred in the pane padding, on the axis of the ring. */
   .dot {
     position: absolute;
-    top: calc(var(--space-12) + (var(--leading-title) - var(--dot)) / 2);
-    left: calc(var(--pane-padding) - var(--dot-gutter) + (var(--dot-gutter) - var(--dot)) / 2);
-    width: var(--dot);
-    height: var(--dot);
+    top: calc(var(--space-12) + (var(--ring-sm) - var(--dot-unread)) / 2);
+    left: calc((var(--pane-padding) - var(--dot-unread)) / 2);
+    width: var(--dot-unread);
+    height: var(--dot-unread);
     border-radius: var(--radius-full);
-    background-color: var(--accent);
+    background-color: var(--unread);
     pointer-events: none;
+  }
+
+  /* Without a ring the dot sits on the axis of the title line. */
+  .ringless .dot {
+    top: calc(var(--space-12) + (var(--leading-title) - var(--dot-unread)) / 2);
+  }
+
+  .muted .dot {
+    opacity: var(--opacity-muted);
   }
 
   .title {
@@ -186,13 +212,20 @@
     max-width: 40%;
   }
 
-  /* The relative date on the title line, right-aligned in the trailing slot. */
+  /* The relative date on the title line, right-aligned in the trailing slot; it steps up
+     from subtle to muted on hover. */
   .date {
     color: var(--text-subtle);
     font: var(--type-xs);
     line-height: var(--leading-title);
     font-variant-numeric: var(--numeric);
     white-space: nowrap;
+    transition: color var(--dur-base) var(--ease-standard);
+  }
+
+  .job:hover .date {
+    color: var(--text-muted);
+    transition-duration: var(--dur-hover);
   }
 
   /* One line of 20 px for every row: the reason, the badge right after it. */
@@ -224,7 +257,7 @@
     color: var(--pressed);
   }
 
-  /* The pin button over the reserved slot below the date. */
+  /* The pin button over the reserved slot below the date: it fades in on hover (100 ms). */
   .pin {
     position: absolute;
     top: calc(var(--space-12) + var(--leading-title) + var(--space-4));
@@ -233,9 +266,25 @@
     transition: opacity var(--dur-fast) var(--ease-standard);
   }
 
+  /* On the washed row the star's own hover is one step deeper. */
+  .pin :global(.btn.ghost) {
+    --btn-bg-hover: var(--surface-press);
+  }
+
   .job:hover .pin,
   .pin:focus-within,
   .pinned .pin {
     opacity: 1;
+  }
+
+  .muted:hover .pin,
+  .muted .pin:focus-within,
+  .muted.pinned .pin {
+    opacity: var(--opacity-muted);
+  }
+
+  /* No hover while the list scrolls (input.ts). */
+  :global(:root[data-scrolling]) .pin {
+    pointer-events: none;
   }
 </style>

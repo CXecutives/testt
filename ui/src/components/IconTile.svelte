@@ -1,11 +1,13 @@
-<!-- A soft tinted tile holding an icon or a portal monogram (in / fd / fm). -->
+<!-- A soft tinted tile holding an icon or a portal monogram (in / fd / fm). Data sources
+     (portals, the profile file) take the navy tone. -->
 <script lang="ts" module>
   import type { Portal } from '$lib/ipc/types';
 
-  export type TileTone = 'coral' | 'success' | 'warning' | 'danger' | 'neutral';
+  export type TileTone = 'coral' | 'navy' | 'success' | 'warning' | 'danger' | 'neutral';
   export type TileSize = 'sm' | 'md' | 'lg';
   export const TILE_TONES: readonly TileTone[] = [
     'coral',
+    'navy',
     'success',
     'warning',
     'danger',
@@ -65,6 +67,11 @@
   .coral {
     --tile-bg: var(--accent-soft);
     --tile-fg: var(--accent-text);
+  }
+
+  .navy {
+    --tile-bg: var(--active-surface);
+    --tile-fg: var(--active-text);
   }
 
   .success {

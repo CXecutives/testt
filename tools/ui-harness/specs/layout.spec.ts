@@ -81,12 +81,14 @@ test('empty screens are never dead: an icon, one sentence, one way on, centred',
   await expect(empty.locator('.btn.primary')).toHaveCount(1);
   await expect(page.getByTestId('fetch')).toHaveCount(0);
   await expect(empty.getByRole('button')).toHaveCount(3);
-  // Centred across, at about 38 % of the height (not dead centre).
+  // Centred across the view's content (a scrolling view keeps its scrollbar's room), at
+  // about 38 % of the height (not dead centre).
   const place = await empty.evaluate((node) => {
-    const view = node.closest('.view')!.getBoundingClientRect();
+    const scroller = node.closest('.view')!;
+    const view = scroller.getBoundingClientRect();
     const box = node.getBoundingClientRect();
     return {
-      across: Math.abs(box.left + box.width / 2 - (view.left + view.width / 2)),
+      across: Math.abs(box.left + box.width / 2 - (view.left + scroller.clientWidth / 2)),
       down: (box.top + box.height / 2 - view.top) / view.height,
     };
   });

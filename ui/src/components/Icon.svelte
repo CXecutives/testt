@@ -3,6 +3,7 @@
   bundle small), size from the tokens, colour inherited from the text.
 -->
 <script lang="ts" module>
+  import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import Ban from '@lucide/svelte/icons/ban';
   import Briefcase from '@lucide/svelte/icons/briefcase';
@@ -103,6 +104,8 @@
     'circle-half': Contrast,
     // The current step of a run (the header spinner is the one moving indicator).
     'circle-dot': CircleDot,
+    // A reason that jumps to its passage in the ad (shown on hover).
+    'arrow-down': ArrowDown,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

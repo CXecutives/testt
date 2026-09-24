@@ -222,7 +222,7 @@
   }
 
   .remove:hover {
-    background-color: var(--count-soft-hover);
+    background-color: var(--active-hover);
     transition-duration: var(--dur-hover);
   }
 

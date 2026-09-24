@@ -82,7 +82,12 @@
           describedby="gallery-address-message"
         />
       </Field>
-      <Field label={t.password} for="gallery-password" error={t.passwordError}>
+      <Field
+        label={t.password}
+        for="gallery-password"
+        error={t.passwordError}
+        action={{ label: t.createPassword, icon: 'external-link', onclick: () => undefined }}
+      >
         <TextField
           id="gallery-password"
           kind="password"
@@ -119,8 +124,15 @@
   </div>
 
   <div class="panel">
-    <SettingRow label={t.toggle} hint={t.toggleHint}>
-      <Toggle checked={autoFetch} label={t.toggle} onchange={(v) => (autoFetch = v)} />
+    <!-- A switch row like the system settings: a click on its text toggles the switch. -->
+    <SettingRow label={t.toggle} hint={t.toggleHint} for="gallery-auto-fetch">
+      <Toggle
+        id="gallery-auto-fetch"
+        checked={autoFetch}
+        label={t.toggle}
+        testid="gallery-row-toggle"
+        onchange={(v) => (autoFetch = v)}
+      />
     </SettingRow>
     <SettingRow label={t.locked} hint={t.lockedReason}>
       {#snippet badges()}<Badge tone="warning" label={t.risk} icon="shield" />{/snippet}
@@ -161,7 +173,9 @@
 
   .panel {
     max-width: var(--reader-width);
+    overflow: hidden;
     padding: 0 var(--space-24);
+    --row-inset: var(--space-24);
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
   }

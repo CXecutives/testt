@@ -1,8 +1,11 @@
 <!--
   A list row: leading, content, trailing, top-aligned, all rows of one fixed height (mail
   style: three lines of content). The one inner padding of the columns on the sides. Hover
-  tints the row (100 ms); the selected row keeps the selection wash and a coral bar on the
-  left. No other decoration.
+  washes the row (80 ms in, 150 ms out), a press darkens it (60 ms); rows never move or
+  scale. The selected row takes a very light warm wash (one step deeper under the pointer)
+  and a coral bar on the left that fades in (150 ms) and out (100 ms); a row created as
+  selected is simply there. While the window is inactive the selection
+  turns grey, as in Mail and Explorer. While the list scrolls rows take no hover.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -56,31 +59,63 @@
     border-bottom: var(--border-width) solid var(--border);
     background-color: transparent;
     text-align: left;
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition:
+      background-color var(--dur-base) var(--ease-standard),
+      opacity var(--dur-base) var(--ease-standard);
   }
 
   .row:hover {
     background-color: var(--surface-hover);
+    transition-duration: var(--dur-hover);
+  }
+
+  .row:active {
+    background-color: var(--surface-press);
+    transition-duration: var(--dur-instant);
   }
 
   .selected,
-  .selected:hover {
+  .selected:active {
     background-color: var(--surface-selected);
 
-    /* The ring's track would vanish on the selection wash. */
-    --ring-track: var(--border-strong);
+    /* The ring's track stays visible on the warm wash. */
+    --ring-track: var(--ring-track-selected);
   }
 
-  /* The selection bar on the left edge. */
-  .selected::before {
+  .selected:hover {
+    background-color: var(--surface-selected-hover);
+  }
+
+  /* The selection bar on the left edge: always there, shown by opacity (it never
+     changes shape). */
+  .row::before {
     position: absolute;
     top: var(--space-12);
     bottom: var(--space-12);
     left: 0;
     width: var(--row-bar);
     border-radius: var(--radius-full);
-    background-color: var(--accent);
+    background-color: var(--selection-bar);
     content: '';
+    opacity: 0;
+    transition:
+      opacity var(--dur-fast) var(--ease-in),
+      background-color var(--dur-base) var(--ease-standard);
+  }
+
+  .selected::before {
+    opacity: 1;
+    transition-duration: var(--dur-base);
+    transition-timing-function: var(--ease-out), var(--ease-standard);
+  }
+
+  /* Like Mail and Explorer: the selection greys out while the window is in the back. */
+  :global(:root[data-window='inactive']) .selected {
+    background-color: var(--surface-selected-inactive);
+  }
+
+  :global(:root[data-window='inactive']) .selected::before {
+    background-color: var(--text-subtle);
   }
 
   .row:focus-visible {
@@ -89,6 +124,16 @@
 
   .muted {
     opacity: var(--opacity-muted);
+  }
+
+  /* An excluded row brightens under the pointer: it invites reading, still grey. */
+  .muted:hover {
+    opacity: var(--opacity-muted-hover);
+  }
+
+  /* No hover while the list scrolls (input.ts); the scroller keeps its own events. */
+  :global(:root[data-scrolling]) .row {
+    pointer-events: none;
   }
 
   .leading,

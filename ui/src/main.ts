@@ -22,10 +22,11 @@ installErrorReporting();
 const target = document.getElementById('app');
 if (target === null) throw new Error('#app is missing in index.html');
 
+// `intro: false`: nothing animates at start (Svelte 5 would play every intro of the first
+// frame, the view entry included).
 if (__GALLERY__ && new URLSearchParams(location.search).has('gallery')) {
   const { default: Gallery } = await import('./features/gallery/Gallery.svelte');
-  mount(Gallery, { target });
+  mount(Gallery, { target, intro: false });
 } else {
-  // Nothing animates at start: the first view is simply there.
   mount(App, { target, intro: false });
 }

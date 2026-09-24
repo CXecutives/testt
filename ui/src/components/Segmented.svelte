@@ -1,6 +1,9 @@
 <!--
   Two or three equal-width options with an optional counter each. A white thumb slides
-  under the chosen option (translateX by whole option widths).
+  under the chosen option (translateX by whole option widths, 180 ms, emphasized); the
+  chosen label is ink and its count a soft warm pill, the others stay muted with a
+  plain count (same box, so nothing moves). An unchosen option washes on hover and darkens
+  while pressed. Counts roll when they change.
 -->
 <script lang="ts" module>
   export interface SegmentedOption<Id extends string = string> {
@@ -12,7 +15,8 @@
 
 <script lang="ts" generics="Id extends string">
   import { cssVars } from '$lib/actions/cssVars';
-  import { formatNumber } from '$lib/i18n/format';
+  import { settled } from '$lib/motion/settled.svelte';
+  import Count from './Count.svelte';
 
   interface Props {
     options: readonly SegmentedOption<Id>[];
@@ -25,6 +29,8 @@
 
   let { options, value, label, size = 'md', testid = null, onchange }: Props = $props();
 
+  const motion = settled();
+
   const index = $derived(
     Math.max(
       0,
@@ -35,6 +41,7 @@
 
 <div
   class="segmented {size}"
+  class:ready={motion.ready}
   role="radiogroup"
   aria-label={label}
   data-testid={testid ?? undefined}
@@ -42,16 +49,17 @@
 >
   <span class="thumb" aria-hidden="true"></span>
   {#each options as option (option.id)}
+    {@const chosen = option.id === value}
     <button
       type="button"
       role="radio"
       class="option"
-      aria-checked={option.id === value}
+      aria-checked={chosen}
       onclick={() => onchange(option.id)}
     >
       <span class="label">{option.label}</span>
       {#if option.count !== undefined && option.count !== null}
-        <span class="count">{formatNumber(option.count)}</span>
+        <Count value={option.count} tone={chosen ? 'soft' : 'plain'} />
       {/if}
     </button>
   {/each}
@@ -81,35 +89,65 @@
     background-color: var(--surface);
     box-shadow: var(--sh-thumb);
     transform: translateX(calc(var(--index) * 100%));
-    transition: transform var(--dur-base) var(--ease-out);
+    will-change: transform;
+  }
+
+  /* It slides only once the control has been drawn (never when it mounts). */
+  .ready .thumb {
+    transition: transform var(--dur-slow) var(--ease-emphasized);
   }
 
   .option {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-6);
+    gap: var(--space-4);
     padding: 0 var(--space-12);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
     font: var(--seg-type);
     font-weight: var(--weight-medium);
     white-space: nowrap;
-    transition: color var(--dur-fast) var(--ease-standard);
+    transition: color var(--dur-base) var(--ease-standard);
   }
 
-  .option:hover,
+  /* The hover wash of an unchosen option, inside its own box (the thumb stays below). */
+  .option::before {
+    position: absolute;
+    z-index: var(--z-below);
+    inset: 0;
+    border-radius: inherit;
+    background-color: var(--surface-hover);
+    content: '';
+    opacity: 0;
+    transition: opacity var(--dur-base) var(--ease-standard);
+  }
+
+  .option[aria-checked='false']:hover {
+    color: var(--text);
+    transition-duration: var(--dur-hover);
+  }
+
+  .option[aria-checked='false']:hover::before {
+    opacity: 1;
+    transition-duration: var(--dur-hover);
+  }
+
+  .option[aria-checked='false']:active::before {
+    background-color: var(--surface-press);
+  }
+
   .option[aria-checked='true'] {
+    color: var(--nav-active-fg);
+  }
+
+  :global(:root[data-window='inactive']) .option[aria-checked='true'] {
     color: var(--text);
   }
 
   .option:focus-visible {
     box-shadow: var(--focus-ring-inset);
-  }
-
-  .count {
-    color: var(--text-muted);
-    font-variant-numeric: var(--numeric);
   }
 
   .sm {

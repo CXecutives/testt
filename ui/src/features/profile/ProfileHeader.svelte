@@ -73,7 +73,7 @@
 <Card padding="md" testid="profile-file">
   <div class="head">
     <div class="file">
-      <IconTile icon="file-text" size="md" />
+      <IconTile tone="navy" icon="file-text" size="md" />
       <div class="facts">
         {#if stored && profile}
           <h2 class="name" data-testid="profile-name" data-copy>{profile.fileName}</h2>
