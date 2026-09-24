@@ -223,11 +223,16 @@ class ProfileEditor {
     this.pasting = false;
   }
 
-  /** An empty form for a new profile. */
+  /** An empty form for a new profile, with one empty competence and language row, so the
+   *  table and the star show at once. */
   create(): void {
     this.origin = 'new';
     this.before = emptyForm();
-    this.after = emptyForm();
+    this.after = {
+      ...emptyForm(),
+      competences: [{ name: '', years: null, aliases: [], origin: null }],
+      languages: [{ language: '', level: null, origin: null }],
+    };
     this.dateText = '';
     this.source = NEW_SOURCE;
     this.quality = null;
@@ -270,7 +275,7 @@ class ProfileEditor {
   /** Writes the form; the caller reloads the app state (and with it the stored form). */
   save(): Promise<ProfileInfo> {
     return invoke('save_profile', {
-      save: { before: this.before, after: copy(this.after), source: this.source },
+      save: { before: this.before, after: normalized(copy(this.after)), source: this.source },
     });
   }
 }

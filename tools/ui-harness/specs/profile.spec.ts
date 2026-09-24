@@ -85,7 +85,7 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   const english = page.getByTestId('language-row').nth(1);
   await expect(english.getByRole('button', { name: 'B2' })).toHaveAttribute('aria-pressed', 'true');
   await expect(
-    page.getByTestId('profile-remote').getByRole('button', { name: 'Überwiegend' }),
+    page.getByTestId('profile-remote').getByRole('button', { name: 'Überwiegend remote' }),
   ).toHaveAttribute('aria-pressed', 'true');
   const countries = page.getByTestId('profile-countries');
   await expect(countries.getByRole('button', { name: 'Deutschland' })).toHaveAttribute(
@@ -124,7 +124,7 @@ test('edit and save: both forms go to the backend, the change is confirmed', asy
   const keywords = page.getByTestId('profile-keywords').locator('input');
   await keywords.fill('Bilanzierung');
   await keywords.press('Enter');
-  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('1.11.2026');
   await save(page).click();
   await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
@@ -170,9 +170,41 @@ test('a focused field is never hidden under the save bar', async ({ page }) => {
   }
 });
 
+test('money is grouped like everywhere, number fields share one width', async ({ page }) => {
+  await profile(page);
+  const rate = page.getByTestId('profile-min-rate');
+  await expect(rate).toHaveValue('1.100');
+  // Typed plain, grouped again when the field is left.
+  await rate.fill('1250');
+  await expect(rate).toHaveValue('1250');
+  await page.getByTestId('profile-name-field').focus();
+  await expect(rate).toHaveValue('1.250');
+  await expect(page.getByTestId('profile-years')).toHaveValue('20');
+  const widths = await Promise.all(
+    ['profile-years', 'profile-wish-rate', 'profile-min-rate', 'profile-target-years'].map(
+      async (id) => (await page.getByTestId(id).boundingBox())!.width,
+    ),
+  );
+  expect(new Set(widths).size).toBe(1);
+});
+
+test('narrow, a language row keeps its levels under the name', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 600 });
+  await profile(page);
+  const row = page.getByTestId('language-row').first();
+  const name = await row.getByTestId('language-name').boundingBox();
+  const levels = await row.getByTestId('language-level').boundingBox();
+  expect(levels!.y).toBeGreaterThanOrEqual(name!.y + name!.height);
+  // The alias fields keep a word inside when the column header is gone.
+  await expect(page.getByTestId('competence-aliases').first().locator('input')).toHaveAttribute(
+    'placeholder',
+    'Auch genannt',
+  );
+});
+
 test('a wrong date is said at the field and nothing is saved', async ({ page }) => {
   await profile(page);
-  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('31.02.2026');
   await expect(page.getByTestId('profile-date-error')).toHaveText(
     'Datum im Format 01.11.2026 eingeben.',
@@ -218,17 +250,22 @@ test('leaving with changes can save first, then it leaves', async ({ page }) => 
   expect((await lastSave(page)).after.name).toBe('Erika Muster');
 });
 
-test('at most five Schwerpunkte: a sixth star is refused with one sentence', async ({ page }) => {
+test('at most five Schwerpunkte: a sixth star is disabled and says why', async ({ page }) => {
   await profile(page);
   const stars = page.getByTestId('competence-star');
+  await expect(page.getByTestId('focus-count')).toHaveText('Schwerpunkte 2 von 5');
   for (const index of [0, 3, 4]) await stars.nth(index).click();
   await expect(chips(page.getByTestId('focus'))).toHaveCount(5);
-  await stars.nth(5).click();
-  await expect(page.getByTestId('focus-full')).toHaveText('Höchstens fünf Schwerpunkte.');
+  await expect(page.getByTestId('focus-count')).toHaveText('Schwerpunkte 5 von 5');
+  // The sixth star is off, its tooltip says why right at the pointer.
+  await expect(stars.nth(5)).toHaveAttribute('aria-disabled', 'true');
+  await stars.nth(5).hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Höchstens fünf Schwerpunkte.');
+  await stars.nth(5).click({ force: true });
   await expect(stars.nth(5)).toHaveAttribute('aria-pressed', 'false');
   // Unstarring makes room; renaming a starred competence takes the Schwerpunkt along.
   await stars.nth(0).click();
-  await expect(page.getByTestId('focus-full')).toHaveCount(0);
+  await expect(stars.nth(5)).not.toHaveAttribute('aria-disabled', 'true');
   await page.getByTestId('competence-name').nth(1).fill('Konzerncontrolling');
   await expect(chips(page.getByTestId('focus')).first()).toHaveText('Konzerncontrolling');
 });
@@ -324,19 +361,32 @@ test('Enter goes through the rows and never saves; on an empty last row it moves
   expect(sent.after.languages.map((row) => row.language)).toContain('Spanisch');
 });
 
-test('the add buttons are buttons, the examples fit any field', async ({ page }) => {
+test('a new form starts with one row each; the add buttons are buttons', async ({ page }) => {
   await profile(page, 'no-profile');
   await page.getByTestId('profile-empty').getByRole('button', { name: 'Profil anlegen' }).click();
-  for (const id of ['competence-add', 'language-add']) {
-    await expect(page.getByTestId(id)).toHaveClass(/secondary/);
-    await expect(page.getByTestId(id).locator('svg')).toHaveCount(1);
-  }
-  await expect(page.getByTestId('profile-title')).toHaveAttribute('placeholder', 'Projektleitung');
-  await page.getByTestId('competence-add').click();
+  // One empty row each: the table and the star show at once, with neutral examples.
+  await expect(page.getByTestId('competence-name')).toHaveCount(1);
+  await expect(page.getByTestId('language-name')).toHaveCount(1);
   await expect(page.getByTestId('competence-name')).toHaveAttribute(
     'placeholder',
     'Projektmanagement',
   );
+  await expect(page.getByTestId('competence-aliases').locator('input')).toHaveAttribute(
+    'placeholder',
+    'Auch genannt',
+  );
+  await expect(page.getByTestId('profile-title')).toHaveAttribute('placeholder', 'Projektleitung');
+  for (const id of ['competence-add', 'language-add']) {
+    await expect(page.getByTestId(id)).toHaveClass(/secondary/);
+    await expect(page.getByTestId(id).locator('svg')).toHaveCount(1);
+  }
+  // Without rows the add button starts at the edge of the card, not indented.
+  await page.getByTestId('competence-remove').click();
+  const [add, list] = [
+    await page.getByTestId('competence-add').boundingBox(),
+    await page.getByTestId('competences').boundingBox(),
+  ];
+  expect(Math.abs(add!.x - list!.x)).toBeLessThanOrEqual(1);
   // The other two ways in stay at hand in a new form.
   await expect(page.getByTestId('profile-from-cv')).toBeVisible();
   await expect(page.getByTestId('profile-pick')).toBeVisible();
@@ -362,13 +412,11 @@ test('create from the empty form and save', async ({ page }) => {
   await expect(page.getByTestId('profile-file')).toContainText('Noch nicht gespeichert');
   await expect(save(page)).toHaveAttribute('aria-disabled', 'true');
   await page.getByTestId('profile-name-field').fill('Erika Beispiel');
+  await page.getByTestId('competence-name').fill('Controlling');
+  await page.getByTestId('competence-years').fill('18');
+  // An added row takes the caret; an empty one is not saved.
   await page.getByTestId('competence-add').click();
-  // The new row takes the caret.
-  const name = page.getByTestId('competence-name').last();
-  await expect(name).toBeFocused();
-  await name.fill('Controlling');
-  await page.getByTestId('competence-years').last().fill('18');
-  await page.getByTestId('language-add').click();
+  await expect(page.getByTestId('competence-name').last()).toBeFocused();
   await page.getByTestId('language-name').last().fill('Englisch');
   await page.getByTestId('language-row').last().getByRole('button', { name: 'C1' }).click();
   await save(page).click();

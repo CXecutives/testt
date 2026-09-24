@@ -11,13 +11,12 @@
   import ChipInput from '$components/ChipInput.svelte';
   import Field from '$components/Field.svelte';
   import Notice from '$components/Notice.svelte';
-  import Segmented from '$components/Segmented.svelte';
   import SettingRow from '$components/SettingRow.svelte';
   import TextField from '$components/TextField.svelte';
   import Toggle from '$components/Toggle.svelte';
   import { t } from '$lib/i18n/t';
   import { formKeys } from '$lib/input/input';
-  import type { ProfileAvailability, ProfileQuality, RemoteWish } from '$lib/ipc/types';
+  import type { ProfileQuality, RemoteWish } from '$lib/ipc/types';
   import { primaryFirst } from '$lib/platform';
   import { editor, isoDate, type UnreadableField } from '$lib/state/profile.svelte';
   import ChoiceButtons from './ChoiceButtons.svelte';
@@ -41,7 +40,6 @@
   }
 
   let { quality, busy, note, result, unreadable, onsave, ondiscard }: Props = $props();
-
 
   const words = $derived(t.profile.field);
   const id = $props.id();
@@ -88,18 +86,22 @@
       label: t.profile.remoteWish[wish],
     })),
   );
-  const AVAILABLE = $derived<{ id: ProfileAvailability['kind']; label: string }[]>(
-    (['unset', 'now', 'from'] as const).map((kind) => ({
+  const AVAILABLE = $derived<{ id: 'now' | 'from'; label: string }[]>(
+    (['now', 'from'] as const).map((kind) => ({
       id: kind,
       label: t.profile.availability[kind],
     })),
   );
 
-  function setAvailable(kind: ProfileAvailability['kind']): void {
+  /** Nothing chosen is no availability; pressing the chosen one again clears it. */
+  function setAvailable(chosen: string[]): void {
+    const kind = chosen[0];
     c.available =
       kind === 'from'
         ? { kind, date: isoDate(editor.dateText) ?? editor.dateText.trim() }
-        : { kind };
+        : kind === 'now'
+          ? { kind }
+          : { kind: 'unset' };
   }
 
   function setDate(text: string): void {
@@ -171,14 +173,6 @@
         />
       </Field>
     </div>
-    <Field label={words.roles} for="{id}-roles">
-      <ChipInput
-        id="{id}-roles"
-        bind:values={form.roles}
-        placeholder={words.rolesPlaceholder}
-        testid="profile-roles"
-      />
-    </Field>
   </ProfileSection>
 
   <ProfileSection
@@ -212,11 +206,9 @@
     empty={thin && empty(form.years, form.degrees, form.industries)}
     testid="section-experience"
   >
-    <div class="pair">
-      <Field label={words.totalYears} for="{id}-years">
-        <NumberField id="{id}-years" bind:value={form.years} testid="profile-years" />
-      </Field>
-    </div>
+    <Field label={words.totalYears} for="{id}-years">
+      <NumberField id="{id}-years" bind:value={form.years} testid="profile-years" />
+    </Field>
     <Field label={words.degrees} for="{id}-degrees">
       <ChipInput
         id="{id}-degrees"
@@ -271,15 +263,22 @@
     hint={t.profile.sectionHint.wishes}
     testid="section-wishes"
   >
-    <div class="pair">
-      <Field label={words.wishRate} for="{id}-wish-rate">
-        <NumberField
-          id="{id}-wish-rate"
-          bind:value={form.wishes.dayRate}
-          testid="profile-wish-rate"
-        />
-      </Field>
-    </div>
+    <Field label={words.roles} for="{id}-roles">
+      <ChipInput
+        id="{id}-roles"
+        bind:values={form.roles}
+        placeholder={words.rolesPlaceholder}
+        testid="profile-roles"
+      />
+    </Field>
+    <Field label={words.wishRate} for="{id}-wish-rate">
+      <NumberField
+        id="{id}-wish-rate"
+        money
+        bind:value={form.wishes.dayRate}
+        testid="profile-wish-rate"
+      />
+    </Field>
     <div class="block">
       <span class="label">{words.remote}</span>
       <ChoiceButtons
@@ -316,7 +315,7 @@
   >
     <div class="pair">
       <Field label={words.minDayRate} for="{id}-min-rate">
-        <NumberField id="{id}-min-rate" bind:value={c.minDayRate} testid="profile-min-rate" />
+        <NumberField id="{id}-min-rate" money bind:value={c.minDayRate} testid="profile-min-rate" />
       </Field>
       <Field
         label={words.targetYears}
@@ -346,11 +345,10 @@
     <div class="block">
       <span class="label">{words.available}</span>
       <div class="available">
-        <Segmented
+        <ChoiceButtons
           options={AVAILABLE}
-          value={c.available.kind}
+          selected={c.available.kind === 'unset' ? [] : [c.available.kind]}
           label={words.available}
-          size="sm"
           testid="profile-available"
           onchange={setAvailable}
         />
@@ -380,11 +378,7 @@
       {/if}
     </div>
     <div class="toggles">
-      <SettingRow
-        label={words.remoteOutside}
-        hint={words.remoteOutsideHint}
-        for="{id}-remote-outside"
-      >
+      <SettingRow label={words.remoteOutside} for="{id}-remote-outside">
         <Toggle
           id="{id}-remote-outside"
           checked={c.remoteOutside}
@@ -406,7 +400,7 @@
     <h3 class="sub">{t.profile.section.permanent}</h3>
     <div class="pair">
       <Field label={words.minSalary} for="{id}-salary" error={unread.minSalary}>
-        <NumberField id="{id}-salary" bind:value={c.minSalary} testid="profile-min-salary" />
+        <NumberField id="{id}-salary" money bind:value={c.minSalary} testid="profile-min-salary" />
       </Field>
       <Field
         label={words.remoteMin}
@@ -519,11 +513,12 @@
     border-bottom: var(--border-width) solid var(--border);
   }
 
+  /* Festanstellung: its own group below the switches' hairline, a real subheading. */
   .sub {
     padding-top: var(--space-4);
-    color: var(--text-label);
-    font: var(--type-sm);
-    font-weight: var(--weight-medium);
+    color: var(--text-heading);
+    font: var(--type-md);
+    font-weight: var(--weight-semibold);
   }
 
   /* The save bar stays in view at the bottom of the scrolling view. */
