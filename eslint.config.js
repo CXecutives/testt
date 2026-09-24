@@ -146,6 +146,8 @@ export default ts.config(
   {
     ignores: [
       'ui/dist/**',
+      // Generated IPC types (ts-rs, contract.rs): not linted, not formatted.
+      'ui/src/lib/ipc/types/**',
       'node_modules/**',
       'target/**',
       'test-results/**',

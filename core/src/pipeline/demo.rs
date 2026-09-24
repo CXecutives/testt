@@ -1,19 +1,22 @@
-//! Trockenlauf: ein Postfach und Portale zum Anschauen – ohne Netz, ohne Konto. Der Lauf
-//! verhält sich wie ein echter (Tempo, Ereignisse, Zusammenfassung), schreibt aber nichts:
-//! Datenbank und Sicherheitsstand liegen dann nur im Arbeitsspeicher.
+//! Dry run: a mailbox and portals to look at - without network, without an account. The run
+//! behaves like a real one (pace, events, summary) but writes nothing: database and safety
+//! state then only live in memory. The sample mails are German like real alert mails.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use jiff::civil::Date;
 use tokio_util::sync::CancellationToken;
 
-use super::Backends;
+use super::{Backends, Matcher};
 use crate::fetch::{PageFetcher, PageOutcome, Route};
 use crate::mail::RawMail;
 use crate::mail::imap::{MailError, MailSource};
+use crate::model::{MatchRecord, MatchStatus, Notice};
 use crate::portal::{JobLink, Portal};
+use crate::store::JobRow;
 
-/// Beispiel-Alerts je Portal (erfundene Firmen).
+/// Sample alerts per portal (invented companies).
 const MAILS: [(Portal, &str, &str, &str); 3] = [
     (
         Portal::LinkedIn,
@@ -54,6 +57,47 @@ impl Backends for DemoBackends {
     fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
         Ok(DemoPages)
     }
+
+    fn matcher(&self) -> Option<Arc<dyn Matcher>> {
+        Some(Arc::new(DemoMatcher))
+    }
+}
+
+/// Scores to look at: one job of each band, one excluded, one without a judgement basis.
+pub struct DemoMatcher;
+
+impl Matcher for DemoMatcher {
+    fn rev(&self) -> &'static str {
+        "demo"
+    }
+
+    fn assess(&self, job: &JobRow, _text: Option<&str>) -> Option<MatchRecord> {
+        let (status, score, note) = match job.key.id.as_str() {
+            "4999000001" => (MatchStatus::Scored, 88, None),
+            "4999000002" => (MatchStatus::Scored, 62, None),
+            "2999001" => (MatchStatus::Scored, 24, None),
+            "2999002" => (
+                MatchStatus::Excluded,
+                71,
+                Some(Notice {
+                    code: "hardCriterion".into(),
+                    params: serde_json::Map::from_iter([("criterion".into(), "dayRate".into())]),
+                }),
+            ),
+            _ => (MatchStatus::Unscorable, 0, None),
+        };
+        Some(MatchRecord {
+            status,
+            score,
+            note,
+            must_met: 2,
+            must_total: 3,
+            top: vec![
+                "Projektleitung".into(),
+                "Abstimmung mit Fachbereichen".into(),
+            ],
+        })
+    }
 }
 
 pub struct DemoMail {
@@ -73,7 +117,7 @@ impl MailSource for DemoMail {
 
     async fn fetch(&mut self, uids: &[u32]) -> Result<Vec<RawMail>, MailError> {
         pause(Duration::from_millis(300), &self.cancel).await?;
-        // Heutiges Datum: Die Beispiel-Jobs liegen immer im 30-Tage-Fenster des Abrufs.
+        // Today's date: the sample jobs always lie within the 30-day window of the fetch.
         let date = jiff::Timestamp::now().strftime("%a, %d %b %Y %H:%M:%S +0000");
         Ok(uids
             .iter()
@@ -93,9 +137,8 @@ impl MailSource for DemoMail {
     }
 }
 
-/// Seiten zum Anschauen. Zwischen den Abrufen gilt das echte Tempo (Wartezeiten mit
-/// Countdown); freelance.de antwortet mit einer Drosselung, damit auch ein Portalstopp zu
-/// sehen ist.
+/// Pages to look at. Between the requests the real pace applies (waits with a countdown);
+/// freelance.de answers with a throttle, so that a portal stop can be seen too.
 pub struct DemoPages;
 
 impl PageFetcher for DemoPages {
@@ -109,7 +152,7 @@ impl PageFetcher for DemoPages {
             return PageOutcome::Cancelled;
         }
         if link.key.portal == Portal::FreelanceDe {
-            return PageOutcome::Throttled("Beispiel im Trockenlauf: zu viele Anfragen".into());
+            return PageOutcome::Throttled("dry run sample: too many requests".into());
         }
         PageOutcome::Text {
             text: format!(

@@ -12,17 +12,21 @@
         "label": "main",
         "create": false,
         "title": "Job-Alert-Monitor",
-        "width": 1280,
-        "height": 860,
-        "minWidth": 760,
-        "minHeight": 520,
+        "width": 1360,
+        "height": 900,
+        "minWidth": 780,
+        "minHeight": 560,
         "center": true,
         "preventOverflow": true,
+        "visible": false,
+        "theme": "Light",
+        "backgroundColor": "#F8F5F1",
+        "dragDropEnabled": true,
         "decorations": false
       }
     ],
     "security": {
-      "freezePrototype": false,
+      "freezePrototype": true,
       "csp": {
         "default-src": "'self'",
         "script-src": "'self'",

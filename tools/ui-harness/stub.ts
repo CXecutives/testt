@@ -1,6 +1,7 @@
 // Typed stand-in for @tauri-apps/api in the harness build (`vite build --mode harness`
-// aliases every `@tauri-apps/api/*` import to this file). It answers every IPC v3 command
-// with fixed sample data, records the calls and lets a test push run events:
+// aliases every `@tauri-apps/api/*` import to this file). It answers every IPC command
+// (typed by the generated `Commands` map) with fixed sample data, records the calls and
+// lets a test push run events:
 //
 //   window.__harness.calls          [command, args][]
 //   window.__harness.emit(event)    deliver a RunEvent on every open channel
@@ -9,9 +10,7 @@
 
 import type {
   AppState,
-  CommandArgs,
-  CommandName,
-  CommandResult,
+  Commands,
   JobDetail,
   JobView,
   ProfileInfo,
@@ -41,12 +40,7 @@ export class Channel<T = unknown> {
 
 const NOW = '2026-09-24T09:30:00+02:00';
 
-const job = (
-  id: string,
-  title: string,
-  score: number | null,
-  extra: Partial<JobView> = {},
-): JobView => ({
+const job = (id: string, title: string, score: number | null): JobView => ({
   key: { portal: 'freelancermap', id },
   portal: 'freelancermap',
   title,
@@ -57,7 +51,8 @@ const job = (
   firstSeenAt: NOW,
   unread: true,
   pinned: false,
-  detail: 'ok',
+  detail: { kind: 'ok' },
+  short: false,
   match:
     score === null
       ? null
@@ -68,10 +63,9 @@ const job = (
           note: null,
           mustMet: 3,
           mustTotal: 4,
-          top: [],
+          top: ['Controlling im Mittelstand'],
         },
   alsoOn: [],
-  ...extra,
 });
 
 const JOBS: JobView[] = [
@@ -88,20 +82,28 @@ const PROFILE: ProfileInfo = {
   understood: { competenceCount: 42, competences: [], sources: [], criteria: [], warnings: [] },
   scoredAt: NOW,
   pending: 0,
+  parseError: null,
 };
+
+const COUNTS = { new: 3, all: 3, excluded: 0, high: 1, noDetail: 0 };
 
 const APP_STATE: AppState = {
   platform: 'windows',
   dryRun: true,
   firstRun: false,
-  running: false,
-  settings: { workspace: null, autoFetchOnStart: true },
-  mailbox: { address: 'alerts@example.com', connected: true, lastScanAt: NOW },
+  running: null,
+  settings: {
+    workspace: 'C:/Users/demo/Jobs',
+    workspaceIsDefault: true,
+    txtFiles: 3,
+    excelExists: true,
+  },
+  mailbox: { user: 'alerts@example.com', vault: 'windowsCredentialManager', error: null },
   profile: PROFILE,
   portals: [],
   autoFetchOnStart: true,
   lastRun: null,
-  counts: { new: 3, all: 3, excluded: 0, high: 1, noDetail: 0 },
+  counts: COUNTS,
   topMatches: JOBS.slice(0, 1),
   matchPending: 0,
   dataDir: 'C:/data',
@@ -109,13 +111,14 @@ const APP_STATE: AppState = {
   resetReport: null,
 };
 
-type Handlers = { [K in CommandName]: (args: CommandArgs<K>) => CommandResult<K> };
+type Args<K extends keyof Commands> = Omit<Commands[K]['args'], 'channel'>;
+type Handlers = { [K in keyof Commands]: (args: Args<K>) => Commands[K]['result'] };
 
 const handlers: Handlers = {
   app_state: () => APP_STATE,
   start_run: () => null,
   cancel_run: () => null,
-  list_jobs: () => ({ jobs: JOBS, counts: APP_STATE.counts }),
+  list_jobs: () => ({ jobs: JOBS, counts: COUNTS }),
   job_detail: ({ key }): JobDetail => ({
     job: JOBS.find((j) => j.key.id === key.id) ?? JOBS[0]!,
     text: null,
@@ -129,13 +132,20 @@ const handlers: Handlers = {
   pick_profile: () => PROFILE,
   remove_profile: () => true,
   save_profile_template: () => null,
-  save_mailbox: ({ address }) => ({ address, connected: true, lastScanAt: null }),
+  save_mailbox: ({ user }) => ({ user, vault: 'windowsCredentialManager', error: null }),
   remove_mailbox: () => true,
   portal_login: () => true,
   portal_logout: () => true,
   pick_workspace: () => null,
-  rewrite_txt: () => ({ txtWritten: 3, txtFailed: 0 }),
-  clear_txt: () => 3,
+  rewrite_txt: () => ({
+    overviewXlsx: null,
+    overviewHtml: null,
+    backup: null,
+    txtWritten: 3,
+    txtFailed: 0,
+    error: null,
+  }),
+  clear_txt: () => ({ removed: 3, failed: [] }),
   open_target: () => null,
   save_settings: () => APP_STATE,
   reset_all: () => null,
@@ -155,8 +165,8 @@ window.__harness = harness;
 export async function invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   harness.calls.push([command, args]);
   if (args.channel instanceof Channel) channels.add(args.channel as Channel<RunEvent>);
-  const handler = handlers[command as CommandName] as ((a: unknown) => unknown) | undefined;
-  if (handler === undefined) throw { kind: 'unknownCommand', params: { command } };
+  const handler = handlers[command as keyof Commands] as ((a: unknown) => unknown) | undefined;
+  if (handler === undefined) throw { kind: 'internal', params: { command } };
   return handler(args) as T;
 }
 

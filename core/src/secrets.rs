@@ -1,26 +1,38 @@
-//! Gmail-Zugang im Schlüsselspeicher des Systems (unter Windows die
-//! Anmeldeinformationsverwaltung, sonst der Schlüsselbund). Die App speichert
-//! **nur** diesen einen Zugang – LinkedIn und freelancermap brauchen kein Konto, und die
-//! freelance.de-Anmeldung lebt allein im Profil des Sitzungsfensters.
+//! Gmail credentials in the system keychain (the Credential Manager on Windows, the
+//! keychain elsewhere). The app stores **only** this one credential - LinkedIn and
+//! freelancermap need no account, and the freelance.de login lives solely in the
+//! session window's profile.
 
+use crate::error::{ErrorKind, InvalidInput};
 use crate::mail::imap::Credentials;
 
-/// Dienstname im Schlüsselspeicher.
+/// Service name in the keychain.
 pub(crate) const SERVICE: &str = "de.cxecutives.job-alert-monitor";
 const GMAIL: &str = "gmail";
 
 #[derive(Debug, thiserror::Error)]
 pub enum SecretError {
-    #[error("Der Schlüsselspeicher dieses Rechners ist nicht erreichbar: {0}")]
+    #[error("cannot access the system keychain: {0}")]
     Store(String),
-    /// Nie still überschreiben: Der Nutzer entscheidet, ob neu eingegeben wird.
-    #[error("Der gespeicherte Gmail-Zugang ist unlesbar – bitte neu eingeben.")]
+    /// Never overwrite silently: the user decides whether to enter it again.
+    #[error("stored Gmail credentials are unreadable")]
     Corrupt,
-    #[error("{0}")]
-    Invalid(&'static str),
+    #[error("invalid credentials: {0}")]
+    Invalid(InvalidInput),
 }
 
-/// Ein Eintrag im Schlüsselspeicher; Tests nutzen einen eigenen Dienstnamen.
+impl SecretError {
+    /// Stable error code for the interface.
+    pub fn kind(&self) -> ErrorKind {
+        match self {
+            SecretError::Store(_) => ErrorKind::SecretStore,
+            SecretError::Corrupt => ErrorKind::SecretCorrupt,
+            SecretError::Invalid(_) => ErrorKind::Invalid,
+        }
+    }
+}
+
+/// One entry in the keychain; tests use their own service name.
 pub struct Vault {
     service: String,
 }
@@ -32,7 +44,7 @@ impl Vault {
         }
     }
 
-    /// Eigener Eintrag nur für Tests – ein Test darf den Zugang der App nie berühren.
+    /// Separate entry for tests only - a test must never touch the app's credentials.
     #[cfg(test)]
     pub(crate) fn for_tests(name: &str) -> Vault {
         Vault {
@@ -44,7 +56,7 @@ impl Vault {
         keyring::Entry::new(&self.service, GMAIL).map_err(|e| SecretError::Store(e.to_string()))
     }
 
-    /// Gespeicherter Zugang; `None`, wenn keiner hinterlegt ist.
+    /// The stored credentials; `None` if none are stored.
     pub fn load_gmail(&self) -> Result<Option<Credentials>, SecretError> {
         let secret = match self.entry()?.get_password() {
             Ok(secret) => secret,
@@ -59,23 +71,19 @@ impl Vault {
         }
     }
 
-    /// Prüft und speichert. Ein App-Passwort sind 16 Buchstaben (Google zeigt sie in
-    /// Vierergruppen) – so fällt das versehentlich eingegebene Konto-Passwort sofort auf.
+    /// Validates and stores. An app password is 16 letters (Google shows them in groups
+    /// of four) - so an account password entered by mistake is caught right away.
     pub fn save_gmail(&self, credentials: &Credentials) -> Result<(), SecretError> {
         let user = &credentials.user;
         let valid_user = user
             .split_once('@')
             .is_some_and(|(name, domain)| !name.is_empty() && domain.contains('.'));
         if !valid_user {
-            return Err(SecretError::Invalid(
-                "Bitte eine vollständige Gmail-Adresse eingeben.",
-            ));
+            return Err(SecretError::Invalid(InvalidInput::MailAddress));
         }
         let password = credentials.password();
         if password.chars().count() != 16 || !password.chars().all(|c| c.is_ascii_alphabetic()) {
-            return Err(SecretError::Invalid(
-                "Ein App-Passwort hat genau 16 Buchstaben (nicht das normale Google-Passwort).",
-            ));
+            return Err(SecretError::Invalid(InvalidInput::AppPassword));
         }
         let secret = serde_json::json!({ "user": user, "password": password }).to_string();
         self.entry()?
@@ -83,7 +91,7 @@ impl Vault {
             .map_err(|e| SecretError::Store(e.to_string()))
     }
 
-    /// Entfernt den Zugang; `false`, wenn keiner da war.
+    /// Removes the credentials; `false` if there were none.
     pub fn delete_gmail(&self) -> Result<bool, SecretError> {
         match self.entry()?.delete_credential() {
             Ok(()) => Ok(true),
@@ -97,7 +105,7 @@ impl Vault {
 mod tests {
     use super::*;
 
-    /// Echter Schlüsselspeicher mit eigenem Testdienst und Attrappen-Werten.
+    /// Real keychain with a dedicated test service and dummy values.
     #[cfg(windows)]
     #[test]
     fn round_trip_in_the_vault() {
@@ -120,11 +128,11 @@ mod tests {
     #[test]
     fn obviously_wrong_input_is_refused_before_storing() {
         let vault = Vault {
-            service: "nie-benutzt".into(),
+            service: "never-used".into(),
         };
         for (user, password) in [
-            ("ohne-at", "abcdefghijklmnop"),
-            ("ich@gmail.com", "MeinKontoPasswort1!"),
+            ("no-at-sign", "abcdefghijklmnop"),
+            ("ich@gmail.com", "MyAccountPassword1!"),
             ("ich@gmail.com", "abcd efgh ijkl"),
         ] {
             assert!(matches!(

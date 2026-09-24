@@ -1,103 +1,38 @@
-//! Das Gedächtnis der App: eine SQLite-Datei, die einzige Wahrheit über Jobs, Mails und
-//! Jobdetails. Excel, CSV und TXT werden daraus erzeugt – nie umgekehrt.
-//!
-//! Eine Verbindung hinter einem Mutex; jede Methode ist kurz und synchron (der Aufrufer
-//! hält die Sperre nie über ein `await`).
-
-use std::path::Path;
-use std::sync::{Mutex, MutexGuard};
+//! Jobs, alert mails, job details and text files: the types the rest of the app sees and
+//! every query on the `job` and `alert_mail` tables.
 
 use jiff::{SignedDuration, Timestamp};
-use rusqlite::{Connection, OptionalExtension, Row, Transaction, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, Row, params};
 use url::Url;
 
+use super::{Store, bump};
 use crate::error::{Error, Result};
 use crate::model::{
-    AlertMail, DescStatus, MAX_FIELD_CHARS, MAX_TITLE_CHARS, Posting, is_usable_title,
+    AlertMail, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord, Posting,
+    is_usable_title,
 };
 use crate::portal::{JobKey, Portal};
 use crate::text::{one_line, page_location, split_company_location, truncate_chars};
 use crate::time::{from_db, to_db};
 
-/// Nach so vielen erfolglosen Versuchen gilt ein Job als nicht abrufbar.
+/// After this many failed attempts a job counts as unfetchable.
 const MAX_FETCH_ATTEMPTS: i64 = 3;
-/// Höchstlänge eines gespeicherten Fehlergrunds (in Zeichen).
+/// Maximum length of a stored failure reason (in characters).
 const MAX_ERROR_CHARS: usize = 200;
 
-const SCHEMA_VERSION: i64 = 2;
-
-/// Von Schema 1 auf 2: `alert_mail` hat zwei nie benutzte Spalten verloren. Die Tabelle ist
-/// nur ein Gedächtnis für „Mail ohne erkannte Einträge“ und baut sich beim nächsten Abruf
-/// neu auf – deshalb genügt Neuanlegen statt Umkopieren.
-const MIGRATE_1_TO_2: &str = "
-DROP TABLE alert_mail;
-CREATE TABLE alert_mail (
-    mail_key       TEXT    PRIMARY KEY,
-    portal         TEXT    NOT NULL,
-    subject        TEXT    NOT NULL,
-    mail_date      INTEGER,
-    gmail_id       TEXT,
-    n_postings     INTEGER NOT NULL,
-    last_seen_run  INTEGER NOT NULL
-) WITHOUT ROWID;
-";
-
-const SCHEMA: &str = "
-CREATE TABLE job (
-    portal            TEXT    NOT NULL,
-    job_id            TEXT    NOT NULL,
-    url               TEXT    NOT NULL,
-    title             TEXT    NOT NULL,
-    company           TEXT    NOT NULL,
-    location          TEXT    NOT NULL,
-    mail_date         INTEGER,
-    mail_subject      TEXT    NOT NULL,
-    gmail_id          TEXT,
-    first_seen_at     INTEGER NOT NULL,
-    first_seen_run    INTEGER NOT NULL,
-    last_seen_run     INTEGER NOT NULL,
-    desc_status       TEXT    NOT NULL DEFAULT 'missing',
-    desc_short        INTEGER NOT NULL DEFAULT 0,
-    desc_closed       INTEGER NOT NULL DEFAULT 0,
-    desc_text         TEXT,
-    desc_fetched_at   INTEGER,
-    desc_attempted_at INTEGER,
-    desc_attempts     INTEGER NOT NULL DEFAULT 0,
-    desc_error        TEXT,
-    txt_name          TEXT,
-    txt_written_at    INTEGER,
-    search            TEXT    NOT NULL,
-    PRIMARY KEY (portal, job_id)
-) WITHOUT ROWID;
-CREATE INDEX job_by_run ON job (first_seen_run);
-CREATE TABLE alert_mail (
-    mail_key       TEXT    PRIMARY KEY,
-    portal         TEXT    NOT NULL,
-    subject        TEXT    NOT NULL,
-    mail_date      INTEGER,
-    gmail_id       TEXT,
-    n_postings     INTEGER NOT NULL,
-    last_seen_run  INTEGER NOT NULL
-) WITHOUT ROWID;
-CREATE TABLE kv (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-) WITHOUT ROWID;
-";
-
-/// Wie ein Eintrag im laufenden Scan einzuordnen ist.
+/// How an entry is classified in the current scan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Seen {
-    /// Zum ersten Mal gesehen.
+    /// Seen for the first time.
     New,
-    /// Schon aus einem früheren Lauf bekannt.
+    /// Already known from an earlier run.
     KnownBefore,
-    /// In diesem Lauf schon einmal vorgekommen (derselbe Job in zwei Alert-Mails).
+    /// Already seen in this run (the same job in two alert mails).
     DupInRun,
 }
 
-/// Ein Job, wie ihn Oberfläche und Export sehen (ohne Volltext).
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A job as the UI and the exports see it (without the full text).
+#[derive(Debug, Clone, PartialEq)]
 pub struct JobRow {
     pub key: JobKey,
     pub url: Url,
@@ -117,19 +52,55 @@ pub struct JobRow {
     pub desc_attempts: i64,
     pub desc_error: Option<String>,
     pub txt_name: Option<String>,
+    /// Last fetch attempt (success or failure).
+    pub desc_attempted_at: Option<Timestamp>,
+    /// `None` = unread.
+    pub read_at: Option<Timestamp>,
+    pub pinned_at: Option<Timestamp>,
+    /// `None` = not scored yet.
+    pub match_: Option<MatchRecord>,
+    /// Who scored it; `None` = to be scored (again).
+    pub match_rev: Option<String>,
 }
 
-/// Jobs eines Portals mit einem bestimmten Jobdetails-Stand.
+/// One page of the job list. The facet only narrows the page; the counts cover the
+/// search, whatever the facet.
+#[derive(Debug, Clone, Default)]
+pub struct PageQuery {
+    /// "New" = unread and not excluded.
+    pub only_new: bool,
+    /// Best match first; otherwise newest first. Excluded jobs come last either way.
+    pub by_match: bool,
+    /// Search term in title, company, location and full text (case-insensitive).
+    pub search: Option<String>,
+    pub limit: u32,
+    pub offset: u32,
+}
+
+/// Counts that belong to a page of the job list.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PageCounts {
+    /// Unread and not excluded.
+    pub new: u32,
+    pub all: u32,
+    pub excluded: u32,
+    /// Scored in the high band.
+    pub high: u32,
+    /// Jobs without a full text.
+    pub no_detail: u32,
+}
+
+/// Jobs of one portal with a given job details state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PortalCount {
     pub portal: Portal,
     pub status: DescStatus,
     pub count: i64,
-    /// Davon mit kurzem Text.
+    /// Of these, the ones with a short text.
     pub short: i64,
 }
 
-/// Eine Alert-Mail ohne erkannte Einträge.
+/// An alert mail without recognised entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AlertMailRow {
     pub portal: Portal,
@@ -138,16 +109,16 @@ pub struct AlertMailRow {
     pub gmail_id: Option<u64>,
 }
 
-/// Auswahl für Liste und Export.
+/// Selection for the list and the export.
 #[derive(Debug, Clone, Default)]
 pub struct JobFilter {
-    /// Nur Jobs, die in diesem Lauf zum ersten Mal gesehen wurden.
+    /// Only jobs seen for the first time in this run.
     pub first_seen_run: Option<i64>,
-    /// Suchbegriff in Titel, Firma, Ort und Volltext (Groß/klein egal).
+    /// Search term in title, company, location and full text (case-insensitive).
     pub search: Option<String>,
 }
 
-/// Mail-Angaben, die ein Job bei seiner ersten Sichtung übernimmt.
+/// Mail details a job takes over when it is first seen.
 #[derive(Debug, Clone, Copy)]
 pub struct MailRef<'a> {
     pub subject: &'a str,
@@ -165,94 +136,10 @@ impl<'a> From<&'a AlertMail> for MailRef<'a> {
     }
 }
 
-pub struct Store {
-    conn: Mutex<Connection>,
-}
-
 impl Store {
-    /// Öffnet (oder erzeugt) die Datenbank und bringt das Schema auf den Stand.
-    pub fn open(path: &Path) -> Result<Store> {
-        if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir).map_err(|e| Error::io(dir, e))?;
-        }
-        Self::init(Connection::open(path)?)
-    }
+    // ------------------------------------------------------------------ Intake
 
-    /// Datenbank nur im Arbeitsspeicher (Trockenlauf, Tests).
-    pub fn in_memory() -> Result<Store> {
-        Self::init(Connection::open_in_memory()?)
-    }
-
-    fn init(conn: Connection) -> Result<Store> {
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
-        let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        match version {
-            // Schema und Versionsnummer in einer Transaktion: Ein Absturz dazwischen
-            // hinterließe sonst Tabellen mit Version 0, und jeder weitere Start scheiterte.
-            0 => conn.execute_batch(&format!(
-                "BEGIN IMMEDIATE; {SCHEMA} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
-            ))?,
-            // Ältere Datenbank: Schritt für Schritt hochziehen, jeder Schritt in einer Transaktion.
-            1 => conn.execute_batch(&format!(
-                "BEGIN IMMEDIATE; {MIGRATE_1_TO_2} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
-            ))?,
-            SCHEMA_VERSION => {}
-            newer => return Err(Error::NewerSchema(newer)),
-        }
-        Ok(Store {
-            conn: Mutex::new(conn),
-        })
-    }
-
-    fn conn(&self) -> MutexGuard<'_, Connection> {
-        // Eine Panik in einem anderen Aufrufer lässt die Verbindung intakt (SQLite rollt
-        // offene Transaktionen selbst zurück) – deshalb die Vergiftung ignorieren.
-        self.conn
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
-
-    /// Mehrere Anweisungen als **eine** Änderung: ganz oder gar nicht – ein Absturz
-    /// dazwischen hinterließe sonst etwa einen Volltext ohne Suchspalte oder ohne neuen
-    /// Änderungszähler – und ein Schreibvorgang auf die Platte statt mehrerer.
-    fn write<T>(&self, work: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
-        let conn = self.conn();
-        let tx = Transaction::new_unchecked(&conn, TransactionBehavior::Immediate)?;
-        let value = work(&tx)?;
-        tx.commit()?;
-        Ok(value)
-    }
-
-    // ------------------------------------------------------------------ Läufe
-
-    /// Beginnt einen Lauf und liefert seine Nummer (fortlaufend, über Neustarts hinweg).
-    pub fn begin_run(&self) -> Result<i64> {
-        let conn = self.conn();
-        let next = kv_get_i64(&conn, "run_seq")?.unwrap_or(0) + 1;
-        kv_set(&conn, "run_seq", &next.to_string())?;
-        Ok(next)
-    }
-
-    /// Beginn des letzten vollständig erfolgreichen Postfach-Scans für ein Portal.
-    pub fn last_scan(&self, portal: Portal) -> Result<Option<Timestamp>> {
-        Ok(kv_get_i64(&self.conn(), &scan_key(portal))?.and_then(from_db))
-    }
-
-    /// Vergisst den Scan-Stand aller Portale – nach einem Wechsel des Gmail-Kontos beginnt
-    /// das neue Postfach mit dem Erstlauf (7 Tage) statt beim Stand des alten.
-    pub fn clear_scan_state(&self) -> Result<()> {
-        self.conn()
-            .execute("DELETE FROM kv WHERE key LIKE 'last_scan:%'", [])?;
-        Ok(())
-    }
-
-    pub fn set_last_scan(&self, portal: Portal, at: Timestamp) -> Result<()> {
-        kv_set(&self.conn(), &scan_key(portal), &to_db(at).to_string())
-    }
-
-    // ------------------------------------------------------------------ Aufnahme
-
-    /// Nimmt einen Eintrag aus einer Alert-Mail auf (Merge-Regel: [`upsert`]).
+    /// Records one entry from an alert mail (merge rule: [`upsert`]).
     pub fn upsert_posting(
         &self,
         run: i64,
@@ -263,8 +150,8 @@ impl Store {
         self.write(|conn| upsert(conn, run, posting, mail, now))
     }
 
-    /// Nimmt eine erkannte Alert-Mail samt ihren Einträgen auf – als eine Änderung. Auch eine
-    /// Mail ohne Einträge wird gemerkt (Layout-Wächter). Liefert je Eintrag die Einordnung.
+    /// Records a recognised alert mail with its entries - as one change. A mail without
+    /// entries is remembered too (layout guard). Returns the classification of each entry.
     pub fn record_alert(&self, run: i64, alert: &AlertMail, now: Timestamp) -> Result<Vec<Seen>> {
         self.write(|conn| {
             conn.execute(
@@ -291,8 +178,8 @@ impl Store {
         })
     }
 
-    /// Alert-Mails ohne einen erkannten Eintrag aus einem Lauf (Layout-Wächter: graue
-    /// Zeilen mit Gmail-Link).
+    /// Alert mails of a run without a single recognised entry (layout guard: grey rows with
+    /// a Gmail link).
     pub fn zero_posting_mails(&self, run: i64) -> Result<Vec<AlertMailRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(
@@ -311,7 +198,7 @@ impl Store {
         for row in rows {
             let (portal, subject, date, gmail_id) = row?;
             let portal = Portal::from_key(&portal)
-                .ok_or_else(|| Error::Corrupt(format!("Portal „{portal}“")))?;
+                .ok_or_else(|| Error::Corrupt(format!("unknown portal `{portal}`")))?;
             out.push(AlertMailRow {
                 portal,
                 subject,
@@ -322,7 +209,7 @@ impl Store {
         Ok(out)
     }
 
-    // ------------------------------------------------------------------ Abfragen
+    // ------------------------------------------------------------------ Queries
 
     pub fn job(&self, key: &JobKey) -> Result<Option<JobRow>> {
         let conn = self.conn();
@@ -336,7 +223,7 @@ impl Store {
         row.transpose()
     }
 
-    /// Volltext eines Jobs (nur mit Status „ok“).
+    /// Full text of a job (only with status `ok`).
     pub fn description(&self, key: &JobKey) -> Result<Option<String>> {
         Ok(self
             .conn()
@@ -349,14 +236,10 @@ impl Store {
             .flatten())
     }
 
-    /// Jobs, neueste zuerst (Erstsichtung, dann Mail-Datum).
+    /// Jobs, newest first (first sighting, then mail date).
     pub fn jobs(&self, filter: &JobFilter) -> Result<Vec<JobRow>> {
         let conn = self.conn();
-        let pattern = filter
-            .search
-            .as_deref()
-            .map(|s| format!("%{}%", escape_like(&fold(s.trim()))))
-            .filter(|p| p != "%%");
+        let pattern = like_pattern(filter.search.as_deref());
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE (?1 IS NULL OR first_seen_run = ?1)
@@ -367,14 +250,111 @@ impl Store {
         rows.map(|r| r?).collect()
     }
 
-    /// Anzahl aller Jobs.
+    /// One page of the job list and its counts - from one statement, so list and counts
+    /// never disagree.
+    pub fn job_page(&self, query: &PageQuery) -> Result<(Vec<JobRow>, PageCounts)> {
+        let conn = self.conn();
+        let pattern = like_pattern(query.search.as_deref());
+        // Excluded jobs always come last; "match" puts the best score first (unscored after
+        // scored), "newest" the latest first sighting.
+        let order = |p: &str| {
+            let by_match = if query.by_match {
+                format!("({p}match_score IS NULL), {p}match_score DESC, ")
+            } else {
+                String::new()
+            };
+            format!(
+                "({p}match_status IS 'excluded'), {by_match}{p}first_seen_at DESC, \
+                 {p}portal, {p}job_id"
+            )
+        };
+        let new = "read_at IS NULL AND match_status IS NOT 'excluded'";
+        let sql = format!(
+            "WITH base AS (
+                 SELECT * FROM job WHERE (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
+             ), counts AS (
+                 SELECT COUNT(*) AS n_all,
+                        COALESCE(SUM({new}), 0) AS n_new,
+                        COALESCE(SUM(match_status IS 'excluded'), 0) AS n_excluded,
+                        COALESCE(SUM(match_status IS 'scored' AND match_score >= ?5), 0)
+                            AS n_high,
+                        COALESCE(SUM(desc_status <> 'ok'), 0) AS n_no_detail
+                 FROM base
+             ), page AS (
+                 SELECT {JOB_COLUMNS} FROM base
+                 WHERE (?2 = 0 OR ({new}))
+                 ORDER BY {}
+                 LIMIT ?3 OFFSET ?4
+             )
+             SELECT counts.n_all, counts.n_new, counts.n_excluded, counts.n_high,
+                    counts.n_no_detail, page.*
+             FROM counts LEFT JOIN page
+             ORDER BY {}",
+            order(""),
+            order("page.")
+        );
+        let mut stmt = conn.prepare_cached(&sql)?;
+        let mut counts = PageCounts::default();
+        let mut jobs = Vec::new();
+        let mut rows = stmt.query(params![
+            pattern,
+            query.only_new,
+            query.limit,
+            query.offset,
+            HIGH_FROM
+        ])?;
+        while let Some(row) = rows.next()? {
+            counts = PageCounts {
+                all: row.get(0)?,
+                new: row.get(1)?,
+                excluded: row.get(2)?,
+                high: row.get(3)?,
+                no_detail: row.get(4)?,
+            };
+            if row.get::<_, Option<String>>(5)?.is_some() {
+                jobs.push(job_row_at(row, 5)??);
+            }
+        }
+        Ok((jobs, counts))
+    }
+
+    /// Per portal: jobs first seen in this run and jobs known before that appeared again.
+    pub fn scan_counts(&self, run: i64) -> Result<Vec<(Portal, usize, usize)>> {
+        let conn = self.conn();
+        let mut stmt = conn.prepare_cached(
+            "SELECT portal, SUM(first_seen_run = ?1), SUM(first_seen_run < ?1)
+             FROM job WHERE last_seen_run = ?1 GROUP BY portal",
+        )?;
+        let rows = stmt.query_map([run], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (portal, new, known) = row?;
+            let portal = Portal::from_key(&portal)
+                .ok_or_else(|| Error::Corrupt(format!("unknown portal `{portal}`")))?;
+            out.push((
+                portal,
+                usize::try_from(new).unwrap_or(0),
+                usize::try_from(known).unwrap_or(0),
+            ));
+        }
+        Ok(out)
+    }
+
+    /// Number of all jobs.
     pub fn job_count(&self) -> Result<i64> {
         Ok(self
             .conn()
             .query_row("SELECT COUNT(*) FROM job", [], |r| r.get(0))?)
     }
 
-    /// Je Portal und Jobdetails-Stand: Anzahl und davon „kurz“ (für die Portal-Ansicht).
+    /// Per portal and job details state: the count and how many of them are short (for the
+    /// portal view).
     pub fn portal_counts(&self) -> Result<Vec<PortalCount>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(
@@ -393,9 +373,9 @@ impl Store {
             let (portal, status, count, short) = row?;
             out.push(PortalCount {
                 portal: Portal::from_key(&portal)
-                    .ok_or_else(|| Error::Corrupt(format!("Portal „{portal}“")))?,
+                    .ok_or_else(|| Error::Corrupt(format!("unknown portal `{portal}`")))?,
                 status: DescStatus::parse(&status)
-                    .ok_or_else(|| Error::Corrupt(format!("Status „{status}“")))?,
+                    .ok_or_else(|| Error::Corrupt(format!("unknown status `{status}`")))?,
                 count,
                 short,
             });
@@ -403,11 +383,11 @@ impl Store {
         Ok(out)
     }
 
-    // ------------------------------------------------------------------ Jobdetails
+    // ------------------------------------------------------------------ Job details
 
-    /// Jobs, deren Volltext automatisch geholt werden soll: offen oder fehlgeschlagen
-    /// (frühestens `retry_after` nach dem letzten Versuch), Mail höchstens `max_age` alt.
-    /// Reihenfolge: offene vor Wiederholungen, dann neueste Mail zuerst.
+    /// Jobs whose full text should be fetched automatically: open or failed (at the earliest
+    /// `retry_after` after the last attempt), mail at most `max_age` old. Order: open ones
+    /// before retries, then newest mail first.
     pub fn fetch_queue(
         &self,
         now: Timestamp,
@@ -423,7 +403,7 @@ impl Store {
         rows.map(|r| r?).collect()
     }
 
-    /// Je Portal die Zahl der Jobs in der Warteschlange (wie [`Store::fetch_queue`]).
+    /// Per portal, the number of jobs in the queue (like [`Store::fetch_queue`]).
     pub fn due_counts(
         &self,
         now: Timestamp,
@@ -441,13 +421,13 @@ impl Store {
         for row in rows {
             let (portal, count) = row?;
             let portal = Portal::from_key(&portal)
-                .ok_or_else(|| Error::Corrupt(format!("Portal „{portal}“")))?;
+                .ok_or_else(|| Error::Corrupt(format!("unknown portal `{portal}`")))?;
             out.push((portal, usize::try_from(count).unwrap_or(0)));
         }
         Ok(out)
     }
 
-    /// Volltext gespeichert (auch kurze, geprüfte Texte und geschlossene Anzeigen).
+    /// Full text stored (also short, checked texts and closed ads).
     pub fn record_text(
         &self,
         key: &JobKey,
@@ -459,7 +439,8 @@ impl Store {
         self.write(|conn| {
             conn.execute(
                 "UPDATE job SET desc_status = 'ok', desc_text = ?3, desc_short = ?4, desc_closed = ?5,
-                                desc_fetched_at = ?6, desc_attempted_at = ?6, desc_error = NULL
+                                desc_fetched_at = ?6, desc_attempted_at = ?6, desc_error = NULL,
+                                match_rev = NULL
                  WHERE portal = ?1 AND job_id = ?2",
                 params![key.portal.key(), key.id, text, short, closed, to_db(now)],
             )?;
@@ -468,10 +449,10 @@ impl Store {
         })
     }
 
-    /// Anzeige gibt es nicht mehr.
+    /// The ad no longer exists.
     pub fn record_gone(&self, key: &JobKey, now: Timestamp) -> Result<()> {
         self.write(|conn| {
-            // Ein schon geholter Text bleibt gültig – Erfolgreiches wird nie zurückgestuft.
+            // A text fetched earlier stays valid - a success is never downgraded.
             let changed = conn.execute(
                 "UPDATE job SET desc_status = 'gone', desc_attempted_at = ?3, desc_error = NULL
                  WHERE portal = ?1 AND job_id = ?2 AND desc_status <> 'ok'",
@@ -484,10 +465,10 @@ impl Store {
         })
     }
 
-    /// Seite geladen, aber kein gültiger Text: Versuch zählen; nach
-    /// `MAX_FETCH_ATTEMPTS` gilt der Job als nicht abrufbar. Ein Job mit gültigem Text
-    /// bleibt unverändert (Rückgabe: sein Status). Der Grund stammt oft aus der Seite
-    /// (Umleitungsziel, Skriptfehler) – er wird einzeilig und kurz gespeichert.
+    /// Page loaded, but no valid text: count the attempt; after `MAX_FETCH_ATTEMPTS` the job
+    /// counts as unfetchable. A job with a valid text stays unchanged (returns its status).
+    /// The reason often comes from the page (redirect target, script error) - it is stored
+    /// as one short line.
     pub fn record_failed(&self, key: &JobKey, error: &str, now: Timestamp) -> Result<DescStatus> {
         let error = truncate_chars(&one_line(error), MAX_ERROR_CHARS);
         let status: String = self.write(|conn| {
@@ -513,12 +494,13 @@ impl Store {
                 )?),
             }
         })?;
-        DescStatus::parse(&status).ok_or_else(|| Error::Corrupt(format!("Status „{status}“")))
+        DescStatus::parse(&status)
+            .ok_or_else(|| Error::Corrupt(format!("unknown status `{status}`")))
     }
 
-    /// Strukturierte Seitenangaben (LinkedIn-Kopf, freelancermap-Daten) sind verlässlicher
-    /// als die Mail-Heuristik: nicht leere Werte ersetzen die Mail-Werte – mit denselben
-    /// Längengrenzen wie bei der Aufnahme, und die Arbeitsform der Mail („Remote“) bleibt.
+    /// Structured page details (LinkedIn header, freelancermap data) are more reliable than
+    /// the mail heuristics: non-empty values replace the mail values - with the same length
+    /// limits as on intake, and the work mode from the mail ("Remote") stays.
     pub fn record_page_fields(
         &self,
         key: &JobKey,
@@ -541,6 +523,7 @@ impl Store {
             let location = page_location(&stored, &location, MAX_FIELD_CHARS);
             conn.execute(
                 "UPDATE job SET
+                    match_rev = CASE WHEN ?3 <> '' AND ?3 <> title THEN NULL ELSE match_rev END,
                     title    = CASE WHEN ?3 <> '' THEN ?3 ELSE title END,
                     company  = CASE WHEN ?4 <> '' THEN ?4 ELSE company END,
                     location = CASE WHEN ?5 <> '' THEN ?5 ELSE location END
@@ -552,10 +535,10 @@ impl Store {
         })
     }
 
-    // ------------------------------------------------------------------ Textdateien
+    // ------------------------------------------------------------------ Text files
 
-    /// Jobs mit Volltext samt Text: nur die, deren Textdatei noch nie geschrieben wurde –
-    /// oder mit `all` alle („Textdateien neu schreiben“).
+    /// Jobs with a full text, together with the text: only those whose text file was never
+    /// written - or, with `all`, every one ("rewrite text files").
     pub fn txt_jobs(&self, all: bool) -> Result<Vec<(JobRow, String)>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
@@ -571,8 +554,8 @@ impl Store {
         rows.map(|r| r?).collect()
     }
 
-    /// Textdatei geschrieben – sie wird nie wieder von selbst neu angelegt, auch wenn
-    /// der Nutzer sie löscht (der Matching-Skill liest alle Dateien im Ordner).
+    /// Text file written - it is never created again on its own, even if the user deletes
+    /// it (the matching skill reads every file in the folder).
     pub fn mark_txt_written(&self, key: &JobKey, file_name: &str, now: Timestamp) -> Result<()> {
         self.conn().execute(
             "UPDATE job SET txt_name = ?3, txt_written_at = ?4 WHERE portal = ?1 AND job_id = ?2",
@@ -581,7 +564,7 @@ impl Store {
         Ok(())
     }
 
-    /// Namen aller Textdateien, die die App geschrieben hat (für „Ergebnisordner leeren“).
+    /// Names of all text files the app has written (for "empty the results folder").
     pub fn txt_names(&self) -> Result<Vec<String>> {
         let conn = self.conn();
         let mut stmt =
@@ -589,34 +572,19 @@ impl Store {
         let names = stmt.query_map([], |r| r.get(0))?;
         Ok(names.collect::<rusqlite::Result<_>>()?)
     }
-
-    // ------------------------------------------------------------------ Schlüssel/Wert
-
-    pub fn kv_get(&self, key: &str) -> Result<Option<String>> {
-        kv_get(&self.conn(), key)
-    }
-
-    pub fn kv_set(&self, key: &str, value: &str) -> Result<()> {
-        kv_set(&self.conn(), key, value)
-    }
-
-    /// Änderungszähler der Jobtabelle: steigt bei jeder Änderung, die in einem Export
-    /// sichtbar wäre. Exporte werden nur neu erzeugt, wenn er seit dem letzten Export
-    /// gestiegen ist.
-    pub fn data_rev(&self) -> Result<i64> {
-        Ok(kv_get_i64(&self.conn(), "data_rev")?.unwrap_or(0))
-    }
 }
 
-// ---------------------------------------------------------------------- Hilfen
+// ---------------------------------------------------------------------- Helpers
 
-const JOB_COLUMNS: &str = "portal, job_id, url, title, company, location, mail_date, mail_subject,
-    gmail_id, first_seen_at, first_seen_run, desc_status, desc_short, desc_closed,
-    COALESCE(LENGTH(desc_text), 0), desc_fetched_at, desc_attempts, desc_error, txt_name";
-const JOB_COLUMN_COUNT: usize = 19;
+pub(super) const JOB_COLUMNS: &str = "portal, job_id, url, title, company, location, mail_date,
+    mail_subject, gmail_id, first_seen_at, first_seen_run, desc_status, desc_short, desc_closed,
+    COALESCE(LENGTH(desc_text), 0) AS desc_len, desc_fetched_at, desc_attempts, desc_error,
+    txt_name, desc_attempted_at, read_at, pinned_at, match_status, match_score, match_note,
+    match_rev";
+pub(super) const JOB_COLUMN_COUNT: usize = 26;
 
-/// Automatisch abrufbar: offen oder fehlgeschlagen (frühestens `?2` nach dem letzten
-/// Versuch), Mail nicht älter als `?1`.
+/// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
+/// mail not older than `?1`.
 const DUE: &str = "COALESCE(mail_date, first_seen_at) >= ?1
     AND (desc_status = 'missing'
          OR (desc_status = 'failed' AND COALESCE(desc_attempted_at, 0) <= ?2))";
@@ -628,13 +596,19 @@ fn due_params(now: Timestamp, max_age: SignedDuration, retry_after: SignedDurati
     ]
 }
 
-/// Liest eine Zeile; unbekannte Werte werden zu `Error::Corrupt` (innerer Result).
-fn job_row(r: &Row<'_>) -> rusqlite::Result<Result<JobRow>> {
-    let portal: String = r.get(0)?;
-    let url: String = r.get(2)?;
-    let status: String = r.get(11)?;
-    let gmail_id: Option<String> = r.get(8)?;
-    let first_seen_at: i64 = r.get(9)?;
+/// Reads one row; unknown values become `Error::Corrupt` (the inner `Result`).
+pub(super) fn job_row(r: &Row<'_>) -> rusqlite::Result<Result<JobRow>> {
+    job_row_at(r, 0)
+}
+
+/// Reads the job columns starting at column `at`.
+fn job_row_at(r: &Row<'_>, at: usize) -> rusqlite::Result<Result<JobRow>> {
+    let col = |i: usize| at + i;
+    let portal: String = r.get(col(0))?;
+    let url: String = r.get(col(2))?;
+    let status: String = r.get(col(11))?;
+    let gmail_id: Option<String> = r.get(col(8))?;
+    let first_seen_at: i64 = r.get(col(9))?;
     let (Some(portal), Ok(url), Some(desc_status), Some(first_seen_at)) = (
         Portal::from_key(&portal),
         Url::parse(&url),
@@ -642,37 +616,46 @@ fn job_row(r: &Row<'_>) -> rusqlite::Result<Result<JobRow>> {
         from_db(first_seen_at),
     ) else {
         return Ok(Err(Error::Corrupt(format!(
-            "Job-Zeile {portal}/{url}/{status}"
+            "job row {portal}/{url}/{status}"
         ))));
     };
     Ok(Ok(JobRow {
         key: JobKey {
             portal,
-            id: r.get(1)?,
+            id: r.get(col(1))?,
         },
         url,
-        title: r.get(3)?,
-        company: r.get(4)?,
-        location: r.get(5)?,
-        mail_date: r.get::<_, Option<i64>>(6)?.and_then(from_db),
-        mail_subject: r.get(7)?,
+        title: r.get(col(3))?,
+        company: r.get(col(4))?,
+        location: r.get(col(5))?,
+        mail_date: r.get::<_, Option<i64>>(col(6))?.and_then(from_db),
+        mail_subject: r.get(col(7))?,
         gmail_id: gmail_id.and_then(|s| s.parse().ok()),
         first_seen_at,
-        first_seen_run: r.get(10)?,
+        first_seen_run: r.get(col(10))?,
         desc_status,
-        desc_short: r.get(12)?,
-        desc_closed: r.get(13)?,
-        desc_len: r.get(14)?,
-        desc_fetched_at: r.get::<_, Option<i64>>(15)?.and_then(from_db),
-        desc_attempts: r.get(16)?,
-        desc_error: r.get(17)?,
-        txt_name: r.get(18)?,
+        desc_short: r.get(col(12))?,
+        desc_closed: r.get(col(13))?,
+        desc_len: r.get(col(14))?,
+        desc_fetched_at: r.get::<_, Option<i64>>(col(15))?.and_then(from_db),
+        desc_attempts: r.get(col(16))?,
+        desc_error: r.get(col(17))?,
+        txt_name: r.get(col(18))?,
+        desc_attempted_at: r.get::<_, Option<i64>>(col(19))?.and_then(from_db),
+        read_at: r.get::<_, Option<i64>>(col(20))?.and_then(from_db),
+        pinned_at: r.get::<_, Option<i64>>(col(21))?.and_then(from_db),
+        match_: super::matches::decode_match(
+            r.get::<_, Option<String>>(col(22))?.as_deref(),
+            r.get(col(23))?,
+            r.get::<_, Option<String>>(col(24))?.as_deref(),
+        ),
+        match_rev: r.get(col(25))?,
     }))
 }
 
-/// Nimmt einen Eintrag auf. Merge-Regel für bekannte Jobs: Mail-Angaben und Erstsichtung
-/// bleiben unverändert; Titel, Firma und Ort werden nur gefüllt, wenn sie leer bzw. der
-/// Platzhalter sind – nie ersetzt, nur weil ein anderer Wert länger ist.
+/// Records one entry. Merge rule for known jobs: mail details and first sighting stay
+/// unchanged; title, company and location are only filled in when they are empty or the
+/// placeholder - never replaced just because another value is longer.
 fn upsert(
     conn: &Connection,
     run: i64,
@@ -713,7 +696,7 @@ fn upsert(
         bump(conn)?;
         return Ok(Seen::New);
     };
-    // Die letzte Sichtung ist für Export und Oberfläche unsichtbar – daher kein bump().
+    // The last sighting is invisible to export and UI - hence no bump().
     conn.execute(
         "UPDATE job SET last_seen_run = ?3 WHERE portal = ?1 AND job_id = ?2",
         params![key.portal.key(), key.id, run],
@@ -727,8 +710,16 @@ fn upsert(
         merge_details((&company, &location), (&posting.company, &posting.location));
     if new_title != title || new_company != company || new_location != location {
         conn.execute(
-            "UPDATE job SET title = ?3, company = ?4, location = ?5 WHERE portal = ?1 AND job_id = ?2",
-            params![key.portal.key(), key.id, new_title, new_company, new_location],
+            "UPDATE job SET title = ?3, company = ?4, location = ?5,
+                            match_rev = CASE WHEN title <> ?3 THEN NULL ELSE match_rev END
+             WHERE portal = ?1 AND job_id = ?2",
+            params![
+                key.portal.key(),
+                key.id,
+                new_title,
+                new_company,
+                new_location
+            ],
         )?;
         refresh_search(conn, key)?;
         bump(conn)?;
@@ -740,9 +731,9 @@ fn upsert(
     })
 }
 
-/// Firma und Ort werden nur als Paar übernommen – nie aus zwei verschiedenen Mails
-/// gemischt: wenn noch keine Angaben da sind, oder wenn die gespeicherte „Firma“ in
-/// Wahrheit nur ein Ort war („D-20038 Hamburg“) und die neue Mail eine echte Firma nennt.
+/// Company and location are only taken over as a pair - never mixed from two different
+/// mails: when there are no details yet, or when the stored "company" was really just a
+/// place ("D-20038 Hamburg") and the new mail names a real company.
 fn merge_details(stored: (&str, &str), new: (&str, &str)) -> (String, String) {
     let keep = (stored.0.to_string(), stored.1.to_string());
     let take = (new.0.to_string(), new.1.to_string());
@@ -761,7 +752,7 @@ fn merge_details(stored: (&str, &str), new: (&str, &str)) -> (String, String) {
     }
 }
 
-/// Suchspalte neu berechnen (klein geschrieben, Umlaute inklusive).
+/// Recomputes the search column (lower case, umlauts included).
 fn refresh_search(conn: &Connection, key: &JobKey) -> Result<()> {
     let row: Option<(String, String, String, Option<String>)> = conn
         .query_row(
@@ -787,9 +778,16 @@ fn search_text(title: &str, company: &str, location: &str, text: &str) -> String
     fold(&format!("{title}\n{company}\n{location}\n{text}"))
 }
 
-/// Vergleichsform für die Suche: klein geschrieben (Unicode, also auch Ä/ä).
+/// Comparison form for the search: lower case (Unicode, so umlauts too).
 fn fold(text: &str) -> String {
     text.to_lowercase()
+}
+
+/// `LIKE` pattern of a search term; an empty search matches everything (`None`).
+fn like_pattern(search: Option<&str>) -> Option<String> {
+    search
+        .map(|s| format!("%{}%", escape_like(&fold(s.trim()))))
+        .filter(|p| p != "%%")
 }
 
 fn escape_like(text: &str) -> String {
@@ -798,127 +796,11 @@ fn escape_like(text: &str) -> String {
         .replace('_', "\\_")
 }
 
-fn scan_key(portal: Portal) -> String {
-    format!("last_scan:{}", portal.key())
-}
-
-fn kv_get(conn: &Connection, key: &str) -> Result<Option<String>> {
-    Ok(conn
-        .query_row("SELECT value FROM kv WHERE key = ?1", [key], |r| r.get(0))
-        .optional()?)
-}
-
-fn kv_get_i64(conn: &Connection, key: &str) -> Result<Option<i64>> {
-    kv_get(conn, key)?
-        .map(|v| {
-            v.parse()
-                .map_err(|_| Error::Corrupt(format!("{key} = {v}")))
-        })
-        .transpose()
-}
-
-fn kv_set(conn: &Connection, key: &str, value: &str) -> Result<()> {
-    conn.execute(
-        "INSERT INTO kv (key, value) VALUES (?1, ?2)
-         ON CONFLICT (key) DO UPDATE SET value = excluded.value",
-        params![key, value],
-    )?;
-    Ok(())
-}
-
-fn bump(conn: &Connection) -> Result<()> {
-    let next = kv_get_i64(conn, "data_rev")?.unwrap_or(0) + 1;
-    kv_set(conn, "data_rev", &next.to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::portal::job_link;
-
-    fn now() -> Timestamp {
-        "2026-09-19T10:00:00Z".parse().unwrap()
-    }
-
-    fn posting(url: &str, title: &str, company: &str, location: &str) -> Posting {
-        let link = job_link(url).unwrap();
-        Posting::new(link.key, link.url, title, company, location)
-    }
-
-    fn mail() -> MailRef<'static> {
-        MailRef {
-            subject: "3 neue Jobs",
-            date: Some("2026-09-18T07:00:00Z".parse().unwrap()),
-            gmail_id: Some(0x1a2b),
-        }
-    }
-
-    #[test]
-    fn schema_is_created_once_and_reopened() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("sub").join("jobs.db");
-        let store = Store::open(&path).unwrap();
-        let run = store.begin_run().unwrap();
-        store
-            .upsert_posting(
-                run,
-                &posting(
-                    "https://www.linkedin.com/jobs/view/4123456789/",
-                    "A",
-                    "",
-                    "",
-                ),
-                mail(),
-                now(),
-            )
-            .unwrap();
-        drop(store);
-        let again = Store::open(&path).unwrap();
-        assert_eq!(again.job_count().unwrap(), 1);
-        assert_eq!(again.begin_run().unwrap(), 2);
-    }
-
-    /// Eine Datenbank aus Schema 1 (mit den beiden nie benutzten Spalten) wird beim Öffnen
-    /// hochgezogen; ohne das scheiterte jeder Postfach-Abruf an „NOT NULL `alert_mail.sender`“.
-    #[test]
-    fn an_old_database_is_migrated_on_open() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("jobs.db");
-        let old = Connection::open(&path).unwrap();
-        old.execute_batch(&format!(
-            "{SCHEMA}
-             DROP TABLE alert_mail;
-             CREATE TABLE alert_mail (
-                 mail_key       TEXT    PRIMARY KEY,
-                 portal         TEXT    NOT NULL,
-                 subject        TEXT    NOT NULL,
-                 sender         TEXT    NOT NULL,
-                 mail_date      INTEGER,
-                 gmail_id       TEXT,
-                 n_postings     INTEGER NOT NULL,
-                 first_seen_run INTEGER NOT NULL,
-                 last_seen_run  INTEGER NOT NULL
-             ) WITHOUT ROWID;
-             PRAGMA user_version = 1;"
-        ))
-        .unwrap();
-        drop(old);
-
-        let store = Store::open(&path).unwrap();
-        let run = store.begin_run().unwrap();
-        // Genau der Schritt, der vorher scheiterte: eine Mail ohne erkannte Einträge merken.
-        let alert = AlertMail {
-            key: "m1".into(),
-            portal: Portal::LinkedIn,
-            subject: "Keine Treffer".into(),
-            sender: "LinkedIn".into(),
-            date: None,
-            gmail_id: Some(1),
-            postings: Vec::new(),
-        };
-        store.record_alert(run, &alert, now()).unwrap();
-        assert_eq!(store.zero_posting_mails(run).unwrap().len(), 1);
-    }
+    use crate::store::test_support::{mail, now, posting};
 
     #[test]
     fn seen_counts_new_known_and_duplicates() {
@@ -934,7 +816,7 @@ mod tests {
             store.upsert_posting(run1, &a, mail(), now()).unwrap(),
             Seen::New
         );
-        // Derselbe Job in einer zweiten Mail desselben Laufs.
+        // The same job in a second mail of the same run.
         assert_eq!(
             store.upsert_posting(run1, &a, mail(), now()).unwrap(),
             Seen::DupInRun
@@ -944,13 +826,13 @@ mod tests {
             store.upsert_posting(run2, &a, mail(), now()).unwrap(),
             Seen::KnownBefore
         );
-        // Auch ein bekannter Job ist in der zweiten Mail desselben
-        // Laufs eine Dublette, nicht noch einmal „schon bekannt“.
+        // A known job is a duplicate in the second mail of the same run too, not
+        // "already known" once more.
         assert_eq!(
             store.upsert_posting(run2, &a, mail(), now()).unwrap(),
             Seen::DupInRun
         );
-        // Zwei Link-Formen desselben Projekts = derselbe Job.
+        // Two link forms of the same project = the same job.
         let f1 = posting(
             "https://www.freelance.de/project/index.php?id=1255067",
             "SAP",
@@ -1004,18 +886,18 @@ mod tests {
             )
             .unwrap();
         let job = store.job(&job_link(url).unwrap().key).unwrap().unwrap();
-        assert_eq!(job.title, "Interim CFO"); // Platzhalter ersetzt, dann nie wieder
-        // Firma und Ort als Paar aus derselben Mail: Die erste nannte nur einen Ort, die
-        // zweite Firma und Ort – nie gemischt; die dritte ändert nichts.
+        assert_eq!(job.title, "Interim CFO"); // placeholder replaced, then never again
+        // Company and location as a pair from the same mail: the first named only a place,
+        // the second company and place - never mixed; the third changes nothing.
         assert_eq!(job.company, "Nordlicht AG");
         assert_eq!(job.location, "Berlin (anderer Wert)");
-        assert_eq!(job.mail_subject, "3 neue Jobs"); // Erstsichtung bleibt
+        assert_eq!(job.mail_subject, "3 neue Jobs"); // the first sighting stays
         assert_eq!(job.gmail_id, Some(0x1a2b));
     }
 
-    /// Die „Firma“ war nur ein Ort (freelance.de nennt hinter dem Titel oft
-    /// nur die Stadt) – eine spätere Mail mit echter Firma ersetzt das Paar; eine echte Firma
-    /// wird nie durch eine andere ersetzt.
+    /// The "company" was only a place (freelance.de often names just the city after the
+    /// title) - a later mail with a real company replaces the pair; a real company is never
+    /// replaced by another one.
     #[test]
     fn a_real_company_replaces_a_place_only_pair() {
         assert_eq!(
@@ -1083,12 +965,12 @@ mod tests {
         );
         store.upsert_posting(run, &a, mid_mail, now()).unwrap();
         store.upsert_posting(run, &b, new_mail, now()).unwrap();
-        store.upsert_posting(run, &c, old_mail, now()).unwrap(); // älter als 30 Tage
+        store.upsert_posting(run, &c, old_mail, now()).unwrap(); // older than 30 days
         store.upsert_posting(run, &d, new_mail, now()).unwrap();
         let month = SignedDuration::from_hours(30 * 24);
         let half_day = SignedDuration::from_hours(12);
 
-        // d schlägt jetzt fehl → steht vorerst nicht in der Warteschlange.
+        // d fails now -> it is not in the queue for the time being.
         assert_eq!(
             store.record_failed(&d.key, "leer", now()).unwrap(),
             DescStatus::Failed
@@ -1099,9 +981,9 @@ mod tests {
             .into_iter()
             .map(|j| j.title)
             .collect();
-        assert_eq!(queue, ["B", "A"]); // neueste Mail zuerst, alte Mail nicht automatisch
+        assert_eq!(queue, ["B", "A"]); // newest mail first, the old mail not automatically
 
-        // 13 h später: d ist wieder dran, aber nach den offenen.
+        // 13 h later: d is due again, but after the open ones.
         let later = now() + SignedDuration::from_hours(13);
         let queue: Vec<_> = store
             .fetch_queue(later, month, half_day)
@@ -1137,8 +1019,8 @@ mod tests {
         assert_eq!(store.description(&a.key).unwrap(), None);
     }
 
-    /// Ein Fehlschlag oder „weg“ nach erfolgreichem Abruf stuft den Job
-    /// nicht zurück – der Text bleibt, nichts wird erneut geholt.
+    /// A failure or "gone" after a successful fetch does not downgrade the job - the text
+    /// stays, nothing is fetched again.
     #[test]
     fn success_is_never_downgraded() {
         let store = Store::in_memory().unwrap();
@@ -1189,13 +1071,13 @@ mod tests {
             store.txt_names().unwrap(),
             ["20260918_LinkedIn_A_4000000001.txt"]
         );
-        // Neu schreiben sieht alle – ohne die Marke anzufassen.
+        // Rewriting sees every job - without touching the mark.
         assert_eq!(store.txt_jobs(true).unwrap().len(), 1);
         assert!(store.txt_jobs(false).unwrap().is_empty());
     }
 
-    /// Fehlergründe stammen oft aus der Seite (Umleitungsziel, Skriptfehler): gespeichert
-    /// wird eine kurze Zeile – sie reist bis in die Ereignisse an die Oberfläche.
+    /// Failure reasons often come from the page (redirect target, script error): one short
+    /// line is stored - it travels all the way to the UI in the run events.
     #[test]
     fn failure_reasons_are_short_and_flat() {
         let store = Store::in_memory().unwrap();
@@ -1212,7 +1094,7 @@ mod tests {
         assert!(!error.contains('\n'));
     }
 
-    /// Eine Alert-Mail wird ganz oder gar nicht übernommen.
+    /// An alert mail is taken over completely or not at all.
     #[test]
     fn an_alert_mail_is_one_change() {
         let store = Store::in_memory().unwrap();
@@ -1250,7 +1132,7 @@ mod tests {
             [Seen::New, Seen::DupInRun, Seen::New]
         );
         assert_eq!(store.job_count().unwrap(), 2);
-        // Scheitert eine Anweisung, bleibt nichts von der Mail zurück.
+        // If one statement fails, nothing of the mail remains.
         store
             .conn()
             .execute_batch(
@@ -1319,7 +1201,7 @@ mod tests {
         assert_eq!(find("MÜLLER"), ["Überwachung SAP"]);
         assert_eq!(find("100%"), ["100% Remote"]);
         assert!(find("%").iter().all(|t| t == "100% Remote"));
-        assert_eq!(find("  ").len(), 2); // leere Suche = alles
+        assert_eq!(find("  ").len(), 2); // empty search = everything
         store
             .record_text(
                 &a.key,
@@ -1352,7 +1234,7 @@ mod tests {
         );
         let later = now() + SignedDuration::from_mins(1);
         store.upsert_posting(run2, &b, mail(), later).unwrap();
-        store.upsert_posting(run2, &a, mail(), later).unwrap(); // bekannt, zählt nicht als neu
+        store.upsert_posting(run2, &a, mail(), later).unwrap(); // known, does not count as new
         let only_new: Vec<_> = store
             .jobs(&JobFilter {
                 first_seen_run: Some(run2),
@@ -1386,7 +1268,7 @@ mod tests {
         store.upsert_posting(run, &a, mail(), now()).unwrap();
         let v1 = store.data_rev().unwrap();
         assert!(v1 > v0);
-        // Dieselbe Mail noch einmal: nichts ändert sich, also auch kein neuer Export.
+        // The same mail again: nothing changes, so no new export either.
         store.upsert_posting(run, &a, mail(), now()).unwrap();
         assert_eq!(store.data_rev().unwrap(), v1);
         store
@@ -1413,20 +1295,9 @@ mod tests {
         assert_eq!(store.data_rev().unwrap(), v3);
     }
 
-    #[test]
-    fn newer_schema_is_refused() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("jobs.db");
-        Connection::open(&path)
-            .unwrap()
-            .pragma_update(None, "user_version", 99)
-            .unwrap();
-        // Nicht „beschädigt“ – sonst legte jemand eine gesunde Datenbank beiseite.
-        assert!(matches!(Store::open(&path), Err(Error::NewerSchema(99))));
-    }
-    /// Eine Mail, die den Titel als nackte Adresse verlinkt, hinterließ die URL als Titel –
-    /// und die blieb, weil sie ja „nicht leer“ war. Ein späterer Lauf mit einem echten
-    /// Titel ersetzt sie jetzt. Ein richtiger Titel bleibt dagegen unangetastet.
+    /// A mail that linked the title as a bare address left the URL as the title - and it
+    /// stayed, because it was "not empty". A later run with a real title now replaces it. A
+    /// proper title, on the other hand, stays untouched.
     #[test]
     fn a_stored_url_is_no_title_and_gets_replaced() {
         let store = Store::in_memory().unwrap();
@@ -1446,14 +1317,14 @@ mod tests {
             store.record_alert(run, &mail, now()).unwrap();
             store.job(&key).unwrap().unwrap().title
         };
-        // Die Mail verlinkt nur die Adresse – sie landet mangels Besserem als Titel.
+        // The mail only links the address - for lack of anything better it becomes the title.
         assert_eq!(seen(url), url);
-        // Ein Lauf mit echtem Titel ersetzt sie.
+        // A run with a real title replaces it.
         assert_eq!(
             seen("Senior Requirements Engineer (w/m/d)"),
             "Senior Requirements Engineer (w/m/d)"
         );
-        // Ein echter Titel wird nicht durch einen anderen ersetzt.
+        // A real title is not replaced by another one.
         assert_eq!(
             seen("Etwas anderes"),
             "Senior Requirements Engineer (w/m/d)"

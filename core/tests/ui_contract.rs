@@ -200,10 +200,20 @@ fn find(all: &[Source], needles: &[&str], allowed: impl Fn(&Source) -> bool) -> 
 #[test]
 fn tauri_only_in_api() {
     let all = scanned(MIN_FILES);
+    let mut problems = find(&all, &["@tauri-apps/", "__TAURI"], |s| {
+        s.is("lib/ipc/api.ts") || s.under("lib/ipc/types/")
+    });
+    // The generated types may name Tauri's Channel type - as a type-only import, which
+    // leaves no runtime access behind.
+    for source in all.iter().filter(|s| s.under("lib/ipc/types/")) {
+        for (n, line) in source.lines() {
+            if line.contains("@tauri-apps/") && !line.trim_start().starts_with("import type") {
+                problems.push(format!("{}:{n}: runtime import of Tauri", source.path));
+            }
+        }
+    }
     fail(
-        &find(&all, &["@tauri-apps/", "__TAURI"], |s| {
-            s.is("lib/ipc/api.ts")
-        }),
+        &problems,
         "Tauri is reached only through lib/ipc/api.ts (the harness swaps exactly that door)",
     );
 }

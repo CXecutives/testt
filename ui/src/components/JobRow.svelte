@@ -33,10 +33,10 @@
   /** At most one badge, and only when something is not as usual. */
   const deviation = $derived.by((): { label: string; tone: BadgeTone } | null => {
     if (excluded) return { label: de.score.excluded, tone: 'danger' };
-    if (job.detail !== 'ok') {
-      const tone: BadgeTone =
-        job.detail === 'teaser' || job.detail === 'missing' ? 'neutral' : 'warning';
-      return { label: de.job.detail[job.detail], tone };
+    const detail = job.detail.kind;
+    if (detail !== 'ok') {
+      const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
+      return { label: de.job.detail[detail], tone };
     }
     if (job.match?.status === 'unscorable') return { label: de.score.unscorable, tone: 'neutral' };
     return null;
@@ -74,7 +74,7 @@
     {#if job.workMode}<Badge label={de.job.workMode[job.workMode]} tone="neutral" />{/if}
   </span>
   {#if reason}
-    <span class="reason"><ReasonItem kind={reason.kind} label={reason.label} compact /></span>
+    <span class="reason"><ReasonItem kind="met" label={reason} compact /></span>
   {/if}
 
   {#snippet trailing()}

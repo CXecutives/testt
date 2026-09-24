@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod platform;
 mod session;
 #[cfg(debug_assertions)]
 mod smoke;
@@ -10,56 +11,59 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use commands::{Activity, AppState, GmailUser};
-use jobalert_core::fetch::http::edge_user_agent;
 use jobalert_core::secrets::Vault;
 use jobalert_core::store::Store;
 use tauri::Manager;
 
-/// Exit-Code aus `AppHandle::exit(code)`. Tauri beendet den Prozess unter Windows sonst
-/// immer mit 0 (die Ereignisschleife kennt nur `ExitWithCode(0)`).
+// ------------------------------------------------------------------ startup error texts
+// User-facing text, German by product decision. The start dialog is the only prose here.
+const TEXT_DIALOG_TITLE: &str = "Job-Alert-Monitor";
+const TEXT_START_FAILED: &str = "Die App konnte nicht starten:";
+const TEXT_SEE_LOG: &str = "Details stehen im Protokoll unter";
+const TEXT_LOG_DIR_WINDOWS: &str = "%LOCALAPPDATA%\\de.cxecutives.job-alert-monitor\\logs";
+const TEXT_LOG_DIR_OTHER: &str = "im Datenordner der App (Unterordner „logs“)";
+const TEXT_WINDOW_FAILED: &str = "Das Fenster ließ sich nicht öffnen:";
+const TEXT_WINDOW_CONFIG_MISSING: &str = "Fensterkonfiguration 'main' fehlt";
+const TEXT_WEBVIEW2_HINT: &str = "Fehlt die Microsoft-Edge-WebView2-Laufzeit, hilft deren \
+    Installation (https://developer.microsoft.com/microsoft-edge/webview2/).";
+const TEXT_FILE: &str = "Datei:";
+const TEXT_NEWER_SCHEMA: &str = "Bitte die neuere Version des Job-Alert-Monitors verwenden. \
+    Die Daten bleiben unverändert.";
+const TEXT_DATABASE_FAILED: &str = "Die Datenbank ließ sich nicht öffnen:";
+const TEXT_DATABASE_ADVICE: &str = "Benutzt ein anderes Programm die Datei gerade, dieses \
+    schließen und die App neu starten. Ist sie beschädigt, die Datei umbenennen \
+    (beiseitelegen) – die App legt beim nächsten Start eine neue an. Folge: Die bisherigen \
+    Jobs und Einstellungen sind dann nicht mehr bekannt, und der nächste Abruf legt ihre \
+    Textdateien neu an.";
+// ------------------------------------------------------------------ end of user-facing text
+
+/// Exit code from `AppHandle::exit(code)`. Otherwise Tauri always ends the process with 0 on
+/// Windows (the event loop only knows `ExitWithCode(0)`).
 static EXIT_CODE: AtomicI32 = AtomicI32::new(0);
 
 fn main() {
-    // Trockenlauf: Datenbank und Sicherheitsstand nur im Arbeitsspeicher, Attrappen statt
-    // Postfach und Portalen, keine Dateien.
+    // Dry run: database and vault state in memory only, fakes instead of mailbox and
+    // portals, no files.
     let dry_run = std::env::args().any(|arg| arg == "--dry-run");
-    let app = tauri::Builder::default()
-        // Muss als erstes Plugin registriert werden: Ein zweiter Start holt nur das
-        // vorhandene Fenster nach vorn.
+    let builder = tauri::Builder::default()
+        // Must be the first plugin: a second start only brings the existing window to the
+        // front.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
+            if let Some(window) = app.get_webview_window(platform::MAIN) {
                 let _ = window.unminimize();
                 let _ = window.set_focus();
             }
         }))
-        .invoke_handler(tauri::generate_handler![
-            commands::app_state,
-            commands::save_settings,
-            commands::pick_workspace,
-            commands::save_gmail_credentials,
-            commands::delete_gmail_credentials,
-            commands::start_run,
-            commands::cancel_run,
-            commands::list_jobs,
-            commands::job_detail,
-            commands::pick_profile,
-            commands::remove_profile,
-            commands::rewrite_txt,
-            commands::clear_txt_files,
-            commands::open_target,
-            commands::reset_all,
-            commands::report_ui_error,
-            commands::portal_login,
-            commands::portal_logout,
-        ])
-        // Ein Fehler beim Start (Datenbank, WebView2 …) erscheint als Meldung mit Ursache und
-        // Rat – ein GUI-Programm ohne Konsole endete sonst wortlos.
+        .invoke_handler(commands::invoke_handler())
+        // A startup error (database, WebView2 ...) shows up as a dialog with cause and advice;
+        // a GUI program without a console would otherwise end without a word.
         .setup(move |app| {
             if let Err(message) = setup(app, dry_run) {
                 fail(&message);
             }
             Ok(())
-        })
+        });
+    let app = platform::app(builder)
         .build(tauri::generate_context!())
         .unwrap_or_else(|error| fail(&window_failure(&error)));
     app.run_return(|_, event| {
@@ -73,14 +77,14 @@ fn main() {
     std::process::exit(EXIT_CODE.load(Ordering::SeqCst));
 }
 
-/// Startfehler anzeigen und beenden. `message` nennt Ursache und Rat.
+/// Shows a startup error and exits. `message` names cause and advice.
 fn fail(message: &str) -> ! {
-    log::error!("Start fehlgeschlagen: {message}");
+    log::error!("startup failed: {message}");
     rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
-        .set_title("Job-Alert-Monitor")
+        .set_title(TEXT_DIALOG_TITLE)
         .set_description(format!(
-            "Die App konnte nicht starten:\n\n{message}\n\nDetails stehen im Protokoll unter {}.",
+            "{TEXT_START_FAILED}\n\n{message}\n\n{TEXT_SEE_LOG} {}.",
             log_hint()
         ))
         .set_buttons(rfd::MessageButtons::Ok)
@@ -88,49 +92,42 @@ fn fail(message: &str) -> ! {
     std::process::exit(1);
 }
 
-/// Wo das Protokoll liegt – als Hinweis in Meldungen, bevor es einen App-Handle gibt.
+/// Where the log lives - a hint in dialogs shown before there is an app handle.
 fn log_hint() -> &'static str {
     if cfg!(windows) {
-        "%LOCALAPPDATA%\\de.cxecutives.job-alert-monitor\\logs"
+        TEXT_LOG_DIR_WINDOWS
     } else {
-        "im Datenordner der App (Unterordner „logs“)"
+        TEXT_LOG_DIR_OTHER
     }
 }
 
-/// Fenster oder Oberfläche ließen sich nicht erzeugen – unter Windows fehlt meist die
-/// WebView2-Laufzeit; andere Systeme bringen ihre Engine selbst mit.
+/// The window or the UI could not be created. On Windows the WebView2 runtime is usually
+/// missing; the other systems bring their engine with them.
 fn window_failure(error: &dyn std::fmt::Display) -> String {
-    let hint = if cfg!(windows) {
-        "\n\nFehlt die Microsoft-Edge-WebView2-Laufzeit, hilft deren Installation \
-         (https://developer.microsoft.com/microsoft-edge/webview2/)."
+    if cfg!(windows) {
+        format!("{TEXT_WINDOW_FAILED} {error}\n\n{TEXT_WEBVIEW2_HINT}")
     } else {
-        ""
-    };
-    format!("Das Fenster ließ sich nicht öffnen: {error}{hint}")
+        format!("{TEXT_WINDOW_FAILED} {error}")
+    }
 }
 
-/// Die Datenbank ließ sich nicht öffnen: Datei, Ursache und was zu tun ist. Eine Datenbank
-/// einer neueren Version ist nicht beschädigt – sie darf nicht beiseitegelegt werden.
+/// The database could not be opened: file, cause and what to do. A database of a newer
+/// version is not damaged - it must not be put aside.
 fn database_failure(path: &Path, error: &jobalert_core::Error) -> String {
     if matches!(error, jobalert_core::Error::NewerSchema(_)) {
         return format!(
-            "{error}\n\nDatei: {}\n\nBitte die neuere Version des Job-Alert-Monitors \
-             verwenden. Die Daten bleiben unverändert.",
+            "{error}\n\n{TEXT_FILE} {}\n\n{TEXT_NEWER_SCHEMA}",
             path.display()
         );
     }
     format!(
-        "Die Datenbank ließ sich nicht öffnen:\n{}\n\n{error}\n\n\
-         Benutzt ein anderes Programm die Datei gerade, dieses schließen und die App neu \
-         starten. Ist sie beschädigt, die Datei umbenennen (beiseitelegen) – die App legt \
-         beim nächsten Start eine neue an. Folge: Die bisherigen Jobs und Einstellungen sind \
-         dann nicht mehr bekannt, und der nächste Abruf legt ihre Textdateien neu an.",
+        "{TEXT_DATABASE_FAILED}\n{}\n\n{error}\n\n{TEXT_DATABASE_ADVICE}",
         path.display()
     )
 }
 
-/// Start: Protokoll → Panik-Hook → Krypto → offenes Zurücksetzen → Datenbank → Fenster.
-/// Der Fehler ist die fertige Meldung für den Nutzer.
+/// Startup: log -> panic hook -> crypto -> pending reset -> database -> window.
+/// The error is the finished message for the user.
 fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
     let data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let level = if cfg!(debug_assertions) {
@@ -141,13 +138,13 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
     if let Err(error) =
         jobalert_core::logging::FileLogger::install(&data_dir.join(jobalert_core::LOG_DIR), level)
     {
-        eprintln!("Protokoll nicht verfügbar: {error}");
+        eprintln!("log file unavailable: {error}");
     }
-    // Ohne Konsole (GUI-Programm) ginge eine Panik sonst spurlos verloren.
-    std::panic::set_hook(Box::new(|info| log::error!("Absturz: {info}")));
+    // Without a console (GUI program) a panic would otherwise vanish without a trace.
+    std::panic::set_hook(Box::new(|info| log::error!("panic: {info}")));
     jobalert_core::install_crypto();
-    // Ein angefordertes Zurücksetzen läuft vor allem anderen – nichts hält jetzt
-    // eine Datei offen. Der Trockenlauf löscht nie etwas.
+    // A requested reset runs before anything else - nothing holds a file open yet. The dry
+    // run never deletes anything.
     let reset_report = (!dry_run)
         .then(|| jobalert_core::reset::perform_pending(&data_dir, &Vault::app()))
         .flatten();
@@ -158,7 +155,6 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
         Store::open(&database)
     };
     let store = Arc::new(store.map_err(|e| database_failure(&database, &e))?);
-    let webview_version = tauri::webview_version().unwrap_or_default();
     app.manage(AppState {
         store: store.clone(),
         default_workspace: app
@@ -168,19 +164,20 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
             .join("Job-Alert-Monitor"),
         data_dir,
         dry_run,
-        user_agent: edge_user_agent(Some(&webview_version)),
+        user_agent: platform::USER_AGENT.to_owned(),
         reset_report: Mutex::new(reset_report),
         gmail_user: Mutex::new(GmailUser::Unread),
         activity: Mutex::new(Activity::Idle),
     });
-    // Die WebView-Version steht nur im Protokoll: Die Oberfläche braucht sie nicht, für
-    // eine Fehlersuche ist sie dort verlässlicher als in einem Bildschirmfoto.
+    // The web view version goes to the log only: the UI does not need it, and for debugging
+    // the log is more reliable than a screenshot.
+    let webview_version = tauri::webview_version().unwrap_or_default();
     log::info!(
-        "Start {}{} (WebView {})",
+        "start {}{} (web view {})",
         env!("CARGO_PKG_VERSION"),
-        if dry_run { " (Trockenlauf)" } else { "" },
+        if dry_run { " (dry run)" } else { "" },
         if webview_version.is_empty() {
-            "unbekannt"
+            "unknown"
         } else {
             &webview_version
         }
@@ -191,16 +188,18 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
         .app
         .windows
         .iter()
-        .find(|w| w.label == "main")
+        .find(|w| w.label == platform::MAIN)
         .cloned()
-        .ok_or("Fensterkonfiguration 'main' fehlt")?;
+        .ok_or(TEXT_WINDOW_CONFIG_MISSING)?;
     let builder = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)
         .map_err(|e| window_failure(&e))?;
+    let builder = platform::harden(builder, app.config());
     #[cfg(debug_assertions)]
     let builder = smoke::attach(builder);
     let window = builder.build().map_err(|e| window_failure(&e))?;
-    geometry::restore(&window, &store);
-    tool_mode::apply(&window).map_err(|e| window_failure(&e))?;
+    let maximized = geometry::restore(&window, &store);
+    platform::apply(&window).map_err(|e| window_failure(&e))?;
+    platform::reveal_after_first_load(&window, maximized);
     lifecycle::watch(&window, store);
     #[cfg(debug_assertions)]
     if std::env::args().any(|arg| arg == "--devtools") {
@@ -209,60 +208,8 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// Ein Werkzeug, keine Webseite: kein Browser-Kontextmenü (Zurück, Neu laden, Drucken,
-/// Untersuchen …) und keine Browser-Tastenkürzel (F5/Strg+R, Strg+P, Strg+F, Zoom, F12,
-/// Entwicklertools). Bearbeiten bleibt: Strg+C/V/X/A/Z, Pos1/Ende, Bild auf/ab.
-/// Gilt in jedem Build, damit genau das geprüft wird, was ausgeliefert wird.
-mod tool_mode {
-    use tauri::{Runtime, WebviewWindow};
-
-    #[cfg(windows)]
-    pub fn apply<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
-        window.with_webview(|webview| {
-            if let Err(error) = disable_browser_features(&webview.controller()) {
-                log::warn!("WebView2-Einstellungen nicht gesetzt: {error}");
-            }
-        })
-    }
-
-    /// macOS (`WKWebView`): Es gibt keine entsprechenden Schalter. Das Kontextmenü hängt am
-    /// `WKUIDelegate` und der umgebenden `NSView`, die Tastenkürzel am Hauptmenü der App –
-    /// beides wäre nur über die Objective-C-Laufzeit zu erreichen und brächte eine zweite
-    /// `unsafe`-Stelle. Nötig ist es nicht: `WKWebView` bindet weder Neu laden noch Drucken,
-    /// Suchen oder die Entwicklertools auf Tasten, und die Oberfläche sperrt Kontextmenü
-    /// und Browser-Kürzel ohnehin plattformneutral in JavaScript. Hier bleibt nichts zu tun.
-    #[cfg(not(windows))]
-    #[allow(
-        clippy::unnecessary_wraps,
-        reason = "dieselbe Signatur wie der Windows-Zweig"
-    )]
-    pub fn apply<R: Runtime>(_window: &WebviewWindow<R>) -> tauri::Result<()> {
-        Ok(())
-    }
-
-    /// Die einzige `unsafe`-Stelle der App: Tauri reicht diese beiden WebView2-Schalter
-    /// nicht durch, also werden sie direkt an der WebView2 gesetzt.
-    #[cfg(windows)]
-    #[expect(unsafe_code, reason = "WebView2-Schalter, die Tauri nicht durchreicht")]
-    fn disable_browser_features(
-        controller: &webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller,
-    ) -> windows_core::Result<()> {
-        use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;
-        use windows_core::Interface as _;
-        // SAFETY: `with_webview` ruft uns auf dem UI-Thread mit dem gültigen Controller
-        // dieses Fensters auf; es sind reine COM-Setter ohne Zeiger aus Rust.
-        unsafe {
-            let settings = controller.CoreWebView2()?.Settings()?;
-            settings.SetAreDefaultContextMenusEnabled(false)?;
-            settings
-                .cast::<ICoreWebView2Settings3>()?
-                .SetAreBrowserAcceleratorKeysEnabled(false)
-        }
-    }
-}
-
-/// Fensterlage (Größe, Position, maximiert) über Neustarts hinweg – nur, wenn sie auf einem
-/// vorhandenen Bildschirm liegt (sonst bleibt das Fenster zentriert).
+/// Window placement (size, position, maximized) across restarts - only if it lies on an
+/// existing screen (otherwise the window stays centered).
 mod geometry {
     use jobalert_core::store::Store;
     use serde::{Deserialize, Serialize};
@@ -287,16 +234,16 @@ mod geometry {
             .and_then(|json| serde_json::from_str(&json).ok())
     }
 
-    pub fn restore<R: Runtime>(window: &WebviewWindow<R>, store: &Store) {
-        let Some(g) = load(store) else { return };
-        // Nur „maximiert“ bekannt (zuerst maximiert geschlossen): Lage bleibt die Vorgabe.
+    /// Moves and sizes the (still hidden) window. Returns whether it should be maximized:
+    /// maximizing shows a window at once, so that waits for the first paint
+    /// (`platform::reveal_after_first_load`).
+    pub fn restore<R: Runtime>(window: &WebviewWindow<R>, store: &Store) -> bool {
+        let Some(g) = load(store) else { return false };
+        // Only "maximized" is known (first closed while maximized): placement stays default.
         if g.width == 0 {
-            if g.maximized {
-                let _ = window.maximize();
-            }
-            return;
+            return g.maximized;
         }
-        // Die Titelleiste muss auf einem vorhandenen Bildschirm greifbar sein.
+        // The title bar must be reachable on an existing screen.
         let monitors = window.available_monitors().unwrap_or_default();
         let Some(monitor) = monitors.iter().find(|m| {
             let (pos, size) = (m.position(), m.size());
@@ -309,21 +256,19 @@ mod geometry {
             let middle = g.x.saturating_add(i32::try_from(g.width / 2).unwrap_or(0));
             middle > pos.x + 100 && middle < right - 100 && g.y >= pos.y && g.y < bottom - 40
         }) else {
-            return;
+            return false;
         };
         let fitted = fit(&g, *monitor.position(), *monitor.size());
-        // Erst verschieben, dann die Größe: Ein Wechsel auf einen Bildschirm mit anderer
-        // Skalierung rechnete die Größe sonst um.
+        // Move first, then size: moving to a screen with another scale factor would
+        // otherwise convert the size.
         let _ = window.set_position(PhysicalPosition::new(g.x, g.y));
         let _ = window.set_size(fitted);
-        if g.maximized {
-            let _ = window.maximize();
-        }
+        g.maximized
     }
 
-    /// Nie über diesen Bildschirm hinaus – gespeichert wurde die Größe vielleicht auf einem
-    /// größeren, der jetzt fehlt; Seitenleiste und Statuszeile lägen sonst außerhalb. Gekürzt
-    /// wird ab der Fensterecke: Was rechts und unterhalb davon noch Platz hat, bleibt.
+    /// Never beyond this screen - the size was perhaps saved on a larger one that is gone
+    /// now, and parts of the UI would lie outside. Trimmed from the window corner: what
+    /// still fits right of and below it stays.
     fn fit(g: &Geometry, pos: PhysicalPosition<i32>, size: PhysicalSize<u32>) -> PhysicalSize<u32> {
         let left = u32::try_from(g.x.saturating_sub(pos.x)).unwrap_or(0);
         let above = u32::try_from(g.y.saturating_sub(pos.y)).unwrap_or(0);
@@ -334,7 +279,7 @@ mod geometry {
     }
 
     pub fn save<R: Runtime>(window: &WebviewWindow<R>, store: &Store) {
-        // Minimiert liefert Windows nur Platzhalter (−32000, 0×0) – nichts überschreiben.
+        // Minimized, Windows reports only placeholders (-32000, 0x0) - overwrite nothing.
         if window.is_minimized().unwrap_or(false) {
             return;
         }
@@ -342,13 +287,13 @@ mod geometry {
         let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) else {
             return;
         };
-        // Maximiert: die zuletzt gespeicherte normale Lage behalten, nur den Zustand merken.
+        // Maximized: keep the last saved normal placement, remember only the state.
         let g = match load(store) {
             Some(previous) if maximized => Geometry {
                 maximized,
                 ..previous
             },
-            // Maximiert ohne bekannte normale Lage: nur den Zustand merken.
+            // Maximized without a known normal placement: remember only the state.
             None if maximized => Geometry {
                 x: 0,
                 y: 0,
@@ -384,8 +329,8 @@ mod geometry {
             }
         }
 
-        /// Lage von einem breiteren Bildschirm: Das Fenster endet am rechten und unteren
-        /// Rand – sonst läge ein Teil der Oberfläche außerhalb und wäre nicht erreichbar.
+        /// Placement from a wider screen: the window ends at the right and bottom edge -
+        /// otherwise part of the UI would lie outside and be unreachable.
         #[test]
         fn a_window_near_the_edge_is_trimmed_in_both_directions() {
             let fitted = fit(
@@ -396,8 +341,8 @@ mod geometry {
             assert_eq!((fitted.width, fitted.height), (920, 980));
         }
 
-        /// Passende Lage auf einem Bildschirm links der Hauptanzeige (negative Koordinaten):
-        /// nichts wird gekürzt.
+        /// A fitting placement on a screen left of the main display (negative coordinates):
+        /// nothing is trimmed.
         #[test]
         fn a_window_that_fits_keeps_its_size() {
             let fitted = fit(
@@ -410,11 +355,11 @@ mod geometry {
     }
 }
 
-/// Schließen und Beenden: ✕ fragt nie nach. Läuft gerade etwas, bleibt das Fenster kurz
-/// stehen (die Seite zeigt auf das Ereignis `closing` hin einen Blocker), der Lauf wird
-/// abgebrochen und bekommt höchstens zehn Sekunden, seine Dateien zu Ende zu schreiben –
-/// danach endet die App in jedem Fall. Ist das Hauptfenster weg, endet sie ebenfalls: kein
-/// Prozess bleibt hinter dem Einzelinstanz-Schloss zurück.
+/// Closing and quitting: the close button never asks. If something is running, the window
+/// stays briefly (the page shows a blocker on the `closing` event), the run is cancelled and
+/// gets at most ten seconds to finish writing its files - then the app ends in any case.
+/// Once the main window is gone the app ends too: no process stays behind the single-instance
+/// lock.
 mod lifecycle {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -425,13 +370,13 @@ mod lifecycle {
 
     use crate::commands::AppState;
 
-    /// So lange darf ein abgebrochener Lauf noch aufräumen.
+    /// How long a cancelled run may still clean up.
     const GRACE: Duration = Duration::from_secs(10);
     const STEP: Duration = Duration::from_millis(100);
 
     pub fn watch<R: Runtime>(window: &WebviewWindow<R>, store: Arc<Store>) {
         let win = window.clone();
-        // Weitere Klicks auf ✕ ändern nichts mehr: Der Ablauf läuft genau einmal.
+        // Further clicks on the close button change nothing: the sequence runs exactly once.
         let closing = Arc::new(AtomicBool::new(false));
         window.on_window_event(move |event| match event {
             WindowEvent::CloseRequested { api, .. } => {

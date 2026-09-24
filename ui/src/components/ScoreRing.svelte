@@ -20,9 +20,7 @@
   export function ringState(match: JobMatch | null, pending = false): RingState {
     if (match === null) return pending ? { status: 'pending' } : { status: 'none' };
     if (match.status === 'excluded') return { status: 'excluded' };
-    if (match.status === 'unscorable' || match.score === null || match.band === null) {
-      return { status: 'unscorable' };
-    }
+    if (match.status === 'unscorable') return { status: 'unscorable' };
     return { status: 'scored', score: match.score, band: match.band };
   }
 

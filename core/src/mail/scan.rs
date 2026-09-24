@@ -1,9 +1,8 @@
-//! Postfach durchsuchen und Alert-Mails in den Speicher übernehmen.
+//! Search the mailbox and take alert mails into the store.
 //!
-//! Jede Mail wird sofort gespeichert – ein Abbruch oder Netzfehler verliert nichts, was
-//! schon verarbeitet war. Die Aufnahme ist idempotent: Überlappende Zeiträume schaden
-//! nicht, deshalb gibt es keine UID-Zeiger (und keine UIDVALIDITY-Fallen), nur einen
-//! Zeitstempel je Portal.
+//! Every mail is stored immediately - a cancel or network error loses nothing that was
+//! already processed. Ingestion is idempotent: overlapping periods do no harm, so there
+//! are no UID pointers (and no UIDVALIDITY traps), only one timestamp per portal.
 
 use jiff::civil::Date;
 use jiff::{Timestamp, ToSpan as _};
@@ -16,31 +15,31 @@ use crate::portal::Portal;
 use crate::store::{Seen, Store};
 use crate::time::local_date;
 
-/// Welche Mails ein Scan betrachtet.
+/// Which mails a scan looks at.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Scope {
-    /// Seit dem letzten erfolgreichen Scan (einen Tag Überlappung); beim ersten Mal 7 Tage.
+    /// Since the last successful scan (one day of overlap); 7 days the first time.
     New,
-    /// Der ganze Posteingang.
+    /// The whole inbox.
     All,
 }
 
-/// Ohne bisherigen Scan: so weit zurück.
+/// Without a previous scan: this far back.
 const FIRST_SCAN_DAYS: i32 = 7;
 
-/// Zähler eines Scans. Invariante: `postings_total = new + known_before + dup_in_run`.
+/// Counters of a scan. Invariant: `postings_total = new + known_before + dup_in_run`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanSummary {
-    /// Treffer der Suche.
+    /// Search matches.
     pub mails_found: usize,
-    /// Davon abgeholt und geprüft.
+    /// Of those, fetched and checked.
     pub mails_checked: usize,
-    /// Nicht lesbar (gezählt statt still verworfen).
+    /// Unreadable (counted instead of silently dropped).
     pub mails_defective: usize,
     pub alert_mails: usize,
-    /// Alert-Mails ohne einen erkannten Eintrag (Layout geändert?).
+    /// Alert mails without a single recognised entry (layout changed?).
     pub zero_posting_mails: usize,
     pub postings_total: usize,
     pub new: usize,
@@ -56,7 +55,7 @@ pub enum ScanError {
     Store(#[from] crate::Error),
 }
 
-/// Was der Scan unterwegs meldet.
+/// What the scan reports along the way.
 #[derive(Debug)]
 pub enum ScanEvent<'a> {
     Found { total: usize },
@@ -64,7 +63,7 @@ pub enum ScanEvent<'a> {
     Progress { done: usize, total: usize },
 }
 
-/// Ab welchem Tag gesucht wird (`None` = alles).
+/// The day the search starts from (`None` = everything).
 fn scan_since(
     store: &Store,
     scope: Scope,
@@ -79,9 +78,9 @@ fn scan_since(
             let mut since = today;
             for &portal in portals {
                 let from = match store.last_scan(portal)? {
-                    // Ein Tag Überlappung: IMAP sucht tageweise, in der Zeitzone des Servers.
+                    // One day of overlap: IMAP searches by day, in the server's time zone.
                     Some(at) if at <= now => local_date(at).saturating_sub(1.day()),
-                    // Stand in der Zukunft (Uhr war falsch gestellt): gilt als unbekannt.
+                    // State in the future (the clock was set wrong): treated as unknown.
                     _ => week_ago,
                 };
                 since = since.min(from);
@@ -91,15 +90,15 @@ fn scan_since(
     })
 }
 
-/// Durchsucht das Postfach und übernimmt alle Alert-Mails der gewählten Portale.
+/// Searches the mailbox and takes in all alert mails of the selected portals.
 ///
-/// `summary` gehört dem Aufrufer: Auch nach einem Fehler oder Abbruch enthält es, was
-/// bis dahin verarbeitet (und schon gespeichert) wurde. Der Scan-Stand je Portal rückt
-/// nur nach einem vollständigen Durchlauf vor – und nur für Portale, deren Lücke seit
-/// dem letzten Stand der Zeitraum ganz abdeckte.
+/// `summary` belongs to the caller: even after an error or cancel it holds what was
+/// processed (and already stored) up to then. The per-portal scan state advances only
+/// after a complete pass - and only for portals whose gap since their last state the
+/// searched period fully covered.
 #[expect(
     clippy::too_many_arguments,
-    reason = "Postfach, Speicher, Umfang, Uhr und Ereignisse kommen einzeln (in Tests austauschbar)"
+    reason = "mailbox, store, scope, clock and events are passed separately (swappable in tests)"
 )]
 pub async fn scan<S: MailSource>(
     source: &mut S,
@@ -133,8 +132,8 @@ pub async fn scan<S: MailSource>(
                 }
             }
         }
-        // Fortschritt je bearbeiteter UID: Inzwischen gelöschte Mails fehlen in der Antwort,
-        // der Balken erreicht trotzdem 100 %.
+        // Progress per processed UID: mails deleted in the meantime are missing from the
+        // reply, yet the bar still reaches 100 %.
         done += chunk.len();
         on_event(ScanEvent::Progress {
             done,
@@ -146,8 +145,8 @@ pub async fn scan<S: MailSource>(
     }
 
     for &portal in portals {
-        // Abgedeckt ist die Lücke nur mit einem Tag Überlappung (wie in `scan_since`). Ein
-        // Stand in der Zukunft zählt wie „unbekannt“ und wird ersetzt.
+        // The gap is covered only with one day of overlap (as in `scan_since`). A state
+        // in the future counts as "unknown" and is replaced.
         let covered = match (since, store.last_scan(portal)?) {
             (None, _) | (_, None) => true,
             (Some(since), Some(last)) => last > started || since < local_date(last),
@@ -166,8 +165,8 @@ fn take_alert(
     now: Timestamp,
     summary: &mut ScanSummary,
 ) -> crate::Result<()> {
-    // Eine Mail ist eine Änderung; gezählt wird erst, wenn sie gespeichert ist – die
-    // Invariante gilt auch nach einem Fehler.
+    // One mail is one change; it is counted only once it is stored - so the invariant
+    // holds even after an error.
     let seen = store.record_alert(run, alert, now)?;
     summary.alert_mails += 1;
     if alert.postings.is_empty() {
@@ -189,8 +188,7 @@ mod tests {
     use super::*;
     use crate::mail::RawMail;
 
-    /// Postfach-Attrappe: jede Mail hat eine UID; auf Wunsch scheitert das Abholen ab
-    /// einer bestimmten UID.
+    /// Mailbox fake: every mail has a UID; optionally, fetching fails at a given UID.
     struct Fake {
         mails: Vec<(u32, RawMail)>,
         fail_at: Option<u32>,
@@ -209,7 +207,7 @@ mod tests {
 
         async fn fetch(&mut self, uids: &[u32]) -> Result<Vec<RawMail>, MailError> {
             if let Some(fail) = self.fail_at.filter(|f| uids.contains(f)) {
-                return Err(MailError::Lost(format!("bei {fail}")));
+                return Err(MailError::Lost(format!("at {fail}")));
             }
             Ok(self
                 .mails
@@ -254,7 +252,7 @@ mod tests {
                 },
             ),
         ];
-        // Genug Mails für mehrere Abhol-Blöcke.
+        // Enough mails for several fetch batches.
         for uid in 5..=60 {
             mails.push((uid, alert_mail(u64::from(uid), &[])));
         }
@@ -310,17 +308,17 @@ mod tests {
         assert_eq!(s.mails_found, 60);
         assert_eq!(s.mails_checked, 60);
         assert_eq!(s.mails_defective, 1);
-        assert_eq!(s.alert_mails, 58, "2 mit Einträgen + 56 ohne");
+        assert_eq!(s.alert_mails, 58, "2 with entries + 56 without");
         assert_eq!(s.zero_posting_mails, 56);
-        // Layout-Wächter: die grauen Zeilen kommen aus der Datenbank (auch nach Neustart).
+        // Layout guard: the grey rows come from the database (even after a restart).
         assert_eq!(store.zero_posting_mails(run).unwrap().len(), 56);
-        // Mail 2 enthält 4000000003 doppelt – innerhalb einer Mail zusammengeführt.
+        // Mail 2 contains 4000000003 twice - merged within one mail.
         assert_eq!(
             (s.postings_total, s.new, s.known_before, s.dup_in_run),
             (4, 3, 0, 1)
         );
         assert_eq!(s.postings_total, s.new + s.known_before + s.dup_in_run);
-        // Zweiter Lauf: nichts neu.
+        // Second run: nothing new.
         let (s, _) = run_scan(&store, &mut fake(None), Scope::New, now()).await;
         assert_eq!((s.new, s.known_before, s.dup_in_run), (0, 3, 1));
     }
@@ -346,13 +344,13 @@ mod tests {
         assert_eq!(
             source.searched,
             [day("2026-09-12"), day("2026-09-18"), None],
-            "Erstlauf 7 Tage; dann letzter Stand − 1 Tag; „Alle“ ohne Grenze"
+            "first run 7 days; then last state minus 1 day; \"All\" without a limit"
         );
         assert_eq!(store.last_scan(Portal::LinkedIn).unwrap(), Some(later));
     }
 
-    /// Ein Stand in der Zukunft (falsch gestellte Uhr) gilt als unbekannt: „Neu“ sucht
-    /// sieben Tage zurück und ersetzt ihn.
+    /// A state in the future (clock set wrong) counts as unknown: "New" searches seven
+    /// days back and replaces it.
     #[tokio::test]
     async fn a_state_in_the_future_is_replaced() {
         let store = Store::in_memory().unwrap();
@@ -370,8 +368,8 @@ mod tests {
         assert_eq!(store.last_scan(Portal::LinkedIn).unwrap(), Some(now()));
     }
 
-    /// Fehler mitten im Scan: Bis dahin Verarbeitetes ist gespeichert und gezählt, der
-    /// Scan-Stand rückt nicht vor.
+    /// Failure mid-scan: what was processed up to then is stored and counted, the scan
+    /// state does not advance.
     #[tokio::test]
     async fn failure_keeps_work_but_not_the_state() {
         let store = Store::in_memory().unwrap();

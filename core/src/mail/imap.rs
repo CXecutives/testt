@@ -1,8 +1,8 @@
-//! Gmail per IMAP: nur der Posteingang, nur lesend (`EXAMINE`, `BODY.PEEK`) – Gmail
-//! markiert dadurch nichts als gelesen.
+//! Gmail over IMAP: the inbox only, read-only (`EXAMINE`, `BODY.PEEK`), so Gmail
+//! marks nothing as read.
 //!
-//! Bewusst nicht „Alle Nachrichten“: Dort läge auch „Gesendet“ – ein selbst
-//! weitergeleiteter Alert bliebe sichtbar, obwohl der Nutzer ihn gelöscht hat.
+//! Deliberately not "All Mail": it also holds "Sent", so an alert the user forwarded
+//! themselves would stay visible even after they deleted it.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
@@ -21,88 +21,81 @@ use tokio_rustls::client::TlsStream;
 use tokio_util::sync::CancellationToken;
 
 use super::RawMail;
+use crate::error::ErrorKind;
 use crate::portal::Portal;
 use crate::text::{one_line, truncate_chars};
 
 const HOST: &str = "imap.gmail.com";
 const PORT: u16 = 993;
-/// Kommt so lange gar nichts vom Server, gilt die Verbindung als hängend.
+/// If nothing at all arrives from the server for this long, the connection counts as hung.
 const IDLE: Duration = Duration::from_secs(30);
-/// Obergrenze für einen einzelnen Schritt, auch wenn Daten nur tröpfeln.
+/// Upper bound for a single step, even while data only trickles in.
 const STEP_LIMIT: Duration = Duration::from_secs(10 * 60);
-/// Mehr wird von einer Mail nie geholt (Alerts sind klein, große Anhänge unnötig).
+/// Never fetch more than this of one mail (alerts are small, large attachments are not needed).
 const MAX_MAIL_BYTES: u32 = 4 * 1024 * 1024;
-/// Mails je Abholung.
+/// Mails per fetch.
 pub const BATCH: usize = 25;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MailError {
-    #[error("Es ist noch kein Gmail-Zugang hinterlegt – bitte Adresse und App-Passwort eintragen.")]
+    #[error("no Gmail credentials stored")]
     NoCredentials,
 
-    #[error("Keine Verbindung zu imap.gmail.com.\n\nInternetverbindung und Firewall prüfen. ({0})")]
+    #[error("cannot connect to imap.gmail.com: {0}")]
     Connect(String),
 
-    #[error(
-        "Gmail hat die Anmeldung abgelehnt.\n\n\
-         • Als Passwort ist ein App-Passwort nötig (16 Zeichen, unter „Google-Konto → Sicherheit → App-Passwörter“), nicht das normale Konto-Passwort.\n\
-         • Die Bestätigung in zwei Schritten muss aktiv sein.\n\
-         • IMAP muss in den Gmail-Einstellungen erlaubt sein (Einstellungen → Weiterleitung und POP/IMAP).\n\n\
-         Meldung von Gmail: {0}"
-    )]
+    #[error("Gmail rejected the login: {0}")]
     Auth(String),
 
-    #[error(
-        "Gmail antwortet nicht (keine Antwort nach 30 Sekunden). Bitte später erneut versuchen."
-    )]
+    #[error("Gmail did not answer within 30 seconds")]
     Timeout,
 
-    #[error("Die Verbindung zu Gmail ist abgebrochen: {0}")]
+    #[error("connection to Gmail lost: {0}")]
     Lost(String),
 
-    #[error("Dieses Postfach unterstützt die Gmail-Suche nicht – die App arbeitet nur mit Gmail.")]
+    #[error("server is not Gmail (no X-GM-EXT-1 capability)")]
     NotGmail,
 
-    #[error("Gmail meldet einen Fehler: {0}")]
+    #[error("Gmail reported an error: {0}")]
     Server(String),
 
-    #[error("Abgebrochen.")]
+    #[error("cancelled")]
     Cancelled,
 }
 
 impl MailError {
-    /// Kurzer, stabiler Name für die Oberfläche.
-    pub fn kind(&self) -> &'static str {
+    /// Stable error code for the interface.
+    pub fn kind(&self) -> ErrorKind {
         match self {
-            MailError::NoCredentials => "mailMissing",
-            MailError::Connect(_) => "mailConnect",
-            MailError::Auth(_) => "mailAuth",
-            MailError::Timeout => "mailTimeout",
-            MailError::Lost(_) => "mailLost",
-            MailError::NotGmail => "mailNotGmail",
-            MailError::Server(_) => "mailServer",
-            MailError::Cancelled => "cancelled",
+            MailError::NoCredentials => ErrorKind::MailMissing,
+            MailError::Connect(_) => ErrorKind::MailConnect,
+            MailError::Auth(_) => ErrorKind::MailAuth,
+            MailError::Timeout => ErrorKind::MailTimeout,
+            MailError::Lost(_) => ErrorKind::MailLost,
+            MailError::NotGmail => ErrorKind::MailNotGmail,
+            MailError::Server(_) => ErrorKind::MailServer,
+            MailError::Cancelled => ErrorKind::MailCancelled,
         }
     }
 }
 
-/// Protokollfehler nach der Anmeldung. Nur eine echte Ablehnung beim Anmelden ist ein
-/// Zugangsfehler – ein Verbindungsabbruch nie (früher: galt als „falsches Passwort“).
+/// Protocol errors after login. Only a real rejection at login is a credentials error -
+/// a dropped connection never is (it used to count as a "wrong password").
 fn protocol(error: async_imap::error::Error) -> MailError {
     use async_imap::error::Error as E;
     match error {
         E::Io(e) => io_error(&e),
-        E::ConnectionLost => MailError::Lost("vom Server getrennt".into()),
+        E::ConnectionLost => MailError::Lost("disconnected by the server".into()),
         E::No(text) | E::Bad(text) => MailError::Server(clean(&text)),
         E::Parse(_) => MailError::Server(UNREADABLE.into()),
         other => MailError::Server(clean(&other.to_string())),
     }
 }
 
-const UNREADABLE: &str = "Antwort von Gmail nicht lesbar";
+const UNREADABLE: &str = "unreadable reply from Gmail";
 
-/// Ein-/Ausgabefehler. Parserfehler von async-imap tragen den ganzen ungelesenen Puffer
-/// (also Mailinhalt) im Text – der landet nie in Meldung oder Log.
+/// I/O errors. Parser errors from async-imap carry the whole unread buffer (i.e. mail
+/// content) in their text - that never ends up in a message or the log.
 fn io_error(error: &std::io::Error) -> MailError {
     use std::io::ErrorKind;
     match error.kind() {
@@ -112,14 +105,14 @@ fn io_error(error: &std::io::Error) -> MailError {
     }
 }
 
-/// Servertexte für Meldungen: eine Zeile, höchstens 200 Zeichen.
+/// Server texts for messages: one line, at most 200 characters.
 fn clean(text: &str) -> String {
     truncate_chars(&one_line(text), 200)
 }
 
-/// Fehler beim Anmelden: Nur eine Ablehnung der Zugangsdaten ist ein Zugangsproblem.
-/// Vorübergehende Ablehnungen (Gmail überlastet, zu viele Verbindungen,
-/// Datenlimit) sind es nicht – sonst änderte der Nutzer ein richtiges Passwort.
+/// Errors at login: only a rejection of the credentials is a credentials problem.
+/// Transient rejections (Gmail overloaded, too many connections, bandwidth limit)
+/// are not - otherwise the user would change a correct password.
 fn login_error(error: async_imap::error::Error) -> MailError {
     match error {
         async_imap::error::Error::No(text) | async_imap::error::Error::Bad(text) => {
@@ -136,7 +129,7 @@ fn login_error(error: async_imap::error::Error) -> MailError {
             .iter()
             .any(|w| upper.contains(w));
             if transient {
-                MailError::Server(format!("{} – bitte später erneut versuchen", clean(&text)))
+                MailError::Server(format!("{} (temporary, try again later)", clean(&text)))
             } else {
                 MailError::Auth(clean(&text))
             }
@@ -145,8 +138,9 @@ fn login_error(error: async_imap::error::Error) -> MailError {
     }
 }
 
-/// Gmail-Zugang. Adresse und App-Passwort werden an **einer** Stelle normalisiert:
-/// Adresse ohne Rand und klein, Passwort ohne Leerzeichen (Google zeigt es in Vierergruppen).
+/// Gmail credentials. Address and app password are normalised in **one** place: the
+/// address trimmed and lowercased, the password without whitespace (Google shows it in
+/// groups of four).
 #[derive(Clone)]
 pub struct Credentials {
     pub user: String,
@@ -166,7 +160,7 @@ impl Credentials {
     }
 }
 
-/// Das Passwort erscheint nie in Debug-Ausgaben oder Logs.
+/// The password never appears in debug output or logs.
 impl fmt::Debug for Credentials {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Credentials")
@@ -175,26 +169,27 @@ impl fmt::Debug for Credentials {
     }
 }
 
-/// Woher die Mails kommen – Gmail oder im Test eine Attrappe.
+/// Where the mails come from - Gmail, or a fake in tests.
 pub trait MailSource {
-    /// UIDs der Treffer seit `since` (`None` = alle), aufsteigend.
+    /// UIDs of the matches since `since` (`None` = all), ascending.
     fn search(
         &mut self,
         since: Option<Date>,
         portals: &[Portal],
     ) -> impl Future<Output = Result<Vec<u32>, MailError>> + Send;
 
-    /// Die Mails zu `uids`. Inzwischen gelöschte fehlen einfach; eine Mail ohne Inhalt
-    /// kommt mit leeren Bytes zurück (wird als defekt gezählt, nie still verworfen).
+    /// The mails for `uids`. Mails deleted in the meantime are simply missing; a mail
+    /// without content comes back with empty bytes (counted as defective, never silently
+    /// dropped).
     fn fetch(
         &mut self,
         uids: &[u32],
     ) -> impl Future<Output = Result<Vec<RawMail>, MailError>> + Send;
 }
 
-/// Suchausdruck: Absender-Domains der Portale **oder** ihre Stichwörter (weitergeleitete
-/// Alerts kommen vom Nutzer selbst). `X-GM-RAW` ist Gmails eigene Suche – serverseitig,
-/// schnell und ohne das Postfach herunterzuladen.
+/// Search expression: the portals' sender domains **or** their keywords (forwarded
+/// alerts come from the user themselves). `X-GM-RAW` is Gmail's own search - server-side,
+/// fast and without downloading the mailbox.
 fn search_query(since: Option<Date>, portals: &[Portal]) -> String {
     let domains: Vec<&str> = portals
         .iter()
@@ -210,13 +205,13 @@ fn search_query(since: Option<Date>, portals: &[Portal]) -> String {
         terms.join(" OR ")
     );
     match since {
-        // IMAP-Monatsnamen sind englisch; jiff formatiert unabhängig von der Systemsprache.
+        // IMAP month names are English; jiff formats them regardless of the system language.
         Some(date) => format!("SINCE {} {raw}", date.strftime("%d-%b-%Y")),
         None => raw,
     }
 }
 
-/// Verbindung zu Gmail: TCP mit Leerlauf-Grenze, darüber TLS.
+/// Connection to Gmail: TCP with an idle limit, TLS on top.
 pub(crate) type Stream = TlsStream<Pin<Box<TimeoutStream<TcpStream>>>>;
 
 pub struct Gmail<T = Stream>
@@ -228,7 +223,7 @@ where
 }
 
 impl Gmail {
-    /// Verbinden, anmelden, Posteingang schreibgeschützt öffnen.
+    /// Connect, log in, open the inbox read-only.
     pub async fn connect(
         credentials: &Credentials,
         cancel: CancellationToken,
@@ -242,8 +237,8 @@ impl Gmail {
             MailError::Connect(e.to_string())
         })
         .await?;
-        // Leerlauf-Grenze statt Gesamtgrenze: Eine große Mail auf langsamer Leitung darf
-        // dauern, solange Daten fließen; eine hängende Verbindung endet nach 30 s.
+        // Idle limit instead of a total limit: a large mail on a slow line may take its
+        // time as long as data flows; a hung connection ends after 30 s.
         let mut tcp = TimeoutStream::new(tcp);
         tcp.set_read_timeout(Some(IDLE));
         tcp.set_write_timeout(Some(IDLE));
@@ -256,7 +251,7 @@ impl Gmail {
             MailError::Connect(e.to_string())
         })
         .await?
-        .ok_or_else(|| MailError::Connect("keine Begrüßung vom Server".into()))?;
+        .ok_or_else(|| MailError::Connect("no greeting from the server".into()))?;
         let login = client.login(&credentials.user, credentials.password());
         let mut session = guarded(&cancel, login, |(error, _)| login_error(error)).await?;
         let capabilities = guarded(&cancel, session.capabilities(), protocol).await?;
@@ -272,14 +267,14 @@ impl<T> Gmail<T>
 where
     T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + fmt::Debug + Send,
 {
-    /// Abmelden; Fehler dabei sind egal (die Verbindung endet so oder so).
+    /// Log out; errors here do not matter (the connection ends either way).
     pub async fn close(mut self) {
         let _ = tokio::time::timeout(Duration::from_secs(5), self.session.logout()).await;
     }
 
-    /// Sendet einen Befehl und liest bis zu seiner Abschlussmeldung. `NO`/`BAD` ist ein
-    /// Fehler – async-imap selbst prüft das bei SEARCH und FETCH nicht; eine gescheiterte
-    /// Suche sähe sonst aus wie „keine Mails“.
+    /// Sends a command and reads up to its completion response. `NO`/`BAD` is an error -
+    /// async-imap itself does not check this for SEARCH and FETCH; a failed search would
+    /// otherwise look like "no mails".
     async fn command(
         &mut self,
         command: &str,
@@ -289,7 +284,7 @@ where
         loop {
             let data = guarded(&self.cancel, self.session.read_response(), |e| io_error(&e))
                 .await?
-                .ok_or_else(|| MailError::Lost("vom Server getrennt".into()))?;
+                .ok_or_else(|| MailError::Lost("disconnected by the server".into()))?;
             match data.parsed() {
                 Response::Done {
                     tag: done,
@@ -300,7 +295,7 @@ where
                     return match status {
                         Status::Ok => Ok(()),
                         _ => Err(MailError::Server(clean(
-                            information.as_deref().unwrap_or("Befehl abgelehnt"),
+                            information.as_deref().unwrap_or("command rejected"),
                         ))),
                     };
                 }
@@ -364,8 +359,8 @@ where
                     _ => {}
                 }
             }
-            // Nur angeforderte Mails mit Inhalt, jede einmal – reine Statusmeldungen
-            // (z. B. „inzwischen gelesen“) sind keine Mail.
+            // Only requested mails with content, each once - pure status updates
+            // (e.g. "read in the meantime") are not a mail.
             if let (Some(uid), Some(bytes)) = (uid, body)
                 && wanted.contains(&uid)
             {
@@ -377,8 +372,8 @@ where
     }
 }
 
-/// Führt einen Netzschritt aus – abbrechbar. Die Leerlauf-Grenze liegt auf der Verbindung;
-/// diese Gesamtgrenze fängt nur, was darüber hinaus hängen könnte.
+/// Runs one network step, cancellable. The idle limit sits on the connection; this
+/// overall limit only catches whatever could hang beyond that.
 async fn guarded<T, E>(
     cancel: &CancellationToken,
     step: impl Future<Output = Result<T, E>>,
@@ -411,8 +406,8 @@ mod tests {
         );
     }
 
-    /// Früher: Leerzeichen im App-Passwort wurden nur beim Speichern entfernt, die
-    /// Adresse war groß/klein-empfindlich.
+    /// Formerly: whitespace in the app password was only removed when saving, and the
+    /// address was case-sensitive.
     #[test]
     fn credentials_are_normalised_and_never_printed() {
         let c = Credentials::new("  Erika.Mueller@Example.com ", "abcd efgh\tijkl mnop");
@@ -421,7 +416,7 @@ mod tests {
         assert!(!format!("{c:?}").contains("abcd"));
     }
 
-    /// Ein Verbindungsabbruch beim Anmelden ist kein falsches Passwort.
+    /// A dropped connection at login is not a wrong password.
     #[test]
     fn only_a_rejection_is_an_auth_error() {
         use async_imap::error::Error as E;
@@ -443,13 +438,13 @@ mod tests {
         assert!(matches!(result, Err(MailError::Cancelled)));
     }
 
-    /// Postfach-Attrappe auf Protokollebene: beantwortet jeden Befehl mit der nächsten
-    /// vorbereiteten Antwort (`{tag}` wird ersetzt).
+    /// Mailbox fake at protocol level: answers every command with the next prepared
+    /// reply (`{tag}` is replaced).
     async fn scripted(replies: Vec<String>) -> Gmail<tokio::io::DuplexStream> {
         scripted_logging(replies).await.0
     }
 
-    /// Wie [`scripted`], liefert zusätzlich alle Befehle, die der Client geschickt hat.
+    /// Like [`scripted`], but also returns every command the client sent.
     async fn scripted_logging(
         replies: Vec<String>,
     ) -> (
@@ -496,9 +491,9 @@ mod tests {
         )
     }
 
-    /// Sicherheits-Invariante: Gmail wird nur gelesen. Das Postfach wird mit `EXAMINE`
-    /// geöffnet (nie `SELECT`), Mails mit `BODY.PEEK` geholt – so markiert Gmail nichts als
-    /// gelesen, und kein Befehl verändert je etwas.
+    /// Safety invariant: Gmail is only ever read. The mailbox is opened with `EXAMINE`
+    /// (never `SELECT`), mails are fetched with `BODY.PEEK` - so Gmail marks nothing as
+    /// read, and no command ever changes anything.
     #[tokio::test]
     async fn the_mailbox_is_only_ever_read() {
         let body = "Subject: Neue Jobs\r\n\r\nText";
@@ -520,15 +515,15 @@ mod tests {
         ] {
             assert!(!commands.contains(forbidden), "{forbidden}: {commands}");
         }
-        // Das Postfach selbst wird beim Verbinden geöffnet – dort steht `examine`, nie `select`.
-        // Der Suchtext steht zusammengesetzt da, sonst fände der Test sich selbst.
+        // The mailbox itself is opened on connect - that code says `examine`, never `select`.
+        // The search text is assembled here, otherwise the test would find itself.
         let source = include_str!("imap.rs");
         assert!(source.contains(&format!("session{}", r#".examine("INBOX")"#)));
         assert!(!source.contains(&format!("session{}", ".select(")));
     }
 
-    /// Eine gescheiterte Suche ist ein Fehler, nicht „0 Mails“ –
-    /// sonst rückte der Scan-Stand vor und die Mails fehlten für immer.
+    /// A failed search is an error, not "0 mails" - otherwise the scan state would
+    /// advance and the mails would be missing forever.
     #[tokio::test]
     async fn failed_search_is_an_error() {
         let mut gmail = scripted(vec![
@@ -548,8 +543,7 @@ mod tests {
         );
     }
 
-    /// Statusmeldungen ohne Inhalt sind keine Mail; eine abgelehnte
-    /// Abholung ist ein Fehler.
+    /// Status updates without content are not a mail; a rejected fetch is an error.
     #[tokio::test]
     async fn fetch_takes_only_requested_mails_with_content() {
         let body = "Subject: Neue Jobs\r\n\r\nText";
@@ -573,7 +567,7 @@ mod tests {
         assert!(matches!(gmail.fetch(&[7]).await, Err(MailError::Server(_))));
     }
 
-    /// Eine unlesbare Antwort bringt keinen Mailinhalt in die Meldung.
+    /// An unreadable reply brings no mail content into the message.
     #[tokio::test]
     async fn unreadable_answer_leaks_no_content() {
         let mut gmail = scripted(vec![
@@ -589,7 +583,7 @@ mod tests {
         );
     }
 
-    /// Eine vorübergehende Ablehnung ist kein falsches Passwort.
+    /// A temporary rejection is not a wrong password.
     #[test]
     fn temporary_login_rejection_is_no_auth_error() {
         use async_imap::error::Error as E;

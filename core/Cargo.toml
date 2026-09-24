@@ -44,3 +44,4 @@ flate2 = "1"
 # Tests: eigene Laufzeit, simulierte Zeit, Duplex-Ströme für das IMAP-Protokoll.
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time", "test-util", "io-util"] }
 wiremock = "0.6"
+ts-rs = { version = "12.0.1", features = ["jiff-impl"] }

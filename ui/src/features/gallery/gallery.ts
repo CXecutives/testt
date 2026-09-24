@@ -151,7 +151,8 @@ function sample(
     firstSeenAt: at,
     unread: false,
     pinned: false,
-    detail: 'ok',
+    detail: { kind: 'ok' },
+    short: false,
     match: null,
     alsoOn: [],
     ...extra,
@@ -165,7 +166,7 @@ const scored = (score: number, top: string): JobView['match'] => ({
   note: null,
   mustMet: 3,
   mustTotal: 4,
-  top: [{ kind: score >= 40 ? 'met' : 'open', label: top }],
+  top: [top],
 });
 
 /** Jobs in every state a row can show. */
@@ -195,16 +196,16 @@ export function sampleJobs(now: Date): JobView[] {
     sample(now, '1003', 'Kaufmännische Leitung Projektgeschäft', 'Werft 7 GmbH', 'Kiel', 30, {
       portal: 'freelance',
       key: { portal: 'freelance', id: '1003' },
-      detail: 'teaser',
+      detail: { kind: 'teaser' },
       match: scored(47, 'Projektcontrolling'),
     }),
     sample(now, '1004', 'SAP FI Berater Migration', 'Datenwerk Süd', 'München', 52, {
-      workMode: 'onSite',
+      workMode: 'onsite',
       match: scored(28, 'SAP FI im Konzern'),
     }),
     sample(now, '1005', 'Finance Manager Shared Service', 'Contoso Services', 'Leipzig', 80, {
       match: null,
-      detail: 'failed',
+      detail: { kind: 'failed', attempts: 3, retryAt: null },
     }),
     sample(
       now,
@@ -222,7 +223,7 @@ export function sampleJobs(now: Date): JobView[] {
           note: null,
           mustMet: 2,
           mustTotal: 4,
-          top: [{ kind: 'violation', label: 'Arbeitnehmerüberlassung' }],
+          top: ['Controlling im Konzern'],
         },
       },
     ),

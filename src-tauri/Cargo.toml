@@ -9,8 +9,8 @@ publish.workspace = true
 [lints]
 workspace = true
 
-# Nur ein Programm, keine Bibliothek: Alle Tests leben in `core`
-# (Tauri-gelinkte Test-Exes scheitern unter Windows ohne App-Manifest).
+# A program, not a library: all tests live in `core` (Tauri-linked test executables fail on
+# Windows without the app manifest). Compile-time checks cover what lives here.
 [[bin]]
 name = "job-alert-monitor"
 path = "src/main.rs"
@@ -28,14 +28,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 jiff = "0.2"
 fastrand = "2"
-# 2.11.1 schließt CVE-2026-42184 (Remote-Seiten konnten lokale Commands aufrufen).
+# 2.11.1 fixes CVE-2026-42184 (remote pages could call local commands).
 tauri = { version = "2.11.5", features = [] }
 tauri-plugin-single-instance = "2.4"
 tokio = { version = "1", features = ["sync", "time", "macros"] }
 tokio-util = "0.7"
 
 [target.'cfg(windows)'.dependencies]
-# Dieselben Versionen wie in Tauri (keine zusätzliche Übersetzung): Zugriff auf die
-# WebView2-Einstellungen, die Tauri nicht durchreicht.
+# The same versions as in Tauri (nothing extra to compile): access to the WebView2 settings
+# that Tauri does not pass through (src/platform.rs).
 webview2-com = "0.38"
 windows-core = "0.61"

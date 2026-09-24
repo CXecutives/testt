@@ -2,19 +2,21 @@
 // talks to the backend through these functions, which is also what lets the harness swap
 // Tauri for a typed stub (vite `--mode harness`).
 //
-// Run events: one Tauri Channel, created lazily, is handed to the commands that stream
-// (`app_state` subscribes, `start_run` reports); `onRun` fans the events out.
+// Run events: one Tauri Channel, created lazily, is handed to the commands that take a
+// `channel` (`app_state` attaches - also to a run that is already going after a reload -,
+// `start_run` reports); `onRun` fans the events out. Callers never pass the channel.
+//
+// Types: `Commands` is generated from the Rust command table (types/commands.ts).
 
 import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import type {
-  CommandArgs,
-  CommandError,
-  CommandName,
-  CommandResult,
-  Params,
-  RunEvent,
-} from './types';
+import type { Commands, ErrorInfo, ErrorKind, RunEvent } from './types';
+
+export type CommandName = keyof Commands;
+/** Arguments as the UI passes them: everything but the run channel. */
+export type CommandArgs<K extends CommandName> = Omit<Commands[K]['args'], 'channel'>;
+export type CommandResult<K extends CommandName> = Commands[K]['result'];
+type Params = ErrorInfo['params'];
 
 /** All commands, in the order of docs/PLAN.md. */
 export const COMMAND_NAMES = [
@@ -44,12 +46,15 @@ export const COMMAND_NAMES = [
 /** Commands that receive the run channel as `channel` argument. */
 const STREAMING: ReadonlySet<CommandName> = new Set<CommandName>(['app_state', 'start_run']);
 
-/** A failed command. `kind` and `params` come from the backend; texts from the catalog. */
-export class IpcError extends Error implements CommandError {
-  readonly kind: string;
+/**
+ * A failed command: `kind` and `params` come from the backend (ErrorInfo), texts from the
+ * catalog. `unknown` marks something that did not arrive as ErrorInfo (a bug of ours).
+ */
+export class IpcError extends Error {
+  readonly kind: ErrorKind | 'unknown';
   readonly params: Params;
 
-  constructor(kind: string, params: Params = {}) {
+  constructor(kind: ErrorKind | 'unknown', params: Params = {}) {
     super(kind);
     this.name = 'IpcError';
     this.kind = kind;
@@ -57,7 +62,7 @@ export class IpcError extends Error implements CommandError {
   }
 }
 
-function isCommandError(value: unknown): value is CommandError {
+function isErrorInfo(value: unknown): value is ErrorInfo {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -67,7 +72,7 @@ function isCommandError(value: unknown): value is CommandError {
 
 function toIpcError(error: unknown): IpcError {
   if (error instanceof IpcError) return error;
-  if (isCommandError(error)) return new IpcError(error.kind, error.params ?? {});
+  if (isErrorInfo(error)) return new IpcError(error.kind, error.params ?? {});
   return new IpcError('unknown', { detail: String(error).slice(0, 200) });
 }
 

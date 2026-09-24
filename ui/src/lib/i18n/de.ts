@@ -87,10 +87,11 @@ export const de = {
     workMode: {
       remote: 'Remote',
       hybrid: 'Hybrid',
-      onSite: 'Vor Ort',
+      onsite: 'Vor Ort',
     },
+    /** Badge per DetailState kind (`ok` shows none). */
     detail: {
-      missing: 'Ohne Details',
+      pending: 'Details folgen',
       teaser: 'Nur Anriss',
       failed: 'Abruf fehlgeschlagen',
       unfetchable: 'Nicht abrufbar',
