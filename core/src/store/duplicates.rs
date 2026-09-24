@@ -80,7 +80,10 @@ impl Store {
                 };
                 let original = JobKey { portal, id };
                 conn.execute(
-                    "UPDATE job SET dup_of = ?3, match_rev = NULL
+                    // The row goes into the original's: its own score is gone for good
+                    // (never scored again, never listed on its own).
+                    "UPDATE job SET dup_of = ?3, match_score = NULL, match_status = NULL,
+                                    match_note = NULL, match_at = NULL, match_rev = NULL
                      WHERE portal = ?1 AND job_id = ?2",
                     params![key.portal.key(), key.id, original.to_string()],
                 )?;
@@ -240,5 +243,59 @@ mod tests {
             in 40 Filialen. Aufgaben: Planung, Steuerung der Dienstleister, Berichtswesen an \
             die Geschäftsführung. Profil: Erfahrung im Handel und in agilen Methoden.";
         assert!(distance(same, simhash(other)) > MAX_DISTANCE);
+    }
+
+    /// A job scored before it turned out to be a duplicate: its score goes, and the top
+    /// lists show the job once (as the original).
+    #[test]
+    fn a_duplicate_loses_its_score_and_shows_once() {
+        use crate::model::{MatchRecord, MatchStatus};
+        use crate::store::test_support::{mail, now, posting};
+
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let first = posting(
+            "https://www.freelancermap.de/nproj/12345.html",
+            "SAP FI/CO Berater (m/w/d)",
+            "Ferrum Systems SE",
+            "Hamburg",
+        );
+        let second = posting(
+            "https://www.linkedin.com/jobs/view/4000000001/",
+            "SAP FI/CO Berater (m/w/d)",
+            "Ferrum Systems SE",
+            "Hamburg",
+        );
+        let record = MatchRecord {
+            status: MatchStatus::Scored,
+            score: 80,
+            note: None,
+            must_met: 1,
+            must_total: 1,
+            top: Vec::new(),
+        };
+        for p in [&first, &second] {
+            store.upsert_posting(run, p, mail(), now()).unwrap();
+            store
+                .record_text(&p.key, TEXT, false, false, now())
+                .unwrap();
+            store
+                .save_matches(&[(p.key.clone(), record.clone())], "r1", now())
+                .unwrap();
+        }
+        assert_eq!(
+            store.link_duplicate(&second.key).unwrap(),
+            Some(first.key.clone())
+        );
+        let dup = store.job(&second.key).unwrap().unwrap();
+        assert_eq!((dup.match_, dup.match_rev), (None, None), "no stale score");
+        let keys = |jobs: Vec<crate::store::JobRow>| -> Vec<JobKey> {
+            jobs.into_iter().map(|j| j.key).collect()
+        };
+        let top = keys(store.top_matches(run, 10).unwrap());
+        assert_eq!(top, std::slice::from_ref(&first.key));
+        let (overview, pinned) = store.overview_jobs(run).unwrap();
+        assert!(!pinned);
+        assert_eq!(keys(overview), [first.key]);
     }
 }

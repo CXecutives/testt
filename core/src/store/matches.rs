@@ -243,12 +243,13 @@ impl Store {
         Ok(at.and_then(from_db))
     }
 
-    /// The best scored (not excluded) jobs first seen in `run`.
+    /// The best scored (not excluded) jobs first seen in `run`; duplicates show as their
+    /// original.
     pub fn top_matches(&self, run: i64, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
-             WHERE first_seen_run = ?1 AND match_status = 'scored'
+             WHERE first_seen_run = ?1 AND match_status = 'scored' AND dup_of IS NULL
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id LIMIT ?2"
         ))?;
         let rows = stmt.query_map(params![run, limit], job_row)?;
@@ -273,6 +274,7 @@ impl Store {
         let mut new = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE first_seen_run = ?1 AND read_at IS NULL AND match_status = 'scored'
+               AND dup_of IS NULL
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id"
         ))?;
         let jobs = new
