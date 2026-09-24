@@ -13,7 +13,7 @@
   Row 3: the order, a quiet button with its name and a chevron ("Nach Passung", "Nach
   Datum") that opens the OS's own menu with both, the current one ticked; one choice for
   every list, kept. Without a usable profile it says "Nach Datum" and cannot open (why, in
-  its tooltip). Under Favoriten the favourites can be copied as one prompt for any AI chat.
+  its tooltip). The row keeps one height in every state.
   The bottom hairline shows only once the list below is scrolled.
 -->
 <script lang="ts">
@@ -21,7 +21,6 @@
   import Count from '$components/Count.svelte';
   import Dialog from '$components/Dialog.svelte';
   import Segmented from '$components/Segmented.svelte';
-  import Notice from '$components/Notice.svelte';
   import TextField from '$components/TextField.svelte';
   import { t } from '$lib/i18n/t';
   import type { JobFacet } from '$lib/ipc/types';
@@ -33,8 +32,6 @@
   import { jobs } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
-  import { tooltip } from '$lib/actions/tooltip';
-  import { copyTopPrompt } from './prompt';
 
   interface Props {
     /** The list below is scrolled away from its top. */
@@ -42,12 +39,27 @@
   }
   let { scrolled = false }: Props = $props();
 
-  // Every count follows the search, the same way for every segment.
+  // Each segment counts its list (they follow the search): the unread ones always in the warm
+  // pill, the others plain, whichever is chosen, so the control keeps its width; no zero.
   const views = $derived([
-    { id: 'new' as JobFacet, label: t.toolbar.facetNew, count: jobs.counts.new },
-    { id: 'all' as JobFacet, label: t.toolbar.facetAll, count: jobs.counts.all },
-    // An empty list of the user's own shows no zero (the row stays narrow).
-    { id: 'saved' as JobFacet, label: t.toolbar.facetSaved, count: jobs.counts.saved || null },
+    {
+      id: 'new' as JobFacet,
+      label: t.toolbar.facetNew,
+      count: jobs.counts.new || null,
+      tone: 'soft' as const,
+    },
+    {
+      id: 'all' as JobFacet,
+      label: t.toolbar.facetAll,
+      count: jobs.counts.all || null,
+      tone: 'plain' as const,
+    },
+    {
+      id: 'saved' as JobFacet,
+      label: t.toolbar.facetSaved,
+      count: jobs.counts.saved || null,
+      tone: 'plain' as const,
+    },
   ]);
 
   let searchBox = $state<HTMLElement | null>(null);
@@ -74,7 +86,6 @@
     );
   }
 
-  let promptError = $state<string | null>(null);
   let confirmEmpty = $state(false);
   let emptying = $state(false);
   let emptyError = $state<string | null>(null);
@@ -185,59 +196,46 @@
       </span>
     {/if}
   </div>
-  <span class="order">
-    <span class="sort">
-      <Button
-        variant="ghost"
-        size="sm"
-        label={t.toolbar.sortLabel[app.hasProfile ? jobs.sortChoice : 'newest']}
-        menu
-        disabled={!app.hasProfile}
-        disabledReason={t.toolbar.sortNoProfile}
-        testid="sort"
-        onclick={chooseSort}
-      />
-    </span>
-    <span class="order-tools">
-      {#if jobs.facet === 'saved' && jobs.counts.saved > 0}
-        <span use:tooltip={t.reader.promptHint}>
-          <Button
-            variant="ghost"
-            size="sm"
-            iconOnly
-            icon="copy"
-            label={t.overview.promptTop}
-            testid="prompt-pinned"
-            onclick={() => void copyTopPrompt().then((error) => (promptError = error))}
-          />
-        </span>
-      {/if}
-      {#if jobs.facet === 'archived'}
-        {#if jobs.counts.archived > 0}
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="trash-2"
-            label={t.list.emptyArchive}
-            testid="empty-archive"
-            onclick={() => (confirmEmpty = true)}
-          />
-        {/if}
-      {:else if jobs.counts.archived > 0}
-        <!-- The archive, reachable from every list; its count follows the search. -->
+  <!-- Nothing to order in an empty list (the row comes back with a search or a job). -->
+  {#if jobs.counts.all > 0 || jobs.counts.archived > 0 || jobs.search.trim() !== ''}
+    <span class="order">
+      <span class="sort">
         <Button
           variant="ghost"
           size="sm"
-          icon="archive"
-          label={t.list.archiveLink(jobs.counts.archived)}
-          testid="show-archive"
-          onclick={() => jobs.setFacet('archived')}
+          label={t.toolbar.sortLabel[app.hasProfile ? jobs.sortChoice : 'newest']}
+          menu
+          disabled={!app.hasProfile}
+          disabledReason={t.toolbar.sortNoProfile}
+          testid="sort"
+          onclick={chooseSort}
         />
-      {/if}
+      </span>
+      <span class="order-tools">
+        {#if jobs.facet === 'archived'}
+          {#if jobs.counts.archived > 0}
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="trash-2"
+              label={t.list.emptyArchive}
+              testid="empty-archive"
+              onclick={() => (confirmEmpty = true)}
+            />
+          {/if}
+        {:else if jobs.counts.archived > 0}
+          <!-- The archive, reachable from every list; its count follows the search. -->
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="archive"
+            label={t.list.archiveLink(jobs.counts.archived)}
+            testid="show-archive"
+            onclick={() => jobs.setFacet('archived')}
+          />
+        {/if}
+      </span>
     </span>
-  </span>
-  {#if promptError}
-    <Notice tone="danger" variant="inline" text={promptError} />
   {/if}
 </div>
 
@@ -329,25 +327,20 @@
     white-space: nowrap;
   }
 
-  /* A narrow column keeps the chosen segment's count only. */
-  @container (width < 440px) {
-    .filters :global(.count.plain) {
-      display: none;
-    }
-  }
-
   /* The order in words; its glyph starts on the edge of the column. */
   /* The order in words and, under Gemerkt, the pinned jobs as one prompt. */
+  /* One height in every state (a button that comes or goes never moves the list). */
   .order {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-8);
+    min-height: var(--control-sm);
     margin-right: calc(-1 * var(--space-12));
   }
 
   .sort {
     display: flex;
-    margin: calc(-1 * var(--space-4)) 0 calc(-1 * var(--space-4)) calc(-1 * var(--space-12));
+    margin-left: calc(-1 * var(--space-12));
   }
 </style>

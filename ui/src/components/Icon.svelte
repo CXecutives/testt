@@ -27,6 +27,7 @@
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Eye from '@lucide/svelte/icons/eye';
   import EyeOff from '@lucide/svelte/icons/eye-off';
+  import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
   import FileText from '@lucide/svelte/icons/file-text';
   import FileUp from '@lucide/svelte/icons/file-up';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
@@ -113,6 +114,8 @@
     // Archive a job from its row, and bring an archived one back.
     archive: Archive,
     'archive-restore': ArchiveRestore,
+    // The Excel file in the day overview.
+    'file-spreadsheet': FileSpreadsheet,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

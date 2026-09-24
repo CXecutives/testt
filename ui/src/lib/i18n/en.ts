@@ -49,9 +49,9 @@ const count = (value: number, one: string, many: string): string =>
   `${n(value)} ${value === 1 ? one : many}`;
 
 const portalName: Record<Portal, string> = {
-  linkedin: 'LinkedIn',
+  linkedin: 'linkedin.com',
   freelance: 'freelance.de',
-  freelancermap: 'freelancermap',
+  freelancermap: 'freelancermap.de',
 };
 const portalOf = (value: unknown): string =>
   typeof value === 'string' && value in portalName ? portalName[value as Portal] : str(value);
@@ -79,8 +79,8 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   mailCancelled: 'Cancelled.',
   secretStore: 'The password store of the system cannot be reached.',
   secretCorrupt: 'The stored app password cannot be read.',
-  portalUnavailable: (p) => `${portalOf(p.portal)} cannot be reached right now.`,
-  portalPaused: (p) => `${portalOf(p.portal)} is paused right now.`,
+  portalUnavailable: (p) => `No connection to ${portalOf(p.portal)}.`,
+  portalPaused: (p) => `Fetching from ${portalOf(p.portal)} is paused right now.`,
   portalQuota: (p) => `The limit for ${portalOf(p.portal)} is reached.`,
   internal: INTERNAL,
   unknown: INTERNAL,
@@ -123,7 +123,7 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   profileAnswer: 'The answer holds no profile.',
   mailAddress: 'The address is incomplete.',
   appPassword: 'An app password has 16 letters.',
-  noSignIn: (p) => `${portalOf(p.portal)} offers no sign-in.`,
+  noSignIn: (p) => `There is no sign-in for ${portalOf(p.portal)}.`,
   noteTooLong: (p) => `The note is longer than ${n(num(p.max))} characters.`,
 };
 
@@ -264,7 +264,7 @@ const reasonCode = {
   dayRateCurrency: (p) => `The rate is given in ${str(p.currency)}.`,
   availabilityGap: (p) =>
     `The start is ${count(num(p.days), 'day', 'days')} before the availability.`,
-  startVague: 'The ad names no start date.',
+  startVague: 'The start date is unclear.',
   permanent: 'This sounds like a permanent role.',
   permanentRegion: (p) =>
     p.location
@@ -330,30 +330,37 @@ const reasonCode = {
 const criteria = {
   minDayRate: {
     label: 'Day rate',
+    short: 'Day rate too low',
     exclusion: 'The day rate is below the minimum in the profile.',
   },
   countries: {
     label: 'Countries',
+    short: 'Location outside',
     exclusion: 'The location is outside the countries in the profile.',
   },
   noAnue: {
     label: 'Agency work',
+    short: 'Agency work',
     exclusion: ANUE,
   },
   availability: {
     label: 'Availability',
+    short: 'Start does not fit',
     exclusion: 'The start does not fit the availability.',
   },
   minSalary: {
     label: 'Annual salary',
+    short: 'Salary too low',
     exclusion: 'The salary is below the minimum in the profile.',
   },
   permanentRegion: {
     label: 'Places',
+    short: 'Place outside the region',
     exclusion: 'The permanent role is outside the region in the profile.',
   },
   targetYears: {
     label: 'Experience',
+    short: 'Experience does not fit',
     exclusion: 'The role asks for much less experience.',
   },
 } satisfies Catalog['reader']['criterion'];
@@ -504,7 +511,7 @@ export const en: Catalog = {
       info: 'Note',
     } satisfies Record<ReasonWeight, string>,
     evidenceLine: (profile: string, partial: boolean) =>
-      partial ? `Partly through “${profile}” in the profile.` : `Fits “${profile}” in the profile.`,
+      partial ? `Partly fits “${profile}” in the profile.` : `Fits “${profile}” in the profile.`,
     evidence: (quote: string, profile: string, partial: boolean) =>
       partial
         ? `“${quote}” partly fits “${profile}” in the profile.`
@@ -519,9 +526,9 @@ export const en: Catalog = {
       onsite: 'On site',
     } satisfies Record<WorkMode, string>,
     detail: {
-      pending: 'No details',
+      pending: 'Details to come',
       teaser: 'Teaser only',
-      failed: 'Details not fetched',
+      failed: 'Details missing',
       unfetchable: 'Not fetchable',
       gone: 'No longer online',
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
@@ -581,7 +588,7 @@ export const en: Catalog = {
       fetch: 'Fetch',
       details: 'Fetch details',
       rescore: 'Score again',
-      fullMailbox: 'Whole mailbox',
+      fullMailbox: 'Read older mails',
     } satisfies Record<RunKindName, string>,
     done: 'Fetch done',
     rescored: 'Scored again',
@@ -621,13 +628,13 @@ export const en: Catalog = {
       const name = portalName[portal];
       switch (kind) {
         case 'paused':
-          return `${name} paused`;
+          return `Pause on ${name}`;
         case 'quotaReached':
-          return `${name} reached its limit`;
+          return `Limit reached on ${name}`;
         case 'layoutSuspect':
-          return `${name} looks different than expected`;
+          return `Pages on ${name} look different than expected`;
         case 'loginRequired':
-          return `${name} asks for a sign-in`;
+          return `Sign-in needed on ${name}`;
       }
     },
     checkMailbox: 'Check mailbox',
@@ -642,7 +649,8 @@ export const en: Catalog = {
     emptyArchive: 'Empty archive',
     emptyArchiveHeading: 'Empty the archive?',
     emptyArchiveText: 'The jobs are deleted and do not come back.',
-    emptySources: 'The jobs come from the alert mails of the portals.',
+    emptySources: 'One alert per portal brings new jobs.',
+    emptyWhileRun: 'The jobs show up once the fetch is done.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
     readOlder: 'Read older mails',
     emptySent: 'No application noted yet.',
@@ -693,7 +701,7 @@ export const en: Catalog = {
     rateOpen: 'Rate negotiable',
     salary: (amount: number) => `${formatEuro(amount)} a year`,
     years: (value: number) => `${count(value, 'year', 'years')} of experience`,
-    fullRemote: 'Fully remote',
+    fullRemote: 'fully remote',
     contract,
     notMentioned: (label: string) => `${label} not mentioned`,
   },
@@ -723,7 +731,7 @@ export const en: Catalog = {
     deleteForGood: 'Delete for good',
     deleteHeading: 'Delete the job for good?',
     deleteText: 'The job is deleted and does not come back, not even with old alert mails.',
-    override: 'Fits anyway',
+    override: 'Count anyway',
     overrideUndo: 'Exclude again',
     overridden: 'You marked it as fitting.',
     prompt: 'Copy prompt for AI assessment',
@@ -737,6 +745,11 @@ export const en: Catalog = {
     } satisfies Record<AppStatus, string>,
     mail: OPEN_MAIL,
     noMail: 'There is no alert mail for this job.',
+    teaserOf: (portal: string) => `Without a sign-in ${portal} shows only a teaser.`,
+    setUpSignIn: 'Set up sign-in',
+    promptNoProfile: 'Without a profile there is nothing to assess.',
+    promptNoText: 'The text of the ad is still missing.',
+    mailAt: (moment: string) => `Alert mail of ${moment}`,
     fetchDetails: 'Fetch details',
     why: 'Why',
     wishes: 'Wishes',
@@ -765,6 +778,8 @@ export const en: Catalog = {
     excel: 'Open Excel file',
     promptTop: 'Copy prompt for AI comparison',
     promptTopNone: 'No job scored yet.',
+    bestInList: 'The best new jobs are at the top of the list.',
+    files: 'Files',
     emptyAlerts: (value: number) =>
       value === 1 ? 'One alert mail held no jobs.' : `${n(value)} alert mails held no jobs.`,
     lastRun: 'Last fetch',

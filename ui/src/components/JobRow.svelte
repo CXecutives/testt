@@ -5,7 +5,7 @@
   company and place, and one line with the ad's key facts ("ab sofort · 6 Monate · 60 %
   remote · 1.100 €"; the best met requirement when the ad states none) and a status badge
   right after it only when something deviates. Without a usable profile the ring stays, empty
-  (a dash), and the row shows no reason line: the reasons belong to a match.
+  (a dash), and the row has no third line unless a badge needs one.
   The star to pin sits below the date: filled when pinned, otherwise it appears on hover (a
   sibling of the row button, so it never selects the row; the row keeps its hover while
   the pointer is on the star). An excluded row is muted as a whole, its dot and star too.
@@ -83,6 +83,8 @@
       // Excluded rows speak through the ring, the grey and the divider.
       if (excluded) return null;
       const detail = job.detail.kind;
+      // While a run brings the details, "Details folgen" is no deviation.
+      if (detail === 'pending' && pending) return null;
       if (detail !== 'ok') {
         const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
         return { label: t.job.detail[detail], tone, hint: t.job.detailHint[detail] };
@@ -129,20 +131,20 @@
       {#if job.company}<span class="text company">{job.company}</span>{/if}
       {#if job.location}<span class="text place">{job.location}</span>{/if}
     </span>
-    <span class="foot">
-      {#if facts.length > 0}
-        <span class="facts" data-testid="row-facts"
-          >{#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}</span
-        >
-      {:else if reason}
-        <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
-      {/if}
-      {#if deviation}<Badge
-          label={deviation.label}
-          tone={deviation.tone}
-          hint={deviation.hint}
-        />{/if}
-    </span>
+    {#if ring || facts.length > 0 || reason || deviation}<span class="foot">
+        {#if facts.length > 0}
+          <span class="facts" data-testid="row-facts"
+            >{#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}</span
+          >
+        {:else if reason}
+          <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
+        {/if}
+        {#if deviation}<Badge
+            label={deviation.label}
+            tone={deviation.tone}
+            hint={deviation.hint}
+          />{/if}
+      </span>{/if}
   </ListRow>
   {#if job.unread && !excluded}<span class="dot" role="img" aria-label={t.job.unread} out:dotOut
     ></span>{/if}

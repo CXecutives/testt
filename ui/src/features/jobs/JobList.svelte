@@ -262,7 +262,14 @@
         icon="triangle-alert"
         tone="danger"
         text={jobs.error ?? t.list.loadFailed}
-        secondary={{ label: t.common.retry, icon: 'rotate-ccw', onclick: () => void jobs.load() }}
+        secondary={{
+          label: t.common.retry,
+          icon: 'rotate-ccw',
+          onclick: () => {
+            void jobs.load();
+            void jobs.loadOverview();
+          },
+        }}
         testid="list-error"
       />
     </div>
@@ -319,14 +326,17 @@
           secondary={{ label: t.list.showAll, onclick: () => jobs.setFacet('all') }}
           testid="empty-new"
         />
+      {:else if run.active || !mailRead}
+        <!-- A fetch that goes, or none yet: only what comes (no setup links). -->
+        <EmptyState
+          icon="inbox"
+          tone="neutral"
+          text={run.active ? t.list.emptyWhileRun : t.list.emptyAll}
+          testid="empty-all"
+        />
       {:else}
         <div class="sources">
-          <EmptyState
-            icon="inbox"
-            tone="neutral"
-            text={mailRead ? t.list.emptyAfterRun : t.list.emptyAll}
-            testid="empty-all"
-          />
+          <EmptyState icon="inbox" tone="neutral" text={t.list.emptyAfterRun} testid="empty-all" />
           <p class="sources-text">{t.list.emptySources}</p>
           <div class="sources-actions">
             {#each PORTALS as portal (portal.portal)}
@@ -385,7 +395,11 @@
     {#if excluded.length > 0}
       <div class="divider" data-testid="excluded-divider">
         <span class="divider-label">{t.list.excluded}</span>
-        {#if excludedCount !== null}<Count value={excludedCount} testid="excluded-count" />{/if}
+        {#if excludedCount !== null}<Count
+            value={excludedCount}
+            tone="plain"
+            testid="excluded-count"
+          />{/if}
       </div>
       <div class="rows" data-testid="excluded-rows">
         {@render group(excluded, active.length)}

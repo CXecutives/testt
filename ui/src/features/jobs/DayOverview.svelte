@@ -1,7 +1,9 @@
 <!--
   The reader's empty state: what the sheet shows while no job is selected, unboxed like the
   reader. It answers "what now" in a short list, no counts (the list header counts): "Neu
-  und passend" (the three best scored new
+  und passend" with the prompt of the best matches for any AI chat at the end of its heading
+  (the rows only where the list beside does not show them on top already, else one quiet
+  line), the three best scored new
   jobs as list rows; a click opens the job), the open points (one per portal and problem, a
   failed fetch, each with its action) only when there are any, and at the end the overview
   file, the Excel file and the folder, their one place in the Jobs view, and the best
@@ -125,6 +127,13 @@
   });
   const hasIssues = $derived(portalIssues.length > 0 || lastFailure !== null);
   const fetchedOnce = $derived((run.summary ?? app.state?.lastRun ?? null) !== null);
+  /** The list beside shows the best new jobs on top already (Neu, by fit, no search). */
+  const listShowsBest = $derived(
+    jobs.facet === 'new' &&
+      jobs.sortChoice === 'match' &&
+      jobs.search.trim() === '' &&
+      jobs.filter === null,
+  );
   let actionError = $state<string | null>(null);
 
   function open(target: OpenTarget): void {
@@ -134,7 +143,7 @@
 </script>
 
 <div class="overview" data-testid="day-overview" aria-label={t.overview.label}>
-  {#if topError}
+  {#if topError && jobs.status !== 'error'}
     <section class="block" data-testid="best-error">
       <Notice
         tone="warning"
@@ -145,16 +154,30 @@
     </section>
   {:else if best.length > 0}
     <section class="block" data-testid="best">
-      <h2 class="heading">{t.overview.best}</h2>
-      <div class="best">
-        {#each best as job (keyOf(job.key))}
-          <JobRow
-            {job}
-            testid="best-{job.key.portal}-{job.key.id}"
-            onselect={(chosen) => void jobs.select(chosen, true)}
-          />
-        {/each}
+      <div class="heading-line">
+        <h2 class="heading">{t.overview.best}</h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="copy"
+          label={t.overview.promptTop}
+          testid="prompt-top"
+          onclick={() => void copyTopPrompt().then((error) => (actionError = error))}
+        />
       </div>
+      {#if listShowsBest}
+        <p class="quiet" data-testid="top-in-list">{t.overview.bestInList}</p>
+      {:else}
+        <div class="best">
+          {#each best as job (keyOf(job.key))}
+            <JobRow
+              {job}
+              testid="best-{job.key.portal}-{job.key.id}"
+              onselect={(chosen) => void jobs.select(chosen, true)}
+            />
+          {/each}
+        </div>
+      {/if}
     </section>
   {/if}
 
@@ -195,44 +218,35 @@
   {/if}
 
   {#if fetchedOnce}
-    <div class="files" data-testid="overview-files">
-      {#if app.hasProfile}
+    <section class="block" data-testid="files">
+      <h2 class="heading">{t.overview.files}</h2>
+      <div class="files" data-testid="overview-files">
         <Button
           variant="ghost"
           size="sm"
-          icon="copy"
-          label={t.overview.promptTop}
-          disabled={best.length === 0}
-          disabledReason={t.overview.promptTopNone}
-          testid="prompt-top"
-          onclick={() => void copyTopPrompt().then((error) => (actionError = error))}
+          icon="file-text"
+          label={t.run.openOverview}
+          testid="overview-open"
+          onclick={() => open({ kind: 'overview' })}
         />
-      {/if}
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="external-link"
-        label={t.run.openOverview}
-        testid="overview-open"
-        onclick={() => open({ kind: 'overview' })}
-      />
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="file-text"
-        label={t.overview.excel}
-        testid="overview-excel"
-        onclick={() => open({ kind: 'excel' })}
-      />
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="folder-open"
-        label={t.common.openFolder}
-        testid="overview-folder"
-        onclick={() => open({ kind: 'workspace' })}
-      />
-    </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="file-spreadsheet"
+          label={t.overview.excel}
+          testid="overview-excel"
+          onclick={() => open({ kind: 'excel' })}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="folder-open"
+          label={t.common.openFolder}
+          testid="overview-folder"
+          onclick={() => open({ kind: 'workspace' })}
+        />
+      </div>
+    </section>
   {/if}
   {#if actionError}
     <Notice tone="danger" variant="inline" text={actionError} />
@@ -275,6 +289,20 @@
   .heading {
     color: var(--text-heading);
     font: var(--type-lg);
+  }
+
+  /* A heading with its one action at the end (the prompt of the best matches). */
+  .heading-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-12);
+    margin-right: calc(-1 * var(--space-12));
+  }
+
+  .quiet {
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   /* Quiet file actions below everything; their icons start on the edge of the column. */

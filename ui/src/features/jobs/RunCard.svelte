@@ -128,7 +128,10 @@
       case 'internal':
         return { label: t.common.openLog, onclick: () => openTarget({ kind: 'logDir' }) };
       default:
-        return { label: t.common.retry, onclick: () => run.retry(summary) };
+        // A failed fetch: Abrufen right above does the same, no second button for it.
+        return fetchRun && app.hasMailbox && !run.active
+          ? null
+          : { label: t.common.retry, onclick: () => run.retry(summary) };
     }
   });
 </script>
@@ -138,16 +141,7 @@
     {#key text}<span class="title" in:fade>{text}</span>{/key}
     {#if extra}<span class="pill" data-testid="countdown">{extra}</span>{/if}
     <span class="tools">
-      <Button
-        variant="ghost"
-        size="sm"
-        iconOnly
-        icon="chevron-down"
-        turned={open}
-        label={open ? t.run.collapse : t.run.expand}
-        testid="run-toggle"
-        onclick={toggle}
-      />
+      <!-- The close button comes first, so the chevron keeps the right edge in both states. -->
       {#if !run.fetching}
         <Button
           variant="ghost"
@@ -159,6 +153,16 @@
           onclick={() => run.hide()}
         />
       {/if}
+      <Button
+        variant="ghost"
+        size="sm"
+        iconOnly
+        icon="chevron-down"
+        turned={open}
+        label={open ? t.run.collapse : t.run.expand}
+        testid="run-toggle"
+        onclick={toggle}
+      />
     </span>
   </div>
 {/snippet}
@@ -238,7 +242,7 @@
             <span class="time">{formatMoment(summary.finishedAt)}</span>
             {#if fetchRun && newJobs > 0}
               <span data-testid="last-new"
-                ><Badge label={t.run.newPill(newJobs)} tone="navy" /></span
+                ><Badge label={t.run.newPill(newJobs)} tone="coral" /></span
               >
               {#if app.hasProfile && topJobs > 0}
                 <span data-testid="last-top"
@@ -250,7 +254,7 @@
           {#if failure}
             <Notice
               tone="danger"
-              variant="row"
+              variant="inline"
               text={t.error.text(failure.kind, failure.params)}
               action={failureAction}
               testid="run-failed"
@@ -280,7 +284,7 @@
           {#if filesText}
             <Notice
               tone="warning"
-              variant="row"
+              variant="inline"
               text={filesText}
               action={failure || run.active
                 ? null
@@ -377,8 +381,8 @@
     height: var(--badge-height);
     padding: 0 var(--space-8);
     border-radius: var(--radius-full);
-    background-color: var(--count-soft-bg);
-    color: var(--count-soft-fg);
+    background-color: var(--active-surface);
+    color: var(--active-text);
     font: var(--type-xs);
     font-weight: var(--weight-medium);
     font-variant-numeric: var(--numeric);

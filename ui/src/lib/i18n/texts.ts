@@ -52,10 +52,18 @@ export function reasonText(reason: Reason): string {
   return textOf(t.reason.code[code as ReasonCode], reason.params) || reason.label;
 }
 
-/** The line under a reason: the profile's side of its evidence (null without one). */
+/** Wishes of the profile: their sentence names the wish already. */
+const WISH_CODES: readonly string[] = ['dayRateWish', 'remoteWish', 'regionWish', 'industryWish'];
+const same = (a: string, b: string): boolean =>
+  a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+
+/** The line under a reason: the profile's side of its evidence; null without one, for a wish
+ *  and when the profile says the very words of the reason. */
 export function reasonEvidence(reason: Reason): string | null {
-  if (!reason.evidence?.profile) return null;
-  return t.reason.evidenceLine(reason.evidence.profile, reason.kind === 'partial');
+  const profile = reason.evidence?.profile;
+  if (!profile || WISH_CODES.includes(reason.code)) return null;
+  if (same(profile, reason.label) || same(profile, reason.evidence?.quote ?? '')) return null;
+  return t.reason.evidenceLine(profile, reason.kind === 'partial');
 }
 
 /** Tooltip of a reason: quote and profile evidence, or that the profile lacks it. */
@@ -93,12 +101,23 @@ export function noteText(note: Notice | null): string | null {
   return key ? t.reader.criterion[key].exclusion : null;
 }
 
-/** The reason line of a list row: the exclusion note, else the best met requirement. */
+/** The criterion an exclusion note names (`hardCriterion` with its key, or the reason code). */
+function noteCriterion(note: Notice | null): CriterionKey | null {
+  if (note === null) return null;
+  return note.code === 'hardCriterion'
+    ? criterionKey(note.params.criterion)
+    : criterionKey(note.code);
+}
+
+/** The reason line of a list row: why it is excluded in short words ("Tagessatz zu
+ *  niedrig"), else the best met requirement. */
 export function rowReason(job: JobView): { kind: 'met' | 'violation'; text: string } | null {
   const match = job.match;
   if (match === null) return null;
   if (match.status === 'excluded') {
-    return { kind: 'violation', text: noteText(match.note) ?? t.score.excluded };
+    const key = noteCriterion(match.note);
+    const text = key ? t.reader.criterion[key].short : noteText(match.note);
+    return { kind: 'violation', text: text ?? t.score.excluded };
   }
   const top = match.top[0];
   return top ? { kind: 'met', text: top } : null;
@@ -129,7 +148,8 @@ function rateWords(
 
 /**
  * The key facts of an ad for its list row, in this order: start, duration, remote share,
- * rate ("ab sofort", "6 Monate", "60 % remote", "1.100 €"). What the ad does not say is left out.
+ * rate ("ab sofort", "6 Monate", "60 % remote", "1.100 €/Tag"). What the ad does not say is
+ * left out.
  */
 export function factWords(facts: KeyFacts | null | undefined): string[] {
   if (!facts) return [];
@@ -141,9 +161,21 @@ export function factWords(facts: KeyFacts | null | undefined): string[] {
   const to = facts.remoteTo ?? facts.remoteFrom;
   if (from !== null && to !== null) out.push(t.facts.remote(from, to));
   const rate =
-    rateWords(facts.rate, facts.hourly, facts.currency, false) ??
+    rateWords(facts.rate, facts.hourly, facts.currency, true) ??
     (facts.rateOpen ? t.facts.rateOpen : null);
   if (rate) out.push(rate);
+  return out;
+}
+
+/** The duration and remote share of an ad (the reader's facts line, in place of the work
+ *  mode when the ad says more). */
+export function workWords(facts: KeyFacts | null | undefined): string[] {
+  if (!facts) return [];
+  const out: string[] = [];
+  if (facts.months) out.push(t.facts.months(facts.months));
+  const from = facts.remoteFrom ?? facts.remoteTo;
+  const to = facts.remoteTo ?? facts.remoteFrom;
+  if (from !== null && to !== null) out.push(t.facts.remote(from, to));
   return out;
 }
 

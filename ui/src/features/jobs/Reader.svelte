@@ -30,9 +30,9 @@
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
   import { inView, scrollArea } from '$lib/actions/inView';
   import { tooltip } from '$lib/actions/tooltip';
-  import type { CriterionState } from '$lib/i18n/de';
+  import type { CriterionKey, CriterionState } from '$lib/i18n/de';
   import { t } from '$lib/i18n/t';
-  import { displayTitle, formatDate } from '$lib/i18n/format';
+  import { displayTitle, formatMoment, formatRelative } from '$lib/i18n/format';
   import {
     criterionKey,
     criterionState,
@@ -40,6 +40,7 @@
     errorText,
     noteText,
     reasonEvidence,
+    workWords,
     reasonHint,
     reasonText,
   } from '$lib/i18n/texts';
@@ -48,6 +49,7 @@
   import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf } from '$lib/state/jobs.svelte';
+  import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
@@ -114,9 +116,20 @@
   const open = $derived(reasons.filter((r) => r.kind === 'open').sort(byWeight));
   // Under "Zu prüfen" what decides fastest comes first: the temporary agency work (ANÜ).
   const FIRST_CHECKS: readonly string[] = ['anue'];
+  // The strip owns the hard criteria: a check or a violation it shows as a chip is not listed
+  // again under "Warum" (the unclear start, the temporary agency work).
+  const chipOf = (reason: Reason): CriterionKey | null =>
+    criterionKey(reason.code) ?? (reason.code === 'startVague' ? 'availability' : null);
+  const chipKeys = $derived(
+    new Set((match?.criteria ?? []).map((reason) => criterionKey(reason.code))),
+  );
+  const onStrip = (reason: Reason): boolean => {
+    const key = chipOf(reason);
+    return key !== null && chipKeys.has(key);
+  };
   const checks = $derived(
     reasons
-      .filter((r) => r.kind === 'check')
+      .filter((r) => r.kind === 'check' && !onStrip(r))
       .sort(
         (a, b) => Number(FIRST_CHECKS.includes(b.code)) - Number(FIRST_CHECKS.includes(a.code)),
       ),
@@ -142,11 +155,12 @@
   }
   const chips = $derived.by((): StripChip[] => {
     const out: StripChip[] = [];
-    // The contract chip steps back when a criterion chip carries the same word (ANÜ).
+    // The contract chip steps back when a criterion chip shows the same word (its value, as
+    // "Interim" for the temporary agency criterion, or its name).
     const labels = new Set(
       (match?.criteria ?? []).flatMap((reason) => {
         const key = criterionKey(reason.code);
-        return key === null ? [] : [t.reader.criterion[key].label];
+        return key === null ? [] : [criterionValue(reason) ?? t.reader.criterion[key].label];
       }),
     );
     if (contract && !labels.has(reasonText(contract))) {
@@ -178,7 +192,12 @@
             : value
               ? `${name}, ${t.reader.criterionState[state]}`
               : t.reader.criterionState[state],
-        reason: reason.ranges.length > 0 ? reason : null,
+        reason:
+          reason.ranges.length > 0
+            ? reason
+            : (reasons.find(
+                (r) => chipOf(r) === key && passages.some((passage) => passage.reason === r.id),
+              ) ?? null),
       });
     }
     return out;
@@ -212,7 +231,9 @@
       : null,
   );
   // A violation that says exactly what the match line says is not repeated.
-  const violations = $derived(allViolations.filter((r) => reasonText(r) !== exclusion));
+  const violations = $derived(
+    allViolations.filter((r) => reasonText(r) !== exclusion && !onStrip(r)),
+  );
 
   const portalState = $derived(app.state?.portals.find((p) => p.portal === job.portal) ?? null);
   const detailKind = $derived(job.detail.kind);
@@ -222,17 +243,23 @@
       portalState.fetchDetails &&
       (detailKind !== 'teaser' || portalState.loginEnabled),
   );
-  const facts = $derived(
-    [
+  // Company, place, what the ad says about duration and remote share (else its work mode),
+  // the portals, and the date like in the row ("gestern"), the exact moment in its tooltip.
+  const facts = $derived.by((): { text: string; hint: string | null }[] => {
+    const work = workWords(job.match?.facts);
+    const when = job.mailDate ?? job.firstSeenAt;
+    return [
       job.company,
       job.location,
-      job.workMode ? t.job.workMode[job.workMode] : '',
+      ...(work.length > 0 ? work : [job.workMode ? t.job.workMode[job.workMode] : '']),
       job.alsoOn.length > 0
         ? `${t.portal[job.portal]}, ${t.job.alsoOn(job.alsoOn.map((p) => t.portal[p]).join(', '))}`
         : t.portal[job.portal],
-      formatDate(job.mailDate ?? job.firstSeenAt),
-    ].filter((fact) => fact !== ''),
-  );
+    ]
+      .filter((fact) => fact !== '')
+      .map((text) => ({ text, hint: null as string | null }))
+      .concat({ text: formatRelative(when), hint: t.reader.mailAt(formatMoment(when)) });
+  });
 
   /** No score yet and the details can be fetched: the button stands right under the band. */
   /** A score from a teaser only is a first guess. */
@@ -275,6 +302,11 @@
       cancelAnimationFrame(frame);
     };
   });
+
+  /** Why the prompt cannot work yet (no profile to assess against, no text of the ad). */
+  const promptOff = $derived(
+    !app.hasProfile ? t.reader.promptNoProfile : detail.text ? null : t.reader.promptNoText,
+  );
 
   async function copyPrompt(): Promise<void> {
     actionError = null;
@@ -482,7 +514,9 @@
     </div>
     <p class="facts" data-copy>
       <span class="facts-line">
-        {#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}
+        {#each facts as fact, index (index)}<span class="fact" use:tooltip={fact.hint}
+            >{fact.text}</span
+          >{/each}
       </span>
     </p>
   </header>
@@ -519,14 +553,16 @@
       />
       <div class="verdict">
         <p class="line">
-          <span class="band {headline.tone}" data-testid="band">{headline.word}</span>
-          {#if match && match.status === 'scored'}
-            <span class="must" data-testid="must">
-              {job.match && job.match.mustTotal > 0
-                ? t.reader.mustMet(job.match.mustMet, job.match.mustTotal, partialMust)
-                : t.reader.noMust}
-            </span>
-          {/if}
+          <span class="line-inner">
+            <span class="band {headline.tone}" data-testid="band">{headline.word}</span>
+            {#if match && match.status === 'scored'}
+              <span class="must" data-testid="must">
+                {job.match && job.match.mustTotal > 0
+                  ? t.reader.mustMet(job.match.mustMet, job.match.mustTotal, partialMust)
+                  : t.reader.noMust}
+              </span>
+            {/if}
+          </span>
         </p>
         {#if exclusion}
           <p class="because" data-testid="exclusion">
@@ -612,6 +648,8 @@
         variant="secondary"
         icon="copy"
         label={promptShort ? t.reader.promptShort : t.reader.prompt}
+        disabled={promptOff !== null}
+        disabledReason={promptOff}
         testid="prompt"
         onclick={() => void copyPrompt()}
       />
@@ -685,9 +723,21 @@
           (!portalState.enabled || !portalState.fetchDetails) &&
           detailKind === 'pending'
             ? t.reader.detailsOff
-            : t.reader.detail[detailKind]}
+            : detailKind === 'teaser'
+              ? t.reader.teaserOf(t.portal[job.portal])
+              : t.reader.detail[detailKind]}
           testid="detail-note"
         />
+        {#if detailKind === 'teaser' && portalState && !portalState.loginEnabled}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="log-in"
+            label={t.reader.setUpSignIn}
+            testid="set-up-sign-in"
+            onclick={() => navigation.go('settings')}
+          />
+        {/if}
         {#if canFetch}
           <Button
             variant="secondary"
@@ -870,6 +920,14 @@
     gap: var(--space-16);
   }
 
+  /* A narrow reader: the ring stands at the top of the verdict, which keeps its width. */
+  @container (width < 480px) {
+    .match {
+      align-items: flex-start;
+      gap: var(--space-12);
+    }
+  }
+
   .verdict {
     display: flex;
     flex-direction: column;
@@ -877,11 +935,18 @@
     min-width: 0;
   }
 
+  /* The band word and the must count; like the facts, a dot that would start a wrapped line
+     is clipped. */
   .line {
+    overflow: hidden;
+    font: var(--type-md);
+  }
+
+  .line-inner {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    font: var(--type-md);
+    margin-left: calc(-1 * var(--space-20));
   }
 
   .band {
@@ -892,9 +957,13 @@
     color: var(--text-muted);
   }
 
+  .band::before,
   .must::before {
-    padding: 0 var(--space-6);
+    display: inline-block;
+    width: var(--space-20);
     color: var(--text-subtle);
+    font-weight: var(--weight-regular);
+    text-align: center;
     content: '·';
   }
 

@@ -198,13 +198,19 @@ test('one place for filters: Neu, Alle, Favoriten; the overview says what now', 
   await open(page, WIN);
   const overview = page.getByTestId('day-overview');
   await expect(overview).toBeVisible();
-  // No counts in the overview: its best new jobs (as rows that open the job), the open
-  // points with their action, the files.
+  // No counts in the overview: its best new jobs, the open points with their action, the
+  // files. While the list beside shows the best new jobs on top, one quiet line says so.
   await expect(overview.getByTestId('tile-high')).toHaveCount(0);
   await expect(overview.getByTestId('new-per-portal')).toHaveCount(0);
   const best = page.getByTestId('best').locator('[data-testid^="best-"]');
+  await expect(page.getByTestId('top-in-list')).toBeVisible();
+  await expect(best).toHaveCount(0);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await expect(page.getByTestId('top-in-list')).toHaveCount(0);
   expect(await best.count()).toBeGreaterThan(0);
   expect(await best.count()).toBeLessThanOrEqual(3);
+  // The files have a block of their own.
+  await expect(page.getByTestId('files')).toContainText('Dateien');
   await expect(page.getByTestId('issue-freelance-mails')).toContainText(
     'Eine Alert-Mail enthielt keine Jobs.',
   );
@@ -485,7 +491,7 @@ test('a run in progress after a reload: steps, portals, countdown and pause', as
   await expect(page.getByTestId('step-fetch')).toHaveClass(/current/);
   await expect(page.getByTestId('step-fetch')).toContainText('5 von 7');
   // The status names the portal it is about.
-  await expect(page.getByTestId('run-running')).toContainText('Wartet auf LinkedIn');
+  await expect(page.getByTestId('run-running')).toContainText('Wartet auf linkedin.com');
   await expect(page.getByTestId('countdown')).toHaveText('Weiter in 0:42');
   await expect(page.getByTestId('pause-freelance')).toContainText(
     'Pause bis 09:42, das Portal bremst die Anfragen.',
@@ -497,6 +503,45 @@ test('loading takes a moment: skeletons, then the list', async ({ page }) => {
   await expect(page.getByTestId('list-skeleton')).toBeVisible();
   await expect(rows(page).first()).toBeVisible({ timeout: 5000 });
   await expect(page.getByTestId('list-skeleton')).toHaveCount(0);
+});
+
+test('rows and reader say the same in short words; dead ends lead on', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  // An excluded row names its reason in short words, the day rate carries its unit.
+  await expect(excludedRows(page).first().locator('.foot')).toHaveText('Arbeitnehmerüberlassung');
+  await expect(row(page, 'freelancermap-2801').getByTestId('row-facts')).toContainText(
+    '1.100 €/Tag',
+  );
+  // The reader's facts: duration and remote share like the row, the date like the row with
+  // the exact moment in its tooltip.
+  await row(page, 'freelancermap-2801').click();
+  const facts = page.locator('.head .facts');
+  await expect(facts).toContainText('6 Monate');
+  await expect(facts).toContainText('60 % remote');
+  await expect(facts).not.toContainText('Hybrid');
+  await expect(facts).not.toContainText('2026');
+  // A teaser names its portal and leads to the sign-in in Einstellungen.
+  await row(page, 'freelance-900411').click();
+  await expect(page.getByTestId('detail-note')).toContainText(
+    'Ohne Anmeldung zeigt freelance.de nur einen Anriss.',
+  );
+  await page.getByTestId('set-up-sign-in').click();
+  await expect(page.getByTestId('view-settings')).toBeVisible();
+});
+
+test('without a profile the prompt says why it cannot work', async ({ page }) => {
+  await open(page, `${WIN}&scenario=no-profile`);
+  await rows(page).first().click();
+  await expect(page.getByTestId('prompt')).toHaveAttribute('aria-disabled', 'true');
+});
+
+test('a list that fails to load says so once, and its retry reloads the overview too', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&scenario=list-error`);
+  await expect(page.getByTestId('list-error')).toBeVisible();
+  await expect(page.getByTestId('best-error')).toHaveCount(0);
 });
 
 test('a failing list offers a retry', async ({ page }) => {
@@ -784,6 +829,8 @@ test('the run card: steps side by side, a finished step draws its check once', a
 
 test('the day overview: its best jobs open the reader', async ({ page }) => {
   await open(page, WIN);
+  await page.getByTestId('sort').click();
+  await page.evaluate(() => window.__harness.choose('Nach Datum'));
   const best = page.getByTestId('best').locator('[data-testid^="best-"]').first();
   const title = await best.locator('.title').innerText();
   await best.click();
@@ -947,7 +994,7 @@ test('a search also finds archived jobs, and the Archiv count follows it', async
   await expect(row(page, key)).toHaveCount(1);
 });
 
-test('the best matches as one prompt: in the overview and under Favoriten', async ({
+test('the best matches as one prompt: at the end of the overview heading', async ({
   page,
   browserName,
 }) => {
@@ -955,16 +1002,12 @@ test('the best matches as one prompt: in the overview and under Favoriten', asyn
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   }
   await open(page, WIN);
+  await expect(page.getByTestId('best').getByTestId('prompt-top')).toBeVisible();
   await page.getByTestId('prompt-top').click();
   await expect(page.getByTestId('toast').last()).toContainText(
     'Prompt kopiert, bereit für einen KI-Chat.',
   );
-  await page
-    .getByTestId('facet')
-    .getByRole('radio', { name: /Favoriten/ })
-    .click();
-  await page.getByTestId('prompt-pinned').click();
-  expect(await calls(page, 'ai_prompt_top')).toHaveLength(2);
+  expect(await calls(page, 'ai_prompt_top')).toHaveLength(1);
   expect((await calls(page, 'ai_prompt_top'))[0]?.[1]).toEqual({ limit: 5 });
 });
 
