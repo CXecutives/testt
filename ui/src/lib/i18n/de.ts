@@ -808,7 +808,7 @@ export const de = {
       empty: 'Ohne Kompetenzen wird nichts bewertet.',
     } satisfies Record<ProfileQuality, string>,
     rescoring: (value: number) => `${count(value, 'Job wird', 'Jobs werden')} neu bewertet.`,
-    rescored: 'Neu bewertet.',
+    rescored: 'Gespeichert, Jobs neu bewertet.',
     /** The badge of a well filled profile that still has something to check. */
     check: 'Bitte prüfen',
     next: 'Weiter zum ersten Abruf',
@@ -832,7 +832,8 @@ export const de = {
     review: 'Die Angaben prüfen, dann speichern.',
     save: 'Speichern',
     discard: 'Verwerfen',
-    saved: 'Das Profil ist gespeichert.',
+    saved: 'Gespeichert.',
+    unsavedShort: 'Nicht gespeichert',
     leaveHeading: 'Änderungen speichern?',
     leaveText: 'Die Änderungen am Profil sind nicht gespeichert.',
     empty: 'Noch leer',

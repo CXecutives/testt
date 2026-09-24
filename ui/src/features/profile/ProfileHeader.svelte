@@ -25,7 +25,6 @@
     profile: ProfileInfo | null;
     quality: ProfileQuality | null;
     rescoring: boolean;
-    rescored: boolean;
     /** Unsaved changes: another file would replace them. */
     dirty: boolean;
     picking: boolean;
@@ -42,7 +41,6 @@
     profile,
     quality,
     rescoring,
-    rescored,
     dirty,
     picking,
     note,
@@ -123,8 +121,6 @@
       <p class="status" data-testid="profile-rescoring">
         <Spinner size="sm" label={null} />{t.profile.rescoring(profile?.pending ?? 0)}
       </p>
-    {:else if rescored}
-      <Notice tone="success" variant="inline" text={t.profile.rescored} testid="profile-rescored" />
     {/if}
     {#if onnext}
       <span>

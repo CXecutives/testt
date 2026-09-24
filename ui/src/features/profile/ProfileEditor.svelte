@@ -32,11 +32,13 @@
     busy: boolean;
     /** A failure of the last save, in words. */
     note: string | null;
+    /** The outcome of the last save (until the next change). */
+    result: string | null;
     onsave: () => void;
     ondiscard: () => void;
   }
 
-  let { quality, busy, note, onsave, ondiscard }: Props = $props();
+  let { quality, busy, note, result, onsave, ondiscard }: Props = $props();
 
   const words = $derived(t.profile.field);
   const id = $props.id();
@@ -91,6 +93,21 @@
     return false;
   }
 
+  let bar = $state<HTMLElement | null>(null);
+
+  /** A focused control that ends under the sticky save bar moves up (WebKit does not
+   *  apply scroll-margin when it scrolls a focused field into view). */
+  function keepClear(event: FocusEvent): void {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    requestAnimationFrame(() => {
+      const top = bar?.getBoundingClientRect().top ?? Infinity;
+      if (target.isConnected && target.getBoundingClientRect().bottom > top) {
+        target.scrollIntoView({ block: 'center' });
+      }
+    });
+  }
+
   function save(): void {
     if (!editor.dirty || busy) return;
     if (ready()) onsave();
@@ -107,7 +124,12 @@
   );
 </script>
 
-<div class="editor" use:formKeys={{ shortcut: save }} data-testid="profile-form">
+<div
+  class="editor"
+  use:formKeys={{ shortcut: save }}
+  onfocusin={keepClear}
+  data-testid="profile-form"
+>
   <ProfileSection heading={t.profile.section.person} testid="section-person">
     <div class="pair">
       <Field label={words.name} for="{id}-name">
@@ -367,10 +389,16 @@
   </ProfileSection>
 </div>
 
-<div class="bar" data-testid="profile-save-bar">
-  <div class="status">
+<div class="bar" bind:this={bar} data-testid="profile-save-bar">
+  <div class="status" data-testid="profile-save-status">
     {#if note}
       <Notice tone="danger" variant="inline" text={note} testid="profile-save-error" />
+    {:else if tried && dateError}
+      <Notice tone="danger" variant="inline" text={dateError} />
+    {:else if editor.dirty}
+      <span class="quiet">{t.profile.unsavedShort}</span>
+    {:else if result}
+      <Notice tone="success" variant="inline" text={result} testid="profile-saved" />
     {/if}
   </div>
   <div class="buttons">
@@ -473,6 +501,17 @@
   .status {
     flex: 1;
     min-width: 0;
+  }
+
+  .quiet {
+    color: var(--text-muted);
+    font: var(--type-sm);
+  }
+
+  /* Tab and focus scrolling keep a field clear of the sticky save bar. */
+  .editor :global(:is(input, textarea, button, [role='switch'])) {
+    scroll-margin-top: var(--pane-padding);
+    scroll-margin-bottom: calc(var(--control-md) + 2 * var(--space-12) + var(--space-8));
   }
 
   .buttons {

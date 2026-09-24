@@ -16,7 +16,6 @@
   import { navigation, type ViewId } from '$lib/state/navigation.svelte';
   import { editor, sameForm } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
-  import { toasts } from '$lib/state/toasts.svelte';
   import { onMount, untrack } from 'svelte';
   import ProfileEditor from './ProfileEditor.svelte';
   import ProfileHeader from './ProfileHeader.svelte';
@@ -34,6 +33,17 @@
   let saveNote = $state<string | null>(null);
   let pasteError = $state<string | null>(null);
   let saved = $state(false);
+  // The outcome of a save stands until the next change.
+  $effect(() => {
+    if (editor.dirty) saved = false;
+  });
+  const result = $derived(
+    !saved
+      ? null
+      : !rescoring && (app.state?.counts.all ?? 0) > 0
+        ? t.profile.rescored
+        : t.profile.saved,
+  );
   let confirmRemove = $state(false);
   let leaving = $state<ViewId | null>(null);
 
@@ -128,7 +138,6 @@
       if (form) editor.edit(form);
       else editor.close();
       saved = true;
-      toasts.show(t.profile.saved);
       return true;
     } catch (error) {
       saveNote = errorText(error);
@@ -217,7 +226,6 @@
       {profile}
       {quality}
       {rescoring}
-      rescored={saved && !rescoring && (app.state?.counts.all ?? 0) > 0}
       dirty={editor.dirty}
       picking={busy === 'pick'}
       {note}
@@ -231,6 +239,7 @@
       {quality}
       busy={busy === 'save'}
       note={saveNote}
+      {result}
       onsave={() => void save()}
       ondiscard={discard}
     />

@@ -122,7 +122,7 @@ test('edit and save: both forms go to the backend, the change is confirmed', asy
   await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('1.11.2026');
   await save(page).click();
-  await expect(page.getByTestId('toast')).toHaveText('Das Profil ist gespeichert.');
+  await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
   const sent = await lastSave(page);
   expect(sent.source).toBeNull();
   expect(sent.before.criteria.minDayRate).toBe(1100);
@@ -135,6 +135,36 @@ test('edit and save: both forms go to the backend, the change is confirmed', asy
   await expect(page.getByTestId('profile-date')).toHaveValue('01.11.2026');
 });
 
+test('the save bar says what is unsaved and what was saved, once', async ({ page }) => {
+  await profile(page);
+  const status = page.getByTestId('profile-save-status');
+  await expect(status).toHaveText('');
+  await page.getByTestId('profile-title').fill('Interim CFO');
+  await expect(status).toHaveText('Nicht gespeichert');
+  await page.getByTestId('profile-save').click();
+  await expect(status).toHaveText('Gespeichert, Jobs neu bewertet.');
+  // No toast over the bar, and the result goes with the next change.
+  await expect(page.getByTestId('toast')).toHaveCount(0);
+  await page.getByTestId('profile-title').fill('Interim CFO und Controlling');
+  await expect(status).toHaveText('Nicht gespeichert');
+});
+
+test('a focused field is never hidden under the save bar', async ({ page }) => {
+  await profile(page);
+  const bar = page.getByTestId('profile-save-bar');
+  for (const id of ['competence-add', 'profile-strengths', 'profile-keywords']) {
+    const target =
+      id === 'competence-add' ? page.getByTestId(id) : page.getByTestId(id).locator('input');
+    await target.focus();
+    await expect
+      .poll(async () => {
+        const [box, barBox] = [await target.boundingBox(), await bar.boundingBox()];
+        return box!.y + box!.height <= barBox!.y;
+      }, id)
+      .toBe(true);
+  }
+});
+
 test('a wrong date is said at the field and nothing is saved', async ({ page }) => {
   await profile(page);
   await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
@@ -144,6 +174,11 @@ test('a wrong date is said at the field and nothing is saved', async ({ page }) 
   );
   await save(page).click();
   expect(await calls(page, 'save_profile')).toHaveLength(0);
+  // Saving says why in the bar and puts the caret into the day.
+  await expect(page.getByTestId('profile-save-status')).toHaveText(
+    'Datum im Format 01.11.2026 eingeben.',
+  );
+  await expect(page.getByTestId('profile-date')).toBeFocused();
 });
 
 test('leaving with unsaved changes asks once; cancel stays, discard leaves', async ({ page }) => {
@@ -235,7 +270,7 @@ test('chip field: Enter adds, a pasted list splits, x and Backspace remove, Esc 
   await input.press('Enter');
   expect(await calls(page, 'save_profile')).toHaveLength(0);
   await input.press('Control+s');
-  await expect(page.getByTestId('toast')).toHaveText('Das Profil ist gespeichert.');
+  await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
   expect((await lastSave(page)).after.tools).toEqual([
     'SAP S/4HANA',
     'Power BI',
@@ -278,7 +313,7 @@ test('Enter goes through the rows and never saves; on an empty last row it moves
   // Saving is Speichern or Ctrl+S.
   await languages.nth(2).fill('Spanisch');
   await languages.nth(2).press('Control+s');
-  await expect(page.getByTestId('toast')).toHaveText('Das Profil ist gespeichert.');
+  await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
   const sent = await lastSave(page);
   expect(sent.after.competences.map((row) => row.name)).toContain('Konzernabschluss');
   expect(sent.after.languages.map((row) => row.language)).toContain('Spanisch');
