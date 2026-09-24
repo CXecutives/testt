@@ -142,30 +142,10 @@
   const profileMissing = $derived(app.state !== null && !app.hasProfile);
   const fetchedOnce = $derived((run.summary ?? app.state?.lastRun ?? null) !== null);
   let actionError = $state<string | null>(null);
-  let picking = $state(false);
 
   function open(target: OpenTarget): void {
     actionError = null;
     invoke('open_target', { target }).catch((error: unknown) => (actionError = errorText(error)));
-  }
-
-  /** No profile: choose one right here. A profile that no longer reads: the Profil view. */
-  function chooseProfile(): void {
-    if (app.state?.profile != null) {
-      navigation.go('profile');
-      return;
-    }
-    actionError = null;
-    picking = true;
-    invoke('pick_profile')
-      .then(async (profile) => {
-        if (profile === null) return;
-        await app.load();
-        void jobs.load(true);
-        void jobs.loadOverview();
-      })
-      .catch((error: unknown) => (actionError = errorText(error)))
-      .finally(() => (picking = false));
   }
 </script>
 
@@ -201,11 +181,10 @@
         </div>
         <Button
           variant="secondary"
-          icon="file-up"
-          label={de.list.pickProfile}
-          loading={picking}
+          icon="file-text"
+          label={app.state?.profile == null ? de.list.createProfile : de.list.openProfile}
           testid="choose-profile"
-          onclick={chooseProfile}
+          onclick={() => navigation.go('profile')}
         />
       </div>
     </Card>

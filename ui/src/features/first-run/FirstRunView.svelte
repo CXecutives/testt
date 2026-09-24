@@ -1,7 +1,7 @@
 <!--
   First run (full page) on the white sheet: the app mark, one sentence of what the app
   does, one about privacy, and three real steps that tick themselves: connect the mailbox,
-  choose a profile (or save a template first), fetch. The next open step carries the one
+  create the profile (in the Profil view), fetch. The next open step carries the one
   primary button; "Abrufen" stays locked with its reason until a mailbox is connected.
   Compact enough that the third step is in view at 1280 x 720; the sidebar is inert here.
 -->
@@ -12,42 +12,16 @@
   import Icon from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
   import { de } from '$lib/i18n/de';
-  import { errorText } from '$lib/i18n/texts';
-  import { invoke } from '$lib/ipc/api';
   import { app } from '$lib/state/app.svelte';
+  import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
-  import { toasts } from '$lib/state/toasts.svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
 
   const mailboxDone = $derived(app.hasMailbox);
-  const profileDone = $derived(app.state?.profile != null);
+  /** Only a profile the app can score with ticks the step. */
+  const profileDone = $derived(app.hasProfile);
   /** The step whose action is the primary one. */
   const current = $derived(!mailboxDone ? 1 : !profileDone ? 2 : 3);
-  let profileNote = $state<{ tone: 'danger'; text: string } | null>(null);
-  let busy = $state(false);
-
-  async function pick(): Promise<void> {
-    profileNote = null;
-    busy = true;
-    try {
-      if ((await invoke('pick_profile')) !== null) await app.load();
-    } catch (error) {
-      profileNote = { tone: 'danger', text: errorText(error) };
-    } finally {
-      busy = false;
-    }
-  }
-
-  async function template(): Promise<void> {
-    profileNote = null;
-    try {
-      if ((await invoke('save_profile_template')) !== null) {
-        toasts.show(de.profile.templateSaved);
-      }
-    } catch (error) {
-      profileNote = { tone: 'danger', text: errorText(error) };
-    }
-  }
 </script>
 
 {#snippet marker(step: number, done: boolean)}
@@ -86,27 +60,16 @@
             {#if profileDone}
               <p class="done-text">{app.state?.profile?.fileName}</p>
             {:else}
-              <p class="hint">{de.firstRun.profileOr}</p>
+              <p class="hint">{de.firstRun.profileText}</p>
               <div class="actions">
                 <Button
                   variant={current === 2 ? 'primary' : 'secondary'}
-                  icon="file-up"
-                  label={de.profile.pick}
-                  loading={busy}
-                  testid="first-pick-profile"
-                  onclick={() => void pick()}
-                />
-                <Button
-                  variant="ghost"
-                  icon="download"
-                  label={de.profile.template}
-                  testid="first-template"
-                  onclick={() => void template()}
+                  icon="file-text"
+                  label={de.profile.create}
+                  testid="first-profile"
+                  onclick={() => navigation.go('profile')}
                 />
               </div>
-              {#if profileNote}
-                <Notice tone={profileNote.tone} variant="inline" text={profileNote.text} />
-              {/if}
             {/if}
           </div>
         </li>

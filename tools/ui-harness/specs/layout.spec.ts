@@ -76,11 +76,11 @@ test('empty screens are never dead: an icon, one sentence, one way on, centred',
   await page.getByTestId('nav-profile').click();
   const empty = page.getByTestId('profile-empty');
   await expect(empty).toBeVisible();
-  // The next step is the one primary on screen: "Profil wählen" ("Abrufen" lives in the
-  // list of the Jobs view).
+  // The next step is the one primary on screen: "Profil anlegen" ("Abrufen" lives in the
+  // list of the Jobs view), with the two other ways in next to it.
   await expect(empty.locator('.btn.primary')).toHaveCount(1);
   await expect(page.getByTestId('fetch')).toHaveCount(0);
-  await expect(empty.getByRole('button')).toHaveCount(2);
+  await expect(empty.getByRole('button')).toHaveCount(3);
   // Centred across the view's content (a scrolling view keeps its scrollbar's room), at
   // about 38 % of the height (not dead centre).
   const place = await empty.evaluate((node) => {
@@ -140,7 +140,9 @@ for (const [width, height] of [
                 // A one-line text that ends in an ellipsis is cut on purpose.
                 getComputedStyle(node).textOverflow !== 'ellipsis' &&
                 // Meters and skeletons clip their moving light on purpose.
-                node.closest('[role="progressbar"], [aria-hidden="true"]') === null,
+                node.closest('[role="progressbar"], [aria-hidden="true"]') === null &&
+                // A long value scrolls inside its own field, as in every native field.
+                !node.matches('input, textarea'),
             )
             .map((node) => `${node.tagName}.${node.className}`),
         );

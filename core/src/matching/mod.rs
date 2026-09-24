@@ -9,11 +9,11 @@ mod contract;
 mod criteria;
 mod engine;
 mod explain;
-mod facts;
+pub(crate) mod facts;
 mod fit;
 mod job;
 mod ladder;
-mod lexicon;
+pub(crate) mod lexicon;
 mod normalize;
 mod params;
 mod permanent;
@@ -300,6 +300,17 @@ fn fingerprint(engine: &EngineProfile) -> String {
         let _ = write!(hex, "{b:02x}");
         hex
     })
+}
+
+/// The hard criteria exactly as the engine reads them from a profile (the profile editor
+/// shows and writes these).
+pub(crate) fn hard_criteria(data: &Value) -> HardCriteria {
+    HardCriteria::new(&profile::criteria(data), data)
+}
+
+/// A language level as the engine reads it: CEFR 1 (A1) to 6 (C2), 7 native.
+pub(crate) fn language_level(text: &str) -> Option<u8> {
+    job::level_in(text)
 }
 
 /// Assesses one job; `None` when the profile is `Empty` (nothing is scored then).
