@@ -174,13 +174,14 @@
         {#each pauses as [portal, health] (portal)}
           <Notice
             tone="warning"
+            variant="row"
             heading={de.portal[portal]}
             text={healthText(health).text ?? ''}
             testid="pause-{portal}"
           />
         {/each}
         {#if run.loginNeeded}
-          <Notice tone="info" text={de.settings.signInWaiting} />
+          <Notice tone="info" variant="row" text={de.settings.signInWaiting} />
         {/if}
       {/if}
     </div>
@@ -200,6 +201,7 @@
         {#if failure}
           <Notice
             tone="danger"
+            variant="row"
             text={de.error.text(failure.kind, failure.params)}
             action={failureAction}
             testid="run-failed"

@@ -78,7 +78,6 @@
   .row {
     align-items: center;
     gap: var(--space-12);
-    padding: var(--space-12) 0;
     color: var(--text);
     font: var(--type-md);
   }

@@ -108,6 +108,8 @@ class JobsStore {
   detailError = $state<string | null>(null);
 
   overview = $state<JobView[]>([]);
+  /** The overview page arrived at least once (until then it says nothing about news). */
+  overviewReady = $state(false);
 
   #request = 0;
   #detailRequest = 0;
@@ -273,6 +275,8 @@ class JobsStore {
       this.overview = page.jobs;
     } catch {
       this.overview = [];
+    } finally {
+      this.overviewReady = true;
     }
   }
 

@@ -82,8 +82,9 @@
     --tile-fg: var(--danger-strong);
   }
 
+  /* The track tone reads on white cards and on the cream page alike. */
   .neutral {
-    --tile-bg: var(--surface-muted);
+    --tile-bg: var(--surface-track);
     --tile-fg: var(--text-muted);
   }
 

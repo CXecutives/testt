@@ -61,7 +61,7 @@
       <StatTile
         label={de.overview.high}
         value={jobs.counts.high}
-        icon="star"
+        icon="circle-check"
         tone="success"
         active={jobs.filter === 'high'}
         testid="tile-high"
@@ -154,8 +154,10 @@
               <li class="chip">{de.overview.newOn(de.portal[line.portal], line.count)}</li>
             {/each}
           </ul>
-        {:else}
+        {:else if jobs.overviewReady}
           <p class="quiet">{de.overview.nothingNew}</p>
+        {:else}
+          <span></span>
         {/if}
         <div class="actions">
           <Button
@@ -217,6 +219,10 @@
     display: flex;
     flex-direction: column;
     padding: var(--space-4) var(--space-20) var(--space-4);
+  }
+
+  .rows > :global(*) {
+    padding: var(--space-12) 0;
   }
 
   .rows > :global(* + *) {
