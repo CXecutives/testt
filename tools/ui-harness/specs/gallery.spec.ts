@@ -131,11 +131,11 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   await list.scrollIntoViewIfNeeded();
   const job = (id: string) =>
     list.locator('.job', { has: page.locator(`[data-testid="job-row-${id}"]`) });
-  // Archive and bring back, left click; the button names its action.
-  const archive = page.getByTestId('archive-freelancermap-1001');
-  await expect(archive).toHaveAttribute('aria-label', 'Archivieren');
-  await archive.click();
-  await expect(archive).toHaveAttribute('aria-label', 'Wiederherstellen');
+  // The archive tool names its action.
+  await expect(page.getByTestId('archive-freelancermap-1001')).toHaveAttribute(
+    'aria-label',
+    'Archivieren',
+  );
   // "Beworben" in a quiet badge; a saved job has only its star.
   await expect(job('linkedin-1002')).toContainText('Beworben');
   await expect(job('freelancermap-1001')).not.toContainText('Gemerkt');
@@ -304,6 +304,40 @@ for (const [os, toggle] of [
     await expect(list.locator('[aria-current="true"]')).toHaveCount(1);
   });
 }
+
+test('moving jobs out: the row folds away, one toast merges them, one undo brings all back', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const rows = list.locator('[data-testid^="job-row-"]');
+  await expect(rows).toHaveCount(6);
+  // The row folds away: its wrapper animates its height while the rows below follow.
+  const folding = await page.evaluate(async () => {
+    const button = document.querySelector<HTMLElement>(
+      '[data-testid="archive-freelancermap-1004"]',
+    )!;
+    const wrapper = button.closest('.job')!.parentElement!;
+    button.click();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    return wrapper.getAnimations().length;
+  });
+  expect(folding).toBeGreaterThan(0);
+  await expect(rows).toHaveCount(5);
+  const toast = page.getByTestId('toast');
+  await expect(toast).toContainText('„SAP FI Berater');
+  // A second one within two seconds joins the same toast.
+  await page.getByTestId('archive-freelancermap-1005').click({ force: true });
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toContainText('2 Jobs archiviert.');
+  await expect(rows).toHaveCount(4);
+  // One undo brings both back, in their places.
+  await toast.getByTestId('toast-action').click();
+  await expect(rows).toHaveCount(6);
+  await expect(rows.nth(3)).toHaveAttribute('data-testid', 'job-row-freelancermap-1004');
+  await expect(rows.nth(4)).toHaveAttribute('data-testid', 'job-row-freelancermap-1005');
+});
 
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {
   await open(page, '?gallery');

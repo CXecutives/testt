@@ -7,7 +7,8 @@
   import ListRow from '$components/ListRow.svelte';
   import ReasonItem, { REASON_KINDS, REASON_WEIGHTS } from '$components/ReasonItem.svelte';
   import type { JobView } from '$lib/ipc/types';
-  import { flip, rowIn } from '$lib/motion/transitions';
+  import { flip, rowCollapse, rowIn } from '$lib/motion/transitions';
+  import { toasts } from '$lib/state/toasts.svelte';
   import Section from './Section.svelte';
   import { sampleJobs, text } from './gallery';
 
@@ -40,9 +41,28 @@
     jobs = [...jobs.slice(1), jobs[0]!];
   }
 
-  /** The row tools of the gallery: pin or archive a sample job. */
+  /** The row tools of the gallery: pin a sample job. */
   function toggle(job: JobView, field: 'pinned' | 'archived'): void {
     jobs = jobs.map((j) => (j.key.id === job.key.id ? { ...j, [field]: !j[field] } : j));
+  }
+
+  /** Jobs the user moves out of the list: their rows fold away (a filter's would not). */
+  let leaving = $state<string[]>([]);
+
+  /** Archive: the row folds away, one toast that merges, one undo for all. */
+  function archive(job: JobView): void {
+    const index = jobs.findIndex((j) => j.key.id === job.key.id);
+    leaving = [...leaving, job.key.id];
+    jobs = jobs.filter((j) => j.key.id !== job.key.id);
+    toasts.undoable(
+      'gallery-archived',
+      (n) => (n === 1 ? t.archived(job.title ?? '') : t.archivedMany(n)),
+      t.undo,
+      () => {
+        leaving = leaving.filter((id) => id !== job.key.id);
+        jobs = [...jobs.slice(0, index), job, ...jobs.slice(index)];
+      },
+    );
   }
 </script>
 
@@ -86,14 +106,18 @@
   {#key run}
     <div class="list" data-testid="job-list">
       {#each jobs as job, index (job.key.id)}
-        <div animate:flip={{ count: jobs.length }} in:rowIn|global={{ index, fresh: true }}>
+        <div
+          animate:flip={{ count: jobs.length }}
+          in:rowIn|global={{ index, fresh: true }}
+          out:rowCollapse={{ on: leaving.includes(job.key.id) }}
+        >
           <JobRow
             {job}
             {now}
             selected={chosen.includes(job.key.id)}
             onselect={choose}
             onpin={(j) => toggle(j, 'pinned')}
-            onarchive={(j) => toggle(j, 'archived')}
+            onarchive={archive}
           />
         </div>
       {/each}

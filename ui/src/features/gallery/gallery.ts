@@ -158,6 +158,9 @@ export const text = {
     replay: 'Neu einblenden',
     archive: 'Archivieren',
     delete: 'Löschen',
+    archived: (title: string) => `„${title}“ archiviert.`,
+    archivedMany: (n: number) => `${n} Jobs archiviert.`,
+    undo: 'Rückgängig',
     reasonLabels: {
       met: 'Controlling mit SAP S/4HANA',
       partial: 'Konzernabschluss nach IFRS',
