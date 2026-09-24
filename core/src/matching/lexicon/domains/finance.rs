@@ -34,6 +34,7 @@ pub(crate) const DOMAIN: Domain = Domain {
         "sanierung",
         "treasury",
     ],
+    generic: &[],
     concepts: &[
         // Closings and statements.
         ("annual financial statement", "jahresabschluss"),

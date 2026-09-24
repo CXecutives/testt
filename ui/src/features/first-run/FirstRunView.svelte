@@ -14,34 +14,9 @@
   next marker turns navy and the done text rises in. Nothing plays when the page appears.
 
   Step 2 happens in the Profil view: "Profil anlegen" opens its form at once (no second
-  "Profil anlegen" there). Once a profile saved there during the setup can be used, the
-  setup comes back by itself (module script below): step 2 is ticked, "Abrufen" is next.
+  "Profil anlegen" there); after the first save the Profil view offers "Weiter zum ersten
+  Abruf", which leads back here (the one way back: nothing returns by itself).
 -->
-<script lang="ts" module>
-  import { app } from '$lib/state/app.svelte';
-  import { navigation } from '$lib/state/navigation.svelte';
-  import { editor } from '$lib/state/profile.svelte';
-  import { shell } from '$lib/state/shell.svelte';
-
-  // For the life of the app: the first-run page itself is gone while the Profil view shows.
-  $effect.root(() => {
-    let usable = app.hasProfile;
-    $effect(() => {
-      const now = app.hasProfile;
-      const back = now && !usable && shell.firstRun && navigation.current === 'profile';
-      usable = now;
-      if (!back) return;
-      // After the Profil view has taken the saved profile into its form (its save goes on
-      // once the state is loaded), so nothing is left unsaved when it closes.
-      setTimeout(() => {
-        if (navigation.current === 'profile' && shell.firstRun && !editor.dirty) {
-          navigation.go('jobs');
-        }
-      });
-    });
-  });
-</script>
-
 <script lang="ts">
   import { untrack } from 'svelte';
   import BrandMark from '$components/BrandMark.svelte';
@@ -51,6 +26,9 @@
   import Notice from '$components/Notice.svelte';
   import { de } from '$lib/i18n/de';
   import { rise } from '$lib/motion/transitions';
+  import { app } from '$lib/state/app.svelte';
+  import { navigation } from '$lib/state/navigation.svelte';
+  import { editor } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
 

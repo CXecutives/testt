@@ -52,19 +52,19 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   // The connect form is gone; the focus waits on the next step's action.
   await expect(page.getByTestId('first-profile')).toBeFocused();
 
-  // "Profil anlegen" opens the form at once (no second "Profil anlegen" in the Profil view).
+  // "Profil anlegen" opens the empty form in one click; after saving, a button leads on to
+  // the first fetch and the step is done with the person's name.
   await page.getByTestId('first-profile').click();
-  await expect(page.getByTestId('view-profile')).toBeVisible();
-  await expect(page.getByTestId('profile-empty')).toHaveCount(0);
-  await page.getByTestId('profile-name-field').fill('Katrin Berger');
+  await expect(page.getByTestId('profile-form')).toBeVisible();
+  await expect(page.getByTestId('profile-name')).toHaveText('Neues Profil');
+  await page.getByTestId('profile-name-field').fill('Erika Beispiel');
   await page.getByTestId('competence-add').click();
   await page.getByTestId('competence-name').fill('Controlling');
   await page.getByTestId('profile-save').click();
-  // Saved and usable: the setup comes back by itself, step 2 done, "Abrufen" next.
-  await expect(page.getByTestId('first-run')).toBeVisible();
+  await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
+  await page.getByTestId('profile-next').click();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
-  await expect(page.getByTestId('step-profile')).toContainText('Katrin Berger');
-  await expect(fetch).toHaveClass(/primary/);
+  await expect(page.getByTestId('step-profile')).toContainText('Erika Beispiel');
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
 
   await fetch.click();

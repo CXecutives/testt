@@ -268,23 +268,33 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
   expect(checked).toBeGreaterThanOrEqual(8);
 });
 
-test('rows are mail-style: one height, one title line, a fixed dot gutter', async ({ page }) => {
+test('rows are mail-style: one height per title line, at most two, a fixed dot gutter', async ({
+  page,
+}) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   const first = row(page, 'freelancermap-2801');
   await expect(first).toContainText('Interim CFO für Familienunternehmen');
   await expect(first).not.toContainText('(m/w/d)');
-  const title = await first.locator('.title').evaluate((node) => {
-    const style = getComputedStyle(node);
-    return [style.whiteSpace, style.textOverflow];
-  });
-  expect(title).toEqual(['nowrap', 'ellipsis']);
-  // Every row, with or without badge, has the same height.
+  // A long title takes a second line and ends there (the rest is a tooltip).
+  const clamp = await first
+    .locator('.title')
+    .evaluate((node) => getComputedStyle(node).getPropertyValue('-webkit-line-clamp'));
+  expect(clamp).toBe('2');
+  // Every row, with or without badge, has the same height per title line (86, 106).
   const heights = await page
     .getByTestId('job-list')
     .locator('[data-testid^="job-row-"]')
-    .evaluateAll((els) => [...new Set(els.map((e) => e.getBoundingClientRect().height))]);
-  expect(heights).toEqual([86]);
+    .evaluateAll((els) =>
+      els.map((row) => {
+        const title = row.querySelector('.title')!;
+        const lines = Math.round(
+          title.clientHeight / parseFloat(getComputedStyle(title).lineHeight),
+        );
+        return row.getBoundingClientRect().height - 20 * (lines - 1);
+      }),
+    );
+  expect([...new Set(heights)]).toEqual([86]);
   // Read and unread titles start at the same x: the dot lives in its own gutter.
   const lefts = await page
     .getByTestId('job-list')
@@ -346,8 +356,10 @@ test('without a profile: no rings, newest first, the overview leads to one', asy
   const query = (await calls(page, 'list_jobs'))[0]?.[1] as { query: { sort: string } };
   expect(query.query.sort).toBe('newest');
   // The way on is the Profil view with its three ways in.
+  // The way on is the empty profile form, in one click.
   await page.getByTestId('no-profile').getByRole('button').click();
-  await expect(page.getByTestId('profile-empty')).toBeVisible();
+  await expect(page.getByTestId('profile-form')).toBeVisible();
+  await expect(page.getByTestId('profile-name')).toHaveText('Neues Profil');
 });
 
 test('an empty list and a first fetch without news', async ({ page }) => {

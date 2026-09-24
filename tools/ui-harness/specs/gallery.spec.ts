@@ -17,6 +17,7 @@ const SECTIONS = [
   'cards',
   'badges',
   'loading',
+  'split',
   'inputs',
   'rings',
   'stats',
@@ -146,6 +147,67 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   await expect(job('freelancermap-1006').locator('.dot')).toHaveCount(0);
 });
 
+test('a long row title takes two lines, the row grows by one line, the rest is a tooltip', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  await page.getByTestId('job-list').scrollIntoViewIfNeeded();
+  const long = page.getByTestId('job-row-freelancermap-1004');
+  const short = page.getByTestId('job-row-freelancermap-1005');
+  const title = long.locator('.title');
+  const lines = await title.evaluate(
+    (node) => node.clientHeight / parseFloat(getComputedStyle(node).lineHeight),
+  );
+  expect(Math.round(lines)).toBe(2);
+  expect((await short.boundingBox())!.height).toBe(86);
+  expect((await long.boundingBox())!.height).toBe(106);
+  // Still cut off after two lines: the full title shows in a tooltip.
+  await title.hover();
+  await expect(page.getByRole('tooltip')).toContainText('vierzehn Ländern');
+});
+
+test('the column handle: left drag resizes within min and max, double click resets, it is kept', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('split-list');
+  const handle = page.getByTestId('splitter').locator('.hit');
+  await handle.scrollIntoViewIfNeeded();
+  const width = async (): Promise<number> => Math.round((await list.boundingBox())!.width);
+  expect(await width()).toBe(360);
+  await expect(handle).toHaveCSS('cursor', 'col-resize');
+  const drag = async (dx: number, button: 'left' | 'right' = 'left'): Promise<void> => {
+    const box = (await handle.boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down({ button });
+    await page.mouse.move(x + dx / 2, y, { steps: 3 });
+    await page.mouse.move(x + dx, y, { steps: 3 });
+    await page.mouse.up({ button });
+  };
+  await drag(60);
+  await expect.poll(width).toBe(420);
+  // Never past max (460) or min (360); the right button does nothing.
+  await drag(200);
+  await expect.poll(width).toBe(460);
+  await drag(-40, 'right');
+  await expect.poll(width).toBe(460);
+  await drag(-400);
+  await expect.poll(width).toBe(360);
+  await drag(50);
+  await expect.poll(width).toBe(410);
+  // Kept across a reload; a double click sets it back.
+  await page.reload();
+  await handle.scrollIntoViewIfNeeded();
+  await expect.poll(width).toBe(410);
+  await handle.dblclick();
+  await expect.poll(width).toBe(360);
+  await page.reload();
+  await handle.scrollIntoViewIfNeeded();
+  await expect.poll(width).toBe(360);
+});
+
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {
   await open(page, '?gallery');
   const toggle = page.getByTestId('gallery-row-toggle');
@@ -156,6 +218,38 @@ test('a switch row toggles from its text; an empty tile is no filter', async ({ 
   // The tile with 0 is plain text; the chosen filter is pressed.
   expect(await page.getByTestId('tile-empty').evaluate((node) => node.tagName)).toBe('DIV');
   await expect(page.getByTestId('tile-filter')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a segmented control never overlaps: each pill covers exactly its option', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  for (const id of ['segmented-views', 'segmented-narrow']) {
+    const control = page.getByTestId(id);
+    await control.scrollIntoViewIfNeeded();
+    for (const option of ['Neu', 'Alle', 'Gemerkt', 'Bewerbungen']) {
+      await control.getByRole('radio', { name: new RegExp(option) }).click();
+      const geometry = await control.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const options = [...node.querySelectorAll('.option')].map((o) => o.getBoundingClientRect());
+        const chosen = node.querySelector('[aria-checked="true"]')!;
+        const pill = chosen.querySelector('.pill')!.getBoundingClientRect();
+        const own = chosen.getBoundingClientRect();
+        return {
+          inside: options.every((o) => o.left >= box.left - 0.5 && o.right <= box.right + 0.5),
+          apart: options.every((o, i) => i === 0 || o.left >= options[i - 1]!.right - 0.5),
+          pill: [pill.left - own.left, pill.right - own.right].map((d) => Math.abs(d) < 0.5),
+          overflow: node.scrollWidth - node.clientWidth,
+        };
+      });
+      expect(geometry, `${id} ${option}`).toEqual({
+        inside: true,
+        apart: true,
+        pill: [true, true],
+        overflow: 0,
+      });
+    }
+  }
 });
 
 test('baseline: gallery (reduced motion, so counters and loops are at rest)', async ({ page }) => {
