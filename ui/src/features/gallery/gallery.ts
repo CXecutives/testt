@@ -74,6 +74,7 @@ export const text = {
   },
   navigation: {
     tabs: ['Jobs', 'Profil', 'Einstellungen'],
+    places: ['Archiv', 'Papierkorb'],
     toast: 'Toast zeigen',
     toastText: 'Gespeichert.',
     status: 'Zuletzt 08:30',
@@ -103,6 +104,8 @@ export const text = {
     facet: 'Ansicht',
     facets: ['Neu', 'Alle'],
     views: ['Neu', 'Alle', 'Gemerkt', 'Bewerbungen'],
+    orders: ['Nach Passung', 'Nach Datum'],
+    orderOff: 'Ohne Profil nur nach Datum.',
     sort: 'Sortierung',
     sorts: ['Beste Passung', 'Neueste', 'Portal'],
     address: 'Postfach',
@@ -153,6 +156,11 @@ export const text = {
     rows: 'Jobliste',
     shuffle: 'Sortieren',
     replay: 'Neu einblenden',
+    archive: 'Archivieren',
+    delete: 'Löschen',
+    archived: (name: string) => `„${name}“ archiviert.`,
+    archivedMany: (n: number) => `${n} Jobs archiviert.`,
+    undo: 'Rückgängig',
     reasonLabels: {
       met: 'Controlling mit SAP S/4HANA',
       partial: 'Konzernabschluss nach IFRS',

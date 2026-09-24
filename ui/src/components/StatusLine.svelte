@@ -3,7 +3,7 @@
   navy spinner, one short text (it wraps to a second line rather than being cut off) and,
   while something runs, a slim navy meter below. Hover washes it and turns the icon navy;
   a new text cross-fades in (100 ms). Collapsed (icon rail) only the icon stays; the text
-  moves into the tooltip. A failure keeps its danger tone on hover.
+  moves into the tooltip, right of the icon like the rail's. A failure keeps its danger tone on hover.
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
@@ -47,7 +47,7 @@
   class:collapsed
   aria-label={collapsed ? `${label} ${text}` : label}
   data-testid={testid ?? undefined}
-  use:tooltip={collapsed ? text : null}
+  use:tooltip={collapsed ? { text, placement: 'right' } : null}
   onclick={() => onclick()}
 >
   <span class="line">

@@ -1,8 +1,10 @@
 /*
  * The only keyframes of the UI. Two kinds:
  *   - loops of something that waits: the light of a loading placeholder, a spinner, the
- *     sweep of an indeterminate progress bar (linear, so no turn seems to stall). They take
- *     `animation-play-state: var(--loop-state)`, which reduced motion sets to `paused`.
+ *     sweep of an indeterminate progress bar (linear, so no turn seems to stall), the slow
+ *     breath of a list ring that waits for its score. They take
+ *     `animation-play-state: var(--loop-state)`, which reduced motion sets to `paused` (a
+ *     loop starts at its resting frame, so a paused one simply stands).
  *   - one-shots started by a state change the user caused, never on mount (no replay): the
  *     late appearance of a placeholder, the flash of a passage (pulse), a drawn check
  *     (draw, on stroke-dashoffset), the shake of a field after a wrong password, and the
@@ -22,6 +24,17 @@
 
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: var(--opacity-wait);
   }
 }
 

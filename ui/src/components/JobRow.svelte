@@ -16,6 +16,14 @@
   title shows in full in a tooltip. Layout stays inside the row (containment); like the
   row, its hover waits while the list scrolls (`:root:not([data-scrolling])`).
 -->
+<script lang="ts" module>
+  /** How a click on a row selects: alone, toggled into a selection, or as a range. */
+  export interface SelectHow {
+    toggle: boolean;
+    range: boolean;
+  }
+</script>
+
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
@@ -23,6 +31,7 @@
   import { factWords, rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
   import { dotOut } from '$lib/motion/transitions';
+  import { keyConventions } from '$lib/platform';
   import Badge, { type BadgeTone } from './Badge.svelte';
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
@@ -39,7 +48,9 @@
     ring?: boolean;
     /** Fixed "now" for relative dates (gallery and tests). */
     now?: Date;
-    onselect?: ((job: JobView) => void) | null;
+    /** A click on the row; `how` says whether it toggles the job in a selection
+     *  (Ctrl on Windows, Cmd on macOS) or selects the range up to it (Shift). */
+    onselect?: ((job: JobView, how: SelectHow) => void) | null;
     /** Pin or unpin from the row; without it a pinned job only shows the star. */
     onpin?: ((job: JobView) => void) | null;
     /** Archive (or bring back an archived job) from the row. */
@@ -66,6 +77,11 @@
   /** A date this old is marked (days). */
   const AGED_DAYS = 10;
   const DAY_MS = 86_400_000;
+
+  /** How a click selects, by the modifiers of the OS (like a mail app). */
+  function how(event: MouseEvent): SelectHow {
+    return { toggle: event[keyConventions().command], range: event.shiftKey };
+  }
 
   const excluded = $derived(job.match?.status === 'excluded');
   const when = $derived(job.mailDate ?? job.firstSeenAt);
@@ -121,7 +137,7 @@
     trailing={endCell}
     {selected}
     muted={excluded}
-    onclick={onselect ? () => onselect?.(job) : null}
+    onclick={onselect ? (event) => onselect?.(job, how(event)) : null}
     testid={rowId}
   >
     <span class="title" class:unread={job.unread} use:tooltip={{ text: heading, truncated: true }}

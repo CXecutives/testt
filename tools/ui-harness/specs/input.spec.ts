@@ -104,7 +104,8 @@ test('the right click: the OS menu in fields and on selected copyable text, nowh
   await page.getByTestId('view-jobs').click({ button: 'right', position: { x: 600, y: 600 } });
   expect(await menus()).toEqual([]);
   expect(await calls(page, 'start_run')).toEqual([]);
-  // In a field: the four edit commands, enabled by the field's state; it takes the focus.
+  // In a field: the edit commands of Windows in its groups, enabled by the field's state;
+  // it takes the focus.
   const search = page.getByTestId('search');
   await search.fill('Controlling');
   await search.evaluate((node: HTMLInputElement) => {
@@ -119,14 +120,36 @@ test('the right click: the OS menu in fields and on selected copyable text, nowh
     menu.map((entry) => `${entry.text}${entry.enabled ? '' : ' (aus)'}`);
   const [plain, selected] = await menus();
   expect(state(plain!)).toEqual([
+    'Rückgängig',
+    'Separator',
     'Ausschneiden (aus)',
     'Kopieren (aus)',
     'Einfügen',
+    'Löschen (aus)',
+    'Separator',
     'Alles auswählen',
   ]);
-  expect(state(selected!)).toEqual(['Ausschneiden', 'Kopieren', 'Einfügen', 'Alles auswählen']);
-  // An enabled entry is the OS's own edit command.
-  expect(selected!.map((entry) => entry.command)).toEqual(['Cut', 'Copy', 'Paste', 'SelectAll']);
+  expect(state(selected!)).toEqual([
+    'Rückgängig',
+    'Separator',
+    'Ausschneiden',
+    'Kopieren',
+    'Einfügen',
+    'Löschen',
+    'Separator',
+    'Alles auswählen',
+  ]);
+  // An enabled entry is the OS's own edit command; Delete (the OS has none) runs in the page.
+  expect(selected!.map((entry) => entry.command)).toEqual([
+    'Undo',
+    'Separator',
+    'Cut',
+    'Copy',
+    'Paste',
+    null,
+    'Separator',
+    'SelectAll',
+  ]);
   // Selected copyable text: Kopieren; the same text unselected: nothing.
   await page.locator('[data-testid^="job-row-"]').first().click();
   const title = page.getByTestId('reader-title');
@@ -138,6 +161,30 @@ test('the right click: the OS menu in fields and on selected copyable text, nowh
   const copy = (await menus())[2]!;
   expect(state(copy)).toEqual(['Kopieren']);
   expect(copy[0]!.command).toBe('Copy');
+  // Löschen takes the selection out, and Ctrl+Z brings it back (one step of the field).
+  await search.evaluate((node: HTMLInputElement) => node.setSelectionRange(0, 7));
+  await search.click({ button: 'right' });
+  await page.evaluate(() => window.__harness.pick(5));
+  await expect(search).toHaveValue('ling');
+  await expect(search).toBeFocused();
+  await page.keyboard.press('Control+z');
+  await expect(search).toHaveValue('Controlling');
+});
+
+test("a field's menu on macOS: no undo and no delete, like the OS's own", async ({ page }) => {
+  await open(page, '?platform=macos');
+  const search = page.getByTestId('search');
+  await search.fill('Controlling');
+  await search.evaluate((node: HTMLInputElement) => node.setSelectionRange(0, 7));
+  await search.click({ button: 'right' });
+  const menu = await page.evaluate(() => window.__harness.menus.at(-1)!);
+  expect(menu.map((entry) => entry.command)).toEqual([
+    'Cut',
+    'Copy',
+    'Paste',
+    'Separator',
+    'SelectAll',
+  ]);
 });
 
 test('controls react to the left button only', async ({ page }) => {
@@ -456,6 +503,29 @@ test('a dialog holds the focus: Tab cycles, a click on its text keeps Esc workin
   await page.keyboard.press('Enter');
   await expect(dialog).toBeVisible();
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+});
+
+test('a dialog marks its default button, the one Enter presses, until Tab moves on', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  // Opened with the mouse: no :focus-visible, yet the default button carries the ring.
+  await page.getByTestId('open-danger').click();
+  const dialog = page.getByTestId('dialog-danger');
+  const cancel = dialog.getByTestId('dialog-cancel');
+  const confirm = dialog.getByTestId('dialog-confirm');
+  await expect(cancel).toBeFocused();
+  const ring = (button: typeof cancel): Promise<string> =>
+    button.evaluate((node) => getComputedStyle(node).boxShadow);
+  const atOpen = await ring(cancel);
+  // Tab moves the ring to the next button; the default is no longer marked.
+  await page.keyboard.press('Tab');
+  await expect(confirm).toBeFocused();
+  const focusRing = await ring(confirm);
+  expect(atOpen).toBe(focusRing);
+  expect(await ring(cancel)).not.toBe(focusRing);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });

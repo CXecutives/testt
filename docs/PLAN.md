@@ -210,7 +210,9 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   Since "cxpertise navy": hover-in `--dur-hover` 80 ms on the :hover rule, hover-out 150 ms on the base rule, press
   60 ms with `--scale-press*`, `--ease-emphasized` for everything that slides or settles; transforms on HTML
   wrappers, never on SVG children; one-shots only from event handlers or a mounted previous-value compare; every
-  scale, move and turn token has a neutral reduced-motion value (a half turn keeps its angle).
+  scale, move and turn token has a neutral reduced-motion value (a half turn keeps its angle). The one height
+  animation: a job moved out of the list folds its row away (`rowCollapse`, 150 ms, one contained row; not for
+  filtering; instant under reduced motion). Results of the same kind within 2 s merge into one toast with one undo.
 - Consistency: stylelint (no hex/named colours, no colour functions/units outside tokens, strict values, allowed
   transition properties, keyframes only in motion.css) · ESLint (no inline styles, raw elements only in components,
   restricted imports, no title attribute, no empty catch, listeners only in input.ts) · Rust architecture tests ·
@@ -229,7 +231,8 @@ Abrufen and moves the window, no title text) · dialog buttons (Windows: action 
 right) · scrollbars (Windows: slim styled, shown over their scroller; macOS: native overlay scrollbars) · middle-button
 autoscroll (Windows; macOS has none) · words for OS things (Explorer / Finder, Anmeldeinformationsverwaltung /
 Schlüsselbund) · menu (none vs. minimal App/Edit/Window) · font smoothing on macOS · keychain vs. credential manager
-(same code) · session storage API · reveal in folder (`explorer /select` vs. `open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
+(same code) · a text field's menu (Windows: Rückgängig, Ausschneiden, Kopieren, Einfügen, Löschen, Alles auswählen in
+three groups; macOS without Rückgängig and Löschen) · session storage API · reveal in folder (`explorer /select` vs. `open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
 `scrollbar-gutter`, `content-visibility`. Windows: NSIS currentUser, German installer, downloadBootstrapper.
 macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc signed, minimum 14.0; the icon targets the macOS 26 (Tahoe) Dock look.
 

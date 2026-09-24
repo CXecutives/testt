@@ -12,10 +12,10 @@
   - Loading keeps the width: the content fades out under the spinner.
   - A ghost toggle (the pin star) pops once when it is switched on by a click.
   - turned: the glyph stands half a turn; it turns in 180 ms.
-  - menu: it opens a menu (the order of the list): a small chevron after the label.
   - link: navy text that underlines on hover (a way on, e.g. under a field).
   - inField: a button inside a text field (show password, clear search), like the native
     ones: not in the Tab order, and a click leaves the caret in the field.
+  - isDefault: the default of a dialog, the one Enter presses; the dialog marks it.
   The icon sits on its own HTML wrapper: transforms on SVG children run on the main thread.
 -->
 <script lang="ts" module>
@@ -52,14 +52,18 @@
     pressed?: boolean | null;
     /** The glyph stands half a turn. */
     turned?: boolean;
-    /** Opens a menu: a chevron after the label. */
-    menu?: boolean;
     /** Opens something outside the app (a link shows the hand then). */
     external?: boolean;
     /** Fill the width of the container. */
     wide?: boolean;
     /** Sits inside a text field: skipped by Tab, a click keeps the focus in the field. */
     inField?: boolean;
+    /** A glyph after the label (the chevron of a menu button). */
+    trailing?: IconName | null;
+    /** It opens a menu (announced as such). */
+    menu?: boolean;
+    /** The default of a dialog (Enter presses it); Dialog marks it with the focus ring. */
+    isDefault?: boolean;
     testid?: string | null;
     onclick?: (event: MouseEvent) => void;
   }
@@ -76,10 +80,12 @@
     type = 'button',
     pressed = null,
     turned = false,
-    menu = false,
     external = false,
     wide = false,
     inField = false,
+    trailing = null,
+    menu = false,
+    isDefault = false,
     testid = null,
     onclick,
   }: Props = $props();
@@ -112,6 +118,7 @@
   class:loading
   class:turned
   class:external
+  class:default={isDefault}
   class:warns={variant === 'ghost' && icon === 'trash-2'}
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}
@@ -137,8 +144,8 @@
     {#if !iconOnly}
       <span class="label">{label}</span>
     {/if}
-    {#if menu && !iconOnly}
-      <span class="caret"><Icon name="chevron-down" size="xs" /></span>
+    {#if trailing}
+      <span class="trailing" aria-hidden="true"><Icon name={trailing} size="sm" /></span>
     {/if}
   </span>
   {#if loading}
@@ -179,16 +186,14 @@
     transition: opacity var(--dur-fast) var(--ease-standard);
   }
 
+  .trailing {
+    display: inline-flex;
+    margin-right: calc(-1 * var(--space-4));
+  }
+
   .glyph {
     display: inline-flex;
     transition: transform var(--dur-base) var(--ease-emphasized);
-  }
-
-  /* The chevron of a menu button sits a little closer to its label. */
-  .caret {
-    display: inline-flex;
-    margin-left: calc(-1 * var(--space-2));
-    color: var(--text-muted);
   }
 
   .busy {

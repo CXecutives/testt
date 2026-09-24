@@ -50,6 +50,45 @@ test('score rings show their value; excluded and unscorable show no number', asy
   await expect(page.getByTestId('ring-unscorable-lg')).toHaveText('–');
 });
 
+test("a ring that waits: the reader's arc turns, the list's dashed track breathes", async ({
+  page,
+}) => {
+  await open(page, '?gallery');
+  const wait = (id: string): Promise<{ name: string; dashes: string }> =>
+    page.getByTestId(id).evaluate((ring) => {
+      const layer = ring.querySelector('.wait')!;
+      return {
+        name: getComputedStyle(layer).animationName,
+        dashes: getComputedStyle(layer.querySelector('circle')!).strokeDasharray,
+      };
+    });
+  expect((await wait('ring-pending-md')).name).toBe('spin');
+  // In the list no spinner shape stands still: a dashed full track, breathing.
+  const list = await wait('ring-pending-sm');
+  expect(list.name).toBe('breathe');
+  expect(list.dashes).toMatch(/^2\.5(px)?,? 2\.5(px)?$/);
+});
+
+test('the evidence of a reason is part of it: its wash and its click cover the line', async ({
+  page,
+}) => {
+  await open(page, '?gallery');
+  const reason = page.getByTestId('gallery-reasons').locator('button.reason').first();
+  const evidence = reason.getByTestId('evidence');
+  await evidence.scrollIntoViewIfNeeded();
+  await expect(evidence).toContainText('Konzerncontrolling');
+  // Under the words, on their axis, inside the reason's box.
+  const row = (await reason.boundingBox())!;
+  const line = (await evidence.boundingBox())!;
+  const words = (await reason.locator('.head > .label').boundingBox())!;
+  expect(line.y).toBeGreaterThan(words.y + words.height - 1);
+  expect(Math.abs(line.x - words.x)).toBeLessThan(1);
+  expect(line.y + line.height).toBeLessThanOrEqual(row.y + row.height);
+  // Hovering the evidence washes the whole reason.
+  await evidence.hover();
+  await expect(reason).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+});
+
 test('under reduced motion the rings jump to their value', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '?gallery');
@@ -131,11 +170,11 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   await list.scrollIntoViewIfNeeded();
   const job = (id: string) =>
     list.locator('.job', { has: page.locator(`[data-testid="job-row-${id}"]`) });
-  // Archive and bring back, left click; the button names its action.
-  const archive = page.getByTestId('archive-freelancermap-1001');
-  await expect(archive).toHaveAttribute('aria-label', 'Archivieren');
-  await archive.click();
-  await expect(archive).toHaveAttribute('aria-label', 'Wiederherstellen');
+  // The archive tool names its action.
+  await expect(page.getByTestId('archive-freelancermap-1001')).toHaveAttribute(
+    'aria-label',
+    'Archivieren',
+  );
   // No application badge; a saved job has only its star.
   await expect(job('linkedin-1002')).not.toContainText('Beworben');
   await expect(job('freelancermap-1001')).not.toContainText('Gemerkt');
@@ -206,6 +245,137 @@ test('the column handle: left drag resizes within min and max, double click rese
   await page.reload();
   await handle.scrollIntoViewIfNeeded();
   await expect.poll(width).toBe(360);
+});
+
+test('nav sub-entries: quieter, indented, the one pill covers the active one (also in the rail)', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const section = page.getByTestId('gallery-navigation');
+  await section.scrollIntoViewIfNeeded();
+  for (const nav of [section.locator('nav').first(), section.locator('nav.collapsed')]) {
+    for (const id of ['gnav-trash', 'gnav-archive', 'gnav-0']) {
+      await nav.getByTestId(id).click();
+      await expect(nav.getByTestId(id)).toHaveAttribute('aria-current', 'page');
+      // The pill has slid onto the entry (it is exactly as high and at the same top).
+      await expect
+        .poll(async () => {
+          const pill = (await nav.locator('.indicator').boundingBox())!;
+          const entry = (await nav.getByTestId(id).boundingBox())!;
+          return [Math.round(pill.y - entry.y), Math.round(pill.height - entry.height)];
+        })
+        .toEqual([0, 0]);
+    }
+  }
+  // Collapsed, a sub-entry is an icon with its name as the accessible name (and tooltip).
+  await expect(section.locator('nav.collapsed').getByTestId('gnav-trash')).toHaveAttribute(
+    'aria-label',
+    'Papierkorb',
+  );
+  // Expanded, it is indented under the parent's label and quieter (13 px).
+  const [parent, sub] = await Promise.all(
+    ['gnav-0', 'gnav-archive'].map((id) =>
+      section.locator('nav').first().getByTestId(id).locator('.glyph').boundingBox(),
+    ),
+  );
+  expect(sub!.x - parent!.x).toBeGreaterThan(20);
+  await expect(section.locator('nav').first().getByTestId('gnav-archive')).toHaveCSS(
+    'font-size',
+    '13px',
+  );
+});
+
+test('a menu button opens the OS menu of choices below it; a choice applies', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const button = page.getByTestId('menu-order');
+  await button.scrollIntoViewIfNeeded();
+  await expect(button).toHaveText('Nach Passung');
+  await expect(button).toHaveAttribute('aria-haspopup', 'menu');
+  await button.click();
+  const shown = await page.evaluate(() => ({
+    menu: window.__harness.menus.at(-1),
+    at: window.__harness.menuAt,
+  }));
+  expect(shown.menu!.map((entry) => [entry.text, entry.checked])).toEqual([
+    ['Nach Passung', true],
+    ['Nach Datum', false],
+  ]);
+  // Right below the button, on its left edge.
+  const box = (await button.boundingBox())!;
+  expect(Math.round(shown.at!.x)).toBe(Math.round(box.x));
+  expect(shown.at!.y).toBeGreaterThanOrEqual(box.y + box.height);
+  await page.evaluate(() => window.__harness.pick(1));
+  await expect(button).toHaveText('Nach Datum');
+  // Disabled: the tooltip says why, no menu opens.
+  const count = await page.evaluate(() => window.__harness.menus.length);
+  const off = page.getByTestId('menu-order-off');
+  await off.click({ force: true });
+  expect(await page.evaluate(() => window.__harness.menus.length)).toBe(count);
+  await page.mouse.move(0, 0);
+  await off.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Ohne Profil nur nach Datum.');
+});
+
+for (const [os, toggle] of [
+  ['windows', 'Control'],
+  ['macos', 'Meta'],
+] as const) {
+  test(`a mail app's selection on ${os}: toggle, range, the bar, Esc clears`, async ({ page }) => {
+    await open(page, `?gallery&platform=${os}`);
+    const list = page.getByTestId('job-list');
+    await list.scrollIntoViewIfNeeded();
+    const row = (id: string) => page.getByTestId(`job-row-freelancermap-${id}`);
+    const bar = page.getByTestId('selection-bar');
+    await expect(bar).toHaveCount(0);
+    await page.getByTestId('job-row-linkedin-1002').click({ modifiers: [toggle] });
+    await expect(page.getByTestId('selection-count')).toHaveText('2 ausgewählt');
+    await expect(row('1001')).toHaveAttribute('aria-current', 'true');
+    // Shift+click: the range from the last toggled row (1002) to 1005.
+    await row('1005').click({ modifiers: ['Shift'] });
+    await expect(page.getByTestId('selection-count')).toHaveText('4 ausgewählt');
+    await expect(row('1001')).not.toHaveAttribute('aria-current', 'true');
+    await expect(bar.getByTestId('bulk-archive')).toHaveAttribute('aria-label', 'Archivieren');
+    // Esc (outside fields) clears the selection; the bar goes.
+    await page.keyboard.press('Escape');
+    await expect(bar).toHaveCount(0);
+    // A plain click selects one job again.
+    await row('1004').click();
+    await expect(list.locator('[aria-current="true"]')).toHaveCount(1);
+  });
+}
+
+test('moving jobs out: the row folds away, one toast merges them, one undo brings all back', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const rows = list.locator('[data-testid^="job-row-"]');
+  await expect(rows).toHaveCount(6);
+  // The row folds away: its wrapper animates its height while the rows below follow.
+  const folding = await page.evaluate(async () => {
+    const button = document.querySelector<HTMLElement>(
+      '[data-testid="archive-freelancermap-1004"]',
+    )!;
+    const wrapper = button.closest('.job')!.parentElement!;
+    button.click();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    return wrapper.getAnimations().length;
+  });
+  expect(folding).toBeGreaterThan(0);
+  await expect(rows).toHaveCount(5);
+  const toast = page.getByTestId('toast');
+  await expect(toast).toContainText('„SAP FI Berater');
+  // A second one within two seconds joins the same toast.
+  await page.getByTestId('archive-freelancermap-1005').click({ force: true });
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toContainText('2 Jobs archiviert.');
+  await expect(rows).toHaveCount(4);
+  // One undo brings both back, in their places.
+  await toast.getByTestId('toast-action').click();
+  await expect(rows).toHaveCount(6);
+  await expect(rows.nth(3)).toHaveAttribute('data-testid', 'job-row-freelancermap-1004');
+  await expect(rows.nth(4)).toHaveAttribute('data-testid', 'job-row-freelancermap-1005');
 });
 
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {

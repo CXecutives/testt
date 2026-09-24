@@ -19,13 +19,13 @@
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import Count from '$components/Count.svelte';
+  import MenuButton from '$components/MenuButton.svelte';
   import Segmented from '$components/Segmented.svelte';
   import TextField from '$components/TextField.svelte';
   import { t } from '$lib/i18n/t';
   import { fade, pop } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
-  import { popupChoiceMenu } from '$lib/ipc/api';
   import type { JobSort } from '$lib/ipc/types';
   import { jobs, type JobFacet } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -69,19 +69,7 @@
   }
 
   const SORTS: readonly JobSort[] = ['match', 'newest'];
-
-  /** The order menu opens under its button, the current order ticked. */
-  function chooseSort(event: MouseEvent): void {
-    const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    void popupChoiceMenu(
-      SORTS.map((sort) => ({
-        text: t.toolbar.sortLabel[sort],
-        checked: jobs.sortChoice === sort,
-        onselect: () => jobs.setSort(sort),
-      })),
-      { x: box.left, y: box.bottom },
-    );
-  }
+  const sorts = $derived(SORTS.map((sort) => ({ id: sort, label: t.toolbar.sortLabel[sort] })));
 
   /** A filter the segments do not name (a portal, a tile). */
   const otherFilter = $derived(jobs.filter);
@@ -179,15 +167,13 @@
   {#if jobs.counts.inbox > 0 || jobs.counts.archive > 0 || jobs.search.trim() !== ''}
     <span class="order">
       <span class="sort">
-        <Button
-          variant="ghost"
-          size="sm"
-          label={t.toolbar.sortLabel[app.hasProfile ? jobs.sortChoice : 'newest']}
-          menu
+        <MenuButton
+          options={sorts}
+          value={app.hasProfile ? jobs.sortChoice : 'newest'}
           disabled={!app.hasProfile}
           disabledReason={t.toolbar.sortNoProfile}
           testid="sort"
-          onclick={chooseSort}
+          onchange={(sort) => jobs.setSort(sort)}
         />
       </span>
       <span class="order-tools">

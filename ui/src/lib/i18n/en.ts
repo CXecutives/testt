@@ -469,10 +469,16 @@ export const en: Catalog = {
   splitter: {
     label: 'Width of the list',
   },
+  selection: {
+    count: (n: number) => `${n} selected`,
+    clear: 'Clear selection',
+  },
   edit: {
+    undo: 'Undo',
     cut: 'Cut',
     copy: 'Copy',
     paste: 'Paste',
+    delete: 'Delete',
     selectAll: 'Select all',
   },
   field: {

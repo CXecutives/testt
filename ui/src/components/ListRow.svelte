@@ -17,7 +17,8 @@
     selected?: boolean;
     /** Greyed out (excluded jobs behind the divider). */
     muted?: boolean;
-    onclick?: (() => void) | null;
+    /** The click (its modifiers say whether it extends a selection). */
+    onclick?: ((event: MouseEvent) => void) | null;
     testid?: string | null;
     leading?: Snippet | null;
     trailing?: Snippet | null;
@@ -42,7 +43,7 @@
   class:muted
   aria-current={selected ? 'true' : undefined}
   data-testid={testid ?? undefined}
-  onclick={() => onclick?.()}
+  onclick={(event) => onclick?.(event)}
 >
   {#if leading}<span class="leading">{@render leading()}</span>{/if}
   <span class="content">{@render children()}</span>

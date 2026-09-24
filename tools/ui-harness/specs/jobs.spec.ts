@@ -153,7 +153,7 @@ test('the order menu reorders the list and keeps the selection', async ({ page }
     { text: 'Nach Passung', enabled: true, command: null, checked: true },
     { text: 'Nach Datum', enabled: true, command: null, checked: false },
   ]);
-  await page.evaluate(() => window.__harness.choose('Nach Datum'));
+  await page.evaluate(() => window.__harness.pick(1));
   await expect(sort).toHaveText('Nach Datum');
   await expect
     .poll(() => rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid'))))
@@ -723,7 +723,7 @@ test('only a re-sort moves rows: new jobs of a run land in place, the sort switc
   // Another order is a re-sort: the rows on screen glide to their new place.
   await watchGlides(page, 120);
   await page.getByTestId('sort').click();
-  await page.evaluate(() => window.__harness.choose('Nach Datum'));
+  await page.evaluate(() => window.__harness.pick(1));
   expect(await glides(page)).toBeGreaterThan(0);
 });
 
@@ -830,7 +830,7 @@ test('the run card: steps side by side, a finished step draws its check once', a
 test('the day overview: its best jobs open the reader', async ({ page }) => {
   await open(page, WIN);
   await page.getByTestId('sort').click();
-  await page.evaluate(() => window.__harness.choose('Nach Datum'));
+  await page.evaluate(() => window.__harness.pick(1));
   const best = page.getByTestId('best').locator('[data-testid^="best-"]').first();
   const title = await best.locator('.title').innerText();
   await best.click();

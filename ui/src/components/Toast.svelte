@@ -4,11 +4,12 @@
   as one leaves. A 2 px navy line at the bottom drains over the toast's lifetime and stops
   while the toast is hovered (so does its timer); under reduced motion there is no line.
   The check of a success draws itself once as the toast appears. Closable; an undo of what
-  the user just did sits before the close button.
+  the user just did sits before the close button. A merged toast ("2 Jobs archiviert.")
+  cross-fades its sentence (100 ms) and starts its line again.
 -->
 <script lang="ts">
   import { t } from '$lib/i18n/t';
-  import { flip, toastIn, toastOut } from '$lib/motion/transitions';
+  import { fade, flip, toastIn, toastOut } from '$lib/motion/transitions';
   import { toasts } from '$lib/state/toasts.svelte';
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
@@ -38,7 +39,7 @@
       <span class="icon"
         ><Icon name={toast.tone === 'success' ? 'circle-check' : 'info'} size="sm" /></span
       >
-      <span class="text">{toast.text}</span>
+      {#key toast.text}<span class="text" in:fade>{toast.text}</span>{/key}
       {#if toast.action}
         {@const action = toast.action}
         <Button

@@ -4,6 +4,7 @@
   import ChipInput from '$components/ChipInput.svelte';
   import Disclosure from '$components/Disclosure.svelte';
   import Field from '$components/Field.svelte';
+  import MenuButton from '$components/MenuButton.svelte';
   import Segmented from '$components/Segmented.svelte';
   import SettingRow from '$components/SettingRow.svelte';
   import TextArea from '$components/TextArea.svelte';
@@ -18,6 +19,11 @@
   let other = $state(false);
   let facet = $state<'new' | 'all'>('new');
   let view = $state('new');
+  let order = $state<'match' | 'date'>('match');
+  const orders = [
+    { id: 'match', label: t.orders[0] },
+    { id: 'date', label: t.orders[1] },
+  ] as const;
   const views = [
     { id: 'new', label: t.views[0], count: 0 },
     { id: 'all', label: t.views[1], count: 14 },
@@ -67,6 +73,24 @@
           value={facet}
           onchange={(id) => (facet = id)}
           testid="segmented-facet"
+        />
+      </div>
+      <!-- A native menu of choices below a quiet button (the sort of the list), and the same
+           disabled with its reason. -->
+      <div class="row">
+        <MenuButton
+          options={orders}
+          value={order}
+          onchange={(id) => (order = id)}
+          testid="menu-order"
+        />
+        <MenuButton
+          options={orders}
+          value="date"
+          disabled
+          disabledReason={t.orderOff}
+          onchange={() => undefined}
+          testid="menu-order-off"
         />
       </div>
       <!-- Four options with counts: each pill covers exactly its option; in a narrow box the
