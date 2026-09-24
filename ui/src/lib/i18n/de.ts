@@ -547,6 +547,7 @@ export const de = {
     } satisfies Record<CriterionState, string>,
     note,
     open: 'Anzeige öffnen',
+    close: 'Schließen',
     pin: 'Merken',
     mail: 'Alert-Mail öffnen',
     fetchDetails: 'Details holen',
@@ -579,14 +580,19 @@ export const de = {
     issues: 'Offene Punkte',
     newJobs: 'Neue Jobs',
     newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
-    nothingNew: 'Keine neuen Jobs',
-    emptyAlerts: (portal: Portal, value: number) =>
+    /** Under the portal's name, so the sentence does not name it again. */
+    emptyAlerts: (value: number) =>
       value === 1
-        ? `Eine Alert-Mail von ${portalName[portal]} enthielt keine Jobs.`
-        : `${n(value)} Alert-Mails von ${portalName[portal]} enthielten keine Jobs.`,
+        ? 'Eine Alert-Mail enthielt keine Jobs.'
+        : `${n(value)} Alert-Mails enthielten keine Jobs.`,
     openGmail: 'In Gmail öffnen',
+    lastRun: 'Letzter Abruf',
     noProfile: 'Noch kein Profil',
     noProfileText: 'Mit einem Profil zeigt jeder Job, wie gut er passt.',
+    profileUnreadable: 'Profil nicht lesbar',
+    profileEmpty: 'Profil ohne Kompetenzen',
+    profileBrokenText: 'Die Jobs zeigen deshalb keine Passung.',
+    openProfile: 'Profil öffnen',
   },
   health: {
     ok: 'Bereit',

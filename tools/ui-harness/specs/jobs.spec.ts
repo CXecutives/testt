@@ -38,6 +38,14 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await runFinished(page);
   await expect(page.getByTestId('run-finished')).toBeVisible();
   await expect(page.getByTestId('fetch')).toBeVisible();
+  // The overview file and the folder have one place: the day overview, not the run card.
+  await expect(page.getByRole('button', { name: 'Übersicht öffnen' })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Ordner öffnen' })).toHaveCount(1);
+  await expect(page.getByTestId('day-overview').getByTestId('overview-open')).toBeVisible();
+  // A history line copies like "Kopieren" does: the time, a space, the text.
+  await page.getByTestId('run-history').getByRole('button').first().click();
+  const line = await page.getByTestId('run-card').locator('.history li').first().textContent();
+  expect(line?.trim()).toMatch(/^\d{2}:\d{2} \S/);
 
   // The new job with the best score is scored live and sorted to the top once finished.
   const top = rows(page).first();
@@ -173,6 +181,10 @@ test('the day overview tiles filter the list and match the counts', async ({ pag
   await page.getByTestId('tile-excluded').click();
   await expect(page.getByTestId('filter')).toHaveCount(0);
   await expect(page.getByTestId('issue-freelance-mails')).toBeVisible();
+  // The portal is the heading of an open point; the sentence does not name it again.
+  await expect(page.getByTestId('issue-freelance-mails')).toContainText(
+    'Eine Alert-Mail enthielt keine Jobs.',
+  );
 
   // The overview does not repeat the list: no job rows, and "neu" per portal adds up to Neu.
   await expect(overview.locator('[data-testid^="job-row-"]')).toHaveCount(0);
@@ -314,6 +326,21 @@ test('an empty list and a first fetch without news', async ({ page }) => {
   await expect(page.getByTestId('empty-all')).toBeVisible();
   expect(await visibleCount(page, '[data-testid^="empty-"]')).toBe(1);
   await expect(page.getByTestId('run-status')).toContainText('Zuletzt');
+  // The overview does not say "nothing new" again; the files keep their place.
+  await expect(page.getByTestId('new-jobs')).toHaveCount(0);
+  await expect(page.getByTestId('day-overview')).not.toContainText('Keine neuen Jobs');
+  await expect(page.getByTestId('overview-open')).toBeVisible();
+});
+
+test('an unusable profile: the overview names it and leads to the Profil view', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&scenario=profile-broken`);
+  const card = page.getByTestId('no-profile');
+  await expect(card.getByRole('heading')).toHaveText('Profil nicht lesbar');
+  await expect(card).toContainText('Die Jobs zeigen deshalb keine Passung.');
+  await card.getByRole('button', { name: 'Profil öffnen' }).click();
+  await expect(page.getByTestId('view-profile')).toBeVisible();
 });
 
 test('a run can be cancelled', async ({ page }) => {
@@ -409,6 +436,9 @@ test('offline: the failed run says why and offers a retry', async ({ page }) => 
   await open(page, `${WIN}&scenario=offline`);
   const failed = page.getByTestId('run-failed');
   await expect(failed).toContainText('Gmail ist nicht erreichbar.');
+  // The sidebar says the fetch failed; the open point names it once and says why.
+  await expect(failed).toContainText('Letzter Abruf');
+  await expect(page.getByText('Abruf fehlgeschlagen')).toHaveCount(1);
   await failed.getByRole('button', { name: 'Erneut versuchen' }).click();
   await runFinished(page);
   expect(await calls(page, 'start_run')).toHaveLength(1);
@@ -452,6 +482,160 @@ test('details and pins: teaser note, fetch details, pin star', async ({ page }) 
   await page.getByTestId('pin').click();
   await expect(page.getByTestId('pin')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('pin-freelance-900411')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('the close button in the reader leads back to the day overview', async ({ page }) => {
+  await open(page, WIN);
+  const first = rows(page).first();
+  await first.click();
+  await expect(page.getByTestId('reader')).toBeVisible();
+  await expect(page.getByTestId('day-overview')).toHaveCount(0);
+  await page.getByTestId('reader-close').click();
+  await expect(page.getByTestId('day-overview')).toBeVisible();
+  await expect(page.getByTestId('reader')).toHaveCount(0);
+  await expect(first).not.toHaveAttribute('aria-current', 'true');
+  // Below 900 px the view's back button does it; the close button steps aside.
+  await first.click();
+  await page.setViewportSize({ width: 780, height: 560 });
+  await expect(page.getByTestId('reader-close')).toBeHidden();
+  await expect(page.getByTestId('back')).toBeVisible();
+});
+
+test('clicking the selected row again keeps the reader where it is', async ({ page }) => {
+  await open(page, WIN);
+  const first = rows(page).first();
+  await first.click();
+  await expect(page.getByTestId('reader-ring')).toContainText('91');
+  const stage = page.getByTestId('stage');
+  const top = await stage.evaluate((node) => {
+    node.scrollTo({ top: 300 });
+    return node.scrollTop;
+  });
+  expect(top).toBeGreaterThan(0);
+  const loads = (await calls(page, 'job_detail')).length;
+  await first.click();
+  await settle(page);
+  expect(await stage.evaluate((node) => node.scrollTop)).toBe(top);
+  expect(await calls(page, 'job_detail')).toHaveLength(loads);
+});
+
+test('switching jobs: never blank, the old text stays put, the new job starts at the top', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await rows(page).first().click();
+  await expect(page.getByTestId('reader-ring')).toContainText('91');
+  const top = await page.getByTestId('stage').evaluate((node) => {
+    node.scrollTo({ top: 400 });
+    return node.scrollTop;
+  });
+  expect(top).toBeGreaterThan(0);
+  // Every frame from the click on: some stage shows content, no test id exists twice, and a
+  // still picture of the old job (while there is one) keeps the old scroll position.
+  await page.evaluate(() => {
+    const pane = document.querySelector('[data-testid="reader-pane"]')!;
+    const w = window as unknown as { __frames: [boolean, number, number][] };
+    w.__frames = [];
+    const sample = (): void => {
+      const stages = [...pane.querySelectorAll<HTMLElement>('.stage')];
+      const still = stages.find((node) => node.getAttribute('aria-hidden') === 'true');
+      w.__frames.push([
+        stages.some((node) => (node.textContent ?? '').trim() !== ''),
+        document.querySelectorAll('[data-testid="reader"]').length,
+        still?.scrollTop ?? -1,
+      ]);
+      if (w.__frames.length < 40) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+  const next = rows(page).nth(1);
+  await next.click();
+  await expect(page.getByTestId('reader-title')).toHaveText(
+    await next.locator('.title').innerText(),
+  );
+  await page.waitForFunction(
+    () => (window as unknown as { __frames: unknown[] }).__frames.length >= 40,
+  );
+  const frames = await page.evaluate(
+    () => (window as unknown as { __frames: [boolean, number, number][] }).__frames,
+  );
+  expect(frames.every(([filled]) => filled)).toBe(true);
+  expect(frames.every(([, readers]) => readers <= 1)).toBe(true);
+  const stills = frames.map(([, , still]) => still).filter((still) => still >= 0);
+  expect(stills.length).toBeGreaterThan(0);
+  expect(stills.every((still) => still === top)).toBe(true);
+  expect(await page.getByTestId('stage').evaluate((node) => node.scrollTop)).toBe(0);
+});
+
+/** Watch the list for the next frames: the most rows that glide at once (a re-sort). */
+async function watchGlides(page: Page, frames: number, during?: string): Promise<void> {
+  await page.evaluate(
+    ([count, selector]) => {
+      const w = window as unknown as { __glides: number; __left: number };
+      w.__glides = 0;
+      w.__left = count;
+      const gliding = (row: Element): boolean =>
+        row.getAnimations().some((animation) => {
+          const keyframes = (animation.effect as KeyframeEffect | null)?.getKeyframes() ?? [];
+          return (
+            keyframes.some((k) => 'transform' in k) && keyframes.every((k) => !('opacity' in k))
+          );
+        });
+      const sample = (): void => {
+        // A watch "during" something ends with it (before counting what comes after it).
+        if (selector && document.querySelector(selector) === null) {
+          w.__left = 0;
+          return;
+        }
+        const list = document.querySelector('[data-testid="job-list"]');
+        const now = list ? [...list.querySelectorAll('[data-key]')].filter(gliding).length : 0;
+        w.__glides = Math.max(w.__glides, now);
+        w.__left -= 1;
+        if (w.__left > 0) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    },
+    [frames, during ?? ''] as const,
+  );
+}
+
+/** Wait until no row moves any more. */
+async function rowsAtRest(page: Page): Promise<void> {
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('[data-key]')].every((row) => row.getAnimations().length === 0),
+  );
+}
+
+async function glides(page: Page): Promise<number> {
+  await page.waitForFunction(() => (window as unknown as { __left: number }).__left <= 0);
+  return page.evaluate(() => (window as unknown as { __glides: number }).__glides);
+}
+
+test('only a re-sort moves rows: new jobs of a run land in place, the sort switch glides', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&tick=30`);
+  // During the run new jobs come in at the top: nothing below them slides.
+  await page.getByTestId('fetch').click();
+  await expect(page.getByTestId('run-running')).toBeVisible();
+  const before = await rows(page).count();
+  await watchGlides(page, 600, '[data-testid="run-running"]');
+  expect(await glides(page)).toBe(0);
+  expect(await rows(page).count()).toBeGreaterThan(before);
+  await runFinished(page);
+  // The re-sort at the end of the run glides; a search then filters in place.
+  await rowsAtRest(page);
+  await watchGlides(page, 20);
+  await page.getByTestId('search').fill('Interim');
+  await expect(rows(page)).toHaveCount(3);
+  expect(await glides(page)).toBe(0);
+  await page.getByTestId('search').fill('');
+  await expect(rows(page)).not.toHaveCount(3);
+  await rowsAtRest(page);
+  // The sort switch is a re-sort: the rows on screen glide to their new place.
+  await watchGlides(page, 120);
+  await page.getByTestId('sort').click();
+  expect(await glides(page)).toBeGreaterThan(0);
 });
 
 test('2000 jobs render in windows without long tasks', async ({ page, browserName }) => {

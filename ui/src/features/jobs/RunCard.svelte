@@ -5,8 +5,9 @@
   running: the header (the status, naming the portal it is about, and the countdown of a
   pause) and the progress bar right below it, the steps Postfach, Details, Bewertung (16 px
   check / loader / circle) and every limit or pause with its reason and end.
-  finished: how many new and well-fitting jobs, what went wrong with a fitting action, the
-  overview and the folder, the history with copy. A finished rescore only says so.
+  finished: how many new and well-fitting jobs (nothing when there are none: the note says
+  it), what went wrong with a fitting action, the history with copy. The overview file and
+  the folder have their one place in the day overview. A finished rescore only says so.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -84,27 +85,6 @@
     <span class="title">{text}</span>
     {#if extra}<span class="extra" data-testid="countdown">{extra}</span>{/if}
     <span class="tools">
-      {#if !run.active}
-        <!-- System actions stay quiet: icons with tooltips, like in the day overview. -->
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon="external-link"
-          label={de.run.openOverview}
-          testid="open-overview"
-          onclick={() => openTarget({ kind: 'overview' })}
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon="folder-open"
-          label={de.common.openFolder}
-          testid="open-folder"
-          onclick={() => openTarget({ kind: 'workspace' })}
-        />
-      {/if}
       <Button
         variant="ghost"
         size="sm"
@@ -186,7 +166,7 @@
         {@render head(title, formatMoment(summary.finishedAt))}
       </div>
       {#if open}
-        {#if !rescore}
+        {#if !rescore && newJobs > 0}
           <p class="numbers">
             <span data-testid="last-new">{de.run.newCount(newJobs)}</span>
             {#if app.hasProfile && topJobs > 0}
@@ -220,7 +200,8 @@
             <ol class="history" data-copy>
               {#each run.history as line, index (index)}
                 <li>
-                  <span class="time">{formatTime(new Date(line.at).toISOString())}</span>{line.text}
+                  <span class="time">{formatTime(new Date(line.at).toISOString())}</span>
+                  {line.text}
                 </li>
               {/each}
             </ol>
@@ -366,8 +347,9 @@
     font: var(--type-xs);
   }
 
+  /* The space after the time is a real one, so a selection copies like "Kopieren". */
   .time {
-    margin-right: var(--space-8);
+    margin-right: var(--space-4);
     font-variant-numeric: var(--numeric);
   }
 </style>

@@ -6,7 +6,9 @@
   the actions in one row. "Warum" lists what is met, what is met only in part and what is
   open (must before nice, only "Kann" carries a badge), what to check and what excludes;
   hovering a reason lights its passage in the ad text below, a click scrolls to it. Title,
-  facts and the ad text are selectable and copy with Ctrl/Cmd+C (`data-copy`).
+  facts and the ad text are selectable and copy with Ctrl/Cmd+C (`data-copy`). A quiet close
+  button at the end of the title line goes back to the day overview (below 900 px the view's
+  back button does).
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -35,8 +37,10 @@
 
   interface Props {
     detail: JobDetail;
+    /** Close the job (back to the day overview). */
+    onclose?: (() => void) | null;
   }
-  let { detail }: Props = $props();
+  let { detail, onclose = null }: Props = $props();
 
   const job = $derived(detail.job);
   const match = $derived(detail.match);
@@ -65,6 +69,10 @@
   // The contract type is a fact about the ad, not a requirement: it goes into the chips.
   const contract = $derived(all.find((r) => r.code === CONTRACT) ?? null);
   const reasons = $derived(all.filter((r) => r.code !== CONTRACT));
+  // Only passages a reason under "Warum" explains are marked (the contract type is a chip).
+  const passages = $derived(
+    (match?.highlights ?? []).filter((h) => contract === null || h.reason !== contract.id),
+  );
   const met = $derived(reasons.filter((r) => r.kind === 'met').sort(byWeight));
   // Met only in part is not met: its own group, never under "Erfüllt".
   const partial = $derived(reasons.filter((r) => r.kind === 'partial').sort(byWeight));
@@ -196,9 +204,24 @@
 
 <article class="reader" data-testid="reader">
   <header class="head">
-    <h1 class="title" data-testid="reader-title" data-copy>
-      {job.title ? displayTitle(job.title) : de.job.untitled}
-    </h1>
+    <div class="title-line">
+      <h1 class="title" data-testid="reader-title" data-copy>
+        {job.title ? displayTitle(job.title) : de.job.untitled}
+      </h1>
+      {#if onclose}
+        <span class="close">
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            icon="x"
+            label={de.reader.close}
+            testid="reader-close"
+            onclick={onclose}
+          />
+        </span>
+      {/if}
+    </div>
     <p class="facts" data-copy>
       <span class="facts-line">
         {#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}
@@ -208,14 +231,12 @@
 
   {#if headline}
     <div class="match">
-      {#key keyOf(job.key)}
-        <ScoreRing
-          ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
-          size="md"
-          animate={keyOf(job.key)}
-          testid="reader-ring"
-        />
-      {/key}
+      <ScoreRing
+        ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
+        size="md"
+        animate={keyOf(job.key)}
+        testid="reader-ring"
+      />
       <div class="verdict">
         <p class="line">
           <span class="band {headline.tone}" data-testid="band">{headline.word}</span>
@@ -351,12 +372,7 @@
       <Notice tone="info" variant="inline" text={de.reader.short} />
     {/if}
     {#if detail.text}
-      <AdText
-        text={detail.text}
-        highlights={match?.highlights ?? []}
-        {active}
-        bind:element={textElement}
-      />
+      <AdText text={detail.text} highlights={passages} {active} bind:element={textElement} />
     {/if}
   </section>
 </article>
@@ -375,11 +391,32 @@
     gap: var(--space-8);
   }
 
+  .title-line {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-8);
+  }
+
   .title {
+    flex: 1;
+    min-width: 0;
     color: var(--text-heading);
     font: var(--type-2xl);
     letter-spacing: var(--tracking-tight);
     text-wrap: balance;
+  }
+
+  /* On the axis of the first title line; the glyph ends on the edge of the column. */
+  .close {
+    flex: none;
+    margin-top: calc((var(--leading-2xl) - var(--control-sm)) / 2);
+    margin-right: calc(-1 * var(--space-6));
+  }
+
+  @media (width < 900px) {
+    .close {
+      display: none;
+    }
   }
 
   /* Facts joined by middle dots; a dot that would start a wrapped line is clipped (every
