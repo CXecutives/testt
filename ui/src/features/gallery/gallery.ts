@@ -74,6 +74,7 @@ export const text = {
   },
   navigation: {
     tabs: ['Jobs', 'Profil', 'Einstellungen'],
+    places: ['Archiv', 'Papierkorb'],
     toast: 'Toast zeigen',
     toastText: 'Gespeichert.',
     status: 'Zuletzt 08:30',

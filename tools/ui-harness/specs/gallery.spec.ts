@@ -208,6 +208,44 @@ test('the column handle: left drag resizes within min and max, double click rese
   await expect.poll(width).toBe(360);
 });
 
+test('nav sub-entries: quieter, indented, the one pill covers the active one (also in the rail)', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const section = page.getByTestId('gallery-navigation');
+  await section.scrollIntoViewIfNeeded();
+  for (const nav of [section.locator('nav').first(), section.locator('nav.collapsed')]) {
+    for (const id of ['gnav-trash', 'gnav-archive', 'gnav-0']) {
+      await nav.getByTestId(id).click();
+      await expect(nav.getByTestId(id)).toHaveAttribute('aria-current', 'page');
+      // The pill has slid onto the entry (it is exactly as high and at the same top).
+      await expect
+        .poll(async () => {
+          const pill = (await nav.locator('.indicator').boundingBox())!;
+          const entry = (await nav.getByTestId(id).boundingBox())!;
+          return [Math.round(pill.y - entry.y), Math.round(pill.height - entry.height)];
+        })
+        .toEqual([0, 0]);
+    }
+  }
+  // Collapsed, a sub-entry is an icon with its name as the accessible name (and tooltip).
+  await expect(section.locator('nav.collapsed').getByTestId('gnav-trash')).toHaveAttribute(
+    'aria-label',
+    'Papierkorb',
+  );
+  // Expanded, it is indented under the parent's label and quieter (13 px).
+  const [parent, sub] = await Promise.all(
+    ['gnav-0', 'gnav-archive'].map((id) =>
+      section.locator('nav').first().getByTestId(id).locator('.glyph').boundingBox(),
+    ),
+  );
+  expect(sub!.x - parent!.x).toBeGreaterThan(20);
+  await expect(section.locator('nav').first().getByTestId('gnav-archive')).toHaveCSS(
+    'font-size',
+    '13px',
+  );
+});
+
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {
   await open(page, '?gallery');
   const toggle = page.getByTestId('gallery-row-toggle');

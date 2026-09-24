@@ -389,6 +389,8 @@
   --toast-width: 360px;
   /* One step of the sliding nav pill: an item plus the 2 px gap (full and rail). */
   --nav-step: calc(var(--control-md) + var(--space-2));
+  /* A sub-entry's icon stands where the parent's label starts (12 + 20 + 12). */
+  --nav-sub-indent: calc(var(--space-12) + var(--icon-md) + var(--space-12));
   --nav-step-rail: calc(var(--control-lg) + var(--space-2));
   /* The sticky compact bar of the reader once its action row scrolled away. */
   --compact-header: 48px;
