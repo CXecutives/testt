@@ -221,7 +221,8 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     );
     assert!(events.iter().any(|e| matches!(
         e,
-        RunEvent::PortalHealth { portal: Portal::FreelanceDe, health: h } if *h == health
+        RunEvent::PortalHealth { portal: Portal::FreelanceDe, health: h, action_needed }
+            if *h == health && *action_needed == health.action_needed()
     )));
 
     // Second run: nothing new, no text file twice; overview anew (new run).

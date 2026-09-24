@@ -665,6 +665,7 @@ const portal = (name: PortalState['portal'], extra: Partial<PortalState> = {}): 
   signedIn: name === 'freelance' ? false : null,
   risk: name === 'freelancermap' ? 'low' : 'grey',
   health: { kind: 'ok' },
+  actionNeeded: false,
   quota: null,
   ...extra,
 });
@@ -826,6 +827,8 @@ function initial(): void {
     case 'paused':
       state.portals[0]!.health = { kind: 'paused', until: later(95), reason: 'throttled' };
       state.portals[1]!.health = { kind: 'layoutSuspect', emptyMails: 2, pages: 0 };
+      // Alert mails without jobs ask her to look (core's PortalHealth::action_needed).
+      state.portals[1]!.actionNeeded = true;
       // The hour binds: the bar and its words both speak of the hour.
       state.portals[2]!.quota = { usedHour: 38, capHour: 40, usedDay: 61, capDay: 100 };
       break;
@@ -894,6 +897,7 @@ function initial(): void {
             type: 'portalHealth',
             portal: 'freelance',
             health: { kind: 'paused', until: later(12), reason: 'throttled' },
+            actionNeeded: false,
           },
           { type: 'status', code: 'waiting', portal: 'linkedin', until: later(0.7) },
         ],
@@ -1380,6 +1384,7 @@ function script(kind: RunSummary['kind']): RunEvent[] {
       type: 'portalHealth',
       portal: 'freelance',
       health: { kind: 'paused', until: later(15), reason: 'throttled' },
+      actionNeeded: false,
     },
     { type: 'status', code: 'waiting', portal: 'freelance', until: later(0.5) },
     { type: 'status', code: 'scoring', portal: null, until: null },

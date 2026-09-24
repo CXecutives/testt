@@ -233,10 +233,12 @@ pub enum RunEvent {
     /// A job has a new state - the finished list row. `fresh`: first seen in this run (a
     /// new job, not one the page may already list further down).
     JobUpdated { job: Box<JobView>, fresh: bool },
-    /// A portal stopped for the rest of the run, or its health changed.
+    /// A portal stopped for the rest of the run, or its health changed. `action_needed`:
+    /// the user has to act ([`PortalHealth::action_needed`]).
     PortalHealth {
         portal: Portal,
         health: PortalHealth,
+        action_needed: bool,
     },
     /// Sign-in needed: the session window is open (`waiting`) or closed again.
     LoginNeeded { portal: Portal, waiting: bool },
@@ -688,6 +690,15 @@ fn score_step(
     log::info!("run {run}: score {:?}", summary.score);
 }
 
+/// The health of a portal as an event, with whether the user has to act.
+fn health_event(portal: Portal, health: PortalHealth) -> RunEvent {
+    RunEvent::PortalHealth {
+        portal,
+        action_needed: health.action_needed(),
+        health,
+    }
+}
+
 /// Old jobs without a stage archive themselves (`days` after they were first seen; 0 =
 /// never). A failure only goes to the log: the run's results stand without it.
 fn auto_archive(store: &Store, run: i64, days: u32, now: Timestamp) {
@@ -808,13 +819,13 @@ async fn scan_step<B: Backends>(
             "run {run}: {}: {mails} alert mails but no jobs recognised - mail layout changed?",
             portal.key()
         );
-        emit(RunEvent::PortalHealth {
+        emit(health_event(
             portal,
-            health: PortalHealth::LayoutSuspect {
+            PortalHealth::LayoutSuspect {
                 empty_mails: mails,
                 pages: 0,
             },
-        });
+        ));
     }
     match &result {
         Ok(()) => log::info!(
@@ -911,10 +922,7 @@ async fn fetch_step<B: Backends>(
                 skipped,
             } => {
                 log::info!("run {run}: {}", reason.log_line(portal, skipped));
-                emit(RunEvent::PortalHealth {
-                    portal,
-                    health: reason.health(),
-                });
+                emit(health_event(portal, reason.health()));
             }
             FetchEvent::Progress { done, total } => emit(RunEvent::Progress {
                 step: Step::Fetch,

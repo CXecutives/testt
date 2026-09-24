@@ -119,6 +119,7 @@ impl Generated {
 }
 
 /// Every type of the contract.
+#[expect(clippy::too_many_lines, reason = "one line per type of the contract")]
 fn contract() -> BTreeMap<String, String> {
     // Integers are JSON numbers, never `bigint`.
     let mut f = Generated {

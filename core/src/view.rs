@@ -974,6 +974,10 @@ pub struct Quota {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent switches and states of the portal, as the settings show them"
+)]
 pub struct PortalState {
     pub portal: Portal,
     pub enabled: bool,
@@ -984,6 +988,8 @@ pub struct PortalState {
     pub signed_in: Option<bool>,
     pub risk: Risk,
     pub health: PortalHealth,
+    /// The user has to act on the health ([`PortalHealth::action_needed`]).
+    pub action_needed: bool,
     pub quota: Option<Quota>,
 }
 
@@ -1031,6 +1037,7 @@ pub fn portal_states(
                 login_enabled: switches.login_enabled,
                 signed_in,
                 risk,
+                action_needed: health.action_needed(),
                 health,
                 quota: Some(Quota {
                     used_hour,
@@ -1759,6 +1766,20 @@ mod tests {
                 empty_mails: 1,
                 pages: 0
             }
+        );
+        // Whether to act comes with the health: alert mails without jobs ask her to look,
+        // a pause and a cap resolve themselves.
+        assert_eq!(
+            (li.action_needed, fm.action_needed, fl.action_needed),
+            (false, false, true)
+        );
+        assert!(PortalHealth::LoginRequired.action_needed());
+        assert!(
+            !PortalHealth::LayoutSuspect {
+                empty_mails: 0,
+                pages: 5
+            }
+            .action_needed()
         );
     }
 
