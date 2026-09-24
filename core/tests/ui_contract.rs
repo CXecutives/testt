@@ -737,8 +737,10 @@ fn the_macos_toolbar_row_matches_the_traffic_lights() {
         lights["x"].as_u64().expect("x"),
         lights["y"].as_u64().expect("y"),
     );
-    // The buttons' frame is 16 pt high: centred in the row.
-    assert_eq!(y + 8, row / 2, "traffic lights centred in the {row} px row");
+    // Measured on the macOS CI runner (smoke line `SMOKE {"lights":...}`): the buttons are
+    // 14 pt high and their centre sits 2 pt above `y` (y 18 gave centre 16), so y - 2 is the
+    // centre that must meet the middle of the row.
+    assert_eq!(y - 2, row / 2, "traffic lights centred in the {row} px row");
     // Three buttons of 14 pt, 6 pt apart, and room to the right.
     assert!(
         x + 3 * 14 + 2 * 6 < px("--traffic-lights-width"),
