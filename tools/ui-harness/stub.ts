@@ -406,6 +406,14 @@ const PROFILE: ProfileInfo = {
       { code: 'targetYears', params: { set: true, min: 15 } },
     ],
     warnings: [{ code: 'ignoredKeys', params: { keys: 'hobbys, referenzen' } }],
+    wishes: [
+      { code: 'focus', params: { set: true, focus: 'Konzernabschluss, Restrukturierung' } },
+      { code: 'targetRoles', params: { set: true, roles: 'Interim CFO' } },
+      { code: 'dayRate', params: { set: true, wish: 1300 } },
+      { code: 'remote', params: { set: true, min: 60, onsite: false } },
+      { code: 'regions', params: { set: false, regions: null } },
+      { code: 'industries', params: { set: false, industries: null } },
+    ],
     // Engine v3 summary fields the IPC type does not carry yet; the Profil view shows them
     // when they arrive.
     ...({ packs: ['finance', 'sap'], years: 28, degrees: ['Diplom-Kauffrau'] } as object),

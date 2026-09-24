@@ -935,6 +935,9 @@ pub struct ProfileUnderstanding {
     pub years: Option<u32>,
     /// Degrees as written in the profile.
     pub degrees: Vec<String>,
+    /// Schwerpunkte, target roles and wishes as `{code, params}` with `set` (codes
+    /// `focus`, `targetRoles`, `dayRate`, `remote`, `regions`, `industries`).
+    pub wishes: Vec<Notice>,
 }
 
 /// The stored consultant profile.
@@ -1017,6 +1020,18 @@ pub fn understanding(summary: &ProfileSummary) -> ProfileUnderstanding {
         packs: summary.packs.clone(),
         years: summary.years,
         degrees: summary.degrees.clone(),
+        wishes: summary
+            .wishes
+            .iter()
+            .map(|w| {
+                let mut params = local::flat_params(&w.params);
+                params.insert("set".into(), w.set.into());
+                Notice {
+                    code: local::code_name(&w.key),
+                    params,
+                }
+            })
+            .collect(),
     }
 }
 

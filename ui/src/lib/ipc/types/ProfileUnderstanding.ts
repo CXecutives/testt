@@ -16,4 +16,9 @@ years: number | null,
 /**
  * Degrees as written in the profile.
  */
-degrees: Array<string>, };
+degrees: Array<string>, 
+/**
+ * Schwerpunkte, target roles and wishes as `{code, params}` with `set` (codes
+ * `focus`, `targetRoles`, `dayRate`, `remote`, `regions`, `industries`).
+ */
+wishes: Array<Notice>, };
