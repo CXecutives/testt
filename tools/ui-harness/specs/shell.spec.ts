@@ -20,6 +20,66 @@ test('the shell renders sidebar and the jobs view', async ({ page }) => {
   await expect(page.getByTestId('fetch')).toHaveClass(/primary/);
 });
 
+// Every view switch, the Jobs view included, is the same quick cross-fade: the new view fades
+// in on top while the old one fades out below it, so no frame shows an empty sheet. Recorded
+// from the Web Animations Svelte starts (deterministic, no frame timing involved).
+interface Fade {
+  view: string;
+  from: string;
+  to: string;
+  ms: number;
+  order: string[];
+}
+
+test('every view switch is the same cross-fade, the new view on top', async ({ page }) => {
+  await open(page, '?platform=windows');
+  await page.evaluate(() => {
+    const fades: Fade[] = [];
+    (window as unknown as { __fades: Fade[] }).__fades = fades;
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (this: Element, keyframes, options) {
+      const view = this instanceof HTMLElement ? (this.dataset.testid ?? '') : '';
+      const ms = typeof options === 'number' ? options : Number(options?.duration ?? 0);
+      if (view.startsWith('view-') && Array.isArray(keyframes) && ms > 0) {
+        fades.push({
+          view,
+          from: String(keyframes[0]?.opacity),
+          to: String(keyframes.at(-1)?.opacity),
+          ms,
+          order: [...(this.parentElement?.children ?? [])].map(
+            (node) => (node as HTMLElement).dataset.testid ?? '',
+          ),
+        });
+      }
+      return animate.call(this, keyframes, options);
+    };
+  });
+  const steps = [
+    ['jobs', 'profile'],
+    ['profile', 'settings'],
+    ['settings', 'jobs'],
+    ['jobs', 'settings'],
+    ['settings', 'profile'],
+    ['profile', 'jobs'],
+  ];
+  for (const [from, to] of steps) {
+    await page.evaluate(() => (window as unknown as { __fades: Fade[] }).__fades.splice(0));
+    await page.getByTestId(`nav-${to}`).click();
+    await expect(page.locator('main.views > section')).toHaveCount(1);
+    await expect(page.getByTestId(`view-${to}`)).toBeVisible();
+    const fades = await page.evaluate(() => (window as unknown as { __fades: Fade[] }).__fades);
+    const out = fades.find((fade) => fade.view === `view-${from}`);
+    const into = fades.find((fade) => fade.view === `view-${to}`);
+    expect(out, `${from} -> ${to}`).toMatchObject({ from: '1', to: '0', ms: 100 });
+    expect(into, `${from} -> ${to}`).toMatchObject({
+      from: '0',
+      to: '1',
+      ms: 100,
+      order: [`view-${from}`, `view-${to}`],
+    });
+  }
+});
+
 test('the navigation switches the view', async ({ page }) => {
   await open(page, '?platform=windows');
   await page.getByTestId('nav-profile').click();
@@ -85,7 +145,7 @@ test('macos: the unified toolbar row', async ({ page, browserName }) => {
   for (const view of ['profile', 'settings']) {
     await page.getByTestId(`nav-${view}`).click();
     const band = page.getByTestId(`view-${view}`).getByTestId('drag-band');
-    // After the view's entrance (it rises 4 px).
+    // Once the cross-fade has settled.
     await expect.poll(async () => (await band.boundingBox())?.y).toBe(0);
     expect(await band.boundingBox()).toMatchObject({ height: ROW });
   }
@@ -147,6 +207,28 @@ test('the run status in the sidebar opens the last run', async ({ page }) => {
   await expect(page.getByTestId('last-new')).toHaveCount(0);
   await page.getByTestId('run-close').click();
   await expect(page.getByTestId('run-card')).toHaveCount(0);
+});
+
+// A click on the status opens the run card: before the first fetch there is none, so the
+// status is not there at all (the first-run page says it) instead of a dead button.
+test('the run status shows only when there is a run to open', async ({ page }) => {
+  await open(page, '?platform=windows&scenario=first-run');
+  await expect(page.getByTestId('view-first-run')).toBeVisible();
+  await expect(page.getByTestId('run-status')).toHaveCount(0);
+  await open(page, '?platform=windows');
+  await page.getByTestId('nav-settings').click();
+  await expect(page.getByTestId('run-status')).toBeVisible();
+});
+
+// In one column an open job hides the list; the status brings the list with the run card back.
+test('narrow: the run status opens the run card even while a job is open', async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 560 });
+  await open(page, '?platform=windows');
+  await page.getByTestId('job-rows').locator('[data-testid^="job-row-"]').first().click();
+  await expect(page.getByTestId('list-scroll')).toBeHidden();
+  await page.getByTestId('run-status').click();
+  await expect(page.getByTestId('list-scroll')).toBeVisible();
+  await expect(page.getByTestId('run-card')).toBeVisible();
 });
 
 test('every run status fits the sidebar without being cut off', async ({ page }) => {

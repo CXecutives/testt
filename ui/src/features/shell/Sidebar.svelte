@@ -4,8 +4,10 @@
   bar of the OS, so the sidebar starts with the views (on macOS below the traffic lights,
   whose 52 px band moves the window): the first sits on the line of the list's search field
   on Windows, each with its icon and the unread count, and
-  at the foot a quiet run status that opens the run in the Jobs view. The status is said
-  once: while the run card is on screen it steps aside. "Abrufen" lives in the list header.
+  at the foot a quiet run status that opens the run in the Jobs view. It shows only while
+  there is a run to open (before the first fetch the first-run page says it all), and it is
+  said once: while the run card is on screen it steps aside. "Abrufen" lives in the list
+  header.
 -->
 <script lang="ts">
   import DragBand from '$components/DragBand.svelte';
@@ -41,14 +43,18 @@
     return last ? de.shell.last(last.finishedAt) : de.run.never;
   });
   const setup = $derived(navigation.current === 'jobs' && shell.firstRun);
+  // A click opens the run card: without a run to open the status would be a dead button.
   // The run card says the same while it is on screen.
   const statusShown = $derived(
-    !(navigation.current === 'jobs' && !shell.firstRun && shell.runCard),
+    (run.active || last !== null) &&
+      !(navigation.current === 'jobs' && !shell.firstRun && shell.runCard),
   );
 
   function openRun(): void {
     navigation.go('jobs');
     run.panel = 'open';
+    // In one column an open job hides the list and its run card: back to the list.
+    if (viewport.narrow) jobs.clearSelection();
   }
 </script>
 

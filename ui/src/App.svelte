@@ -1,7 +1,7 @@
 <!--
   The shell below the native title bar of the OS: the sidebar and the white sheet with the
-  three views. A view switch is quick: the old view leaves at once and the new one fades in
-  rising 4 px (150 ms). On start the app shows useful content at once: the first-run page
+  three views. Every view switch is the same quick cross-fade (100 ms): the new view fades in
+  on top while the old one fades out below it, so no frame shows an empty sheet. On start the app shows useful content at once: the first-run page
   while nothing was ever fetched, otherwise the Jobs view with the last results. Closing
   while a fetch runs keeps the window until the run has stopped; a calm note says so.
 -->
@@ -13,7 +13,7 @@
   import Tooltip from '$components/Tooltip.svelte';
   import { de } from '$lib/i18n/de';
   import { onClosing } from '$lib/ipc/api';
-  import { fade, viewIn } from '$lib/motion/transitions';
+  import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
@@ -58,22 +58,22 @@
         </section>
       {:else if navigation.current === 'jobs'}
         {#if firstRun}
-          <section class="view" data-testid="view-first-run" in:viewIn>
+          <section class="view" data-testid="view-first-run" transition:fade|global>
             {#if band}<DragBand sheet />{/if}
             <FirstRunView />
           </section>
         {:else}
-          <section class="view fixed" data-testid="view-jobs" in:viewIn>
+          <section class="view fixed" data-testid="view-jobs" transition:fade|global>
             <JobsView />
           </section>
         {/if}
       {:else if navigation.current === 'profile'}
-        <section class="view" data-testid="view-profile" in:viewIn>
+        <section class="view" data-testid="view-profile" transition:fade|global>
           {#if band}<DragBand sheet />{/if}
           <ProfileView />
         </section>
       {:else}
-        <section class="view" data-testid="view-settings" in:viewIn>
+        <section class="view" data-testid="view-settings" transition:fade|global>
           {#if band}<DragBand sheet />{/if}
           <SettingsView />
         </section>
@@ -141,11 +141,13 @@
     background-color: var(--surface);
   }
 
+  /* All views share one cell; during a switch the new one lies on top and covers the old. */
   .view {
     grid-area: 1 / 1;
     min-width: 0;
     min-height: 0;
     overflow: auto;
+    background-color: var(--surface);
   }
 
   .fixed {
