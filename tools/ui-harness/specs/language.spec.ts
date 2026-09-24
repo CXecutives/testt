@@ -44,7 +44,15 @@ test('Sprache switches the whole app to English and back at once', async ({ page
     'true',
   );
   expect((await calls(page, 'save_settings')).map(([, args]) => args)).toEqual([
-    { patch: { portals: [], autoFetchOnStart: null, autoArchiveDays: null, language: 'en' } },
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: null,
+        autoArchiveDays: null,
+        autoEmptyTrashDays: null,
+        language: 'en',
+      },
+    },
   ]);
 
   // The Jobs view in English: the list header, the reader, its numbers and words.

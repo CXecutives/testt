@@ -25,7 +25,7 @@
   import { viewport } from '$lib/state/viewport.svelte';
 
   // New jobs over everything (the overview's unfiltered counts), whatever the list shows.
-  const unread = $derived(jobs.overviewCounts?.new ?? app.state?.counts.new ?? 0);
+  const unread = $derived(jobs.overviewCounts?.unread ?? app.state?.counts.unread ?? 0);
   const items = $derived<SideNavItem<ViewId>[]>([
     { id: 'jobs', label: t.nav.jobs, icon: 'briefcase', count: unread, testid: 'nav-jobs' },
     { id: 'profile', label: t.nav.profile, icon: 'user-round', testid: 'nav-profile' },
@@ -40,8 +40,9 @@
       if (run.status) return t.run.statusOf(run.status.code, run.status.portal);
       return run.step ? t.run.step[run.step] : t.run.kind[run.kind ?? 'fetch'];
     }
-    if (failed) return t.shell.runFailed;
-    return last ? t.shell.last(last.finishedAt) : t.run.never;
+    if (last === null) return t.run.never;
+    // What happened last and when, in the same short form either way (one line).
+    return failed ? t.shell.runFailed(last.finishedAt) : t.shell.last(last.finishedAt);
   });
   const setup = $derived(navigation.current === 'jobs' && shell.firstRun);
   // A click opens the run card: without a run to open the status would be a dead button.
@@ -65,9 +66,10 @@
   {#if dragBands()}<span class="lights"><DragBand /></span>{/if}
   <!-- Before the setup there is nowhere to go yet: the views wait (inert, faded). -->
   <div class="nav" class:waiting={setup} inert={setup}>
+    <!-- The setup page is no view of the list: nothing is marked current while it shows. -->
     <SideNav
       {items}
-      active={navigation.current}
+      active={setup ? null : navigation.current}
       label={t.nav.label}
       collapsed={viewport.rail}
       onselect={(id) => navigation.go(id)}

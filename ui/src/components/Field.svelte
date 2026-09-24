@@ -90,10 +90,16 @@
     display: inline-flex;
   }
 
+  /* The icon sits on the first line when a message wraps. */
   .error {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-6);
     color: var(--danger-strong);
+  }
+
+  .error > :global(:first-child) {
+    flex: none;
+    margin-top: calc((var(--leading-sm) - var(--icon-sm)) / 2);
   }
 </style>

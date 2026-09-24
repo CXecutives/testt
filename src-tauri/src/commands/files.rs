@@ -79,6 +79,7 @@ pub async fn open_target(state: State<'_, AppState>, target: OpenTarget) -> CmdR
             "file",
         )?,
         OpenTarget::LogDir => existing(state.data_dir.join(jobalert_core::LOG_DIR), "folder")?,
+        OpenTarget::DataDir => existing(state.data_dir.clone(), "folder")?,
     };
     open::that_detached(&what).map_err(|e| {
         log::warn!("could not open a target: {e}");

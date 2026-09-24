@@ -40,7 +40,7 @@
   const result = $derived(
     !saved
       ? null
-      : !rescoring && (app.state?.counts.all ?? 0) > 0
+      : !rescoring && (app.state?.counts.inbox ?? 0) > 0
         ? t.profile.rescored
         : t.profile.saved,
   );

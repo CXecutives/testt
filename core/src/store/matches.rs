@@ -8,6 +8,7 @@ use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 
 use super::jobs::{JOB_COLUMNS, JobRow, job_row};
+use super::marks::INBOX;
 use super::{Store, bump};
 use crate::error::Result;
 use crate::model::{HIGH_FROM, KeyFacts, MatchRecord, MatchStatus, Notice};
@@ -279,16 +280,15 @@ impl Store {
         Ok(at.and_then(from_db))
     }
 
-    /// The jobs for the skill's `top_matches.json`: scored (not excluded), unread or saved,
-    /// not archived, not sent, no duplicate, the alert mail at most since `since`; best
+    /// The jobs for the skill's `top_matches.json`: scored (not excluded), unread or a
+    /// favourite, in the inbox, no duplicate, the alert mail at most since `since`; best
     /// first. A fetch without new jobs keeps the list (it does not depend on the last run).
     pub fn skill_matches(&self, since: Timestamp, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
-             WHERE match_status = 'scored' AND dup_of IS NULL AND archived_at IS NULL
-               AND (read_at IS NULL OR app_status = 'saved')
-               AND app_status IS NOT 'sent'
+             WHERE match_status = 'scored' AND dup_of IS NULL AND {INBOX}
+               AND (read_at IS NULL OR app_status IS NOT NULL)
                AND COALESCE(mail_date, first_seen_at) >= ?1
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id LIMIT ?2"
         ))?;
@@ -313,17 +313,16 @@ impl Store {
         ))
     }
 
-    /// The best current matches for a comparison in an AI chat: scored (not excluded), not
-    /// archived, not a duplicate, the ad still online, saved or without a stage (an
-    /// application is decided already); the saved ones first (like the HTML overview's
-    /// choice), then the highest scores, the newest first among equals.
+    /// The best current matches for a comparison in an AI chat: scored (not excluded), in the
+    /// inbox, not a duplicate, the ad still online; the favourites first (like the HTML
+    /// overview's choice), then the highest scores, the newest first among equals.
     pub fn best_matches(&self, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
-             WHERE match_status = 'scored' AND dup_of IS NULL AND archived_at IS NULL
-               AND desc_status <> 'gone' AND (app_status IS NULL OR app_status = 'saved')
-             ORDER BY (app_status IS NOT 'saved'), match_score DESC, first_seen_at DESC,
+             WHERE match_status = 'scored' AND dup_of IS NULL AND {INBOX}
+               AND desc_status <> 'gone'
+             ORDER BY (app_status IS NULL), match_score DESC, first_seen_at DESC,
                       portal, job_id
              LIMIT ?1"
         ))?;
@@ -331,13 +330,12 @@ impl Store {
         rows.map(|r| r?).collect()
     }
 
-    /// The jobs of the HTML overview: the saved ones (the star) if there are any (`true`),
-    /// else the unread scored jobs of the mailbox run `run`; best first. Archived jobs are in
-    /// neither.
+    /// The jobs of the HTML overview: the favourites (the star) if there are any (`true`),
+    /// else the unread scored jobs of the mailbox run `run`; best first. Only inbox jobs.
     pub fn overview_jobs(&self, run: i64) -> Result<(Vec<JobRow>, bool)> {
         let conn = self.conn();
         let mut pinned = conn.prepare_cached(&format!(
-            "SELECT {JOB_COLUMNS} FROM job WHERE app_status = 'saved' AND archived_at IS NULL
+            "SELECT {JOB_COLUMNS} FROM job WHERE app_status IS NOT NULL AND {INBOX}
              ORDER BY (match_status IS 'excluded'), match_score DESC, app_status_at DESC"
         ))?;
         let jobs: Vec<JobRow> = pinned
@@ -350,7 +348,7 @@ impl Store {
         let mut new = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE first_seen_run = ?1 AND read_at IS NULL AND match_status = 'scored'
-               AND dup_of IS NULL AND archived_at IS NULL
+               AND dup_of IS NULL AND {INBOX}
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id"
         ))?;
         let jobs = new
@@ -419,9 +417,9 @@ mod tests {
         assert!(store.data_rev().unwrap() > rev);
         let job = store.job(&key).unwrap().unwrap();
         assert!(job.read_at.is_some());
-        assert_eq!(job.app_status, Some(crate::model::AppStatus::Saved));
+        assert!(job.pinned_at.is_some());
         assert!(store.set_pinned(&key, false, now()).unwrap());
-        assert!(store.job(&key).unwrap().unwrap().app_status.is_none());
+        assert!(store.job(&key).unwrap().unwrap().pinned_at.is_none());
     }
 
     #[test]

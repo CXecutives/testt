@@ -22,7 +22,7 @@
   import { t } from '$lib/i18n/t';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
   import { rowReason } from '$lib/i18n/texts';
-  import type { AppStatus, JobView } from '$lib/ipc/types';
+  import type { JobView } from '$lib/ipc/types';
   import { dotOut } from '$lib/motion/transitions';
   import Badge, { type BadgeTone } from './Badge.svelte';
   import Button from './Button.svelte';
@@ -67,7 +67,6 @@
   /** A date this old is marked (days). */
   const AGED_DAYS = 10;
   const DAY_MS = 86_400_000;
-  const APP_TONE: Record<Exclude<AppStatus, 'saved'>, BadgeTone> = { sent: 'neutral' };
 
   const excluded = $derived(job.match?.status === 'excluded');
   const when = $derived(job.mailDate ?? job.firstSeenAt);
@@ -75,12 +74,6 @@
     aged ?? (now ?? new Date()).getTime() - new Date(when).getTime() > AGED_DAYS * DAY_MS,
   );
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
-  /** Where the user's application stands (saved needs no badge: the star says it). */
-  const status = $derived(
-    job.appStatus && job.appStatus !== 'saved'
-      ? { label: t.reader.appStatus[job.appStatus], tone: APP_TONE[job.appStatus] }
-      : null,
-  );
   const reason = $derived(ring ? rowReason(job) : null);
   const heading = $derived(job.title ? displayTitle(job.title) : t.job.untitled);
 
@@ -138,7 +131,6 @@
       {#if reason}
         <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
       {/if}
-      {#if status}<Badge label={status.label} tone={status.tone} />{/if}
       {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
     </span>
   </ListRow>
@@ -152,8 +144,8 @@
             variant="ghost"
             size="sm"
             iconOnly
-            icon={job.archived ? 'archive-restore' : 'archive'}
-            label={job.archived ? t.reader.unhide : t.reader.hide}
+            icon={job.place === 'archive' ? 'archive-restore' : 'archive'}
+            label={job.place === 'archive' ? t.reader.unhide : t.reader.hide}
             testid="archive-{job.key.portal}-{job.key.id}"
             onclick={() => onarchive?.(job)}
           />

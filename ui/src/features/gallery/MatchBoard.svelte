@@ -22,7 +22,11 @@
 
   /** The row tools of the gallery: pin or archive a sample job. */
   function toggle(job: JobView, field: 'pinned' | 'archived'): void {
-    jobs = jobs.map((j) => (j.key.id === job.key.id ? { ...j, [field]: !j[field] } : j));
+    jobs = jobs.map((j) => {
+      if (j.key.id !== job.key.id) return j;
+      if (field === 'pinned') return { ...j, pinned: !j.pinned };
+      return { ...j, place: j.place === 'archive' ? 'inbox' : 'archive' };
+    });
   }
 </script>
 

@@ -20,19 +20,17 @@
   it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import Count from '$components/Count.svelte';
   import Icon, { type IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
-  import TextField from '$components/TextField.svelte';
   import ReasonItem from '$components/ReasonItem.svelte';
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
   import { inView, scrollArea } from '$lib/actions/inView';
   import { tooltip } from '$lib/actions/tooltip';
   import type { CriterionState } from '$lib/i18n/de';
   import { t } from '$lib/i18n/t';
-  import { displayTitle, formatDate, formatRelative } from '$lib/i18n/format';
+  import { displayTitle, formatDate } from '$lib/i18n/format';
   import {
     criterionKey,
     criterionState,
@@ -42,8 +40,7 @@
     reasonText,
   } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import { formKeys } from '$lib/input/input';
-  import type { AppStatus, JobDetail, JobKey, OpenTarget, Reason } from '$lib/ipc/types';
+  import type { JobDetail, JobKey, OpenTarget, Reason } from '$lib/ipc/types';
   import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
@@ -210,27 +207,6 @@
   /** A score from a teaser only is a first guess. */
   const preliminary = $derived(match?.status === 'scored' && detailKind === 'teaser');
 
-  const STATUSES: readonly AppStatus[] = ['sent'];
-  /** The note as typed; the stored one is the detail's. */
-  let note = $state(untrack(() => detail.note ?? ''));
-
-  async function setStatus(status: AppStatus): Promise<void> {
-    actionError = null;
-    const error = await jobs.setAppStatus(job.key, job.appStatus === status ? null : status);
-    if (error !== null) actionError = error;
-  }
-
-  async function saveNote(): Promise<void> {
-    if (note.trim() === (detail.note ?? '').trim()) return;
-    actionError = null;
-    const error = await jobs.setNote(job.key, note);
-    if (error !== null) actionError = error;
-  }
-
-  function revertNote(): void {
-    note = detail.note ?? '';
-  }
-
   async function copyPrompt(): Promise<void> {
     actionError = null;
     try {
@@ -245,7 +221,7 @@
   async function hide(): Promise<void> {
     actionError = null;
     const key = job.key;
-    if (job.archived) {
+    if (job.place === 'archive') {
       const error = await jobs.archive(key, false);
       if (error !== null) actionError = error;
       return;
@@ -412,8 +388,8 @@
           variant="ghost"
           size="sm"
           iconOnly
-          icon={job.archived ? 'eye' : 'eye-off'}
-          label={job.archived ? t.reader.unhide : t.reader.hide}
+          icon={job.place === 'archive' ? 'eye' : 'eye-off'}
+          label={job.place === 'archive' ? t.reader.unhide : t.reader.hide}
           testid="hide"
           onclick={() => void hide()}
         />
@@ -533,36 +509,6 @@
         onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
       />
     {/if}
-  </div>
-  <div class="marks">
-    <div class="status" role="group" aria-label={t.reader.status} data-testid="status">
-      {#each STATUSES as status (status)}
-        <Button
-          variant="secondary"
-          size="sm"
-          label={t.reader.appStatus[status]}
-          pressed={job.appStatus === status}
-          testid="status-{status}"
-          onclick={() => void setStatus(status)}
-        />
-      {/each}
-      {#if job.appStatus === 'sent' && job.statusAt}
-        <span class="since" data-testid="status-since">{formatRelative(job.statusAt)}</span>
-      {/if}
-    </div>
-    <span
-      class="note"
-      onfocusout={() => void saveNote()}
-      use:formKeys={{ save: () => void saveNote(), cancel: revertNote }}
-    >
-      <TextField
-        value={note}
-        label={t.reader.noteLabel}
-        placeholder={t.reader.noteLabel}
-        testid="note"
-        oninput={(value) => (note = value)}
-      />
-    </span>
   </div>
   <span class="past-actions" use:inView={(place) => (compact = place === 'above')}></span>
   {#if actionError}
@@ -895,32 +841,6 @@
   .fetch-here {
     display: flex;
     margin-top: var(--space-2);
-  }
-
-  /* The user's own marks: the step of the application, the note. */
-  .marks {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-  }
-
-  .status {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-6);
-  }
-
-  .since {
-    margin-left: var(--space-2);
-    color: var(--text-muted);
-    font: var(--type-sm);
-    font-variant-numeric: var(--numeric);
-  }
-
-  .note {
-    display: flex;
-    max-width: var(--list-max);
   }
 
   /* The evidence of a point, quiet under it (on the axis of its words). */

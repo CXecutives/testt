@@ -161,32 +161,18 @@ impl MatchStatus {
     }
 }
 
-/// The user's mark on a job (set by the user, never by a run, with the time it was set):
-/// saved ("Gemerkt", the star) or sent ("Beworben": the user applied).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Where a job is, like a mail: in the inbox ("Eingang", the active jobs), the archive or the
+/// trash ("Papierkorb"). A job is in exactly one place; the favourite (the star) is a flag of
+/// its own. Runs never move a job, except that old ones archive themselves and an old trash
+/// empties itself (settings).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
-pub enum AppStatus {
-    /// Saved for later ("Gemerkt").
-    Saved,
-    /// Applied ("Beworben").
-    Sent,
-}
-
-impl AppStatus {
-    pub const ALL: [AppStatus; 2] = [AppStatus::Saved, AppStatus::Sent];
-
-    /// The stored key (the same as the JSON value).
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            AppStatus::Saved => "saved",
-            AppStatus::Sent => "sent",
-        }
-    }
-
-    pub fn parse(text: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|s| s.as_str() == text)
-    }
+pub enum Place {
+    #[default]
+    Inbox,
+    Archive,
+    Trash,
 }
 
 /// Score band of a match.
