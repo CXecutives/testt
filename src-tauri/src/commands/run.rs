@@ -285,7 +285,14 @@ pub(super) fn launch(
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(error) = work.await {
-            log::error!("run crashed: {error}");
+            // Only the kind: the error's text repeats the panic message, which can quote ad
+            // or mail text (the panic hook already logged the place).
+            match &error {
+                tauri::Error::JoinError(join) => {
+                    log::error!("{}", jobalert_core::logging::task_failure_line("run", join));
+                }
+                _ => log::error!("run crashed"),
+            }
             release_run(&app.state::<AppState>(), &mine);
             let mut finish = finish;
             finish(crashed(kind, dry_run, started).finished_event());
