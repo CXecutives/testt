@@ -984,7 +984,7 @@ export const de = {
     autoFetch: 'Beim Start abrufen',
     autoFetchHint: 'Wenn der letzte Abruf mehr als sechs Stunden her ist.',
     autoArchive: 'Jobs nach 30 Tagen archivieren',
-    autoArchiveHint: 'Favoriten bleiben im Eingang.',
+    autoArchiveHint: 'Favoriten werden nie archiviert.',
     active: 'Aktiv',
     details: 'Details holen',
     needsDetails: 'Erst Details holen einschalten.',

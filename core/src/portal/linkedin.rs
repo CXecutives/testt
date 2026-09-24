@@ -27,7 +27,7 @@ impl PortalAdapter for LinkedIn {
         "linkedin"
     }
     fn label(&self) -> &'static str {
-        "LinkedIn"
+        "linkedin.com"
     }
     fn file_tag(&self) -> &'static str {
         "LinkedIn"

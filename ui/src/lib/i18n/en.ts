@@ -930,7 +930,7 @@ export const en: Catalog = {
     autoFetch: 'Fetch at start',
     autoFetchHint: 'When the last fetch is more than six hours ago.',
     autoArchive: 'Archive jobs after 30 days',
-    autoArchiveHint: 'Favourites stay in the inbox.',
+    autoArchiveHint: 'Favourites are never archived.',
     active: 'Active',
     details: 'Fetch details',
     needsDetails: 'Turn on Fetch details first.',

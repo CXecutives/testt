@@ -148,7 +148,7 @@ test('old jobs archive themselves unless switched off', async ({ page }) => {
   const archive = page.getByTestId('toggle-auto-archive');
   await expect(archive).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByTestId('settings-fetch')).toContainText('Jobs nach 30 Tagen archivieren');
-  await expect(page.getByTestId('settings-fetch')).toContainText('Favoriten bleiben im Eingang.');
+  await expect(page.getByTestId('settings-fetch')).toContainText('Favoriten werden nie archiviert.');
   await archive.click();
   await expect(archive).toHaveAttribute('aria-checked', 'false');
   await archive.click();
