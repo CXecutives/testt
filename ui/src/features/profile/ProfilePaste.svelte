@@ -10,7 +10,7 @@
   import Field from '$components/Field.svelte';
   import Icon from '$components/Icon.svelte';
   import TextArea from '$components/TextArea.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { formKeys } from '$lib/input/input';
   import { primaryFirst } from '$lib/platform';
 
@@ -26,7 +26,7 @@
 
   let { copied, busy, error, oncopy, ontake, oncancel }: Props = $props();
 
-  const t = de.profile.paste;
+  const words = $derived(t.profile.paste);
   const id = $props.id();
   const actionFirst = primaryFirst();
   let answer = $state('');
@@ -38,28 +38,28 @@
 
 <Card padding="lg" testid="profile-paste">
   <div class="paste" use:formKeys={{ cancel: oncancel }}>
-    <h2 class="heading">{de.profile.fromCv}</h2>
+    <h2 class="heading">{t.profile.fromCv}</h2>
     <ol class="steps">
       <li class="step" data-testid="paste-copied">
         <span class="mark" class:done={copied}>
           {#if copied}<Icon name="check" size="sm" />{:else}1{/if}
         </span>
-        <span class="text">{copied ? t.copied : t.copyFailed}</span>
+        <span class="text">{copied ? words.copied : words.copyFailed}</span>
         <Button
           variant="ghost"
           size="sm"
           icon="copy"
-          label={t.copyAgain}
+          label={words.copyAgain}
           testid="paste-copy"
           onclick={oncopy}
         />
       </li>
       <li class="step">
         <span class="mark">2</span>
-        <span class="text">{t.step}</span>
+        <span class="text">{words.step}</span>
       </li>
     </ol>
-    <Field label={t.answer} for="{id}-answer" {error}>
+    <Field label={words.answer} for="{id}-answer" {error}>
       <TextArea
         id="{id}-answer"
         bind:value={answer}
@@ -73,7 +73,7 @@
       {#snippet cancel()}
         <Button
           variant="secondary"
-          label={de.common.cancel}
+          label={t.common.cancel}
           testid="paste-cancel"
           onclick={oncancel}
         />
@@ -81,7 +81,7 @@
       {#if !actionFirst}{@render cancel()}{/if}
       <Button
         variant="primary"
-        label={t.take}
+        label={words.take}
         loading={busy}
         disabled={answer.trim() === ''}
         testid="paste-take"

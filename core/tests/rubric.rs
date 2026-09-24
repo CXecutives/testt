@@ -1,7 +1,8 @@
 //! One scoring rubric for the app's Claude check and the `job-matching` skill: the German
 //! file `core/src/export/ai_rubric.de.md` and its copy in the skill folder are identical, the
 //! skill's instructions and its render check carry the same caps, and the rubric's high band
-//! is the app's.
+//! is the app's. The English rubric of the English prompts (`ai_rubric.en.md`) has the same
+//! sections, bands and caps.
 
 use std::path::{Path, PathBuf};
 
@@ -144,4 +145,80 @@ fn skill_text_and_render_check_have_the_rubrics_caps() {
             .map(|n| (false, n)),
     );
     assert_eq!(sorted(in_script), caps, "{SKILL_SCRIPT} check()");
+}
+
+const RUBRIC_EN: &str = "core/src/export/ai_rubric.en.md";
+
+/// The bands of a rubric (`from`, `to`) in the section `heading`, written `- 9 <to> 10 ...`.
+fn bands(rubric: &str, heading: &str, to: &str) -> Vec<(u32, u32)> {
+    let section = rubric
+        .split("\n## ")
+        .find(|s| s.starts_with(heading))
+        .unwrap_or_else(|| panic!("section {heading}"));
+    section
+        .lines()
+        .filter(|l| l.starts_with("- "))
+        .map(|line| {
+            let words: Vec<&str> = line.split(' ').collect();
+            assert_eq!(words[2], to, "{line}");
+            (words[1].parse().unwrap(), words[3].parse().unwrap())
+        })
+        .collect()
+}
+
+/// The caps of the English rubric: the lines of its section `Caps`.
+fn english_caps(rubric: &str) -> Vec<Cap> {
+    let section = rubric
+        .split("\n## ")
+        .find(|s| s.starts_with("Caps"))
+        .expect("section Caps");
+    let caps = section
+        .lines()
+        .filter(|l| l.starts_with("- "))
+        .map(|line| {
+            let n: u32 = line
+                .rsplit(' ')
+                .next()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or_else(|| panic!("a cap ends with its score: {line}"));
+            (line.contains("at most"), n)
+        })
+        .collect();
+    sorted(caps)
+}
+
+/// The English prompts carry the English rubric (`ai_rubric.en.md`): it says what the German
+/// one says, so both languages score alike - the same sections, bands, caps and the same stop
+/// below the app's high band.
+#[test]
+fn the_english_rubric_says_the_same() {
+    let german = read(RUBRIC);
+    let english = read(RUBRIC_EN);
+    assert_eq!(
+        german.matches("\n## ").count(),
+        english.matches("\n## ").count(),
+        "the same sections"
+    );
+    assert_eq!(
+        bands(&german, "Punkte von 1 bis 10", "bis"),
+        bands(&english, "Points from 1 to 10", "to")
+    );
+    assert_eq!(rubric_caps(&german), english_caps(&english));
+    let high = u32::from(HIGH_FROM) / 10;
+    assert!(
+        english.contains(&format!("to {high} or more")),
+        "high band {high}"
+    );
+    for key in [
+        "min_tagessatz",
+        "laender",
+        "min_jahresgehalt",
+        "zielprofil_min_jahre",
+        "schwerpunkte",
+        "wunschrollen",
+        "tagessatz_wunsch",
+        "einsatzpraeferenzen",
+    ] {
+        assert!(german.contains(key) && english.contains(key), "{key}");
+    }
 }

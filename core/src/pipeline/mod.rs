@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
 use crate::error::{ErrorInfo, InvalidInput};
-use crate::export::{self, RESULT_DIR, TXT_DIR, texts, write_job_txt, write_xlsx};
+use crate::export::{self, RESULT_DIR, TXT_DIR, Texts, texts, write_job_txt, write_xlsx};
 use crate::fetch::policy::Policy;
 use crate::fetch::{
     FetchEvent, FetchSummary, PageFetcher, PortalHealth, Prescore, Selection, fetch_all,
@@ -33,6 +33,7 @@ use crate::fetch::{
 use crate::mail::imap::{MailError, MailSource};
 use crate::mail::scan::{ScanError, ScanEvent, ScanSummary, Scope, scan};
 use crate::portal::{FetchPath, JobKey, Portal};
+use crate::settings::Language;
 use crate::store::{JobFilter, JobRow, Store};
 use crate::text::truncate_chars;
 use crate::time;
@@ -114,6 +115,8 @@ pub struct RunContext {
     /// Jobs without a stage archive themselves this many days after they were first seen,
     /// at the end of the run; 0 = never (settings).
     pub auto_archive_days: u32,
+    /// Language of the Excel file and the HTML overview (the text files stay German).
+    pub language: Language,
 }
 
 impl RunContext {
@@ -458,7 +461,10 @@ pub const LAST_RUN: &str = "last_run_summary";
 const LAST_SCAN_RUN: &str = "last_scan_run";
 /// State of the overview per path (key = prefix + path).
 const EXPORT_STAMP: &str = "export:";
-/// Info sheet rows of the last successful mailbox scan.
+/// The numbers of the last successful mailbox scan for the sheet "Info" ([`ScanFacts`]).
+const LAST_SCAN_FACTS: &str = "last_scan_facts";
+/// Info sheet rows (German words) of the last successful mailbox scan, as earlier versions
+/// stored them; read only while no scan stored its facts.
 const LAST_SCAN_INFO: &str = "last_scan_info";
 /// So many keys of unwritten text files the log names.
 const MAX_FAILED_NAMES: usize = 20;
@@ -640,8 +646,15 @@ pub async fn run<B: Backends>(
     summary.finished_at = clock();
     if !ctx.dry_run {
         emit(status(StatusCode::WritingFiles, None, None));
-        let info = info_rows(store, started_at);
-        let exported = export_all(store, &ctx.workspace, &info, run, summary.finished_at);
+        let info = info_rows(store, started_at, Texts::of(ctx.language));
+        let exported = export_all(
+            store,
+            &ctx.workspace,
+            &info,
+            run,
+            summary.finished_at,
+            ctx.language,
+        );
         write_top_matches(
             store,
             &ctx.workspace,
@@ -1020,15 +1033,16 @@ impl Target {
     }
 }
 
-/// Text files (exactly once per job) and overview. The overview is only regenerated if
-/// something changed - data, run, folder - or it is missing; an Excel file open elsewhere
-/// is then not disturbed needlessly.
+/// Text files (exactly once per job, always German) and overview (in `language`). The
+/// overview is only regenerated if something changed - data, run, folder, language - or it
+/// is missing; an Excel file open elsewhere is then not disturbed needlessly.
 pub fn export_all(
     store: &Store,
     workspace: &Path,
     info: &[(String, String)],
     run: i64,
     now: Timestamp,
+    language: Language,
 ) -> ExportSummary {
     let result_dir = workspace.join(RESULT_DIR);
     let mut summary = ExportSummary::default();
@@ -1040,7 +1054,7 @@ pub fn export_all(
         store,
         &export::overview_path(&result_dir),
         info,
-        run,
+        (run, language),
         now,
         &mut summary,
     );
@@ -1048,7 +1062,9 @@ pub fn export_all(
     let path = export::overview_html_path(&result_dir);
     let written = last_scan_run(store)
         .and_then(|new_run| store.overview_jobs(new_run))
-        .and_then(|(jobs, pinned)| export::write_overview_html(&path, &jobs, pinned, now));
+        .and_then(|(jobs, pinned)| {
+            export::write_overview_html(&path, &jobs, pinned, now, language)
+        });
     match written {
         Ok(()) => summary.overview_html = Some(path),
         Err(e) => note_error(&mut summary, &e, Target::OverviewHtml),
@@ -1075,13 +1091,14 @@ pub fn write_top_matches(
 }
 
 /// Deletes jobs for good (see [`Store::delete_jobs`]): their text files go and the overview
-/// is written again without them. Without a workspace (the dry run) nothing on disk changes.
+/// is written again without them (in `language`). Without a workspace (the dry run) nothing
+/// on disk changes.
 pub fn delete_jobs(
     store: &Store,
     workspace: Option<&Path>,
     matcher: Option<&dyn Matcher>,
     keys: &[JobKey],
-    now: Timestamp,
+    (now, language): (Timestamp, Language),
 ) -> crate::Result<Deleted> {
     let (count, names) = store.delete_jobs(keys, now)?;
     let mut deleted = Deleted {
@@ -1095,9 +1112,13 @@ pub fn delete_jobs(
     if !failed.is_empty() {
         log::warn!("delete: {} text files not removed (open)", failed.len());
     }
-    let info = info_rows(store, last_fetch_at(store).unwrap_or(now));
+    let info = info_rows(
+        store,
+        last_fetch_at(store).unwrap_or(now),
+        Texts::of(language),
+    );
     let run = last_scan_run(store).unwrap_or(0);
-    let exported = export_all(store, workspace, &info, run, now);
+    let exported = export_all(store, workspace, &info, run, now, language);
     write_top_matches(store, workspace, matcher, now);
     deleted.export_error = exported.error;
     Ok(deleted)
@@ -1186,7 +1207,7 @@ fn write_overview(
     store: &Store,
     path: &Path,
     info: &[(String, String)],
-    run: i64,
+    (run, language): (i64, Language),
     now: Timestamp,
     summary: &mut ExportSummary,
 ) {
@@ -1194,6 +1215,7 @@ fn write_overview(
     let stamp = serde_json::json!({
         "rev": store.data_rev().unwrap_or(-1),
         "run": run,
+        "language": language,
     })
     .to_string();
     let key = format!("{EXPORT_STAMP}{}", path.display());
@@ -1232,7 +1254,7 @@ fn write_overview(
     };
     let written = store
         .jobs(&listed)
-        .and_then(|jobs| write_xlsx(path, &jobs, info));
+        .and_then(|jobs| write_xlsx(path, &jobs, info, language));
     match written {
         Ok(()) => {
             if let Err(e) = store.kv_set(&key, &stamp) {
@@ -1244,22 +1266,34 @@ fn write_overview(
     }
 }
 
+/// The numbers of a successful mailbox scan for the sheet "Info", without words: the sheet
+/// says them in the language of the export.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+struct ScanFacts {
+    /// Start of the scan (Unix seconds).
+    at: i64,
+    scope: Scope,
+    new: usize,
+    known: usize,
+    dup: usize,
+}
+
 /// Remembers the numbers of a successful mailbox scan for the sheet "Info" - only then: a
 /// failed scan does not overwrite the last good state. The mail address stays out of the
 /// file - it may be passed on.
 fn remember_scan(store: &Store, scope: Scope, scan: &ScanSummary, at: Timestamp) {
-    let rows = [
-        (texts::INFO_LAST_SCAN, time::display(at)),
-        (texts::INFO_SCOPE, scope_text(scope).to_string()),
-        (texts::INFO_NEW, scan.new.to_string()),
-        (texts::INFO_KNOWN, scan.known_before.to_string()),
-        (texts::INFO_DUP, scan.dup_in_run.to_string()),
-    ];
-    let saved = serde_json::to_string(&rows)
+    let facts = ScanFacts {
+        at: time::to_db(at),
+        scope,
+        new: scan.new,
+        known: scan.known_before,
+        dup: scan.dup_in_run,
+    };
+    let saved = serde_json::to_string(&facts)
         .map_err(|e| e.to_string())
         .and_then(|json| {
             store
-                .kv_set(LAST_SCAN_INFO, &json)
+                .kv_set(LAST_SCAN_FACTS, &json)
                 .map_err(|e| e.to_string())
         });
     if let Err(e) = saved {
@@ -1295,7 +1329,41 @@ pub fn auto_fetch_due(
 
 /// Sheet "Info" of the Excel file (last scan, last run, counters, program). The numbers
 /// come from the last successful mailbox scan - after pure detail runs too.
-fn info_rows(store: &Store, started_at: Timestamp) -> Vec<(String, String)> {
+fn info_rows(store: &Store, started_at: Timestamp, words: &Texts) -> Vec<(String, String)> {
+    let facts = store
+        .kv_get(LAST_SCAN_FACTS)
+        .ok()
+        .flatten()
+        .and_then(|json| serde_json::from_str::<ScanFacts>(&json).ok());
+    let mut rows = match facts {
+        Some(facts) => {
+            let at = time::from_db(facts.at).map_or_else(String::new, |at| words.moment(at));
+            let scope = match facts.scope {
+                Scope::New => words.scope_new,
+                Scope::All => words.scope_all,
+            };
+            vec![
+                (words.info_last_scan.to_owned(), at),
+                (words.info_scope.to_owned(), scope.to_owned()),
+                (words.info_new.to_owned(), facts.new.to_string()),
+                (words.info_known.to_owned(), facts.known.to_string()),
+                (words.info_dup.to_owned(), facts.dup.to_string()),
+            ]
+        }
+        None => legacy_info_rows(store, words),
+    };
+    rows.push((words.info_last_run.into(), words.moment(started_at)));
+    rows.push((
+        words.info_jobs_total.into(),
+        store.job_count().unwrap_or(0).to_string(),
+    ));
+    rows.push((words.info_program.into(), texts::PROGRAM_NAME.into()));
+    rows
+}
+
+/// The rows an earlier version stored with the last mailbox scan (German words), in the
+/// words of `words` until the next scan stores its facts.
+fn legacy_info_rows(store: &Store, words: &Texts) -> Vec<(String, String)> {
     let mut rows: Vec<(String, String)> = store
         .kv_get(LAST_SCAN_INFO)
         .ok()
@@ -1304,22 +1372,19 @@ fn info_rows(store: &Store, started_at: Timestamp) -> Vec<(String, String)> {
         .unwrap_or_default();
     // Earlier versions stored the mail address among the rows; it stays out now.
     rows.retain(|(label, _)| label != LEGACY_ACCOUNT_LABEL);
-    // ... and their own words, read in today's until the next scan stores its rows.
+    // ... and their own words, read in today's until the next scan stores its facts.
     let today = |text: &mut String| {
         if let Some((_, new)) = LEGACY_INFO.iter().find(|(old, _)| old == text) {
             *text = (*new).to_owned();
+        }
+        if let Some(word) = words.from_german(text) {
+            *text = word.to_owned();
         }
     };
     for (label, value) in &mut rows {
         today(label);
         today(value);
     }
-    rows.push((texts::INFO_LAST_RUN.into(), time::display(started_at)));
-    rows.push((
-        texts::INFO_JOBS_TOTAL.into(),
-        store.job_count().unwrap_or(0).to_string(),
-    ));
-    rows.push((texts::INFO_PROGRAM.into(), texts::PROGRAM_NAME.into()));
     rows
 }
 
@@ -1344,13 +1409,6 @@ fn log_export(run: i64, exported: &ExportSummary) {
             "run {run}: text files not written for {}",
             exported.txt_failed_keys.join(", ")
         );
-    }
-}
-
-fn scope_text(scope: Scope) -> &'static str {
-    match scope {
-        Scope::New => texts::SCOPE_NEW,
-        Scope::All => texts::SCOPE_ALL,
     }
 }
 

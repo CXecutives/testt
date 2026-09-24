@@ -124,7 +124,7 @@ fn forget(state: &AppState, keys: &[JobKey]) -> CmdResult<Deleted> {
         workspace.as_deref(),
         matcher,
         keys,
-        Timestamp::now(),
+        (Timestamp::now(), state.language()?),
     )?)
 }
 
@@ -174,7 +174,11 @@ impl Prompted {
 pub async fn ai_prompt(state: State<'_, AppState>, key: JobKey) -> CmdResult<String> {
     let profile = prompt_profile(&state)?;
     let row = state.store.job(&key)?.ok_or_else(|| not_found("job"))?;
-    Ok(export::ai_prompt(&profile, prompted(&state, &row)?.item()))
+    Ok(export::ai_prompt(
+        &profile,
+        prompted(&state, &row)?.item(),
+        state.language()?,
+    ))
 }
 
 /// One prompt that compares the best current matches (3 to 5; saved first, then the best
@@ -196,7 +200,7 @@ pub async fn ai_prompt_top(state: State<'_, AppState>, limit: u32) -> CmdResult<
         .map(|row| prompted(&state, row))
         .collect::<CmdResult<Vec<_>>>()?;
     let items: Vec<export::PromptJob<'_>> = jobs.iter().map(Prompted::item).collect();
-    Ok(export::ai_prompt_top(&profile, &items))
+    Ok(export::ai_prompt_top(&profile, &items, state.language()?))
 }
 
 /// "All read": every unread job of the facet's list; the keys come back for the undo.

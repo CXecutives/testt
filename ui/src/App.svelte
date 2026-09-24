@@ -12,7 +12,7 @@
   import Spinner from '$components/Spinner.svelte';
   import Toast from '$components/Toast.svelte';
   import Tooltip from '$components/Tooltip.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { onClosing } from '$lib/ipc/api';
   import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
@@ -48,8 +48,8 @@
           <EmptyState
             icon="triangle-alert"
             tone="danger"
-            text={de.shell.loadFailed}
-            action={{ label: de.common.retry, icon: 'rotate-ccw', onclick: () => void app.load() }}
+            text={t.shell.loadFailed}
+            action={{ label: t.common.retry, icon: 'rotate-ccw', onclick: () => void app.load() }}
           />
         </section>
       {:else if app.state === null}
@@ -84,7 +84,7 @@
     </main>
     {#if closing}
       <div class="closing" data-testid="closing" role="status" transition:fade>
-        <p class="closing-note"><Spinner size="sm" label={null} />{de.shell.closing}</p>
+        <p class="closing-note"><Spinner size="sm" label={null} />{t.shell.closing}</p>
       </div>
     {/if}
   </div>

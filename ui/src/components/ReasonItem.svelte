@@ -38,7 +38,7 @@
 
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import Badge from './Badge.svelte';
   import Icon from './Icon.svelte';
 
@@ -68,11 +68,11 @@
 </script>
 
 {#snippet body()}
-  <span class="icon" role="img" aria-label={de.reason.kind[kind]}
+  <span class="icon" role="img" aria-label={t.reason.kind[kind]}
     ><Icon name={ICON[kind]} size="sm" /></span
   >
   <span class="label">{label}</span>
-  {#if weight && !compact}<Badge label={de.reason.weight[weight]} tone={WEIGHT_TONE[weight]} />{/if}
+  {#if weight && !compact}<Badge label={t.reason.weight[weight]} tone={WEIGHT_TONE[weight]} />{/if}
 {/snippet}
 
 {#if onselect}

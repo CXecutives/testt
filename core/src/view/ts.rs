@@ -19,6 +19,7 @@ use crate::pipeline::{
     RunSnapshot, RunSummary, ScanCounts, ScoreSummary, StatusCode, Step,
 };
 use crate::portal::{JobKey, Portal};
+use crate::settings::Language;
 use crate::view::{
     AppState, ClearedTxt, Deleted, DetailState, EmptyAlert, Evidence, Highlight, JobCounts,
     JobDetail, JobFacet, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel,
@@ -160,6 +161,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<JobPage>();
     f.add::<EmptyAlert>();
     f.add::<Platform>();
+    f.add::<Language>();
     f.add::<VaultKind>();
     f.add::<Mailbox>();
     f.add::<SettingsView>();

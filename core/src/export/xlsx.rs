@@ -7,14 +7,14 @@ use rust_xlsxwriter::{Color, Format, FormatBorder, Workbook, Worksheet, XlsxErro
 
 use super::Line;
 use super::scale::{SCORE_SCALE, score_step};
-use super::texts::{COLUMNS, INFO_NOTE, INFO_NOTE_LABEL, INFO_SHEET, JOBS_SHEET};
+use super::texts::Texts;
 use crate::error::Result;
 use crate::model::{AppStatus, MatchStatus};
+use crate::settings::Language;
 use crate::store::JobRow;
 use crate::text::truncate_chars;
 use crate::time;
 
-const DATE_FORMAT: &str = "dd.mm.yyyy hh:mm";
 /// Excel takes at most this many characters per cell ...
 const MAX_CELL_CHARS: usize = 32_767;
 /// ... and at most this many links per sheet; above that, URLs stay text (otherwise Excel
@@ -28,17 +28,24 @@ const WIDTHS: [f64; 14] = [
 const HEADER_GREY: u32 = 0x00E7_E6E6;
 const EXCLUDED_GREY: u32 = 0x0080_8080;
 
-/// Writes the Excel file. `info` are label/value pairs for the sheet "Info".
-pub fn write_xlsx(path: &Path, jobs: &[JobRow], info: &[(String, String)]) -> Result<()> {
+/// Writes the Excel file in the app's language. `info` are label/value pairs for the sheet
+/// "Info" (already in that language).
+pub fn write_xlsx(
+    path: &Path,
+    jobs: &[JobRow],
+    info: &[(String, String)],
+    language: Language,
+) -> Result<()> {
+    let texts = Texts::of(language);
     let mut workbook = Workbook::new();
-    jobs_sheet(workbook.add_worksheet(), jobs)?;
-    info_sheet(workbook.add_worksheet(), info)?;
+    jobs_sheet(workbook.add_worksheet(), jobs, texts)?;
+    info_sheet(workbook.add_worksheet(), info, texts)?;
     let bytes = workbook.save_to_buffer()?;
     super::write_atomic(path, &bytes)
 }
 
-fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
-    sheet.set_name(JOBS_SHEET)?;
+fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow], texts: &Texts) -> Result<(), XlsxError> {
+    sheet.set_name(texts.jobs_sheet)?;
     let header = Format::new()
         .set_bold()
         .set_background_color(Color::RGB(HEADER_GREY))
@@ -47,16 +54,16 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
     let steps =
         SCORE_SCALE.map(|colour| Format::new().set_background_color(Color::RGB(colour.rgb())));
     let dates = [
-        Format::new().set_num_format(DATE_FORMAT),
-        grey.clone().set_num_format(DATE_FORMAT),
+        Format::new().set_num_format(texts.excel_moment),
+        grey.clone().set_num_format(texts.excel_moment),
     ];
-    for (col, (title, width)) in (0u16..).zip(COLUMNS.iter().zip(WIDTHS)) {
+    for (col, (title, width)) in (0u16..).zip(texts.columns.iter().zip(WIDTHS)) {
         sheet.write_string_with_format(0, col, *title, &header)?;
         sheet.set_column_width(col, width)?;
     }
     let mut links = 0;
     for (row, job) in (1u32..).zip(jobs) {
-        let line = Line::of(job);
+        let line = Line::of(job, texts);
         // Excluded jobs stay in the list, grey, with their domain score.
         let excluded = job
             .match_
@@ -105,7 +112,7 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
         0,
         0,
         last_row,
-        u16::try_from(COLUMNS.len() - 1).unwrap_or(0),
+        u16::try_from(texts.columns.len() - 1).unwrap_or(0),
     )?;
     sheet.set_freeze_panes(1, 0)?;
     Ok(())
@@ -136,15 +143,19 @@ fn link(
     text(sheet, row, col, url)
 }
 
-fn info_sheet(sheet: &mut Worksheet, info: &[(String, String)]) -> Result<(), XlsxError> {
-    sheet.set_name(INFO_SHEET)?;
+fn info_sheet(
+    sheet: &mut Worksheet,
+    info: &[(String, String)],
+    texts: &Texts,
+) -> Result<(), XlsxError> {
+    sheet.set_name(texts.info_sheet)?;
     let bold = Format::new().set_bold();
     sheet.set_column_width(0, 48)?;
     sheet.set_column_width(1, 64)?;
     let rows = info
         .iter()
         .map(|(k, v)| (k.as_str(), v.as_str()))
-        .chain(std::iter::once((INFO_NOTE_LABEL, INFO_NOTE)));
+        .chain(std::iter::once((texts.info_note_label, texts.info_note)));
     for (row, (label, value)) in (0u32..).zip(rows) {
         sheet.write_string_with_format(row, 0, truncate_chars(label, MAX_CELL_CHARS), &bold)?;
         text(sheet, row, 1, value)?;
@@ -157,6 +168,9 @@ mod tests {
     use calamine::{Data, Reader, Xlsx, open_workbook};
 
     use super::*;
+    use crate::export::texts::{
+        COLUMNS, INFO_LAST_RUN, INFO_NOTE_LABEL, INFO_SHEET, JOBS_SHEET, en,
+    };
     use crate::model::DescStatus;
     use crate::portal::job_link;
 
@@ -225,11 +239,8 @@ mod tests {
         jobs[0].app_status = Some(crate::model::AppStatus::Sent);
         jobs[0].app_status_at = Some("2026-09-20T08:00:00Z".parse().unwrap());
         jobs[0].note = Some("Zweites Gespräch am Freitag".into());
-        let info = [(
-            crate::export::texts::INFO_LAST_RUN.to_string(),
-            "x".to_string(),
-        )];
-        write_xlsx(&path, &jobs, &info).unwrap();
+        let info = [(INFO_LAST_RUN.to_string(), "x".to_string())];
+        write_xlsx(&path, &jobs, &info, Language::De).unwrap();
 
         let mut book: Xlsx<_> = open_workbook(&path).unwrap();
         assert_eq!(book.sheet_names(), [JOBS_SHEET, INFO_SHEET]);
@@ -280,11 +291,45 @@ mod tests {
         assert_eq!(info.get((1, 0)).unwrap().to_string(), INFO_NOTE_LABEL);
     }
 
+    /// In English the sheets, headers and word cells are English; data stays as it came.
+    #[test]
+    fn workbook_in_english() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(super::super::XLSX_NAME);
+        let mut job = row(
+            "https://www.linkedin.com/jobs/view/4000000001/",
+            "Interim CFO",
+            DescStatus::Teaser,
+        );
+        job.note = Some("Call on Friday".into());
+        let info = [(en::INFO_LAST_RUN.to_string(), "x".to_string())];
+        write_xlsx(&path, &[job], &info, Language::En).unwrap();
+
+        let mut book: Xlsx<_> = open_workbook(&path).unwrap();
+        assert_eq!(book.sheet_names(), [en::JOBS_SHEET, en::INFO_SHEET]);
+        let range = book.worksheet_range(en::JOBS_SHEET).unwrap();
+        let header: Vec<String> = range
+            .rows()
+            .next()
+            .unwrap()
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        assert_eq!(header, en::COLUMNS);
+        let first: Vec<&Data> = range.rows().nth(1).unwrap().iter().collect();
+        assert_eq!(first[3].to_string(), "Muster GmbH");
+        assert_eq!(first[9].to_string(), "Teaser only");
+        assert_eq!(first[13].to_string(), "Call on Friday");
+        let info = book.worksheet_range(en::INFO_SHEET).unwrap();
+        assert_eq!(info.get((0, 0)).unwrap().to_string(), en::INFO_LAST_RUN);
+        assert_eq!(info.get((1, 0)).unwrap().to_string(), en::INFO_NOTE_LABEL);
+    }
+
     #[test]
     fn empty_workbook_has_header_only() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("leer.xlsx");
-        write_xlsx(&path, &[], &[]).unwrap();
+        write_xlsx(&path, &[], &[], Language::De).unwrap();
         let mut book: Xlsx<_> = open_workbook(&path).unwrap();
         assert_eq!(book.worksheet_range(JOBS_SHEET).unwrap().rows().count(), 1);
     }
@@ -301,7 +346,7 @@ mod tests {
             DescStatus::Ok,
         );
         job.mail_subject = "x".repeat(40_000);
-        write_xlsx(&path, &[job], &[]).unwrap();
+        write_xlsx(&path, &[job], &[], Language::De).unwrap();
         let mut book: Xlsx<_> = open_workbook(&path).unwrap();
         let range = book.worksheet_range(JOBS_SHEET).unwrap();
         let subject = range.get((1, 6)).unwrap().to_string();

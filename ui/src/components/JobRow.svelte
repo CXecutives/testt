@@ -19,7 +19,7 @@
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
   import { rowReason } from '$lib/i18n/texts';
   import type { AppStatus, JobView } from '$lib/ipc/types';
@@ -78,11 +78,11 @@
   /** Where the user's application stands (saved needs no badge: the star says it). */
   const status = $derived(
     job.appStatus && job.appStatus !== 'saved'
-      ? { label: de.reader.appStatus[job.appStatus], tone: APP_TONE[job.appStatus] }
+      ? { label: t.reader.appStatus[job.appStatus], tone: APP_TONE[job.appStatus] }
       : null,
   );
   const reason = $derived(ring ? rowReason(job) : null);
-  const heading = $derived(job.title ? displayTitle(job.title) : de.job.untitled);
+  const heading = $derived(job.title ? displayTitle(job.title) : t.job.untitled);
 
   /** At most one badge, and only when something is not as usual. */
   const deviation = $derived.by((): { label: string; tone: BadgeTone } | null => {
@@ -91,9 +91,9 @@
     const detail = job.detail.kind;
     if (detail !== 'ok') {
       const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
-      return { label: de.job.detail[detail], tone };
+      return { label: t.job.detail[detail], tone };
     }
-    if (job.match?.status === 'unscorable') return { label: de.score.unscorable, tone: 'neutral' };
+    if (job.match?.status === 'unscorable') return { label: t.score.unscorable, tone: 'neutral' };
     return null;
   });
 </script>
@@ -112,7 +112,7 @@
   {#if onpin || onarchive}
     <span class="tool-slot" class:two={onpin && onarchive} aria-hidden="true"></span>
   {:else if job.pinned}
-    <span class="star" role="img" aria-label={de.job.pinned}
+    <span class="star" role="img" aria-label={t.job.pinned}
       ><Icon name="star" size="sm" filled /></span
     >
   {/if}
@@ -142,7 +142,7 @@
       {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
     </span>
   </ListRow>
-  {#if job.unread && !excluded}<span class="dot" role="img" aria-label={de.job.unread} out:dotOut
+  {#if job.unread && !excluded}<span class="dot" role="img" aria-label={t.job.unread} out:dotOut
     ></span>{/if}
   {#if onpin || onarchive}
     <span class="tools">
@@ -153,7 +153,7 @@
             size="sm"
             iconOnly
             icon={job.archived ? 'archive-restore' : 'archive'}
-            label={job.archived ? de.reader.unhide : de.reader.hide}
+            label={job.archived ? t.reader.unhide : t.reader.hide}
             testid="archive-{job.key.portal}-{job.key.id}"
             onclick={() => onarchive?.(job)}
           />
@@ -166,7 +166,7 @@
             size="sm"
             iconOnly
             icon="star"
-            label={de.reader.pin}
+            label={t.reader.pin}
             pressed={job.pinned}
             testid="pin-{job.key.portal}-{job.key.id}"
             onclick={() => onpin?.(job)}

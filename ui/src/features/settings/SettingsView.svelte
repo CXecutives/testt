@@ -1,9 +1,10 @@
 <!--
-  Einstellungen (centred 720): Postfach, Abruf, Portale, Dateien, Wartung - each a card of
-  setting rows - and "Alles zurücksetzen" alone on the last card, apart from the harmless
-  rows. Every action answers where it happened (a note rises in there, and fades when it
-  goes); dialogs only to confirm, and a
-  confirmed action that fails closes its dialog so the note beside the action can say why.
+  Einstellungen (centred 720): Postfach, Abruf, Portale, Dateien, Sprache, Wartung - each a
+  card of setting rows - and "Alles zurücksetzen" alone on the last card, apart from the
+  harmless rows. Sprache switches the whole app at once (Deutsch, English). Every action
+  answers where it happened (a note rises in there, and fades when it goes); dialogs only to
+  confirm, and a confirmed action that fails closes its dialog so the note beside the action
+  can say why.
   Switches move at once and are their own answer (no toast). The dry run changes nothing,
   so what it cannot do is locked with that reason instead of failing.
 -->
@@ -13,13 +14,15 @@
   import Card from '$components/Card.svelte';
   import Dialog from '$components/Dialog.svelte';
   import Notice, { type NoticeTone } from '$components/Notice.svelte';
+  import Segmented from '$components/Segmented.svelte';
   import SettingRow from '$components/SettingRow.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import Toggle from '$components/Toggle.svelte';
-  import { de } from '$lib/i18n/de';
+  import { language } from '$lib/i18n/language.svelte';
+  import { t } from '$lib/i18n/t';
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { OpenTarget, SettingsPatch } from '$lib/ipc/types';
+  import type { Language, OpenTarget, SettingsPatch } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -29,11 +32,15 @@
 
   type Feedback = { tone: NoticeTone; text: string } | null;
 
+  /** The app's languages, each named in its own words. */
+  const LANGUAGES: readonly Language[] = ['de', 'en'];
+
   const cfg = $derived(app.state);
   let editing = $state(false);
   let mailboxNote = $state<Feedback>(null);
   let fetchNote = $state<Feedback>(null);
   let filesNote = $state<Feedback>(null);
+  let languageNote = $state<Feedback>(null);
   let careNote = $state<Feedback>(null);
   let resetNote = $state<Feedback>(null);
   let confirmRemove = $state(false);
@@ -45,8 +52,8 @@
   let saves = 0;
   /** What the dry run cannot do, and why (the backend would refuse it). */
   const dryRun = $derived(cfg?.dryRun ?? false);
-  const dryRunReason = de.error.text('dryRun', {});
-  const lockedReason = $derived(dryRun ? dryRunReason : de.settings.running);
+  const dryRunReason = $derived(t.error.text('dryRun', {}));
+  const lockedReason = $derived(dryRun ? dryRunReason : t.settings.running);
 
   async function act(
     name: string,
@@ -75,6 +82,7 @@
   const setMailbox = (f: Feedback): void => void (mailboxNote = f);
   const setFetch = (f: Feedback): void => void (fetchNote = f);
   const setFiles = (f: Feedback): void => void (filesNote = f);
+  const setLanguageNote = (f: Feedback): void => void (languageNote = f);
   const setCare = (f: Feedback): void => void (careNote = f);
   const setReset = (f: Feedback): void => void (resetNote = f);
 
@@ -97,22 +105,43 @@
   /** The switch moves at once; a failure puts it back (reload) and says why below it. */
   function autoFetch(on: boolean): Promise<void> {
     if (app.state) app.state.autoFetchOnStart = on;
-    return saveFetch({ autoFetchOnStart: on, autoArchiveDays: null });
+    return saveFetch({ autoFetchOnStart: on, autoArchiveDays: null, language: null });
   }
 
   function autoArchive(on: boolean): Promise<void> {
     const days = on ? AUTO_ARCHIVE_DAYS : 0;
     if (app.state) app.state.autoArchiveDays = days;
-    return saveFetch({ autoFetchOnStart: null, autoArchiveDays: days });
+    return saveFetch({ autoFetchOnStart: null, autoArchiveDays: days, language: null });
   }
 
-  function saveFetch(change: Omit<SettingsPatch, 'portals'>): Promise<void> {
+  /**
+   * The language switches the whole page at once, before the backend has stored it; a
+   * failure switches back and says why below it. Excel file and overview follow at the next
+   * fetch.
+   */
+  function chooseLanguage(next: Language): Promise<void> {
+    const before = language.current;
+    language.set(next);
+    if (app.state) app.state.language = next;
+    return saveFetch(
+      { autoFetchOnStart: null, autoArchiveDays: null, language: next },
+      setLanguageNote,
+      () => language.set(before),
+    );
+  }
+
+  function saveFetch(
+    change: Omit<SettingsPatch, 'portals'>,
+    note: (f: Feedback) => void = setFetch,
+    undo: () => void = () => {},
+  ): Promise<void> {
     const save = ++saves;
-    return act('fetch', setFetch, async () => {
+    return act(change.language === null ? 'fetch' : 'language', note, async () => {
       try {
         const next = await invoke('save_settings', { patch: { portals: [], ...change } });
         if (save === saves) app.set(next);
       } catch (error) {
+        undo();
         void app.load();
         throw error;
       }
@@ -133,10 +162,10 @@
       const result = await invoke('rewrite_txt');
       await app.load();
       if (result.error)
-        return { tone: 'danger', text: de.error.text(result.error.kind, result.error.params) };
+        return { tone: 'danger', text: t.error.text(result.error.kind, result.error.params) };
       if (result.txtFailed > 0)
-        return { tone: 'warning', text: de.settings.txtFailed(result.txtFailed) };
-      toasts.show(de.settings.txtWritten(result.txtWritten));
+        return { tone: 'warning', text: t.settings.txtFailed(result.txtFailed) };
+      toasts.show(t.settings.txtWritten(result.txtWritten));
       return null;
     });
   }
@@ -149,9 +178,9 @@
         const result = await invoke('clear_txt');
         await app.load();
         if (result.failed.length > 0) {
-          return { tone: 'warning', text: de.settings.txtFailed(result.failed.length) };
+          return { tone: 'warning', text: t.settings.txtFailed(result.failed.length) };
         }
-        toasts.show(de.settings.txtCleared(result.removed));
+        toasts.show(t.settings.txtCleared(result.removed));
         return null;
       },
       () => (confirmClear = false),
@@ -162,7 +191,7 @@
     confirmFull = false;
     void run.start({ kind: 'fullMailbox' }).then((started) => {
       if (started) navigation.go('jobs');
-      else setCare({ tone: 'danger', text: run.startError ?? de.run.failed });
+      else setCare({ tone: 'danger', text: run.startError ?? t.run.failed });
     });
   }
 
@@ -182,7 +211,7 @@
   async function copyPath(path: string, note: (f: Feedback) => void = setCare): Promise<void> {
     try {
       await navigator.clipboard.writeText(path);
-      toasts.show(de.toast.copied);
+      toasts.show(t.toast.copied);
     } catch (error) {
       note({ tone: 'danger', text: errorText(error) });
     }
@@ -207,22 +236,22 @@
     {/if}
   {:else}
     {#if cfg.dryRun}
-      <Notice tone="info" text={de.settings.dryRun} />
+      <Notice tone="info" text={t.settings.dryRun} />
     {/if}
 
     <section class="section" data-testid="settings-mailbox">
-      <h2 class="heading">{de.settings.mailbox}</h2>
+      <h2 class="heading">{t.settings.mailbox}</h2>
       <Card padding={cfg.mailbox.user && !editing ? 'rows' : 'md'}>
         {#if cfg.mailbox.user && !editing}
-          <SettingRow label={cfg.mailbox.user} hint={de.settings.vault[cfg.mailbox.vault]}>
+          <SettingRow label={cfg.mailbox.user} hint={t.settings.vault[cfg.mailbox.vault]}>
             {#snippet badges()}
-              <Badge label={de.settings.connected} tone="success" icon="check" />
+              <Badge label={t.settings.connected} tone="success" icon="check" />
             {/snippet}
             <div class="buttons">
               <Button
                 variant="secondary"
                 size="sm"
-                label={de.common.change}
+                label={t.common.change}
                 disabled={dryRun}
                 disabledReason={dryRunReason}
                 testid="mailbox-change"
@@ -232,7 +261,7 @@
                 variant="ghost"
                 size="sm"
                 icon="trash-2"
-                label={de.common.remove}
+                label={t.common.remove}
                 disabled={run.active || dryRun}
                 disabledReason={lockedReason}
                 testid="mailbox-remove"
@@ -242,10 +271,10 @@
           </SettingRow>
         {:else}
           {#if !cfg.mailbox.user}
-            <p class="lead">{de.settings.notConnected}</p>
+            <p class="lead">{t.settings.notConnected}</p>
           {/if}
           <MailboxForm
-            saveLabel={cfg.mailbox.user ? de.common.save : de.settings.connect}
+            saveLabel={cfg.mailbox.user ? t.common.save : t.settings.connect}
             oncancel={cfg.mailbox.user ? () => (editing = false) : null}
             onsaved={() => (editing = false)}
           />
@@ -254,7 +283,7 @@
           <Notice
             tone="danger"
             variant="inline"
-            text={de.error.text(cfg.mailbox.error.kind, cfg.mailbox.error.params)}
+            text={t.error.text(cfg.mailbox.error.kind, cfg.mailbox.error.params)}
           />
         {/if}
         {@render note(mailboxNote, 'mailbox-note')}
@@ -262,30 +291,30 @@
     </section>
 
     <section class="section" data-testid="settings-fetch">
-      <h2 class="heading">{de.settings.fetch}</h2>
+      <h2 class="heading">{t.settings.fetch}</h2>
       <Card padding="rows">
         <SettingRow
-          label={de.settings.autoFetch}
-          hint={de.settings.autoFetchHint}
+          label={t.settings.autoFetch}
+          hint={t.settings.autoFetchHint}
           for="switch-auto-fetch"
         >
           <Toggle
             id="switch-auto-fetch"
             checked={cfg.autoFetchOnStart}
-            label={de.settings.autoFetch}
+            label={t.settings.autoFetch}
             testid="toggle-auto-fetch"
             onchange={autoFetch}
           />
         </SettingRow>
         <SettingRow
-          label={de.settings.autoArchive}
-          hint={de.settings.autoArchiveHint}
+          label={t.settings.autoArchive}
+          hint={t.settings.autoArchiveHint}
           for="switch-auto-archive"
         >
           <Toggle
             id="switch-auto-archive"
             checked={cfg.autoArchiveDays > 0}
-            label={de.settings.autoArchive}
+            label={t.settings.autoArchive}
             testid="toggle-auto-archive"
             onchange={autoArchive}
           />
@@ -295,26 +324,26 @@
     </section>
 
     <section class="section" data-testid="settings-portals">
-      <h2 class="heading">{de.settings.portals}</h2>
+      <h2 class="heading">{t.settings.portals}</h2>
       {#each cfg.portals as portal (portal.portal)}
         <PortalCard {portal} />
       {/each}
     </section>
 
     <section class="section" data-testid="settings-files">
-      <h2 class="heading">{de.settings.files}</h2>
+      <h2 class="heading">{t.settings.files}</h2>
       <Card padding="rows">
-        <SettingRow label={de.settings.workspace} hint={cfg.settings.workspace} copy>
+        <SettingRow label={t.settings.workspace} hint={cfg.settings.workspace} copy>
           {#snippet badges()}
             {#if cfg.settings.workspaceIsDefault}
-              <Badge label={de.settings.workspaceDefault} />
+              <Badge label={t.settings.workspaceDefault} />
             {/if}
           {/snippet}
           <div class="buttons">
             <Button
               variant="secondary"
               size="sm"
-              label={de.common.change}
+              label={t.common.change}
               loading={busy === 'workspace'}
               onclick={pickWorkspace}
             />
@@ -322,19 +351,19 @@
               variant="ghost"
               size="sm"
               icon="folder-open"
-              label={de.common.open}
+              label={t.common.open}
               onclick={() => open({ kind: 'workspace' }, setFiles)}
             />
           </div>
         </SettingRow>
         <!-- Where the Excel file is (or will be), to find it later or to tell someone. -->
-        <SettingRow label={de.settings.excel} hint={cfg.settings.excelPath} copy testid="excel">
+        <SettingRow label={t.settings.excel} hint={cfg.settings.excelPath} copy testid="excel">
           <div class="buttons">
             <Button
               variant="ghost"
               size="sm"
               icon="copy"
-              label={de.settings.copyPath}
+              label={t.settings.copyPath}
               testid="excel-copy"
               onclick={() => void copyPath(cfg.settings.excelPath, setFiles)}
             />
@@ -342,21 +371,21 @@
               variant="ghost"
               size="sm"
               icon="external-link"
-              label={de.common.open}
+              label={t.common.open}
               disabled={!cfg.settings.excelExists}
-              disabledReason={de.settings.excelMissing}
+              disabledReason={t.settings.excelMissing}
               testid="excel-open"
               onclick={() => open({ kind: 'excel' }, setFiles)}
             />
           </div>
         </SettingRow>
-        <SettingRow label={de.settings.txt} hint={de.settings.txtCount(cfg.settings.txtFiles)}>
+        <SettingRow label={t.settings.txt} hint={t.settings.txtCount(cfg.settings.txtFiles)}>
           <div class="buttons">
             <Button
               variant="secondary"
               size="sm"
               icon="refresh-cw"
-              label={de.settings.txtRewrite}
+              label={t.settings.txtRewrite}
               loading={busy === 'rewrite'}
               disabled={run.active || dryRun}
               disabledReason={lockedReason}
@@ -367,9 +396,9 @@
               variant="ghost"
               size="sm"
               icon="trash-2"
-              label={de.settings.txtClear}
+              label={t.settings.txtClear}
               disabled={cfg.settings.txtFiles === 0 || dryRun}
-              disabledReason={dryRun ? dryRunReason : de.settings.txtNone}
+              disabledReason={dryRun ? dryRunReason : t.settings.txtNone}
               testid="txt-clear"
               onclick={() => (confirmClear = true)}
             />
@@ -379,36 +408,53 @@
       </Card>
     </section>
 
-    <section class="section" data-testid="settings-care">
-      <h2 class="heading">{de.settings.maintenance}</h2>
+    <section class="section" data-testid="settings-language">
+      <h2 class="heading">{t.settings.language}</h2>
       <Card padding="rows">
-        <SettingRow label={de.settings.fullMailbox} hint={de.settings.fullMailboxHint}>
+        <SettingRow label={t.settings.languageLabel} hint={t.settings.languageHint}>
+          <Segmented
+            size="sm"
+            options={LANGUAGES.map((id) => ({ id, label: t.settings.languageName[id] }))}
+            value={language.current}
+            label={t.settings.language}
+            testid="language"
+            onchange={(next) => void chooseLanguage(next)}
+          />
+        </SettingRow>
+        {@render note(languageNote, 'language-note')}
+      </Card>
+    </section>
+
+    <section class="section" data-testid="settings-care">
+      <h2 class="heading">{t.settings.maintenance}</h2>
+      <Card padding="rows">
+        <SettingRow label={t.settings.fullMailbox} hint={t.settings.fullMailboxHint}>
           <Button
             variant="secondary"
             size="sm"
             icon="mail"
-            label={de.settings.fullMailboxAction}
+            label={t.settings.fullMailboxAction}
             disabled={run.active || !cfg.mailbox.user}
-            disabledReason={run.active ? de.settings.running : de.toolbar.needsMailbox}
+            disabledReason={run.active ? t.settings.running : t.toolbar.needsMailbox}
             testid="full-mailbox"
             onclick={() => (confirmFull = true)}
           />
         </SettingRow>
-        <SettingRow label={de.settings.logs} hint={cfg.logDir} copy>
+        <SettingRow label={t.settings.logs} hint={cfg.logDir} copy>
           <Button
             variant="ghost"
             size="sm"
             icon="folder-open"
-            label={de.common.openFolder}
+            label={t.common.openFolder}
             onclick={() => open({ kind: 'logDir' }, setCare)}
           />
         </SettingRow>
-        <SettingRow label={de.settings.data} hint={cfg.dataDir} copy>
+        <SettingRow label={t.settings.data} hint={cfg.dataDir} copy>
           <Button
             variant="ghost"
             size="sm"
             icon="copy"
-            label={de.settings.copyPath}
+            label={t.settings.copyPath}
             onclick={() => void copyPath(cfg.dataDir)}
           />
         </SettingRow>
@@ -423,17 +469,17 @@
           tone={cfg.resetReport.failed > 0 ? 'warning' : 'success'}
           variant="inline"
           text={cfg.resetReport.failed > 0
-            ? de.settings.resetPartly(cfg.resetReport.failed)
-            : de.settings.resetDone}
+            ? t.settings.resetPartly(cfg.resetReport.failed)
+            : t.settings.resetDone}
           testid="reset-report"
         />
       {/if}
-      <SettingRow label={de.settings.reset} hint={de.settings.resetHint}>
+      <SettingRow label={t.settings.reset} hint={t.settings.resetHint}>
         <Button
           variant="secondary"
           size="sm"
           icon="rotate-ccw"
-          label={de.settings.resetAction}
+          label={t.settings.resetAction}
           disabled={run.active || dryRun}
           disabledReason={lockedReason}
           testid="reset"
@@ -448,9 +494,9 @@
 <Dialog
   bind:open={confirmRemove}
   variant="danger"
-  heading={de.settings.removeMailbox}
-  text={de.settings.removeMailboxText}
-  confirmLabel={de.common.remove}
+  heading={t.settings.removeMailbox}
+  text={t.settings.removeMailboxText}
+  confirmLabel={t.common.remove}
   busy={busy === 'mailbox'}
   testid="dialog-remove-mailbox"
   onconfirm={removeMailbox}
@@ -458,27 +504,27 @@
 <Dialog
   bind:open={confirmClear}
   variant="danger"
-  heading={de.settings.txtClearHeading}
-  text={de.settings.txtClearText}
-  confirmLabel={de.settings.txtClear}
+  heading={t.settings.txtClearHeading}
+  text={t.settings.txtClearText}
+  confirmLabel={t.settings.txtClear}
   busy={busy === 'clear'}
   testid="dialog-clear"
   onconfirm={clear}
 />
 <Dialog
   bind:open={confirmFull}
-  heading={de.settings.fullMailboxHeading}
-  text={de.settings.fullMailboxText}
-  confirmLabel={de.settings.fullMailboxAction}
+  heading={t.settings.fullMailboxHeading}
+  text={t.settings.fullMailboxText}
+  confirmLabel={t.settings.fullMailboxAction}
   testid="dialog-full-mailbox"
   onconfirm={readAll}
 />
 <Dialog
   bind:open={confirmReset}
   variant="danger"
-  heading={de.settings.resetHeading}
-  text={de.settings.resetText}
-  confirmLabel={de.settings.resetAction}
+  heading={t.settings.resetHeading}
+  text={t.settings.resetText}
+  confirmLabel={t.settings.resetAction}
   busy={busy === 'reset'}
   testid="dialog-reset"
   onconfirm={reset}

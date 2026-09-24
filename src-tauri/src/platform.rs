@@ -17,6 +17,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use jobalert_core::settings::Language;
 use tauri::webview::{NewWindowResponse, PageLoadEvent, PageLoadPayload};
 use tauri::{AppHandle, Manager, Runtime, Url, Webview, WebviewWindow, WebviewWindowBuilder};
 
@@ -136,6 +137,15 @@ const fn major_after(haystack: &str, marker: &str) -> u32 {
         i += 1;
     }
     major
+}
+
+// ------------------------------------------------------------------ language
+
+/// The language of the OS, the app's language until the user chooses one: the first
+/// preferred language of the user (Windows: the display language, macOS: the first of
+/// Language & Region), German only when it is German.
+pub fn system_language() -> Language {
+    Language::from_locale(sys_locale::get_locale().as_deref())
 }
 
 // ------------------------------------------------------------------ app
@@ -732,11 +742,37 @@ mod macos {
     const CLOSE_WINDOW: &str = "Fenster schließen";
     // end of user-facing text
 
+    /// The menu on an English (any non-German) Mac, in the words of macOS.
+    mod en {
+        // User-facing text, English.
+        pub(super) const ABOUT: &str = "About Job-Alert-Monitor";
+        pub(super) const SETTINGS: &str = "Settings…";
+        pub(super) const HIDE: &str = "Hide Job-Alert-Monitor";
+        pub(super) const HIDE_OTHERS: &str = "Hide Others";
+        pub(super) const QUIT: &str = "Quit Job-Alert-Monitor";
+        pub(super) const EDIT: &str = "Edit";
+        pub(super) const UNDO: &str = "Undo";
+        pub(super) const REDO: &str = "Redo";
+        pub(super) const CUT: &str = "Cut";
+        pub(super) const COPY: &str = "Copy";
+        pub(super) const PASTE: &str = "Paste";
+        pub(super) const SELECT_ALL: &str = "Select All";
+        pub(super) const WINDOW: &str = "Window";
+        pub(super) const MINIMIZE: &str = "Minimize";
+        pub(super) const CLOSE_WINDOW: &str = "Close Window";
+        // end of user-facing text
+    }
+
     /// Minimal app menu instead of Tauri's default (no View menu with reload or zoom, no
     /// Help, no Services). It carries the system shortcuts the app keeps: Cmd+, (settings),
     /// Cmd+Q, Cmd+H, Cmd+M, Cmd+W, and Cmd+C/V/X/A/Z, which `WKWebView` only receives
-    /// through an Edit menu.
+    /// through an Edit menu. Like the menus of every Mac app it speaks the language of the
+    /// OS (it is built before the app's own setting is read; the page follows that setting).
     pub fn menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+        let english = super::system_language() == super::Language::En;
+        let w = |german: &'static str, english_word: &'static str| {
+            if english { english_word } else { german }
+        };
         let info = app.package_info();
         let about = AboutMetadata {
             name: Some(info.name.clone()),
@@ -748,39 +784,45 @@ mod macos {
             &info.name,
             true,
             &[
-                &PredefinedMenuItem::about(app, Some(ABOUT), Some(about))?,
+                &PredefinedMenuItem::about(app, Some(w(ABOUT, en::ABOUT)), Some(about))?,
                 &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, SETTINGS_ID, SETTINGS, true, Some("CmdOrCtrl+,"))?,
+                &MenuItem::with_id(
+                    app,
+                    SETTINGS_ID,
+                    w(SETTINGS, en::SETTINGS),
+                    true,
+                    Some("CmdOrCtrl+,"),
+                )?,
                 &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::hide(app, Some(HIDE))?,
-                &PredefinedMenuItem::hide_others(app, Some(HIDE_OTHERS))?,
+                &PredefinedMenuItem::hide(app, Some(w(HIDE, en::HIDE)))?,
+                &PredefinedMenuItem::hide_others(app, Some(w(HIDE_OTHERS, en::HIDE_OTHERS)))?,
                 &PredefinedMenuItem::separator(app)?,
-                &MenuItem::with_id(app, QUIT_ID, QUIT, true, Some("CmdOrCtrl+Q"))?,
+                &MenuItem::with_id(app, QUIT_ID, w(QUIT, en::QUIT), true, Some("CmdOrCtrl+Q"))?,
             ],
         )?;
         let edit = Submenu::with_items(
             app,
-            EDIT,
+            w(EDIT, en::EDIT),
             true,
             &[
-                &PredefinedMenuItem::undo(app, Some(UNDO))?,
-                &PredefinedMenuItem::redo(app, Some(REDO))?,
+                &PredefinedMenuItem::undo(app, Some(w(UNDO, en::UNDO)))?,
+                &PredefinedMenuItem::redo(app, Some(w(REDO, en::REDO)))?,
                 &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::cut(app, Some(CUT))?,
-                &PredefinedMenuItem::copy(app, Some(COPY))?,
-                &PredefinedMenuItem::paste(app, Some(PASTE))?,
-                &PredefinedMenuItem::select_all(app, Some(SELECT_ALL))?,
+                &PredefinedMenuItem::cut(app, Some(w(CUT, en::CUT)))?,
+                &PredefinedMenuItem::copy(app, Some(w(COPY, en::COPY)))?,
+                &PredefinedMenuItem::paste(app, Some(w(PASTE, en::PASTE)))?,
+                &PredefinedMenuItem::select_all(app, Some(w(SELECT_ALL, en::SELECT_ALL)))?,
             ],
         )?;
         // The window-list id makes macOS treat it as the standard Window menu.
         let window = Submenu::with_id_and_items(
             app,
             WINDOW_SUBMENU_ID,
-            WINDOW,
+            w(WINDOW, en::WINDOW),
             true,
             &[
-                &PredefinedMenuItem::minimize(app, Some(MINIMIZE))?,
-                &PredefinedMenuItem::close_window(app, Some(CLOSE_WINDOW))?,
+                &PredefinedMenuItem::minimize(app, Some(w(MINIMIZE, en::MINIMIZE)))?,
+                &PredefinedMenuItem::close_window(app, Some(w(CLOSE_WINDOW, en::CLOSE_WINDOW)))?,
             ],
         )?;
         Menu::with_items(app, &[&app_menu, &edit, &window])
