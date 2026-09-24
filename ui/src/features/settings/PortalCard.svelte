@@ -22,6 +22,7 @@
   import { errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { PortalState, Risk } from '$lib/ipc/types';
+  import { fade, rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { run } from '$lib/state/run.svelte';
 
@@ -129,10 +130,13 @@
       />
     </div>
   </div>
+  <!-- Switching the portal on, its rows rise in; off, they fade (no height animation). -->
   {#if portal.enabled || error}
-    <div class="body">
+    <div class="body" in:rise={{ distance: 'sm' }} out:fade>
       {#if portal.enabled && health}
-        <Notice tone="warning" variant="inline" text={health} testid="health-{portal.portal}" />
+        <div in:rise={{ distance: 'sm' }} out:fade>
+          <Notice tone="warning" variant="inline" text={health} testid="health-{portal.portal}" />
+        </div>
       {/if}
       {#if quota}
         <div class="quota" data-testid="quota-{portal.portal}">
@@ -214,7 +218,9 @@
         </div>
       {/if}
       {#if error}
-        <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
+        <div in:rise={{ distance: 'sm' }} out:fade>
+          <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
+        </div>
       {/if}
     </div>
   {/if}

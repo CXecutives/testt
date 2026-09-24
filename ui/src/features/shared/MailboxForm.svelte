@@ -13,6 +13,7 @@
   import { errorText } from '$lib/i18n/texts';
   import { formKeys } from '$lib/input/input';
   import { invoke, IpcError } from '$lib/ipc/api';
+  import { fade, rise } from '$lib/motion/transitions';
   import { primaryFirst } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
@@ -115,7 +116,9 @@
     </Field>
   </div>
   {#if formError}
-    <Notice tone="danger" variant="inline" text={formError} testid="mailbox-error" />
+    <div in:rise={{ distance: 'sm' }} out:fade>
+      <Notice tone="danger" variant="inline" text={formError} testid="mailbox-error" />
+    </div>
   {/if}
   <div class="actions">
     {#snippet dismiss()}

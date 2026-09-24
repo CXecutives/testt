@@ -31,9 +31,13 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await page.getByTestId('mailbox-password').fill('kurz');
   await page.getByTestId('mailbox-password').press('Enter');
   await expect(page.getByTestId('mailbox-form')).toContainText('16 Buchstaben');
+  await expect(page.getByTestId('step-mailbox')).toHaveAttribute('aria-current', 'step');
   await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
   await page.getByTestId('mailbox-password').press('Enter');
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'true');
+  // The stepper moves on: the profile is the current step now.
+  await expect(page.getByTestId('step-profile')).toHaveAttribute('aria-current', 'step');
+  await expect(page.getByTestId('step-mailbox')).not.toHaveAttribute('aria-current', 'step');
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
 
   // The profile step leads to the Profil view (its editor); the sidebar leads back.
@@ -53,9 +57,12 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
 
 test('settings: sections, no primary while nothing asks for one', async ({ page }) => {
   await settings(page);
-  for (const id of ['mailbox', 'fetch', 'portals', 'files', 'care']) {
+  for (const id of ['mailbox', 'fetch', 'portals', 'files', 'care', 'reset']) {
     await expect(page.getByTestId(`settings-${id}`)).toBeVisible();
   }
+  // "Alles zurücksetzen" stands alone, not between the harmless rows.
+  await expect(page.getByTestId('settings-care').getByTestId('reset')).toHaveCount(0);
+  await expect(page.getByTestId('settings-reset').getByTestId('reset')).toBeVisible();
   // "Abrufen" lives in the list of the Jobs view: nothing here asks for a primary.
   expect(await visibleCount(page, '.btn.primary')).toBe(0);
   await expect(page.getByTestId('settings-mailbox')).toContainText('alerts.demo@gmail.com');

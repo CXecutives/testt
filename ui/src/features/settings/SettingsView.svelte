@@ -1,6 +1,8 @@
 <!--
   Einstellungen (centred 720): Postfach, Abruf, Portale, Dateien, Wartung - each a card of
-  setting rows. Every action answers where it happened; dialogs only to confirm, and a
+  setting rows - and "Alles zurücksetzen" alone on the last card, apart from the harmless
+  rows. Every action answers where it happened (a note rises in there, and fades when it
+  goes); dialogs only to confirm, and a
   confirmed action that fails closes its dialog so the note beside the action can say why.
   Switches move at once and are their own answer (no toast). The dry run changes nothing,
   so what it cannot do is locked with that reason instead of failing.
@@ -18,6 +20,7 @@
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget } from '$lib/ipc/types';
+  import { fade, rise } from '$lib/motion/transitions';
   import { platform } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -34,6 +37,7 @@
   let fetchNote = $state<Feedback>(null);
   let filesNote = $state<Feedback>(null);
   let careNote = $state<Feedback>(null);
+  let resetNote = $state<Feedback>(null);
   let confirmRemove = $state(false);
   let confirmClear = $state(false);
   let confirmFull = $state(false);
@@ -74,6 +78,7 @@
   const setFetch = (f: Feedback): void => void (fetchNote = f);
   const setFiles = (f: Feedback): void => void (filesNote = f);
   const setCare = (f: Feedback): void => void (careNote = f);
+  const setReset = (f: Feedback): void => void (resetNote = f);
 
   function removeMailbox(): void {
     void act(
@@ -156,7 +161,7 @@
   function reset(): void {
     void act(
       'reset',
-      setCare,
+      setReset,
       async () => {
         await invoke('reset_all');
         return null;
@@ -175,9 +180,12 @@
   }
 </script>
 
+<!-- A note rises in where its action happened and fades when it goes (never at mount). -->
 {#snippet note(feedback: Feedback, testid: string)}
   {#if feedback}
-    <Notice tone={feedback.tone} variant="inline" text={feedback.text} {testid} />
+    <div in:rise={{ distance: 'sm' }} out:fade>
+      <Notice tone={feedback.tone} variant="inline" text={feedback.text} {testid} />
+    </div>
   {/if}
 {/snippet}
 
@@ -338,16 +346,6 @@
     <section class="section" data-testid="settings-care">
       <h2 class="heading">{de.settings.maintenance}</h2>
       <Card padding="rows">
-        {#if cfg.resetReport}
-          <Notice
-            tone={cfg.resetReport.failed > 0 ? 'warning' : 'success'}
-            variant="inline"
-            text={cfg.resetReport.failed > 0
-              ? de.settings.resetPartly(cfg.resetReport.failed)
-              : de.settings.resetDone}
-            testid="reset-report"
-          />
-        {/if}
         <SettingRow label={de.settings.fullMailbox} hint={de.settings.fullMailboxHint}>
           <Button
             variant="secondary"
@@ -378,21 +376,36 @@
             onclick={() => void copyPath(cfg.dataDir)}
           />
         </SettingRow>
-        <SettingRow label={de.settings.reset} hint={de.settings.resetHint}>
-          <Button
-            variant="secondary"
-            size="sm"
-            icon="rotate-ccw"
-            label={de.settings.resetAction}
-            disabled={run.active || dryRun}
-            disabledReason={lockedReason}
-            testid="reset"
-            onclick={() => (confirmReset = true)}
-          />
-        </SettingRow>
         {@render note(careNote, 'care-note')}
       </Card>
     </section>
+
+    <!-- The one destructive action on its own, last, apart from the harmless rows. -->
+    <Card padding="rows" testid="settings-reset">
+      {#if cfg.resetReport}
+        <Notice
+          tone={cfg.resetReport.failed > 0 ? 'warning' : 'success'}
+          variant="inline"
+          text={cfg.resetReport.failed > 0
+            ? de.settings.resetPartly(cfg.resetReport.failed)
+            : de.settings.resetDone}
+          testid="reset-report"
+        />
+      {/if}
+      <SettingRow label={de.settings.reset} hint={de.settings.resetHint}>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="rotate-ccw"
+          label={de.settings.resetAction}
+          disabled={run.active || dryRun}
+          disabledReason={lockedReason}
+          testid="reset"
+          onclick={() => (confirmReset = true)}
+        />
+      </SettingRow>
+      {@render note(resetNote, 'reset-note')}
+    </Card>
   {/if}
 </div>
 
