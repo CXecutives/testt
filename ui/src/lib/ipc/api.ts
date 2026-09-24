@@ -142,6 +142,19 @@ export function onClosing(handler: () => void): () => void {
 }
 
 /**
+ * The OS window gained (true) or lost (false) the focus: Tauri's window events, the moment
+ * the native title bar dims. Returns an unsubscribe function.
+ */
+export function onWindowFocus(handler: (focused: boolean) => void): () => void {
+  const stopFocus = subscribe(() => listen('tauri://focus', () => handler(true)));
+  const stopBlur = subscribe(() => listen('tauri://blur', () => handler(false)));
+  return () => {
+    stopFocus();
+    stopBlur();
+  };
+}
+
+/**
  * The native menu asks for a view (macOS: "Einstellungen …" with Cmd+, in the app menu,
  * src-tauri/src/platform.rs). Returns an unsubscribe function.
  */

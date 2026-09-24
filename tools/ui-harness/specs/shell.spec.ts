@@ -32,8 +32,7 @@ interface Fade {
 }
 
 test('every view switch is the same cross-fade, the new view on top', async ({ page }) => {
-  await open(page, '?platform=windows');
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     const fades: Fade[] = [];
     (window as unknown as { __fades: Fade[] }).__fades = fades;
     const animate = Element.prototype.animate;
@@ -54,6 +53,10 @@ test('every view switch is the same cross-fade, the new view on top', async ({ p
       return animate.call(this, keyframes, options);
     };
   });
+  // At start nothing animates: the first view is simply there.
+  await open(page, '?platform=windows');
+  await expect(page.getByTestId('view-jobs')).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __fades: Fade[] }).__fades)).toEqual([]);
   const steps = [
     ['jobs', 'profile'],
     ['profile', 'settings'],
@@ -78,6 +81,18 @@ test('every view switch is the same cross-fade, the new view on top', async ({ p
       order: [`view-${from}`, `view-${to}`],
     });
   }
+});
+
+// The OS window's focus (Tauri's window events) is one attribute on <html>; selections grey
+// out against it as in Mail and Explorer.
+test('the window focus state follows the OS window', async ({ page }) => {
+  await open(page, '?platform=windows');
+  const root = page.locator('html');
+  await expect(root).toHaveAttribute('data-window', 'active');
+  await page.evaluate(() => window.__harness.fire('tauri://blur', null));
+  await expect(root).toHaveAttribute('data-window', 'inactive');
+  await page.evaluate(() => window.__harness.fire('tauri://focus', null));
+  await expect(root).toHaveAttribute('data-window', 'active');
 });
 
 test('the navigation switches the view', async ({ page }) => {

@@ -1,9 +1,10 @@
 <!--
   The shell below the native title bar of the OS: the sidebar and the white sheet with the
   three views. Every view switch is the same quick cross-fade (100 ms): the new view fades in
-  on top while the old one fades out below it, so no frame shows an empty sheet. On start the app shows useful content at once: the first-run page
-  while nothing was ever fetched, otherwise the Jobs view with the last results. Closing
-  while a fetch runs keeps the window until the run has stopped; a calm note says so.
+  on top while the old one fades out below it, so no frame shows an empty sheet. On start
+  nothing animates and the app shows useful content at once: the first-run page while
+  nothing was ever fetched, otherwise the Jobs view with the last results. Closing while a
+  fetch runs keeps the window until the run has stopped; a calm note says so.
 -->
 <script lang="ts">
   import DragBand from '$components/DragBand.svelte';
@@ -56,27 +57,29 @@
         <section class="view center" data-testid="view-loading">
           {#if app.slow}<Spinner size="lg" />{/if}
         </section>
-      {:else if navigation.current === 'jobs'}
-        {#if firstRun}
-          <section class="view" data-testid="view-first-run" transition:fade|global>
+      {:else}
+        <!-- The four views are the branches of one block: a switch between them cross-fades
+             (local transitions), while the first view after loading is simply there. -->
+        {#if navigation.current === 'jobs' && firstRun}
+          <section class="view" data-testid="view-first-run" transition:fade>
             {#if band}<DragBand sheet />{/if}
             <FirstRunView />
           </section>
-        {:else}
-          <section class="view fixed" data-testid="view-jobs" transition:fade|global>
+        {:else if navigation.current === 'jobs'}
+          <section class="view fixed" data-testid="view-jobs" transition:fade>
             <JobsView />
           </section>
+        {:else if navigation.current === 'profile'}
+          <section class="view" data-testid="view-profile" transition:fade>
+            {#if band}<DragBand sheet />{/if}
+            <ProfileView />
+          </section>
+        {:else}
+          <section class="view" data-testid="view-settings" transition:fade>
+            {#if band}<DragBand sheet />{/if}
+            <SettingsView />
+          </section>
         {/if}
-      {:else if navigation.current === 'profile'}
-        <section class="view" data-testid="view-profile" transition:fade|global>
-          {#if band}<DragBand sheet />{/if}
-          <ProfileView />
-        </section>
-      {:else}
-        <section class="view" data-testid="view-settings" transition:fade|global>
-          {#if band}<DragBand sheet />{/if}
-          <SettingsView />
-        </section>
       {/if}
     </main>
     {#if closing}
