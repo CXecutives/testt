@@ -108,13 +108,16 @@ impl Settings {
             .collect()
     }
 
-    /// Portals whose job pages may be fetched: enabled and with details switched on.
+    /// Portals whose job pages may be fetched: enabled, with details switched on and - for
+    /// a portal that is only readable signed in - with the sign-in allowed. Otherwise the
+    /// portal gets zero requests, and no sign-in window ever opens unasked.
     pub fn fetch_portals(&self) -> Vec<Portal> {
         Portal::ALL
             .into_iter()
             .filter(|&p| {
                 let switches = self.portal(p);
-                switches.enabled && switches.fetch_details
+                let readable = p.login_mode() == LoginMode::None || switches.login_enabled;
+                switches.enabled && switches.fetch_details && readable
             })
             .collect()
     }
@@ -231,9 +234,19 @@ mod tests {
         let mut s = Settings::default();
         s.portals.get_mut(&Portal::LinkedIn).unwrap().fetch_details = false;
         assert_eq!(s.enabled_portals(), Portal::ALL);
-        assert_eq!(
-            s.fetch_portals(),
-            [Portal::FreelanceDe, Portal::Freelancermap]
-        );
+        assert_eq!(s.fetch_portals(), [Portal::Freelancermap]);
+    }
+
+    /// freelance.de is only readable signed in: without the sign-in switch it gets no
+    /// request at all (no session fetch, no sign-in window).
+    #[test]
+    fn a_portal_behind_a_sign_in_is_fetched_only_with_the_switch() {
+        let mut s = Settings::default();
+        assert!(!s.fetch_portals().contains(&Portal::FreelanceDe));
+        s.portals
+            .get_mut(&Portal::FreelanceDe)
+            .unwrap()
+            .login_enabled = true;
+        assert_eq!(s.fetch_portals(), Portal::ALL);
     }
 }

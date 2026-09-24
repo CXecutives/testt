@@ -842,6 +842,31 @@ async fn a_run_that_cannot_begin_fails() {
     assert_eq!(store.job_count().unwrap(), 0);
 }
 
+/// The auto fetch at the start: switched on, with a mailbox, last fetch older than 6 hours.
+#[tokio::test(start_paused = true)]
+async fn the_auto_fetch_waits_six_hours() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let now = c();
+    assert!(auto_fetch_due(&store, true, true, now), "never fetched");
+    assert!(!auto_fetch_due(&store, false, true, now), "switched off");
+    assert!(!auto_fetch_due(&store, true, false, now), "no mailbox");
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &scan_only(dir.path()),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let fetched = last_fetch_at(&store).unwrap();
+    let after = |hours| fetched + SignedDuration::from_hours(hours);
+    assert!(!auto_fetch_due(&store, true, true, after(5)));
+    assert!(auto_fetch_due(&store, true, true, after(7)));
+}
+
 /// The request JSON is flat, and every kind round-trips.
 #[test]
 fn run_requests_are_flat_json() {

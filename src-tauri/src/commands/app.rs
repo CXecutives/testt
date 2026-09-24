@@ -11,6 +11,7 @@
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use jiff::Timestamp;
@@ -159,13 +160,43 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
 /// `channel` attaches the page to its events again (otherwise it stays unused).
 #[tauri::command]
 pub async fn app_state(
+    app: AppHandle,
     state: State<'_, AppState>,
     channel: Channel<RunEvent>,
 ) -> CmdResult<view::AppState> {
     if let Activity::Run(run) = &*lock(&state.activity) {
-        run.attach(channel);
+        run.attach(channel.clone());
     }
+    auto_fetch(&app, &state, channel);
     build_state(&state)
+}
+
+/// The auto fetch: once per app start, on the first page load - switched on, mailbox
+/// connected, last fetch older than 6 hours. Never in the dry run.
+fn auto_fetch(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) {
+    static CHECKED: AtomicBool = AtomicBool::new(false);
+    if CHECKED.swap(true, Ordering::SeqCst) || state.dry_run || state.busy() {
+        return;
+    }
+    let Ok(settings) = state.settings() else {
+        return;
+    };
+    let connected = state.gmail_user().0.is_some();
+    let due = pipeline::auto_fetch_due(
+        &state.store,
+        settings.auto_fetch_on_start,
+        connected,
+        Timestamp::now(),
+    );
+    if due {
+        log::info!("auto fetch at the start");
+        let request = pipeline::RunRequest {
+            kind: pipeline::RunKind::Fetch,
+        };
+        if let Err(e) = super::run::launch(app, state, request, channel) {
+            log::warn!("auto fetch not started: {:?}", e.kind);
+        }
+    }
 }
 
 /// Saves portal switches and the auto fetch. The workspace only changes through the dialog.

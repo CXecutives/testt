@@ -178,12 +178,22 @@ pub async fn start_run(
     request: RunRequest,
     channel: Channel<RunEvent>,
 ) -> CmdResult<()> {
+    launch(&app, &state, request, channel)
+}
+
+/// Starts a run in the background (from the page or by the app itself at the start).
+pub(super) fn launch(
+    app: &AppHandle,
+    state: &AppState,
+    request: RunRequest,
+    channel: Channel<RunEvent>,
+) -> CmdResult<()> {
     // Check and claim under one lock (no `await` in between).
     let mut activity = lock(&state.activity);
     if !matches!(*activity, Activity::Idle) {
         return Err(ErrorInfo::new(ErrorKind::Busy));
     }
-    let (ctx, credentials) = run_context(&state, &request)?;
+    let (ctx, credentials) = run_context(state, &request)?;
     let kind = request.kind.name();
     let handle = RunHandle {
         cancel: CancellationToken::new(),
@@ -239,6 +249,7 @@ pub async fn start_run(
     };
     // Supervisor: a panic too ends with exactly one `Finished`, and the slot becomes free.
     // It only clears the slot for its own run - a new one could already be running.
+    let app = app.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(error) = work.await {
             log::error!("run crashed: {error}");

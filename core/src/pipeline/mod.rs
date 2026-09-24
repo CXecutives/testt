@@ -341,6 +341,10 @@ const LAST_SCAN_INFO: &str = "last_scan_info";
 const MAX_FAILED_NAMES: usize = 20;
 /// So many empty alert mails a summary carries (the event must stay small).
 pub const MAX_EMPTY_ALERTS: usize = 10;
+/// Start of the last successful mailbox scan (Unix seconds).
+const LAST_FETCH_AT: &str = "last_fetch_at";
+/// The app fetches by itself at the start when the last fetch is older than this.
+pub const AUTO_FETCH_AFTER: jiff::SignedDuration = jiff::SignedDuration::from_hours(6);
 
 /// What a run kind does.
 struct Plan<'a> {
@@ -938,6 +942,32 @@ fn remember_scan(store: &Store, ctx: &RunContext, scope: Scope, scan: &ScanSumma
     if let Err(e) = saved {
         log::warn!("mailbox scan details not stored: {e}");
     }
+    if let Err(e) = store.kv_set(LAST_FETCH_AT, &time::to_db(at).to_string()) {
+        log::warn!("time of the mailbox scan not stored: {e}");
+    }
+}
+
+/// Start of the last successful mailbox scan.
+pub fn last_fetch_at(store: &Store) -> Option<Timestamp> {
+    store
+        .kv_get(LAST_FETCH_AT)
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse().ok())
+        .and_then(time::from_db)
+}
+
+/// Should the app start a fetch run by itself? Only when switched on, with a mailbox, and
+/// when the last successful mailbox scan is older than [`AUTO_FETCH_AFTER`] (or never was).
+pub fn auto_fetch_due(
+    store: &Store,
+    switched_on: bool,
+    mailbox_connected: bool,
+    now: Timestamp,
+) -> bool {
+    switched_on
+        && mailbox_connected
+        && last_fetch_at(store).is_none_or(|at| now.duration_since(at) > AUTO_FETCH_AFTER)
 }
 
 /// Sheet "Info" of the Excel file (account, last run, counters, program). Account and
