@@ -1,11 +1,14 @@
-//! Ein Klick: Postfach → neue Jobs → Jobdetails → Export.
+//! One click: mailbox -> new jobs -> job details -> export.
 //!
-//! Die Schritte bleiben einzeln auslösbar. Der Export läuft immer am Ende – auch nach
-//! Abbruch, Portalstopp oder Fehler (er ist rein lokal). Jeder Lauf endet mit genau einem
-//! `Finished`, das auch als `last_run_summary` gespeichert wird.
+//! The run kinds pick the steps (`RunKind`); the portals come from the settings, never from
+//! the page. The export always runs at the end - after a cancellation, a portal stop or an
+//! error too (it is purely local). Every run ends with exactly one `Finished`, which is also
+//! stored as `last_run_summary`. Events carry codes and data, never prose; the log gets
+//! English lines with the run id (never content, addresses or passwords).
 
 pub mod demo;
 
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -14,45 +17,83 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
-use crate::export::{self, RESULT_DIR, TXT_DIR, write_job_txt, write_xlsx};
+use crate::error::{ErrorInfo, InvalidInput};
+use crate::export::{self, RESULT_DIR, TXT_DIR, texts, write_job_txt, write_xlsx};
 use crate::fetch::policy::Policy;
-use crate::fetch::{FetchEvent, FetchSummary, PageFetcher, Selection, fetch_all};
+use crate::fetch::{FetchEvent, FetchSummary, PageFetcher, PortalHealth, Selection, fetch_all};
 use crate::mail::imap::{MailError, MailSource};
 use crate::mail::scan::{ScanError, ScanEvent, ScanSummary, Scope, scan};
 use crate::portal::{JobKey, Portal};
 use crate::store::{JobFilter, JobRow, Store};
-use crate::text::{plural, truncate_chars};
+use crate::text::truncate_chars;
 use crate::time;
-use crate::view::JobView;
+use crate::view::{EmptyAlert, JobView, MAX_SUBJECT_CHARS};
 
-/// Was die Oberfläche startet.
+/// What the interface starts. The JSON is flat: `{ "kind": "details", "keys": [...] }`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct RunRequest {
-    pub scan: bool,
-    pub fetch: bool,
-    pub export: bool,
-    pub scope: Scope,
-    /// Gewählte Portale (Klick-Reihenfolge).
-    pub portals: Vec<Portal>,
-    /// Gezielter Abruf („Details holen“) – dann nur diese Jobs.
-    #[serde(default)]
-    pub jobs: Option<Vec<JobKey>>,
+    #[serde(flatten)]
+    #[cfg_attr(test, ts(flatten))]
+    pub kind: RunKind,
 }
 
-/// Lauf-Einstellungen, die nicht aus der Seite kommen.
+/// The kinds of run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum RunKind {
+    /// New alert mails of the enabled portals, their job details, export.
+    Fetch,
+    /// Job details of exactly these jobs (older ones too), export.
+    Details { keys: Vec<JobKey> },
+    /// Score again with the current profile, export.
+    Rescore,
+    /// Like `fetch`, but the whole inbox.
+    FullMailbox,
+}
+
+/// The kind of a run without its data (summary, snapshot).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum RunKindName {
+    Fetch,
+    Details,
+    Rescore,
+    FullMailbox,
+}
+
+impl RunKind {
+    pub fn name(&self) -> RunKindName {
+        match self {
+            RunKind::Fetch => RunKindName::Fetch,
+            RunKind::Details { .. } => RunKindName::Details,
+            RunKind::Rescore => RunKindName::Rescore,
+            RunKind::FullMailbox => RunKindName::FullMailbox,
+        }
+    }
+}
+
+/// Run settings that do not come from the page.
 #[derive(Debug, Clone)]
 pub struct RunContext {
     pub workspace: PathBuf,
-    /// Portale, die über ein Sitzungsfenster abgerufen werden sollen (aus den
-    /// Einstellungen, nicht aus der Seite).
-    /// Gmail-Adresse fürs Info-Blatt (leer, wenn unbekannt).
+    /// Gmail address for the info sheet (empty if unknown).
     pub account: String,
-    /// Trockenlauf: nichts wird geschrieben.
+    /// Dry run: nothing is written.
     pub dry_run: bool,
+    /// Portals whose alert mails are read (settings: enabled).
+    pub portals: Vec<Portal>,
+    /// Portals whose job pages may be fetched (settings: enabled and details on).
+    pub fetch_portals: Vec<Portal>,
 }
 
-/// Postfach und Abrufwege eines Laufs (in Tests und im Trockenlauf Attrappen).
+/// Mailbox and fetch routes of a run (dummies in tests and in the dry run).
 pub trait Backends {
     type Mail: MailSource + Send;
     type Pages: PageFetcher + Send;
@@ -60,131 +101,282 @@ pub trait Backends {
         &mut self,
         cancel: &CancellationToken,
     ) -> impl Future<Output = Result<Self::Mail, MailError>> + Send;
-    /// Abrufweg **eines** Portals: eigene HTTP-Sitzung, eigenes Fenster. Die Portale
-    /// laufen nebeneinander und teilen sich deshalb keinen.
+    /// Fetch route of **one** portal: own HTTP session, own window. The portals run side by
+    /// side and therefore share none.
     fn pages(&mut self, portal: Portal) -> Result<Self::Pages, String>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum Step {
     Scan,
     Fetch,
+    Score,
+    Export,
 }
 
+/// What is happening right now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum Level {
-    Info,
-    Ok,
-    Warn,
-    Error,
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum StatusCode {
+    ConnectingMail,
+    SearchingMail,
+    ReadingMails,
+    FetchingDetails,
+    SigningIn,
+    /// Gap before the next request of a portal (`until` for a countdown).
+    Waiting,
+    Scoring,
+    WritingFiles,
 }
 
-/// Ereignisse an die Oberfläche. Jedes bleibt klein (< 8 KB): Volltexte und Jobzeilen holt
-/// die Seite selbst (`list_jobs`, `job_detail`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// Events to the interface. Each stays small (< 8 KB; bigger messages bypass the ACL of the
+/// Tauri channel): full texts and job rows are fetched by the page itself (`list_jobs`,
+/// `job_detail`). Struct variants only - with `tag = "type"` a newtype variant would merge
+/// into the tag.
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum RunEvent {
-    Log {
-        level: Level,
-        text: String,
-        /// Zeitpunkt der Meldung (auch nach einem Neuladen der Seite richtig).
-        at: Timestamp,
-    },
-    /// Was gerade geschieht. `until`: Ende einer Wartezeit (die Oberfläche zeigt einen
-    /// Countdown); sonst weggelassen.
-    Status {
-        text: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        until: Option<Timestamp>,
-    },
     Progress {
         step: Step,
+        portal: Option<Portal>,
         done: usize,
         total: usize,
+    },
+    /// What is happening; `until`: end of a wait (the interface shows a countdown).
+    Status {
+        code: StatusCode,
+        portal: Option<Portal>,
+        until: Option<Timestamp>,
     },
     Alert {
         portal: Portal,
         subject: String,
         date: Option<Timestamp>,
         postings: usize,
-        /// Gmail-Nachrichten-ID (hexadezimal) – geöffnet über `open_target`.
+        /// Gmail message id (hexadecimal) - opened through `open_target`.
         gmail_id: Option<String>,
     },
-    /// Ein Job hat einen neuen Stand – die fertige Tabellenzeile.
+    /// A job has a new state - the finished list row.
     JobUpdated { job: Box<JobView> },
-    /// Ein Portal ruht für den Rest des Laufs; `text` ist der fertige Stopptext.
-    PortalStopped {
+    /// A portal stopped for the rest of the run, or its health changed.
+    PortalHealth {
         portal: Portal,
-        skipped: usize,
-        text: String,
+        health: PortalHealth,
     },
-    /// Anmeldung nötig: Das Sitzungsfenster ist offen (`waiting`) bzw. wieder zu.
+    /// Sign-in needed: the session window is open (`waiting`) or closed again.
     LoginNeeded { portal: Portal, waiting: bool },
-    /// Abschluss. Benanntes Feld, kein Neutyp: Bei `tag = "type"` verschmölze ein Neutyp
-    /// mit dem Ereignis, und die Oberfläche fände keine `summary`.
+    /// The end. A named field, no newtype (see above).
     Finished { summary: Box<RunSummary> },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum Outcome {
     Completed,
     Cancelled,
-    Failed { error: String, message: String },
+    Failed { error: ErrorInfo },
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+/// Counters of the mailbox step. Invariant: `postings = new + known + dup`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct ScanCounts {
+    pub mails_found: usize,
+    pub mails_checked: usize,
+    /// Unreadable mails (counted instead of dropped silently).
+    pub mails_defective: usize,
+    pub alert_mails: usize,
+    /// Alert mails without a recognised job (layout changed?).
+    pub empty_alerts: usize,
+    pub postings: usize,
+    pub new: usize,
+    pub known: usize,
+    pub dup: usize,
+}
+
+impl From<&ScanSummary> for ScanCounts {
+    fn from(s: &ScanSummary) -> ScanCounts {
+        ScanCounts {
+            mails_found: s.mails_found,
+            mails_checked: s.mails_checked,
+            mails_defective: s.mails_defective,
+            alert_mails: s.alert_mails,
+            empty_alerts: s.zero_posting_mails,
+            postings: s.postings_total,
+            new: s.new,
+            known: s.known_before,
+            dup: s.dup_in_run,
+        }
+    }
+}
+
+/// One portal in the run summary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct PortalSummary {
+    pub portal: Portal,
+    pub new: usize,
+    pub known: usize,
+    pub dup: usize,
+    /// Job details fetched (full text found).
+    pub fetched: usize,
+    /// Pages without a description.
+    pub failed: usize,
+    /// Ads that no longer exist.
+    pub gone: usize,
+    /// Jobs left for later (pause, cap, sign-in, breaker, network).
+    pub skipped: usize,
+    /// Why the portal stopped in this run.
+    pub stopped: Option<PortalHealth>,
+}
+
+/// Counters of the score step.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct ScoreSummary {
+    pub scored: usize,
+    pub excluded: usize,
+    pub unscorable: usize,
+    /// Jobs still waiting for a score.
+    pub pending: usize,
+    pub best: Option<u8>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ExportSummary {
-    /// Erzeugte Übersichtsdatei (wenn erzeugt).
-    pub overview: Option<PathBuf>,
-    /// Eine fremde Übersicht am selben Pfad wurde hierhin gesichert.
+    /// Written Excel overview (if written in this run).
+    pub overview_xlsx: Option<PathBuf>,
+    /// Written HTML overview (if written in this run).
+    pub overview_html: Option<PathBuf>,
+    /// A foreign overview at the same path was backed up here.
     pub backup: Option<PathBuf>,
     pub txt_written: usize,
-    /// Zahl der Textdateien, die sich nicht schreiben ließen – die Zahl für jede Anzeige.
-    pub txt_failed_count: usize,
-    /// Beispiele dazu (die ersten höchstens 20 Schlüssel), nie zum Zählen: Die Liste ist
-    /// gekappt und bleibt bei einem Fehler vor der ersten Datei kurz.
-    pub txt_failed: Vec<String>,
-    pub error: Option<String>,
+    /// Number of text files that could not be written - the number for every display.
+    pub txt_failed: usize,
+    /// Examples for the log (the first at most 20 keys), never for counting.
+    #[serde(skip)]
+    pub txt_failed_keys: Vec<String>,
+    /// The first error (closest to the cause); `params.target` names what failed.
+    pub error: Option<ErrorInfo>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct RunSummary {
     pub run: i64,
+    pub kind: RunKindName,
     pub outcome: Outcome,
     pub dry_run: bool,
     pub started_at: Timestamp,
     pub finished_at: Timestamp,
-    pub scope: Option<Scope>,
-    pub scan: Option<ScanSummary>,
-    pub fetch: Option<FetchSummary>,
+    pub scan: Option<ScanCounts>,
+    pub per_portal: Vec<PortalSummary>,
+    pub score: Option<ScoreSummary>,
     pub export: Option<ExportSummary>,
+    /// Alert mails of this run without recognised jobs (at most [`MAX_EMPTY_ALERTS`]).
+    pub empty_alerts: Vec<EmptyAlert>,
+    /// Counters of the fetch step (tests and log only).
+    #[serde(skip)]
+    pub fetch: Option<FetchSummary>,
 }
 
-/// Zusammenfassung des letzten Laufs (JSON).
-pub const LAST_RUN: &str = "last_run_summary";
-/// Nummer des letzten Laufs mit Postfach-Abruf.
-const LAST_SCAN_RUN: &str = "last_scan_run";
-/// Stand der Übersicht je Pfad (Schlüssel = Präfix + Pfad).
-const EXPORT_STAMP: &str = "export:";
-/// Blatt-„Info“-Zeilen des letzten erfolgreichen Postfach-Abrufs.
-const LAST_SCAN_INFO: &str = "last_scan_info";
-/// So viele Schlüssel nicht geschriebener Textdateien nennt die Zusammenfassung.
-const MAX_FAILED_NAMES: usize = 20;
+impl RunSummary {
+    pub fn new(kind: RunKindName, dry_run: bool, started_at: Timestamp) -> RunSummary {
+        RunSummary {
+            run: 0,
+            kind,
+            outcome: Outcome::Completed,
+            dry_run,
+            started_at,
+            finished_at: started_at,
+            scan: None,
+            per_portal: Vec::new(),
+            score: None,
+            export: None,
+            empty_alerts: Vec::new(),
+            fetch: None,
+        }
+    }
+}
 
-/// Führt einen Lauf aus. Datenbankfehler beenden ihn als `Failed`; der Export läuft trotzdem
-/// – außer der Lauf ließ sich gar nicht erst anlegen.
+/// A run in progress, for a page that attaches again (reload): what it is and the events
+/// that describe its current state (last status and progress, portal health, alerts).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct RunSnapshot {
+    pub kind: RunKindName,
+    pub started_at: Timestamp,
+    pub replay: Vec<RunEvent>,
+}
+
+/// Summary of the last run (JSON).
+pub const LAST_RUN: &str = "last_run_summary";
+/// Number of the last run with a mailbox scan.
+const LAST_SCAN_RUN: &str = "last_scan_run";
+/// State of the overview per path (key = prefix + path).
+const EXPORT_STAMP: &str = "export:";
+/// Info sheet rows of the last successful mailbox scan.
+const LAST_SCAN_INFO: &str = "last_scan_info";
+/// So many keys of unwritten text files the log names.
+const MAX_FAILED_NAMES: usize = 20;
+/// So many empty alert mails a summary carries (the event must stay small).
+pub const MAX_EMPTY_ALERTS: usize = 10;
+
+/// What a run kind does.
+struct Plan<'a> {
+    scan: Option<Scope>,
+    fetch: Option<Selection<'a>>,
+}
+
+impl<'a> Plan<'a> {
+    fn of(kind: &'a RunKind, ctx: &'a RunContext) -> Plan<'a> {
+        let queue = Some(Selection::Queue(&ctx.fetch_portals));
+        match kind {
+            RunKind::Fetch => Plan {
+                scan: Some(Scope::New),
+                fetch: queue,
+            },
+            RunKind::FullMailbox => Plan {
+                scan: Some(Scope::All),
+                fetch: queue,
+            },
+            RunKind::Details { keys } => Plan {
+                scan: None,
+                fetch: Some(Selection::Jobs(keys, &ctx.fetch_portals)),
+            },
+            RunKind::Rescore => Plan {
+                scan: None,
+                fetch: None,
+            },
+        }
+    }
+}
+
+/// Runs a run. Database errors end it as `Failed`; the export still runs - unless the run
+/// could not even be created.
 #[expect(
     clippy::too_many_arguments,
-    reason = "Speicher, Regeln, Auftrag, Abbruch, Uhr und Ereignisse einzeln (in Tests austauschbar)"
+    reason = "store, rules, request, cancellation, clock and events separately (replaceable in tests)"
 )]
 pub async fn run<B: Backends>(
     backends: &mut B,
@@ -197,23 +389,14 @@ pub async fn run<B: Backends>(
     mut emit: impl FnMut(RunEvent),
 ) -> RunSummary {
     let started_at = clock();
-    let mut summary = RunSummary {
-        run: 0,
-        outcome: Outcome::Completed,
-        dry_run: ctx.dry_run,
-        started_at,
-        finished_at: started_at,
-        scope: request.scan.then_some(request.scope),
-        scan: None,
-        fetch: None,
-        export: None,
-    };
-    // Ohne Laufnummer (Datenbank gesperrt oder defekt) lässt sich nichts zuordnen: dann
-    // weder Postfach noch Abruf noch Export.
+    let mut summary = RunSummary::new(request.kind.name(), ctx.dry_run, started_at);
+    // Without a run number (database locked or broken) nothing can be assigned: then
+    // neither mailbox nor fetch nor export.
     let run = match store.begin_run() {
         Ok(run) => run,
         Err(e) => {
-            summary.outcome = failed(e.kind(), &e.to_string());
+            log::error!("run could not begin: {e}");
+            summary.outcome = failed(ErrorInfo::from(&e));
             summary.finished_at = clock();
             emit(RunEvent::Finished {
                 summary: Box::new(summary.clone()),
@@ -222,55 +405,65 @@ pub async fn run<B: Backends>(
         }
     };
     summary.run = run;
-    let targeted = request.jobs.as_deref().filter(|j| !j.is_empty());
+    log::info!("run {run}: {:?} started", summary.kind);
+    let plan = Plan::of(&request.kind, ctx);
+    let mut postings: BTreeMap<Portal, usize> = BTreeMap::new();
 
-    if request.scan && targeted.is_none() {
+    if let Some(scope) = plan.scan {
         let before_scan = last_scan_run(store).unwrap_or(0);
-        if request.portals.is_empty() {
-            summary.outcome = failed("invalid", "Bitte mindestens ein Portal wählen.");
+        if ctx.portals.is_empty() {
+            summary.outcome = failed(ErrorInfo::from(&InvalidInput::NoPortal));
         } else if let Err(e) = store.kv_set(LAST_SCAN_RUN, &run.to_string()) {
-            // „Neu in diesem Lauf“ zeigt die Jobs des letzten Laufs mit Postfach-Abruf.
-            summary.outcome = failed(e.kind(), &e.to_string());
+            // "New in this run" shows the jobs of the last run with a mailbox scan.
+            summary.outcome = failed(ErrorInfo::from(&e));
         } else {
-            // Stand des letzten echten Abrufs merken: Wer das Postfach nie erreicht (falsches
-            // App-Passwort, kein Netz, sofortiger Abbruch), darf ihn nicht leeren.
-            let previous = before_scan;
+            // Remember the state of the last real scan: whoever never reaches the mailbox
+            // (wrong app password, no network, instant cancel) must not empty it.
             let mut scanned = ScanSummary::default();
             let result = scan_step(
                 backends,
                 store,
-                request,
-                run,
-                started_at,
+                (run, scope, started_at),
+                &ctx.portals,
                 cancel,
                 &mut scanned,
+                &mut postings,
                 &mut emit,
             )
             .await;
             summary.outcome = match result {
                 Ok(()) => {
-                    remember_scan(store, ctx, request.scope, &scanned, started_at);
+                    remember_scan(store, ctx, scope, &scanned, started_at);
                     Outcome::Completed
                 }
                 Err(ScanError::Mail(MailError::Cancelled)) => Outcome::Cancelled,
-                Err(ScanError::Mail(e)) => failed(e.kind(), &e.to_string()),
-                Err(ScanError::Store(e)) => failed(e.kind(), &e.to_string()),
+                Err(ScanError::Mail(e)) => failed(ErrorInfo::from(&e)),
+                Err(ScanError::Store(e)) => failed(ErrorInfo::from(&e)),
             };
             if scanned.mails_checked == 0 {
-                let _ = store.kv_set(LAST_SCAN_RUN, &previous.to_string());
+                let _ = store.kv_set(LAST_SCAN_RUN, &before_scan.to_string());
             }
-            summary.scan = Some(scanned);
+            summary.scan = Some(ScanCounts::from(&scanned));
+            summary.empty_alerts = store
+                .zero_posting_mails(run)
+                .unwrap_or_default()
+                .iter()
+                .take(MAX_EMPTY_ALERTS)
+                .map(EmptyAlert::from)
+                .collect();
         }
     }
 
-    if request.fetch && summary.outcome == Outcome::Completed {
+    if let Some(selection) = plan.fetch
+        && summary.outcome == Outcome::Completed
+    {
         let mut fetched = FetchSummary::default();
         summary.outcome = fetch_step(
             backends,
             store,
             policy,
-            request,
-            targeted,
+            run,
+            selection,
             cancel,
             &clock,
             &mut fetched,
@@ -279,35 +472,34 @@ pub async fn run<B: Backends>(
         .await;
         summary.fetch = Some(fetched);
     }
+    summary.per_portal = per_portal(store, run, &postings, summary.fetch.as_ref());
 
     summary.finished_at = clock();
-    if request.export && !ctx.dry_run {
-        emit(status("Ergebnisdateien werden geschrieben…"));
+    if !ctx.dry_run {
+        emit(status(StatusCode::WritingFiles, None, None));
         let info = info_rows(store, started_at);
         let exported = export_all(store, &ctx.workspace, &info, run, summary.finished_at);
-        log_export(&exported, &mut emit);
+        log_export(run, &exported);
         summary.export = Some(exported);
     }
     if !ctx.dry_run
         && let Ok(json) = serde_json::to_string(&summary)
         && let Err(e) = store.kv_set(LAST_RUN, &json)
     {
-        log::warn!("Laufzusammenfassung nicht gespeichert: {e}");
+        log::warn!("run {run}: summary not stored: {e}");
     }
+    log::info!("run {run}: finished {:?}", summary.outcome);
     emit(RunEvent::Finished {
         summary: Box::new(summary.clone()),
     });
     summary
 }
 
-fn failed(error: &str, message: &str) -> Outcome {
-    Outcome::Failed {
-        error: error.into(),
-        message: message.into(),
-    }
+fn failed(error: ErrorInfo) -> Outcome {
+    Outcome::Failed { error }
 }
 
-/// Nummer des letzten Laufs mit Postfach-Abruf („Neu in diesem Lauf“); 0 = noch keiner.
+/// Number of the last run with a mailbox scan ("new in this run"); 0 = none yet.
 pub fn last_scan_run(store: &Store) -> crate::Result<i64> {
     Ok(store
         .kv_get(LAST_SCAN_RUN)?
@@ -315,80 +507,82 @@ pub fn last_scan_run(store: &Store) -> crate::Result<i64> {
         .unwrap_or(0))
 }
 
-/// Statuszeile ohne Wartezeit.
-fn status(text: impl Into<String>) -> RunEvent {
+/// The summary of the last run, if one is stored (and readable).
+pub fn last_run(store: &Store) -> crate::Result<Option<RunSummary>> {
+    Ok(store
+        .kv_get(LAST_RUN)?
+        .and_then(|json| serde_json::from_str(&json).ok()))
+}
+
+fn status(code: StatusCode, portal: Option<Portal>, until: Option<Timestamp>) -> RunEvent {
     RunEvent::Status {
-        text: text.into(),
-        until: None,
+        code,
+        portal,
+        until,
     }
 }
 
-/// Verlaufszeile mit dem Zeitpunkt der Meldung.
-fn log_line(level: Level, text: impl Into<String>) -> RunEvent {
-    RunEvent::Log {
-        level,
-        text: text.into(),
-        at: Timestamp::now(),
-    }
-}
-
-/// Meldet eine Tätigkeit, wenn sie nicht schon in der Statuszeile steht.
-fn announce(activity: &mut Option<String>, text: String, emit: &mut impl FnMut(RunEvent)) {
-    if activity.as_deref() != Some(text.as_str()) {
-        emit(status(text.clone()));
-        *activity = Some(text);
+/// Reports an activity unless the status line already shows it.
+fn announce(
+    activity: &mut Option<(StatusCode, Portal)>,
+    code: StatusCode,
+    portal: Portal,
+    emit: &mut impl FnMut(RunEvent),
+) {
+    if *activity != Some((code, portal)) {
+        emit(status(code, Some(portal), None));
+        *activity = Some((code, portal));
     }
 }
 
 #[expect(
     clippy::too_many_arguments,
-    reason = "Speicher, Regeln, Auftrag, Abbruch, Uhr und Ereignisse einzeln (in Tests austauschbar)"
+    reason = "store, request, cancellation, counters and events separately (replaceable in tests)"
 )]
 async fn scan_step<B: Backends>(
     backends: &mut B,
     store: &Store,
-    request: &RunRequest,
-    run: i64,
-    started_at: Timestamp,
+    (run, scope, started_at): (i64, Scope, Timestamp),
+    portals: &[Portal],
     cancel: &CancellationToken,
     scanned: &mut ScanSummary,
+    postings: &mut BTreeMap<Portal, usize>,
     emit: &mut impl FnMut(RunEvent),
 ) -> Result<(), ScanError> {
-    emit(status("Gmail wird verbunden…"));
+    emit(status(StatusCode::ConnectingMail, None, None));
     let mut mail = backends.connect_mail(cancel).await?;
-    emit(log_line(
-        Level::Info,
-        format!(
-            "Postfach-Abruf startet: {}, Portale: {}.",
-            scope_text(request.scope),
-            portal_list(&request.portals)
-        ),
-    ));
-    emit(status("Postfach wird durchsucht…"));
+    log::info!("run {run}: mailbox scan {scope:?} for {portals:?}");
+    emit(status(StatusCode::SearchingMail, None, None));
     let result = scan(
         &mut mail,
         store,
         run,
-        request.scope,
-        &request.portals,
+        scope,
+        portals,
         started_at,
         cancel,
         scanned,
         |event| match event {
             ScanEvent::Found { total } => {
                 if total > 0 {
-                    emit(status("Mails werden gelesen…"));
+                    emit(status(StatusCode::ReadingMails, None, None));
                 }
             }
-            ScanEvent::Alert(alert) => emit(RunEvent::Alert {
-                portal: alert.portal,
-                subject: truncate_chars(&alert.subject, 160),
-                date: alert.date,
-                postings: alert.postings.len(),
-                gmail_id: alert.gmail_id.map(|id| format!("{id:x}")),
-            }),
+            ScanEvent::Alert(alert) => {
+                for posting in &alert.postings {
+                    *postings.entry(posting.key.portal).or_default() += 1;
+                }
+                emit(RunEvent::Alert {
+                    portal: alert.portal,
+                    subject: truncate_chars(&alert.subject, MAX_SUBJECT_CHARS),
+                    date: alert.date,
+                    postings: alert.postings.len(),
+                    gmail_id: alert.gmail_id.map(|id| format!("{id:x}")),
+                });
+            }
             ScanEvent::Progress { done, total } => emit(RunEvent::Progress {
                 step: Step::Scan,
+                portal: None,
                 done,
                 total,
             }),
@@ -396,64 +590,45 @@ async fn scan_step<B: Backends>(
     )
     .await;
     let s = &*scanned;
-    let (level, text) = match &result {
-        Ok(()) if s.alert_mails > 0 && s.postings_total == 0 => (
-            Level::Warn,
-            format!(
-                "{}, aber keine Jobs erkannt – vermutlich hat sich das Mail-Layout geändert.",
-                plural(s.alert_mails, "Alert-Mail", "Alert-Mails")
-            ),
+    match &result {
+        Ok(()) if s.alert_mails > 0 && s.postings_total == 0 => log::warn!(
+            "run {run}: {} alert mails but no jobs recognised - mail layout changed?",
+            s.alert_mails
         ),
-        Ok(()) => (
-            Level::Ok,
-            format!(
-                "Postfach geprüft: {}, {}, {}, {} schon bekannt, {} doppelt.",
-                plural(s.mails_checked, "Mail", "Mails"),
-                plural(s.alert_mails, "Alert-Mail", "Alert-Mails"),
-                plural(s.new, "neuer Job", "neue Jobs"),
-                s.known_before,
-                s.dup_in_run
-            ),
+        Ok(()) => log::info!(
+            "run {run}: mailbox checked: {} mails, {} alert mails, {} new, {} known, {} duplicates",
+            s.mails_checked,
+            s.alert_mails,
+            s.new,
+            s.known_before,
+            s.dup_in_run
         ),
-        Err(ScanError::Mail(MailError::Cancelled)) => {
-            (Level::Warn, "Postfach-Abruf abgebrochen.".into())
-        }
-        Err(e) => (Level::Error, format!("Postfach-Abruf fehlgeschlagen: {e}")),
-    };
-    emit(log_line(level, text));
+        Err(ScanError::Mail(MailError::Cancelled)) => log::info!("run {run}: mailbox cancelled"),
+        Err(e) => log::warn!("run {run}: mailbox failed: {e}"),
+    }
     if s.mails_defective > 0 {
-        emit(log_line(
-            Level::Warn,
-            format!(
-                "{} nicht lesbar und übersprungen.",
-                plural(s.mails_defective, "Mail war", "Mails waren")
-            ),
-        ));
+        log::warn!("run {run}: {} unreadable mails skipped", s.mails_defective);
     }
     result
 }
 
 #[expect(
     clippy::too_many_arguments,
-    reason = "Speicher, Regeln, Auftrag, Abbruch, Uhr und Ereignisse einzeln (in Tests austauschbar)"
+    reason = "store, rules, selection, cancellation, clock and events separately (replaceable in tests)"
 )]
 async fn fetch_step<B: Backends>(
     backends: &mut B,
     store: &Store,
     policy: &Mutex<Policy>,
-    request: &RunRequest,
-    targeted: Option<&[JobKey]>,
+    run: i64,
+    selection: Selection<'_>,
     cancel: &CancellationToken,
     clock: &impl Fn() -> Timestamp,
     fetched: &mut FetchSummary,
     emit: &mut impl FnMut(RunEvent),
 ) -> Outcome {
-    let selection = match targeted {
-        Some(keys) => Selection::Jobs(keys),
-        None => Selection::Queue(&request.portals),
-    };
-    // Tätigkeit in der Statuszeile – nicht bei jedem Job neu, nach einer Wartezeit wieder.
-    let mut activity: Option<String> = None;
+    // Activity in the status line - not anew for every job, again after a wait.
+    let mut activity: Option<(StatusCode, Portal)> = None;
     let result = fetch_all(
         |portal| backends.pages(portal),
         store,
@@ -463,25 +638,16 @@ async fn fetch_step<B: Backends>(
         clock,
         fetched,
         |event| match event {
-            FetchEvent::Queued { total } => {
-                emit(log_line(Level::Info, format!("Jobdetails: {total} offen.")));
+            FetchEvent::Queued { total } => log::info!("run {run}: job details: {total} open"),
+            FetchEvent::Fetching { portal } => {
+                announce(&mut activity, StatusCode::FetchingDetails, portal, emit);
             }
-            FetchEvent::Fetching { portal } => announce(
-                &mut activity,
-                format!("Jobdetails werden geholt ({})…", portal.label()),
-                emit,
-            ),
-            FetchEvent::SigningIn { portal } => announce(
-                &mut activity,
-                format!("Anmeldung bei {}…", portal.label()),
-                emit,
-            ),
+            FetchEvent::SigningIn { portal } => {
+                announce(&mut activity, StatusCode::SigningIn, portal, emit);
+            }
             FetchEvent::Waiting { portal, until } => {
                 activity = None;
-                emit(RunEvent::Status {
-                    text: format!("Pause vor dem nächsten Abruf ({})", portal.label()),
-                    until: Some(until),
-                });
+                emit(status(StatusCode::Waiting, Some(portal), Some(until)));
             }
             FetchEvent::JobUpdated { key, .. } => {
                 if let Ok(Some(job)) = store.job(&key) {
@@ -490,21 +656,15 @@ async fn fetch_step<B: Backends>(
                     });
                 }
             }
-            FetchEvent::PortalStopped {
-                portal,
-                skipped,
-                text,
-                ..
-            } => {
-                emit(log_line(Level::Warn, text.clone()));
-                emit(RunEvent::PortalStopped {
+            FetchEvent::PortalStopped { portal, reason, .. } => {
+                emit(RunEvent::PortalHealth {
                     portal,
-                    skipped,
-                    text,
+                    health: reason.health(),
                 });
             }
             FetchEvent::Progress { done, total } => emit(RunEvent::Progress {
                 step: Step::Fetch,
+                portal: None,
                 done,
                 total,
             }),
@@ -514,38 +674,90 @@ async fn fetch_step<B: Backends>(
     match result {
         Ok(true) => {
             let ok: usize = fetched.per_portal.values().map(|c| c.ok).sum();
-            let open: usize = fetched.queued.saturating_sub(ok);
-            emit(if open > 0 {
-                let (job, go) = if open == 1 {
-                    ("Job", "geht")
-                } else {
-                    ("Jobs", "gehen")
-                };
-                log_line(
-                    Level::Warn,
-                    format!(
-                        "Jobdetails: {ok} geholt. {open} {job} ohne Jobdetails {go} nicht ins Matching."
-                    ),
-                )
-            } else {
-                log_line(Level::Ok, format!("Jobdetails: {ok} geholt."))
-            });
+            let open = fetched.queued.saturating_sub(ok);
+            log::info!("run {run}: job details: {ok} fetched, {open} without details");
             Outcome::Completed
         }
         Ok(false) => {
-            emit(log_line(
-                Level::Warn,
-                "Jobdetails abgebrochen – Geholtes ist gespeichert.",
-            ));
+            log::info!("run {run}: job details cancelled - what was fetched is stored");
             Outcome::Cancelled
         }
-        Err(e) => failed(e.kind(), &e.to_string()),
+        Err(e) => {
+            log::warn!("run {run}: job details failed: {e}");
+            failed(ErrorInfo::from(&e))
+        }
     }
 }
 
-/// Textdateien (genau einmal je Job) und Übersicht. Die Übersicht wird nur neu erzeugt,
-/// wenn sich etwas geändert hat – Daten, Lauf, Format, Ordner – oder sie fehlt; eine in
-/// Excel offene Datei stört dann nicht unnötig.
+/// The portals of the summary: scan counts (new and known from the store, duplicates as the
+/// rest of the postings) and fetch counts, in the order of `Portal::ALL`.
+fn per_portal(
+    store: &Store,
+    run: i64,
+    postings: &BTreeMap<Portal, usize>,
+    fetch: Option<&FetchSummary>,
+) -> Vec<PortalSummary> {
+    let seen = if postings.is_empty() {
+        Vec::new()
+    } else {
+        store.scan_counts(run).unwrap_or_default()
+    };
+    Portal::ALL
+        .into_iter()
+        .filter_map(|portal| {
+            let total = postings.get(&portal).copied();
+            let counts = fetch.and_then(|f| f.per_portal.get(&portal));
+            if total.is_none() && counts.is_none() {
+                return None;
+            }
+            let (new, known) = seen
+                .iter()
+                .find(|(p, ..)| *p == portal)
+                .map_or((0, 0), |&(_, new, known)| (new, known));
+            Some(PortalSummary {
+                portal,
+                new,
+                known,
+                dup: total.unwrap_or(0).saturating_sub(new + known),
+                fetched: counts.map_or(0, |c| c.ok),
+                failed: counts.map_or(0, |c| c.failed),
+                gone: counts.map_or(0, |c| c.gone),
+                skipped: counts.map_or(0, |c| c.skipped),
+                stopped: counts
+                    .and_then(|c| c.stop.as_ref())
+                    .map(crate::fetch::StopReason::health),
+            })
+        })
+        .collect()
+}
+
+/// What failed in an export step (`params.target` of the error).
+#[derive(Clone, Copy)]
+enum Target {
+    /// The folder of the text files.
+    TxtFolder,
+    /// One text file or its mark in the database.
+    Txt,
+    /// The Excel overview (writing it or reading its export stamp).
+    Overview,
+    /// Backing up a foreign overview.
+    Backup,
+}
+
+impl Target {
+    const fn code(self) -> &'static str {
+        match self {
+            Target::TxtFolder => "txtFolder",
+            Target::Txt => "txt",
+            Target::Overview => "overview",
+            Target::Backup => "backup",
+        }
+    }
+}
+
+/// Text files (exactly once per job) and overview. The overview is only regenerated if
+/// something changed - data, run, folder - or it is missing; an Excel file open elsewhere
+/// is then not disturbed needlessly.
 pub fn export_all(
     store: &Store,
     workspace: &Path,
@@ -557,7 +769,7 @@ pub fn export_all(
     let mut summary = ExportSummary::default();
     match store.txt_jobs(false) {
         Ok(jobs) => write_txts(store, &result_dir, jobs, now, &mut summary),
-        Err(e) => note_error(&mut summary, e.to_string()),
+        Err(e) => note_error(&mut summary, &e, Target::Txt),
     }
     write_overview(
         store,
@@ -570,39 +782,40 @@ pub fn export_all(
     summary
 }
 
-/// „Textdateien neu schreiben“ (z. B. nach einem Ordnerwechsel): alle Jobs mit Volltext,
-/// die Namen bleiben. Was sich nicht schreiben lässt, behält seine Marke – der nächste Lauf
-/// legt eine absichtlich gelöschte Datei also nicht von selbst wieder an.
+/// "Rewrite text files" (e.g. after a change of folder): all jobs with a full text, the
+/// names stay. What cannot be written keeps its mark - the next run therefore does not
+/// recreate a file deleted on purpose by itself.
 pub fn rewrite_txt(store: &Store, workspace: &Path, now: Timestamp) -> ExportSummary {
     let mut summary = ExportSummary::default();
     match store.txt_jobs(true) {
         Ok(jobs) => write_txts(store, &workspace.join(RESULT_DIR), jobs, now, &mut summary),
-        Err(e) => note_error(&mut summary, e.to_string()),
+        Err(e) => note_error(&mut summary, &e, Target::Txt),
     }
     summary
 }
 
-/// Der erste Fehler bleibt stehen: Er liegt der Ursache am nächsten (der Ordner ist nicht
-/// erreichbar), spätere Folgefehler stehen nur im Protokoll. Gemeldet wird ohnehin einer.
-fn note_error(summary: &mut ExportSummary, error: String) {
-    if let Some(first) = &summary.error {
-        log::warn!("Weiterer Fehler beim Schreiben (gemeldet wird „{first}“): {error}");
+/// The first error stays: it is closest to the cause (the folder is unreachable); later
+/// consequential errors only go to the log. Only one is reported anyway.
+fn note_error(summary: &mut ExportSummary, error: &crate::Error, target: Target) {
+    if summary.error.is_some() {
+        log::warn!("export: another error ({}): {error}", target.code());
     } else {
-        summary.error = Some(error);
+        log::warn!("export: {}: {error}", target.code());
+        summary.error = Some(ErrorInfo::from(error).with("target", target.code()));
     }
 }
 
-/// Beispiel zu einer nicht geschriebenen Textdatei merken. Gezählt wird nur in
-/// `txt_failed_count`: Diese Liste ist gekappt und nennt bloß die ersten Schlüssel.
+/// Remembers an example of an unwritten text file. Counting only happens in `txt_failed`:
+/// this list is capped and only names the first keys.
 fn note_failed(summary: &mut ExportSummary, key: &JobKey) {
-    if summary.txt_failed.len() < MAX_FAILED_NAMES {
-        summary.txt_failed.push(key.to_string());
+    if summary.txt_failed_keys.len() < MAX_FAILED_NAMES {
+        summary.txt_failed_keys.push(key.to_string());
     }
 }
 
-/// Schreibt Textdateien und markiert nur, was geschrieben ist. Der Ordner wird einmal
-/// angelegt: Ist er unbrauchbar (Laufwerk getrennt, keine Rechte), gibt es eine klare
-/// Meldung statt eines vergeblichen Versuchs je Datei.
+/// Writes text files and marks only what is written. The folder is created once: if it is
+/// unusable (drive disconnected, no permission), there is one clear error instead of a
+/// futile attempt per file.
 fn write_txts(
     store: &Store,
     result_dir: &Path,
@@ -615,17 +828,11 @@ fn write_txts(
     }
     let dir = result_dir.join(TXT_DIR);
     if let Err(e) = export::ensure_dir(&dir) {
-        summary.txt_failed_count = jobs.len();
+        summary.txt_failed = jobs.len();
         for (job, _) in &jobs {
             note_failed(summary, &job.key);
         }
-        note_error(
-            summary,
-            format!(
-                "Die Textdateien ließen sich nicht schreiben – der Ordner ist nicht erreichbar oder nicht beschreibbar:\n{}\n\n{e}",
-                dir.display()
-            ),
-        );
+        note_error(summary, &e, Target::TxtFolder);
         return;
     }
     let total = jobs.len();
@@ -634,26 +841,26 @@ fn write_txts(
             Ok(name) => match store.mark_txt_written(&job.key, &name, now) {
                 Ok(()) => summary.txt_written += 1,
                 Err(e) => {
-                    // Ohne Datenbank lässt sich nichts mehr markieren: Diese und alle
-                    // übrigen Dateien gelten als offen (der nächste Lauf holt sie nach).
-                    note_error(summary, e.to_string());
-                    summary.txt_failed_count += total - done;
+                    // Without the database nothing can be marked any more: this file and
+                    // all remaining ones count as open (the next run catches up).
+                    note_error(summary, &e, Target::Txt);
+                    summary.txt_failed += total - done;
                     note_failed(summary, &job.key);
                     return;
                 }
             },
             Err(e) => {
-                log::warn!("Textdatei für {} nicht geschrieben: {e}", job.key);
-                summary.txt_failed_count += 1;
+                log::warn!("text file for {} not written: {e}", job.key);
+                summary.txt_failed += 1;
                 note_failed(summary, &job.key);
             }
         }
     }
 }
 
-/// Übersicht schreiben, wenn sie fehlt oder sich seit dem letzten Mal an diesem Pfad etwas
-/// geändert hat. Der Stand wird je Pfad gemerkt: Was die App dort schrieb, bleibt ihres –
-/// auch nach einem Wechsel des Ordners und zurück.
+/// Writes the overview if it is missing or something changed since the last time at this
+/// path. The state is remembered per path: what the app wrote there stays its own - also
+/// after switching the folder and back.
 fn write_overview(
     store: &Store,
     path: &Path,
@@ -662,33 +869,28 @@ fn write_overview(
     now: Timestamp,
     summary: &mut ExportSummary,
 ) {
-    // Die Lauf-Nummer gehört zum Blatt „Info“ und ändert die Datei bei jedem Lauf.
+    // The run number belongs to the sheet "Info" and changes the file on every run.
     let stamp = serde_json::json!({
         "rev": store.data_rev().unwrap_or(-1),
         "run": run,
     })
     .to_string();
     let key = format!("{EXPORT_STAMP}{}", path.display());
-    // Ohne lesbaren Stand ist der Besitz der Datei unbekannt – dann wird sie weder gesichert
-    // noch ersetzt. Ein Datenbankfehler darf die eigene Übersicht nicht wegsichern.
+    // Without a readable state the ownership of the file is unknown - then it is neither
+    // backed up nor replaced. A database error must not back up the app's own overview.
     let last = match store.kv_get(&key) {
         Ok(last) => last,
         Err(e) => {
-            note_error(
-                summary,
-                format!(
-                    "Die Übersicht {} wurde nicht geschrieben – der letzte Exportstand ließ sich nicht lesen:\n\n{e}",
-                    path.display()
-                ),
-            );
+            note_error(summary, &e, Target::Overview);
             return;
         }
     };
     if path.exists() && last.as_deref() == Some(stamp.as_str()) {
         return;
     }
-    // Eine Übersicht, die nicht von dieser App stammt (z. B. aus dem alten Programm im selben
-    // Ordner), wird vor dem ersten Schreiben gesichert – nie still ersetzt.
+    // An overview that does not come from this app (e.g. from the old program in the same
+    // folder) is backed up before the first write - never replaced silently. The name is
+    // part of the user's workspace - do not translate.
     if path.exists() && last.is_none() {
         let backup = path.with_file_name(format!(
             "JobAlerts.alt-{}.{}",
@@ -696,13 +898,7 @@ fn write_overview(
             path.extension().and_then(|e| e.to_str()).unwrap_or("xlsx")
         ));
         if let Err(e) = std::fs::rename(path, &backup) {
-            note_error(
-                summary,
-                format!(
-                    "Die vorhandene Datei {} ließ sich nicht sichern ({e}) – sie bleibt unverändert.",
-                    path.display()
-                ),
-            );
+            note_error(summary, &crate::Error::io(path, e), Target::Backup);
             return;
         }
         summary.backup = Some(backup);
@@ -713,30 +909,24 @@ fn write_overview(
     match written {
         Ok(()) => {
             if let Err(e) = store.kv_set(&key, &stamp) {
-                log::warn!("Exportstand nicht gespeichert: {e}");
+                log::warn!("export stamp not stored: {e}");
             }
-            summary.overview = Some(path.to_path_buf());
+            summary.overview_xlsx = Some(path.to_path_buf());
         }
-        Err(e) => note_error(summary, e.to_string()),
+        Err(e) => note_error(summary, &e, Target::Overview),
     }
 }
 
-/// Merkt die Zahlen eines erfolgreichen Postfach-Abrufs für das Blatt „Info“ – nur dann:
-/// Ein gescheiterter Abruf überschreibt den letzten guten Stand nicht.
+/// Remembers the numbers of a successful mailbox scan for the sheet "Info" - only then: a
+/// failed scan does not overwrite the last good state.
 fn remember_scan(store: &Store, ctx: &RunContext, scope: Scope, scan: &ScanSummary, at: Timestamp) {
     let rows = [
-        ("Gmail-Konto", ctx.account.clone()),
-        ("Letzter Postfach-Abruf", time::display(at)),
-        ("Umfang des letzten Laufs", scope_text(scope).to_string()),
-        ("Neu (letzter Lauf)", scan.new.to_string()),
-        (
-            "Schon bekannt (letzter Lauf)",
-            scan.known_before.to_string(),
-        ),
-        (
-            "Doppelt in mehreren Mails (letzter Lauf)",
-            scan.dup_in_run.to_string(),
-        ),
+        (texts::INFO_ACCOUNT, ctx.account.clone()),
+        (texts::INFO_LAST_SCAN, time::display(at)),
+        (texts::INFO_SCOPE, scope_text(scope).to_string()),
+        (texts::INFO_NEW, scan.new.to_string()),
+        (texts::INFO_KNOWN, scan.known_before.to_string()),
+        (texts::INFO_DUP, scan.dup_in_run.to_string()),
     ];
     let saved = serde_json::to_string(&rows)
         .map_err(|e| e.to_string())
@@ -746,12 +936,12 @@ fn remember_scan(store: &Store, ctx: &RunContext, scope: Scope, scan: &ScanSumma
                 .map_err(|e| e.to_string())
         });
     if let Err(e) = saved {
-        log::warn!("Angaben zum Postfach-Abruf nicht gespeichert: {e}");
+        log::warn!("mailbox scan details not stored: {e}");
     }
 }
 
-/// Blatt „Info“ der Excel-Datei (Konto, letzter Lauf, Zähler, Programm). Konto und Zahlen
-/// stammen vom letzten erfolgreichen Postfach-Abruf – auch nach reinen Detail-Läufen.
+/// Sheet "Info" of the Excel file (account, last run, counters, program). Account and
+/// numbers come from the last successful mailbox scan - after pure detail runs too.
 fn info_rows(store: &Store, started_at: Timestamp) -> Vec<(String, String)> {
     let mut rows: Vec<(String, String)> = store
         .kv_get(LAST_SCAN_INFO)
@@ -759,71 +949,44 @@ fn info_rows(store: &Store, started_at: Timestamp) -> Vec<(String, String)> {
         .flatten()
         .and_then(|json| serde_json::from_str(&json).ok())
         .unwrap_or_default();
-    rows.push(("Letzter Lauf".into(), time::display(started_at)));
+    rows.push((texts::INFO_LAST_RUN.into(), time::display(started_at)));
     rows.push((
-        "Jobs gesamt".into(),
+        texts::INFO_JOBS_TOTAL.into(),
         store.job_count().unwrap_or(0).to_string(),
     ));
-    rows.push(("Programm".into(), "Job-Alert-Monitor".into()));
+    rows.push((texts::INFO_PROGRAM.into(), texts::PROGRAM_NAME.into()));
     rows
 }
 
-fn log_export(exported: &ExportSummary, emit: &mut impl FnMut(RunEvent)) {
-    if exported.txt_written > 0 {
-        emit(log_line(
-            Level::Ok,
-            format!(
-                "{} für das Matching geschrieben.",
-                plural(exported.txt_written, "neue Textdatei", "neue Textdateien")
-            ),
-        ));
-    }
-    if exported.txt_failed_count > 0 {
-        emit(log_line(
-            Level::Warn,
-            format!(
-                "{} sich nicht schreiben (nächster Lauf versucht es erneut).",
-                plural(
-                    exported.txt_failed_count,
-                    "Textdatei ließ",
-                    "Textdateien ließen"
-                )
-            ),
-        ));
-    }
-    if let Some(backup) = &exported.backup {
-        emit(log_line(
-            Level::Warn,
-            format!(
-                "Eine vorhandene Übersicht stammte nicht von dieser App – sie wurde gesichert als {}",
-                backup.display()
-            ),
-        ));
-    }
-    if let Some(path) = &exported.overview {
-        emit(log_line(
-            Level::Ok,
-            format!("Übersicht gespeichert: {}", path.display()),
-        ));
-    }
-    if let Some(error) = &exported.error {
-        emit(log_line(Level::Error, error.as_str()));
+fn log_export(run: i64, exported: &ExportSummary) {
+    log::info!(
+        "run {run}: export: {} text files written, {} failed{}{}",
+        exported.txt_written,
+        exported.txt_failed,
+        if exported.overview_xlsx.is_some() {
+            ", overview written"
+        } else {
+            ""
+        },
+        if exported.backup.is_some() {
+            ", a foreign overview was backed up"
+        } else {
+            ""
+        }
+    );
+    if !exported.txt_failed_keys.is_empty() {
+        log::warn!(
+            "run {run}: text files not written for {}",
+            exported.txt_failed_keys.join(", ")
+        );
     }
 }
 
 fn scope_text(scope: Scope) -> &'static str {
     match scope {
-        Scope::New => "Neu seit letztem Lauf",
-        Scope::All => "Alle",
+        Scope::New => texts::SCOPE_NEW,
+        Scope::All => texts::SCOPE_ALL,
     }
-}
-
-fn portal_list(portals: &[Portal]) -> String {
-    portals
-        .iter()
-        .map(|p| p.label())
-        .collect::<Vec<_>>()
-        .join(", ")
 }
 
 #[cfg(test)]

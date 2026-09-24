@@ -3,6 +3,7 @@
 //! freelancermap need no account, and the freelance.de login lives solely in the
 //! session window's profile.
 
+use crate::error::{ErrorKind, InvalidInput};
 use crate::mail::imap::Credentials;
 
 /// Service name in the keychain.
@@ -16,8 +17,19 @@ pub enum SecretError {
     /// Never overwrite silently: the user decides whether to enter it again.
     #[error("stored Gmail credentials are unreadable")]
     Corrupt,
-    #[error("{0}")]
-    Invalid(&'static str),
+    #[error("invalid credentials: {0}")]
+    Invalid(InvalidInput),
+}
+
+impl SecretError {
+    /// Stable error code for the interface.
+    pub fn kind(&self) -> ErrorKind {
+        match self {
+            SecretError::Store(_) => ErrorKind::SecretStore,
+            SecretError::Corrupt => ErrorKind::SecretCorrupt,
+            SecretError::Invalid(_) => ErrorKind::Invalid,
+        }
+    }
 }
 
 /// One entry in the keychain; tests use their own service name.
@@ -67,13 +79,11 @@ impl Vault {
             .split_once('@')
             .is_some_and(|(name, domain)| !name.is_empty() && domain.contains('.'));
         if !valid_user {
-            return Err(SecretError::Invalid("The Gmail address is incomplete."));
+            return Err(SecretError::Invalid(InvalidInput::MailAddress));
         }
         let password = credentials.password();
         if password.chars().count() != 16 || !password.chars().all(|c| c.is_ascii_alphabetic()) {
-            return Err(SecretError::Invalid(
-                "An app password is exactly 16 letters (not the regular Google password).",
-            ));
+            return Err(SecretError::Invalid(InvalidInput::AppPassword));
         }
         let secret = serde_json::json!({ "user": user, "password": password }).to_string();
         self.entry()?

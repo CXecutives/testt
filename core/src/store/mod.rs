@@ -21,7 +21,9 @@ mod jobs;
 pub mod matches;
 mod schema;
 
-pub use jobs::{AlertMailRow, JobFilter, JobRow, MailRef, PortalCount, Seen};
+pub use jobs::{
+    AlertMailRow, JobFilter, JobRow, MailRef, PageCounts, PageQuery, PortalCount, Seen,
+};
 
 pub struct Store {
     conn: Mutex<Connection>,

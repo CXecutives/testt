@@ -1,13 +1,12 @@
-//! Jobdetails holen: Warteschlange, Sicherheitsregeln, Ergebnis-Matrix.
+//! Fetching job details: queue, safety rules, outcome matrix.
 //!
-//! Die drei Portale laufen nebeneinander – **innerhalb** eines Portals aber streng
-//! nacheinander: gleiche Abstände, gleiche Obergrenzen, gleicher Schutzschalter. Das ist
-//! eine Sicherheitseigenschaft, keine Beschleunigung. Jede Beschreibung wird sofort
-//! gespeichert. Nach einem Sperrsignal gibt es **keinen** automatischen Ausweichweg – das
-//! Portal pausiert.
+//! The three portals run side by side - **within** a portal, however, strictly one after
+//! the other: same gaps, same caps, same breaker. That is a safety property, not a speed-up.
+//! Every description is stored right away. After a block signal there is **no** automatic
+//! fallback route - the portal pauses.
 //!
-//! Der Sicherheitsstand liegt hinter einer kurzen Sperre; sie wird nie über einen Schlaf
-//! oder einen Abruf gehalten, und `policy.json` hat dadurch genau einen Schreiber.
+//! The safety state sits behind a short lock; it is never held across a sleep or a request,
+//! and `policy.json` therefore has exactly one writer.
 
 mod freelance_de;
 mod freelancermap;
@@ -21,6 +20,7 @@ use std::future::Future;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use jiff::{SignedDuration, Timestamp};
@@ -29,28 +29,27 @@ use tokio_util::sync::CancellationToken;
 use crate::model::DescStatus;
 use crate::portal::{JobKey, JobLink, LoginMode, Portal};
 use crate::store::{JobRow, Store};
-use crate::time;
 use http::HttpFetcher;
-use policy::{Allowance, PauseKind, Policy};
+use policy::{Allowance, PauseKind, PauseReason, Policy};
 
-/// Ab dieser Länge gilt ein Text ohne Weiteres als vollständig.
+/// From this length on a text counts as complete without further checks.
 const MIN_TEXT_CHARS: usize = 100;
-/// Automatisch geholt werden nur Jobs aus Mails der letzten 30 Tage (ältere per Klick).
+/// Only jobs from mails of the last 30 days are fetched automatically (older ones per click).
 pub const MAX_AGE: SignedDuration = SignedDuration::from_hours(30 * 24);
-/// Ein fehlgeschlagener Abruf wird frühestens nach 12 Stunden wiederholt.
+/// A failed fetch is retried after 12 hours at the earliest.
 pub const RETRY_AFTER: SignedDuration = SignedDuration::from_hours(12);
-/// Nach einem Netzfehler: einmal wiederholen, nach dieser Wartezeit.
+/// After a network error: retry once, after this wait.
 const NET_RETRY_DELAY: Duration = Duration::from_secs(30);
-/// Längere Wartezeiten meldet der Abruf vorher (die Oberfläche zeigt einen Countdown).
+/// Longer waits are announced beforehand (the interface shows a countdown).
 const WAIT_NOTICE: Duration = Duration::from_secs(1);
-/// So viele verdächtige Seiten in Folge stoppen ein Portal für den Lauf.
+/// So many suspicious pages in a row stop a portal for the run.
 const SUSPICIOUS_STREAK: u32 = 2;
-/// Pausengrund nach dem Schutzschalter.
-const BREAKER_REASON: &str = "zwei Seiten ohne Beschreibung in Folge – Seitenaufbau geändert?";
-/// Reihenfolge der Portale beim Abruf: öffentlich zuerst, die Sitzung zuletzt.
+/// Pause detail after the breaker (log only).
+const BREAKER_DETAIL: &str = "two pages without a description in a row";
+/// Order of the portals when fetching: public first, the session last.
 const FETCH_ORDER: [Portal; 3] = [Portal::Freelancermap, Portal::LinkedIn, Portal::FreelanceDe];
 
-/// Strukturierte Angaben einer Seite (verlässlicher als die Mail-Heuristik).
+/// Structured data of a page (more reliable than the mail heuristics).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PageFields {
     pub title: String,
@@ -58,22 +57,22 @@ pub struct PageFields {
     pub location: String,
 }
 
-/// Ergebnis eines Seitenabrufs (Ergebnis-Matrix).
+/// Result of a page request (outcome matrix). Texts are details for the log.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PageOutcome {
-    /// Beschreibung gefunden. `short`: unter 100 Zeichen, aber verifiziert (Container
-    /// vorhanden, keine Anmeldewand, richtige Seite).
+    /// Description found. `short`: below 100 characters but verified (container present,
+    /// no sign-in wall, the right page).
     Text {
         text: String,
         short: bool,
         closed: bool,
         fields: Option<PageFields>,
     },
-    /// Anzeige gibt es nicht mehr.
+    /// The ad no longer exists.
     Gone,
-    /// Seite geladen, aber ohne erkennbare Beschreibung.
+    /// Page loaded but without a recognisable description.
     Suspicious(String),
-    /// Nur mit (neuer) Anmeldung lesbar; der Text nennt das Anzeichen (fürs Protokoll).
+    /// Only readable with a (new) sign-in; the text names the sign (for the log).
     LoginRequired(String),
     Throttled(String),
     Blocked(String),
@@ -81,30 +80,26 @@ pub enum PageOutcome {
         timeout: bool,
         detail: String,
     },
-    /// Das Portal leitete einmalig um (nach der Anmeldung) – dieselbe Seite
-    /// noch einmal abrufen, als neuer, gezählter Zugriff.
+    /// The portal redirected once (after the sign-in) - request the same page again, as a
+    /// new, counted request.
     Retry(String),
     Cancelled,
 }
 
-/// Was ein Seitenparser gefunden hat.
+/// What a page parser found.
 #[derive(Debug, Default)]
 pub(crate) struct Parsed {
-    /// `None`: kein Beschreibungs-Container auf der Seite.
+    /// `None`: no description container on the page.
     pub text: Option<String>,
     pub closed: bool,
     pub fields: PageFields,
 }
 
-/// Parser-Ergebnis → Ergebnis-Matrix.
+/// Parser result -> outcome matrix.
 pub(crate) fn judge(parsed: Parsed) -> PageOutcome {
     match parsed.text {
-        None => {
-            PageOutcome::Suspicious("keine Beschreibung gefunden (Seitenaufbau geändert?)".into())
-        }
-        Some(text) if text.trim().is_empty() => {
-            PageOutcome::Suspicious("leere Beschreibung".into())
-        }
+        None => PageOutcome::Suspicious("no description found (page layout changed?)".into()),
+        Some(text) if text.trim().is_empty() => PageOutcome::Suspicious("empty description".into()),
         Some(text) => {
             let short = text.chars().count() < MIN_TEXT_CHARS;
             let fields = Some(parsed.fields).filter(|f| *f != PageFields::default());
@@ -118,28 +113,28 @@ pub(crate) fn judge(parsed: Parsed) -> PageOutcome {
     }
 }
 
-/// Ergebnis einer Anmeldung durch den Nutzer.
+/// Result of a sign-in by the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Login {
     SignedIn,
-    /// Angemeldet, aber das Portal zeigte dabei eine Sicherheitsprüfung: Die Sitzung gilt,
-    /// das Portal ruht bis zum nächsten Lauf (die App löst nie selbst eine Prüfung).
+    /// Signed in, but the portal showed a security check: the session counts, the portal
+    /// rests until the next run (the app never solves a check itself).
     Challenged,
-    /// Nicht angemeldet (Fenster geschlossen, Zeit abgelaufen, abgebrochen).
+    /// Not signed in (window closed, time up, cancelled).
     NotSignedIn,
 }
 
-/// Auf welchem Weg eine Seite geholt wird.
+/// Which route a page is fetched on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Route {
-    /// Ohne Konto, als Gast.
+    /// Without an account, as a guest.
     Http,
-    /// Im Sitzungsfenster, mit der Anmeldung des Nutzers.
+    /// In the session window, with the user's sign-in.
     Session,
 }
 
-/// Der einzige Router: Sitzungsfenster genau dann, wenn das Portal ohne Anmeldung nichts
-/// hergibt. Alles andere geht als Gast.
+/// The only router: the session window exactly when the portal gives nothing without a
+/// sign-in. Everything else goes as a guest.
 pub fn route(portal: Portal) -> Route {
     match portal.login_mode() {
         LoginMode::None => Route::Http,
@@ -147,7 +142,7 @@ pub fn route(portal: Portal) -> Route {
     }
 }
 
-/// Holt eine Seite – als Gast (HTTP) oder im Sitzungsfenster; den Weg bestimmt [`route`].
+/// Fetches a page - as a guest (HTTP) or in the session window; [`route`] decides.
 pub trait PageFetcher {
     fn fetch(
         &mut self,
@@ -156,8 +151,7 @@ pub trait PageFetcher {
         cancel: &CancellationToken,
     ) -> impl Future<Output = PageOutcome> + Send;
 
-    /// Lässt den Nutzer sich anmelden (Sitzungsfenster sichtbar). Ohne Anmeldemöglichkeit:
-    /// nicht angemeldet.
+    /// Lets the user sign in (session window visible). Without a sign-in: not signed in.
     fn login(
         &mut self,
         portal: Portal,
@@ -168,7 +162,7 @@ pub trait PageFetcher {
     }
 }
 
-/// Die beiden Abrufwege der App nebeneinander.
+/// The two fetch routes of the app side by side.
 pub struct Fetchers<S> {
     pub http: HttpFetcher,
     pub session: S,
@@ -192,69 +186,123 @@ impl<S: PageFetcher + Send> PageFetcher for Fetchers<S> {
     }
 }
 
-/// Warum ein Portal in diesem Lauf nicht (weiter) abgerufen wird.
+/// Health of a portal for the interface: why it rests or what looks wrong.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum PortalHealth {
+    Ok,
+    /// The portal rests. `until: null` = until the next run (network trouble, security
+    /// check at the sign-in).
+    Paused {
+        until: Option<Timestamp>,
+        reason: PauseReason,
+    },
+    /// Hourly or daily cap reached; requests are possible again from `until`.
+    QuotaReached {
+        until: Timestamp,
+    },
+    /// Alert mails without recognised jobs (`emptyMails`) or pages without a description
+    /// in a row (`pages`) - the portal probably changed its layout.
+    LayoutSuspect {
+        empty_mails: usize,
+        pages: u32,
+    },
+    /// A sign-in is needed to read the portal.
+    LoginRequired,
+}
+
+/// Why a portal is not fetched (any further) in this run.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StopReason {
-    /// Pause aus einem früheren Lauf oder gerade verhängt.
-    Paused { until: Timestamp, reason: String },
-    /// Obergrenze erreicht – der Rest ist ab `next_at` möglich.
+    /// Pause from an earlier run or imposed just now. `detail` is for the log.
+    Paused {
+        until: Timestamp,
+        reason: PauseReason,
+        detail: String,
+    },
+    /// Cap reached - the rest is possible from `next_at`.
     Quota { next_at: Timestamp },
-    /// Zwei verdächtige Seiten in Folge (Schutzschalter) – Portal pausiert bis `until`.
+    /// Two suspicious pages in a row (breaker) - the portal pauses until `until`.
     Breaker { until: Timestamp },
-    /// Anmeldung nötig und im Lauf nicht zustande gekommen.
+    /// Sign-in needed and it did not happen during the run.
     LoginRequired,
-    /// Angemeldet, aber mit Sicherheitsprüfung – das Portal ruht bis zum nächsten Lauf.
+    /// Signed in, but with a security check - the portal rests until the next run.
     Challenged,
-    /// Netz gestört (zweiter Fehler nach Wiederholung).
+    /// Network trouble (second failure after a retry).
     Network { detail: String },
 }
 
 impl StopReason {
-    /// Stopptext für Verlauf, Zusammenfassung und Oberfläche – die einzige Quelle.
-    pub fn text(&self, portal: Portal, skipped: usize) -> String {
-        let label = portal.label();
-        let jobs = crate::text::plural(skipped, "Job", "Jobs");
+    /// The stop as the interface sees it.
+    pub fn health(&self) -> PortalHealth {
         match self {
-            StopReason::Paused { until, reason } => format!(
-                "{label}: pausiert bis {} ({reason}) – {jobs} später.",
-                time::display(*until)
-            ),
-            StopReason::Quota { next_at } => format!(
-                "{label}: Tagesgrenze/Stundengrenze erreicht – Rest ({skipped}) ab {} möglich.",
-                time::display(*next_at)
-            ),
-            StopReason::Breaker { until } => format!(
-                "{label}: zwei Seiten ohne Beschreibung in Folge (Seitenaufbau geändert?) – Pause bis {}, {jobs} später.",
-                time::display(*until)
-            ),
-            StopReason::LoginRequired => format!("{label}: Anmeldung nötig – {jobs} warten."),
-            StopReason::Challenged => format!(
-                "{label}: Sicherheitsprüfung bei der Anmeldung – bitte später erneut; {jobs} warten bis zum nächsten Lauf."
-            ),
+            StopReason::Paused { until, reason, .. } => PortalHealth::Paused {
+                until: Some(*until),
+                reason: *reason,
+            },
+            StopReason::Quota { next_at } => PortalHealth::QuotaReached { until: *next_at },
+            StopReason::Breaker { until } => PortalHealth::Paused {
+                until: Some(*until),
+                reason: PauseReason::LayoutChanged,
+            },
+            StopReason::LoginRequired => PortalHealth::LoginRequired,
+            StopReason::Challenged => PortalHealth::Paused {
+                until: None,
+                reason: PauseReason::Challenged,
+            },
+            StopReason::Network { .. } => PortalHealth::Paused {
+                until: None,
+                reason: PauseReason::Network,
+            },
+        }
+    }
+
+    /// One English line for the log.
+    pub fn log_line(&self, portal: Portal, skipped: usize) -> String {
+        let key = portal.key();
+        match self {
+            StopReason::Paused {
+                until,
+                reason,
+                detail,
+            } => format!("{key}: paused until {until} ({reason:?}: {detail}), {skipped} left"),
+            StopReason::Quota { next_at } => {
+                format!("{key}: cap reached, {skipped} left until {next_at}")
+            }
+            StopReason::Breaker { until } => {
+                format!("{key}: breaker (layout changed?), paused until {until}, {skipped} left")
+            }
+            StopReason::LoginRequired => format!("{key}: sign-in needed, {skipped} left"),
+            StopReason::Challenged => {
+                format!("{key}: security check at the sign-in, {skipped} left until the next run")
+            }
             StopReason::Network { detail } => {
-                format!("{label}: Netzwerkproblem ({detail}) – {jobs} später.")
+                format!("{key}: network trouble ({detail}), {skipped} left")
             }
         }
     }
 }
 
-/// Zähler je Portal.
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
+/// Counters per portal.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PortalCounts {
     pub ok: usize,
     pub short: usize,
     pub closed: usize,
     pub gone: usize,
     pub failed: usize,
-    /// Übersprungene bzw. wartende Jobs (Pause, Obergrenze, Anmeldung, Schutzschalter, Netz).
+    /// Skipped or waiting jobs (pause, cap, sign-in, breaker, network).
     pub skipped: usize,
-    /// Warum das Portal in diesem Lauf stoppte – der fertige Stopptext.
-    pub stop: Option<String>,
+    /// Why the portal stopped in this run.
+    pub stop: Option<StopReason>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FetchSummary {
     pub queued: usize,
     pub per_portal: std::collections::BTreeMap<Portal, PortalCounts>,
@@ -265,20 +313,20 @@ pub enum FetchEvent {
     Queued {
         total: usize,
     },
-    /// Eine Seite des Portals wird gleich abgerufen.
+    /// A page of the portal is about to be requested.
     Fetching {
         portal: Portal,
     },
-    /// Die Anmeldung beim Portal beginnt.
+    /// The sign-in at the portal begins.
     SigningIn {
         portal: Portal,
     },
-    /// Bis `until` wird gewartet (Abstand oder Wiederholung nach einem Netzfehler).
+    /// Waiting until `until` (gap or retry after a network error).
     Waiting {
         portal: Portal,
         until: Timestamp,
     },
-    /// Ein Job hat einen neuen Stand (Tabelle aktualisieren).
+    /// A job has a new state (refresh the list).
     JobUpdated {
         key: JobKey,
         status: DescStatus,
@@ -287,8 +335,6 @@ pub enum FetchEvent {
         portal: Portal,
         reason: StopReason,
         skipped: usize,
-        /// Fertiger Stopptext.
-        text: String,
     },
     Progress {
         done: usize,
@@ -296,31 +342,31 @@ pub enum FetchEvent {
     },
 }
 
-/// Was geholt werden soll.
+/// What should be fetched.
 #[derive(Debug, Clone, Copy)]
 pub enum Selection<'a> {
-    /// Offenes der gewählten Portale (Mails der letzten 30 Tage).
+    /// Open jobs of these portals (mails of the last 30 days).
     Queue(&'a [Portal]),
-    /// Genau diese Jobs („Details holen“), auch ältere.
-    Jobs(&'a [JobKey]),
+    /// Exactly these jobs ("fetch details"), older ones too - but only of these portals.
+    Jobs(&'a [JobKey], &'a [Portal]),
 }
 
-/// Ergebnis von [`admit`].
+/// Result of [`admit`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Admission {
-    /// Zugriff gezählt und gesichert – jetzt darf das Portal kontaktiert werden.
+    /// Request counted and saved - the portal may be contacted now.
     Go,
-    /// Pause oder Obergrenze: kein Zugriff.
+    /// Pause or cap: no request.
     Stop(StopReason),
-    /// Abgebrochen, bevor etwas gezählt wurde.
+    /// Cancelled before anything was counted.
     Cancelled,
 }
 
-/// Jeder Portalzugriff geht hier durch – Seiten, die Anmeldung im Lauf und An-/Abmelden von
-/// Hand: erst Pause und Obergrenzen prüfen (ein pausiertes Portal wartet nicht erst), dann
-/// den Abstand abwarten (abbrechbar; `on_wait` erfährt vorher das Ende längerer
-/// Wartezeiten), dann zählen und dauerhaft sichern – vor dem Zugriff, damit ein Absturz
-/// mittendrin die Obergrenze nicht aushebelt. Ohne gesicherten Stand kein Zugriff.
+/// Every portal request passes here - pages, the sign-in during a run and signing in/out by
+/// hand: first check pause and caps (a paused portal does not wait first), then wait for
+/// the gap (cancellable; `on_wait` learns the end of longer waits beforehand), then count and
+/// save durably - before the request, so that a crash in between cannot defeat the cap.
+/// No request without a saved state.
 pub async fn admit(
     policy: &Mutex<Policy>,
     portal: Portal,
@@ -331,12 +377,20 @@ pub async fn admit(
     if cancel.is_cancelled() {
         return Ok(Admission::Cancelled);
     }
-    // Die Sperre gilt nur für das Prüfen und Rechnen, nie über den Schlaf.
+    // The lock only covers checking and computing, never the sleep.
     let wait = {
         let policy = lock(policy);
         match policy.allowance(portal, clock()) {
-            Allowance::Paused { until, reason } => {
-                return Ok(Admission::Stop(StopReason::Paused { until, reason }));
+            Allowance::Paused {
+                until,
+                reason,
+                detail,
+            } => {
+                return Ok(Admission::Stop(StopReason::Paused {
+                    until,
+                    reason,
+                    detail,
+                }));
             }
             Allowance::Quota { next_at } => {
                 return Ok(Admission::Stop(StopReason::Quota { next_at }));
@@ -359,34 +413,34 @@ pub async fn admit(
     Ok(Admission::Go)
 }
 
-/// Kurzer Zugriff auf den Sicherheitsstand. Ein vergifteter Stand ist kein Grund, den Lauf
-/// abzubrechen: Die Zähler darin sind gültig, und ohne sie gäbe es gar keine Grenze mehr.
+/// Short access to the safety state. A poisoned state is no reason to abort the run: its
+/// counters are valid, and without them there would be no cap at all.
 fn lock(policy: &Mutex<Policy>) -> MutexGuard<'_, Policy> {
     policy.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Was alle Portal-Schleifen teilen.
+/// What all portal loops share.
 struct Shared<'a, C: Fn() -> Timestamp> {
     store: &'a Store,
     policy: &'a Mutex<Policy>,
-    /// Abbruch **dieses** Abrufs – auch ein Datenbankfehler in einem Portal stoppt so die
-    /// übrigen, statt sie ohne gesicherten Stand weiterlaufen zu lassen.
+    /// Cancellation of **this** fetch - a database error in one portal stops the others this
+    /// way, instead of letting them continue without a saved state.
     cancel: &'a CancellationToken,
     clock: &'a C,
 }
 
-/// Was eine Portal-Schleife hinterlässt.
+/// What a portal loop leaves behind.
 struct PortalRun {
     portal: Portal,
-    /// `None`: Das Portal hatte in diesem Lauf nichts zu holen.
+    /// `None`: the portal had nothing to fetch in this run.
     counts: Option<PortalCounts>,
     completed: bool,
 }
 
-/// Meldung einer Portal-Schleife an den einen Ereignis-Sammler.
+/// Message of a portal loop to the one event collector.
 enum Note {
     Event(FetchEvent),
-    /// Ein Job ist bewertet – der Fortschritt zählt über alle Portale zusammen.
+    /// A job is judged - progress counts across all portals.
     Done,
 }
 
@@ -394,15 +448,15 @@ fn note(notes: &mpsc::UnboundedSender<Note>, event: FetchEvent) {
     let _ = notes.send(Note::Event(event));
 }
 
-/// Holt die Jobdetails. `pages` liefert den Abrufweg eines Portals – jedes Portal bekommt
-/// seinen eigenen (eigene HTTP-Sitzung, eigenes Fenster), damit die Portale nebeneinander
-/// laufen können. `clock` liefert die aktuelle Zeit (in Tests steuerbar).
+/// Fetches the job details. `pages` returns the fetch route of a portal - every portal gets
+/// its own (own HTTP session, own window) so the portals can run side by side. `clock`
+/// returns the current time (controllable in tests).
 ///
-/// Fehler der Datenbank oder beim Sichern von `policy.json` brechen ab – ohne dauerhaften
-/// Sicherheitsstand wird kein Portal weiter abgerufen.
+/// Errors of the database or while saving `policy.json` abort - without a durable safety
+/// state no portal is fetched any further.
 #[expect(
     clippy::too_many_arguments,
-    reason = "Lauf-Kontext: Speicher, Regeln, Auswahl, Uhr und Ereignisse kommen einzeln (Tests)"
+    reason = "run context: store, rules, selection, clock and events come separately (tests)"
 )]
 pub async fn fetch_all<F: PageFetcher>(
     mut pages: impl FnMut(Portal) -> Result<F, String>,
@@ -423,7 +477,7 @@ pub async fn fetch_all<F: PageFetcher>(
     for job in queue {
         by_portal.entry(job.key.portal).or_default().push(job);
     }
-    // Der Abrufweg entsteht vor dem Start: Scheitert er, beginnt kein Portal.
+    // The fetch route is created before the start: if it fails, no portal begins.
     let mut prepare = |portal: Portal| -> crate::Result<(Portal, Vec<JobRow>, Option<F>)> {
         let jobs = by_portal.remove(&portal).unwrap_or_default();
         let fetcher = if jobs.is_empty() {
@@ -431,7 +485,7 @@ pub async fn fetch_all<F: PageFetcher>(
         } else {
             Some(
                 pages(portal)
-                    .map_err(|e| crate::Error::Invalid(format!("Abruf nicht möglich: {e}")))?,
+                    .map_err(|detail| crate::Error::FetchUnavailable { portal, detail })?,
             )
         };
         Ok((portal, jobs, fetcher))
@@ -440,8 +494,8 @@ pub async fn fetch_all<F: PageFetcher>(
     let second = prepare(FETCH_ORDER[1])?;
     let third = prepare(FETCH_ORDER[2])?;
 
-    // Eigenes Abbruch-Signal: Der Nutzer bricht über das übergebene ab, ein Fehler in einem
-    // Portal über dieses.
+    // Own cancellation: the user cancels through the given token, an error in a portal
+    // through this one.
     let inner = cancel.child_token();
     let shared = Shared {
         store,
@@ -450,7 +504,7 @@ pub async fn fetch_all<F: PageFetcher>(
         clock: &clock,
     };
     let (notes, mut incoming) = mpsc::unbounded_channel::<Note>();
-    // Je Schleife ein Absender; sind alle fertig, endet der Sammler von selbst.
+    // One sender per loop; when all are done, the collector ends by itself.
     let (n1, n2, n3) = (notes.clone(), notes.clone(), notes);
     let (a, b, c, ()) = tokio::join!(
         fetch_portal(first, &shared, n1),
@@ -481,8 +535,8 @@ pub async fn fetch_all<F: PageFetcher>(
     Ok(completed)
 }
 
-/// Eine Portal-Schleife: streng nacheinander, mit allen Regeln. Ein Fehler stoppt auch die
-/// übrigen Portale – ohne gesicherten Sicherheitsstand ruft niemand weiter ab.
+/// One portal loop: strictly sequential, with all rules. An error stops the other portals
+/// too - without a saved safety state nobody fetches any further.
 async fn fetch_portal<F: PageFetcher, C: Fn() -> Timestamp>(
     work: (Portal, Vec<JobRow>, Option<F>),
     shared: &Shared<'_, C>,
@@ -502,7 +556,7 @@ async fn fetch_portal<F: PageFetcher, C: Fn() -> Timestamp>(
 
 #[expect(
     clippy::too_many_lines,
-    reason = "die Ergebnis-Matrix liest sich am besten an einem Stück"
+    reason = "the outcome matrix reads best in one piece"
 )]
 async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
     (portal, jobs, fetcher): (Portal, Vec<JobRow>, Option<F>),
@@ -515,11 +569,9 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
     let (store, policy, cancel, clock) = (shared.store, shared.policy, shared.cancel, shared.clock);
     let mut counts = PortalCounts::default();
     let route = route(portal);
-    // Eine Anmeldung je Portal und Lauf; danach wird derselbe Job erneut versucht.
+    // One sign-in per portal and run; afterwards the same job is tried again.
     let mut login_tried = false;
-    // Eine optionale Anmeldung geht höchstens einmal je Lauf verloren – danach wäre es
-    // keine verlorene Sitzung mehr, sondern eine Anmeldewand auch für Gäste.
-    // Job, dessen Seite schon einmal wiederholt wurde (höchstens eine Wiederholung).
+    // Job whose page was already retried once (at most one retry).
     let mut retried: Option<usize> = None;
     let mut index = 0;
     while index < jobs.len() {
@@ -538,7 +590,7 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 }
             };
         if let PageOutcome::NetError { .. } = outcome {
-            // Einmal wiederholen – nach 30 s, wieder mit allen Regeln.
+            // Retry once - after 30 s, again with all rules.
             note(
                 notes,
                 FetchEvent::Waiting {
@@ -552,7 +604,7 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
             outcome = match access(&mut fetcher, policy, &link, route, cancel, clock, notes).await?
             {
                 Ok(PageOutcome::NetError { timeout: true, .. }) => {
-                    PageOutcome::Throttled("zweimal keine Antwort".into())
+                    PageOutcome::Throttled("no answer twice".into())
                 }
                 Ok(outcome) => outcome,
                 Err(reason) => {
@@ -561,8 +613,8 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 }
             };
         }
-        // Leitet dieselbe Seite ein zweites Mal um, stimmt etwas nicht: verdächtig, damit
-        // der Schutzschalter greift.
+        // If the same page redirects a second time, something is wrong: suspicious, so the
+        // breaker applies.
         let outcome = match outcome {
             PageOutcome::Retry(reason) if retried == Some(index) => PageOutcome::Suspicious(reason),
             other => other,
@@ -572,7 +624,7 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
         lock(policy).record_done(portal, now);
         let stop_reason = match outcome {
             PageOutcome::Cancelled => {
-                // Die Antwortzeit gilt auch nach einem Abbruch für den nächsten Abstand.
+                // The answer time counts for the next gap even after a cancellation.
                 lock(policy).save()?;
                 return Ok((Some(counts), false));
             }
@@ -588,19 +640,19 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 fields,
             } => {
                 store.record_text(&job.key, &text, short, closed, now)?;
-                // Nur nicht-leere Felder überschreiben die Mail-Heuristik: Was die Seite
-                // verbirgt („für EXPERT-Mitglieder sichtbar“), kommt leer an.
+                // Only non-empty fields overwrite the mail heuristics: what the page hides
+                // ("visible for EXPERT members") arrives empty.
                 if let Some(f) = fields {
                     store.record_page_fields(&job.key, &f.title, &f.company, &f.location)?;
                 }
                 {
                     let mut policy = lock(policy);
-                    // Eine gelesene Seite im Sitzungsfenster bestätigt die Anmeldung; über
-                    // den Gastweg sagt sie darüber nichts.
+                    // A page read in the session window confirms the sign-in; the guest
+                    // route says nothing about it.
                     if route == Route::Session {
                         policy.set_session(portal, true, now);
                     }
-                    // Nur ein zweifelsfrei vollständiger Text setzt den Schutzschalter zurück.
+                    // Only an undoubtedly complete text resets the breaker.
                     if !short {
                         policy.clear_suspicious(portal);
                     }
@@ -639,17 +691,23 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                         status,
                     },
                 );
-                // Zwei in Folge – auch über Läufe hinweg – stoppen das Portal und
-                // pausieren es eine Stunde: vermutlich hat sich der Seitenaufbau geändert.
+                // Two in a row - across runs too - stop the portal and pause it for an hour:
+                // the page layout has probably changed.
                 let mut policy = lock(policy);
                 (policy.count_suspicious(portal) >= SUSPICIOUS_STREAK).then(|| {
                     StopReason::Breaker {
-                        until: policy.pause(portal, PauseKind::Throttled, BREAKER_REASON, now),
+                        until: policy.pause_for(
+                            portal,
+                            PauseKind::Throttled,
+                            PauseReason::LayoutChanged,
+                            BREAKER_DETAIL,
+                            now,
+                        ),
                     }
                 })
             }
             PageOutcome::LoginRequired(sign) => {
-                log::info!("{portal}: Anmeldung nötig ({sign})");
+                log::info!("{}: sign-in needed ({sign})", portal.key());
                 {
                     let mut policy = lock(policy);
                     policy.set_session(portal, false, now);
@@ -659,7 +717,7 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                     Some(StopReason::LoginRequired)
                 } else {
                     login_tried = true;
-                    // Die Anmeldeseite ist ein Portalzugriff wie jeder andere.
+                    // The sign-in page is a portal request like any other.
                     let admission = admit(policy, portal, cancel, clock, |until| {
                         note(notes, FetchEvent::Waiting { portal, until });
                     })
@@ -673,7 +731,7 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                         Admission::Go => {
                             note(notes, FetchEvent::SigningIn { portal });
                             let login = fetcher.login(portal, cancel).await;
-                            // Auch nach der Anmeldung gilt der Abstand zur nächsten Seite.
+                            // The gap to the next page applies after the sign-in too.
                             lock(policy).record_done(portal, clock());
                             match login {
                                 Login::SignedIn => {
@@ -696,20 +754,28 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                     }
                 }
             }
-            PageOutcome::Throttled(reason) => {
-                let until = lock(policy).pause(portal, PauseKind::Throttled, &reason, now);
-                Some(StopReason::Paused { until, reason })
+            PageOutcome::Throttled(detail) => {
+                let until = lock(policy).pause(portal, PauseKind::Throttled, &detail, now);
+                Some(StopReason::Paused {
+                    until,
+                    reason: PauseReason::Throttled,
+                    detail,
+                })
             }
-            PageOutcome::Blocked(reason) => {
-                let until = lock(policy).pause(portal, PauseKind::Blocked, &reason, now);
-                Some(StopReason::Paused { until, reason })
+            PageOutcome::Blocked(detail) => {
+                let until = lock(policy).pause(portal, PauseKind::Blocked, &detail, now);
+                Some(StopReason::Paused {
+                    until,
+                    reason: PauseReason::Blocked,
+                    detail,
+                })
             }
             PageOutcome::NetError { detail, .. } => Some(StopReason::Network { detail }),
         };
         lock(policy).save()?;
         let _ = notes.send(Note::Done);
         if let Some(reason) = stop_reason {
-            // Der aktuelle Job zählt mit, wenn er nicht bewertet wurde.
+            // The current job counts along if it was not judged.
             let skipped = if matches!(reason, StopReason::Breaker { .. }) {
                 remaining - 1
             } else {
@@ -723,8 +789,8 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
     Ok((Some(counts), true))
 }
 
-/// Offene Jobs: automatisch nur aus den letzten 30 Tagen; gezielt gewählte Jobs auch
-/// älter – nie aber ein schon erfolgreich geholter (Erfolgreiches wird nie erneut geholt).
+/// Open jobs: automatically only from the last 30 days; explicitly chosen jobs older ones
+/// too - but never one already fetched successfully (success is never fetched again).
 fn queue(store: &Store, selection: Selection<'_>, now: Timestamp) -> crate::Result<Vec<JobRow>> {
     Ok(match selection {
         Selection::Queue(portals) => store
@@ -732,9 +798,9 @@ fn queue(store: &Store, selection: Selection<'_>, now: Timestamp) -> crate::Resu
             .into_iter()
             .filter(|j| portals.contains(&j.key.portal))
             .collect(),
-        Selection::Jobs(keys) => {
+        Selection::Jobs(keys, portals) => {
             let mut jobs = Vec::new();
-            for key in keys {
+            for key in keys.iter().filter(|k| portals.contains(&k.portal)) {
                 if let Some(job) = store.job(key)?
                     && job.desc_status != DescStatus::Ok
                     && !jobs.iter().any(|j: &JobRow| j.key == job.key)
@@ -747,8 +813,8 @@ fn queue(store: &Store, selection: Selection<'_>, now: Timestamp) -> crate::Resu
     })
 }
 
-/// Eine Seite mit allen Regeln abrufen. `Err` = Portal darf gerade nicht; ein Abbruch vor
-/// dem Zugriff kommt als `PageOutcome::Cancelled`.
+/// Requests a page with all rules. `Err` = the portal may not be requested right now; a
+/// cancellation before the request comes as `PageOutcome::Cancelled`.
 async fn access<F: PageFetcher>(
     fetcher: &mut F,
     policy: &Mutex<Policy>,
@@ -780,7 +846,7 @@ fn stop(
     portal: Portal,
     notes: &mpsc::UnboundedSender<Note>,
 ) {
-    let text = reason.text(portal, skipped);
+    log::info!("{}", reason.log_line(portal, skipped));
     counts.skipped += skipped;
     note(
         notes,
@@ -788,13 +854,12 @@ fn stop(
             portal,
             reason: reason.clone(),
             skipped,
-            text: text.clone(),
         },
     );
-    counts.stop = Some(text);
+    counts.stop = Some(reason.clone());
 }
 
-/// Ende einer Wartezeit ab `now`.
+/// End of a wait from `now`.
 fn until(now: Timestamp, wait: Duration) -> Timestamp {
     SignedDuration::try_from(wait)
         .ok()
@@ -802,7 +867,7 @@ fn until(now: Timestamp, wait: Duration) -> Timestamp {
         .unwrap_or(Timestamp::MAX)
 }
 
-/// Wartet `wait`; `false`, wenn vorher abgebrochen wurde.
+/// Waits `wait`; `false` if cancelled before.
 async fn sleep_for(wait: Duration, cancel: &CancellationToken) -> bool {
     tokio::select! {
         biased;

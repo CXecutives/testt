@@ -51,6 +51,30 @@ pub struct JobRow {
     pub desc_attempts: i64,
     pub desc_error: Option<String>,
     pub txt_name: Option<String>,
+    /// Last fetch attempt (success or failure).
+    pub desc_attempted_at: Option<Timestamp>,
+}
+
+/// One page of the job list. The facet only narrows the page; the counts cover the
+/// search, whatever the facet.
+#[derive(Debug, Clone, Default)]
+pub struct PageQuery {
+    /// "New" = first seen in this mailbox run (schema 2).
+    pub new_run: i64,
+    pub only_new: bool,
+    /// Search term in title, company, location and full text (case-insensitive).
+    pub search: Option<String>,
+    pub limit: u32,
+    pub offset: u32,
+}
+
+/// Counts that belong to a page of the job list.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PageCounts {
+    pub new: u32,
+    pub all: u32,
+    /// Jobs without a full text.
+    pub no_detail: u32,
 }
 
 /// Jobs of one portal with a given job details state.
@@ -202,11 +226,7 @@ impl Store {
     /// Jobs, newest first (first sighting, then mail date).
     pub fn jobs(&self, filter: &JobFilter) -> Result<Vec<JobRow>> {
         let conn = self.conn();
-        let pattern = filter
-            .search
-            .as_deref()
-            .map(|s| format!("%{}%", escape_like(&fold(s.trim()))))
-            .filter(|p| p != "%%");
+        let pattern = like_pattern(filter.search.as_deref());
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE (?1 IS NULL OR first_seen_run = ?1)
@@ -215,6 +235,79 @@ impl Store {
         ))?;
         let rows = stmt.query_map(params![filter.first_seen_run, pattern], job_row)?;
         rows.map(|r| r?).collect()
+    }
+
+    /// One page of the job list and its counts - from one statement, so list and counts
+    /// never disagree.
+    pub fn job_page(&self, query: &PageQuery) -> Result<(Vec<JobRow>, PageCounts)> {
+        let conn = self.conn();
+        let pattern = like_pattern(query.search.as_deref());
+        let mut stmt = conn.prepare_cached(&format!(
+            "WITH base AS (
+                 SELECT * FROM job WHERE (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
+             ), counts AS (
+                 SELECT COUNT(*) AS n_all,
+                        COALESCE(SUM(first_seen_run = ?2), 0) AS n_new,
+                        COALESCE(SUM(desc_status <> 'ok'), 0) AS n_no_detail
+                 FROM base
+             ), page AS (
+                 SELECT {JOB_COLUMNS} FROM base
+                 WHERE (?3 = 0 OR first_seen_run = ?2)
+                 ORDER BY first_seen_at DESC, mail_date DESC, portal, job_id
+                 LIMIT ?4 OFFSET ?5
+             )
+             SELECT counts.n_all, counts.n_new, counts.n_no_detail, page.*
+             FROM counts LEFT JOIN page
+             ORDER BY page.first_seen_at DESC, page.mail_date DESC, page.portal, page.job_id"
+        ))?;
+        let mut counts = PageCounts::default();
+        let mut jobs = Vec::new();
+        let mut rows = stmt.query(params![
+            pattern,
+            query.new_run,
+            query.only_new,
+            query.limit,
+            query.offset
+        ])?;
+        while let Some(row) = rows.next()? {
+            counts = PageCounts {
+                all: row.get(0)?,
+                new: row.get(1)?,
+                no_detail: row.get(2)?,
+            };
+            if row.get::<_, Option<String>>(3)?.is_some() {
+                jobs.push(job_row_at(row, 3)??);
+            }
+        }
+        Ok((jobs, counts))
+    }
+
+    /// Per portal: jobs first seen in this run and jobs known before that appeared again.
+    pub fn scan_counts(&self, run: i64) -> Result<Vec<(Portal, usize, usize)>> {
+        let conn = self.conn();
+        let mut stmt = conn.prepare_cached(
+            "SELECT portal, SUM(first_seen_run = ?1), SUM(first_seen_run < ?1)
+             FROM job WHERE last_seen_run = ?1 GROUP BY portal",
+        )?;
+        let rows = stmt.query_map([run], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (portal, new, known) = row?;
+            let portal = Portal::from_key(&portal)
+                .ok_or_else(|| Error::Corrupt(format!("unknown portal `{portal}`")))?;
+            out.push((
+                portal,
+                usize::try_from(new).unwrap_or(0),
+                usize::try_from(known).unwrap_or(0),
+            ));
+        }
+        Ok(out)
     }
 
     /// Number of all jobs.
@@ -447,8 +540,9 @@ impl Store {
 
 const JOB_COLUMNS: &str = "portal, job_id, url, title, company, location, mail_date, mail_subject,
     gmail_id, first_seen_at, first_seen_run, desc_status, desc_short, desc_closed,
-    COALESCE(LENGTH(desc_text), 0), desc_fetched_at, desc_attempts, desc_error, txt_name";
-const JOB_COLUMN_COUNT: usize = 19;
+    COALESCE(LENGTH(desc_text), 0) AS desc_len, desc_fetched_at, desc_attempts, desc_error,
+    txt_name, desc_attempted_at";
+const JOB_COLUMN_COUNT: usize = 20;
 
 /// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
 /// mail not older than `?1`.
@@ -465,11 +559,17 @@ fn due_params(now: Timestamp, max_age: SignedDuration, retry_after: SignedDurati
 
 /// Reads one row; unknown values become `Error::Corrupt` (the inner `Result`).
 fn job_row(r: &Row<'_>) -> rusqlite::Result<Result<JobRow>> {
-    let portal: String = r.get(0)?;
-    let url: String = r.get(2)?;
-    let status: String = r.get(11)?;
-    let gmail_id: Option<String> = r.get(8)?;
-    let first_seen_at: i64 = r.get(9)?;
+    job_row_at(r, 0)
+}
+
+/// Reads the job columns starting at column `at`.
+fn job_row_at(r: &Row<'_>, at: usize) -> rusqlite::Result<Result<JobRow>> {
+    let col = |i: usize| at + i;
+    let portal: String = r.get(col(0))?;
+    let url: String = r.get(col(2))?;
+    let status: String = r.get(col(11))?;
+    let gmail_id: Option<String> = r.get(col(8))?;
+    let first_seen_at: i64 = r.get(col(9))?;
     let (Some(portal), Ok(url), Some(desc_status), Some(first_seen_at)) = (
         Portal::from_key(&portal),
         Url::parse(&url),
@@ -483,25 +583,26 @@ fn job_row(r: &Row<'_>) -> rusqlite::Result<Result<JobRow>> {
     Ok(Ok(JobRow {
         key: JobKey {
             portal,
-            id: r.get(1)?,
+            id: r.get(col(1))?,
         },
         url,
-        title: r.get(3)?,
-        company: r.get(4)?,
-        location: r.get(5)?,
-        mail_date: r.get::<_, Option<i64>>(6)?.and_then(from_db),
-        mail_subject: r.get(7)?,
+        title: r.get(col(3))?,
+        company: r.get(col(4))?,
+        location: r.get(col(5))?,
+        mail_date: r.get::<_, Option<i64>>(col(6))?.and_then(from_db),
+        mail_subject: r.get(col(7))?,
         gmail_id: gmail_id.and_then(|s| s.parse().ok()),
         first_seen_at,
-        first_seen_run: r.get(10)?,
+        first_seen_run: r.get(col(10))?,
         desc_status,
-        desc_short: r.get(12)?,
-        desc_closed: r.get(13)?,
-        desc_len: r.get(14)?,
-        desc_fetched_at: r.get::<_, Option<i64>>(15)?.and_then(from_db),
-        desc_attempts: r.get(16)?,
-        desc_error: r.get(17)?,
-        txt_name: r.get(18)?,
+        desc_short: r.get(col(12))?,
+        desc_closed: r.get(col(13))?,
+        desc_len: r.get(col(14))?,
+        desc_fetched_at: r.get::<_, Option<i64>>(col(15))?.and_then(from_db),
+        desc_attempts: r.get(col(16))?,
+        desc_error: r.get(col(17))?,
+        txt_name: r.get(col(18))?,
+        desc_attempted_at: r.get::<_, Option<i64>>(col(19))?.and_then(from_db),
     }))
 }
 
@@ -625,6 +726,13 @@ fn search_text(title: &str, company: &str, location: &str, text: &str) -> String
 /// Comparison form for the search: lower case (Unicode, so umlauts too).
 fn fold(text: &str) -> String {
     text.to_lowercase()
+}
+
+/// `LIKE` pattern of a search term; an empty search matches everything (`None`).
+fn like_pattern(search: Option<&str>) -> Option<String> {
+    search
+        .map(|s| format!("%{}%", escape_like(&fold(s.trim()))))
+        .filter(|p| p != "%%")
 }
 
 fn escape_like(text: &str) -> String {

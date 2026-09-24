@@ -21,6 +21,7 @@ use tokio_rustls::client::TlsStream;
 use tokio_util::sync::CancellationToken;
 
 use super::RawMail;
+use crate::error::ErrorKind;
 use crate::portal::Portal;
 use crate::text::{one_line, truncate_chars};
 
@@ -63,17 +64,17 @@ pub enum MailError {
 }
 
 impl MailError {
-    /// Short, stable name for the UI.
-    pub fn kind(&self) -> &'static str {
+    /// Stable error code for the interface.
+    pub fn kind(&self) -> ErrorKind {
         match self {
-            MailError::NoCredentials => "mailMissing",
-            MailError::Connect(_) => "mailConnect",
-            MailError::Auth(_) => "mailAuth",
-            MailError::Timeout => "mailTimeout",
-            MailError::Lost(_) => "mailLost",
-            MailError::NotGmail => "mailNotGmail",
-            MailError::Server(_) => "mailServer",
-            MailError::Cancelled => "cancelled",
+            MailError::NoCredentials => ErrorKind::MailMissing,
+            MailError::Connect(_) => ErrorKind::MailConnect,
+            MailError::Auth(_) => ErrorKind::MailAuth,
+            MailError::Timeout => ErrorKind::MailTimeout,
+            MailError::Lost(_) => ErrorKind::MailLost,
+            MailError::NotGmail => ErrorKind::MailNotGmail,
+            MailError::Server(_) => ErrorKind::MailServer,
+            MailError::Cancelled => ErrorKind::MailCancelled,
         }
     }
 }

@@ -32,26 +32,7 @@ fn main() {
                 let _ = window.set_focus();
             }
         }))
-        .invoke_handler(tauri::generate_handler![
-            commands::app_state,
-            commands::save_settings,
-            commands::pick_workspace,
-            commands::save_gmail_credentials,
-            commands::delete_gmail_credentials,
-            commands::start_run,
-            commands::cancel_run,
-            commands::list_jobs,
-            commands::job_detail,
-            commands::pick_profile,
-            commands::remove_profile,
-            commands::rewrite_txt,
-            commands::clear_txt_files,
-            commands::open_target,
-            commands::reset_all,
-            commands::report_ui_error,
-            commands::portal_login,
-            commands::portal_logout,
-        ])
+        .invoke_handler(commands::invoke_handler())
         // Ein Fehler beim Start (Datenbank, WebView2 …) erscheint als Meldung mit Ursache und
         // Rat – ein GUI-Programm ohne Konsole endete sonst wortlos.
         .setup(move |app| {

@@ -1,4 +1,4 @@
-//! Grundtypen, die Mail, Abruf, Speicher, Export und Oberfläche teilen.
+//! Basic types shared by mail, fetch, store, export and the interface.
 
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
@@ -7,20 +7,21 @@ use url::Url;
 use crate::portal::{JobKey, Portal};
 use crate::text::{one_line, truncate_chars};
 
-/// Platzhalter, wenn ein Link keinen erkennbaren Titel trägt. Wird später durch einen
-/// echten Titel ersetzt (Merge-Regel: nur leere Werte und dieser Platzhalter).
+/// Placeholder when a link carries no recognisable title. Replaced later by a real title
+/// (merge rule: only empty values and this placeholder). Stored in the database and written
+/// to Excel and the TXT files - German by product decision, do not translate.
 pub const TITLE_PLACEHOLDER: &str = "(Titel nicht erkannt)";
 
-/// Höchstlänge von Titel, Firma und Ort bei der Aufnahme (in Zeichen).
+/// Maximum length of title, company and location when ingested (in characters).
 pub const MAX_TITLE_CHARS: usize = 200;
 pub const MAX_FIELD_CHARS: usize = 120;
 
-/// Ein Job, wie er in einer Alert-Mail steht. Firma und Ort sind Rohwerte – bereinigt
-/// wird nur für Anzeige und Export (`text::split_company_location`).
+/// A job as it appears in an alert mail. Company and location are raw values - they are
+/// only cleaned for display and export (`text::split_company_location`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Posting {
     pub key: JobKey,
-    /// Link zur Anzeige (bereinigt, https).
+    /// Link to the ad (cleaned, https).
     pub url: Url,
     pub title: String,
     pub company: String,
@@ -28,8 +29,8 @@ pub struct Posting {
 }
 
 impl Posting {
-    /// Baut einen Eintrag mit geglätteten und begrenzten Feldern; ein leerer Titel wird
-    /// zum Platzhalter.
+    /// Builds an entry with flattened and bounded fields; an empty title becomes the
+    /// placeholder.
     pub fn new(key: JobKey, url: Url, title: &str, company: &str, location: &str) -> Self {
         let title = truncate_chars(&one_line(title), MAX_TITLE_CHARS);
         Posting {
@@ -50,31 +51,31 @@ impl Posting {
     }
 }
 
-/// Taugt der Wert als Titel? Leer und der Platzhalter nicht – und auch keine nackte
-/// Adresse: Verlinkt eine Mail den Titel als URL, stand die früher als Titel in der Liste
-/// und blieb dort, weil sie ja „nicht leer“ war.
+/// Is the value usable as a title? Empty and the placeholder are not - and neither is a bare
+/// address: when a mail linked the title as a URL, the URL used to stay in the list as the
+/// title because it was "not empty".
 pub fn is_usable_title(title: &str) -> bool {
     !title.trim().is_empty() && title != TITLE_PLACEHOLDER && !crate::mail::extract::is_url(title)
 }
 
-/// Eine erkannte Alert-Mail samt ihren Einträgen. Eine Mail mit null Einträgen bleibt
-/// sichtbar (Layout-Wächter: das Portal hat vermutlich sein Mail-Layout geändert).
+/// A recognised alert mail with its entries. A mail with zero entries stays visible (layout
+/// guard: the portal probably changed its mail layout).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AlertMail {
-    /// Dauerhafter Schlüssel der Mail (Gmail-ID, sonst Message-ID, sonst Inhalts-Hash).
+    /// Durable key of the mail (Gmail id, else Message-ID, else content hash).
     pub key: String,
-    /// Portal, dem die Mail zugeordnet ist (Anzeige). Die Einträge tragen ihr eigenes
-    /// Portal – eine weitergeleitete Sammelmail kann mehrere enthalten.
+    /// Portal the mail is assigned to (display). The entries carry their own portal - a
+    /// forwarded digest can contain several.
     pub portal: Portal,
     pub subject: String,
     pub sender: String,
     pub date: Option<Timestamp>,
-    /// Gmail-Nachrichten-ID (`X-GM-MSGID`) für den Direktlink.
+    /// Gmail message id (`X-GM-MSGID`) for the direct link.
     pub gmail_id: Option<u64>,
     pub postings: Vec<Posting>,
 }
 
-/// Direktlink auf eine Mail in Gmail (hexadezimale Nachrichten-ID).
+/// Direct link to a mail in Gmail (hexadecimal message id).
 pub fn gmail_url(gmail_id: u64) -> Option<Url> {
     (gmail_id != 0)
         .then(|| {
@@ -86,19 +87,19 @@ pub fn gmail_url(gmail_id: u64) -> Option<Url> {
         .flatten()
 }
 
-/// Stand der Jobdetails eines Jobs.
+/// State of the job details of a job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DescStatus {
-    /// Noch nicht geholt (oder nach portalweitem Abbruch weiter offen).
+    /// Not fetched yet (or still open after a portal-wide stop).
     Missing,
-    /// Volltext liegt vor.
+    /// Full text is available.
     Ok,
-    /// Seite geladen, aber kein gültiger Text – wird später erneut versucht.
+    /// Page loaded but no valid text - retried later.
     Failed,
-    /// Anzeige gibt es nicht mehr.
+    /// The ad no longer exists.
     Gone,
-    /// Nach mehreren Fehlversuchen aufgegeben.
+    /// Given up after several failed attempts.
     Unfetchable,
 }
 
@@ -124,6 +125,70 @@ impl DescStatus {
         .into_iter()
         .find(|s| s.as_str() == text)
     }
+}
+
+/// How well a job fits the profile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum MatchStatus {
+    /// A score from the profile.
+    Scored,
+    /// At least one decided violation of a hard criterion; the score is kept.
+    Excluded,
+    /// Too little text to judge.
+    Unscorable,
+}
+
+impl MatchStatus {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            MatchStatus::Scored => "scored",
+            MatchStatus::Excluded => "excluded",
+            MatchStatus::Unscorable => "unscorable",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<Self> {
+        [Self::Scored, Self::Excluded, Self::Unscorable]
+            .into_iter()
+            .find(|s| s.as_str() == text)
+    }
+}
+
+/// Score band of a match.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum Band {
+    High,
+    Mid,
+    Low,
+}
+
+/// Minimum score of the high band.
+const HIGH_FROM: u8 = 80;
+/// Minimum score of the mid band.
+const MID_FROM: u8 = 40;
+
+/// The band of a score - the only place with the thresholds (80 and 40).
+pub const fn band(score: u8) -> Band {
+    if score >= HIGH_FROM {
+        Band::High
+    } else if score >= MID_FROM {
+        Band::Mid
+    } else {
+        Band::Low
+    }
+}
+
+/// A statement for the interface as a code with data - the core never sends prose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct Notice {
+    pub code: String,
+    #[cfg_attr(test, ts(type = "Record<string, string | number | boolean | null>"))]
+    pub params: serde_json::Map<String, serde_json::Value>,
 }
 
 #[cfg(test)]
@@ -170,5 +235,28 @@ mod tests {
             assert_eq!(DescStatus::parse(s.as_str()), Some(s));
         }
         assert_eq!(DescStatus::parse("ok "), None);
+    }
+
+    #[test]
+    fn bands_split_at_80_and_40() {
+        let bands = [0, 39, 40, 79, 80, 100].map(band);
+        assert_eq!(
+            bands,
+            [
+                Band::Low,
+                Band::Low,
+                Band::Mid,
+                Band::Mid,
+                Band::High,
+                Band::High
+            ]
+        );
+        for s in [
+            MatchStatus::Scored,
+            MatchStatus::Excluded,
+            MatchStatus::Unscorable,
+        ] {
+            assert_eq!(MatchStatus::parse(s.as_str()), Some(s));
+        }
     }
 }

@@ -1,30 +1,29 @@
-//! `JobAlerts.xlsx`: Blatt „Job-Alerts“ (alle Jobs, neueste zuerst) und Blatt „Info“.
-//! Die Datei wird bei jedem Export vollständig neu erzeugt.
+//! `JobAlerts.xlsx`: sheet "Job-Alerts" (all jobs, newest first) and sheet "Info". The file
+//! is generated completely anew on every export.
 
 use std::path::Path;
 
 use rust_xlsxwriter::{Color, Format, FormatBorder, Workbook, Worksheet, XlsxError};
 
-use super::{COLUMNS, Line};
+use super::Line;
+use super::texts::{COLUMNS, INFO_NOTE, INFO_NOTE_LABEL, INFO_SHEET, JOBS_SHEET};
 use crate::error::Result;
 use crate::store::JobRow;
 use crate::text::truncate_chars;
 use crate::time;
 
-const SHEET: &str = "Job-Alerts";
-const INFO_SHEET: &str = "Info";
 const DATE_FORMAT: &str = "dd.mm.yyyy hh:mm";
-/// Excel nimmt höchstens so viele Zeichen je Zelle …
+/// Excel takes at most this many characters per cell ...
 const MAX_CELL_CHARS: usize = 32_767;
-/// … und höchstens so viele Links je Blatt; darüber bleiben URLs Text (sonst meldet
-/// Excel „unlesbarer Inhalt“ und entfernt beim Reparieren alle Links).
+/// ... and at most this many links per sheet; above that, URLs stay text (otherwise Excel
+/// reports "unreadable content" and removes all links when repairing).
 const MAX_LINKS: usize = 65_530;
-/// Spaltenbreiten in Zeichen (Reihenfolge wie `COLUMNS`).
+/// Column widths in characters (order as in `COLUMNS`).
 const WIDTHS: [f64; 11] = [
     15.0, 16.0, 50.0, 32.0, 22.0, 45.0, 40.0, 20.0, 16.0, 22.0, 24.0,
 ];
 
-/// Schreibt die Excel-Datei. `info` sind Beschriftung/Wert-Paare für das Blatt „Info“.
+/// Writes the Excel file. `info` are label/value pairs for the sheet "Info".
 pub fn write_xlsx(path: &Path, jobs: &[JobRow], info: &[(String, String)]) -> Result<()> {
     let mut workbook = Workbook::new();
     jobs_sheet(workbook.add_worksheet(), jobs)?;
@@ -34,7 +33,7 @@ pub fn write_xlsx(path: &Path, jobs: &[JobRow], info: &[(String, String)]) -> Re
 }
 
 fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
-    sheet.set_name(SHEET)?;
+    sheet.set_name(JOBS_SHEET)?;
     let header = Format::new()
         .set_bold()
         .set_background_color(Color::RGB(0x00E7_E6E6))
@@ -72,14 +71,14 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
     Ok(())
 }
 
-/// Textzelle; Überlanges wird gekürzt statt den ganzen Export scheitern zu lassen.
+/// Text cell; overlong values are cut instead of letting the whole export fail.
 fn text(sheet: &mut Worksheet, row: u32, col: u16, value: &str) -> Result<(), XlsxError> {
     sheet.write_string(row, col, truncate_chars(value, MAX_CELL_CHARS))?;
     Ok(())
 }
 
-/// Link als anklickbare Zelle; was Excel nicht als Link annimmt (Länge, Form, Anzahl),
-/// bleibt als Text stehen – der Export scheitert daran nie.
+/// Link as a clickable cell; what Excel does not take as a link (length, form, number)
+/// stays as text - the export never fails because of it.
 fn link(
     sheet: &mut Worksheet,
     row: u32,
@@ -102,11 +101,10 @@ fn info_sheet(sheet: &mut Worksheet, info: &[(String, String)]) -> Result<(), Xl
     let bold = Format::new().set_bold();
     sheet.set_column_width(0, 48)?;
     sheet.set_column_width(1, 64)?;
-    let note = "Diese Datei wird bei jedem Lauf vollständig neu erzeugt – eigene Notizen hier gehen verloren.";
     let rows = info
         .iter()
         .map(|(k, v)| (k.as_str(), v.as_str()))
-        .chain(std::iter::once(("Hinweis", note)));
+        .chain(std::iter::once((INFO_NOTE_LABEL, INFO_NOTE)));
     for (row, (label, value)) in (0u32..).zip(rows) {
         sheet.write_string_with_format(row, 0, truncate_chars(label, MAX_CELL_CHARS), &bold)?;
         text(sheet, row, 1, value)?;
@@ -143,6 +141,7 @@ mod tests {
             desc_attempts: 0,
             desc_error: None,
             txt_name: None,
+            desc_attempted_at: None,
         }
     }
 
@@ -166,8 +165,8 @@ mod tests {
         write_xlsx(&path, &jobs, &info).unwrap();
 
         let mut book: Xlsx<_> = open_workbook(&path).unwrap();
-        assert_eq!(book.sheet_names(), [SHEET, INFO_SHEET]);
-        let range = book.worksheet_range(SHEET).unwrap();
+        assert_eq!(book.sheet_names(), [JOBS_SHEET, INFO_SHEET]);
+        let range = book.worksheet_range(JOBS_SHEET).unwrap();
         let header: Vec<String> = range
             .rows()
             .next()
@@ -180,7 +179,7 @@ mod tests {
         assert_eq!(first[0].to_string(), "LinkedIn");
         assert!(
             matches!(first[1], Data::DateTime(_)),
-            "Mail-Datum ist ein Excel-Datum"
+            "the mail date is an Excel date"
         );
         assert_eq!(first[2].to_string(), "Interim CFO");
         assert_eq!(first[3].to_string(), "Muster GmbH");
@@ -189,7 +188,7 @@ mod tests {
             first[5].to_string(),
             "https://www.linkedin.com/jobs/view/4000000001/"
         );
-        // Mail-Betreff mit Formel bleibt Text, wird nie ausgeführt.
+        // A mail subject with a formula stays text and is never executed.
         assert_eq!(first[6].to_string(), "=HYPERLINK(\"http://evil\")");
         assert_eq!(
             first[7].to_string(),
@@ -200,7 +199,7 @@ mod tests {
         assert_eq!(range.rows().count(), 3);
         let info = book.worksheet_range(INFO_SHEET).unwrap();
         assert_eq!(info.get((0, 1)).unwrap().to_string(), "x@gmail.com");
-        assert_eq!(info.get((1, 0)).unwrap().to_string(), "Hinweis");
+        assert_eq!(info.get((1, 0)).unwrap().to_string(), INFO_NOTE_LABEL);
     }
 
     #[test]
@@ -209,11 +208,11 @@ mod tests {
         let path = dir.path().join("leer.xlsx");
         write_xlsx(&path, &[], &[]).unwrap();
         let mut book: Xlsx<_> = open_workbook(&path).unwrap();
-        assert_eq!(book.worksheet_range(SHEET).unwrap().rows().count(), 1);
+        assert_eq!(book.worksheet_range(JOBS_SHEET).unwrap().rows().count(), 1);
     }
 
-    /// Ein überlanger Wert kürzt die Zelle, statt den Export (bei jedem
-    /// Lauf wieder) scheitern zu lassen.
+    /// An overlong value cuts the cell instead of letting the export fail (on every run
+    /// again).
     #[test]
     fn oversized_cell_is_truncated() {
         let dir = tempfile::tempdir().unwrap();
@@ -226,7 +225,7 @@ mod tests {
         job.mail_subject = "x".repeat(40_000);
         write_xlsx(&path, &[job], &[]).unwrap();
         let mut book: Xlsx<_> = open_workbook(&path).unwrap();
-        let range = book.worksheet_range(SHEET).unwrap();
+        let range = book.worksheet_range(JOBS_SHEET).unwrap();
         let subject = range.get((1, 6)).unwrap().to_string();
         assert_eq!(subject.chars().count(), MAX_CELL_CHARS);
     }

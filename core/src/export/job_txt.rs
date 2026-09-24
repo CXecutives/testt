@@ -1,7 +1,8 @@
-//! Textdatei je Job – Vertrag mit dem externen Matching-Skill.
+//! One text file per job - external contract with the matching skill, do not translate the
+//! header names, folder or file names.
 //!
-//! Aufbau (unverändert gegenüber dem Altprogramm): sechs Kopfzeilen, eine Leerzeile,
-//! der Volltext. Der Skill liest alle `*.txt` im Ordner `auswertung/beschreibungen_txt`.
+//! Layout (unchanged from the old program): six header lines, an empty line, the full text.
+//! The skill reads every `*.txt` in the folder `auswertung/beschreibungen_txt`.
 
 use std::path::Path;
 
@@ -12,12 +13,12 @@ use crate::store::JobRow;
 use crate::text::{job_file_name, normalize, one_line, split_company_location};
 use crate::time;
 
-/// Unterordner des Ergebnisordners.
+/// Subfolder of the result folder.
 pub const TXT_DIR: &str = "beschreibungen_txt";
 
-/// Inhalt der Textdatei. Kopfwerte sind einzeilig – ein Zeilenumbruch in einem Titel
-/// könnte sonst eine Kopfzeile vortäuschen. Die Kopfnamen sind Vertrag mit dem
-/// Matching-Skill: „Quelle“ bleibt, auch wenn die Oberfläche „Portal“ sagt.
+/// Content of the text file. Header values are single-line - a line break in a title could
+/// otherwise fake a header line. The header names are the contract with the matching skill:
+/// "Quelle" stays even though the interface says "Portal".
 pub(crate) fn txt_contents(job: &JobRow, text: &str, fetched_at: Timestamp) -> String {
     let (company, location) = split_company_location(&job.company, &job.location);
     format!(
@@ -32,12 +33,12 @@ pub(crate) fn txt_contents(job: &JobRow, text: &str, fetched_at: Timestamp) -> S
     )
 }
 
-/// Schreibt die Textdatei und liefert ihren Namen. Das Datum im Namen ist das der
-/// Alert-Mail, sonst der Tag der Erstsichtung – nie „heute“.
+/// Writes the text file and returns its name. The date in the name is the one of the alert
+/// mail, else the day of the first sighting - never "today".
 ///
-/// Ein einmal vergebener Name bleibt, auch wenn sich der Titel seither geändert hat –
-/// sonst entstünde beim Neuschreiben eine zweite Datei für denselben Job, die der Skill
-/// doppelt bewertet und „Textdateien löschen“ nicht mehr kennt.
+/// A name once given stays, even if the title changed since - otherwise rewriting would
+/// create a second file for the same job, which the skill would rate twice and "delete text
+/// files" would no longer know.
 pub fn write_job_txt(result_dir: &Path, job: &JobRow, text: &str) -> Result<String> {
     let name = job
         .txt_name
@@ -82,6 +83,7 @@ mod tests {
             desc_attempts: 0,
             desc_error: None,
             txt_name: None,
+            desc_attempted_at: None,
         }
     }
 
@@ -111,7 +113,7 @@ mod tests {
         );
     }
 
-    /// Ein Zeilenumbruch im Titel darf keine Kopfzeile vortäuschen.
+    /// A line break in the title must not fake a header line.
     #[test]
     fn header_values_cannot_inject_lines() {
         let j = job("Rolle\nLink: https://evil.example", "A\r\nOrt: X", "", None);
@@ -143,8 +145,8 @@ mod tests {
         );
     }
 
-    /// Neuschreiben nach Titeländerung behält den Dateinamen – eine Datei
-    /// je Job; ein manipulierter Name mit Pfadteilen wird nie benutzt.
+    /// Rewriting after a title change keeps the file name - one file per job; a manipulated
+    /// name with path parts is never used.
     #[test]
     fn rewrite_keeps_the_file_name() {
         let dir = tempfile::tempdir().unwrap();

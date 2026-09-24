@@ -1,8 +1,9 @@
-//! Erzeugte Dateien im Arbeitsordner: `JobAlerts.xlsx` (Übersicht aller Jobs) und je Job
-//! eine Textdatei für das Matching. Alles wird aus der Datenbank erzeugt und atomar
-//! geschrieben – eine offene Excel-Datei oder ein Absturz hinterlässt nie eine halbe Datei.
+//! Generated files in the workspace: `JobAlerts.xlsx` (overview of all jobs) and one text
+//! file per job for the matching. Everything is generated from the database and written
+//! atomically - an open Excel file or a crash never leaves half a file behind.
 
 mod job_txt;
+pub mod texts;
 mod xlsx;
 
 use std::collections::HashSet;
@@ -10,42 +11,27 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
-use crate::model::DescStatus;
 use crate::store::JobRow;
 use crate::text::split_company_location;
 
 pub use job_txt::{TXT_DIR, write_job_txt};
+pub use texts::{COLUMNS, details_label};
 pub use xlsx::write_xlsx;
 
+/// File and folder names below are a contract with the user's workspace and the matching
+/// skill - do not translate.
 pub const XLSX_NAME: &str = "JobAlerts.xlsx";
-/// Übersicht früherer Versionen; nur noch, damit „Alles zurücksetzen“ sie mitnimmt.
+/// Overview of earlier versions; only kept so that "reset everything" takes it along.
 const LEGACY_CSV_NAME: &str = "JobAlerts.csv";
-/// Unterordner des Arbeitsordners für Ergebnisse (wie bisher).
+/// Subfolder of the workspace for results (as before).
 pub const RESULT_DIR: &str = "auswertung";
-/// Temporäre Dateien von [`write_atomic`] – bleiben nur nach einem Abbruch mitten im
-/// Schreiben liegen und gehören der App.
+/// Temporary files of [`write_atomic`] - only left behind after a crash in the middle of
+/// writing, and they belong to the app.
 const TMP_PREFIX: &str = ".jam-";
 const TMP_SUFFIX: &str = ".tmp";
 
-/// Spaltenköpfe der Übersicht (Reihenfolge wie bisher, ergänzt um den Jobdetails-Stand).
-/// Anders als die Textdateien liest die Übersicht niemand maschinell – sie heißt deshalb
-/// „Portal“ wie die Oberfläche, nicht „Quelle“ wie der Skill-Vertrag.
-pub const COLUMNS: [&str; 11] = [
-    "Portal",
-    "Mail-Datum",
-    "Titel",
-    "Unternehmen",
-    "Ort",
-    "Link",
-    "Mail-Betreff",
-    "Mail in Gmail",
-    "Gespeichert am",
-    "Jobdetails",
-    "Schlüssel",
-];
-
-/// Eine Zeile der Übersicht als Text. Datumsspalten fehlen hier: Excel bekommt sie als
-/// echtes Datum, nicht als Text.
+/// One row of the overview as text. Date columns are missing here: Excel gets them as real
+/// dates, not as text.
 pub(crate) struct Line {
     pub source: &'static str,
     pub title: String,
@@ -79,27 +65,14 @@ impl Line {
     }
 }
 
-/// Stand der Jobdetails in Worten.
-pub fn details_label(job: &JobRow) -> &'static str {
-    match job.desc_status {
-        DescStatus::Ok if job.desc_closed => "vorhanden (Anzeige geschlossen)",
-        DescStatus::Ok if job.desc_short => "vorhanden (kurz)",
-        DescStatus::Ok => "vorhanden",
-        DescStatus::Missing => "fehlt",
-        DescStatus::Failed => "fehlgeschlagen – neuer Versuch folgt",
-        DescStatus::Gone => "Anzeige nicht mehr abrufbar",
-        DescStatus::Unfetchable => "nicht abrufbar",
-    }
-}
-
-/// Pfad der Übersichtsdatei im Ergebnisordner.
+/// Path of the overview file in the result folder.
 pub fn overview_path(result_dir: &Path) -> PathBuf {
     result_dir.join(XLSX_NAME)
 }
 
-/// Schreibt `bytes` atomar nach `path`: erst in eine temporäre Datei im selben Ordner,
-/// dann Umbenennen. Ist das Ziel gesperrt (z. B. in Excel geöffnet), bleibt es
-/// unverändert und der Fehler lautet `FileLocked`.
+/// Writes `bytes` atomically to `path`: first into a temporary file in the same folder, then
+/// rename. If the target is locked (e.g. open in Excel), it stays unchanged and the error is
+/// `FileLocked`.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
     let long = long_path(path);
     let path = long.as_path();
@@ -119,14 +92,14 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-/// Legt einen Ordner an (samt Eltern, auch mit langem Pfad).
+/// Creates a folder (with its parents, long paths too).
 pub(crate) fn ensure_dir(dir: &Path) -> Result<()> {
     std::fs::create_dir_all(long_path(dir)).map_err(|e| Error::io(dir, e))
 }
 
-/// Windows-Pfade ab 260 Zeichen brauchen die Langform `\\?\`: `tempfile` reicht den Pfad
-/// beim Umbenennen unverändert an Windows weiter – ein langer Arbeitsordner ließe sonst
-/// genau die Textdateien mit langen Titeln scheitern.
+/// Windows paths from 260 characters on need the long form `\\?\`: `tempfile` passes the
+/// path unchanged to Windows when renaming - a long workspace would otherwise make exactly
+/// the text files with long titles fail.
 fn long_path(path: &Path) -> PathBuf {
     let Ok(absolute) = std::path::absolute(path) else {
         return path.to_path_buf();
@@ -142,11 +115,11 @@ fn long_path(path: &Path) -> PathBuf {
     }
 }
 
-/// Die Dateien der App im Ergebnisordner, die es gerade gibt: die Übersichten, die
-/// bekannten Textdateien (nur reine Dateinamen), liegen gebliebene temporäre Dateien und
-/// Reste eines früheren Zurücksetzens. Die Liste fürs Zurücksetzen – fremde Dateien (Skript und Berichte des Matching-Skills, Beraterprofile …)
-/// sind nie dabei. Je Ordner eine Verzeichnisabfrage statt einer je Datei (Netzlaufwerk,
-/// tausende Textdateien).
+/// The app's files in the result folder that exist right now: the overviews, the known text
+/// files (plain file names only), leftover temporary files and remains of an earlier reset.
+/// The list for resetting - foreign files (script and reports of the matching skill,
+/// consultant profiles ...) are never included. One directory listing per folder instead of
+/// one query per file (network drive, thousands of text files).
 pub fn app_files(result_dir: &Path, txt_names: &[String]) -> Vec<PathBuf> {
     let mut files = files_in(result_dir, |name| {
         name.eq_ignore_ascii_case(XLSX_NAME)
@@ -157,8 +130,8 @@ pub fn app_files(result_dir: &Path, txt_names: &[String]) -> Vec<PathBuf> {
     files
 }
 
-/// Nur die Textdateien der App im Unterordner `beschreibungen_txt` – die Übersicht bleibt
-/// außen vor. Eine Liste für „Textdateien löschen“ und die Anzeige ihrer Zahl.
+/// Only the app's text files in the subfolder `beschreibungen_txt` - the overview stays out.
+/// One list for "delete text files" and the display of their number.
 pub fn txt_files(result_dir: &Path, txt_names: &[String]) -> Vec<PathBuf> {
     let known: HashSet<&str> = txt_names
         .iter()
@@ -193,11 +166,11 @@ fn is_tmp(name: &str) -> bool {
     name.starts_with(TMP_PREFIX) && name.ends_with(TMP_SUFFIX)
 }
 
-/// „Textdateien löschen“: entfernt **nur** die Textdateien der App ([`txt_files`]) – die
-/// Excel-Übersicht und fremde Dateien bleiben.
+/// "Delete text files": removes **only** the app's text files ([`txt_files`]) - the Excel
+/// overview and foreign files stay.
 ///
-/// Liefert die Zahl gelöschter Dateien und die Namen der Dateien, die sich nicht löschen
-/// ließen (z. B. gerade geöffnet).
+/// Returns the number of deleted files and the names of the files that could not be
+/// deleted (e.g. open right now).
 pub fn clear_txt_files(result_dir: &Path, txt_names: &[String]) -> (usize, Vec<String>) {
     let mut removed = 0;
     let mut failed = Vec::new();
@@ -211,12 +184,12 @@ pub fn clear_txt_files(result_dir: &Path, txt_names: &[String]) -> (usize, Vec<S
             ),
         }
     }
-    // Der Unterordner verschwindet nur, wenn er dadurch leer geworden ist.
+    // The subfolder only disappears if that made it empty.
     let _ = std::fs::remove_dir(result_dir.join(TXT_DIR));
     (removed, failed)
 }
 
-/// Nur ein Dateiname, kein Pfad – schützt „leeren“ vor manipulierten Einträgen.
+/// Only a file name, no path - protects "clear" against manipulated entries.
 pub(crate) fn is_plain_file_name(name: &str) -> bool {
     !name.is_empty()
         && !name.contains(['/', '\\', ':'])
@@ -242,8 +215,8 @@ mod tests {
         assert_eq!(leftovers.len(), 1);
     }
 
-    /// Schreibgeschützt ist nicht „in Excel geöffnet“.
-    #[cfg(windows)] // Unter Unix verhindert ein fehlendes Schreibbit das Ersetzen nicht.
+    /// Read-only is not "open in Excel".
+    #[cfg(windows)] // On Unix a missing write bit does not prevent replacing.
     #[test]
     fn read_only_target_is_no_lock() {
         let dir = tempfile::tempdir().unwrap();
@@ -256,13 +229,13 @@ mod tests {
         assert!(matches!(err, Error::Io { .. }), "{err:?}");
         #[expect(
             clippy::permissions_set_readonly_false,
-            reason = "Test: Schreibschutz wieder aufheben"
+            reason = "test: lift the write protection again"
         )]
         perms.set_readonly(false);
         std::fs::set_permissions(&path, perms).unwrap();
     }
 
-    /// Pfade über 260 Zeichen (tief verschachtelter Arbeitsordner).
+    /// Paths above 260 characters (deeply nested workspace).
     #[test]
     fn long_paths_are_written() {
         let dir = tempfile::tempdir().unwrap();
@@ -273,8 +246,8 @@ mod tests {
         assert_eq!(std::fs::read(long_path(&path)).unwrap(), b"zwei");
     }
 
-    /// Eine in Excel geöffnete Datei (Windows: ohne Freigabe zum Löschen) bleibt
-    /// unverändert, der Fehler heißt „gesperrt“.
+    /// A file open in Excel (Windows: without delete sharing) stays unchanged, the error
+    /// says "locked".
     #[cfg(windows)]
     #[test]
     fn locked_target_is_reported_and_kept() {
@@ -292,7 +265,7 @@ mod tests {
         drop(lock);
         assert_eq!(std::fs::read(&path).unwrap(), b"alt");
         let files = std::fs::read_dir(dir.path()).unwrap().count();
-        assert_eq!(files, 1, "keine temporären Reste");
+        assert_eq!(files, 1, "no temporary leftovers");
     }
 
     #[test]
@@ -311,7 +284,7 @@ mod tests {
             ),
             (txt.join("20260918_LinkedIn_A_4000000001.txt"), "app"),
             (txt.join("notiz.txt"), "fremd"),
-            // Rest eines abgebrochenen Schreibens.
+            // Remains of an interrupted write.
             (txt.join(".jam-ab12cd.tmp"), "halb"),
             (root.join("fremd.tmp"), "fremd"),
         ] {
@@ -322,7 +295,7 @@ mod tests {
             "..\\..\\evil.txt".to_string(),
             "missing.txt".to_string(),
         ];
-        // Gezählt wird genau, was gelöscht wird.
+        // Counted is exactly what gets deleted.
         assert_eq!(app_files(root, &names).len(), 3);
         assert_eq!(txt_files(root, &names).len(), 2);
         let (removed, failed) = clear_txt_files(root, &names);
@@ -330,11 +303,11 @@ mod tests {
         assert!(failed.is_empty());
         assert!(
             root.join(XLSX_NAME).exists(),
-            "die Übersicht bleibt: sie ist keine Textdatei"
+            "the overview stays: it is no text file"
         );
         assert!(!txt.join("20260918_LinkedIn_A_4000000001.txt").exists());
         assert!(!txt.join(".jam-ab12cd.tmp").exists());
-        assert!(txt.join("notiz.txt").exists(), "fremde Datei bleibt");
+        assert!(txt.join("notiz.txt").exists(), "a foreign file stays");
         assert!(root.join("fremd.tmp").exists());
         assert!(
             root.join("beschreibungen_matching")
