@@ -93,7 +93,7 @@ npm run build           # builds the UI into ui/dist
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo tauri build       # release bundles (NSIS on Windows, app/dmg on macOS)
+npx tauri build         # release bundles (NSIS on Windows, app/dmg on macOS), pinned Tauri CLI
 ```
 
 **Project layout:**

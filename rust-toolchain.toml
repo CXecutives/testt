@@ -1,7 +1,7 @@
 # One toolchain for the workstation and CI. Bump deliberately: from 1.98 on, the new clippy
 # lint `unused_async_trait_impl` fires on test mocks without `.await` in
 # core/src/mail/scan.rs and core/src/pipeline/tests.rs; those need a fix first.
-# CI adds the macOS targets for the universal bundle itself (not needed on Windows).
+# CI adds the macOS target itself: Apple Silicon only, aarch64-apple-darwin (not needed on Windows).
 [toolchain]
 channel = "1.95.0"
 components = ["rustfmt", "clippy"]
