@@ -251,10 +251,18 @@ export function sampleJobs(now: Date): JobView[] {
       detail: { kind: 'teaser' },
       match: scored(47, 'Projektcontrolling'),
     }),
-    sample(now, '1004', 'SAP FI Berater Migration', 'Datenwerk Süd', 'München', 52, {
-      workMode: 'onsite',
-      match: scored(28, 'SAP FI im Konzern'),
-    }),
+    sample(
+      now,
+      '1004',
+      'SAP FI Berater für die Migration der Konzernbuchhaltung auf S/4HANA mit weltweitem Rollout in vierzehn Ländern',
+      'Datenwerk Süd',
+      'München',
+      52,
+      {
+        workMode: 'onsite',
+        match: scored(28, 'SAP FI im Konzern'),
+      },
+    ),
     sample(now, '1005', 'Finance Manager Shared Service', 'Contoso Services', 'Leipzig', 300, {
       match: null,
       detail: { kind: 'failed', attempts: 3, retryAt: null },

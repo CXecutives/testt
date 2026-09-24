@@ -295,7 +295,8 @@
   --icon-stroke-sm: 1.75;
   --icon-stroke-md: 2;
   --icon-stroke-lg: 2;
-  /* Mail-style rows of one fixed height: title, meta and reason line (12 + 62 + 12). */
+  /* Mail-style rows: title, meta and reason line (12 + 62 + 12); a two-line title adds one
+     line of 20. */
   --row-height: 86px;
   /* The gutter of the unread dot, left of the ring. */
   --dot-gutter: 12px;
