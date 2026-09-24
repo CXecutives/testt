@@ -1193,6 +1193,16 @@ fn info_rows(store: &Store, started_at: Timestamp) -> Vec<(String, String)> {
         .unwrap_or_default();
     // Earlier versions stored the mail address among the rows; it stays out now.
     rows.retain(|(label, _)| label != LEGACY_ACCOUNT_LABEL);
+    // ... and their own words, read in today's until the next scan stores its rows.
+    let today = |text: &mut String| {
+        if let Some((_, new)) = texts::LEGACY_INFO.iter().find(|(old, _)| old == text) {
+            *text = (*new).to_owned();
+        }
+    };
+    for (label, value) in &mut rows {
+        today(label);
+        today(value);
+    }
     rows.push((texts::INFO_LAST_RUN.into(), time::display(started_at)));
     rows.push((
         texts::INFO_JOBS_TOTAL.into(),

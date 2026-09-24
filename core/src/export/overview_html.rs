@@ -1,6 +1,7 @@
 //! `JobAlerts.html`: a small, self-contained overview to open in any browser - the pinned
 //! jobs, or else the new matching jobs of the last mailbox run. Title, company, location,
-//! portal, link, score, met requirements and the exclusion note; never the full text.
+//! portal, link, score, up to two met requirements and the exclusion reason in words; never
+//! the full text.
 //! Everything from mails and portals is HTML-escaped; the page loads nothing from outside.
 
 use std::fmt::Write as _;
@@ -35,8 +36,13 @@ li { display: flex; gap: 16px; padding: 16px; margin: 0 0 8px; background: #fff;
 .job a { color: var(--slate); font-weight: 600; text-decoration: none; }
 .job a:hover { text-decoration: underline; }
 .sub { color: var(--low); font-size: 13px; }
-.met { margin: 4px 0 0; font-size: 13px; }
-.excluded { margin: 4px 0 0; font-size: 13px; color: var(--coral-800); }
+.met, .excluded { margin: 6px 0 0; font-size: 13px; }
+.tag { display: inline-block; margin: 2px 6px 0 0; padding: 0 8px; border-radius: 10px;
+  font-size: 12px; font-weight: 600; background: var(--line); color: var(--ink); }
+.met .tag:first-child { background: none; padding-left: 0; color: var(--low); }
+.met .tag { background: hsl(152 40% 92%); color: var(--high); font-weight: 400; }
+.excluded { color: var(--coral-800); }
+.excluded .tag { background: hsl(13 73% 92%); color: var(--coral-800); }
 ";
 
 /// Writes the overview; `pinned`: the jobs are the pinned ones (else the new matches).
@@ -82,8 +88,9 @@ fn render(jobs: &[JobRow], pinned: bool, now: Timestamp) -> String {
 
 fn item(out: &mut String, job: &JobRow) {
     let (company, location) = split_company_location(&job.company, &job.location);
+    // An excluded job keeps its score, but its ring shows no number (like in the app).
     let (class, score) = match &job.match_ {
-        Some(m) if m.status != MatchStatus::Unscorable => {
+        Some(m) if m.status == MatchStatus::Scored => {
             let class = match band(m.score) {
                 Band::High => "high",
                 Band::Mid => "mid",
@@ -91,6 +98,7 @@ fn item(out: &mut String, job: &JobRow) {
             };
             (class, m.score.to_string())
         }
+        Some(m) if m.status == MatchStatus::Excluded => ("none", String::new()),
         _ => ("none", "–".to_string()),
     };
     let sub: Vec<&str> = [company.as_str(), location.as_str(), job.key.portal.label()]
@@ -108,24 +116,34 @@ fn item(out: &mut String, job: &JobRow) {
         esc(&sub.join(" · ")),
     );
     if let Some(m) = &job.match_ {
-        let met: Vec<String> = m.top.iter().take(3).map(|t| esc(t)).collect();
-        if !met.is_empty() {
+        // The met requirements the list keeps (at most two), each as a tag after a caption.
+        if !m.top.is_empty() {
             let _ = write!(
                 out,
-                "<p class=\"met\">{}: {}</p>",
-                esc(texts::HTML_MET),
-                met.join(" · ")
+                "<p class=\"met\"><span class=\"tag\">{}</span>",
+                esc(texts::HTML_MET)
             );
+            for met in &m.top {
+                let _ = write!(out, "<span class=\"tag\">{}</span>", esc(met));
+            }
+            out.push_str("</p>");
         }
         match m.status {
             MatchStatus::Excluded => {
-                let why = m.note.as_ref().map(|n| n.code.as_str()).unwrap_or_default();
                 let _ = write!(
                     out,
-                    "<p class=\"excluded\">{} {}</p>",
-                    esc(texts::HTML_EXCLUDED),
-                    esc(why)
+                    "<p class=\"excluded\"><span class=\"tag\">{}</span>",
+                    esc(texts::HTML_EXCLUDED)
                 );
+                // The reason in words - never the engine's code.
+                if let Some(why) = m
+                    .note
+                    .as_ref()
+                    .and_then(|n| texts::exclusion_reason(&n.code, &n.params))
+                {
+                    out.push_str(&esc(why));
+                }
+                out.push_str("</p>");
             }
             MatchStatus::Unscorable => {
                 let _ = write!(out, "<p class=\"sub\">{}</p>", esc(texts::HTML_UNSCORABLE));
@@ -188,21 +206,25 @@ mod tests {
         }
     }
 
-    #[test]
-    fn portal_data_is_escaped_and_no_full_text_appears() {
-        let record = MatchRecord {
-            status: MatchStatus::Excluded,
-            score: 83,
-            note: Some(Notice {
-                code: "hardCriterion".into(),
+    fn record(status: MatchStatus, score: u8, note: Option<&str>) -> MatchRecord {
+        MatchRecord {
+            status,
+            score,
+            note: note.map(|code| Notice {
+                code: code.into(),
                 params: serde_json::Map::new(),
             }),
             must_met: 1,
             must_total: 2,
-            top: vec!["SAP <FI>".into()],
-        };
+            top: vec!["SAP <FI>".into(), "Konzernabschluss".into()],
+        }
+    }
+
+    #[test]
+    fn portal_data_is_escaped_and_no_full_text_appears() {
+        let scored = record(MatchStatus::Scored, 83, None);
         let html = render(
-            &[job("<script>alert(1)</script>", Some(record))],
+            &[job("<script>alert(1)</script>", Some(scored))],
             true,
             Timestamp::now(),
         );
@@ -210,12 +232,45 @@ mod tests {
         assert!(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
         assert!(html.contains("Muster &lt;GmbH&gt;") && html.contains("SAP &lt;FI&gt;"));
         assert!(html.contains("class=\"score high\"") && html.contains(">83<"));
-        assert!(html.contains(texts::HTML_EXCLUDED) && html.contains(texts::HTML_PINNED));
+        assert!(html.contains(texts::HTML_PINNED));
         assert!(!html.contains("Betreff"), "no mail data beyond the listing");
         assert!(
             !html.contains("http://") && !html.contains("<link"),
             "self-contained"
         );
+    }
+
+    /// Plain words (CLAUDE.md): no "Erfüllt: A · B", no dash in the title.
+    #[test]
+    fn the_overview_speaks_plainly() {
+        let html = render(
+            &[job("A", Some(record(MatchStatus::Scored, 83, None)))],
+            false,
+            Timestamp::now(),
+        );
+        assert!(!html.contains(&format!("{}:", texts::HTML_MET)), "{html}");
+        assert!(html.contains("<span class=\"tag\">Konzernabschluss</span>"));
+        assert!(html.contains(&format!("<title>{}</title>", texts::HTML_TITLE)));
+        assert!(!html.contains(" – ") && !html.contains(" - "), "{html}");
+    }
+
+    /// An excluded job keeps its score, but the ring shows no number; the reason is a
+    /// sentence, never the engine's code.
+    #[test]
+    fn an_excluded_job_shows_its_reason_in_words() {
+        let excluded = record(MatchStatus::Excluded, 86, Some("dayRate"));
+        let html = render(&[job("A", Some(excluded))], true, Timestamp::now());
+        assert!(html.contains("<div class=\"score none\" title=\"Passung\"></div>"));
+        assert!(
+            !html.contains(">86<") && !html.contains("score high"),
+            "{html}"
+        );
+        assert!(html.contains(texts::HTML_EXCLUDED));
+        assert!(html.contains("Der Tagessatz liegt unter dem Minimum im Profil."));
+        assert!(!html.contains("dayRate"), "{html}");
+        let unknown = record(MatchStatus::Excluded, 50, Some("somethingNew"));
+        let html = render(&[job("A", Some(unknown))], true, Timestamp::now());
+        assert!(html.contains(texts::HTML_EXCLUDED) && !html.contains("somethingNew"));
     }
 
     #[test]

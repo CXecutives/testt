@@ -40,8 +40,8 @@ use crate::platform;
 
 // ------------------------------------------------------------------ window title
 // User-facing text, German by product decision (UI language).
-/// Title of the visible sign-in window, after the portal's name ("freelance.de – Anmeldung").
-const TEXT_SIGN_IN_TITLE: &str = "Anmeldung";
+/// Title of the visible sign-in window, before the portal's name ("Anmeldung bei freelance.de").
+const TEXT_SIGN_IN_TITLE: &str = "Anmeldung bei";
 // ------------------------------------------------------------------ end of user-facing text
 
 /// How long a page may load.
@@ -186,7 +186,7 @@ impl Session {
         let site = self.site;
         let builder =
             WebviewWindowBuilder::new(&self.app, site.label(), WebviewUrl::External(url.clone()))
-                .title(format!("{} – {TEXT_SIGN_IN_TITLE}", site.portal.label()));
+                .title(format!("{TEXT_SIGN_IN_TITLE} {}", site.portal.label()));
         let window = platform::session_storage(builder, site.portal.key(), &self.profile)
             .inner_size(1100.0, 820.0)
             .center()
