@@ -160,7 +160,7 @@ export const text = {
     replay: 'Neu einblenden',
     archive: 'Archivieren',
     delete: 'Löschen',
-    archived: (title: string) => `„${title}“ archiviert.`,
+    archived: (name: string) => `„${name}“ archiviert.`,
     archivedMany: (n: number) => `${n} Jobs archiviert.`,
     undo: 'Rückgängig',
     reasonLabels: {
