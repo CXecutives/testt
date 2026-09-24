@@ -11,7 +11,7 @@
 
 use std::time::Duration;
 
-use reqwest::header::{ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderValue, LOCATION};
+use reqwest::header::{ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderValue, LOCATION, RETRY_AFTER};
 use reqwest::{Client, Response, StatusCode, redirect};
 use tokio_util::sync::CancellationToken;
 use url::Url;
@@ -130,7 +130,7 @@ impl HttpFetcher {
         if status.is_redirection() {
             return adapter.redirect_outcome(&location_path(&response));
         }
-        if let Some(outcome) = status_outcome(status) {
+        if let Some(outcome) = status_outcome(status, retry_after(&response)) {
             return outcome;
         }
         let path = response.url().path().to_ascii_lowercase();
@@ -152,16 +152,31 @@ impl PageFetcher for HttpFetcher {
 }
 
 /// Status codes that decide without looking at the content (`None` = judge the page).
-fn status_outcome(status: StatusCode) -> Option<PageOutcome> {
+/// `retry_after`: the portal's own wish, the shortest pause after a throttle.
+fn status_outcome(status: StatusCode, retry_after: Option<Duration>) -> Option<PageOutcome> {
     let code = status.as_u16();
     Some(match code {
         200 => return None,
         404 | 410 => PageOutcome::Gone,
-        429 | 500..=599 => PageOutcome::Throttled(Cause::Http(code)),
+        429 | 500..=599 => PageOutcome::Throttled {
+            cause: Cause::Http(code),
+            retry_after,
+        },
         // 999 is LinkedIn's own "bot detected".
         403 | 999 => PageOutcome::Blocked(Cause::Http(code)),
         _ => PageOutcome::Suspicious(Cause::Http(code)),
     })
+}
+
+/// The portal's `Retry-After`: seconds or an HTTP date (a date in the past is none).
+fn retry_after(response: &Response) -> Option<Duration> {
+    let value = response.headers().get(RETRY_AFTER)?.to_str().ok()?.trim();
+    if let Ok(seconds) = value.parse::<u64>() {
+        return Some(Duration::from_secs(seconds));
+    }
+    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
+    let wait = at.duration_since(jiff::Timestamp::now());
+    wait.is_positive().then(|| wait.unsigned_abs())
 }
 
 /// Path of the redirect target (lower case) - for a relative address too.
@@ -268,10 +283,16 @@ mod tests {
                 matches!(o, PageOutcome::Gone)
             }),
             (ResponseTemplate::new(429), |o| {
-                matches!(o, PageOutcome::Throttled(Cause::Http(429)))
+                matches!(
+                    o,
+                    PageOutcome::Throttled {
+                        cause: Cause::Http(429),
+                        retry_after: None
+                    }
+                )
             }),
             (ResponseTemplate::new(503), |o| {
-                matches!(o, PageOutcome::Throttled(_))
+                matches!(o, PageOutcome::Throttled { .. })
             }),
             (ResponseTemplate::new(999), |o| {
                 matches!(o, PageOutcome::Blocked(Cause::Http(999)))
@@ -527,6 +548,41 @@ mod tests {
             .await,
             PageOutcome::Gone
         );
+    }
+
+    /// Retry-After in seconds or as an HTTP date travels with the throttle; a date in the
+    /// past or garbage is none.
+    #[tokio::test]
+    async fn retry_after_travels_with_the_throttle() {
+        let (server, mut f) = server().await;
+        let in_two_hours = (jiff::Timestamp::now() + jiff::SignedDuration::from_hours(2))
+            .strftime("%a, %d %b %Y %H:%M:%S GMT")
+            .to_string();
+        let cases = [
+            ("3600", Some((3600, 3600))),
+            (in_two_hours.as_str(), Some((7000, 7200))),
+            ("Wed, 21 Oct 2015 07:28:00 GMT", None),
+            ("bald", None),
+        ];
+        for (header, expected) in cases {
+            server.reset().await;
+            Mock::given(path(LI_GUEST))
+                .respond_with(ResponseTemplate::new(429).insert_header("retry-after", header))
+                .mount(&server)
+                .await;
+            let outcome = fetch(&mut f, LI).await;
+            let PageOutcome::Throttled { retry_after, .. } = outcome else {
+                panic!("{outcome:?}");
+            };
+            let seconds = retry_after.map(|d| d.as_secs());
+            match expected {
+                Some((min, max)) => assert!(
+                    seconds.is_some_and(|s| (min..=max).contains(&s)),
+                    "{header}: {seconds:?}"
+                ),
+                None => assert_eq!(seconds, None, "{header}"),
+            }
+        }
     }
 
     #[tokio::test]

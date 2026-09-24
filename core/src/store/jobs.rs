@@ -7,6 +7,7 @@ use url::Url;
 
 use super::{Store, bump};
 use crate::error::{Error, Result};
+use crate::fetch::policy::MAX_FETCH_ATTEMPTS;
 use crate::model::{
     AlertMail, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord, Posting,
     is_usable_title,
@@ -15,8 +16,6 @@ use crate::portal::{JobKey, Portal};
 use crate::text::{one_line, page_location, split_company_location, truncate_chars};
 use crate::time::{from_db, to_db};
 
-/// After this many failed attempts a job counts as unfetchable.
-const MAX_FETCH_ATTEMPTS: i64 = 3;
 /// Maximum length of a stored failure reason (in characters).
 const MAX_ERROR_CHARS: usize = 200;
 
@@ -492,17 +491,37 @@ impl Store {
     /// The reason often comes from the page (redirect target, script error) - it is stored
     /// as one short line.
     pub fn record_failed(&self, key: &JobKey, error: &str, now: Timestamp) -> Result<DescStatus> {
+        self.record_failure(key, error, now, true)
+    }
+
+    /// Like [`Store::record_failed`]; `count_attempt: false` records the failure without
+    /// costing the job an attempt (a page in a series of suspicious pages - the portal's
+    /// fault, not the job's).
+    pub fn record_failure(
+        &self,
+        key: &JobKey,
+        error: &str,
+        now: Timestamp,
+        count_attempt: bool,
+    ) -> Result<DescStatus> {
         let error = truncate_chars(&one_line(error), MAX_ERROR_CHARS);
         let status: String = self.write(|conn| {
             let updated: Option<String> = conn
                 .query_row(
-                    "UPDATE job SET desc_attempts = desc_attempts + 1, desc_attempted_at = ?3, desc_error = ?4,
+                    "UPDATE job SET desc_attempts = desc_attempts + ?6, desc_attempted_at = ?3, desc_error = ?4,
                                     desc_status = CASE WHEN desc_status = 'teaser' THEN 'teaser'
-                                                       WHEN desc_attempts + 1 >= ?5 THEN 'unfetchable'
+                                                       WHEN desc_attempts + ?6 >= ?5 THEN 'unfetchable'
                                                        ELSE 'failed' END
                      WHERE portal = ?1 AND job_id = ?2 AND desc_status <> 'ok'
                      RETURNING desc_status",
-                    params![key.portal.key(), key.id, to_db(now), error, MAX_FETCH_ATTEMPTS],
+                    params![
+                        key.portal.key(),
+                        key.id,
+                        to_db(now),
+                        error,
+                        MAX_FETCH_ATTEMPTS,
+                        i64::from(count_attempt)
+                    ],
                     |r| r.get(0),
                 )
                 .optional()?;
@@ -609,18 +628,19 @@ pub(super) const JOB_COLUMN_COUNT: usize = 26;
 
 /// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
 /// or a teaser (right away, after a failed attempt like a failure, at most
-/// `MAX_FETCH_ATTEMPTS` times) - mail not older than `?1`. Teasers are only fetched on a
-/// session path (`fetch::fetch_all`).
+/// `MAX_FETCH_ATTEMPTS` = `?3` times) - mail not older than `?1`. Teasers are only fetched
+/// on a session path (`fetch::fetch_all`).
 const DUE: &str = "COALESCE(mail_date, first_seen_at) >= ?1
     AND (desc_status = 'missing'
          OR (desc_status = 'failed' AND COALESCE(desc_attempted_at, 0) <= ?2)
-         OR (desc_status = 'teaser' AND desc_attempts < 3
+         OR (desc_status = 'teaser' AND desc_attempts < ?3
              AND (desc_attempts = 0 OR COALESCE(desc_attempted_at, 0) <= ?2)))";
 
-fn due_params(now: Timestamp, max_age: SignedDuration, retry_after: SignedDuration) -> [i64; 2] {
+fn due_params(now: Timestamp, max_age: SignedDuration, retry_after: SignedDuration) -> [i64; 3] {
     [
         to_db(now.saturating_sub(max_age).unwrap_or(Timestamp::MIN)),
         to_db(now.saturating_sub(retry_after).unwrap_or(Timestamp::MIN)),
+        i64::from(MAX_FETCH_ATTEMPTS),
     ]
 }
 

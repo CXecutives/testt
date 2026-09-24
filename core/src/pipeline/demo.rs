@@ -147,7 +147,10 @@ impl PageFetcher for DemoPages {
             return PageOutcome::Cancelled;
         }
         if link.key.portal == Portal::FreelanceDe {
-            return PageOutcome::Throttled(Cause::DrySample);
+            return PageOutcome::Throttled {
+                cause: Cause::DrySample,
+                retry_after: None,
+            };
         }
         PageOutcome::Text {
             text: format!(

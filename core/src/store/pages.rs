@@ -3,9 +3,9 @@
 
 use rusqlite::{OptionalExtension, params};
 
-use super::Store;
+use super::{Store, bump};
 use crate::error::Result;
-use crate::portal::{Facts, JobKey};
+use crate::portal::{Facts, JobKey, Portal};
 
 impl Store {
     /// The parser that judged the job last, and the facts its page stated (`None` keeps the
@@ -28,6 +28,24 @@ impl Store {
             params![key.portal.key(), key.id, parser_version, replace, json],
         )?;
         Ok(())
+    }
+
+    /// After a parser update: the jobs of `portal` that an older parser judged as failed or
+    /// unfetchable are open again, with fresh attempts. Returns their number.
+    pub fn requeue_older_parses(&self, portal: Portal, parser_version: u32) -> Result<usize> {
+        self.write(|conn| {
+            let changed = conn.execute(
+                "UPDATE job SET desc_status = 'missing', desc_attempts = 0, desc_error = NULL,
+                                desc_attempted_at = NULL
+                 WHERE portal = ?1 AND desc_status IN ('failed', 'unfetchable')
+                   AND COALESCE(parser_version, 0) < ?2",
+                params![portal.key(), parser_version],
+            )?;
+            if changed > 0 {
+                bump(conn)?;
+            }
+            Ok(changed)
+        })
     }
 
     /// The parser version that judged the job last (`None`: never judged, or before

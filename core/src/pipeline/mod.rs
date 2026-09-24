@@ -656,11 +656,22 @@ async fn scan_step<B: Backends>(
     )
     .await;
     let s = &*scanned;
+    // Per portal: as soon as all of a portal's alert mails came without a job, its mail
+    // layout probably changed - even while the other portals are fine.
+    for (portal, mails) in s.empty_portals() {
+        log::warn!(
+            "run {run}: {}: {mails} alert mails but no jobs recognised - mail layout changed?",
+            portal.key()
+        );
+        emit(RunEvent::PortalHealth {
+            portal,
+            health: PortalHealth::LayoutSuspect {
+                empty_mails: mails,
+                pages: 0,
+            },
+        });
+    }
     match &result {
-        Ok(()) if s.alert_mails > 0 && s.postings_total == 0 => log::warn!(
-            "run {run}: {} alert mails but no jobs recognised - mail layout changed?",
-            s.alert_mails
-        ),
         Ok(()) => log::info!(
             "run {run}: mailbox checked: {} mails, {} alert mails, {} new, {} known, {} duplicates",
             s.mails_checked,
@@ -704,6 +715,10 @@ async fn fetch_step<B: Backends>(
         clock,
         fetched,
         |event| match event {
+            FetchEvent::Requeued { portal, count } => log::info!(
+                "run {run}: {}: {count} failed jobs open again after a parser update",
+                portal.key()
+            ),
             FetchEvent::Queued { total } => log::info!("run {run}: job details: {total} open"),
             FetchEvent::Fetching { portal } => {
                 announce(&mut activity, StatusCode::FetchingDetails, portal, emit);
@@ -726,7 +741,12 @@ async fn fetch_step<B: Backends>(
                     });
                 }
             }
-            FetchEvent::PortalStopped { portal, reason, .. } => {
+            FetchEvent::PortalStopped {
+                portal,
+                reason,
+                skipped,
+            } => {
+                log::info!("run {run}: {}", reason.log_line(portal, skipped));
                 emit(RunEvent::PortalHealth {
                     portal,
                     health: reason.health(),

@@ -398,10 +398,12 @@ fn guest_findings(html: &str) -> SessionPage {
 /// Status codes that decide without looking at the content.
 fn status_outcome(status: u16) -> Option<PageOutcome> {
     Some(match status {
-        429 => PageOutcome::Throttled(Cause::Http(429)),
+        429 | 500..=599 => PageOutcome::Throttled {
+            cause: Cause::Http(status),
+            retry_after: None,
+        },
         403 => PageOutcome::Blocked(Cause::Http(403)),
         404 | 410 => PageOutcome::Gone,
-        500..=599 => PageOutcome::Throttled(Cause::Http(status)),
         _ => return None,
     })
 }
@@ -819,7 +821,10 @@ pub(crate) mod tests {
         limited.status = 429;
         assert!(matches!(
             judge_page(&limited, ID),
-            PageOutcome::Throttled(Cause::Http(429))
+            PageOutcome::Throttled {
+                cause: Cause::Http(429),
+                ..
+            }
         ));
         assert_eq!(
             judge_page(

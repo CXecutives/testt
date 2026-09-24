@@ -4,6 +4,8 @@
 //! already processed. Ingestion is idempotent: overlapping periods do no harm, so there
 //! are no UID pointers (and no UIDVALIDITY traps), only one timestamp per portal.
 
+use std::collections::BTreeMap;
+
 use jiff::civil::Date;
 use jiff::{Timestamp, ToSpan as _};
 use tokio_util::sync::CancellationToken;
@@ -45,6 +47,27 @@ pub struct ScanSummary {
     pub new: usize,
     pub known_before: usize,
     pub dup_in_run: usize,
+    /// Per portal: its alert mails and the jobs they carried - a portal whose mails carry
+    /// no job at all probably changed its mail layout.
+    #[serde(skip)]
+    pub per_portal: BTreeMap<Portal, PortalScan>,
+}
+
+/// Alert mails of one portal in a scan.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PortalScan {
+    pub alert_mails: usize,
+    pub postings: usize,
+}
+
+impl ScanSummary {
+    /// Portals whose alert mails all came without a single job, with their mail count.
+    pub fn empty_portals(&self) -> impl Iterator<Item = (Portal, usize)> + '_ {
+        self.per_portal
+            .iter()
+            .filter(|(_, s)| s.alert_mails > 0 && s.postings == 0)
+            .map(|(&portal, s)| (portal, s.alert_mails))
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -169,6 +192,9 @@ fn take_alert(
     // holds even after an error.
     let seen = store.record_alert(run, alert, now)?;
     summary.alert_mails += 1;
+    let portal = summary.per_portal.entry(alert.portal).or_default();
+    portal.alert_mails += 1;
+    portal.postings += alert.postings.len();
     if alert.postings.is_empty() {
         summary.zero_posting_mails += 1;
     }
@@ -321,6 +347,22 @@ mod tests {
         // Second run: nothing new.
         let (s, _) = run_scan(&store, &mut fake(None), Scope::New, now()).await;
         assert_eq!((s.new, s.known_before, s.dup_in_run), (0, 3, 1));
+    }
+
+    /// A portal whose alert mails all came without a job is named - others with jobs not.
+    #[tokio::test]
+    async fn a_portal_with_only_empty_alerts_is_named() {
+        let store = Store::in_memory().unwrap();
+        let (s, result) = run_scan(&store, &mut fake(None), Scope::New, now()).await;
+        result.unwrap();
+        assert_eq!(s.empty_portals().count(), 0, "LinkedIn mails carried jobs");
+        let mut empty = fake(None);
+        empty.mails.retain(|(uid, _)| *uid >= 5);
+        let (s, _) = run_scan(&Store::in_memory().unwrap(), &mut empty, Scope::New, now()).await;
+        assert_eq!(
+            s.empty_portals().collect::<Vec<_>>(),
+            [(Portal::LinkedIn, 56)]
+        );
     }
 
     #[tokio::test]

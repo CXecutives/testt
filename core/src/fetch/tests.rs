@@ -486,7 +486,13 @@ async fn a_full_text_between_resets_the_breaker_but_a_short_one_does_not() {
 async fn throttle_pauses_the_portal_across_runs_without_costing_attempts() {
     let c = clock();
     let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 2), (LI, 4_000_000_001, 1)]);
-    let fake = Fake::default().with("10001", [PageOutcome::Throttled(Cause::Http(429))]);
+    let fake = Fake::default().with(
+        "10001",
+        [PageOutcome::Throttled {
+            cause: Cause::Http(429),
+            retry_after: None,
+        }],
+    );
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -611,7 +617,7 @@ async fn network_error_is_retried_once_after_30_seconds() {
     .await;
     assert_eq!(fake.ids(), ["10001", "10001", "10002", "10002"]);
     let calls = fake.calls();
-    assert!(calls[1].start - calls[0].start >= NET_RETRY_DELAY);
+    assert!(calls[1].start - calls[0].start >= NET_RETRY);
     assert_eq!(
         store.job(&key(FM, 10_001)).unwrap().unwrap().desc_status,
         DescStatus::Ok
@@ -1367,4 +1373,113 @@ async fn without_the_sign_in_switch_no_window_ever_opens() {
         !policy.state(FL).login_needed,
         "the guest path says nothing about a session"
     );
+}
+
+/// The portal's own Retry-After is the shortest pause - longer than the usual hour here.
+#[tokio::test(start_paused = true)]
+async fn retry_after_is_honoured_as_the_shortest_pause() {
+    let c = clock();
+    let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 1)]);
+    let fake = Fake::default().with(
+        "10001",
+        [PageOutcome::Throttled {
+            cause: Cause::Http(429),
+            retry_after: Some(Duration::from_secs(3 * 3600)),
+        }],
+    );
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[FM]), &c).await;
+    let wished = base() + SignedDuration::from_hours(3);
+    assert!(
+        matches!(&r.stops[0], (FM, StopReason::Paused { until, .. }, 2) if *until >= wished),
+        "{:?}",
+        r.stops
+    );
+    // Two hours later - past the usual hour - the portal still rests.
+    assert!(matches!(
+        policy.allowance(FM, base() + SignedDuration::from_hours(2)),
+        Allowance::Paused { .. }
+    ));
+    // A shorter wish never shortens the usual pause.
+    let mut policy = Policy::in_memory();
+    let until = policy.pause_at_least(
+        FM,
+        PauseKind::Throttled,
+        "http429",
+        base(),
+        Some(Duration::from_secs(60)),
+    );
+    assert_eq!(until, base() + SignedDuration::from_hours(1));
+}
+
+/// After a parser update the failed and given-up jobs of that portal are fetched again -
+/// the others, and jobs the current parser judged, stay as they are.
+#[tokio::test(start_paused = true)]
+async fn a_parser_update_requeues_the_failed_jobs_of_its_portal() {
+    let c = clock();
+    let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 1), (FM, 10_003, 1)]);
+    let (old, current, gone) = (key(FM, 10_001), key(FM, 10_002), key(FM, 10_003));
+    for _ in 0..3 {
+        store.record_failed(&old, "noDescription", base()).unwrap();
+    }
+    store.record_parse(&old, 0, None).unwrap();
+    store
+        .record_failed(&current, "noDescription", base())
+        .unwrap();
+    store
+        .record_parse(&current, FM.adapter().parser_version(), None)
+        .unwrap();
+    store.record_gone(&gone, base()).unwrap();
+    assert_eq!(
+        store.job(&old).unwrap().unwrap().desc_status,
+        DescStatus::Unfetchable
+    );
+    let fake = Fake::default();
+    let r = run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Queue(&[FM]),
+        &c,
+    )
+    .await;
+    assert_eq!(fake.ids(), ["10001"], "only the job of the older parser");
+    assert_eq!(r.summary.per_portal[&FM].ok, 1);
+    let job = store.job(&old).unwrap().unwrap();
+    assert_eq!((job.desc_status, job.desc_attempts), (DescStatus::Ok, 0));
+    assert_eq!(
+        store.parser_version(&old).unwrap(),
+        Some(FM.adapter().parser_version())
+    );
+    assert_eq!(
+        store.job(&current).unwrap().unwrap().desc_status,
+        DescStatus::Failed
+    );
+    assert_eq!(
+        store.job(&gone).unwrap().unwrap().desc_status,
+        DescStatus::Gone
+    );
+}
+
+/// A series of suspicious pages (layout changed?) costs ONE attempt - the portal's fault
+/// must not use up the attempts of every job it touched.
+#[tokio::test(start_paused = true)]
+async fn a_breaker_series_costs_one_attempt() {
+    let c = clock();
+    let store = store_with(&[(LI, 4_000_000_001, 1), (LI, 4_000_000_002, 2)]);
+    let fake = Fake::default()
+        .with("4000000001", [suspicious()])
+        .with("4000000002", [suspicious()]);
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[LI]), &c).await;
+    assert!(matches!(
+        r.stops.as_slice(),
+        [(LI, StopReason::Breaker { .. }, 0)]
+    ));
+    let attempts = |id| {
+        let job = store.job(&key(LI, id)).unwrap().unwrap();
+        (job.desc_status, job.desc_attempts)
+    };
+    assert_eq!(attempts(4_000_000_001), (DescStatus::Failed, 1));
+    assert_eq!(attempts(4_000_000_002), (DescStatus::Failed, 0));
 }

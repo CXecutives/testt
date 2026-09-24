@@ -33,16 +33,11 @@ use crate::model::DescStatus;
 use crate::portal::{Access, Facts, JobKey, JobLink, PORTALS, Portal, PortalAdapter};
 use crate::store::{JobRow, Store};
 use http::HttpFetcher;
-use policy::{Allowance, PauseKind, PauseReason, Policy};
+use policy::{Allowance, NET_RETRY, PauseKind, PauseReason, Policy};
+pub use policy::{MAX_AGE, RETRY_AFTER};
 
 /// From this length on a text counts as complete without further checks.
 const MIN_TEXT_CHARS: usize = 100;
-/// Only jobs from mails of the last 30 days are fetched automatically (older ones per click).
-pub const MAX_AGE: SignedDuration = SignedDuration::from_hours(30 * 24);
-/// A failed fetch is retried after 12 hours at the earliest.
-pub const RETRY_AFTER: SignedDuration = SignedDuration::from_hours(12);
-/// After a network error: retry once, after this wait.
-const NET_RETRY_DELAY: Duration = Duration::from_secs(30);
 /// Longer waits are announced beforehand (the interface shows a countdown).
 const WAIT_NOTICE: Duration = Duration::from_secs(1);
 /// So many suspicious pages in a row stop a portal for the run.
@@ -156,7 +151,11 @@ pub enum PageOutcome {
     Suspicious(Cause),
     /// Only readable with a (new) sign-in.
     LoginRequired(Cause),
-    Throttled(Cause),
+    /// Rate limited; `retry_after`: the portal's own `Retry-After`, the shortest pause.
+    Throttled {
+        cause: Cause,
+        retry_after: Option<Duration>,
+    },
     Blocked(Cause),
     NetError {
         timeout: bool,
@@ -288,6 +287,37 @@ pub enum PortalHealth {
     LoginRequired,
 }
 
+impl PortalHealth {
+    /// The one backend truth about a portal, from its safety state: pause, cap, sign-in
+    /// needed (only with the sign-in switched on - otherwise the portal goes as a guest),
+    /// layout suspect (`empty_mails`: alert mails without jobs; or pages without a
+    /// description in a row) - in this order.
+    pub fn of(
+        policy: &Policy,
+        portal: Portal,
+        now: Timestamp,
+        login_enabled: bool,
+        empty_mails: usize,
+    ) -> PortalHealth {
+        let state = policy.state(portal);
+        match policy.allowance(portal, now) {
+            Allowance::Paused { until, reason, .. } => PortalHealth::Paused {
+                until: Some(until),
+                reason,
+            },
+            Allowance::Quota { next_at } => PortalHealth::QuotaReached { until: next_at },
+            Allowance::Go if login_enabled && state.login_needed => PortalHealth::LoginRequired,
+            Allowance::Go if empty_mails > 0 || state.suspicious_streak > 0 => {
+                PortalHealth::LayoutSuspect {
+                    empty_mails,
+                    pages: state.suspicious_streak,
+                }
+            }
+            Allowance::Go => PortalHealth::Ok,
+        }
+    }
+}
+
 /// Why a portal is not fetched (any further) in this run.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StopReason {
@@ -385,6 +415,11 @@ pub struct FetchSummary {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FetchEvent {
+    /// After a parser update: so many failed jobs of the portal are open again.
+    Requeued {
+        portal: Portal,
+        count: usize,
+    },
     Queued {
         total: usize,
     },
@@ -551,6 +586,16 @@ pub async fn fetch_all<F: PageFetcher>(
     summary: &mut FetchSummary,
     mut on_event: impl FnMut(FetchEvent),
 ) -> crate::Result<bool> {
+    // After a parser update the portal's failed jobs get a fresh chance.
+    if let Selection::Queue(portals) = selection {
+        for adapter in PORTALS.iter().filter(|a| portals.contains(&a.portal())) {
+            let portal = adapter.portal();
+            let count = store.requeue_older_parses(portal, adapter.parser_version())?;
+            if count > 0 {
+                on_event(FetchEvent::Requeued { portal, count });
+            }
+        }
+    }
     let queue = queue(store, selection, clock())?;
     let mut by_portal: BTreeMap<Portal, Vec<JobRow>> = BTreeMap::new();
     for job in queue {
@@ -691,16 +736,17 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 notes,
                 FetchEvent::Waiting {
                     portal,
-                    until: until(clock(), NET_RETRY_DELAY),
+                    until: until(clock(), NET_RETRY),
                 },
             );
-            if !sleep_for(NET_RETRY_DELAY, cancel).await {
+            if !sleep_for(NET_RETRY, cancel).await {
                 return Ok((counts, false));
             }
             outcome = match access(&mut fetcher, policy, &link, cancel, clock, notes).await? {
-                Ok(PageOutcome::NetError { timeout: true, .. }) => {
-                    PageOutcome::Throttled(Cause::NoAnswerTwice)
-                }
+                Ok(PageOutcome::NetError { timeout: true, .. }) => PageOutcome::Throttled {
+                    cause: Cause::NoAnswerTwice,
+                    retry_after: None,
+                },
                 Ok(outcome) => outcome,
                 Err(reason) => {
                     stop(&mut counts, &reason, remaining, portal, notes);
@@ -803,7 +849,11 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 None
             }
             PageOutcome::Suspicious(cause) => {
-                let status = store.record_failed(&job.key, &cause.to_string(), now)?;
+                // A series of suspicious pages in a row (layout changed?) is the portal's
+                // fault, not the jobs': the whole series costs ONE attempt - its first page.
+                let streak = lock(policy).count_suspicious(portal);
+                let status =
+                    store.record_failure(&job.key, &cause.to_string(), now, streak <= 1)?;
                 store.record_parse(&job.key, parser_version, None)?;
                 counts.failed += 1;
                 note(
@@ -815,26 +865,19 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                 );
                 // Two in a row - across runs too - stop the portal and pause it for an hour:
                 // the page layout has probably changed.
-                let mut policy = lock(policy);
-                (policy.count_suspicious(portal) >= SUSPICIOUS_STREAK).then(|| {
-                    StopReason::Breaker {
-                        until: policy.pause_for(
-                            portal,
-                            PauseKind::Throttled,
-                            PauseReason::LayoutChanged,
-                            &Cause::Breaker.to_string(),
-                            now,
-                        ),
-                    }
+                (streak >= SUSPICIOUS_STREAK).then(|| StopReason::Breaker {
+                    until: lock(policy).pause_for(
+                        portal,
+                        PauseKind::Throttled,
+                        PauseReason::LayoutChanged,
+                        &Cause::Breaker.to_string(),
+                        now,
+                    ),
                 })
             }
             // The guest path has no sign-in: the portal waits for the next run.
-            PageOutcome::LoginRequired(cause) if !session => {
-                log::info!("{}: sign-in needed ({cause})", portal.key());
-                Some(StopReason::LoginRequired)
-            }
-            PageOutcome::LoginRequired(cause) => {
-                log::info!("{}: sign-in needed ({cause})", portal.key());
+            PageOutcome::LoginRequired(_) if !session => Some(StopReason::LoginRequired),
+            PageOutcome::LoginRequired(_) => {
                 {
                     let mut policy = lock(policy);
                     policy.set_session(portal, false, now);
@@ -881,9 +924,16 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                     }
                 }
             }
-            PageOutcome::Throttled(cause) => {
+            PageOutcome::Throttled { cause, retry_after } => {
+                // The portal's own Retry-After is the shortest pause.
                 let detail = cause.to_string();
-                let until = lock(policy).pause(portal, PauseKind::Throttled, &detail, now);
+                let until = lock(policy).pause_at_least(
+                    portal,
+                    PauseKind::Throttled,
+                    &detail,
+                    now,
+                    retry_after,
+                );
                 Some(StopReason::Paused {
                     until,
                     reason: PauseReason::Throttled,
@@ -974,7 +1024,6 @@ fn stop(
     portal: Portal,
     notes: &mpsc::UnboundedSender<Note>,
 ) {
-    log::info!("{}", reason.log_line(portal, skipped));
     counts.skipped += skipped;
     note(
         notes,

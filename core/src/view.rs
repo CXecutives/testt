@@ -13,7 +13,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::error::ErrorInfo;
-use crate::fetch::policy::{Allowance, Policy, limits};
+use crate::fetch::policy::{Policy, limits};
 use crate::fetch::{PortalHealth, RETRY_AFTER};
 use crate::model::{
     Band, DescStatus, MatchRecord, MatchStatus, Notice, band, gmail_url, is_usable_title,
@@ -662,21 +662,7 @@ pub fn portal_states(
                 _ => Risk::Grey,
             };
             let empty = empty_mails.iter().filter(|m| m.portal == portal).count();
-            let health = match policy.allowance(portal, now) {
-                Allowance::Paused { until, reason, .. } => PortalHealth::Paused {
-                    until: Some(until),
-                    reason,
-                },
-                Allowance::Quota { next_at } => PortalHealth::QuotaReached { until: next_at },
-                Allowance::Go if signed_in == Some(false) => PortalHealth::LoginRequired,
-                Allowance::Go if empty > 0 || state.suspicious_streak > 0 => {
-                    PortalHealth::LayoutSuspect {
-                        empty_mails: empty,
-                        pages: state.suspicious_streak,
-                    }
-                }
-                Allowance::Go => PortalHealth::Ok,
-            };
+            let health = PortalHealth::of(policy, portal, now, switches.login_enabled, empty);
             PortalState {
                 portal,
                 enabled: switches.enabled,
@@ -1083,6 +1069,19 @@ mod tests {
         assert_eq!(state(&policy).risk, Risk::Account);
         policy.set_session(Portal::FreelanceDe, false, now);
         assert_eq!(state(&policy).signed_in, Some(false));
-        assert_eq!(state(&policy).health, PortalHealth::LoginRequired);
+        // Sign-in switched off: the portal goes as a guest, nothing is wrong.
+        assert_eq!(state(&policy).health, PortalHealth::Ok);
+        let mut settings = settings.clone();
+        settings
+            .portals
+            .get_mut(&Portal::FreelanceDe)
+            .unwrap()
+            .login_enabled = true;
+        let health = portal_states(&policy, &settings, &[], now)
+            .into_iter()
+            .find(|s| s.portal == Portal::FreelanceDe)
+            .unwrap()
+            .health;
+        assert_eq!(health, PortalHealth::LoginRequired);
     }
 }
