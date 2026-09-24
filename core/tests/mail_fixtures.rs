@@ -1,7 +1,8 @@
-//! Eingecheckte, anonymisierte Alert-Mails (erfundene Firmen und IDs, Aufbau wie echte
-//! Alerts: je Portal zwei Layouts und eine Weiterleitung als Anhang) – Ergebnis als
-//! Snapshot. Liegen private echte Mails vor (`fixtures/private/mails`, nicht eingecheckt),
-//! werden sie zusätzlich durchlaufen (ohne Snapshot, nur: kein Absturz, Zahlen).
+//! Checked-in, anonymised alert mails (invented companies and ids, structured like real
+//! alerts: two layouts per portal plus one forward as an attachment) - result as a
+//! snapshot. When private real mails are present (`fixtures/private/mails`, not checked
+//! in), they run through too (no snapshot, just: no crash, counts). The classifier's
+//! output strings ("kein Alert", "unlesbar") are snapshot data, do not translate.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -18,6 +19,7 @@ fn describe(bytes: Vec<u8>) -> String {
         },
         &Portal::ALL,
     ) {
+        // Snapshot data, do not translate.
         MailKind::Other => "kein Alert\n".into(),
         MailKind::Defective => "unlesbar\n".into(),
         MailKind::Alert(alert) => {
@@ -49,10 +51,7 @@ fn checked_in_alert_mails() {
         .map(|e| e.path())
         .collect();
     names.sort();
-    assert!(
-        names.len() >= 9,
-        "je Portal zwei Layouts und eine Weiterleitung"
-    );
+    assert!(names.len() >= 9, "two layouts per portal plus one forward");
     for path in names {
         let name = path.file_stem().unwrap().to_string_lossy().to_string();
         insta::assert_snapshot!(name, describe(std::fs::read(&path).unwrap()));
@@ -63,7 +62,7 @@ fn checked_in_alert_mails() {
 fn private_real_mails_when_available() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/private/mails");
     let Ok(entries) = std::fs::read_dir(&dir) else {
-        eprintln!("übersprungen: keine privaten Mails in {}", dir.display());
+        eprintln!("skipped: no private mails in {}", dir.display());
         return;
     };
     let (mut alerts, mut postings, mut other) = (0, 0, 0);
@@ -82,13 +81,13 @@ fn private_real_mails_when_available() {
             }
             _ => other += 1,
         }
-        // Vollständig ausgeben (`--nocapture`): an echten Mails zeigt sich, ob Titel, Firma
-        // und Ort stimmen – zählen allein verrät das nicht.
+        // Print in full (`--nocapture`): real mails show whether title, company and
+        // location are right - counting alone doesn't reveal that.
         eprintln!(
             "--- {}\n{}",
             entry.file_name().to_string_lossy(),
             describe(bytes)
         );
     }
-    eprintln!("private Mails: {alerts} Alerts mit {postings} Einträgen, {other} ohne Alert");
+    eprintln!("private mails: {alerts} alerts with {postings} entries, {other} without an alert");
 }

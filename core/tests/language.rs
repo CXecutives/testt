@@ -1,0 +1,211 @@
+//! English-only sweep (see `CLAUDE.md`): every git-tracked text file must be English in
+//! its comments and doc text. Exceptions are data and user-facing German text by product
+//! decision (see `ALLOWLIST_PATHS`) and, for now, the tracks other agents are translating
+//! in parallel (see `PENDING_PATHS`, which the integrator removes once those tracks land).
+//!
+//! The check only looks at comment lines (or, for Markdown, the whole line - Markdown has
+//! no other kind of "code"), not at string literals: data such as mail/page parsing
+//! patterns, profile JSON keys or test fixtures is allowed to be German by contract and is
+//! never scanned here, matching `CLAUDE.md`'s "everything in the repo is English (code,
+//! comments, docs, logs, errors, tests, CI, commits)" rule with its documented exceptions.
+
+use std::path::Path;
+use std::process::Command;
+
+/// Whole files or directories that stay German on purpose and are not scanned: data
+/// fixtures and snapshots, generated third-party licence text, and product-decision
+/// German prose (the user-facing README, the UI vocabulary glossary in `docs/`, the UI
+/// catalog itself). None of these are files this track is allowed to translate.
+const ALLOWLIST_PATHS: &[&str] = &[
+    // User-facing German text / product decision, not a code comment.
+    "README.md",
+    "docs/PLAN.md",
+    "docs/MATCHING.md",
+    "ui/src/lib/i18n/de.ts",
+    // Real or invented German mail/page/profile data, and recorded output.
+    "core/tests/fixtures/",
+    "core/tests/snapshots/",
+    // Generated third-party licence text: author names and quoted licence bodies produce
+    // only false positives (accented names, curly quotes), never real German prose.
+    "src-tauri/resources/THIRD-PARTY.txt",
+];
+
+/// Paths another track owns and is translating in parallel right now (see
+/// `docs/PLAN.md` phase 4: matching and the UI). TODO(integrator): once both tracks have
+/// landed their English sweep, delete this list (and its use below) so the full repo is
+/// covered by `ALLOWLIST_PATHS` and the default deny-German rule alone.
+const PENDING_PATHS: &[&str] = &[
+    "ui/",
+    "core/src/matching/",
+    "core/tests/matching_corpus.rs",
+    "core/tests/matching_legacy.rs",
+    "core/tests/common/",
+    "core/tests/ui_contract.rs",
+    "tools/ui-harness/",
+];
+
+/// Not owned by another track, but outside the phase-4 English-sweep file list too (the
+/// task scope was `core/src/**`, `src-tauri/**`, `core/tests/**`, `tools/**` minus their
+/// exceptions - `core/examples/` was not covered by any granted glob). TODO: translate and
+/// remove once someone is scoped to touch it; flagged for follow-up rather than silently
+/// left out or edited outside the granted scope.
+const OUT_OF_SCOPE_PATHS: &[&str] = &["core/examples/"];
+
+/// Individual `path:line` false positives: a comment that is already English but quotes a
+/// real German example (a place name, a mail field label, a job title) to explain what the
+/// code matches. The line number is 1-based, exactly as reported by a test failure below.
+const LINE_ALLOWLIST: &[(&str, u32)] = &[
+    ("core/src/text/company_location.rs", 6),
+    ("core/src/text/company_location.rs", 49),
+    ("core/src/text/company_location.rs", 53),
+    ("core/src/mail/tests.rs", 214),
+    ("core/src/portal/freelance_de.rs", 419),
+];
+
+/// True if `path` (repo-relative, `/`-separated) must not be scanned.
+fn is_excluded(path: &str) -> bool {
+    [ALLOWLIST_PATHS, PENDING_PATHS, OUT_OF_SCOPE_PATHS]
+        .into_iter()
+        .flatten()
+        .any(|p| path == *p || path.starts_with(p))
+}
+
+/// How to pull the "comment text" (if any) out of one line of `path`, by file type. Only
+/// line-start comments are recognised - the repo's own style never relies on trailing
+/// end-of-line comments for prose, so this keeps the heuristic simple and false-positive
+/// free (a `//` inside a string, e.g. a `https://` URL, is never at the start of a line).
+fn comment_text<'a>(path: &str, line: &'a str) -> Option<&'a str> {
+    let trimmed = line.trim_start();
+    let ext = Path::new(path).extension().and_then(|e| e.to_str());
+    let name = Path::new(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+    match ext {
+        Some("rs" | "ts" | "tsx" | "js" | "mjs" | "cjs" | "svelte" | "css") => trimmed
+            .strip_prefix("//")
+            .or_else(|| trimmed.strip_prefix("/*"))
+            .or_else(|| {
+                trimmed
+                    .strip_prefix('*')
+                    .filter(|_| !trimmed.starts_with("*/"))
+            }),
+        Some("py" | "toml" | "yml" | "yaml") => trimmed.strip_prefix('#'),
+        Some("md") => Some(trimmed).filter(|l| !l.starts_with("```")),
+        None if matches!(
+            name,
+            ".gitignore" | ".gitattributes" | ".prettierignore" | "pre-push"
+        ) =>
+        {
+            trimmed.strip_prefix('#')
+        }
+        _ => None,
+    }
+}
+
+/// Common German function words, padded with spaces so they only match whole words (not
+/// substrings of English words like "consist" or "forward"), plus the German-only letters
+/// (umlauts and the sharp s) that never occur in English prose.
+const GERMAN_WORDS: &[&str] = &[
+    " und ", " der ", " die ", " das ", " nicht ", " wird ", " ist ",
+];
+
+fn looks_german(text: &str) -> bool {
+    if text.chars().any(|c| "äöüÄÖÜß".contains(c)) {
+        return true;
+    }
+    // Normalise punctuation to spaces and pad the ends, so a word at the very start/end of
+    // the comment or next to a comma/period still matches as a whole word.
+    let normalised: String = text
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+        .collect();
+    let padded = format!(" {normalised} ");
+    let squeezed = padded.split_whitespace().collect::<Vec<_>>().join(" ");
+    let squeezed = format!(" {squeezed} ");
+    GERMAN_WORDS.iter().any(|w| squeezed.contains(w))
+}
+
+fn tracked_files() -> Vec<String> {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let output = Command::new("git")
+        .args(["ls-files"])
+        .current_dir(&repo_root)
+        .output()
+        .expect("git ls-files");
+    assert!(output.status.success(), "git ls-files failed");
+    String::from_utf8(output.stdout)
+        .expect("utf8")
+        .lines()
+        .map(|l| l.replace('\\', "/"))
+        .collect()
+}
+
+#[test]
+fn no_german_comments_outside_the_allowlist() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let mut scanned = 0usize;
+    let mut offenses: Vec<String> = Vec::new();
+
+    for path in tracked_files() {
+        if is_excluded(&path) {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(repo_root.join(&path)) else {
+            continue; // binary file (png, ico, woff2, ...): nothing to scan as text
+        };
+        scanned += 1;
+        for (number, line) in content.lines().enumerate() {
+            let Some(comment) = comment_text(&path, line) else {
+                continue;
+            };
+            let line_number = u32::try_from(number + 1).unwrap_or(u32::MAX);
+            if LINE_ALLOWLIST.contains(&(path.as_str(), line_number)) {
+                continue;
+            }
+            if looks_german(comment) {
+                offenses.push(format!("{path}:{line_number}: {}", line.trim()));
+            }
+        }
+    }
+
+    assert!(
+        scanned >= 80,
+        "expected at least 80 files scanned, got {scanned} - did the file list break?"
+    );
+    println!("language.rs: {scanned} files scanned");
+    assert!(
+        offenses.is_empty(),
+        "German comment lines found ({} files scanned):\n{}",
+        scanned,
+        offenses.join("\n")
+    );
+}
+
+#[test]
+fn detector_catches_german_and_leaves_english_alone() {
+    assert!(looks_german("Dies ist ein Kommentar und kein Test"));
+    assert!(looks_german("Ist das ein Fehler?")); // capitalised, word at line start
+    assert!(looks_german("Ort: München")); // umlaut alone is enough
+    assert!(looks_german("Text, der nicht passt.")); // word next to punctuation
+    assert!(!looks_german("This is an English comment and a real test"));
+    assert!(!looks_german("Consistent assistants list artists")); // "ist" as a substring
+    assert!(!looks_german("Forward the request, keep it moving"));
+    assert!(!looks_german(""));
+
+    assert_eq!(comment_text("core/src/lib.rs", "// hello"), Some(" hello"));
+    assert_eq!(
+        comment_text("core/src/lib.rs", "    /// doc"),
+        Some("/ doc")
+    );
+    assert_eq!(
+        comment_text("core/src/lib.rs", "let url = \"https://x\";"),
+        None
+    );
+    assert_eq!(comment_text("tools/icon.py", "# note"), Some(" note"));
+    assert_eq!(
+        comment_text("core/tests/fixtures/mails/x.eml", "# note"),
+        None
+    );
+}

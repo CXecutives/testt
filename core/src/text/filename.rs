@@ -1,19 +1,19 @@
-//! Dateinamen der Jobdetails-Dateien.
+//! File names of the job detail files.
 //!
-//! Schema (Vertrag mit dem Matching-Skill, der nur `*.txt` im Ordner einliest):
-//! `<yyyymmdd>_<Portal>_<Titel>_<Job-ID>.txt`. Die Job-ID macht den Namen eindeutig –
-//! zwei gleichnamige Anzeigen am selben Tag überschreiben sich nicht mehr, und
-//! gekürzte Titel kollidieren nicht.
+//! Scheme (a contract with the matching skill, which only reads `*.txt` in the
+//! folder): `<yyyymmdd>_<Portal>_<Title>_<Job-ID>.txt`. The job id makes the name
+//! unique - two ads with the same title on the same day no longer overwrite each
+//! other, and truncated titles don't collide.
 
 use jiff::civil::Date;
 
 use crate::portal::JobKey;
 
-/// Höchstlänge des Titelteils in Zeichen.
+/// Maximum length of the title part, in characters.
 const TITLE_CHARS: usize = 80;
 
-/// Dateiname der Jobdetails-Datei. `date` ist das Datum der Alert-Mail (sonst der Tag,
-/// an dem der Job erstmals gesehen wurde – beides stabil, nie „heute“).
+/// File name of the job detail file. `date` is the alert mail's date (otherwise the
+/// day the job was first seen - both are stable, never "today").
 pub fn job_file_name(date: Date, key: &JobKey, title: &str) -> String {
     format!(
         "{}_{}_{}_{}.txt",
@@ -24,10 +24,10 @@ pub fn job_file_name(date: Date, key: &JobKey, title: &str) -> String {
     )
 }
 
-/// Macht aus beliebigem Text einen sicheren Teil eines Windows-Dateinamens:
-/// Weißraum und unzulässige Zeichen (`<>:"/\|?*`, Steuerzeichen) werden `_`, Folgen von
-/// `_` gebündelt, Ränder aus `._ ` entfernt, höchstens 80 Zeichen. Pfadtrenner und `..`
-/// können daher nie überleben.
+/// Turns arbitrary text into a safe part of a Windows file name: whitespace and
+/// disallowed characters (`<>:"/\|?*`, control characters) become `_`, runs of `_` get
+/// collapsed, edges of `._ ` get trimmed, at most 80 characters. Path separators and
+/// `..` can therefore never survive.
 pub fn sanitize_file_part(text: &str, fallback: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in super::one_line(text).chars() {
@@ -102,7 +102,7 @@ mod tests {
         assert_eq!(sanitize_file_part("...", "Job"), "Job");
     }
 
-    /// Ein Titel aus einer Mail darf nie aus dem Ordner herausführen.
+    /// A title from a mail must never lead out of the folder.
     #[test]
     fn traversal_and_separators_cannot_survive() {
         for title in [
@@ -117,7 +117,8 @@ mod tests {
         }
     }
 
-    /// Früher: Kürzung nach Zeichen, nicht nach Bytes, und ohne Rest-Unterstrich.
+    /// Previously: truncation by character, not by byte, and without a trailing
+    /// underscore.
     #[test]
     fn long_and_unicode_titles() {
         let long = "Überlänge ".repeat(20);

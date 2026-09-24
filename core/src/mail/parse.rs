@@ -1,6 +1,6 @@
-//! Eine Mail zerlegen: Kopf (Betreff, Absender, Datum) und alle Textteile – auch die einer
-//! als Anhang weitergeleiteten Mail (`message/rfc822`; früher ergaben solche Weiterleitungen
-//! null Einträge).
+//! Split a mail apart: header (subject, sender, date) and all text parts - including
+//! those of a mail forwarded as an attachment (`message/rfc822`; previously such
+//! forwards produced zero entries).
 
 use jiff::Timestamp;
 use mail_parser::decoders::base64::base64_decode;
@@ -10,33 +10,33 @@ use mail_parser::{Message, MessageParser, MessagePart, MimeHeaders, PartType};
 
 use crate::text::one_line;
 
-/// Wie tief weitergeleitete Mails (Mail in Mail) ausgepackt werden.
+/// How deep forwarded mails (mail inside mail) are unpacked.
 const MAX_NESTING: usize = 4;
 
 #[derive(Debug, Default)]
 pub struct ParsedMail {
     pub subject: String,
-    /// Anzeigename des Absenders, sonst die Adresse.
+    /// The sender's display name, or the address if there is none.
     pub sender: String,
-    /// Absender-Adresse (klein geschrieben).
+    /// Sender address (lower-cased).
     pub sender_address: String,
     pub date: Option<Timestamp>,
     pub message_id: Option<String>,
     pub html: Vec<String>,
     pub text: Vec<String>,
-    /// Beschädigte Kodierung (fehlende MIME-Grenze, kaputtes Base64 …) – nachsichtig
-    /// gelesen; ergibt die Mail trotzdem nichts, zählt sie als unlesbar.
+    /// Damaged encoding (missing MIME boundary, broken base64, ...) - read leniently;
+    /// if the mail still yields nothing, it counts as unreadable.
     pub damaged: bool,
 }
 
 impl ParsedMail {
-    /// Domain der Absender-Adresse.
+    /// Domain of the sender address.
     pub fn sender_domain(&self) -> Option<&str> {
         self.sender_address.rsplit_once('@').map(|(_, d)| d)
     }
 }
 
-/// `None`, wenn die Bytes keine Mail sind.
+/// `None` when the bytes are not a mail.
 pub fn parse_mail(raw: &[u8]) -> Option<ParsedMail> {
     let message = MessageParser::default().parse(raw)?;
     let from = message.from().and_then(|a| a.first());
@@ -94,9 +94,9 @@ fn collect_bodies(message: &Message<'_>, depth: usize, out: &mut ParsedMail) {
     }
 }
 
-/// Textteil mit Kodierungsfehler nachsichtig dekodieren: fremde Zeichen im Base64
-/// überspringen, dann den Zeichensatz anwenden (sonst fehlte der HTML-Teil
-/// samt aller Links).
+/// Leniently decode a text part with an encoding error: skip foreign characters in the
+/// base64, then apply the charset (otherwise the HTML part, and all its links, would
+/// be missing).
 fn repaired(part: &MessagePart<'_>) -> Option<(bool, String)> {
     let content_type = part.content_type()?;
     if !content_type.ctype().eq_ignore_ascii_case("text") {
@@ -167,8 +167,8 @@ Content-Transfer-Encoding: quoted-printable\r\n\
         assert_eq!(mail.html, ["<p>München</p>"]);
     }
 
-    /// Weitergeleitet „als Anhang“: die innere Mail wird mitgelesen, ein echter
-    /// Textanhang nicht.
+    /// Forwarded "as an attachment": the inner mail is read along with it, a real
+    /// text attachment is not.
     #[test]
     fn forwarded_as_attachment_is_unpacked() {
         let raw = "From: ich@gmail.com\r\n\
@@ -206,12 +206,12 @@ Content-Type: text/html\r\n\
         assert!(parse_mail(b"").is_none());
     }
 
-    /// Base64-HTML mit Fremdzeichen und ohne schließende MIME-Grenze wird
-    /// trotzdem gelesen; die Mail ist als beschädigt markiert.
+    /// Base64 HTML with a foreign character and no closing MIME boundary is still
+    /// read; the mail is marked as damaged.
     #[test]
     fn damaged_base64_part_is_repaired() {
         let html = r#"<a href="https://www.linkedin.com/jobs/view/4100000031/">Controller</a>"#;
-        // Base64 von `html`, mitten darin ein Fremdzeichen („!“).
+        // Base64 of `html`, with a foreign character ("!") in the middle.
         let b64 = "PGEgaHJlZj0iaHR0cHM6Ly93d3cubGlua2VkaW4uY29tL2pvYnMvdmlldy80MTAw!MDAwMDMxLyI+Q29udHJvbGxlcjwvYT4=";
         let raw = [
             "From: jobalerts-noreply@linkedin.com",
