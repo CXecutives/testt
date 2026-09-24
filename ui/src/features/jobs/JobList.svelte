@@ -7,13 +7,16 @@
   sit grey behind the divider "Ausgeschlossen" with a soft count (under Neu or a filter too,
   there without the count: the rows below are only a part of the excluded jobs). A page that
   fails to load while scrolling says so at the end of the list, with a retry. Clicking the
-  selected row again changes nothing (a native list keeps its selection). Every empty
+  selected row again closes it (back to the day overview). At the end of Alle a divider
+  leads to the hidden jobs. An empty list says where jobs come from (an alert on each
+  portal, older mails). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
   view's primary). Without a mailbox one note says how to connect one; a missing profile is
   said once, in the day overview.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
+  import Button from '$components/Button.svelte';
   import Count from '$components/Count.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import JobRow from '$components/JobRow.svelte';
@@ -21,7 +24,8 @@
   import Skeleton from '$components/Skeleton.svelte';
   import { nearEnd } from '$lib/actions/nearEnd';
   import { de } from '$lib/i18n/de';
-  import type { JobView } from '$lib/ipc/types';
+  import { invoke } from '$lib/ipc/api';
+  import type { JobView, Portal } from '$lib/ipc/types';
   import { play } from '$lib/motion/motion';
   import { rowIn } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
@@ -48,9 +52,15 @@
   // Jobs without a match get one soon while a run goes or a rescore is pending.
   const pending = $derived(app.hasProfile && (run.active || (app.state?.matchPending ?? 0) > 0));
 
+  /** A click on the selected row closes it again: back to the day overview. */
   function select(job: JobView): void {
-    if (sameKey(jobs.selected, job.key)) return;
-    void jobs.select(job, true);
+    if (sameKey(jobs.selected, job.key)) jobs.clearSelection();
+    else void jobs.select(job, true);
+  }
+  const hiddenCount = $derived((jobs.overviewCounts ?? jobs.counts).hidden);
+  const PORTALS = $derived((app.state?.portals ?? []).filter((p) => p.enabled));
+  function openPortal(portal: Portal): void {
+    invoke('open_target', { target: { kind: 'portalHome', portal } }).catch(() => undefined);
   }
 
   /* --------------------------------------------------------------------- glides */
@@ -194,6 +204,21 @@
           secondary={{ label: de.list.clearFilter, onclick: () => jobs.setFilter(null) }}
           testid="empty-filter"
         />
+      {:else if jobs.facet === 'applications'}
+        <EmptyState
+          icon="inbox"
+          tone="neutral"
+          text={de.list.emptyApplications}
+          testid="empty-applications"
+        />
+      {:else if jobs.facet === 'hidden'}
+        <EmptyState
+          icon="inbox"
+          tone="neutral"
+          text={de.list.emptyHidden}
+          secondary={{ label: de.list.showAll, onclick: () => jobs.setFacet('all') }}
+          testid="empty-hidden"
+        />
       {:else if jobs.facet === 'new' && jobs.counts.all > 0}
         <EmptyState
           icon="check"
@@ -203,12 +228,39 @@
           testid="empty-new"
         />
       {:else}
-        <EmptyState
-          icon="inbox"
-          tone="neutral"
-          text={mailRead ? de.list.emptyAfterRun : de.list.emptyAll}
-          testid="empty-all"
-        />
+        <div class="sources">
+          <EmptyState
+            icon="inbox"
+            tone="neutral"
+            text={mailRead ? de.list.emptyAfterRun : de.list.emptyAll}
+            testid="empty-all"
+          />
+          <p class="sources-text">{de.list.emptySources}</p>
+          <div class="sources-actions">
+            {#each PORTALS as portal (portal.portal)}
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="external-link"
+                label={de.list.createAlert(de.portal[portal.portal])}
+                testid="alert-{portal.portal}"
+                onclick={() => openPortal(portal.portal)}
+              />
+            {/each}
+            {#if app.hasMailbox}
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="mail"
+                label={de.list.readOlder}
+                disabled={run.active}
+                disabledReason={run.busyText}
+                testid="read-older"
+                onclick={() => void run.start({ kind: 'fullMailbox' })}
+              />
+            {/if}
+          </div>
+        </div>
       {/if}
     </div>
   {:else}
@@ -244,6 +296,21 @@
       </div>
       <div class="rows" data-testid="excluded-rows">
         {@render group(excluded, active.length)}
+      </div>
+    {/if}
+    {#if jobs.facet === 'all' && jobs.filter === null && hiddenCount > 0 && !jobs.more}
+      <div class="divider" data-testid="hidden-divider">
+        <span class="divider-label">{de.list.hidden}</span>
+        <Count value={hiddenCount} tone="plain" />
+        <span class="divider-link">
+          <Button
+            variant="link"
+            size="sm"
+            label={de.list.showHidden}
+            testid="show-hidden"
+            onclick={() => jobs.setFacet('hidden')}
+          />
+        </span>
       </div>
     {/if}
     {#if jobs.pageError}
@@ -305,6 +372,32 @@
     height: var(--border-width);
     background-color: var(--border);
     content: '';
+  }
+
+  .divider-link {
+    display: flex;
+    order: 2;
+  }
+
+  /* The empty list says where jobs come from: the portals' alerts, older mails. */
+  .sources {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-12);
+    max-width: var(--list-min);
+  }
+
+  .sources-text {
+    color: var(--text-muted);
+    font: var(--type-sm);
+    text-align: center;
+  }
+
+  .sources-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .empty {

@@ -479,9 +479,11 @@ export const de = {
     facetNew: 'Neu',
     facetAll: 'Alle',
     facetApplications: 'Bewerbungen',
-    sortedBy: {
-      match: 'Beste Passung zuerst',
-      newest: 'Neueste zuerst',
+    facetPinned: 'Gemerkt',
+    /** The order of the list in words (the sort button). */
+    sortLabel: {
+      match: 'Beste Passung',
+      newest: 'Neueste',
     } satisfies Record<JobSort, string>,
     search: 'Suchen',
     searchLabel: 'Jobs durchsuchen',
@@ -585,6 +587,14 @@ export const de = {
     label: 'Jobs',
     /** The divider (its count is a pill of its own, left out where the rows are a part). */
     excluded: 'Ausgeschlossen',
+    hidden: 'Ausgeblendet',
+    showHidden: 'Anzeigen',
+    /** The empty list says where jobs come from and how to get more. */
+    emptySources: 'Die Jobs kommen aus den Alert-Mails der Portale.',
+    createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
+    readOlder: 'Ältere Mails lesen',
+    emptyApplications: 'Noch keine Bewerbung vermerkt.',
+    emptyHidden: 'Nichts ausgeblendet.',
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
     emptyAfterRun: 'Die Alert-Mails enthielten bisher keine Jobs.',
@@ -670,6 +680,7 @@ export const de = {
     pinned: 'Gemerkt',
     issues: 'Offene Punkte',
     best: 'Beste Passung',
+    excel: 'Excel öffnen',
     newJobs: 'Neue Jobs',
     newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
     /** Under the portal's name, so the sentence does not name it again. */

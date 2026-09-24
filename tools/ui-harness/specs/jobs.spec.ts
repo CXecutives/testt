@@ -144,11 +144,11 @@ test('the sort switch reorders the list and keeps the selection', async ({ page 
   const before = await rows(page).evaluateAll((els) =>
     els.map((e) => e.getAttribute('data-testid')),
   );
-  // One quiet icon button: its tooltip names the current order, a click switches it.
+  // One quiet button names the order in words; a click switches it.
   const sort = page.getByTestId('sort');
-  await expect(sort).toHaveAttribute('aria-label', 'Beste Passung zuerst');
+  await expect(sort).toHaveText('Beste Passung');
   await sort.click();
-  await expect(sort).toHaveAttribute('aria-label', 'Neueste zuerst');
+  await expect(sort).toHaveText('Neueste');
   await expect
     .poll(() => rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid'))))
     .not.toEqual(before);
@@ -184,47 +184,50 @@ test('a job that cannot be scored says why, once', async ({ page }) => {
   await expect(page.getByTestId('why')).toHaveCount(0);
 });
 
-test('the day overview tiles filter the list and match the counts', async ({ page }) => {
+test('one place for filters: Neu, Alle, Gemerkt, Bewerbungen; the overview says what now', async ({
+  page,
+}) => {
   await open(page, WIN);
   const overview = page.getByTestId('day-overview');
   await expect(overview).toBeVisible();
-  const tileValue = async (id: string): Promise<number> =>
-    Number((await page.getByTestId(id).innerText()).replace(/\D/g, ''));
-  await expect.poll(() => tileValue('tile-high')).toBe(2);
-  await page.getByTestId('tile-high').click();
-  await expect(page.getByTestId('tile-high')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('filter')).toBeVisible();
-  await expect(rows(page)).toHaveCount(await tileValue('tile-high'));
-  await page.getByTestId('clear-filter').click();
-  await page.getByTestId('tile-no-detail').click();
-  await expect(rows(page)).toHaveCount(await tileValue('tile-no-detail'));
-  await page.getByTestId('tile-excluded').click();
-  await expect(excludedRows(page)).toHaveCount(await tileValue('tile-excluded'));
-  // A second click on the active tile takes the filter off again.
-  await page.getByTestId('tile-excluded').click();
-  await expect(page.getByTestId('filter')).toHaveCount(0);
-  await expect(page.getByTestId('issue-freelance-mails')).toBeVisible();
-  // The portal is the heading of an open point; the sentence does not name it again.
-  await expect(page.getByTestId('issue-freelance-mails')).toContainText(
-    'Eine Alert-Mail enthielt keine Jobs.',
-  );
-
-  // Of the list the overview shows only the best three of the last fetch, as rows that
-  // open the job; "neu" per portal adds up to Neu.
+  // No counts in the overview: its best new jobs (as rows that open the job), the open
+  // points with their action, the files.
+  await expect(overview.getByTestId('tile-high')).toHaveCount(0);
+  await expect(overview.getByTestId('new-per-portal')).toHaveCount(0);
   const best = page.getByTestId('best').locator('[data-testid^="job-row-"]');
   expect(await best.count()).toBeGreaterThan(0);
   expect(await best.count()).toBeLessThanOrEqual(3);
-  await expect(overview.locator('[data-testid^="job-row-"]')).toHaveCount(await best.count());
-  const perPortal = await page
-    .getByTestId('new-per-portal')
-    .locator('li')
-    .evaluateAll((items) => items.map((item) => Number(item.textContent?.match(/\d+/)?.[0])));
-  expect(perPortal.reduce((sum, value) => sum + value, 0)).toBe(await segmentCount(page, 'Neu'));
+  await expect(page.getByTestId('issue-freelance-mails')).toContainText(
+    'Eine Alert-Mail enthielt keine Jobs.',
+  );
+  await expect(overview.getByTestId('overview-excel')).toBeVisible();
+  // The one filter place: the segments in the list header count their lists.
+  const facet = page.getByTestId('facet');
+  await facet.getByRole('radio', { name: /Gemerkt/ }).click();
+  await expect(facet.getByRole('radio', { name: /Gemerkt/ })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await expect(rows(page)).toHaveCount(await segmentCount(page, 'Gemerkt'));
+  await facet.getByRole('radio', { name: /Bewerbungen/ }).click();
+  await expect(page.getByTestId('list-scroll')).toBeVisible();
+  expect(await calls(page, 'list_jobs')).toContainEqual([
+    'list_jobs',
+    expect.objectContaining({ query: expect.objectContaining({ facet: 'applications' }) }),
+  ]);
 });
 
 test('the reader summary agrees with the listed must requirements', async ({ page }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  // The window mounts a few rows per frame: wait until it is complete.
+  await expect
+    .poll(async () => {
+      const before = await rows(page).count();
+      await settle(page);
+      return before > 6 && before === (await rows(page).count());
+    })
+    .toBe(true);
   const keys = await rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
   let checked = 0;
   for (const key of keys) {
@@ -322,13 +325,9 @@ test('no search hit: one empty state with a way back', async ({ page }) => {
 
 test('without a profile: no rings, newest first, the overview leads to one', async ({ page }) => {
   await open(page, `${WIN}&scenario=no-profile`);
-  // Said once, in the overview: the tiles Neu and Ohne Details and a calm card.
+  // Said once, in the overview: a calm card, no best matches without a profile.
   await expect(page.getByTestId('no-profile')).toBeVisible();
-  await expect
-    .poll(async () => Number((await page.getByTestId('tile-new').innerText()).replace(/\D/g, '')))
-    .toBe(await segmentCount(page, 'Neu'));
-  await expect(page.getByTestId('tile-no-detail')).toBeVisible();
-  await expect(page.getByTestId('tile-high')).toHaveCount(0);
+  await expect(page.getByTestId('best')).toHaveCount(0);
   await expect(page.getByTestId('no-profile').locator('.btn.primary')).toHaveCount(0);
   await expect(page.getByTestId('sort')).toHaveCount(0);
   await expect(rows(page).first().locator('[role="img"][aria-label^="Passung"]')).toHaveCount(0);
@@ -518,22 +517,21 @@ test('the close button in the reader leads back to the day overview', async ({ p
   await expect(page.getByTestId('back')).toBeVisible();
 });
 
-test('clicking the selected row again keeps the reader where it is', async ({ page }) => {
+test('a second click on the selected row closes it; a search that drops it too', async ({
+  page,
+}) => {
   await open(page, WIN);
   const first = rows(page).first();
   await first.click();
   await expect(page.getByTestId('reader-ring')).toContainText('91');
-  const stage = page.getByTestId('stage');
-  const top = await stage.evaluate((node) => {
-    node.scrollTo({ top: 300 });
-    return node.scrollTop;
-  });
-  expect(top).toBeGreaterThan(0);
-  const loads = (await calls(page, 'job_detail')).length;
   await first.click();
-  await settle(page);
-  expect(await stage.evaluate((node) => node.scrollTop)).toBe(top);
-  expect(await calls(page, 'job_detail')).toHaveLength(loads);
+  await expect(page.getByTestId('day-overview')).toBeVisible();
+  await expect(first).not.toHaveAttribute('aria-current', 'true');
+  // A search that no longer finds the open job goes back to the overview too.
+  await first.click();
+  await expect(page.getByTestId('reader')).toBeVisible();
+  await page.getByTestId('search').fill('Kernfusion');
+  await expect(page.getByTestId('day-overview')).toBeVisible();
 });
 
 test('switching jobs: never blank, the old text stays put, the new job starts at the top', async ({
@@ -678,11 +676,13 @@ test('the list header: one slot for Abrufen and Abbrechen, the filter, a line on
   await expect(page.getByRole('button', { name: 'Abrufen' })).toHaveCount(0);
   await page.getByTestId('cancel-run').click();
   await runFinished(page);
-  // A tile's filter sits in the header, next to Neu | Alle; the sort glyph turns.
-  await page.getByTestId('tile-high').click();
-  await expect(header.getByTestId('filter')).toContainText('Hohe Passung');
+  // The hidden jobs are reached from the end of Alle; they show as a pill with its x.
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await page.getByTestId('show-hidden').click();
+  await expect(header.getByTestId('filter')).toContainText('Ausgeblendet');
   await header.getByTestId('clear-filter').click();
   await expect(page.getByTestId('filter')).toHaveCount(0);
+  // The sort glyph turns.
   await expect(page.getByTestId('sort')).not.toHaveClass(/turned/);
   await page.getByTestId('sort').click();
   await expect(page.getByTestId('sort')).toHaveClass(/turned/);
@@ -764,6 +764,62 @@ test('the day overview: its best jobs open the reader', async ({ page }) => {
   const title = await best.locator('.title').innerText();
   await best.click();
   await expect(page.getByTestId('reader-title')).toHaveText(title);
+});
+
+test('the reader marks a job: status, note, hide with undo, copy as a prompt', async ({
+  page,
+  browserName,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const first = rows(page).first();
+  const second = await rows(page).nth(1).locator('.title').innerText();
+  await first.click();
+  await expect(page.getByTestId('reader')).toBeVisible();
+  // One chip per step; the chosen one again clears it.
+  await page.getByTestId('status-applied').click();
+  await expect(page.getByTestId('status-applied')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('status-since')).toBeVisible();
+  await page.getByTestId('status-interview').click();
+  await expect(page.getByTestId('status-applied')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('status-interview').click();
+  await expect(page.getByTestId('status-since')).toHaveCount(0);
+  expect((await calls(page, 'set_app_status')).map(([, args]) => args)).toHaveLength(3);
+  // The note saves when the field is left; Esc takes the stored one back.
+  const note = page.getByTestId('note');
+  await note.fill('Agentur anrufen');
+  await page.getByTestId('reader-title').click();
+  await expect
+    .poll(async () => (await calls(page, 'set_note')).map(([, args]) => args))
+    .toEqual([expect.objectContaining({ note: 'Agentur anrufen' })]);
+  await note.fill('etwas anderes');
+  await note.press('Escape');
+  await expect(note).toHaveValue('Agentur anrufen');
+  // As a prompt for any AI chat.
+  if (browserName === 'chromium') {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  }
+  await page.getByTestId('prompt').click();
+  await expect(page.getByTestId('toast').last()).toContainText(
+    'Prompt kopiert. In einen KI-Chat einfügen.',
+  );
+  // Ausblenden opens the next job; the toast takes it back.
+  const title = await page.getByTestId('reader-title').innerText();
+  await page.getByTestId('hide').click();
+  await expect(page.getByTestId('reader-title')).toHaveText(second);
+  await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(0);
+  await page.getByTestId('toast-action').click();
+  await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(1);
+});
+
+test('an empty list says where jobs come from', async ({ page }) => {
+  await open(page, `${WIN}&scenario=empty`);
+  await expect(page.getByTestId('alert-linkedin')).toBeVisible();
+  await page.getByTestId('alert-linkedin').click();
+  expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({
+    target: { kind: 'portalHome', portal: 'linkedin' },
+  });
+  await expect(page.getByTestId('read-older')).toBeVisible();
 });
 
 test('2000 jobs render in windows without long tasks', async ({ page, browserName }) => {

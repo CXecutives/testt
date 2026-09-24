@@ -7,9 +7,11 @@
   gone at once.
   On macOS this row is the list's part of the toolbar row, centred on the traffic lights,
   and its empty parts move the window.
-  Row 2: Neu | Alle, then the filter a tile or a portal chip set (a soft navy pill that
-  pops in and fades out, with its x), and at the right edge (with a profile) the sort as
-  one quiet icon button whose glyph stands half a turn for "newest first".
+  Row 2: the one place for filters, Neu · Alle · Gemerkt · Bewerbungen with their counts
+  (always there, also while the reader is open); the hidden jobs, reached from the end of
+  Alle, show as a pill with its x instead.
+  Row 3 (with a profile): the order in words ("Beste Passung", "Neueste"), a quiet button
+  whose glyph stands half a turn for newest first; a click switches it.
   The bottom hairline shows only once the list below is scrolled.
 -->
 <script lang="ts">
@@ -30,10 +32,30 @@
   }
   let { scrolled = false }: Props = $props();
 
-  const facets = $derived([
-    { id: 'new' as JobFacet, label: de.toolbar.facetNew, count: jobs.counts.new },
-    { id: 'all' as JobFacet, label: de.toolbar.facetAll, count: jobs.counts.all },
+  /** Gemerkt is Alle with the pinned filter (until the backend has a list of its own). */
+  type View = JobFacet | 'pinned';
+  const counts = $derived(jobs.overviewCounts ?? jobs.counts);
+  const views = $derived([
+    { id: 'new' as View, label: de.toolbar.facetNew, count: jobs.counts.new },
+    { id: 'all' as View, label: de.toolbar.facetAll, count: jobs.counts.all },
+    // An empty list of the user's own shows no zero (the row stays narrow).
+    { id: 'pinned' as View, label: de.toolbar.facetPinned, count: counts.pinned || null },
+    {
+      id: 'applications' as View,
+      label: de.toolbar.facetApplications,
+      count: counts.applications || null,
+    },
   ]);
+  const view = $derived<View>(jobs.filter === 'pinned' ? 'pinned' : jobs.facet);
+
+  function choose(id: View): void {
+    if (id === 'pinned') jobs.setFilter('pinned');
+    else jobs.setFacet(id);
+  }
+  /** A filter the segments do not name (a portal, a tile). */
+  const otherFilter = $derived(
+    jobs.filter !== null && jobs.filter !== 'pinned' ? jobs.filter : null,
+  );
 </script>
 
 {#snippet fetchButton(live: boolean)}
@@ -85,17 +107,32 @@
     </span>
   </div>
   <div class="filters">
-    <Segmented
-      options={facets}
-      value={jobs.facet}
-      label={de.toolbar.facet}
-      size="sm"
-      testid="facet"
-      onchange={(id) => jobs.setFacet(id)}
-    />
-    {#if jobs.filter !== null}
+    {#if jobs.facet === 'hidden'}
       <span class="filter" data-testid="filter" in:pop out:fade>
-        <span class="filter-label">{de.list.filter[jobs.filter]}</span>
+        <span class="filter-label">{de.list.hidden}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          icon="x"
+          label={de.list.clearFilter}
+          testid="clear-filter"
+          onclick={() => jobs.setFacet('all')}
+        />
+      </span>
+    {:else}
+      <Segmented
+        options={views}
+        value={view}
+        label={de.toolbar.facet}
+        size="sm"
+        testid="facet"
+        onchange={choose}
+      />
+    {/if}
+    {#if otherFilter !== null}
+      <span class="filter" data-testid="filter" in:pop out:fade>
+        <span class="filter-label">{de.list.filter[otherFilter]}</span>
         <Button
           variant="ghost"
           size="sm"
@@ -107,21 +144,20 @@
         />
       </span>
     {/if}
-    {#if app.hasProfile}
-      <span class="sort">
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon="arrow-up-down"
-          label={de.toolbar.sortedBy[jobs.sortChoice]}
-          turned={jobs.sortChoice === 'newest'}
-          testid="sort"
-          onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
-        />
-      </span>
-    {/if}
   </div>
+  {#if app.hasProfile}
+    <span class="sort">
+      <Button
+        variant="ghost"
+        size="sm"
+        icon="arrow-up-down"
+        label={de.toolbar.sortLabel[jobs.sortChoice]}
+        turned={jobs.sortChoice === 'newest'}
+        testid="sort"
+        onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
+      />
+    </span>
+  {/if}
 </div>
 
 <style>
@@ -196,8 +232,16 @@
     white-space: nowrap;
   }
 
+  /* A narrow column keeps the chosen segment's count only. */
+  @container (width < 440px) {
+    .filters :global(.count.plain) {
+      display: none;
+    }
+  }
+
+  /* The order in words; its glyph starts on the edge of the column. */
   .sort {
     display: flex;
-    margin-left: auto;
+    margin: calc(-1 * var(--space-4)) 0 calc(-1 * var(--space-4)) calc(-1 * var(--space-12));
   }
 </style>

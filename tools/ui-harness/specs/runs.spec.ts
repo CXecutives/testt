@@ -258,7 +258,9 @@ test('a page that fails while scrolling says so and loads on retry', async ({ pa
     .toBeGreaterThan(mounted);
 });
 
-test('the divider under Neu names no number that differs from the tile', async ({ page }) => {
+test('the divider under Neu names no number; under Alle the one of every excluded job', async ({
+  page,
+}) => {
   await open(page, WIN);
   await expect(page.getByTestId('facet').getByRole('radio', { name: /Neu/ })).toHaveAttribute(
     'aria-checked',
@@ -266,23 +268,18 @@ test('the divider under Neu names no number that differs from the tile', async (
   );
   await expect(page.getByTestId('excluded-divider')).toHaveText('Ausgeschlossen');
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  const tile = await page.getByTestId('tile-excluded').innerText();
+  await expect(page.getByTestId('excluded-count')).toBeVisible();
   await expect(page.getByTestId('excluded-divider')).toHaveText(
-    `Ausgeschlossen ${tile.replace(/\D/g, '')}`,
+    `Ausgeschlossen ${await page.getByTestId('excluded-rows').locator('[data-testid^="job-row-"]').count()}`,
   );
 });
 
-test('the new jobs per portal follow the one order of the app', async ({ page }) => {
-  await open(page, WIN);
+test('the portals follow the one order of the app', async ({ page }) => {
+  await open(page, `${WIN}&scenario=empty`);
   const order = await page
-    .getByTestId('new-per-portal')
-    .getByRole('button')
-    .evaluateAll((items) => items.map((item) => item.textContent?.trim() ?? ''));
-  expect(order.map((text) => text.replace(/^\d+ neu auf /, ''))).toEqual([
-    'LinkedIn',
-    'freelance.de',
-    'freelancermap',
-  ]);
+    .locator('[data-testid^="alert-"]')
+    .evaluateAll((items) => items.map((item) => item.getAttribute('data-testid')));
+  expect(order).toEqual(['alert-linkedin', 'alert-freelance', 'alert-freelancermap']);
   await page.getByTestId('nav-settings').click();
   const cards = await page
     .locator('[data-testid^="portal-"]')

@@ -11,10 +11,11 @@
   never goes blank. The new stage rises in over the old one, which keeps its own scroll
   position and fades: the new job starts at the top and the old text never jumps. The old
   stage is the real one on its way out (nothing is copied or laid out again); it answers no
-  pointer and drops its test ids. The close button in the reader head goes back to the day
-  overview.
+  pointer and drops its test ids. The close button in the reader head, a second click on the
+  selected row and a search that no longer finds the job go back to the day overview.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import DragBand from '$components/DragBand.svelte';
   import EmptyState from '$components/EmptyState.svelte';
@@ -24,7 +25,7 @@
   import { inView } from '$lib/actions/inView';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { shell } from '$lib/state/shell.svelte';
   import { viewport } from '$lib/state/viewport.svelte';
   import DayOverview from './DayOverview.svelte';
@@ -71,6 +72,13 @@
   function close(): void {
     jobs.clearSelection();
   }
+
+  // A search that no longer finds the open job closes it (the list shows what it found).
+  $effect(() => {
+    const selected = jobs.selected;
+    if (selected === null || jobs.search.trim() === '' || jobs.status !== 'ready') return;
+    if (!jobs.visible.some((row) => sameKey(row.key, selected))) untrack(close);
+  });
 
   /** A job rises in (4 px, 150 ms); the overview and the placeholders only fade (100 ms). */
   function enter(node: Element, job: boolean): ReturnType<typeof fade> {

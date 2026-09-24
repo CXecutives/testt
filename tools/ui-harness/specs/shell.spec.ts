@@ -282,10 +282,11 @@ test('every run status fits the sidebar without being cut off', async ({ page })
 
 test('icon-only buttons show a styled tooltip after the delay', async ({ page }) => {
   await open(page, '?platform=windows');
-  const sort = page.getByTestId('sort');
-  await sort.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Beste Passung zuerst');
-  await expect(sort).not.toHaveAttribute('title');
+  await page.locator('[data-testid^="job-row-"]').first().click();
+  const close = page.getByTestId('reader-close');
+  await close.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Schließen');
+  await expect(close).not.toHaveAttribute('title');
 });
 
 test('baseline: shell on Windows', async ({ page }) => {

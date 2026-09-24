@@ -1,14 +1,12 @@
 <!--
   The reader's empty state: what the sheet shows while no job is selected, unboxed like the
-  reader. It answers "what is worth my time today" first and never looks empty: tiles that
-  filter the list (their numbers count over every job, whatever the search), without a usable profile the tiles Neu and Ohne Details
-  and a calm card that leads to one, with one "Beste Passung" (the three best scored new
+  reader. It answers "what now" in a short list, no counts (the list header counts): without
+  a usable profile a calm card that leads to one, "Beste Passung" (the three best scored new
   jobs as list rows; a click opens the job), the open points (one per portal and problem, a
-  failed fetch) only when there are any, the new jobs per portal (each a filter of the
-  list) only when there are any, and at the end the overview file and the folder, their one
-  place in the Jobs view. "Nothing new" is said by the list and the run card, not here. The
-  time of the last fetch is said once, in the sidebar. Every number comes from the backend's
-  counts over every job, and the portals keep the one order of the app (the settings').
+  failed fetch, each with its action) only when there are any, and at the end the overview
+  file, the Excel file and the folder, their one place in the Jobs view. "Nothing new" is
+  said by the list and the run card, not here. The time of the last fetch is said once, in
+  the sidebar. The portals keep the one order of the app (the settings').
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
@@ -16,70 +14,17 @@
   import Card from '$components/Card.svelte';
   import JobRow from '$components/JobRow.svelte';
   import Notice from '$components/Notice.svelte';
-  import StatTile from '$components/StatTile.svelte';
-  import { cssVars } from '$lib/actions/cssVars';
   import { de } from '$lib/i18n/de';
   import { errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { EmptyAlert, JobView, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf, sameKey, type JobFilter } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
 
   // The one order of the portals (the backend's, as in the settings).
   const portals = $derived((app.state?.portals ?? []).map((p) => p.portal));
-  const counts = $derived(jobs.overviewCounts ?? app.state?.counts ?? null);
-  // "Neu" is unread and not excluded, exactly like the facet Neu (they add up to its count).
-  const unread = $derived(
-    jobs.overviewStatus === 'ready'
-      ? (counts?.newByPortal ?? [])
-          .map((line) => ({ portal: line.portal, count: line.new }))
-          .filter((line) => line.count > 0)
-      : [],
-  );
-
-  interface Tile {
-    id: JobFilter | 'new';
-    label: string;
-    value: number;
-    icon: 'circle-check' | 'file-text' | 'ban' | 'star' | 'inbox';
-    tone?: 'success';
-  }
-  const tiles = $derived.by((): Tile[] => {
-    if (counts === null) return [];
-    const out: Tile[] = app.hasProfile
-      ? [
-          {
-            id: 'high',
-            label: de.overview.high,
-            value: counts.high,
-            icon: 'circle-check',
-            tone: 'success',
-          },
-          {
-            id: 'noDetail',
-            label: de.overview.noDetail,
-            value: counts.noDetail,
-            icon: 'file-text',
-          },
-          { id: 'excluded', label: de.overview.excluded, value: counts.excluded, icon: 'ban' },
-        ]
-      : [
-          { id: 'new', label: de.overview.new, value: counts.new, icon: 'inbox' },
-          {
-            id: 'noDetail',
-            label: de.overview.noDetail,
-            value: counts.noDetail,
-            icon: 'file-text',
-          },
-        ];
-    if (jobs.pinned > 0) {
-      out.push({ id: 'pinned', label: de.overview.pinned, value: jobs.pinned, icon: 'star' });
-    }
-    return out;
-  });
-
   const BEST = 3;
   /** The best scored new jobs (one small query; again whenever the counts move). */
   let top = $state.raw<JobView[]>([]);
@@ -108,11 +53,6 @@
       .map((job) => jobs.rows.find((row) => sameKey(row.key, job.key)) ?? job)
       .filter((job) => job.match?.status === 'scored'),
   );
-
-  function toggle(tile: Tile): void {
-    if (tile.id === 'new') jobs.setFacet('new');
-    else jobs.setFilter(jobs.filter === tile.id ? null : tile.id);
-  }
 
   // While a run goes, the run card shows pauses and limits; they are not repeated here.
   const troubled = $derived(
@@ -203,24 +143,6 @@
 </script>
 
 <div class="overview" data-testid="day-overview" aria-label={de.overview.label}>
-  {#if tiles.length > 0}
-    <div class="tiles" class:many={tiles.length > 3} use:cssVars={{ tiles: tiles.length }}>
-      {#each tiles as tile (tile.id)}
-        <div class="tile">
-          <StatTile
-            label={tile.label}
-            value={tile.value}
-            icon={tile.icon}
-            tone={tile.tone ?? 'neutral'}
-            active={tile.id !== 'new' && jobs.filter === tile.id}
-            testid="tile-{tile.id === 'noDetail' ? 'no-detail' : tile.id}"
-            onclick={() => toggle(tile)}
-          />
-        </div>
-      {/each}
-    </div>
-  {/if}
-
   {#if profileMissing}
     <Card variant="tinted" padding="md" testid="no-profile">
       <div class="profile">
@@ -286,25 +208,6 @@
     </section>
   {/if}
 
-  {#if fetchedOnce && unread.length > 0}
-    <section class="block" data-testid="new-jobs">
-      <h2 class="heading">{de.overview.newJobs}</h2>
-      <ul class="portals" data-testid="new-per-portal">
-        {#each unread as line (line.portal)}
-          <li>
-            <Button
-              variant="secondary"
-              size="sm"
-              label={de.overview.newOn(de.portal[line.portal], line.count)}
-              pressed={jobs.filter === line.portal}
-              testid="new-{line.portal}"
-              onclick={() => jobs.setFilter(jobs.filter === line.portal ? null : line.portal)}
-            />
-          </li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
   {#if fetchedOnce}
     <div class="files" data-testid="overview-files">
       <Button
@@ -314,6 +217,14 @@
         label={de.run.openOverview}
         testid="overview-open"
         onclick={() => open({ kind: 'overview' })}
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        icon="file-text"
+        label={de.overview.excel}
+        testid="overview-excel"
+        onclick={() => open({ kind: 'excel' })}
       />
       <Button
         variant="ghost"
@@ -337,32 +248,6 @@
     flex-direction: column;
     gap: var(--space-16);
     container-type: inline-size;
-  }
-
-  /* One row of tiles, as many columns as tiles; four tiles take two rows where one row
-     would cut their labels (the reader column is at most 720 px), and one column only when
-     two would. */
-  .tiles {
-    display: grid;
-    grid-template-columns: repeat(var(--tiles), minmax(0, 1fr));
-    gap: var(--space-12);
-  }
-
-  @container (width < 720px) {
-    .tiles.many {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @container (width < 460px) {
-    .tiles,
-    .tiles.many {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .tile {
-    display: grid;
   }
 
   /* The rows of "Beste Passung" like the list's: their ring on the edge of the column; the
@@ -400,7 +285,13 @@
     font: var(--type-sm);
   }
 
-  /* Sections like the reader's: a hairline above, the heading, the content. */
+  /* Sections like the reader's: a hairline above, the heading, the content (the first one
+     starts the overview without a line). */
+  .overview > .block:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
   .block {
     display: flex;
     flex-direction: column;
@@ -433,11 +324,5 @@
 
   .rows > :global(* + *) {
     border-top: var(--border-width) solid var(--border);
-  }
-
-  .portals {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-8);
   }
 </style>
