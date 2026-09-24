@@ -10,8 +10,8 @@ use tokio_util::sync::CancellationToken;
 
 use super::{Backends, Matcher};
 use crate::fetch::{Cause, PageFetcher, PageOutcome};
-use crate::mail::RawMail;
 use crate::mail::imap::{MailError, MailSource};
+use crate::mail::{RawHead, RawMail, head_part};
 use crate::model::{MatchRecord, MatchStatus, Notice};
 use crate::portal::{FetchPath, JobLink, Portal};
 use crate::store::JobRow;
@@ -115,26 +115,38 @@ impl MailSource for DemoMail {
             .collect())
     }
 
-    async fn fetch(&mut self, uids: &[u32]) -> Result<Vec<RawMail>, MailError> {
-        pause(Duration::from_millis(300), &self.cancel).await?;
-        // Today's date: the sample jobs always lie within the 30-day window of the fetch.
-        let date = jiff::Timestamp::now().strftime("%a, %d %b %Y %H:%M:%S +0000");
+    async fn heads(&mut self, uids: &[u32]) -> Result<Vec<RawHead>, MailError> {
+        pause(Duration::from_millis(100), &self.cancel).await?;
         Ok(uids
             .iter()
             .filter_map(|&uid| {
-                let (_, from, subject, html) =
-                    MAILS.get(usize::try_from(uid.checked_sub(1)?).ok()?)?;
-                let bytes = format!(
-                    "From: {from}\r\nSubject: {subject}\r\nDate: {date}\r\n\
-                     MIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{html}"
-                );
-                Some(RawMail {
-                    gmail_id: Some(0x1990_0000 + u64::from(uid)),
-                    bytes: bytes.into_bytes(),
+                Some(RawHead {
+                    uid,
+                    bytes: head_part(&sample(uid)?.bytes).to_vec(),
                 })
             })
             .collect())
     }
+
+    async fn fetch(&mut self, uids: &[u32]) -> Result<Vec<RawMail>, MailError> {
+        pause(Duration::from_millis(300), &self.cancel).await?;
+        Ok(uids.iter().filter_map(|&uid| sample(uid)).collect())
+    }
+}
+
+/// Sample mail `uid` (1-based).
+fn sample(uid: u32) -> Option<RawMail> {
+    let (_, from, subject, html) = MAILS.get(usize::try_from(uid.checked_sub(1)?).ok()?)?;
+    // Today's date: the sample jobs always lie within the 30-day window of the fetch.
+    let date = jiff::Timestamp::now().strftime("%a, %d %b %Y %H:%M:%S +0000");
+    let bytes = format!(
+        "From: {from}\r\nSubject: {subject}\r\nDate: {date}\r\n\
+         MIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{html}"
+    );
+    Some(RawMail {
+        gmail_id: Some(0x1990_0000 + u64::from(uid)),
+        bytes: bytes.into_bytes(),
+    })
 }
 
 /// Pages to look at. Between the requests the real pace applies (waits with a countdown);

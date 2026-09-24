@@ -20,7 +20,7 @@ use tokio_io_timeout::TimeoutStream;
 use tokio_rustls::client::TlsStream;
 use tokio_util::sync::CancellationToken;
 
-use super::RawMail;
+use super::{RawHead, RawMail};
 use crate::error::ErrorKind;
 use crate::portal::Portal;
 use crate::text::{one_line, truncate_chars};
@@ -178,14 +178,24 @@ pub trait MailSource {
         portals: &[Portal],
     ) -> impl Future<Output = Result<Vec<u32>, MailError>> + Send;
 
-    /// The mails for `uids`. Mails deleted in the meantime are simply missing; a mail
-    /// without content comes back with empty bytes (counted as defective, never silently
-    /// dropped).
+    /// The heads of the mails for `uids` (sender, subject, date, message id) - a few hundred
+    /// bytes each; the bodies stay on the server. Mails deleted in the meantime are missing.
+    fn heads(
+        &mut self,
+        uids: &[u32],
+    ) -> impl Future<Output = Result<Vec<RawHead>, MailError>> + Send;
+
+    /// The whole mails for `uids` - only for mails whose head made them a candidate. Mails
+    /// deleted in the meantime are simply missing; a mail without content comes back with
+    /// empty bytes (counted as defective, never silently dropped).
     fn fetch(
         &mut self,
         uids: &[u32],
     ) -> impl Future<Output = Result<Vec<RawMail>, MailError>> + Send;
 }
+
+/// The head fields a scan needs to decide whether a mail may be an alert.
+const HEAD_FIELDS: &str = "FROM SUBJECT DATE MESSAGE-ID";
 
 /// Search expression: the portals' sender domains **or** their keywords (forwarded
 /// alerts come from the user themselves). `X-GM-RAW` is Gmail's own search - server-side,
@@ -330,16 +340,46 @@ where
         Ok(uids)
     }
 
+    async fn heads(&mut self, uids: &[u32]) -> Result<Vec<RawHead>, MailError> {
+        if uids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let wanted: HashSet<u32> = uids.iter().copied().collect();
+        let mut heads = BTreeMap::new();
+        let command = format!(
+            "UID FETCH {} (UID BODY.PEEK[HEADER.FIELDS ({HEAD_FIELDS})])",
+            uid_set(uids)
+        );
+        self.command(&command, |response| {
+            let Response::Fetch(_, attributes) = response else {
+                return;
+            };
+            let (mut uid, mut bytes) = (None, None);
+            for attribute in attributes {
+                match attribute {
+                    AttributeValue::Uid(u) => uid = Some(*u),
+                    AttributeValue::BodySection { data, .. } => {
+                        bytes = Some(data.as_deref().unwrap_or_default().to_vec());
+                    }
+                    _ => {}
+                }
+            }
+            if let (Some(uid), Some(bytes)) = (uid, bytes)
+                && wanted.contains(&uid)
+            {
+                heads.insert(uid, RawHead { uid, bytes });
+            }
+        })
+        .await?;
+        Ok(heads.into_values().collect())
+    }
+
     async fn fetch(&mut self, uids: &[u32]) -> Result<Vec<RawMail>, MailError> {
         if uids.is_empty() {
             return Ok(Vec::new());
         }
         let wanted: HashSet<u32> = uids.iter().copied().collect();
-        let set = uids
-            .iter()
-            .map(u32::to_string)
-            .collect::<Vec<_>>()
-            .join(",");
+        let set = uid_set(uids);
         let mut mails = BTreeMap::new();
         let command = format!("UID FETCH {set} (UID X-GM-MSGID BODY.PEEK[]<0.{MAX_MAIL_BYTES}>)");
         self.command(&command, |response| {
@@ -370,6 +410,14 @@ where
         .await?;
         Ok(mails.into_values().collect())
     }
+}
+
+/// An IMAP UID set: `7,9,12`.
+fn uid_set(uids: &[u32]) -> String {
+    uids.iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 /// Runs one network step, cancellable. The idle limit sits on the connection; this
@@ -520,6 +568,63 @@ mod tests {
         let source = include_str!("imap.rs");
         assert!(source.contains(&format!("session{}", r#".examine("INBOX")"#)));
         assert!(!source.contains(&format!("session{}", ".select(")));
+    }
+
+    /// Two phases over IMAP: the heads of all matches, then the whole mail only for the
+    /// candidates - a newsletter the keyword search found is never loaded whole.
+    #[tokio::test]
+    async fn only_candidate_bodies_are_fetched() {
+        use crate::mail::scan::{ScanSummary, Scope, scan};
+        let alert = "From: LinkedIn <jobalerts-noreply@linkedin.com>\r\nSubject: Neue Jobs\r\n\r\n";
+        let news = "From: News <news@example.org>\r\nSubject: Unlocked: your notetaker\r\n\r\n";
+        let field = format!("BODY[HEADER.FIELDS ({HEAD_FIELDS})]");
+        let heads = format!(
+            "* 1 FETCH (UID 7 {field} {{{}}}\r\n{alert})\r\n\
+             * 2 FETCH (UID 8 {field} {{{}}}\r\n{news})\r\n{{tag}} OK Success\r\n",
+            alert.len(),
+            news.len()
+        );
+        let body =
+            format!("{alert}<a href=\"https://www.linkedin.com/jobs/view/4123456789/\">Rolle</a>");
+        let bodies = format!(
+            "* 1 FETCH (UID 7 X-GM-MSGID 1234 BODY[]<0> {{{}}}\r\n{body})\r\n{{tag}} OK Success\r\n",
+            body.len()
+        );
+        let (mut gmail, sent) = scripted_logging(vec![
+            "* SEARCH 7 8\r\n{tag} OK SEARCH completed\r\n".into(),
+            heads,
+            bodies,
+        ])
+        .await;
+        let store = crate::store::Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let mut summary = ScanSummary::default();
+        scan(
+            &mut gmail,
+            &store,
+            run,
+            Scope::All,
+            &[Portal::LinkedIn],
+            "2026-09-19T08:00:00Z".parse().unwrap(),
+            &CancellationToken::new(),
+            &mut summary,
+            |_| {},
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            (summary.mails_checked, summary.alert_mails, summary.new),
+            (2, 1, 1)
+        );
+        let commands = sent.lock().unwrap().clone();
+        let fetches: Vec<&String> = commands
+            .iter()
+            .filter(|c| c.contains("UID FETCH"))
+            .collect();
+        assert_eq!(fetches.len(), 2, "{commands:?}");
+        assert!(fetches[0].contains("UID FETCH 7,8 (UID BODY.PEEK[HEADER.FIELDS"));
+        assert!(fetches[1].contains("UID FETCH 7 ("), "only the candidate");
+        assert!(fetches[1].contains("BODY.PEEK[]"));
     }
 
     /// A failed search is an error, not "0 mails" - otherwise the scan state would

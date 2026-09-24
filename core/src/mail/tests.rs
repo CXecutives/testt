@@ -495,3 +495,44 @@ fn defective_and_placeholder() {
     );
     assert_eq!(alert(&raw, ALL).postings[0].title, TITLE_PLACEHOLDER);
 }
+
+/// Two phases must lose no alert: every checked-in alert mail is a candidate by its head
+/// alone, the newsletter is not - so it is never loaded whole.
+#[test]
+fn every_alert_is_a_candidate_by_its_head() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mails");
+    let mut alerts = 0;
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        let bytes = std::fs::read(&path).unwrap();
+        let raw = RawMail {
+            gmail_id: None,
+            bytes: bytes.clone(),
+        };
+        let head = head_part(&bytes);
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        match classify_mail(&raw, ALL) {
+            MailKind::Alert(_) => {
+                alerts += 1;
+                assert!(is_candidate(head, ALL), "{name}");
+            }
+            _ if name.starts_with("no_alert") => assert!(!is_candidate(head, ALL), "{name}"),
+            _ => {}
+        }
+    }
+    assert!(alerts >= 12, "{alerts}");
+    // The unit test mails too: forwarded ones by their prefix, originals by their sender.
+    for (sender, subject, expected) in [
+        ("Ich <ich@example.org>", "Fwd: Neue Projekte", true),
+        ("Ich <ich@example.org>", "WG: Suchagent vom 18.09.", true),
+        ("Ich <ich@example.org>", "Mein LinkedIn-Alert", true),
+        ("Jobs <jobs-listings@linkedin.com>", "Irgendwas", true),
+        ("Kollege <max@firma.de>", "Neue Termine", false),
+        ("News <news@example.org>", "Unlocked: your notetaker", false),
+    ] {
+        let head = format!("From: {sender}\r\nSubject: {subject}\r\n\r\n");
+        assert_eq!(is_candidate(head.as_bytes(), ALL), expected, "{subject}");
+    }
+    // An unreadable head is loaded (and then counted as defective).
+    assert!(is_candidate(b"", ALL));
+}
