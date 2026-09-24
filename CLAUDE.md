@@ -19,6 +19,10 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
   Ctrl/Cmd+C/V/X/A/Z). All input handling in `ui/src/lib/input/input.ts`.
 - Styling only via tokens in `ui/src/styles/tokens.css`; controls only from `ui/src/components/`; Tauri only via
   `ui/src/lib/ipc/api.ts`; motion only via `ui/src/lib/motion/`. At most one primary button per view. Lint enforces it.
+- UI text (German): little text, only what is needed, plain and human. No AI-style writing: no dashes or
+  em dashes as separators, no colons in labels or headings, no "X: Y" constructions, no filler, no exclamation
+  marks, no emoji. Buttons are one verb phrase, notes one short sentence. The UI must not look AI-generated
+  (no sparkles, no gradient text, no glow for decoration).
 - The backend never sends prose: notices, errors and status are `{code, params}`; texts live in the UI catalog.
 - Scraping stays conservative: only links from the user's alert mails, every request through `admit` (policy.json),
   stop on 429/999/403/captcha/login wall, never bypass captchas or 2FA. Every portal can be switched off.
