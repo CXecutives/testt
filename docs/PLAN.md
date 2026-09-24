@@ -181,8 +181,10 @@ macOS: universal, ad-hoc signed, minimum 14.0.
       auto fetch; profile summary + template; Excel column + grey header, mail address out of info sheet; HTML
       overview; TXT byte tests; demo with high/mid/low/excluded.
 - [ ] 2C Components: all 23 with variants, states, motion; complete gallery; baselines.
-- [ ] 2D Scraping and sign-in (session delete, macOS data store, no unasked sign-in window, keychain test already merged with 1c): S1-S11; switches honoured in the fetch path; optional sign-in with risk note; delete
+- [x] 2D Scraping and sign-in (session delete, macOS data store, no unasked sign-in window, keychain test already merged with 1c): S1-S11; switches honoured in the fetch path; optional sign-in with risk note; delete
       session per portal (macOS `data_store_identifier`); keychain test on macOS; dead code list.
+      Left for the integrator: `AppBackends::prescore` -> `matching::prescore` with the profile (neutral until then);
+      `commands/mod.rs` could use `sync::lock`; exports (Excel, TXT) still list duplicate rows (the list shows one).
       Done when: 26 fetch tests + new (4th test portal via registry only, health, teaser, Retry-After, requeue, slug
       URL = same id, duplicate group, IMAP loads candidates only, details off => zero portal requests, sign-out
       verified on both OS).
