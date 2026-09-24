@@ -57,6 +57,10 @@
     wide?: boolean;
     /** Sits inside a text field: skipped by Tab, a click keeps the focus in the field. */
     inField?: boolean;
+    /** A glyph after the label (the chevron of a menu button). */
+    trailing?: IconName | null;
+    /** It opens a menu (announced as such). */
+    menu?: boolean;
     testid?: string | null;
     onclick?: (event: MouseEvent) => void;
   }
@@ -76,6 +80,8 @@
     external = false,
     wide = false,
     inField = false,
+    trailing = null,
+    menu = false,
     testid = null,
     onclick,
   }: Props = $props();
@@ -113,6 +119,7 @@
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
   aria-pressed={pressed === null ? undefined : pressed}
+  aria-haspopup={menu ? 'menu' : undefined}
   tabindex={inField ? -1 : undefined}
   data-keep-focus={inField ? '' : undefined}
   data-testid={testid ?? undefined}
@@ -131,6 +138,9 @@
     {/if}
     {#if !iconOnly}
       <span class="label">{label}</span>
+    {/if}
+    {#if trailing}
+      <span class="trailing" aria-hidden="true"><Icon name={trailing} size="sm" /></span>
     {/if}
   </span>
   {#if loading}
@@ -169,6 +179,11 @@
     align-items: center;
     gap: var(--btn-gap);
     transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+
+  .trailing {
+    display: inline-flex;
+    margin-right: calc(-1 * var(--space-4));
   }
 
   .glyph {

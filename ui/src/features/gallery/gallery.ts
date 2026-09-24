@@ -104,6 +104,8 @@ export const text = {
     facet: 'Ansicht',
     facets: ['Neu', 'Alle'],
     views: ['Neu', 'Alle', 'Gemerkt', 'Bewerbungen'],
+    orders: ['Nach Passung', 'Nach Datum'],
+    orderOff: 'Ohne Profil nur nach Datum.',
     sort: 'Sortierung',
     sorts: ['Beste Passung', 'Neueste', 'Portal'],
     address: 'Postfach',

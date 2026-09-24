@@ -14,7 +14,8 @@
 
 import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
+import { LogicalPosition } from '@tauri-apps/api/dpi';
+import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import type { Commands, ErrorInfo, ErrorKind, RunEvent } from './types';
 
 export type CommandName = keyof Commands;
@@ -187,6 +188,47 @@ export interface EditEntry {
 /** The menu shown last; its native resources go when the next one opens. */
 let shownMenu: Menu | null = null;
 
+/** Show a native menu (at a point of the window, else at the pointer). */
+async function show(menu: Menu, at: { x: number; y: number } | null = null): Promise<void> {
+  const previous = shownMenu;
+  shownMenu = menu;
+  void previous?.close();
+  await menu.popup(at === null ? undefined : new LogicalPosition(at.x, at.y));
+}
+
+/** One choice of a native menu with check marks (the chosen one is checked). */
+export interface ChoiceEntry {
+  text: string;
+  checked: boolean;
+  enabled?: boolean;
+  onchoose: () => void;
+}
+
+/**
+ * A native menu of choices below a menu button (`at`: its bottom left in window px), the
+ * OS's own: the current choice checked, a click chooses.
+ */
+export async function popupChoiceMenu(
+  entries: readonly ChoiceEntry[],
+  at: { x: number; y: number } | null = null,
+): Promise<void> {
+  try {
+    const items = await Promise.all(
+      entries.map((entry) =>
+        CheckMenuItem.new({
+          text: entry.text,
+          checked: entry.checked,
+          enabled: entry.enabled ?? true,
+          action: () => entry.onchoose(),
+        }),
+      ),
+    );
+    await show(await Menu.new({ items }), at);
+  } catch (error) {
+    reportUiError(`choice menu: ${String(error)}`, null, null);
+  }
+}
+
 /**
  * A native context menu at the pointer, the OS's own (Windows and macOS draw it). An
  * enabled entry is the OS's predefined edit command, so the OS performs it on the focused
@@ -201,11 +243,7 @@ export async function popupEditMenu(entries: readonly EditEntry[]): Promise<void
           : MenuItem.new({ text: entry.text, enabled: false }),
       ),
     );
-    const menu = await Menu.new({ items });
-    const previous = shownMenu;
-    shownMenu = menu;
-    void previous?.close();
-    await menu.popup();
+    await show(await Menu.new({ items }));
   } catch (error) {
     reportUiError(`context menu: ${String(error)}`, null, null);
   }

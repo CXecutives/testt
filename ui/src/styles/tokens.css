@@ -323,6 +323,8 @@
   --reader-width: 720px;
   /* The column handle: the strip that catches the pointer and the line it shows. */
   --splitter-hit: 8px;
+  /* A native menu opens this far below its button. */
+  --menu-gap: 4px;
   --splitter-line: 2px;
   --form-width: 560px;
   /* Rows and their washes: a row's hover wash is the row's own box, and rows run edge to

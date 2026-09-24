@@ -66,8 +66,12 @@ interface Harness {
   holdAfter: number | null;
   /** A copy of a job as the stub holds it (null if unknown). */
   job: (key: JobKey) => JobView | null;
-  /** The native context menus shown (entries: text, enabled, OS command or null). */
-  menus: { text: string; enabled: boolean; command: string | null }[][];
+  /** The native menus shown (entries: text, enabled, OS command or null, check state). */
+  menus: { text: string; enabled: boolean; command: string | null; checked?: boolean }[][];
+  /** Where the last menu was shown (window px; null: at the pointer). */
+  menuAt: { x: number; y: number } | null;
+  /** Click an entry of the last menu shown (like the user in the native menu). */
+  pick: (index: number) => void;
 }
 
 declare global {
@@ -1885,6 +1889,10 @@ const harness: Harness = {
   failPages: 0,
   holdAfter: null,
   menus: [],
+  menuAt: null,
+  pick(index) {
+    lastItems[index]?.choose();
+  },
   job(key) {
     const found = find(key);
     return found === undefined ? null : structuredClone(found);
@@ -1901,18 +1909,60 @@ interface StubItem {
   text: string;
   enabled: boolean;
   command: string | null;
+  checked?: boolean;
 }
+
+/** The window position of @tauri-apps/api/dpi. */
+export class LogicalPosition {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+}
+
+/** The entries of the last menu shown (`pick` clicks one). */
+let lastItems: { choose: () => void }[] = [];
 
 export class MenuItem {
   constructor(readonly entry: StubItem) {}
+
+  choose(): void {}
 
   static async new(options: { text: string; enabled?: boolean }): Promise<MenuItem> {
     return new MenuItem({ text: options.text, enabled: options.enabled ?? true, command: null });
   }
 }
 
+export class CheckMenuItem {
+  constructor(
+    readonly entry: StubItem,
+    readonly action: () => void,
+  ) {}
+
+  static async new(options: {
+    text: string;
+    checked?: boolean;
+    enabled?: boolean;
+    action?: () => void;
+  }): Promise<CheckMenuItem> {
+    const entry = {
+      text: options.text,
+      enabled: options.enabled ?? true,
+      command: null,
+      checked: options.checked ?? false,
+    };
+    return new CheckMenuItem(entry, options.action ?? (() => undefined));
+  }
+
+  choose(): void {
+    if (this.entry.enabled) this.action();
+  }
+}
+
 export class PredefinedMenuItem {
   constructor(readonly entry: StubItem) {}
+
+  choose(): void {}
 
   static async new(options: { item: string; text?: string }): Promise<PredefinedMenuItem> {
     return new PredefinedMenuItem({
@@ -1923,14 +1973,18 @@ export class PredefinedMenuItem {
   }
 }
 
-export class Menu {
-  constructor(readonly items: (MenuItem | PredefinedMenuItem)[]) {}
+type StubMenuItem = MenuItem | PredefinedMenuItem | CheckMenuItem;
 
-  static async new(options: { items: (MenuItem | PredefinedMenuItem)[] }): Promise<Menu> {
+export class Menu {
+  constructor(readonly items: StubMenuItem[]) {}
+
+  static async new(options: { items: StubMenuItem[] }): Promise<Menu> {
     return new Menu(options.items);
   }
 
-  async popup(): Promise<void> {
+  async popup(at?: LogicalPosition): Promise<void> {
+    lastItems = this.items;
+    harness.menuAt = at === undefined ? null : { x: at.x, y: at.y };
     harness.menus.push(this.items.map((item) => item.entry));
   }
 

@@ -246,6 +246,37 @@ test('nav sub-entries: quieter, indented, the one pill covers the active one (al
   );
 });
 
+test('a menu button opens the OS menu of choices below it; a choice applies', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const button = page.getByTestId('menu-order');
+  await button.scrollIntoViewIfNeeded();
+  await expect(button).toHaveText('Nach Passung');
+  await expect(button).toHaveAttribute('aria-haspopup', 'menu');
+  await button.click();
+  const shown = await page.evaluate(() => ({
+    menu: window.__harness.menus.at(-1),
+    at: window.__harness.menuAt,
+  }));
+  expect(shown.menu!.map((entry) => [entry.text, entry.checked])).toEqual([
+    ['Nach Passung', true],
+    ['Nach Datum', false],
+  ]);
+  // Right below the button, on its left edge.
+  const box = (await button.boundingBox())!;
+  expect(Math.round(shown.at!.x)).toBe(Math.round(box.x));
+  expect(shown.at!.y).toBeGreaterThanOrEqual(box.y + box.height);
+  await page.evaluate(() => window.__harness.pick(1));
+  await expect(button).toHaveText('Nach Datum');
+  // Disabled: the tooltip says why, no menu opens.
+  const count = await page.evaluate(() => window.__harness.menus.length);
+  const off = page.getByTestId('menu-order-off');
+  await off.click({ force: true });
+  expect(await page.evaluate(() => window.__harness.menus.length)).toBe(count);
+  await page.mouse.move(0, 0);
+  await off.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Ohne Profil nur nach Datum.');
+});
+
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {
   await open(page, '?gallery');
   const toggle = page.getByTestId('gallery-row-toggle');
