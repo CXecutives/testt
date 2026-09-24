@@ -1,6 +1,7 @@
 <!-- Gallery: score rings, stat tiles, notices and dialogs. -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
+  import Count, { COUNT_TONES } from '$components/Count.svelte';
   import Dialog from '$components/Dialog.svelte';
   import Notice, { NOTICE_TONES } from '$components/Notice.svelte';
   import ScoreRing, { type RingState } from '$components/ScoreRing.svelte';
@@ -21,6 +22,7 @@
     { id: 'none', state: { status: 'none' } },
   ];
 
+  let count = $state(12);
   let confirmOpen = $state(false);
   let dangerOpen = $state(false);
   /** The danger dialog fails like an action in the dry run: the error shows inside. */
@@ -48,6 +50,14 @@
       tone="warning"
       onclick={noop}
     />
+  </div>
+  <!-- Counts roll when they change on screen (not when they first appear). -->
+  <div class="row">
+    {#each COUNT_TONES as tone (tone)}
+      <Count value={count} {tone} testid="count-{tone}" />
+    {/each}
+    <Button label={t.countMore} size="sm" onclick={() => (count += 1)} testid="count-more" />
+    <Button label={t.countLess} size="sm" onclick={() => (count -= 1)} />
   </div>
 </Section>
 

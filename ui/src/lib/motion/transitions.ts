@@ -5,6 +5,10 @@
 // --stagger-max list rows animate at once, and only rows that arrive while the list is on
 // screen. Nothing staggers, nothing bounces. Under reduced motion every movement is dropped
 // and what remains is a cross-fade of --dur-crossfade.
+//
+// No replay by construction: Svelte plays a local transition only when its own block has
+// run before, so an entry never plays when a view, a list or the app mounts (main.ts also
+// mounts with `intro: false`). One-shots (pulseOnce) are started only from event handlers.
 
 import { flip as svelteFlip } from 'svelte/animate';
 import { Tween } from 'svelte/motion';
@@ -18,6 +22,8 @@ import {
   enterScale,
   isReducedMotion,
   move,
+  play,
+  popScale,
   staggerLimit,
   type Duration,
   type Easing,
@@ -95,7 +101,10 @@ export function flip(
   fromTo: { from: DOMRect; to: DOMRect },
   params: FlipParams = {},
 ): AnimationConfig {
-  const still = (params.count ?? 0) > FLIP_LIMIT;
+  // Only rows the user can see move: a row that is off screen before and after is placed.
+  const offscreen = (rect: DOMRect): boolean => rect.bottom < 0 || rect.top > innerHeight;
+  const still =
+    (params.count ?? 0) > FLIP_LIMIT || (offscreen(fromTo.from) && offscreen(fromTo.to));
   return svelteFlip(node, fromTo, {
     duration: still ? 0 : duration(params.duration ?? 'base'),
     easing: easing(params.easing ?? 'standard'),
@@ -152,6 +161,100 @@ export function scrim(
     duration: out ? duration('fast') : duration('slow'),
     easing: easing(out ? 'in' : 'out'),
   });
+}
+
+export interface RollParams {
+  /** The number went up (it rises from below) or down (it drops from above). */
+  up: boolean;
+}
+
+/**
+ * A count that changes while it is visible (sidebar count, segment counts, tiles, run
+ * counters): `{#key value}<span class="roll" in:roll={{ up }}>{value}</span>{/key}` on an
+ * inline-block span. The new number rises --move-md in the direction of the change and
+ * fades in (150 ms, emphasized); the old one leaves at once (no out, so nothing stacks or
+ * reflows). It does not play when the count first appears (a local transition).
+ */
+export function roll(node: Element, { up }: RollParams): TransitionConfig {
+  if (isReducedMotion()) return crossfade(node);
+  const y = move('md') * (up ? 1 : -1);
+  return {
+    duration: duration('base'),
+    easing: easing('emphasized'),
+    css: (t) => `opacity: ${t}; transform: translateY(${Math.round((1 - t) * y)}px)`,
+  };
+}
+
+/**
+ * The unread dot leaves when the job is read while its row is on screen: it shrinks and
+ * fades (150 ms, ease-in). Local, so filtering or unmounting a row never plays it.
+ */
+export function dotOut(node: Element): TransitionConfig {
+  if (isReducedMotion()) return crossfade(node);
+  return {
+    duration: duration('base'),
+    easing: easing('in'),
+    css: (t) => `opacity: ${t}; transform: scale(${t})`,
+  };
+}
+
+/** The toast enters rising --move-lg from --scale-enter (150 ms, ease-out). */
+export function toastIn(node: Element): TransitionConfig {
+  if (isReducedMotion()) return crossfade(node);
+  const y = move('lg');
+  const scale = enterScale();
+  return { duration: duration('base'), easing: easing('out'), css: (t) => lifted(t, y, scale) };
+}
+
+/** The toast leaves sideways by --move-lg while it fades (100 ms, ease-in). */
+export function toastOut(node: Element): TransitionConfig {
+  if (isReducedMotion()) return crossfade(node);
+  const x = move('lg');
+  return {
+    duration: duration('fast'),
+    easing: easing('in'),
+    css: (t) => `opacity: ${t}; transform: translateX(${Math.round((1 - t) * x)}px)`,
+  };
+}
+
+export interface TooltipParams {
+  /** Where the bubble sits: it moves --move-sm toward its anchor as it appears. */
+  placement: 'top' | 'bottom';
+}
+
+/** The tooltip pops toward its anchor (100 ms, ease-out) and leaves with a 60 ms fade. */
+export function tooltipIn(node: Element, { placement }: TooltipParams): TransitionConfig {
+  if (isReducedMotion()) return crossfade(node);
+  const y = move('sm') * (placement === 'top' ? 1 : -1);
+  const scale = enterScale();
+  return { duration: duration('fast'), easing: easing('out'), css: (t) => lifted(t, y, scale) };
+}
+
+export function tooltipOut(node: Element): TransitionConfig {
+  return svelteFade(node, { duration: duration('instant'), easing: easing('in') });
+}
+
+/**
+ * The one pop of the UI: the star when a job is pinned (1, --scale-pop, 1 in 180 ms). Call
+ * it from the click handler that pins (never from an effect, so it cannot replay), on the
+ * HTML wrapper of the glyph. The finished animation is dropped at once.
+ */
+export function pulseOnce(element: Element): void {
+  const peak = popScale();
+  if (peak === 1) return;
+  const animation = play(
+    element,
+    [
+      { transform: 'scale(1)' },
+      { transform: `scale(${peak})`, offset: 0.45 },
+      { transform: 'scale(1)' },
+    ],
+    { duration: 'slow', easing: 'out' },
+  );
+  void animation?.finished.then(
+    () => animation.cancel(),
+    () => undefined,
+  );
 }
 
 /**
