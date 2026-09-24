@@ -40,8 +40,8 @@ use crate::platform;
 
 // ------------------------------------------------------------------ window title
 // User-facing text, German by product decision (UI language).
-/// Title of the visible sign-in window, after the portal's name ("freelance.de – Anmeldung").
-const TEXT_SIGN_IN_TITLE: &str = "Anmeldung";
+/// Title of the visible sign-in window, before the portal's name ("Anmeldung bei freelance.de").
+const TEXT_SIGN_IN_TITLE: &str = "Anmeldung bei";
 // ------------------------------------------------------------------ end of user-facing text
 
 /// How long a page may load.
@@ -186,7 +186,7 @@ impl Session {
         let site = self.site;
         let builder =
             WebviewWindowBuilder::new(&self.app, site.label(), WebviewUrl::External(url.clone()))
-                .title(format!("{} – {TEXT_SIGN_IN_TITLE}", site.portal.label()));
+                .title(format!("{TEXT_SIGN_IN_TITLE} {}", site.portal.label()));
         let window = platform::session_storage(builder, site.portal.key(), &self.profile)
             .inner_size(1100.0, 820.0)
             .center()
@@ -553,6 +553,30 @@ impl Drop for Session {
     fn drop(&mut self) {
         self.close();
     }
+}
+
+/// After "reset everything": every portal's sign-in goes with its storage. The reset deleted
+/// the profile folders before the start, but on macOS a session lives in a `WKWebView` data
+/// store, which only the running app can remove. Runs in the background; a store that stays
+/// goes into the reset report (and the log).
+pub fn forget_all(app: AppHandle, data_dir: PathBuf) {
+    tauri::async_runtime::spawn(async move {
+        let portals = Portal::ALL
+            .into_iter()
+            .filter(|&p| PortalSite::of(p).is_some());
+        for portal in portals {
+            let profile = data_dir.join(jobalert_core::session_dir(portal));
+            if platform::delete_session_storage(&app, portal.key(), &profile).await {
+                continue;
+            }
+            let state = tauri::Manager::state::<crate::commands::AppState>(&app);
+            if let Some(report) = jobalert_core::sync::lock(&state.reset_report).as_mut() {
+                report
+                    .failed
+                    .push(format!("session storage of {}", portal.key()));
+            }
+        }
+    });
 }
 
 /// The window is gone or could not be used - a network-like error, never a page result.

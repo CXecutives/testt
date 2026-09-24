@@ -199,7 +199,10 @@ mod tests {
         };
         jobs[0].match_ = Some(scored(MatchStatus::Scored, 83));
         jobs[1].match_ = Some(scored(MatchStatus::Excluded, 71));
-        let info = [("Letzter Lauf".to_string(), "x".to_string())];
+        let info = [(
+            crate::export::texts::INFO_LAST_RUN.to_string(),
+            "x".to_string(),
+        )];
         write_xlsx(&path, &jobs, &info).unwrap();
 
         let mut book: Xlsx<_> = open_workbook(&path).unwrap();
@@ -232,7 +235,7 @@ mod tests {
             first[7].to_string(),
             "https://mail.google.com/mail/u/0/#all/1a2b"
         );
-        assert_eq!(first[9].to_string(), "vorhanden");
+        assert_eq!(first[9].to_string(), "Vorhanden");
         assert_eq!(first[10].to_string(), "linkedin:4000000001");
         // "Passung" last: a number, for excluded jobs the domain score.
         assert_eq!(first[11], &Data::Float(83.0));

@@ -127,6 +127,8 @@ struct AppBackends {
     matcher: Option<Arc<dyn Matcher>>,
     /// The same engine, typed: it also orders the fetch queue (likely matches first).
     local: Option<Arc<jobalert_core::pipeline::LocalMatcher>>,
+    /// The settings stay live: a portal switched off during the run gets no further request.
+    store: Arc<Store>,
 }
 
 impl Backends for AppBackends {
@@ -168,6 +170,10 @@ impl Backends for AppBackends {
             }
             None => jobalert_core::fetch::neutral_prescore(),
         }
+    }
+
+    fn live_paths(&self) -> Option<pipeline::LivePaths> {
+        Some(pipeline::stored_paths(Arc::clone(&self.store)))
     }
 }
 
@@ -277,6 +283,7 @@ pub(super) fn launch(
             notify,
             matcher: state.matcher().map(|m| m as Arc<dyn Matcher>),
             local: state.matcher(),
+            store: Arc::clone(&store),
         };
         tauri::async_runtime::spawn(drive(backends, store, policy, request, ctx, cancel, emit))
     };
@@ -285,7 +292,14 @@ pub(super) fn launch(
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(error) = work.await {
-            log::error!("run crashed: {error}");
+            // Only the kind: the error's text repeats the panic message, which can quote ad
+            // or mail text (the panic hook already logged the place).
+            match &error {
+                tauri::Error::JoinError(join) => {
+                    log::error!("{}", jobalert_core::logging::task_failure_line("run", join));
+                }
+                _ => log::error!("run crashed"),
+            }
             release_run(&app.state::<AppState>(), &mine);
             let mut finish = finish;
             finish(crashed(kind, dry_run, started).finished_event());

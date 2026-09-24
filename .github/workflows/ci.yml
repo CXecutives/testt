@@ -44,8 +44,9 @@ jobs:
           rustup toolchain install
           rustup show active-toolchain
 
-      # Universal bundle: Intel and Apple silicon. The runner is arm64, x86_64 is missing.
-      - name: Add macOS targets
+      # Apple Silicon only (aarch64-apple-darwin, docs/PLAN.md). On the arm64 runner this is the
+      # host target already; the step keeps the build independent of the runner's architecture.
+      - name: Add the macOS target
         if: runner.os == 'macOS'
         run: rustup target add aarch64-apple-darwin
 
@@ -109,6 +110,9 @@ jobs:
             -ArgumentList '--dry-run','--smoke','--smoke-run' `
             -RedirectStandardOutput "$PWD\artifacts\logs\smoke.log" `
             -RedirectStandardError "$PWD\artifacts\logs\smoke.err" -PassThru
+          # Windows PowerShell 5.1 fills ExitCode only for a process whose handle was taken
+          # while it ran - without this line every exit code reads as empty, and the step passes.
+          $null = $p.Handle
           $i = 0
           while (-not $p.HasExited -and $i -lt 100) {
             $i++
@@ -116,10 +120,12 @@ jobs:
             Start-Sleep -Milliseconds 1500
           }
           if (-not $p.HasExited) { $p.Kill(); throw "smoke probe hung - killed after 150 s." }
+          $p.WaitForExit()
           Get-Content "$PWD\artifacts\logs\smoke.log", "$PWD\artifacts\logs\smoke.err" `
             -ErrorAction SilentlyContinue
+          if ($null -eq $p.ExitCode) { throw "smoke probe: no exit code." }
           Write-Host "exit code $($p.ExitCode)"
-          exit $p.ExitCode
+          exit [int]$p.ExitCode
 
       - name: Smoke probe (macOS)
         if: runner.os == 'macOS'
@@ -191,14 +197,13 @@ jobs:
           system_profiler SPDisplaysDataType | head -40 || true
 
       # ------------------------------------------------------------------ release bundles
-      - name: Install the Tauri CLI
-        run: npm install --global @tauri-apps/cli@2
-
+      # The Tauri CLI is the pinned devDependency that `npm ci` installed (package.json);
+      # --no-install never fetches another version.
       - name: Release bundle (Windows)
         if: runner.os == 'Windows'
         shell: bash
         working-directory: src-tauri
-        run: tauri build --bundles nsis
+        run: npx --no-install tauri build --bundles nsis
 
       # The ad-hoc signature ("-") is set in tauri.macos.conf.json: on Apple silicon an
       # unsigned bundle does not run at all. No developer account, no notarization.
@@ -208,10 +213,10 @@ jobs:
         working-directory: src-tauri
         run: |
           code=0
-          tauri build --target aarch64-apple-darwin --bundles app,dmg || code=$?
+          npx --no-install tauri build --target aarch64-apple-darwin --bundles app,dmg || code=$?
           if [ "$code" -ne 0 ]; then
             echo "::warning::dmg failed on the runner - building the .app only."
-            tauri build --target aarch64-apple-darwin --bundles app
+            npx --no-install tauri build --target aarch64-apple-darwin --bundles app
           fi
 
       # The release binary (the one inside the installer) starts and stays up.
@@ -222,6 +227,7 @@ jobs:
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           $p = Start-Process -FilePath "$PWD\target\release\job-alert-monitor.exe" `
             -ArgumentList '--dry-run' -PassThru
+          $null = $p.Handle  # so that ExitCode is filled (Windows PowerShell 5.1)
           Start-Sleep -Seconds 12
           try {
             $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -371,9 +377,12 @@ jobs:
         if: hashFiles('package.json') != ''
         run: npx playwright install --with-deps chromium webkit
 
+      # One retry on the shared runner: a timing check (long tasks, scrolling into view) can
+      # trip on a busy machine once; a real failure fails twice. Playwright reports a test
+      # that passed only on its retry as flaky.
       - name: UI harness
         if: hashFiles('package.json') != ''
-        run: npm run harness
+        run: npm run harness -- --retries=1
 
       - name: Upload harness screenshots and report
         if: always() && hashFiles('package.json') != ''

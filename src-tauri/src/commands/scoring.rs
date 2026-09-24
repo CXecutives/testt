@@ -123,7 +123,7 @@ pub(super) fn rescore_if_pending(app: &AppHandle, state: &AppState) {
     state.scoring.rules.at_start(&AppHost { app, state });
 }
 
-/// A run is over: a profile change during it is scored now.
+/// A run or a sign-in is over: a profile change during it is scored now.
 pub(super) fn after_run(app: &AppHandle) {
     let state = app.state::<AppState>();
     state

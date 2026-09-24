@@ -134,6 +134,26 @@ pub trait Backends {
     fn prescore(&self) -> Prescore {
         neutral_prescore()
     }
+    /// The fetch path of every portal as the settings say right now, asked before every
+    /// request: a portal switched off (or to another path) during the run gets no further
+    /// request. `None` by default - the paths stay as the run started.
+    fn live_paths(&self) -> Option<LivePaths> {
+        None
+    }
+}
+
+/// The current fetch path of a portal (`None` = switched off), see [`Backends::live_paths`].
+pub type LivePaths = Arc<dyn Fn(Portal) -> Option<FetchPath> + Send + Sync>;
+
+/// The fetch paths as the stored settings say right now (the app's
+/// [`Backends::live_paths`]). Unreadable settings count as switched off: no request without
+/// a readable switch.
+pub fn stored_paths(store: Arc<Store>) -> LivePaths {
+    Arc::new(move |portal| {
+        crate::settings::Settings::load(&store)
+            .ok()
+            .and_then(|settings| settings.fetch_path(portal))
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -417,6 +437,15 @@ pub const MAX_EVENT_BYTES: usize = 7 * 1024;
 const LAST_FETCH_AT: &str = "last_fetch_at";
 /// Label of the mail address row that earlier versions stored - do not translate.
 const LEGACY_ACCOUNT_LABEL: &str = "Gmail-Konto";
+/// Info sheet labels and values earlier versions stored with the last mailbox scan, and
+/// today's words for them (until the next scan stores its own) - do not translate.
+const LEGACY_INFO: [(&str, &str); 5] = [
+    ("Umfang des letzten Laufs", texts::INFO_SCOPE),
+    ("Neu (letzter Lauf)", texts::INFO_NEW),
+    ("Schon bekannt (letzter Lauf)", texts::INFO_KNOWN),
+    ("Doppelt in mehreren Mails (letzter Lauf)", texts::INFO_DUP),
+    ("Neu seit letztem Lauf", texts::SCOPE_NEW),
+];
 /// The app fetches by itself at the start when the last fetch is older than this.
 pub const AUTO_FETCH_AFTER: jiff::SignedDuration = jiff::SignedDuration::from_hours(6);
 
@@ -763,11 +792,17 @@ async fn fetch_step<B: Backends>(
     // Activity in the status line - not anew for every job, again after a wait.
     let mut activity: Option<(StatusCode, Portal)> = None;
     let prescore = backends.prescore();
+    // A portal stays on while the settings still name the path the run started with.
+    let live = backends.live_paths();
+    let on = |portal: Portal| {
+        live.as_ref()
+            .is_none_or(|now| now(portal) == Some(ctx.path(portal)))
+    };
     let result = fetch_all(
         |portal| backends.pages(portal, ctx.path(portal)),
         store,
         policy,
-        (selection, &*prescore),
+        (selection, &*prescore, &on),
         cancel,
         clock,
         fetched,
@@ -1167,6 +1202,16 @@ fn info_rows(store: &Store, started_at: Timestamp) -> Vec<(String, String)> {
         .unwrap_or_default();
     // Earlier versions stored the mail address among the rows; it stays out now.
     rows.retain(|(label, _)| label != LEGACY_ACCOUNT_LABEL);
+    // ... and their own words, read in today's until the next scan stores its rows.
+    let today = |text: &mut String| {
+        if let Some((_, new)) = LEGACY_INFO.iter().find(|(old, _)| old == text) {
+            *text = (*new).to_owned();
+        }
+    };
+    for (label, value) in &mut rows {
+        today(label);
+        today(value);
+    }
     rows.push((texts::INFO_LAST_RUN.into(), time::display(started_at)));
     rows.push((
         texts::INFO_JOBS_TOTAL.into(),

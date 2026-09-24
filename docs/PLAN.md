@@ -19,7 +19,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Reuse | the app is generic: everything personal lives in the profile; competences may carry alternative terms (`auch`); lexicon = general core + domain packs that activate automatically from the profile; no pack editor in the UI; new portals via adapters |
 | Extra criteria | superseded: the engine adopts the skill rubric (contract type, permanent-role salary and region, seniority, formal requirements) via optional profile keys - exclusions only on clear wording, otherwise checks |
 | Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults, risk badge per switch |
-| HTML overview | no full text: title, company, location, portal, link, match, 3 met, 2 open, exclusion reason |
+| HTML overview | no full text: title, company, location, portal, link, match (excluded: ring without number), up to 2 met requirements (the list keeps no open ones), exclusion reason in words |
 | Extras | Pin (star) + auto fetch on start (> 6 h, switchable); no notifications, no "still open?" checks |
 | Logo | no CXpertise company logo; the coral app icon (folder + check) is the brand mark in the title bar |
 | Heading colour | warm dark ink (45 7% 17%), not slate; coral is the only accent colour (user chose variant A) |
@@ -239,7 +239,7 @@ For each of Jobs, Reader, Day overview, Profil, Einstellungen, First run, dialog
 
 ## Glossary (UI)
 Job · Portal · Passung · Details · Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu (= unread) ·
-Zu prüfen · Merken. Checked for the UI catalog and the Rust export texts.
+Zu prüfen · Merken. Checked for the UI catalog (`ui_contract.rs`) and the Rust texts: exports, startup dialog, window titles, file dialogs, macOS menu (`rust_texts.rs`).
 
 
 ## Budget and models

@@ -828,6 +828,39 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
     assert!(rows.iter().any(|(k, v)| k == texts::INFO_NEW && v == "5"));
 }
 
+/// Rows stored by an earlier version (mail address, "Lauf" for a mailbox scan) come out in
+/// today's words and without the address.
+#[test]
+fn info_rows_of_an_earlier_version_use_todays_words() {
+    let store = Store::in_memory().unwrap();
+    let old = serde_json::json!([
+        ["Letzter Postfach-Abruf", "01.09.2026 08:00"],
+        [LEGACY_ACCOUNT_LABEL, "someone@example.com"],
+        ["Umfang des letzten Laufs", "Neu seit letztem Lauf"],
+        ["Neu (letzter Lauf)", "3"],
+        ["Schon bekannt (letzter Lauf)", "1"],
+        ["Doppelt in mehreren Mails (letzter Lauf)", "0"]
+    ]);
+    store.kv_set(LAST_SCAN_INFO, &old.to_string()).unwrap();
+    let rows = info_rows(&store, Timestamp::now());
+    let labels: Vec<&str> = rows.iter().map(|(label, _)| label.as_str()).collect();
+    assert_eq!(
+        labels,
+        [
+            texts::INFO_LAST_SCAN,
+            texts::INFO_SCOPE,
+            texts::INFO_NEW,
+            texts::INFO_KNOWN,
+            texts::INFO_DUP,
+            texts::INFO_LAST_RUN,
+            texts::INFO_JOBS_TOTAL,
+            texts::INFO_PROGRAM
+        ]
+    );
+    assert_eq!(rows[1].1, texts::SCOPE_NEW);
+    assert!(rows.iter().all(|(_, value)| !value.contains('@')));
+}
+
 /// Safety invariant: a text file the user deleted or emptied is not recreated by the next
 /// run - the mark stays used. Only "rewrite text files" brings it back.
 #[test]
@@ -1394,4 +1427,70 @@ async fn switches_decide_the_fetch_path() {
     )
     .await;
     assert!(paths.0.contains(&(Portal::FreelanceDe, FetchPath::Session)));
+}
+
+/// The demo, with the fetch paths read from the stored settings like in the app.
+struct Stored(Arc<Store>);
+
+impl Backends for Stored {
+    type Mail = DemoMail;
+    type Pages = DemoPages;
+    async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
+        DemoBackends.connect_mail(cancel).await
+    }
+    fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
+        Ok(DemoPages)
+    }
+    fn live_paths(&self) -> Option<LivePaths> {
+        Some(stored_paths(Arc::clone(&self.0)))
+    }
+}
+
+/// Details switched off while the run fetches: the portal gets no further request, although
+/// the run started with it switched on ("off = zero requests").
+#[tokio::test(start_paused = true)]
+async fn a_portal_switched_off_during_the_run_stops_at_once() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(Store::in_memory().unwrap());
+    let settings = crate::settings::Settings::default();
+    settings.save(&store).unwrap();
+    let context = RunContext {
+        fetch_portals: settings.fetch_portals(),
+        sign_in: Vec::new(),
+        ..ctx(dir.path(), false)
+    };
+    let policy = Mutex::new(Policy::in_memory());
+    let mut switched = false;
+    let summary = run(
+        &mut Stored(Arc::clone(&store)),
+        &store,
+        &policy,
+        &request(),
+        &context,
+        &CancellationToken::new(),
+        &c,
+        |event| {
+            if let RunEvent::JobUpdated { job } = &event
+                && job.key.portal == Portal::LinkedIn
+                && !switched
+            {
+                switched = true;
+                let mut off = crate::settings::Settings::load(&store).unwrap();
+                off.portals
+                    .get_mut(&Portal::LinkedIn)
+                    .unwrap()
+                    .fetch_details = false;
+                off.save(&store).unwrap();
+            }
+        },
+    )
+    .await;
+    assert_eq!(summary.outcome, Outcome::Completed);
+    let li = summary
+        .per_portal
+        .iter()
+        .find(|p| p.portal == Portal::LinkedIn)
+        .unwrap();
+    assert_eq!((li.new, li.fetched, li.skipped), (2, 1, 1));
 }

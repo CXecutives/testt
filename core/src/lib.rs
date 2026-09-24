@@ -22,6 +22,7 @@ pub mod sync;
 pub mod text;
 pub mod time;
 pub mod view;
+pub mod window;
 
 pub use error::{Error, Result};
 
