@@ -3,6 +3,7 @@
   at the field they belong to; the password never leaves this form except to save_mailbox
   (it goes straight into the OS keychain). Save and cancel follow the OS like the dialogs:
   save first on Windows, cancel first (save last) on macOS; the row stays left-aligned.
+  When Gmail refuses the password, its field shakes once and the error rises in below it.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -13,7 +14,6 @@
   import { errorText } from '$lib/i18n/texts';
   import { formKeys } from '$lib/input/input';
   import { invoke, IpcError } from '$lib/ipc/api';
-  import { fade, rise } from '$lib/motion/transitions';
   import { primaryFirst } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
@@ -38,6 +38,7 @@
   let userError = $state<string | null>(null);
   let passwordError = $state<string | null>(null);
   let formError = $state<string | null>(null);
+  let passwordField = $state<TextField | null>(null);
 
   async function save(): Promise<void> {
     if (busy) return;
@@ -61,6 +62,8 @@
         (error instanceof IpcError && error.kind === 'mailAuth')
       ) {
         passwordError = errorText(error);
+        // Gmail refused the password: the field it was typed in shakes once.
+        if (error instanceof IpcError && error.kind === 'mailAuth') passwordField?.shake();
       } else {
         formError = errorText(error);
       }
@@ -106,6 +109,7 @@
       error={passwordError}
     >
       <TextField
+        bind:this={passwordField}
         id="{id}-password"
         kind="password"
         bind:value={password}
@@ -116,9 +120,7 @@
     </Field>
   </div>
   {#if formError}
-    <div in:rise={{ distance: 'sm' }} out:fade>
-      <Notice tone="danger" variant="inline" text={formError} testid="mailbox-error" />
-    </div>
+    <Notice tone="danger" variant="inline" text={formError} testid="mailbox-error" />
   {/if}
   <div class="actions">
     {#snippet dismiss()}

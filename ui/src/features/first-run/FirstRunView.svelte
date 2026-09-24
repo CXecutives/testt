@@ -23,7 +23,7 @@
   import { de } from '$lib/i18n/de';
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import { fade, rise } from '$lib/motion/transitions';
+  import { rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -168,9 +168,7 @@
                 />
               </div>
               {#if profileNote}
-                <div in:rise={{ distance: 'sm' }} out:fade>
-                  <Notice tone={profileNote.tone} variant="inline" text={profileNote.text} />
-                </div>
+                <Notice tone={profileNote.tone} variant="inline" text={profileNote.text} />
               {/if}
             {/if}
           </div>
@@ -193,9 +191,7 @@
               />
             </div>
             {#if run.startError}
-              <div in:rise={{ distance: 'sm' }} out:fade>
-                <Notice tone="danger" variant="inline" text={run.startError} />
-              </div>
+              <Notice tone="danger" variant="inline" text={run.startError} />
             {/if}
           </div>
         </li>

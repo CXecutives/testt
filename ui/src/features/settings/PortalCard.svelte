@@ -30,6 +30,7 @@
     portal: PortalState;
   }
   let { portal }: Props = $props();
+  const id = $props.id();
 
   type Switches = Partial<Pick<PortalState, 'enabled' | 'fetchDetails' | 'loginEnabled'>>;
 
@@ -134,9 +135,7 @@
   {#if portal.enabled || error}
     <div class="body" in:rise={{ distance: 'sm' }} out:fade>
       {#if portal.enabled && health}
-        <div in:rise={{ distance: 'sm' }} out:fade>
-          <Notice tone="warning" variant="inline" text={health} testid="health-{portal.portal}" />
-        </div>
+        <Notice tone="warning" variant="inline" text={health} testid="health-{portal.portal}" />
       {/if}
       {#if quota}
         <div class="quota" data-testid="quota-{portal.portal}">
@@ -150,12 +149,14 @@
           <SettingRow
             label={de.settings.details}
             hint={de.settings.riskText[risk]}
+            for="{id}-details"
             testid="details-{portal.portal}"
           >
             {#snippet badges()}
               <Badge label={de.settings.risk[risk]} tone={RISK_TONE[risk]} icon="shield" />
             {/snippet}
             <Toggle
+              id="{id}-details"
               checked={portal.fetchDetails}
               label={de.settings.details}
               testid="toggle-details-{portal.portal}"
@@ -166,6 +167,7 @@
             <SettingRow
               label={de.settings.login}
               hint={de.settings.loginHint}
+              for="{id}-login"
               testid="login-{portal.portal}"
             >
               {#snippet badges()}
@@ -174,6 +176,7 @@
                 {/if}
               {/snippet}
               <Toggle
+                id="{id}-login"
                 checked={portal.loginEnabled}
                 label={de.settings.login}
                 disabled={!portal.fetchDetails}
@@ -218,9 +221,7 @@
         </div>
       {/if}
       {#if error}
-        <div in:rise={{ distance: 'sm' }} out:fade>
-          <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
-        </div>
+        <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
       {/if}
     </div>
   {/if}

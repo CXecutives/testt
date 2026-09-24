@@ -20,7 +20,6 @@
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget } from '$lib/ipc/types';
-  import { fade, rise } from '$lib/motion/transitions';
   import { platform } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -31,6 +30,7 @@
 
   type Feedback = { tone: NoticeTone; text: string } | null;
 
+  const id = $props.id();
   const cfg = $derived(app.state);
   let editing = $state(false);
   let mailboxNote = $state<Feedback>(null);
@@ -180,12 +180,10 @@
   }
 </script>
 
-<!-- A note rises in where its action happened and fades when it goes (never at mount). -->
+<!-- A note rises in where its action happened and fades when it goes (Notice, never at mount). -->
 {#snippet note(feedback: Feedback, testid: string)}
   {#if feedback}
-    <div in:rise={{ distance: 'sm' }} out:fade>
-      <Notice tone={feedback.tone} variant="inline" text={feedback.text} {testid} />
-    </div>
+    <Notice tone={feedback.tone} variant="inline" text={feedback.text} {testid} />
   {/if}
 {/snippet}
 
@@ -257,8 +255,13 @@
     <section class="section" data-testid="settings-fetch">
       <h2 class="heading">{de.settings.fetch}</h2>
       <Card padding="rows">
-        <SettingRow label={de.settings.autoFetch} hint={de.settings.autoFetchHint}>
+        <SettingRow
+          label={de.settings.autoFetch}
+          hint={de.settings.autoFetchHint}
+          for="{id}-auto-fetch"
+        >
           <Toggle
+            id="{id}-auto-fetch"
             checked={cfg.autoFetchOnStart}
             label={de.settings.autoFetch}
             testid="toggle-auto-fetch"

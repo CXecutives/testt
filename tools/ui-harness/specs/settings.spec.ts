@@ -141,6 +141,24 @@ test('auto fetch and portal switches save at once', async ({ page }) => {
   ]);
 });
 
+test('a switch row toggles from its text like the system settings', async ({ page }) => {
+  await settings(page);
+  const auto = page.getByTestId('toggle-auto-fetch');
+  await expect(auto).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('settings-fetch').getByText('Beim Start abrufen').click();
+  await expect(auto).toHaveAttribute('aria-checked', 'false');
+  await page
+    .getByTestId('details-linkedin')
+    .getByText('Gastzugang, kein Konto ist betroffen.')
+    .click();
+  await expect(page.getByTestId('toggle-details-linkedin')).toHaveAttribute(
+    'aria-checked',
+    'false',
+  );
+  // A copyable path is text to select, never a switch: the workspace row has no label.
+  await expect(page.getByTestId('settings-files').locator('label')).toHaveCount(0);
+});
+
 test('each switch carries its risk once; freelance.de sign in and out', async ({ page }) => {
   await settings(page);
   const card = page.getByTestId('portal-freelance');
