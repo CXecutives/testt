@@ -8,11 +8,13 @@
  * Lint (stylelint + eslint + core/tests/ui_contract.rs) rejects hex, named colours, colour
  * functions, px/rem/em/ms/s units, keyframes and `var(--p-*)` everywhere else.
  *
- * Two brand colours with two jobs (user, 2026-09-24): coral means act or new (the one
- * primary per view, switches that are on, the unread dot); the cxpertise navy means where
- * you are and what the data says (selection, active navigation, the chosen filter, focus,
- * progress, counts, tooltips, info, sub-labels). Navy appears as small dense marks and soft
- * washes, never as a large fill; headings stay ink. Green, ochre and grey are the scores.
+ * Two brand colours (user, 2026-09-24): coral means act, new and where you are - the one
+ * primary per view, switches that are on, the unread dot, and (after the A/B preview) the
+ * selection and the active nav in a very light, warm wash; the cxpertise navy carries the
+ * data and the quiet structure - the sidebar count pill, the pinned star, tooltips,
+ * progress, info, links, focus, the chosen filter, sub-labels. Navy appears as small dense
+ * marks and soft washes, never as a large fill; headings stay ink. Green, ochre and grey
+ * are the scores.
  */
 
 :root {
@@ -35,6 +37,13 @@
   --p-warning: 45 76% 75%;
   --p-danger: 4 51% 56%;
   --p-coral-800: 13 62% 45%;
+  /* Very light warm steps for selection (user: "schön leicht und angenehm"): the selected
+     row, its hover, the soft count pill and its hover, the ring track on the wash. */
+  --p-coral-25: 22 72% 96.5%;
+  --p-coral-40: 22 72% 95%;
+  --p-coral-50: 21 68% 94.5%;
+  --p-coral-70: 21 68% 93%;
+  --p-coral-150: 20 40% 88%;
   /* The cxpertise navy: slate navy for focus, links, sub-labels, progress and icons (6.9:1
      on white), deep navy for dark pills, the tooltip, the selection bar and active labels
      (white on it about 10.5:1), and soft washes for selection, chosen filters and pills. */
@@ -77,10 +86,10 @@
   --surface-muted: hsl(var(--p-muted));
   --surface-hover: hsl(var(--p-ink) / 0.04);
   --surface-press: hsl(var(--p-ink) / 0.08);
-  /* The selected list row: a solid navy wash, clearly apart from the warm hover; one step
-     deeper under the pointer; grey while the window is inactive (like Mail, Explorer). */
-  --surface-selected: hsl(var(--p-navy-100));
-  --surface-selected-hover: hsl(var(--p-navy-150));
+  /* The selected list row: a very light warm wash; one step deeper under the pointer; grey
+     while the window is inactive (like Mail, Explorer). */
+  --surface-selected: hsl(var(--p-coral-25));
+  --surface-selected-hover: hsl(var(--p-coral-50));
   --surface-selected-inactive: hsl(var(--p-ink) / 0.06);
   /* Track of segmented controls: visible on white and on cream alike. */
   --surface-track: hsl(var(--p-ink) / 0.055);
@@ -122,28 +131,34 @@
   --toggle-on-hover: hsl(var(--p-coral-variant));
   /* The unread dot of a list row and of the nav rail. */
   --unread: hsl(var(--p-coral));
-
-  /* ----------------------------------- navy: where you are, what the data says */
-  /* The 3 px bar of the selected row and the ring track on its wash. */
-  --selection-bar: hsl(var(--p-navy-deep));
-  --ring-track-selected: hsl(var(--p-navy-200));
+  /* Where you are: the 3 px bar of the selected row and the ring track on its wash. */
+  --selection-bar: hsl(var(--p-coral) / 0.75);
+  --ring-track-selected: hsl(var(--p-coral-150));
   /* The sliding white pill of the active sidebar entry (the sibling of the segmented
-     thumb); its label deep navy, its icon navy. Any nav icon turns navy on hover. */
+     thumb); its label ink, its icon coral. A nav icon turns coral on hover. */
   --nav-active-bg: hsl(var(--p-white));
   --nav-active-border: hsl(var(--p-line));
-  --nav-active-fg: hsl(var(--p-navy-deep));
-  --nav-active-icon: hsl(var(--p-navy));
-  /* The dark count pill (the sidebar unread count, nowhere else at rest) and the soft one
-     (the chosen segment, dividers, sub-labels, countdown, "n neu"). */
+  --nav-active-fg: hsl(var(--p-ink));
+  --nav-active-icon: hsl(var(--p-coral));
+  /* The soft count pill (the chosen segment, dividers, sub-labels, countdown, "n neu"). */
+  --count-soft-bg: hsl(var(--p-coral-40));
+  --count-soft-fg: hsl(var(--p-coral-800));
+  --count-soft-hover: hsl(var(--p-coral-70));
+
+  /* ------------------------------------------ navy: the data and the quiet structure */
+  /* The dark count pill: the sidebar unread count (the cxpertise dark label), nowhere else
+     at rest. */
   --count-bg: hsl(var(--p-navy-deep));
   --count-fg: hsl(var(--p-white));
-  --count-soft-bg: hsl(var(--p-navy-100));
-  --count-soft-fg: hsl(var(--p-navy-deep));
-  --count-soft-hover: hsl(var(--p-navy-150));
+  /* An icon that answers the pointer or marks data (a hovered status, a focused search, a
+     disclosure chevron, the icon of a neutral stat tile). */
+  --icon-accent: hsl(var(--p-navy));
   /* A filter that is on: the active stat tile and a pressed secondary chip. */
   --active-surface: hsl(var(--p-navy-50));
   --active-edge: hsl(var(--p-navy));
   --active-text: hsl(var(--p-navy-deep));
+  /* Under the pointer inside a navy chip (the remove button of a chip). */
+  --active-hover: hsl(var(--p-navy-150));
   /* Progress: the fill and track of brand meters and the colour of their spinners. */
   --meter-fill: hsl(var(--p-navy));
   --meter-track: hsl(var(--p-navy-100));
@@ -277,6 +292,12 @@
   --list-max: 460px;
   --reader-width: 720px;
   --form-width: 560px;
+  /* Rows and their washes: a row's hover wash is the row's own box, and rows run edge to
+     edge inside their container. A container that insets its content sets --row-inset to
+     that inset; its rows bleed out by it and pad their content in by it, so wash, divider
+     and text share one grid (a card of setting rows: 20). Unset, rows sit at the content
+     edge. */
+  --row-inset: 0px;
   /* The one inner padding of every content column: list header, list rows, reader, overview,
      and the left edge of the top strip, so their edges line up. */
   --pane-padding: var(--space-16);
@@ -310,6 +331,10 @@
   --tooltip-gap: 8px;
   --viewport-gap: 8px;
   --badge-height: 18px;
+  /* The narrowest count pill: 4 and 12 weigh the same. */
+  --count-min: 20px;
+  /* The markers of the first-run stepper (number, current, drawn check). */
+  --step-marker: 28px;
   /* Monogram tile of a portal in the run card: one width, so the names line up. */
   --monogram-width: 20px;
   /* Width of an intro sentence (first run). */
@@ -424,16 +449,13 @@
   --move-md: 4px;
   --move-lg: 8px;
   --scale-enter: 0.98;
-  /* While the left button is down: text buttons, segment labels, chips and reason rows;
-     icon-only buttons; tiles and interactive cards (larger surfaces move less). */
-  --scale-press: 0.97;
-  --scale-press-icon: 0.94;
-  --scale-press-soft: 0.985;
-  /* The one-shot pop of the star on pin (keyframes 1, 1.18, 1), the star on hover, and the
-     stretch of a toggle thumb while pressed. */
+  /* While the left button is down, buttons (text and icon alike) give a little, uniformly;
+     nothing ever stretches or changes shape. Larger surfaces (tiles, cards, rows, switches)
+     only darken. */
+  --scale-press: 0.98;
+  /* The one-shot pop of the star on pin (keyframes 1, 1.18, 1) and the star on hover. */
   --scale-pop: 1.18;
   --scale-nudge: 1.1;
-  --scale-stretch: 1.15;
   /* The refresh glyph of Abrufen on hover; half a turn is state (sort order, open
      chevron) and keeps its angle under reduced motion. */
   --turn-nudge: 45deg;
@@ -450,6 +472,9 @@
   --z-tooltip: 120;
   --opacity-disabled: 0.5;
   --opacity-muted: 0.6;
+  /* A muted (excluded) row under the pointer, and a link while it is pressed. */
+  --opacity-muted-hover: 0.8;
+  --opacity-press: 0.7;
 }
 
 /* Reduced motion, switched by lib/motion/motion.ts (Svelte and WAAPI ignore the media query,
@@ -469,11 +494,8 @@
   --move-lg: 0px;
   --scale-enter: 1;
   --scale-press: 1;
-  --scale-press-icon: 1;
-  --scale-press-soft: 1;
   --scale-pop: 1;
   --scale-nudge: 1;
-  --scale-stretch: 1;
   --turn-nudge: 0deg;
   --loop-state: paused;
 }

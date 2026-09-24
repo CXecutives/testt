@@ -122,6 +122,18 @@ test('job rows select on click and reorder without losing a row', async ({ page 
   await expect(rows.last()).toHaveAttribute('data-testid', first!);
 });
 
+test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {
+  await open(page, '?gallery');
+  const toggle = page.getByTestId('gallery-row-toggle');
+  await toggle.scrollIntoViewIfNeeded();
+  const before = await toggle.getAttribute('aria-checked');
+  await page.getByText('Ruft neue Alert-Mails ab', { exact: false }).click();
+  await expect(toggle).not.toHaveAttribute('aria-checked', before!);
+  // The tile with 0 is plain text; the chosen filter is pressed.
+  expect(await page.getByTestId('tile-empty').evaluate((node) => node.tagName)).toBe('DIV');
+  await expect(page.getByTestId('tile-filter')).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('baseline: gallery (reduced motion, so counters and loops are at rest)', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '?gallery');

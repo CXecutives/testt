@@ -1,7 +1,9 @@
 <!--
   One reason of a match: met | partial | open | violation | check, weighted must | nice |
   hard | info. Quote and profile evidence appear in the tooltip; hovering can highlight
-  the passage (onhover), a click can scroll to it (onselect).
+  the passage (onhover), a click can scroll to it (onselect). A reason that jumps washes
+  on hover and shows a small arrow down, darkens while pressed, and takes the navy wash
+  while its passage is pinned (active).
 -->
 <script lang="ts" module>
   import type { ReasonKind, ReasonWeight } from '$lib/ipc/types';
@@ -83,7 +85,8 @@
     onpointerleave={() => onhover?.(false)}
     onclick={() => onselect?.()}
   >
-    {@render body()}
+    <span class="face">{@render body()}</span>
+    <span class="jump" aria-hidden="true"><Icon name="arrow-down" size="xs" /></span>
   </button>
 {:else}
   <span class="reason {kind}" class:compact use:tooltip={hint}>{@render body()}</span>
@@ -96,24 +99,61 @@
     gap: var(--space-8);
     min-width: 0;
     padding: var(--space-6) var(--space-8);
-    border-radius: var(--radius-sm);
     color: var(--text);
     font: var(--type-md);
     text-align: left;
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--dur-base) var(--ease-standard);
   }
 
+  /* A reason that jumps is a row: edge to edge in its list, content padded by the list's
+     --row-inset (without one, a small inset of its own). */
   button.reason {
-    width: 100%;
+    width: calc(100% + 2 * var(--row-inset));
+    margin-inline: calc(-1 * var(--row-inset));
+    padding-inline: max(var(--row-inset), var(--space-8));
   }
 
-  button.reason:hover,
-  .active {
+  button.reason:hover {
     background-color: var(--surface-hover);
+    transition-duration: var(--dur-hover);
+  }
+
+  button.reason:active {
+    background-color: var(--surface-press);
+    transition-duration: var(--dur-instant);
+  }
+
+  /* The pinned passage: the navy wash of a chosen filter. */
+  .active,
+  .active:hover {
+    background-color: var(--active-surface);
   }
 
   button.reason:focus-visible {
     box-shadow: var(--focus-ring-inset);
+  }
+
+  .face {
+    display: flex;
+    flex: 1;
+    align-items: inherit;
+    gap: var(--space-8);
+    min-width: 0;
+  }
+
+  /* The way to the passage: a small arrow that appears on hover (100 ms). */
+  .jump {
+    display: inline-flex;
+    flex: none;
+    align-self: center;
+    color: var(--text-subtle);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+
+  button.reason:hover .jump,
+  button.reason:focus-visible .jump {
+    opacity: 1;
   }
 
   .compact {

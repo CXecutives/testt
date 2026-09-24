@@ -1,11 +1,13 @@
 <!--
   A quiet, clickable status line (the run status at the foot of the sidebar): an icon or a
-  spinner, one short text (it wraps to a second line rather than being cut off) and, while
-  something runs, a slim meter below. Collapsed (icon rail) only the icon stays; the text
-  moves into the tooltip.
+  navy spinner, one short text (it wraps to a second line rather than being cut off) and,
+  while something runs, a slim navy meter below. Hover washes it and turns the icon navy;
+  a new text cross-fades in (100 ms). Collapsed (icon rail) only the icon stays; the text
+  moves into the tooltip. A failure keeps its danger tone on hover.
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
+  import { fade } from '$lib/motion/transitions';
   import Icon, { type IconName } from './Icon.svelte';
   import Meter from './Meter.svelte';
   import Spinner from './Spinner.svelte';
@@ -50,9 +52,14 @@
 >
   <span class="line">
     <span class="glyph">
-      {#if busy}<Spinner size="sm" label={null} />{:else}<Icon name={icon} size="sm" />{/if}
+      {#if busy}<Spinner size="sm" label={null} progress />{:else}<Icon
+          name={icon}
+          size="sm"
+        />{/if}
     </span>
-    {#if !collapsed}<span class="text">{text}</span>{/if}
+    {#if !collapsed}
+      {#key text}<span class="text" in:fade>{text}</span>{/key}
+    {/if}
   </span>
   {#if progress !== undefined}
     <Meter value={progress} size="sm" label={progressLabel} />
@@ -71,13 +78,19 @@
     font: var(--type-sm);
     text-align: left;
     transition:
-      background-color var(--dur-fast) var(--ease-standard),
-      color var(--dur-fast) var(--ease-standard);
+      background-color var(--dur-base) var(--ease-standard),
+      color var(--dur-base) var(--ease-standard);
   }
 
   .status:hover {
     background-color: var(--surface-hover);
     color: var(--text);
+    transition-duration: var(--dur-hover);
+  }
+
+  .status:active {
+    background-color: var(--surface-press);
+    transition-duration: var(--dur-instant);
   }
 
   .status:focus-visible {
@@ -102,12 +115,19 @@
     min-width: 0;
   }
 
-  /* The glyph sits on the axis of the first text line. */
+  /* The glyph sits on the axis of the first text line; it turns navy on hover (a failure
+     keeps its red). */
   .glyph {
     display: inline-flex;
     flex: none;
     align-items: center;
     height: var(--leading-sm);
+    transition: color var(--dur-base) var(--ease-standard);
+  }
+
+  .neutral:hover .glyph {
+    color: var(--icon-accent);
+    transition-duration: var(--dur-hover);
   }
 
   .text {

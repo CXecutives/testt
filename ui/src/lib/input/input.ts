@@ -24,9 +24,11 @@
 // - OS window and menu functions stay: Alt+F4 and Cmd+Q/W/M/H/, (Settings), Cmd+Option+H.
 // - no Ctrl/Cmd+wheel zoom (the wheel is watched only while Ctrl or Cmd is held, so plain
 //   scrolling never waits for the page) and no pinch zoom
+// - no hover flicker while a list scrolls (`:root[data-scrolling]`, see onScroll)
 
 import type { Action } from 'svelte/action';
 import { keyConventions, type KeyConventions } from '../platform';
+import { tokenMs } from '../tokens';
 
 const FIELD = 'input, textarea, [contenteditable="true"], [contenteditable=""]';
 /** Text a user would copy (selectable, Ctrl/Cmd+C). */
@@ -331,6 +333,21 @@ function guardZoom(on: boolean): void {
 }
 
 /**
+ * Hover stays still while a list scrolls: `:root[data-scrolling]` is set from the first
+ * scroll event until --scroll-idle after the last one (rows and pins take no pointer
+ * events meanwhile, the scroller keeps its own). A passive listener: it never delays a
+ * scroll.
+ */
+let scrollIdle: ReturnType<typeof setTimeout> | undefined;
+
+function onScroll(): void {
+  const root = document.documentElement;
+  if (root.dataset.scrolling === undefined) root.dataset.scrolling = '';
+  clearTimeout(scrollIdle);
+  scrollIdle = setTimeout(() => delete root.dataset.scrolling, tokenMs('--scroll-idle'));
+}
+
+/**
  * The middle button keeps its default over a scroll area (the autoscroll needs it), but a
  * press must not focus the control under the pointer: after the default action the focus
  * goes back to where it was.
@@ -420,6 +437,7 @@ export function installInput(): void {
     capture,
   );
   window.addEventListener('blur', () => guardZoom(false));
+  document.addEventListener('scroll', onScroll, { capture: true, passive: true });
   // Safari/WKWebView pinch zoom.
   document.addEventListener('gesturestart', prevent, capture);
   document.addEventListener('gesturechange', prevent, capture);

@@ -1,6 +1,7 @@
 <!-- Gallery: score rings, stat tiles, notices and dialogs. -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
+  import Count, { COUNT_TONES } from '$components/Count.svelte';
   import Dialog from '$components/Dialog.svelte';
   import Notice, { NOTICE_TONES } from '$components/Notice.svelte';
   import ScoreRing, { type RingState } from '$components/ScoreRing.svelte';
@@ -12,6 +13,7 @@
   const noop = (): void => undefined;
 
   const rings: { id: string; state: RingState }[] = [
+    { id: 'full', state: { status: 'scored', score: 100, band: 'high' } },
     { id: 'high', state: { status: 'scored', score: 91, band: 'high' } },
     { id: 'mid', state: { status: 'scored', score: 64, band: 'mid' } },
     { id: 'low', state: { status: 'scored', score: 28, band: 'low' } },
@@ -21,6 +23,8 @@
     { id: 'none', state: { status: 'none' } },
   ];
 
+  let count = $state(12);
+  let filtered = $state(true);
   let confirmOpen = $state(false);
   let dangerOpen = $state(false);
   /** The danger dialog fails like an action in the dry run: the error shows inside. */
@@ -48,6 +52,24 @@
       tone="warning"
       onclick={noop}
     />
+    <!-- A chosen filter (navy) and an empty tile (static, quiet). -->
+    <StatTile
+      label={t.statFilter}
+      value={4}
+      icon="circle-dashed"
+      active={filtered}
+      onclick={() => (filtered = !filtered)}
+      testid="tile-filter"
+    />
+    <StatTile label={t.statPinned} value={0} icon="star" onclick={noop} testid="tile-empty" />
+  </div>
+  <!-- Counts roll when they change on screen (not when they first appear). -->
+  <div class="row">
+    {#each COUNT_TONES as tone (tone)}
+      <Count value={count} {tone} testid="count-{tone}" />
+    {/each}
+    <Button label={t.countMore} size="sm" onclick={() => (count += 1)} testid="count-more" />
+    <Button label={t.countLess} size="sm" onclick={() => (count -= 1)} />
   </div>
 </Section>
 
