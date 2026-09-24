@@ -259,7 +259,10 @@ mod tests {
                 CriterionKey::MinDayRate,
                 CriterionKey::Countries,
                 CriterionKey::NoAnue,
-                CriterionKey::Availability
+                CriterionKey::Availability,
+                CriterionKey::MinSalary,
+                CriterionKey::PermanentRegion,
+                CriterionKey::TargetYears
             ]
         );
         for path in [

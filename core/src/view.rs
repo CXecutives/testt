@@ -1510,7 +1510,10 @@ Rahmenbedingungen:
                 ("minDayRate", true),
                 ("countries", true),
                 ("noAnue", true),
-                ("availability", true)
+                ("availability", true),
+                ("minSalary", false),
+                ("permanentRegion", false),
+                ("targetYears", false),
             ]
         );
         assert!(understood.warnings.is_empty());

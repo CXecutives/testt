@@ -199,7 +199,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
       Done when: 26 fetch tests + new (4th test portal via registry only, health, teaser, Retry-After, requeue, slug
       URL = same id, duplicate group, IMAP loads candidates only, details off => zero portal requests, sign-out
       verified on both OS).
-- [ ] Integration (integrator, serial): wire A + B + D into commands and view. A + B done (LocalMatcher, Rust-triggered
+- [x] Integration: engine wired (LocalMatcher, rescore, job detail, profile summary, template, top_matches.json), scraping merged, prescore orders the fetch queue; engine v3 with the skill rubric, domain packs and aliases (in band 49/51/49/51 of 52 for the four profiles). A + B done (LocalMatcher, Rust-triggered
       rescore, reader recompute, profile summary, template, demo on the real engine, `auswertung/top_matches.json` for the
       skill as optional stage 2); D open (prescore hook not exposed by the fetch queue yet).
 
