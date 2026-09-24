@@ -1,11 +1,21 @@
 """App icon: coral plate, white folder, check cut out of the folder.
 
 One geometry, every output:
-  src-tauri/icons/icon.ico    Windows: 48 first (Tauri takes the first entry as the window
-                              icon; Windows scales it down cleanly), then 16 20 24 32 40 64 96 256
-  src-tauri/icons/icon.icns   macOS: plate 824 of 1024 with margin, as the system icons
-  src-tauri/icons/icon.png    1024, macOS layout (window icon on the other targets)
+  src-tauri/icons/icon.ico    Windows only: Windows layout, no shadow. One stage for every size
+                              the shell asks for at 100 to 200 % (see SIZES), 48 first: Tauri
+                              takes the first entry as the window icon
+  src-tauri/icons/icon.icns   macOS: plate 824 of 1024 with margin and a soft drop shadow, as
+                              the system icons
+  src-tauri/icons/icon.png    the 1024 macOS entry (macOS bundle icon, window and Dock icon of
+                              `tauri dev`). Deliberately macOS only: no Windows config lists it,
+                              Windows takes every size from icon.ico
   ui/src/assets/app-icon.svg  the same paths as a vector (brand mark in the title bar)
+
+Edges, in every raster output: colour and coverage are rendered apart, so a partly covered
+pixel carries the plate colour under it (straight alpha), and every fully transparent pixel
+takes the colour of its nearest visible neighbours (colour bleed). A scaler that filters
+without premultiplying - the Windows shell whenever it has no stage of the wanted size - then
+mixes plate colour into the edge instead of black: no dark fringe on any background.
 
 Geometry on the 1024 grid (Windows layout; macOS scales everything with its smaller plate):
 - Plate 48..976, corner radius 212 with 60 % corner smoothing (as iOS and Figma): the curve
@@ -24,8 +34,13 @@ Geometry on the 1024 grid (Windows layout; macOS scales everything with its smal
 Small stages are hinted: straight edges on whole pixels (proportional positions, rounded
 symmetrically), check vertices on half pixels, the check bolder up to 40 px.
 
-    python tools/icon.py                       writes all four files (needs Pillow)
-    python tools/icon.py --compare OUT OLD.py  comparison sheet against an older generator
+    python tools/icon.py                        writes all four files, then checks icon.ico
+                                                (needs Pillow)
+    python tools/icon.py --compare OUT OLD.py   comparison sheet against an older generator
+    python tools/icon.py --fringe-sheet OUT [OLD.ico]
+                                                edge check of icon.ico on dark, grey and white:
+                                                1:1, zoomed and scaled as the shell scales;
+                                                with OLD.ico as the row before
 """
 import math
 import struct
@@ -33,7 +48,7 @@ import sys
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 GLOW = (0xEB, 0x95, 0x7D)     # hsl(13 73% 70.5%) - lighter than the coral-glow token
 VARIANT = (0xD4, 0x5D, 0x3D)  # hsl(13 64% 53.5%) - deeper: a 5 % stronger gradient
@@ -56,10 +71,20 @@ CHECK_W = 72
 MAC_PLATE = 100
 MAC_PLATE_R = 0.2237 * (1024 - 2 * MAC_PLATE)
 
-SIZES = [48, 16, 20, 24, 32, 40, 64, 96, 256]
+# ICO stages. The shell asks for these at 100/125/150/175/200 %: small icons 16 20 24 32,
+# taskbar 24 30 36 48, desktop 48 60 72 96, Start and Alt+Tab in between, large and extra large
+# 96 128 256. An exact stage is drawn 1:1; for the rest (28, 42, 84) the shell scales the next
+# larger one. 48 comes first: Tauri takes the first entry as the window icon.
+SIZES = [48, 16, 20, 24, 30, 32, 36, 40, 60, 64, 72, 80, 96, 128, 256]
 # Check width in pixels at the small stages (bolder than the plain scale, which would be
 # 1.1 px at 16).
-MIN_CHECK_W = {16: 2.0, 20: 2.25, 24: 2.5, 32: 2.8, 40: 3.0}
+MIN_CHECK_W = {16: 2.0, 20: 2.25, 24: 2.5, 30: 2.7, 32: 2.8, 36: 2.9, 40: 3.0}
+# AND mask of the ICO stages: a pixel counts as transparent below half coverage (as icotool's
+# default threshold), so a reader that ignores alpha sees the plate in its right size.
+MASK_ALPHA = 128
+# No pixel of a Windows stage - transparent or not - may be darker than the plate's darkest
+# colour by more than this (per channel): a darker one is a fringe once the shell scales.
+FRINGE_TOLERANCE = 2
 # ICNS entries: OSType and edge length. 256 and 512 appear twice (plain and @2x), as Apple's
 # iconutil writes them; PNG types only (macOS draws 16 from ic11 = 16@2x).
 ICNS_ENTRIES = [('ic11', 32), ('ic12', 64), ('ic07', 128), ('ic13', 256),
@@ -350,6 +375,10 @@ def gradient(size, box):
 
 
 def render(s, mac=False, ss=None):
+    """One stage as straight (not premultiplied) RGBA. Colour and coverage are rendered apart:
+    the colour layer is opaque everywhere (the plate gradient over the whole canvas, the folder
+    in white), so a partly covered edge pixel gets the plate colour under it, never a mix with
+    the black of an empty canvas. Transparent pixels are coloured by `bleed`."""
     ss = ss or min(SS, max(4, 4096 // s))
     g = layout(s, mac)
     S = s * ss
@@ -360,37 +389,82 @@ def render(s, mac=False, ss=None):
     draw = ImageDraw.Draw(folder_mask)
     draw.polygon(scale(folder(g).points()), fill=255)
     draw.polygon(scale(check(g).points()), fill=0)
-    img = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-    img.paste(gradient(S, tuple(v * ss for v in g['plate'])), (0, 0), plate_mask)
-    img.paste(Image.new('RGB', (S, S), WHITE), (0, 0), folder_mask)
-    if mac:
-        # macOS icons carry a soft drop shadow inside their canvas, like the Dock's icons.
-        shadow = plate_mask.point(lambda a: a * 0.28).filter(
-            ImageFilter.GaussianBlur(S * 0.0098))
-        base = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-        base.paste(Image.new('RGB', (S, S), (0, 0, 0)), (0, round(S * 0.0098)), shadow)
-        img = Image.alpha_composite(base, img)
-    return img.resize((s, s), Image.BOX)
+    colour = gradient(S, tuple(v * ss for v in g['plate']))
+    colour.paste(Image.new('RGB', (S, S), WHITE), (0, 0), folder_mask)
+    rgb = colour.resize((s, s), Image.BOX)
+    cover = plate_mask.resize((s, s), Image.BOX)
+    if not mac:
+        img = rgb.convert('RGBA')
+        img.putalpha(cover)
+        return bleed(img)
+    # macOS icons carry a soft drop shadow inside their canvas, like the Dock's icons: black at
+    # 28 %, blurred and moved down by about 1 % of the canvas. The plate mask is binary, so
+    # plate over shadow covers the lighter of the two.
+    shadow = plate_mask.point(lambda a: a * 0.28).filter(ImageFilter.GaussianBlur(S * 0.0098))
+    moved = Image.new('L', (S, S), 0)
+    moved.paste(shadow, (0, round(S * 0.0098)))
+    alpha = ImageChops.lighter(plate_mask, moved).resize((s, s), Image.BOX)
+    # Straight colour of the plate over a black shadow: the plate's share of the coverage.
+    img = Image.new('RGBA', (s, s))
+    img.putdata([(round(r * c / a), round(g_ * c / a), round(b * c / a), a) if a else (r, g_, b, 0)
+                 for (r, g_, b), c, a in zip(pixels(rgb), pixels(cover), pixels(alpha))])
+    return bleed(img)
+
+
+def pixels(img):
+    """The pixel values in row order (Pillow 12 replaced `getdata`)."""
+    flat = getattr(img, 'get_flattened_data', None)
+    return flat() if flat else tuple(img.getdata())
+
+
+def bleed(img):
+    """Colour bleed: every fully transparent pixel takes the mean colour of its visible
+    8-neighbours, ring by ring outwards from the visible pixels; alpha stays 0. The nearest
+    visible pixel is a plate pixel (or, on macOS, the black shadow), so a filter that mixes a
+    transparent pixel into the edge mixes in that colour, never the black of an empty canvas."""
+    s = img.width
+    px = pixels(img)
+    colour = [p[:3] if p[3] else None for p in px]
+
+    def around(i):
+        x, y = i % s, i // s
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if (dx or dy) and 0 <= x + dx < s and 0 <= y + dy < s:
+                    yield i + dy * s + dx
+
+    ring = {i for i, c in enumerate(colour)
+            if c is None and any(colour[j] is not None for j in around(i))}
+    while ring:
+        fill = {}
+        for i in ring:
+            near = [colour[j] for j in around(i) if colour[j] is not None]
+            fill[i] = tuple(round(sum(c[k] for c in near) / len(near)) for k in range(3))
+        for i, c in fill.items():
+            colour[i] = c
+        ring = {j for i in fill for j in around(i) if colour[j] is None}
+    img.putdata([(*c, p[3]) if c is not None else p for c, p in zip(colour, px)])
+    return img
 
 
 def dib(img):
-    """A stage as an uncompressed DIB: BITMAPINFOHEADER, BGRA bottom up, then the AND mask
-    (from the alpha channel; tools that only read the mask would see an opaque border
-    otherwise). Only 256 is stored as PNG: older image libraries cannot read smaller
+    """A stage as an uncompressed DIB: BITMAPINFOHEADER, straight BGRA bottom up (Windows
+    premultiplies itself), then the AND mask: 1 where the pixel is less than half covered, so
+    a reader that uses only the mask gets the plate in its size - with the bled colour, not
+    black, at the edge. Only 256 is stored as PNG: older image libraries cannot read smaller
     compressed stages, and Windows then shows nothing without an error."""
     s = img.width
     head = struct.pack('<IiiHHIIiiII', 40, s, s * 2, 1, 32, 0, 0, 0, 0, 0, 0)
-    px = img.load()
-    rows = list(reversed(range(s)))
-    xor = b''.join(bytes(v for x in range(s) for v in
-                         (lambda p: (p[2], p[1], p[0], p[3]))(px[x, y]))
-                   for y in rows)
+    bottom_up = img.transpose(Image.FLIP_TOP_BOTTOM)
+    r, g, b, a = bottom_up.split()
+    xor = Image.merge('RGBA', (b, g, r, a)).tobytes()  # byte order B G R A
+    alpha = a.tobytes()
     stride = ((s + 31) // 32) * 4
     mask = bytearray()
-    for y in rows:
+    for y in range(s):
         row = bytearray(stride)
         for x in range(s):
-            if px[x, y][3] == 0:
+            if alpha[y * s + x] < MASK_ALPHA:
                 row[x >> 3] |= 0x80 >> (x & 7)
         mask += row
     return head + xor + bytes(mask)
@@ -414,6 +488,123 @@ def build_ico(out):
         blobs += data
         offset += len(data)
     out.write_bytes(header + entries + blobs)
+
+
+def read_ico(path):
+    """The stages of an ICO file in file order: (size, straight RGBA image, AND mask as rows of
+    booleans - None for a PNG stage)."""
+    data = Path(path).read_bytes()
+    count = struct.unpack_from('<H', data, 4)[0]
+    stages = []
+    for i in range(count):
+        w, _, _, _, _, _, length, offset = struct.unpack_from('<BBBBHHII', data, 6 + 16 * i)
+        s = w or 256
+        blob = data[offset:offset + length]
+        if blob.startswith(b'\x89PNG'):
+            img = Image.open(BytesIO(blob))
+            img.load()
+            stages.append((s, img.convert('RGBA'), None))
+            continue
+        head, bpp = struct.unpack_from('<I', blob)[0], struct.unpack_from('<H', blob, 14)[0]
+        assert bpp == 32, f'stage {s}: {bpp} bpp'
+        pixels = blob[head:head + s * s * 4]
+        b, g, r, a = Image.frombytes('RGBA', (s, s), pixels).split()  # stored as B G R A
+        img = Image.merge('RGBA', (r, g, b, a)).transpose(Image.FLIP_TOP_BOTTOM)
+        stride = ((s + 31) // 32) * 4
+        and_mask = blob[head + s * s * 4:]
+        mask = [[bool(and_mask[(s - 1 - y) * stride + (x >> 3)] & (0x80 >> (x & 7)))
+                 for x in range(s)] for y in range(s)]
+        stages.append((s, img, mask))
+    return stages
+
+
+def dark_pixels(img, visible_only=False):
+    """Pixels darker than the plate's darkest colour (any channel below VARIANT by more than
+    FRINGE_TOLERANCE): (x, y, rgba). Every colour of the Windows icon - gradient, white and
+    their mixes - lies at or above VARIANT in each channel."""
+    floor = [v - FRINGE_TOLERANCE for v in VARIANT]
+    s = img.width
+    return [(i % s, i // s, p) for i, p in enumerate(pixels(img))
+            if (p[3] or not visible_only) and any(p[k] < floor[k] for k in range(3))]
+
+
+def check_ico(path):
+    """Problems of the written ICO (empty when it is right): stage order, dark pixels (a
+    transparent one bleeds into the edge as soon as the shell scales), AND mask."""
+    stages = read_ico(path)
+    problems = []
+    if [s for s, _, _ in stages] != SIZES:
+        problems.append(f'stages {[s for s, _, _ in stages]} instead of {SIZES}')
+    for s, img, mask in stages:
+        dark = dark_pixels(img)
+        if dark:
+            problems.append(f'stage {s}: {len(dark)} pixels darker than the plate, e.g. {dark[0]}')
+        if mask is not None:
+            alpha = img.getchannel('A').load()
+            wrong = sum(mask[y][x] != (alpha[x, y] < MASK_ALPHA) for y in range(s) for x in range(s))
+            if wrong:
+                problems.append(f'stage {s}: {wrong} AND mask bits do not match the alpha')
+    return problems
+
+
+def shell_scale(img, size):
+    """Scale as a filter that ignores alpha does (no premultiplication) - the Windows shell
+    when it has no stage of the wanted size: transparent pixels mix their RGB into the edge."""
+    return Image.merge('RGBA', [c.resize((size, size), Image.BILINEAR) for c in img.split()])
+
+
+def fringe_sheet(out, ico, before=None):
+    """The ICO stages 16 24 32 48 64 96 256 on dark, mid grey and white: 1:1, zoomed, and
+    scaled as the shell scales (256 -> 48, 64 -> 60), each zoomed x4; one row per version.
+    Prints the dark pixels per stage."""
+    shown = [16, 24, 32, 48, 64, 96, 256]
+    scaled = [(256, 48), (64, 60)]
+    versions = ([('before', before)] if before else []) + [('after', ico)]
+    backgrounds = [('dark', (0x20, 0x20, 0x20)), ('grey', (0x80, 0x80, 0x80)), ('white', WHITE)]
+    gap, label_w, zoom_to = 16, 120, 192
+    font = ImageFont.load_default(size=14)
+    rows = []
+    for name, path in versions:
+        stages = {s: img for s, img, _ in read_ico(path)}
+        tiles = [stages[s] for s in shown]
+        tiles += [stages[s].resize((s * (zoom_to // s),) * 2, Image.NEAREST) for s in shown if s < 256]
+        for src, size in scaled:
+            small = shell_scale(stages[src], size)
+            tiles += [small, small.resize((size * 4,) * 2, Image.NEAREST)]
+            dark = dark_pixels(small, visible_only=True)
+            darkest = f', darkest {min(p for _, _, p in dark)}' if dark else ''
+            print(f'{name}: {src} scaled to {size} as the shell scales: {len(dark)} visible '
+                  f'pixels darker than the plate{darkest}')
+        for s in shown:
+            visible = dark_pixels(stages[s], visible_only=True)
+            hidden = len(dark_pixels(stages[s])) - len(visible)
+            print(f'{name}: stage {s}: {len(visible)} visible and {hidden} transparent pixels '
+                  f'darker than the plate')
+        rows.append((name, tiles))
+    width = label_w + sum(t.width + gap for t in rows[0][1]) + gap
+    row_h = 256 + 2 * gap
+    head_h = 28
+    sheet = Image.new('RGB', (width, head_h + row_h * len(rows) * len(backgrounds)), WHITE)
+    draw = ImageDraw.Draw(sheet)
+    captions = [f'{s}' for s in shown] + [f'{s} x{zoom_to // s}' for s in shown if s < 256]
+    captions += [c for src, size in scaled for c in (f'shell {src}>{size}, 1:1 and x4', '')]
+    x = label_w
+    for caption, tile in zip(captions, rows[0][1]):
+        draw.text((x, 6), caption, fill=(0, 0, 0), font=font)
+        x += tile.width + gap
+    y = head_h
+    for bg_name, bg in backgrounds:
+        for name, tiles in rows:
+            band = Image.new('RGB', (width, row_h), bg)
+            ImageDraw.Draw(band).text((gap, gap), f'{name}\n{bg_name}',
+                                      fill=WHITE if bg != WHITE else (0, 0, 0), font=font)
+            x = label_w
+            for tile in tiles:
+                band.paste(tile, (x, gap + (256 - tile.height) // 2), tile)
+                x += tile.width + gap
+            sheet.paste(band, (0, y))
+            y += row_h
+    sheet.save(out)
 
 
 def build_mac(icns_out, png_out):
@@ -492,10 +683,18 @@ def compare(out, old_generator):
 
 if __name__ == '__main__':
     root = Path(__file__).resolve().parent.parent
-    if len(sys.argv) == 4 and sys.argv[1] == '--compare':
-        compare(sys.argv[2], sys.argv[3])
-    else:
-        icons = root / 'src-tauri' / 'icons'
+    icons = root / 'src-tauri' / 'icons'
+    args = sys.argv[1:]
+    if len(args) == 3 and args[0] == '--compare':
+        compare(args[1], args[2])
+    elif len(args) in (2, 3) and args[0] == '--fringe-sheet':
+        fringe_sheet(args[1], icons / 'icon.ico', args[2] if len(args) == 3 else None)
+    elif not args:
         build_ico(icons / 'icon.ico')
         build_mac(icons / 'icon.icns', icons / 'icon.png')
         build_svg(root / 'ui' / 'src' / 'assets' / 'app-icon.svg')
+        problems = check_ico(icons / 'icon.ico')
+        if problems:
+            sys.exit('icon.ico failed its check:\n  ' + '\n  '.join(problems))
+    else:
+        sys.exit(__doc__)
