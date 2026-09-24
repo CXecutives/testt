@@ -11,9 +11,9 @@ use std::path::{Path, PathBuf};
 /// File kinds of the UI source.
 const EXTENSIONS: [&str; 3] = ["svelte", "ts", "css"];
 /// Lower bounds of the scan (the foundation has more than this).
-const MIN_FILES: usize = 30;
-const MIN_SVELTE: usize = 15;
-const MIN_COMPONENTS: usize = 8;
+const MIN_FILES: usize = 55;
+const MIN_SVELTE: usize = 35;
+const MIN_COMPONENTS: usize = 24;
 
 fn repo(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

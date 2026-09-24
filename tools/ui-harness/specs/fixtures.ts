@@ -53,7 +53,7 @@ export async function settle(page: Page): Promise<void> {
 export async function expectShot(
   page: Page,
   name: string,
-  options: { maxDiffPixelRatio?: number } = {},
+  options: { maxDiffPixelRatio?: number; timeout?: number } = {},
 ): Promise<void> {
   capturing.add(page);
   try {

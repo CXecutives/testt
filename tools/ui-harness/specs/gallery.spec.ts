@@ -130,5 +130,7 @@ test('baseline: gallery (reduced motion, so counters and loops are at rest)', as
   const height = await page.getByTestId('gallery').evaluate((node) => node.scrollHeight);
   await page.setViewportSize({ width: 1360, height: Math.ceil(height) });
   await settle(page);
-  await expectShot(page, 'gallery', { maxDiffPixelRatio: 0.004 });
+  // A full-page capture of the long gallery takes WebKit a few seconds per frame.
+  test.setTimeout(90_000);
+  await expectShot(page, 'gallery', { maxDiffPixelRatio: 0.004, timeout: 30_000 });
 });
