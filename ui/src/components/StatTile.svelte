@@ -80,7 +80,7 @@
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
     background-color: var(--surface);
-    box-shadow: var(--sh-xs);
+    box-shadow: var(--sh-sm);
     text-align: left;
   }
 
@@ -155,7 +155,7 @@
   }
 
   .hint {
-    color: var(--text-subtle);
+    color: var(--text-muted);
     font: var(--type-xs);
   }
 </style>

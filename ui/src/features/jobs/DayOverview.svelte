@@ -189,12 +189,21 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-16);
+    container-type: inline-size;
   }
 
+  /* Always three columns (a missing tile leaves its place empty), one column only when
+     three would be too narrow for their labels. */
   .tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--stat-min), 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-16);
+  }
+
+  @container (width < 460px) {
+    .tiles {
+      grid-template-columns: 1fr;
+    }
   }
 
   .card-head {

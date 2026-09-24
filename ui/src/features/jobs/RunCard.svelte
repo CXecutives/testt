@@ -324,7 +324,7 @@
     align-items: center;
     column-gap: var(--space-8);
     row-gap: var(--space-6);
-    color: var(--text-subtle);
+    color: var(--text-muted);
     font: var(--type-sm);
   }
 

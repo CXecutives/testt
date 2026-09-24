@@ -242,6 +242,11 @@
     gap: var(--space-8);
   }
 
+  /* The icon of the last ghost button lines up with the toggles below it. */
+  .badges :global(.btn.ghost:last-child) {
+    margin-right: calc((var(--icon-sm) - var(--control-sm)) / 2);
+  }
+
   .quota {
     display: flex;
     flex-direction: column;

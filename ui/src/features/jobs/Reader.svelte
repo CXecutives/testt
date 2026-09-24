@@ -419,7 +419,7 @@
   }
 
   .chip.unset {
-    color: var(--text-subtle);
+    color: var(--text-muted);
   }
 
   .title-block {
@@ -480,7 +480,7 @@
 
   .sub {
     padding-left: var(--space-8);
-    color: var(--text-subtle);
+    color: var(--text-muted);
     font: var(--type-xs);
     font-weight: var(--weight-semibold);
     letter-spacing: var(--tracking-caps);

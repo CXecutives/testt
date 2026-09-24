@@ -108,7 +108,7 @@
   }
 
   .count {
-    color: var(--text-subtle);
+    color: var(--text-muted);
     font-variant-numeric: var(--numeric);
   }
 
