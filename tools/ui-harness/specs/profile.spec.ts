@@ -35,13 +35,15 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   await expect(page.getByTestId('profile-name')).toHaveText('profil-interim-finance.json');
   const head = page.getByTestId('profile-file');
   await expect(head).toContainText('18 KB · 21.09.2026');
-  await expect(head).toContainText('Gut lesbar');
+  // Well filled, but something to check: no "Gut lesbar" next to a warning.
+  await expect(head).toContainText('Bitte prüfen');
+  await expect(head).not.toContainText('Gut lesbar');
   // What the app understood, once and compact; what it could not use as a warning.
   await expect(page.getByTestId('profile-understood')).toHaveText(
-    '42 Kompetenzen erkannt, 2 Schwerpunkte · Finanzen · SAP',
+    '42 Kompetenzen erkannt · 2 Schwerpunkte · Fachgebiete Finanzen, SAP',
   );
   await expect(page.getByTestId('profile-warning')).toHaveText(
-    'Der Wert von Region ist nicht lesbar.',
+    '„Remote-Anteil ab“ ist nicht lesbar.',
   );
   for (const section of [
     'person',
@@ -218,8 +220,10 @@ test('chip field: Enter adds, a pasted list splits, x and Backspace remove, Esc 
   await input.fill('Miro');
   await page.getByTestId('profile-name-field').click();
   await expect(chips(field).last()).toHaveText('Miro');
-  // Enter on an empty chip field saves the form, like in every field.
+  // Enter never saves the long form; Ctrl+S (Cmd+S on macOS) does.
   await input.press('Enter');
+  expect(await calls(page, 'save_profile')).toHaveLength(0);
+  await input.press('Control+s');
   await expect(page.getByTestId('toast')).toHaveText('Das Profil ist gespeichert.');
   expect((await lastSave(page)).after.tools).toEqual([
     'SAP S/4HANA',
@@ -229,6 +233,62 @@ test('chip field: Enter adds, a pasted list splits, x and Backspace remove, Esc 
     'Qlik',
     'Miro',
   ]);
+});
+
+test('Enter goes through the rows and never saves; on an empty last row it moves on', async ({
+  page,
+}) => {
+  await profile(page);
+  const names = page.getByTestId('competence-name');
+  // A field outside the rows: Enter does nothing.
+  await page.getByTestId('profile-name-field').press('Enter');
+  // In a row: Enter goes to the next row.
+  await names.nth(0).press('Enter');
+  await expect(names.nth(1)).toBeFocused();
+  // On the last row: Enter adds a row and puts the caret into it.
+  await page.getByTestId('competence-years').nth(5).press('Enter');
+  await expect(names).toHaveCount(7);
+  await expect(names.nth(6)).toBeFocused();
+  await names.nth(6).fill('Konzernabschluss');
+  await page.getByTestId('competence-years').nth(6).fill('15');
+  await page.getByTestId('competence-years').nth(6).press('Enter');
+  await expect(names).toHaveCount(8);
+  await expect(names.nth(7)).toBeFocused();
+  // On an empty last row: the row goes and the caret moves on to the next field.
+  await names.nth(7).press('Enter');
+  await expect(names).toHaveCount(7);
+  await expect(page.getByTestId('profile-strengths').locator('input')).toBeFocused();
+  // Languages behave the same.
+  const languages = page.getByTestId('language-name');
+  await languages.nth(1).press('Enter');
+  await expect(languages).toHaveCount(3);
+  await expect(languages.nth(2)).toBeFocused();
+  expect(await calls(page, 'save_profile')).toHaveLength(0);
+  // Saving is Speichern or Ctrl+S.
+  await languages.nth(2).fill('Spanisch');
+  await languages.nth(2).press('Control+s');
+  await expect(page.getByTestId('toast')).toHaveText('Das Profil ist gespeichert.');
+  const sent = await lastSave(page);
+  expect(sent.after.competences.map((row) => row.name)).toContain('Konzernabschluss');
+  expect(sent.after.languages.map((row) => row.language)).toContain('Spanisch');
+});
+
+test('the add buttons are buttons, the examples fit any field', async ({ page }) => {
+  await profile(page, 'no-profile');
+  await page.getByTestId('profile-empty').getByRole('button', { name: 'Profil anlegen' }).click();
+  for (const id of ['competence-add', 'language-add']) {
+    await expect(page.getByTestId(id)).toHaveClass(/secondary/);
+    await expect(page.getByTestId(id).locator('svg')).toHaveCount(1);
+  }
+  await expect(page.getByTestId('profile-title')).toHaveAttribute('placeholder', 'Projektleitung');
+  await page.getByTestId('competence-add').click();
+  await expect(page.getByTestId('competence-name')).toHaveAttribute(
+    'placeholder',
+    'Projektmanagement',
+  );
+  // The other two ways in stay at hand in a new form.
+  await expect(page.getByTestId('profile-from-cv')).toBeVisible();
+  await expect(page.getByTestId('profile-pick')).toBeVisible();
 });
 
 test('no profile: one sentence and the three ways in', async ({ page }) => {
