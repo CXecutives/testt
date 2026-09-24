@@ -2,8 +2,8 @@
   Profil (centred 720): the file card (name, size, date, how well it reads; choose, save a
   template, remove; the rescore it triggers) and "Erkannt": competences, then label | value
   rows for the background (years, degrees), the domains it switched on and every hard
-  criterion ("offen" when the profile leaves it open), warnings, and the keys it does not
-  evaluate as one quiet sentence. A file that no longer reads shows only the file card with
+  criterion ("nicht gesetzt" when the profile leaves it open), warnings, and the keys it
+  does not evaluate as one quiet sentence. File name and values select and copy like text. A file that no longer reads shows only the file card with
   the error. Without a profile an empty state sits at about 38 % of the height.
 -->
 <script lang="ts">
@@ -137,7 +137,7 @@
       <div class="file">
         <IconTile icon="file-text" size="md" />
         <div class="facts">
-          <h2 class="name" data-testid="profile-name">{profile.fileName}</h2>
+          <h2 class="name" data-testid="profile-name" data-copy>{profile.fileName}</h2>
           <p class="meta">
             {de.profile.meta(
               formatBytes(profile.bytes),
@@ -217,7 +217,7 @@
               {de.profile.competences}
               <span class="count">{formatNumber(understood.competenceCount)}</span>
             </h3>
-            <div class="chips" data-testid="competences">
+            <div class="chips" data-testid="competences" data-copy>
               {#each understood.competences.slice(0, SHOWN) as competence, index (index)}
                 <Badge label={competence} />
               {/each}
@@ -237,13 +237,13 @@
                 {#if background.length > 0}
                   <div class="row">
                     <dt>{de.profile.background}</dt>
-                    <dd data-testid="background">{background.join(' · ')}</dd>
+                    <dd data-testid="background" data-copy>{background.join(' · ')}</dd>
                   </div>
                 {/if}
                 {#if packs.length > 0}
                   <div class="row">
                     <dt>{de.profile.packs}</dt>
-                    <dd data-testid="packs">{packs.join(' · ')}</dd>
+                    <dd data-testid="packs" data-copy>{packs.join(' · ')}</dd>
                   </div>
                 {/if}
               </dl>
@@ -255,7 +255,12 @@
               {#each criteria as item, index (index)}
                 <div class="row">
                   <dt>{item.field}</dt>
-                  <dd class:unset={item.value === null}>{item.value ?? de.profile.unset}</dd>
+                  <dd
+                    class:unset={item.value === null}
+                    data-copy={item.value === null ? undefined : ''}
+                  >
+                    {item.value ?? de.profile.unset}
+                  </dd>
                 </div>
               {/each}
             </dl>
@@ -406,7 +411,9 @@
     margin-top: var(--space-16);
   }
 
+  /* The ghost button's text ends on the card's edge, like the badge above it. */
   .end {
+    margin-right: calc(-1 * var(--space-16));
     margin-left: auto;
   }
 
@@ -434,7 +441,7 @@
     gap: var(--space-8);
     color: var(--text-heading);
     font: var(--type-sm);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .count {

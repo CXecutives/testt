@@ -1,8 +1,8 @@
 <!--
-  The shell: title bar and the three views. A view switch fades the old view out quickly
-  and lets the new one rise 8 px into place; both share one grid cell, so nothing jumps.
-  On start the app shows useful content at once: the first-run page while no mailbox is
-  connected (or nothing was ever fetched), otherwise the Jobs view with the last results.
+  The shell below the native title bar of the OS: the sidebar and the white sheet with the
+  three views. A view switch is quick: the old view leaves at once and the new one fades in
+  rising 4 px (150 ms). On start the app shows useful content at once: the first-run page
+  while nothing was ever fetched, otherwise the Jobs view with the last results.
 -->
 <script lang="ts">
   import EmptyState from '$components/EmptyState.svelte';
@@ -10,7 +10,7 @@
   import Toast from '$components/Toast.svelte';
   import Tooltip from '$components/Tooltip.svelte';
   import { de } from '$lib/i18n/de';
-  import { viewIn, viewOut } from '$lib/motion/transitions';
+  import { viewIn } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -21,19 +21,18 @@
   import ProfileView from './features/profile/ProfileView.svelte';
   import SettingsView from './features/settings/SettingsView.svelte';
   import Sidebar from './features/shell/Sidebar.svelte';
-  import TitleBar from './features/shell/TitleBar.svelte';
 
   run.install();
   jobs.install();
+  navigation.install();
   void app.load().then((state) => run.attach(state?.running ?? null));
 
   const firstRun = $derived(shell.firstRun);
 </script>
 
 <div class="shell" data-testid="shell">
-  <Sidebar />
-  <div class="main">
-    <TitleBar />
+  <div class="body">
+    <Sidebar />
     <main class="views">
       {#if app.error !== null && app.state === null}
         <section class="view center" data-testid="view-error">
@@ -51,20 +50,20 @@
         </section>
       {:else if navigation.current === 'jobs'}
         {#if firstRun}
-          <section class="view" data-testid="view-first-run" in:viewIn out:viewOut>
+          <section class="view" data-testid="view-first-run" in:viewIn>
             <FirstRunView />
           </section>
         {:else}
-          <section class="view fixed" data-testid="view-jobs" in:viewIn out:viewOut>
+          <section class="view fixed" data-testid="view-jobs" in:viewIn>
             <JobsView />
           </section>
         {/if}
       {:else if navigation.current === 'profile'}
-        <section class="view" data-testid="view-profile" in:viewIn out:viewOut>
+        <section class="view" data-testid="view-profile" in:viewIn>
           <ProfileView />
         </section>
       {:else}
-        <section class="view" data-testid="view-settings" in:viewIn out:viewOut>
+        <section class="view" data-testid="view-settings" in:viewIn>
           <SettingsView />
         </section>
       {/if}
@@ -77,22 +76,23 @@
 <style>
   .shell {
     display: flex;
+    flex-direction: column;
     height: 100%;
     background-color: var(--bg);
   }
 
-  .main {
+  .body {
     display: flex;
     flex: 1;
-    flex-direction: column;
-    min-width: 0;
+    min-height: 0;
   }
 
-  /* One white sheet below the top strip for every view: the sidebar stays on the cream, the
-     sheet's hairline and rounded corner are the only divider between them. */
+  /* One white sheet for every view: the sidebar stays on the cream, the sheet's hairline and
+     rounded corner are the only divider between them. */
   .views {
     display: grid;
     flex: 1;
+    min-width: 0;
     min-height: 0;
     overflow: hidden;
     border-top: var(--border-width) solid var(--border);

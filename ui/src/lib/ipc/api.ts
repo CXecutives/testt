@@ -2,14 +2,18 @@
 // talks to the backend through these functions, which is also what lets the harness swap
 // Tauri for a typed stub (vite `--mode harness`).
 //
-// Run events: one Tauri Channel, created lazily, is handed to the commands that take a
-// `channel` (`app_state` attaches - also to a run that is already going after a reload -,
-// `start_run` reports); `onRun` fans the events out. Callers never pass the channel.
+// Run events: every command that takes a `channel` (`app_state` attaches - also to a run
+// that is already going after a reload -, `start_run` reports) gets a Channel of its own;
+// `onRun` fans the events of all of them out. Callers never pass the channel.
+// One channel per call is required: Tauri numbers the messages of each Rust-side channel
+// from 0 and the JS channel delivers them in that order, and when the Rust side drops its
+// channel it unregisters the JS one. A shared JS channel therefore swallows every event of
+// the second run (the run finished in the backend, the UI never heard of it).
 //
 // Types: `Commands` is generated from the Rust command table (types/commands.ts).
 
 import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import type { Commands, ErrorInfo, ErrorKind, RunEvent } from './types';
 
 export type CommandName = keyof Commands;
@@ -78,16 +82,14 @@ function toIpcError(error: unknown): IpcError {
 
 type RunHandler = (event: RunEvent) => void;
 const runHandlers = new Set<RunHandler>();
-let runChannel: Channel<RunEvent> | null = null;
 
+/** A fresh channel for one command call; its events go to every run handler. */
 function channel(): Channel<RunEvent> {
-  if (runChannel === null) {
-    runChannel = new Channel<RunEvent>();
-    runChannel.onmessage = (event) => {
-      for (const handler of runHandlers) handler(event);
-    };
-  }
-  return runChannel;
+  const next = new Channel<RunEvent>();
+  next.onmessage = (event) => {
+    for (const handler of runHandlers) handler(event);
+  };
+  return next;
 }
 
 /** Subscribe to run events (progress, status, job updates, ...). Returns an unsubscribe. */
@@ -114,33 +116,25 @@ export async function invoke<K extends CommandName>(
   }
 }
 
-/** Window functions for the own caption buttons (Windows) and the title bar. */
-export const appWindow = {
-  minimize: (): Promise<void> => getCurrentWindow().minimize(),
-  toggleMaximize: (): Promise<void> => getCurrentWindow().toggleMaximize(),
-  close: (): Promise<void> => getCurrentWindow().close(),
-  startDragging: (): Promise<void> => getCurrentWindow().startDragging(),
-  isMaximized: (): Promise<boolean> => getCurrentWindow().isMaximized(),
-  /** Called with the new maximized state whenever the window is resized. */
-  onMaximizedChange(handler: (maximized: boolean) => void): () => void {
-    let stop: (() => void) | null = null;
-    let cancelled = false;
-    void getCurrentWindow()
-      .onResized(() => {
-        void getCurrentWindow()
-          .isMaximized()
-          .then(handler, () => undefined);
-      })
-      .then((unlisten) => {
-        if (cancelled) unlisten();
-        else stop = unlisten;
-      });
-    return () => {
-      cancelled = true;
-      stop?.();
-    };
-  },
-};
+/**
+ * The native menu asks for a view (macOS: "Einstellungen …" with Cmd+, in the app menu,
+ * src-tauri/src/platform.rs). Returns an unsubscribe function.
+ */
+export function onNavigate(handler: (view: string) => void): () => void {
+  let stop: (() => void) | null = null;
+  let cancelled = false;
+  void listen<string>('navigate', (event) => handler(event.payload)).then(
+    (unlisten) => {
+      if (cancelled) unlisten();
+      else stop = unlisten;
+    },
+    () => undefined,
+  );
+  return () => {
+    cancelled = true;
+    stop?.();
+  };
+}
 
 const REPORT_LIMIT = 10;
 const REPORT_WINDOW = 60_000;

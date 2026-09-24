@@ -15,6 +15,7 @@
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget } from '$lib/ipc/types';
+  import { platform } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -233,7 +234,7 @@
     <section class="section" data-testid="settings-files">
       <h2 class="heading">{de.settings.files}</h2>
       <Card padding="rows">
-        <SettingRow label={de.settings.workspace} hint={cfg.settings.workspace}>
+        <SettingRow label={de.settings.workspace} hint={cfg.settings.workspace} copy>
           {#snippet badges()}
             {#if cfg.settings.workspaceIsDefault}
               <Badge label={de.settings.workspaceDefault} />
@@ -261,7 +262,7 @@
             variant="ghost"
             size="sm"
             icon="folder-open"
-            label={de.settings.excelShow}
+            label={de.settings.excelShow[platform()]}
             disabled={!cfg.settings.excelExists}
             disabledReason={de.settings.excelMissing}
             testid="excel-show"
@@ -322,7 +323,7 @@
             onclick={() => (confirmFull = true)}
           />
         </SettingRow>
-        <SettingRow label={de.settings.logs} hint={cfg.logDir}>
+        <SettingRow label={de.settings.logs} hint={cfg.logDir} copy>
           <Button
             variant="ghost"
             size="sm"
@@ -331,7 +332,7 @@
             onclick={() => open({ kind: 'logDir' }, setCare)}
           />
         </SettingRow>
-        <SettingRow label={de.settings.data} hint={cfg.dataDir}>
+        <SettingRow label={de.settings.data} hint={cfg.dataDir} copy>
           <Button
             variant="ghost"
             size="sm"

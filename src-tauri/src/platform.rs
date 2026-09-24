@@ -6,8 +6,11 @@
 //! (Ctrl/Cmd+C/V/X/A/Z). The same rules apply in every build, so exactly what ships is
 //! what gets tested.
 //!
-//! Documented differences: WebView2 switches (Windows) vs. a minimal app menu, link preview
-//! and first-mouse clicks (macOS), and the user agent of the HTTP client.
+//! Both OS show the native window frame (title bar, caption buttons, system menu, snap
+//! layouts). Documented differences: WebView2 switches and the title bar in the app's
+//! colours (Windows) vs. a minimal app menu, link preview and first-mouse clicks (macOS), and
+//! the user agent of the HTTP client. What differs inside the page (dialog button order,
+//! scrollbars, OS words) lives in `ui/src/lib/platform.ts`.
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -170,6 +173,19 @@ pub fn harden<'a, R: Runtime, M: Manager<R>>(
 /// blocks the context menu in JavaScript on both OS.
 #[cfg(windows)]
 pub fn apply<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
+    // The title bar in the app's colours before the window is shown; the title dims while
+    // the window is inactive, like on native apps.
+    if let Ok(hwnd) = window.hwnd() {
+        frame::paint(hwnd);
+    }
+    let watched = window.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Focused(focused) = event
+            && let Ok(hwnd) = watched.hwnd()
+        {
+            frame::focus(hwnd, *focused);
+        }
+    });
     window.with_webview(|webview| {
         if let Err(error) = webview2::disable_browser_features(&webview.controller()) {
             log::warn!("WebView2 settings not applied: {error}");
@@ -194,8 +210,8 @@ mod webview2 {
     };
     use windows_core::Interface as _;
 
-    /// The app's only `unsafe` block: Tauri does not pass these WebView2 switches through,
-    /// so they are set on WebView2 directly.
+    /// One of the app's two `unsafe` blocks (the other colours the title bar): Tauri does
+    /// not pass these WebView2 switches through, so they are set on WebView2 directly.
     #[expect(
         unsafe_code,
         reason = "WebView2 switches that Tauri does not pass through"
@@ -225,6 +241,60 @@ mod webview2 {
                 .cast::<ICoreWebView2Settings6>()?
                 .SetIsSwipeNavigationEnabled(false)
         }
+    }
+}
+
+/// The native title bar in the app's colours. Windows 11 only: Windows 10 ignores the
+/// attributes (its bar stays light through the Light theme), so the result is not checked.
+/// The caption is the cream of the sidebar below it, the title the ink of the text, dimmed
+/// to the subtle text while the window is inactive. `core/tests/ui_contract.rs` keeps these
+/// values equal to the tokens and to `backgroundColor` in tauri.conf.json.
+#[cfg(windows)]
+mod frame {
+    use windows::Win32::Foundation::{COLORREF, HWND};
+    use windows::Win32::Graphics::Dwm::{
+        DWMWA_CAPTION_COLOR, DWMWA_TEXT_COLOR, DWMWINDOWATTRIBUTE, DwmSetWindowAttribute,
+    };
+
+    /// `--bg` (`--p-cream`, hsl 32 33% 96%).
+    const CAPTION: [u8; 3] = [0xF8, 0xF5, 0xF1];
+    /// `--text` (`--p-ink`, hsl 45 7% 17%).
+    const TITLE: [u8; 3] = [0x2E, 0x2D, 0x28];
+    /// `--text-subtle` (`--p-fg-subtle`, hsl 30 4% 48%).
+    const TITLE_INACTIVE: [u8; 3] = [0x7F, 0x7A, 0x76];
+    /// Bytes of a COLORREF (a `u32`).
+    const COLORREF_SIZE: u32 = 4;
+    const _: () = assert!(size_of::<COLORREF>() == COLORREF_SIZE as usize);
+
+    pub fn paint(hwnd: HWND) {
+        set(hwnd, DWMWA_CAPTION_COLOR, CAPTION);
+        set(hwnd, DWMWA_TEXT_COLOR, TITLE);
+    }
+
+    pub fn focus(hwnd: HWND, focused: bool) {
+        set(
+            hwnd,
+            DWMWA_TEXT_COLOR,
+            if focused { TITLE } else { TITLE_INACTIVE },
+        );
+    }
+
+    #[expect(
+        unsafe_code,
+        reason = "DWM colours of the native title bar, which Tauri does not set"
+    )]
+    fn set(hwnd: HWND, attribute: DWMWINDOWATTRIBUTE, [r, g, b]: [u8; 3]) {
+        let value = COLORREF(u32::from(r) | (u32::from(g) << 8) | (u32::from(b) << 16));
+        // SAFETY: `hwnd` is the live main window handed out by Tauri; the pointer and the
+        // size describe `value`, a COLORREF on this stack frame that outlives the call.
+        let _ = unsafe {
+            DwmSetWindowAttribute(
+                hwnd,
+                attribute,
+                std::ptr::from_ref(&value).cast(),
+                COLORREF_SIZE,
+            )
+        };
     }
 }
 
@@ -429,13 +499,18 @@ mod macos {
     use tauri::menu::{
         AboutMetadata, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID,
     };
-    use tauri::{AppHandle, Manager as _, Runtime};
+    use tauri::{AppHandle, Emitter as _, Manager as _, Runtime};
 
     /// Id of the app's own quit item (see [`on_menu_event`]).
     const QUIT_ID: &str = "quit";
+    /// Id of the settings item: Cmd+, opens the Einstellungen view, like in every Mac app.
+    const SETTINGS_ID: &str = "settings";
+    /// The event that asks the page for a view (`ui/src/lib/ipc/api.ts`, `onNavigate`).
+    const NAVIGATE: &str = "navigate";
 
     // User-facing text, German by product decision.
     const ABOUT: &str = "Über Job-Alert-Monitor";
+    const SETTINGS: &str = "Einstellungen …";
     const HIDE: &str = "Job-Alert-Monitor ausblenden";
     const HIDE_OTHERS: &str = "Andere ausblenden";
     const QUIT: &str = "Job-Alert-Monitor beenden";
@@ -452,8 +527,9 @@ mod macos {
     // end of user-facing text
 
     /// Minimal app menu instead of Tauri's default (no View menu with reload or zoom, no
-    /// Help, no Services). It carries the system shortcuts the app keeps: Cmd+Q, Cmd+H,
-    /// Cmd+M, Cmd+W, and Cmd+C/V/X/A/Z, which `WKWebView` only receives through an Edit menu.
+    /// Help, no Services). It carries the system shortcuts the app keeps: Cmd+, (settings),
+    /// Cmd+Q, Cmd+H, Cmd+M, Cmd+W, and Cmd+C/V/X/A/Z, which `WKWebView` only receives
+    /// through an Edit menu.
     pub fn menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         let info = app.package_info();
         let about = AboutMetadata {
@@ -467,6 +543,8 @@ mod macos {
             true,
             &[
                 &PredefinedMenuItem::about(app, Some(ABOUT), Some(about))?,
+                &PredefinedMenuItem::separator(app)?,
+                &MenuItem::with_id(app, SETTINGS_ID, SETTINGS, true, Some("CmdOrCtrl+,"))?,
                 &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::hide(app, Some(HIDE))?,
                 &PredefinedMenuItem::hide_others(app, Some(HIDE_OTHERS))?,
@@ -512,6 +590,15 @@ mod macos {
         reason = "the signature of Tauri's menu event handler"
     )]
     pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
+        if event.id() == SETTINGS_ID {
+            if let Some(window) = app.get_webview_window(super::MAIN) {
+                let _ = window.set_focus();
+                if let Err(e) = window.emit(NAVIGATE, "settings") {
+                    log::warn!("settings item: page not reached ({e})");
+                }
+            }
+            return;
+        }
         if event.id() != QUIT_ID {
             return;
         }

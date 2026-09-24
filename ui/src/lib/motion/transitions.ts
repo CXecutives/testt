@@ -2,8 +2,9 @@
 // This folder is the only place allowed to import them (eslint + ui_contract.rs).
 //
 // Rules: only transform and opacity move; end values are whole pixels; at most
-// --stagger-max items are staggered. Under reduced motion every movement is dropped and
-// what remains is a cross-fade of --dur-crossfade.
+// --stagger-max list rows animate at once, and only rows that arrive while the list is on
+// screen. Nothing staggers, nothing bounces. Under reduced motion every movement is dropped
+// and what remains is a cross-fade of --dur-crossfade.
 
 import { flip as svelteFlip } from 'svelte/animate';
 import { Tween } from 'svelte/motion';
@@ -17,7 +18,6 @@ import {
   enterScale,
   isReducedMotion,
   move,
-  staggerDelay,
   staggerLimit,
   type Duration,
   type Easing,
@@ -27,7 +27,7 @@ import {
 export interface MotionParams {
   duration?: Duration;
   easing?: Easing;
-  /** Delay in ms, usually from `stagger(index)`. */
+  /** Delay in ms. */
   delay?: number;
 }
 
@@ -49,11 +49,11 @@ export function fade(node: Element, params: MotionParams = {}): TransitionConfig
   });
 }
 
-/** Fade in while rising by a token distance (default 8 px). */
+/** Fade in while rising by a token distance (default 4 px). */
 export function rise(node: Element, params: RiseParams = {}): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
   return svelteFly(node, {
-    y: move(params.distance ?? 'lg'),
+    y: move(params.distance ?? 'md'),
     duration: duration(params.duration ?? 'base'),
     easing: easing(params.easing ?? 'out'),
     delay: params.delay ?? 0,
@@ -73,19 +73,12 @@ export function pop(node: Element, params: MotionParams = {}): TransitionConfig 
   });
 }
 
-/** View switch: the new view rises in (base/out)... */
+/**
+ * View switch: the old view leaves at once (no cross-fade of two full views), the new one
+ * fades in while rising 4 px (base/out, 150 ms).
+ */
 export function viewIn(node: Element): TransitionConfig {
-  return rise(node, { duration: 'base', easing: 'out', distance: 'lg' });
-}
-
-/** ...while the old one fades out quickly (fast/in). */
-export function viewOut(node: Element): TransitionConfig {
-  return fade(node, { duration: 'fast', easing: 'in' });
-}
-
-/** Entry delay of the n-th list item (30 ms steps, capped at 10 items). */
-export function stagger(index: number): number {
-  return staggerDelay(index);
+  return rise(node, { duration: 'base', easing: 'out', distance: 'md' });
 }
 
 /** Maximum rows that may FLIP; above this a list cross-fades. */
@@ -112,18 +105,18 @@ export function flip(
 
 export interface RowParams {
   index: number;
-  count: number;
+  /** The row arrived while the list was on screen (a new job during a run). */
+  fresh: boolean;
 }
 
 /**
- * Entry of a list row: the first --stagger-max rows rise one after another (in a list above
- * FLIP_LIMIT they just fade in). Rows further down mount below the fold while the window
- * fills: they appear without an animation, which keeps every frame of a long list light.
+ * Entry of a list row. A list that loads, filters or comes back into view is simply there;
+ * only a row that arrives while the list is on screen (a new job during a run) fades in,
+ * rising 4 px in 150 ms, and only among the first --stagger-max rows.
  */
-export function rowIn(node: Element, { index, count }: RowParams): TransitionConfig {
-  if (index >= staggerLimit()) return {};
-  if (count > FLIP_LIMIT) return fade(node, { duration: 'fast' });
-  return rise(node, { distance: 'md', duration: 'base', delay: stagger(index) });
+export function rowIn(node: Element, { index, fresh }: RowParams): TransitionConfig {
+  if (!fresh || index >= staggerLimit()) return {};
+  return rise(node, { distance: 'md', duration: 'base' });
 }
 
 function lifted(t: number, y: number, scale: number): string {
@@ -131,7 +124,7 @@ function lifted(t: number, y: number, scale: number): string {
   return `opacity: ${t}; transform: translateY(${Math.round((1 - t) * y)}px) scale(${s})`;
 }
 
-/** Dialog entrance: slow/out, rising 4 px from --scale-enter. */
+/** Dialog entrance: slow/out (180 ms), rising 4 px from --scale-enter. */
 export function dialogIn(node: Element): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
   const y = move('md');
@@ -139,16 +132,12 @@ export function dialogIn(node: Element): TransitionConfig {
   return { duration: duration('slow'), easing: easing('out'), css: (t) => lifted(t, y, scale) };
 }
 
-/** Dialog exit: 0.7 × slow with ease-in. */
+/** Dialog exit: fast (100 ms) with ease-in. */
 export function dialogOut(node: Element): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
   const y = move('md');
   const scale = enterScale();
-  return {
-    duration: Math.round(duration('slow') * 0.7),
-    easing: easing('in'),
-    css: (t) => lifted(t, y, scale),
-  };
+  return { duration: duration('fast'), easing: easing('in'), css: (t) => lifted(t, y, scale) };
 }
 
 /** The scrim behind a dialog follows the dialog's timing. */
@@ -160,7 +149,7 @@ export function scrim(
   if (isReducedMotion()) return crossfade(node);
   const out = options.direction === 'out';
   return svelteFade(node, {
-    duration: out ? Math.round(duration('slow') * 0.7) : duration('slow'),
+    duration: out ? duration('fast') : duration('slow'),
     easing: easing(out ? 'in' : 'out'),
   });
 }

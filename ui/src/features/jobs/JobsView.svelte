@@ -1,9 +1,9 @@
 <!--
   The Jobs view on the white sheet of the shell: left the list column (360-460 px) with its
-  header (search and filters), the run panel and the list; a hairline; right the reader, or
-  with nothing selected its empty state, the day overview. Nothing floats: no cards, no
-  shadows. Both columns start at the same line. Below 900 px one column: the list, or the
-  reader with a back button.
+  header (search, "Abrufen", filters), the run panel and the list; a hairline; right the
+  reader, or with nothing selected its empty state, the day overview. Nothing floats: no
+  cards, no shadows. Both columns start at the same line. Switching between jobs is a quick
+  cross-fade (100 ms). Below 900 px one column: the list, or the reader with a back button.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -60,7 +60,7 @@
           </div>
           {#if jobs.detail}
             {#key keyOf(jobs.detail.job.key)}
-              <div in:fade={{ duration: 'base' }}><Reader detail={jobs.detail} /></div>
+              <div in:fade><Reader detail={jobs.detail} /></div>
             {/key}
           {:else if jobs.detailStatus === 'error'}
             <EmptyState
@@ -82,7 +82,7 @@
             </div>
           {/if}
         {:else}
-          <div in:fade={{ duration: 'base' }}><DayOverview /></div>
+          <div in:fade><DayOverview /></div>
         {/if}
       </div>
     </section>
@@ -139,8 +139,10 @@
     padding: var(--pane-padding) var(--reader-padding) var(--space-64);
   }
 
+  /* The chevron lines up with the title below it. */
   .back {
     display: none;
+    margin-left: calc(-1 * var(--space-12));
   }
 
   .skeleton {

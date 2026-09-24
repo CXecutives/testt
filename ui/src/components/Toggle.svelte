@@ -1,6 +1,6 @@
 <!--
-  On/off switch. The thumb pops across (ease-pop); disabled switches stay hoverable so the
-  tooltip can say why (disabledReason).
+  On/off switch, coral when on. The thumb slides across in 150 ms (ease-out, no bounce);
+  disabled switches stay hoverable so the tooltip can say why (disabledReason).
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
@@ -74,8 +74,8 @@
     height: var(--toggle-thumb);
     border-radius: var(--radius-full);
     background-color: var(--surface);
-    box-shadow: var(--sh-sm);
-    transition: transform var(--dur-base) var(--ease-pop);
+    box-shadow: var(--sh-thumb);
+    transition: transform var(--dur-base) var(--ease-out);
   }
 
   .toggle:not([aria-disabled='true']):hover .track {
@@ -92,14 +92,6 @@
 
   .toggle[aria-checked='true'] .thumb {
     transform: translateX(var(--toggle-travel));
-  }
-
-  .toggle:not([aria-disabled='true']):active .thumb {
-    transform: scale(var(--scale-press));
-  }
-
-  .toggle[aria-checked='true']:not([aria-disabled='true']):active .thumb {
-    transform: translateX(var(--toggle-travel)) scale(var(--scale-press));
   }
 
   .toggle:focus-visible .track {

@@ -16,12 +16,11 @@
   --p-white: 0 0% 100%;
   --p-cream: 32 33% 96%;
   --p-ink: 45 7% 17%;
+  /* The cxpertise coral: light coral for primary fills and accents, a deeper step on hover
+     and one more when pressed (user decision after the test of the installed app). */
   --p-coral: 13 73% 63%;
-  --p-coral-glow: 13 73% 68%;
   --p-coral-variant: 13 64% 56%;
-  --p-slate: 212 34% 37%;
-  --p-slate-deep: 212 30% 26%;
-  --p-peach: 20 62% 71%;
+  --p-coral-press: 13 58% 50%;
   --p-muted: 45 23% 95%;
   --p-muted-fg: 30 4% 35%;
   --p-line: 45 22% 90%;
@@ -29,12 +28,7 @@
   --p-success: 150 27% 60%;
   --p-warning: 45 76% 75%;
   --p-danger: 4 51% 56%;
-  --p-coral-50: 20 62% 96%;
   --p-coral-800: 13 62% 45%;
-  --p-coral-850: 13 62% 41%;
-  --p-coral-900: 13 62% 37%;
-  --p-slate-50: 212 30% 96%;
-  --p-slate-100: 212 30% 92%;
   --p-slate-700: 212 38% 27%;
   --p-fg-subtle: 30 4% 48%;
   --p-border-strong: 40 12% 78%;
@@ -47,7 +41,7 @@
   --p-danger-soft: 4 51% 95%;
   --p-info: 212 45% 45%;
   --p-info-soft: 212 45% 95%;
-  /* Hover/press steps of the filled danger button (same hue, like coral-850/900). */
+  /* Hover and press steps of the filled danger button (same hue). */
   --p-danger-700: 4 55% 41%;
   --p-danger-750: 4 56% 37%;
   --p-on-accent: 0 0% 98%;
@@ -60,11 +54,7 @@
   --p-score-low-text: 30 4% 42%;
   --p-scrim: 30 8% 14%;
   --p-shade-xs: 30 20% 30%;
-  --p-shade-sm: 20 40% 40%;
   --p-shade-pop: 30 20% 20%;
-  /* The close button: a warm red that sits well next to coral (user choice, not #C42B1C). */
-  --p-caption-close: 4 62% 50%;
-  --p-caption-close-press: 4 62% 44%;
 
   /* ---------------------------------------------------------------- surfaces */
   --bg: hsl(var(--p-cream));
@@ -73,7 +63,6 @@
   --surface-hover: hsl(var(--p-ink) / 0.04);
   --surface-press: hsl(var(--p-ink) / 0.08);
   --surface-selected: hsl(var(--p-accent-soft));
-  --surface-tinted: hsl(var(--p-coral-50));
   /* Track of segmented controls: visible on white and on cream alike. */
   --surface-track: hsl(var(--p-ink) / 0.055);
   --scrim: hsl(var(--p-scrim) / 0.4);
@@ -99,29 +88,21 @@
   --accent: hsl(var(--p-coral));
   --accent-soft: hsl(var(--p-accent-soft));
   --accent-text: hsl(var(--p-coral-800));
-  /* Primary button: the deep coral, so the white label reaches 4.9:1. */
-  --primary: hsl(var(--p-coral-800));
-  --primary-hover: hsl(var(--p-coral-850));
-  --primary-active: hsl(var(--p-coral-900));
-  /* Switches are neutral: ink when on (coral is kept for the few accents). */
-  --toggle-on: hsl(var(--p-ink));
-  --toggle-on-hover: hsl(var(--p-ink) / 0.82);
+  /* Primary fills in the light cxpertise coral; hover and pressed one step deeper each. */
+  --primary: hsl(var(--p-coral));
+  --primary-hover: hsl(var(--p-coral-variant));
+  --primary-active: hsl(var(--p-coral-press));
+  /* Switches are coral when on. */
+  --toggle-on: hsl(var(--p-coral));
+  --toggle-on-hover: hsl(var(--p-coral-variant));
+  /* The fill of a progress bar. */
+  --meter-fill: hsl(var(--p-coral));
   /* The pinned star: ink, not coral. */
   --pressed: hsl(var(--p-ink));
   --focus: hsl(var(--p-coral));
   --selection: hsl(var(--p-coral) / 0.22);
   --scrollbar: hsl(var(--p-ink) / 0.2);
   --scrollbar-hover: hsl(var(--p-ink) / 0.34);
-  /* Caption buttons (WindowControls only), flat like the Claude desktop app: thin glyphs in
-     ink, slightly muted at rest; warm hover ink/.06, pressed ink/.10; close warm red with a
-     white glyph. Colour changes only, no motion. */
-  --caption-glyph-rest: hsl(var(--p-ink) / 0.78);
-  --caption-glyph-hover: hsl(var(--p-ink));
-  --caption-hover: hsl(var(--p-ink) / 0.06);
-  --caption-press: hsl(var(--p-ink) / 0.1);
-  --caption-close: hsl(var(--p-caption-close));
-  --caption-close-press: hsl(var(--p-caption-close-press));
-  --caption-close-glyph: hsl(var(--p-white));
 
   /* ------------------------------------------------------------------ status */
   --success: hsl(var(--p-success));
@@ -153,25 +134,17 @@
   --score-excluded: hsl(var(--p-danger-strong));
 
   /* --------------------------------------------------------------- gradients */
-  /* Coral only - the light-to-deep coral of the app icon. Used where it carries meaning:
-     brand mark, active tab marker, progress bar, primary glow, first-run hero. Slate is a
-     heading colour and never part of a gradient. */
-  --grad-brand: linear-gradient(135deg, hsl(var(--p-coral-glow)), hsl(var(--p-coral-variant)));
-  --grad-hero: linear-gradient(160deg, hsl(var(--p-coral-50)), hsl(var(--p-white)) 70%);
-  --grad-card: linear-gradient(145deg, hsl(var(--p-white)), hsl(var(--p-peach) / 0.12));
-  --grad-wash: linear-gradient(180deg, hsl(var(--p-white)), hsl(var(--p-coral) / 0.04));
+  /* One, and only for the light of a loading placeholder. No decorative gradients. */
   --grad-shimmer: linear-gradient(90deg, transparent, hsl(var(--p-white) / 0.6), transparent);
 
   /* ----------------------------------------------------------------- shadows */
+  /* Small and few: large blurred shadows are expensive to paint in the web view. Only what
+     floats above the sheet (dialog, toast, tooltip) casts one; nothing animates a shadow. */
   --sh-xs: 0 1px 2px hsl(var(--p-shade-xs) / 0.06);
-  --sh-sm: 0 1px 3px hsl(var(--p-shade-sm) / 0.08), 0 1px 2px hsl(var(--p-shade-sm) / 0.04);
-  --sh-card: 0 4px 20px -4px hsl(var(--p-peach) / 0.3);
-  --sh-elegant: 0 10px 30px -10px hsl(var(--p-coral) / 0.2);
-  --sh-pop:
-    0 12px 32px -8px hsl(var(--p-shade-pop) / 0.18), 0 2px 6px hsl(var(--p-shade-pop) / 0.06);
-  --glow: 0 0 40px hsl(var(--p-coral-glow) / 0.3);
-  --glow-sm: 0 0 0 4px hsl(var(--p-coral) / 0.15);
-  --glow-high: 0 0 24px hsl(var(--p-score-high) / 0.45);
+  --sh-thumb: 0 1px 2px hsl(var(--p-shade-xs) / 0.18);
+  --sh-pop: 0 8px 24px -6px hsl(var(--p-shade-pop) / 0.2), 0 1px 3px hsl(var(--p-shade-pop) / 0.08);
+  /* Focus of a text field: the coral edge with a soft halo. */
+  --focus-halo: 0 0 0 3px hsl(var(--p-coral) / 0.18);
   --focus-ring: 0 0 0 2px hsl(var(--p-white)), 0 0 0 4px hsl(var(--p-coral));
   --focus-ring-inset: inset 0 0 0 2px hsl(var(--p-coral));
 
@@ -204,8 +177,6 @@
   --control-sm: 28px;
   --control-md: 36px;
   --control-lg: 40px;
-  /* The one button of the 40 px title strip (Abrufen / Abbrechen). */
-  --control-bar: 32px;
   --icon-xs: 12px;
   --icon-sm: 16px;
   --icon-md: 20px;
@@ -218,7 +189,6 @@
   --row-height: 86px;
   /* The gutter of the unread dot, left of the ring. */
   --dot-gutter: 12px;
-  --titlebar-height: 40px;
   --toolbar-height: 56px;
   --list-min: 360px;
   --list-max: 460px;
@@ -238,12 +208,9 @@
   --border-width: 1px;
   --focus-width: 2px;
   --marker-height: 2px;
-  --caption-width: 46px;
-  --traffic-light-inset: 80px;
   --brand-mark-sm: 24px;
   --brand-mark: 28px;
   --brand-mark-lg: 40px;
-  --caption-glyph: 10px;
   --tile-sm: 32px;
   --tile-md: 40px;
   --tile-lg: 56px;
@@ -272,7 +239,6 @@
   --sidebar-width: 196px;
   --rail-width: 64px;
   --toast-width: 360px;
-  --blur-scrim: 4px;
   /* Score ring: r = 15.9155 in a 36-unit viewBox (circumference 100). Stroke widths are
      scaled into viewBox units: 36/40, 36/56 and 36/96. */
   --ring-sm-scale: 0.9;
@@ -281,12 +247,10 @@
 
   /* -------------------------------------------------------------- typography */
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  /* The Windows system icon font, for the caption glyphs only (WindowControls). */
-  --font-caption: 'Segoe Fluent Icons', 'Segoe MDL2 Assets';
+
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
-  --weight-bold: 700;
   --numeric: tabular-nums;
   --font-xs: 12px;
   --leading-xs: 16px;
@@ -296,7 +260,7 @@
   --leading-md: 22px;
   /* List titles: 15 px on a tighter 20 px line, so two lines stay one block. */
   --leading-title: 20px;
-  /* Word tabs of the title bar (14/20, weight 500, active 600). */
+  /* The sidebar entries (14/20, weight 500). */
   --font-tab: 14px;
   --leading-tab: 20px;
   --font-body: 15px;
@@ -317,37 +281,37 @@
   --type-body: var(--weight-regular) var(--font-body) / var(--leading-body) var(--font-sans);
   --type-lg: var(--weight-semibold) var(--font-lg) / var(--leading-lg) var(--font-sans);
   --type-xl: var(--weight-semibold) var(--font-xl) / var(--leading-xl) var(--font-sans);
-  --type-2xl: var(--weight-bold) var(--font-2xl) / var(--leading-2xl) var(--font-sans);
-  --type-display: var(--weight-bold) var(--font-display) / var(--leading-display) var(--font-sans);
+  --type-2xl: var(--weight-semibold) var(--font-2xl) / var(--leading-2xl) var(--font-sans);
+  --type-display: var(--weight-semibold) var(--font-display) / var(--leading-display)
+    var(--font-sans);
+
   --leading-none: 1;
   --tracking-normal: 0;
   --tracking-tight: -0.01em;
   --tracking-caps: 0.04em;
 
   /* ------------------------------------------------------------------ motion */
-  --dur-instant: 80ms;
-  --dur-fast: 150ms;
-  --dur-base: 220ms;
-  --dur-slow: 320ms;
-  --dur-reveal: 700ms;
-  --dur-hero: 600ms;
+  /* Snappy and calm (user test of the installed app): colour changes 100 ms, entries and
+     view switches 150 ms, dialogs 180 ms, the fill of a score ring 360 ms. Ease-out, never a
+     bounce; only transform and opacity move. */
+  --dur-instant: 60ms;
+  --dur-fast: 100ms;
+  --dur-base: 150ms;
+  --dur-slow: 180ms;
+  --dur-reveal: 360ms;
   --dur-loop: 1400ms;
   /* How long a toast stays (paused while hovered). */
   --dur-toast: 4000ms;
-  --dur-crossfade: 120ms;
-  --dur-stagger: 30ms;
+  --dur-crossfade: 100ms;
+  /* At most this many list rows animate at the same time; the others are simply there. */
   --stagger-max: 10;
-  --delay-tooltip: 350ms;
-  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --delay-tooltip: 400ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
   --move-sm: 2px;
   --move-md: 4px;
   --move-lg: 8px;
-  --lift: -1px;
-  --lift-card: -2px;
-  --scale-press: 0.97;
   --scale-enter: 0.98;
   --loop-state: running;
 
@@ -356,7 +320,6 @@
   --z-base: 0;
   --z-raised: 1;
   --z-sticky: 10;
-  --z-titlebar: 20;
   --z-overlay: 100;
   --z-dialog: 110;
   --z-tooltip: 120;
@@ -372,13 +335,9 @@
   --dur-base: 0ms;
   --dur-slow: 0ms;
   --dur-reveal: 0ms;
-  --dur-hero: 0ms;
   --move-sm: 0px;
   --move-md: 0px;
   --move-lg: 0px;
-  --lift: 0px;
-  --lift-card: 0px;
-  --scale-press: 1;
   --scale-enter: 1;
   --loop-state: paused;
 }

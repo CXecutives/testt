@@ -103,7 +103,7 @@
   }
 
   .heading {
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .action {

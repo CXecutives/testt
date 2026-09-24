@@ -417,9 +417,13 @@ fn input_listeners_only_in_input_ts() {
     for event in [
         "keydown",
         "contextmenu",
+        "mousedown",
+        "mouseup",
+        "click",
         "auxclick",
         "dblclick",
         "dragstart",
+        "selectstart",
         "wheel",
     ] {
         assert!(
@@ -427,6 +431,20 @@ fn input_listeners_only_in_input_ts() {
             "input.ts does not handle {event}"
         );
     }
+    // Text a user would copy is marked `data-copy`: selectable (base.css) and let through
+    // by the input policy (selection and Ctrl/Cmd+C).
+    assert!(
+        input.code.contains("[data-copy]"),
+        "input.ts does not know the copyable text"
+    );
+    let base = all
+        .iter()
+        .find(|s| s.is("styles/base.css"))
+        .expect("styles/base.css");
+    assert!(
+        base.code.contains("[data-copy]"),
+        "base.css does not make the copyable text selectable"
+    );
 }
 
 #[test]
@@ -514,7 +532,7 @@ fn no_text_literals_in_markup() {
 }
 
 #[test]
-fn per_os_markup_only_in_the_title_bar() {
+fn per_os_code_only_in_platform_ts() {
     let all = scanned(MIN_FILES);
     fail(
         &find(
@@ -528,31 +546,209 @@ fn per_os_markup_only_in_the_title_bar() {
                 "data-platform",
             ],
             |s| {
-                // The shell: the top strip (caption buttons) and the sidebar (traffic lights).
-                s.under("features/shell/")
-                    || s.is("components/WindowControls.svelte")
-                    || s.is("lib/platform.ts")
-                    // Font smoothing on macOS only (documented platform difference).
+                s.is("lib/platform.ts")
+                    // Font smoothing and the scrollbars of the OS (documented differences).
                     || s.is("styles/base.css")
                     // `AppState.platform` is part of the IPC contract.
                     || s.under("lib/ipc/types/")
             },
         ),
-        "per-OS differences live only in the shell (strip, sidebar), WindowControls and platform.ts",
+        "per-OS differences live only in platform.ts (and base.css for font smoothing and \
+         scrollbars); components ask platform.ts",
     );
-    // The Windows icon font draws the native caption glyphs - nowhere else (macOS has none).
+}
+
+/// Both OS show their native window frame (title bar, caption buttons, system menu, snap
+/// layouts): the page draws no title bar and has no drag region of its own.
+#[test]
+fn the_window_frame_is_native() {
+    let all = scanned(MIN_FILES);
     fail(
-        &find(&all, &["Segoe Fluent", "Segoe MDL2"], |s| {
-            s.is("styles/tokens.css")
-        }),
-        "the Windows icon font is only named in its token",
+        &find(
+            &all,
+            &[
+                "data-tauri-drag-region",
+                "@tauri-apps/api/window",
+                "getCurrentWindow",
+                "Segoe Fluent",
+                "Segoe MDL2",
+            ],
+            |_| false,
+        ),
+        "no title bar in the page: the frame of the OS carries it",
     );
-    fail(
-        &find(&all, &["var(--font-caption)"], |s| {
-            s.is("components/WindowControls.svelte")
-        }),
-        "--font-caption is used only by WindowControls",
+    let config: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(repo("src-tauri/tauri.conf.json")).expect("tauri.conf.json"),
+    )
+    .expect("tauri.conf.json is JSON");
+    assert_eq!(
+        config["app"]["windows"][0]["decorations"], true,
+        "the main window keeps the native frame"
     );
+    for name in ["tauri.macos.conf.json", "tauri.windows.conf.json"] {
+        let text = std::fs::read_to_string(repo(&format!("src-tauri/{name}"))).expect(name);
+        for bad in ["\"decorations\": false", "titleBarStyle", "hiddenTitle"] {
+            assert!(
+                !text.contains(bad),
+                "{name}: {bad} (the native frame stays)"
+            );
+        }
+    }
+}
+
+/// `--p-*` HSL triplet of tokens.css as 8-bit RGB (rounded like a browser).
+fn palette_rgb(tokens: &str, name: &str) -> [u8; 3] {
+    let line = tokens
+        .lines()
+        .find(|l| l.trim_start().starts_with(&format!("--p-{name}:")))
+        .unwrap_or_else(|| panic!("--p-{name} missing in tokens.css"));
+    let value = line
+        .split(':')
+        .nth(1)
+        .expect("value")
+        .trim()
+        .trim_end_matches(';');
+    let parts: Vec<f64> = value
+        .split_whitespace()
+        .map(|p| p.trim_end_matches('%').parse().expect("hsl number"))
+        .collect();
+    let (hue, saturation, lightness) = (parts[0], parts[1] / 100.0, parts[2] / 100.0);
+    let chroma = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
+    let second = chroma * (1.0 - ((hue / 60.0) % 2.0 - 1.0).abs());
+    let base = lightness - chroma / 2.0;
+    let (red, green, blue) = match hue {
+        h if h < 60.0 => (chroma, second, 0.0),
+        h if h < 120.0 => (second, chroma, 0.0),
+        h if h < 180.0 => (0.0, chroma, second),
+        h if h < 240.0 => (0.0, second, chroma),
+        h if h < 300.0 => (second, 0.0, chroma),
+        _ => (chroma, 0.0, second),
+    };
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "0..=255 by construction"
+    )]
+    let byte = |channel: f64| ((channel + base) * 255.0).round() as u8;
+    [byte(red), byte(green), byte(blue)]
+}
+
+/// A `const NAME: [u8; 3] = [0x.., 0x.., 0x..];` of src-tauri/src/platform.rs.
+fn platform_rgb(source: &str, name: &str) -> [u8; 3] {
+    let line = source
+        .lines()
+        .find(|l| {
+            l.trim_start()
+                .starts_with(&format!("const {name}: [u8; 3]"))
+        })
+        .unwrap_or_else(|| panic!("{name} missing in platform.rs"));
+    let list = line
+        .split('[')
+        .nth(2)
+        .expect("array")
+        .split(']')
+        .next()
+        .expect("end");
+    let bytes: Vec<u8> = list
+        .split(',')
+        .map(|b| u8::from_str_radix(b.trim().trim_start_matches("0x"), 16).expect("hex byte"))
+        .collect();
+    [bytes[0], bytes[1], bytes[2]]
+}
+
+/// The native Windows title bar wears the app's colours (platform.rs, DWM): its caption is
+/// the cream of the sidebar below it, which is also the window's `backgroundColor` (no flash
+/// before the first paint), its title the ink of the text, dimmed to the subtle text.
+#[test]
+fn the_title_bar_colours_are_the_tokens() {
+    let tokens = std::fs::read_to_string(repo("ui/src/styles/tokens.css")).expect("tokens.css");
+    let platform = std::fs::read_to_string(repo("src-tauri/src/platform.rs")).expect("platform.rs");
+    let cream = palette_rgb(&tokens, "cream");
+    assert!(
+        tokens.contains("--bg: hsl(var(--p-cream));"),
+        "--bg is the cream"
+    );
+    assert_eq!(platform_rgb(&platform, "CAPTION"), cream, "caption = --bg");
+    assert_eq!(
+        platform_rgb(&platform, "TITLE"),
+        palette_rgb(&tokens, "ink"),
+        "title = --text"
+    );
+    assert_eq!(
+        platform_rgb(&platform, "TITLE_INACTIVE"),
+        palette_rgb(&tokens, "fg-subtle"),
+        "inactive title = --text-subtle"
+    );
+    let config: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(repo("src-tauri/tauri.conf.json")).expect("tauri.conf.json"),
+    )
+    .expect("tauri.conf.json is JSON");
+    let background = config["app"]["windows"][0]["backgroundColor"]
+        .as_str()
+        .expect("backgroundColor");
+    assert_eq!(
+        background.to_ascii_uppercase(),
+        format!("#{:02X}{:02X}{:02X}", cream[0], cream[1], cream[2]),
+        "backgroundColor = --bg"
+    );
+}
+
+/// Motion stays snappy and calm (user test of the installed app): colour changes, entries,
+/// view switches and dialogs within 180 ms, the fill of a ring within 400 ms, and no easing
+/// that overshoots (no bounce). Nothing blurs a large area or animates layout.
+#[test]
+fn motion_stays_quick_and_calm() {
+    let all = scanned(MIN_FILES);
+    let tokens = all
+        .iter()
+        .find(|s| s.is("styles/tokens.css"))
+        .expect("styles/tokens.css");
+    let ms = |name: &str| -> u32 {
+        let line = tokens
+            .code
+            .lines()
+            .find(|l| l.trim_start().starts_with(&format!("{name}:")))
+            .unwrap_or_else(|| panic!("{name} missing"));
+        line.split(':')
+            .nth(1)
+            .expect("value")
+            .trim()
+            .trim_end_matches(';')
+            .trim_end_matches("ms")
+            .parse()
+            .expect("milliseconds")
+    };
+    for name in ["--dur-instant", "--dur-fast", "--dur-base", "--dur-slow"] {
+        assert!(ms(name) <= 180, "{name} is {} ms (at most 180)", ms(name));
+    }
+    assert!(ms("--dur-reveal") <= 400, "--dur-reveal above 400 ms");
+    let mut problems = Vec::new();
+    for (n, line) in tokens.lines() {
+        let Some(at) = line.find("cubic-bezier(") else {
+            continue;
+        };
+        let inner = &line[at + "cubic-bezier(".len()..];
+        let numbers: Vec<f64> = inner
+            .split(')')
+            .next()
+            .unwrap_or_default()
+            .split(',')
+            .filter_map(|v| v.trim().parse().ok())
+            .collect();
+        if numbers.len() == 4
+            && [numbers[1], numbers[3]]
+                .iter()
+                .any(|y| !(0.0..=1.0).contains(y))
+        {
+            problems.push(format!("tokens.css:{n}: easing overshoots"));
+        }
+    }
+    problems.extend(find(
+        &all,
+        &["backdrop-filter", "filter: blur", "grid-template-rows var("],
+        |_| false,
+    ));
+    fail(&problems, "quick, calm and cheap motion");
 }
 
 /// Coral-only brand (user decision): no second hue in a gradient, no gradient text, no

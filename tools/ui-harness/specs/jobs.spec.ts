@@ -172,7 +172,7 @@ test('the day overview tiles filter the list and match the counts', async ({ pag
   // A second click on the active tile takes the filter off again.
   await page.getByTestId('tile-excluded').click();
   await expect(page.getByTestId('filter')).toHaveCount(0);
-  await expect(page.getByTestId('issue-alert')).toBeVisible();
+  await expect(page.getByTestId('issue-freelance-mails')).toBeVisible();
 
   // The overview does not repeat the list: no job rows, and "neu" per portal adds up to Neu.
   await expect(overview.locator('[data-testid^="job-row-"]')).toHaveCount(0);
@@ -278,11 +278,30 @@ test('no search hit: one empty state with a way back', async ({ page }) => {
   await expect(rows(page).first()).toBeVisible();
 });
 
-test('without a profile: no rings, newest first, a note to choose one', async ({ page }) => {
+test('without a profile: no rings, newest first, the overview leads to one', async ({ page }) => {
   await open(page, `${WIN}&scenario=no-profile`);
+  // Said once, in the overview: the tiles Neu and Ohne Details and a calm card.
   await expect(page.getByTestId('no-profile')).toBeVisible();
+  await expect
+    .poll(async () => Number((await page.getByTestId('tile-new').innerText()).replace(/\D/g, '')))
+    .toBe(await segmentCount(page, 'Neu'));
+  await expect(page.getByTestId('tile-no-detail')).toBeVisible();
+  await expect(page.getByTestId('tile-high')).toHaveCount(0);
+  await expect(page.getByTestId('no-profile').locator('.btn.primary')).toHaveCount(0);
   await expect(page.getByTestId('sort')).toHaveCount(0);
   await expect(rows(page).first().locator('[role="img"][aria-label^="Passung"]')).toHaveCount(0);
+  // Without a ring the reasons of an old match are not shown either, and the unread dot
+  // keeps its gutter before the title.
+  await expect(rows(page).first().locator('.reason')).toHaveCount(0);
+  const gap = await rows(page)
+    .first()
+    .locator('xpath=..')
+    .evaluate((row) => {
+      const dot = row.querySelector('.dot')!.getBoundingClientRect();
+      const title = row.querySelector('.title')!.getBoundingClientRect();
+      return title.left - dot.right;
+    });
+  expect(gap).toBeGreaterThanOrEqual(10);
   const query = (await calls(page, 'list_jobs'))[0]?.[1] as { query: { sort: string } };
   expect(query.query.sort).toBe('newest');
   await page.getByTestId('no-profile').getByRole('button').click();
@@ -302,7 +321,88 @@ test('a run can be cancelled', async ({ page }) => {
   await page.getByTestId('fetch').click();
   await page.getByTestId('cancel-run').click();
   await runFinished(page);
-  await expect(page.getByTestId('run-finished')).toContainText('Der Abruf wurde abgebrochen.');
+  await expect(page.getByTestId('run-finished')).toContainText('Abruf abgebrochen');
+});
+
+// The stub delivers events like Tauri: every command call has its own channel with message
+// indices from 0, and a channel whose Rust side is dropped unregisters on the page. A page
+// that reused one channel heard nothing of the second run (user test of the installed app).
+test('two runs in a row: both end in the idle state', async ({ page }) => {
+  await open(page, `${WIN}&tick=15`);
+  for (const round of [1, 2]) {
+    await page.getByTestId('fetch').click();
+    await expect(page.getByTestId('run-running'), `run ${round}`).toBeVisible();
+    await runFinished(page);
+    await expect(page.getByTestId('run-running'), `run ${round}`).toHaveCount(0);
+    await expect(page.getByTestId('run-finished'), `run ${round}`).toContainText('Abruf fertig');
+    await expect(page.getByTestId('fetch'), `run ${round}`).toBeVisible();
+    await expect(page.getByTestId('run-status')).toHaveCount(0);
+  }
+  expect(await calls(page, 'start_run')).toHaveLength(2);
+  // The sidebar is idle as well once the run card steps aside.
+  await page.getByTestId('nav-settings').click();
+  await expect(page.getByTestId('run-status')).toContainText('Zuletzt');
+});
+
+test('a removed mailbox keeps the jobs: Abrufen waits and the list says how', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('nav-settings').click();
+  await page.getByTestId('mailbox-remove').click();
+  await page
+    .getByTestId('dialog-remove-mailbox')
+    .getByRole('button', { name: 'Entfernen' })
+    .click();
+  await page.getByTestId('nav-jobs').click();
+  await expect(page.getByTestId('view-jobs')).toBeVisible();
+  await expect(page.getByTestId('view-first-run')).toHaveCount(0);
+  await expect(rows(page).first()).toBeVisible();
+  await expect(page.getByTestId('fetch')).toHaveAttribute('aria-disabled', 'true');
+  await page.getByTestId('no-mailbox').getByRole('button').click();
+  await expect(page.getByTestId('view-settings')).toBeVisible();
+});
+
+test('a rescore is no fetch: no fetch texts, no run card afterwards', async ({ page }) => {
+  await open(page, `${WIN}&tick=15`);
+  await page.getByTestId('nav-profile').click();
+  await page.evaluate(() => {
+    window.__harness.emit({ type: 'status', code: 'scoring', portal: null, until: null });
+    window.__harness.emit({
+      type: 'finished',
+      summary: {
+        run: 42,
+        kind: 'rescore',
+        outcome: { kind: 'completed' },
+        dryRun: false,
+        startedAt: '2026-09-24T07:29:00Z',
+        finishedAt: '2026-09-24T07:30:00Z',
+        scan: null,
+        perPortal: [],
+        score: null,
+        export: null,
+        emptyAlerts: [],
+      },
+    });
+  });
+  await expect(page.getByTestId('toast')).toHaveCount(0);
+  await page.getByTestId('nav-jobs').click();
+  await expect(page.getByTestId('run-card')).toHaveCount(0);
+  await expect(page.getByText('Abruf fertig')).toHaveCount(0);
+});
+
+test('under reduced motion a run without progress still shows its bar', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await open(page, `${WIN}&tick=3000`);
+  await page.getByTestId('fetch').click();
+  const bar = page.getByTestId('run-running').getByRole('progressbar');
+  await expect(bar).toBeVisible();
+  const inside = await bar.evaluate((track) => {
+    const fill = track.firstElementChild!.getBoundingClientRect();
+    const box = track.getBoundingClientRect();
+    return fill.width > 0 && fill.left >= box.left - 1 && fill.right <= box.right + 1;
+  });
+  expect(inside).toBe(true);
+  await page.getByTestId('cancel-run').click();
+  await runFinished(page);
 });
 
 test('offline: the failed run says why and offers a retry', async ({ page }) => {
@@ -318,7 +418,9 @@ test('a run in progress after a reload: steps, portals, countdown and pause', as
   await open(page, `${WIN}&scenario=running`);
   await expect(page.getByTestId('step-scan')).toHaveClass(/done/);
   await expect(page.getByTestId('step-fetch')).toHaveClass(/current/);
-  await expect(page.getByTestId('run-portal-linkedin')).toContainText('3 von 5');
+  await expect(page.getByTestId('step-fetch')).toContainText('5 von 7');
+  // The status names the portal it is about.
+  await expect(page.getByTestId('run-running')).toContainText('Wartet auf LinkedIn');
   await expect(page.getByTestId('countdown')).toHaveText('Weiter in 0:42');
   await expect(page.getByTestId('pause-freelance')).toContainText('Pause bis 09:42.');
 });
@@ -466,4 +568,10 @@ test('baseline: jobs at 780 x 560', async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 560 });
   await open(page, WIN);
   await expectShot(page, 'jobs-narrow');
+});
+
+test('baseline: jobs without a profile', async ({ page }) => {
+  await open(page, `${WIN}&scenario=no-profile`);
+  await expect(page.getByTestId('no-profile')).toBeVisible();
+  await expectShot(page, 'jobs-no-profile');
 });

@@ -1,7 +1,8 @@
 <!--
   The ad text with the passages of the match marked. Built from text nodes and <mark>
   elements only (no HTML from the page ever reaches the DOM). Offsets are UTF-16, as the
-  browser counts; overlapping passages keep the first one.
+  browser counts; overlapping passages keep the first one. The text selects and copies like
+  a document (`data-copy`).
 -->
 <script lang="ts" module>
   import type { Highlight } from '$lib/ipc/types';
@@ -41,7 +42,7 @@
   const parts = $derived(segments(text, highlights));
 </script>
 
-<div class="text" bind:this={element} data-testid="ad-text">
+<div class="text" bind:this={element} data-testid="ad-text" data-copy>
   {#each parts as part, index (index)}{#if part.mark}<mark
         class="mark {part.mark.kind}"
         class:active={active === part.mark.reason}
@@ -55,8 +56,6 @@
     font: var(--type-body);
     white-space: pre-line;
     overflow-wrap: anywhere;
-    user-select: text;
-    -webkit-user-select: text;
   }
 
   .mark {

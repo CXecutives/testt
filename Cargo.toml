@@ -10,8 +10,8 @@ rust-version = "1.88"
 publish = false
 
 [workspace.lints.rust]
-# core forbids unsafe via `#![forbid]`; the app layer needs exactly one justified
-# spot (WebView2 settings) that it explicitly allows.
+# core forbids unsafe via `#![forbid]`; the app layer needs two justified spots (WebView2
+# settings, colours of the native title bar) that it explicitly allows (src/platform.rs).
 unsafe_code = "deny"
 
 [workspace.lints.clippy]

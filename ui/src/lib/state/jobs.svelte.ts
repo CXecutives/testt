@@ -2,11 +2,15 @@
 //
 // - List and counts come from one `list_jobs` call (pages of 500); the list renders in
 //   windows of 60 rows that grow while scrolling, so 2000 jobs never block a frame.
-// - During a run new jobs are inserted at the top with a short accent tint and existing
-//   rows update in place (rings fill live). The list re-sorts once, when the run finishes,
-//   and keeps the selection.
+// - Rows are plain objects (`$state.raw`): a change replaces the row, so only that row
+//   renders again, and no proxy sits between the template and 2000 jobs.
+// - During a run new jobs are inserted at the top (they fade in) and existing rows update in
+//   place (rings fill live). The list re-sorts once, when the run finishes, and keeps the
+//   selection.
 // - `mark_read` only on a real click on a row (select(..., true)).
-// - The day overview reads its own unfiltered page, independent of search and facet.
+// - The day overview reads its own unfiltered list of every job (all pages), independent
+//   of search and facet: its tiles, the new jobs per portal and the pinned jobs agree with
+//   each other and with the sidebar whatever the list shows.
 
 import { SvelteSet } from 'svelte/reactivity';
 import { errorText } from '../i18n/texts';
@@ -16,6 +20,7 @@ import type {
   JobDetail,
   JobFacet,
   JobKey,
+  JobQuery,
   JobSort,
   JobView,
   Portal,
@@ -32,8 +37,8 @@ export const WINDOW = 60;
 const CHUNK = 6;
 const HIGH = 80;
 
-/** A tile of the day overview, or a portal (its new jobs, from the last fetch). */
-export type JobFilter = 'high' | 'noDetail' | 'excluded' | Portal;
+/** A tile of the day overview, or a portal (its new jobs). */
+export type JobFilter = 'high' | 'noDetail' | 'excluded' | 'pinned' | Portal;
 type Status = 'idle' | 'loading' | 'ready' | 'error';
 
 const ZERO: JobCounts = { new: 0, all: 0, excluded: 0, high: 0, noDetail: 0 };
@@ -46,8 +51,8 @@ export function sameKey(a: JobKey | null, b: JobKey | null): boolean {
   return a !== null && b !== null && a.portal === b.portal && a.id === b.id;
 }
 
-const excluded = (job: JobView): boolean => job.match?.status === 'excluded';
-const TILES: readonly string[] = ['high', 'noDetail', 'excluded'];
+export const isExcluded = (job: JobView): boolean => job.match?.status === 'excluded';
+const TILES: readonly string[] = ['high', 'noDetail', 'excluded', 'pinned'];
 const isPortal = (filter: JobFilter): filter is Portal => !TILES.includes(filter);
 
 function matches(job: JobView, filter: JobFilter | null): boolean {
@@ -59,7 +64,9 @@ function matches(job: JobView, filter: JobFilter | null): boolean {
     case 'noDetail':
       return job.detail.kind !== 'ok';
     case 'excluded':
-      return excluded(job);
+      return isExcluded(job);
+    case 'pinned':
+      return job.pinned;
     default:
       return job.portal === filter;
   }
@@ -67,7 +74,7 @@ function matches(job: JobView, filter: JobFilter | null): boolean {
 
 /** What one job adds to the counts (to keep them exact while rows change live). */
 function share(job: JobView): JobCounts {
-  const out = excluded(job);
+  const out = isExcluded(job);
   return {
     all: 1,
     new: job.unread && !out ? 1 : 0,
@@ -89,13 +96,19 @@ function add(counts: JobCounts, job: JobView | null, sign: 1 | -1): JobCounts {
   };
 }
 
+/** `list` with the row of `key` replaced by `change(row)` (the same array if absent). */
+function replaced(list: JobView[], key: JobKey, change: (job: JobView) => JobView): JobView[] {
+  const index = list.findIndex((job) => sameKey(job.key, key));
+  return index < 0 ? list : list.with(index, change(list[index]!));
+}
+
 class JobsStore {
   facet = $state<JobFacet>('new');
   sortChoice = $state<JobSort>('match');
   search = $state('');
   filter = $state<JobFilter | null>(null);
 
-  rows = $state<JobView[]>([]);
+  rows = $state.raw<JobView[]>([]);
   counts = $state<JobCounts>(ZERO);
   /** Rows the server has for the current query (for paging). */
   total = $state(0);
@@ -105,21 +118,24 @@ class JobsStore {
   window = $state(WINDOW);
   /** Rows mounted so far (grows towards `window` chunk by chunk). */
   rendered = $state(CHUNK);
-  /** Keys inserted during the current run (accent tint). */
+  /** Keys inserted while the list was on screen (they fade in). */
   fresh = new SvelteSet<string>();
 
   selected = $state<JobKey | null>(null);
-  detail = $state<JobDetail | null>(null);
+  detail = $state.raw<JobDetail | null>(null);
   detailStatus = $state<Status>('idle');
   detailSlow = $state(false);
   detailError = $state<string | null>(null);
 
-  overview = $state<JobView[]>([]);
-  /** The overview page arrived at least once (until then it says nothing about news). */
-  overviewReady = $state(false);
+  /** Every job, unfiltered (the day overview). */
+  overview = $state.raw<JobView[]>([]);
+  /** The counts over every job, unfiltered (tiles and sidebar). */
+  overviewCounts = $state<JobCounts | null>(null);
+  overviewStatus = $state<Status>('idle');
 
   #request = 0;
   #detailRequest = 0;
+  #overviewRequest = 0;
   #pumping = false;
   #searchTimer: ReturnType<typeof setTimeout> | null = null;
   #installed = false;
@@ -130,21 +146,20 @@ class JobsStore {
   }
 
   /** Rows of the list after the tile filter, excluded ones last (behind the divider). */
-  get visible(): JobView[] {
-    return this.filter === null ? this.rows : this.rows.filter((job) => matches(job, this.filter));
-  }
+  readonly visible = $derived(
+    this.filter === null ? this.rows : this.rows.filter((job) => matches(job, this.filter)),
+  );
 
-  get shown(): JobView[] {
-    return this.visible.slice(0, this.rendered);
-  }
+  readonly shown = $derived(this.visible.slice(0, this.rendered));
 
   /** More rows exist beyond the window (the sentinel shows once the window is rendered). */
-  get more(): boolean {
-    return (
-      this.rendered >= this.window &&
-      (this.window < this.visible.length || this.rows.length < this.total)
-    );
-  }
+  readonly more = $derived(
+    this.rendered >= this.window &&
+      (this.window < this.visible.length || this.rows.length < this.total),
+  );
+
+  /** Jobs the user pinned ("Merken"), from the unfiltered overview. */
+  readonly pinned = $derived(this.overview.filter((job) => job.pinned).length);
 
   /** Mount the window in chunks, one per frame: no frame builds 60 rows at once. */
   private pump(): void {
@@ -190,7 +205,7 @@ class JobsStore {
     if (this.#searchTimer !== null) clearTimeout(this.#searchTimer);
     this.#searchTimer = setTimeout(
       () => void this.load(),
-      value === '' ? 0 : tokenMs('--dur-fast'),
+      value === '' ? 0 : tokenMs('--dur-base'),
     );
   }
 
@@ -217,9 +232,10 @@ class JobsStore {
       if (request !== this.#request) return;
       this.rows = page.jobs;
       this.counts = page.counts;
-      this.total = this.facet === 'new' ? page.counts.new : page.counts.all;
+      this.total = page.jobs.length < PAGE ? page.jobs.length : this.countOf(page.counts);
       this.window = keep ? Math.max(WINDOW, this.window) : WINDOW;
       this.rendered = keep ? Math.min(this.rendered, this.window) : CHUNK;
+      this.fresh.clear();
       this.status = 'ready';
       if (this.filter !== null) await this.loadAll(request);
       this.pump();
@@ -233,7 +249,12 @@ class JobsStore {
     }
   }
 
-  private query(offset: number) {
+  /** Rows the query has: under Neu the unread excluded jobs come on top of the count. */
+  private countOf(counts: JobCounts): number {
+    return this.facet === 'new' ? Number.MAX_SAFE_INTEGER : counts.all;
+  }
+
+  private query(offset: number): JobQuery {
     return {
       facet: this.facet,
       sort: this.sort,
@@ -246,7 +267,9 @@ class JobsStore {
   private async page(request: number): Promise<boolean> {
     if (this.rows.length >= this.total) return false;
     const page = await invoke('list_jobs', { query: this.query(this.rows.length) });
-    if (request !== this.#request || page.jobs.length === 0) return false;
+    if (request !== this.#request) return false;
+    if (page.jobs.length < PAGE) this.total = this.rows.length + page.jobs.length;
+    if (page.jobs.length === 0) return false;
     const known = new Set(this.rows.map((job) => keyOf(job.key)));
     this.rows = [...this.rows, ...page.jobs.filter((job) => !known.has(keyOf(job.key)))];
     this.counts = page.counts;
@@ -275,16 +298,28 @@ class JobsStore {
     }
   }
 
+  /** Every job for the day overview (all pages; on an error it says nothing, not "nothing new"). */
   async loadOverview(): Promise<void> {
+    const request = ++this.#overviewRequest;
+    if (this.overviewStatus !== 'ready') this.overviewStatus = 'loading';
     try {
-      const page = await invoke('list_jobs', {
-        query: { facet: 'all', sort: this.sort, search: null, limit: PAGE, offset: 0 },
-      });
-      this.overview = page.jobs;
+      const all: JobView[] = [];
+      let counts: JobCounts = ZERO;
+      for (;;) {
+        const page = await invoke('list_jobs', {
+          query: { facet: 'all', sort: 'newest', search: null, limit: PAGE, offset: all.length },
+        });
+        if (request !== this.#overviewRequest) return;
+        all.push(...page.jobs);
+        counts = page.counts;
+        if (page.jobs.length < PAGE || all.length >= counts.all) break;
+      }
+      this.overview = all;
+      this.overviewCounts = counts;
+      this.overviewStatus = 'ready';
     } catch {
-      this.overview = [];
-    } finally {
-      this.overviewReady = true;
+      if (request !== this.#overviewRequest) return;
+      this.overviewStatus = 'error';
     }
   }
 
@@ -341,23 +376,30 @@ class JobsStore {
     } catch {
       this.patch(key, { pinned: !on });
     }
-    void this.loadOverview();
   }
 
-  /** Change a row (and the reader) in place, keeping the counts exact. */
+  /** Change a row (the reader, the overview) in place, keeping the counts exact. */
   private patch(key: JobKey, change: Partial<JobView>): void {
-    const index = this.rows.findIndex((job) => sameKey(job.key, key));
-    if (index >= 0) {
-      const before = this.rows[index]!;
+    const before = this.rows.find((job) => sameKey(job.key, key)) ?? null;
+    if (before !== null) {
       const after = { ...before, ...change };
       this.counts = add(add(this.counts, before, -1), after, 1);
-      this.rows[index] = after;
+      this.rows = replaced(this.rows, key, () => after);
     }
     if (this.detail && sameKey(this.detail.job.key, key)) {
       this.detail = { ...this.detail, job: { ...this.detail.job, ...change } };
     }
-    const inOverview = this.overview.findIndex((job) => sameKey(job.key, key));
-    if (inOverview >= 0) this.overview[inOverview] = { ...this.overview[inOverview]!, ...change };
+    this.patchOverview(key, (job) => ({ ...job, ...change }));
+  }
+
+  private patchOverview(key: JobKey, change: (job: JobView) => JobView): void {
+    const before = this.overview.find((job) => sameKey(job.key, key)) ?? null;
+    if (before === null) return;
+    const after = change(before);
+    this.overview = replaced(this.overview, key, () => after);
+    if (this.overviewCounts !== null) {
+      this.overviewCounts = add(add(this.overviewCounts, before, -1), after, 1);
+    }
   }
 
   private onRun(event: RunEvent): void {
@@ -372,18 +414,24 @@ class JobsStore {
     const index = this.rows.findIndex((row) => sameKey(row.key, job.key));
     if (index >= 0) {
       this.counts = add(add(this.counts, this.rows[index]!, -1), job, 1);
-      this.rows[index] = job;
-    } else if (
-      this.search.trim() === '' &&
-      (this.facet === 'all' || (job.unread && !excluded(job)))
-    ) {
+      this.rows = this.rows.with(index, job);
+    } else if (this.search.trim() === '' && (this.facet === 'all' || job.unread)) {
+      // Under Neu an unread excluded job also shows (grey, behind the divider), uncounted.
       this.counts = add(this.counts, job, 1);
       this.total += 1;
-      const at = excluded(job) ? this.rows.findIndex(excluded) : 0;
-      this.rows.splice(at < 0 ? this.rows.length : at, 0, job);
+      const at = isExcluded(job) ? this.rows.findIndex(isExcluded) : 0;
+      const rows = [...this.rows];
+      rows.splice(at < 0 ? rows.length : at, 0, job);
+      this.rows = rows;
       this.rendered += 1;
       this.window = Math.max(this.window, this.rendered);
       this.fresh.add(keyOf(job.key));
+    }
+    if (this.overview.some((row) => sameKey(row.key, job.key))) {
+      this.patchOverview(job.key, () => job);
+    } else {
+      this.overview = [job, ...this.overview];
+      if (this.overviewCounts !== null) this.overviewCounts = add(this.overviewCounts, job, 1);
     }
     if (this.detail && sameKey(this.detail.job.key, job.key)) void this.loadDetail(job.key);
   }

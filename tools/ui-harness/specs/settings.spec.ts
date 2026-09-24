@@ -37,7 +37,7 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
 
   await page.getByTestId('first-template').click();
-  await expect(page.getByTestId('toast')).toHaveText('Die Vorlage liegt im Arbeitsordner.');
+  await expect(page.getByTestId('toast')).toHaveText('Die Vorlage ist gespeichert.');
   await page.getByTestId('first-pick-profile').click();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
@@ -52,8 +52,8 @@ test('settings: sections, no primary while nothing asks for one', async ({ page 
   for (const id of ['mailbox', 'fetch', 'portals', 'files', 'care']) {
     await expect(page.getByTestId(`settings-${id}`)).toBeVisible();
   }
-  expect(await visibleCount(page, '[data-testid="view-settings"] .btn.primary')).toBe(0);
-  expect(await visibleCount(page, '.btn.primary')).toBe(1);
+  // "Abrufen" lives in the list of the Jobs view: nothing here asks for a primary.
+  expect(await visibleCount(page, '.btn.primary')).toBe(0);
   await expect(page.getByTestId('settings-mailbox')).toContainText('alerts.demo@gmail.com');
 });
 
@@ -62,7 +62,7 @@ test('changing the mailbox: form with save and cancel, Esc cancels', async ({ pa
   await page.getByTestId('mailbox-change').click();
   await expect(page.getByTestId('mailbox-form')).toBeVisible();
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
-  await expect(page.getByTestId('mailbox-save')).toHaveClass(/secondary/);
+  await expect(page.getByTestId('mailbox-save')).toHaveClass(/primary/);
   await page.getByTestId('mailbox-password').press('Escape');
   await expect(page.getByTestId('mailbox-form')).toHaveCount(0);
 });
@@ -118,11 +118,11 @@ test('freelance.de sign-in: account risk, sign in and out', async ({ page }) => 
 
 test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   await settings(page);
-  await expect(page.getByTestId('quota-freelancermap')).toContainText('Heute 86 von 100 Abrufen');
+  await expect(page.getByTestId('quota-freelancermap')).toContainText('Heute 86 von 100 Seiten');
   await expect(page.getByTestId('quota-linkedin')).toHaveCount(0);
   await settings(page, `${WIN}&scenario=paused`);
   await expect(page.getByTestId('health-linkedin')).toContainText(
-    'Das Portal bremst die Abrufe. Pause bis 11:05.',
+    'Das Portal bremst die Anfragen. Pause bis 11:05.',
   );
   await expect(page.getByTestId('health-freelance')).toContainText(
     '2 Alert-Mails ohne erkannte Jobs',

@@ -113,7 +113,7 @@
   .group-title {
     color: var(--text-muted);
     font: var(--type-sm);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .grid {
@@ -146,7 +146,7 @@
 
   .name {
     color: var(--text);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .value {

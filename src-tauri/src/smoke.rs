@@ -1,19 +1,24 @@
 //! Self-check for development and acceptance: `job-alert-monitor --smoke` loads the UI,
-//! checks the shell against the UI contract (`data-testid`), clicks through the three sidebar entries
-//! and exits with 0 (all fine), 1 (contract broken or a CSP violation) or 2 (timeout).
+//! checks the shell against the UI contract (`data-testid`), clicks through the three sidebar
+//! entries and exits with 0 (all fine), 1 (contract broken, a step failed or a CSP violation)
+//! or 2 (timeout).
 //!
 //! Every view stays on screen for [`HOLD`], longer than two intervals of the CI screenshot
 //! loop (1.5 s), so each one is captured; the output names the view shown
 //! (`SMOKE view jobs`). CSP violations are collected from the first byte on (an
 //! initialization script listens for `securitypolicyviolation`) and reported at the end.
 //!
-//! `--smoke-run` is still accepted (CI and scripts pass it with `--dry-run`); it runs the
-//! same check until the Jobs screen has test ids for a demo run.
+//! `--smoke-run` (with `--dry-run`) then drives the real fetch path of the app twice in a row:
+//! "Abrufen" -> run events over the channel -> rows with filled rings -> `Finished`, and each
+//! run has to end in the idle state. After that it measures frames while switching views,
+//! scrolling and opening jobs in the reader (`SMOKE {"step":"views",...}`): frame intervals
+//! (p50, p95, max), dropped frames, long tasks and long animation frames. The numbers are
+//! printed, not gated - frame times on CI machines vary too much for a threshold.
 //!
 //! Debug build only (`#[cfg(debug_assertions)]` where `main.rs` includes it).
 
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::Value;
@@ -24,17 +29,152 @@ use tauri::{Manager, Runtime, WebviewWindow, WebviewWindowBuilder};
 const TABS: [&str; 3] = ["jobs", "profile", "settings"];
 /// How long each view stays on screen for the CI screenshots.
 const HOLD: Duration = Duration::from_secs(3);
+/// The steps of `--smoke-run`, in this order (`window.__smoke` in [`INIT`] runs them).
+const SCENARIOS: [&str; 5] = ["run", "run", "views", "scroll", "reader"];
+/// The whole check ends after this long (CI kills the process after 150 s).
+const WATCHDOG: Duration = Duration::from_secs(60);
+const WATCHDOG_RUN: Duration = Duration::from_secs(130);
 
-/// Runs before any page script: every CSP violation lands in `window.__smokeCsp`.
-const CSP_LISTENER: &str = "window.__smokeCsp = []; \
-    document.addEventListener('securitypolicyviolation', (e) => \
-    window.__smokeCsp.push(e.violatedDirective + ' ' + (e.blockedURI || 'inline')));";
+/// Runs before any page script: every CSP violation lands in `window.__smokeCsp`; the frame
+/// probe and the steps of `--smoke-run` wait in `window.__smoke`.
+const INIT: &str = r#"(() => {
+  const csp = [];
+  window.__smokeCsp = csp;
+  document.addEventListener('securitypolicyviolation', (e) =>
+    csp.push(e.violatedDirective + ' ' + (e.blockedURI || 'inline')));
+
+  // Frame probe: requestAnimationFrame intervals while recording, long tasks and long
+  // animation frames (both engines that lack an entry type simply report none).
+  const long = [];
+  let rec = null;
+  const loop = (t) => {
+    if (rec) {
+      if (rec.last !== null) rec.frames.push(t - rec.last);
+      rec.last = t;
+    }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+  for (const type of ['longtask', 'long-animation-frame']) {
+    try {
+      new PerformanceObserver((list) => {
+        for (const e of list.getEntries()) long.push({ type, start: e.startTime, dur: e.duration });
+      }).observe({ type, buffered: true });
+    } catch (e) {
+      // This engine does not know the entry type.
+    }
+  }
+  const start = () => { rec = { t0: performance.now(), last: null, frames: [] }; };
+  const stop = () => {
+    const r = rec;
+    rec = null;
+    if (r === null) return null;
+    const t1 = performance.now();
+    const f = [...r.frames].sort((a, b) => a - b);
+    const at = (p) => (f.length ? f[Math.min(f.length - 1, Math.floor(p * f.length))] : 0);
+    const vsync = at(0.5) || 1000 / 60;
+    const dropped = r.frames.reduce((n, d) => n + Math.max(0, Math.round(d / vsync) - 1), 0);
+    const inside = long.filter((e) => e.start >= r.t0 && e.start <= t1);
+    const tasks = inside.filter((e) => e.type === 'longtask');
+    const frames = inside.filter((e) => e.type === 'long-animation-frame');
+    const one = (x) => Math.round(x * 10) / 10;
+    return {
+      ms: Math.round(t1 - r.t0), frames: f.length, p50: one(at(0.5)), p95: one(at(0.95)),
+      max: one(f.length ? f[f.length - 1] : 0), dropped,
+      longTasks: tasks.length, longTaskMs: Math.round(tasks.reduce((s, e) => s + e.dur, 0)),
+      longFrames: frames.length, longFrameMax: Math.round(Math.max(0, ...frames.map((e) => e.dur))),
+    };
+  };
+
+  const q = (id) => document.querySelector(`[data-testid="${id}"]`);
+  const all = (css) => document.querySelectorAll(css);
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  const until = async (test, ms) => {
+    const end = performance.now() + ms;
+    while (performance.now() < end) {
+      if (test()) return true;
+      await wait(50);
+    }
+    return test();
+  };
+  const fetchButton = () => q('fetch') || q('first-fetch');
+  const ready = () => fetchButton() !== null && fetchButton().getAttribute('aria-disabled') !== 'true';
+
+  const scenarios = {
+    // Abrufen -> run events -> rows with rings -> Finished, back in the idle state.
+    async run() {
+      if (!(await until(ready, 5000))) return { ok: false, why: 'no enabled fetch button' };
+      start();
+      fetchButton().click();
+      if (!(await until(() => q('run-running') !== null, 5000))) {
+        return { ok: false, why: 'the run did not start', perf: stop() };
+      }
+      const idle = () => q('run-running') === null && q('run-finished') !== null && ready();
+      if (!(await until(idle, 30000))) {
+        return { ok: false, why: 'the run did not end in the idle state', perf: stop() };
+      }
+      await wait(600);
+      const rows = all('[data-testid^="job-row-"]').length;
+      const rings = all('[data-testid^="job-row-"] [role="img"][aria-label^="Passung"]').length;
+      return { ok: rows > 0 && rings > 0, rows, rings, perf: stop() };
+    },
+    async views() {
+      const out = { ok: true };
+      for (const tab of ['profile', 'settings', 'jobs']) {
+        start();
+        q('nav-' + tab).click();
+        await wait(600);
+        out[tab] = stop();
+        out.ok = out.ok && q('view-' + tab) !== null;
+      }
+      return out;
+    },
+    async scroll() {
+      const out = { ok: true };
+      for (const id of ['list-scroll', 'reader-pane']) {
+        const el = q(id);
+        if (el === null) continue;
+        start();
+        for (let i = 0; i < 40; i += 1) { el.scrollBy(0, 40); await frame(); }
+        for (let i = 0; i < 40; i += 1) { el.scrollBy(0, -40); await frame(); }
+        out[id] = { ...stop(), range: el.scrollHeight - el.clientHeight };
+      }
+      return out;
+    },
+    async reader() {
+      const rows = [...all('[data-testid^="job-row-"]')].slice(0, 5);
+      if (rows.length === 0) return { ok: false, why: 'no rows' };
+      start();
+      for (const row of rows) {
+        row.click();
+        await wait(450);
+      }
+      return { ok: q('reader') !== null, opened: rows.length, perf: stop() };
+    },
+  };
+
+  const results = [];
+  window.__smoke = {
+    start(name, index) {
+      results[index] = null;
+      scenarios[name]().then(
+        (r) => { results[index] = { step: name, ...r }; },
+        (e) => { results[index] = { step: name, ok: false, why: String(e) }; },
+      );
+      return true;
+    },
+    result(index) {
+      return results[index] ?? null;
+    },
+  };
+})();"#;
 
 const PROBE: &str = r#"(() => { try {
     const q = (id) => document.querySelector(`[data-testid="${id}"]`);
     const shown = (el) => !!el && el.getBoundingClientRect().width > 0;
     return JSON.stringify({
-      ready: shown(q('shell')) && shown(q('titlebar')),
+      ready: shown(q('shell')) && shown(q('sidebar')),
       tabs: document.querySelectorAll('[data-testid^="nav-"]').length,
       named: ['nav-jobs', 'nav-profile', 'nav-settings'].every((id) => !!q(id)),
       tauri: '__TAURI_INTERNALS__' in window,
@@ -46,6 +186,11 @@ const CSP_PROBE: &str = "JSON.stringify({ csp: window.__smokeCsp ?? null })";
 
 /// The tab currently visited (index into [`TABS`]).
 static TAB: AtomicUsize = AtomicUsize::new(0);
+/// The step of `--smoke-run` currently running (index into [`SCENARIOS`]).
+static SCENARIO: AtomicUsize = AtomicUsize::new(0);
+/// A step of `--smoke-run` failed: the check goes on (the numbers of the later steps still
+/// help) and ends with 1.
+static FAILED: AtomicBool = AtomicBool::new(false);
 /// Last answer of the page - the watchdog prints it on timeout.
 static LAST: Mutex<String> = Mutex::new(String::new());
 
@@ -61,16 +206,21 @@ pub fn attach<R: Runtime, M: Manager<R>>(
     if !flag("--smoke") && !flag("--smoke-run") {
         return builder;
     }
+    let limit = if flag("--smoke-run") {
+        WATCHDOG_RUN
+    } else {
+        WATCHDOG
+    };
     // The watchdog runs from window creation: if loading already hangs, the process still
     // ends - directly, because the event loop may then be blocked.
-    std::thread::spawn(|| {
-        std::thread::sleep(Duration::from_secs(60));
+    std::thread::spawn(move || {
+        std::thread::sleep(limit);
         let last = LAST.lock().map(|l| l.clone()).unwrap_or_default();
         println!("SMOKE timeout {last}");
         std::process::exit(2);
     });
     builder
-        .initialization_script(CSP_LISTENER)
+        .initialization_script(INIT)
         .on_page_load(|window, payload| {
             if payload.event() == PageLoadEvent::Finished {
                 ask(
@@ -97,10 +247,22 @@ fn check_shell<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
 }
 
 /// Clicks the next tab and waits until its view is the only one on screen; after the
-/// last tab, the final CSP check.
+/// last tab the steps of `--smoke-run`, then the final CSP check.
 fn show_next_tab<R: Runtime>(window: &WebviewWindow<R>) {
     let Some(tab) = TABS.get(TAB.load(Ordering::SeqCst)) else {
-        ask(window, CSP_PROBE.to_owned(), |_| true, check_csp);
+        if flag("--smoke-run") {
+            // The run starts in the Jobs view, where the list shows its rows and rings.
+            let back = "document.querySelector('[data-testid=\"nav-jobs\"]').click()";
+            if let Err(error) = window.eval(back) {
+                println!("SMOKE eval failed: {error}");
+                window.app_handle().exit(1);
+                return;
+            }
+            SCENARIO.store(0, Ordering::SeqCst);
+            next_scenario(window);
+        } else {
+            finish(window);
+        }
         return;
     };
     let click = format!("document.querySelector('[data-testid=\"nav-{tab}\"]').click()");
@@ -133,10 +295,42 @@ fn view_shown<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
     });
 }
 
+/// Starts the next step of `--smoke-run` in the page and waits for its result.
+fn next_scenario<R: Runtime>(window: &WebviewWindow<R>) {
+    let index = SCENARIO.load(Ordering::SeqCst);
+    let Some(name) = SCENARIOS.get(index) else {
+        finish(window);
+        return;
+    };
+    if let Err(error) = window.eval(format!("window.__smoke.start('{name}', {index})")) {
+        println!("SMOKE eval failed: {error}");
+        window.app_handle().exit(1);
+        return;
+    }
+    let probe = format!("JSON.stringify(window.__smoke.result({index}))");
+    ask(window, probe, |v| v["ok"].is_boolean(), scenario_done);
+}
+
+fn scenario_done<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
+    if value["ok"] != true {
+        println!(
+            "SMOKE step {} failed: {}",
+            value["step"].as_str().unwrap_or_default(),
+            value["why"].as_str().unwrap_or("see above")
+        );
+        FAILED.store(true, Ordering::SeqCst);
+    }
+    SCENARIO.fetch_add(1, Ordering::SeqCst);
+    next_scenario(window);
+}
+
+fn finish<R: Runtime>(window: &WebviewWindow<R>) {
+    ask(window, CSP_PROBE.to_owned(), |_| true, check_csp);
+}
+
 fn check_csp<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
-    window
-        .app_handle()
-        .exit(i32::from(!no_csp_violation(value)));
+    let ok = no_csp_violation(value) && !FAILED.load(Ordering::SeqCst);
+    window.app_handle().exit(i32::from(!ok));
 }
 
 /// The listener ran (an array) and caught nothing; otherwise the violations are printed.

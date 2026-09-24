@@ -1,6 +1,7 @@
 <!--
-  Progress bar. Determinate (value 0..1) fills by scaleX; the brand tone carries a light
-  edge travelling along the fill. Indeterminate (value null) sweeps a short bar.
+  Progress bar. Determinate (value 0..1) fills by scaleX (180 ms, ease-out). Indeterminate
+  (value null) sweeps a short bar; under reduced motion it rests as a calm full track
+  instead of a paused bar outside the track.
 -->
 <script lang="ts" module>
   export type MeterTone = 'brand' | 'neutral' | 'warning';
@@ -51,20 +52,10 @@
     inset: 0;
     overflow: hidden;
     border-radius: inherit;
-    background: var(--meter-fill);
+    background-color: var(--meter-color);
     transform: scaleX(var(--progress));
     transform-origin: left center;
     transition: transform var(--dur-slow) var(--ease-out);
-  }
-
-  /* The travelling light edge of the brand tone. */
-  .brand .fill::after {
-    position: absolute;
-    inset: 0;
-    background: var(--grad-shimmer);
-    content: '';
-    animation: shimmer var(--dur-loop) var(--ease-standard) infinite;
-    animation-play-state: var(--loop-state);
   }
 
   .indeterminate .fill {
@@ -76,16 +67,24 @@
     animation-play-state: var(--loop-state);
   }
 
+  /* Reduced motion: no sweep; a paused one would sit outside the track and vanish. */
+  :global(:root[data-motion='reduce']) .indeterminate .fill {
+    width: 100%;
+    opacity: var(--opacity-muted);
+    transform: none;
+    animation: none;
+  }
+
   .brand {
-    --meter-fill: var(--grad-brand);
+    --meter-color: var(--meter-fill);
   }
 
   .neutral {
-    --meter-fill: var(--text-subtle);
+    --meter-color: var(--text-subtle);
   }
 
   .warning {
-    --meter-fill: var(--warning-strong);
+    --meter-color: var(--warning-strong);
   }
 
   .sm {

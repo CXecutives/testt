@@ -240,7 +240,7 @@ export type ContrastRole = 'text' | 'fill' | 'surface' | 'decor';
 export interface ColourToken {
   name: string;
   role: ContrastRole;
-  /** Documented exception (the brand-near primary button). */
+  /** Documented exception (the light cxpertise coral of the primary button, user decision). */
   exception?: boolean;
 }
 
@@ -254,7 +254,6 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'surface-hover', role: 'surface' },
       { name: 'surface-press', role: 'surface' },
       { name: 'surface-selected', role: 'surface' },
-      { name: 'surface-tinted', role: 'surface' },
       { name: 'surface-inverse', role: 'decor' },
       { name: 'scrim', role: 'decor' },
     ],
@@ -285,7 +284,7 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'accent-soft', role: 'surface' },
       { name: 'primary', role: 'fill', exception: true },
       { name: 'primary-hover', role: 'fill', exception: true },
-      { name: 'primary-active', role: 'fill' },
+      { name: 'primary-active', role: 'fill', exception: true },
       { name: 'focus', role: 'decor' },
       { name: 'selection', role: 'surface' },
     ],
@@ -332,31 +331,16 @@ export const typeScale = [
   { name: 'body', spec: '15/24' },
   { name: 'lg', spec: '17/24 · 600' },
   { name: 'xl', spec: '20/28 · 600' },
-  { name: '2xl', spec: '26/32 · 700' },
-  { name: 'display', spec: '34/40 · 700' },
+  { name: '2xl', spec: '26/32 · 600' },
+  { name: 'display', spec: '34/40 · 600' },
 ] as const;
 
 export const spacing = [2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64] as const;
 export const radii = ['xs', 'sm', 'md', 'lg', 'xl', 'full'] as const;
-export const shadows = [
-  'sh-xs',
-  'sh-sm',
-  'sh-card',
-  'sh-elegant',
-  'sh-pop',
-  'glow',
-  'glow-sm',
-  'focus-ring',
-] as const;
-export const gradients = [
-  'grad-brand',
-  'grad-hero',
-  'grad-card',
-  'grad-wash',
-  'grad-shimmer',
-] as const;
-export const durations = ['instant', 'fast', 'base', 'slow', 'hero', 'reveal'] as const;
-export const easings = ['standard', 'out', 'in', 'pop'] as const;
+export const shadows = ['sh-xs', 'sh-thumb', 'sh-pop', 'focus-halo', 'focus-ring'] as const;
+export const gradients = ['grad-shimmer'] as const;
+export const durations = ['instant', 'fast', 'base', 'slow', 'reveal'] as const;
+export const easings = ['standard', 'out', 'in'] as const;
 
 /* ------------------------------------------------------------------ contrast */
 

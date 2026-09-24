@@ -1,8 +1,9 @@
 /*
- * The only keyframes of the UI. Components reference them by name with token durations
- * (`animation: spin var(--dur-loop) linear infinite`) and `animation-play-state:
- * var(--loop-state)`, which reduced motion sets to `paused`. Only transform, opacity and
- * stroke-dashoffset are animated.
+ * The only keyframes of the UI, all loops of something that waits: the light of a loading
+ * placeholder, a spinner and the sweep of an indeterminate progress bar. Components
+ * reference them by name with token durations (`animation: spin var(--dur-loop) linear
+ * infinite`) and `animation-play-state: var(--loop-state)`, which reduced motion sets to
+ * `paused`. Only transform is animated.
  */
 
 @keyframes shimmer {
@@ -21,28 +22,6 @@
   }
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes breathe {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
-
 @keyframes sweep {
   from {
     transform: translateX(-100%);
@@ -50,32 +29,5 @@
 
   to {
     transform: translateX(250%);
-  }
-}
-
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-
-  20%,
-  60% {
-    transform: translateX(calc(-1 * var(--move-md)));
-  }
-
-  40%,
-  80% {
-    transform: translateX(var(--move-md));
-  }
-}
-
-@keyframes draw {
-  from {
-    stroke-dashoffset: var(--draw-from);
-  }
-
-  to {
-    stroke-dashoffset: var(--draw-to);
   }
 }

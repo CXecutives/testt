@@ -1,10 +1,13 @@
 <!--
   The match of a job as a ring: sm 40 (list rows), md 56 (reader), lg 96.
-  scored: the ring fills by stroke-dashoffset (r = 15.9155, circumference 100, no
-  pathLength) and the number counts up once, the first time the ring is visible; a high
-  band glows once. At most 10 rings animate at the same time, the rest are placed at once.
+  scored: the ring shows its value (r = 15.9155, circumference 100, no pathLength). It fills
+  (360 ms, ease-out) with the number counting along only when that means something: when a
+  score arrives while the ring is on screen (live scoring during a run), or the first time a
+  job is opened (`animate` names the job; once per job and session). A view that comes back
+  shows its rings as they are. At most 10 rings fill at the same time, the others are placed
+  at once.
   excluded: dashed track and a ban icon. unscorable: dashed track and a dash.
-  pending: skeleton. none: empty track.
+  pending: skeleton. none: empty track. A selected row passes a stronger --ring-track.
 -->
 <script lang="ts" module>
   import type { Band, JobMatch } from '$lib/ipc/types';
@@ -26,11 +29,13 @@
 
   const MAX_ANIMATING = 10;
   let animating = 0;
+  /** Jobs whose ring has filled on opening already (it does not replay; not reactive). */
+  const filled: Record<string, true> = {};
 </script>
 
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { cssVars } from '$lib/actions/cssVars';
-  import { reveal } from '$lib/actions/reveal';
   import { de } from '$lib/i18n/de';
   import { formatPercent } from '$lib/i18n/format';
   import { duration, isReducedMotion } from '$lib/motion/motion';
@@ -41,16 +46,18 @@
   interface Props {
     ring: RingState;
     size?: 'sm' | 'md' | 'lg';
+    /** Fill on mount the first time this job is shown (the reader passes the job's key). */
+    animate?: string | null;
     testid?: string | null;
   }
 
-  let { ring, size = 'sm', testid = null }: Props = $props();
+  let { ring, size = 'sm', animate = null, testid = null }: Props = $props();
 
   const number = countUp(0);
   let shown = $state(0);
-  let revealed = $state(false);
   let counting = $state(false);
-  let glowing = $state(false);
+  let mounted = false;
+  let wasScored = false;
 
   const score = $derived(ring.status === 'scored' ? Math.max(0, Math.min(100, ring.score)) : 0);
   const band = $derived(ring.status === 'scored' ? ring.band : null);
@@ -70,31 +77,39 @@
     }
   });
 
-  function start(): void {
-    revealed = true;
-    if (ring.status !== 'scored') return;
-    if (animating >= MAX_ANIMATING || isReducedMotion()) {
-      number.set(score, { duration: 0 });
-      shown = score;
-      return;
-    }
-    animating += 1;
-    counting = true;
-    number.target = score;
-    shown = score;
-    setTimeout(() => {
-      animating -= 1;
-      counting = false;
-      glowing = band === 'high';
-    }, duration('reveal'));
+  function place(value: number): void {
+    void number.set(value, { duration: 0 });
+    shown = value;
   }
 
-  // A rescore after the first reveal moves straight to the new value.
   $effect(() => {
-    if (revealed && !counting && ring.status === 'scored') {
-      number.set(score, { duration: 0 });
-      shown = score;
-    }
+    const scored = ring.status === 'scored';
+    const value = score;
+    untrack(() => {
+      const first = !mounted && animate !== null && !(animate in filled);
+      if (first && scored && animate !== null) filled[animate] = true;
+      const grow = scored && (first || (mounted && !wasScored));
+      mounted = true;
+      wasScored = scored;
+      if (!scored || counting) return;
+      if (!grow || isReducedMotion() || animating >= MAX_ANIMATING) {
+        place(value);
+        return;
+      }
+      animating += 1;
+      counting = true;
+      place(0);
+      // One frame at 0, then the stroke transition and the count run to the value.
+      requestAnimationFrame(() => {
+        number.target = value;
+        shown = value;
+      });
+      setTimeout(() => {
+        animating -= 1;
+        counting = false;
+        place(score);
+      }, duration('reveal'));
+    });
   });
 </script>
 
@@ -106,11 +121,9 @@
   <span
     class="ring {size} {ring.status} {band ?? ''}"
     class:counting
-    class:glowing
     role="img"
     aria-label={label}
     data-testid={testid ?? undefined}
-    use:reveal={start}
   >
     <svg class="svg" viewBox="0 0 36 36" aria-hidden="true">
       <circle class="disc" cx="18" cy="18" r="15.9155" />
@@ -161,7 +174,7 @@
   }
 
   .track {
-    stroke: var(--score-track);
+    stroke: var(--ring-track, var(--score-track));
   }
 
   .excluded .track,
@@ -193,21 +206,6 @@
     letter-spacing: var(--tracking-tight);
   }
 
-  /* One glow for a high match, faded in and out on ::after. */
-  .ring::after {
-    position: absolute;
-    inset: 0;
-    border-radius: var(--radius-full);
-    box-shadow: var(--glow-high);
-    content: '';
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .glowing::after {
-    animation: pulse var(--dur-hero) var(--ease-standard) 1;
-  }
-
   .high {
     --ring-color: var(--score-high-ring);
     --ring-text: var(--score-high-text);
@@ -234,14 +232,14 @@
     --ring-size: var(--ring-sm);
     --ring-stroke: var(--ring-sm-stroke);
     --ring-scale: var(--ring-sm-scale);
-    --ring-type: var(--weight-bold) var(--font-sm) / var(--leading-sm) var(--font-sans);
+    --ring-type: var(--weight-semibold) var(--font-sm) / var(--leading-sm) var(--font-sans);
   }
 
   .md {
     --ring-size: var(--ring-md);
     --ring-stroke: var(--ring-md-stroke);
     --ring-scale: var(--ring-md-scale);
-    --ring-type: var(--weight-bold) var(--font-lg) / var(--leading-lg) var(--font-sans);
+    --ring-type: var(--weight-semibold) var(--font-lg) / var(--leading-lg) var(--font-sans);
   }
 
   .lg {

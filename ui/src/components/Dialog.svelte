@@ -1,11 +1,14 @@
 <!--
-  Modal question with at most two actions: confirm | danger. Scrim with a 4 px blur; the
-  dialog rises in slow/out and leaves in 0.7 × slow with ease-in. Esc cancels (formKeys);
-  Tab and Enter work inside. Pressing inside and releasing on the scrim keeps it open.
+  Modal question with at most two actions: confirm | danger. A plain scrim (no blur: a
+  blurred backdrop over the whole window drops frames in the web view); the dialog rises in
+  180 ms (ease-out) and leaves in 100 ms. Esc cancels (formKeys); Tab and Enter work inside.
+  Pressing inside and releasing on the scrim keeps it open; only the left button counts.
+  The buttons follow the OS: the action first on Windows, last (right) on macOS.
 -->
 <script lang="ts">
   import { de } from '$lib/i18n/de';
   import { formKeys } from '$lib/input/input';
+  import { primaryFirst } from '$lib/platform';
   import { dialogIn, dialogOut, scrim } from '$lib/motion/transitions';
   import type { Action } from 'svelte/action';
   import Button from './Button.svelte';
@@ -45,10 +48,12 @@
     oncancel?.();
   }
 
+  const actionFirst = primaryFirst();
+
   /** Danger dialogs start on "cancel", confirm dialogs on the confirm button. */
   const focusFirst: Action<HTMLElement, 'confirm' | 'danger'> = (node, kind) => {
-    const buttons = node.querySelectorAll<HTMLButtonElement>('.actions button');
-    const target = kind === 'danger' ? buttons[0] : buttons[buttons.length - 1];
+    const role = kind === 'danger' ? 'dialog-cancel' : 'dialog-confirm';
+    const target = node.querySelector<HTMLButtonElement>(`[data-testid="${role}"]`);
     queueMicrotask(() => target?.focus());
   };
 </script>
@@ -57,7 +62,8 @@
   <div
     class="scrim"
     transition:scrim
-    onpointerdown={(event) => (pressedOnScrim = event.target === event.currentTarget)}
+    onpointerdown={(event) =>
+      (pressedOnScrim = event.button === 0 && event.target === event.currentTarget)}
     onclick={(event) => {
       if (pressedOnScrim && event.target === event.currentTarget) cancel();
       pressedOnScrim = false;
@@ -79,13 +85,24 @@
       <h2 class="heading" id="{id}-heading">{heading}</h2>
       <p class="text" id="{id}-text">{text}</p>
       <div class="actions">
-        <Button variant="secondary" label={cancelLabel} disabled={busy} onclick={cancel} />
+        {#snippet dismiss()}
+          <Button
+            variant="secondary"
+            label={cancelLabel}
+            disabled={busy}
+            testid="dialog-cancel"
+            onclick={cancel}
+          />
+        {/snippet}
+        {#if !actionFirst}{@render dismiss()}{/if}
         <Button
           variant={variant === 'danger' ? 'danger' : 'primary'}
           label={confirmLabel}
           loading={busy}
+          testid="dialog-confirm"
           onclick={onconfirm}
         />
+        {#if actionFirst}{@render dismiss()}{/if}
       </div>
     </div>
   </div>
@@ -101,8 +118,6 @@
     justify-content: center;
     padding: var(--space-16);
     background-color: var(--scrim);
-    -webkit-backdrop-filter: blur(var(--blur-scrim));
-    backdrop-filter: blur(var(--blur-scrim));
   }
 
   .dialog {

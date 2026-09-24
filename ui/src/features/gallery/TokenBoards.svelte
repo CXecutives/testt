@@ -140,7 +140,7 @@
 
   .radius {
     border-radius: var(--radius);
-    background-color: var(--surface-tinted);
+    background-color: var(--surface-selected);
   }
 
   .shadow {

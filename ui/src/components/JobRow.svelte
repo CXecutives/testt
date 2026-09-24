@@ -3,8 +3,10 @@
   of the ring (so a title never moves when the job is read), the ring, then the title on one
   line with the relative date at its end, company and place, and one reason line with a
   status badge right after it only when something deviates. Every row has the same height.
-  The star to pin sits below the date: filled when pinned, otherwise it shows on hover (a
-  sibling of the row button, so it never selects the row).
+  Without a ring (no usable profile) the row keeps the dot's gutter and shows no reason
+  line: the reasons belong to a match. The star to pin sits below the date: filled when
+  pinned, otherwise it shows on hover (a sibling of the row button, so it never selects
+  the row).
 -->
 <script lang="ts">
   import { de } from '$lib/i18n/de';
@@ -25,8 +27,6 @@
     pending?: boolean;
     /** Show the ring (off without a profile: there is no match to show). */
     ring?: boolean;
-    /** Arrived during the current run. */
-    fresh?: boolean;
     /** Fixed "now" for relative dates (gallery and tests). */
     now?: Date;
     onselect?: ((job: JobView) => void) | null;
@@ -39,14 +39,13 @@
     selected = false,
     pending = false,
     ring = true,
-    fresh = false,
     now,
     onselect = null,
     onpin = null,
   }: Props = $props();
 
   const excluded = $derived(job.match?.status === 'excluded');
-  const reason = $derived(rowReason(job));
+  const reason = $derived(ring ? rowReason(job) : null);
   const heading = $derived(job.title ? displayTitle(job.title) : de.job.untitled);
 
   /** At most one badge, and only when something is not as usual. */
@@ -67,6 +66,11 @@
   <ScoreRing ring={ringState(job.match, pending)} size="sm" />
 {/snippet}
 
+<!-- Without a ring an empty leading slot keeps the gap between the dot and the title. -->
+{#snippet gutter()}
+  <span class="gutter"></span>
+{/snippet}
+
 {#snippet endCell()}
   <span class="date">{formatRelative(job.mailDate ?? job.firstSeenAt, now, true)}</span>
   {#if onpin}
@@ -80,11 +84,10 @@
 
 <div class="job" class:pinned={job.pinned}>
   <ListRow
-    leading={ring ? ringCell : null}
+    leading={ring ? ringCell : gutter}
     trailing={endCell}
     {selected}
     muted={excluded}
-    tint={fresh}
     onclick={onselect ? () => onselect?.(job) : null}
     testid="job-row-{job.key.portal}-{job.key.id}"
   >
@@ -144,6 +147,10 @@
 
   .title.unread {
     font-weight: var(--weight-semibold);
+  }
+
+  .gutter {
+    width: 0;
   }
 
   .meta {

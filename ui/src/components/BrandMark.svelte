@@ -1,4 +1,4 @@
-<!-- The app's own icon (coral plate, white folder, check mark) - title bar, first run, empty states. -->
+<!-- The app's own icon (coral plate, white folder, check mark): first run, empty states. -->
 <script lang="ts">
   import icon from '../assets/app-icon.svg';
 

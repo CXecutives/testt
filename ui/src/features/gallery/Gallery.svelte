@@ -15,7 +15,6 @@
   import Toast from '$components/Toast.svelte';
   import Tooltip from '$components/Tooltip.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
-  import WindowControls from '$components/WindowControls.svelte';
   import { tooltip } from '$lib/actions/tooltip';
   import ColourBoard from './ColourBoard.svelte';
   import MotionBoard from './MotionBoard.svelte';
@@ -143,7 +142,6 @@
         label={text.navigation.toast}
         onclick={() => toasts.show(text.navigation.toastText)}
       />
-      <WindowControls />
     </div>
   </Section>
 
@@ -204,7 +202,6 @@
     height: 100%;
     padding: var(--space-32);
     overflow: auto;
-    background: var(--grad-wash);
     background-color: var(--bg);
   }
 
@@ -253,7 +250,7 @@
   .row-label {
     color: var(--text-muted);
     font: var(--type-sm);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .button-row {
@@ -288,13 +285,6 @@
   .bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    height: var(--titlebar-height);
-    padding-left: var(--space-16);
-    border: var(--border-width) solid var(--border);
-    border-radius: var(--radius-md);
-    background-color: var(--surface);
-    overflow: hidden;
   }
 
   .empty {

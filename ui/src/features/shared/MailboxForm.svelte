@@ -17,8 +17,8 @@
 
   interface Props {
     /**
-     * Label of the save button ("Verbinden" first: the primary while nothing can be fetched;
-     * "Speichern" when changing, next to cancel, as a secondary: "Abrufen" is the primary then).
+     * Label of the save button, the primary of the form ("Verbinden" first, "Speichern" when
+     * changing, next to cancel). "Abrufen" lives in the Jobs view, so it never competes.
      */
     saveLabel: string;
     /** Only when changing an existing mailbox. */
@@ -116,7 +116,7 @@
   {/if}
   <div class="actions">
     <Button
-      variant={oncancel ? 'secondary' : 'primary'}
+      variant="primary"
       label={saveLabel}
       loading={busy}
       testid="mailbox-save"

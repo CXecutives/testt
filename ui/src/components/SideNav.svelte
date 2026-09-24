@@ -83,7 +83,7 @@
   .item[aria-current='page'] {
     background-color: var(--surface-selected);
     color: var(--text-heading);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
   }
 
   .item:focus-visible {

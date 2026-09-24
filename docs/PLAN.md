@@ -21,15 +21,17 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults, risk badge per switch |
 | HTML overview | no full text: title, company, location, portal, link, match (excluded: ring without number), up to 2 met requirements (the list keeps no open ones), exclusion reason in words |
 | Extras | Pin (star) + auto fetch on start (> 6 h, switchable); no notifications, no "still open?" checks |
-| Logo | no CXpertise company logo; the coral app icon (folder + check) is the brand mark in the title bar |
+| Logo | no CXpertise company logo; the coral app icon (folder + check) is the window icon of the native title bar and the mark of the first run and empty states |
 | Heading colour | warm dark ink (45 7% 17%), not slate; coral is the only accent colour (user chose variant A) |
-| Windows caption buttons | size like common Windows apps (the Claude app was only a size reference, user 2026-09-24): 46 x 40, Segoe Fluent glyphs 10 px in ink (muted at rest), warm hover ink/.06, pressed ink/.10, close hsl(4 62% 50%) with a white glyph |
-| Sizes | top strip 40, controls 28/32 (bar)/36/40, list rows 86 (fixed, one-line title, date top right), body text 15 |
-| Layout | variant C chosen by the user: calm sidebar (~196 px, no own surface, hairline divider, brand, nav with icons and unread count, quiet run status at the bottom; icons only below ~1100 px); "Abrufen" at the top left of the content strip, caption buttons at the top right; search and filters in the list column header |
+| Windows caption buttons | superseded (2026-09-24 night): the native caption buttons of the Windows title bar |
+| Sizes | controls 28/36/40, list rows 86 (fixed, one-line title, date top right), body text 15 (the top strip is gone: the native title bar of the OS) |
+| Layout | variant C chosen by the user: calm sidebar (~196 px, no own surface, hairline divider, nav with icons and unread count, quiet run status at the bottom; icons only below ~1100 px); search, "Abrufen" and filters in the list column header (revised 2026-09-24 night: no content strip, the native title bar) |
 | Toasts | allowed for short confirmations whose result is not visible otherwise (saved, copied, files written, run finished): bottom right, at most 3, ~4 s, paused on hover; anything needing action stays inline |
 | User test of the installed app (2026-09-24 evening) | Windows title bar like a native one (full width, 16 px app icon + app name at the left, caption buttons at the native height, no tooltips); macOS uses the normal native title bar; "Abrufen" lives in the list column header next to the search; the cxpertise palette again: light coral (13 73% 63%) for primary fills, hover 13 64% 56%, switches coral when on; lighter font weights; faster, snappier motion; no lag in the real app; native-feeling input (left click only for controls, middle-button scrolling in scroll areas, copyable text where it makes sense); no unneeded micro details |
 | UI round 2 (design critique) | one white sheet for all views (no floating cards), coral only for Abrufen, selection bar, unread dot, active nav (progress bars stay coral as Abrufen feedback); mid scores ochre; primary in deep coral (4.9:1); reader like an issue view (title, facts, match line, chips, actions); sort as icon toggle; switches ink when on |
 | Cleanup outside | `.notes` archived to `../_archive/TEST-notes`; user deletes `origin/ci-macos` and release `latest`; CI publishes nothing |
+| Native window frame on both OS (user, 2026-09-24 night) | Windows keeps its native title bar (icon, title, caption buttons, system menu on the icon, right click and Alt+Space, snap layouts), coloured like the app via DWM: caption = `--bg` cream (= `backgroundColor`), title = ink, dimmed to `--text-subtle` while inactive (Windows 11; Windows 10 keeps its light bar); macOS keeps its native title bar with the centred title. No title bar, caption buttons or drag region in the page; the sidebar has no brand row. Principle: two versions, as identical as possible inside the window; whatever differs by OS convention does differ (see Platforms) |
+| UI overhaul after the installed test (2026-09-24 night) | Abrufen next to the search in the list header (Abbrechen in its place during a run); light coral primary, coral switches; weights 400/500/600; motion 100/150/180 ms, ring fill 360 ms, ease-out, no stagger, no bounce, no glow/lift/shimmer, no backdrop blur; rows and rings do not replay when a view comes back; one Tauri channel per streaming call (a shared one lost the second run); day overview without a profile: tiles Neu and Ohne Details plus a card to choose one; each portal problem once; a Gemerkt tile once something is pinned; excluded unread jobs under Neu behind the divider |
 | Self-decided | TXT header stays German and byte-identical · primary button brand-near (coral 56 %, label 600) · excluded jobs grey behind a divider, also under "Neu" but not counted · Excel for excluded: domain score, grey row · merge cross-portal duplicates · Smart App Control is off on the dev PC |
 
 ## Contracts
@@ -116,9 +118,9 @@ Sessions: Windows `data_directory`, macOS `data_store_identifier` + `clear_all_b
 cache, profile dir, marker, then verifies `signedIn=false`.
 
 ### UI
-- Shell (revised 2026-09-24, see Decisions "Layout"): sidebar with brand, Abrufen, nav Jobs · Profil · Einstellungen
-  and the run status; a 40 px drag strip over the content with the Windows caption buttons; macOS traffic lights in
-  the sidebar's top left. No menu, no gear icon.
+- Shell (revised 2026-09-24 night, see Decisions "Native window frame"): the native title bar of the OS, below it
+  the sidebar (nav Jobs · Profil · Einstellungen, the run status) and the white sheet; "Abrufen" next to the search in
+  the list column header. No menu (Windows), no gear icon.
 - Jobs: toolbar (Abrufen primary lg / Abbrechen · Neu n | Alle n · Beste Passung | Neueste · search) · left column
   run card + list (72 px rows: ring 40, title with unread dot, meta, reason line, date, status badge only on deviation;
   excluded grey behind divider; duplicates as one row) · reader card 720 px (ring 96 counting up, band word, n of m must,
@@ -150,9 +152,13 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   `accept_first_mouse`, no link preview, devtools off in release, navigation guard, window shown after first load.
 
 ### Platforms (documented differences only)
-Window frame (own caption buttons vs. traffic lights) · menu (none vs. minimal App/Edit/Window) · font smoothing on
-macOS · keychain vs. credential manager (same code) · session storage API · reveal in folder (`explorer /select` vs.
-`open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
+Inside the window both OS show the same app; these differ by OS convention (UI: `ui/src/lib/platform.ts`, native:
+`src-tauri/src/platform.rs`): native window frame (Windows title bar in the app's colours via DWM, dimmed title while
+inactive; macOS title bar with centred title) · dialog buttons (Windows: action first; macOS: cancel left, action
+right) · scrollbars (Windows: slim styled, shown over their scroller; macOS: native overlay scrollbars) · middle-button
+autoscroll (Windows; macOS has none) · words for OS things (Explorer / Finder, Anmeldeinformationsverwaltung /
+Schlüsselbund) · menu (none vs. minimal App/Edit/Window) · font smoothing on macOS · keychain vs. credential manager
+(same code) · session storage API · reveal in folder (`explorer /select` vs. `open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
 `scrollbar-gutter`, `content-visibility`. Windows: NSIS currentUser, German installer, downloadBootstrapper.
 macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc signed, minimum 14.0; the icon targets the macOS 26 (Tahoe) Dock look.
 

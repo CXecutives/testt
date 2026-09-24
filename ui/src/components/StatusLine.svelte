@@ -1,7 +1,8 @@
 <!--
   A quiet, clickable status line (the run status at the foot of the sidebar): an icon or a
-  spinner, one short text and, while something runs, a slim meter below. Collapsed (icon
-  rail) only the icon stays; the text moves into the tooltip.
+  spinner, one short text (it wraps to a second line rather than being cut off) and, while
+  something runs, a slim meter below. Collapsed (icon rail) only the icon stays; the text
+  moves into the tooltip.
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
@@ -96,19 +97,24 @@
 
   .line {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-8);
     min-width: 0;
   }
 
+  /* The glyph sits on the axis of the first text line. */
   .glyph {
     display: inline-flex;
     flex: none;
+    align-items: center;
+    height: var(--leading-sm);
   }
 
   .text {
+    display: -webkit-box;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 </style>
