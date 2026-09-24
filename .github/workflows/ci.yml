@@ -1,15 +1,15 @@
-# Prüfung und Bau auf beiden Zielsystemen. Beide Läufe sind unabhängig (fail-fast: false):
-# Ein Fehler unter Windows darf den Mac-Lauf nicht abschneiden und umgekehrt.
+# Checks and builds on both target systems. The two runs are independent (fail-fast: false):
+# a failure on Windows must not cut off the macOS run and vice versa. CI publishes nothing:
+# installers, screenshots and logs are workflow artifacts only.
 name: CI
 
 on:
   push:
-    branches: [main, ci-macos]
+    branches: [main]
   workflow_dispatch:
 
-# Nur für das rollierende Vorab-Release auf main.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -20,8 +20,8 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  bauen:
-    name: ${{ matrix.name }}
+  rust:
+    name: rust (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
@@ -34,19 +34,18 @@ jobs:
             os: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      # Feste Version statt „stable“: Ab 1.98 meldet der neue Lint
-      # clippy::unused_async_trait_impl vier Stellen in core/src/mail/scan.rs und
-      # core/src/pipeline/tests.rs (Test-Attrappen ohne .await). Solange die nicht
-      # umgestellt sind, prüft die CI mit derselben Version wie der Arbeitsplatz.
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.95.0
-          components: rustfmt, clippy
+      # The version lives in rust-toolchain.toml (same as the workstation); rustup installs
+      # exactly that one.
+      - name: Install Rust toolchain (rust-toolchain.toml)
+        shell: bash
+        run: |
+          rustup toolchain install
+          rustup show active-toolchain
 
-      # Universal-Bündel: Intel und Apple Silicon. Der Runner ist arm64, x86_64 fehlt.
-      - name: Zusätzliche Ziele (macOS)
+      # Universal bundle: Intel and Apple silicon. The runner is arm64, x86_64 is missing.
+      - name: Add macOS targets
         if: runner.os == 'macOS'
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
@@ -54,11 +53,26 @@ jobs:
         with:
           key: ${{ matrix.os }}
 
-      - name: Ablagen anlegen
+      - name: Create output folders
         shell: bash
-        run: mkdir -p artefakte/bilder artefakte/protokolle artefakte/bau
+        run: mkdir -p artifacts/screenshots artifacts/logs artifacts/bundles
 
-      - name: Formatierung
+      # Once the UI track lands (package.json), the app embeds the built UI: build it before
+      # anything compiles the Tauri context.
+      - uses: actions/setup-node@v5
+        if: hashFiles('package.json') != ''
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Build UI
+        if: hashFiles('package.json') != ''
+        shell: bash
+        run: |
+          npm ci
+          npm run build
+
+      - name: Format
         run: cargo fmt --all -- --check
 
       - name: Clippy
@@ -67,58 +81,58 @@ jobs:
       - name: Tests
         run: cargo test --workspace
 
-      # Die Rauchprobe steckt hinter `debug_assertions` – sie gibt es nur im Entwickler-Build.
-      - name: Entwickler-Build
+      # The smoke probe sits behind `debug_assertions` - it exists only in the debug build.
+      - name: Debug build
         run: cargo build -p job-alert-monitor
 
-      # ------------------------------------------------------------------ Rauchprobe
-      # Startet ein echtes Fenster, klickt „Postfach abrufen“ und endet mit 0, wenn der
-      # Demo-Lauf durch ist. Nebenher alle 1,5 s ein Bildschirmfoto – anders ist die
-      # Mac-Oberfläche von außen nicht zu sehen.
-      - name: Rauchprobe (Windows)
+      # ------------------------------------------------------------------ smoke probe
+      # Opens a real window, clicks the fetch button and exits with 0 once the demo run is
+      # done. A screenshot every 1.5 s alongside - there is no other way to see the macOS UI
+      # from outside.
+      - name: Smoke probe (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: |
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-          function Bild($pfad) {
+          function Shot($path) {
             try {
               $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
               $bmp = New-Object Drawing.Bitmap $b.Width, $b.Height
               $g = [Drawing.Graphics]::FromImage($bmp)
               $g.CopyFromScreen($b.Location, [Drawing.Point]::Empty, $b.Size)
-              $bmp.Save($pfad, [Drawing.Imaging.ImageFormat]::Png)
+              $bmp.Save($path, [Drawing.Imaging.ImageFormat]::Png)
               $g.Dispose(); $bmp.Dispose()
-            } catch { Write-Host "Bildschirmfoto fehlgeschlagen: $_" }
+            } catch { Write-Host "screenshot failed: $_" }
           }
-          # Start-Process löst relative Pfade nicht gegen $PWD auf – deshalb absolut.
+          # Start-Process does not resolve relative paths against $PWD - hence absolute.
           $p = Start-Process -FilePath "$PWD\target\debug\job-alert-monitor.exe" `
             -ArgumentList '--dry-run','--smoke','--smoke-run' `
-            -RedirectStandardOutput "$PWD\artefakte\protokolle\rauchprobe.log" `
-            -RedirectStandardError "$PWD\artefakte\protokolle\rauchprobe.err" -PassThru
+            -RedirectStandardOutput "$PWD\artifacts\logs\smoke.log" `
+            -RedirectStandardError "$PWD\artifacts\logs\smoke.err" -PassThru
           $i = 0
           while (-not $p.HasExited -and $i -lt 100) {
             $i++
-            Bild ("$PWD\artefakte\bilder\rauchprobe-{0:d2}.png" -f $i)
+            Shot ("$PWD\artifacts\screenshots\smoke-{0:d2}.png" -f $i)
             Start-Sleep -Milliseconds 1500
           }
-          if (-not $p.HasExited) { $p.Kill(); throw "Rauchprobe hing - nach 150 s beendet." }
-          Get-Content "$PWD\artefakte\protokolle\rauchprobe.log", "$PWD\artefakte\protokolle\rauchprobe.err" `
+          if (-not $p.HasExited) { $p.Kill(); throw "smoke probe hung - killed after 150 s." }
+          Get-Content "$PWD\artifacts\logs\smoke.log", "$PWD\artifacts\logs\smoke.err" `
             -ErrorAction SilentlyContinue
-          Write-Host "Rueckgabewert $($p.ExitCode)"
+          Write-Host "exit code $($p.ExitCode)"
           exit $p.ExitCode
 
-      - name: Rauchprobe (macOS)
+      - name: Smoke probe (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: |
           ./target/debug/job-alert-monitor --dry-run --smoke --smoke-run \
-            > artefakte/protokolle/rauchprobe.log 2>&1 &
+            > artifacts/logs/smoke.log 2>&1 &
           pid=$!
           i=0
           while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 100 ]; do
             i=$((i + 1))
-            screencapture -x "$(printf 'artefakte/bilder/rauchprobe-%02d.png' "$i")" \
-              || echo "Bildschirmfoto $i fehlgeschlagen"
+            screencapture -x "$(printf 'artifacts/screenshots/smoke-%02d.png' "$i")" \
+              || echo "screenshot $i failed"
             sleep 1.5
           done
           code=0
@@ -128,14 +142,14 @@ jobs:
           else
             wait "$pid" || code=$?
           fi
-          cat artefakte/protokolle/rauchprobe.log
-          echo "Rueckgabewert $code"
+          cat artifacts/logs/smoke.log
+          echo "exit code $code"
           exit $code
 
-      # ------------------------------------------------------------------ Bildschirmfotos
-      # Zweiter Durchgang ohne Rauchprobe: das ruhende Fenster, damit die Titelleiste
-      # (macOS: Ampelknöpfe, Überlappung) in Ruhe zu sehen ist. Nach 18 s beendet.
-      - name: Oberfläche aufnehmen (Windows)
+      # ------------------------------------------------------------------ idle screenshots
+      # Second pass without the probe: the idle window, so the title bar (macOS: traffic
+      # lights, overlay) can be seen at rest. Ended after about 18 s.
+      - name: Capture the UI (Windows)
         if: runner.os == 'Windows'
         continue-on-error: true
         shell: powershell
@@ -143,73 +157,52 @@ jobs:
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           $p = Start-Process -FilePath "$PWD\target\debug\job-alert-monitor.exe" `
             -ArgumentList '--dry-run' `
-            -RedirectStandardOutput "$PWD\artefakte\protokolle\oberflaeche.log" `
-            -RedirectStandardError "$PWD\artefakte\protokolle\oberflaeche.err" -PassThru
+            -RedirectStandardOutput "$PWD\artifacts\logs\ui.log" `
+            -RedirectStandardError "$PWD\artifacts\logs\ui.err" -PassThru
           Start-Sleep -Seconds 3
           foreach ($i in 1..10) {
             $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
             $bmp = New-Object Drawing.Bitmap $b.Width, $b.Height
             $g = [Drawing.Graphics]::FromImage($bmp)
             $g.CopyFromScreen($b.Location, [Drawing.Point]::Empty, $b.Size)
-            $bmp.Save(("$PWD\artefakte\bilder\oberflaeche-{0:d2}.png" -f $i), [Drawing.Imaging.ImageFormat]::Png)
+            $bmp.Save(("$PWD\artifacts\screenshots\ui-{0:d2}.png" -f $i), [Drawing.Imaging.ImageFormat]::Png)
             $g.Dispose(); $bmp.Dispose()
             Start-Sleep -Milliseconds 1500
           }
           if (-not $p.HasExited) { $p.Kill() }
 
-      - name: Oberfläche aufnehmen (macOS)
+      - name: Capture the UI (macOS)
         if: runner.os == 'macOS'
         continue-on-error: true
         shell: bash
         run: |
-          ./target/debug/job-alert-monitor --dry-run \
-            > artefakte/protokolle/oberflaeche.log 2>&1 &
+          ./target/debug/job-alert-monitor --dry-run > artifacts/logs/ui.log 2>&1 &
           pid=$!
           sleep 3
           for i in $(seq 1 10); do
-            screencapture -x "$(printf 'artefakte/bilder/oberflaeche-%02d.png' "$i")" \
-              || echo "Bildschirmfoto $i fehlgeschlagen"
+            screencapture -x "$(printf 'artifacts/screenshots/ui-%02d.png' "$i")" \
+              || echo "screenshot $i failed"
             sleep 1.5
           done
           kill "$pid" 2>/dev/null || true
           sleep 1
           kill -9 "$pid" 2>/dev/null || true
-          cat artefakte/protokolle/oberflaeche.log || true
-          ls -l artefakte/bilder
+          cat artifacts/logs/ui.log || true
           system_profiler SPDisplaysDataType | head -40 || true
 
-      - name: Protokolle der App einsammeln
-        if: always()
-        continue-on-error: true
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            # $LOCALAPPDATA kommt mit Rückwärtsstrichen – in der Bash sind das Fluchtzeichen.
-            quelle="$(printf '%s' "$LOCALAPPDATA" | tr '\\' '/')/de.cxecutives.job-alert-monitor/logs"
-          else
-            quelle="$HOME/Library/Application Support/de.cxecutives.job-alert-monitor/logs"
-          fi
-          if [ -d "$quelle" ]; then
-            cp -R "$quelle" artefakte/protokolle/app-logs
-          else
-            echo "keine App-Protokolle unter $quelle"
-          fi
+      # ------------------------------------------------------------------ release bundles
+      - name: Install the Tauri CLI
+        run: npm install --global @tauri-apps/cli@2
 
-      # ------------------------------------------------------------------ Auslieferung
-      - name: Release-Build (Windows)
+      - name: Release bundle (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: |
-          cargo build --release -p job-alert-monitor
-          cp target/release/job-alert-monitor.exe artefakte/bau/
+        working-directory: src-tauri
+        run: tauri build --bundles nsis
 
-      - name: Tauri-CLI (macOS)
-        if: runner.os == 'macOS'
-        run: npm i -g @tauri-apps/cli@2
-
-      # Ad-hoc-Signatur ("-") steht in tauri.macos.conf.json: auf Apple Silicon läuft ein
-      # unsigniertes Bündel sonst gar nicht. Kein Entwicklerkonto, keine Notarisierung.
-      - name: Release-Build (macOS)
+      # The ad-hoc signature ("-") is set in tauri.macos.conf.json: on Apple silicon an
+      # unsigned bundle does not run at all. No developer account, no notarization.
+      - name: Release bundle (macOS)
         if: runner.os == 'macOS'
         shell: bash
         working-directory: src-tauri
@@ -217,50 +210,177 @@ jobs:
           code=0
           tauri build --target universal-apple-darwin --bundles app,dmg || code=$?
           if [ "$code" -ne 0 ]; then
-            echo "::warning::dmg auf dem Runner fehlgeschlagen – es wird nur das .app gebaut."
+            echo "::warning::dmg failed on the runner - building the .app only."
             tauri build --target universal-apple-darwin --bundles app
           fi
 
-      # Ein .app ist ein Ordner: upload-artifact verlöre das Ausführbar-Bit. ditto erhält es.
-      - name: Bündel packen (macOS)
+      # The release binary (the one inside the installer) starts and stays up.
+      - name: Release probe (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $p = Start-Process -FilePath "$PWD\target\release\job-alert-monitor.exe" `
+            -ArgumentList '--dry-run' -PassThru
+          Start-Sleep -Seconds 12
+          try {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object Drawing.Bitmap $b.Width, $b.Height
+            $g = [Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("$PWD\artifacts\screenshots\release-probe.png", [Drawing.Imaging.ImageFormat]::Png)
+            $g.Dispose(); $bmp.Dispose()
+          } catch { Write-Host "screenshot failed: $_" }
+          $alive = -not $p.HasExited
+          if ($alive) { Stop-Process -Id $p.Id -Force }
+          if (-not $alive) { throw "the release app exited early (exit code $($p.ExitCode))." }
+          Write-Host "release app was up after 12 s"
+
+      # Install probe: mount the dmg like a user, copy the .app into an Applications folder,
+      # start the release binary from there, take a screenshot, check that it stays up.
+      - name: dmg install probe (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          buendel=target/universal-apple-darwin/release/bundle
-          ditto -c -k --keepParent "$buendel/macos/Job-Alert-Monitor.app" \
-            artefakte/bau/Job-Alert-Monitor-macos.zip
-          cp "$buendel"/dmg/*.dmg artefakte/bau/ 2>/dev/null || echo "kein dmg"
-          ls -l artefakte/bau
-
-      - name: Bilder und Protokolle ablegen
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bilder-${{ matrix.name }}
-          path: |
-            artefakte/bilder
-            artefakte/protokolle
-          if-no-files-found: warn
-
-      - name: Bau ablegen
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bau-${{ matrix.name }}
-          path: artefakte/bau
-          if-no-files-found: warn
-
-      # Rollierendes Vorab-Release: immer derselbe Tag „latest“, keine Versionsnummern in
-      # den Dateinamen. Beide Läufe laden nacheinander hoch, deshalb --clobber.
-      - name: Vorab-Release „latest“
-        if: github.ref == 'refs/heads/main'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if ! gh release view latest >/dev/null 2>&1; then
-            gh release create latest --prerelease --title latest \
-              --notes "Letzter erfolgreicher Stand von main. Ohne Signatur und Notarisierung." \
-              || echo "Release bestand bereits (anderer Lauf war schneller)."
+          set -u
+          bundle=target/universal-apple-darwin/release/bundle
+          echo "macOS $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
+          echo "WebKit $(defaults read /System/Library/Frameworks/WebKit.framework/Resources/Info.plist CFBundleVersion 2>/dev/null || echo unknown)"
+          echo "Safari $(defaults read /Applications/Safari.app/Contents/Info.plist CFBundleShortVersionString 2>/dev/null || echo unknown)"
+          apps="$RUNNER_TEMP/Applications"
+          mnt="$RUNNER_TEMP/dmg-mount"
+          mkdir -p "$apps" "$mnt"
+          dmg=$(ls "$bundle"/dmg/*.dmg 2>/dev/null | head -n 1 || true)
+          mounted=0
+          if [ -n "$dmg" ]; then
+            hdiutil attach "$dmg" -nobrowse -readonly -noautoopen -mountpoint "$mnt"
+            mounted=1
+            ditto "$mnt/Job-Alert-Monitor.app" "$apps/Job-Alert-Monitor.app"
+          else
+            echo "::warning::no dmg - probing the .app from the build folder instead."
+            ditto "$bundle/macos/Job-Alert-Monitor.app" "$apps/Job-Alert-Monitor.app"
           fi
-          gh release upload latest artefakte/bau/* --clobber
+          app="$apps/Job-Alert-Monitor.app"
+          exe=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
+          codesign -dv "$app" 2>&1 | grep -E 'Signature|Identifier' || true
+          lipo -archs "$app/Contents/MacOS/$exe" || true
+          "$app/Contents/MacOS/$exe" --dry-run > artifacts/logs/dmg-probe.log 2>&1 &
+          pid=$!
+          sleep 15
+          screencapture -x artifacts/screenshots/dmg-probe.png || echo "screenshot failed"
+          alive=0
+          if kill -0 "$pid" 2>/dev/null; then alive=1; fi
+          kill "$pid" 2>/dev/null || true
+          sleep 2
+          kill -9 "$pid" 2>/dev/null || true
+          if [ "$mounted" = 1 ]; then
+            hdiutil detach "$mnt" || hdiutil detach -force "$mnt"
+          fi
+          cat artifacts/logs/dmg-probe.log
+          if [ "$alive" != 1 ]; then
+            echo "::error::the installed release app did not stay up."
+            exit 1
+          fi
+          echo "installed release app was up after 15 s"
+
+      # A .app is a folder: upload-artifact would lose the executable bit. ditto keeps it.
+      - name: Collect bundles
+        if: always()
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp target/release/bundle/nsis/*-setup.exe artifacts/bundles/ 2>/dev/null \
+              || echo "no setup.exe"
+          else
+            bundle=target/universal-apple-darwin/release/bundle
+            if [ -d "$bundle/macos/Job-Alert-Monitor.app" ]; then
+              ditto -c -k --keepParent "$bundle/macos/Job-Alert-Monitor.app" \
+                artifacts/bundles/Job-Alert-Monitor.app.zip
+            else
+              echo "no .app"
+            fi
+            cp "$bundle"/dmg/*.dmg artifacts/bundles/ 2>/dev/null || echo "no dmg"
+          fi
+          ls -l artifacts/bundles
+
+      - name: Collect app logs
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            # $LOCALAPPDATA comes with backslashes - escape characters in bash.
+            source="$(printf '%s' "$LOCALAPPDATA" | tr '\\' '/')/de.cxecutives.job-alert-monitor/logs"
+          else
+            source="$HOME/Library/Application Support/de.cxecutives.job-alert-monitor/logs"
+          fi
+          if [ -d "$source" ]; then
+            cp -R "$source" artifacts/logs/app-logs
+          else
+            echo "no app logs under $source"
+          fi
+
+      - name: Upload screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: screenshots-${{ matrix.name }}
+          path: |
+            artifacts/screenshots
+            artifacts/logs
+          if-no-files-found: warn
+
+      - name: Upload bundles
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: bundles-${{ matrix.name }}
+          path: artifacts/bundles
+          if-no-files-found: warn
+
+  # Svelte UI checks and the Playwright harness (Chromium + WebKit). The job only has work
+  # once the UI track has landed a package.json; a job-level `if` cannot see the checkout,
+  # so every step checks for it.
+  ui:
+    name: ui (harness)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: No UI package yet
+        if: hashFiles('package.json') == ''
+        shell: bash
+        run: echo "::notice::No package.json yet - nothing to check."
+
+      - uses: actions/setup-node@v5
+        if: hashFiles('package.json') != ''
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        if: hashFiles('package.json') != ''
+        run: npm ci
+
+      - name: Check (svelte-check, eslint, stylelint, prettier)
+        if: hashFiles('package.json') != ''
+        run: npm run check
+
+      - name: Install Playwright browsers
+        if: hashFiles('package.json') != ''
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: UI harness
+        if: hashFiles('package.json') != ''
+        run: npm run harness
+
+      - name: Upload harness screenshots and report
+        if: always() && hashFiles('package.json') != ''
+        uses: actions/upload-artifact@v5
+        with:
+          name: ui-harness
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: warn
