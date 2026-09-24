@@ -116,8 +116,8 @@ for (const scenario of ['default', 'first-run', 'running']) {
             (node) =>
               node.scrollWidth > node.clientWidth + 1 &&
               getComputedStyle(node).overflowX !== 'visible' &&
-              // The meter clips its travelling light edge on purpose.
-              node.closest('[role="progressbar"]') === null,
+              // Meters and skeletons clip their moving light on purpose.
+              node.closest('[role="progressbar"], [aria-hidden="true"]') === null,
           )
           .map((node) => `${node.tagName}.${node.className}`),
       );

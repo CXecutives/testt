@@ -32,7 +32,8 @@
   );
   const searching = $derived(jobs.search.trim() !== '');
   const profileMissing = $derived(app.state !== null && !app.hasProfile);
-  const pending = $derived((app.state?.matchPending ?? 0) > 0 || run.kind === 'rescore');
+  // Jobs without a match get one soon while a run goes or a rescore is pending.
+  const pending = $derived(app.hasProfile && (run.active || (app.state?.matchPending ?? 0) > 0));
   let pickError = $state<string | null>(null);
 
   function pick(): void {
