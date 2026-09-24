@@ -11,6 +11,7 @@
   import Briefcase from '@lucide/svelte/icons/briefcase';
   import Building2 from '@lucide/svelte/icons/building-2';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import ClipboardPaste from '@lucide/svelte/icons/clipboard-paste';
   import Check from '@lucide/svelte/icons/check';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
@@ -62,6 +63,7 @@
     'folder-open': FolderOpen,
     'file-up': FileUp,
     copy: Copy,
+    'clipboard-paste': ClipboardPaste,
     'trash-2': Trash2,
     'rotate-ccw': RotateCcw,
     'log-in': LogIn,
