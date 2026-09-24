@@ -40,7 +40,15 @@
         return;
       }
       invoke('list_jobs', {
-        query: { facet: 'new', sort: 'match', search: null, limit: BEST, offset: 0 },
+        query: {
+          place: 'inbox',
+          unread: true,
+          favourites: false,
+          sort: 'match',
+          search: null,
+          limit: BEST,
+          offset: 0,
+        },
       })
         .then((page) => {
           if (request === topRequest) top = page.jobs;

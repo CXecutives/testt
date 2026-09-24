@@ -12,7 +12,7 @@
 use serde_json::Value;
 
 use super::TopMatch;
-use crate::model::{AppStatus, Band};
+use crate::model::Band;
 use crate::settings::Language;
 use crate::text::truncate_chars;
 use crate::view::JobView;
@@ -106,8 +106,8 @@ struct Words {
     untitled: &'static str,
     /// Title, company, location of an ad.
     facts: [&'static str; 3],
-    /// The line of a saved job, of one with an application sent.
-    marks: [&'static str; 2],
+    /// The line of a favourite.
+    saved: &'static str,
     /// High, mid, low.
     bands: [&'static str; 3],
     /// Score of 100 and musts met (`{score}`, `{met}`, `{total}` replaced), met, partly met,
@@ -131,7 +131,7 @@ const DE: Words = Words {
     no_text: NO_TEXT,
     untitled: UNTITLED,
     facts: ["Titel", "Unternehmen", "Ort"],
-    marks: ["Gemerkt: ja", "Beworben: ja"],
+    saved: "Gemerkt: ja",
     bands: ["hohe Passung", "mittlere Passung", "geringe Passung"],
     findings: [
         "Passung: {score} von 100",
@@ -159,7 +159,7 @@ const EN: Words = Words {
     no_text: en::NO_TEXT,
     untitled: en::UNTITLED,
     facts: ["Title", "Company", "Location"],
-    marks: ["Saved: yes", "Applied: yes"],
+    saved: "Saved: yes",
     bands: ["high match", "medium match", "low match"],
     findings: [
         "Match: {score} of 100",
@@ -252,11 +252,10 @@ pub fn ai_prompt_top(profile: &Value, jobs: &[PromptJob<'_>], language: Language
 /// The facts of an ad and the app's findings.
 fn facts(item: PromptJob<'_>, w: &Words) -> String {
     let job = item.job;
-    let [saved, sent] = w.marks;
-    let mark = match job.app_status {
-        Some(AppStatus::Saved) => format!("{saved}\n"),
-        Some(AppStatus::Sent) => format!("{sent}\n"),
-        None => String::new(),
+    let mark = if job.pinned {
+        format!("{}\n", w.saved)
+    } else {
+        String::new()
     };
     let [title, company, location] = w.facts;
     format!(
@@ -371,10 +370,7 @@ mod tests {
             short: false,
             match_: None,
             also_on: Vec::new(),
-            app_status: None,
-            status_at: None,
-
-            archived: false,
+            place: crate::model::Place::Inbox,
             overridden: false,
         }
     }
@@ -560,7 +556,6 @@ mod tests {
         view.key.id = id.into();
         view.title = title.into();
         view.pinned = saved;
-        view.app_status = saved.then_some(AppStatus::Saved);
         view
     }
 
@@ -716,9 +711,5 @@ mod tests {
         assert!(one.contains("Wir suchen einen Interim CFO."));
         assert!(all.contains(en::TOP_CUT_NOTE) && all.contains(en::NO_TEXT));
         assert!(all.contains("Job 2\nTitle: Interim CFO"));
-        let mut sent = view.clone();
-        sent.app_status = Some(AppStatus::Sent);
-        let prompt = ai_prompt(&profile(), item(&sent, None, None), Language::En);
-        assert!(prompt.contains("Applied: yes") && !prompt.contains("Saved: yes"));
     }
 }

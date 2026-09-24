@@ -14,7 +14,6 @@
 // `Record<Code, ...>`, so a new code without a text is a type error.
 
 import type {
-  AppStatus,
   Band,
   DetailState,
   ErrorKind,
@@ -126,7 +125,6 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   mailAddress: 'Die Adresse ist unvollständig.',
   appPassword: 'Ein App-Passwort hat 16 Buchstaben.',
   noSignIn: (p) => `${portalOf(p.portal)} bietet keine Anmeldung.`,
-  noteTooLong: (p) => `Die Notiz ist länger als ${n(num(p.max))} Zeichen.`,
 };
 
 const status: Record<StatusCode, string> = {
@@ -561,7 +559,6 @@ export const de = {
     facet: 'Auswahl',
     facetNew: 'Neu',
     facetAll: 'Alle',
-    facetSent: 'Beworben',
     facetPinned: 'Gemerkt',
     /** The order of the list in words (the sort button). */
     sortLabel: {
@@ -674,7 +671,6 @@ export const de = {
     emptySources: 'Die Jobs kommen aus den Alert-Mails der Portale.',
     createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
     readOlder: 'Ältere Mails lesen',
-    emptySent: 'Noch keine Bewerbung vermerkt.',
     emptyHidden: 'Das Archiv ist leer.',
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
@@ -721,12 +717,6 @@ export const de = {
     prompt: 'Als Prompt kopieren',
     /** Under the band of a score that comes from a teaser only. */
     preliminary: 'Vorläufig, aus einem Anriss bewertet',
-    noteLabel: 'Notiz',
-    status: 'Bewerbung',
-    appStatus: {
-      saved: 'Gemerkt',
-      sent: 'Beworben',
-    } satisfies Record<AppStatus, string>,
     mail: OPEN_MAIL,
     fetchDetails: 'Details holen',
     why: 'Warum',

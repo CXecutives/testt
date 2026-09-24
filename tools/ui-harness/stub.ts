@@ -39,6 +39,7 @@ import type {
   JobQuery,
   JobView,
   Language,
+  Place,
   Portal,
   PortalState,
   ProfileDraft,
@@ -171,7 +172,6 @@ const PORTALS: readonly Portal[] = ['linkedin', 'freelance', 'freelancermap'];
 
 const NOW = new Date('2026-09-24T09:30:00+02:00').getTime();
 const HOUR = 3_600_000;
-const DAY_MS = 24 * HOUR;
 const at = (hoursAgo: number): string => new Date(NOW - hoursAgo * HOUR).toISOString();
 const later = (minutes: number): string => new Date(NOW + minutes * 60_000).toISOString();
 
@@ -243,9 +243,7 @@ function job(
     short: false,
     match: null,
     alsoOn: [],
-    appStatus: null,
-    statusAt: null,
-    archived: false,
+    place: 'inbox',
     overridden: false,
     ...extra,
   };
@@ -263,8 +261,6 @@ function sampleJobs(): JobView[] {
       {
         unread: true,
         pinned: true,
-        appStatus: 'saved',
-        statusAt: at(1),
         alsoOn: ['linkedin'],
         match: scored(91, ['Interim-Management im Mittelstand', 'Konzernabschluss nach HGB'], 4, 4),
       },
@@ -347,14 +343,10 @@ function sampleJobs(): JobView[] {
       27,
       {
         match: scored(58, ['Konzernberichtswesen'], 2, 4),
-        appStatus: 'sent',
-        statusAt: at(5),
       },
     ),
     job('freelancermap', '2804', 'Interim Treasury Manager', 'Rheinhafen Chemie GmbH', 'Köln', 30, {
       match: scored(47, ['Liquiditätsplanung'], 1, 3),
-      appStatus: 'sent',
-      statusAt: at(20),
     }),
     // Archived: in no list but the archive and in no count but its own.
     job(
@@ -366,7 +358,7 @@ function sampleJobs(): JobView[] {
       40,
       {
         match: scored(18, [], 0, 4),
-        archived: true,
+        place: 'archive',
       },
     ),
     job(
@@ -785,6 +777,7 @@ function initial(): void {
     ],
     autoFetchOnStart: true,
     autoArchiveDays: 30,
+    autoEmptyTrashDays: 30,
     language: LANGUAGE,
     lastRun: lastRun(),
     counts: countsOf([]),
@@ -924,40 +917,34 @@ function initial(): void {
   refresh();
 }
 
-/** "Neu" starts 14 days back at the start of that day, UTC (store::new_since). */
-const NEW_SINCE = Math.floor(NOW / DAY_MS) * DAY_MS - 14 * DAY_MS;
-const isRecent = (j: JobView): boolean => Date.parse(j.mailDate ?? j.firstSeenAt) >= NEW_SINCE;
-
 /**
- * The counts of store::job_page: "Neu" is unread, recent and not excluded, per portal too;
- * an archived job is only in "archived".
+ * The counts of store::job_page: per place, and within the inbox; "Neu" is unread and not
+ * excluded, per portal too; a favourite counts until it goes to the trash.
  */
 function countsOf(list: JobView[]): JobCounts {
   const c: JobCounts = {
-    new: 0,
-    all: 0,
+    inbox: 0,
+    unread: 0,
+    favourites: 0,
+    archive: 0,
+    trash: 0,
     excluded: 0,
     high: 0,
     noDetail: 0,
-    saved: 0,
-    sent: 0,
-    archived: 0,
     newByPortal: PORTALS.map((portal) => ({ portal, new: 0 })),
   };
   for (const j of list) {
-    if (j.archived) {
-      c.archived += 1;
-      continue;
-    }
+    if (j.pinned && j.place !== 'trash') c.favourites += 1;
+    if (j.place === 'archive') c.archive += 1;
+    if (j.place === 'trash') c.trash += 1;
+    if (j.place !== 'inbox') continue;
     const out = j.match?.status === 'excluded';
-    const isNew = j.unread && !out && isRecent(j);
-    c.all += 1;
-    c.new += isNew ? 1 : 0;
+    const isNew = j.unread && !out;
+    c.inbox += 1;
+    c.unread += isNew ? 1 : 0;
     c.excluded += out ? 1 : 0;
     c.high += j.match?.status === 'scored' && j.match.score >= 80 ? 1 : 0;
     c.noDetail += j.detail.kind !== 'ok' ? 1 : 0;
-    c.saved += j.appStatus === 'saved' ? 1 : 0;
-    c.sent += j.appStatus === 'sent' ? 1 : 0;
     const line = c.newByPortal.find((p) => p.portal === j.portal);
     if (line && isNew) line.new += 1;
   }
@@ -966,47 +953,43 @@ function countsOf(list: JobView[]): JobCounts {
 
 /* ------------------------------------------------------------------- marks */
 
-/** Notes, when a job was archived, deleted keys and the excluded verdicts the user
- *  overrode (store::marks). */
-const notes = new Map<string, string>([['linkedin:4100200303', 'Zweites Gespräch am Freitag.']]);
-const archivedAt = new Map<string, string>([['linkedin:4100200306', at(30)]]);
+/** When a job went to the trash, deleted keys and the excluded verdicts the user overrode
+ *  (store::marks). */
+const trashedAt = new Map<string, string>();
 const tombstones = new Set<string>();
 const overridden = new Map<string, Match>();
 const markKey = (key: JobKey): string => `${key.portal}:${key.id}`;
 
-/** The list of a facet (store::ListFacet): an archived job is in "archived" only. */
-function inFacet(j: JobView, facet: JobQuery['facet']): boolean {
-  switch (facet) {
-    case 'new':
-      return !j.archived && j.unread && isRecent(j);
-    case 'all':
-      return !j.archived;
-    case 'saved':
-      return !j.archived && j.appStatus === 'saved';
-    case 'sent':
-      return !j.archived && j.appStatus === 'sent';
-    case 'archived':
-      return j.archived;
-  }
+/** The list of a query (store::job_page): a place, the favourites, only the unread ones. */
+function inQuery(j: JobView, query: Pick<JobQuery, 'place' | 'unread' | 'favourites'>): boolean {
+  const where = query.favourites ? j.pinned && j.place !== 'trash' : j.place === query.place;
+  return where && (!query.unread || j.unread);
 }
 
 function refresh(): void {
   state.counts = countsOf(jobs);
 }
 
-/** Sets a mark: its time and the star. */
-function setStage(j: JobView, status: JobView['appStatus']): boolean {
-  if (j.appStatus === status) return false;
-  j.appStatus = status;
-  j.statusAt = status === null ? null : new Date(Date.now()).toISOString();
-  j.pinned = status === 'saved';
+/** Moves jobs to a place; returns how many moved. */
+function moveJobs(keys: JobKey[], to: Place): number {
+  let moved = 0;
+  for (const key of keys) {
+    const j = find(key);
+    if (j === undefined || j.place === to) continue;
+    j.place = to;
+    if (to === 'trash') trashedAt.set(markKey(key), new Date(Date.now()).toISOString());
+    else trashedAt.delete(markKey(key));
+    moved += 1;
+  }
   refresh();
-  return true;
+  return moved;
 }
 
-/** Deletes jobs for good: only a tombstone stays, so no later run brings them back. */
-function deleteJobs(keys: JobKey[]): { count: number; exportError: null } {
-  const doomed = new Set(keys.map(markKey));
+/** Deletes jobs of the trash for good: only a tombstone stays, no later run brings them back. */
+function purgeJobs(keys: JobKey[]): { count: number; exportError: null } {
+  const doomed = new Set(
+    keys.filter((key) => find(key)?.place === 'trash').map((key) => markKey(key)),
+  );
   const before = jobs.length;
   jobs = jobs.filter((j) => !doomed.has(markKey(j.key)));
   for (const key of doomed) tombstones.add(key);
@@ -1031,37 +1014,26 @@ function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
   const base = needle
     ? jobs.filter((j) => fold(`${j.title} ${j.company} ${j.location}`).includes(needle))
     : jobs;
-  // Neu lists every unread job, excluded ones too (grey behind the divider); only the count
-  // leaves them out (store::job_page). Saved and sent jobs follow the time of their mark,
-  // archived jobs the moment they were archived.
-  const latest = (time: (j: JobView) => string) => (a: JobView, b: JobView) =>
-    time(b).localeCompare(time(a)) || a.key.id.localeCompare(b.key.id);
-  const byStatus = latest((j) => j.statusAt ?? '');
-  const orders: Partial<Record<JobQuery['facet'], (a: JobView, b: JobView) => number>> = {
-    saved: byStatus,
-    sent: byStatus,
-    archived: latest((j) => archivedAt.get(markKey(j.key)) ?? ''),
-  };
-  const listed = base.filter((j) => inFacet(j, query.facet));
-  const order = orders[query.facet];
-  if (order !== undefined) {
-    listed.sort(order);
-    return {
-      jobs: listed.slice(query.offset, query.offset + Math.min(query.limit, 500)),
-      counts: countsOf(base),
-    };
-  }
-  const page = listed.sort((a, b) => {
-    const ex = Number(a.match?.status === 'excluded') - Number(b.match?.status === 'excluded');
-    if (ex !== 0) return ex;
-    if (query.sort === 'match') {
-      const na = Number(a.match === null) - Number(b.match === null);
-      if (na !== 0) return na;
-      const d = (b.match?.score ?? 0) - (a.match?.score ?? 0);
-      if (d !== 0) return d;
-    }
-    return b.firstSeenAt.localeCompare(a.firstSeenAt) || a.key.id.localeCompare(b.key.id);
-  });
+  // The unread filter lists every unread job, excluded ones too (grey behind the divider);
+  // only the count leaves them out (store::job_page). By date: the mail's, in the trash
+  // the day the job went there.
+  const date = (j: JobView): string =>
+    query.place === 'trash' && !query.favourites
+      ? (trashedAt.get(markKey(j.key)) ?? '')
+      : (j.mailDate ?? j.firstSeenAt);
+  const page = base
+    .filter((j) => inQuery(j, query))
+    .sort((a, b) => {
+      const ex = Number(a.match?.status === 'excluded') - Number(b.match?.status === 'excluded');
+      if (ex !== 0) return ex;
+      if (query.sort === 'match') {
+        const na = Number(a.match === null) - Number(b.match === null);
+        if (na !== 0) return na;
+        const d = (b.match?.score ?? 0) - (a.match?.score ?? 0);
+        if (d !== 0) return d;
+      }
+      return date(b).localeCompare(date(a)) || a.key.id.localeCompare(b.key.id);
+    });
   return {
     jobs: page.slice(query.offset, query.offset + Math.min(query.limit, 500)),
     counts: countsOf(base),
@@ -1206,7 +1178,6 @@ function detailOf(j: JobView): JobDetail {
             highlights: ok ? highlights : [],
             criteria,
           },
-    note: notes.get(markKey(j.key)) ?? null,
   };
 }
 
@@ -1262,18 +1233,12 @@ function promptOf(j: JobView): string {
 }
 
 /**
- * Like core's export::ai_prompt_top: the best current matches (3 to 5; saved first, then by
- * score; never excluded, archived, gone or in an application), compared in one prompt.
+ * Like core's export::ai_prompt_top: the best current matches (3 to 5; favourites first, then
+ * by score; only the inbox, never excluded or gone), compared in one prompt.
  */
 function promptTopOf(limit: number): string {
   const best = jobs
-    .filter(
-      (j) =>
-        j.match?.status === 'scored' &&
-        !j.archived &&
-        j.appStatus !== 'sent' &&
-        j.detail.kind !== 'gone',
-    )
+    .filter((j) => j.match?.status === 'scored' && j.place === 'inbox' && j.detail.kind !== 'gone')
     .sort(
       (a, b) =>
         Number(b.pinned) - Number(a.pinned) ||
@@ -1685,20 +1650,17 @@ const handlers: Handlers = {
     refresh();
     return true;
   },
-  // The star is the mark "saved": it never overwrites "sent" (store::set_pinned).
+  // The favourite, a flag of its own whatever the place (store::set_pinned).
   set_pinned: ({ key, on }) => {
     const j = find(key);
-    if (j === undefined) return false;
-    if (on && j.appStatus === null) return setStage(j, 'saved');
-    if (!on && j.appStatus === 'saved') return setStage(j, null);
-    return false;
+    if (j === undefined || j.pinned === on) return false;
+    j.pinned = on;
+    refresh();
+    return true;
   },
-  set_app_status: ({ key, status }) => {
-    const j = find(key);
-    return j !== undefined && setStage(j, status);
-  },
-  mark_all_read: ({ facet }) => {
-    const marked = jobs.filter((j) => j.unread && inFacet(j, facet));
+  move_jobs: ({ keys, to }) => moveJobs(keys, to),
+  mark_all_read: ({ place }) => {
+    const marked = jobs.filter((j) => j.unread && j.place === place);
     for (const j of marked) j.unread = false;
     refresh();
     return marked.map((j) => structuredClone(j.key));
@@ -1713,24 +1675,6 @@ const handlers: Handlers = {
     }
     refresh();
     return changed;
-  },
-  set_note: ({ key, note }) => {
-    if ([...note].length > 2000) throw fail('invalid', { reason: 'noteTooLong', max: 2000 });
-    const j = find(key);
-    const next = note.trim() === '' ? null : note;
-    if (j === undefined || (notes.get(markKey(key)) ?? null) === next) return false;
-    if (next === null) notes.delete(markKey(key));
-    else notes.set(markKey(key), next);
-    return true;
-  },
-  set_archived: ({ key, archived }) => {
-    const j = find(key);
-    if (j === undefined || j.archived === archived) return false;
-    j.archived = archived;
-    if (archived) archivedAt.set(markKey(key), new Date(Date.now()).toISOString());
-    else archivedAt.delete(markKey(key));
-    refresh();
-    return true;
   },
   // "Fits anyway": scored with its fit score and the note `userOverride`; taken back, the
   // engine's verdict again (store::set_override, view::JobView).
@@ -1748,8 +1692,8 @@ const handlers: Handlers = {
     refresh();
     return true;
   },
-  delete_jobs: ({ keys }) => deleteJobs(keys),
-  empty_archive: () => deleteJobs(jobs.filter((j) => j.archived).map((j) => j.key)),
+  purge_jobs: ({ keys }) => purgeJobs(keys),
+  empty_trash: () => purgeJobs(jobs.filter((j) => j.place === 'trash').map((j) => j.key)),
   ai_prompt: ({ key }) => {
     const j = find(key);
     if (j === undefined) throw fail('notFound', { what: 'job' });

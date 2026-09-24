@@ -199,7 +199,7 @@
       {profile}
       {quality}
       {rescoring}
-      rescored={saved && !rescoring && (app.state?.counts.all ?? 0) > 0}
+      rescored={saved && !rescoring && (app.state?.counts.inbox ?? 0) > 0}
       dirty={editor.dirty}
       picking={busy === 'pick'}
       {note}

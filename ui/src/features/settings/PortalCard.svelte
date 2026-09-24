@@ -87,6 +87,7 @@
           ],
           autoFetchOnStart: null,
           autoArchiveDays: null,
+          autoEmptyTrashDays: null,
           language: null,
         },
       });

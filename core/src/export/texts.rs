@@ -19,10 +19,10 @@ pub const JOBS_SHEET: &str = "Job-Alerts";
 /// Name of the sheet with the run information.
 pub const INFO_SHEET: &str = "Info";
 
-/// Column headers of the Excel file (order as before, plus the job details state, the day
-/// of the application and the note). Unlike the text files nobody reads it by machine - so
-/// it says "Portal" like the interface, not "Quelle" like the skill contract.
-pub const COLUMNS: [&str; 14] = [
+/// Column headers of the Excel file (order as before, plus the job details state). Unlike
+/// the text files nobody reads it by machine - so it says "Portal" like the interface, not
+/// "Quelle" like the skill contract.
+pub const COLUMNS: [&str; 12] = [
     "Portal",
     "Datum der Alert-Mail",
     "Titel",
@@ -35,8 +35,6 @@ pub const COLUMNS: [&str; 14] = [
     "Details",
     "Schlüssel",
     "Passung",
-    "Beworben am",
-    "Notiz",
 ];
 
 /// Label and warning of the last row of the info sheet.
@@ -133,8 +131,6 @@ pub mod en {
         "Details",
         "Key",
         "Match",
-        "Applied on",
-        "Note",
     ];
 
     pub const INFO_NOTE_LABEL: &str = "Note";

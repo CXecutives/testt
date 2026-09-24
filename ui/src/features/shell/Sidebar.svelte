@@ -25,7 +25,7 @@
   import { viewport } from '$lib/state/viewport.svelte';
 
   // New jobs over everything (the overview's unfiltered counts), whatever the list shows.
-  const unread = $derived(jobs.overviewCounts?.new ?? app.state?.counts.new ?? 0);
+  const unread = $derived(jobs.overviewCounts?.unread ?? app.state?.counts.unread ?? 0);
   const items = $derived<SideNavItem<ViewId>[]>([
     { id: 'jobs', label: t.nav.jobs, icon: 'briefcase', count: unread, testid: 'nav-jobs' },
     { id: 'profile', label: t.nav.profile, icon: 'user-round', testid: 'nav-profile' },

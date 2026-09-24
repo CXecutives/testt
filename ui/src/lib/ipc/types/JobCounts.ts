@@ -2,35 +2,40 @@
 import type { PortalNew } from "./PortalNew";
 
 /**
- * Counts of the list (with the search applied, whatever the facet). Every number of the
- * page comes from here: the facets, the tiles, the sidebar and the new jobs per portal.
+ * Counts of the list (with the search applied, whatever the place and the filter), from
+ * the same statement as the page. Every number of the page comes from here: the places, the
+ * tiles, the sidebar and the unread jobs per portal.
  */
 export type JobCounts = { 
 /**
- * Unread and not excluded ("Neu").
+ * In the inbox ("Eingang").
  */
-new: number, all: number, excluded: number, 
+inbox: number, 
 /**
- * Scored in the high band.
+ * Unread in the inbox, not excluded.
+ */
+unread: number, 
+/**
+ * Favourites (the star), in the inbox or the archive.
+ */
+favourites: number, archive: number, 
+/**
+ * In the trash ("Papierkorb").
+ */
+trash: number, 
+/**
+ * Excluded, in the inbox.
+ */
+excluded: number, 
+/**
+ * Scored in the high band, in the inbox.
  */
 high: number, 
 /**
- * Without a full text.
+ * Without a full text, in the inbox.
  */
 noDetail: number, 
 /**
- * Saved ("Gemerkt", the star).
- */
-saved: number, 
-/**
- * "Beworben".
- */
-sent: number, 
-/**
- * Archived - the only count an archived job is in.
- */
-archived: number, 
-/**
- * `new` per portal: every portal, in the order of `Portal::ALL`.
+ * `unread` per portal: every portal, in the order of `Portal::ALL`.
  */
 newByPortal: Array<PortalNew>, };

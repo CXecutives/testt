@@ -11,7 +11,6 @@
 // Saved · Applications · Archive.
 
 import type {
-  AppStatus,
   Band,
   DetailState,
   ErrorKind,
@@ -124,7 +123,6 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   mailAddress: 'The address is incomplete.',
   appPassword: 'An app password has 16 letters.',
   noSignIn: (p) => `${portalOf(p.portal)} offers no sign-in.`,
-  noteTooLong: (p) => `The note is longer than ${n(num(p.max))} characters.`,
 };
 
 const status: Record<StatusCode, string> = {
@@ -534,7 +532,6 @@ export const en: Catalog = {
     facet: 'View',
     facetNew: 'New',
     facetAll: 'All',
-    facetSent: 'Applied',
     facetPinned: 'Saved',
     sortLabel: {
       match: 'Best match',
@@ -630,7 +627,6 @@ export const en: Catalog = {
     emptySources: 'The jobs come from the alert mails of the portals.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
     readOlder: 'Read older mails',
-    emptySent: 'No application noted yet.',
     emptyHidden: 'The archive is empty.',
     emptyNew: 'No new jobs.',
     emptyAll: 'After the first fetch the jobs show up here.',
@@ -676,12 +672,6 @@ export const en: Catalog = {
     unhide: 'Restore',
     prompt: 'Copy as prompt',
     preliminary: 'Provisional, scored from a teaser',
-    noteLabel: 'Note',
-    status: 'Application',
-    appStatus: {
-      saved: 'Saved',
-      sent: 'Applied',
-    } satisfies Record<AppStatus, string>,
     mail: OPEN_MAIL,
     fetchDetails: 'Fetch details',
     why: 'Why',

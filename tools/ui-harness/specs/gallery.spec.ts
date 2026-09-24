@@ -136,8 +136,8 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   await expect(archive).toHaveAttribute('aria-label', 'Archivieren');
   await archive.click();
   await expect(archive).toHaveAttribute('aria-label', 'Wiederherstellen');
-  // "Beworben" in a quiet badge; a saved job has only its star.
-  await expect(job('linkedin-1002')).toContainText('Beworben');
+  // No stage badges: a favourite has only its star.
+  await expect(job('linkedin-1002')).not.toContainText('Beworben');
   await expect(job('freelancermap-1001')).not.toContainText('Gemerkt');
   // Older than ten days: the date sits on a tint.
   await expect(job('freelancermap-1005').locator('.date')).toHaveClass(/old/);
