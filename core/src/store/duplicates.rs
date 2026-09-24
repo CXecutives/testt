@@ -1,8 +1,10 @@
 //! Cross-portal duplicates: the same job announced by two portals. A job whose full text
-//! arrives is compared with the jobs of the other portals that already have one: the same
-//! normalised title and company, and a text whose SimHash-64 differs in at most
-//! [`MAX_DISTANCE`] bits. The later one points to the earlier one (`dup_of`); the list shows
-//! one row with the other portals in `alsoOn`, and only that row is scored.
+//! (or guest teaser) arrives is compared with the jobs of the other portals that already
+//! have one: the same normalised title and company, and a text whose SimHash-64 differs in
+//! at most [`MAX_DISTANCE`] bits - or, for a teaser against a full text, whose word triples
+//! the full text contains. The later one points to the earlier one (`dup_of`), a teaser
+//! always to the full text; the list shows one row with the other portals in `alsoOn`, and
+//! only that row is scored.
 
 use std::collections::BTreeMap;
 
@@ -16,40 +18,55 @@ use crate::portal::{JobKey, Portal};
 pub const MAX_DISTANCE: u32 = 3;
 
 impl Store {
-    /// Compares a job that just got its full text with the other portals' jobs and marks
-    /// it as a duplicate of the earliest match. Returns that job. A job the user marked (a
-    /// stage, a note, archived, "fits anyway") is never linked: a duplicate leaves every
-    /// list, and her marks must not leave with it.
+    /// Compares a job that just got its full text (or a guest's teaser) with the other
+    /// portals' jobs and links it to the earliest match. Returns the original.
+    ///
+    /// Two full texts match by `SimHash`; a teaser (the start of the ad, cut) matches a full
+    /// text when its word triples are contained in it ([`MIN_CONTAINED`]), since a
+    /// 300-character teaser is never within a few bits of the whole ad. A teaser row always
+    /// points to the full-text row, never the reverse, so the row that is listed and scored
+    /// carries the full text: a full text that arrives after its teaser becomes the original,
+    /// and the teaser (with anything that pointed to it) points to it.
+    ///
+    /// A job the user marked (a stage, a note, archived, "fits anyway") is never linked: a
+    /// duplicate leaves every list, and her marks must not leave with it. An archived or
+    /// closed job is never the original either - the fresh, open announcement would vanish
+    /// behind it.
     pub fn link_duplicate(&self, key: &JobKey) -> Result<Option<JobKey>> {
         self.write(|conn| {
-            let Some((title, company, text)) = conn
+            let Some(own) = conn
                 .query_row(
-                    "SELECT title, company, desc_text FROM job
-                     WHERE portal = ?1 AND job_id = ?2 AND desc_status = 'ok'
-                       AND dup_of IS NULL AND desc_text IS NOT NULL
-                       AND app_status IS NULL AND note IS NULL AND archived_at IS NULL
-                       AND override_include IS NULL",
+                    "SELECT title, company, desc_text, desc_status = 'teaser', desc_closed,
+                            app_status IS NOT NULL OR note IS NOT NULL
+                              OR archived_at IS NOT NULL OR override_include IS NOT NULL
+                     FROM job
+                     WHERE portal = ?1 AND job_id = ?2 AND desc_status IN ('ok', 'teaser')
+                       AND dup_of IS NULL AND desc_text IS NOT NULL",
                     params![key.portal.key(), key.id],
                     |r| {
-                        Ok((
-                            r.get::<_, String>(0)?,
-                            r.get::<_, String>(1)?,
-                            r.get::<_, String>(2)?,
-                        ))
+                        Ok(Row {
+                            title: r.get(0)?,
+                            company: r.get(1)?,
+                            text: r.get(2)?,
+                            teaser: r.get(3)?,
+                            closed: r.get(4)?,
+                            marked: r.get(5)?,
+                        })
                     },
                 )
                 .optional()?
             else {
                 return Ok(None);
             };
-            let same = identity(&title, &company);
+            let same = identity(&own.title, &own.company);
             if same.0.is_empty() {
                 return Ok(None);
             }
             // Titles and companies first (small), texts only for the few that match.
             let mut stmt = conn.prepare_cached(
                 "SELECT portal, job_id, title, company FROM job
-                 WHERE portal <> ?1 AND desc_status = 'ok' AND dup_of IS NULL
+                 WHERE portal <> ?1 AND desc_status IN ('ok', 'teaser') AND dup_of IS NULL
+                   AND archived_at IS NULL AND desc_closed = 0
                  ORDER BY first_seen_at, portal, job_id",
             )?;
             let candidates: Vec<(String, String)> = stmt
@@ -65,34 +82,53 @@ impl Store {
                 .filter(|(_, _, t, c)| identity(t, c) == same)
                 .map(|(portal, id, _, _)| (portal, id))
                 .collect();
-            let hash = simhash(&text);
             for (portal, id) in candidates {
-                let other: Option<String> = conn
+                let other: Option<Row> = conn
                     .query_row(
-                        "SELECT desc_text FROM job WHERE portal = ?1 AND job_id = ?2",
+                        "SELECT title, company, desc_text, desc_status = 'teaser', desc_closed,
+                                app_status IS NOT NULL OR note IS NOT NULL
+                                  OR archived_at IS NOT NULL OR override_include IS NOT NULL
+                         FROM job WHERE portal = ?1 AND job_id = ?2 AND desc_text IS NOT NULL",
                         params![portal, id],
-                        |r| r.get(0),
+                        |r| {
+                            Ok(Row {
+                                title: r.get(0)?,
+                                company: r.get(1)?,
+                                text: r.get(2)?,
+                                teaser: r.get(3)?,
+                                closed: r.get(4)?,
+                                marked: r.get(5)?,
+                            })
+                        },
                     )
-                    .optional()?
-                    .flatten();
+                    .optional()?;
                 let Some(other) = other else { continue };
-                if distance(hash, simhash(&other)) > MAX_DISTANCE {
+                if !same_ad(&own, &other) {
                     continue;
                 }
                 let Some(portal) = Portal::from_key(&portal) else {
                     continue;
                 };
-                let original = JobKey { portal, id };
-                conn.execute(
-                    // The row goes into the original's: its own score is gone for good
-                    // (never scored again, never listed on its own).
-                    "UPDATE job SET dup_of = ?3, match_score = NULL, match_status = NULL,
-                                    match_note = NULL, match_at = NULL, match_rev = NULL
-                     WHERE portal = ?1 AND job_id = ?2",
-                    params![key.portal.key(), key.id, original.to_string()],
-                )?;
-                bump(conn)?;
-                return Ok(Some(original));
+                let other_key = JobKey { portal, id };
+                // The full text arrived after its teaser: it becomes the original, and the
+                // teaser (with whatever pointed to it) points to it - unless the user marked
+                // the teaser, or the full-text ad is closed.
+                if other.teaser && !own.teaser {
+                    if other.marked || own.closed {
+                        continue;
+                    }
+                    link(conn, &other_key, key)?;
+                    conn.execute(
+                        "UPDATE job SET dup_of = ?1 WHERE dup_of = ?2",
+                        params![key.to_string(), other_key.to_string()],
+                    )?;
+                    return Ok(Some(key.clone()));
+                }
+                if own.marked {
+                    return Ok(None);
+                }
+                link(conn, key, &other_key)?;
+                return Ok(Some(other_key));
             }
             Ok(None)
         })
@@ -137,6 +173,66 @@ impl Store {
         }
         Ok(out)
     }
+}
+
+/// What the comparison needs of a row.
+struct Row {
+    title: String,
+    company: String,
+    text: String,
+    /// Only a guest's teaser, not the full text.
+    teaser: bool,
+    closed: bool,
+    /// The user marked it (a stage, a note, archived, "fits anyway").
+    marked: bool,
+}
+
+/// Share of a teaser's word triples (in percent) that the full text must contain.
+pub const MIN_CONTAINED: usize = 80;
+/// Fewest word triples a teaser needs to be compared at all (a few words prove nothing).
+const MIN_TRIPLES: usize = 8;
+
+/// Do the two texts announce the same ad? Two full texts (or two teasers) by `SimHash`, a
+/// teaser and a full text by containment.
+fn same_ad(a: &Row, b: &Row) -> bool {
+    match (a.teaser, b.teaser) {
+        (true, false) => contained(&a.text, &b.text),
+        (false, true) => contained(&b.text, &a.text),
+        _ => distance(simhash(&a.text), simhash(&b.text)) <= MAX_DISTANCE,
+    }
+}
+
+/// Are at least [`MIN_CONTAINED`] percent of the teaser's word triples in the full text?
+pub(crate) fn contained(teaser: &str, full: &str) -> bool {
+    let part = triples(teaser);
+    if part.len() < MIN_TRIPLES {
+        return false;
+    }
+    let whole = triples(full);
+    let hits = part.iter().filter(|t| whole.contains(*t)).count();
+    hits * 100 >= part.len() * MIN_CONTAINED
+}
+
+/// The word triples of a text (lower case, letters and digits only).
+fn triples(text: &str) -> std::collections::HashSet<String> {
+    let lower = text.to_lowercase();
+    let words: Vec<&str> = lower
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect();
+    words.windows(3).map(|w| w.join(" ")).collect()
+}
+
+/// `key` goes into `original`'s row: its own score is gone for good (never scored again,
+/// never listed on its own).
+fn link(conn: &rusqlite::Connection, key: &JobKey, original: &JobKey) -> Result<()> {
+    conn.execute(
+        "UPDATE job SET dup_of = ?3, match_score = NULL, match_status = NULL,
+                        match_note = NULL, match_at = NULL, match_rev = NULL
+         WHERE portal = ?1 AND job_id = ?2",
+        params![key.portal.key(), key.id, original.to_string()],
+    )?;
+    bump(conn)
 }
 
 /// Normalised title and company: lower case, words only, without gender markers
@@ -382,5 +478,115 @@ mod tests {
             store.link_duplicate(&plain.key).unwrap(),
             Some(original.key)
         );
+    }
+
+    /// The start of the ad, as freelance.de shows it to a guest.
+    fn teaser_of(text: &str) -> String {
+        text.chars().take(260).collect()
+    }
+
+    #[test]
+    fn a_teaser_is_contained_in_its_full_text_only() {
+        assert!(contained(&teaser_of(TEXT), TEXT));
+        let other = "Wir suchen eine Projektleitung für den Rollout eines Warenwirtschaftssystems \
+            in 40 Filialen. Aufgaben: Planung, Steuerung der Dienstleister, Berichtswesen an \
+            die Geschäftsführung. Profil: Erfahrung im Handel und in agilen Methoden.";
+        assert!(!contained(&teaser_of(TEXT), other));
+        assert!(!contained("Für unseren Kunden", TEXT), "too little to tell");
+        // A teaser is never within a few SimHash bits of the whole ad.
+        assert!(distance(simhash(&teaser_of(TEXT)), simhash(TEXT)) > MAX_DISTANCE);
+    }
+
+    /// freelance.de as a guest gives teasers: the same project on another portal with its
+    /// full text is one row, and the listed row is the one with the full text - whichever
+    /// arrived first.
+    #[test]
+    fn a_teaser_points_to_the_full_text_whichever_came_first() {
+        use crate::store::test_support::{mail, now, posting};
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let add = |url: &str| {
+            let p = posting(
+                url,
+                "SAP FI/CO Berater (m/w/d)",
+                "Ferrum Systems SE",
+                "Hamburg",
+            );
+            store.upsert_posting(run, &p, mail(), now()).unwrap();
+            p.key
+        };
+        // The full text first, the teaser later.
+        let full = add("https://www.freelancermap.de/nproj/12345.html");
+        store.record_text(&full, TEXT, false, false, now()).unwrap();
+        let teaser = add("https://www.freelance.de/project/index.php?id=1255067");
+        store
+            .record_teaser(&teaser, &teaser_of(TEXT), now())
+            .unwrap();
+        assert_eq!(store.link_duplicate(&teaser).unwrap(), Some(full.clone()));
+        assert_eq!(store.dup_of(&teaser).unwrap(), Some(full));
+    }
+
+    #[test]
+    fn a_full_text_after_its_teaser_becomes_the_original() {
+        use crate::store::test_support::{mail, now, posting};
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let add = |url: &str| {
+            let p = posting(
+                url,
+                "SAP FI/CO Berater (m/w/d)",
+                "Ferrum Systems SE",
+                "Hamburg",
+            );
+            store.upsert_posting(run, &p, mail(), now()).unwrap();
+            p.key
+        };
+        let teaser = add("https://www.freelance.de/project/index.php?id=1255068");
+        store
+            .record_teaser(&teaser, &teaser_of(TEXT), now())
+            .unwrap();
+        assert_eq!(store.link_duplicate(&teaser).unwrap(), None);
+        let full = add("https://www.linkedin.com/jobs/view/4000000009/");
+        store.record_text(&full, TEXT, false, false, now()).unwrap();
+        assert_eq!(store.link_duplicate(&full).unwrap(), Some(full.clone()));
+        assert_eq!(store.dup_of(&teaser).unwrap(), Some(full.clone()));
+        assert_eq!(
+            store.dup_of(&full).unwrap(),
+            None,
+            "the full text is listed"
+        );
+    }
+
+    /// An archived or closed original never swallows a fresh announcement of the same job.
+    #[test]
+    fn an_archived_or_closed_job_is_no_original() {
+        use crate::store::test_support::{mail, now, posting};
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let add = |url: &str| {
+            let p = posting(
+                url,
+                "SAP FI/CO Berater (m/w/d)",
+                "Ferrum Systems SE",
+                "Hamburg",
+            );
+            store.upsert_posting(run, &p, mail(), now()).unwrap();
+            p.key
+        };
+        let archived = add("https://www.freelancermap.de/nproj/12345.html");
+        store
+            .record_text(&archived, TEXT, false, false, now())
+            .unwrap();
+        store.set_archived(&archived, true, now()).unwrap();
+        let closed = add("https://www.freelance.de/project/index.php?id=1255067");
+        store
+            .record_text(&closed, TEXT, false, true, now())
+            .unwrap();
+        let fresh = add("https://www.linkedin.com/jobs/view/4000000001/");
+        store
+            .record_text(&fresh, TEXT, false, false, now())
+            .unwrap();
+        assert_eq!(store.link_duplicate(&fresh).unwrap(), None);
+        assert_eq!(store.dup_of(&fresh).unwrap(), None);
     }
 }
