@@ -70,7 +70,7 @@ export default defineConfig(({ mode }) => {
     server: { port: 5173, strictPort: true },
     preview: {
       host: '127.0.0.1',
-      port: 5177,
+      port: Number(process.env.HARNESS_PORT) || 5177,
       strictPort: true,
       headers: { 'Content-Security-Policy': productionCsp() },
     },

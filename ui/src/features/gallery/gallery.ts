@@ -113,6 +113,7 @@ export const text = {
     dangerHeading: 'Alles zurücksetzen',
     dangerText: 'Jobs, Einstellungen und Anmeldungen werden gelöscht.',
     dangerLabel: 'Zurücksetzen',
+    dangerError: 'Im Probelauf lässt sich nichts zurücksetzen.',
   },
   match: {
     reasons: 'Gründe',
