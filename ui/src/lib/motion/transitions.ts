@@ -87,21 +87,80 @@ export function stagger(index: number): number {
   return staggerDelay(index);
 }
 
-/** FLIP reordering for lists up to 100 rows; longer lists cross-fade instead. */
+/** Maximum rows that may FLIP; above this a list cross-fades. */
+export const FLIP_LIMIT = 100;
+
+export interface FlipParams extends MotionParams {
+  /** Rows in the list: above FLIP_LIMIT rows do not move (the list cross-fades). */
+  count?: number;
+}
+
+/** FLIP reordering (`animate:flip={{ count: rows.length }}`). */
 export function flip(
   node: Element,
   fromTo: { from: DOMRect; to: DOMRect },
-  params: MotionParams = {},
+  params: FlipParams = {},
 ): AnimationConfig {
+  const still = (params.count ?? 0) > FLIP_LIMIT;
   return svelteFlip(node, fromTo, {
-    duration: duration(params.duration ?? 'base'),
+    duration: still ? 0 : duration(params.duration ?? 'base'),
     easing: easing(params.easing ?? 'standard'),
     delay: params.delay ?? 0,
   });
 }
 
-/** Maximum rows that may FLIP; above this a list cross-fades. */
-export const FLIP_LIMIT = 100;
+export interface RowParams {
+  index: number;
+  count: number;
+}
+
+/**
+ * Entry of a list row: the first --stagger-max rows rise one after another, the rest (and
+ * every row of a list above FLIP_LIMIT) just fade in.
+ */
+export function rowIn(node: Element, { index, count }: RowParams): TransitionConfig {
+  if (count > FLIP_LIMIT) return fade(node, { duration: 'fast' });
+  return rise(node, { distance: 'md', duration: 'base', delay: stagger(index) });
+}
+
+function lifted(t: number, y: number, scale: number): string {
+  const s = scale + (1 - scale) * t;
+  return `opacity: ${t}; transform: translateY(${Math.round((1 - t) * y)}px) scale(${s})`;
+}
+
+/** Dialog entrance: slow/out, rising 4 px from --scale-enter. */
+export function dialogIn(node: Element): TransitionConfig {
+  if (isReducedMotion()) return crossfade(node);
+  const y = move('md');
+  const scale = enterScale();
+  return { duration: duration('slow'), easing: easing('out'), css: (t) => lifted(t, y, scale) };
+}
+
+/** Dialog exit: 0.7 × slow with ease-in. */
+export function dialogOut(node: Element): TransitionConfig {
+  if (isReducedMotion()) return crossfade(node);
+  const y = move('md');
+  const scale = enterScale();
+  return {
+    duration: Math.round(duration('slow') * 0.7),
+    easing: easing('in'),
+    css: (t) => lifted(t, y, scale),
+  };
+}
+
+/** The scrim behind a dialog follows the dialog's timing. */
+export function scrim(
+  node: Element,
+  _params: unknown,
+  options: { direction: string },
+): TransitionConfig {
+  if (isReducedMotion()) return crossfade(node);
+  const out = options.direction === 'out';
+  return svelteFade(node, {
+    duration: out ? Math.round(duration('slow') * 0.7) : duration('slow'),
+    easing: easing(out ? 'in' : 'out'),
+  });
+}
 
 /**
  * A number that counts up (score rings, stat tiles). Rounds to whole numbers; under

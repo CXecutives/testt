@@ -44,7 +44,8 @@ export default defineConfig({
     command: 'npx vite build ui --mode harness && npx vite preview ui --mode harness',
     cwd: '../..',
     url: 'http://127.0.0.1:5177',
-    reuseExistingServer: !process.env.CI,
+    // Always build and serve fresh: a stale server would test an old build.
+    reuseExistingServer: false,
     timeout: 120_000,
     stdout: 'ignore',
     stderr: 'pipe',

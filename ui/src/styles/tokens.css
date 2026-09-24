@@ -158,6 +158,7 @@
     hsl(var(--p-slate))
   );
   --grad-coral: linear-gradient(135deg, hsl(var(--p-coral-glow)), hsl(var(--p-coral-750)));
+  --grad-bar: linear-gradient(180deg, hsl(var(--p-coral)), hsl(var(--p-slate)));
 
   /* ----------------------------------------------------------------- shadows */
   --sh-xs: 0 1px 2px hsl(var(--p-shade-xs) / 0.06);
@@ -168,6 +169,7 @@
     0 12px 32px -8px hsl(var(--p-shade-pop) / 0.18), 0 2px 6px hsl(var(--p-shade-pop) / 0.06);
   --glow: 0 0 40px hsl(var(--p-coral-glow) / 0.3);
   --glow-sm: 0 0 0 4px hsl(var(--p-coral) / 0.15);
+  --glow-high: 0 0 24px hsl(var(--p-score-high) / 0.45);
   --focus-ring: 0 0 0 2px hsl(var(--p-white)), 0 0 0 4px hsl(var(--p-coral));
   --focus-ring-inset: inset 0 0 0 2px hsl(var(--p-coral));
 
@@ -319,6 +321,7 @@
   --z-dialog: 110;
   --z-tooltip: 120;
   --opacity-disabled: 0.5;
+  --opacity-muted: 0.6;
 }
 
 /* Reduced motion, switched by lib/motion/motion.ts (Svelte and WAAPI ignore the media query,

@@ -1,6 +1,8 @@
 // Data and sample texts of the gallery (development and harness only; never in the release
 // build). The German sample texts are allowed here, like in de.ts.
 
+import type { JobView } from '$lib/ipc/types';
+
 export const text = {
   title: 'Galerie',
   intro: 'Alle Tokens und Bausteine auf einer Seite, gerechnet aus tokens.css.',
@@ -87,7 +89,145 @@ export const text = {
     disclosure: 'Mehr zu diesem Portal',
     disclosureText: 'Die App liest nur Links aus den eigenen Alert-Mails.',
   },
+  feedback: {
+    rings: 'Passung',
+    stats: 'Kennzahlen',
+    statNew: 'Neue Jobs',
+    statHigh: 'Hohe Passung',
+    statIssues: 'Offene Punkte',
+    statHint: 'Seit dem letzten Abruf',
+    notices: 'Hinweise',
+    noticeHeading: 'Portal pausiert',
+    noticeText: 'freelance.de meldet zu viele Anfragen und ist bis 14:30 pausiert.',
+    noticeAction: 'Details',
+    dialogs: 'Dialoge',
+    confirmOpen: 'Bestätigen',
+    dangerOpen: 'Zurücksetzen',
+    confirmHeading: 'Profil ersetzen',
+    confirmText: 'Das neue Profil gilt ab sofort für alle Jobs.',
+    confirmLabel: 'Ersetzen',
+    dangerHeading: 'Alles zurücksetzen',
+    dangerText: 'Jobs, Einstellungen und Anmeldungen werden gelöscht.',
+    dangerLabel: 'Zurücksetzen',
+  },
+  match: {
+    reasons: 'Gründe',
+    rows: 'Jobliste',
+    shuffle: 'Sortieren',
+    replay: 'Neu einblenden',
+    reasonLabels: {
+      met: 'Controlling mit SAP S/4HANA',
+      partial: 'Konzernabschluss nach IFRS',
+      open: 'Treasury-Erfahrung',
+      violation: 'Arbeitnehmerüberlassung',
+      check: 'Start in sechs Wochen',
+    },
+    evidence: 'kompetenzen.controlling[2]',
+  },
 } as const;
+
+/* --------------------------------------------------------------- sample jobs */
+
+const HOUR = 3_600_000;
+
+function sample(
+  now: Date,
+  id: string,
+  title: string,
+  company: string,
+  location: string,
+  hoursAgo: number,
+  extra: Partial<JobView>,
+): JobView {
+  const at = new Date(now.getTime() - hoursAgo * HOUR).toISOString();
+  return {
+    key: { portal: 'freelancermap', id },
+    portal: 'freelancermap',
+    title,
+    company,
+    location,
+    workMode: 'hybrid',
+    mailDate: at,
+    firstSeenAt: at,
+    unread: false,
+    pinned: false,
+    detail: 'ok',
+    match: null,
+    alsoOn: [],
+    ...extra,
+  };
+}
+
+const scored = (score: number, top: string): JobView['match'] => ({
+  score,
+  band: score >= 80 ? 'high' : score >= 40 ? 'mid' : 'low',
+  status: 'scored',
+  note: null,
+  mustMet: 3,
+  mustTotal: 4,
+  top: [{ kind: score >= 40 ? 'met' : 'open', label: top }],
+});
+
+/** Jobs in every state a row can show. */
+export function sampleJobs(now: Date): JobView[] {
+  return [
+    sample(
+      now,
+      '1001',
+      'Interim CFO (m/w/d) für Familienunternehmen',
+      'Hanseatic Holding GmbH',
+      'Hamburg',
+      2,
+      {
+        unread: true,
+        pinned: true,
+        match: scored(91, 'Interim-Management im Mittelstand'),
+        alsoOn: ['linkedin'],
+      },
+    ),
+    sample(now, '1002', 'Controlling Lead Transformation', 'Nordlicht Energie AG', 'Bremen', 5, {
+      portal: 'linkedin',
+      key: { portal: 'linkedin', id: '1002' },
+      unread: true,
+      workMode: 'remote',
+      match: scored(64, 'Controlling mit SAP S/4HANA'),
+    }),
+    sample(now, '1003', 'Kaufmännische Leitung Projektgeschäft', 'Werft 7 GmbH', 'Kiel', 30, {
+      portal: 'freelance',
+      key: { portal: 'freelance', id: '1003' },
+      detail: 'teaser',
+      match: scored(47, 'Projektcontrolling'),
+    }),
+    sample(now, '1004', 'SAP FI Berater Migration', 'Datenwerk Süd', 'München', 52, {
+      workMode: 'onSite',
+      match: scored(28, 'SAP FI im Konzern'),
+    }),
+    sample(now, '1005', 'Finance Manager Shared Service', 'Contoso Services', 'Leipzig', 80, {
+      match: null,
+      detail: 'failed',
+    }),
+    sample(
+      now,
+      '1006',
+      'Buchhalter über Personaldienstleister',
+      'Musterpersonal GmbH',
+      'Berlin',
+      200,
+      {
+        workMode: null,
+        match: {
+          score: 55,
+          band: 'mid',
+          status: 'excluded',
+          note: null,
+          mustMet: 2,
+          mustTotal: 4,
+          top: [{ kind: 'violation', label: 'Arbeitnehmerüberlassung' }],
+        },
+      },
+    ),
+  ];
+}
 
 /** How a colour token is checked for contrast. */
 export type ContrastRole = 'text' | 'fill' | 'surface' | 'decor';
