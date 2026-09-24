@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::task::Poll;
 use std::time::Duration;
 
@@ -557,6 +557,30 @@ fn note(notes: &mpsc::UnboundedSender<Note>, event: FetchEvent) {
     let _ = notes.send(Note::Event(event));
 }
 
+/// Pre-score of a job from its title and location (higher = fetched earlier) - the matching
+/// engine's quick guess, so that the likely matches get their details first when caps or
+/// pauses stop a portal. It only orders; nothing is ever skipped.
+pub type Prescore = Arc<PrescoreFn>;
+/// The pre-score function itself: `(title, location) -> score`.
+pub type PrescoreFn = dyn Fn(&str, &str) -> u16 + Send + Sync;
+
+/// The neutral order: every job the same, recency decides.
+pub fn neutral_prescore() -> Prescore {
+    Arc::new(|_, _| 0)
+}
+
+/// The fetch order within a portal: open jobs before retries, then the higher pre-score,
+/// then the newer mail. A stable sort - equal jobs keep the store's order.
+fn order(jobs: &mut [JobRow], prescore: &PrescoreFn) {
+    jobs.sort_by_cached_key(|job| {
+        (
+            job.desc_status == DescStatus::Failed,
+            std::cmp::Reverse(prescore(&job.title, &job.location)),
+            std::cmp::Reverse(job.mail_date.unwrap_or(job.first_seen_at)),
+        )
+    });
+}
+
 /// The registered portals in fetch order: guest portals first, portals with a session
 /// window last.
 fn fetch_order() -> impl Iterator<Item = &'static dyn PortalAdapter> {
@@ -580,7 +604,7 @@ pub async fn fetch_all<F: PageFetcher>(
     mut pages: impl FnMut(Portal) -> Result<F, String>,
     store: &Store,
     policy: &Mutex<Policy>,
-    selection: Selection<'_>,
+    (selection, prescore): (Selection<'_>, &PrescoreFn),
     cancel: &CancellationToken,
     clock: impl Fn() -> Timestamp,
     summary: &mut FetchSummary,
@@ -613,6 +637,10 @@ pub async fn fetch_all<F: PageFetcher>(
             // session window.
             if !fetcher.session() {
                 jobs.retain(|job| job.desc_status != DescStatus::Teaser);
+            }
+            // The automatic queue goes by pre-score; chosen jobs keep the user's order.
+            if matches!(selection, Selection::Queue(_)) {
+                order(&mut jobs, prescore);
             }
             if !jobs.is_empty() {
                 work.push((portal, jobs, fetcher));

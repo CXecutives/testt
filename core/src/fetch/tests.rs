@@ -215,7 +215,7 @@ async fn run_inner(
         },
         store,
         &shared,
-        selection,
+        (selection, &|_: &str, _: &str| 0),
         cancel,
         clock,
         &mut summary,
@@ -1529,4 +1529,54 @@ async fn the_same_job_on_two_portals_is_one_row() {
     assert!(page.jobs.iter().all(|j| j.key != dup));
     // Scored once: the duplicate waits for no score of its own.
     assert_eq!(store.match_pending("any").unwrap(), 2);
+}
+
+/// The queue of a portal goes by the injected pre-score, then by the newest mail - and
+/// nothing is skipped. Retries of failed jobs come after the open ones.
+#[tokio::test(start_paused = true)]
+async fn the_queue_follows_the_prescore_then_recency() {
+    let c = clock();
+    let store = Store::in_memory().unwrap();
+    let run_id = store.begin_run().unwrap();
+    for (id, days_ago, title) in [
+        (10_001, 1, "Projektleiter Logistik"),
+        (10_002, 5, "SAP FI/CO Berater"),
+        (10_003, 2, "SAP MM Berater"),
+        (10_004, 0, "Werkstudent"),
+    ] {
+        let link = job_link(&url(FM, id)).unwrap();
+        let posting = Posting::new(link.key, link.url, title, "Firma", "Hamburg");
+        let date = base() - SignedDuration::from_hours(days_ago * 24);
+        let mail = MailRef {
+            subject: "Neue Projekte",
+            date: Some(date),
+            gmail_id: None,
+        };
+        store.upsert_posting(run_id, &posting, mail, date).unwrap();
+    }
+    let prescore = |title: &str, _: &str| if title.contains("SAP") { 90 } else { 10 };
+    let fake = Fake::default();
+    let shared = Mutex::new(Policy::in_memory());
+    let mut summary = FetchSummary::default();
+    fetch_all(
+        |_| Ok(fake.clone()),
+        &store,
+        &shared,
+        (Selection::Queue(&[FM]), &prescore),
+        &CancellationToken::new(),
+        &c,
+        &mut summary,
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(fake.ids(), ["10003", "10002", "10004", "10001"]);
+    // The neutral order: newest mail first.
+    let mut jobs = store.fetch_queue(c(), MAX_AGE, RETRY_AFTER).unwrap();
+    assert!(jobs.is_empty(), "everything was fetched");
+    let all = store.jobs(&crate::store::JobFilter::default()).unwrap();
+    jobs.extend(all);
+    order(&mut jobs, &*neutral_prescore());
+    let ids: Vec<&str> = jobs.iter().map(|j| j.key.id.as_str()).collect();
+    assert_eq!(ids, ["10004", "10001", "10003", "10002"]);
 }

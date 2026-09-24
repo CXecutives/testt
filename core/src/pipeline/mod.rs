@@ -21,7 +21,10 @@ use tokio_util::sync::CancellationToken;
 use crate::error::{ErrorInfo, InvalidInput};
 use crate::export::{self, RESULT_DIR, TXT_DIR, texts, write_job_txt, write_xlsx};
 use crate::fetch::policy::Policy;
-use crate::fetch::{FetchEvent, FetchSummary, PageFetcher, PortalHealth, Selection, fetch_all};
+use crate::fetch::{
+    FetchEvent, FetchSummary, PageFetcher, PortalHealth, Prescore, Selection, fetch_all,
+    neutral_prescore,
+};
 use crate::mail::imap::{MailError, MailSource};
 use crate::mail::scan::{ScanError, ScanEvent, ScanSummary, Scope, scan};
 use crate::portal::{FetchPath, JobKey, Portal};
@@ -122,6 +125,11 @@ pub trait Backends {
     /// The matcher of the run; `None` = nothing is scored (no usable profile or engine).
     fn matcher(&self) -> Option<Arc<dyn Matcher>> {
         None
+    }
+    /// The pre-score that orders the fetch queue of a portal (`matching::prescore` with the
+    /// profile); neutral by default - then the newest mail comes first.
+    fn prescore(&self) -> Prescore {
+        neutral_prescore()
     }
 }
 
@@ -706,11 +714,12 @@ async fn fetch_step<B: Backends>(
 ) -> Outcome {
     // Activity in the status line - not anew for every job, again after a wait.
     let mut activity: Option<(StatusCode, Portal)> = None;
+    let prescore = backends.prescore();
     let result = fetch_all(
         |portal| backends.pages(portal, ctx.path(portal)),
         store,
         policy,
-        selection,
+        (selection, &*prescore),
         cancel,
         clock,
         fetched,
