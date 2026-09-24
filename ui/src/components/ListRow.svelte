@@ -1,8 +1,10 @@
 <!--
   A list row: leading, content, trailing, top-aligned (mail style: three lines of content,
-  one row height; a row whose title needs a second line grows by that line). The one inner padding of the columns on the sides. Hover
-  washes the row (80 ms in, 150 ms out), a press darkens it (60 ms); rows never move or
-  scale. The selected row takes a very light warm wash (one step deeper under the pointer)
+  one row height; a row whose title needs a second line grows by that line), the one inner
+  padding of the columns on the sides. A hairline under each row; a list whose rows reach
+  past its column (for the wash) insets the line with `--row-rule-inset`, so it is as wide
+  as every other hairline there. Hover washes the row (80 ms in, 150 ms out), a press
+  darkens it (60 ms); rows never move or scale. The selected row takes a very light warm wash (one step deeper under the pointer)
   and a coral bar on the left that fades in (150 ms) and out (100 ms); a row created as
   selected is simply there. While the window is inactive the selection
   turns grey, as in Mail and Explorer. While the list scrolls rows take no hover: the hover
@@ -59,8 +61,7 @@
     width: 100%;
     min-height: var(--row-height);
     overflow: hidden;
-    padding: var(--space-12) var(--pane-padding) calc(var(--space-12) - var(--border-width));
-    border-bottom: var(--border-width) solid var(--border);
+    padding: var(--space-12) var(--pane-padding);
     background-color: transparent;
     text-align: left;
     transition:
@@ -105,6 +106,17 @@
     transition:
       opacity var(--dur-fast) var(--ease-in),
       background-color var(--dur-base) var(--ease-standard);
+  }
+
+  /* The hairline under the row (inset where the list says so). */
+  .row::after {
+    position: absolute;
+    right: var(--row-rule-inset, 0);
+    bottom: 0;
+    left: var(--row-rule-inset, 0);
+    height: var(--border-width);
+    background-color: var(--border);
+    content: '';
   }
 
   .selected::before {

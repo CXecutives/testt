@@ -162,6 +162,25 @@ test('job rows select on click and reorder without losing a row', async ({ page 
   await expect(rows.last()).toHaveAttribute('data-testid', first!);
 });
 
+test('the hairline under a row spans it, or insets where the list reaches past its column', async ({
+  page,
+}) => {
+  await open(page, '?gallery');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const rule = (): Promise<{ left: string; right: string; height: string }> =>
+    list
+      .locator('.row')
+      .first()
+      .evaluate((row) => {
+        const style = getComputedStyle(row, '::after');
+        return { left: style.left, right: style.right, height: style.height };
+      });
+  expect(await rule()).toEqual({ left: '0px', right: '0px', height: '1px' });
+  await list.evaluate((node) => node.style.setProperty('--row-rule-inset', 'var(--pane-padding)'));
+  expect(await rule()).toEqual({ left: '16px', right: '16px', height: '1px' });
+});
+
 test('job rows: tools, status, aged date, provisional ring, no dot on excluded', async ({
   page,
 }) => {
