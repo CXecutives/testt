@@ -287,7 +287,8 @@ test('the run status in the sidebar opens the last run', async ({ page }) => {
   await page.getByTestId('nav-settings').click();
   await page.getByTestId('run-status').click();
   await expect(page.getByTestId('view-jobs')).toBeVisible();
-  await expect(page.getByTestId('run-finished')).toContainText('7 neue Jobs');
+  // Seven new in the mails, one of them excluded: the run brought six new jobs.
+  await expect(page.getByTestId('run-finished')).toContainText('6 neu');
   await page.getByTestId('run-toggle').click();
   await expect(page.getByTestId('last-new')).toHaveCount(0);
   await page.getByTestId('run-close').click();
@@ -329,9 +330,11 @@ test('every run status fits the sidebar without being cut off', async ({ page })
     'scoring',
     'writingFiles',
   ] as const;
-  await page.evaluate(() =>
-    window.__harness.emit({ type: 'progress', step: 'scan', portal: null, done: 0, total: 3 }),
-  );
+  // A run begins with its kind, like every run of the backend.
+  await page.evaluate(() => {
+    window.__harness.emit({ type: 'started', kind: 'fetch' });
+    window.__harness.emit({ type: 'progress', step: 'scan', portal: null, done: 0, total: 3 });
+  });
   for (const code of codes) {
     await page.evaluate(
       (c) => window.__harness.emit({ type: 'status', code: c, portal: 'freelance', until: null }),
@@ -349,10 +352,11 @@ test('every run status fits the sidebar without being cut off', async ({ page })
 
 test('icon-only buttons show a styled tooltip after the delay', async ({ page }) => {
   await open(page, '?platform=windows');
-  const sort = page.getByTestId('sort');
-  await sort.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Beste Passung zuerst');
-  await expect(sort).not.toHaveAttribute('title');
+  await page.locator('[data-testid^="job-row-"]').first().click();
+  const close = page.getByTestId('reader-close');
+  await close.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Schließen');
+  await expect(close).not.toHaveAttribute('title');
 });
 
 test('baseline: shell on Windows', async ({ page }) => {

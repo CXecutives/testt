@@ -5,7 +5,8 @@
 //! holds the lock across an `await`).
 //!
 //! `schema` creates and migrates the tables, `jobs` holds the job, alert mail, job detail
-//! and text file methods, `matches` reserves the columns of the coming schema 3.
+//! and text file methods, `matches` the match, read and pin columns of schema 3, `marks`
+//! the user's application status, note and "hidden" of schema 4.
 
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
@@ -19,12 +20,13 @@ use crate::time::{from_db, to_db};
 
 mod duplicates;
 mod jobs;
+pub mod marks;
 pub mod matches;
 mod pages;
 mod schema;
 
 pub use jobs::{
-    AlertMailRow, JobFilter, JobRow, MailRef, PageCounts, PageQuery, PortalCount, Seen,
+    AlertMailRow, JobFilter, JobRow, ListFacet, MailRef, PageCounts, PageQuery, PortalCount, Seen,
 };
 
 pub struct Store {

@@ -6,15 +6,22 @@ import { app } from './app.svelte';
 import { run } from './run.svelte';
 
 class Shell {
+  /** Until `start_run` answers the first-run page stays (a failed start never flashes). */
   get firstRun(): boolean {
     const state = app.state;
-    return state !== null && state.firstRun && !run.active && run.summary === null;
+    const going = run.active && !run.starting;
+    return state !== null && state.firstRun && !going && run.summary === null;
   }
 
-  /** The run card above the list is up: during a run, and after it until it is hidden. */
+  /**
+   * The run card above the list is up: while a fetch or details run goes, after it until it
+   * is hidden, and while a failed start has something to say.
+   */
   get runCard(): boolean {
     return (
-      run.active || (run.panel !== 'hidden' && (run.summary ?? app.state?.lastRun ?? null) !== null)
+      run.fetching ||
+      run.startError !== null ||
+      (run.panel !== 'hidden' && (run.result ?? app.state?.lastRun ?? null) !== null)
     );
   }
 }

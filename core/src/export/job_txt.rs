@@ -89,6 +89,9 @@ mod tests {
             match_: None,
             match_rev: None,
             facts: None,
+            app_status: None,
+            app_status_at: None,
+            hidden_at: None,
         }
     }
 
@@ -116,6 +119,27 @@ mod tests {
              \n\
              Ausführlicher Projekttext.\n\nZweiter Absatz.\n"
         );
+    }
+
+    /// The user's marks (application status, hidden) never reach the text file: its bytes
+    /// are the contract with the skill.
+    #[test]
+    fn the_user_marks_never_change_a_text_file() {
+        let plain = job("Interim CFO", "Muster GmbH", "Hamburg", None);
+        let mut marked = plain.clone();
+        marked.app_status = Some(crate::model::AppStatus::Interview);
+        marked.app_status_at = Some("2026-09-20T10:00:00Z".parse().unwrap());
+        marked.hidden_at = Some("2026-09-21T10:00:00Z".parse().unwrap());
+        let at = plain.desc_fetched_at.unwrap();
+        assert_eq!(
+            txt_contents(&plain, "Text", at),
+            txt_contents(&marked, "Text", at)
+        );
+        let (a, b) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+        let name = write_job_txt(a.path(), &plain, "Text").unwrap();
+        assert_eq!(write_job_txt(b.path(), &marked, "Text").unwrap(), name);
+        let read = |dir: &std::path::Path| std::fs::read(dir.join(TXT_DIR).join(&name)).unwrap();
+        assert_eq!(read(a.path()), read(b.path()));
     }
 
     /// A line break in the title must not fake a header line.

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::jobs::{JOB_COLUMNS, JobRow, job_row};
 use super::{Store, bump};
 use crate::error::Result;
-use crate::model::{MatchRecord, MatchStatus, Notice};
+use crate::model::{HIGH_FROM, MatchRecord, MatchStatus, Notice};
 use crate::portal::JobKey;
 use crate::text::truncate_chars;
 use crate::time::{from_db, to_db};
@@ -278,24 +278,42 @@ impl Store {
     }
 
     /// The best scored (not excluded) jobs first seen in `run`; duplicates show as their
-    /// original.
+    /// original, hidden jobs ("not interesting") are left out.
     pub fn top_matches(&self, run: i64, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE first_seen_run = ?1 AND match_status = 'scored' AND dup_of IS NULL
+               AND hidden_at IS NULL
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id LIMIT ?2"
         ))?;
         let rows = stmt.query_map(params![run, limit], job_row)?;
         rows.map(|r| r?).collect()
     }
 
+    /// The jobs a mailbox run brought and how many of them are scored in the high band: first
+    /// seen in `run`, a job several portals announce once (as its original), excluded ones
+    /// left out - the numbers of the run card.
+    pub fn new_jobs(&self, run: i64) -> Result<(usize, usize)> {
+        let (count, high): (i64, i64) = self.conn().query_row(
+            "SELECT COUNT(*), COALESCE(SUM(match_status IS 'scored' AND match_score >= ?2), 0)
+             FROM job WHERE first_seen_run = ?1 AND dup_of IS NULL
+                        AND match_status IS NOT 'excluded'",
+            params![run, HIGH_FROM],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        Ok((
+            usize::try_from(count).unwrap_or(0),
+            usize::try_from(high).unwrap_or(0),
+        ))
+    }
+
     /// The jobs of the HTML overview: the pinned ones if there are any (`true`), else the
-    /// unread scored jobs of the mailbox run `run`; best first.
+    /// unread scored jobs of the mailbox run `run`; best first. Hidden jobs are in neither.
     pub fn overview_jobs(&self, run: i64) -> Result<(Vec<JobRow>, bool)> {
         let conn = self.conn();
         let mut pinned = conn.prepare_cached(&format!(
-            "SELECT {JOB_COLUMNS} FROM job WHERE pinned_at IS NOT NULL
+            "SELECT {JOB_COLUMNS} FROM job WHERE pinned_at IS NOT NULL AND hidden_at IS NULL
              ORDER BY (match_status IS 'excluded'), match_score DESC, pinned_at DESC"
         ))?;
         let jobs: Vec<JobRow> = pinned
@@ -308,7 +326,7 @@ impl Store {
         let mut new = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE first_seen_run = ?1 AND read_at IS NULL AND match_status = 'scored'
-               AND dup_of IS NULL
+               AND dup_of IS NULL AND hidden_at IS NULL
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id"
         ))?;
         let jobs = new

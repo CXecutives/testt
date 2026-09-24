@@ -1,5 +1,6 @@
 <!--
-  The ad text with the passages of the match marked. Built from text nodes and <mark>
+  The ad text with the passages of the match marked; the passage of a hovered reason is
+  tinted (80 ms in, 150 ms out), the one just jumped to flashes navy once. Built from text nodes and <mark>
   elements only (no HTML from the page ever reaches the DOM). Offsets are UTF-16, as the
   browser counts; overlapping passages keep the first one. The text selects and copies like
   a document (`data-copy`).
@@ -35,9 +36,11 @@
     highlights: readonly Highlight[];
     /** Reason whose passages are lit (hover in the reasons). */
     active: string | null;
+    /** Reason whose passages flash once (after a jump to them). */
+    flash?: string | null;
     element?: HTMLElement | null;
   }
-  let { text, highlights, active, element = $bindable(null) }: Props = $props();
+  let { text, highlights, active, flash = null, element = $bindable(null) }: Props = $props();
 
   const parts = $derived(segments(text, highlights));
 </script>
@@ -46,6 +49,7 @@
   {#each parts as part, index (index)}{#if part.mark}<mark
         class="mark {part.mark.kind}"
         class:active={active === part.mark.reason}
+        class:flash={flash === part.mark.reason}
         data-reason={part.mark.reason}>{part.text}</mark
       >{:else}{part.text}{/if}{/each}
 </div>
@@ -66,7 +70,12 @@
     text-decoration-color: var(--border-strong);
     text-decoration-thickness: var(--focus-width);
     text-underline-offset: var(--space-4);
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--dur-base) var(--ease-standard);
+  }
+
+  .mark.active,
+  .mark.flash {
+    transition-duration: var(--dur-hover);
   }
 
   .met,
@@ -97,5 +106,10 @@
 
   .check.active {
     background-color: var(--warning-soft);
+  }
+
+  /* After a jump: the passage lights up in navy ("you are here") and settles. */
+  .mark.flash {
+    background-color: var(--border-navy);
   }
 </style>

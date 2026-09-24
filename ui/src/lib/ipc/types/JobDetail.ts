@@ -10,4 +10,12 @@ export type JobDetail = { job: JobView,
 /**
  * The full text (only with details `ok`).
  */
-text: string | null, url: string, fetchedAt: string | null, mail: JobMail, match: MatchDetail | null, };
+text: string | null, url: string, fetchedAt: string | null, mail: JobMail, match: MatchDetail | null, 
+/**
+ * The user's note (`null` = none).
+ */
+note: string | null, 
+/**
+ * When the application status was set last.
+ */
+appStatusAt: string | null, };

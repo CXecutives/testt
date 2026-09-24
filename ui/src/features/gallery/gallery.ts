@@ -189,6 +189,8 @@ function sample(
     short: false,
     match: null,
     alsoOn: [],
+    appStatus: null,
+    hidden: false,
     ...extra,
   };
 }

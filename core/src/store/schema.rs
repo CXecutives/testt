@@ -8,10 +8,11 @@ use std::fmt::Write as _;
 
 use rusqlite::Connection;
 
+use super::marks::SCHEMA_4_JOB_COLUMNS;
 use super::matches::SCHEMA_3_JOB_COLUMNS;
 use crate::error::{Error, Result};
 
-pub(super) const SCHEMA_VERSION: i64 = 3;
+pub(super) const SCHEMA_VERSION: i64 = 4;
 
 /// Schema 2, the base of every fresh database. Frozen: later changes are migration steps.
 /// The same layout lies in `core/tests/fixtures/schema_v2.sql` for the migration tests.
@@ -90,9 +91,23 @@ fn migrate_2_to_3() -> String {
     sql
 }
 
+/// From schema 3 to 4: the nullable columns of the user's marks (application status, note,
+/// hidden). Nothing else changes: every job starts without a status, note or "hidden".
+fn migrate_3_to_4() -> String {
+    let mut sql = String::new();
+    for (name, sql_type) in SCHEMA_4_JOB_COLUMNS {
+        let _ = writeln!(sql, "ALTER TABLE job ADD COLUMN {name} {sql_type};");
+    }
+    sql
+}
+
 /// One step per version: `steps()[v - 1]` leads from `v` to `v + 1`.
 fn steps() -> Vec<String> {
-    vec![MIGRATE_1_TO_2.to_string(), migrate_2_to_3()]
+    vec![
+        MIGRATE_1_TO_2.to_string(),
+        migrate_2_to_3(),
+        migrate_3_to_4(),
+    ]
 }
 
 /// Brings a freshly opened connection to the current schema: creates the tables in an empty
@@ -137,6 +152,8 @@ mod tests {
 
     /// The frozen schema 2 - the "old" database of the migration tests.
     const FIXTURE_V2: &str = include_str!("../../tests/fixtures/schema_v2.sql");
+    /// The frozen schema 3 - the database before the user's marks.
+    const FIXTURE_V3: &str = include_str!("../../tests/fixtures/schema_v3.sql");
 
     fn columns(conn: &Connection, table: &str) -> Vec<(String, String, bool)> {
         let mut stmt = conn
@@ -172,6 +189,65 @@ mod tests {
         for table in ["job", "alert_mail", "kv"] {
             assert_eq!(columns(&fixture, table), columns(&code, table), "{table}");
         }
+    }
+
+    /// The frozen schema 3 is what the chain made of schema 2 (the same columns in the same
+    /// order), so the migration tests start from a real schema 3 database.
+    #[test]
+    fn the_fixture_is_schema_3() {
+        let fixture = Connection::open_in_memory().unwrap();
+        fixture.execute_batch(FIXTURE_V3).unwrap();
+        let code = Connection::open_in_memory().unwrap();
+        code.execute_batch(&format!("{SCHEMA_2}{}", migrate_2_to_3()))
+            .unwrap();
+        for table in ["job", "alert_mail", "kv"] {
+            assert_eq!(columns(&fixture, table), columns(&code, table), "{table}");
+        }
+        assert_eq!(indexes(&fixture), indexes(&code));
+    }
+
+    /// Schema 3 with data: the jobs, their scores and marks stay as they were; the new
+    /// columns start empty.
+    #[test]
+    fn a_schema_3_database_is_migrated_and_keeps_its_jobs() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("jobs.db");
+        let old = Connection::open(&path).unwrap();
+        old.execute_batch(&format!(
+            "{FIXTURE_V3}
+             INSERT INTO job (portal, job_id, url, title, company, location, mail_subject,
+                              first_seen_at, first_seen_run, last_seen_run, search,
+                              match_score, match_status, read_at, pinned_at)
+             VALUES ('linkedin', '4000000001', 'https://www.linkedin.com/jobs/view/4000000001/',
+                     'Interim CFO', '', '', 'x', 100, 1, 1, 'interim cfo', 84, 'scored', 150,
+                     160);
+             INSERT INTO kv (key, value) VALUES ('last_scan_run', '1'), ('run_seq', '1');
+             PRAGMA user_version = 3;"
+        ))
+        .unwrap();
+        drop(old);
+        let store = Store::open(&path).unwrap();
+        assert_eq!(version(&store.conn()), SCHEMA_VERSION);
+        let key = crate::portal::job_link("https://www.linkedin.com/jobs/view/4000000001/")
+            .unwrap()
+            .key;
+        let job = store.job(&key).unwrap().unwrap();
+        assert_eq!(job.title, "Interim CFO");
+        assert_eq!(job.match_.map(|m| m.score), Some(84));
+        assert!(job.read_at.is_some() && job.pinned_at.is_some());
+        assert_eq!(
+            (job.app_status, job.app_status_at, job.hidden_at),
+            (None, None, None)
+        );
+        assert_eq!(store.note(&key).unwrap(), None);
+        // The new marks work on the migrated database.
+        assert!(
+            store
+                .set_app_status(&key, Some(crate::model::AppStatus::Applied), now())
+                .unwrap()
+        );
+        assert!(store.set_note(&key, "Termin am Freitag").unwrap());
+        assert!(store.set_hidden(&key, true, now()).unwrap());
     }
 
     #[test]
@@ -302,8 +378,22 @@ mod tests {
             .into_iter()
             .map(|(name, ..)| name)
             .collect();
-        for (column, _) in SCHEMA_3_JOB_COLUMNS {
+        for (column, _) in SCHEMA_3_JOB_COLUMNS.iter().chain(SCHEMA_4_JOB_COLUMNS) {
             assert!(names.iter().any(|n| n == column), "{column}");
+        }
+        // The same from the frozen schema 3.
+        let path = dir.path().join("v3.db");
+        let old = Connection::open(&path).unwrap();
+        old.execute_batch(&format!("{FIXTURE_V3} PRAGMA user_version = 3;"))
+            .unwrap();
+        drop(old);
+        let migrated = Store::open(&path).unwrap();
+        for table in ["job", "alert_mail", "kv"] {
+            assert_eq!(
+                columns(&migrated.conn(), table),
+                columns(&fresh.conn(), table),
+                "{table} from schema 3"
+            );
         }
     }
 
