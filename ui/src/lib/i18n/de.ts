@@ -11,6 +11,7 @@
 // `Record<Code, ...>`, so a new code without a text is a type error.
 
 import type {
+  AppStatus,
   Band,
   DetailState,
   ErrorKind,
@@ -370,6 +371,7 @@ export const de = {
     hide: 'Ausblenden',
     back: 'Zurück',
     retry: 'Erneut versuchen',
+    undo: 'Rückgängig',
     openFolder: 'Ordner öffnen',
     openLog: 'Protokoll öffnen',
   },
@@ -385,7 +387,7 @@ export const de = {
     excluded: 'Ausgeschlossen',
     unscorable: 'Nicht bewertbar',
     pending: 'Wird bewertet',
-    none: 'Ohne Passung',
+    none: 'Noch nicht bewertet',
     band: {
       high: 'Hohe Passung',
       mid: 'Mittlere Passung',
@@ -422,7 +424,7 @@ export const de = {
     } satisfies Record<WorkMode, string>,
     /** Badge per DetailState kind (`ok` shows none). */
     detail: {
-      pending: 'Details folgen',
+      pending: 'Ohne Details',
       teaser: 'Nur Anriss',
       failed: 'Details fehlen',
       unfetchable: 'Nicht abrufbar',
@@ -440,6 +442,7 @@ export const de = {
     facet: 'Auswahl',
     facetNew: 'Neu',
     facetAll: 'Alle',
+    facetApplications: 'Bewerbungen',
     sortedBy: {
       match: 'Beste Passung zuerst',
       newest: 'Neueste zuerst',
@@ -585,6 +588,21 @@ export const de = {
     open: 'Anzeige öffnen',
     close: 'Schließen',
     pin: 'Merken',
+    hide: 'Ausblenden',
+    unhide: 'Einblenden',
+    prompt: 'Als Prompt kopieren',
+    /** Under the band of a score that comes from a teaser only. */
+    preliminary: 'Vorläufig, aus einem Anriss bewertet',
+    noteLabel: 'Notiz',
+    status: 'Bewerbung',
+    appStatus: {
+      applied: 'Beworben',
+      interview: 'Im Gespräch',
+      offer: 'Zusage',
+      rejected: 'Absage',
+    } satisfies Record<AppStatus, string>,
+    /** "Beworben vor 9 Tagen", "Im Gespräch gestern". */
+    statusSince: (status: string, when: string) => `${status} ${when}`,
     mail: OPEN_MAIL,
     fetchDetails: 'Details holen',
     why: 'Warum',
@@ -783,6 +801,9 @@ export const de = {
     saved: 'Gespeichert.',
     rescored: 'Die Jobs sind neu bewertet.',
     copied: 'Kopiert.',
+    /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
+    prompt: 'Prompt kopiert. In einen KI-Chat einfügen.',
+    hidden: 'Ausgeblendet.',
     runDone: (value: number) =>
       value === 0
         ? 'Abruf fertig, nichts Neues.'

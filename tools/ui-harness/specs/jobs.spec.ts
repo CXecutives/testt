@@ -71,7 +71,10 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
 
   const reason = page.getByTestId('reasons-met').getByRole('button').first();
   await reason.hover();
-  await expect(page.getByRole('tooltip')).toContainText('im Profil');
+  // The evidence stands under the point, quiet (no tooltip needed to trust it).
+  await expect(page.getByTestId('reasons-met').getByTestId('evidence').first()).toContainText(
+    'im Profil',
+  );
   await expect(page.locator('mark.active')).toHaveCount(1);
   // A click scrolls the passage into view (smooth; retried until it has arrived).
   await expect(async () => {
@@ -239,11 +242,14 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
     if (numbers === null) continue;
     const [met, total] = [Number(numbers[1]), Number(numbers[2])];
     const listed = await page.getByTestId('why').evaluate((why) => {
-      // Muss is the default and carries no badge; only Kann does.
-      const musts = [...why.querySelectorAll('li[data-weight="must"]')];
-      if (musts.some((li) => li.querySelector('.badge') !== null)) return null;
+      // Muss is the default and carries no badge, except on an open one (it stands out
+      // there); Kann always does.
       const kind = (li: Element): string =>
         li.querySelector('[role="img"]')?.getAttribute('aria-label') ?? '';
+      const musts = [...why.querySelectorAll('li[data-weight="must"]')];
+      if (musts.some((li) => li.querySelector('.badge') !== null && kind(li) !== 'Offen')) {
+        return null;
+      }
       return {
         met: musts.filter((li) => kind(li) === 'Erfüllt').length,
         partial: musts.filter((li) => kind(li) === 'Teilweise erfüllt').length,
