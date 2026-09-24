@@ -14,7 +14,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Mac | no Mac available: macOS via GitHub `macos-latest` (real app screenshots, dmg install probe, keychain test) + WebKit locally |
 | macOS minimum | 14.0 (Safari 17 baseline, `data_store_identifier` for sessions) |
 | Evaluation data | no access to Katharina: local real data + real runs through the app, two realistic invented profiles, blind labels by two independent agents + tie-breaker |
-| Embeddings | experiment with model2vec (<= 40 MB), shipped only if the gate passes |
+| Embeddings | dropped (user, 2026-09-24): the rule engine covers the measured failures; the `Embedder` seam stays for later |
 | AI stage | not in the app; the external `job-matching` skill stays and may be improved (phase 5) |
 | Extra criteria | only "permanent position detected" as a check hint |
 | Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults, risk badge per switch |
@@ -89,7 +89,6 @@ criteria, ladder, relevance, semantic (feature), score, explain.
   Windows and macOS · median <= 0.5 ms/job, 2000 jobs <= 3 s incl. SQLite.
 - Private gates (reported "preliminary" if n < 60): exclusion precision 100 %, recall >= 80 % · NDCG@10 >= 0.75 and
   >= old + 0.10 · P@5 >= 0.8 and >= old · no grade-3 job below 40 · high-band precision >= 0.8 · Spearman >= 0.55 and > old.
-- Embedding gate: dNDCG@10 >= +0.03 (bootstrap lower bound > 0), nothing else worse, <= 40 MB, cold start <= 300 ms.
 - Prescore order only if AUC >= 0.7. Report in `docs/MATCHING.md`.
 
 ### Scraping and sign-in
@@ -162,7 +161,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
       shell (title bar, tabs, caption buttons); gallery with token boards; Playwright against `vite preview` with
       production CSP; lint setup; new `ui_contract.rs`; old `ui/*` removed.
       Done when: `npm run check` green; a planted hex value, px value and raw `<button>` each turn lint red.
-- [ ] 1c Platform and delivery: tauri.conf (withGlobalTauri false, freezePrototype true, frontendDist `../ui/dist`,
+- [x] 1c Platform and delivery (merged 92669ef; macOS parts verified only by CI): tauri.conf (withGlobalTauri false, freezePrototype true, frontendDist `../ui/dist`,
       beforeBuildCommand, hidden window + light theme), `tauri.windows.conf.json` (NSIS), macOS minimum 14.0,
       `platform.rs`, smoke on `data-testid`, `rust-toolchain.toml`, English CI with `tauri build` on both OS,
       macOS dmg install probe with screenshot, no public release.
@@ -174,13 +173,13 @@ macOS: universal, ad-hoc signed, minimum 14.0.
 
 ### Phase 2 - core work (parallel, disjoint files; contracts frozen)
 - [ ] 2A Matching better: V5, V6, V3, V2, V1, V4, V15, V7, V9, V8, V16, V10-V13, decided/check model, V17, V18, V19,
-      explain.rs, prescore - one commit each with corpus guard; calibrate, freeze; then embedding experiment + gate.
+      explain.rs, prescore - one commit each with corpus guard; calibrate, freeze.
 - [ ] 2B Store, runs, export: schema 3 + chain + WAL; save_match(es), mark_read, set_pinned, job_page; settings
       (portal switches, autoFetchOnStart); LocalMatcher, scoring at JobUpdated + catch-up, Rust-triggered rescore and
       auto fetch; profile summary + template; Excel column + grey header, mail address out of info sheet; HTML
       overview; TXT byte tests; demo with high/mid/low/excluded.
 - [ ] 2C Components: all 23 with variants, states, motion; complete gallery; baselines.
-- [ ] 2D Scraping and sign-in: S1-S11; switches honoured in the fetch path; optional sign-in with risk note; delete
+- [ ] 2D Scraping and sign-in (session delete, macOS data store, no unasked sign-in window, keychain test already merged with 1c): S1-S11; switches honoured in the fetch path; optional sign-in with risk note; delete
       session per portal (macOS `data_store_identifier`); keychain test on macOS; dead code list.
       Done when: 26 fetch tests + new (4th test portal via registry only, health, teaser, Retry-After, requeue, slug
       URL = same id, duplicate group, IMAP loads candidates only, details off => zero portal requests, sign-out
@@ -220,3 +219,6 @@ For each of Jobs, Reader, Day overview, Profil, Einstellungen, First run, dialog
 ## Glossary (UI)
 Job · Portal · Passung · Details · Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu (= unread) ·
 Zu prüfen · Merken. Checked for the UI catalog and the Rust export texts.
+
+## Budget
+The user's usage limit is tight: work token-efficiently without lowering quality - targeted reads, focused test runs, no sub-agents inside tracks, cheaper models only for mechanical work (comment translation, labelling), screenshots only at milestones. Commit every finished step.
