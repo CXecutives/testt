@@ -400,9 +400,15 @@ fn language_fit(skills: &Skills, language: &str, level: Option<u8>) -> ItemFit {
     let Some(&(_, have)) = skills.languages.iter().find(|(l, _)| l == language) else {
         return NONE;
     };
-    // A level below the requirement (B2 for "fluent") stays open.
+    // One level below the requirement (B2 for "fluent") is half, further below open.
     let need = level.unwrap_or(3);
-    let value = if have >= need { E_FULL } else { E_NONE };
+    let value = if have >= need {
+        E_FULL
+    } else if have + 1 >= need {
+        E_HALF
+    } else {
+        E_NONE
+    };
     ItemFit {
         value,
         entry: None,

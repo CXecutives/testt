@@ -174,6 +174,17 @@ pub(crate) const CORE_CONCEPTS: &[(&str, &str)] = &[
     ("spanish", "spanisch"),
 ];
 
+/// Heads that name nearly the same skill (half a match, both ways, also at the start of a
+/// compound).
+pub(crate) const EQUIVALENT_HEADS: &[(&str, &str)] = &[
+    ("projektleitung", "projektmanagement"),
+    ("programmleitung", "programmmanagement"),
+];
+/// Gender endings of a word (after folding).
+pub(crate) const GENDER_FORMS: &[&str] = &[
+    ":innen", "*innen", "_innen", ":in", "*in", "_in", "/in", "(in)",
+];
+
 /// Language stems and their canonical name.
 pub(crate) const LANGUAGES: &[&str] = &[
     "deutsch",
