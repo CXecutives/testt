@@ -221,7 +221,8 @@
   --sh-xs: 0 1px 2px hsl(var(--p-shade-xs) / 0.06);
   --sh-thumb: 0 1px 2px hsl(var(--p-shade-xs) / 0.18);
   --sh-pop: 0 8px 24px -6px hsl(var(--p-shade-pop) / 0.2), 0 1px 3px hsl(var(--p-shade-pop) / 0.08);
-  --sh-tooltip: 0 4px 12px -4px hsl(var(--p-shade-pop) / 0.22), 0 1px 2px hsl(var(--p-shade-pop) / 0.1);
+  --sh-tooltip:
+    0 4px 12px -4px hsl(var(--p-shade-pop) / 0.22), 0 1px 2px hsl(var(--p-shade-pop) / 0.1);
   --sh-hover:
     0 4px 12px -4px hsl(var(--p-shade-navy) / 0.14), 0 1px 2px hsl(var(--p-shade-navy) / 0.06);
   --sh-primary: inset 0 1px 0 hsl(var(--p-white) / 0.16), 0 1px 2px hsl(var(--p-shade-xs) / 0.12);
