@@ -11,6 +11,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { formatNumber } from '$lib/i18n/format';
+  import { settled } from '$lib/motion/settled.svelte';
   import { roll } from '$lib/motion/transitions';
   import Icon, { type IconName } from './Icon.svelte';
   import type { TileTone } from './IconTile.svelte';
@@ -41,6 +42,9 @@
   // An empty tile filters nothing (an active one stays a button, so it can be cleared).
   const clickable = $derived(onclick !== null && (value !== 0 || active));
 
+  // A number that arrives while the view is still being built (a load right after it
+  // mounts) is simply there; only a change on a drawn screen rolls.
+  const motion = settled();
   let previous = untrack(() => value);
   let up = $state(true);
 
@@ -59,7 +63,8 @@
     <span class="label">{label}</span>
   </span>
   <span class="value" class:zero={value === 0}>
-    {#key value}<span class="digits" in:roll={{ up }}>{formatNumber(value)}</span>{/key}
+    {#key value}<span class="digits" in:roll={{ up, on: motion.ready }}>{formatNumber(value)}</span
+      >{/key}
   </span>
   {#if hint}<span class="hint">{hint}</span>{/if}
 {/snippet}

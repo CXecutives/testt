@@ -17,6 +17,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { formatNumber } from '$lib/i18n/format';
+  import { settled } from '$lib/motion/settled.svelte';
   import { roll } from '$lib/motion/transitions';
 
   interface Props {
@@ -29,6 +30,9 @@
 
   let { value, tone = 'soft', label = null, testid = null }: Props = $props();
 
+  // A number that arrives while the view is still being built (a load right after it
+  // mounts) is simply there; only a change on a drawn screen rolls.
+  const motion = settled();
   let previous = untrack(() => value);
   let up = $state(true);
 
@@ -47,7 +51,8 @@
   aria-label={label ?? undefined}
   data-testid={testid ?? undefined}
 >
-  {#key value}<span class="digits" in:roll={{ up }}>{formatNumber(value)}</span>{/key}
+  {#key value}<span class="digits" in:roll={{ up, on: motion.ready }}>{formatNumber(value)}</span
+    >{/key}
 </span>
 
 <style>

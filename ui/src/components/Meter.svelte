@@ -11,6 +11,7 @@
 
 <script lang="ts">
   import { cssVars } from '$lib/actions/cssVars';
+  import { settled } from '$lib/motion/settled.svelte';
 
   interface Props {
     value: number | null;
@@ -22,12 +23,14 @@
 
   let { value, tone = 'brand', size = 'md', label, testid = null }: Props = $props();
 
+  const motion = settled();
   const clamped = $derived(value === null ? null : Math.max(0, Math.min(1, value)));
 </script>
 
 <div
   class="meter {tone} {size}"
   class:indeterminate={clamped === null}
+  class:ready={motion.ready}
   role="progressbar"
   aria-label={label}
   aria-valuemin={0}
@@ -56,6 +59,10 @@
     background-color: var(--meter-color);
     transform: scaleX(var(--progress));
     transform-origin: left center;
+  }
+
+  /* It fills only once the bar has been drawn (a meter that mounts shows its value). */
+  .ready .fill {
     transition: transform var(--dur-slow) var(--ease-out);
   }
 

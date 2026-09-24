@@ -16,6 +16,7 @@
 
 <script lang="ts" generics="Id extends string">
   import { cssVars } from '$lib/actions/cssVars';
+  import { settled } from '$lib/motion/settled.svelte';
   import Count from './Count.svelte';
 
   interface Props {
@@ -29,6 +30,8 @@
 
   let { options, value, label, size = 'md', testid = null, onchange }: Props = $props();
 
+  const motion = settled();
+
   const index = $derived(
     Math.max(
       0,
@@ -39,6 +42,7 @@
 
 <div
   class="segmented {size}"
+  class:ready={motion.ready}
   role="radiogroup"
   aria-label={label}
   data-testid={testid ?? undefined}
@@ -86,8 +90,12 @@
     background-color: var(--surface);
     box-shadow: var(--sh-thumb);
     transform: translateX(calc(var(--index) * 100%));
-    transition: transform var(--dur-slow) var(--ease-emphasized);
     will-change: transform;
+  }
+
+  /* It slides only once the control has been drawn (never when it mounts). */
+  .ready .thumb {
+    transition: transform var(--dur-slow) var(--ease-emphasized);
   }
 
   .option {

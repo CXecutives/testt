@@ -21,6 +21,7 @@
 <script lang="ts" generics="Id extends string">
   import { tooltip } from '$lib/actions/tooltip';
   import { cssVars } from '$lib/actions/cssVars';
+  import { settled } from '$lib/motion/settled.svelte';
   import { fade, pop } from '$lib/motion/transitions';
   import Count from './Count.svelte';
   import Icon from './Icon.svelte';
@@ -35,9 +36,16 @@
   let { items, active, label, collapsed = false, onselect }: Props = $props();
 
   const index = $derived(items.findIndex((item) => item.id === active));
+  const motion = settled();
 </script>
 
-<nav class="nav" class:collapsed aria-label={label} use:cssVars={{ index: Math.max(0, index) }}>
+<nav
+  class="nav"
+  class:collapsed
+  class:ready={motion.ready}
+  aria-label={label}
+  use:cssVars={{ index: Math.max(0, index) }}
+>
   <!-- Re-created when the rail flips, so crossing 1100 px places it without sliding. -->
   {#key collapsed}
     <span class="indicator" class:none={index < 0} aria-hidden="true"></span>
@@ -87,8 +95,12 @@
     background-color: var(--nav-active-bg);
     box-shadow: var(--sh-xs);
     transform: translateY(calc(var(--index) * var(--nav-step)));
-    transition: transform var(--dur-slow) var(--ease-emphasized);
     will-change: transform;
+  }
+
+  /* It slides only once the nav has been drawn (never when it mounts). */
+  .ready .indicator {
+    transition: transform var(--dur-slow) var(--ease-emphasized);
   }
 
   .indicator.none {
