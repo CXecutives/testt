@@ -15,8 +15,8 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | macOS minimum | 14.0 (Safari 17 baseline, `data_store_identifier` for sessions) |
 | Evaluation data | no access to Katharina: local real data + real runs through the app, two realistic invented profiles, blind labels by two independent agents + tie-breaker |
 | Embeddings | dropped (user, 2026-09-24): the rule engine covers the measured failures; the `Embedder` seam stays for later |
-| AI stage | not in the app; the external `job-matching` skill stays and may be improved (phase 5) |
-| Extra criteria | only "permanent position detected" as a check hint |
+| AI stage | none; the external `job-matching` skill is dropped (user, 2026-09-24). Its useful rubric knowledge moves into the engine instead |
+| Extra criteria | superseded: the engine adopts the skill rubric (contract type, permanent-role salary and region, seniority, formal requirements) via optional profile keys - exclusions only on clear wording, otherwise checks |
 | Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults, risk badge per switch |
 | HTML overview | no full text: title, company, location, portal, link, match, 3 met, 2 open, exclusion reason |
 | Extras | Pin (star) + auto fetch on start (> 6 h, switchable); no notifications, no "still open?" checks |
@@ -210,8 +210,6 @@ macOS: universal, ad-hoc signed, minimum 14.0.
 - [ ] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios
 - [ ] Performance (start time, long tasks at 2000 jobs), contrast
 - [ ] Consistency audit per screen (checklist below) and fixes; one adversarial review workflow over the whole diff
-- [ ] Skill `job-matching`: back up original to `../_archive/job-matching-skill-original`, check whether the folder
-      is managed, fix hard-coded foreign path, use the app's match as pre-screening, align rubric wording, test, report diff
 
 ### Phase 6 - delivery
 - [ ] Final CI builds (artifacts only), first-start guide (SmartScreen, Gatekeeper, keychain), close this plan, hand over
