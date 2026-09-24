@@ -32,23 +32,33 @@
   /** The best scored new jobs (one small query; again whenever the counts move). */
   let top = $state.raw<JobView[]>([]);
   let topRequest = 0;
+  /** The best matches did not load: a quiet retry in their place. */
+  let topError = $state<string | null>(null);
+
+  function loadTop(): void {
+    const request = ++topRequest;
+    if (!app.hasProfile) {
+      top = [];
+      topError = null;
+      return;
+    }
+    invoke('list_jobs', {
+      query: { facet: 'new', sort: 'match', search: null, limit: BEST, offset: 0 },
+    })
+      .then((page) => {
+        if (request !== topRequest) return;
+        top = page.jobs;
+        topError = null;
+      })
+      .catch((error: unknown) => {
+        if (request === topRequest) topError = errorText(error);
+      });
+  }
+
   $effect(() => {
     void jobs.overviewCounts;
-    const scoring = app.hasProfile;
-    untrack(() => {
-      const request = ++topRequest;
-      if (!scoring) {
-        top = [];
-        return;
-      }
-      invoke('list_jobs', {
-        query: { facet: 'new', sort: 'match', search: null, limit: BEST, offset: 0 },
-      })
-        .then((page) => {
-          if (request === topRequest) top = page.jobs;
-        })
-        .catch((error: unknown) => (actionError = errorText(error)));
-    });
+    void app.hasProfile;
+    untrack(loadTop);
   });
   // As the list knows them now (read, pinned); only scored ones are a match.
   const best = $derived(
@@ -168,7 +178,16 @@
     </Card>
   {/if}
 
-  {#if best.length > 0}
+  {#if topError}
+    <section class="block" data-testid="best-error">
+      <Notice
+        tone="warning"
+        variant="row"
+        text={topError}
+        action={{ label: de.common.retry, onclick: loadTop }}
+      />
+    </section>
+  {:else if best.length > 0}
     <section class="block" data-testid="best">
       <h2 class="heading">{de.overview.best}</h2>
       <div class="best">

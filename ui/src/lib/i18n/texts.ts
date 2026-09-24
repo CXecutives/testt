@@ -51,6 +51,12 @@ export function reasonText(reason: Reason): string {
   return textOf(de.reason.code[code as ReasonCode], reason.params) || reason.label;
 }
 
+/** The line under a reason: the profile's side of its evidence (null without one). */
+export function reasonEvidence(reason: Reason): string | null {
+  if (!reason.evidence?.profile) return null;
+  return de.reason.evidenceLine(reason.evidence.profile, reason.kind === 'partial');
+}
+
 /** Tooltip of a reason: quote and profile evidence, or that the profile lacks it. */
 export function reasonHint(reason: Reason): string | null {
   if (reason.evidence) {

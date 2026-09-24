@@ -91,17 +91,21 @@
   const heading = $derived(job.title ? displayTitle(job.title) : de.job.untitled);
 
   /** At most one badge, and only when something is not as usual. */
-  const deviation = $derived.by((): { label: string; tone: BadgeTone } | null => {
-    // Excluded rows speak through the ring, the grey and the divider.
-    if (excluded) return null;
-    const detail = job.detail.kind;
-    if (detail !== 'ok') {
-      const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
-      return { label: de.job.detail[detail], tone };
-    }
-    if (job.match?.status === 'unscorable') return { label: de.score.unscorable, tone: 'neutral' };
-    return null;
-  });
+  const deviation = $derived.by(
+    (): { label: string; tone: BadgeTone; hint: string | null } | null => {
+      // Excluded rows speak through the ring, the grey and the divider.
+      if (excluded) return null;
+      const detail = job.detail.kind;
+      if (detail !== 'ok') {
+        const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
+        return { label: de.job.detail[detail], tone, hint: de.job.detailHint[detail] };
+      }
+      if (job.match?.status === 'unscorable') {
+        return { label: de.score.unscorable, tone: 'neutral', hint: null };
+      }
+      return null;
+    },
+  );
 </script>
 
 {#snippet ringCell()}
@@ -149,7 +153,11 @@
         <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
       {/if}
       {#if status}<Badge label={status.label} tone={status.tone} />{/if}
-      {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
+      {#if deviation}<Badge
+          label={deviation.label}
+          tone={deviation.tone}
+          hint={deviation.hint}
+        />{/if}
     </span>
   </ListRow>
   {#if job.unread && !excluded}<span class="dot" role="img" aria-label={de.job.unread} out:dotOut

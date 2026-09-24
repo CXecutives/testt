@@ -696,7 +696,12 @@ class JobsStore {
     const row = this.rows.find((job) => sameKey(job.key, key)) ?? null;
     const shown = this.detail && sameKey(this.detail.job.key, key) ? this.detail.job : null;
     const before = row ?? shown;
-    if (before === null) return;
+    // A job the page does not hold (a row of the overview, an undo after the row left):
+    // the counts still follow, from the backend.
+    if (before === null) {
+      this.countsSoon();
+      return;
+    }
     const after = { ...before, ...change };
     // A listed row belongs to the list's counts; every job belongs to the overall ones.
     if (row !== null) {

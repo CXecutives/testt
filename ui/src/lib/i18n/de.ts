@@ -172,7 +172,7 @@ const SHORT_TEXT = 'Die Anzeige ist sehr kurz.';
 const contract = {
   interim: 'Interim',
   permanent: 'Festanstellung',
-  anue: 'ANÜ',
+  anue: 'Arbeitnehmerüberlassung',
   unclear: 'Vertragsart unklar',
 } as const;
 export type ContractKind = keyof typeof contract;
@@ -235,7 +235,7 @@ function regionWish(p: Params): string {
     case 'missed':
       return `${str(p.location)} liegt außerhalb der Wunschregionen.`;
     default:
-      return 'Ob der Einsatzort in einer Wunschregion liegt, ist offen.';
+      return 'Ob der Einsatzort in einer Wunschregion liegt, steht nicht fest.';
   }
 }
 
@@ -272,7 +272,7 @@ const reasonCode = {
   dayRateCurrency: (p) => `Der Satz ist in ${str(p.currency)} angegeben.`,
   availabilityGap: (p) =>
     `Der Start liegt ${count(num(p.days), 'Tag', 'Tage')} vor der Verfügbarkeit.`,
-  startVague: 'Der Starttermin ist offen.',
+  startVague: 'Die Anzeige nennt keinen Starttermin.',
   permanent: 'Das klingt nach einer Festanstellung.',
   permanentRegion: (p) =>
     p.location
@@ -361,7 +361,7 @@ const criteria = {
     exclusion: 'Der Einsatzort liegt außerhalb der Länder im Profil.',
   },
   noAnue: {
-    label: 'ANÜ',
+    label: 'Arbeitnehmerüberlassung',
     field: 'Arbeitnehmerüberlassung',
     value: () => 'ausgeschlossen',
     exclusion: ANUE,
@@ -529,16 +529,19 @@ export const de = {
     kind: {
       met: 'Erfüllt',
       partial: 'Teilweise erfüllt',
-      open: 'Offen',
+      open: 'Nicht im Profil',
       violation: 'Ausschlussgrund',
       check: 'Zu prüfen',
     } satisfies Record<ReasonKind, string>,
     weight: {
-      must: 'Muss',
-      nice: 'Kann',
+      must: 'Pflicht',
+      nice: 'Optional',
       hard: 'Ausschluss',
       info: 'Hinweis',
     } satisfies Record<ReasonWeight, string>,
+    /** The line under a reason: only the profile's side (the ad's words stand above it). */
+    evidenceLine: (profile: string, partial: boolean) =>
+      partial ? `Teilweise durch „${profile}“ im Profil.` : `Passt zu „${profile}“ im Profil.`,
     /** Tooltip of a reason: the ad's words and what the profile says. */
     evidence: (quote: string, profile: string, partial: boolean) =>
       partial
@@ -557,9 +560,17 @@ export const de = {
     detail: {
       pending: 'Ohne Details',
       teaser: 'Nur Anriss',
-      failed: 'Details fehlen',
+      failed: 'Details nicht geholt',
       unfetchable: 'Nicht abrufbar',
       gone: 'Nicht mehr online',
+    } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
+    /** What a detail badge means, in its tooltip. */
+    detailHint: {
+      pending: 'Die ganze Anzeige ist noch nicht geholt.',
+      teaser: 'Das Portal zeigt ohne Anmeldung nur einen Anriss.',
+      failed: 'Die ganze Anzeige ließ sich nicht holen.',
+      unfetchable: 'Von diesem Portal lassen sich keine Details holen.',
+      gone: 'Die Anzeige ist nicht mehr online.',
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     unread: 'Neu',
     pinned: 'Favorit',
@@ -604,7 +615,7 @@ export const de = {
     /** After the rolling number of a step counter: "von 7". */
     ofTotal: (total: number) => `von ${n(total)}`,
     newPill: (value: number) => `${n(value)} neu`,
-    topPill: (value: number) => `${n(value)} passen gut`,
+    topPill: (value: number) => count(value, 'passt gut', 'passen gut'),
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
     /** A paused portal in one sentence: until when, then why. */
     pausedWhy: (reason: PauseReason, iso: string | null) =>
@@ -747,9 +758,14 @@ export const de = {
   },
   reader: {
     mustMet: (met: number, total: number, partial = 0) =>
-      `${n(met)} von ${n(total)} Muss erfüllt` + (partial > 0 ? `, ${n(partial)} teilweise` : ''),
-    noMust: 'Keine Muss-Anforderungen erkannt',
+      `${n(met)} von ${n(total)} Pflichtanforderungen erfüllt` +
+      (partial > 0 ? `, ${n(partial)} teilweise` : ''),
+    noMust: 'Keine Pflichtanforderungen erkannt',
     criteria: 'Ausschlusskriterien',
+    /** The label of the strip of hard criteria next to the score. */
+    frame: 'Rahmen',
+    /** Why the temporary agency criterion needs a look. */
+    anueCheck: 'Ob die Stelle über Arbeitnehmerüberlassung läuft, steht nicht fest.',
     contractLabel: 'Vertragsart',
     criterion: criteria,
     criterionState: {
@@ -796,7 +812,7 @@ export const de = {
     wishes: 'Wünsche',
     met: 'Erfüllt',
     partial: 'Teilweise erfüllt',
-    missing: 'Offen',
+    missing: 'Nicht im Profil',
     check: 'Zu prüfen',
     violations: 'Ausgeschlossen',
     noReasons: 'Die Anzeige nennt keine klaren Anforderungen.',
@@ -820,7 +836,7 @@ export const de = {
     excluded: 'Ausgeschlossen',
     pinned: 'Favoriten',
     issues: 'Offene Punkte',
-    best: 'Beste Passung',
+    best: 'Neu und passend',
     excel: 'Excel öffnen',
     /** The best matches as one prompt for any AI chat (no brand named). */
     promptTop: 'Prompt für KI-Vergleich kopieren',
@@ -999,7 +1015,7 @@ export const de = {
       onSite: 'Vor Ort',
     } satisfies Record<RemoteWish, string>,
     availability: {
-      unset: 'Offen',
+      unset: 'Keine Angabe',
       now: 'Sofort',
       from: 'Ab Datum',
     } satisfies Record<ProfileAvailability['kind'], string>,

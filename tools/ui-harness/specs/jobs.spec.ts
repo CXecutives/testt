@@ -58,10 +58,10 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await top.click();
   await expect(page.getByTestId('reader')).toBeVisible();
   await expect(page.getByTestId('band')).toHaveText('Hohe Passung');
-  await expect(page.getByTestId('must')).toHaveText('4 von 4 Muss erfüllt');
+  await expect(page.getByTestId('must')).toHaveText('4 von 4 Pflichtanforderungen erfüllt');
   await expect(page.getByTestId('contract')).toHaveText('Interim');
   await expect(
-    page.getByTestId('criteria').locator('li:not([data-testid="contract"])'),
+    page.getByTestId('criteria').locator('li[data-testid^="criterion-"]'),
   ).toHaveCount(5);
   // The click marks the job read; wait until the list and the reader have taken that in (a
   // slow machine would otherwise re-render the reader under the pointer).
@@ -169,8 +169,10 @@ test('excluded jobs sit grey behind the divider and explain themselves', async (
   const because = await page.getByTestId('exclusion').innerText();
   await expect(page.getByTestId('reader').getByText(because, { exact: true })).toHaveCount(1);
   await expect(page.getByTestId('criteria').locator('[data-state="violated"]')).toHaveCount(1);
-  // ANÜ is one chip: the contract chip steps back behind the criterion of the same name.
-  await expect(page.getByTestId('criteria').getByText('ANÜ', { exact: true })).toHaveCount(1);
+  // Arbeitnehmerüberlassung is one chip: the contract chip steps back behind the criterion of the same name.
+  await expect(
+    page.getByTestId('criteria').getByText('Arbeitnehmerüberlassung', { exact: true }),
+  ).toHaveCount(1);
 });
 
 test('a job that cannot be scored says why, once', async ({ page }) => {
@@ -250,7 +252,9 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
       const kind = (li: Element): string =>
         li.querySelector('[role="img"]')?.getAttribute('aria-label') ?? '';
       const musts = [...why.querySelectorAll('li[data-weight="must"]')];
-      if (musts.some((li) => li.querySelector('.badge') !== null && kind(li) !== 'Offen')) {
+      if (
+        musts.some((li) => li.querySelector('.badge') !== null && kind(li) !== 'Nicht im Profil')
+      ) {
         return null;
       }
       return {
@@ -488,15 +492,20 @@ test('a failing list offers a retry', async ({ page }) => {
 test('details and pins: teaser note, fetch details, pin star', async ({ page }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  // A teaser needs the sign-in: without it no "Details holen" that could not work.
   await row(page, 'freelance-900411').click();
   await expect(page.getByTestId('detail-note')).toContainText('Anriss');
+  await expect(page.getByTestId('fetch-details')).toHaveCount(0);
+  // A job whose details are still missing fetches them.
+  await row(page, 'linkedin-4100200302').click();
   await page.getByTestId('fetch-details').click();
   const started = await calls(page, 'start_run');
   expect((started[0]?.[1] as { request: unknown }).request).toEqual({
     kind: 'details',
-    keys: [{ portal: 'freelance', id: '900411' }],
+    keys: [{ portal: 'linkedin', id: '4100200302' }],
   });
   await runFinished(page);
+  await row(page, 'freelance-900411').click();
   await page.getByTestId('pin').click();
   await expect(page.getByTestId('pin')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('pin-freelance-900411')).toHaveAttribute('aria-pressed', 'true');

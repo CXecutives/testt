@@ -40,6 +40,7 @@
     criterionValue,
     errorText,
     noteText,
+    reasonEvidence,
     reasonHint,
     reasonText,
   } from '$lib/i18n/texts';
@@ -173,9 +174,12 @@
         label: value ?? (state === 'unset' ? de.facts.notMentioned(name) : name),
         state,
         icon: STATE_ICON[state],
-        hint: value
-          ? `${name}, ${de.reader.criterionState[state]}`
-          : de.reader.criterionState[state],
+        hint:
+          key === 'noAnue' && state === 'unknown'
+            ? de.reader.anueCheck
+            : value
+              ? `${name}, ${de.reader.criterionState[state]}`
+              : de.reader.criterionState[state],
         reason: reason.ranges.length > 0 ? reason : null,
       });
     }
@@ -217,7 +221,8 @@
   const canFetch = $derived(
     (detailKind === 'pending' || detailKind === 'failed' || detailKind === 'teaser') &&
       portalState?.enabled === true &&
-      portalState.fetchDetails,
+      portalState.fetchDetails &&
+      (detailKind !== 'teaser' || portalState.loginEnabled),
   );
   const facts = $derived(
     [
@@ -357,7 +362,7 @@
 {#snippet reasonList(items: Reason[], testid: string)}
   <ul class="reasons" data-testid={testid}>
     {#each items as reason (reason.id)}
-      {@const evidence = reason.evidence ? reasonHint(reason) : null}
+      {@const evidence = reasonEvidence(reason)}
       <li data-weight={reason.weight}>
         <ReasonItem
           kind={reason.kind}
@@ -557,14 +562,16 @@
           </span>
         {/if}
         {#if clean}
-          <p class="clean" aria-label={de.reader.criteria} data-testid="criteria-clean">
+          <p class="clean" aria-label={de.reader.frame} data-testid="criteria-clean">
+            <span class="strip-label">{de.reader.frame}</span>
             <span class="clean-icon"><Icon name="check" size="xs" /></span>
             <span class="clean-values" data-copy
               >{#each chips as chip (chip.id)}<span class="fact">{chip.label}</span>{/each}</span
             >
           </p>
         {:else if chips.length > 0}
-          <ul class="chips" aria-label={de.reader.criteria} data-testid="criteria">
+          <ul class="chips" aria-label={de.reader.frame} data-testid="criteria">
+            <li class="strip-label">{de.reader.frame}</li>
             {#each chips as chip (chip.id)}
               {@const target = chip.reason}
               <li data-testid={chip.id === contract?.id ? 'contract' : `criterion-${chip.id}`}>
@@ -716,7 +723,9 @@
       <Notice
         tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
         variant="inline"
-        text={portalState && !portalState.fetchDetails && detailKind === 'pending'
+        text={portalState &&
+        (!portalState.enabled || !portalState.fetchDetails) &&
+        detailKind === 'pending'
           ? de.reader.detailsOff
           : de.reader.detail[detailKind]}
         testid="detail-note"
@@ -947,6 +956,14 @@
   }
 
   /* Every criterion met: the values in one quiet line after a green check. */
+  .strip-label {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-label);
+    font: var(--type-xs);
+    font-weight: var(--weight-medium);
+  }
+
   .clean {
     display: flex;
     align-items: center;

@@ -111,7 +111,7 @@ test('a fetch that cannot write the Excel file says so once, and the toast too',
   await expect(page.getByText('blieb unverändert')).toHaveCount(1);
   // The numbers of the run still stand next to it.
   await expect(page.getByTestId('last-new')).toHaveText('2 neu');
-  await expect(page.getByTestId('last-top')).toHaveText('1 passen gut');
+  await expect(page.getByTestId('last-top')).toHaveText('1 passt gut');
 });
 
 test('the run card counts the run: new and not excluded, high among those', async ({ page }) => {
@@ -120,7 +120,7 @@ test('the run card counts the run: new and not excluded, high among those', asyn
   await runFinished(page);
   // Three new jobs came in, one of them excluded: two new, one fits well.
   await expect(page.getByTestId('last-new')).toHaveText('2 neu');
-  await expect(page.getByTestId('last-top')).toHaveText('1 passen gut');
+  await expect(page.getByTestId('last-top')).toHaveText('1 passt gut');
   await expect(page.getByTestId('nothing-new')).toHaveCount(0);
 });
 

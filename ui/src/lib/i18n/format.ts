@@ -9,6 +9,7 @@ const integer = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
 const relative = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' });
 const relativeShort = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto', style: 'short' });
 const dayMonth = new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: '2-digit' });
+const weekday = new Intl.DateTimeFormat(LOCALE, { weekday: 'short' });
 const dayMonthYear = new Intl.DateTimeFormat(LOCALE, {
   day: '2-digit',
   month: '2-digit',
@@ -53,9 +54,9 @@ export function formatRelative(iso: string, now: Date = new Date(), short = fals
     return format.format(-Math.floor(diff / HOUR), 'hour');
   }
   if (days > 0 && days <= RELATIVE_DAYS) return format.format(-days, 'day');
-  return date.getFullYear() === now.getFullYear()
-    ? dayMonth.format(date)
-    : dayMonthYear.format(date);
+  // Older: the weekday with the date ("So 20.09."), so last week is found without counting.
+  if (date.getFullYear() !== now.getFullYear()) return dayMonthYear.format(date);
+  return `${weekday.format(date).replace(/\.$/, '')} ${dayMonth.format(date)}`;
 }
 
 /** `14:05` */
