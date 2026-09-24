@@ -1,8 +1,9 @@
 <!--
   One portal in the settings. The header row carries the portal, the portal in the browser
   and its switch (Aktiv); reading its alert mails touches nothing but the own Gmail. Only an
-  active portal shows more: its health, the quota only from 80 % or while paused (the window
-  that binds, a 6 px meter), and one row per switch with the risk that switch brings (PLAN:
+  active portal shows more: its problem in one sentence that says whether she has to act
+  (warning) or the app carries on by itself (info), the quota only from 80 % or while paused
+  (the window that binds, a 6 px meter), and one row per switch with the risk that switch brings (PLAN:
   a risk badge per switch). Details holen carries the risk of the requests with its sentence;
   for freelance.de Mit Anmeldung warns with Kontorisiko while the Details row does not say it
   yet, then sign in / sign out (which deletes the session).
@@ -19,7 +20,7 @@
   import SettingRow from '$components/SettingRow.svelte';
   import Toggle from '$components/Toggle.svelte';
   import { de } from '$lib/i18n/de';
-  import { errorText, healthSentence } from '$lib/i18n/texts';
+  import { errorText, healthAdvice } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { PortalState, Risk } from '$lib/ipc/types';
   import { fade, rise } from '$lib/motion/transitions';
@@ -41,7 +42,8 @@
   /** Only the answer to the latest save may replace the state (quick double flips). */
   let saves = 0;
 
-  const health = $derived(healthSentence(portal.health));
+  /** Its problem, and whether she has to act (warning) or the app carries on (info). */
+  const health = $derived(healthAdvice(portal.health));
   /** The fuller of the two windows: its numbers are the ones the text names. */
   const quota = $derived.by(() => {
     const q = portal.quota;
@@ -134,7 +136,12 @@
   {#if portal.enabled || error}
     <div class="body" in:rise={{ distance: 'sm' }} out:fade>
       {#if portal.enabled && health}
-        <Notice tone="warning" variant="inline" text={health} testid="health-{portal.portal}" />
+        <Notice
+          tone={health.act ? 'warning' : 'info'}
+          variant="inline"
+          text={health.text}
+          testid="health-{portal.portal}"
+        />
       {/if}
       {#if quota}
         <div class="quota" data-testid="quota-{portal.portal}">

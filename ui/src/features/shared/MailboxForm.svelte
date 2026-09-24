@@ -72,8 +72,8 @@
     }
   }
 
-  function openPasswordPage(): void {
-    invoke('open_target', { target: { kind: 'appPasswordPage' } }).catch(
+  function openPage(kind: 'appPasswordPage' | 'twoStepPage'): void {
+    invoke('open_target', { target: { kind } }).catch(
       (error: unknown) => (formError = errorText(error)),
     );
   }
@@ -104,7 +104,7 @@
         label: de.settings.createPassword,
         icon: 'external-link',
         testid: 'create-password',
-        onclick: openPasswordPage,
+        onclick: () => openPage('appPasswordPage'),
       }}
       error={passwordError}
     >
@@ -119,6 +119,19 @@
       />
     </Field>
   </div>
+  <!-- Before an app password exists, Google wants 2-step verification: said once, with the way there. -->
+  <p class="two-step">
+    <span>{de.settings.twoStep}</span>
+    <Button
+      variant="link"
+      size="sm"
+      icon="external-link"
+      external
+      label={de.settings.twoStepAction}
+      testid="two-step"
+      onclick={() => openPage('twoStepPage')}
+    />
+  </p>
   {#if formError}
     <Notice tone="danger" variant="inline" text={formError} testid="mailbox-error" />
   {/if}
@@ -153,6 +166,15 @@
     gap: var(--space-16);
     max-width: var(--form-width);
     container-type: inline-size;
+  }
+
+  .two-step {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--space-8);
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   /* Address and password side by side where there is room (the first run stays short). */

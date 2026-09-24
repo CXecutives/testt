@@ -1154,6 +1154,8 @@ pub enum OpenTarget {
     },
     /// Google page to create an app password.
     AppPasswordPage,
+    /// Google page to turn on 2-step verification (an app password needs it).
+    TwoStepPage,
     Workspace,
     Excel,
     Overview,

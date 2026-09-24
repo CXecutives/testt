@@ -148,6 +148,27 @@ export function healthSentence(health: PortalHealth): string | null {
 }
 
 /**
+ * A portal problem as the settings say it: one sentence that says whether anything is to
+ * be done (`act`), or that the app carries on by itself.
+ */
+export function healthAdvice(health: PortalHealth): { text: string; act: boolean } | null {
+  switch (health.kind) {
+    case 'ok':
+      return null;
+    case 'paused':
+      return { text: de.health.advice.paused(health.reason, health.until), act: false };
+    case 'quotaReached':
+      return { text: de.health.advice.quota(health.until), act: false };
+    case 'layoutSuspect':
+      return health.emptyMails > 0
+        ? { text: de.health.advice.emptyMails(health.emptyMails), act: true }
+        : { text: de.health.advice.pages, act: false };
+    case 'loginRequired':
+      return { text: de.health.advice.login, act: true };
+  }
+}
+
+/**
  * The old shape of `healthSentence`, kept only until DayOverview and RunCard switch to it.
  * The short labels it once returned never showed (every problem has its sentence), so
  * `label` is that sentence too.

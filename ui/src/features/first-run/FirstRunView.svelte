@@ -106,6 +106,7 @@
             {#if mailboxDone}
               <p class="done-text" in:rise>{app.state?.mailbox.user}</p>
             {:else}
+              <p class="hint">{de.firstRun.mailboxText}</p>
               <MailboxForm saveLabel={de.settings.connect} />
             {/if}
           </div>

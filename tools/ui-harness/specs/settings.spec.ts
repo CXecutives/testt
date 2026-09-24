@@ -18,6 +18,15 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('first-run')).toBeVisible();
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
 
+  // Where the jobs come from, and what an app password needs, before anything is typed.
+  await expect(page.getByTestId('step-mailbox')).toContainText(
+    'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
+  );
+  await page.getByTestId('two-step').click();
+  expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({
+    target: { kind: 'twoStepPage' },
+  });
+
   const fetch = page.getByTestId('first-fetch');
   await expect(fetch).toHaveAttribute('aria-disabled', 'true');
   await fetch.hover();
@@ -184,13 +193,18 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   await expect(page.getByTestId('quota-freelancermap')).toContainText('Heute 86 von 100 Seiten');
   await expect(page.getByTestId('quota-linkedin')).toHaveCount(0);
   await settings(page, `${WIN}&scenario=paused`);
-  // One sentence each.
-  await expect(page.getByTestId('health-linkedin')).toHaveText(
-    'Pause bis 11:05, das Portal bremst die Anfragen.',
+  // One sentence each, saying whether she has to act: a pause needs nothing (calm info),
+  // alert mails without jobs ask her to look (warning).
+  const pause = page.getByTestId('health-linkedin');
+  await expect(pause).toHaveText(
+    'Das Portal bremst die Anfragen, der Abruf macht ab 11:05 von selbst weiter.',
   );
-  await expect(page.getByTestId('health-freelance')).toHaveText(
-    '2 Alert-Mails enthielten keine Jobs, vielleicht hat sich das Mail-Format geändert.',
+  await expect(pause).toHaveClass(/info/);
+  const mails = page.getByTestId('health-freelance');
+  await expect(mails).toHaveText(
+    '2 Alert-Mails enthielten keine Jobs, bitte in Gmail nachsehen, ob dort welche stehen.',
   );
+  await expect(mails).toHaveClass(/warning/);
 });
 
 test('files: rewrite and delete the text files where they are', async ({ page }) => {

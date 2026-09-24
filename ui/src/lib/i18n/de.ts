@@ -630,6 +630,22 @@ export const de = {
       `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, vielleicht hat sich das Mail-Format geändert.`,
     layoutPages: 'Die Seiten des Portals sehen anders aus als erwartet.',
     loginText: 'Die Anmeldung ist abgelaufen.',
+    /** A portal problem in the settings, in one sentence that says whether to act. */
+    advice: {
+      paused: (reason: PauseReason, iso: string | null) => {
+        const why = pause[reason].charAt(0).toUpperCase() + pause[reason].slice(1);
+        return iso
+          ? `${why}, der Abruf macht ab ${formatMoment(iso)} von selbst weiter.`
+          : `${why}, der nächste Abruf versucht es von selbst wieder.`;
+      },
+      quota: (iso: string) =>
+        `Das Limit ist erreicht, der Abruf macht ab ${formatMoment(iso)} von selbst weiter.`,
+      emptyMails: (mails: number) =>
+        `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte in Gmail nachsehen, ob dort welche stehen.`,
+      pages:
+        'Die Seiten des Portals sehen anders aus, der nächste Abruf versucht es von selbst wieder.',
+      login: 'Die Anmeldung ist abgelaufen, bitte neu anmelden.',
+    },
   },
   profile: {
     none: 'Noch kein Profil',
@@ -811,6 +827,8 @@ export const de = {
     password: 'App-Passwort',
     passwordHint: '16 Buchstaben, erstellt im Google-Konto.',
     createPassword: 'App-Passwort erstellen',
+    twoStep: 'Ein App-Passwort gibt es nur mit der Bestätigung in zwei Schritten.',
+    twoStepAction: 'Bestätigung einschalten',
     connect: 'Verbinden',
     removeMailbox: 'Postfach entfernen?',
     removeMailboxText: 'Das App-Passwort wird gelöscht, die Jobs bleiben.',
@@ -882,6 +900,7 @@ export const de = {
     privacy: 'Alles bleibt auf diesem Rechner.',
     steps: 'Erste Schritte',
     mailbox: 'Postfach',
+    mailboxText: 'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
     profile: 'Profil',
     profileText: 'Das Profil entsteht in der App, auf Wunsch aus dem Lebenslauf.',
     fetch: 'Erster Abruf',
