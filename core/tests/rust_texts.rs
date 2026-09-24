@@ -22,10 +22,11 @@ const FILES: [(&str, usize); 5] = [
 
 /// The files with English text blocks (the words the exports and windows show in the
 /// English app), and how many strings each has at least.
-const FILES_EN: [(&str, usize); 3] = [
+const FILES_EN: [(&str, usize); 4] = [
     ("core/src/export/texts.rs", 45),
     ("src-tauri/src/session.rs", 1),
     ("src-tauri/src/commands/mod.rs", 3),
+    ("src-tauri/src/platform.rs", 15),
 ];
 
 const START: &str = "User-facing text, German";

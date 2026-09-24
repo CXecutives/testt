@@ -1,7 +1,8 @@
 //! One scoring rubric for the app's Claude check and the `job-matching` skill: the German
 //! file `core/src/export/ai_rubric.de.md` and its copy in the skill folder are identical, the
 //! skill's instructions and its render check carry the same caps, and the rubric's high band
-//! is the app's.
+//! is the app's. The English rubric of the English prompts (`ai_rubric.en.md`) has the same
+//! sections, bands and caps.
 
 use std::path::{Path, PathBuf};
 
