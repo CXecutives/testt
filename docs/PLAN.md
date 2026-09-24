@@ -123,6 +123,9 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   it the sidebar (nav Jobs · Profil · Einstellungen, the run status) and the white sheet; macOS shows the same under a
   unified title bar (52 px toolbar row with the traffic lights over the sidebar). "Abrufen" next to the search in the
   list column header. No menu (Windows), no gear icon. Closing during a run shows a short note until the run stops.
+  Every view switch is the same 100 ms cross-fade (new view on top, never an empty sheet); nothing animates at start;
+  `:root[data-window]` is 'inactive' while the OS window is in the background (selections grey out against it).
+  The sidebar run status shows only while there is a run to open.
 - Jobs: toolbar (Abrufen primary lg / Abbrechen · Neu n | Alle n · Beste Passung | Neueste · search) · left column
   run card + list (72 px rows: ring 40, title with unread dot, meta, reason line, date, status badge only on deviation;
   excluded grey behind divider; duplicates as one row) · reader card 720 px (ring 96 counting up, band word, n of m must,
