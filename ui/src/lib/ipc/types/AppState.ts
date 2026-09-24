@@ -22,9 +22,13 @@ firstRun: boolean,
  */
 running: RunSnapshot | null, settings: SettingsView, mailbox: Mailbox, profile: ProfileInfo | null, portals: Array<PortalState>, autoFetchOnStart: boolean, 
 /**
- * Days after which old jobs without a stage archive themselves; 0 = never.
+ * Days after which old inbox jobs that are no favourite archive themselves; 0 = never.
  */
 autoArchiveDays: number, 
+/**
+ * Days after which the trash empties itself; 0 = never.
+ */
+autoEmptyTrashDays: number, 
 /**
  * The last fetch (fetch or whole mailbox) - a rescore or a details run is none.
  */

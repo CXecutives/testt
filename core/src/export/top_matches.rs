@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::error::Result;
 use crate::matching::{Assessment, ReasonCode, ReasonKind};
-use crate::model::{AppStatus, Band, MatchStatus, band};
+use crate::model::{Band, MatchStatus, band};
 use crate::pipeline::Matcher;
 use crate::pipeline::local::{code_name, record};
 use crate::store::{JobRow, Store};
@@ -20,6 +20,8 @@ pub const TOP_MATCHES_NAME: &str = "top_matches.json";
 pub const TOP_MATCHES_MAX: u32 = 10;
 /// Version of the file layout (2: `appStatus` and `firstSeenAt` per job).
 pub const TOP_MATCHES_SCHEMA: u32 = 2;
+/// The `appStatus` of a favourite (the only mark there is).
+const SAVED: &str = "saved";
 
 /// The file.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -48,8 +50,8 @@ pub struct TopMatch {
     pub band: Band,
     pub must_met: u16,
     pub must_total: u16,
-    /// The stage in the user's pipeline (`saved`, `applied`, ...; `null` = none).
-    pub app_status: Option<AppStatus>,
+    /// `saved` for a favourite (the star), `null` for none (the key of schema 2 stays).
+    pub app_status: Option<String>,
     /// When the app first saw the job.
     pub first_seen_at: Timestamp,
     /// Requirements of the ad the profile meets (quoted).
@@ -137,7 +139,7 @@ fn entry(job: &JobRow, explained: Option<&Assessment>) -> Option<TopMatch> {
         band: band(current.score),
         must_met: current.must_met,
         must_total: current.must_total,
-        app_status: job.app_status,
+        app_status: job.pinned_at.map(|_| SAVED.to_owned()),
         first_seen_at: job.first_seen_at,
         met: labels(ReasonKind::Met),
         partial: labels(ReasonKind::Partial),
@@ -190,7 +192,7 @@ mod tests {
                     "freelancermap:2801",
                     "Interim CFO",
                     91,
-                    Some(AppStatus::Saved),
+                    Some(SAVED.to_owned()),
                 ),
                 job("linkedin:4100200301", "Head of Controlling", 84, None),
             ],

@@ -9,7 +9,7 @@
 use serde_json::Value;
 
 use super::TopMatch;
-use crate::model::{AppStatus, Band};
+use crate::model::Band;
 use crate::text::truncate_chars;
 use crate::view::JobView;
 
@@ -113,11 +113,7 @@ pub fn ai_prompt_top(profile: &Value, jobs: &[PromptJob<'_>]) -> String {
 /// The facts of an ad and the app's findings.
 fn facts(item: PromptJob<'_>) -> String {
     let job = item.job;
-    let saved = match job.app_status {
-        Some(AppStatus::Saved) => "Gemerkt: ja\n",
-        Some(AppStatus::Sent) => "Beworben: ja\n",
-        None => "",
-    };
+    let saved = if job.pinned { "Gemerkt: ja\n" } else { "" };
     format!(
         "{}{}{}{}{}{saved}{}",
         fact("Titel", title_of(job)),
@@ -222,10 +218,7 @@ mod tests {
             short: false,
             match_: None,
             also_on: Vec::new(),
-            app_status: None,
-            status_at: None,
-
-            archived: false,
+            place: crate::model::Place::Inbox,
             overridden: false,
         }
     }
@@ -410,7 +403,6 @@ mod tests {
         view.key.id = id.into();
         view.title = title.into();
         view.pinned = saved;
-        view.app_status = saved.then_some(AppStatus::Saved);
         view
     }
 

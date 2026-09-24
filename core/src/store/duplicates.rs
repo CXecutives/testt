@@ -18,8 +18,8 @@ pub const MAX_DISTANCE: u32 = 3;
 impl Store {
     /// Compares a job that just got its full text with the other portals' jobs and marks
     /// it as a duplicate of the earliest match. Returns that job. A job the user marked (a
-    /// stage, a note, archived, "fits anyway") is never linked: a duplicate leaves every
-    /// list, and her marks must not leave with it.
+    /// favourite, moved out of the inbox, "fits anyway") is never linked: a duplicate leaves
+    /// every list, and her marks must not leave with it.
     pub fn link_duplicate(&self, key: &JobKey) -> Result<Option<JobKey>> {
         self.write(|conn| {
             let Some((title, company, text)) = conn
@@ -27,7 +27,7 @@ impl Store {
                     "SELECT title, company, desc_text FROM job
                      WHERE portal = ?1 AND job_id = ?2 AND desc_status = 'ok'
                        AND dup_of IS NULL AND desc_text IS NOT NULL
-                       AND app_status IS NULL AND note IS NULL AND archived_at IS NULL
+                       AND app_status IS NULL AND archived_at IS NULL AND trashed_at IS NULL
                        AND override_include IS NULL",
                     params![key.portal.key(), key.id],
                     |r| {
@@ -317,10 +317,10 @@ mod tests {
     }
 
     /// A job the user marked stays a job of its own: linked as a duplicate it would leave
-    /// every list with its stage, note or archive mark.
+    /// every list with its favourite, its place or "fits anyway".
     #[test]
     fn a_marked_job_is_never_hidden_as_a_duplicate() {
-        use crate::model::AppStatus;
+        use crate::model::Place;
         use crate::store::test_support::{mail, now, posting};
         type Mark<'a> = &'a dyn Fn(&JobKey);
 
@@ -338,15 +338,17 @@ mod tests {
             .unwrap();
         let marks: [(&str, Mark<'_>); 4] = [
             ("4000000001", &|key| {
-                store
-                    .set_app_status(key, Some(AppStatus::Sent), now())
-                    .unwrap();
+                store.set_override(key, true).unwrap();
             }),
             ("4000000002", &|key| {
-                store.set_note(key, "Agentur anrufen").unwrap();
+                store
+                    .move_jobs(std::slice::from_ref(key), Place::Trash, now())
+                    .unwrap();
             }),
             ("4000000003", &|key| {
-                store.set_archived(key, true, now()).unwrap();
+                store
+                    .move_jobs(std::slice::from_ref(key), Place::Archive, now())
+                    .unwrap();
             }),
             ("4000000004", &|key| {
                 store.set_pinned(key, true, now()).unwrap();

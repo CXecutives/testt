@@ -200,6 +200,7 @@ fn run_context(
             .filter(|&p| settings.fetch_path(p) == Some(FetchPath::Session))
             .collect(),
         auto_archive_days: settings.auto_archive_days,
+        auto_empty_trash_days: settings.auto_empty_trash_days,
     };
     Ok((ctx, credentials))
 }

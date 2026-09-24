@@ -13,7 +13,7 @@ use ts_rs::{Config, TS, TypeVisitor};
 use crate::error::{ErrorInfo, ErrorKind, InvalidInput};
 use crate::fetch::PortalHealth;
 use crate::fetch::policy::PauseReason;
-use crate::model::{AppStatus, Band, KeyFacts, MatchStatus, Notice};
+use crate::model::{Band, KeyFacts, MatchStatus, Notice, Place};
 use crate::pipeline::{
     ExportSummary, NewJobs, Outcome, PortalSummary, RunEvent, RunKind, RunKindName, RunRequest,
     RunSnapshot, RunSummary, ScanCounts, ScoreSummary, StatusCode, Step,
@@ -21,8 +21,8 @@ use crate::pipeline::{
 use crate::portal::{JobKey, Portal};
 use crate::view::{
     AppState, ClearedTxt, Deleted, DetailState, EmptyAlert, Evidence, Highlight, JobCounts,
-    JobDetail, JobFacet, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel,
-    Mailbox, MatchDetail, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
+    JobDetail, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel, Mailbox,
+    MatchDetail, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
     ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileDraft, ProfileForm,
     ProfileInfo, ProfileLanguage, ProfileQuality, ProfileSave, ProfileUnderstanding, ProfileWishes,
     Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary, Risk, SettingsPatch,
@@ -133,7 +133,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<ErrorInfo>();
     f.add::<InvalidInput>();
     f.add::<MatchStatus>();
-    f.add::<AppStatus>();
+    f.add::<Place>();
     f.add::<Band>();
     f.add::<Notice>();
     f.add::<KeyFacts>();
@@ -152,7 +152,6 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<MatchDetail>();
     f.add::<JobMail>();
     f.add::<JobDetail>();
-    f.add::<JobFacet>();
     f.add::<JobSort>();
     f.add::<JobQuery>();
     f.add::<PortalNew>();

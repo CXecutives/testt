@@ -2,12 +2,12 @@
 
 use jiff::Timestamp;
 use jobalert_core::export;
-use jobalert_core::model::AppStatus;
+use jobalert_core::model::Place;
 use jobalert_core::pipeline::{self, Matcher, demo};
 use jobalert_core::portal::JobKey;
 use jobalert_core::profile;
-use jobalert_core::store::{JobRow, ListFacet};
-use jobalert_core::view::{self, Deleted, JobDetail, JobFacet, JobPage, JobQuery, JobView};
+use jobalert_core::store::JobRow;
+use jobalert_core::view::{self, Deleted, JobDetail, JobPage, JobQuery, JobView};
 use tauri::State;
 
 use super::{AppState, CmdResult, not_found};
@@ -41,36 +41,17 @@ pub async fn mark_read(state: State<'_, AppState>, key: JobKey) -> CmdResult<boo
     Ok(state.store.mark_read(&key, Timestamp::now())?)
 }
 
-/// Pins or unpins a job; `false` = nothing changed.
+/// Sets or clears the favourite (the star); `false` = nothing changed.
 #[tauri::command]
 pub async fn set_pinned(state: State<'_, AppState>, key: JobKey, on: bool) -> CmdResult<bool> {
     Ok(state.store.set_pinned(&key, on, Timestamp::now())?)
 }
 
-/// Sets or clears the mark of a job (saved, sent); `false` = nothing changed.
+/// Moves jobs to the inbox, the archive or the trash; returns how many moved.
 #[tauri::command]
-pub async fn set_app_status(
-    state: State<'_, AppState>,
-    key: JobKey,
-    status: Option<AppStatus>,
-) -> CmdResult<bool> {
-    Ok(state.store.set_app_status(&key, status, Timestamp::now())?)
-}
-
-/// Stores the note of a job (blank = none, at most 2000 characters); `false` = unchanged.
-#[tauri::command]
-pub async fn set_note(state: State<'_, AppState>, key: JobKey, note: String) -> CmdResult<bool> {
-    Ok(state.store.set_note(&key, &note)?)
-}
-
-/// Archives a job or lists it again; `false` = nothing changed.
-#[tauri::command]
-pub async fn set_archived(
-    state: State<'_, AppState>,
-    key: JobKey,
-    archived: bool,
-) -> CmdResult<bool> {
-    Ok(state.store.set_archived(&key, archived, Timestamp::now())?)
+pub async fn move_jobs(state: State<'_, AppState>, keys: Vec<JobKey>, to: Place) -> CmdResult<u32> {
+    let moved = state.store.move_jobs(&keys, to, Timestamp::now())?;
+    Ok(u32::try_from(moved).unwrap_or(u32::MAX))
 }
 
 /// "Fits anyway": an excluded job counts as scored with its fit score (`include`), or the
@@ -96,17 +77,18 @@ pub async fn set_override(
     Ok(changed)
 }
 
-/// Deletes jobs for good: rows, text files and Excel rows go; only a tombstone of each key
-/// stays, so no later scan brings them back. Not while a run is active.
+/// "Endgültig löschen": deletes these jobs for good - only those in the trash. Rows, text
+/// files and Excel rows go; only a tombstone of each key stays, so no later scan brings them
+/// back. Not while a run is active.
 #[tauri::command]
-pub async fn delete_jobs(state: State<'_, AppState>, keys: Vec<JobKey>) -> CmdResult<Deleted> {
+pub async fn purge_jobs(state: State<'_, AppState>, keys: Vec<JobKey>) -> CmdResult<Deleted> {
     forget(&state, &keys)
 }
 
-/// Deletes every archived job for good (see [`delete_jobs`]).
+/// Empties the trash: every job in it is deleted for good (see [`purge_jobs`]).
 #[tauri::command]
-pub async fn empty_archive(state: State<'_, AppState>) -> CmdResult<Deleted> {
-    let keys = state.store.archived_keys()?;
+pub async fn empty_trash(state: State<'_, AppState>) -> CmdResult<Deleted> {
+    let keys = state.store.trashed_keys(None)?;
     forget(&state, &keys)
 }
 
@@ -199,17 +181,10 @@ pub async fn ai_prompt_top(state: State<'_, AppState>, limit: u32) -> CmdResult<
     Ok(export::ai_prompt_top(&profile, &items))
 }
 
-/// "All read": every unread job of the facet's list; the keys come back for the undo.
+/// "All read": every unread job of a place; the keys come back for the undo.
 #[tauri::command]
-pub async fn mark_all_read(state: State<'_, AppState>, facet: JobFacet) -> CmdResult<Vec<JobKey>> {
-    let facet = match facet {
-        JobFacet::New => ListFacet::New,
-        JobFacet::All => ListFacet::All,
-        JobFacet::Saved => ListFacet::Saved,
-        JobFacet::Sent => ListFacet::Sent,
-        JobFacet::Archived => ListFacet::Archived,
-    };
-    Ok(state.store.mark_all_read(facet, Timestamp::now())?)
+pub async fn mark_all_read(state: State<'_, AppState>, place: Place) -> CmdResult<Vec<JobKey>> {
+    Ok(state.store.mark_all_read(place, Timestamp::now())?)
 }
 
 /// The undo of "all read": these jobs are unread again; returns how many.

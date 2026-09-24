@@ -9,4 +9,8 @@ export type SettingsPatch = { portals: Array<PortalPatch>, autoFetchOnStart: boo
 /**
  * Days after which old jobs archive themselves; 0 = never (`null` = unchanged).
  */
-autoArchiveDays: number | null, };
+autoArchiveDays: number | null, 
+/**
+ * Days after which the trash empties itself; 0 = never (`null` = unchanged).
+ */
+autoEmptyTrashDays: number | null, };
