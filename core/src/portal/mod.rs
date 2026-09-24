@@ -1,18 +1,37 @@
-//! Die drei Portale und alles, was sich aus einer Job-URL ableiten lässt.
+//! The portals: one adapter per portal and one registry ([`PORTALS`]).
 //!
-//! Eine Stelle für alle URL-Regeln: Identität eines Jobs (`JobKey`), der Link, den der
-//! Nutzer öffnet (`canonical_url`), und die Adresse, von der die App den Volltext holt
-//! (`fetch_url`). Job-IDs werden nur aus **positionsgenau** bestimmten Pfadteilen gelesen –
-//! nie per Suchmuster über die ganze URL (früher: Postleitzahlen oder Normnummern im
-//! Slug wurden als Job-ID gelesen, Ziffern aus der Query ebenso).
+//! Everything that differs between portals lives in its adapter - keys and labels, alert
+//! senders and search terms, pace and caps, how a portal is accessed, which links are jobs,
+//! and how a job page reads. The rest of the app asks the registry and knows no single
+//! portal: adding one means a variant, an adapter and a registry entry, nothing else.
+//!
+//! Job ids are only read from **exactly positioned** path parts - never by searching the
+//! whole URL (formerly postal codes or norm numbers in a slug became job ids, and so did
+//! digits from the query).
+
+mod freelance_de;
+mod freelancermap;
+mod linkedin;
+#[cfg(test)]
+mod probe;
+
+#[cfg(test)]
+pub(crate) use freelancermap::tests::page as freelancermap_page;
+#[cfg(test)]
+pub(crate) use linkedin::tests::page as linkedin_page;
 
 use std::fmt;
+use std::sync::LazyLock;
 
+use scraper::Selector;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use url::Url;
 
-/// Ein Portal. Die Reihenfolge ist die der Oberfläche und des Exports.
+use crate::fetch::PageOutcome;
+use crate::fetch::policy::Limits;
+use crate::fetch::site::PortalSite;
+
+/// A portal. The order is the one of the interface and the export.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Portal {
     #[serde(rename = "linkedin")]
@@ -21,98 +40,162 @@ pub enum Portal {
     FreelanceDe,
     #[serde(rename = "freelancermap")]
     Freelancermap,
+    /// A fourth portal that exists in tests only: it proves that the registry is the only
+    /// place that knows the portals.
+    #[cfg(test)]
+    #[serde(rename = "probe")]
+    Probe,
 }
 
-/// Wie ein Portal abgerufen wird.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum LoginMode {
-    /// Ohne Konto lesbar; ein Sitzungsfenster gibt es nicht.
-    None,
-    /// Nur angemeldet lesbar.
-    Required,
+/// How a portal's job pages can be read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Access {
+    /// Readable without an account; there is no session window.
+    Guest,
+    /// Readable in the session window with the user's sign-in. `required: false`: a guest
+    /// still sees a part (a teaser) without signing in.
+    Session { required: bool },
 }
 
-impl Portal {
-    pub const ALL: [Portal; 3] = [Portal::LinkedIn, Portal::FreelanceDe, Portal::Freelancermap];
+/// The fetch path a run builds for a portal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FetchPath {
+    /// HTTP without an account.
+    Guest,
+    /// The session window with the user's sign-in.
+    Session,
+}
 
-    /// Ob und wie eine Anmeldung möglich ist.
-    pub const fn login_mode(self) -> LoginMode {
+impl Access {
+    /// The path for a run: the session window only where signing in is switched on, the
+    /// guest path wherever a guest sees something, otherwise none (zero requests).
+    pub fn path(self, login_enabled: bool) -> Option<FetchPath> {
         match self {
-            // freelancermap und LinkedIn liefern angemeldet zeichengleich dasselbe wie als
-            // Gast (an echten Anzeigen gemessen) – ein Sitzungsfenster brächte dort nichts.
-            Portal::LinkedIn | Portal::Freelancermap => LoginMode::None,
-            Portal::FreelanceDe => LoginMode::Required,
+            Access::Session { .. } if login_enabled => Some(FetchPath::Session),
+            Access::Guest | Access::Session { required: false } => Some(FetchPath::Guest),
+            Access::Session { required: true } => None,
         }
     }
 
-    /// Schlüssel für Speicher, Einstellungen und Oberfläche.
-    pub const fn key(self) -> &'static str {
-        match self {
-            Portal::LinkedIn => "linkedin",
-            Portal::FreelanceDe => "freelance",
-            Portal::Freelancermap => "freelancermap",
-        }
+    /// Whether the portal offers a sign-in at all.
+    pub fn can_sign_in(self) -> bool {
+        matches!(self, Access::Session { .. })
+    }
+}
+
+/// How the guest client treats redirects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Redirects {
+    /// Judge every redirect itself (it usually leads to a sign-in wall).
+    Never,
+    /// Follow at most two redirects on the same host and scheme.
+    SameOrigin,
+}
+
+/// Everything portal-specific. Adapters are stateless; the registry holds one per portal.
+pub trait PortalAdapter: Send + Sync {
+    fn portal(&self) -> Portal;
+    /// Key for store, settings and interface.
+    fn key(&self) -> &'static str;
+    /// Display name.
+    fn label(&self) -> &'static str;
+    /// Tag in the file name of the job details (without ".de") - part of the contract with
+    /// the matching skill, which also shows it in the `Quelle:` header line.
+    fn file_tag(&self) -> &'static str;
+    /// Start page of the portal ("open in the browser" after a block).
+    fn home_url(&self) -> &'static str;
+    /// Sender domains of the original alerts (subdomains count too).
+    fn sender_domains(&self) -> &'static [&'static str];
+    /// Keywords that identify forwarded alerts (the sender is then the user).
+    fn search_terms(&self) -> &'static [&'static str];
+    /// Pace and caps of the portal's requests.
+    fn limits(&self) -> Limits;
+    fn access(&self) -> Access;
+    /// The job behind a link of this portal; `None` for everything else (profile, search,
+    /// unsubscribe or sign-in links, other hosts).
+    fn job_link(&self, url: &Url) -> Option<JobLink>;
+    /// The link shown for a portal id. `None` for ids that are not all digits.
+    fn canonical_url(&self, id: &str) -> Option<Url>;
+    /// Where the app reads the full text of a job.
+    fn fetch_url(&self, link: &JobLink) -> Url {
+        link.url.clone()
+    }
+    /// How the guest client treats redirects.
+    fn redirects(&self) -> Redirects {
+        Redirects::SameOrigin
+    }
+    /// A redirect the guest client did not follow; `path` is its target (lower case).
+    fn redirect_outcome(&self, path: &str) -> PageOutcome;
+    /// A guest page answered with 200; `path` is the final path after redirects (lower
+    /// case).
+    fn guest_page(&self, html: &str, path: &str, link: &JobLink) -> PageOutcome;
+    /// The session window of the portal; `None` for portals without a sign-in.
+    fn session(&self) -> Option<&'static PortalSite> {
+        None
+    }
+}
+
+/// The registry: every portal once, in the order of the interface.
+pub static PORTALS: &[&dyn PortalAdapter] = &[
+    &linkedin::LinkedIn,
+    &freelance_de::FreelanceDe,
+    &freelancermap::Freelancermap,
+    #[cfg(test)]
+    &probe::Probe,
+];
+
+impl Portal {
+    /// The product portals (the test-only probe is not among them).
+    pub const ALL: [Portal; 3] = [Portal::LinkedIn, Portal::FreelanceDe, Portal::Freelancermap];
+
+    /// The adapter of this portal.
+    pub fn adapter(self) -> &'static dyn PortalAdapter {
+        *PORTALS
+            .iter()
+            .find(|a| a.portal() == self)
+            .expect("every portal is registered")
+    }
+
+    pub fn key(self) -> &'static str {
+        self.adapter().key()
     }
 
     pub fn from_key(key: &str) -> Option<Portal> {
-        Portal::ALL.into_iter().find(|p| p.key() == key)
+        PORTALS.iter().find(|a| a.key() == key).map(|a| a.portal())
     }
 
-    /// Anzeigename.
-    pub const fn label(self) -> &'static str {
-        match self {
-            Portal::LinkedIn => "LinkedIn",
-            Portal::FreelanceDe => "freelance.de",
-            Portal::Freelancermap => "freelancermap.de",
-        }
+    pub fn label(self) -> &'static str {
+        self.adapter().label()
     }
 
-    /// Kürzel im Dateinamen der Jobdetails (ohne „.de“) – Teil des Vertrags mit dem
-    /// Matching-Skill, der auch in der Kopfzeile `Quelle:` steht.
-    pub const fn file_tag(self) -> &'static str {
-        match self {
-            Portal::LinkedIn => "LinkedIn",
-            Portal::FreelanceDe => "Freelance",
-            Portal::Freelancermap => "Freelancermap",
-        }
+    pub fn file_tag(self) -> &'static str {
+        self.adapter().file_tag()
     }
 
-    /// Startseite des Portals („Im Browser öffnen“ nach einer Sperre).
-    pub const fn home_url(self) -> &'static str {
-        match self {
-            Portal::LinkedIn => "https://www.linkedin.com/jobs/",
-            Portal::FreelanceDe => "https://www.freelance.de/",
-            Portal::Freelancermap => "https://www.freelancermap.de/",
-        }
+    pub fn home_url(self) -> &'static str {
+        self.adapter().home_url()
     }
 
-    /// Absender-Domains der Original-Alerts (Subdomains zählen mit).
-    pub const fn sender_domains(self) -> &'static [&'static str] {
-        match self {
-            Portal::LinkedIn => &["linkedin.com"],
-            Portal::FreelanceDe => &["freelance.de"],
-            Portal::Freelancermap => &["freelancermap.de", "freelancermap.com"],
-        }
+    pub fn sender_domains(self) -> &'static [&'static str] {
+        self.adapter().sender_domains()
     }
 
-    /// Stichwörter, an denen weitergeleitete Alerts erkannt werden (Absender ist dann
-    /// der Nutzer selbst).
-    pub const fn search_terms(self) -> &'static [&'static str] {
-        match self {
-            Portal::LinkedIn => &["linkedin"],
-            Portal::FreelanceDe => &["freelance.de"],
-            Portal::Freelancermap => &["freelancermap"],
-        }
+    pub fn search_terms(self) -> &'static [&'static str] {
+        self.adapter().search_terms()
     }
 
-    /// Portal zu einer Absender-Domain: exakt oder als Subdomain – `freelancermap.de` ist
-    /// also nie `freelance.de`.
+    pub fn access(self) -> Access {
+        self.adapter().access()
+    }
+
+    /// Portal of a sender domain: exact or as a subdomain - `freelancermap.de` is therefore
+    /// never `freelance.de`.
     pub fn from_sender_domain(domain: &str) -> Option<Portal> {
         let domain = domain.trim().trim_end_matches('.').to_ascii_lowercase();
-        Portal::ALL
-            .into_iter()
-            .find(|p| p.sender_domains().iter().any(|d| host_is(&domain, d)))
+        PORTALS
+            .iter()
+            .find(|a| a.sender_domains().iter().any(|d| host_is(&domain, d)))
+            .map(|a| a.portal())
     }
 }
 
@@ -122,12 +205,12 @@ impl fmt::Display for Portal {
     }
 }
 
-/// Identität eines Jobs über alle Mails und Läufe hinweg.
+/// Identity of a job across all mails and runs.
 ///
-/// `id` ist die Job-ID des Portals (nur Ziffern) oder – nur bei freelancermap-Links der
-/// Form `/projekt/<slug>`, die keine ID tragen – `u` + 12 Hex-Zeichen eines Hashes aus
-/// Domain und Pfad. Beim Einlesen von außen (Oberfläche) wird die Form geprüft: Die ID
-/// landet in Dateinamen und darf deshalb nie etwas anderes enthalten.
+/// `id` is the portal's job id (digits only) or - only for freelancermap links of the form
+/// `/projekt/<slug>` that carry no id - `u` + 12 hex characters of a hash over domain and
+/// path. Read from outside (interface), the form is checked: the id ends up in file names
+/// and must never contain anything else.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "RawJobKey")]
 pub struct JobKey {
@@ -157,15 +240,25 @@ impl TryFrom<RawJobKey> for JobKey {
                 id: raw.id,
             })
         } else {
-            Err(format!("ungültige Job-ID „{}“", raw.id))
+            Err(format!("invalid job id `{}`", raw.id))
         }
     }
 }
 
 impl JobKey {
-    /// Trägt der Schlüssel eine echte Portal-ID (statt eines Hashes)?
+    /// Does the key carry a real portal id (instead of a hash)?
     pub fn has_portal_id(&self) -> bool {
         all_digits(&self.id, 1)
+    }
+
+    /// `portal:id` - the form of `dup_of`.
+    pub fn parse(text: &str) -> Option<JobKey> {
+        let (portal, id) = text.split_once(':')?;
+        JobKey::try_from(RawJobKey {
+            portal: Portal::from_key(portal)?,
+            id: id.to_string(),
+        })
+        .ok()
     }
 }
 
@@ -175,19 +268,17 @@ impl fmt::Display for JobKey {
     }
 }
 
-/// Ein erkannter Job-Link: Identität und der bereinigte Link für den Nutzer.
+/// A recognised job link: identity and the cleaned link for the user.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JobLink {
     pub key: JobKey,
-    /// Link zur Anzeige – ohne Tracking-Parameter, immer https.
+    /// Link to show - without tracking parameters, always https.
     pub url: Url,
 }
 
-/// Erkennt einen Job-Link. `None` für alles, was kein Job eines der drei Portale ist
-/// (Profil-, Such-, Abmelde- oder Login-Links, fremde Hosts, andere Schemata).
+/// Recognises a job link. `None` for everything that is no job of a registered portal.
 ///
-/// Klick-Tracker, die das Ziel unverschlüsselt als Parameter tragen, werden einmal
-/// aufgelöst.
+/// Click trackers that carry the target unencrypted as a parameter are resolved once.
 pub fn job_link(raw: &str) -> Option<JobLink> {
     let url = Url::parse(raw.trim()).ok()?;
     if !matches!(url.scheme(), "http" | "https") {
@@ -202,10 +293,25 @@ pub fn job_link(raw: &str) -> Option<JobLink> {
 }
 
 fn direct_job_link(url: &Url) -> Option<JobLink> {
+    PORTALS.iter().find_map(|a| a.job_link(url))
+}
+
+/// Link to show for a portal id.
+pub(crate) fn canonical_url(portal: Portal, id: &str) -> Option<Url> {
+    portal.adapter().canonical_url(id)
+}
+
+/// Where the app reads the full text of a job.
+pub fn fetch_url(link: &JobLink) -> Url {
+    link.key.portal.adapter().fetch_url(link)
+}
+
+/// Lower-case host and non-empty lower-case path segments of a URL. Path words are compared
+/// regardless of case (like the old code with `re.I`): portals link in lower case,
+/// forwarded links not always.
+pub(crate) fn host_and_segments(url: &Url) -> Option<(String, Vec<String>)> {
     let host = url.host_str()?.to_ascii_lowercase();
-    // Pfadteile ohne Rücksicht auf Groß/Klein vergleichen (wie der Altcode mit re.I);
-    // Portale verlinken durchweg klein, weitergeleitete Links nicht immer.
-    let lowered: Vec<String> = url
+    let segments = url
         .path_segments()
         .map(|s| {
             s.filter(|seg| !seg.is_empty())
@@ -213,118 +319,19 @@ fn direct_job_link(url: &Url) -> Option<JobLink> {
                 .collect()
         })
         .unwrap_or_default();
-    let segments: Vec<&str> = lowered.iter().map(String::as_str).collect();
+    Some((host, segments))
+}
 
-    if host_is(&host, "linkedin.com") {
-        let id = linkedin_id(&segments)?;
-        return Some(link(Portal::LinkedIn, id));
-    }
-    if host_is(&host, "freelance.de") {
-        let id = freelance_id(url, &segments)?;
-        return Some(link(Portal::FreelanceDe, id));
-    }
-    let domain = ["freelancermap.de", "freelancermap.com"]
-        .into_iter()
-        .find(|d| host_is(&host, d))?;
-    if let Some(id) = freelancermap_id(&segments) {
-        return Some(link(Portal::Freelancermap, id));
-    }
-    // /projekt/<slug> (bzw. /project/<slug> auf .com) trägt keine ID. Die Identität hängt
-    // an Domain und Pfad – unabhängig von Subdomain, Groß/Klein und Tracking-Parametern.
-    let [kind @ ("projekt" | "project"), slug] = segments.as_slice() else {
-        return None;
-    };
-    if !is_slug(slug) {
-        return None;
-    }
-    let path = format!("/{kind}/{slug}");
-    let hash = Sha256::digest(format!("{domain}{path}").as_bytes());
+/// A job link with a digit id and its canonical URL.
+pub(crate) fn link(portal: Portal, id: String) -> Option<JobLink> {
+    let url = canonical_url(portal, &id)?;
     Some(JobLink {
-        key: JobKey {
-            portal: Portal::Freelancermap,
-            id: format!("u{}", hex12(&hash)),
-        },
-        url: Url::parse(&format!("https://www.{domain}{path}")).ok()?,
+        key: JobKey { portal, id },
+        url,
     })
 }
 
-/// `/jobs/view/<ID>` bzw. `/comm/jobs/view/<ID>`; das Segment ist die ID oder endet auf
-/// `-<ID>` (`sap-berater-4456653430`).
-fn linkedin_id(segments: &[&str]) -> Option<String> {
-    let (["jobs", "view", rest @ ..] | ["comm", "jobs", "view", rest @ ..]) = segments else {
-        return None;
-    };
-    let digits = rest.first()?.rsplit('-').next()?;
-    all_digits(digits, 6).then(|| digits.to_string())
-}
-
-/// `/project/index.php?id=<ID>`, `/projekte/projekt-<ID>[-slug]` oder `/projekt-<ID>[-slug]`
-/// – nur an diesen Stellen (ein Blog-Artikel „…/blog/projekt-2025-…“ ist kein Projekt).
-fn freelance_id(url: &Url, segments: &[&str]) -> Option<String> {
-    if segments == ["project", "index.php"] {
-        let (_, id) = url
-            .query_pairs()
-            .find(|(k, _)| k.eq_ignore_ascii_case("id"))?;
-        return all_digits(&id, 1).then(|| id.into_owned());
-    }
-    let (["projekte", segment, ..] | [segment, ..]) = segments else {
-        return None;
-    };
-    let digits = segment.strip_prefix("projekt-")?.split('-').next()?;
-    all_digits(digits, 4).then(|| digits.to_string())
-}
-
-/// `/nproj/<ID>.html` oder `/projektboerse/projekte/…/<ID>-slug.html`.
-fn freelancermap_id(segments: &[&str]) -> Option<String> {
-    match segments {
-        ["nproj", file] => {
-            let digits = file.strip_suffix(".html").unwrap_or(file);
-            all_digits(digits, 5).then(|| digits.to_string())
-        }
-        ["projektboerse", "projekte" | "projekt", .., last] => {
-            let digits = last.split('-').next()?;
-            (last.contains('-') && all_digits(digits, 5)).then(|| digits.to_string())
-        }
-        _ => None,
-    }
-}
-
-fn link(portal: Portal, id: String) -> JobLink {
-    let url = canonical_url(portal, &id).expect("kanonische URL aus Ziffern-ID ist immer gültig");
-    JobLink {
-        key: JobKey { portal, id },
-        url,
-    }
-}
-
-/// Link zur Anzeige für eine Portal-ID. Die Formen sind geprüft: jede führt ohne Konto
-/// zur Anzeige (freelance.de: zur Projektseite mit Registrierungswand).
-pub(crate) fn canonical_url(portal: Portal, id: &str) -> Option<Url> {
-    if !all_digits(id, 1) {
-        return None;
-    }
-    let url = match portal {
-        Portal::LinkedIn => format!("https://www.linkedin.com/jobs/view/{id}/"),
-        Portal::FreelanceDe => format!("https://www.freelance.de/project/index.php?id={id}"),
-        Portal::Freelancermap => format!("https://www.freelancermap.de/nproj/{id}.html"),
-    };
-    Url::parse(&url).ok()
-}
-
-/// Adresse, von der die App den Volltext holt. LinkedIn: der öffentliche Gast-Abschnitt
-/// (der Mail-Link selbst führt Gäste auf die Anmeldeseite). Übrige: der Anzeige-Link.
-pub fn fetch_url(link: &JobLink) -> Url {
-    match (link.key.portal, link.key.has_portal_id()) {
-        (Portal::LinkedIn, true) => Url::parse(&format!(
-            "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}",
-            link.key.id
-        ))
-        .expect("Gast-URL aus Ziffern-ID ist immer gültig"),
-        _ => link.url.clone(),
-    }
-}
-
-/// `host` ist `domain` oder eine Subdomain davon.
+/// `host` is `domain` or a subdomain of it.
 pub(crate) fn host_is(host: &str, domain: &str) -> bool {
     host == domain
         || host
@@ -332,23 +339,15 @@ pub(crate) fn host_is(host: &str, domain: &str) -> bool {
             .is_some_and(|prefix| prefix.ends_with('.'))
 }
 
-/// Längere Ziffernfolgen sind keine Job-ID: Die ID landet in Dateinamen und kommt über die
-/// Oberfläche zurück, wo längere abgelehnt werden.
+/// Longer digit runs are no job id: the id ends up in file names and comes back through the
+/// interface, where longer ones are refused.
 const MAX_ID_DIGITS: usize = 20;
 
-fn all_digits(text: &str, min_len: usize) -> bool {
+pub(crate) fn all_digits(text: &str, min_len: usize) -> bool {
     (min_len..=MAX_ID_DIGITS).contains(&text.len()) && text.bytes().all(|b| b.is_ascii_digit())
 }
 
-fn is_slug(text: &str) -> bool {
-    !text.is_empty()
-        && text.len() <= 300
-        && text
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-}
-
-/// Die ersten 6 Bytes als 12 Hex-Zeichen.
+/// The first 6 bytes as 12 hex characters.
 pub(crate) fn hex12(bytes: &[u8]) -> String {
     use fmt::Write as _;
     bytes
@@ -360,10 +359,18 @@ pub(crate) fn hex12(bytes: &[u8]) -> String {
         })
 }
 
+/// A CSS selector of a page parser (fixed and valid).
+pub(crate) fn selector(css: &str) -> Selector {
+    Selector::parse(css).expect("valid selector")
+}
+
+/// A lazily built selector.
+pub(crate) type Css = LazyLock<Selector>;
+
 #[cfg(test)]
 #[expect(
     clippy::unnecessary_wraps,
-    reason = "Helfer geben Option zurück, damit assert_eq! lesbar bleibt"
+    reason = "helpers return an Option so that assert_eq! stays readable"
 )]
 mod tests {
     use super::*;
@@ -414,8 +421,8 @@ mod tests {
             "https://www.linkedin.com/comm/jobs/search/?keywords=controller",
             "https://www.linkedin.com/company/flownotes/",
             "https://www.linkedin.com/messaging/",
-            "https://www.linkedin.com/jobs/view/12345/", // zu kurz
-            // zu lang: keine ID, sonst eine Zeile, die sich nie öffnen oder abrufen ließe
+            "https://www.linkedin.com/jobs/view/12345/", // too short
+            // too long: no id, otherwise a row that could never be opened or fetched
             "https://www.linkedin.com/jobs/view/412345678901234567890/",
             "",
         ] {
@@ -423,8 +430,8 @@ mod tests {
         }
     }
 
-    /// Früher: Das alte Muster nahm die erste 6+-stellige Ziffernfolge nach
-    /// einem Bindestrich – hier „20260915“ statt der Job-ID.
+    /// Formerly the old pattern took the first run of 6+ digits after a dash - here
+    /// "20260915" instead of the job id.
     #[test]
     fn linkedin_id_is_the_end_of_the_segment() {
         assert_eq!(
@@ -466,7 +473,7 @@ mod tests {
         );
     }
 
-    /// Zwei Link-Formen desselben Projekts ergeben denselben Schlüssel.
+    /// Two link forms of the same project give the same key.
     #[test]
     fn same_project_same_key() {
         let a =
@@ -509,9 +516,9 @@ mod tests {
         assert_eq!(key("https://www.freelancermap.de/login"), None);
     }
 
-    /// Früher: Ziffern aus Query, Slug oder fremdem Host wurden als ID
-    /// gelesen. `/projekt/<slug>` trägt keine ID – Postleitzahl und Normnummer im Slug
-    /// dürfen nicht zur ID werden.
+    /// Formerly digits from the query, the slug or a foreign host became the id.
+    /// `/projekt/<slug>` without an id at its end carries none - a postal code or a norm
+    /// number in the slug must not become the id.
     #[test]
     fn freelancermap_slug_links_never_yield_an_id() {
         let a = job_link("https://www.freelancermap.de/projekt/sap-berater-m-w-d-80331-muenchen")
@@ -523,8 +530,8 @@ mod tests {
             assert!(!l.key.has_portal_id(), "{:?}", l.key);
             assert!(l.key.id.starts_with('u') && l.key.id.len() == 13);
         }
-        assert_ne!(b.key, c.key, "zwei Projekte, zwei Schlüssel");
-        // Tracking-Parameter ändern den Schlüssel nicht.
+        assert_ne!(b.key, c.key, "two projects, two keys");
+        // Tracking parameters do not change the key.
         let b2 = job_link(
             "https://freelancermap.de/projekt/iso-27001-auditor-remote?utm_campaign=alert-8871234",
         )
@@ -549,7 +556,7 @@ mod tests {
         ] {
             assert_eq!(key(raw), None, "{raw}");
         }
-        // Die Anzeige-URL ist immer https, auch wenn die Mail http verlinkt.
+        // The link shown is always https, even when the mail links http.
         let l = job_link("http://www.linkedin.com/jobs/view/4123456789").unwrap();
         assert_eq!(
             l.url.as_str(),
@@ -586,7 +593,7 @@ mod tests {
         );
     }
 
-    /// Die ID wird nur an festen Stellen gelesen.
+    /// The id is only read at fixed positions.
     #[test]
     fn freelance_id_only_at_fixed_positions() {
         assert_eq!(
@@ -603,7 +610,7 @@ mod tests {
         );
     }
 
-    /// Groß/Klein im Pfad und im Parameter spielt keine Rolle (Altcode: re.I).
+    /// Case in path and parameter does not matter (old code: re.I).
     #[test]
     fn path_keywords_ignore_case() {
         assert_eq!(
@@ -627,8 +634,7 @@ mod tests {
         assert_eq!(upper.key, lower.key);
     }
 
-    /// Subdomains ergaben eine nicht existierende Adresse und einen
-    /// anderen Schlüssel.
+    /// Subdomains gave a non-existent address and another key.
     #[test]
     fn freelancermap_subdomains_share_key_and_url() {
         let m = job_link("https://m.freelancermap.de/projekt/sap-berater-m-w-d").unwrap();
@@ -647,8 +653,8 @@ mod tests {
         );
     }
 
-    /// Ein Job-Schlüssel aus der Oberfläche wird an der Grenze geprüft – die ID landet in
-    /// Dateinamen.
+    /// A job key from the interface is checked at the border - the id ends up in file
+    /// names.
     #[test]
     fn job_key_from_outside_is_validated() {
         let ok: JobKey =
@@ -666,6 +672,9 @@ mod tests {
         ] {
             assert!(serde_json::from_str::<JobKey>(bad).is_err(), "{bad}");
         }
+        assert_eq!(JobKey::parse(&ok.to_string()), Some(ok));
+        assert_eq!(JobKey::parse("linkedin:../x"), None);
+        assert_eq!(JobKey::parse("xing:123"), None);
     }
 
     #[test]
@@ -694,7 +703,8 @@ mod tests {
             Portal::from_sender_domain("news.freelance.de"),
             Some(Portal::FreelanceDe)
         );
-        // freelancermap.de ist nie freelance.de, fremde Domains mit gleichem Ende auch nicht.
+        // freelancermap.de is never freelance.de, foreign domains with the same ending
+        // neither.
         assert_ne!(
             Portal::from_sender_domain("freelancermap.de"),
             Some(Portal::FreelanceDe)
@@ -704,14 +714,18 @@ mod tests {
     }
 
     #[test]
-    fn keys_labels_and_serde() {
+    fn keys_labels_access_and_serde() {
         assert_eq!(
             Portal::ALL.map(Portal::key),
             ["linkedin", "freelance", "freelancermap"]
         );
         assert_eq!(
-            Portal::ALL.map(Portal::login_mode),
-            [LoginMode::None, LoginMode::Required, LoginMode::None]
+            Portal::ALL.map(Portal::access),
+            [
+                Access::Guest,
+                Access::Session { required: true },
+                Access::Guest
+            ]
         );
         assert_eq!(
             Portal::ALL.map(Portal::file_tag),
@@ -719,13 +733,46 @@ mod tests {
         );
         for p in Portal::ALL {
             assert_eq!(Portal::from_key(p.key()), Some(p));
+            assert_eq!(p.adapter().portal(), p);
             assert_eq!(
                 serde_json::to_string(&p).unwrap(),
                 format!("\"{}\"", p.key())
             );
+            // A session window exactly where the portal offers a sign-in.
+            assert_eq!(p.adapter().session().is_some(), p.access().can_sign_in());
         }
-        // Ein unbekanntes Portal aus der Oberfläche wird abgelehnt.
+        // An unknown portal from the interface is refused.
         assert!(serde_json::from_str::<Portal>("\"../../x\"").is_err());
         assert_eq!(Portal::from_key("xing"), None);
+        // Every registered portal exactly once.
+        for (i, a) in PORTALS.iter().enumerate() {
+            assert!(PORTALS[..i].iter().all(|b| b.portal() != a.portal()));
+        }
+    }
+
+    /// The path of a run: a session window only with the sign-in switched on.
+    #[test]
+    fn fetch_paths() {
+        let required = Access::Session { required: true };
+        let optional = Access::Session { required: false };
+        assert_eq!(Access::Guest.path(false), Some(FetchPath::Guest));
+        assert_eq!(Access::Guest.path(true), Some(FetchPath::Guest));
+        assert_eq!(required.path(false), None);
+        assert_eq!(required.path(true), Some(FetchPath::Session));
+        assert_eq!(optional.path(false), Some(FetchPath::Guest));
+        assert_eq!(optional.path(true), Some(FetchPath::Session));
+    }
+
+    /// The test portal is recognised through the registry alone.
+    #[test]
+    fn a_fourth_portal_through_the_registry() {
+        let probe = job_link("https://jobs.probe.example/job/4711").unwrap();
+        assert_eq!(probe.key.portal, Portal::Probe);
+        assert_eq!(Portal::from_key("probe"), Some(Portal::Probe));
+        assert_eq!(
+            Portal::from_sender_domain("alerts.probe.example"),
+            Some(Portal::Probe)
+        );
+        assert!(!Portal::ALL.contains(&Portal::Probe));
     }
 }

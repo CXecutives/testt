@@ -168,7 +168,7 @@ fn ask<R: Runtime>(
     let script = js.clone();
     let result = window.eval_with_callback(js, move |raw| {
         // The result is JSON-serialized - so here a JSON string with JSON inside.
-        let json: String = serde_json::from_str(&raw).unwrap_or(raw);
+        let json = jobalert_core::fetch::site::eval_result(raw);
         let value = serde_json::from_str::<Value>(&json).unwrap_or_default();
         if let Ok(mut last) = LAST.lock() {
             last.clone_from(&json);

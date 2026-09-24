@@ -24,7 +24,7 @@ use crate::fetch::policy::Policy;
 use crate::fetch::{FetchEvent, FetchSummary, PageFetcher, PortalHealth, Selection, fetch_all};
 use crate::mail::imap::{MailError, MailSource};
 use crate::mail::scan::{ScanError, ScanEvent, ScanSummary, Scope, scan};
-use crate::portal::{JobKey, Portal};
+use crate::portal::{FetchPath, JobKey, Portal};
 use crate::store::{JobFilter, JobRow, Store};
 use crate::text::truncate_chars;
 use crate::time;
@@ -92,6 +92,20 @@ pub struct RunContext {
     pub portals: Vec<Portal>,
     /// Portals whose job pages may be fetched (settings: enabled and details on).
     pub fetch_portals: Vec<Portal>,
+    /// Of those, the portals read in the session window (sign-in switched on); the others
+    /// go as a guest. A run never opens a session window for any other portal.
+    pub sign_in: Vec<Portal>,
+}
+
+impl RunContext {
+    /// The fetch path of a portal in this run.
+    pub fn path(&self, portal: Portal) -> FetchPath {
+        if self.sign_in.contains(&portal) {
+            FetchPath::Session
+        } else {
+            FetchPath::Guest
+        }
+    }
 }
 
 /// Mailbox and fetch routes of a run (dummies in tests and in the dry run).
@@ -102,9 +116,9 @@ pub trait Backends {
         &mut self,
         cancel: &CancellationToken,
     ) -> impl Future<Output = Result<Self::Mail, MailError>> + Send;
-    /// Fetch route of **one** portal: own HTTP session, own window. The portals run side by
-    /// side and therefore share none.
-    fn pages(&mut self, portal: Portal) -> Result<Self::Pages, String>;
+    /// Fetch path of **one** portal - only the one `path` names: own HTTP session or own
+    /// window. The portals run side by side and therefore share none.
+    fn pages(&mut self, portal: Portal, path: FetchPath) -> Result<Self::Pages, String>;
     /// The matcher of the run; `None` = nothing is scored (no usable profile or engine).
     fn matcher(&self) -> Option<Arc<dyn Matcher>> {
         None
@@ -475,6 +489,7 @@ pub async fn run<B: Backends>(
         let mut fetched = FetchSummary::default();
         summary.outcome = fetch_step(
             backends,
+            ctx,
             (store, policy, matcher.as_deref()),
             run,
             selection,
@@ -669,6 +684,7 @@ async fn scan_step<B: Backends>(
 )]
 async fn fetch_step<B: Backends>(
     backends: &mut B,
+    ctx: &RunContext,
     (store, policy, matcher): (&Store, &Mutex<Policy>, Option<&dyn Matcher>),
     run: i64,
     selection: Selection<'_>,
@@ -680,7 +696,7 @@ async fn fetch_step<B: Backends>(
     // Activity in the status line - not anew for every job, again after a wait.
     let mut activity: Option<(StatusCode, Portal)> = None;
     let result = fetch_all(
-        |portal| backends.pages(portal),
+        |portal| backends.pages(portal, ctx.path(portal)),
         store,
         policy,
         selection,

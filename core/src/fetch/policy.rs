@@ -26,30 +26,12 @@ pub struct Limits {
     pub per_day: usize,
 }
 
-/// The rules in one place.
+/// Pace and caps of a portal - from its adapter.
 pub fn limits(portal: Portal) -> Limits {
-    match portal {
-        Portal::LinkedIn => Limits {
-            pace_ms: 4_000..=7_000,
-            per_hour: 20,
-            per_day: 40,
-        },
-        Portal::Freelancermap => Limits {
-            pace_ms: 3_000..=5_000,
-            per_hour: 25,
-            per_day: 60,
-        },
-        // On top comes the dwell time in the session window (`DWELL_SECS`). The gap here also
-        // holds across runs, cancellations and restarts.
-        Portal::FreelanceDe => Limits {
-            pace_ms: 10_000..=20_000,
-            per_hour: 15,
-            per_day: 30,
-        },
-    }
+    portal.adapter().limits()
 }
 
-/// freelance.de session window: dwell time per page (from "fully loaded") like a reader -
+/// Session window: dwell time per page (from "fully loaded") like a reader -
 /// in addition to the gap, deliberately double restraint.
 pub const DWELL_SECS: RangeInclusive<u64> = 8..=20;
 

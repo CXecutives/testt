@@ -19,7 +19,7 @@ use crate::model::{
     Band, DescStatus, MatchRecord, MatchStatus, Notice, band, gmail_url, is_usable_title,
 };
 use crate::pipeline::{RunSnapshot, RunSummary};
-use crate::portal::{JobKey, LoginMode, Portal};
+use crate::portal::{JobKey, Portal};
 use crate::settings::{PortalSwitches, Settings};
 use crate::store::{AlertMailRow, JobRow, PageQuery, Store};
 use crate::text::split_company_location;
@@ -641,9 +641,10 @@ pub fn portal_states(
             let switches = settings.portal(portal);
             let limits = limits(portal);
             let (used_hour, used_day) = policy.usage(portal, now);
-            let login = match portal.login_mode() {
-                LoginMode::None => PortalLogin::None,
-                LoginMode::Required => PortalLogin::Optional,
+            let login = if portal.access().can_sign_in() {
+                PortalLogin::Optional
+            } else {
+                PortalLogin::None
             };
             // Nothing remembered means "unknown": only a sign-in or a page that asks for one
             // turns it into a statement.

@@ -31,6 +31,7 @@ fn ctx(workspace: &Path, dry_run: bool) -> RunContext {
         dry_run,
         portals: Portal::ALL.to_vec(),
         fetch_portals: Portal::ALL.to_vec(),
+        sign_in: vec![Portal::FreelanceDe],
     }
 }
 
@@ -285,7 +286,7 @@ async fn mail_failure_skips_fetch_but_exports() {
                 "[AUTHENTICATIONFAILED] Invalid credentials".into(),
             ))
         }
-        fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+        fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
             Ok(DemoPages)
         }
     }
@@ -726,7 +727,7 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
         async fn connect_mail(&mut self, _: &CancellationToken) -> Result<DemoMail, MailError> {
             Err(MailError::Timeout)
         }
-        fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+        fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
             Ok(DemoPages)
         }
     }
@@ -881,7 +882,7 @@ impl Backends for Unscored {
     async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
         DemoBackends.connect_mail(cancel).await
     }
-    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+    fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
         Ok(DemoPages)
     }
 }
@@ -913,7 +914,7 @@ impl Backends for WithPicky {
     async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
         DemoBackends.connect_mail(cancel).await
     }
-    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+    fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
         Ok(DemoPages)
     }
     fn matcher(&self) -> Option<Arc<dyn Matcher>> {

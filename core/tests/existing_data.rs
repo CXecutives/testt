@@ -5,8 +5,8 @@
 use std::path::Path;
 
 use jiff::Timestamp;
+use jobalert_core::fetch::PortalHealth;
 use jobalert_core::fetch::policy::{Allowance, PauseKind, PauseReason, Policy};
-use jobalert_core::fetch::{PortalHealth, Route, route};
 use jobalert_core::model::Posting;
 use jobalert_core::portal::{Portal, job_link};
 use jobalert_core::settings::Settings;
@@ -120,7 +120,7 @@ fn settings_policy_and_database_of_an_earlier_version_keep_working() {
     // The confirmed freelance.de sign-in stays.
     let freelance = policy.state(Portal::FreelanceDe);
     assert!(!freelance.login_needed && freelance.session_confirmed_at.is_some());
-    assert_eq!(route(Portal::FreelanceDe), Route::Session);
+    assert!(Portal::FreelanceDe.access().can_sign_in());
     // A portal the old file did not know starts unburdened.
     assert_eq!(
         policy.allowance(Portal::Freelancermap, now()),

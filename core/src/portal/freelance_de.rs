@@ -1,21 +1,121 @@
-//! freelance.de-Projektseite im Sitzungsfenster. Das Fenster sammelt per Skript nur
-//! Befunde (Status, Adresse, Anmelde-Zeichen, Seitenfelder, HTML des Beschreibungsfelds);
-//! bewertet und in Text verwandelt wird hier in Rust. Firma und Ort stehen für
-//! Nicht-EXPERT-Mitglieder nur als Platzhalter auf der Seite – der bleibt außen vor.
+//! freelance.de. Alerts come from freelance.de; the full project page is only readable
+//! signed in, in the session window. The window only collects findings by script (status,
+//! address, sign-in signs, page fields, HTML of the description field); judging them and
+//! turning them into text happens here in Rust. Company and location show up for non-EXPERT
+//! members only as a placeholder - that one stays out.
 
 use url::Url;
 
-use super::site::SessionPage;
-use super::{PageFields, PageOutcome, Parsed, judge};
-use crate::portal::host_is;
+use super::{Access, JobLink, Portal, PortalAdapter, all_digits, host_and_segments, host_is};
+use crate::fetch::policy::Limits;
+use crate::fetch::site::{PortalSite, SessionPage};
+use crate::fetch::{Cause, PageFields, PageOutcome, Parsed, judge};
 use crate::text::{html_to_text, one_line};
 
-/// Befund-Skript: synchron, in `try/catch`, liefert immer JSON. Keine Timer, keine Logik im
-/// Seiten-JS (ein verstecktes WebView drosselt Timer).
+pub(super) struct FreelanceDe;
+
+/// The session window of freelance.de.
+pub static SITE: PortalSite = PortalSite {
+    portal: Portal::FreelanceDe,
+    login_url: "https://www.freelance.de/login.php",
+    logout_url: "https://www.freelance.de/logout.php",
+    probe_js: PROBE_JS,
+    is_allowed: is_portal_url,
+    is_postlogin,
+    signed_in,
+    judge: judge_page,
+};
+
+impl PortalAdapter for FreelanceDe {
+    fn portal(&self) -> Portal {
+        Portal::FreelanceDe
+    }
+    fn key(&self) -> &'static str {
+        "freelance"
+    }
+    fn label(&self) -> &'static str {
+        "freelance.de"
+    }
+    fn file_tag(&self) -> &'static str {
+        "Freelance"
+    }
+    fn home_url(&self) -> &'static str {
+        "https://www.freelance.de/"
+    }
+    fn sender_domains(&self) -> &'static [&'static str] {
+        &["freelance.de"]
+    }
+    fn search_terms(&self) -> &'static [&'static str] {
+        &["freelance.de"]
+    }
+    /// On top comes the dwell time in the session window (`DWELL_SECS`). The gap here also
+    /// holds across runs, cancellations and restarts.
+    fn limits(&self) -> Limits {
+        Limits {
+            pace_ms: 10_000..=20_000,
+            per_hour: 15,
+            per_day: 30,
+        }
+    }
+    fn access(&self) -> Access {
+        Access::Session { required: true }
+    }
+
+    /// `/project/index.php?id=<ID>`, `/projekte/projekt-<ID>[-slug]` or
+    /// `/projekt-<ID>[-slug]` - only at these positions (a blog article
+    /// ".../blog/projekt-2025-..." is no project).
+    fn job_link(&self, url: &Url) -> Option<JobLink> {
+        let (host, segments) = host_and_segments(url)?;
+        if !host_is(&host, "freelance.de") {
+            return None;
+        }
+        let segments: Vec<&str> = segments.iter().map(String::as_str).collect();
+        let id = if segments == ["project", "index.php"] {
+            let (_, id) = url
+                .query_pairs()
+                .find(|(k, _)| k.eq_ignore_ascii_case("id"))?;
+            all_digits(&id, 1).then(|| id.into_owned())?
+        } else {
+            let (["projekte", segment, ..] | [segment, ..]) = segments.as_slice() else {
+                return None;
+            };
+            let digits = segment.strip_prefix("projekt-")?.split('-').next()?;
+            all_digits(digits, 4).then(|| digits.to_string())?
+        };
+        super::link(Portal::FreelanceDe, id)
+    }
+
+    /// Checked: leads without an account to the project page (with the registration wall).
+    fn canonical_url(&self, id: &str) -> Option<Url> {
+        if !all_digits(id, 1) {
+            return None;
+        }
+        Url::parse(&format!(
+            "https://www.freelance.de/project/index.php?id={id}"
+        ))
+        .ok()
+    }
+
+    fn redirect_outcome(&self, _path: &str) -> PageOutcome {
+        PageOutcome::Suspicious(Cause::RedirectNotFollowed)
+    }
+
+    /// Not reached: without a sign-in the portal is not fetched at all.
+    fn guest_page(&self, _html: &str, _path: &str, _link: &JobLink) -> PageOutcome {
+        PageOutcome::LoginRequired(Cause::NoLogoutLink)
+    }
+
+    fn session(&self) -> Option<&'static PortalSite> {
+        Some(&SITE)
+    }
+}
+
+/// Probe script: synchronous, in `try/catch`, always returns JSON. No timers, no logic in
+/// the page's JS (a hidden web view throttles timers).
 ///
-/// Der Titel steht gemessen im `h1` des Projektkopfs. Wo Firma und Ort stehen, ist nur
-/// **vermutet**: gesucht wird im Projektkopf eine beschriftete Zeile – nachzumessen an einer
-/// echten angemeldeten Seite.
+/// The title sits measured in the `h1` of the project head. Where company and location
+/// stand is only **assumed**: the script looks for a labelled row in the project head - to
+/// be measured on a real signed-in page. German page words, do not translate.
 pub const PROBE_JS: &str = r#"(() => { try {
   const text = (el) => (el && el.textContent || '').replace(/\s+/g, ' ').trim();
   const heading = [...document.querySelectorAll('h1, h2, h3')].find((h) => /Projektbeschreibung/i.test(text(h)));
@@ -47,117 +147,124 @@ pub const PROBE_JS: &str = r#"(() => { try {
   });
 } catch (e) { return JSON.stringify({ ok: false, err: String(e), url: String(location.href) }); } })()"#;
 
-/// Angemeldet: Es gibt einen Abmelde-Link (gemessen).
+/// Signed in: there is a sign-out link (measured).
 pub fn signed_in(page: &SessionPage) -> bool {
     page.has_logout
 }
 
-/// Nach der Anmeldung leitet freelance.de die erste Seite einmal hierher um. Auch hier gilt
-/// die Portal-Regel zuerst: Derselbe Pfad auf einem fremden Host ist keine Weiterleitung des
-/// Portals und darf keinen zweiten Zugriff auslösen.
+/// After the sign-in freelance.de redirects the first page once to this address. The portal
+/// rule comes first here too: the same path on a foreign host is no redirect of the portal
+/// and must not trigger a second access.
 pub fn is_postlogin(url: &str) -> bool {
     Url::parse(url).is_ok_and(|u| is_portal_url(&u) && u.path().starts_with("/promotion/postlogin"))
 }
 
-/// Eine Seite des Portals: https auf `freelance.de` oder einer Subdomain. Alles andere
-/// (Fehlerseite der WebView `chrome-error://…`, `about:blank`, fremder Host) ist keine.
+/// A page of the portal: https on `freelance.de` or a subdomain. Everything else (the web
+/// view's error page `chrome-error://...`, `about:blank`, a foreign host) is none.
 pub fn is_portal_url(url: &Url) -> bool {
-    // Der URL-Parser schreibt Hosts von http(s)-Adressen schon klein.
+    // The URL parser already lower-cases hosts of http(s) addresses.
     url.scheme() == "https"
         && url
             .host_str()
             .is_some_and(|host| host_is(host, "freelance.de"))
 }
 
-/// Kürzer als das und mit Registrierungsaufruf: nur der Teaser (gemessen 242–306 Zeichen).
+/// Shorter than this and with a registration call: only the teaser (measured 242-306
+/// characters).
 const TEASER_MAX_CHARS: usize = 500;
 
-/// Hinter diesen Überschriften ist die Beschreibung zu Ende (Werbung, Kontakt, Ähnliches).
+/// Registration call of the teaser - also an end marker. German page words, do not
+/// translate.
+const REGISTER_CALL: &str = "Kostenlos registrieren";
+
+/// Behind these headings the description ends (ads, contact, similar projects). German page
+/// words, do not translate.
 const END_MARKERS: &[&str] = &[
-    "Kostenlos registrieren",
+    REGISTER_CALL,
     "Kontaktdaten",
     "Ähnliche Projekte",
     "Kategorien und Skills",
     "Sie suchen Freelancer?",
 ];
 
-/// Befund → Ergebnis-Matrix. `project_id`: die ID aus der Mail.
+/// Findings -> outcome matrix. `project_id`: the id from the mail.
 ///
-/// „Anmeldung nötig“ nur, wenn eine Anmeldung helfen kann (kein Abmelde-Link). Was trotz
-/// Abmelde-Link nicht stimmt, ist verdächtig – eine erneute Anmeldung änderte nichts und
-/// liefe im Kreis, der Schutzschalter dagegen greift.
+/// "Sign-in needed" only where a sign-in can help (no sign-out link). Whatever is wrong
+/// despite a sign-out link is suspicious - signing in again would change nothing and run in
+/// circles, the breaker applies instead.
 pub fn judge_page(page: &SessionPage, project_id: &str) -> PageOutcome {
-    // Zuerst: Ist das überhaupt eine Seite des Portals? Eine gescheiterte Navigation meldet
-    // die WebView ebenfalls als „geladen“ – dann auf ihrer eigenen Fehlerseite.
+    // First: is this a page of the portal at all? The web view reports a failed navigation
+    // as "loaded" too - on its own error page.
     let Some(url) = Url::parse(&page.url).ok().filter(is_portal_url) else {
         return PageOutcome::NetError {
             timeout: false,
-            detail: "Seite nicht geladen".into(),
+            cause: Cause::NotLoaded,
         };
     };
     if !page.ok {
-        return PageOutcome::Suspicious(format!(
-            "Seite nicht auswertbar ({})",
-            page.err.as_deref().unwrap_or("unbekannt")
-        ));
+        return PageOutcome::Suspicious(Cause::ProbeFailed);
     }
-    // Eine Sicherheitsprüfung sperrt – außer das Widget steckt nur passiv in einer normal
-    // geladenen Projektseite mit Beschreibung.
+    // A security check blocks - unless the widget only sits passively in a normally loaded
+    // project page with a description.
     if page.has_captcha && (page.panel_html.is_none() || page.status != 200) {
-        return PageOutcome::Blocked(
-            "Sicherheitsprüfung (Captcha) – bitte im Browser öffnen".into(),
-        );
+        return PageOutcome::Blocked(Cause::Captcha);
     }
-    match page.status {
-        429 => return PageOutcome::Throttled("HTTP 429 (zu viele Anfragen)".into()),
-        403 => return PageOutcome::Blocked("HTTP 403 (Zugriff verweigert)".into()),
-        404 | 410 => return PageOutcome::Gone,
-        500..=599 => return PageOutcome::Throttled(format!("HTTP {} (Serverfehler)", page.status)),
-        _ => {}
+    if let Some(outcome) = status_outcome(page.status) {
+        return outcome;
     }
     let path = url.path().to_ascii_lowercase();
     if path.starts_with("/login") || (page.has_login_form && !page.has_logout) {
-        return PageOutcome::LoginRequired("Anmeldeseite".into());
+        return PageOutcome::LoginRequired(Cause::LoginPage);
     }
     if !page.has_logout {
-        return PageOutcome::LoginRequired("kein Abmelde-Link".into());
+        return PageOutcome::LoginRequired(Cause::NoLogoutLink);
     }
-    // Abgelaufenes Projekt: freelance.de leitet auf eine Projektliste um – mit Hinweis
-    // (`/projekte?info_message=…`) oder auf die Kategorie des Projekts. Gemessen ist das nur
-    // abgemeldet; „weg“ gilt deshalb erst in einer bestätigten Sitzung. Eine Projektseite hat
-    // immer „/projekt-<ID>“ im Pfad.
+    // Expired project: freelance.de redirects to a project list - with a notice
+    // (`/projekte?info_message=...`) or to the project's category. Measured only signed out;
+    // "gone" therefore only counts in a confirmed session. A project page always has
+    // "/projekt-<ID>" in its path.
     if !page.url.contains(project_id) && is_listing(&path) {
         return PageOutcome::Gone;
     }
-    // Teaser: kurzer Text mit Registrierungsaufruf (gemessen 277 Zeichen; der Aufruf ist
-    // zugleich Endmarke, darum vor dem Kürzen geprüft) oder nur der „EXPERT“-Hinweis ohne
-    // Textfeld. Ein langer Text mit Aufruf am Ende ist dagegen der Volltext.
+    // Teaser: a short text with a registration call (measured 277 characters; the call is
+    // an end marker too, hence checked before cutting) or only the "EXPERT" notice without a
+    // text field. A long text with the call at its end is the full text.
     let full = page.panel_html.as_deref().map(html_to_text);
     let text = full.as_deref().map(cut_at_end_markers);
-    let teaser = full
-        .as_deref()
-        .is_some_and(|t| t.contains("Kostenlos registrieren"))
-        && text
-            .as_deref()
-            .is_some_and(|t| t.chars().count() < TEASER_MAX_CHARS);
-    if teaser || (page.has_expert_marker && full.is_none()) {
-        return PageOutcome::Suspicious("nur Teaser trotz Anmeldung".into());
+    if is_teaser(full.as_deref(), text.as_deref()) || (page.has_expert_marker && full.is_none()) {
+        return PageOutcome::Suspicious(Cause::TeaserDespiteSession);
     }
-    // Richtige Seite? Die ID aus der Mail steht in jeder Form der Projektadresse.
+    // The right page? The id from the mail is in every form of the project address.
     if !page.url.contains(project_id) {
-        return PageOutcome::Suspicious("andere Seite als erwartet".into());
+        return PageOutcome::Suspicious(Cause::WrongPage);
     }
     judge(Parsed {
         text,
-        fields: page_fields(page),
+        fields: page_fields(&page.title, &page.company, &page.location),
         ..Parsed::default()
     })
 }
 
-/// Seitenfelder für die Tabelle. Leere Werte lässt der Speicher stehen – deshalb wird der
-/// Platzhalter „für EXPERT-Mitglieder sichtbar“ zu einem leeren Feld statt zu einem Namen,
-/// der keiner ist.
-fn page_fields(page: &SessionPage) -> PageFields {
+/// Status codes that decide without looking at the content.
+fn status_outcome(status: u16) -> Option<PageOutcome> {
+    Some(match status {
+        429 => PageOutcome::Throttled(Cause::Http(429)),
+        403 => PageOutcome::Blocked(Cause::Http(403)),
+        404 | 410 => PageOutcome::Gone,
+        500..=599 => PageOutcome::Throttled(Cause::Http(status)),
+        _ => return None,
+    })
+}
+
+/// Short text with the registration call.
+fn is_teaser(full: Option<&str>, cut: Option<&str>) -> bool {
+    full.is_some_and(|t| t.contains(REGISTER_CALL))
+        && cut.is_some_and(|t| t.chars().count() < TEASER_MAX_CHARS)
+}
+
+/// Page fields for the table. The store keeps empty values out - so the placeholder "für
+/// EXPERT-Mitglieder sichtbar" becomes an empty field instead of a name that is none.
+fn page_fields(title: &str, company: &str, location: &str) -> PageFields {
     let value = |raw: &str| {
         let value = one_line(raw);
         if value.to_lowercase().contains("expert-mitglieder") {
@@ -167,13 +274,13 @@ fn page_fields(page: &SessionPage) -> PageFields {
         }
     };
     PageFields {
-        title: value(&page.title),
-        company: value(&page.company),
-        location: value(&page.location),
+        title: value(title),
+        company: value(company),
+        location: value(location),
     }
 }
 
-/// Projektliste oder Kategorie (keine einzelne Projektseite).
+/// Project list or category (no single project page).
 fn is_listing(path: &str) -> bool {
     path == "/projekte"
         || path == "/projekte/"
@@ -215,8 +322,8 @@ mod tests {
         matches!(outcome, PageOutcome::Suspicious(_))
     }
 
-    /// Gemessen am 19.09.2026 (anonym): abgelaufenes Projekt → Kategorieseite; laufendes
-    /// Projekt → Teaser (277 Zeichen) mit Registrierungsaufruf auf der Projektadresse.
+    /// Measured on 2026-09-19 (anonymous): expired project -> category page; running project
+    /// -> teaser (277 characters) with a registration call on the project address.
     #[test]
     fn measured_expired_project_and_teaser() {
         let expired = page(
@@ -224,7 +331,7 @@ mod tests {
             false,
             None,
         );
-        // Abgemeldet hilft erst die Anmeldung; „weg“ nur in einer bestätigten Sitzung.
+        // Signed out, only a sign-in helps; "gone" only in a confirmed session.
         assert!(is_login(&judge_page(&expired, "1242180")));
         let logged_in = SessionPage {
             has_logout: true,
@@ -243,17 +350,20 @@ mod tests {
             )
         };
         assert!(is_login(&judge_page(&teaser, "1287763")));
-        // Teaser trotz Abmelde-Link: Eine erneute Anmeldung hülfe nicht – verdächtig, damit
-        // der Schutzschalter greift statt einer Anmeldeschleife.
+        // A teaser despite a sign-out link: signing in again would not help - suspicious, so
+        // that the breaker applies instead of a sign-in loop.
         let teaser_logged_in = SessionPage {
             has_logout: true,
             ..teaser
         };
-        assert!(is_suspicious(&judge_page(&teaser_logged_in, "1287763")));
+        assert_eq!(
+            judge_page(&teaser_logged_in, "1287763"),
+            PageOutcome::Suspicious(Cause::TeaserDespiteSession)
+        );
     }
 
-    /// Eine gescheiterte Navigation (offline, DNS, TLS) meldet die WebView ebenfalls als
-    /// geladen – auf ihrer eigenen Fehlerseite. Das ist ein Netzfehler, keine Anmeldewand.
+    /// A failed navigation (offline, DNS, TLS) is reported as loaded too - on the web view's
+    /// own error page. That is a network error, not a sign-in wall.
     #[test]
     fn a_page_outside_the_portal_is_a_network_error() {
         for url in [
@@ -275,7 +385,7 @@ mod tests {
                 "{url}"
             );
         }
-        // Auch ein gescheitertes Befund-Skript auf der Fehlerseite.
+        // A failed probe on the error page too.
         let failed = SessionPage {
             ok: false,
             err: Some("TypeError".into()),
@@ -292,8 +402,8 @@ mod tests {
         ));
     }
 
-    /// Titel, Firma und Ort der Seite ersetzen die Mail-Heuristik – der EXPERT-Platzhalter
-    /// nie: Dort bleibt das Feld leer, der Speicher behält den Wert aus der Mail.
+    /// Title, company and location of the page replace the mail heuristics - the EXPERT
+    /// placeholder never: there the field stays empty, the store keeps the mail value.
     #[test]
     fn page_fields_replace_the_mail_guess_but_never_the_placeholder() {
         let long = format!("<p>{}</p>", "Aufgaben und Anforderungen. ".repeat(6));
@@ -348,19 +458,19 @@ mod tests {
                 assert!(!short && fields.is_none());
                 assert!(
                     !text.contains("Kontaktdaten") && !text.contains("Muster"),
-                    "Ende an der Marke"
+                    "ends at the marker"
                 );
             }
             other => panic!("{other:?}"),
         }
-        // Kurz, aber angemeldet und im Beschreibungsfeld: verifiziert kurz.
+        // Short, but signed in and in the description field: verified short.
         assert!(matches!(
             judge_page(&page(URL, true, Some("<p>Kurzprojekt SAP.</p>")), ID),
             PageOutcome::Text { short: true, .. }
         ));
     }
 
-    /// „Anmeldung nötig“ nur, wo eine Anmeldung helfen kann.
+    /// "Sign-in needed" only where a sign-in can help.
     #[test]
     fn login_only_when_it_can_help() {
         assert!(is_login(&judge_page(
@@ -374,13 +484,13 @@ mod tests {
             &page(URL, false, Some("<p>Text</p>")),
             ID
         )));
-        // Abgemeldet und nur der EXPERT-Hinweis: Anmeldung.
+        // Signed out and only the EXPERT notice: sign-in.
         let mut anonymous_teaser = page(URL, false, None);
         anonymous_teaser.has_expert_marker = true;
         assert!(is_login(&judge_page(&anonymous_teaser, ID)));
     }
 
-    /// Mit Abmelde-Link ist ein Teaser verdächtig, nie „Anmeldung nötig“.
+    /// With a sign-out link a teaser is suspicious, never "sign-in needed".
     #[test]
     fn a_teaser_despite_a_session_is_suspicious() {
         let mut expert_only = page(URL, true, None);
@@ -394,7 +504,7 @@ mod tests {
         assert!(is_suspicious(&judge_page(&cta, ID)));
         let only_cta = page(URL, true, Some("<p>Kostenlos registrieren</p>"));
         assert!(is_suspicious(&judge_page(&only_cta, ID)));
-        // Langer Text mit Aufruf am Ende: Volltext, der Aufruf wird abgeschnitten.
+        // A long text with the call at its end: the full text, the call is cut off.
         let long = format!(
             "<p>{}</p><p>Kostenlos registrieren und mehr lesen</p>",
             "Aufgaben und Anforderungen des Projekts. ".repeat(20)
@@ -405,8 +515,8 @@ mod tests {
         }
     }
 
-    /// Ein Captcha sperrt, außer es steckt passiv in einer normal geladenen Seite mit
-    /// Beschreibung.
+    /// A captcha blocks, unless it sits passively in a normally loaded page with a
+    /// description.
     #[test]
     fn a_captcha_blocks_only_without_a_description() {
         let long = format!("<p>{}</p>", "Aufgaben und Anforderungen. ".repeat(6));
@@ -418,8 +528,11 @@ mod tests {
         ));
         let mut wall = page(URL, true, None);
         wall.has_captcha = true;
-        assert!(matches!(judge_page(&wall, ID), PageOutcome::Blocked(_)));
-        // Mit Fehlercode ist es immer eine Sperre – auch mit Textfeld.
+        assert!(matches!(
+            judge_page(&wall, ID),
+            PageOutcome::Blocked(Cause::Captcha)
+        ));
+        // With an error code it is always a block - even with a text field.
         let mut with_error = page(URL, true, Some(&long));
         with_error.has_captcha = true;
         with_error.status = 503;
@@ -427,7 +540,7 @@ mod tests {
             judge_page(&with_error, ID),
             PageOutcome::Blocked(_)
         ));
-        // Auch abgemeldet: eine Prüfseite ist eine Sperre, keine Anmeldung.
+        // Signed out too: a check page is a block, not a sign-in.
         let mut anonymous = page(URL, false, None);
         anonymous.has_captcha = true;
         assert!(matches!(
@@ -453,16 +566,19 @@ mod tests {
         limited.status = 429;
         assert!(matches!(
             judge_page(&limited, ID),
-            PageOutcome::Throttled(_)
+            PageOutcome::Throttled(Cause::Http(429))
         ));
-        assert!(is_suspicious(&judge_page(
-            &page(
-                "https://www.freelance.de/projekte/projekt-9999999-x",
-                true,
-                Some("<p>x</p>")
+        assert_eq!(
+            judge_page(
+                &page(
+                    "https://www.freelance.de/projekte/projekt-9999999-x",
+                    true,
+                    Some("<p>x</p>")
+                ),
+                ID
             ),
-            ID
-        )));
+            PageOutcome::Suspicious(Cause::WrongPage)
+        );
         assert!(is_suspicious(&judge_page(
             &SessionPage {
                 ok: false,
@@ -476,7 +592,7 @@ mod tests {
             "https://www.freelance.de/promotion/postlogin.php?x=1"
         ));
         assert!(!is_postlogin(URL));
-        // Derselbe Pfad woanders ist keine Weiterleitung des Portals: kein zweiter Zugriff.
+        // The same path elsewhere is no redirect of the portal: no second access.
         assert!(!is_postlogin("https://example.com/promotion/postlogin.php"));
         assert!(!is_postlogin(
             "http://www.freelance.de/promotion/postlogin.php"

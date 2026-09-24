@@ -25,8 +25,8 @@ use std::time::Duration;
 
 use jiff::Timestamp;
 use jobalert_core::fetch::policy::{DWELL_SECS, Policy};
-use jobalert_core::fetch::site::{PortalSite, SessionPage};
-use jobalert_core::fetch::{Login, PageFetcher, PageOutcome, Route};
+use jobalert_core::fetch::site::{PortalSite, SessionPage, eval_result};
+use jobalert_core::fetch::{Cause, Login, PageFetcher, PageOutcome};
 use jobalert_core::pipeline::RunEvent;
 use jobalert_core::portal::{JobLink, Portal};
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
@@ -89,10 +89,6 @@ impl Sessions {
     /// Lets this run show the sign-in window of `portal` when the portal asks for a sign-in
     /// (setting "sign in" of that portal). Without it the run treats a sign-in wall as
     /// "not signed in" and never shows a window.
-    #[expect(
-        dead_code,
-        reason = "the integrator wires it to the per-portal loginEnabled setting"
-    )]
     pub fn allow_login(mut self, portal: Portal, enabled: bool) -> Sessions {
         if enabled {
             self.login_allowed.insert(portal);
@@ -120,16 +116,15 @@ impl Sessions {
 }
 
 impl PageFetcher for Sessions {
-    async fn fetch(
-        &mut self,
-        link: &JobLink,
-        _route: Route,
-        cancel: &CancellationToken,
-    ) -> PageOutcome {
+    async fn fetch(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
         match self.of(link.key.portal) {
             Some(session) => session.fetch_page(link, cancel).await,
-            None => PageOutcome::Suspicious("no session window for this portal".into()),
+            None => PageOutcome::Suspicious(Cause::NoWindow),
         }
+    }
+
+    fn session(&self) -> bool {
+        true
     }
 
     async fn login(&mut self, portal: Portal, cancel: &CancellationToken) -> Login {
@@ -268,18 +263,15 @@ impl Session {
         }
         self.drain();
         if let Some(window) = &self.window {
-            window
-                .navigate(url.clone())
-                .map_err(|e| PageOutcome::NetError {
-                    timeout: false,
-                    detail: e.to_string(),
-                })?;
+            window.navigate(url.clone()).map_err(|e| {
+                log::warn!("session window: navigation failed: {e}");
+                no_window()
+            })?;
         } else {
-            self.open(url, false)
-                .map_err(|detail| PageOutcome::NetError {
-                    timeout: false,
-                    detail,
-                })?;
+            self.open(url, false).map_err(|detail| {
+                log::warn!("{detail}");
+                no_window()
+            })?;
         }
         // From here on the page is requested: the dwell time applies even if it never
         // finishes - restraint is right especially after a timeout.
@@ -294,16 +286,13 @@ impl Session {
 
     async fn wait_finished(&mut self, cancel: &CancellationToken) -> Result<Url, PageOutcome> {
         let Some(events) = self.events.as_mut() else {
-            return Err(PageOutcome::NetError {
-                timeout: false,
-                detail: "no window".into(),
-            });
+            return Err(no_window());
         };
         let event = tokio::select! {
             biased;
             () = cancel.cancelled() => return Err(PageOutcome::Cancelled),
             () = tokio::time::sleep(LOAD_TIMEOUT) => {
-                return Err(PageOutcome::NetError { timeout: true, detail: "page does not load".into() });
+                return Err(PageOutcome::NetError { timeout: true, cause: Cause::Timeout });
             }
             event = events.recv() => event,
         };
@@ -311,10 +300,7 @@ impl Session {
             Some(Nav::Finished(url)) => Ok(url),
             Some(Nav::Closed) | None => {
                 self.window = None;
-                Err(PageOutcome::NetError {
-                    timeout: false,
-                    detail: "window closed".into(),
-                })
+                Err(window_closed())
             }
         }
     }
@@ -328,10 +314,7 @@ impl Session {
     /// circuit breaker.
     async fn probe(&self, cancel: &CancellationToken) -> Result<SessionPage, PageOutcome> {
         let Some(window) = self.window.as_ref() else {
-            return Err(PageOutcome::NetError {
-                timeout: false,
-                detail: "no window".into(),
-            });
+            return Err(no_window());
         };
         let (tx, rx) = tokio::sync::oneshot::channel::<String>();
         let tx = Mutex::new(Some(tx));
@@ -341,9 +324,9 @@ impl Session {
                     let _ = tx.send(raw);
                 }
             })
-            .map_err(|e| PageOutcome::NetError {
-                timeout: false,
-                detail: e.to_string(),
+            .map_err(|e| {
+                log::warn!("session window: probe not started: {e}");
+                no_window()
             })?;
         let answer = tokio::select! {
             biased;
@@ -351,15 +334,10 @@ impl Session {
             answer = tokio::time::timeout(PROBE_TIMEOUT, rx) => answer,
         };
         let raw = answer
-            .map_err(|_| PageOutcome::Suspicious("no answer from the page".into()))?
-            .map_err(|_| PageOutcome::NetError {
-                timeout: false,
-                detail: "window closed".into(),
-            })?;
-        // The result is JSON-encoded - so here a JSON text inside a JSON string.
-        let json: String = serde_json::from_str(&raw).unwrap_or(raw);
-        serde_json::from_str(&json)
-            .map_err(|e| PageOutcome::Suspicious(format!("probe unreadable: {e}")))
+            .map_err(|_| PageOutcome::Suspicious(Cause::NoProbeAnswer))?
+            .map_err(|_| window_closed())?;
+        serde_json::from_str(&eval_result(raw))
+            .map_err(|_| PageOutcome::Suspicious(Cause::ProbeUnreadable))
     }
 
     async fn fetch_page(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
@@ -370,7 +348,7 @@ impl Session {
             // Some portals redirect the first page after sign-in once: the fetch repeats it -
             // as its own, counted access with a pause.
             Ok(page) if (self.site.is_postlogin)(&page.url) => {
-                PageOutcome::Retry("redirect after sign-in".into())
+                PageOutcome::Retry(Cause::PostLoginRedirect)
             }
             Ok(page) => (self.site.judge)(&page, &link.key.id),
             Err(outcome) => outcome,
@@ -571,6 +549,22 @@ impl Session {
 impl Drop for Session {
     fn drop(&mut self) {
         self.close();
+    }
+}
+
+/// The window is gone or could not be used - a network-like error, never a page result.
+fn no_window() -> PageOutcome {
+    PageOutcome::NetError {
+        timeout: false,
+        cause: Cause::NoWindow,
+    }
+}
+
+/// The user closed the window.
+fn window_closed() -> PageOutcome {
+    PageOutcome::NetError {
+        timeout: false,
+        cause: Cause::WindowClosed,
     }
 }
 

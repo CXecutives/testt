@@ -9,11 +9,11 @@ use jiff::civil::Date;
 use tokio_util::sync::CancellationToken;
 
 use super::{Backends, Matcher};
-use crate::fetch::{PageFetcher, PageOutcome, Route};
+use crate::fetch::{Cause, PageFetcher, PageOutcome};
 use crate::mail::RawMail;
 use crate::mail::imap::{MailError, MailSource};
 use crate::model::{MatchRecord, MatchStatus, Notice};
-use crate::portal::{JobLink, Portal};
+use crate::portal::{FetchPath, JobLink, Portal};
 use crate::store::JobRow;
 
 /// Sample alerts per portal (invented companies).
@@ -54,7 +54,7 @@ impl Backends for DemoBackends {
         })
     }
 
-    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+    fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
         Ok(DemoPages)
     }
 
@@ -142,17 +142,12 @@ impl MailSource for DemoMail {
 pub struct DemoPages;
 
 impl PageFetcher for DemoPages {
-    async fn fetch(
-        &mut self,
-        link: &JobLink,
-        _route: Route,
-        cancel: &CancellationToken,
-    ) -> PageOutcome {
+    async fn fetch(&mut self, link: &JobLink, cancel: &CancellationToken) -> PageOutcome {
         if pause(Duration::from_millis(500), cancel).await.is_err() {
             return PageOutcome::Cancelled;
         }
         if link.key.portal == Portal::FreelanceDe {
-            return PageOutcome::Throttled("dry run sample: too many requests".into());
+            return PageOutcome::Throttled(Cause::DrySample);
         }
         PageOutcome::Text {
             text: format!(

@@ -18,14 +18,15 @@ use crate::store::MailRef;
 struct Call {
     id: String,
     portal: Portal,
-    route: Route,
+    /// Read in the session window (not as a guest).
+    session: bool,
     start: Instant,
     end: Instant,
 }
 
 /// Fake fetcher: a sequence of outcomes per job id, otherwise a complete text.
 ///
-/// Every portal gets its own fetch route; the copies share their memory so that a test sees
+/// Every portal gets its own fetch path; the copies share their memory so that a test sees
 /// all requests in one place.
 #[derive(Clone, Default)]
 struct Fake {
@@ -38,6 +39,8 @@ struct Fake {
     /// Duration of every request (slow answers) or sign-in.
     delay: Duration,
     login_delay: Duration,
+    /// This copy is a session window (like freelance.de with the sign-in switched on).
+    session: bool,
 }
 
 impl Fake {
@@ -67,7 +70,7 @@ fn lock_test<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 }
 
 impl PageFetcher for Fake {
-    async fn fetch(&mut self, link: &JobLink, route: Route, _: &CancellationToken) -> PageOutcome {
+    async fn fetch(&mut self, link: &JobLink, _: &CancellationToken) -> PageOutcome {
         let start = Instant::now();
         tokio::time::sleep(self.delay).await;
         let outcome = lock_test(&self.script)
@@ -76,7 +79,7 @@ impl PageFetcher for Fake {
         lock_test(&self.calls).push(Call {
             id: link.key.id.clone(),
             portal: link.key.portal,
-            route,
+            session: self.session,
             start,
             end: Instant::now(),
         });
@@ -88,6 +91,10 @@ impl PageFetcher for Fake {
         tokio::time::sleep(self.login_delay).await;
         lock_test(&self.logins).push((start, Instant::now()));
         self.login.unwrap_or(Login::NotSignedIn)
+    }
+
+    fn session(&self) -> bool {
+        self.session
     }
 }
 
@@ -101,7 +108,7 @@ fn text(t: &str) -> PageOutcome {
 }
 
 fn suspicious() -> PageOutcome {
-    PageOutcome::Suspicious("no description".into())
+    PageOutcome::Suspicious(Cause::NoDescription)
 }
 
 fn base() -> Timestamp {
@@ -119,6 +126,7 @@ fn url(portal: Portal, id: u64) -> String {
         Portal::LinkedIn => format!("https://www.linkedin.com/jobs/view/{id}/"),
         Portal::Freelancermap => format!("https://www.freelancermap.de/nproj/{id}.html"),
         Portal::FreelanceDe => format!("https://www.freelance.de/project/index.php?id={id}"),
+        Portal::Probe => format!("https://jobs.probe.example/job/{id}"),
     }
 }
 
@@ -194,7 +202,14 @@ async fn run_inner(
     let mut waits = Vec::new();
     let shared = Mutex::new(std::mem::take(policy));
     let completed = fetch_all(
-        |_portal| Ok(fake.clone()),
+        // Like the app with freelance.de's sign-in switched on: a session window there, the
+        // guest path everywhere else.
+        |portal| {
+            Ok(Fake {
+                session: portal == FL,
+                ..fake.clone()
+            })
+        },
         store,
         &shared,
         selection,
@@ -239,15 +254,16 @@ fn sorted(ids: &[String]) -> Vec<String> {
 const FM: Portal = Portal::Freelancermap;
 const LI: Portal = Portal::LinkedIn;
 const FL: Portal = Portal::FreelanceDe;
+/// The test-only fourth portal (`portal::probe`).
+const PR: Portal = Portal::Probe;
 
-/// The router has no choice any more: a session window exists only where nothing can be
-/// read without a sign-in. freelancermap signed in is character-identical to the guest
-/// view (measured), LinkedIn too - both go as a guest.
+/// A session window exists only where a portal offers a sign-in. freelancermap signed in is
+/// character-identical to the guest view (measured), LinkedIn too - both go as a guest.
 #[test]
-fn only_a_portal_that_needs_an_account_uses_a_window() {
-    assert_eq!(route(LI), Route::Http);
-    assert_eq!(route(FM), Route::Http);
-    assert_eq!(route(FL), Route::Session);
+fn only_a_portal_with_a_sign_in_uses_a_window() {
+    assert_eq!(LI.access(), Access::Guest);
+    assert_eq!(FM.access(), Access::Guest);
+    assert!(FL.access().can_sign_in());
 }
 
 #[tokio::test(start_paused = true)]
@@ -451,7 +467,7 @@ async fn a_full_text_between_resets_the_breaker_but_a_short_one_does_not() {
 async fn throttle_pauses_the_portal_across_runs_without_costing_attempts() {
     let c = clock();
     let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 2), (LI, 4_000_000_001, 1)]);
-    let fake = Fake::default().with("10001", [PageOutcome::Throttled("HTTP 429".into())]);
+    let fake = Fake::default().with("10001", [PageOutcome::Throttled(Cause::Http(429))]);
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -490,8 +506,8 @@ async fn block_pauses_a_day_and_a_second_block_a_week() {
     let fake = Fake::default().with(
         "4000000001",
         [
-            PageOutcome::Blocked("HTTP 999".into()),
-            PageOutcome::Blocked("HTTP 999".into()),
+            PageOutcome::Blocked(Cause::Http(999)),
+            PageOutcome::Blocked(Cause::Http(999)),
         ],
     );
     let mut policy = Policy::in_memory();
@@ -549,7 +565,7 @@ async fn network_error_is_retried_once_after_30_seconds() {
             "10001",
             [PageOutcome::NetError {
                 timeout: false,
-                detail: "no connection".into(),
+                cause: Cause::NoConnection,
             }],
         )
         .with(
@@ -557,11 +573,11 @@ async fn network_error_is_retried_once_after_30_seconds() {
             [
                 PageOutcome::NetError {
                     timeout: true,
-                    detail: "no answer".into(),
+                    cause: Cause::Timeout,
                 },
                 PageOutcome::NetError {
                     timeout: true,
-                    detail: "no answer".into(),
+                    cause: Cause::Timeout,
                 },
             ],
         );
@@ -655,7 +671,7 @@ async fn hourly_cap_stops_with_the_next_possible_time() {
 async fn login_required_stops_freelance_and_marks_the_session() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
-    let fake = Fake::default().with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    let fake = Fake::default().with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -852,7 +868,7 @@ async fn login_during_the_run_retries_the_same_job() {
         login_delay: Duration::from_secs(60),
         ..Fake::default()
     }
-    .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -887,7 +903,7 @@ async fn login_during_the_run_retries_the_same_job() {
         login: Some(Login::NotSignedIn),
         ..Fake::default()
     }
-    .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let r = run(
         &fake,
         &store,
@@ -910,7 +926,7 @@ async fn a_challenged_login_keeps_the_session_but_rests_the_portal() {
         login: Some(Login::Challenged),
         ..Fake::default()
     }
-    .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -980,7 +996,7 @@ async fn the_login_page_counts_and_respects_the_cap() {
         login: Some(Login::SignedIn),
         ..Fake::default()
     }
-    .with("1255067", [PageOutcome::LoginRequired("Teaser".into())]);
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
     let r = run(
         &fake,
         &store,
@@ -1003,7 +1019,7 @@ async fn the_login_page_counts_and_respects_the_cap() {
 async fn a_retry_is_a_counted_access_and_happens_once() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
-    let retry = || PageOutcome::Retry("Weiterleitung nach der Anmeldung".into());
+    let retry = || PageOutcome::Retry(Cause::PostLoginRedirect);
     let fake = Fake::default()
         .with("1255067", [retry()])
         .with("1255068", [retry(), retry()]);
@@ -1036,7 +1052,7 @@ async fn a_retry_is_a_counted_access_and_happens_once() {
 async fn repeated_redirects_trip_the_breaker() {
     let c = clock();
     let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1), (FL, 1_255_069, 1)]);
-    let retry = || PageOutcome::Retry("Weiterleitung nach der Anmeldung".into());
+    let retry = || PageOutcome::Retry(Cause::PostLoginRedirect);
     let fake = Fake::default()
         .with("1255067", [retry(), retry()])
         .with("1255068", [retry(), retry()])
@@ -1071,7 +1087,7 @@ async fn long_waits_are_announced() {
         "4000000001",
         [PageOutcome::NetError {
             timeout: false,
-            detail: "no connection".into(),
+            cause: Cause::NoConnection,
         }],
     );
     let r = run(
@@ -1163,7 +1179,7 @@ async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
     let fake = Fake::default()
         .with("10001", [suspicious()])
         .with("10002", [suspicious()])
-        .with("1255001", [PageOutcome::Blocked("HTTP 403".into())]);
+        .with("1255001", [PageOutcome::Blocked(Cause::Http(403))]);
     let mut policy = Policy::in_memory();
     let r = run(
         &fake,
@@ -1178,9 +1194,9 @@ async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
         calls.iter().filter(|call| call.portal == portal).collect()
     };
     // Guest route for LinkedIn and freelancermap, session route only for freelance.de.
-    assert!(of(LI).iter().all(|call| call.route == Route::Http));
-    assert!(of(FM).iter().all(|call| call.route == Route::Http));
-    assert!(of(FL).iter().all(|call| call.route == Route::Session));
+    assert!(of(LI).iter().all(|call| !call.session));
+    assert!(of(FM).iter().all(|call| !call.session));
+    assert!(of(FL).iter().all(|call| call.session));
     // Hourly cap LinkedIn: 20 requests, the rest waits.
     assert_eq!(of(LI).len(), 20);
     // Breaker freelancermap: stop after two pages without a description.
@@ -1198,4 +1214,53 @@ async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
     let mut stopped: Vec<Portal> = r.stops.iter().map(|(portal, ..)| *portal).collect();
     stopped.sort_unstable();
     assert_eq!(stopped, Portal::ALL);
+}
+
+/// A fourth portal runs through the registry alone: its jobs are fetched with its own pace
+/// and caps, side by side with the others - this module knows nothing about it.
+#[tokio::test(start_paused = true)]
+async fn a_fourth_portal_runs_through_the_registry_alone() {
+    let c = clock();
+    let store = store_with(&[
+        (PR, 1, 1),
+        (PR, 2, 1),
+        (PR, 3, 1),
+        (PR, 4, 1),
+        (FM, 10_001, 1),
+    ]);
+    let fake = Fake::default();
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[PR, FM]), &c).await;
+    // The probe's hourly cap is 3: three pages, then its own cap stops it.
+    assert_eq!(r.summary.per_portal[&PR].ok, 3);
+    assert!(
+        matches!(r.stops.as_slice(), [(PR, StopReason::Quota { .. }, 1)]),
+        "{:?}",
+        r.stops
+    );
+    assert_eq!(r.summary.per_portal[&FM].ok, 1);
+    let probe: Vec<Call> = fake
+        .calls()
+        .into_iter()
+        .filter(|c| c.portal == PR)
+        .collect();
+    assert_eq!(probe.len(), 3);
+    // Its own gap of one second, as a guest.
+    for pair in probe.windows(2) {
+        assert!(pair[1].start - pair[0].end >= Duration::from_secs(1));
+    }
+    assert!(probe.iter().all(|call| !call.session));
+    assert_eq!(policy.state(PR).accesses.len(), 3);
+    // Not selected: zero requests.
+    let fake = Fake::default();
+    let store = store_with(&[(PR, 5, 1)]);
+    run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Queue(&[FM]),
+        &c,
+    )
+    .await;
+    assert!(fake.calls().is_empty());
 }
