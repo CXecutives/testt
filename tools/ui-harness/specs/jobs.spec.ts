@@ -679,7 +679,7 @@ test('the list header: one slot for Abrufen and Abbrechen, the filter, a line on
   // The hidden jobs are reached from the end of Alle; they show as a pill with its x.
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   await page.getByTestId('show-hidden').click();
-  await expect(header.getByTestId('filter')).toContainText('Ausgeblendet');
+  await expect(header.getByTestId('filter')).toContainText('Archiv');
   await header.getByTestId('clear-filter').click();
   await expect(page.getByTestId('filter')).toHaveCount(0);
   // The sort glyph turns.
@@ -803,7 +803,7 @@ test('the reader marks a job: status, note, hide with undo, copy as a prompt', a
   await expect(page.getByTestId('toast').last()).toContainText(
     'Prompt kopiert. In einen KI-Chat einfügen.',
   );
-  // Ausblenden opens the next job; the toast takes it back.
+  // Archivieren opens the next job; the toast takes it back.
   const title = await page.getByTestId('reader-title').innerText();
   await page.getByTestId('hide').click();
   await expect(page.getByTestId('reader-title')).toHaveText(second);

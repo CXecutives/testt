@@ -7,14 +7,14 @@
   open (must before nice, only "Kann" carries a badge), what to check and what excludes;
   hovering a reason lights its passage in the ad text below, a click scrolls to it. Title,
   facts and the ad text are selectable and copy with Ctrl/Cmd+C (`data-copy`).
-  Actions by weight: at the end of the title line the star (Merken), Ausblenden and a quiet
+  Actions by weight: at the end of the title line the star (Merken), Archivieren and a quiet
   close back to the day overview (below 900 px the view's back button does); below the match
   line "Anzeige öffnen" first, then "Als Prompt kopieren" (the job as a prompt for any AI
   chat), the alert mail and "Details holen" when the details are missing (right under the
   band when the job has no score yet). Then the user's own marks: where the application
   stands (one chip per step, the chosen one again clears it, with the time it was set) and
   a note that saves when the field is left (Enter saves, Esc takes the stored one back).
-  After Ausblenden the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
+  After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
   that jumps to its passage makes the passage flash once when it has arrived. Once the
   action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
   it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.

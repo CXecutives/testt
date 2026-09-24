@@ -8,7 +8,7 @@
   On macOS this row is the list's part of the toolbar row, centred on the traffic lights,
   and its empty parts move the window.
   Row 2: the one place for filters, Neu · Alle · Gemerkt · Bewerbungen with their counts
-  (always there, also while the reader is open); the hidden jobs, reached from the end of
+  (always there, also while the reader is open); the archive (hidden jobs), reached from the end of
   Alle, show as a pill with its x instead.
   Row 3 (with a profile): the order in words ("Beste Passung", "Neueste"), a quiet button
   whose glyph stands half a turn for newest first; a click switches it.
