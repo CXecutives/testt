@@ -9,6 +9,7 @@ pub mod export;
 pub mod fetch;
 pub mod logging;
 pub mod mail;
+pub mod matching;
 pub mod model;
 pub mod pipeline;
 pub mod portal;
