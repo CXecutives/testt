@@ -322,6 +322,7 @@ mod tests {
     fn a_marked_job_is_never_hidden_as_a_duplicate() {
         use crate::model::AppStatus;
         use crate::store::test_support::{mail, now, posting};
+        type Mark<'a> = &'a dyn Fn(&JobKey);
 
         let store = Store::in_memory().unwrap();
         let run = store.begin_run().unwrap();
@@ -335,7 +336,7 @@ mod tests {
         store
             .record_text(&original.key, TEXT, false, false, now())
             .unwrap();
-        let marks: [(&str, &dyn Fn(&JobKey)); 4] = [
+        let marks: [(&str, Mark<'_>); 4] = [
             ("4000000001", &|key| {
                 store
                     .set_app_status(key, Some(AppStatus::Applied), now())
