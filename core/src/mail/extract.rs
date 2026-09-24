@@ -10,8 +10,13 @@
 //! becoming company or location. Where there is no such card (a flat layout with line
 //! breaks), the text up to the next link counts - bounded by the link's own block
 //! (`<div>`, `<p>`, `<td>`), so the neighbouring block never supplies company or location.
+//!
+//! Hand-made collection mails mix both: a titled link, then the next job's title as a
+//! plain line above its auto-linked address. A line never becomes company or location
+//! when it is another job's title in the same mail or reads like a job title itself
+//! (gender tag, role word) - an empty value is better than a wrong one.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 use ego_tree::NodeId;
@@ -19,7 +24,7 @@ use ego_tree::iter::Edge;
 use regex::Regex;
 use scraper::{ElementRef, Html, Node, Selector};
 
-use crate::portal::{JobKey, JobLink, job_link};
+use crate::portal::{JobKey, JobLink, Portal, job_link};
 use crate::text::{one_line, strip_chars};
 
 /// A recognised job with raw values from the mail.
@@ -166,6 +171,36 @@ static PLACE_LABEL: LazyLock<Regex> =
 static SEPARATOR: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\s+[·•|]\s+").expect("valid pattern"));
 
+/// The gender tag of a job title: "(m/w/d)", "(w/m/d)", "(m/f/d)", "m/w/x", "(all genders)",
+/// "(gn)". Single letters only - "Köln/Bonn" or "D/A/CH" are no tag. German mail patterns,
+/// do not translate.
+static GENDER_TAG: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(?:^|[\s(\[,])(?:[mwfdx]|div)\s*[/|]\s*(?:[mwfdx]|div)(?:\s*[/|]\s*(?:[mwfdx]|div))?(?:$|[\s)\],])|\((?:all\s+genders?|alle\s+geschlechter|gn\*?)\)",
+    )
+    .expect("valid pattern")
+});
+
+/// Role words of job titles: English ones as whole words, German ones also as the end of a
+/// compound ("Projektleiter", "SAP-Berater", "Softwareentwicklerin"). German and English
+/// job words, do not translate.
+static ROLE_WORD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(?:engineer|developer|architect|consultant|manager|analyst|administrator|specialist|designer|scientist|tester|programmer|technician|coordinator|controller|accountant|auditor|recruiter|director|officer|product\s+owner|scrum\s+master|head\s+of|team\s*lead|tech\s*lead|lead|werkstudent\w*|praktikant\w*|trainee|intern)\b|\w*(?:leiter|leitung|berater|entwickler|architekt|ingenieur|referent|techniker|spezialist|koordinator|sachbearbeiter|projektmanager|assistent|programmierer|planer|prüfer|kaufmann|kauffrau)(?:in|innen|\(in\))?\b",
+    )
+    .expect("valid pattern")
+});
+
+/// A company's legal form or trade word: such a line names a company, even with a role
+/// word in it ("Beispiel Engineering GmbH", "Ingenieurbüro Nord AG"). German and English
+/// legal forms, do not translate.
+static LEGAL_FORM: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(?:gmbh|mbh|ag|se|kg|kgaa|ohg|gbr|ug|e\.\s?v|ltd|limited|inc|llc|llp|plc|corp|s\.a|b\.v|n\.v|s\.r\.l|sarl|sas|spa|oy|ab|group|gruppe|holding|consulting|partners?|personalberatung|recruiting)\b",
+    )
+    .expect("valid pattern")
+});
+
 /// All jobs from the HTML and text parts of a mail, in order of first appearance,
 /// without duplicates. The plain text fills in what the HTML misses (previously it was
 /// only read when the HTML delivered nothing at all).
@@ -188,7 +223,59 @@ pub fn extract(html_parts: &[String], text_parts: &[String]) -> Vec<Found> {
             }
         }
     }
+    drop_foreign_titles(&mut jobs.list);
     jobs.list
+}
+
+/// A job whose company or location is another job's title (the collection mail's next
+/// entry, read as this one's details) keeps neither: the pair came from the wrong spot.
+fn drop_foreign_titles(list: &mut [Found]) {
+    let fold = |text: &str| one_line(text).to_lowercase();
+    let titles: HashSet<String> = list
+        .iter()
+        .map(|f| fold(&f.title))
+        .filter(|t| !t.is_empty())
+        .collect();
+    for found in list {
+        let own = fold(&found.title);
+        let foreign = |value: &str| {
+            let value = fold(value);
+            !value.is_empty() && value != own && titles.contains(&value)
+        };
+        if foreign(&found.company) || foreign(&found.location) {
+            found.company.clear();
+            found.location.clear();
+        }
+    }
+}
+
+/// Does the text read like a job title - a gender tag, or a role word without a company's
+/// legal form? Such a line is never a company or a location ("Senior Requirements
+/// Engineer im Bankenumfeld (w/m/d)" behind the job before it).
+pub(crate) fn looks_like_job_title(text: &str) -> bool {
+    let text = one_line(text);
+    GENDER_TAG.is_match(&text) || (ROLE_WORD.is_match(&text) && !LEGAL_FORM.is_match(&text))
+}
+
+/// Does the text carry a job title's gender tag ("(m/w/d)")? The sure sign alone: stored
+/// values may come from a page, so the store drops only what no company name carries.
+pub(crate) fn has_gender_tag(text: &str) -> bool {
+    GENDER_TAG.is_match(&one_line(text))
+}
+
+/// A line that only names a portal ("freelancermap", "LinkedIn:" as a section heading of a
+/// collection mail) is neither company nor location.
+fn is_portal_name(text: &str) -> bool {
+    let folded = one_line(text).to_lowercase();
+    let folded = strip_chars(&folded, " :*-–—·•|");
+    Portal::ALL.iter().any(|p| {
+        p.search_terms().iter().any(|term| {
+            folded == *term
+                || folded
+                    .strip_prefix(term)
+                    .is_some_and(|rest| matches!(rest, ".de" | ".com"))
+        })
+    })
 }
 
 /// Collects finds; the same job seen more than once: the first real title stays
@@ -406,7 +493,7 @@ fn details_after<'a>(
     // sentence filter keeps the footer out.
     let mut paragraph_lines = false;
     let bounds = block_of(tokens, i, span).filter(|_| card.is_none());
-    for next in tokens[i + 1..].iter().take(MAX_SCAN) {
+    for (at, next) in tokens.iter().enumerate().skip(i + 1).take(MAX_SCAN) {
         if trailing.len() >= MAX_TRAILING {
             break;
         }
@@ -456,6 +543,12 @@ fn details_after<'a>(
                 {
                     break;
                 }
+                // The line right above another job's auto-linked address is that job's
+                // title (`line_before`), not this job's company - a hand-made collection
+                // mail puts titled links and bare addresses in one block.
+                if titles_next_job(tokens, at, &link.key) {
+                    break;
+                }
                 // Flat layout: a new paragraph after the first details is no longer
                 // this job (sign-off, footer).
                 if card.is_none() && *para && seen_detail && !paragraph_lines {
@@ -470,6 +563,24 @@ fn details_after<'a>(
         }
     }
     split_details(&trailing)
+}
+
+/// Is the text token at `at` the title of the job linked right after it - a job other
+/// than `own` whose link text is its bare address (and so takes the line before it as its
+/// title, see `line_before`)?
+fn titles_next_job(tokens: &[Token], at: usize, own: &JobKey) -> bool {
+    match tokens.get(at + 1) {
+        Some(Token::Link {
+            job: Some(other),
+            lines,
+            para: false,
+            ..
+        }) if other.key != *own => lines
+            .iter()
+            .find(|l| !is_generic(l))
+            .is_some_and(|first| is_url(first)),
+        _ => false,
+    }
 }
 
 /// The block (div, p, td, ...) that bounds the job - but only when it holds more than
@@ -746,7 +857,8 @@ fn is_sentence(text: &str) -> bool {
 /// Layouts seen: LinkedIn "Company · Location" on one line; freelance.de "Company",
 /// "D-68159 Mannheim"; freelancermap "von:", "Company", "Ort: Hamburg // Vertragsart: ...".
 /// Cleaning (dropping "von:", address -> location) only happens for display and export.
-/// A sentence ends the search - it belongs to the footer, not the job.
+/// A sentence ends the search - it belongs to the footer, not the job; so does a job
+/// title - it starts the next job. A portal name alone (a section heading) is skipped.
 pub(crate) fn split_details(texts: &[&str]) -> (String, String) {
     let mut parts: Vec<String> = Vec::new();
     let mut location = String::new();
@@ -775,10 +887,10 @@ pub(crate) fn split_details(texts: &[&str]) -> (String, String) {
             }
             continue;
         }
-        if is_sentence(&text) {
+        if is_sentence(&text) || looks_like_job_title(&text) {
             break;
         }
-        if text.contains("//") || NOISE.is_match(&text) {
+        if text.contains("//") || NOISE.is_match(&text) || is_portal_name(&text) {
             continue;
         }
         for piece in SEPARATOR.split(&text) {
@@ -1239,6 +1351,110 @@ mod tests {
                 ("2971858", "SAP Berater", "")
             ]
         );
+    }
+
+    #[test]
+    fn job_titles_are_recognised() {
+        for title in [
+            "Senior Requirements Engineer im Bankenumfeld (w/m/d)",
+            "VMware Lead Solution Architect (m/f/d)",
+            "Controller m/w/d",
+            "Project Manager (all genders)",
+            "Test Automation Engineer Lead",
+            "SAP-Berater",
+            "Projektleiterin Kabeltiefbau",
+            "Scrum Master",
+            "Head of Finance",
+        ] {
+            assert!(looks_like_job_title(title), "{title}");
+        }
+        for detail in [
+            "Musterwerke GmbH",
+            "Beispiel Engineering GmbH",
+            "Nordwind Consulting",
+            "Ingenieurbüro Nord",
+            "Beispiel Personalberatung GmbH",
+            "Michael Muster",
+            "Köln, Nordrhein-Westfalen",
+            "Köln/Bonn",
+            "D/A/CH",
+            "Hamburg (Hybrid)",
+            "D-20038 Hamburg",
+            "Remote",
+            "Interim CFO",
+        ] {
+            assert!(!looks_like_job_title(detail), "{detail}");
+        }
+    }
+
+    /// A hand-made collection mail (Gmail): titled links and bare addresses with the title
+    /// on the line above, section headings per portal, all in one block. Previously the
+    /// next job's title became the company, and the heading and title the pair.
+    #[test]
+    fn a_collection_never_takes_the_next_title_as_company() {
+        let html = format!(
+            r#"<div dir="ltr"><b>LinkedIn</b><br>
+            <a href="https://www.linkedin.com/jobs/view/4990000011/">Interim Senior Controller (m/w/d)</a><br>
+            Beispiel Personal GmbH · München<br>
+            <a href="https://www.linkedin.com/jobs/view/4990000012/">Interim Werkscontroller (m/w/d)</a><br><br>
+            <b>freelancermap</b><br>Test Automation Engineer Lead<br>
+            <a href="https://www.freelancermap.de/projekt/test-automation-lead">https://www.freelancermap.de/projekt/test-automation-lead</a><br><br>
+            <b>freelance.de</b><br>
+            <a href="{FD1}">VMware Lead Solution Architect (m/f/d)</a><br>
+            Rolle ohne Kennzeichen<br>
+            <a href="{FD2}">{FD2}</a></div>"#
+        );
+        let found = extract(&[html], &[]);
+        assert_eq!(
+            titles(&found),
+            [
+                "Interim Senior Controller (m/w/d)",
+                "Interim Werkscontroller (m/w/d)",
+                "Test Automation Engineer Lead",
+                "VMware Lead Solution Architect (m/f/d)",
+                "Rolle ohne Kennzeichen",
+            ]
+        );
+        let details: Vec<(&str, &str)> = found
+            .iter()
+            .map(|f| (f.company.as_str(), f.location.as_str()))
+            .collect();
+        assert_eq!(
+            details,
+            [
+                ("Beispiel Personal GmbH", "München"),
+                ("", ""),
+                ("", ""),
+                ("", ""),
+                ("", "")
+            ]
+        );
+    }
+
+    /// Another job's title is never company or location - also when the plain text part
+    /// supplied it and nothing about the line reads like a title.
+    #[test]
+    fn another_jobs_title_is_no_detail() {
+        let mut list = vec![
+            Found {
+                link: job_link(FD1).unwrap(),
+                title: "PMO Manager".into(),
+                company: "Rolle ohne Kennzeichen".into(),
+                location: "Berlin".into(),
+            },
+            Found {
+                link: job_link(FD2).unwrap(),
+                title: "Rolle ohne Kennzeichen".into(),
+                company: "Nordlicht AG".into(),
+                location: String::new(),
+            },
+        ];
+        drop_foreign_titles(&mut list);
+        assert_eq!(
+            (list[0].company.as_str(), list[0].location.as_str()),
+            ("", "")
+        );
+        assert_eq!(list[1].company, "Nordlicht AG");
     }
 
     /// Broken HTML with thousands of nested cards stays fast (linear).

@@ -8,6 +8,7 @@ use url::Url;
 use super::{Store, bump};
 use crate::error::{Error, Result};
 use crate::fetch::policy::MAX_FETCH_ATTEMPTS;
+use crate::mail::extract::has_gender_tag;
 use crate::model::{
     AlertMail, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord, Posting,
     is_usable_title,
@@ -548,7 +549,9 @@ impl Store {
 
     /// Structured page details (LinkedIn header, freelancermap data) are more reliable than
     /// the mail heuristics: non-empty values replace the mail values - with the same length
-    /// limits as on intake, and the work mode from the mail ("Remote") stays.
+    /// limits as on intake, and the work mode from the mail ("Remote") stays. What the page
+    /// leaves empty keeps the mail value, unless that is a job title the mail heuristic took
+    /// for company or location (see `merge_details`).
     pub fn record_page_fields(
         &self,
         key: &JobKey,
@@ -560,21 +563,32 @@ impl Store {
         let company = truncate_chars(&one_line(company), MAX_FIELD_CHARS);
         let location = one_line(location);
         self.write(|conn| {
-            let stored: String = conn
+            let (stored_company, stored_location): (String, String) = conn
                 .query_row(
-                    "SELECT location FROM job WHERE portal = ?1 AND job_id = ?2",
+                    "SELECT company, location FROM job WHERE portal = ?1 AND job_id = ?2",
                     params![key.portal.key(), key.id],
-                    |r| r.get(0),
+                    |r| Ok((r.get(0)?, r.get(1)?)),
                 )
                 .optional()?
                 .unwrap_or_default();
-            let location = page_location(&stored, &location, MAX_FIELD_CHARS);
+            let (stored_company, stored_location) =
+                usable_details((&stored_company, &stored_location));
+            let company = if company.is_empty() {
+                stored_company.to_string()
+            } else {
+                company
+            };
+            let location = if location.is_empty() {
+                stored_location.to_string()
+            } else {
+                page_location(stored_location, &location, MAX_FIELD_CHARS)
+            };
             conn.execute(
                 "UPDATE job SET
                     match_rev = CASE WHEN ?3 <> '' AND ?3 <> title THEN NULL ELSE match_rev END,
                     title    = CASE WHEN ?3 <> '' THEN ?3 ELSE title END,
-                    company  = CASE WHEN ?4 <> '' THEN ?4 ELSE company END,
-                    location = CASE WHEN ?5 <> '' THEN ?5 ELSE location END
+                    company  = ?4,
+                    location = ?5
                  WHERE portal = ?1 AND job_id = ?2",
                 params![key.portal.key(), key.id, title, company, location],
             )?;
@@ -789,8 +803,12 @@ fn upsert(
 
 /// Company and location are only taken over as a pair - never mixed from two different
 /// mails: when there are no details yet, or when the stored "company" was really just a
-/// place ("D-20038 Hamburg") and the new mail names a real company.
+/// place ("D-20038 Hamburg") and the new mail names a real company. A stored pair that
+/// holds a job title (an older mail heuristic read the next entry of a collection mail as
+/// this job's company) counts as no details - like an unusable title it gives way, and
+/// without new details it is cleared: empty is better than wrong.
 fn merge_details(stored: (&str, &str), new: (&str, &str)) -> (String, String) {
+    let stored = usable_details(stored);
     let keep = (stored.0.to_string(), stored.1.to_string());
     let take = (new.0.to_string(), new.1.to_string());
     if new.0.is_empty() && new.1.is_empty() {
@@ -805,6 +823,16 @@ fn merge_details(stored: (&str, &str), new: (&str, &str)) -> (String, String) {
         take
     } else {
         keep
+    }
+}
+
+/// Company and location as stored, or none when either is a job title (it carries a gender
+/// tag, which no company or place does). The pair came from one spot, so both go.
+fn usable_details<'a>((company, location): (&'a str, &'a str)) -> (&'a str, &'a str) {
+    if has_gender_tag(company) || has_gender_tag(location) {
+        ("", "")
+    } else {
+        (company, location)
     }
 }
 
@@ -974,6 +1002,108 @@ mod tests {
             merge_details(("Firma A", ""), ("", "")),
             ("Firma A".to_string(), String::new())
         );
+    }
+
+    /// An older mail heuristic stored the next job's title as the company. Like a URL title
+    /// it is no value: a later mail's pair replaces it, a mail without details clears it.
+    #[test]
+    fn a_stored_job_title_is_no_company() {
+        let title = "Senior Requirements Engineer im Bankenumfeld (w/m/d)";
+        assert_eq!(
+            merge_details((title, ""), ("Nordlicht AG", "Hamburg")),
+            ("Nordlicht AG".to_string(), "Hamburg".to_string())
+        );
+        assert_eq!(
+            merge_details((title, ""), ("", "")),
+            (String::new(), String::new())
+        );
+        assert_eq!(
+            merge_details(("Nordlicht AG", title), ("", "")),
+            (String::new(), String::new()),
+            "the pair came from one spot"
+        );
+        // Only the sure sign counts in the store: a role word may name a company.
+        assert_eq!(
+            merge_details(("Controller Akademie", "Köln"), ("", "")),
+            ("Controller Akademie".to_string(), "Köln".to_string())
+        );
+
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let url = "https://www.freelance.de/project/index.php?id=1990201";
+        let key = job_link(url).unwrap().key;
+        let seen = |company: &str| {
+            store
+                .upsert_posting(
+                    run,
+                    &posting(url, "VMware Lead Solution Architect (m/f/d)", company, ""),
+                    mail(),
+                    now(),
+                )
+                .unwrap();
+            let job = store.job(&key).unwrap().unwrap();
+            (job.company, job.location)
+        };
+        assert_eq!(seen(title), (title.to_string(), String::new()));
+        assert_eq!(seen(""), (String::new(), String::new()));
+    }
+
+    /// The page's company and location win over the mail heuristics; what the page leaves
+    /// empty keeps the mail value - unless that is a job title.
+    #[test]
+    fn page_fields_win_over_the_mail_heuristic() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let add = |url: &str, company: &str, location: &str| {
+            store
+                .upsert_posting(
+                    run,
+                    &posting(url, "Rolle", company, location),
+                    mail(),
+                    now(),
+                )
+                .unwrap();
+            job_link(url).unwrap().key
+        };
+        let details = |key: &JobKey| {
+            let job = store.job(key).unwrap().unwrap();
+            (job.company, job.location)
+        };
+        let pair = |company: &str, location: &str| (company.to_string(), location.to_string());
+
+        let a = add(
+            "https://www.freelance.de/project/index.php?id=1990301",
+            "Senior Requirements Engineer (w/m/d)",
+            "",
+        );
+        store
+            .record_page_fields(&a, "", "Seitenfirma GmbH", "")
+            .unwrap();
+        assert_eq!(details(&a), pair("Seitenfirma GmbH", ""));
+
+        let b = add(
+            "https://www.freelance.de/project/index.php?id=1990302",
+            "Senior Requirements Engineer (w/m/d)",
+            "",
+        );
+        store.record_page_fields(&b, "", "", "").unwrap();
+        assert_eq!(
+            details(&b),
+            pair("", ""),
+            "a hidden company clears the title"
+        );
+
+        let c = add(
+            "https://www.freelance.de/project/index.php?id=1990303",
+            "Musterfirma",
+            "Remote",
+        );
+        store.record_page_fields(&c, "", "", "Berlin").unwrap();
+        assert_eq!(details(&c), pair("Musterfirma", "Berlin (Remote)"));
+        store
+            .record_page_fields(&c, "", "Seitenfirma GmbH", "")
+            .unwrap();
+        assert_eq!(details(&c), pair("Seitenfirma GmbH", "Berlin (Remote)"));
     }
 
     #[test]
