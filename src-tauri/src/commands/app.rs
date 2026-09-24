@@ -43,7 +43,7 @@ const MAX_UI_SOURCE_CHARS: usize = 200;
 /// be a real mailbox.
 pub(super) fn mailbox(state: &AppState) -> Mailbox {
     let (user, error) = if state.dry_run {
-        (Some("trockenlauf@example.org".to_string()), None)
+        (Some("probelauf@example.org".to_string()), None)
     } else {
         state.gmail_user()
     };

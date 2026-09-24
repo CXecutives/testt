@@ -16,8 +16,11 @@
 //   window.__harness.job(key)       a copy of a job as the stub holds it
 //
 // Scenarios (`?scenario=`): default · first-run · mailbox-only · no-profile · empty ·
-// many (2000 jobs) · offline · paused · running · slow · list-error · reset ·
-// first-run-empty-profile.
+// many (2000 jobs) · offline · paused · running · slow · list-error · reset (the state after
+// "reset everything": first run, no mailbox, no profile, the report) · first-run-empty-profile
+// · dry-run (the demo: a Probelauf mailbox, every command that writes outside the database
+// refuses with `dryRun` like `ensure_real`).
+// `save_mailbox` refuses the app password `falschfalschfals` with `mailAuth` (Gmail said no).
 // `?tick=ms` sets the pace of a scripted run (default 40); `?export=locked` lets the export
 // of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail.
 // Dates are fixed so screenshots stay stable (the tests also fix the clock). The portals
@@ -357,7 +360,7 @@ function sampleJobs(): JobView[] {
       },
     ),
     job('linkedin', '4100200305', 'Payroll Specialist', 'Lakeside Payroll AG', 'Zürich', 80, {
-      match: excludedBy('country', 38, { allowed: 'Deutschland, Österreich' }),
+      match: excludedBy('country', 38, { allowed: 'DE, AT' }),
     }),
     job('freelancermap', '2806', 'Reporting Analyst', 'Hafenkontor GmbH', 'Hamburg', 96, {
       short: true,
@@ -441,14 +444,14 @@ const PROFILE: ProfileInfo = {
     sources: ['kernkompetenzen[].kompetenz', 'projekte[].rolle'],
     criteria: [
       { code: 'minDayRate', params: { set: true, min: '1100' } },
-      { code: 'countries', params: { set: true, countries: 'Deutschland, Österreich' } },
+      { code: 'countries', params: { set: true, countries: 'DE, AT' } },
       { code: 'noAnue', params: { set: true } },
       { code: 'availability', params: { set: false, from: null } },
       { code: 'minSalary', params: { set: false, min: null } },
       { code: 'permanentRegion', params: { set: false, places: null, remoteMin: null } },
       { code: 'targetYears', params: { set: true, min: 15 } },
     ],
-    warnings: [{ code: 'ignoredKeys', params: { keys: 'hobbys, referenzen' } }],
+    warnings: [],
     // Engine v3 summary fields the IPC type does not carry yet; the Profil view shows them
     // when they arrive.
     ...({ packs: ['finance', 'sap'], years: 28, degrees: ['Diplom-Kauffrau'] } as object),
@@ -631,7 +634,23 @@ function initial(): void {
       state.portals[2]!.quota = { usedHour: 38, capHour: 40, usedDay: 61, capDay: 100 };
       break;
     case 'reset':
+      // After "reset everything" the app starts empty: the first-run page, with the report.
+      jobs = [];
+      state.firstRun = true;
+      state.mailbox = { user: null, vault: 'windowsCredentialManager', error: null };
+      state.profile = null;
+      state.lastRun = null;
+      state.settings.excelExists = false;
+      state.settings.txtFiles = 0;
       state.resetReport = { removed: 12, failed: 1 };
+      break;
+    case 'dry-run':
+      state.dryRun = true;
+      state.mailbox = {
+        user: 'probelauf@example.org',
+        vault: 'windowsCredentialManager',
+        error: null,
+      };
       break;
     case 'profile-broken':
       state.profile = {
@@ -1390,6 +1409,7 @@ const handlers: Handlers = {
     if (!/^[a-z]{16}$/i.test(password.replace(/\s/g, ''))) {
       throw fail('invalid', { reason: 'appPassword' });
     }
+    if (password.replace(/\s/g, '').toLowerCase() === WRONG_PASSWORD) throw fail('mailAuth');
     state.mailbox = { user, vault: 'windowsCredentialManager', error: null };
     return state.mailbox;
   },
@@ -1481,10 +1501,28 @@ initial();
 
 /* --------------------------------------------------------------------- core */
 
+/** The app password Gmail refuses in the harness. */
+const WRONG_PASSWORD = 'falschfalschfals';
+
+/** Commands that refuse in the dry run (`ensure_real` in src-tauri): they write outside it. */
+const DRY_RUN_REFUSED: ReadonlySet<string> = new Set([
+  'pick_profile',
+  'remove_profile',
+  'save_profile_template',
+  'save_mailbox',
+  'remove_mailbox',
+  'portal_login',
+  'portal_logout',
+  'rewrite_txt',
+  'clear_txt',
+  'reset_all',
+]);
+
 export async function invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   harness.calls.push([command, args]);
   const handler = handlers[command as keyof Commands] as ((a: unknown) => unknown) | undefined;
   if (handler === undefined) throw fail('internal', { command });
+  if (state.dryRun && DRY_RUN_REFUSED.has(command)) throw fail('dryRun');
   const delay = command === 'job_detail' ? DELAY + harness.detailDelay : DELAY;
   if (delay > 0 && command !== 'report_ui_error') {
     await new Promise((resolve) => setTimeout(resolve, delay));

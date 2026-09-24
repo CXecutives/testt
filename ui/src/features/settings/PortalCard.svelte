@@ -17,8 +17,8 @@
   import { de } from '$lib/i18n/de';
   import { errorText, healthText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { PortalPatch, PortalState, Risk } from '$lib/ipc/types';
-  import { app } from '$lib/state/app.svelte';
+  import type { PortalState, Risk } from '$lib/ipc/types';
+  import { app, type PortalChange } from '$lib/state/app.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
 
@@ -48,27 +48,13 @@
   });
   const risk = $derived<Risk>(portal.loginEnabled ? 'account' : portal.risk);
 
-  async function change(patch: Partial<Omit<PortalPatch, 'portal'>>): Promise<void> {
+  async function change(patch: PortalChange): Promise<void> {
     error = null;
     try {
-      const next = await invoke('save_settings', {
-        patch: {
-          portals: [
-            {
-              portal: portal.portal,
-              enabled: patch.enabled ?? null,
-              fetchDetails: patch.fetchDetails ?? null,
-              loginEnabled: patch.loginEnabled ?? null,
-            },
-          ],
-          autoFetchOnStart: null,
-        },
-      });
-      app.set(next);
+      await app.patchPortal(portal.portal, patch);
       toasts.show(de.toast.saved);
     } catch (failure) {
       error = errorText(failure);
-      void app.load();
     }
   }
 

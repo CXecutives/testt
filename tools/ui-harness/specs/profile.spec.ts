@@ -27,7 +27,7 @@ test('the profile shows what the app understood, in plain words', async ({ page 
   ]);
   await expect(list.locator('dd')).toHaveText([
     'ab 1.100 €',
-    'Deutschland, Österreich',
+    'DE, AT',
     'ausgeschlossen',
     'nicht gesetzt',
     'nicht gesetzt',
@@ -41,11 +41,9 @@ test('the profile shows what the app understood, in plain words', async ({ page 
   );
   await expect(page.getByTestId('packs')).toHaveText('Finanzen · SAP');
   await expect(page.getByTestId('competences')).toContainText('+30');
-  // Keys the app does not evaluate: named in words, one quiet sentence, not a warning.
+  // The core sends no warning for keys it does not evaluate: no sentence about them.
   await expect(page.getByTestId('profile-understood')).toContainText('Erkannt');
-  await expect(page.getByTestId('ignored-keys')).toHaveText(
-    'Hobbys und Referenzen bleiben unberücksichtigt.',
-  );
+  await expect(page.getByTestId('ignored-keys')).toHaveCount(0);
   await expect(page.getByTestId('profile-understood').getByRole('alert')).toHaveCount(0);
 });
 

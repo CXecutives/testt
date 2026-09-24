@@ -75,7 +75,7 @@
 
   function autoFetch(on: boolean): void {
     void act('fetch', setFetch, async () => {
-      app.set(await invoke('save_settings', { patch: { portals: [], autoFetchOnStart: on } }));
+      await app.patchSettings({ autoFetchOnStart: on });
       toasts.show(de.toast.saved);
       return null;
     });

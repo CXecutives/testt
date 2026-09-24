@@ -173,10 +173,34 @@ test('reset asks with a danger dialog; the report shows after the restart', asyn
   await expect(dialog.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
   await dialog.getByRole('button', { name: 'Zurücksetzen' }).click();
   expect(await calls(page, 'reset_all')).toHaveLength(1);
-  await settings(page, `${WIN}&scenario=reset`);
-  await expect(page.getByTestId('reset-report')).toHaveText(
-    'Die App wurde zurückgesetzt. 1 Datei ließ sich nicht löschen.',
+  // After the restart the app is empty: the first-run page, nothing connected.
+  await open(page, `${WIN}&scenario=reset`);
+  await expect(page.getByTestId('view-first-run')).toBeVisible();
+  await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'false');
+  await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'false');
+});
+
+test('a refused app password says so in the form', async ({ page }) => {
+  await open(page, `${WIN}&scenario=first-run`);
+  await page.getByTestId('mailbox-user').fill('alerts.demo@gmail.com');
+  await page.getByTestId('mailbox-password').fill('fals chfa lsch fals');
+  await page.getByTestId('mailbox-password').press('Enter');
+  await expect(page.getByTestId('mailbox-form')).toContainText(
+    'Gmail lehnt Adresse oder App-Passwort ab.',
   );
+  await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'false');
+});
+
+test('the dry run shows its mailbox and refuses what would write outside it', async ({ page }) => {
+  await settings(page, `${WIN}&scenario=dry-run`);
+  await expect(page.getByTestId('settings')).toContainText('probelauf@example.org');
+  await page.getByTestId('mailbox-remove').click();
+  await page
+    .getByTestId('dialog-remove-mailbox')
+    .getByRole('button', { name: 'Entfernen' })
+    .click();
+  await expect(page.getByTestId('settings')).toContainText('Im Probelauf geht das nicht.');
+  await expect(page.getByTestId('settings')).toContainText('probelauf@example.org');
 });
 
 test('locked buttons explain themselves', async ({ page }) => {
