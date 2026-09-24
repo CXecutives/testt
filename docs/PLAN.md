@@ -21,6 +21,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | HTML overview | no full text: title, company, location, portal, link, match, 3 met, 2 open, exclusion reason |
 | Extras | Pin (star) + auto fetch on start (> 6 h, switchable); no notifications, no "still open?" checks |
 | Logo | no CXpertise company logo; the coral app icon (folder + check) is the brand mark in the title bar |
+| Heading colour | warm dark ink (45 7% 17%), not slate; coral is the only accent colour (user chose variant A) |
 | Windows caption buttons | native Windows 11 look: Segoe Fluent Icons glyphs, 46 px wide, red close hover |
 | Cleanup outside | `.notes` archived to `../_archive/TEST-notes`; user deletes `origin/ci-macos` and release `latest`; CI publishes nothing |
 | Self-decided | TXT header stays German and byte-identical · primary button brand-near (coral 56 %, label 600) · excluded jobs grey behind a divider, also under "Neu" but not counted · Excel for excluded: domain score, grey row · merge cross-portal duplicates · Smart App Control is off on the dev PC |
