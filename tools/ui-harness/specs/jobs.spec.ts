@@ -383,7 +383,7 @@ test('an empty list and a first fetch without news', async ({ page }) => {
   await open(page, `${WIN}&scenario=empty`);
   await expect(page.getByTestId('empty-all')).toBeVisible();
   expect(await visibleCount(page, '[data-testid^="empty-"]')).toBe(1);
-  await expect(page.getByTestId('run-status')).toContainText('Zuletzt');
+  await expect(page.getByTestId('run-status')).toContainText('Abgerufen');
   // The overview does not say "nothing new" again; the files keep their place.
   await expect(page.getByTestId('new-jobs')).toHaveCount(0);
   await expect(page.getByTestId('day-overview')).not.toContainText('Keine neuen Jobs');
@@ -424,7 +424,7 @@ test('two runs in a row: both end in the idle state', async ({ page }) => {
   expect(await calls(page, 'start_run')).toHaveLength(2);
   // The sidebar is idle as well once the run card steps aside.
   await page.getByTestId('nav-settings').click();
-  await expect(page.getByTestId('run-status')).toContainText('Zuletzt');
+  await expect(page.getByTestId('run-status')).toContainText('Abgerufen');
 });
 
 test('a removed mailbox keeps the jobs: Abrufen waits and the list says how', async ({ page }) => {
@@ -479,7 +479,7 @@ test('offline: the failed run says why and offers a retry', async ({ page }) => 
   await expect(failed).toContainText('Gmail ist nicht erreichbar.');
   // The sidebar says the fetch failed; the open point names it once and says why.
   await expect(failed).toContainText('Letzter Abruf');
-  await expect(page.getByText('Abruf fehlgeschlagen')).toHaveCount(1);
+  await expect(page.getByTestId('run-status')).toContainText('Fehlgeschlagen 08:30');
   await failed.getByRole('button', { name: 'Erneut versuchen' }).click();
   await runFinished(page);
   expect(await calls(page, 'start_run')).toHaveLength(1);

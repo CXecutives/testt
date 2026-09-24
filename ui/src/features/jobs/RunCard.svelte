@@ -189,14 +189,11 @@
               <li class="step {state}" data-testid="step-{step}">
                 <span class="step-head">
                   <span class="mark" class:drawn={drawn[step]}>
-                    <Icon
-                      name={state === 'done'
-                        ? 'circle-check'
-                        : state === 'current'
-                          ? 'circle-dot'
-                          : 'circle'}
-                      size="sm"
-                    />
+                    {#if state === 'done'}
+                      <Icon name="circle-check" size="sm" />
+                    {:else}
+                      <span class="dot" aria-hidden="true"></span>
+                    {/if}
                   </span>
                   <span class="name">{t.run.step[step]}</span>
                 </span>
@@ -434,11 +431,27 @@
     white-space: nowrap;
   }
 
-  /* 16 px markers: a check when done, the navy dot while current, an empty circle ahead. */
+  /* 16 px markers: a check when done, a filled navy dot while current, a small grey dot
+     ahead. No outlined circles: next to each other they read as radio buttons. */
   .mark {
     display: flex;
     flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
     color: var(--text-subtle);
+  }
+
+  .dot {
+    width: var(--dot);
+    height: var(--dot);
+    border-radius: var(--radius-full);
+    background-color: var(--border-strong);
+  }
+
+  .current .dot {
+    background-color: var(--meter-fill);
   }
 
   .done .mark {

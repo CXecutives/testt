@@ -158,6 +158,13 @@ let runSender: Sender | null = null;
 
 const params = new URLSearchParams(location.search);
 const scenario = params.get('scenario') ?? 'default';
+/** `?platform=macos` shows the demo as a Mac shows it: keychain and Mac paths. */
+const MAC = params.get('platform') === 'macos';
+const VAULT = MAC ? 'macosKeychain' : 'windowsCredentialManager';
+const HOME = MAC ? '/Users/demo' : 'C:/Users/demo';
+const DATA_DIR = MAC
+  ? '/Users/demo/Library/Application Support/job-alert-monitor'
+  : 'C:/Users/demo/AppData/Roaming/job-alert-monitor';
 const TICK = Number(params.get('tick') ?? 40);
 const DELAY = scenario === 'slow' ? 900 : 0;
 const EXPORT_LOCKED = params.get('export') === 'locked';
@@ -765,18 +772,18 @@ let state: AppState;
 function initial(): void {
   jobs = scenario === 'many' ? manyJobs(2000) : sampleJobs();
   state = {
-    platform: 'windows',
+    platform: MAC ? 'macos' : 'windows',
     dryRun: false,
     firstRun: false,
     running: null,
     settings: {
-      workspace: 'C:/Users/demo/Documents/Job-Alerts',
+      workspace: `${HOME}/Documents/Job-Alerts`,
       workspaceIsDefault: true,
       txtFiles: 38,
-      excelPath: 'C:/Users/demo/Documents/Job-Alerts/auswertung/JobAlerts.xlsx',
+      excelPath: `${HOME}/Documents/Job-Alerts/auswertung/JobAlerts.xlsx`,
       excelExists: true,
     },
-    mailbox: { user: 'alerts.demo@gmail.com', vault: 'windowsCredentialManager', error: null },
+    mailbox: { user: 'alerts.demo@gmail.com', vault: VAULT, error: null },
     profile: PROFILE,
     portals: [
       portal('linkedin'),
@@ -790,15 +797,15 @@ function initial(): void {
     lastRun: lastRun(),
     counts: countsOf([]),
     matchPending: 0,
-    dataDir: 'C:/Users/demo/AppData/Roaming/job-alert-monitor',
-    logDir: 'C:/Users/demo/AppData/Roaming/job-alert-monitor/logs',
+    dataDir: DATA_DIR,
+    logDir: `${DATA_DIR}/logs`,
     resetReport: null,
   };
   switch (scenario) {
     case 'first-run':
       jobs = [];
       state.firstRun = true;
-      state.mailbox = { user: null, vault: 'windowsCredentialManager', error: null };
+      state.mailbox = { user: null, vault: VAULT, error: null };
       state.profile = null;
       state.lastRun = null;
       state.settings.excelExists = false;
@@ -850,7 +857,7 @@ function initial(): void {
       // After "reset everything" the app starts empty: the first-run page, with the report.
       jobs = [];
       state.firstRun = true;
-      state.mailbox = { user: null, vault: 'windowsCredentialManager', error: null };
+      state.mailbox = { user: null, vault: VAULT, error: null };
       state.profile = null;
       state.lastRun = null;
       state.settings.excelExists = false;
@@ -865,7 +872,7 @@ function initial(): void {
       state.dryRun = true;
       state.mailbox = {
         user: 'probelauf@example.org',
-        vault: 'windowsCredentialManager',
+        vault: VAULT,
         error: null,
       };
       break;
@@ -1805,11 +1812,11 @@ const handlers: Handlers = {
       throw fail('invalid', { reason: 'appPassword' });
     }
     if (password.replace(/\s/g, '').toLowerCase() === WRONG_PASSWORD) throw fail('mailAuth');
-    state.mailbox = { user, vault: 'windowsCredentialManager', error: null };
+    state.mailbox = { user, vault: VAULT, error: null };
     return state.mailbox;
   },
   remove_mailbox: () => {
-    state.mailbox = { user: null, vault: 'windowsCredentialManager', error: null };
+    state.mailbox = { user: null, vault: VAULT, error: null };
     return true;
   },
   portal_login: ({ portal: name }) => {
@@ -1851,6 +1858,7 @@ const handlers: Handlers = {
     if (state.portals.every((p) => !p.enabled)) throw fail('invalid', { reason: 'noPortal' });
     if (patch.autoFetchOnStart !== null) state.autoFetchOnStart = patch.autoFetchOnStart;
     if (patch.autoArchiveDays !== null) state.autoArchiveDays = patch.autoArchiveDays;
+    if (patch.autoEmptyTrashDays !== null) state.autoEmptyTrashDays = patch.autoEmptyTrashDays;
     if (patch.language !== null) state.language = patch.language;
     return structuredClone(state);
   },

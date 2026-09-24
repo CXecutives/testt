@@ -1286,6 +1286,8 @@ pub enum OpenTarget {
     AppPasswordPage,
     /// Google page to turn on 2-step verification (an app password needs it).
     TwoStepPage,
+    /// The app's data folder (database, settings, sessions).
+    DataDir,
     Workspace,
     Excel,
     Overview,

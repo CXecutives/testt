@@ -144,7 +144,7 @@ test('Details holen reports the details, not a fetch', async ({ page }) => {
   // The reader has the details now; the last fetch is still the last fetch.
   await expect(page.getByTestId('detail-note')).toHaveCount(0);
   await page.getByTestId('nav-settings').click();
-  await expect(page.getByTestId('run-status')).toContainText('Zuletzt 08:30');
+  await expect(page.getByTestId('run-status')).toContainText('Abgerufen 08:30');
 });
 
 test('a failed first fetch does not claim the alert mails were empty', async ({ page }) => {

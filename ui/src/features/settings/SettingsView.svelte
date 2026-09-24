@@ -6,7 +6,11 @@
   confirm, and a confirmed action that fails closes its dialog so the note beside the action
   can say why.
   Switches move at once and are their own answer (no toast). The dry run changes nothing,
-  so what it cannot do is locked with that reason instead of failing.
+  and a running fetch holds the mailbox, the folder and the files, so what they cannot do is
+  locked with that reason instead of failing. The Postfach says when the last fetch could
+  not reach Gmail or Gmail refused the password, instead of "Verbunden".
+  Every path row works the same: the path is text to select and copy, the folder opens with
+  "Ordner öffnen", the Excel file with "Öffnen".
 -->
 <script lang="ts">
   import Badge from '$components/Badge.svelte';
@@ -26,7 +30,6 @@
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
-  import { toasts } from '$lib/state/toasts.svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
   import PortalCard from './PortalCard.svelte';
 
@@ -54,6 +57,23 @@
   const dryRun = $derived(cfg?.dryRun ?? false);
   const dryRunReason = $derived(t.error.text('dryRun', {}));
   const lockedReason = $derived(dryRun ? dryRunReason : t.settings.running);
+
+  /** Fetch failures that are about the mailbox itself (not a cancel, not a missing one). */
+  const MAIL_FAILURES: readonly string[] = [
+    'mailConnect',
+    'mailAuth',
+    'mailTimeout',
+    'mailLost',
+    'mailNotGmail',
+    'mailServer',
+  ];
+  /** A mailbox saved here was just checked against Gmail: the old failure is past. */
+  let mailboxSaved = $state(false);
+  const mailFailure = $derived.by(() => {
+    const outcome = cfg?.lastRun?.outcome;
+    if (mailboxSaved || outcome?.kind !== 'failed') return null;
+    return MAIL_FAILURES.includes(outcome.error.kind) ? outcome.error : null;
+  });
 
   async function act(
     name: string,
@@ -99,8 +119,9 @@
     );
   }
 
-  /** Days after which old jobs archive themselves when the switch is on. */
+  /** Days after which old jobs archive themselves, and the trash empties itself, when on. */
   const AUTO_ARCHIVE_DAYS = 30;
+  const AUTO_EMPTY_TRASH_DAYS = 30;
 
   /** The switch moves at once; a failure puts it back (reload) and says why below it. */
   function autoFetch(on: boolean): Promise<void> {
@@ -120,6 +141,17 @@
       autoFetchOnStart: null,
       autoArchiveDays: days,
       autoEmptyTrashDays: null,
+      language: null,
+    });
+  }
+
+  function autoEmptyTrash(on: boolean): Promise<void> {
+    const days = on ? AUTO_EMPTY_TRASH_DAYS : 0;
+    if (app.state) app.state.autoEmptyTrashDays = days;
+    return saveFetch({
+      autoFetchOnStart: null,
+      autoArchiveDays: null,
+      autoEmptyTrashDays: days,
       language: null,
     });
   }
@@ -175,8 +207,7 @@
         return { tone: 'danger', text: t.error.text(result.error.kind, result.error.params) };
       if (result.txtFailed > 0)
         return { tone: 'warning', text: t.settings.txtFailed(result.txtFailed) };
-      toasts.show(t.settings.txtWritten(result.txtWritten));
-      return null;
+      return { tone: 'success', text: t.settings.txtWritten(result.txtWritten) };
     });
   }
 
@@ -190,8 +221,7 @@
         if (result.failed.length > 0) {
           return { tone: 'warning', text: t.settings.txtFailed(result.failed.length) };
         }
-        toasts.show(t.settings.txtCleared(result.removed));
-        return null;
+        return { tone: 'success', text: t.settings.txtCleared(result.removed) };
       },
       () => (confirmClear = false),
     );
@@ -216,15 +246,6 @@
       },
       () => (confirmReset = false),
     );
-  }
-
-  async function copyPath(path: string, note: (f: Feedback) => void = setCare): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(path);
-      toasts.show(t.toast.copied);
-    } catch (error) {
-      note({ tone: 'danger', text: errorText(error) });
-    }
   }
 </script>
 
@@ -255,15 +276,25 @@
         {#if cfg.mailbox.user && !editing}
           <SettingRow label={cfg.mailbox.user} hint={t.settings.vault[cfg.mailbox.vault]}>
             {#snippet badges()}
-              <Badge label={t.settings.connected} tone="success" icon="check" />
+              {#if mailFailure}
+                <Badge
+                  label={mailFailure.kind === 'mailAuth'
+                    ? t.settings.refused
+                    : t.settings.unreachable}
+                  tone="warning"
+                  icon="triangle-alert"
+                />
+              {:else}
+                <Badge label={t.settings.connected} tone="success" icon="check" />
+              {/if}
             {/snippet}
             <div class="buttons">
               <Button
                 variant="secondary"
                 size="sm"
                 label={t.common.change}
-                disabled={dryRun}
-                disabledReason={dryRunReason}
+                disabled={run.active || dryRun}
+                disabledReason={lockedReason}
                 testid="mailbox-change"
                 onclick={() => (editing = true)}
               />
@@ -286,7 +317,20 @@
           <MailboxForm
             saveLabel={cfg.mailbox.user ? t.common.save : t.settings.connect}
             oncancel={cfg.mailbox.user ? () => (editing = false) : null}
-            onsaved={() => (editing = false)}
+            onsaved={() => {
+              editing = false;
+              mailboxSaved = true;
+            }}
+          />
+        {/if}
+        {#if mailFailure && !editing}
+          <Notice
+            tone="danger"
+            variant="inline"
+            text={mailFailure.kind === 'mailAuth'
+              ? t.settings.mailRefused
+              : t.error.text(mailFailure.kind, mailFailure.params)}
+            testid="mailbox-failure"
           />
         {/if}
         {#if cfg.mailbox.error}
@@ -329,6 +373,19 @@
             onchange={autoArchive}
           />
         </SettingRow>
+        <SettingRow
+          label={t.settings.autoEmptyTrash}
+          hint={t.settings.autoEmptyTrashHint}
+          for="switch-auto-empty-trash"
+        >
+          <Toggle
+            id="switch-auto-empty-trash"
+            checked={cfg.autoEmptyTrashDays > 0}
+            label={t.settings.autoEmptyTrash}
+            testid="toggle-auto-empty-trash"
+            onchange={autoEmptyTrash}
+          />
+        </SettingRow>
         {@render note(fetchNote, 'fetch-note')}
       </Card>
     </section>
@@ -355,39 +412,33 @@
               size="sm"
               label={t.common.change}
               loading={busy === 'workspace'}
+              disabled={run.active || dryRun}
+              disabledReason={lockedReason}
+              testid="workspace-change"
               onclick={pickWorkspace}
             />
             <Button
               variant="ghost"
               size="sm"
               icon="folder-open"
-              label={t.common.open}
+              label={t.common.openFolder}
+              testid="workspace-open"
               onclick={() => open({ kind: 'workspace' }, setFiles)}
             />
           </div>
         </SettingRow>
         <!-- Where the Excel file is (or will be), to find it later or to tell someone. -->
         <SettingRow label={t.settings.excel} hint={cfg.settings.excelPath} copy testid="excel">
-          <div class="buttons">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon="copy"
-              label={t.settings.copyPath}
-              testid="excel-copy"
-              onclick={() => void copyPath(cfg.settings.excelPath, setFiles)}
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              icon="external-link"
-              label={t.common.open}
-              disabled={!cfg.settings.excelExists}
-              disabledReason={t.settings.excelMissing}
-              testid="excel-open"
-              onclick={() => open({ kind: 'excel' }, setFiles)}
-            />
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="file-text"
+            label={t.common.open}
+            disabled={!cfg.settings.excelExists}
+            disabledReason={t.settings.excelMissing}
+            testid="excel-open"
+            onclick={() => open({ kind: 'excel' }, setFiles)}
+          />
         </SettingRow>
         <SettingRow label={t.settings.txt} hint={t.settings.txtCount(cfg.settings.txtFiles)}>
           <div class="buttons">
@@ -407,8 +458,8 @@
               size="sm"
               icon="trash-2"
               label={t.settings.txtClear}
-              disabled={cfg.settings.txtFiles === 0 || dryRun}
-              disabledReason={dryRun ? dryRunReason : t.settings.txtNone}
+              disabled={run.active || dryRun || cfg.settings.txtFiles === 0}
+              disabledReason={run.active || dryRun ? lockedReason : t.settings.txtNone}
               testid="txt-clear"
               onclick={() => (confirmClear = true)}
             />
@@ -456,6 +507,7 @@
             size="sm"
             icon="folder-open"
             label={t.common.openFolder}
+            testid="logs-open"
             onclick={() => open({ kind: 'logDir' }, setCare)}
           />
         </SettingRow>
@@ -463,9 +515,10 @@
           <Button
             variant="ghost"
             size="sm"
-            icon="copy"
-            label={t.settings.copyPath}
-            onclick={() => void copyPath(cfg.dataDir)}
+            icon="folder-open"
+            label={t.common.openFolder}
+            testid="data-open"
+            onclick={() => open({ kind: 'dataDir' }, setCare)}
           />
         </SettingRow>
         {@render note(careNote, 'care-note')}
@@ -542,6 +595,7 @@
 
 <style>
   .page {
+    container-type: inline-size;
     display: flex;
     flex-direction: column;
     gap: var(--space-32);

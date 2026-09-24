@@ -34,7 +34,8 @@
 
   interface Props {
     items: readonly SideNavItem<Id>[];
-    active: Id;
+    /** `null`: no entry is current (a page that is none of the views, e.g. the setup). */
+    active: Id | null;
     label: string;
     collapsed?: boolean;
     onselect: (id: Id) => void;

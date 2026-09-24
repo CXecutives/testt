@@ -101,7 +101,8 @@ pub trait PortalAdapter: Send + Sync {
     fn portal(&self) -> Portal;
     /// Key for store, settings and interface.
     fn key(&self) -> &'static str;
-    /// Display name.
+    /// Display name: the portal's web address (`linkedin.com`, `freelance.de`), as the
+    /// interface names it (Excel, HTML overview, prompts).
     fn label(&self) -> &'static str;
     /// Tag in the file name of the job details (without ".de") - part of the contract with
     /// the matching skill, which also shows it in the `Quelle:` header line.
