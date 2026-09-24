@@ -57,6 +57,8 @@ export const text = {
     cancel: 'Abbrechen',
     save: 'Speichern',
     remove: 'Entfernen',
+    change: 'Ändern',
+    reset: 'Zurücksetzen',
     pin: 'Merken',
     open: 'Öffnen',
     busy: 'Erst nach dem laufenden Abruf möglich.',

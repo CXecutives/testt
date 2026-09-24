@@ -162,6 +162,25 @@ test('job rows select on click and reorder without losing a row', async ({ page 
   await expect(rows.last()).toHaveAttribute('data-testid', first!);
 });
 
+test('a quiet button that resets warns on hover, like the trash ghost', async ({ page }) => {
+  await open(page, '?gallery');
+  const reset = page.getByTestId('button-warns');
+  await reset.scrollIntoViewIfNeeded();
+  const colour = (): Promise<string> => reset.evaluate((node) => getComputedStyle(node).color);
+  const rest = await colour();
+  await reset.hover();
+  await expect.poll(colour).not.toBe(rest);
+  const danger = await page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--danger-strong)';
+    document.body.append(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  });
+  await expect.poll(colour).toBe(danger);
+});
+
 test('the hairline under a row spans it, or insets where the list reaches past its column', async ({
   page,
 }) => {
