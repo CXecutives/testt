@@ -78,8 +78,13 @@ dry run deletes in its database only. `set_override(key, include)`: an excluded 
 "Neu" holds the unread jobs of the last 14 days (`store::new_since`, by the mail date); older unread ones stay under
 "Alle". "Alle gelesen" is `mark_all_read(facet)` with `mark_unread(keys)` as its undo. `top_matches.json` is schema 2
 (stage and first sighting per job, the unread or saved matches of the Neu window). The first mailbox scan reads 30 days.
-Portal problems say whether to act from the backend's `PortalHealth` (`healthAdvice` in `texts.ts`); no separate
-action code.
+Whether the user has to act comes from the backend: `actionNeeded` in `PortalState` and in the `PortalHealth` event
+(a sign-in, or alert mails without jobs; a pause, a cap or pages without a description resolve themselves). Both
+prompts carry `core/src/export/ai_rubric.de.md` whole (its preamble names no product). Mail healing: `mail_version`
+(`mail::MAIL_PARSER_VERSION`, 2 since a collection mail no longer gives the next job's title as company); a job an
+older parser read takes the current reading when a mail names it again (with its page read, only a pair that reads like
+a job title gives way), and the first scan after an update reads back once to the oldest such job (kv `mail_healed`,
+IMAP read-only).
 
 ### IPC v3 (types from Rust via ts-rs; camelCase; `null` instead of missing; backend never sends prose)
 Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | rescore | fullMailbox})` · `cancel_run` ·
@@ -100,7 +105,7 @@ without a usable matcher) and the auto fetch (setting on, mailbox connected, las
 Events on channel `run` (struct variants, each < 8 KB): `Started{kind}` (first event of every run, also of the runs Rust
 starts itself) · `Progress{step: scan|fetch|score|export, portal?, done, total}` ·
 `Status{code, portal?, until?}` · `Alert{portal, subject, date, postings, gmailId}` · `JobUpdated{job, fresh}` (fresh = first seen in this run) ·
-`PortalHealth{portal, health}` · `LoginNeeded{portal, waiting}` ·
+`PortalHealth{portal, health, actionNeeded}` · `LoginNeeded{portal, waiting}` ·
 `Finished{summary{kind, perPortal[{portal,new,known,dup,fetched,failed}], newJobs{count, high}?, score{scored,excluded,unscorable,pending,best}, export{..., error{kind, params.target}?}, stops[], emptyAlerts[]}}`
 (`newJobs` of a mailbox run: first seen, not a duplicate, not excluded; `high` of those; the export never fails a run but names what it could not write).
 Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[], appStatus|null, statusAt|null, followUpOn|null, archived, overridden}` ·

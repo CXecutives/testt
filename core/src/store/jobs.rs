@@ -11,7 +11,8 @@ use url::Url;
 use super::{Store, bump};
 use crate::error::{Error, Result};
 use crate::fetch::policy::MAX_FETCH_ATTEMPTS;
-use crate::mail::extract::has_gender_tag;
+use crate::mail::MAIL_PARSER_VERSION;
+use crate::mail::extract::{has_gender_tag, looks_like_job_title};
 use crate::model::{
     AlertMail, AppStatus, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord,
     Posting, is_usable_title,
@@ -467,6 +468,29 @@ impl Store {
         Ok(out)
     }
 
+    /// The oldest mail date (else first sighting) of a job an older mail parser read, or
+    /// `None` when every job is current.
+    pub fn stale_mail_since(&self) -> Result<Option<Timestamp>> {
+        let oldest: Option<i64> = self.conn().query_row(
+            "SELECT MIN(COALESCE(mail_date, first_seen_at)) FROM job
+             WHERE mail_version IS NULL OR mail_version < ?1",
+            [MAIL_PARSER_VERSION],
+            |r| r.get(0),
+        )?;
+        Ok(oldest.and_then(from_db))
+    }
+
+    /// Test helper: the job reads as if an older mail parser had read it.
+    #[cfg(test)]
+    pub(crate) fn make_mail_stale(&self, key: &JobKey) {
+        self.conn()
+            .execute(
+                "UPDATE job SET mail_version = NULL WHERE portal = ?1 AND job_id = ?2",
+                params![key.portal.key(), key.id],
+            )
+            .unwrap();
+    }
+
     /// Number of all jobs.
     pub fn job_count(&self) -> Result<i64> {
         Ok(self
@@ -853,7 +877,9 @@ fn job_row_at(r: &Row<'_>, at: usize) -> rusqlite::Result<Result<JobRow>> {
 
 /// Records one entry. Merge rule for known jobs: mail details and first sighting stay
 /// unchanged; title, company and location are only filled in when they are empty or the
-/// placeholder - never replaced just because another value is longer.
+/// placeholder - never replaced just because another value is longer. A job an older mail
+/// parser read ([`MAIL_PARSER_VERSION`]) and whose page is not read yet takes the current
+/// parser's title and details: that heals what the older one got wrong.
 fn upsert(
     conn: &Connection,
     run: i64,
@@ -874,20 +900,30 @@ fn upsert(
     if deleted {
         return Ok(Seen::KnownBefore);
     }
-    let known: Option<(i64, String, String, String)> = conn
+    let known: Option<(i64, String, String, String, Option<i64>, bool)> = conn
         .query_row(
-            "SELECT last_seen_run, title, company, location FROM job
-             WHERE portal = ?1 AND job_id = ?2",
+            "SELECT last_seen_run, title, company, location, mail_version,
+                    desc_fetched_at IS NOT NULL
+             FROM job WHERE portal = ?1 AND job_id = ?2",
             params![key.portal.key(), key.id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                ))
+            },
         )
         .optional()?;
-    let Some((last_run, title, company, location)) = known else {
+    let Some((last_run, title, company, location, version, page_read)) = known else {
         conn.execute(
             "INSERT INTO job (portal, job_id, url, title, company, location, mail_date,
                               mail_subject, gmail_id, first_seen_at, first_seen_run,
-                              last_seen_run, search)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11, ?12)",
+                              last_seen_run, search, mail_version)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11, ?12, ?13)",
             params![
                 key.portal.key(),
                 key.id,
@@ -901,6 +937,7 @@ fn upsert(
                 to_db(now),
                 run,
                 search_text(&posting.title, &posting.company, &posting.location, ""),
+                MAIL_PARSER_VERSION,
             ],
         )?;
         bump(conn)?;
@@ -908,16 +945,27 @@ fn upsert(
     };
     // The last sighting is invisible to export and UI - hence no bump().
     conn.execute(
-        "UPDATE job SET last_seen_run = ?3 WHERE portal = ?1 AND job_id = ?2",
-        params![key.portal.key(), key.id, run],
+        "UPDATE job SET last_seen_run = ?3, mail_version = ?4 WHERE portal = ?1 AND job_id = ?2",
+        params![key.portal.key(), key.id, run, MAIL_PARSER_VERSION],
     )?;
-    let new_title = if !is_usable_title(&title) && posting.has_real_title() {
+    // Read by an older mail parser and no page yet: the current parser's reading wins (it
+    // heals what an older one got wrong). Otherwise the merge rules below.
+    // With the page read, the page's values stand; only a stored pair that reads like a job
+    // title (the older parser's mistake) gives way to the current reading.
+    let older = version.is_none_or(|v| v < MAIL_PARSER_VERSION);
+    let stale = older && !page_read;
+    let has_pair = !(posting.company.is_empty() && posting.location.is_empty());
+    let wrong_pair = older && (looks_like_job_title(&company) || looks_like_job_title(&location));
+    let new_title = if (stale || !is_usable_title(&title)) && posting.has_real_title() {
         posting.title.clone()
     } else {
         title.clone()
     };
-    let (new_company, new_location) =
-        merge_details((&company, &location), (&posting.company, &posting.location));
+    let (new_company, new_location) = if (stale || wrong_pair) && has_pair {
+        (posting.company.clone(), posting.location.clone())
+    } else {
+        merge_details((&company, &location), (&posting.company, &posting.location))
+    };
     if new_title != title || new_company != company || new_location != location {
         // The engine reads title and location (the country criterion): a change to either
         // makes the score pending again - the same rule as for page fields.
@@ -1245,6 +1293,87 @@ mod tests {
             .record_page_fields(&key, "", "", "Manchester")
             .unwrap();
         assert_eq!(pending(), 0, "the same location changes nothing");
+    }
+
+    /// A job an older mail parser read takes the current reading when a mail names it again:
+    /// a wrong company (the next job's title) and missing details heal. A current reading,
+    /// and a job whose page was read, keep the merge rules.
+    #[test]
+    fn an_older_mail_reading_heals_when_the_job_is_seen_again() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let seen = |url: &str, title: &str, company: &str, location: &str| {
+            store
+                .upsert_posting(run, &posting(url, title, company, location), mail(), now())
+                .unwrap();
+            job_link(url).unwrap().key
+        };
+        let details = |key: &JobKey| {
+            let job = store.job(key).unwrap().unwrap();
+            (job.title, job.company, job.location)
+        };
+        let triple = |a: &str, b: &str, c: &str| (a.to_owned(), b.to_owned(), c.to_owned());
+        let vmware = "https://www.linkedin.com/jobs/view/4000000011/";
+        let wrong = seen(
+            vmware,
+            "VMware Lead Solution Architect",
+            "Senior Requirements Engineer im Bankenumfeld",
+            "",
+        );
+        let bare = "https://www.linkedin.com/jobs/view/4000000012/";
+        let empty = seen(bare, "Interim CFO", "", "");
+        let current = "https://www.linkedin.com/jobs/view/4000000013/";
+        let kept = seen(current, "Controller", "Nordlicht AG", "Hamburg");
+        let paged = "https://www.linkedin.com/jobs/view/4000000014/";
+        let page = seen(paged, "Treasury", "", "");
+        store
+            .record_text(&page, "Anzeige", false, false, now())
+            .unwrap();
+        store
+            .record_page_fields(&page, "", "Seitenfirma GmbH", "")
+            .unwrap();
+        // A page that named no company left the older parser's wrong one in place.
+        let titled = "https://www.linkedin.com/jobs/view/4000000015/";
+        let paged_wrong = seen(titled, "Architekt", "Senior Requirements Engineer", "");
+        store
+            .record_text(&paged_wrong, "Anzeige", false, false, now())
+            .unwrap();
+        for key in [&wrong, &empty, &kept, &page, &paged_wrong] {
+            store.make_mail_stale(key);
+        }
+        // `kept` stands for a job the current parser read.
+        seen(current, "Controller", "Nordlicht AG", "Hamburg");
+        assert!(store.stale_mail_since().unwrap().is_some());
+
+        seen(
+            vmware,
+            "VMware Lead Solution Architect",
+            "Acme Cloud GmbH",
+            "München",
+        );
+        seen(bare, "Interim CFO", "Hanseatic Holding GmbH", "Hamburg");
+        seen(current, "Controller", "Andere Firma GmbH", "Berlin");
+        seen(paged, "Treasury", "Mailfirma GmbH", "Köln");
+        seen(titled, "Architekt", "Beispiel IT GmbH", "Frankfurt am Main");
+        assert_eq!(
+            details(&wrong),
+            triple(
+                "VMware Lead Solution Architect",
+                "Acme Cloud GmbH",
+                "München"
+            )
+        );
+        assert_eq!(
+            details(&empty),
+            triple("Interim CFO", "Hanseatic Holding GmbH", "Hamburg")
+        );
+        assert_eq!(
+            details(&kept),
+            triple("Controller", "Nordlicht AG", "Hamburg")
+        );
+        assert_eq!(details(&page).1, "Seitenfirma GmbH", "the page wins");
+        assert_eq!(details(&paged_wrong).1, "Beispiel IT GmbH");
+        assert_eq!(store.stale_mail_since().unwrap(), None);
     }
 
     /// The page's company and location win over the mail heuristics; what the page leaves

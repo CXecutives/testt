@@ -38,8 +38,13 @@ pub const SCHEMA_4_JOB_COLUMNS: &[(&str, &str)] = &[
 /// - `follow_up_on`: the day to follow up (`YYYY-MM-DD`), only while applied or in talks.
 /// - `override_include`: `1` = the user marked an excluded job as fitting anyway; the
 ///   engine's exclusion is then stored as "scored" (with the fit score) on every rescore.
-pub const SCHEMA_5_JOB_COLUMNS: &[(&str, &str)] =
-    &[("follow_up_on", "TEXT"), ("override_include", "INTEGER")];
+/// - `mail_version`: the mail parser that read title, company and location
+///   (`mail::MAIL_PARSER_VERSION`); `NULL` = one before the versions.
+pub const SCHEMA_5_JOB_COLUMNS: &[(&str, &str)] = &[
+    ("follow_up_on", "TEXT"),
+    ("override_include", "INTEGER"),
+    ("mail_version", "INTEGER"),
+];
 
 /// What the migration to schema 5 does beyond the new columns: "hidden" is "archived" now,
 /// a pinned job without a stage is saved (the star is the first stage), and the table of
