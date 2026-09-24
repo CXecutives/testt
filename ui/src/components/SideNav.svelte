@@ -3,8 +3,8 @@
   The active entry sits on one white pill that slides to it (180 ms, emphasized; the
   sibling of the segmented thumb), its label ink and its icon coral. An idle entry washes
   on hover and its icon turns coral. The count is the deep navy pill and rolls when it
-  changes. Collapsed (icon rail) the labels move into tooltips and a coral dot on the
-  icon stands for the count. While the window is inactive the active label turns ink.
+  changes. Collapsed (icon rail) the labels move into tooltips right of the icons (never
+  over the next entry) and a coral dot on the icon stands for the count. While the window is inactive the active label turns ink.
   An entry may carry sub-entries (Archiv, Papierkorb under Jobs): quieter (13 px, muted),
   indented under the parent's label, as high as the main entries so the one pill steps
   over them alike; in the rail they are icons under the parent's icon, with tooltips.
@@ -71,7 +71,7 @@
       aria-current={item.id === active ? 'page' : undefined}
       aria-label={collapsed ? item.label : undefined}
       data-testid={item.testid}
-      use:tooltip={collapsed ? item.label : null}
+      use:tooltip={collapsed ? { text: item.label, placement: 'right' } : null}
       onclick={() => onselect(item.id)}
     >
       <span class="glyph">

@@ -62,7 +62,14 @@ for (const [width, rail] of [
     if (rail) {
       await expect(label).toHaveAttribute('aria-label', 'Profil');
       await label.hover();
-      await expect(page.getByRole('tooltip')).toHaveText('Profil');
+      const tip = page.getByRole('tooltip');
+      await expect(tip).toHaveText('Profil');
+      // Right of the icon, centred on it, never over the next entry (like a native rail).
+      await expect(tip.locator('div')).toHaveCSS('opacity', '1');
+      const icon = (await label.boundingBox())!;
+      const bubble = (await tip.locator('div').boundingBox())!;
+      expect(bubble.x).toBeGreaterThan(icon.x + icon.width);
+      expect(Math.abs(bubble.y + bubble.height / 2 - (icon.y + icon.height / 2))).toBeLessThan(2);
     } else {
       await expect(label).toHaveText('Profil');
     }

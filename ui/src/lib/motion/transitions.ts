@@ -238,15 +238,24 @@ export function toastOut(node: Element): TransitionConfig {
 }
 
 export interface TooltipParams {
-  /** Where the bubble sits: it moves --move-sm toward its anchor as it appears. */
-  placement: 'top' | 'bottom';
+  /** Where the bubble sits: it comes --move-sm out of its anchor as it appears. */
+  placement: 'top' | 'bottom' | 'right';
 }
 
-/** The tooltip pops toward its anchor (100 ms, ease-out) and leaves with a 60 ms fade. */
+/** The tooltip pops out of its anchor (100 ms, ease-out) and leaves with a 60 ms fade. */
 export function tooltipIn(node: Element, { placement }: TooltipParams): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
-  const y = move('sm') * (placement === 'top' ? 1 : -1);
   const scale = enterScale();
+  if (placement === 'right') {
+    const x = -move('sm');
+    return {
+      duration: duration('fast'),
+      easing: easing('out'),
+      css: (t) =>
+        `opacity: ${t}; transform: translateX(${Math.round((1 - t) * x)}px) scale(${scale + (1 - scale) * t})`,
+    };
+  }
+  const y = move('sm') * (placement === 'top' ? 1 : -1);
   return { duration: duration('fast'), easing: easing('out'), css: (t) => lifted(t, y, scale) };
 }
 

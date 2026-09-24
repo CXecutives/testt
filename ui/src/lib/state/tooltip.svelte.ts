@@ -1,7 +1,9 @@
 // The one tooltip of the app. The `tooltip` action writes here; the Tooltip component
 // renders it. A native `title` is forbidden (unstyled, slow, sticks to the OS look).
 
-export type TooltipPlacement = 'bottom' | 'top';
+/** Below, above, or right of the anchor (the icons of a vertical rail, like a native
+ *  sidebar: a bubble below would cover the next entry). */
+export type TooltipPlacement = 'bottom' | 'top' | 'right';
 
 export const TOOLTIP_ID = 'app-tooltip';
 
