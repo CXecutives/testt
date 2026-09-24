@@ -25,6 +25,7 @@ pub(crate) const DOMAIN: Domain = Domain {
         "software",
         "testmanagement",
     ],
+    generic: &[],
     concepts: &[
         ("data migration", "datenmigration"),
         ("test management", "testmanagement"),
