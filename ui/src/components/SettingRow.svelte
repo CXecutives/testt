@@ -132,4 +132,21 @@
   .control :global(.btn.ghost.sm:last-child) {
     margin-right: calc(-1 * var(--space-12));
   }
+
+  /* In a narrow container (the settings page at the minimum window) buttons go under the
+     text, so a path or a hint keeps the whole width; a switch stays at the right. */
+  @container (width < 520px) {
+    .row:not([data-toggle-row]) {
+      flex-wrap: wrap;
+      row-gap: var(--space-8);
+    }
+
+    .row:not([data-toggle-row]) .text {
+      flex-basis: 100%;
+    }
+
+    .row:not([data-toggle-row]) .control {
+      margin-left: auto;
+    }
+  }
 </style>

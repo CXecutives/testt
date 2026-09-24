@@ -961,6 +961,10 @@ export const de = {
     maintenance: 'Wartung',
     connected: 'Verbunden',
     notConnected: 'Kein Postfach verbunden.',
+    /** The last fetch could not reach Gmail, or Gmail refused the password. */
+    unreachable: 'Nicht erreichbar',
+    refused: 'Abgelehnt',
+    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, bitte über Ändern neu eintragen.',
     vault: {
       windowsCredentialManager:
         'Das App-Passwort liegt in der Windows-Anmeldeinformationsverwaltung.',
@@ -970,15 +974,17 @@ export const de = {
     password: 'App-Passwort',
     passwordHint: '16 Buchstaben, erstellt im Google-Konto.',
     createPassword: 'App-Passwort erstellen',
-    twoStep: 'Ein App-Passwort gibt es nur mit der Bestätigung in zwei Schritten.',
+    twoStep: 'Ein App-Passwort braucht die Bestätigung in zwei Schritten.',
+    addressMissing: 'Die Gmail-Adresse fehlt.',
+    passwordMissing: 'Das App-Passwort fehlt.',
     twoStepAction: 'Bestätigung einschalten',
     connect: 'Verbinden',
     removeMailbox: 'Postfach entfernen?',
     removeMailboxText: 'Das App-Passwort wird gelöscht, die Jobs bleiben.',
     autoFetch: 'Beim Start abrufen',
     autoFetchHint: 'Wenn der letzte Abruf mehr als sechs Stunden her ist.',
-    autoArchive: 'Alte Jobs automatisch archivieren',
-    autoArchiveHint: 'Nach 30 Tagen, außer gemerkte und beworbene.',
+    autoArchive: 'Jobs nach 30 Tagen archivieren',
+    autoArchiveHint: 'Favoriten bleiben im Eingang.',
     active: 'Aktiv',
     details: 'Details holen',
     needsDetails: 'Erst Details holen einschalten.',
@@ -1004,10 +1010,14 @@ export const de = {
     detailsOff: 'Ohne Details bekommen die Jobs dieses Portals keine Passung.',
     quota: (used: number, cap: number) => `Heute ${n(used)} von ${n(cap)} Seiten`,
     quotaHour: (used: number, cap: number) => `Diese Stunde ${n(used)} von ${n(cap)} Seiten`,
+    /** The sign-in row of a portal: its label, and its state. */
+    session: 'Anmeldung',
     signedIn: 'Angemeldet',
+    notSignedIn: 'Nicht angemeldet.',
+    /** A portal that is off. */
+    portalOff: 'Wird beim Abruf übersprungen.',
     /** A sign-in still stored while the portal or its sign-in is switched off. */
     sessionLeft: 'Die Anmeldung ist noch gespeichert.',
-    signedOut: 'Nicht angemeldet',
     signIn: 'Anmelden',
     signOut: 'Abmelden',
     openPortal: 'Im Browser öffnen',
@@ -1033,7 +1043,6 @@ export const de = {
     fullMailboxText: 'Das dauert länger und ruft mehr Seiten der Portale ab.',
     logs: 'Protokolle',
     data: 'Daten der App',
-    copyPath: 'Pfad kopieren',
     reset: 'Alles zurücksetzen',
     resetHint: 'Löscht Jobs, Einstellungen, Profil und App-Passwort.',
     resetAction: 'Zurücksetzen',
@@ -1067,14 +1076,15 @@ export const de = {
   },
   shell: {
     loadFailed: 'Die App konnte ihre Daten nicht laden.',
-    last: (iso: string) => `Zuletzt ${formatMoment(iso)}`,
+    last: (iso: string) => `Abgerufen ${formatMoment(iso)}`,
     showRun: 'Abruf anzeigen',
-    runFailed: 'Abruf fehlgeschlagen',
+    runFailed: (iso: string) => `Fehlgeschlagen ${formatMoment(iso)}`,
     /** Closing while a fetch runs: the window waits until it has stopped. */
     closing: 'Der Abruf wird beendet, dann schließt die App.',
   },
   toast: {
     saved: 'Gespeichert.',
+    mailboxSaved: 'Postfach verbunden.',
     rescored: 'Die Jobs sind neu bewertet.',
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */

@@ -1,12 +1,12 @@
 <!--
-  One portal in the settings. The header row carries the portal, the portal in the browser
-  and its switch (Aktiv); reading its alert mails touches nothing but the own Gmail. Only an
-  active portal shows more: its problem in one sentence that says whether she has to act
-  (warning) or the app carries on by itself (info), the quota only from 80 % or while paused
-  (the window that binds, a 6 px meter), and one row per switch with the risk that switch brings (PLAN:
-  a risk badge per switch). Details holen carries the risk of the requests with its sentence;
-  for freelance.de Mit Anmeldung warns with Kontorisiko while the Details row does not say it
-  yet, then sign in / sign out (which deletes the session).
+  One portal in the settings, the same skeleton on every card: the header (the portal by its
+  web address, the portal in the browser, its switch Aktiv; the name is the switch's label),
+  then the switch rows, then the status under its own divider (the portal's problem in one
+  sentence that says whether she has to act, and the pages used today, the meter only from
+  80 % or while paused). A portal that is off says in one line that the fetch skips it.
+  Each switch carries its own risk and keeps it: Details holen the risk of the requests
+  (while it is on), Mit Anmeldung always Kontorisiko. Sign-in exists only while details and
+  sign-in are both on; a stored sign-in the switches no longer show keeps its Abmelden.
   A switch moves at once (the state is patched before the save); a failure puts it back and
   says why here. The switch itself is the answer: no toast.
 -->
@@ -44,7 +44,7 @@
 
   /** Its problem in one sentence; `portal.actionNeeded` says whether she has to act. */
   const health = $derived(healthAdvice(portal.health));
-  /** The fuller of the two windows: its numbers are the ones the text names. */
+  /** The pages used: the fuller window's numbers; the meter only near the limit. */
   const quota = $derived.by(() => {
     const q = portal.quota;
     if (q === null) return null;
@@ -52,18 +52,21 @@
     const hour = q.usedHour / Math.max(q.capHour, 1);
     const paused = portal.health.kind === 'paused' || portal.health.kind === 'quotaReached';
     const share = Math.max(day, hour);
-    if (share < QUOTA_SHOWN && !paused) return null;
     const text =
       hour > day
         ? t.settings.quotaHour(q.usedHour, q.capHour)
         : t.settings.quota(q.usedDay, q.capDay);
-    return { share, text };
+    return { share, text, meter: share >= QUOTA_SHOWN || paused };
   });
+  /** Sign-in only matters while details are fetched. */
+  const signIn = $derived(portal.fetchDetails && portal.loginEnabled);
   /** A stored sign-in the switches no longer show: its Abmelden stays until it is gone. */
-  const leftover = $derived(portal.signedIn === true && !(portal.enabled && portal.loginEnabled));
-  /** The risk of fetching details now: signed in it is the own account. */
-  const risk = $derived<Risk>(portal.loginEnabled ? 'account' : portal.risk);
+  const leftover = $derived(portal.signedIn === true && !(portal.enabled && signIn));
+  /** The risk of the requests as a guest (the account risk belongs to Mit Anmeldung). */
+  const detailsRisk = $derived<Risk>(portal.risk === 'account' ? 'grey' : portal.risk);
+  const status = $derived(portal.enabled && (health !== null || quota !== null));
   const dryRun = $derived(app.state?.dryRun ?? false);
+  const dryRunReason = $derived(t.error.text('dryRun', {}));
 
   async function change(patch: Switches): Promise<void> {
     error = null;
@@ -94,11 +97,11 @@
     }
   }
 
-  async function session(signIn: boolean): Promise<void> {
+  async function session(on: boolean): Promise<void> {
     error = null;
     busy = true;
     try {
-      await invoke(signIn ? 'portal_login' : 'portal_logout', { portal: portal.portal });
+      await invoke(on ? 'portal_login' : 'portal_logout', { portal: portal.portal });
       await app.load();
     } catch (failure) {
       error = errorText(failure);
@@ -114,10 +117,29 @@
   }
 </script>
 
+{#snippet signOut()}
+  <Button
+    variant="secondary"
+    size="sm"
+    icon="log-out"
+    label={t.settings.signOut}
+    loading={busy}
+    disabled={dryRun}
+    disabledReason={dryRunReason}
+    testid="sign-out-{portal.portal}"
+    onclick={() => void session(false)}
+  />
+{/snippet}
+
 <Card padding="none" testid="portal-{portal.portal}">
   <div class="head">
     <IconTile tone="navy" monogram={PORTAL_MONOGRAM[portal.portal]} size="md" />
-    <h3 class="name">{t.portal[portal.portal]}</h3>
+    <div class="title">
+      <label class="name" for="switch-enabled-{portal.portal}">{t.portal[portal.portal]}</label>
+      {#if !portal.enabled}
+        <p class="off" data-testid="portal-off-{portal.portal}">{t.settings.portalOff}</p>
+      {/if}
+    </div>
     <div class="tools">
       <Button
         variant="ghost"
@@ -129,6 +151,7 @@
         onclick={openPortal}
       />
       <Toggle
+        id="switch-enabled-{portal.portal}"
         checked={portal.enabled}
         label={t.settings.active}
         testid="toggle-enabled-{portal.portal}"
@@ -139,36 +162,23 @@
   <!-- Switching the portal on, its rows rise in; off, they fade (no height animation). -->
   {#if portal.enabled || error || leftover}
     <div class="body" in:rise={{ distance: 'sm' }} out:fade>
-      {#if portal.enabled && health}
-        <Notice
-          tone={portal.actionNeeded ? 'warning' : 'info'}
-          variant="inline"
-          text={health}
-          testid="health-{portal.portal}"
-        />
-      {/if}
-      {#if quota}
-        <div class="quota" data-testid="quota-{portal.portal}">
-          <span>{quota.text}</span>
-          <Meter value={quota.share} tone="warning" size="md" label={quota.text} />
-        </div>
-      {/if}
-
-      {#if portal.enabled}
-        <div class="rows">
+      <div class="rows">
+        {#if portal.enabled}
           <SettingRow
             label={t.settings.details}
-            hint={portal.fetchDetails ? t.settings.riskText[risk] : t.settings.detailsOff}
+            hint={portal.fetchDetails ? t.settings.riskText[detailsRisk] : t.settings.detailsOff}
             for="switch-details-{portal.portal}"
             testid="details-{portal.portal}"
           >
             {#snippet badges()}
-              <Badge
-                label={t.settings.risk[risk]}
-                tone={RISK_TONE[risk]}
-                icon="shield"
-                hint={t.settings.riskInfo[risk]}
-              />
+              {#if portal.fetchDetails}
+                <Badge
+                  label={t.settings.risk[detailsRisk]}
+                  tone={RISK_TONE[detailsRisk]}
+                  icon="shield"
+                  hint={t.settings.riskInfo[detailsRisk]}
+                />
+              {/if}
             {/snippet}
             <Toggle
               id="switch-details-{portal.portal}"
@@ -186,18 +196,16 @@
               testid="login-{portal.portal}"
             >
               {#snippet badges()}
-                {#if risk !== 'account'}
-                  <Badge
-                    label={t.settings.risk.account}
-                    tone="danger"
-                    icon="shield"
-                    hint={t.settings.riskInfo.account}
-                  />
-                {/if}
+                <Badge
+                  label={t.settings.risk.account}
+                  tone="danger"
+                  icon="shield"
+                  hint={t.settings.riskInfo.account}
+                />
               {/snippet}
               <Toggle
                 id="switch-login-{portal.portal}"
-                checked={portal.loginEnabled}
+                checked={signIn}
                 label={t.settings.login}
                 disabled={!portal.fetchDetails}
                 disabledReason={t.settings.needsDetails}
@@ -205,60 +213,76 @@
                 onchange={(on) => change({ loginEnabled: on })}
               />
             </SettingRow>
-            {#if portal.loginEnabled}
-              <SettingRow
-                label={portal.signedIn ? t.settings.signedIn : t.settings.signedOut}
-                hint={run.loginNeeded === portal.portal ? t.settings.signInWaiting : null}
-              >
-                {#if portal.signedIn}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon="log-out"
-                    label={t.settings.signOut}
-                    loading={busy}
-                    disabled={dryRun}
-                    disabledReason={t.error.text('dryRun', {})}
-                    testid="sign-out-{portal.portal}"
-                    onclick={() => void session(false)}
-                  />
-                {:else}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon="log-in"
-                    label={t.settings.signIn}
-                    loading={busy}
-                    disabled={run.active || dryRun}
-                    disabledReason={dryRun ? t.error.text('dryRun', {}) : t.settings.running}
-                    testid="sign-in-{portal.portal}"
-                    onclick={() => void session(true)}
-                  />
-                {/if}
-              </SettingRow>
+          {/if}
+        {/if}
+        {#if portal.enabled && signIn}
+          <SettingRow
+            label={t.settings.session}
+            hint={run.loginNeeded === portal.portal
+              ? t.settings.signInWaiting
+              : portal.signedIn
+                ? null
+                : t.settings.notSignedIn}
+            testid="session-{portal.portal}"
+          >
+            {#snippet badges()}
+              {#if portal.signedIn}
+                <Badge label={t.settings.signedIn} tone="success" icon="check" />
+              {/if}
+            {/snippet}
+            {#if portal.signedIn}
+              {@render signOut()}
+            {:else}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="log-in"
+                label={t.settings.signIn}
+                loading={busy}
+                disabled={run.active || dryRun}
+                disabledReason={dryRun ? dryRunReason : t.settings.running}
+                testid="sign-in-{portal.portal}"
+                onclick={() => void session(true)}
+              />
             {/if}
+          </SettingRow>
+        {:else if leftover}
+          <SettingRow
+            label={t.settings.session}
+            hint={t.settings.sessionLeft}
+            testid="session-{portal.portal}"
+          >
+            {#snippet badges()}
+              <Badge label={t.settings.signedIn} tone="success" icon="check" />
+            {/snippet}
+            {@render signOut()}
+          </SettingRow>
+        {/if}
+      </div>
+      {#if status}
+        <div class="status" data-testid="status-{portal.portal}">
+          {#if health}
+            <Notice
+              tone={portal.actionNeeded ? 'warning' : 'info'}
+              variant="inline"
+              text={health}
+              testid="health-{portal.portal}"
+            />
+          {/if}
+          {#if quota}
+            <div class="quota" data-testid="quota-{portal.portal}">
+              <span>{quota.text}</span>
+              {#if quota.meter}
+                <Meter value={quota.share} tone="warning" size="md" label={quota.text} />
+              {/if}
+            </div>
           {/if}
         </div>
       {/if}
-      {#if leftover}
-        <div class="rows">
-          <SettingRow label={t.settings.signedIn} hint={t.settings.sessionLeft}>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="log-out"
-              label={t.settings.signOut}
-              loading={busy}
-              disabled={dryRun}
-              disabledReason={t.error.text('dryRun', {})}
-              testid="sign-out-{portal.portal}"
-              onclick={() => void session(false)}
-            />
-          </SettingRow>
-        </div>
-      {/if}
       {#if error}
-        <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
+        <div class="status">
+          <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
+        </div>
       {/if}
     </div>
   {/if}
@@ -272,37 +296,62 @@
     padding: var(--space-16) var(--space-20);
   }
 
-  /* The rows run edge to edge like the card's dividers (--row-inset); other content keeps
-     the card's inset of 20. */
+  /* The rows run edge to edge like the card's dividers (--row-inset); the status keeps the
+     card's inset of 20 under its own divider. */
   .body {
     display: flex;
     flex-direction: column;
-    gap: var(--space-8);
-    padding: 0 var(--space-20) var(--space-4);
+    padding: 0 var(--space-20);
     border-top: var(--border-width) solid var(--border);
     --row-inset: var(--space-20);
   }
 
-  .body > :global(:first-child:not(.rows)) {
-    margin-top: var(--space-12);
-  }
-
-  .body > :global(:last-child:not(.rows)) {
-    margin-bottom: var(--space-12);
-  }
-
-  /* A card label, not a heading of its own: 15/500 under the 17/600 section heading. */
-  .name {
+  .title {
+    display: flex;
     flex: 1;
+    flex-direction: column;
+    gap: var(--space-2);
     min-width: 0;
+  }
+
+  /* The card's title, above the 15/500 row labels. */
+  .name {
     color: var(--text-heading);
     font: var(--type-title);
+    font-weight: var(--weight-semibold);
+  }
+
+  .off {
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   .tools {
     display: flex;
     align-items: center;
     gap: var(--space-8);
+  }
+
+  .rows {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rows:empty {
+    display: none;
+  }
+
+  .status {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    margin-inline: calc(-1 * var(--space-20));
+    padding: var(--space-12) var(--space-20);
+    border-top: var(--border-width) solid var(--border);
+  }
+
+  .rows:empty + .status {
+    border-top: 0;
   }
 
   .quota {
@@ -312,10 +361,5 @@
     color: var(--text-muted);
     font: var(--type-sm);
     font-variant-numeric: var(--numeric);
-  }
-
-  .rows {
-    display: flex;
-    flex-direction: column;
   }
 </style>
