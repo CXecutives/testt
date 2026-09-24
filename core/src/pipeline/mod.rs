@@ -66,7 +66,7 @@ pub enum RunKind {
     Details { keys: Vec<JobKey> },
     /// Score again with the current profile, export.
     Rescore,
-    /// Like `fetch`, but the whole inbox.
+    /// Like `fetch`, but the whole mailbox (All Mail) without a date limit.
     FullMailbox,
 }
 
