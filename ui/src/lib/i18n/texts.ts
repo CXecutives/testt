@@ -192,17 +192,6 @@ export function criterionState(reason: Reason): CriterionState {
   }
 }
 
-/** A hard criterion of the profile as a row: its name and its value (null = not set). */
-export function profileCriterion(notice: Notice): { field: string; value: string | null } | null {
-  const key = criterionKey(notice.code);
-  if (key === null) return null;
-  const text = de.reader.criterion[key];
-  return {
-    field: text.field,
-    value: notice.params.set === false ? null : text.value(notice.params),
-  };
-}
-
 export function warningText(notice: Notice): string | null {
   return has(de.profile.warning, notice.code)
     ? textOf(de.profile.warning[notice.code as ProfileWarning], notice.params)
@@ -229,23 +218,23 @@ export function healthSentence(health: PortalHealth): string | null {
 }
 
 /**
- * A portal problem as the settings say it: one sentence that says whether anything is to
- * be done (`act`), or that the app carries on by itself.
+ * A portal problem as the settings say it: one sentence that says what she has to do, or
+ * that the app carries on by itself (which of the two is `PortalState.actionNeeded`).
  */
-export function healthAdvice(health: PortalHealth): { text: string; act: boolean } | null {
+export function healthAdvice(health: PortalHealth): string | null {
   switch (health.kind) {
     case 'ok':
       return null;
     case 'paused':
-      return { text: de.health.advice.paused(health.reason, health.until), act: false };
+      return de.health.advice.paused(health.reason, health.until);
     case 'quotaReached':
-      return { text: de.health.advice.quota(health.until), act: false };
+      return de.health.advice.quota(health.until);
     case 'layoutSuspect':
       return health.emptyMails > 0
-        ? { text: de.health.advice.emptyMails(health.emptyMails), act: true }
-        : { text: de.health.advice.pages, act: false };
+        ? de.health.advice.emptyMails(health.emptyMails)
+        : de.health.advice.pages;
     case 'loginRequired':
-      return { text: de.health.advice.login, act: true };
+      return de.health.advice.login;
   }
 }
 

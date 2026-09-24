@@ -819,7 +819,7 @@ test('the reader marks a job: status, note, archive in place with undo, a prompt
   }
   await page.getByTestId('prompt').click();
   await expect(page.getByTestId('toast').last()).toContainText(
-    'Prompt kopiert. In einen KI-Chat einfügen.',
+    'Prompt kopiert, bereit für einen KI-Chat.',
   );
   // Archivieren keeps the job in the pane, marked; a double click archives nothing else.
   const title = await page.getByTestId('reader-title').innerText();
@@ -889,7 +889,7 @@ test('the best matches as one prompt: in the overview and under Favoriten', asyn
   await open(page, WIN);
   await page.getByTestId('prompt-top').click();
   await expect(page.getByTestId('toast').last()).toContainText(
-    'Prompt kopiert. In einen KI-Chat einfügen.',
+    'Prompt kopiert, bereit für einen KI-Chat.',
   );
   await page
     .getByTestId('facet')
