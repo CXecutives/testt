@@ -55,7 +55,7 @@ Reasons are not stored; `job_detail` recomputes them. Settings JSON: per portal 
 New nullable `job` columns: `app_status TEXT` (applied|interview|offer|rejected), `app_status_at`, `note TEXT`
 (<= 2000 characters, no export shows it), `hidden_at` ("Nicht interessant"). Frozen fixture
 `core/tests/fixtures/schema_v3.sql`. A hidden job is in no list but "hidden" and in no count but its own; the HTML
-overview and `top_matches.json` leave it out. Excel gets a "Status" column (Beworben, Im Gespräch, Zusage, Absage); the
+overview and `top_matches.json` leave it out. Excel gets a "Status" column (schema 5: "Beworben am" with the date); the
 TXT files stay byte-identical. The AI prompts (user decision: universal for any AI chat, they replace the skill for
 normal use; `export/ai_prompt.rs`, external contract) address the assistant as "du" without naming a product and carry
 the rubric intent of the skill in short and the profile without name, contact data, links and references (<= 8,000
@@ -63,13 +63,14 @@ characters): `ai_prompt(key)` for a deep analysis of one ad (text <= 12,000 char
 for one comparison with a ranking of the best current matches (scored, not hidden, ad still online; pinned first, then
 by score), all ad texts together <= 24,000 characters, an equal share each, the prompt says when one was cut.
 
-### Schema 5 (stages, archive, delete for good, "fits anyway"; user decisions 2026-09-24)
+### Schema 5 (one mark, archive, delete for good, "fits anyway"; user decisions 2026-09-24/25)
 Schema 4 is on main, so this is its own step (`migrate_4_to_5`, frozen fixture `core/tests/fixtures/schema_v4.sql`):
-`hidden_at` is renamed `archived_at` (UI word "Archiv", "Archivieren"), new nullable `follow_up_on TEXT` and
-`override_include INTEGER`, a pinned job without a status becomes the stage `saved`, and a `tombstone(portal, job_id,
-deleted_at)` table. One pipeline of stages: `saved` (the star, `set_pinned` is its alias and never overwrites a later
-stage) → `applied` → `interview` → `offer` | `rejected`; a follow-up day only while applied or in talks. Archived jobs
-are in no list but the archive and in no count but their own. At the end of every run jobs without a stage whose first
+`hidden_at` is renamed `archived_at` (UI word "Archiv", "Archivieren"), new nullable `override_include INTEGER` and
+`mail_version INTEGER`, every schema 4 application status (applied, interview, offer, rejected) becomes `sent`, a pinned
+job without a status becomes `saved`, and a `tombstone(portal, job_id, deleted_at)` table. One mark per job (user
+decision 2026-09-25, no stages, no follow-up): `saved` (the star, `set_pinned` is its alias and never overwrites
+`sent`) or `sent` (UI word "Beworben", with its date; Excel column "Beworben am"), plus the note. Archived jobs
+are in no list but the archive and in no count but their own. At the end of every run jobs without a mark whose first
 sighting is older than `autoArchiveDays` archive themselves (Einstellungen > Abruf, one switch). `delete_jobs(keys)` and
 `empty_archive()` delete rows (with the duplicates that stand for them), their TXT files and their Excel rows (the
 overview is written again), leaving only the tombstone, so a scan of an old alert mail never imports them again; the
@@ -88,11 +89,11 @@ IMAP read-only).
 
 ### IPC v3 (types from Rust via ts-rs; camelCase; `null` instead of missing; backend never sends prose)
 Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | rescore | fullMailbox})` · `cancel_run` ·
-`list_jobs(JobQuery{facet: new|all|saved|applications|archived, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{new, all, excluded, high, noDetail, saved, applications, archived, newByPortal[{portal, new}] in Portal::ALL order}}`
+`list_jobs(JobQuery{facet: new|all|saved|sent|archived, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{new, all, excluded, high, noDetail, saved, sent, archived, newByPortal[{portal, new}] in Portal::ALL order}}`
 (list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only; saved
-latest change first, applications a due follow-up first and the rejected last, archived latest archived first) ·
+and sent latest mark first, archived latest archived first) ·
 `job_detail(key)` · `mark_read(key) -> bool` · `mark_all_read(facet) -> JobKey[]` · `mark_unread(keys) -> number` ·
-`set_pinned(key, on)` · `set_app_status(key, status|null) -> bool` · `set_follow_up(key, day|null) -> bool` ·
+`set_pinned(key, on)` · `set_app_status(key, saved|sent|null) -> bool` ·
 `set_note(key, note) -> bool` · `set_archived(key, archived) -> bool` · `set_override(key, include) -> bool` ·
 `delete_jobs(keys) -> Deleted{count, exportError?}` · `empty_archive -> Deleted` ·
 `ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile -> ProfileDraft?` ·
@@ -108,7 +109,7 @@ starts itself) · `Progress{step: scan|fetch|score|export, portal?, done, total}
 `PortalHealth{portal, health, actionNeeded}` · `LoginNeeded{portal, waiting}` ·
 `Finished{summary{kind, perPortal[{portal,new,known,dup,fetched,failed}], newJobs{count, high}?, score{scored,excluded,unscorable,pending,best}, export{..., error{kind, params.target}?}, stops[], emptyAlerts[]}}`
 (`newJobs` of a mailbox run: first seen, not a duplicate, not excluded; `high` of those; the export never fails a run but names what it could not write).
-Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[], appStatus|null, statusAt|null, followUpOn|null, archived, overridden}` ·
+Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[], appStatus|null, statusAt|null, archived, overridden}` ·
 `JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null, note|null}` ·
 `Reason{id, kind: met|partial|open|violation|check, weight: must|nice|hard|info, code, label, evidence{profile, path, via, quote}|null, params, ranges[]}` ·
 `Highlight{id, start, end (UTF-16), kind, reason}` · `ProfileInfo{fileName, bytes, savedAt, quality: good|thin|empty, understood{competenceCount, competences[], sources[], criteria[], warnings[], packs[], years, degrees[], focus[], roles[], wishes}, scoredAt, pending, form}` ·

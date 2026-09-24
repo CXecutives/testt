@@ -1224,8 +1224,14 @@ fn write_overview(
         }
         summary.backup = Some(backup);
     }
+    // The job sheet lists what the app lists: no archived job, no duplicate row (the
+    // original's row stands for it).
+    let listed = JobFilter {
+        listed: true,
+        ..JobFilter::default()
+    };
     let written = store
-        .jobs(&JobFilter::default())
+        .jobs(&listed)
         .and_then(|jobs| write_xlsx(path, &jobs, info));
     match written {
         Ok(()) => {

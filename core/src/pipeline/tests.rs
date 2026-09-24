@@ -1664,7 +1664,7 @@ async fn a_fetch_counts_its_new_jobs() {
     let first_seen = store
         .jobs(&JobFilter {
             first_seen_run: Some(s.run),
-            search: None,
+            ..JobFilter::default()
         })
         .unwrap();
     for job in &first_seen {
@@ -1868,7 +1868,13 @@ async fn a_deleted_job_leaves_its_files_and_stays_gone() {
         &c,
     )
     .await;
-    let listed = |store: &Store| store.jobs(&JobFilter::default()).unwrap().len();
+    let listed = |store: &Store| {
+        let filter = JobFilter {
+            listed: true,
+            ..JobFilter::default()
+        };
+        store.jobs(&filter).unwrap().len()
+    };
     assert_eq!(overview_rows(dir.path()), 1 + listed(&store));
     let total = store.job_count().unwrap();
     let victim = store
@@ -1978,4 +1984,40 @@ async fn a_run_archives_old_jobs_without_a_stage() {
     for job in &jobs {
         assert_eq!(job.archived_at.is_none(), job.key == saved, "{}", job.key);
     }
+}
+
+/// The Excel sheet lists what the app lists: an archived job leaves it (and comes back when
+/// listed again), a duplicate never has a row of its own.
+#[tokio::test(start_paused = true)]
+async fn the_excel_sheet_leaves_out_archived_jobs() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let rows = overview_rows(dir.path());
+    let key = store.jobs(&JobFilter::default()).unwrap()[0].key.clone();
+    store.set_archived(&key, true, c()).unwrap();
+    export_all(&store, dir.path(), &[], 2, c());
+    assert_eq!(overview_rows(dir.path()), rows - 1);
+    store.set_archived(&key, false, c()).unwrap();
+    export_all(&store, dir.path(), &[], 3, c());
+    assert_eq!(overview_rows(dir.path()), rows);
+    let all = store.jobs(&JobFilter::default()).unwrap().len();
+    let listed = store
+        .jobs(&JobFilter {
+            listed: true,
+            ..JobFilter::default()
+        })
+        .unwrap()
+        .len();
+    assert_eq!(rows, 1 + listed, "the header and one row per listed job");
+    assert!(listed <= all);
 }

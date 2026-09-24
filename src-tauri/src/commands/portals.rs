@@ -6,7 +6,7 @@ use jiff::Timestamp;
 use jobalert_core::error::{ErrorInfo, ErrorKind, InvalidInput};
 use jobalert_core::fetch::policy::Policy;
 use jobalert_core::fetch::site::PortalSite;
-use jobalert_core::fetch::{Admission, Login, StopReason, admit};
+use jobalert_core::fetch::{Admission, Login, SignOut, StopReason, admit};
 use jobalert_core::portal::Portal;
 use tauri::{AppHandle, State};
 use tokio_util::sync::CancellationToken;
@@ -37,14 +37,12 @@ impl Drop for SessionGuard<'_> {
 }
 
 /// Claims the session window for signing in or out - checked and claimed under one lock,
-/// never next to a run. Then the same rules apply as for every request: no sign-in during a
-/// pause or above the cap, gap to the last request, counted and saved before the contact.
-/// `None`: cancelled before the portal was contacted.
-async fn claim_session<'a>(
+/// never next to a run. Nothing is requested yet.
+fn claim_slot<'a>(
     app: &AppHandle,
     state: &'a AppState,
     portal: Portal,
-) -> CmdResult<Option<SessionGuard<'a>>> {
+) -> CmdResult<SessionGuard<'a>> {
     state.ensure_real()?;
     if PortalSite::of(portal).is_none() {
         return Err(ErrorInfo::from(&InvalidInput::NoSignIn { portal }));
@@ -57,13 +55,33 @@ async fn claim_session<'a>(
         }
         *activity = Activity::Session(cancel.clone());
     }
-    let guard = SessionGuard {
+    Ok(SessionGuard {
         app: app.clone(),
         state,
         cancel,
-    };
+    })
+}
+
+/// The portal's say on a request now: the same rules as for every request (no contact
+/// during a pause or above the cap, gap to the last request, counted and saved first).
+async fn admission(
+    state: &AppState,
+    portal: Portal,
+    cancel: &CancellationToken,
+) -> CmdResult<Admission> {
     let policy = Mutex::new(Policy::load(&state.policy_path(), Timestamp::now()));
-    match admit(&policy, portal, &guard.cancel, &Timestamp::now, |_| {}).await? {
+    Ok(admit(&policy, portal, cancel, &Timestamp::now, |_| {}).await?)
+}
+
+/// Claims the session window for signing in: only with the portal's say (see
+/// [`admission`]). `None`: cancelled before the portal was contacted.
+async fn claim_session<'a>(
+    app: &AppHandle,
+    state: &'a AppState,
+    portal: Portal,
+) -> CmdResult<Option<SessionGuard<'a>>> {
+    let guard = claim_slot(app, state, portal)?;
+    match admission(state, portal, &guard.cancel).await? {
         Admission::Go => Ok(Some(guard)),
         Admission::Cancelled => Ok(None),
         Admission::Stop(StopReason::Quota { next_at }) => {
@@ -85,15 +103,17 @@ async fn claim_session<'a>(
     }
 }
 
-/// End of signing in or out at a portal: the session state, if known, and - as the last
-/// answer - the time from which the next request keeps its gap.
-fn record_session(state: &AppState, portal: Portal, signed_in: Option<bool>) {
+/// End of signing in or out at a portal: the session state, if known, and - when the portal
+/// was contacted - the time from which the next request keeps its gap.
+fn record_session(state: &AppState, portal: Portal, signed_in: Option<bool>, contacted: bool) {
     let now = Timestamp::now();
     let mut policy = Policy::load(&state.policy_path(), now);
     if let Some(signed_in) = signed_in {
         policy.set_session(portal, signed_in, now);
     }
-    policy.record_done(portal, now);
+    if contacted {
+        policy.record_done(portal, now);
+    }
     if let Err(e) = policy.save() {
         log::warn!("session state not saved: {e}");
     }
@@ -129,28 +149,40 @@ pub async fn portal_login(
     } else {
         None
     };
-    record_session(&state, portal, known);
+    record_session(&state, portal, known, true);
     log::info!("{}: signed in by hand: {signed_in}", portal.key());
     Ok(signed_in)
 }
 
-/// Sign out at a portal. Other portals are not affected (own profile). Only a really
-/// loaded sign-out page ends the session - otherwise the state stays.
+/// Sign out at a portal. Other portals are not affected (own profile). The local session
+/// (cookies, storage) is always deleted; the portal's logout page is loaded only when a
+/// request is allowed (never during a pause or above the cap). `true` once the local
+/// session is verifiably gone.
 #[tauri::command]
 pub async fn portal_logout(
     app: AppHandle,
     state: State<'_, AppState>,
     portal: Portal,
 ) -> CmdResult<bool> {
-    let Some(guard) = claim_session(&app, &state, portal).await? else {
-        return Ok(false);
+    let guard = claim_slot(&app, &state, portal)?;
+    let admission = admission(&state, portal, &guard.cancel).await?;
+    let remote = match SignOut::after(&admission) {
+        SignOut::Remote => true,
+        SignOut::LocalOnly => {
+            log::info!(
+                "{}: paused or at its cap - signing out locally only",
+                portal.key()
+            );
+            false
+        }
+        SignOut::Cancelled => return Ok(false),
     };
     let Some(mut session) = session_window(app, &state, portal) else {
         return Ok(false);
     };
-    let done = session.sign_out(&guard.cancel).await;
+    let done = session.sign_out(&guard.cancel, remote).await;
     drop(session);
-    record_session(&state, portal, done.then_some(false));
+    record_session(&state, portal, done.then_some(false), remote);
     log::info!("{}: signed out by hand: {done}", portal.key());
     Ok(done)
 }

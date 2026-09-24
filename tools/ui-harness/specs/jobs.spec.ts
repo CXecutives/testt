@@ -186,7 +186,7 @@ test('a job that cannot be scored says why, once', async ({ page }) => {
   await expect(page.getByTestId('why')).toHaveCount(0);
 });
 
-test('one place for filters: Neu, Alle, Favoriten, Bewerbungen; the overview says what now', async ({
+test('one place for filters: Neu, Alle, Favoriten, Beworben; the overview says what now', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -211,12 +211,13 @@ test('one place for filters: Neu, Alle, Favoriten, Bewerbungen; the overview say
     'true',
   );
   await expect(rows(page)).toHaveCount(await segmentCount(page, 'Favoriten'));
-  await facet.getByRole('radio', { name: /Bewerbungen/ }).click();
+  await facet.getByRole('radio', { name: /Beworben/ }).click();
   await expect(page.getByTestId('list-scroll')).toBeVisible();
   expect(await calls(page, 'list_jobs')).toContainEqual([
     'list_jobs',
-    expect.objectContaining({ query: expect.objectContaining({ facet: 'applications' }) }),
+    expect.objectContaining({ query: expect.objectContaining({ facet: 'sent' }) }),
   ]);
+  await expect(rows(page)).toHaveCount(await segmentCount(page, 'Beworben'));
 });
 
 test('the reader summary agrees with the listed must requirements', async ({ page }) => {
@@ -795,14 +796,17 @@ test('the reader marks a job: status, note, archive in place with undo, a prompt
   const first = rows(page).first();
   await first.click();
   await expect(page.getByTestId('reader')).toBeVisible();
-  // One chip per step; the chosen one again clears it.
-  await page.getByTestId('status-applied').click();
-  await expect(page.getByTestId('status-applied')).toHaveAttribute('aria-pressed', 'true');
+  // One mark "Beworben" with its date; again clears it.
+  await page.getByTestId('status-sent').click();
+  await expect(page.getByTestId('status-sent')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('status-since')).toBeVisible();
-  await page.getByTestId('status-interview').click();
-  await expect(page.getByTestId('status-applied')).toHaveAttribute('aria-pressed', 'false');
-  await page.getByTestId('status-interview').click();
+  await page.getByTestId('status-sent').click();
+  await expect(page.getByTestId('status-sent')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByTestId('status-since')).toHaveCount(0);
+  expect((await calls(page, 'set_app_status')).map(([, args]) => args)).toEqual([
+    expect.objectContaining({ status: 'sent' }),
+    expect.objectContaining({ status: null }),
+  ]);
   // The note saves when the field is left; Esc takes the stored one back.
   const note = page.getByTestId('note');
   await note.fill('Agentur anrufen');

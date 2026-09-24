@@ -45,11 +45,7 @@
     { id: 'all' as JobFacet, label: de.toolbar.facetAll, count: jobs.counts.all },
     // An empty list of the user's own shows no zero (the row stays narrow).
     { id: 'saved' as JobFacet, label: de.toolbar.facetSaved, count: jobs.counts.saved || null },
-    {
-      id: 'applications' as JobFacet,
-      label: de.toolbar.facetApplications,
-      count: jobs.counts.applications || null,
-    },
+    { id: 'sent' as JobFacet, label: de.toolbar.facetSent, count: jobs.counts.sent || null },
   ]);
 
   let promptError = $state<string | null>(null);
