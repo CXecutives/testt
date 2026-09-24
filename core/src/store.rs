@@ -13,7 +13,7 @@ use url::Url;
 
 use crate::error::{Error, Result};
 use crate::model::{
-    AlertMail, DescStatus, MAX_FIELD_CHARS, MAX_TITLE_CHARS, Posting, TITLE_PLACEHOLDER,
+    AlertMail, DescStatus, MAX_FIELD_CHARS, MAX_TITLE_CHARS, Posting, is_usable_title,
 };
 use crate::portal::{JobKey, Portal};
 use crate::text::{one_line, page_location, split_company_location, truncate_chars};
@@ -718,8 +718,7 @@ fn upsert(
         "UPDATE job SET last_seen_run = ?3 WHERE portal = ?1 AND job_id = ?2",
         params![key.portal.key(), key.id, run],
     )?;
-    let new_title = if (title.is_empty() || title == TITLE_PLACEHOLDER) && posting.has_real_title()
-    {
+    let new_title = if !is_usable_title(&title) && posting.has_real_title() {
         posting.title.clone()
     } else {
         title.clone()
@@ -1424,5 +1423,40 @@ mod tests {
             .unwrap();
         // Nicht „beschädigt“ – sonst legte jemand eine gesunde Datenbank beiseite.
         assert!(matches!(Store::open(&path), Err(Error::NewerSchema(99))));
+    }
+    /// Eine Mail, die den Titel als nackte Adresse verlinkt, hinterließ die URL als Titel –
+    /// und die blieb, weil sie ja „nicht leer“ war. Ein späterer Lauf mit einem echten
+    /// Titel ersetzt sie jetzt. Ein richtiger Titel bleibt dagegen unangetastet.
+    #[test]
+    fn a_stored_url_is_no_title_and_gets_replaced() {
+        let store = Store::in_memory().unwrap();
+        let url = "https://www.freelance.de/project/index.php?id=1291188";
+        let key = job_link(url).unwrap().key;
+        let seen = |title: &str| {
+            let run = store.begin_run().unwrap();
+            let mail = AlertMail {
+                key: format!("m{run}"),
+                portal: Portal::FreelanceDe,
+                subject: "1 neues Projekt".into(),
+                sender: "freelance.de".into(),
+                date: None,
+                gmail_id: Some(u64::try_from(run).unwrap()),
+                postings: vec![posting(url, title, "", "")],
+            };
+            store.record_alert(run, &mail, now()).unwrap();
+            store.job(&key).unwrap().unwrap().title
+        };
+        // Die Mail verlinkt nur die Adresse – sie landet mangels Besserem als Titel.
+        assert_eq!(seen(url), url);
+        // Ein Lauf mit echtem Titel ersetzt sie.
+        assert_eq!(
+            seen("Senior Requirements Engineer (w/m/d)"),
+            "Senior Requirements Engineer (w/m/d)"
+        );
+        // Ein echter Titel wird nicht durch einen anderen ersetzt.
+        assert_eq!(
+            seen("Etwas anderes"),
+            "Senior Requirements Engineer (w/m/d)"
+        );
     }
 }

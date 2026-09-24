@@ -364,7 +364,7 @@ fn extract_html(html: &str) -> Vec<Found> {
 }
 
 /// Ein Text, der nur aus einer Adresse besteht.
-fn is_url(text: &str) -> bool {
+pub(crate) fn is_url(text: &str) -> bool {
     let line = one_line(text);
     let line = line.trim();
     !line.is_empty()

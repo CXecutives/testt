@@ -1,7 +1,7 @@
 //! Alert-Mails: zerlegen, Jobs herausziehen, dem Portal zuordnen.
 
 mod classify;
-mod extract;
+pub(crate) mod extract;
 pub mod imap;
 mod parse;
 pub mod scan;

@@ -46,8 +46,15 @@ impl Posting {
     }
 
     pub fn has_real_title(&self) -> bool {
-        !self.title.is_empty() && self.title != TITLE_PLACEHOLDER
+        is_usable_title(&self.title)
     }
+}
+
+/// Taugt der Wert als Titel? Leer und der Platzhalter nicht – und auch keine nackte
+/// Adresse: Verlinkt eine Mail den Titel als URL, stand die früher als Titel in der Liste
+/// und blieb dort, weil sie ja „nicht leer“ war.
+pub fn is_usable_title(title: &str) -> bool {
+    !title.trim().is_empty() && title != TITLE_PLACEHOLDER && !crate::mail::extract::is_url(title)
 }
 
 /// Eine erkannte Alert-Mail samt ihren Einträgen. Eine Mail mit null Einträgen bleibt
