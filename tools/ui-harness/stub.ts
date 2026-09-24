@@ -320,12 +320,18 @@ const PROFILE: ProfileInfo = {
     ],
     sources: ['kernkompetenzen[].kompetenz', 'projekte[].rolle'],
     criteria: [
-      { code: 'minDayRate', params: { set: true, rate: 1100 } },
+      { code: 'minDayRate', params: { set: true, min: '1100' } },
       { code: 'countries', params: { set: true, countries: 'Deutschland, Österreich' } },
       { code: 'noAnue', params: { set: true } },
-      { code: 'availability', params: { set: false } },
+      { code: 'availability', params: { set: false, from: null } },
+      { code: 'minSalary', params: { set: false, min: null } },
+      { code: 'permanentRegion', params: { set: false, places: null, remoteMin: null } },
+      { code: 'targetYears', params: { set: true, min: 15 } },
     ],
     warnings: [{ code: 'ignoredKeys', params: { keys: 'hobbys, referenzen' } }],
+    // Engine v3 summary fields the IPC type does not carry yet; the Profil view shows them
+    // when they arrive.
+    ...({ packs: ['finance', 'sap'], years: 28, degrees: ['Diplom-Kauffrau'] } as object),
   },
   scoredAt: at(1),
   pending: 0,
@@ -367,13 +373,13 @@ function lastRun(outcome: RunSummary['outcome'] = { kind: 'completed' }): RunSum
     perPortal: [
       {
         portal: 'linkedin',
-        new: 3,
+        new: 2,
         known: 2,
         dup: 1,
-        fetched: 3,
+        fetched: 1,
         failed: 0,
         gone: 0,
-        skipped: 0,
+        skipped: 1,
         stopped: null,
       },
       {
@@ -389,17 +395,17 @@ function lastRun(outcome: RunSummary['outcome'] = { kind: 'completed' }): RunSum
       },
       {
         portal: 'freelance',
-        new: 1,
+        new: 2,
         known: 1,
         dup: 0,
-        fetched: 0,
+        fetched: 2,
         failed: 0,
         gone: 0,
-        skipped: 1,
+        skipped: 0,
         stopped: null,
       },
     ],
-    score: { scored: 12, excluded: 2, unscorable: 1, pending: 0, best: 91 },
+    score: { scored: 10, excluded: 2, unscorable: 1, pending: 1, best: 91 },
     export: {
       overviewXlsx: 'C:/Users/demo/Jobs/Uebersicht.xlsx',
       overviewHtml: 'C:/Users/demo/Jobs/Uebersicht.html',
@@ -589,18 +595,44 @@ function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
 const AD_INTRO = (j: JobView): string =>
   `Für ${j.company} suchen wir ab sofort Unterstützung als ${j.title} in ${j.location || 'Deutschland'}.\n\n`;
 
+/** Requirements the stub ads ask for, beyond the job's own top reasons. */
+const MORE_MUSTS = [
+  'Führung eines Finanzteams',
+  'Erfahrung mit Abschlussprüfungen',
+  'Reporting nach IFRS',
+  'Verhandlungssicheres Deutsch',
+];
+const OPEN_MUSTS = ['Erfahrung mit Power BI', 'Kenntnisse in LucaNet', 'Branchenerfahrung Energie'];
+const PARTIAL_MUST = 'Aufbau und Weiterentwicklung des Reportings';
+const NICE_MET = 'Konzernabschluss nach HGB';
+const NICE_OPEN = 'Verhandlungssicheres Englisch';
+
+/** Contract type per job: interim unless the title says otherwise (one inferred). */
+function contractOf(j: JobView): { type: string; inferred: boolean } {
+  if (j.key.id === '4100200304') return { type: 'permanent', inferred: false };
+  if (j.key.id === '900412') return { type: 'anue', inferred: false };
+  if (j.key.id === '4100200303') return { type: 'permanent', inferred: true };
+  return { type: 'interim', inferred: false };
+}
+
+/**
+ * The detail of a job. Its reasons agree with the list numbers: exactly `mustMet` met must
+ * requirements, and `mustTotal - mustMet` that are not met (the first of two or more is
+ * partial, the rest open), plus one met and one open nice-to-have.
+ */
 function detailOf(j: JobView): JobDetail {
-  const met = j.match?.top ?? [];
-  const open = ['Erfahrung mit Power BI', 'Verhandlungssicheres Englisch'];
-  const tasks = [
-    'Aufbau und Weiterentwicklung des Reportings',
-    'Führung eines Teams von sechs Personen',
-  ];
+  const m = j.match;
+  const mustMet = m?.mustMet ?? 0;
+  const missing = Math.max(0, (m?.mustTotal ?? 0) - mustMet);
+  const metMusts = [...(m?.top.slice(0, 1) ?? []), ...MORE_MUSTS].slice(0, mustMet);
+  const partial = missing >= 2 ? [PARTIAL_MUST] : [];
+  const openMusts = OPEN_MUSTS.slice(0, missing - partial.length);
+  const tasks = ['Führung eines Teams von sechs Personen', 'Monatsabschluss und Forecast'];
+
   const parts: string[] = [AD_INTRO(j), 'Ihre Aufgaben\n'];
-  for (const t of tasks) parts.push(`• ${t}\n`);
+  for (const t of [...tasks, ...partial]) parts.push(`• ${t}\n`);
   parts.push('\nIhr Profil\n');
-  for (const m of met) parts.push(`• ${m}\n`);
-  for (const o of open) parts.push(`• ${o}\n`);
+  for (const r of [...metMusts, NICE_MET, ...openMusts, NICE_OPEN]) parts.push(`• ${r}\n`);
   parts.push('• Erfahrung mit Arbeitnehmerüberlassung von Vorteil\n');
   parts.push(
     '\nRahmen\nStart zum nächstmöglichen Zeitpunkt, Laufzeit sechs Monate mit Option auf Verlängerung. ',
@@ -619,7 +651,7 @@ function detailOf(j: JobView): JobDetail {
     extra: Record<string, string | number | boolean | null> = {},
   ): void => {
     const id = String(reasons.length);
-    const start = text.indexOf(label);
+    const start = label ? text.indexOf(label) : -1;
     const ranges = start >= 0 ? [{ start, end: start + label.length }] : [];
     for (const r of ranges) {
       highlights.push({
@@ -643,62 +675,34 @@ function detailOf(j: JobView): JobDetail {
       ranges,
     });
   };
-  met.forEach((m, i) =>
-    add(
-      'met',
-      i === 0 ? 'must' : 'nice',
-      'requirement',
-      m,
-      i === 0 ? 'Interim-Management' : 'Konzernabschluss nach HGB',
-    ),
+  const contract = contractOf(j);
+  add(contract.type === 'interim' ? 'met' : 'partial', 'info', 'contractType', '', null, contract);
+  metMusts.forEach((r, i) =>
+    add('met', 'must', 'requirement', r, i === 0 ? 'Interim-Management' : 'Controlling'),
   );
-  add('partial', 'must', 'requirement', tasks[0]!, 'Reporting');
-  add('open', 'must', 'requirement', open[0]!, null);
-  add('open', 'nice', 'requirement', open[1]!, null);
+  for (const r of partial) add('partial', 'must', 'requirement', r, 'Reporting');
+  for (const r of openMusts) add('open', 'must', 'requirement', r, null);
+  add('met', 'nice', 'requirement', NICE_MET, 'Konzernabschluss nach HGB');
+  add('open', 'nice', 'requirement', NICE_OPEN, null);
   add('check', 'info', 'startVague', 'Start zum nächstmöglichen Zeitpunkt', null);
-  const excluded = j.match?.status === 'excluded';
+  const excluded = m?.status === 'excluded';
   if (excluded) add('violation', 'hard', 'anue', 'Arbeitnehmerüberlassung', null);
+  // The strip shows the criteria the profile sets (the engine leaves out the others).
+  const criterion = (id: string, kind: Reason['kind'], code: string): Reason => ({
+    id,
+    kind,
+    weight: 'hard',
+    code,
+    label: '',
+    evidence: null,
+    params: {},
+    ranges: [],
+  });
   const criteria: Reason[] = [
-    {
-      id: 'c1',
-      kind: 'met',
-      weight: 'hard',
-      code: 'minDayRate',
-      label: '',
-      evidence: null,
-      params: {},
-      ranges: [],
-    },
-    {
-      id: 'c2',
-      kind: 'met',
-      weight: 'hard',
-      code: 'countries',
-      label: '',
-      evidence: null,
-      params: {},
-      ranges: [],
-    },
-    {
-      id: 'c3',
-      kind: excluded ? 'violation' : 'check',
-      weight: 'hard',
-      code: 'noAnue',
-      label: '',
-      evidence: null,
-      params: {},
-      ranges: [],
-    },
-    {
-      id: 'c4',
-      kind: 'open',
-      weight: 'hard',
-      code: 'availability',
-      label: '',
-      evidence: null,
-      params: {},
-      ranges: [],
-    },
+    criterion('c:minDayRate', 'met', 'minDayRate'),
+    criterion('c:countries', 'met', 'countries'),
+    criterion('c:noAnue', excluded ? 'violation' : 'check', 'noAnue'),
+    criterion('c:targetYears', 'met', 'targetYears'),
   ];
   const ok = j.detail.kind === 'ok';
   return {
@@ -711,16 +715,16 @@ function detailOf(j: JobView): JobDetail {
       gmailUrl: 'https://mail.google.com/mail/u/0/#all/18c2f0a9d1e4b7a3',
     },
     match:
-      j.match === null || state.profile === null
+      m === null || state.profile === null
         ? null
         : {
-            score: j.match.score,
-            status: j.match.status,
-            band: j.match.band,
+            score: m.score,
+            status: m.status,
+            band: m.band,
             rev: '0123456789abcdef',
             at: at(1),
-            summary: j.match.note,
-            reasons: j.match.status === 'unscorable' ? [] : reasons,
+            summary: m.note,
+            reasons: m.status === 'unscorable' ? [] : reasons,
             highlights: ok ? highlights : [],
             criteria,
           },

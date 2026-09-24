@@ -1,6 +1,7 @@
 <!--
-  Feedback where the action happened (the app has no toasts): info | success | warning |
-  danger, inline (icon and sentence) or banner (tinted box), with at most one action.
+  Feedback where the action happened: info | success | warning | danger, inline (icon and
+  sentence in the tone), banner (tinted box) or row (a calm line inside a card: the icon in
+  the tone, the text in ink), with at most one action.
 -->
 <script lang="ts" module>
   export type NoticeTone = 'info' | 'success' | 'warning' | 'danger';
@@ -13,7 +14,7 @@
 
   interface Props {
     tone?: NoticeTone;
-    variant?: 'inline' | 'banner';
+    variant?: 'inline' | 'banner' | 'row';
     heading?: string | null;
     text: string;
     action?: { label: string; onclick: () => void } | null;
@@ -74,6 +75,14 @@
     font: var(--type-md);
   }
 
+  .row {
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--space-12) 0;
+    color: var(--text);
+    font: var(--type-md);
+  }
+
   .icon {
     display: inline-flex;
     flex: none;
@@ -81,7 +90,8 @@
     color: var(--notice-fg);
   }
 
-  .banner .icon {
+  .banner .icon,
+  .row .icon {
     padding-top: 0;
   }
 

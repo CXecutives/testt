@@ -20,7 +20,14 @@ test('the profile shows what the app understood, in plain words', async ({ page 
     'Einsatz nur in Deutschland, Österreich',
     'Keine Arbeitnehmerüberlassung',
     'Keine Verfügbarkeit angegeben',
+    'Kein Mindestgehalt für Festanstellungen',
+    'Keine Region für Festanstellungen',
+    'Stellen ab 15 Jahren Erfahrung',
   ]);
+  await expect(page.getByTestId('background')).toHaveText(
+    '28 Jahre Berufserfahrung · Diplom-Kauffrau',
+  );
+  await expect(page.getByTestId('packs')).toHaveText('Finanzen · SAP');
   await expect(page.getByTestId('competences')).toContainText('+30');
   await expect(page.getByTestId('profile-understood')).toContainText(
     'Nicht ausgewertet hobbys, referenzen.',

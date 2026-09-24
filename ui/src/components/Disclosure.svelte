@@ -40,18 +40,21 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-12);
-    width: 100%;
-    min-height: var(--control-md);
-    padding: 0 var(--space-12);
-    border-radius: var(--radius-control);
-    color: var(--text);
-    font: var(--type-md);
+    /* The label lines up with the text around it; the hover wash reaches a little out. */
+    width: calc(100% + 2 * var(--space-8));
+    min-height: var(--control-sm);
+    margin: 0 calc(-1 * var(--space-8));
+    padding: 0 var(--space-8);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font: var(--type-sm);
     font-weight: var(--weight-semibold);
     transition: background-color var(--dur-fast) var(--ease-standard);
   }
 
   .head:hover {
     background-color: var(--surface-hover);
+    color: var(--text);
   }
 
   .head:focus-visible {
@@ -85,10 +88,9 @@
   .inner {
     min-height: 0;
     overflow: hidden;
-    padding: 0 var(--space-12);
   }
 
   .open .inner {
-    padding-bottom: var(--space-12);
+    padding-top: var(--space-8);
   }
 </style>

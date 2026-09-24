@@ -1,10 +1,15 @@
-<!-- A number with a label; counts up once when first visible; optionally clickable. -->
+<!--
+  A number with a label; counts up once when first visible; optionally clickable (a filter).
+  Calm: a white tile with a hairline, the icon small in the label line, coloured only when
+  the tone means something. Hover darkens the hairline; the active tile (its filter is on)
+  carries the coral selection edge.
+-->
 <script lang="ts">
   import { reveal } from '$lib/actions/reveal';
   import { formatNumber } from '$lib/i18n/format';
   import { countUp } from '$lib/motion/transitions';
-  import type { IconName } from './Icon.svelte';
-  import IconTile, { type TileTone } from './IconTile.svelte';
+  import Icon, { type IconName } from './Icon.svelte';
+  import type { TileTone } from './IconTile.svelte';
 
   interface Props {
     label: string;
@@ -12,6 +17,8 @@
     tone?: TileTone;
     icon?: IconName | null;
     hint?: string | null;
+    /** The filter of this tile is on. */
+    active?: boolean;
     onclick?: (() => void) | null;
     testid?: string | null;
   }
@@ -19,9 +26,10 @@
   let {
     label,
     value,
-    tone = 'coral',
+    tone = 'neutral',
     icon = null,
     hint = null,
+    active = false,
     onclick = null,
     testid = null,
   }: Props = $props();
@@ -37,7 +45,7 @@
 
 {#snippet body()}
   <span class="head">
-    {#if icon}<IconTile {tone} {icon} size="sm" />{/if}
+    {#if icon}<span class="icon {tone}"><Icon name={icon} size="sm" /></span>{/if}
     <span class="label">{label}</span>
   </span>
   <span class="value">{formatNumber(Math.round(number.current))}</span>
@@ -48,6 +56,8 @@
   <button
     type="button"
     class="tile clickable"
+    class:active
+    aria-pressed={active}
     data-testid={testid ?? undefined}
     use:reveal={() => (revealed = true)}
     onclick={() => onclick?.()}
@@ -62,49 +72,31 @@
 
 <style>
   .tile {
-    position: relative;
     display: flex;
     flex-direction: column;
-    gap: var(--space-8);
-    min-width: var(--stat-min);
-    padding: var(--space-20);
+    gap: var(--space-4);
+    min-width: 0;
+    padding: var(--space-16) var(--space-20);
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
     background-color: var(--surface);
-    box-shadow: var(--sh-sm);
+    box-shadow: var(--sh-xs);
     text-align: left;
-    isolation: isolate;
   }
 
   .clickable {
     transition:
-      transform var(--dur-base) var(--ease-out),
-      border-color var(--dur-base) var(--ease-standard);
-  }
-
-  .clickable::after {
-    position: absolute;
-    z-index: var(--z-below);
-    inset: calc(-1 * var(--border-width));
-    border-radius: inherit;
-    box-shadow: var(--sh-card);
-    content: '';
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--dur-base) var(--ease-standard);
+      transform var(--dur-fast) var(--ease-standard),
+      border-color var(--dur-fast) var(--ease-standard),
+      background-color var(--dur-fast) var(--ease-standard);
   }
 
   .clickable:hover {
-    border-color: var(--border-accent);
-    transform: translateY(var(--lift-card));
-  }
-
-  .clickable:hover::after {
-    opacity: 1;
+    border-color: var(--border-strong);
   }
 
   .clickable:active {
-    transform: translateY(0) scale(var(--scale-press));
+    transform: scale(var(--scale-press));
     transition-duration: var(--dur-instant);
   }
 
@@ -112,16 +104,47 @@
     box-shadow: var(--focus-ring);
   }
 
+  .active,
+  .active:hover {
+    border-color: var(--accent);
+    background-color: var(--surface-tinted);
+  }
+
   .head {
     display: flex;
     align-items: center;
-    gap: var(--space-8);
+    gap: var(--space-6);
+    min-width: 0;
+  }
+
+  .icon {
+    display: inline-flex;
+    color: var(--text-subtle);
+  }
+
+  .icon.success {
+    color: var(--success-strong);
+  }
+
+  .icon.warning {
+    color: var(--warning-strong);
+  }
+
+  .icon.danger {
+    color: var(--danger-strong);
+  }
+
+  .icon.coral {
+    color: var(--accent-text);
   }
 
   .label {
+    overflow: hidden;
     color: var(--text-muted);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .value {

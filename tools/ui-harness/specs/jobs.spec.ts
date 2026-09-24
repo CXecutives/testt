@@ -51,7 +51,10 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await expect(page.getByTestId('reader')).toBeVisible();
   await expect(page.getByTestId('band')).toHaveText('Hohe Passung');
   await expect(page.getByTestId('must')).toHaveText('4 von 4 Muss-Anforderungen erfüllt');
-  await expect(page.getByTestId('criteria').locator('li')).toHaveCount(4);
+  await expect(page.getByTestId('contract')).toHaveText('Interim');
+  await expect(
+    page.getByTestId('criteria').locator('li:not([data-testid="contract"])'),
+  ).toHaveCount(4);
 
   const reason = page.getByTestId('reasons-met').getByRole('button').first();
   await reason.hover();
@@ -136,17 +139,100 @@ test('excluded jobs sit grey behind the divider and explain themselves', async (
 
 test('the day overview tiles filter the list and match the counts', async ({ page }) => {
   await open(page, WIN);
-  await expect(page.getByTestId('day-overview')).toBeVisible();
+  const overview = page.getByTestId('day-overview');
+  await expect(overview).toBeVisible();
+  const tileValue = async (id: string): Promise<number> =>
+    Number((await page.getByTestId(id).innerText()).replace(/\D/g, ''));
+  await expect.poll(() => tileValue('tile-high')).toBe(2);
   await page.getByTestId('tile-high').click();
+  await expect(page.getByTestId('tile-high')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('filter')).toBeVisible();
-  await expect(rows(page)).toHaveCount(2);
+  await expect(rows(page)).toHaveCount(await tileValue('tile-high'));
   await page.getByTestId('clear-filter').click();
   await page.getByTestId('tile-no-detail').click();
-  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(await tileValue('tile-no-detail'));
   await page.getByTestId('tile-excluded').click();
-  await expect(excludedRows(page)).toHaveCount(2);
-  await page.getByTestId('clear-filter').click();
+  await expect(excludedRows(page)).toHaveCount(await tileValue('tile-excluded'));
+  // A second click on the active tile takes the filter off again.
+  await page.getByTestId('tile-excluded').click();
+  await expect(page.getByTestId('filter')).toHaveCount(0);
   await expect(page.getByTestId('issue-alert')).toBeVisible();
+
+  // The overview does not repeat the list: no job rows, and "neu" per portal adds up to Neu.
+  await expect(overview.locator('[data-testid^="job-row-"]')).toHaveCount(0);
+  const perPortal = await page
+    .getByTestId('new-per-portal')
+    .locator('li')
+    .evaluateAll((items) => items.map((item) => Number(item.textContent?.match(/\d+/)?.[0])));
+  expect(perPortal.reduce((sum, value) => sum + value, 0)).toBe(await segmentCount(page, 'Neu'));
+});
+
+test('the reader summary agrees with the listed must requirements', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const keys = await rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
+  let checked = 0;
+  for (const key of keys) {
+    await page.getByTestId(key!).click();
+    const must = page.getByTestId('must');
+    if ((await must.count()) === 0) continue;
+    await expect(page.getByTestId('reader-title')).toBeVisible();
+    const text = await must.innerText();
+    const numbers = text.match(/^(\d+) von (\d+)/);
+    if (numbers === null) continue;
+    const [met, total] = [Number(numbers[1]), Number(numbers[2])];
+    const listed = await page.getByTestId('why').evaluate((why) => {
+      const musts = [...why.querySelectorAll('li')].filter((li) =>
+        [...li.querySelectorAll('.badge')].some((badge) => badge.textContent?.trim() === 'Muss'),
+      );
+      const kind = (li: Element): string =>
+        li.querySelector('[role="img"]')?.getAttribute('aria-label') ?? '';
+      return {
+        met: musts.filter((li) => kind(li) === 'Erfüllt').length,
+        partial: musts.filter((li) => kind(li) === 'Teilweise erfüllt').length,
+        all: musts.length,
+      };
+    });
+    expect(listed.met, `${key}: ${text}`).toBe(met);
+    expect(listed.all, `${key}: ${text}`).toBe(total);
+    expect(text.includes('teilweise'), `${key}: ${text}`).toBe(listed.partial > 0);
+    checked += 1;
+  }
+  expect(checked).toBeGreaterThanOrEqual(8);
+});
+
+test('titles take two lines in the list and lose their gender tags everywhere', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  const first = row(page, 'freelancermap-2801');
+  await expect(first).toContainText('Interim CFO für Familienunternehmen');
+  await expect(first).not.toContainText('(m/w/d)');
+  const lines = await first
+    .locator('.title')
+    .evaluate((node) => getComputedStyle(node).webkitLineClamp);
+  expect(lines).toBe('2');
+  await first.click();
+  await expect(page.getByTestId('reader-title')).toHaveText('Interim CFO für Familienunternehmen');
+});
+
+test('the star pins from the list without opening the job', async ({ page }) => {
+  await open(page, WIN);
+  const key = 'linkedin-4100200301';
+  const pin = page.getByTestId(`pin-${key}`);
+  // The star shows on hover only (its wrapper fades), unless the job is pinned.
+  const star = pin.locator('xpath=..');
+  await expect(star).toHaveCSS('opacity', '0');
+  await row(page, key).hover();
+  await expect(star).toHaveCSS('opacity', '1');
+  await pin.click();
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('reader')).toHaveCount(0);
+  expect((await calls(page, 'set_pinned')).map(([, args]) => args)).toEqual([
+    { key: { portal: 'linkedin', id: '4100200301' }, on: true },
+  ]);
+  await page.mouse.move(0, 0);
+  await expect(star).toHaveCSS('opacity', '1');
 });
 
 test('no search hit: one empty state with a way back', async ({ page }) => {
@@ -229,7 +315,7 @@ test('details and pins: teaser note, fetch details, pin star', async ({ page }) 
   await runFinished(page);
   await page.getByTestId('pin').click();
   await expect(page.getByTestId('pin')).toHaveAttribute('aria-pressed', 'true');
-  await expect(row(page, 'freelance-900411').getByRole('img', { name: 'Gemerkt' })).toBeVisible();
+  await expect(page.getByTestId('pin-freelance-900411')).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('2000 jobs render in windows without long tasks', async ({ page, browserName }) => {

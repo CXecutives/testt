@@ -161,7 +161,7 @@
 
     <section class="section" data-testid="settings-mailbox">
       <h2 class="heading">{de.settings.mailbox}</h2>
-      <Card padding="md">
+      <Card padding={cfg.mailbox.user && !editing ? 'rows' : 'md'}>
         {#if cfg.mailbox.user && !editing}
           <SettingRow label={cfg.mailbox.user} hint={de.settings.vault[cfg.mailbox.vault]}>
             {#snippet badges()}
@@ -210,7 +210,7 @@
 
     <section class="section" data-testid="settings-fetch">
       <h2 class="heading">{de.settings.fetch}</h2>
-      <Card padding="md">
+      <Card padding="rows">
         <SettingRow label={de.settings.autoFetch} hint={de.settings.autoFetchHint}>
           <Toggle
             checked={cfg.autoFetchOnStart}
@@ -232,7 +232,7 @@
 
     <section class="section" data-testid="settings-files">
       <h2 class="heading">{de.settings.files}</h2>
-      <Card padding="md">
+      <Card padding="rows">
         <SettingRow label={de.settings.workspace} hint={cfg.settings.workspace}>
           {#snippet badges()}
             {#if cfg.settings.workspaceIsDefault}
@@ -258,7 +258,7 @@
         </SettingRow>
         <SettingRow label={de.settings.excel}>
           <Button
-            variant="secondary"
+            variant="ghost"
             size="sm"
             icon="folder-open"
             label={de.settings.excelShow}
@@ -299,7 +299,7 @@
 
     <section class="section" data-testid="settings-care">
       <h2 class="heading">{de.settings.maintenance}</h2>
-      <Card padding="md">
+      <Card padding="rows">
         {#if cfg.resetReport}
           <Notice
             tone={cfg.resetReport.failed > 0 ? 'warning' : 'success'}
@@ -342,7 +342,7 @@
         </SettingRow>
         <SettingRow label={de.settings.reset} hint={de.settings.resetHint}>
           <Button
-            variant="danger"
+            variant="secondary"
             size="sm"
             icon="rotate-ccw"
             label={de.settings.resetAction}
@@ -402,9 +402,9 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-32);
-    max-width: var(--reader-width);
+    max-width: calc(var(--reader-width) + 2 * var(--pane-padding));
     margin: 0 auto;
-    padding: var(--space-32) var(--space-32) var(--space-64);
+    padding: var(--pane-padding) var(--pane-padding) var(--space-64);
   }
 
   .section {
@@ -414,8 +414,9 @@
   }
 
   .heading {
+    padding-left: var(--space-4);
     color: var(--text-heading);
-    font: var(--type-xl);
+    font: var(--type-lg);
   }
 
   .lead {

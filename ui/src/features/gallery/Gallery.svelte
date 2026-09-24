@@ -10,6 +10,7 @@
   import Icon, { ICON_NAMES } from '$components/Icon.svelte';
   import IconTile, { PORTAL_MONOGRAM, TILE_TONES } from '$components/IconTile.svelte';
   import SideNav from '$components/SideNav.svelte';
+  import StatusLine from '$components/StatusLine.svelte';
   import Spinner from '$components/Spinner.svelte';
   import Toast from '$components/Toast.svelte';
   import Tooltip from '$components/Tooltip.svelte';
@@ -112,6 +113,14 @@
           label={text.sections.navigation}
           onselect={(id) => (activeTab = id)}
         />
+        <StatusLine text={text.navigation.status} label={text.navigation.status} onclick={noop} />
+        <StatusLine
+          text={text.navigation.running}
+          label={text.navigation.running}
+          busy
+          progress={0.4}
+          onclick={noop}
+        />
       </div>
       <div class="side rail">
         <SideNav
@@ -120,6 +129,12 @@
           label={text.sections.navigation}
           collapsed
           onselect={(id) => (activeTab = id)}
+        />
+        <StatusLine
+          text={text.navigation.status}
+          label={text.navigation.status}
+          collapsed
+          onclick={noop}
         />
       </div>
     </div>
@@ -255,15 +270,19 @@
   }
 
   .side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
     width: var(--sidebar-width);
     padding: var(--space-12);
     border-radius: var(--radius-md);
-    background-color: var(--surface-sidebar);
+    border: var(--border-width) solid var(--border);
+    background-color: var(--bg);
   }
 
   .side.rail {
+    align-items: center;
     width: var(--rail-width);
-    padding: var(--space-12) var(--space-8);
   }
 
   .bar {

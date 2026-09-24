@@ -18,6 +18,7 @@ import type {
   Step,
 } from '../ipc/types';
 import { app } from './app.svelte';
+import { navigation } from './navigation.svelte';
 import { toasts } from './toasts.svelte';
 
 export const STEPS: readonly Step[] = ['scan', 'fetch', 'score'];
@@ -211,7 +212,8 @@ class RunStore {
         );
         if (live) {
           if (this.panel === 'hidden') this.panel = 'open';
-          if (event.summary.outcome.kind === 'completed') {
+          // In the Jobs view the run card says it; elsewhere a toast brings the news.
+          if (event.summary.outcome.kind === 'completed' && navigation.current !== 'jobs') {
             toasts.show(de.toast.runDone(this.newJobs));
           }
           void app.load();

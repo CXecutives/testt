@@ -7,6 +7,7 @@ export const NARROW_NBSP = ' ';
 
 const integer = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
 const relative = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' });
+const relativeShort = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto', style: 'short' });
 const dayMonth = new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: '2-digit' });
 const dayMonthYear = new Intl.DateTimeFormat(LOCALE, {
   day: '2-digit',
@@ -35,21 +36,23 @@ function startOfDay(date: Date): number {
 }
 
 /**
- * `gerade eben` · `vor 5 Minuten` · `vor 3 Stunden` · `gestern` · `vor 4 Tagen`, then
- * `12.09.` (with the year if it is not the current one).
+ * `jetzt` · `vor 5 Minuten` · `vor 3 Stunden` · `gestern` · `vor 4 Tagen`, then `12.09.`
+ * (with the year if it is not the current one). `short` abbreviates the units for dense
+ * lines (`vor 3 Std.`, `vor 5 Min.`).
  */
-export function formatRelative(iso: string, now: Date = new Date()): string {
+export function formatRelative(iso: string, now: Date = new Date(), short = false): string {
   const date = new Date(iso);
   const time = date.getTime();
   if (Number.isNaN(time)) return '';
+  const format = short ? relativeShort : relative;
   const diff = now.getTime() - time;
   const days = Math.round((startOfDay(now) - startOfDay(date)) / DAY);
   if (diff >= 0 && days === 0) {
-    if (diff < MINUTE) return relative.format(0, 'second');
-    if (diff < HOUR) return relative.format(-Math.floor(diff / MINUTE), 'minute');
-    return relative.format(-Math.floor(diff / HOUR), 'hour');
+    if (diff < MINUTE) return format.format(0, 'second');
+    if (diff < HOUR) return format.format(-Math.floor(diff / MINUTE), 'minute');
+    return format.format(-Math.floor(diff / HOUR), 'hour');
   }
-  if (days > 0 && days <= RELATIVE_DAYS) return relative.format(-days, 'day');
+  if (days > 0 && days <= RELATIVE_DAYS) return format.format(-days, 'day');
   return date.getFullYear() === now.getFullYear()
     ? dayMonth.format(date)
     : dayMonthYear.format(date);
@@ -100,4 +103,33 @@ export function formatCountdown(ms: number): string {
   const m = Math.floor((total % 3600) / 60);
   const s = String(total % 60).padStart(2, '0');
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}
+
+/* Gender tags of job titles: `(m/w/d)`, `(w/m/d)`, `(m/f/d)`, `(d/m/w)`, `(m/w/x)`,
+   `(m/w/divers)`, `(all genders)`, `(gn*)`, `[m/w/d]` and a bare `m/w/d`. */
+const GENDER_TOKEN = String.raw`(?:[mwfdxi*]|div(?:ers|erse)?|inter)`;
+const GENDER_LIST = String.raw`${GENDER_TOKEN}(?:\s*[/|,]\s*${GENDER_TOKEN}){1,4}`;
+const GENDER_WORDS = String.raw`(?:all\s+genders?|alle\s+geschlechter|gn\*?|genderneutral)`;
+const GENDER_TAG = new RegExp(
+  String.raw`\s*[([]\s*(?:${GENDER_LIST}|${GENDER_WORDS})\s*[)\]]`,
+  'giu',
+);
+const BARE_GENDER = new RegExp(
+  String.raw`(?<=^|\s)[mwf]\s*/\s*[mwf]\s*/\s*(?:d|x|div(?:ers)?)(?=$|[\s,.;])`,
+  'giu',
+);
+const DANGLING = /[\s,;|–—-]+$/u;
+
+/**
+ * A job title for display: without gender tags such as `(m/w/d)` (they add nothing to the
+ * decision and cost the most room). The stored title stays as it is.
+ */
+export function displayTitle(title: string): string {
+  const clean = title
+    .replace(GENDER_TAG, '')
+    .replace(BARE_GENDER, '')
+    .replace(/\s{2,}/gu, ' ')
+    .trim()
+    .replace(DANGLING, '');
+  return clean || title.trim();
 }

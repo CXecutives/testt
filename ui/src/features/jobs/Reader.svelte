@@ -1,21 +1,21 @@
 <!--
-  The reader card (max 720 px): ring 96 counting up, band word, must requirements met, the
-  hard-criteria strip; for an excluded job the reason first. Then title, company, place,
-  portal, date and the actions. "Warum" lists what is met and what is open (must before
-  nice), what to check and the violations; hovering a reason lights its passage in the ad
-  text below, a click scrolls to it.
+  The reader card (max 720 px): ring 96 counting up, band word and the must requirements met;
+  a strip of quiet chips for the contract type and the hard criteria (state by icon only);
+  for an excluded job the reason first. Then title (without gender tags), one line of facts
+  and the actions. "Warum" lists what is met and what is open (must before nice), what to
+  check and the violations; hovering a reason lights its passage in the ad text below, a
+  click scrolls to it.
 -->
 <script lang="ts">
-  import Badge from '$components/Badge.svelte';
   import Button from '$components/Button.svelte';
   import Card from '$components/Card.svelte';
-  import Icon from '$components/Icon.svelte';
+  import Icon, { type IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
   import ReasonItem from '$components/ReasonItem.svelte';
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
   import { tooltip } from '$lib/actions/tooltip';
-  import { de } from '$lib/i18n/de';
-  import { formatDate } from '$lib/i18n/format';
+  import { de, type CriterionState } from '$lib/i18n/de';
+  import { displayTitle, formatDate } from '$lib/i18n/format';
   import {
     criterionKey,
     criterionState,
@@ -48,23 +48,60 @@
   const byWeight = (a: Reason, b: Reason): number =>
     WEIGHT_ORDER[a.weight] - WEIGHT_ORDER[b.weight];
 
-  const reasons = $derived(match?.reasons ?? []);
+  const CONTRACT = 'contractType';
+  const all = $derived(match?.reasons ?? []);
+  // The contract type is a fact about the ad, not a requirement: it goes into the chips.
+  const contract = $derived(all.find((r) => r.code === CONTRACT) ?? null);
+  const reasons = $derived(all.filter((r) => r.code !== CONTRACT));
   const met = $derived(
     reasons.filter((r) => r.kind === 'met' || r.kind === 'partial').sort(byWeight),
   );
   const open = $derived(reasons.filter((r) => r.kind === 'open').sort(byWeight));
   const checks = $derived(reasons.filter((r) => r.kind === 'check'));
   const allViolations = $derived(reasons.filter((r) => r.kind === 'violation'));
-
-  const STATE_ICON = { met: 'check', violated: 'ban', unknown: 'info', unset: 'minus' } as const;
-  const strip = $derived(
-    (match?.criteria ?? []).flatMap((reason) => {
-      const key = criterionKey(reason.code);
-      if (key === null) return [];
-      const state = criterionState(reason);
-      return [{ id: reason.id, label: de.reader.criterion[key].label, state }];
-    }),
+  const partialMust = $derived(
+    reasons.filter((r) => r.kind === 'partial' && r.weight === 'must').length,
   );
+
+  const STATE_ICON: Record<CriterionState, IconName> = {
+    met: 'check',
+    violated: 'x',
+    unknown: 'circle-help',
+    unset: 'minus',
+  };
+  interface Chip {
+    id: string;
+    label: string;
+    state: CriterionState | 'plain';
+    icon: IconName;
+    hint: string;
+  }
+  const chips = $derived.by((): Chip[] => {
+    const out: Chip[] = [];
+    if (contract) {
+      const unclear = contract.kind === 'check';
+      out.push({
+        id: contract.id,
+        label: reasonText(contract),
+        state: unclear ? 'unknown' : 'plain',
+        icon: unclear ? 'circle-help' : 'file-text',
+        hint: de.reader.contractLabel,
+      });
+    }
+    for (const reason of match?.criteria ?? []) {
+      const key = criterionKey(reason.code);
+      if (key === null) continue;
+      const state = criterionState(reason);
+      out.push({
+        id: reason.id,
+        label: de.reader.criterion[key].label,
+        state,
+        icon: STATE_ICON[state],
+        hint: de.reader.criterionState[state],
+      });
+    }
+    return out;
+  });
 
   const headline = $derived.by((): { word: string; tone: string } | null => {
     if (!withRing) return null;
@@ -90,6 +127,17 @@
     (detailKind === 'pending' || detailKind === 'failed' || detailKind === 'teaser') &&
       portalState?.enabled === true &&
       portalState.fetchDetails,
+  );
+  const facts = $derived(
+    [
+      job.company,
+      job.location,
+      job.workMode ? de.job.workMode[job.workMode] : '',
+      job.alsoOn.length > 0
+        ? `${de.portal[job.portal]}, ${de.job.alsoOn(job.alsoOn.map((p) => de.portal[p]).join(', '))}`
+        : de.portal[job.portal],
+      formatDate(job.mailDate ?? job.firstSeenAt),
+    ].filter((fact) => fact !== ''),
   );
 
   function openTarget(target: OpenTarget): void {
@@ -147,20 +195,21 @@
           {#if match && match.status !== 'unscorable'}
             <p class="must" data-testid="must">
               {job.match && job.match.mustTotal > 0
-                ? de.reader.mustMet(job.match.mustMet, job.match.mustTotal)
+                ? de.reader.mustMet(job.match.mustMet, job.match.mustTotal, partialMust)
                 : de.reader.noMust}
             </p>
           {/if}
-          {#if strip.length > 0}
-            <ul class="strip" aria-label={de.reader.criteria} data-testid="criteria">
-              {#each strip as item (item.id)}
+          {#if chips.length > 0}
+            <ul class="chips" aria-label={de.reader.criteria} data-testid="criteria">
+              {#each chips as chip (chip.id)}
                 <li
-                  class="criterion {item.state}"
-                  use:tooltip={de.reader.criterionState[item.state]}
-                  data-state={item.state}
+                  class="chip {chip.state}"
+                  use:tooltip={chip.hint}
+                  data-state={chip.state}
+                  data-testid={chip.id === contract?.id ? 'contract' : undefined}
                 >
-                  <Icon name={STATE_ICON[item.state]} size="sm" />
-                  <span>{item.label}</span>
+                  <span class="chip-icon"><Icon name={chip.icon} size="sm" /></span>
+                  <span>{chip.label}</span>
                 </li>
               {/each}
             </ul>
@@ -170,17 +219,13 @@
     {/if}
 
     <div class="title-block">
-      <h1 class="title" data-testid="reader-title">{job.title || de.job.untitled}</h1>
-      <p class="meta">
-        {#if job.company}<span class="fact"><Icon name="building-2" size="sm" />{job.company}</span
-          >{/if}
-        {#if job.location}<span class="fact"><Icon name="map-pin" size="sm" />{job.location}</span
-          >{/if}
-        <span class="fact">{de.portal[job.portal]}</span>
-        <span class="fact"
-          ><Icon name="clock" size="sm" />{formatDate(job.mailDate ?? job.firstSeenAt)}</span
-        >
-        {#if job.workMode}<Badge label={de.job.workMode[job.workMode]} />{/if}
+      <h1 class="title" data-testid="reader-title">
+        {job.title ? displayTitle(job.title) : de.job.untitled}
+      </h1>
+      <p class="facts">
+        <span class="facts-line">
+          {#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}
+        </span>
       </p>
     </div>
 
@@ -243,12 +288,16 @@
           </div>
         {/if}
         {#if checks.length > 0}
-          <h3 class="sub">{de.reader.check}</h3>
-          {@render reasonList(checks, 'reasons-check')}
+          <div class="column">
+            <h3 class="sub">{de.reader.check}</h3>
+            {@render reasonList(checks, 'reasons-check')}
+          </div>
         {/if}
         {#if violations.length > 0}
-          <h3 class="sub">{de.reader.violations}</h3>
-          {@render reasonList(violations, 'reasons-violation')}
+          <div class="column">
+            <h3 class="sub">{de.reader.violations}</h3>
+            {@render reasonList(violations, 'reasons-violation')}
+          </div>
         {/if}
       </section>
     {/if}
@@ -284,18 +333,19 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-24);
+    container-type: inline-size;
   }
 
   .score {
     display: flex;
     align-items: center;
-    gap: var(--space-24);
+    gap: var(--space-20);
   }
 
   .verdict {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: var(--space-4);
     min-width: 0;
   }
 
@@ -322,45 +372,53 @@
 
   .must {
     color: var(--text-muted);
-    font: var(--type-md);
+    font: var(--type-sm);
     font-variant-numeric: var(--numeric);
   }
 
-  .strip {
+  .chips {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-6);
-    margin-top: var(--space-4);
+    margin-top: var(--space-8);
   }
 
-  .criterion {
+  /* Quiet chips: a neutral name, the state only in the icon (and in red when violated). */
+  .chip {
     display: inline-flex;
     align-items: center;
     gap: var(--space-4);
     height: var(--badge-height);
-    padding: 0 var(--space-8);
+    padding: 0 var(--space-8) 0 var(--space-6);
     border-radius: var(--radius-full);
+    background-color: var(--surface-muted);
+    color: var(--text-muted);
     font: var(--type-xs);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
   }
 
-  .criterion.met {
-    background-color: var(--success-soft);
-    color: var(--success-strong);
+  .chip-icon {
+    display: inline-flex;
+    color: var(--chip-icon, var(--text-subtle));
   }
 
-  .criterion.violated {
+  .chip.met {
+    --chip-icon: var(--success-strong);
+  }
+
+  .chip.unknown {
+    --chip-icon: var(--warning-strong);
+  }
+
+  .chip.violated {
+    --chip-icon: var(--danger-strong);
+
     background-color: var(--danger-soft);
     color: var(--danger-strong);
   }
 
-  .criterion.unknown {
-    background-color: var(--warning-soft);
-    color: var(--warning-strong);
-  }
-
-  .criterion.unset {
-    background-color: var(--surface-muted);
+  .chip.unset {
     color: var(--text-subtle);
   }
 
@@ -374,34 +432,43 @@
     color: var(--text-heading);
     font: var(--type-2xl);
     letter-spacing: var(--tracking-tight);
+    text-wrap: balance;
   }
 
-  .meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-8) var(--space-16);
+  /* Facts joined by middle dots; a dot that would start a wrapped line is clipped (every
+     fact carries its dot in front, the line is shifted left by one dot). */
+  .facts {
+    overflow: hidden;
     color: var(--text-muted);
     font: var(--type-sm);
   }
 
-  .fact {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-4);
+  .facts-line {
+    display: flex;
+    flex-wrap: wrap;
+    margin-left: calc(-1 * var(--space-20));
+  }
+
+  .fact::before {
+    display: inline-block;
+    width: var(--space-20);
+    color: var(--text-subtle);
+    text-align: center;
+    content: '·';
   }
 
   .actions {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-8);
+    margin-top: calc(-1 * var(--space-8));
   }
 
   .why,
   .ad {
     display: flex;
     flex-direction: column;
-    gap: var(--space-12);
+    gap: var(--space-16);
     padding-top: var(--space-24);
     border-top: var(--border-width) solid var(--border);
   }
@@ -412,9 +479,12 @@
   }
 
   .sub {
-    color: var(--text-muted);
-    font: var(--type-sm);
+    padding-left: var(--space-8);
+    color: var(--text-subtle);
+    font: var(--type-xs);
     font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
   }
 
   .columns {
@@ -426,14 +496,14 @@
   .column {
     display: flex;
     flex-direction: column;
-    gap: var(--space-8);
+    gap: var(--space-6);
     min-width: 0;
   }
 
   .reasons {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-2);
   }
 
   .quiet {
@@ -441,9 +511,11 @@
     font: var(--type-md);
   }
 
-  @media (width < 900px) {
+  /* Two reason columns need room; below it they stack. */
+  @container (width < 540px) {
     .columns {
       grid-template-columns: 1fr;
+      gap: var(--space-16);
     }
   }
 </style>

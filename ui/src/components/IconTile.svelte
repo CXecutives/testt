@@ -30,7 +30,7 @@
     monogram?: string | null;
   }
 
-  let { tone = 'coral', size = 'md', icon = null, monogram = null }: Props = $props();
+  let { tone = 'neutral', size = 'md', icon = null, monogram = null }: Props = $props();
 
   const ICON_SIZE: Record<TileSize, IconSize> = { sm: 'sm', md: 'md', lg: 'lg' };
 </script>

@@ -1,17 +1,17 @@
 <!--
-  One job in the list: ring, unread dot, title, meta (portal mark, company, location, work
-  mode), one reason line, relative date, a status badge only when something deviates, and
-  the star when pinned.
+  One job in the list: ring, unread dot and the title (up to two lines, without gender tags),
+  company, place and relative date, one reason line and a status badge only when something
+  deviates. The star to pin sits at the top right: coral when pinned, otherwise an outline
+  that shows on hover (a sibling of the row button, so it never selects the row).
 -->
 <script lang="ts">
-  import { tooltip } from '$lib/actions/tooltip';
   import { de } from '$lib/i18n/de';
-  import { formatRelative } from '$lib/i18n/format';
+  import { displayTitle, formatRelative } from '$lib/i18n/format';
   import { rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
   import Badge, { type BadgeTone } from './Badge.svelte';
+  import Button from './Button.svelte';
   import Icon from './Icon.svelte';
-  import { PORTAL_MONOGRAM } from './IconTile.svelte';
   import ListRow from './ListRow.svelte';
   import ReasonItem from './ReasonItem.svelte';
   import ScoreRing, { ringState } from './ScoreRing.svelte';
@@ -28,6 +28,8 @@
     /** Fixed "now" for relative dates (gallery and tests). */
     now?: Date;
     onselect?: ((job: JobView) => void) | null;
+    /** Pin or unpin from the row; without it a pinned job only shows the star. */
+    onpin?: ((job: JobView) => void) | null;
   }
 
   let {
@@ -38,10 +40,12 @@
     fresh = false,
     now,
     onselect = null,
+    onpin = null,
   }: Props = $props();
 
   const excluded = $derived(job.match?.status === 'excluded');
   const reason = $derived(rowReason(job));
+  const heading = $derived(job.title ? displayTitle(job.title) : de.job.untitled);
 
   /** At most one badge, and only when something is not as usual. */
   const deviation = $derived.by((): { label: string; tone: BadgeTone } | null => {
@@ -55,82 +59,97 @@
     if (job.match?.status === 'unscorable') return { label: de.score.unscorable, tone: 'neutral' };
     return null;
   });
-
-  const alsoOn = $derived(
-    job.alsoOn.length > 0 ? de.job.alsoOn(job.alsoOn.map((p) => de.portal[p]).join(', ')) : null,
-  );
 </script>
 
 {#snippet ringCell()}
   <ScoreRing ring={ringState(job.match, pending)} size="sm" />
 {/snippet}
 
-<ListRow
-  leading={ring ? ringCell : null}
-  {selected}
-  muted={excluded}
-  tint={fresh}
-  onclick={onselect ? () => onselect?.(job) : null}
-  testid="job-row-{job.key.portal}-{job.key.id}"
->
-  <span class="title-line">
-    {#if job.unread}<span class="dot" role="img" aria-label={de.job.unread}></span>{/if}
-    <span class="title" class:unread={job.unread}>{job.title || de.job.untitled}</span>
-  </span>
-  <span class="meta">
-    <span
-      class="portal"
-      role="img"
-      aria-label={de.portal[job.portal]}
-      use:tooltip={de.portal[job.portal]}>{PORTAL_MONOGRAM[job.portal]}</span
+{#snippet starCell()}
+  {#if onpin}
+    <span class="star-slot" aria-hidden="true"></span>
+  {:else if job.pinned}
+    <span class="star" role="img" aria-label={de.job.pinned}
+      ><Icon name="star" size="sm" filled /></span
     >
-    {#if alsoOn}<span class="also" use:tooltip={alsoOn}>+{job.alsoOn.length}</span>{/if}
-    <span class="text company">{job.company}</span>
-    {#if job.location}<span class="sep">·</span><span class="text place">{job.location}</span>{/if}
-    {#if job.workMode}<span class="mode"
-        ><Badge label={de.job.workMode[job.workMode]} tone="neutral" /></span
-      >{/if}
-  </span>
-  {#if reason}
-    <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
   {/if}
+{/snippet}
 
-  {#snippet trailing()}
-    <span class="date">{formatRelative(job.mailDate ?? job.firstSeenAt, now)}</span>
-    <span class="flags">
-      {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
-      {#if job.pinned}
-        <span class="star" role="img" aria-label={de.job.pinned}
-          ><Icon name="star" size="sm" filled /></span
-        >
-      {/if}
+<div class="job" class:pinned={job.pinned}>
+  <ListRow
+    leading={ring ? ringCell : null}
+    trailing={onpin || job.pinned ? starCell : null}
+    {selected}
+    muted={excluded}
+    tint={fresh}
+    onclick={onselect ? () => onselect?.(job) : null}
+    testid="job-row-{job.key.portal}-{job.key.id}"
+  >
+    <span class="title-line">
+      {#if job.unread}<span class="dot" role="img" aria-label={de.job.unread}></span>{/if}
+      <span class="title" class:unread={job.unread}>{heading}</span>
     </span>
-  {/snippet}
-</ListRow>
+    <span class="meta">
+      {#if job.company}<span class="text company">{job.company}</span>{/if}
+      {#if job.location}<span class="text place">{job.location}</span>{/if}
+      <span class="date">{formatRelative(job.mailDate ?? job.firstSeenAt, now, true)}</span>
+    </span>
+    {#if reason || deviation}
+      <span class="foot">
+        {#if reason}
+          <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
+        {/if}
+        {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
+      </span>
+    {/if}
+  </ListRow>
+  {#if onpin}
+    <span class="pin">
+      <Button
+        variant="ghost"
+        size="sm"
+        iconOnly
+        icon="star"
+        label={de.reader.pin}
+        pressed={job.pinned}
+        testid="pin-{job.key.portal}-{job.key.id}"
+        onclick={() => onpin?.(job)}
+      />
+    </span>
+  {/if}
+</div>
 
 <style>
+  .job {
+    position: relative;
+  }
+
   .title-line {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-6);
     min-width: 0;
   }
 
+  /* Centred on the first line of the title. */
   .dot {
     flex: none;
     width: var(--dot);
     height: var(--dot);
+    margin-top: var(--space-6);
     border-radius: var(--radius-full);
     background-color: var(--accent);
   }
 
   .title {
+    display: -webkit-box;
     overflow: hidden;
     color: var(--text);
-    font: var(--type-md);
-    font-weight: var(--weight-medium);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font: var(--type-title);
+    overflow-wrap: break-word;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 
   .title.unread {
@@ -139,27 +158,17 @@
 
   .meta {
     display: flex;
-    align-items: center;
-    gap: var(--space-6);
+    align-items: baseline;
     min-width: 0;
     color: var(--text-muted);
     font: var(--type-sm);
   }
 
-  .portal {
-    flex: none;
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-xs);
-    background-color: var(--surface-muted);
-    color: var(--text-muted);
-    font: var(--type-xs);
-    font-weight: var(--weight-bold);
-  }
-
-  .also {
-    flex: none;
+  /* Parts joined by a middle dot; the date never shrinks, the company gives way first. */
+  .meta > * + *::before {
+    padding: 0 var(--space-6);
     color: var(--text-subtle);
-    font: var(--type-xs);
+    content: '·';
   }
 
   .text {
@@ -168,48 +177,60 @@
     white-space: nowrap;
   }
 
+  /* The place is short and says more than the end of a long company name: the company
+     gives way first. */
   .company {
     flex: 0 1 auto;
-    min-width: var(--space-48);
-  }
-
-  .sep {
-    color: var(--text-subtle);
-  }
-
-  /* The place is short and says more than the end of a long company name. */
-  .place {
-    flex: 0 1 auto;
-    max-width: 45%;
-  }
-
-  /* In a narrow list the work mode gives way to company and place (the reader shows it). */
-  @container (width < 460px) {
-    .mode {
-      display: none;
-    }
-  }
-
-  .reason {
-    display: flex;
     min-width: 0;
   }
 
+  .place {
+    flex: none;
+    max-width: 40%;
+  }
+
   .date {
-    color: var(--text-subtle);
-    font: var(--type-xs);
+    flex: none;
     font-variant-numeric: var(--numeric);
     white-space: nowrap;
   }
 
-  .flags {
+  .foot {
     display: flex;
     align-items: center;
-    gap: var(--space-6);
+    gap: var(--space-8);
+    min-width: 0;
+    margin-top: var(--space-2);
+  }
+
+  .reason {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .star-slot {
+    width: var(--control-sm);
   }
 
   .star {
     display: inline-flex;
+    padding-top: var(--space-2);
     color: var(--accent);
+  }
+
+  /* The pin button over the reserved slot: centred on the first title line. */
+  .pin {
+    position: absolute;
+    top: var(--space-8);
+    right: var(--pane-padding);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+
+  .job:hover .pin,
+  .pin:focus-within,
+  .pinned .pin {
+    opacity: 1;
   }
 </style>

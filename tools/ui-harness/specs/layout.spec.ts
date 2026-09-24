@@ -55,7 +55,7 @@ for (const [width, rail] of [
     await page.setViewportSize({ width, height: 700 });
     await open(page, '?platform=windows');
     const sidebar = await page.getByTestId('sidebar').boundingBox();
-    expect(sidebar?.width).toBe(rail ? 64 : 232);
+    expect(sidebar?.width).toBe(rail ? 64 : 196);
     const label = page.getByTestId('nav-profile');
     if (rail) {
       await expect(label).toHaveAttribute('aria-label', 'Profil');

@@ -66,7 +66,7 @@
     height: var(--seg-height);
     padding: var(--space-2);
     border-radius: var(--radius-control);
-    background-color: var(--surface-muted);
+    background-color: var(--surface-track);
     isolation: isolate;
   }
 

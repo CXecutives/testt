@@ -1,7 +1,8 @@
 <!--
-  The Jobs view: toolbar on top, left the run card and the list (360-440 px), right the
-  reader or, with nothing selected, the day overview. Below 900 px one column: the list, or
-  the reader with a back button.
+  The Jobs view: left the list column (360-460 px) with its header (search and filters), the
+  run card and the list; right the reader or, with nothing selected, the day overview. Both
+  columns start at the same line and share one inner padding. Below 900 px one column: the
+  list, or the reader with a back button.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -16,8 +17,8 @@
   import DayOverview from './DayOverview.svelte';
   import JobList from './JobList.svelte';
   import Reader from './Reader.svelte';
+  import ListHeader from './ListHeader.svelte';
   import RunCard from './RunCard.svelte';
-  import Toolbar from './Toolbar.svelte';
 
   let pane = $state<HTMLElement | null>(null);
 
@@ -34,13 +35,15 @@
 </script>
 
 <div class="jobs" class:reading={jobs.selected !== null} data-testid="jobs">
-  <Toolbar />
   <div class="body">
     <aside class="left">
-      {#if run.active || (run.panel !== 'hidden' && (run.summary ?? app.state?.lastRun))}
-        <div class="run" in:rise={{ distance: 'md' }}><RunCard /></div>
-      {/if}
-      <div class="scroll" data-testid="list-scroll"><JobList /></div>
+      <ListHeader />
+      <div class="scroll" data-testid="list-scroll">
+        {#if run.active || (run.panel !== 'hidden' && (run.summary ?? app.state?.lastRun))}
+          <div class="run" in:rise={{ distance: 'md' }}><RunCard /></div>
+        {/if}
+        <JobList />
+      </div>
     </aside>
     <section class="right" bind:this={pane} data-testid="reader-pane">
       <div class="column">
@@ -105,18 +108,18 @@
     display: flex;
     flex: none;
     flex-direction: column;
-    width: clamp(var(--list-min), 38%, var(--list-max));
+    width: clamp(var(--list-min), 40%, var(--list-max));
     container-type: inline-size;
     min-height: 0;
+    border-top: var(--border-width) solid var(--border);
     border-right: var(--border-width) solid var(--border);
+    border-top-right-radius: var(--radius-card);
     background-color: var(--surface);
   }
 
   .run {
     flex: none;
-    padding: var(--space-16);
-    border-bottom: var(--border-width) solid var(--border);
-    background-color: var(--bg);
+    padding: var(--pane-padding) var(--pane-padding) 0;
   }
 
   .scroll {
@@ -139,7 +142,7 @@
     gap: var(--space-12);
     max-width: var(--reader-width);
     margin: 0 auto;
-    padding: var(--space-32) var(--space-32) var(--space-64);
+    padding: var(--pane-padding) var(--pane-padding) var(--space-64);
   }
 
   .back {
@@ -181,8 +184,12 @@
       display: block;
     }
 
+    .left {
+      border-top-right-radius: 0;
+    }
+
     .column {
-      padding: var(--space-16) var(--space-16) var(--space-32);
+      padding-bottom: var(--space-32);
     }
   }
 </style>
