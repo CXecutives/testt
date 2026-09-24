@@ -10,12 +10,14 @@ use jiff::civil::Date;
 use serde_json::{Value, json};
 
 use super::atoms::fold;
+use super::contract::{Contract, ContractKind};
 use super::job::{contains_word, sentences};
 use super::lexicon::{self, engine as lex};
 use super::normalize::splitlines;
 use super::params::HOURS_PER_DAY;
 use super::profile::Criteria;
-use super::types::{CriterionKey, ReasonCode};
+use super::types::{CriterionKey, ReasonCode, ReasonKind};
+use crate::portal::Portal;
 
 /// When the consultant is available.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +35,53 @@ pub(crate) struct HardCriteria {
     pub remote_outside: Option<bool>,
     pub anue_excluded: bool,
     pub available: Availability,
+    /// Minimum annual salary (EUR) for permanent roles.
+    pub min_salary: Option<u64>,
+    /// Places of the region for permanent roles (as written; matched folded).
+    pub places: Option<Vec<String>>,
+    /// Remote share (percent) that makes a permanent role outside the region acceptable.
+    pub remote_min: Option<u64>,
+    /// Minimum years the target profile of an ad must ask for.
+    pub target_years: Option<u32>,
+    /// Keys present with a value that cannot be read: (key, value).
+    pub not_understood: Vec<(&'static str, String)>,
+}
+
+/// A profile value of the new criteria: first key found in `harte_kriterien` (or the
+/// English section), German key first.
+fn criterion<'a>(data: &'a Value, keys: &[&'static str]) -> Option<(&'static str, &'a Value)> {
+    lexicon::KEY_CRITERIA_ALIASES.iter().find_map(|section| {
+        let section = data.get(*section)?;
+        keys.iter()
+            .find_map(|k| section.get(*k).filter(|v| !v.is_null()).map(|v| (*k, v)))
+    })
+}
+
+/// A whole number from a JSON number or a string (`150000`, `150.000`, `150k`, `60 %`).
+fn number(value: &Value) -> Option<u64> {
+    if let Some(n) = value.as_u64() {
+        return Some(n);
+    }
+    if let Some(f) = value.as_f64() {
+        // Profile values are small positive numbers; fractions are cut.
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        return (f >= 0.0).then_some(f as u64);
+    }
+    let text = fold(value.as_str()?);
+    let text = text
+        .trim()
+        .trim_end_matches('%')
+        .trim_end_matches('€')
+        .trim();
+    let (digits, factor) = match text.strip_suffix('k') {
+        Some(rest) => (rest.trim(), 1000),
+        None => (text, 1),
+    };
+    let digits: String = digits
+        .chars()
+        .filter(|c| !matches!(c, '.' | ',' | ' '))
+        .collect();
+    digits.parse::<u64>().ok().map(|n| n * factor)
 }
 
 impl HardCriteria {
@@ -45,12 +94,46 @@ impl HardCriteria {
                 _ => Availability::Unset,
             },
         };
+        let mut not_understood = Vec::new();
+        let mut read = |keys: &[&'static str]| {
+            let (key, value) = criterion(data, keys)?;
+            let n = number(value).filter(|n| *n > 0);
+            if n.is_none() {
+                not_understood.push((key, value.to_string()));
+            }
+            n
+        };
+        let min_salary = read(lexicon::KEYS_MIN_SALARY);
+        let remote_min = read(lexicon::KEYS_PERMANENT_REMOTE).map(|p| p.min(100));
+        let target_years = read(lexicon::KEYS_TARGET_YEARS).and_then(|y| u32::try_from(y).ok());
+        let places = criterion(data, lexicon::KEYS_PERMANENT_PLACES).and_then(|(key, value)| {
+            let list: Vec<String> = value
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|p| !p.is_empty())
+                .map(str::to_owned)
+                .collect();
+            if list.is_empty() {
+                not_understood.push((key, value.to_string()));
+                None
+            } else {
+                Some(list)
+            }
+        });
         Self {
             min_rate: legacy.min_day_rate.filter(|m| *m > 0),
             countries: legacy.countries.clone().filter(|c| !c.is_empty()),
             remote_outside: legacy.remote_outside_allowed,
             anue_excluded: legacy.anue_excluded == Some(true),
             available,
+            min_salary,
+            places,
+            remote_min,
+            target_years,
+            not_understood,
         }
     }
 }
@@ -63,27 +146,53 @@ pub(crate) fn availability_text(data: &Value) -> Option<&str> {
         .find(|s| !s.trim().is_empty())
 }
 
-/// A decided violation or a check.
+/// A decided violation, a check, or a frame row (met or partial).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Finding {
     pub code: ReasonCode,
     pub decided: bool,
+    pub kind: ReasonKind,
     pub key: Option<CriterionKey>,
     pub params: Value,
     pub spans: Vec<Range<usize>>,
 }
 
 impl Finding {
-    fn new(
+    /// A violation when `decided`, else a check.
+    pub(crate) fn new(
         code: ReasonCode,
         decided: bool,
         key: Option<CriterionKey>,
         params: Value,
         spans: Vec<Range<usize>>,
     ) -> Self {
+        let kind = if decided {
+            ReasonKind::Violation
+        } else {
+            ReasonKind::Check
+        };
         Self {
             code,
             decided,
+            kind,
+            key,
+            params,
+            spans,
+        }
+    }
+
+    /// A frame row that never excludes (met, partial or check).
+    pub(crate) fn row(
+        code: ReasonCode,
+        kind: ReasonKind,
+        key: Option<CriterionKey>,
+        params: Value,
+        spans: Vec<Range<usize>>,
+    ) -> Self {
+        Self {
+            code,
+            decided: false,
+            kind,
             key,
             params,
             spans,
@@ -93,14 +202,19 @@ impl Finding {
 
 /// Job facts used for the criteria.
 pub(crate) struct JobFacts<'a> {
+    pub title: &'a str,
     pub text: &'a str,
     pub location: &'a str,
+    pub portal: Portal,
     pub facts: Option<&'a Value>,
     pub posted: Option<Date>,
 }
 
+/// A sentence of the text: byte range and folded text.
+pub(crate) type Segment = (Range<usize>, String);
+
 /// Sentences of the text (also split at ` // `), as byte ranges with their folded text.
-fn segments(text: &str) -> Vec<(Range<usize>, String)> {
+pub(crate) fn segments(text: &str) -> Vec<Segment> {
     let mut out = Vec::new();
     for line in splitlines(text) {
         for part in line.split(" // ") {
@@ -113,17 +227,34 @@ fn segments(text: &str) -> Vec<(Range<usize>, String)> {
     out
 }
 
-fn fact<'a>(facts: Option<&'a Value>, key: &str) -> Option<&'a Value> {
+pub(crate) fn fact<'a>(facts: Option<&'a Value>, key: &str) -> Option<&'a Value> {
     facts.and_then(|f| f.get(key)).filter(|v| !v.is_null())
 }
 
-/// All findings for one job.
-pub(crate) fn check(criteria: &HardCriteria, job: &JobFacts<'_>) -> Vec<Finding> {
-    let segments = segments(job.text);
-    let folded = fold(job.text);
-    let permanent = lex::PERMANENT_WORDS.iter().any(|w| folded.contains(w));
+/// Findings of the contract type, ANÜ, country, day rate and availability.
+pub(crate) fn check(
+    criteria: &HardCriteria,
+    job: &JobFacts<'_>,
+    segments: &[Segment],
+    folded: &str,
+    contract: &Contract,
+    anue_findings: Vec<Finding>,
+) -> Vec<Finding> {
     let mut findings = Vec::new();
-    if permanent {
+    let (row, inferred) = match contract.kind {
+        ContractKind::Interim => (ReasonKind::Met, false),
+        ContractKind::Permanent => (ReasonKind::Partial, contract.inferred),
+        ContractKind::Anue => (ReasonKind::Partial, false),
+        ContractKind::Unclear => (ReasonKind::Check, false),
+    };
+    findings.push(Finding::row(
+        ReasonCode::ContractType,
+        row,
+        None,
+        json!({ "type": contract.kind.name(), "inferred": inferred }),
+        contract.spans.clone(),
+    ));
+    if contract.kind == ContractKind::Permanent || contract.stated_permanent {
         findings.push(Finding::new(
             ReasonCode::Permanent,
             false,
@@ -133,21 +264,31 @@ pub(crate) fn check(criteria: &HardCriteria, job: &JobFacts<'_>) -> Vec<Finding>
         ));
     }
     if criteria.anue_excluded {
-        findings.extend(anue(job, &segments));
+        if anue_findings.is_empty() && contract.kind == ContractKind::Unclear && contract.agency {
+            findings.push(Finding::new(
+                ReasonCode::AnueRisk,
+                false,
+                Some(CriterionKey::NoAnue),
+                json!({}),
+                contract.spans.clone(),
+            ));
+        }
+        findings.extend(anue_findings);
     }
     if let Some(allowed) = &criteria.countries {
-        findings.extend(country(criteria, allowed, job, &segments, &folded));
+        findings.extend(country(criteria, allowed, job, segments, folded));
     }
-    if !permanent {
-        findings.extend(day_rate(criteria, job, &segments));
+    if contract.kind != ContractKind::Permanent {
+        findings.extend(day_rate(criteria, job, segments));
     }
     if let Availability::From(date) = criteria.available {
-        findings.extend(availability(date, job, &segments));
+        findings.extend(availability(date, job, segments));
     }
     findings
 }
 
-fn anue(job: &JobFacts<'_>, segments: &[(Range<usize>, String)]) -> Vec<Finding> {
+/// ANÜ named (decided), optional or hidden; empty when not mentioned.
+pub(crate) fn anue(job: &JobFacts<'_>, segments: &[Segment]) -> Vec<Finding> {
     let any = |f: &str, words: &[&str], parts: &[&str]| {
         words.iter().any(|w| contains_word(f, w)) || parts.iter().any(|p| f.contains(p))
     };
@@ -333,13 +474,13 @@ fn country(
 }
 
 /// A rate statement: highest amount, hourly or daily, EUR or not.
-struct Rate {
+pub(crate) struct Rate {
     upper: u64,
     hourly: bool,
     currency: Option<&'static str>,
 }
 
-fn parse_rate(folded: &str) -> Option<Rate> {
+pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
     if !lex::RATE_WORDS.iter().any(|w| folded.contains(w))
         || lex::SALARY_WORDS.iter().any(|w| folded.contains(w))
     {

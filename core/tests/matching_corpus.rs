@@ -28,7 +28,7 @@ use sha2::Digest as _;
 
 /// SHA-256 (16 hex) over every profile x job result of the corpus. Update it only together
 /// with `ENGINE_VERSION` and the before/after table in `docs/MATCHING.md`.
-const GOLDEN_DIGEST: &str = "56fe797f9c11e9ab";
+const GOLDEN_DIGEST: &str = "6d23ef707f056f88";
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/matching")
@@ -620,6 +620,45 @@ fn report() {
             "{} {} [{lo},{hi}] old {} new {score} {status}/{} {findings:?} exp {:?}{flag}",
             row.profile, row.job, row.old, row.expect_status, row.expect_checks
         );
+    }
+}
+
+/// Prints every reason of corpus rows (`profile:job`, comma-separated):
+/// `JOBALERT_ROWS=fin:K01,sap:K12 cargo test -p jobalert-core --test matching_corpus -- --ignored explain_rows --nocapture`
+#[test]
+#[ignore = "debugging aid"]
+fn explain_rows() {
+    let wanted = std::env::var("JOBALERT_ROWS").expect("set JOBALERT_ROWS");
+    let wanted: Vec<(&str, &str)> = wanted
+        .split(',')
+        .filter_map(|pair| pair.split_once(':'))
+        .collect();
+    let run = run();
+    for row in run
+        .rows
+        .iter()
+        .filter(|r| wanted.iter().any(|(p, j)| *p == r.profile && *j == r.job))
+    {
+        let Some(a) = &row.new else { continue };
+        println!(
+            "{} {} score {} {:?}",
+            row.profile, row.job, a.score, a.verdict
+        );
+        for r in &a.reasons {
+            let evidence = r
+                .evidence
+                .as_ref()
+                .map(|e| format!("<- {} ({:?}, {})", e.profile, e.via, e.path))
+                .unwrap_or_default();
+            println!(
+                "  {:?} {:?} {} {:?} {} {evidence}",
+                r.kind,
+                r.weight,
+                code(r.code),
+                r.label.as_deref().unwrap_or(""),
+                Value::Object(r.params.clone())
+            );
+        }
     }
 }
 

@@ -4,6 +4,7 @@
 
 use std::sync::LazyLock;
 
+use super::lexicon::domains::{DOMAINS, Domain};
 use super::lexicon::{self, engine as lex};
 use super::normalize::casefold;
 
@@ -28,15 +29,67 @@ static STOP: LazyLock<Vec<String>> = LazyLock::new(|| {
     words
 });
 
-/// Concept table with stemmed keys and values; longest keys first.
-static CONCEPTS: LazyLock<Vec<(Vec<String>, String)>> = LazyLock::new(|| {
-    let mut table: Vec<(Vec<String>, String)> = lex::CONCEPTS
-        .iter()
-        .map(|(key, value)| (key.split(' ').map(stem).collect(), stem(value)))
-        .collect();
-    table.sort_by_key(|(key, _)| std::cmp::Reverse(key.len()));
-    table
-});
+/// The concept table of one profile: the general core plus the domain packs its
+/// competences switch on. Stemmed keys and values, longest keys first.
+#[derive(Debug, Clone)]
+pub(crate) struct Vocab {
+    concepts: Vec<(Vec<String>, String)>,
+    packs: Vec<&'static str>,
+}
+
+impl Vocab {
+    fn with(packs: &[&'static Domain]) -> Self {
+        let mut concepts: Vec<(Vec<String>, String)> = lex::CORE_CONCEPTS
+            .iter()
+            .chain(packs.iter().flat_map(|d| d.concepts.iter()))
+            .map(|(key, value)| (key.split(' ').map(stem).collect(), stem(value)))
+            .collect();
+        concepts.sort_by_key(|(key, _)| std::cmp::Reverse(key.len()));
+        Self {
+            concepts,
+            packs: packs.iter().map(|d| d.name).collect(),
+        }
+    }
+
+    /// The general core only (tests).
+    #[cfg(test)]
+    pub(crate) fn core() -> Self {
+        Self::with(&[])
+    }
+
+    /// Core plus every pack a token of `texts` triggers.
+    pub(crate) fn for_texts<'a>(texts: impl IntoIterator<Item = &'a str>) -> Self {
+        let folded: Vec<String> = texts.into_iter().map(fold).collect();
+        let packs: Vec<&'static Domain> = DOMAINS
+            .iter()
+            .filter(|domain| {
+                folded.iter().any(|text| {
+                    raw_tokens(text).any(|t| domain.triggers.iter().any(|p| t.starts_with(p)))
+                })
+            })
+            .copied()
+            .collect();
+        Self::with(&packs)
+    }
+
+    /// Every pack (tests).
+    #[cfg(test)]
+    pub(crate) fn all() -> Self {
+        Self::with(DOMAINS)
+    }
+
+    /// Names of the switched-on packs.
+    pub(crate) fn packs(&self) -> &[&'static str] {
+        &self.packs
+    }
+
+    fn concept_at(&self, stems: &[String], at: usize) -> Option<(usize, String)> {
+        self.concepts.iter().find_map(|(key, value)| {
+            let end = at + key.len();
+            (end <= stems.len() && stems[at..end] == key[..]).then(|| (key.len(), value.clone()))
+        })
+    }
+}
 
 /// Is `word` a stopword or filler (folded form)?
 pub(crate) fn is_filler(word: &str) -> bool {
@@ -44,15 +97,26 @@ pub(crate) fn is_filler(word: &str) -> bool {
 }
 
 fn is_token_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || matches!(c, '+' | '#' | '.' | '/' | '-' | 'ß')
+    c.is_ascii_alphanumeric() || matches!(c, '+' | '#' | '.' | '/' | '-' | '&' | 'ß')
 }
 
-/// Raw folded tokens (the old token class), trimmed of trailing `.` and `-`.
+/// Raw folded tokens (the old token class plus `&` inside words such as `M&A`), trimmed
+/// of leading and trailing `.`, `-`, `/` and `&`.
 pub(crate) fn raw_tokens(folded: &str) -> impl Iterator<Item = &str> {
     folded
         .split(|c: char| !is_token_char(c))
-        .map(|t| t.trim_matches(|c| c == '.' || c == '-' || c == '/'))
+        .map(|t| t.trim_matches(|c| c == '.' || c == '-' || c == '/' || c == '&'))
         .filter(|t| !t.is_empty())
+}
+
+/// `FI/CO` and `UI/UX`: short codes joined by `/` are separate tokens.
+fn split_codes(token: &str) -> Vec<&str> {
+    let parts: Vec<&str> = token.split('/').collect();
+    let codes = parts.len() > 1
+        && parts
+            .iter()
+            .all(|p| p.len() <= 3 && lexicon::synonym(p).is_some());
+    if codes { parts } else { vec![token] }
 }
 
 /// Light, symmetric stemmer for German and English (V1). Hyphenated words are stemmed
@@ -102,10 +166,16 @@ fn stem_once(word: &str) -> String {
     word.to_owned()
 }
 
-/// Atoms of a text: tokens without fillers, stemmed, concepts applied.
-pub(crate) fn atoms(text: &str) -> Vec<String> {
+/// Atoms of a text: tokens without fillers, stemmed, concepts of `vocab` applied.
+pub(crate) fn atoms(text: &str, vocab: &Vocab) -> Vec<String> {
     let folded = fold(text);
-    let stems: Vec<String> = raw_tokens(&folded)
+    let raw: Vec<&str> = raw_tokens(&folded).flat_map(split_codes).collect();
+    let stems: Vec<String> = raw
+        .iter()
+        .enumerate()
+        // `GmbH & Co. KG` is a company form, not SAP CO.
+        .filter(|&(i, t)| !(*t == "co" && raw.get(i + 1) == Some(&"kg")))
+        .map(|(_, t)| *t)
         .filter(|t| t.len() >= 3 || lexicon::synonym(t).is_some())
         .filter_map(|t| match lexicon::synonym(t) {
             Some(Some(mapped)) => Some(mapped.to_owned()),
@@ -118,7 +188,11 @@ pub(crate) fn atoms(text: &str) -> Vec<String> {
             let t = t.as_str();
             // Hyphenated words that form a known concept count as that concept.
             let spaced: Vec<String> = t.split('-').map(stem).collect();
-            if spaced.len() > 1 && concept_at(&spaced, 0).is_some_and(|(n, _)| n == spaced.len()) {
+            if spaced.len() > 1
+                && vocab
+                    .concept_at(&spaced, 0)
+                    .is_some_and(|(n, _)| n == spaced.len())
+            {
                 spaced
             } else {
                 vec![stem(t)]
@@ -128,7 +202,7 @@ pub(crate) fn atoms(text: &str) -> Vec<String> {
     let mut result = Vec::with_capacity(stems.len());
     let mut i = 0;
     while i < stems.len() {
-        if let Some((len, concept)) = concept_at(&stems, i) {
+        if let Some((len, concept)) = vocab.concept_at(&stems, i) {
             result.push(concept);
             i += len;
         } else {
@@ -138,13 +212,6 @@ pub(crate) fn atoms(text: &str) -> Vec<String> {
     }
     result.dedup();
     result
-}
-
-fn concept_at(stems: &[String], at: usize) -> Option<(usize, String)> {
-    CONCEPTS.iter().find_map(|(key, value)| {
-        let end = at + key.len();
-        (end <= stems.len() && stems[at..end] == key[..]).then(|| (key.len(), value.clone()))
-    })
 }
 
 /// Is the atom too generic to meet a requirement on its own?
@@ -183,7 +250,14 @@ pub(crate) fn fit(job: &str, profile: &str) -> Fit {
     if job == profile {
         return Fit::Equal;
     }
-    if profile.len() >= 4 {
+    // A generic profile atom (`Management`) never reaches a compound
+    // (`Projektmanagement`).
+    if is_generic(profile) {
+        return Fit::None;
+    }
+    // Four letters are too short to be a compound part (`steu` of `Steuern` is not the
+    // head of `Steuerung`).
+    if profile.len() >= 5 {
         if let Some(modifier) = job.strip_suffix(profile) {
             return if light(modifier, lex::LIGHT_MODIFIERS) {
                 Fit::Equal
@@ -200,14 +274,16 @@ pub(crate) fn fit(job: &str, profile: &str) -> Fit {
         }
     }
     if job.len() >= 4 && !is_generic(job) {
-        if let Some(modifier) = profile.strip_suffix(job) {
-            let _ = modifier;
+        // `cash` is not the head of `Order-to-Cash`: a short atom never ends a hyphenated
+        // name.
+        if let Some(modifier) = profile.strip_suffix(job)
+            && !(modifier.ends_with('-') && job.len() < 5)
+        {
             return Fit::Specific;
         }
-        if profile
-            .strip_prefix(job)
-            .is_some_and(|head| head.starts_with('-') || light(head, lex::LIGHT_HEADS))
-        {
+        if profile.strip_prefix(job).is_some_and(|head| {
+            (head.starts_with('-') && job.len() >= 5) || light(head, lex::LIGHT_HEADS)
+        }) {
             return Fit::Specific;
         }
     }
@@ -218,31 +294,116 @@ pub(crate) fn fit(job: &str, profile: &str) -> Fit {
 mod tests {
     use super::*;
 
+    fn all(text: &str) -> Vec<String> {
+        atoms(text, &Vocab::all())
+    }
+
     #[test]
     fn stemming_and_concepts() {
-        assert_eq!(atoms("Mehrjährige Erfahrung im Controlling"), ["controll"]);
+        assert_eq!(all("Mehrjährige Erfahrung im Controlling"), ["controll"]);
         assert_eq!(
-            atoms("Several years of experience in controlling"),
+            all("Several years of experience in controlling"),
             ["controll"]
         );
         assert_eq!(
-            atoms("Erfahrung mit Monatsabschlüssen"),
-            atoms("Monatsabschlüsse")
+            all("Erfahrung mit Monatsabschlüssen"),
+            all("Monatsabschlüsse")
         );
         assert_eq!(
-            atoms("Solid knowledge of IFRS group accounting"),
+            all("Solid knowledge of IFRS group accounting"),
             ["ifrs", "konzernrechnungslegung"]
         );
-        assert_eq!(atoms("Restrukturierungen"), atoms("Restrukturierung"));
+        assert_eq!(all("Restrukturierungen"), all("Restrukturierung"));
+        assert_eq!(all("Shared Service Centern"), all("Shared Service Center"));
+        assert_eq!(all("SAP FI/CO"), ["sap", "fi", "co"]);
+        assert_eq!(all("M&A-Transaktionen"), ["m&a-transaktion"]);
+        assert!(!all("Müller GmbH & Co. KG").contains(&"co".to_owned()));
+    }
+
+    /// Bilingual pairs and paraphrases seen in finance ads meet in one concept.
+    #[test]
+    fn finance_paraphrases() {
+        let same = [
+            ("Month-end closing", "Monatsabschluss"),
+            ("monthly close", "Monatsabschlüsse"),
+            ("Year-end closing", "Jahresabschluss"),
+            ("Consolidated financial statements", "Konzernabschluss"),
+            ("Group controlling", "Konzerncontrolling"),
+            ("Group reporting", "Konzernreporting"),
+            ("Financial Planning & Analysis", "FP&A"),
+            ("Mergers & Acquisitions", "M&A"),
+            ("Liquidity planning", "Liquiditätsplanung"),
+            ("Cash Management", "Liquiditätssteuerung"),
+            ("Variance analysis", "Abweichungsanalyse"),
+            ("Soll-Ist-Vergleich", "Abweichungsanalyse"),
+            ("Cost center accounting", "Kostenstellenrechnung"),
+            ("General Ledger", "Hauptbuchhaltung"),
+            ("Accounts payable", "Kreditorenbuchhaltung"),
+            ("Asset accounting", "Anlagenbuchhaltung"),
+            ("FI-AA", "Anlagenbuchhaltung"),
+            ("CO-PA", "Ergebnisrechnung"),
+            ("Berichtswesen", "Reporting"),
+            ("Hochrechnung", "Forecast"),
+            ("Carve out", "Carve-out"),
+            ("Post Merger Integration", "PMI"),
+            ("Restructuring", "Restrukturierung"),
+            ("Finance Business Partner", "Finance Business Partnering"),
+            ("German GAAP", "HGB"),
+            ("Interim Manager", "Interim Management"),
+        ];
+        for (a, b) in same {
+            assert_eq!(all(a), all(b), "{a} / {b}");
+        }
+    }
+
+    /// False friends: these must not meet each other fully.
+    #[test]
+    fn anti_pairs() {
+        let full = |job: &str, profile: &str| {
+            let profile = all(profile);
+            all(job).iter().any(|j| {
+                profile
+                    .iter()
+                    .any(|p| matches!(fit(j, p), Fit::Equal | Fit::Specific))
+            })
+        };
+        let pairs = [
+            ("Steuerung", "Steuern"),
+            ("SAP Business Partner", "Finance Business Partnering"),
+            ("Standortkonsolidierung", "Konsolidierung"),
+            ("Produktionsplanung", "Unternehmensplanung"),
+            ("Change Requests", "Changemanagement"),
+            ("Hochschulabschluss", "Jahresabschlüsse"),
+            ("Projektmanagement", "Management Accounting"),
+            ("Rechnungsprüfung", "Rechnungslegung"),
+        ];
+        for (job, profile) in pairs {
+            assert!(!full(job, profile), "{job} met by {profile}");
+        }
+    }
+
+    /// Packs switch on by the profile's competences; the core works alone.
+    #[test]
+    fn packs_follow_the_profile() {
+        let finance = Vocab::for_texts(["Controlling", "Konzernrechnungslegung nach IFRS"]);
+        assert_eq!(finance.packs(), ["finance"]);
+        let sap = Vocab::for_texts(["SAP FI", "Datenmigration"]);
+        assert_eq!(sap.packs(), ["sap", "itProject"]);
+        let clinical = Vocab::for_texts(["Klinische Studien", "Clinical Trial Management"]);
+        assert!(clinical.packs().is_empty());
+        assert_ne!(
+            atoms("group accounting", &clinical),
+            atoms("group accounting", &finance)
+        );
         assert_eq!(
-            atoms("Shared Service Centern"),
-            atoms("Shared Service Center")
+            atoms("project management", &clinical),
+            atoms("Projektmanagement", &clinical)
         );
     }
 
     #[test]
     fn compounds() {
-        let a = |s: &str| atoms(s).remove(0);
+        let a = |s: &str| all(s).remove(0);
         assert_eq!(
             fit(&a("Konzernkonsolidierung"), &a("Konsolidierung")),
             Fit::Equal
@@ -265,6 +426,7 @@ mod tests {
             Fit::Specific
         );
         assert_eq!(fit(&a("Management"), &a("Interim-Management")), Fit::None);
+        assert_eq!(fit(&a("Projektmanagement"), &a("Management")), Fit::None);
     }
 
     #[test]
@@ -276,9 +438,22 @@ mod tests {
             lex::LIGHT_HEADS,
             lex::SOFT_SKILLS,
             lex::FRAME_WORDS,
+            lex::LOCATION_NOISE,
+            lex::GERMAN_CITIES,
         ] {
             assert!(table.windows(2).all(|w| w[0] < w[1]), "{table:?}");
             assert!(table.iter().all(|w| fold(w) == *w), "{table:?}");
+        }
+        for domain in DOMAINS {
+            assert!(
+                domain.triggers.windows(2).all(|w| w[0] < w[1]),
+                "{}",
+                domain.name
+            );
+            for (key, value) in domain.concepts {
+                assert_eq!(fold(key), *key, "{}", domain.name);
+                assert_eq!(fold(value), *value, "{}", domain.name);
+            }
         }
     }
 }

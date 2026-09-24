@@ -4,7 +4,7 @@
 
 use std::ops::Range;
 
-use super::atoms::{self, fold};
+use super::atoms::{self, Vocab, fold};
 use super::lexicon::{HeadingKind, engine as lex};
 use super::normalize::{splitlines, strip};
 use super::requirements::extract_job_skills;
@@ -25,6 +25,8 @@ pub(crate) enum Class {
     /// A language (stem) with the required CEFR level (1-7), if stated.
     Language(String, Option<u8>),
     Degree,
+    /// A licence or admission (the lexicon word, e.g. `steuerberater`).
+    Licence(&'static str),
     Soft,
     Frame,
 }
@@ -124,6 +126,14 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
             current = Some(kind);
             continue;
         }
+        // `Interessiert? Dann freuen wir uns auf Ihre Bewerbung.` closes the ad.
+        if lex::CLOSING_WORDS
+            .iter()
+            .any(|w| fold(stripped).contains(w))
+        {
+            current = Some(HeadingKind::Neutral);
+            continue;
+        }
         let kind = match current {
             Some(HeadingKind::Must) if nice_cue(stripped) => ReqKind::Nice,
             Some(HeadingKind::Must) => ReqKind::Must,
@@ -144,7 +154,7 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
 }
 
 /// Reads the requirements of a job text.
-pub(crate) fn read(text: &str) -> JobDoc {
+pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
     let mut doc = JobDoc::default();
     let (mut phrases, in_nice) = section_phrases(text);
     if !phrases.iter().any(|(_, kind, _)| *kind == ReqKind::Must) {
@@ -177,10 +187,10 @@ pub(crate) fn read(text: &str) -> JobDoc {
         let level = level_in(phrase);
         for (span, alternatives) in split(phrase) {
             let whole = &phrase[span.clone()];
-            if atoms::atoms(whole).is_empty() {
+            if atoms::atoms(whole, vocab).is_empty() {
                 continue;
             }
-            let class = classify(whole, level);
+            let class = classify(whole, level, vocab);
             doc.items.push(Item {
                 span: Some(start + span.start..start + span.end),
                 text: whole.to_owned(),
@@ -436,13 +446,18 @@ fn starts_with_any(atom: &str, stems: &[&str]) -> bool {
     stems.iter().any(|s| atom.starts_with(s))
 }
 
-fn classify(text: &str, phrase_level: Option<u8>) -> Class {
+fn classify(text: &str, phrase_level: Option<u8>, vocab: &Vocab) -> Class {
     let folded = fold(text);
     let tokens: Vec<&str> = atoms::raw_tokens(&folded).collect();
     if tokens.iter().any(|t| starts_with_any(t, lex::FRAME_WORDS)) {
         return Class::Frame;
     }
-    let content = atoms::atoms(text);
+    if let Some(word) = lex::LICENCE_WORDS.iter().find(|w| folded.contains(**w))
+        && lex::LICENCE_CONTEXT.iter().any(|c| folded.contains(c))
+    {
+        return Class::Licence(word);
+    }
+    let content = atoms::atoms(text, vocab);
     let soft = tokens
         .iter()
         .filter(|t| starts_with_any(t, lex::SOFT_SKILLS))
@@ -540,20 +555,40 @@ mod tests {
     #[test]
     fn kinds_years_levels() {
         assert_eq!(
-            classify("Ausgeprägte Kommunikationsstärke", None),
+            classify("Ausgeprägte Kommunikationsstärke", None, &Vocab::core()),
             Class::Soft
         );
-        assert_eq!(classify("Reisebereitschaft", None), Class::Frame);
         assert_eq!(
-            classify("Englischkenntnisse auf Niveau C1", None),
+            classify("Reisebereitschaft", None, &Vocab::core()),
+            Class::Frame
+        );
+        assert_eq!(
+            classify("Englischkenntnisse auf Niveau C1", None, &Vocab::core()),
             Class::Language("englisch".into(), Some(5))
         );
         assert_eq!(
             classify(
                 "Abgeschlossenes Studium der Wirtschaftswissenschaften",
-                None
+                None,
+                &Vocab::core()
             ),
             Class::Degree
+        );
+        assert_eq!(
+            classify(
+                "Zulassung als Steuerberater:in zwingend erforderlich",
+                None,
+                &Vocab::core()
+            ),
+            Class::Licence("steuerberater")
+        );
+        assert_eq!(
+            classify(
+                "Enge Zusammenarbeit mit Steuerberatern",
+                None,
+                &Vocab::core()
+            ),
+            Class::Skill
         );
         assert_eq!(
             years_in("Mindestens 15 Jahre Erfahrung in der Konsolidierung"),

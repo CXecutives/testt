@@ -127,9 +127,34 @@ pub enum ReasonCode {
     AvailabilityGap,
     StartVague,
     Permanent,
+    /// A formal requirement (degree field, licence) the profile does not hold: a check
+    /// with a score cap, decided only when the ad makes it mandatory.
     FormalOpen,
     LowEvidence,
     ShortText,
+    /// Stated annual salary (`salary`, `min`): decided below the minimum for a stated
+    /// permanent role in EUR per year, otherwise a check.
+    Salary,
+    /// A permanent role without a salary statement.
+    SalaryUnknown,
+    /// A permanent role outside the profile's region without enough remote share
+    /// (`location`): decided for a stated permanent role, a check when inferred.
+    PermanentRegion,
+    /// The work location of a permanent role is unclear (country only, none given, or an
+    /// unclear contract type).
+    PermanentRegionUnclear,
+    /// The target profile asks for fewer years than the profile's minimum (`years`, `max`,
+    /// `target`).
+    TooJunior,
+    /// Years or level of the target profile are unclear (topic-specific years, junior title).
+    SeniorityUnclear,
+    /// The profile is clearly more senior than the target profile (`years`, `target`).
+    Overqualified,
+    /// Contract type inferred from the ad (`type`: interim, permanent, anue, unclear;
+    /// `inferred` when only indirect cues were found).
+    ContractType,
+    /// A staffing agency without contract details: temporary agency work is possible.
+    AnueRisk,
 }
 
 /// How a profile entry met a requirement.
@@ -194,6 +219,12 @@ pub enum CriterionKey {
     Countries,
     NoAnue,
     Availability,
+    /// Minimum annual salary for permanent roles.
+    MinSalary,
+    /// Places (and minimum remote share) for permanent roles.
+    PermanentRegion,
+    /// Minimum years the target profile of an ad must ask for.
+    TargetYears,
 }
 
 /// State of one hard criterion for a job.
@@ -263,6 +294,22 @@ pub enum ProfileWarningCode {
     FewCompetences,
     NoCriteria,
     AvailabilityNotUnderstood,
+    /// A criterion key is present but its value cannot be read (`key`, `value`).
+    CriterionNotUnderstood,
+    /// A remote minimum for permanent roles without places: the region rule stays off.
+    RegionWithoutPlaces,
+}
+
+/// An alternative term of a profile competence (`auch` / `aliases`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AliasInfo {
+    /// The competence as written.
+    pub competence: String,
+    /// The alternative term.
+    pub alias: String,
+    /// JSON path of the alias, e.g. `kernkompetenzen[2].auch[0]`.
+    pub path: String,
 }
 
 /// "What the app understood" of the profile.
@@ -275,4 +322,12 @@ pub struct ProfileSummary {
     pub sources: Vec<SourceInfo>,
     pub criteria: Vec<CriterionInfo>,
     pub warnings: Vec<ProfileWarning>,
+    /// Alternative terms of competences.
+    pub aliases: Vec<AliasInfo>,
+    /// Domain packs switched on by the profile's competences (e.g. `finance`, `sap`).
+    pub packs: Vec<String>,
+    /// Total years of professional experience, if stated.
+    pub years: Option<u32>,
+    /// Degrees as written in the profile.
+    pub degrees: Vec<String>,
 }

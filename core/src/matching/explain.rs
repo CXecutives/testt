@@ -91,6 +91,7 @@ fn class_name(class: &Class) -> &'static str {
         Class::Skill => "skill",
         Class::Language(..) => "language",
         Class::Degree => "degree",
+        Class::Licence(_) => "licence",
         Class::Soft => "soft",
         Class::Frame => "frame",
     }
@@ -116,7 +117,6 @@ pub(crate) fn assessment(
         nice_total: 0,
         evidence: evaluation.evidence,
     };
-    let mut formal_open = false;
     for scored in &evaluation.items {
         let item = &scored.item;
         let kind = match scored.fit.value {
@@ -140,9 +140,6 @@ pub(crate) fn assessment(
         }
         if weight == Weight::Nice {
             summary.nice_total += 1;
-        }
-        if item.class == Class::Degree && profile.skills.degree_fields.is_none() {
-            formal_open = true;
         }
         let code = if item.stage == Stage::Vocabulary {
             ReasonCode::Term
@@ -177,9 +174,6 @@ pub(crate) fn assessment(
     summary.must_total = summary.must_met + summary.must_partial + summary.must_open;
 
     let criteria = criterion_states(profile, &mut b, evaluation);
-    if formal_open {
-        b.reason(ReasonKind::Check, Weight::Info, ReasonCode::FormalOpen);
-    }
     if evaluation.short {
         b.reason(ReasonKind::Check, Weight::Info, ReasonCode::ShortText);
     } else if evaluation.evidence != EvidenceLevel::Full {
@@ -218,14 +212,17 @@ fn criterion_states(
             CriterionKey::Availability,
             c.available != Availability::Unset,
         ),
+        state(CriterionKey::MinSalary, c.min_salary.is_some()),
+        state(CriterionKey::PermanentRegion, c.places.is_some()),
+        state(CriterionKey::TargetYears, c.target_years.is_some()),
     ];
     for finding in &evaluation.findings {
-        let (kind, weight) = if finding.decided {
-            (ReasonKind::Violation, Weight::Hard)
+        let weight = if finding.decided {
+            Weight::Hard
         } else {
-            (ReasonKind::Check, Weight::Info)
+            Weight::Info
         };
-        let reason = b.reason(kind, weight, finding.code);
+        let reason = b.reason(finding.kind, weight, finding.code);
         reason.params = object(&finding.params);
         let id = reason.id;
         for span in &finding.spans {
@@ -235,13 +232,14 @@ fn criterion_states(
             .key
             .and_then(|key| states.iter_mut().find(|s| s.key == key))
         {
-            let decided = if finding.decided {
-                CriterionStatus::Violated
-            } else {
-                CriterionStatus::Check
+            let next = match finding.kind {
+                ReasonKind::Violation => CriterionStatus::Violated,
+                ReasonKind::Check => CriterionStatus::Check,
+                // A frame row (over-qualified) leaves the criterion met.
+                _ => state.status,
             };
             if state.status != CriterionStatus::Violated {
-                state.status = decided;
+                state.status = next;
                 state.reason = Some(id);
             }
         }

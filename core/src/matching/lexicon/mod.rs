@@ -6,6 +6,7 @@
 //! verbatim from `ca9a2cd^:matcher.py`; `tables.rs` is generated from
 //! `core/tests/fixtures/matching/legacy_lexicon.json`.
 
+pub(crate) mod domains;
 pub(crate) mod engine;
 mod tables;
 
@@ -118,6 +119,26 @@ pub(crate) const KEY_COUNTRIES: &str = "laender";
 pub(crate) const KEY_EXCLUDED_CONTRACTS: &str = "ausgeschlossene_vertragsarten";
 pub(crate) const KEY_AVAILABLE: &str = "verfuegbar_ab";
 pub(crate) const KEY_REMOTE_OUTSIDE: &str = "remote_ausserhalb_erlaubt";
+/// Keys of the new engine, German first, English aliases after (missing = rule off).
+pub(crate) const KEY_CRITERIA_ALIASES: &[&str] = &[KEY_CRITERIA, "hard_criteria"];
+pub(crate) const KEYS_MIN_SALARY: &[&str] =
+    &["min_jahresgehalt", "min_annual_salary", "min_salary"];
+pub(crate) const KEYS_PERMANENT_PLACES: &[&str] = &[
+    "festanstellung_orte",
+    "permanent_locations",
+    "permanent_places",
+];
+pub(crate) const KEYS_PERMANENT_REMOTE: &[&str] =
+    &["festanstellung_remote_min", "permanent_remote_min"];
+pub(crate) const KEYS_TARGET_YEARS: &[&str] = &["zielprofil_min_jahre", "target_min_years"];
+/// Top-level total years of experience.
+pub(crate) const KEYS_TOTAL_YEARS: &[&str] = &[
+    "berufserfahrung_jahre",
+    "years_of_experience",
+    "total_years",
+];
+/// Alternative terms of a competence entry.
+pub(crate) const KEYS_ALIASES: &[&str] = &["auch", "aliases"];
 /// Contract type value meaning temporary agency work (ANÜ).
 pub(crate) const CONTRACT_ANUE: &str = "anue";
 /// Availability value meaning "immediately".
