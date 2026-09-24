@@ -62,14 +62,16 @@
     transform: translate(var(--tooltip-x), var(--tooltip-y));
   }
 
+  /* Small and quiet like a native tooltip: 12 px text, 4/8 padding, a light shadow. */
   .bubble {
-    padding: var(--space-6) var(--space-12);
-    border-radius: var(--radius-sm);
+    padding: var(--space-4) var(--space-8);
+    border-radius: var(--radius-xs);
     background-color: var(--surface-inverse);
-    box-shadow: var(--sh-pop);
+    box-shadow: var(--sh-tooltip);
     color: var(--text-inverse);
-    font: var(--type-sm);
+    font: var(--type-xs);
     font-weight: var(--weight-medium);
+    letter-spacing: var(--tracking-tooltip);
     overflow-wrap: anywhere;
   }
 </style>
