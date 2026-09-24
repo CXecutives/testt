@@ -6,26 +6,44 @@
   job is opened (`animate` names the job; once per job and session). A view that comes back
   shows its rings as they are. At most 10 rings fill at the same time, the others are placed
   at once.
-  One silhouette for every state, a solid track everywhere; the centre says the state:
-  excluded: a pale red track and a ban icon. unscorable: the track and a dash. pending: the
-  track and a quarter arc (turning only in the reader). none: the track alone. A score of
-  100 sets its digits smaller in the list ring. A selected row passes a navy --ring-track.
+  A scored ring takes the colour of its decile (ten steps, red through orange and yellow
+  to green; `d0` ... `d9`) with ink digits; the tinted disc of the larger rings follows
+  the band. The centre and the track say the state:
+  provisional: a score from a teaser only, not final: the value and its colour on a dashed
+  track. none: not scored yet: a dashed track alone. excluded: a pale red track and a ban
+  icon. unscorable: the track and a dash. pending: the track and a quarter arc (turning
+  only in the reader). A score of 100 sets its digits smaller in the list ring. A selected
+  row passes a warm --ring-track.
 -->
 <script lang="ts" module>
-  import type { Band, JobMatch } from '$lib/ipc/types';
+  import type { Band, DetailState, JobMatch } from '$lib/ipc/types';
 
   export type RingState =
     | { status: 'scored'; score: number; band: Band }
+    | { status: 'provisional'; score: number; band: Band }
     | { status: 'excluded' }
     | { status: 'unscorable' }
     | { status: 'pending' }
     | { status: 'none' };
 
-  /** The ring state of a job's match (null = not scored yet). */
-  export function ringState(match: JobMatch | null, pending = false): RingState {
+  /**
+   * The ring state of a job's match (null = not scored yet). `detail` is the state of the
+   * job's details: a score from a teaser is provisional, and a job whose details are still
+   * coming is not "not rateable" yet but simply not scored.
+   */
+  export function ringState(
+    match: JobMatch | null,
+    pending = false,
+    detail: DetailState['kind'] | null = null,
+  ): RingState {
     if (match === null) return pending ? { status: 'pending' } : { status: 'none' };
     if (match.status === 'excluded') return { status: 'excluded' };
-    if (match.status === 'unscorable') return { status: 'unscorable' };
+    if (match.status === 'unscorable') {
+      return detail === 'pending' ? { status: 'none' } : { status: 'unscorable' };
+    }
+    if (detail === 'teaser') {
+      return { status: 'provisional', score: match.score, band: match.band };
+    }
     return { status: 'scored', score: match.score, band: match.band };
   }
 
@@ -54,7 +72,9 @@
 
   let { ring, size = 'sm', animate = null, testid = null }: Props = $props();
 
-  const score = $derived(ring.status === 'scored' ? Math.max(0, Math.min(100, ring.score)) : 0);
+  /** A number on the ring (final or provisional). */
+  const valued = $derived(ring.status === 'scored' || ring.status === 'provisional');
+  const score = $derived(valued && 'score' in ring ? Math.max(0, Math.min(100, ring.score)) : 0);
 
   const number = countUp(untrack(() => score));
   let shown = $state(untrack(() => score));
@@ -62,12 +82,16 @@
   let mounted = false;
   let wasScored = false;
   let arc = $state<SVGCircleElement | null>(null);
-  const band = $derived(ring.status === 'scored' ? ring.band : null);
+  const band = $derived(valued && 'band' in ring ? ring.band : null);
+  /** The colour step: the decile of the score, 100 in the last one. */
+  const step = $derived(valued ? `d${Math.min(9, Math.floor(score / 10))}` : '');
 
   const label = $derived.by(() => {
     switch (ring.status) {
       case 'scored':
         return `${de.score.value(formatPercent(ring.score))} · ${de.score.band[ring.band]}`;
+      case 'provisional':
+        return `${de.score.value(formatPercent(ring.score))} · ${de.score.band[ring.band]} · ${de.score.provisional}`;
       case 'excluded':
         return de.score.excluded;
       case 'unscorable':
@@ -85,7 +109,7 @@
   }
 
   $effect(() => {
-    const scored = ring.status === 'scored';
+    const scored = valued;
     const value = score;
     untrack(() => {
       const first = !mounted && animate !== null && !(animate in filled);
@@ -126,8 +150,8 @@
 </script>
 
 <span
-  class="ring {size} {ring.status} {band ?? ''}"
-  class:full={ring.status === 'scored' && score === 100}
+  class="ring {size} {ring.status} {band ?? ''} {step}"
+  class:full={valued && score === 100}
   role="img"
   aria-label={label}
   data-testid={testid ?? undefined}
@@ -135,7 +159,7 @@
   <svg class="svg" viewBox="0 0 36 36" aria-hidden="true">
     <circle class="disc" cx="18" cy="18" r="15.9155" />
     <circle class="track" cx="18" cy="18" r="15.9155" />
-    {#if ring.status === 'scored'}
+    {#if valued}
       <circle
         bind:this={arc}
         class="value"
@@ -156,7 +180,7 @@
     </span>
   {/if}
   <span class="center">
-    {#if ring.status === 'scored'}
+    {#if valued}
       {Math.round(number.current)}
     {:else if ring.status === 'excluded'}
       <Icon name="ban" size={size === 'sm' ? 'sm' : size === 'md' ? 'md' : 'lg'} />
@@ -203,6 +227,12 @@
     stroke: var(--score-excluded-track);
   }
 
+  /* Not final (from a teaser) or not scored yet: the track is dashed. */
+  .provisional .track,
+  .none .track {
+    stroke-dasharray: 2.5 2.5;
+  }
+
   /* Pending: a quarter arc over the track (25 of the 100 units), from 12 o'clock. */
   .wait {
     position: absolute;
@@ -245,22 +275,63 @@
     letter-spacing: var(--tracking-tight);
   }
 
+  /* The disc of the larger rings follows the band; the digits are ink. */
+  .scored,
+  .provisional {
+    --ring-text: var(--score-digits);
+  }
+
   .high {
-    --ring-color: var(--score-high-ring);
-    --ring-text: var(--score-high-text);
     --ring-surface: var(--score-high-surface);
   }
 
   .mid {
-    --ring-color: var(--score-mid-ring);
-    --ring-text: var(--score-mid-text);
     --ring-surface: var(--score-mid-surface);
   }
 
   .low {
-    --ring-color: var(--score-low-ring);
-    --ring-text: var(--score-low-text);
     --ring-surface: var(--score-low-surface);
+  }
+
+  /* The ring colour: the decile of the score. */
+  .d0 {
+    --ring-color: var(--score-ring-0);
+  }
+
+  .d1 {
+    --ring-color: var(--score-ring-1);
+  }
+
+  .d2 {
+    --ring-color: var(--score-ring-2);
+  }
+
+  .d3 {
+    --ring-color: var(--score-ring-3);
+  }
+
+  .d4 {
+    --ring-color: var(--score-ring-4);
+  }
+
+  .d5 {
+    --ring-color: var(--score-ring-5);
+  }
+
+  .d6 {
+    --ring-color: var(--score-ring-6);
+  }
+
+  .d7 {
+    --ring-color: var(--score-ring-7);
+  }
+
+  .d8 {
+    --ring-color: var(--score-ring-8);
+  }
+
+  .d9 {
+    --ring-color: var(--score-ring-9);
   }
 
   .excluded {

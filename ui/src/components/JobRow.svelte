@@ -8,15 +8,20 @@
   The star to pin sits below the date: filled when pinned, otherwise it appears on hover (a
   sibling of the row button, so it never selects the row; the row keeps its hover while
   the pointer is on the star). An excluded row is muted as a whole, its dot and star too.
-  When a job is read while its row is on screen the dot shrinks away. A cut-off title
-  shows in full in a tooltip. Hover and paint stay inside the row (containment).
+  When a job is read while its row is on screen the dot shrinks away; an excluded row has
+  no dot (no count includes it). Under the date, on hover: archive (or bring back) and the
+  star (a pinned star always shows). A quiet badge says where the user's application
+  stands (Beworben, Im Gespräch, Zusage, Absage); pinned needs none (the star). A date older
+  than ten days sits on a quiet tint. A score from a teaser is a provisional ring. A cut-off
+  title shows in full in a tooltip. Hover and paint stay inside the row (containment); like the
+  row, its hover waits while the list scrolls (`:root:not([data-scrolling])`).
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
   import { de } from '$lib/i18n/de';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
   import { rowReason } from '$lib/i18n/texts';
-  import type { JobView } from '$lib/ipc/types';
+  import type { AppStatus, JobView } from '$lib/ipc/types';
   import { dotOut } from '$lib/motion/transitions';
   import Badge, { type BadgeTone } from './Badge.svelte';
   import Button from './Button.svelte';
@@ -37,6 +42,12 @@
     onselect?: ((job: JobView) => void) | null;
     /** Pin or unpin from the row; without it a pinned job only shows the star. */
     onpin?: ((job: JobView) => void) | null;
+    /** Archive (or bring back an archived job) from the row. */
+    onarchive?: ((job: JobView) => void) | null;
+    /** The date is older than ten days (null: decide from the date and `now`). */
+    aged?: boolean | null;
+    /** The row's test id (another list of the same jobs needs its own). */
+    testid?: string | null;
   }
 
   let {
@@ -47,9 +58,33 @@
     now,
     onselect = null,
     onpin = null,
+    onarchive = null,
+    aged = null,
+    testid = null,
   }: Props = $props();
 
+  /** A date this old is marked (days). */
+  const AGED_DAYS = 10;
+  const DAY_MS = 86_400_000;
+  const APP_TONE: Record<Exclude<AppStatus, 'saved'>, BadgeTone> = {
+    applied: 'neutral',
+    interview: 'neutral',
+    offer: 'success',
+    rejected: 'neutral',
+  };
+
   const excluded = $derived(job.match?.status === 'excluded');
+  const when = $derived(job.mailDate ?? job.firstSeenAt);
+  const old = $derived(
+    aged ?? (now ?? new Date()).getTime() - new Date(when).getTime() > AGED_DAYS * DAY_MS,
+  );
+  const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
+  /** Where the user's application stands (saved needs no badge: the star says it). */
+  const status = $derived(
+    job.appStatus && job.appStatus !== 'saved'
+      ? { label: de.reader.appStatus[job.appStatus], tone: APP_TONE[job.appStatus] }
+      : null,
+  );
   const reason = $derived(ring ? rowReason(job) : null);
   const heading = $derived(job.title ? displayTitle(job.title) : de.job.untitled);
 
@@ -68,7 +103,7 @@
 </script>
 
 {#snippet ringCell()}
-  <ScoreRing ring={ringState(job.match, pending)} size="sm" />
+  <ScoreRing ring={ringState(job.match, pending, job.detail.kind)} size="sm" />
 {/snippet}
 
 <!-- Without a ring an empty leading slot keeps the gap between the dot and the title. -->
@@ -77,9 +112,9 @@
 {/snippet}
 
 {#snippet endCell()}
-  <span class="date">{formatRelative(job.mailDate ?? job.firstSeenAt, now, true)}</span>
-  {#if onpin}
-    <span class="star-slot" aria-hidden="true"></span>
+  <span class="date" class:old>{formatRelative(when, now, true)}</span>
+  {#if onpin || onarchive}
+    <span class="tool-slot" class:two={onpin && onarchive} aria-hidden="true"></span>
   {:else if job.pinned}
     <span class="star" role="img" aria-label={de.job.pinned}
       ><Icon name="star" size="sm" filled /></span
@@ -94,7 +129,7 @@
     {selected}
     muted={excluded}
     onclick={onselect ? () => onselect?.(job) : null}
-    testid="job-row-{job.key.portal}-{job.key.id}"
+    testid={rowId}
   >
     <span class="title" class:unread={job.unread} use:tooltip={{ text: heading, truncated: true }}
       >{heading}</span
@@ -107,22 +142,41 @@
       {#if reason}
         <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
       {/if}
+      {#if status}<Badge label={status.label} tone={status.tone} />{/if}
       {#if deviation}<Badge label={deviation.label} tone={deviation.tone} />{/if}
     </span>
   </ListRow>
-  {#if job.unread}<span class="dot" role="img" aria-label={de.job.unread} out:dotOut></span>{/if}
-  {#if onpin}
-    <span class="pin">
-      <Button
-        variant="ghost"
-        size="sm"
-        iconOnly
-        icon="star"
-        label={de.reader.pin}
-        pressed={job.pinned}
-        testid="pin-{job.key.portal}-{job.key.id}"
-        onclick={() => onpin?.(job)}
-      />
+  {#if job.unread && !excluded}<span class="dot" role="img" aria-label={de.job.unread} out:dotOut
+    ></span>{/if}
+  {#if onpin || onarchive}
+    <span class="tools">
+      {#if onarchive}
+        <span class="tool">
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            icon={job.archived ? 'archive-restore' : 'archive'}
+            label={job.archived ? de.reader.unhide : de.reader.hide}
+            testid="archive-{job.key.portal}-{job.key.id}"
+            onclick={() => onarchive?.(job)}
+          />
+        </span>
+      {/if}
+      {#if onpin}
+        <span class="tool pin">
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            icon="star"
+            label={de.reader.pin}
+            pressed={job.pinned}
+            testid="pin-{job.key.portal}-{job.key.id}"
+            onclick={() => onpin?.(job)}
+          />
+        </span>
+      {/if}
     </span>
   {/if}
 </div>
@@ -134,11 +188,11 @@
   }
 
   /* The row keeps its hover while the pointer is on its star (a sibling of the row). */
-  .job:hover :global(.row:not(.selected, :active)) {
+  :global(:where(:root:not([data-scrolling]))) .job:hover :global(.row:not(.selected, :active)) {
     background-color: var(--surface-hover);
   }
 
-  .job:hover :global(.row.selected) {
+  :global(:where(:root:not([data-scrolling]))) .job:hover :global(.row.selected) {
     background-color: var(--surface-selected-hover);
   }
 
@@ -157,10 +211,6 @@
   /* Without a ring the dot sits on the axis of the title line. */
   .ringless .dot {
     top: calc(var(--space-12) + (var(--leading-title) - var(--dot-unread)) / 2);
-  }
-
-  .muted .dot {
-    opacity: var(--opacity-muted);
   }
 
   .title {
@@ -223,7 +273,7 @@
     transition: color var(--dur-base) var(--ease-standard);
   }
 
-  .job:hover .date {
+  :global(:where(:root:not([data-scrolling]))) .job:hover .date {
     color: var(--text-muted);
     transition-duration: var(--dur-hover);
   }
@@ -243,9 +293,22 @@
     min-width: 0;
   }
 
-  .star-slot {
+  /* Room under the date for the tools, so they never cover the meta line. */
+  .tool-slot {
     width: var(--control-sm);
     height: var(--control-sm);
+  }
+
+  .tool-slot.two {
+    width: calc(2 * var(--control-sm) + var(--space-2));
+  }
+
+  /* An old date sits on a quiet tint (older than ten days). */
+  .date.old {
+    padding: 0 var(--space-6);
+    border-radius: var(--radius-full);
+    background-color: var(--surface-muted);
+    color: var(--text-muted);
   }
 
   .star {
@@ -257,34 +320,36 @@
     color: var(--pressed);
   }
 
-  /* The pin button over the reserved slot below the date: it fades in on hover (100 ms). */
-  .pin {
+  /* The tools over the reserved slot below the date: they fade in on hover (100 ms); a
+     pinned star always shows. */
+  .tools {
     position: absolute;
     top: calc(var(--space-12) + var(--leading-title) + var(--space-4));
     right: var(--pane-padding);
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .tool {
+    display: inline-flex;
     opacity: 0;
     transition: opacity var(--dur-fast) var(--ease-standard);
   }
 
-  /* On the washed row the star's own hover is one step deeper. */
-  .pin :global(.btn.ghost) {
+  /* On the washed row a tool's own hover is one step deeper. */
+  .tool :global(.btn.ghost) {
     --btn-bg-hover: var(--surface-press);
   }
 
-  .job:hover .pin,
-  .pin:focus-within,
+  :global(:where(:root:not([data-scrolling]))) .job:hover .tool,
+  .tool:focus-within,
   .pinned .pin {
     opacity: 1;
   }
 
-  .muted:hover .pin,
-  .muted .pin:focus-within,
+  :global(:where(:root:not([data-scrolling]))) .muted:hover .tool,
+  .muted .tool:focus-within,
   .muted.pinned .pin {
     opacity: var(--opacity-muted);
-  }
-
-  /* No hover while the list scrolls (input.ts). */
-  :global(:root[data-scrolling]) .pin {
-    pointer-events: none;
   }
 </style>

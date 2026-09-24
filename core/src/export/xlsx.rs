@@ -6,6 +6,7 @@ use std::path::Path;
 use rust_xlsxwriter::{Color, Format, FormatBorder, Workbook, Worksheet, XlsxError};
 
 use super::Line;
+use super::scale::{SCORE_SCALE, score_step};
 use super::texts::{COLUMNS, INFO_NOTE, INFO_NOTE_LABEL, INFO_SHEET, JOBS_SHEET, app_status_label};
 use crate::error::Result;
 use crate::model::MatchStatus;
@@ -43,6 +44,8 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
         .set_background_color(Color::RGB(HEADER_GREY))
         .set_border_bottom(FormatBorder::Thin);
     let grey = Format::new().set_font_color(Color::RGB(EXCLUDED_GREY));
+    let steps =
+        SCORE_SCALE.map(|colour| Format::new().set_background_color(Color::RGB(colour.rgb())));
     let dates = [
         Format::new().set_num_format(DATE_FORMAT),
         grey.clone().set_num_format(DATE_FORMAT),
@@ -76,11 +79,18 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
         sheet.write_datetime_with_format(row, 8, time::local(job.first_seen_at), date)?;
         text(sheet, row, 9, line.details)?;
         text(sheet, row, 10, &line.key)?;
-        // Unscorable jobs have no number: an empty cell sorts behind every score.
+        // Unscorable jobs have no number: an empty cell sorts behind every score. A scored
+        // job's cell takes the ring colour of the app (ten steps, `scale.rs`); an excluded
+        // one stays in the grey of its row.
         if let Some(m) = &job.match_
             && m.status != MatchStatus::Unscorable
         {
-            sheet.write_number(row, 11, f64::from(m.score))?;
+            if m.status == MatchStatus::Scored {
+                let step = &steps[score_step(m.score)];
+                sheet.write_number_with_format(row, 11, f64::from(m.score), step)?;
+            } else {
+                sheet.write_number(row, 11, f64::from(m.score))?;
+            }
         }
         if let Some(status) = job.app_status {
             text(sheet, row, 12, app_status_label(status))?;

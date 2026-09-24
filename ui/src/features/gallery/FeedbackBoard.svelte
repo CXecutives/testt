@@ -12,6 +12,16 @@
   const t = text.feedback;
   const noop = (): void => undefined;
 
+  /** Every step of the colour scale (one ring per decile). */
+  const scale = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95].map((score) => ({
+    id: `step-${score}`,
+    state: {
+      status: 'scored',
+      score,
+      band: score >= 80 ? 'high' : score >= 40 ? 'mid' : 'low',
+    } satisfies RingState,
+  }));
+
   const rings: { id: string; state: RingState }[] = [
     { id: 'full', state: { status: 'scored', score: 100, band: 'high' } },
     { id: 'high', state: { status: 'scored', score: 91, band: 'high' } },
@@ -19,6 +29,7 @@
     { id: 'low', state: { status: 'scored', score: 28, band: 'low' } },
     { id: 'excluded', state: { status: 'excluded' } },
     { id: 'unscorable', state: { status: 'unscorable' } },
+    { id: 'provisional', state: { status: 'provisional', score: 58, band: 'mid' } },
     { id: 'pending', state: { status: 'pending' } },
     { id: 'none', state: { status: 'none' } },
   ];
@@ -32,6 +43,11 @@
 </script>
 
 <Section heading={t.rings} id="rings">
+  <div class="row" data-testid="ring-scale">
+    {#each scale as ring (ring.id)}
+      <ScoreRing ring={ring.state} size="md" testid="ring-{ring.id}" />
+    {/each}
+  </div>
   {#each ['lg', 'md', 'sm'] as const as size (size)}
     <div class="row">
       {#each rings as ring (ring.id)}

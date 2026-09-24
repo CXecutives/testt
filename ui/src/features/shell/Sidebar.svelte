@@ -14,6 +14,7 @@
   import SideNav, { type SideNavItem } from '$components/SideNav.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import { de } from '$lib/i18n/de';
+  import { settled } from '$lib/motion/settled.svelte';
   import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
@@ -45,6 +46,8 @@
   const setup = $derived(navigation.current === 'jobs' && shell.firstRun);
   // A click opens the run card: without a run to open the status would be a dead button.
   // The run card says the same while it is on screen.
+  // The status that arrives with the first data is simply there (no fade at start).
+  const motion = settled();
   const statusShown = $derived(
     (run.active || last !== null) &&
       !(navigation.current === 'jobs' && !shell.firstRun && shell.runCard),
@@ -72,7 +75,7 @@
   </div>
 
   {#if statusShown}
-    <div class="status" transition:fade>
+    <div class="status" transition:fade={{ on: motion.ready }}>
       <StatusLine
         text={status}
         label={de.shell.showRun}

@@ -421,6 +421,8 @@ export const de = {
     /** `Passung 87 %` - the number comes formatted from format.ts. */
     value: (percent: string) => `Passung ${percent}`,
     excluded: 'Ausgeschlossen',
+    /** Aria label part of a ring whose score comes from a teaser only. */
+    provisional: 'vorläufig',
     unscorable: 'Nicht bewertbar',
     pending: 'Wird bewertet',
     none: 'Noch nicht bewertet',

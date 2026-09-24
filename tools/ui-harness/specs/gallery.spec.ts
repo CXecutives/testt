@@ -122,6 +122,30 @@ test('job rows select on click and reorder without losing a row', async ({ page 
   await expect(rows.last()).toHaveAttribute('data-testid', first!);
 });
 
+test('job rows: tools, status, aged date, provisional ring, no dot on excluded', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const job = (id: string) =>
+    list.locator('.job', { has: page.locator(`[data-testid="job-row-${id}"]`) });
+  // Archive and bring back, left click; the button names its action.
+  const archive = page.getByTestId('archive-freelancermap-1001');
+  await expect(archive).toHaveAttribute('aria-label', 'Archivieren');
+  await archive.click();
+  await expect(archive).toHaveAttribute('aria-label', 'Wiederherstellen');
+  // Where the application stands, in a quiet badge; pinned has only its star.
+  await expect(job('linkedin-1002')).toContainText('Im Gespräch');
+  await expect(job('freelancermap-1001')).not.toContainText('Gemerkt');
+  // Older than ten days: the date sits on a tint.
+  await expect(job('freelancermap-1005').locator('.date')).toHaveClass(/old/);
+  await expect(job('freelancermap-1001').locator('.date')).not.toHaveClass(/old/);
+  // A score from a teaser is provisional (dashed); an excluded unread row has no dot.
+  await expect(job('freelance-1003').locator('.ring')).toHaveClass(/provisional/);
+  await expect(job('freelancermap-1006').locator('.dot')).toHaveCount(0);
+});
+
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {
   await open(page, '?gallery');
   const toggle = page.getByTestId('gallery-row-toggle');
