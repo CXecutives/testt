@@ -976,6 +976,74 @@ async fn scoring_follows_the_matcher() {
     assert_eq!(s.score.unwrap().scored, 2, "a new revision scores again");
 }
 
+/// An engine that panics on LinkedIn jobs (like the splitter once did on some ads).
+struct Panicky;
+
+impl Matcher for Panicky {
+    fn rev(&self) -> &'static str {
+        "boom"
+    }
+    fn assess(&self, job: &JobRow, text: Option<&str>) -> Option<crate::model::MatchRecord> {
+        assert!(job.key.portal != Portal::LinkedIn, "engine bug");
+        Picky("boom").assess(job, text)
+    }
+    fn explain(&self, job: &JobRow, _text: Option<&str>) -> Option<crate::matching::Assessment> {
+        assert!(job.key.portal != Portal::LinkedIn, "engine bug");
+        None
+    }
+}
+
+struct WithPanicky;
+
+impl Backends for WithPanicky {
+    type Mail = DemoMail;
+    type Pages = DemoPages;
+    async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
+        DemoBackends.connect_mail(cancel).await
+    }
+    fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
+        Ok(DemoPages)
+    }
+    fn matcher(&self) -> Option<Arc<dyn Matcher>> {
+        Some(Arc::new(Panicky))
+    }
+}
+
+/// A panic of the engine on one job neither stops the run nor the export: the job is
+/// unscorable with `engineFailed` and not asked again with the same revision.
+#[tokio::test(start_paused = true)]
+async fn an_engine_panic_marks_the_job_and_the_run_goes_on() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let (s, _) = go(
+        &mut WithPanicky,
+        &store,
+        &request(),
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.outcome, Outcome::Completed);
+    assert!(s.export.is_some(), "the export still ran");
+    let jobs = store.jobs(&crate::store::JobFilter::default()).unwrap();
+    let linkedin: Vec<&JobRow> = jobs
+        .iter()
+        .filter(|j| j.key.portal == Portal::LinkedIn)
+        .collect();
+    assert!(!linkedin.is_empty(), "{jobs:?}");
+    for job in linkedin {
+        let record = job.match_.as_ref().unwrap();
+        assert_eq!(record.status, crate::model::MatchStatus::Unscorable);
+        assert_eq!(
+            record.note.as_ref().unwrap().code,
+            super::score::ENGINE_FAILED
+        );
+        assert_eq!(job.match_rev.as_deref(), Some("boom"), "not asked again");
+    }
+}
+
 /// The text files do not know the match: byte-identical with and without a matcher.
 #[tokio::test(start_paused = true)]
 async fn txt_is_blind_to_the_match() {

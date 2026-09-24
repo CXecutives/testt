@@ -406,9 +406,12 @@ pub fn job_detail(
         return Ok(None);
     };
     let text = store.description(key)?;
-    let assessed = matcher
-        .filter(|m| m.usable())
-        .and_then(|m| Some((m, m.assessment(&job, text.as_deref())?)));
+    // An engine panic leaves the reader without a match instead of failing the command.
+    let assessed = matcher.filter(|m| m.usable()).and_then(|m| {
+        let assessment =
+            crate::pipeline::score::guarded(key, || m.assessment(&job, text.as_deref()))??;
+        Some((m, assessment))
+    });
     let match_ = match assessed {
         None => None,
         Some((matcher, assessment)) => {

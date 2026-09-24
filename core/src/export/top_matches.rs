@@ -70,7 +70,11 @@ pub fn top_matches(
     // A few more than needed: a fresh assessment can move a job out of the list.
     for job in store.top_matches(run, TOP_MATCHES_MAX * 2)? {
         let explained = match matcher {
-            Some(m) => m.explain(&job, store.description(&job.key)?.as_deref()),
+            Some(m) => {
+                let text = store.description(&job.key)?;
+                crate::pipeline::score::guarded(&job.key, || m.explain(&job, text.as_deref()))
+                    .flatten()
+            }
             None => None,
         };
         if let Some(entry) = entry(&job, explained.as_ref()) {
