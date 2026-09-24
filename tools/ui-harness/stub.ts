@@ -2031,7 +2031,8 @@ export class Menu {
     return new Menu(options.items);
   }
 
-  async popup(_at?: LogicalPosition): Promise<void> {
+  /** Opens where the page says (a LogicalPosition); the harness only records it. */
+  async popup(): Promise<void> {
     harness.menus.push(this.items.map((item) => item.entry));
     lastMenu = this.items;
   }
