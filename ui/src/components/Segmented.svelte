@@ -1,9 +1,11 @@
 <!--
-  Two or three equal-width options with an optional counter each. A white thumb slides
-  under the chosen option (translateX by whole option widths, 180 ms, emphasized); the
-  chosen label is ink and its count a soft warm pill, the others stay muted with a
-  plain count (same box, so nothing moves). An unchosen option washes on hover and darkens
-  while pressed. Counts roll when they change.
+  Two to four options with an optional counter each, on one track. Each option is as wide as
+  its label and count; the chosen one sits on its own white pill, so the pill always covers
+  exactly its option whatever the labels, counts or window width (it cross-fades, 100 ms).
+  When the track has less room than the options want, the labels shorten with an ellipsis
+  (the counts stay); nothing ever overlaps. The chosen label is ink and its count a soft
+  warm pill, the others stay muted with a plain count (same box, so nothing moves). An
+  unchosen option washes on hover and darkens while pressed. Counts roll when they change.
 -->
 <script lang="ts" module>
   export interface SegmentedOption<Id extends string = string> {
@@ -14,8 +16,7 @@
 </script>
 
 <script lang="ts" generics="Id extends string">
-  import { cssVars } from '$lib/actions/cssVars';
-  import { settled } from '$lib/motion/settled.svelte';
+  import { tooltip } from '$lib/actions/tooltip';
   import Count from './Count.svelte';
 
   interface Props {
@@ -28,26 +29,14 @@
   }
 
   let { options, value, label, size = 'md', testid = null, onchange }: Props = $props();
-
-  const motion = settled();
-
-  const index = $derived(
-    Math.max(
-      0,
-      options.findIndex((option) => option.id === value),
-    ),
-  );
 </script>
 
 <div
   class="segmented {size}"
-  class:ready={motion.ready}
   role="radiogroup"
   aria-label={label}
   data-testid={testid ?? undefined}
-  use:cssVars={{ count: options.length, index }}
 >
-  <span class="thumb" aria-hidden="true"></span>
   {#each options as option (option.id)}
     {@const chosen = option.id === value}
     <button
@@ -57,7 +46,9 @@
       aria-checked={chosen}
       onclick={() => onchange(option.id)}
     >
-      <span class="label">{option.label}</span>
+      <span class="pill" aria-hidden="true"></span>
+      <span class="label" use:tooltip={{ text: option.label, truncated: true }}>{option.label}</span
+      >
       {#if option.count !== undefined && option.count !== null}
         <Count value={option.count} tone={chosen ? 'soft' : 'plain'} />
       {/if}
@@ -66,11 +57,11 @@
 </div>
 
 <style>
+  /* It may shrink inside a flex row too (its options then shorten their labels). */
   .segmented {
-    position: relative;
-    display: inline-grid;
-    grid-auto-columns: 1fr;
-    grid-auto-flow: column;
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
     height: var(--seg-height);
     padding: var(--space-2);
     border-radius: var(--radius-control);
@@ -78,31 +69,15 @@
     isolation: isolate;
   }
 
-  .thumb {
-    position: absolute;
-    z-index: var(--z-below);
-    top: var(--space-2);
-    bottom: var(--space-2);
-    left: var(--space-2);
-    width: calc((100% - 2 * var(--space-2)) / var(--count));
-    border-radius: var(--radius-sm);
-    background-color: var(--surface);
-    box-shadow: var(--sh-thumb);
-    transform: translateX(calc(var(--index) * 100%));
-    will-change: transform;
-  }
-
-  /* It slides only once the control has been drawn (never when it mounts). */
-  .ready .thumb {
-    transition: transform var(--dur-slow) var(--ease-emphasized);
-  }
-
+  /* As wide as its content; it gives way (the label shortens) when the track is short. */
   .option {
     position: relative;
     display: inline-flex;
+    flex: 0 1 auto;
     align-items: center;
     justify-content: center;
     gap: var(--space-4);
+    min-width: 0;
     padding: 0 var(--space-12);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
@@ -112,16 +87,24 @@
     transition: color var(--dur-base) var(--ease-standard);
   }
 
-  /* The hover wash of an unchosen option, inside its own box (the thumb stays below). */
-  .option::before {
+  /* The pill of the chosen option, and the hover wash of the others: one box each,
+     exactly the option's own. */
+  .pill {
     position: absolute;
     z-index: var(--z-below);
     inset: 0;
     border-radius: inherit;
     background-color: var(--surface-hover);
-    content: '';
     opacity: 0;
-    transition: opacity var(--dur-base) var(--ease-standard);
+    transition:
+      opacity var(--dur-fast) var(--ease-standard),
+      background-color var(--dur-fast) var(--ease-standard);
+  }
+
+  .option[aria-checked='true'] .pill {
+    background-color: var(--surface);
+    box-shadow: var(--sh-thumb);
+    opacity: 1;
   }
 
   .option[aria-checked='false']:hover {
@@ -129,12 +112,12 @@
     transition-duration: var(--dur-hover);
   }
 
-  .option[aria-checked='false']:hover::before {
+  .option[aria-checked='false']:hover .pill {
     opacity: 1;
     transition-duration: var(--dur-hover);
   }
 
-  .option[aria-checked='false']:active::before {
+  .option[aria-checked='false']:active .pill {
     background-color: var(--surface-press);
   }
 
@@ -144,6 +127,12 @@
 
   :global(:root[data-window='inactive']) .option[aria-checked='true'] {
     color: var(--text);
+  }
+
+  .label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .option:focus-visible {

@@ -1,0 +1,61 @@
+{
+  "schema": 2,
+  "generatedAt": "2026-09-24T07:30:00Z",
+  "rev": "e3:test",
+  "jobs": [
+    {
+      "key": "freelancermap:2801",
+      "title": "Interim CFO",
+      "company": "Hanseatic Holding GmbH",
+      "location": "Hamburg",
+      "portal": "freelancermap",
+      "url": "https://example.org/freelancermap:2801",
+      "score": 91,
+      "band": "high",
+      "mustMet": 3,
+      "mustTotal": 4,
+      "appStatus": "saved",
+      "firstSeenAt": "2026-09-20T07:30:00Z",
+      "met": [
+        "Konzernabschluss nach HGB"
+      ],
+      "partial": [
+        "Reporting nach IFRS"
+      ],
+      "open": [
+        "Power BI"
+      ],
+      "checks": [
+        "availabilityGap"
+      ],
+      "txtFile": null
+    },
+    {
+      "key": "linkedin:4100200301",
+      "title": "Head of Controlling",
+      "company": "Hanseatic Holding GmbH",
+      "location": "Hamburg",
+      "portal": "linkedin",
+      "url": "https://example.org/linkedin:4100200301",
+      "score": 84,
+      "band": "high",
+      "mustMet": 3,
+      "mustTotal": 4,
+      "appStatus": null,
+      "firstSeenAt": "2026-09-20T07:30:00Z",
+      "met": [
+        "Konzernabschluss nach HGB"
+      ],
+      "partial": [
+        "Reporting nach IFRS"
+      ],
+      "open": [
+        "Power BI"
+      ],
+      "checks": [
+        "availabilityGap"
+      ],
+      "txtFile": null
+    }
+  ]
+}

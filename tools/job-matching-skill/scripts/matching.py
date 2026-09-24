@@ -201,7 +201,7 @@ def brief(work: Path, top_n: int) -> str:
         f"TOP FILE schema {top.get('schema')} generated {top.get('generatedAt')} rev {top.get('rev')}"
         f" jobs {len(jobs)}, analyse the first {n}",
     ]
-    if top.get("schema") != 1:
+    if top.get("schema") not in (1, 2):
         out.append("NOTE unknown schema, read fields with care")
     out += ["", "PROFILE (personal data left out)"] + profile_lines(load_json(prof_path))
     for i, job in enumerate(jobs[:n], 1):
@@ -212,6 +212,11 @@ def brief(work: Path, top_n: int) -> str:
             f"app score {job.get('score')} ({job.get('band')}), musts met "
             f"{job.get('mustMet')}/{job.get('mustTotal')}"
         )
+        # Schema 2: the user's stage (saved, applied, ...) and when the app first saw the job.
+        if job.get("appStatus"):
+            out.append(f"stage: {job.get('appStatus')}")
+        if job.get("firstSeenAt"):
+            out.append(f"first seen: {job.get('firstSeenAt')}")
         for f in ("met", "partial", "open", "checks"):
             vals = job.get(f) or []
             out.append(f"{f}: " + (" || ".join(map(str, vals)) if vals else "-"))

@@ -81,6 +81,7 @@
             },
           ],
           autoFetchOnStart: null,
+          autoArchiveDays: null,
           language: null,
         },
       });

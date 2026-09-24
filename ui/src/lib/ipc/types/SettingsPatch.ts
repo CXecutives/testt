@@ -8,6 +8,10 @@ import type { PortalPatch } from "./PortalPatch";
  */
 export type SettingsPatch = { portals: Array<PortalPatch>, autoFetchOnStart: boolean | null, 
 /**
+ * Days after which old jobs archive themselves; 0 = never (`null` = unchanged).
+ */
+autoArchiveDays: number | null, 
+/**
  * The language the user chose (from then on the OS language no longer counts).
  */
 language: Language | null, };

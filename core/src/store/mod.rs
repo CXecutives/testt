@@ -6,7 +6,7 @@
 //!
 //! `schema` creates and migrates the tables, `jobs` holds the job, alert mail, job detail
 //! and text file methods, `matches` the match, read and pin columns of schema 3, `marks`
-//! the user's application status, note and "hidden" of schema 4.
+//! the user's application status, note and "archived" of schema 4.
 
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
@@ -26,7 +26,8 @@ mod pages;
 mod schema;
 
 pub use jobs::{
-    AlertMailRow, JobFilter, JobRow, ListFacet, MailRef, PageCounts, PageQuery, PortalCount, Seen,
+    AlertMailRow, JobFilter, JobRow, ListFacet, MailRef, NEW_DAYS, PageCounts, PageQuery,
+    PortalCount, Seen, new_since,
 };
 
 pub struct Store {
@@ -93,7 +94,7 @@ impl Store {
     }
 
     /// Forgets the scan state of every portal - after a switch of the Gmail account the new
-    /// mailbox starts with the first run (7 days) instead of at the state of the old one.
+    /// mailbox starts with the first run (30 days) instead of at the state of the old one.
     pub fn clear_scan_state(&self) -> Result<()> {
         self.conn()
             .execute("DELETE FROM kv WHERE key LIKE 'last_scan:%'", [])?;

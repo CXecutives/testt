@@ -1,0 +1,255 @@
+//! Pharma quality and regulatory affairs: GMP/GDP/GxP, qualified person and batch release,
+//! quality systems, deviations and CAPA, validation (also CSV), regulatory affairs and
+//! submissions (CTD/eCTD, CMC, ICH, AMG), sterile manufacturing and inspections.
+//! Degree fields (pharmacy, chemistry, biology) live in the core's degree table.
+//!
+//! external contract - do not translate.
+
+use super::Domain;
+
+pub(crate) const DOMAIN: Domain = Domain {
+    name: "pharma",
+    triggers: &[
+        "abweichungsmanag",
+        "affairs",
+        "annex",
+        "arzneimittel",
+        "capa",
+        "chargenfreigabe",
+        "cmc",
+        "computersystemvalid",
+        "ctd",
+        "deviation",
+        "ectd",
+        "fda",
+        "gdp",
+        "gmp",
+        "gxp",
+        "lims",
+        "pharmaz",
+        "prozessvalid",
+        "reinigungsvalid",
+        "sachkundig",
+        "sterilherstell",
+    ],
+    generic: &[],
+    concepts: &[
+        // GMP, GDP and GxP (`Good`/`gute` are stopwords; hyphenated keys serve spellings
+        // such as `GMP-Umfeld`, whose second part the text would drop on its own).
+        ("manufacturing practice", "gmp"),
+        ("herstellungspraxis", "gmp"),
+        ("cgmp", "gmp"),
+        ("eu-gmp", "gmp"),
+        ("eu-gmp-leitfaden", "gmp"),
+        ("eudralex", "gmp"),
+        ("gmp compliance", "gmp"),
+        ("gmp regularien", "gmp"),
+        ("gmp richtlinien", "gmp"),
+        ("gmp leitfaden", "gmp"),
+        ("gmp guidelines", "gmp"),
+        ("gmp regulations", "gmp"),
+        ("gmp anforderungen", "gmp"),
+        ("gmp vorgaben", "gmp"),
+        ("gmp-umfeld", "gmp"),
+        ("gmp-bereich", "gmp"),
+        ("gmp-kenntnisse", "gmp"),
+        ("gmp-erfahrung", "gmp"),
+        ("distribution practice", "gdp"),
+        ("vertriebspraxis", "gdp"),
+        ("gxp compliance", "gxp"),
+        ("gxp regularien", "gxp"),
+        ("gxp-umfeld", "gxp"),
+        ("gxp-kenntnisse", "gxp"),
+        ("documentation practice", "dokumentationspraxis"),
+        ("gute-dokumentationspraxis", "dokumentationspraxis"),
+        // Qualified person and release.
+        ("sachkundige person", "qp"),
+        ("qualified person", "qp"),
+        ("sachkenntnis", "qp"),
+        ("batch release", "chargenfreigabe"),
+        ("batch certification", "chargenfreigabe"),
+        // Quality systems and roles (the same keys and concepts as in `operations`).
+        ("quality assurance", "qualitatssicherung"),
+        ("qa", "qualitatssicherung"),
+        ("quality control", "qualitatskontrolle"),
+        ("quality management", "qualitatsmanagement"),
+        ("qm", "qualitatsmanagement"),
+        ("quality manager", "qualitatsmanagement"),
+        ("qualitatsmanager", "qualitatsmanagement"),
+        ("qualitatsmanagerin", "qualitatsmanagement"),
+        ("quality management system", "qualitatsmanagementsystem"),
+        ("qms", "qualitatsmanagementsystem"),
+        ("qm system", "qualitatsmanagementsystem"),
+        ("quality risk management", "qualitatsrisikomanagement"),
+        ("qrm", "qualitatsrisikomanagement"),
+        ("head quality", "qualitatsleitung"),
+        ("head qa", "qualitatsleitung"),
+        ("head quality assurance", "qualitatsleitung"),
+        ("quality director", "qualitatsleitung"),
+        ("director quality", "qualitatsleitung"),
+        ("qualitatsleiter", "qualitatsleitung"),
+        ("qualitatsleiterin", "qualitatsleitung"),
+        ("leiter qualitatssicherung", "qualitatsleitung"),
+        ("leiterin qualitatssicherung", "qualitatsleitung"),
+        ("leitung qualitatssicherung", "qualitatsleitung"),
+        ("qa leiter", "qualitatsleitung"),
+        ("qa leiterin", "qualitatsleitung"),
+        ("qa leitung", "qualitatsleitung"),
+        // Deviations, CAPA and change control.
+        ("capa management", "capa"),
+        ("corrective preventive action", "capa"),
+        ("korrektur vorbeugemassnahmen", "capa"),
+        ("deviation", "abweichungsmanagement"),
+        ("deviation management", "abweichungsmanagement"),
+        ("deviation handling", "abweichungsmanagement"),
+        ("abweichung", "abweichungsmanagement"),
+        ("abweichungsbearbeitung", "abweichungsmanagement"),
+        ("change control", "anderungskontrolle"),
+        ("out specification", "oos"),
+        // Validation and qualification.
+        ("validation", "validierung"),
+        ("process validation", "prozessvalidierung"),
+        ("cleaning validation", "reinigungsvalidierung"),
+        ("method validation", "methodenvalidierung"),
+        ("computer system validation", "computersystemvalidierung"),
+        (
+            "computerized system validation",
+            "computersystemvalidierung",
+        ),
+        (
+            "computerised system validation",
+            "computersystemvalidierung",
+        ),
+        ("computersystem validierung", "computersystemvalidierung"),
+        ("computervalidierung", "computersystemvalidierung"),
+        ("csv", "computersystemvalidierung"),
+        ("qualification", "qualifizierung"),
+        ("equipment qualification", "anlagenqualifizierung"),
+        ("data integrity", "datenintegritat"),
+        ("alcoa", "datenintegritat"),
+        // Regulatory affairs and submissions.
+        ("regulatory affairs", "arzneimittelzulassung"),
+        ("zulassung", "arzneimittelzulassung"),
+        ("zulassungsmanagement", "arzneimittelzulassung"),
+        ("zulassungsangelegenheiten", "arzneimittelzulassung"),
+        ("drug registration", "arzneimittelzulassung"),
+        ("marketing authorisation", "arzneimittelzulassung"),
+        ("marketing authorization", "arzneimittelzulassung"),
+        ("regulatory dossier", "zulassungsdossier"),
+        ("submission dossier", "zulassungsdossier"),
+        ("ctd", "ectd"),
+        ("ctd format", "ectd"),
+        ("common technical document", "ectd"),
+        ("electronic common technical document", "ectd"),
+        ("chemistry manufacturing controls", "cmc"),
+        ("ich guidelines", "ich"),
+        ("ich richtlinien", "ich"),
+        ("ich leitlinien", "ich"),
+        ("arzneimittelgesetz", "amg"),
+        ("pharmacovigilance", "pharmakovigilanz"),
+        ("drug safety", "pharmakovigilanz"),
+        ("arzneimittelsicherheit", "pharmakovigilanz"),
+        // Manufacturing and inspections.
+        ("sterile herstellung", "sterilfertigung"),
+        ("sterile manufacturing", "sterilfertigung"),
+        ("sterilherstellung", "sterilfertigung"),
+        ("aseptic processing", "sterilfertigung"),
+        ("aseptische herstellung", "sterilfertigung"),
+        ("aseptische fertigung", "sterilfertigung"),
+        ("cleanroom", "reinraum"),
+        ("clean room", "reinraum"),
+        ("inspection", "inspektion"),
+        ("behordeninspektion", "inspektion"),
+        ("regulatory inspection", "inspektion"),
+        ("inspection readiness", "inspektionsbereitschaft"),
+        ("audit readiness", "inspektionsbereitschaft"),
+        ("standard operating procedure", "sop"),
+        ("standardarbeitsanweisung", "sop"),
+        // Industry and professions.
+        ("pharmaceutical industry", "pharmaindustrie"),
+        ("pharma industry", "pharmaindustrie"),
+        ("pharmazeutische industrie", "pharmaindustrie"),
+        ("pharmabranche", "pharmaindustrie"),
+        ("pharmaceutical", "pharmazeutisch"),
+        ("life sciences", "life-sciences"),
+        ("biotechnology", "biotechnologie"),
+        ("biologics", "biologika"),
+        ("biologicals", "biologika"),
+        ("medical devices", "medizinprodukt"),
+        ("medical device regulation", "mdr"),
+        ("pharmacist", "apotheker"),
+        ("apothekerin", "apotheker"),
+    ],
+};
+
+#[cfg(test)]
+mod tests {
+    use super::super::testing::{assert_apart, assert_same, vocab};
+    use crate::matching::atoms::Vocab;
+
+    fn pharma() -> Vocab {
+        let v = vocab(&["GMP", "CAPA-Management", "Regulatory Affairs"]);
+        assert_eq!(v.packs(), ["pharma"]);
+        v
+    }
+
+    #[test]
+    fn paraphrases() {
+        assert_same(
+            &pharma(),
+            &[
+                ("Good Manufacturing Practice", "GMP"),
+                ("GMP-Umfeld", "GMP"),
+                ("GMP-Compliance", "GMP"),
+                ("EU-GMP-Leitfaden", "GMP"),
+                ("GMP-Regularien", "GMP Regularien"),
+                ("Good Distribution Practice", "GDP"),
+                ("Sachkundige Person", "Qualified Person"),
+                ("Sachkundigen Person", "Sachkenntnis"),
+                ("Batch release", "Chargenfreigabe"),
+                ("Quality Assurance", "Qualitätssicherung"),
+                ("QM-System", "Quality Management System"),
+                ("Head of Quality", "Leiterin Qualitätssicherung"),
+                ("Corrective and Preventive Actions", "CAPA"),
+                ("Korrektur- und Vorbeugemaßnahmen", "CAPA-Management"),
+                ("Deviations", "Abweichungen"),
+                ("Deviation Management", "Abweichungsmanagement"),
+                ("Change Control", "Änderungskontrolle"),
+                ("Computer System Validation", "CSV"),
+                (
+                    "Computersystemvalidierung",
+                    "Computerized System Validation",
+                ),
+                ("Process validation", "Prozessvalidierung"),
+                ("Validation", "Validierung"),
+                ("Data Integrity", "Datenintegrität"),
+                ("Regulatory Affairs", "Arzneimittelzulassung"),
+                ("CTD-Format", "eCTD"),
+                ("Common Technical Document", "CTD"),
+                ("Chemistry, Manufacturing and Controls", "CMC"),
+                ("Arzneimittelgesetz", "AMG"),
+                ("Aseptic processing", "Sterile Herstellung"),
+                ("Sterilfertigung", "Sterile Manufacturing"),
+                ("Inspections", "Inspektionen"),
+                ("Pharmaceutical industry", "Pharmazeutische Industrie"),
+                ("Pharmacovigilance", "Pharmakovigilanz"),
+            ],
+        );
+    }
+
+    #[test]
+    fn false_friends_stay_apart() {
+        assert_apart(
+            &pharma(),
+            &[
+                ("Abweichungsanalyse", "Abweichungsmanagement"),
+                ("Regulatory Reporting", "Regulatory Affairs"),
+                ("Change Requests", "Change Control"),
+                ("Kontaktperson", "Sachkundige Person"),
+                ("Erstellung von Konzernabschlüssen", "Sterile Herstellung"),
+                ("CSV-Dateien", "Computersystemvalidierung"),
+                ("GDPR", "GDP"),
+            ],
+        );
+    }
+}

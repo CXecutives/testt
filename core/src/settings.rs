@@ -26,6 +26,9 @@ pub struct Settings {
     pub portals: BTreeMap<Portal, PortalSwitches>,
     /// Start a fetch run at app start (mailbox connected, last fetch older than 6 hours).
     pub auto_fetch_on_start: bool,
+    /// Archive jobs without a stage this many days after they were first seen, at the end
+    /// of every run; 0 = never.
+    pub auto_archive_days: u32,
     /// Language of the interface and of the exported Excel file, HTML overview and prompts;
     /// `None` = the language of the OS ([`Settings::language_or`]). The text files per job
     /// stay German (a contract with the matching skill). A code of a newer version reads as
@@ -70,6 +73,9 @@ impl Language {
     }
 }
 
+/// Days after which old jobs archive themselves when the switch is on.
+pub const AUTO_ARCHIVE_DAYS: u32 = 30;
+
 /// The switches of one portal. Safe defaults: active, details fetched, never signed in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -102,6 +108,7 @@ impl Default for Settings {
                 .collect(),
             auto_fetch_on_start: true,
             language: None,
+            auto_archive_days: AUTO_ARCHIVE_DAYS,
         }
     }
 }

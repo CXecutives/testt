@@ -8,7 +8,7 @@
   On macOS this row is the list's part of the toolbar row, centred on the traffic lights,
   and its empty parts move the window.
   Row 2: the one place for filters, Neu · Alle · Gemerkt · Bewerbungen with their counts
-  (always there, also while the reader is open); the archive (hidden jobs), reached from the end of
+  (always there, also while the reader is open); the archive (archived jobs), reached from the end of
   Alle, show as a pill with its x instead.
   Row 3 (with a profile): the order in words ("Beste Passung", "Neueste"), a quiet button
   whose glyph stands half a turn for newest first; a click switches it.
@@ -39,7 +39,7 @@
     { id: 'new' as View, label: t.toolbar.facetNew, count: jobs.counts.new },
     { id: 'all' as View, label: t.toolbar.facetAll, count: jobs.counts.all },
     // An empty list of the user's own shows no zero (the row stays narrow).
-    { id: 'pinned' as View, label: t.toolbar.facetPinned, count: counts.pinned || null },
+    { id: 'pinned' as View, label: t.toolbar.facetPinned, count: counts.saved || null },
     {
       id: 'applications' as View,
       label: t.toolbar.facetApplications,
@@ -107,7 +107,7 @@
     </span>
   </div>
   <div class="filters">
-    {#if jobs.facet === 'hidden'}
+    {#if jobs.facet === 'archived'}
       <span class="filter" data-testid="filter" in:pop out:fade>
         <span class="filter-label">{t.list.hidden}</span>
         <Button

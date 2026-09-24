@@ -2,7 +2,10 @@
   The head of the Profil view: the file (name, size and date, copyable) or the unsaved
   draft, how well it reads (badge), one quiet line of what the app understood (competences,
   Schwerpunkte, domains), what it could not use, the rescore a save starts, and the file
-  actions (choose another file, remove). Drafts say once that they are to be reviewed.
+  actions (choose another file, remove). A new form offers the other two ways in (from a CV,
+  a file). Drafts say once that they are to be reviewed. "Gut lesbar" only stands without a
+  warning (otherwise "Bitte prüfen"). During the first run a saved profile leads on to the
+  first fetch.
 -->
 <script lang="ts">
   import Badge, { type BadgeTone } from '$components/Badge.svelte';
@@ -29,6 +32,9 @@
     note: string | null;
     onpick: () => void;
     onremove: () => void;
+    onfromcv: () => void;
+    /** The way on after the first save during the first run; `null` otherwise. */
+    onnext: (() => void) | null;
   }
 
   let {
@@ -42,6 +48,8 @@
     note,
     onpick,
     onremove,
+    onfromcv,
+    onnext,
   }: Props = $props();
 
   const QUALITY_TONE: Record<ProfileQuality, BadgeTone> = {
@@ -55,12 +63,17 @@
   const stored = $derived(origin === 'stored' && profile !== null);
   const understood = $derived(stored ? (profile?.understood ?? null) : null);
   const packs = $derived((understood?.packs ?? []).map((pack) => t.profile.pack[pack] ?? pack));
+  /** One separator for the whole line: count, Schwerpunkte, the domains as one group. */
   const summary = $derived(
     understood === null
       ? null
-      : [t.profile.understood(understood.competenceCount, understood.focus.length), ...packs].join(
-          ' · ',
-        ),
+      : [
+          t.profile.understood(understood.competenceCount),
+          understood.focus.length > 0 ? t.profile.focusCount(understood.focus.length) : '',
+          packs.length > 0 ? t.profile.packs(packs) : '',
+        ]
+          .filter((part) => part !== '')
+          .join(' · '),
   );
   const warnings = $derived(
     (understood?.warnings ?? []).flatMap((notice) => {
@@ -90,7 +103,9 @@
           <p class="meta">{t.profile.unsaved}</p>
         {/if}
       </div>
-      {#if quality}
+      {#if quality === 'good' && warnings.length > 0}
+        <Badge label={t.profile.check} tone="warning" />
+      {:else if quality}
         <Badge label={t.profile.quality[quality]} tone={QUALITY_TONE[quality]} />
       {/if}
     </div>
@@ -110,6 +125,18 @@
       </p>
     {:else if rescored}
       <Notice tone="success" variant="inline" text={t.profile.rescored} testid="profile-rescored" />
+    {/if}
+    {#if onnext}
+      <span>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="refresh-cw"
+          label={t.profile.next}
+          testid="profile-next"
+          onclick={onnext}
+        />
+      </span>
     {/if}
 
     {#if stored}
@@ -135,6 +162,29 @@
             onclick={onremove}
           />
         </span>
+      </div>
+    {:else if origin === 'new'}
+      <div class="actions">
+        <Button
+          variant="secondary"
+          size="sm"
+          label={t.profile.fromCv}
+          disabled={dirty}
+          disabledReason={t.profile.leaveText}
+          testid="profile-from-cv"
+          onclick={onfromcv}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="file-up"
+          label={t.profile.pick}
+          loading={picking}
+          disabled={dirty}
+          disabledReason={t.profile.leaveText}
+          testid="profile-pick"
+          onclick={onpick}
+        />
       </div>
     {/if}
     {#if note}

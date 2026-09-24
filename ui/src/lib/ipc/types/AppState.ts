@@ -23,6 +23,10 @@ firstRun: boolean,
  */
 running: RunSnapshot | null, settings: SettingsView, mailbox: Mailbox, profile: ProfileInfo | null, portals: Array<PortalState>, autoFetchOnStart: boolean, 
 /**
+ * Days after which old jobs without a stage archive themselves; 0 = never.
+ */
+autoArchiveDays: number, 
+/**
  * The language of the interface and the exports: the chosen one, else the OS language.
  */
 language: Language, 

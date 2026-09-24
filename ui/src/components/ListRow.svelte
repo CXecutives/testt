@@ -1,6 +1,6 @@
 <!--
-  A list row: leading, content, trailing, top-aligned, all rows of one fixed height (mail
-  style: three lines of content). The one inner padding of the columns on the sides. Hover
+  A list row: leading, content, trailing, top-aligned (mail style: three lines of content,
+  one row height; a row whose title needs a second line grows by that line). The one inner padding of the columns on the sides. Hover
   washes the row (80 ms in, 150 ms out), a press darkens it (60 ms); rows never move or
   scale. The selected row takes a very light warm wash (one step deeper under the pointer)
   and a coral bar on the left that fades in (150 ms) and out (100 ms); a row created as
@@ -56,7 +56,7 @@
     align-items: flex-start;
     gap: var(--space-12);
     width: 100%;
-    height: var(--row-height);
+    min-height: var(--row-height);
     overflow: hidden;
     padding: var(--space-12) var(--pane-padding) calc(var(--space-12) - var(--border-width));
     border-bottom: var(--border-width) solid var(--border);

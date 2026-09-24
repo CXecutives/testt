@@ -8,7 +8,7 @@
   there without the count: the rows below are only a part of the excluded jobs). A page that
   fails to load while scrolling says so at the end of the list, with a retry. Clicking the
   selected row again closes it (back to the day overview). At the end of Alle a divider
-  leads to the hidden jobs. An empty list says where jobs come from (an alert on each
+  leads to the archived jobs. An empty list says where jobs come from (an alert on each
   portal, older mails). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
   view's primary). Without a mailbox one note says how to connect one; a missing profile is
@@ -57,7 +57,7 @@
     if (sameKey(jobs.selected, job.key)) jobs.clearSelection();
     else void jobs.select(job, true);
   }
-  const hiddenCount = $derived((jobs.overviewCounts ?? jobs.counts).hidden);
+  const hiddenCount = $derived((jobs.overviewCounts ?? jobs.counts).archived);
   const PORTALS = $derived((app.state?.portals ?? []).filter((p) => p.enabled));
   function openPortal(portal: Portal): void {
     invoke('open_target', { target: { kind: 'portalHome', portal } }).catch(() => undefined);
@@ -211,7 +211,7 @@
           text={t.list.emptyApplications}
           testid="empty-applications"
         />
-      {:else if jobs.facet === 'hidden'}
+      {:else if jobs.facet === 'archived'}
         <EmptyState
           icon="inbox"
           tone="neutral"
@@ -308,7 +308,7 @@
             size="sm"
             label={t.list.showHidden}
             testid="show-hidden"
-            onclick={() => jobs.setFacet('hidden')}
+            onclick={() => jobs.setFacet('archived')}
           />
         </span>
       </div>

@@ -20,9 +20,9 @@ pub const JOBS_SHEET: &str = "Job-Alerts";
 pub const INFO_SHEET: &str = "Info";
 
 /// Column headers of the Excel file (order as before, plus the job details state and the
-/// application status). Unlike the text files nobody reads it by machine - so it says
-/// "Portal" like the interface, not "Quelle" like the skill contract.
-pub const COLUMNS: [&str; 13] = [
+/// user's pipeline: stage, since when, note). Unlike the text files nobody reads it by
+/// machine - so it says "Portal" like the interface, not "Quelle" like the skill contract.
+pub const COLUMNS: [&str; 15] = [
     "Portal",
     "Datum der Alert-Mail",
     "Titel",
@@ -36,6 +36,8 @@ pub const COLUMNS: [&str; 13] = [
     "Schlüssel",
     "Passung",
     "Status",
+    "Status seit",
+    "Notiz",
 ];
 
 /// Label and warning of the last row of the info sheet.
@@ -94,6 +96,7 @@ pub fn exclusion_reason(code: &str, params: &Map<String, Value>) -> Option<&'sta
 /// Where the user's application stands, in the words of the interface.
 pub fn app_status_label(status: AppStatus) -> &'static str {
     match status {
+        AppStatus::Saved => "Gemerkt",
         AppStatus::Applied => "Beworben",
         AppStatus::Interview => "Im Gespräch",
         AppStatus::Offer => "Zusage",
@@ -129,7 +132,7 @@ pub mod en {
     pub const JOBS_SHEET: &str = "Job alerts";
     pub const INFO_SHEET: &str = "Info";
 
-    pub const COLUMNS: [&str; 13] = [
+    pub const COLUMNS: [&str; super::COLUMNS.len()] = [
         "Portal",
         "Alert mail date",
         "Title",
@@ -143,6 +146,8 @@ pub mod en {
         "Key",
         "Match",
         "Status",
+        "Status since",
+        "Note",
     ];
 
     pub const INFO_NOTE_LABEL: &str = "Note";
@@ -191,6 +196,7 @@ pub mod en {
 
     pub fn app_status_label(status: AppStatus) -> &'static str {
         match status {
+            AppStatus::Saved => "Saved",
             AppStatus::Applied => "Applied",
             AppStatus::Interview => "Interviewing",
             AppStatus::Offer => "Offer",
@@ -223,7 +229,7 @@ pub struct Texts {
     pub language: Language,
     pub jobs_sheet: &'static str,
     pub info_sheet: &'static str,
-    pub columns: [&'static str; 13],
+    pub columns: [&'static str; COLUMNS.len()],
     pub info_note_label: &'static str,
     pub info_note: &'static str,
     pub info_last_scan: &'static str,

@@ -292,6 +292,18 @@ pub enum PortalHealth {
 }
 
 impl PortalHealth {
+    /// Does the user have to act? A sign-in that is needed, or alert mails without jobs (she
+    /// looks in Gmail). A pause, a cap or pages without a description resolve themselves.
+    pub fn action_needed(&self) -> bool {
+        match self {
+            PortalHealth::LoginRequired => true,
+            PortalHealth::LayoutSuspect { empty_mails, .. } => *empty_mails > 0,
+            PortalHealth::Ok | PortalHealth::Paused { .. } | PortalHealth::QuotaReached { .. } => {
+                false
+            }
+        }
+    }
+
     /// The one backend truth about a portal, from its safety state: pause, cap, sign-in
     /// needed (only with the sign-in switched on - otherwise the portal goes as a guest),
     /// layout suspect (`empty_mails`: alert mails without jobs; or pages without a

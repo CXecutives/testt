@@ -21,6 +21,7 @@
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
+  import { editor } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
 
   // The one order of the portals (the backend's, as in the settings).
@@ -155,7 +156,11 @@
           icon={profileCard.icon}
           label={profileCard.label}
           testid="choose-profile"
-          onclick={() => navigation.go('profile')}
+          onclick={() => {
+            // No profile yet: straight into the empty form, one click.
+            if (app.state?.profile == null) editor.create();
+            navigation.go('profile');
+          }}
         />
       </div>
     </Card>

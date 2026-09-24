@@ -24,7 +24,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Logo | no CXpertise company logo; the coral app icon (folder + check) is the window icon of the native title bar and the mark of the first run and empty states |
 | Heading colour | warm dark ink (45 7% 17%), not slate; coral is the only accent colour (user chose variant A). Headings stay ink; "only accent colour" is superseded by "cxpertise navy" below |
 | Windows caption buttons | superseded (2026-09-24 night): the native caption buttons of the Windows title bar |
-| Sizes | controls 28/36/40, list rows 86 (fixed, one-line title, date top right), body text 15 (the top strip is gone: the native title bar of the OS) |
+| Sizes | controls 28/36/40, list rows 86 (one-line title, date top right; amended 2026-09-25: a long title takes a second line and the row grows to 106, the rest is a tooltip), body text 15 (the top strip is gone: the native title bar of the OS) |
 | Layout | variant C chosen by the user: calm sidebar (~196 px, no own surface, hairline divider, nav with icons and unread count, quiet run status at the bottom; icons only below ~1100 px); search, "Abrufen" and filters in the list column header (revised 2026-09-24 night: no content strip, the native title bar) |
 | Toasts | allowed for short confirmations whose result is not visible otherwise (saved, copied, files written, run finished): bottom right, at most 3, ~4 s, paused on hover; anything needing action stays inline |
 | User test of the installed app (2026-09-24 evening) | Windows title bar like a native one (full width, 16 px app icon + app name at the left, caption buttons at the native height, no tooltips); macOS uses the normal native title bar; "Abrufen" lives in the list column header next to the search; the cxpertise palette again: light coral (13 73% 63%) for primary fills, hover 13 64% 56%, switches coral when on; lighter font weights; faster, snappier motion; no lag in the real app; native-feeling input (left click only for controls, middle-button scrolling in scroll areas, copyable text where it makes sense); no unneeded micro details |
@@ -49,24 +49,53 @@ ENGINE_VERSION + canonical profile view + model id), `read_at`, `desc_facts TEXT
 Migration marks everything before the last mailbox run as read. `PRAGMA journal_mode=WAL; synchronous=NORMAL`;
 reset deletes `-wal`/`-shm`. No FTS5 (table is WITHOUT ROWID): search stays `LIKE` on the folded `search` column.
 Reasons are not stored; `job_detail` recomputes them. Settings JSON: per portal `enabled`, `fetchDetails`,
-`loginEnabled` (freelance.de), plus `autoFetchOnStart`.
+`loginEnabled` (freelance.de), plus `autoFetchOnStart` and `autoArchiveDays` (default 30, 0 = off).
 
 ### Schema 4 (the user's marks, one more step of the chain)
 New nullable `job` columns: `app_status TEXT` (applied|interview|offer|rejected), `app_status_at`, `note TEXT`
 (<= 2000 characters, no export shows it), `hidden_at` ("Nicht interessant"). Frozen fixture
 `core/tests/fixtures/schema_v3.sql`. A hidden job is in no list but "hidden" and in no count but its own; the HTML
 overview and `top_matches.json` leave it out. Excel gets a "Status" column (Beworben, Im Gespräch, Zusage, Absage); the
-TXT files stay byte-identical. `claude_prompt(key)` builds the German prompt for a deep analysis in the user's own
-Claude (`export/claude_prompt.rs`, external contract): the rubric intent of the skill in short, the profile without
-name, contact data, links and references, the ad (text <= 12,000 characters, profile <= 8,000).
+TXT files stay byte-identical. The AI prompts (user decision: universal for any AI chat, they replace the skill for
+normal use; `export/ai_prompt.rs`, external contract) address the assistant as "du" without naming a product and carry
+the rubric intent of the skill in short and the profile without name, contact data, links and references (<= 8,000
+characters): `ai_prompt(key)` for a deep analysis of one ad (text <= 12,000 characters), `ai_prompt_top(limit 3..5)`
+for one comparison with a ranking of the best current matches (scored, not hidden, ad still online; pinned first, then
+by score), all ad texts together <= 24,000 characters, an equal share each, the prompt says when one was cut.
+
+### Schema 5 (stages, archive, delete for good, "fits anyway"; user decisions 2026-09-24)
+Schema 4 is on main, so this is its own step (`migrate_4_to_5`, frozen fixture `core/tests/fixtures/schema_v4.sql`):
+`hidden_at` is renamed `archived_at` (UI word "Archiv", "Archivieren"), new nullable `follow_up_on TEXT` and
+`override_include INTEGER`, a pinned job without a status becomes the stage `saved`, and a `tombstone(portal, job_id,
+deleted_at)` table. One pipeline of stages: `saved` (the star, `set_pinned` is its alias and never overwrites a later
+stage) → `applied` → `interview` → `offer` | `rejected`; a follow-up day only while applied or in talks. Archived jobs
+are in no list but the archive and in no count but their own. At the end of every run jobs without a stage whose first
+sighting is older than `autoArchiveDays` archive themselves (Einstellungen > Abruf, one switch). `delete_jobs(keys)` and
+`empty_archive()` delete rows (with the duplicates that stand for them), their TXT files and their Excel rows (the
+overview is written again), leaving only the tombstone, so a scan of an old alert mail never imports them again; the
+dry run deletes in its database only. `set_override(key, include)`: an excluded job counts as scored with its fit score
+(note and first reason `userOverride`), every rescore keeps it; taken back, the job is assessed again at once.
+"Neu" holds the unread jobs of the last 14 days (`store::new_since`, by the mail date); older unread ones stay under
+"Alle". "Alle gelesen" is `mark_all_read(facet)` with `mark_unread(keys)` as its undo. `top_matches.json` is schema 2
+(stage and first sighting per job, the unread or saved matches of the Neu window). The first mailbox scan reads 30 days.
+Whether the user has to act comes from the backend: `actionNeeded` in `PortalState` and in the `PortalHealth` event
+(a sign-in, or alert mails without jobs; a pause, a cap or pages without a description resolve themselves). Both
+prompts carry `core/src/export/ai_rubric.de.md` whole (its preamble names no product). Mail healing: `mail_version`
+(`mail::MAIL_PARSER_VERSION`, 2 since a collection mail no longer gives the next job's title as company); a job an
+older parser read takes the current reading when a mail names it again (with its page read, only a pair that reads like
+a job title gives way), and the first scan after an update reads back once to the oldest such job (kv `mail_healed`,
+IMAP read-only).
 
 ### IPC v3 (types from Rust via ts-rs; camelCase; `null` instead of missing; backend never sends prose)
 Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | rescore | fullMailbox})` · `cancel_run` ·
-`list_jobs(JobQuery{facet: new|all|applications|hidden, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{new, all, excluded, high, noDetail, pinned, applications, hidden, newByPortal[{portal, new}] in Portal::ALL order}}`
-(list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only; applications
-newest status change first, hidden latest hidden first) · `job_detail(key)` · `mark_read(key) -> bool` · `set_pinned(key, on)` ·
-`set_app_status(key, status|null) -> bool` · `set_note(key, note) -> bool` · `set_hidden(key, hidden) -> bool` ·
-`claude_prompt(key) -> string` · `pick_profile -> ProfileDraft?` ·
+`list_jobs(JobQuery{facet: new|all|saved|applications|archived, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{new, all, excluded, high, noDetail, saved, applications, archived, newByPortal[{portal, new}] in Portal::ALL order}}`
+(list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only; saved
+latest change first, applications a due follow-up first and the rejected last, archived latest archived first) ·
+`job_detail(key)` · `mark_read(key) -> bool` · `mark_all_read(facet) -> JobKey[]` · `mark_unread(keys) -> number` ·
+`set_pinned(key, on)` · `set_app_status(key, status|null) -> bool` · `set_follow_up(key, day|null) -> bool` ·
+`set_note(key, note) -> bool` · `set_archived(key, archived) -> bool` · `set_override(key, include) -> bool` ·
+`delete_jobs(keys) -> Deleted{count, exportError?}` · `empty_archive -> Deleted` ·
+`ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile -> ProfileDraft?` ·
 `parse_profile(text) -> ProfileDraft` · `profile_prompt` · `save_profile(ProfileSave{before, after, source?}) -> ProfileInfo` ·
 `remove_profile` · `save_mailbox` · `remove_mailbox` · `portal_login` · `portal_logout` ·
 `pick_workspace` · `rewrite_txt` · `clear_txt` · `open_target({jobUrl|gmail|workspace|excel|overview|logDir})` ·
@@ -76,11 +105,11 @@ without a usable matcher) and the auto fetch (setting on, mailbox connected, las
 Events on channel `run` (struct variants, each < 8 KB): `Started{kind}` (first event of every run, also of the runs Rust
 starts itself) · `Progress{step: scan|fetch|score|export, portal?, done, total}` ·
 `Status{code, portal?, until?}` · `Alert{portal, subject, date, postings, gmailId}` · `JobUpdated{job, fresh}` (fresh = first seen in this run) ·
-`PortalHealth{portal, health}` · `LoginNeeded{portal, waiting}` ·
+`PortalHealth{portal, health, actionNeeded}` · `LoginNeeded{portal, waiting}` ·
 `Finished{summary{kind, perPortal[{portal,new,known,dup,fetched,failed}], newJobs{count, high}?, score{scored,excluded,unscorable,pending,best}, export{..., error{kind, params.target}?}, stops[], emptyAlerts[]}}`
 (`newJobs` of a mailbox run: first seen, not a duplicate, not excluded; `high` of those; the export never fails a run but names what it could not write).
-Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[], appStatus|null, hidden}` ·
-`JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null, note|null, appStatusAt|null}` ·
+Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[], appStatus|null, statusAt|null, followUpOn|null, archived, overridden}` ·
+`JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null, note|null}` ·
 `Reason{id, kind: met|partial|open|violation|check, weight: must|nice|hard|info, code, label, evidence{profile, path, via, quote}|null, params, ranges[]}` ·
 `Highlight{id, start, end (UTF-16), kind, reason}` · `ProfileInfo{fileName, bytes, savedAt, quality: good|thin|empty, understood{competenceCount, competences[], sources[], criteria[], warnings[], packs[], years, degrees[], focus[], roles[], wishes}, scoredAt, pending, form}` ·
 `ProfileForm` (the editor's fields, `core/src/profile/form.rs`) · `ProfileDraft{form, source, quality}` ·
@@ -183,7 +212,8 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   transition properties, keyframes only in motion.css) · ESLint (no inline styles, raw elements only in components,
   restricted imports, no title attribute, no empty catch, listeners only in input.ts) · Rust architecture tests ·
   gallery · Playwright screenshots in Chromium + WebKit against `vite preview` with production CSP · per-screen audit.
-- Input policy: prevent contextmenu everywhere, non-left buttons, dblclick outside drag area, dragstart, selection
+- Input policy: prevent the browser context menu everywhere (the native OS menu with the OS edit commands only in
+  text fields and on selected copyable text, via `popupEditMenu` in api.ts), non-left buttons, dblclick outside drag area, dragstart, selection
   outside fields, keys outside fields (except Tab and Enter/Space on controls, see Decisions "Keys"), Ctrl/Cmd+wheel
   (a wheel listener only while Ctrl/Cmd is held), pinch. Native: WebView2 switches, macOS minimal menu,
   `accept_first_mouse`, no link preview, devtools off in release, navigation guard, window shown after first load.
@@ -252,7 +282,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       into the high band while fewer than half of the musts are met); fixes of held-out sets 1 and 2, now regression
       corpora with frozen floors (NDCG@10 0.822 to 0.930 and 0.632 to 0.805); criteria met only with the ad's value
       as evidence, key facts on `JobMatch`; one German rubric for the Claude check and the skill
-      (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3, the new domain packs.
+      (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3.
+- [x] Domain packs for every field: hr, procurement, data, pharma, operations, sales, legal, software (held-out 2
+      NDCG@10 0.805 to 0.862). Open: synthetic corpus ads and profiles of the new fields.
 
 ### Phase 3 - screens and core workflow (two UI agents)
 - [x] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)

@@ -46,7 +46,7 @@
   import type { AppStatus, JobDetail, JobKey, OpenTarget, Reason } from '$lib/ipc/types';
   import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+  import { isApplication, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
@@ -234,7 +234,7 @@
   async function copyPrompt(): Promise<void> {
     actionError = null;
     try {
-      await navigator.clipboard.writeText(await jobs.claudePrompt(job.key));
+      await navigator.clipboard.writeText(await jobs.aiPrompt(job.key));
       toasts.show(t.toast.prompt);
     } catch (error) {
       actionError = errorText(error);
@@ -245,15 +245,15 @@
   async function hide(): Promise<void> {
     actionError = null;
     const key = job.key;
-    if (job.hidden) {
-      const error = await jobs.hide(key, false);
+    if (job.archived) {
+      const error = await jobs.archive(key, false);
       if (error !== null) actionError = error;
       return;
     }
     const list = jobs.visible;
     const at = list.findIndex((row) => sameKey(row.key, key));
     const next = at < 0 ? null : (list[at + 1] ?? list[at - 1] ?? null);
-    const error = await jobs.hide(key, true);
+    const error = await jobs.archive(key, true);
     if (error !== null) {
       actionError = error;
       return;
@@ -267,7 +267,7 @@
   }
 
   async function undoHide(key: JobKey): Promise<void> {
-    if ((await jobs.hide(key, false)) === null) void jobs.load(true);
+    if ((await jobs.archive(key, false)) === null) void jobs.load(true);
   }
 
   function openTarget(target: OpenTarget): void {
@@ -412,8 +412,8 @@
           variant="ghost"
           size="sm"
           iconOnly
-          icon={job.hidden ? 'eye' : 'eye-off'}
-          label={job.hidden ? t.reader.unhide : t.reader.hide}
+          icon={job.archived ? 'eye' : 'eye-off'}
+          label={job.archived ? t.reader.unhide : t.reader.hide}
           testid="hide"
           onclick={() => void hide()}
         />
@@ -546,8 +546,8 @@
           onclick={() => void setStatus(status)}
         />
       {/each}
-      {#if job.appStatus !== null && detail.appStatusAt}
-        <span class="since" data-testid="status-since">{formatRelative(detail.appStatusAt)}</span>
+      {#if isApplication(job.appStatus) && job.statusAt}
+        <span class="since" data-testid="status-since">{formatRelative(job.statusAt)}</span>
       {/if}
     </div>
     <span

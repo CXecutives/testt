@@ -32,6 +32,7 @@ fn ctx(workspace: &Path, dry_run: bool) -> RunContext {
         portals: Portal::ALL.to_vec(),
         fetch_portals: Portal::ALL.to_vec(),
         sign_in: vec![Portal::FreelanceDe],
+        auto_archive_days: 0,
         language: Language::De,
     }
 }
@@ -221,7 +222,8 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     );
     assert!(events.iter().any(|e| matches!(
         e,
-        RunEvent::PortalHealth { portal: Portal::FreelanceDe, health: h } if *h == health
+        RunEvent::PortalHealth { portal: Portal::FreelanceDe, health: h, action_needed }
+            if *h == health && *action_needed == health.action_needed()
     )));
 
     // Second run: nothing new, no text file twice; overview anew (new run).
@@ -1060,7 +1062,7 @@ async fn scoring_follows_the_matcher() {
     )
     .await;
     assert_eq!(s.score, None);
-    assert!(store.top_matches(s.run, 5).unwrap().is_empty());
+    assert!(store.best_matches(5).unwrap().is_empty());
     let rescore = RunRequest {
         kind: RunKind::Rescore,
     };
@@ -1343,7 +1345,7 @@ async fn the_skill_gets_the_top_matches() {
     assert_eq!(s.outcome, Outcome::Completed);
     let path = dir.path().join(RESULT_DIR).join(export::TOP_MATCHES_NAME);
     let file: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(file["schema"], 1);
+    assert_eq!(file["schema"], 2);
     assert_eq!(file["rev"], demo::matcher().rev());
     let jobs = file["jobs"].as_array().unwrap();
     let titles: Vec<&str> = jobs.iter().map(|j| j["title"].as_str().unwrap()).collect();
@@ -1379,6 +1381,27 @@ async fn the_skill_gets_the_top_matches() {
     );
     assert_eq!(mid["mustTotal"], 7);
     assert!(mid["checks"].is_array() && best["url"].as_str().unwrap().starts_with("https://"));
+    assert_eq!(best["appStatus"], serde_json::Value::Null);
+    assert!(best["firstSeenAt"].is_string());
+    // A second fetch without new jobs keeps the list (it follows the open jobs, not the run).
+    let (again, _) = go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(again.new_jobs.map(|n| n.count), Some(0));
+    let kept: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let kept: Vec<&str> = kept["jobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|j| j["title"].as_str().unwrap())
+        .collect();
+    assert_eq!(kept, titles, "the list stays after a fetch without news");
     // Without a profile the file stays, with no jobs.
     write_top_matches(&store, dir.path(), None, c());
     store.clear_matches().unwrap();
@@ -1847,4 +1870,144 @@ async fn an_open_excel_file_is_reported_as_locked() {
     );
     assert_eq!(export.overview_xlsx, None);
     assert_eq!(std::fs::read(&xlsx).unwrap(), before, "the open file stays");
+}
+
+/// Rows of the Excel overview's job sheet (with the header).
+fn overview_rows(workspace: &Path) -> usize {
+    use calamine::{Reader, Xlsx, open_workbook};
+    let path = export::overview_path(&workspace.join(RESULT_DIR));
+    let mut book: Xlsx<_> = open_workbook(&path).unwrap();
+    book.worksheet_range(texts::JOBS_SHEET)
+        .unwrap()
+        .rows()
+        .count()
+}
+
+/// A job deleted for good takes its text file and its Excel row along, and the next run
+/// never brings it back from the old alert mail.
+#[tokio::test(start_paused = true)]
+async fn a_deleted_job_leaves_its_files_and_stays_gone() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let fetch = ctx(dir.path(), false);
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &fetch,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let listed = |store: &Store| store.jobs(&JobFilter::default()).unwrap().len();
+    assert_eq!(overview_rows(dir.path()), 1 + listed(&store));
+    let total = store.job_count().unwrap();
+    let victim = store
+        .jobs(&JobFilter::default())
+        .unwrap()
+        .into_iter()
+        .find(|job| job.txt_name.is_some())
+        .unwrap();
+    let file = dir
+        .path()
+        .join(RESULT_DIR)
+        .join(TXT_DIR)
+        .join(victim.txt_name.as_deref().unwrap());
+    assert!(file.exists());
+    let rows = overview_rows(dir.path());
+    let deleted = delete_jobs(
+        &store,
+        Some(dir.path()),
+        None,
+        std::slice::from_ref(&victim.key),
+        (c(), Language::De),
+    )
+    .unwrap();
+    assert_eq!(deleted.export_error, None);
+    let gone = i64::from(deleted.count);
+    assert!(gone >= 1);
+    assert!(!file.exists());
+    assert!(overview_rows(dir.path()) < rows);
+    assert_eq!(overview_rows(dir.path()), 1 + listed(&store));
+    assert_eq!(store.job_count().unwrap(), total - gone);
+    let files = txt_files(dir.path());
+    // The next run reads the same alert mails: the job stays deleted.
+    let (s, _) = go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &fetch,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.scan.as_ref().unwrap().new, 0);
+    assert!(store.job(&victim.key).unwrap().is_none());
+    assert_eq!(store.job_count().unwrap(), total - gone);
+    assert_eq!(txt_files(dir.path()), files);
+    assert!(!file.exists());
+}
+
+/// At the end of a run old jobs without a stage archive themselves (by the days in the
+/// settings; 0 = never); a saved one stays.
+#[tokio::test(start_paused = true)]
+async fn a_run_archives_old_jobs_without_a_stage() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let archiving = RunContext {
+        auto_archive_days: 30,
+        ..ctx(dir.path(), true)
+    };
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &archiving,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let archived = |store: &Store| -> usize {
+        store
+            .jobs(&JobFilter::default())
+            .unwrap()
+            .iter()
+            .filter(|job| job.archived_at.is_some())
+            .count()
+    };
+    assert_eq!(archived(&store), 0, "young jobs stay");
+    let jobs = store.jobs(&JobFilter::default()).unwrap();
+    let saved = jobs[0].key.clone();
+    store.set_pinned(&saved, true, c()).unwrap();
+    let later = move || c() + SignedDuration::from_hours(24 * 40);
+    let off = RunContext {
+        auto_archive_days: 0,
+        ..ctx(dir.path(), true)
+    };
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &off,
+        &CancellationToken::new(),
+        &later,
+    )
+    .await;
+    assert_eq!(archived(&store), 0, "switched off");
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &archiving,
+        &CancellationToken::new(),
+        &later,
+    )
+    .await;
+    let jobs = store.jobs(&JobFilter::default()).unwrap();
+    assert!(jobs.len() > 1);
+    for job in &jobs {
+        assert_eq!(job.archived_at.is_none(), job.key == saved, "{}", job.key);
+    }
 }

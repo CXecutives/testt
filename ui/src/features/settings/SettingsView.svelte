@@ -21,7 +21,7 @@
   import { t } from '$lib/i18n/t';
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { Language, OpenTarget } from '$lib/ipc/types';
+  import type { Language, OpenTarget, SettingsPatch } from '$lib/ipc/types';
   import { platform } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -99,42 +99,49 @@
     );
   }
 
+  /** Days after which old jobs archive themselves when the switch is on. */
+  const AUTO_ARCHIVE_DAYS = 30;
+
+  /** The switch moves at once; a failure puts it back (reload) and says why below it. */
+  function autoFetch(on: boolean): Promise<void> {
+    if (app.state) app.state.autoFetchOnStart = on;
+    return saveFetch({ autoFetchOnStart: on, autoArchiveDays: null, language: null });
+  }
+
+  function autoArchive(on: boolean): Promise<void> {
+    const days = on ? AUTO_ARCHIVE_DAYS : 0;
+    if (app.state) app.state.autoArchiveDays = days;
+    return saveFetch({ autoFetchOnStart: null, autoArchiveDays: days, language: null });
+  }
+
   /**
    * The language switches the whole page at once, before the backend has stored it; a
    * failure switches back and says why below it. Excel file and overview follow at the next
    * fetch.
    */
   function chooseLanguage(next: Language): Promise<void> {
-    const save = ++saves;
     const before = language.current;
     language.set(next);
     if (app.state) app.state.language = next;
-    return act('language', setLanguageNote, async () => {
-      try {
-        const state = await invoke('save_settings', {
-          patch: { portals: [], autoFetchOnStart: null, language: next },
-        });
-        if (save === saves) app.set(state);
-      } catch (error) {
-        language.set(before);
-        void app.load();
-        throw error;
-      }
-      return null;
-    });
+    return saveFetch(
+      { autoFetchOnStart: null, autoArchiveDays: null, language: next },
+      setLanguageNote,
+      () => language.set(before),
+    );
   }
 
-  /** The switch moves at once; a failure puts it back (reload) and says why below it. */
-  function autoFetch(on: boolean): Promise<void> {
+  function saveFetch(
+    change: Omit<SettingsPatch, 'portals'>,
+    note: (f: Feedback) => void = setFetch,
+    undo: () => void = () => {},
+  ): Promise<void> {
     const save = ++saves;
-    if (app.state) app.state.autoFetchOnStart = on;
-    return act('fetch', setFetch, async () => {
+    return act(change.language === null ? 'fetch' : 'language', note, async () => {
       try {
-        const next = await invoke('save_settings', {
-          patch: { portals: [], autoFetchOnStart: on, language: null },
-        });
+        const next = await invoke('save_settings', { patch: { portals: [], ...change } });
         if (save === saves) app.set(next);
       } catch (error) {
+        undo();
         void app.load();
         throw error;
       }
@@ -297,6 +304,19 @@
             label={t.settings.autoFetch}
             testid="toggle-auto-fetch"
             onchange={autoFetch}
+          />
+        </SettingRow>
+        <SettingRow
+          label={t.settings.autoArchive}
+          hint={t.settings.autoArchiveHint}
+          for="switch-auto-archive"
+        >
+          <Toggle
+            id="switch-auto-archive"
+            checked={cfg.autoArchiveDays > 0}
+            label={t.settings.autoArchive}
+            testid="toggle-auto-archive"
+            onchange={autoArchive}
           />
         </SettingRow>
         {@render note(fetchNote, 'fetch-note')}

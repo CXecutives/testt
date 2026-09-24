@@ -17,6 +17,13 @@
   let autoFetch = $state(true);
   let other = $state(false);
   let facet = $state<'new' | 'all'>('new');
+  let view = $state('new');
+  const views = [
+    { id: 'new', label: t.views[0], count: 0 },
+    { id: 'all', label: t.views[1], count: 14 },
+    { id: 'pinned', label: t.views[2], count: 1 },
+    { id: 'applied', label: t.views[3], count: 2 },
+  ];
   let sort = $state<'match' | 'newest' | 'portal'>('match');
   let address = $state('alerts@example.com');
   let password = $state('abcd efgh');
@@ -60,6 +67,28 @@
           value={facet}
           onchange={(id) => (facet = id)}
           testid="segmented-facet"
+        />
+      </div>
+      <!-- Four options with counts: each pill covers exactly its option; in a narrow box the
+           labels shorten instead of overlapping. -->
+      <div class="row">
+        <Segmented
+          label={t.facet}
+          size="sm"
+          options={views}
+          value={view}
+          onchange={(id) => (view = id)}
+          testid="segmented-views"
+        />
+      </div>
+      <div class="row narrow">
+        <Segmented
+          label={t.facet}
+          size="sm"
+          options={views}
+          value={view}
+          onchange={(id) => (view = id)}
+          testid="segmented-narrow"
         />
         <Segmented
           label={t.sort}
@@ -169,6 +198,10 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-16);
+  }
+
+  .narrow {
+    width: var(--stat-min);
   }
 
   .panel {

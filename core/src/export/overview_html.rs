@@ -215,13 +215,15 @@ mod tests {
             txt_name: None,
             desc_attempted_at: None,
             read_at: None,
-            pinned_at: None,
             match_: record,
             match_rev: None,
             facts: None,
             app_status: None,
             app_status_at: None,
-            hidden_at: None,
+            follow_up_on: None,
+            note: None,
+            archived_at: None,
+            override_include: false,
         }
     }
 

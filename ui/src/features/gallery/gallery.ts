@@ -68,7 +68,7 @@ export const text = {
   },
   empty: {
     heading: 'Noch keine Jobs',
-    text: 'Der erste Abruf liest die Alert-Mails der letzten sieben Tage.',
+    text: 'Der erste Abruf liest die Alert-Mails der letzten 30 Tage.',
     action: 'Abrufen',
     secondary: 'Postfach prüfen',
   },
@@ -88,6 +88,9 @@ export const text = {
     badge: 'Hinweis',
     loading: 'Platzhalter und Fortschritt',
     meter: 'Fortschritt des Abrufs',
+    split: 'Liste und Anzeige',
+    list: 'Liste',
+    reader: 'Anzeige',
   },
   inputs: {
     heading: 'Eingaben',
@@ -99,6 +102,7 @@ export const text = {
     risk: 'Konto betroffen',
     facet: 'Ansicht',
     facets: ['Neu', 'Alle'],
+    views: ['Neu', 'Alle', 'Gemerkt', 'Bewerbungen'],
     sort: 'Sortierung',
     sorts: ['Beste Passung', 'Neueste', 'Portal'],
     address: 'Postfach',
@@ -190,7 +194,10 @@ function sample(
     match: null,
     alsoOn: [],
     appStatus: null,
-    hidden: false,
+    statusAt: null,
+    followUpOn: null,
+    archived: false,
+    overridden: false,
     ...extra,
   };
 }
@@ -232,6 +239,7 @@ export function sampleJobs(now: Date): JobView[] {
       {
         unread: true,
         pinned: true,
+        appStatus: 'saved',
         match: scored(91, 'Interim-Management im Mittelstand'),
         alsoOn: ['linkedin'],
       },
@@ -250,10 +258,18 @@ export function sampleJobs(now: Date): JobView[] {
       detail: { kind: 'teaser' },
       match: scored(47, 'Projektcontrolling'),
     }),
-    sample(now, '1004', 'SAP FI Berater Migration', 'Datenwerk Süd', 'München', 52, {
-      workMode: 'onsite',
-      match: scored(28, 'SAP FI im Konzern'),
-    }),
+    sample(
+      now,
+      '1004',
+      'SAP FI Berater für die Migration der Konzernbuchhaltung auf S/4HANA mit weltweitem Rollout in vierzehn Ländern',
+      'Datenwerk Süd',
+      'München',
+      52,
+      {
+        workMode: 'onsite',
+        match: scored(28, 'SAP FI im Konzern'),
+      },
+    ),
     sample(now, '1005', 'Finance Manager Shared Service', 'Contoso Services', 'Leipzig', 300, {
       match: null,
       detail: { kind: 'failed', attempts: 3, retryAt: null },

@@ -1,7 +1,8 @@
 <!--
   One job in the list, mail-style with fixed gutters: the unread dot (6 px, coral) centred
   in the pane padding on the axis of the ring (so a title never moves when the job is
-  read), the ring, then the title on one line with the relative date at its end, company
+  read), the ring, then the title on up to two lines with the relative date at its end,
+  company
   and place, and one reason line with a status badge right after it only when something
   deviates. Every row has the same height. Without a ring (no usable profile) the dot sits
   on the title axis and the row shows no reason line: the reasons belong to a match.
@@ -66,7 +67,7 @@
   /** A date this old is marked (days). */
   const AGED_DAYS = 10;
   const DAY_MS = 86_400_000;
-  const APP_TONE: Record<AppStatus, BadgeTone> = {
+  const APP_TONE: Record<Exclude<AppStatus, 'saved'>, BadgeTone> = {
     applied: 'neutral',
     interview: 'neutral',
     offer: 'success',
@@ -79,9 +80,9 @@
     aged ?? (now ?? new Date()).getTime() - new Date(when).getTime() > AGED_DAYS * DAY_MS,
   );
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
-  /** Where the user's application stands (pinned needs no badge: the star says it). */
+  /** Where the user's application stands (saved needs no badge: the star says it). */
   const status = $derived(
-    job.appStatus
+    job.appStatus && job.appStatus !== 'saved'
       ? { label: t.reader.appStatus[job.appStatus], tone: APP_TONE[job.appStatus] }
       : null,
   );
@@ -156,8 +157,8 @@
             variant="ghost"
             size="sm"
             iconOnly
-            icon={job.hidden ? 'archive-restore' : 'archive'}
-            label={job.hidden ? t.reader.unhide : t.reader.hide}
+            icon={job.archived ? 'archive-restore' : 'archive'}
+            label={job.archived ? t.reader.unhide : t.reader.hide}
             testid="archive-{job.key.portal}-{job.key.id}"
             onclick={() => onarchive?.(job)}
           />
@@ -213,12 +214,17 @@
     top: calc(var(--space-12) + (var(--leading-title) - var(--dot-unread)) / 2);
   }
 
+  /* A long title takes a second line (the row grows by one line); past that it ends in an
+     ellipsis and shows in full in a tooltip. */
   .title {
+    display: -webkit-box;
     overflow: hidden;
     color: var(--text);
     font: var(--type-title);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 
   .title.unread {

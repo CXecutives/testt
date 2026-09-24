@@ -12,4 +12,8 @@ export type PortalState = { portal: Portal, enabled: boolean, fetchDetails: bool
 /**
  * `null` = unknown (or no sign-in), `false` = sign-in needed.
  */
-signedIn: boolean | null, risk: Risk, health: PortalHealth, quota: Quota | null, };
+signedIn: boolean | null, risk: Risk, health: PortalHealth, 
+/**
+ * The user has to act on the health ([`PortalHealth::action_needed`]).
+ */
+actionNeeded: boolean, quota: Quota | null, };

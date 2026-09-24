@@ -14,8 +14,4 @@ text: string | null, url: string, fetchedAt: string | null, mail: JobMail, match
 /**
  * The user's note (`null` = none).
  */
-note: string | null, 
-/**
- * When the application status was set last.
- */
-appStatusAt: string | null, };
+note: string | null, };

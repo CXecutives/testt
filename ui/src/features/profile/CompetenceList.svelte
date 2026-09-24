@@ -2,7 +2,8 @@
   The core competences: one row each with the star (Schwerpunkt), the competence, its years
   and other words for it (`auch`), then "Kompetenz hinzufügen" and the Schwerpunkte. At most
   five stars; a sixth is refused with one short sentence. Renaming or removing a starred
-  competence takes its Schwerpunkt along.
+  competence takes its Schwerpunkt along. Enter goes to the next row, adds one after the
+  last and ends the list on an empty last row (rows.ts); it never saves the profile.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -10,10 +11,12 @@
   import Notice from '$components/Notice.svelte';
   import TextField from '$components/TextField.svelte';
   import { t } from '$lib/i18n/t';
+  import { formKeys } from '$lib/input/input';
   import type { ProfileCompetence } from '$lib/ipc/types';
   import { MAX_FOCUS } from '$lib/state/profile.svelte';
   import { tick } from 'svelte';
   import NumberField from './NumberField.svelte';
+  import { enterRow, focusRow } from './rows';
 
   interface Props {
     rows: ProfileCompetence[];
@@ -60,12 +63,20 @@
     full = false;
   }
 
-  async function add(): Promise<void> {
+  const append = (): void => {
     rows = [...rows, { name: '', years: null, aliases: [], origin: null }];
+  };
+
+  async function add(): Promise<void> {
+    append();
     await tick();
-    const added = [...(list?.querySelectorAll<HTMLElement>('[data-row]') ?? [])].at(-1);
-    added?.querySelector('input')?.focus();
+    focusRow(list, rows.length - 1);
   }
+
+  const blank = (row: ProfileCompetence): boolean =>
+    row.name.trim() === '' && row.years === null && row.aliases.length === 0;
+  const enter = (row: ProfileCompetence): void =>
+    void enterRow({ list, rows, row, blank, add: append, remove });
 </script>
 
 <div class="list" bind:this={list} data-testid="competences">
@@ -79,7 +90,12 @@
     </div>
   {/if}
   {#each rows as row, index (row)}
-    <div class="row" data-row data-testid="competence-row">
+    <div
+      class="row"
+      data-row
+      data-testid="competence-row"
+      use:formKeys={{ save: () => enter(row) }}
+    >
       <span class="star">
         <Button
           variant="ghost"
@@ -129,8 +145,9 @@
   {/each}
   <span class="add">
     <Button
-      variant="ghost"
+      variant="secondary"
       size="sm"
+      icon="plus"
       label={words.addCompetence}
       testid="competence-add"
       onclick={() => void add()}
@@ -182,7 +199,7 @@
   }
 
   .add {
-    margin-left: calc(var(--control-sm) + var(--space-8) - var(--space-12));
+    margin-left: calc(var(--control-sm) + var(--space-8));
   }
 
   .focus {
