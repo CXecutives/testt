@@ -240,8 +240,8 @@ mod tests {
         assert_eq!(indexes(&fixture), indexes(&code));
     }
 
-    /// Schema 4 with data: "hidden" is "archived", a pinned job without a status is saved, an
-    /// application status (here "interview") is "sent", and deleted jobs leave a tombstone.
+    /// Schema 4 with data: "hidden" is "archived", a pinned job and an application status
+    /// (here "interview") are favourites, and deleted jobs leave a tombstone.
     #[test]
     fn a_schema_4_database_is_migrated_and_keeps_its_marks() {
         let dir = tempfile::tempdir().unwrap();
@@ -269,23 +269,15 @@ mod tests {
         };
         let a = store.job(&key("4000000001")).unwrap().unwrap();
         assert_eq!(
-            (a.app_status, a.app_status_at, a.archived_at),
-            (
-                Some(crate::model::AppStatus::Saved),
-                crate::time::from_db(160),
-                crate::time::from_db(170)
-            )
+            (a.pinned_at, a.archived_at, a.trashed_at),
+            (crate::time::from_db(160), crate::time::from_db(170), None)
         );
-        assert_eq!(a.note.as_deref(), Some("Notiz"));
+        assert_eq!(a.place(), crate::model::Place::Archive);
         assert!(!a.override_include);
         let b = store.job(&key("4000000002")).unwrap().unwrap();
         assert_eq!(
-            (b.app_status, b.app_status_at, b.archived_at),
-            (
-                Some(crate::model::AppStatus::Sent),
-                crate::time::from_db(180),
-                None
-            )
+            (b.pinned_at, b.place()),
+            (crate::time::from_db(180), crate::model::Place::Inbox)
         );
         assert_eq!(
             store
@@ -324,26 +316,20 @@ mod tests {
             .key;
         let job = store.job(&key).unwrap().unwrap();
         assert_eq!(job.title, "Interim CFO");
-        assert_eq!(job.match_.map(|m| m.score), Some(84));
+        assert_eq!(job.match_.as_ref().map(|m| m.score), Some(84));
         assert!(job.read_at.is_some());
-        // The pinned job is saved now, since it was pinned.
-        assert_eq!(
-            (job.app_status, job.app_status_at),
-            (
-                Some(crate::model::AppStatus::Saved),
-                crate::time::from_db(160)
-            )
-        );
-        assert_eq!(job.archived_at, None);
-        assert_eq!(store.note(&key).unwrap(), None);
+        // The pinned job is a favourite now, since it was pinned.
+        assert_eq!(job.pinned_at, crate::time::from_db(160));
+        assert_eq!(job.place(), crate::model::Place::Inbox);
         // The new marks work on the migrated database.
-        assert!(
+        assert!(store.set_pinned(&key, false, now()).unwrap());
+        let trash = crate::model::Place::Trash;
+        assert_eq!(
             store
-                .set_app_status(&key, Some(crate::model::AppStatus::Sent), now())
-                .unwrap()
+                .move_jobs(std::slice::from_ref(&key), trash, now())
+                .unwrap(),
+            1
         );
-        assert!(store.set_note(&key, "Termin am Freitag").unwrap());
-        assert!(store.set_archived(&key, true, now()).unwrap());
     }
 
     #[test]

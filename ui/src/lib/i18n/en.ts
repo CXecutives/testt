@@ -11,7 +11,6 @@
 // Saved · Applications · Archive.
 
 import type {
-  AppStatus,
   Band,
   DetailState,
   ErrorKind,
@@ -124,7 +123,6 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   mailAddress: 'The address is incomplete.',
   appPassword: 'An app password has 16 letters.',
   noSignIn: (p) => `${portalOf(p.portal)} offers no sign-in.`,
-  noteTooLong: (p) => `The note is longer than ${n(num(p.max))} characters.`,
 };
 
 const status: Record<StatusCode, string> = {
@@ -540,7 +538,6 @@ export const en: Catalog = {
     facet: 'View',
     facetNew: 'New',
     facetAll: 'All',
-    facetSent: 'Applied',
     facetPinned: 'Saved',
     sortLabel: {
       match: 'Best match',
@@ -636,7 +633,6 @@ export const en: Catalog = {
     emptySources: 'The jobs come from the alert mails of the portals.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
     readOlder: 'Read older mails',
-    emptySent: 'No application noted yet.',
     emptyHidden: 'The archive is empty.',
     emptyNew: 'No new jobs.',
     emptyAll: 'After the first fetch the jobs show up here.',
@@ -682,12 +678,6 @@ export const en: Catalog = {
     unhide: 'Restore',
     prompt: 'Copy as prompt',
     preliminary: 'Provisional, scored from a teaser',
-    noteLabel: 'Note',
-    status: 'Application',
-    appStatus: {
-      saved: 'Saved',
-      sent: 'Applied',
-    } satisfies Record<AppStatus, string>,
     mail: OPEN_MAIL,
     fetchDetails: 'Fetch details',
     why: 'Why',
@@ -914,6 +904,10 @@ export const en: Catalog = {
     maintenance: 'Maintenance',
     connected: 'Connected',
     notConnected: 'No mailbox connected.',
+    /** The last fetch could not reach Gmail, or Gmail refused the password. */
+    unreachable: 'Not reachable',
+    refused: 'Refused',
+    mailRefused: 'Gmail refuses the address or app password, enter them again with Change.',
     vault: {
       windowsCredentialManager: 'The app password is kept in the Windows Credential Manager.',
       macosKeychain: 'The app password is kept in the macOS keychain.',
@@ -923,14 +917,18 @@ export const en: Catalog = {
     passwordHint: '16 letters, created in the Google account.',
     createPassword: 'Create app password',
     twoStep: 'An app password needs 2-Step Verification.',
+    addressMissing: 'The Gmail address is missing.',
+    passwordMissing: 'The app password is missing.',
     twoStepAction: 'Turn on verification',
     connect: 'Connect',
     removeMailbox: 'Remove mailbox?',
     removeMailboxText: 'The app password is deleted, the jobs stay.',
     autoFetch: 'Fetch at start',
     autoFetchHint: 'When the last fetch is more than six hours ago.',
-    autoArchive: 'Archive old jobs automatically',
-    autoArchiveHint: 'After 30 days, except saved jobs and applications.',
+    autoArchive: 'Archive jobs after 30 days',
+    autoArchiveHint: 'Favourites are never archived.',
+    autoEmptyTrash: 'Empty the trash after 30 days',
+    autoEmptyTrashHint: 'Deleted jobs are then gone for good.',
     active: 'Active',
     details: 'Fetch details',
     needsDetails: 'Turn on Fetch details first.',
@@ -954,9 +952,13 @@ export const en: Catalog = {
     detailsOff: 'Without details the jobs of this portal get no match.',
     quota: (used: number, cap: number) => `Today ${n(used)} of ${n(cap)} pages`,
     quotaHour: (used: number, cap: number) => `This hour ${n(used)} of ${n(cap)} pages`,
+    /** The sign-in row of a portal: its label, and its state. */
+    session: 'Sign-in',
     signedIn: 'Signed in',
+    notSignedIn: 'Not signed in.',
+    /** A portal that is off. */
+    portalOff: 'The fetch skips it.',
     sessionLeft: 'The sign-in is still stored.',
-    signedOut: 'Not signed in',
     signIn: 'Sign in',
     signOut: 'Sign out',
     openPortal: 'Open in browser',
@@ -983,7 +985,6 @@ export const en: Catalog = {
     fullMailboxText: 'This takes longer and fetches more pages from the portals.',
     logs: 'Logs',
     data: 'App data',
-    copyPath: 'Copy path',
     reset: 'Reset everything',
     resetHint: 'Deletes jobs, settings, profile and app password.',
     resetAction: 'Reset',
@@ -1017,11 +1018,12 @@ export const en: Catalog = {
     loadFailed: 'The app could not load its data.',
     last: (iso: string) => `Fetched ${formatMoment(iso)}`,
     showRun: 'Show fetch',
-    runFailed: 'Fetch failed',
+    runFailed: (iso: string) => `Failed ${formatMoment(iso)}`,
     closing: 'The fetch is stopping, then the app closes.',
   },
   toast: {
     saved: 'Saved.',
+    mailboxSaved: 'Mailbox connected.',
     rescored: 'The jobs are scored again.',
     copied: 'Copied.',
     prompt: 'Prompt copied, ready for an AI chat.',

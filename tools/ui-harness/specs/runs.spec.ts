@@ -144,7 +144,7 @@ test('Details holen reports the details, not a fetch', async ({ page }) => {
   // The reader has the details now; the last fetch is still the last fetch.
   await expect(page.getByTestId('detail-note')).toHaveCount(0);
   await page.getByTestId('nav-settings').click();
-  await expect(page.getByTestId('run-status')).toContainText('Zuletzt 08:30');
+  await expect(page.getByTestId('run-status')).toContainText('Abgerufen 08:30');
 });
 
 test('a failed first fetch does not claim the alert mails were empty', async ({ page }) => {
@@ -309,10 +309,10 @@ test('an archived job leaves the list and every count but the archive', async ({
   await expect(row(page, 'linkedin-4100200301')).toHaveCount(0);
   await expect.poll(() => segmentCount(page, 'Alle')).toBe(all - 1);
   await expect(divider).toContainText(String(archived + 1));
-  expect((await calls(page, 'set_archived')).map(([, args]) => args)).toEqual([
-    { key: { portal: 'linkedin', id: '4100200301' }, archived: true },
+  expect((await calls(page, 'move_jobs')).map(([, args]) => args)).toEqual([
+    { keys: [{ portal: 'linkedin', id: '4100200301' }], to: 'archive' },
   ]);
-  expect((await jobOf(page, 'linkedin', '4100200301')).archived).toBe(true);
+  expect((await jobOf(page, 'linkedin', '4100200301')).place).toBe('archive');
   // The archive lists it.
   await page.getByTestId('show-hidden').click();
   await expect(row(page, 'linkedin-4100200301')).toHaveCount(1);

@@ -17,8 +17,23 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await open(page, `${WIN}&scenario=first-run`);
   await expect(page.getByTestId('first-run')).toBeVisible();
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
+  // The caret waits in the first field; the setup is no view, so no nav entry is current.
+  await expect(page.getByTestId('mailbox-user')).toBeFocused();
+  await expect(page.getByTestId('nav-jobs')).not.toHaveAttribute('aria-current', 'page');
 
-  // Where the jobs come from, and what an app password needs, before anything is typed.
+  // Where the jobs come from, and what an app password needs, before anything is typed:
+  // one line under both fields, the two pages in the order she needs them.
+  const links = await page
+    .getByTestId('mailbox-form')
+    .locator('.help .btn')
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-testid')));
+  expect(links).toEqual(['two-step', 'create-password']);
+  // Empty fields are said at once, both, without asking Gmail.
+  await page.getByTestId('mailbox-save').click();
+  await expect(page.getByTestId('mailbox-form')).toContainText('Die Gmail-Adresse fehlt.');
+  await expect(page.getByTestId('mailbox-form')).toContainText('Das App-Passwort fehlt.');
+  await expect(page.getByTestId('mailbox-user')).toBeFocused();
+  expect(await calls(page, 'save_mailbox')).toHaveLength(0);
   await expect(page.getByTestId('step-mailbox')).toContainText(
     'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
   );
@@ -128,20 +143,59 @@ test('removing the mailbox asks first', async ({ page }) => {
   expect(await calls(page, 'remove_mailbox')).toHaveLength(1);
 });
 
+test('the trash empties itself after 30 days unless switched off', async ({ page }) => {
+  await settings(page);
+  const trash = page.getByTestId('toggle-auto-empty-trash');
+  const fetch = page.getByTestId('settings-fetch');
+  await expect(fetch).toContainText('Papierkorb nach 30 Tagen leeren');
+  await expect(fetch).toContainText('Gelöschte Jobs sind danach endgültig weg.');
+  const on = (await trash.getAttribute('aria-checked')) === 'true';
+  await trash.click();
+  await expect(trash).toHaveAttribute('aria-checked', on ? 'false' : 'true');
+  expect((await calls(page, 'save_settings')).map(([, args]) => args)).toEqual([
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: null,
+        autoArchiveDays: null,
+        autoEmptyTrashDays: on ? 0 : 30,
+        language: null,
+      },
+    },
+  ]);
+});
+
 test('old jobs archive themselves unless switched off', async ({ page }) => {
   await settings(page);
   const archive = page.getByTestId('toggle-auto-archive');
   await expect(archive).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('settings-fetch')).toContainText('Jobs nach 30 Tagen archivieren');
   await expect(page.getByTestId('settings-fetch')).toContainText(
-    'Nach 30 Tagen, außer gemerkte und beworbene.',
+    'Favoriten werden nie archiviert.',
   );
   await archive.click();
   await expect(archive).toHaveAttribute('aria-checked', 'false');
   await archive.click();
   await expect(archive).toHaveAttribute('aria-checked', 'true');
   expect((await calls(page, 'save_settings')).map(([, args]) => args)).toEqual([
-    { patch: { portals: [], autoFetchOnStart: null, autoArchiveDays: 0, language: null } },
-    { patch: { portals: [], autoFetchOnStart: null, autoArchiveDays: 30, language: null } },
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: null,
+        autoArchiveDays: 0,
+        autoEmptyTrashDays: null,
+        language: null,
+      },
+    },
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: null,
+        autoArchiveDays: 30,
+        autoEmptyTrashDays: null,
+        language: null,
+      },
+    },
   ]);
 });
 
@@ -149,6 +203,7 @@ test('a stored sign-in can be removed whatever the switches say', async ({ page 
   await settings(page, `${WIN}&scenario=session-left`);
   const card = page.getByTestId('portal-freelance');
   await expect(card).toContainText('Die Anmeldung ist noch gespeichert.');
+  await expect(card.getByTestId('session-freelance')).toContainText('Anmeldung');
   // The portal switched off: the row stays until the sign-in is gone.
   await page.getByTestId('toggle-enabled-freelance').click();
   await expect(card.getByTestId('sign-out-freelance')).toBeVisible();
@@ -176,12 +231,21 @@ test('auto fetch and portal switches save at once', async ({ page }) => {
   await expect(page.getByTestId('toast')).toHaveCount(0);
   const saved = (await calls(page, 'save_settings')).map(([, args]) => args);
   expect(saved).toEqual([
-    { patch: { portals: [], autoFetchOnStart: false, autoArchiveDays: null, language: null } },
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: false,
+        autoArchiveDays: null,
+        autoEmptyTrashDays: null,
+        language: null,
+      },
+    },
     {
       patch: {
         portals: [{ portal: 'linkedin', enabled: false, fetchDetails: null, loginEnabled: null }],
         autoFetchOnStart: null,
         autoArchiveDays: null,
+        autoEmptyTrashDays: null,
         language: null,
       },
     },
@@ -227,20 +291,40 @@ test('each switch carries its risk once; freelance.de sign in and out', async ({
     'Im schlimmsten Fall sperrt das Portal das eigene Konto.',
   );
   await page.getByTestId('toggle-login-freelance').click();
-  // Signed in, the details carry the account risk and the warning is not said again.
-  await expect(page.getByTestId('details-freelance')).toContainText('Kontorisiko');
+  // Each switch keeps its own badge: nothing jumps between rows.
+  await expect(page.getByTestId('details-freelance')).toContainText('Graubereich');
+  await expect(page.getByTestId('login-freelance')).toContainText('Kontorisiko');
   await expect(card.getByText('Kontorisiko')).toHaveCount(1);
+  // The sign-in row is named for what it is; its state is the badge or the hint.
+  const session = page.getByTestId('session-freelance');
+  await expect(session).toContainText('Anmeldung');
+  await expect(session).toContainText('Nicht angemeldet.');
   await page.getByTestId('sign-in-freelance').click();
-  await expect(card).toContainText('Angemeldet');
+  await expect(session.locator('.badge')).toHaveText('Angemeldet');
   await page.getByTestId('sign-out-freelance').click();
-  await expect(card).toContainText('Nicht angemeldet');
+  await expect(session).toContainText('Nicht angemeldet.');
+  // Details off: no request, so no risk badge, sign-in shown off, no sign-in row.
+  await page.getByTestId('toggle-details-freelance').click();
+  await expect(page.getByTestId('details-freelance').locator('.badge')).toHaveCount(0);
+  await expect(page.getByTestId('toggle-login-freelance')).toHaveAttribute('aria-checked', 'false');
+  await expect(session).toHaveCount(0);
   expect(await calls(page, 'portal_logout')).toHaveLength(1);
 });
 
 test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   await settings(page);
-  await expect(page.getByTestId('quota-freelancermap')).toContainText('Heute 86 von 100 Seiten');
-  await expect(page.getByTestId('quota-linkedin')).toHaveCount(0);
+  const freelancermap = page.getByTestId('quota-freelancermap');
+  await expect(freelancermap).toContainText('Heute 86 von 100 Seiten');
+  await expect(freelancermap.getByRole('progressbar')).toBeVisible();
+  // The status is the last part of the card, under the switches, with its own divider.
+  const order = await page
+    .getByTestId('portal-freelancermap')
+    .evaluate((card) =>
+      [...card.querySelectorAll('[data-testid]')].map((node) => node.getAttribute('data-testid')),
+    );
+  expect(order.indexOf('status-freelancermap')).toBeGreaterThan(
+    order.indexOf('details-freelancermap'),
+  );
   await settings(page, `${WIN}&scenario=paused`);
   // One sentence each, saying whether she has to act: a pause needs nothing (calm info),
   // alert mails without jobs ask her to look (warning).
@@ -268,29 +352,70 @@ test('first run: a profile that names nothing to score keeps step two open', asy
   await expect(page.getByTestId('first-fetch')).not.toHaveClass(/primary/);
 });
 
-test('the Excel file says where it is: path to copy, and it opens', async ({
+test('every path row works the same: the path as text, the folder or file opens', async ({
   page,
-  browserName,
 }) => {
-  if (browserName === 'chromium') {
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-  }
   await settings(page);
   const row = page.getByTestId('excel');
   await expect(row).toContainText('C:/Users/demo/Documents/Job-Alerts/auswertung/JobAlerts.xlsx');
-  await page.getByTestId('excel-copy').click();
-  await expect(page.getByTestId('toast').last()).toHaveText('Kopiert.');
+  await expect(row.locator('[data-copy]')).toHaveCount(1);
   await page.getByTestId('excel-open').click();
   expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({ target: { kind: 'excel' } });
+  for (const [id, kind] of [
+    ['workspace-open', 'workspace'],
+    ['logs-open', 'logDir'],
+    ['data-open', 'dataDir'],
+  ] as const) {
+    await expect(page.getByTestId(id)).toHaveText('Ordner öffnen');
+    await page.getByTestId(id).click();
+    expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({ target: { kind } });
+  }
+  await expect(page.getByText('Pfad kopieren')).toHaveCount(0);
+});
+
+test('a portal that is off says so; its name switches it', async ({ page }) => {
+  await settings(page);
+  await page.getByTestId('portal-linkedin').locator('label.name').click();
+  await expect(page.getByTestId('toggle-enabled-linkedin')).toHaveAttribute(
+    'aria-checked',
+    'false',
+  );
+  await expect(page.getByTestId('portal-off-linkedin')).toHaveText('Wird beim Abruf übersprungen.');
+});
+
+test('a run holds the mailbox, the folder and the files', async ({ page }) => {
+  await settings(page, `${WIN}&scenario=running`);
+  for (const id of ['mailbox-change', 'mailbox-remove', 'workspace-change', 'txt-clear']) {
+    await expect(page.getByTestId(id)).toHaveAttribute('aria-disabled', 'true');
+  }
+  await page.getByTestId('mailbox-change').hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Ein Abruf läuft gerade.');
+});
+
+test('the mailbox says when the last fetch could not reach Gmail', async ({ page }) => {
+  await settings(page, `${WIN}&scenario=offline`);
+  const mailbox = page.getByTestId('settings-mailbox');
+  await expect(mailbox).toContainText('Nicht erreichbar');
+  await expect(mailbox).not.toContainText('Verbunden');
+  await expect(page.getByTestId('mailbox-failure')).toHaveText('Gmail ist nicht erreichbar.');
+});
+
+test('the macOS demo shows the keychain and Mac paths', async ({ page }) => {
+  await settings(page, '?platform=macos');
+  await expect(page.getByTestId('settings-mailbox')).toContainText('macOS-Schlüsselbund');
+  await expect(page.getByTestId('excel')).toContainText('/Users/demo/Documents/Job-Alerts');
+  await expect(page.getByTestId('settings')).not.toContainText('C:/');
 });
 
 test('files: rewrite and delete the text files where they are', async ({ page }) => {
   await settings(page);
+  // The result answers under Dateien, where the action happened (no toast).
   await page.getByTestId('txt-rewrite').click();
-  await expect(page.getByTestId('toast').last()).toHaveText('38 Dateien geschrieben.');
+  await expect(page.getByTestId('files-note')).toHaveText('38 Dateien geschrieben.');
   await page.getByTestId('txt-clear').click();
   await page.getByTestId('dialog-clear').getByRole('button', { name: 'Löschen' }).click();
-  await expect(page.getByTestId('toast').last()).toHaveText('38 Dateien gelöscht.');
+  await expect(page.getByTestId('files-note')).toHaveText('38 Dateien gelöscht.');
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   await expect(page.getByTestId('txt-clear')).toHaveAttribute('aria-disabled', 'true');
 });
 
@@ -315,9 +440,13 @@ test('reset asks with a danger dialog; the report shows after the restart', asyn
   expect(await calls(page, 'reset_all')).toHaveLength(1);
   // After the restart the app is empty: the first-run page with the report.
   await open(page, `${WIN}&scenario=reset`);
-  await expect(page.getByTestId('first-reset-report')).toHaveText(
-    'Die App ist zurückgesetzt, 1 Datei ließ sich nicht löschen.',
-  );
+  const report = page.getByTestId('first-reset-report');
+  await expect(report).toContainText('Die App ist zurückgesetzt, 1 Datei ließ sich nicht löschen.');
+  // The file left behind can be found: the app's folder opens.
+  await report.getByRole('button', { name: 'Ordner öffnen' }).click();
+  expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({
+    target: { kind: 'dataDir' },
+  });
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'false');
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'false');
 });
@@ -327,10 +456,31 @@ test('a refused app password says so in the form', async ({ page }) => {
   await page.getByTestId('mailbox-user').fill('alerts.demo@gmail.com');
   await page.getByTestId('mailbox-password').fill('fals chfa lsch fals');
   await page.getByTestId('mailbox-password').press('Enter');
-  await expect(page.getByTestId('mailbox-form')).toContainText(
+  // Said once above the button; both fields are marked, since either may be wrong.
+  await expect(page.getByTestId('mailbox-error')).toHaveText(
     'Gmail lehnt Adresse oder App-Passwort ab.',
   );
+  for (const id of ['mailbox-user', 'mailbox-password']) {
+    await expect(page.getByTestId(id)).toHaveAttribute('aria-invalid', 'true');
+  }
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'false');
+});
+
+test('a changed mailbox: save and cancel at the trailing edge, a toast that says it', async ({
+  page,
+}) => {
+  await settings(page);
+  await page.getByTestId('mailbox-change').click();
+  const form = page.getByTestId('mailbox-form');
+  const edge = await form.evaluate((node) => {
+    const actions = node.querySelector('.actions')!.getBoundingClientRect();
+    const last = [...node.querySelectorAll('.actions .btn')].at(-1)!.getBoundingClientRect();
+    return Math.abs(actions.right - last.right);
+  });
+  expect(edge).toBeLessThanOrEqual(1);
+  await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
+  await page.getByTestId('mailbox-save').click();
+  await expect(page.getByTestId('toast').last()).toHaveText('Postfach verbunden.');
 });
 
 test('the dry run shows its mailbox and refuses what would write outside it', async ({ page }) => {

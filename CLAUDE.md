@@ -13,7 +13,7 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
   The repo is public: no real mails, profiles or labels outside `core/tests/fixtures/private/` (ignored).
 - Everything in the repo is English (code, comments, docs, logs, errors, tests, CI, commits). Exceptions are the
   modules marked `external contract - do not translate` (TXT header, folder names, profile JSON keys, German mail
-  patterns, matching lexicon) and the German UI catalog `ui/src/lib/i18n/de.ts`. `core/tests/language.rs` enforces it.
+  patterns, matching lexicon) and the German UI catalog `ui/src/lib/i18n/de.ts` (source; `en.ts` mirrors it with the same type). `core/tests/language.rs` enforces it.
 - The TXT files stay byte-identical (`header_is_exactly_the_contract`, `txt_is_blind_to_the_match`).
 - UI: light mode only, no theme infrastructure. It must feel like a native app: the native window frame of the OS on
   both (Windows: its title bar in the app's colours via DWM, named constants in `platform.rs`; macOS: the unified
@@ -31,7 +31,7 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
   fill <= 400 ms), ease-out, no bounce; nothing deforms on press; no grey washes behind switch rows.
 - Styling only via tokens in `ui/src/styles/tokens.css`; controls only from `ui/src/components/`; Tauri only via
   `ui/src/lib/ipc/api.ts`; motion only via `ui/src/lib/motion/`. At most one primary button per view. Lint enforces it.
-- UI text (German): little text, only what is needed, plain and human. No AI-style writing: no dashes or
+- UI text (German source, English mirror; the user picks the language in Einstellungen): little text, only what is needed, plain and human. No AI-style writing: no dashes or
   em dashes as separators, no colons in labels or headings, no "X: Y" constructions, no filler, no exclamation
   marks, no emoji. Buttons are one verb phrase, notes one short sentence. The UI must not look AI-generated
   (no sparkles, no gradient text, no glow for decoration).

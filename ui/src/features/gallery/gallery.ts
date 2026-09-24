@@ -203,9 +203,7 @@ function sample(
     short: false,
     match: null,
     alsoOn: [],
-    appStatus: null,
-    statusAt: null,
-    archived: false,
+    place: 'inbox',
     overridden: false,
     ...extra,
   };
@@ -248,7 +246,6 @@ export function sampleJobs(now: Date): JobView[] {
       {
         unread: true,
         pinned: true,
-        appStatus: 'saved',
         match: scored(91, 'Interim-Management im Mittelstand'),
         alsoOn: ['linkedin'],
       },
@@ -258,7 +255,6 @@ export function sampleJobs(now: Date): JobView[] {
       key: { portal: 'linkedin', id: '1002' },
       unread: true,
       workMode: 'remote',
-      appStatus: 'sent',
       match: scored(64, 'Controlling mit SAP S/4HANA'),
     }),
     sample(now, '1003', 'Kaufmännische Leitung Projektgeschäft', 'Werft 7 GmbH', 'Kiel', 30, {

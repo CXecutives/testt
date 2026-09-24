@@ -208,13 +208,13 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   await list.scrollIntoViewIfNeeded();
   const job = (id: string) =>
     list.locator('.job', { has: page.locator(`[data-testid="job-row-${id}"]`) });
-  // The archive tool names its action.
+  // The archive tool names its action (a click moves the job out, see the collapse test).
   await expect(page.getByTestId('archive-freelancermap-1001')).toHaveAttribute(
     'aria-label',
     'Archivieren',
   );
-  // "Beworben" in a quiet badge; a saved job has only its star.
-  await expect(job('linkedin-1002')).toContainText('Beworben');
+  // No stage badges: a favourite has only its star.
+  await expect(job('linkedin-1002')).not.toContainText('Beworben');
   await expect(job('freelancermap-1001')).not.toContainText('Gemerkt');
   // Older than ten days: the date sits on a tint.
   await expect(job('freelancermap-1005').locator('.date')).toHaveClass(/old/);

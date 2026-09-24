@@ -184,7 +184,7 @@ test('a job that cannot be scored says why, once', async ({ page }) => {
   await expect(page.getByTestId('why')).toHaveCount(0);
 });
 
-test('one place for filters: Neu, Alle, Gemerkt, Beworben; the overview says what now', async ({
+test('one place for filters: Neu, Alle, Favoriten; the overview says what now', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -209,13 +209,11 @@ test('one place for filters: Neu, Alle, Gemerkt, Beworben; the overview says wha
     'true',
   );
   await expect(rows(page)).toHaveCount(await segmentCount(page, 'Gemerkt'));
-  await facet.getByRole('radio', { name: /Beworben/ }).click();
-  await expect(page.getByTestId('list-scroll')).toBeVisible();
+  // The favourites of inbox and archive: the backend's own list.
   expect(await calls(page, 'list_jobs')).toContainEqual([
     'list_jobs',
-    expect.objectContaining({ query: expect.objectContaining({ facet: 'sent' }) }),
+    expect.objectContaining({ query: expect.objectContaining({ favourites: true }) }),
   ]);
-  await expect(rows(page)).toHaveCount(await segmentCount(page, 'Beworben'));
 });
 
 test('the reader summary agrees with the listed must requirements', async ({ page }) => {
@@ -367,7 +365,7 @@ test('an empty list and a first fetch without news', async ({ page }) => {
   await open(page, `${WIN}&scenario=empty`);
   await expect(page.getByTestId('empty-all')).toBeVisible();
   expect(await visibleCount(page, '[data-testid^="empty-"]')).toBe(1);
-  await expect(page.getByTestId('run-status')).toContainText('Zuletzt');
+  await expect(page.getByTestId('run-status')).toContainText('Abgerufen');
   // The overview does not say "nothing new" again; the files keep their place.
   await expect(page.getByTestId('new-jobs')).toHaveCount(0);
   await expect(page.getByTestId('day-overview')).not.toContainText('Keine neuen Jobs');
@@ -410,7 +408,7 @@ test('two runs in a row: both end in the idle state', async ({ page }) => {
   expect(await calls(page, 'start_run')).toHaveLength(2);
   // The sidebar is idle as well once the run card steps aside.
   await page.getByTestId('nav-settings').click();
-  await expect(page.getByTestId('run-status')).toContainText('Zuletzt');
+  await expect(page.getByTestId('run-status')).toContainText('Abgerufen');
 });
 
 test('a removed mailbox keeps the jobs: Abrufen waits and the list says how', async ({ page }) => {
@@ -465,7 +463,7 @@ test('offline: the failed run says why and offers a retry', async ({ page }) => 
   await expect(failed).toContainText('Gmail ist nicht erreichbar.');
   // The sidebar says the fetch failed; the open point names it once and says why.
   await expect(failed).toContainText('Letzter Abruf');
-  await expect(page.getByText('Abruf fehlgeschlagen')).toHaveCount(1);
+  await expect(page.getByTestId('run-status')).toContainText('Fehlgeschlagen 08:30');
   await failed.getByRole('button', { name: 'Erneut versuchen' }).click();
   await runFinished(page);
   expect(await calls(page, 'start_run')).toHaveLength(1);
@@ -779,37 +777,16 @@ test('the day overview: its best jobs open the reader', async ({ page }) => {
   await expect(page.getByTestId('reader-title')).toHaveText(title);
 });
 
-test('the reader marks a job: status, note, hide with undo, copy as a prompt', async ({
-  page,
-  browserName,
-}) => {
+test('the reader archives with undo and copies a prompt', async ({ page, browserName }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   const first = rows(page).first();
   const second = await rows(page).nth(1).locator('.title').innerText();
   await first.click();
   await expect(page.getByTestId('reader')).toBeVisible();
-  // One mark "Beworben" with its date; again clears it.
-  await page.getByTestId('status-sent').click();
-  await expect(page.getByTestId('status-sent')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('status-since')).toBeVisible();
-  await page.getByTestId('status-sent').click();
-  await expect(page.getByTestId('status-sent')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('status-since')).toHaveCount(0);
-  expect((await calls(page, 'set_app_status')).map(([, args]) => args)).toEqual([
-    expect.objectContaining({ status: 'sent' }),
-    expect.objectContaining({ status: null }),
-  ]);
-  // The note saves when the field is left; Esc takes the stored one back.
-  const note = page.getByTestId('note');
-  await note.fill('Agentur anrufen');
-  await page.getByTestId('reader-title').click();
-  await expect
-    .poll(async () => (await calls(page, 'set_note')).map(([, args]) => args))
-    .toEqual([expect.objectContaining({ note: 'Agentur anrufen' })]);
-  await note.fill('etwas anderes');
-  await note.press('Escape');
-  await expect(note).toHaveValue('Agentur anrufen');
+  // No stages and no note any more: the favourite is the only mark.
+  await expect(page.getByTestId('status-sent')).toHaveCount(0);
+  await expect(page.getByTestId('note')).toHaveCount(0);
   // As a prompt for any AI chat.
   if (browserName === 'chromium') {
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);

@@ -25,6 +25,7 @@
   import Icon from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
   import { t } from '$lib/i18n/t';
+  import { invoke } from '$lib/ipc/api';
   import { rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -75,6 +76,11 @@
     if (profile === null && editor.origin === null) editor.create();
     navigation.go('profile');
   }
+
+  /** Where a file the reset could not delete is left. */
+  function openDataDir(): void {
+    invoke('open_target', { target: { kind: 'dataDir' } }).catch(() => undefined);
+  }
 </script>
 
 {#snippet marker(step: number, done: boolean, drawn: boolean)}
@@ -106,10 +112,12 @@
       <p class="privacy"><Icon name="shield" size="sm" />{t.firstRun.privacy}</p>
     </header>
 
-    {#if reset}
+    <!-- Until the setup goes on; a file left behind can be found in the app's folder. -->
+    {#if reset && !mailboxDone}
       <Notice
         tone={reset.failed > 0 ? 'warning' : 'success'}
         text={reset.failed > 0 ? t.settings.resetPartly(reset.failed) : t.settings.resetDone}
+        action={reset.failed > 0 ? { label: t.common.openFolder, onclick: openDataDir } : null}
         testid="first-reset-report"
       />
     {/if}
@@ -130,7 +138,7 @@
               <p class="done-text" in:rise>{app.state?.mailbox.user}</p>
             {:else}
               <p class="hint">{t.firstRun.mailboxText}</p>
-              <MailboxForm saveLabel={t.settings.connect} />
+              <MailboxForm saveLabel={t.settings.connect} autofocus />
             {/if}
           </div>
         </li>
