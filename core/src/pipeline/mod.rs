@@ -437,6 +437,15 @@ pub const MAX_EVENT_BYTES: usize = 7 * 1024;
 const LAST_FETCH_AT: &str = "last_fetch_at";
 /// Label of the mail address row that earlier versions stored - do not translate.
 const LEGACY_ACCOUNT_LABEL: &str = "Gmail-Konto";
+/// Info sheet labels and values earlier versions stored with the last mailbox scan, and
+/// today's words for them (until the next scan stores its own) - do not translate.
+const LEGACY_INFO: [(&str, &str); 5] = [
+    ("Umfang des letzten Laufs", texts::INFO_SCOPE),
+    ("Neu (letzter Lauf)", texts::INFO_NEW),
+    ("Schon bekannt (letzter Lauf)", texts::INFO_KNOWN),
+    ("Doppelt in mehreren Mails (letzter Lauf)", texts::INFO_DUP),
+    ("Neu seit letztem Lauf", texts::SCOPE_NEW),
+];
 /// The app fetches by itself at the start when the last fetch is older than this.
 pub const AUTO_FETCH_AFTER: jiff::SignedDuration = jiff::SignedDuration::from_hours(6);
 
@@ -1195,7 +1204,7 @@ fn info_rows(store: &Store, started_at: Timestamp) -> Vec<(String, String)> {
     rows.retain(|(label, _)| label != LEGACY_ACCOUNT_LABEL);
     // ... and their own words, read in today's until the next scan stores its rows.
     let today = |text: &mut String| {
-        if let Some((_, new)) = texts::LEGACY_INFO.iter().find(|(old, _)| old == text) {
+        if let Some((_, new)) = LEGACY_INFO.iter().find(|(old, _)| old == text) {
             *text = (*new).to_owned();
         }
     };

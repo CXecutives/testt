@@ -51,16 +51,6 @@ pub const PROGRAM_NAME: &str = "Job-Alert-Monitor";
 pub const SCOPE_NEW: &str = "Neu seit dem letzten Abruf";
 pub const SCOPE_ALL: &str = "Alle";
 
-/// Info sheet labels and values of earlier versions, stored with the last mailbox scan: they
-/// are read in today's words until the next scan stores its own. Do not translate.
-pub const LEGACY_INFO: [(&str, &str); 5] = [
-    ("Umfang des letzten Laufs", INFO_SCOPE),
-    ("Neu (letzter Lauf)", INFO_NEW),
-    ("Schon bekannt (letzter Lauf)", INFO_KNOWN),
-    ("Doppelt in mehreren Mails (letzter Lauf)", INFO_DUP),
-    ("Neu seit letztem Lauf", SCOPE_NEW),
-];
-
 /// Words of the HTML overview. "Übersicht" names this file only, like "Übersicht öffnen" in
 /// the interface.
 pub const HTML_TITLE: &str = "Übersicht";
@@ -107,6 +97,7 @@ pub fn details_label(job: &JobRow) -> &'static str {
         DescStatus::Unfetchable => "Nicht abrufbar",
     }
 }
+// end of user-facing text
 
 #[cfg(test)]
 mod tests {

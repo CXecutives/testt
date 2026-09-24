@@ -236,7 +236,7 @@ For each of Jobs, Reader, Day overview, Profil, Einstellungen, First run, dialog
 
 ## Glossary (UI)
 Job · Portal · Passung · Details · Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu (= unread) ·
-Zu prüfen · Merken. Checked for the UI catalog and the Rust export texts.
+Zu prüfen · Merken. Checked for the UI catalog (`ui_contract.rs`) and the Rust texts: exports, startup dialog, window titles, file dialogs, macOS menu (`rust_texts.rs`).
 
 
 ## Budget and models

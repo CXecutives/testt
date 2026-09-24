@@ -441,6 +441,7 @@ mod macos {
     const WINDOW: &str = "Fenster";
     const MINIMIZE: &str = "Minimieren";
     const CLOSE_WINDOW: &str = "Fenster schließen";
+    // end of user-facing text
 
     /// Minimal app menu instead of Tauri's default (no View menu with reload or zoom, no
     /// Help, no Services). It carries the system shortcuts the app keeps: Cmd+Q, Cmd+H,
