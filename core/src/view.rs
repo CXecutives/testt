@@ -18,7 +18,8 @@ use crate::fetch::policy::{Policy, limits};
 use crate::fetch::{PortalHealth, RETRY_AFTER};
 use crate::matching::{self, Assessment, ProfileSummary};
 use crate::model::{
-    AppStatus, Band, DescStatus, MatchRecord, MatchStatus, Notice, band, gmail_url, is_usable_title,
+    AppStatus, Band, DescStatus, KeyFacts, MatchRecord, MatchStatus, Notice, band, gmail_url,
+    is_usable_title,
 };
 use crate::pipeline::{LocalMatcher, Matcher, RunSnapshot, RunSummary, local};
 use crate::portal::{JobKey, Portal};
@@ -129,6 +130,8 @@ pub struct JobMatch {
     pub must_total: u16,
     /// At most two met requirements, quoted from the ad.
     pub top: Vec<String>,
+    /// Rate, start, duration, remote share and contract type of the ad.
+    pub facts: KeyFacts,
 }
 
 /// One row of the job list.
@@ -199,6 +202,7 @@ impl From<&MatchRecord> for JobMatch {
             must_met: record.must_met,
             must_total: record.must_total,
             top: record.top.clone(),
+            facts: record.facts.clone(),
         }
     }
 }
@@ -548,8 +552,10 @@ pub fn match_detail(assessment: &Assessment, matcher: &LocalMatcher, at: Timesta
     }
 }
 
-/// The hard-criteria strip: every criterion the profile sets, with the profile's values, the
-/// reason that decided it (`params.reason`) and that reason's passages.
+/// The hard-criteria strip: every criterion the profile sets that applies to the job, with
+/// the profile's values, the ad's value, the reason that decided it (`params.reason`) and
+/// the passages. Kind `met` only with the ad's value as evidence; `open` when the ad does
+/// not mention it.
 fn criteria_strip(
     assessment: &Assessment,
     matcher: &LocalMatcher,
@@ -569,9 +575,16 @@ fn criteria_strip(
                 .find(|info| info.key == c.key)
                 .map(|info| local::flat_params(&info.params))
                 .unwrap_or_default();
+            params.extend(local::flat_params(&c.params));
             if let Some(reason) = linked {
                 params.extend(local::flat_params(&reason.params));
                 params.insert("reason".into(), reason_id(reason.id).into());
+            }
+            let mut passages = linked.map(ranges).unwrap_or_default();
+            if passages.is_empty()
+                && let Some((start, end)) = c.range
+            {
+                passages.push(TextRange { start, end });
             }
             let code = local::code_name(&c.key);
             Reason {
@@ -579,6 +592,7 @@ fn criteria_strip(
                 kind: match c.status {
                     matching::CriterionStatus::Violated => ReasonKind::Violation,
                     matching::CriterionStatus::Check => ReasonKind::Check,
+                    matching::CriterionStatus::NotMentioned => ReasonKind::Open,
                     _ => ReasonKind::Met,
                 },
                 weight: ReasonWeight::Hard,
@@ -586,7 +600,7 @@ fn criteria_strip(
                 label: linked.and_then(|r| r.label.clone()).unwrap_or_default(),
                 evidence: None,
                 params,
-                ranges: linked.map(ranges).unwrap_or_default(),
+                ranges: passages,
             }
         })
         .collect()
@@ -1323,6 +1337,7 @@ mod tests {
             must_met: 1,
             must_total: 2,
             top: Vec::new(),
+            facts: crate::model::KeyFacts::default(),
         }
     }
 
@@ -1824,6 +1839,10 @@ Rahmenbedingungen:
         assert!(ids.contains(linked) && !rate.ranges.is_empty(), "{rate:?}");
         assert_eq!(m.criteria[1].kind, ReasonKind::Met);
         assert_eq!(m.criteria[1].params["countries"], "DE, AT, CH");
+        // Met with the ad's value as evidence; the start is not mentioned (open).
+        assert_eq!(m.criteria[1].params["location"], "Hamburg");
+        assert_eq!(m.criteria[2].params["contract"], "interim");
+        assert_eq!(m.criteria[3].kind, ReasonKind::Open);
         let summary = m.summary.unwrap();
         assert_eq!(summary.params["evidence"], "full");
         assert!(serde_json::to_vec(&m.reasons).unwrap().len() < 64 * 1024);

@@ -40,7 +40,13 @@ OLD_FILES = ("matcher.py", "descriptions.py", "profile_store.py", "config.py")
 REPO = Path(__file__).resolve().parents[2]
 FIXTURES = REPO / "core" / "tests" / "fixtures" / "matching"
 PROFILES = (FIXTURES / "sample_profile.json", FIXTURES / "sample_profile_it.json")
-CORPUS_PROFILES = (*PROFILES, FIXTURES / "sample_profile_senior.json", FIXTURES / "sample_profile_sap.json")
+CORPUS_PROFILES = (
+    *PROFILES,
+    FIXTURES / "sample_profile_senior.json",
+    FIXTURES / "sample_profile_sap.json",
+    FIXTURES / "sample_profile_senior_wishes.json",
+    FIXTURES / "sample_profile_sap_wishes.json",
+)
 
 
 def git(*args: str) -> bytes:

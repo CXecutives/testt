@@ -1,0 +1,28 @@
+Titel: BI-Berater Finanzreporting (SAP Analytics Cloud, Power BI)
+Unternehmen: Moorland Energie Beratung GmbH
+Ort: D-45127 Essen
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1342016
+Abgerufen am: 19.09.2026 08:15
+
+Projekt-ID: 1342016
+Ort: Essen
+Remote: 100 %
+Start: sofort
+Dauer: 6 Monate
+Vertragsart: Freiberuflich
+Honorar: 1.000 € pro Tag
+
+Projektbeschreibung
+Ein Energieversorger modernisiert sein Finanz- und Managementreporting. Die Daten liegen in SAP S/4HANA und einem BW on HANA. Gesucht wird ein BI-Berater, der die Anforderungen des Konzerncontrollings in Berichte und Planungsmodelle übersetzt.
+
+Aufgaben
+- Aufbau von Stories und Planungsmodellen in SAP Analytics Cloud
+- Entwicklung von Power BI Dashboards für Vorstand und Bereichsleitungen
+- Anbindung der Quellsysteme über CDS Views und Live Connection
+- Abstimmung des KPI-Katalogs mit dem Controlling
+
+Anforderungen
+- Erfahrung in SAC Planning und Power BI (DAX, Datenmodellierung)
+- Verständnis von Controlling-Prozessen, Budgetierung und Forecast
+- Kenntnisse in SAP BW oder BW/4HANA wünschenswert

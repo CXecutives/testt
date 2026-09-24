@@ -1,0 +1,28 @@
+Titel: SAP CO-PC Berater Produktkostenrechnung (Payrolling)
+Unternehmen: Seeufer Personalmanagement GmbH
+Ort: D-78467 Konstanz
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1341588
+Abgerufen am: 14.09.2026 07:40
+
+Projekt-ID: 1341588
+Ort: Konstanz
+Remote: 40 %
+Start: 01.10.2026
+Dauer: 8 Monate
+Vertragsart: Payrolling
+Honorar: 92 € pro Stunde
+
+Projektbeschreibung
+Im Auftrag eines Herstellers von Medizintechnik suchen wir einen SAP CO Berater mit Schwerpunkt Produktkostenrechnung. Da der Kunde keine freiberuflichen Einsätze beauftragt, erfolgt die Abwicklung über Payrolling mit befristeter Anstellung bei uns.
+
+Aufgaben
+- Überarbeitung der Kalkulationsschemata und der Zuschlagsermittlung
+- Einführung des Material Ledgers mit Istkalkulation in S/4HANA
+- Analyse von Abweichungen und Ware in Arbeit
+- Unterstützung des Werkscontrollings beim Monatsabschluss
+
+Anforderungen
+- Fundierte Erfahrung in SAP CO-PC und CO-PA
+- Kenntnisse der Integration zu PP und MM
+- Erfahrung im Umfeld Fertigung, idealerweise Medizintechnik

@@ -1,8 +1,8 @@
 {
-  "version": 3,
-  "note": "Expectations for the synthetic corpus, fixed before any engine work (track 1d) and corrected after an independent review (version 2). Judged like a careful recruiter with the job-matching skill rubric. band = expected score range 0-100 (width <= 30; the effective score of an unscorable or absent job is 0). status = excluded (a decided violation) > unscorable (too little text) > scored. violations = decided hard-criterion violations (anue, country, dayRate). Availability is never decided: a start before the profile's availability is the check availabilityGap {days} (job start = explicit date, or the mail date for 'sofort'). checks = codes the engine should raise instead of deciding. mustOpen = case-insensitive substrings of must requirements that must NOT count as met. The IT profile's minimum day rate comes from the old fallback einsatzpraeferenzen.tagessatz_ab (950) because harte_kriterien has no min_tagessatz. Version 3 (matching track round 2): two more invented profiles, senior = sample_profile_senior.json (very senior interim finance and transformation consultant modelled on the job-matching rubric, with the permanent-role keys min_jahresgehalt, festanstellung_orte, festanstellung_remote_min and zielprofil_min_jahre) and sap = sample_profile_sap.json (SAP FI/CO consultant), and K41-K52 covering the new rules; all version-3 expectations were written before the engine change and are gated from ENGINE_VERSION 3 on (profileSince, since). New violations: salary, permanentRegion, tooJunior, formalOpen (only a mandatory, unattainable formal duty). New checks: salaryUnknown, permanentRegion (inferred permanent role), permanentRegionUnclear, anueRisk, seniorityUnclear.",
-  "profiles": {"fin": "sample_profile.json", "it": "sample_profile_it.json", "senior": "sample_profile_senior.json", "sap": "sample_profile_sap.json"},
-  "profileSince": {"senior": 3, "sap": 3},
+  "version": 4,
+  "note": "Expectations for the synthetic corpus, fixed before any engine work (track 1d) and corrected after an independent review (version 2). Judged like a careful recruiter with the job-matching skill rubric. band = expected score range 0-100 (width <= 30; the effective score of an unscorable or absent job is 0). status = excluded (a decided violation) > unscorable (too little text) > scored. violations = decided hard-criterion violations (anue, country, dayRate). Availability is never decided: a start before the profile's availability is the check availabilityGap {days} (job start = explicit date, or the mail date for 'sofort'). checks = codes the engine should raise instead of deciding. mustOpen = case-insensitive substrings of must requirements that must NOT count as met. The IT profile's minimum day rate comes from the old fallback einsatzpraeferenzen.tagessatz_ab (950) because harte_kriterien has no min_tagessatz. Version 3 (matching track round 2): two more invented profiles, senior = sample_profile_senior.json (very senior interim finance and transformation consultant modelled on the job-matching rubric, with the permanent-role keys min_jahresgehalt, festanstellung_orte, festanstellung_remote_min and zielprofil_min_jahre) and sap = sample_profile_sap.json (SAP FI/CO consultant), and K41-K52 covering the new rules; all version-3 expectations were written before the engine change and are gated from ENGINE_VERSION 3 on (profileSince, since). New violations: salary, permanentRegion, tooJunior, formalOpen (only a mandatory, unattainable formal duty). New checks: salaryUnknown, permanentRegion (inferred permanent role), permanentRegionUnclear, anueRisk, seniorityUnclear. Version 4 (wishes): two derived profiles with the new optional keys, wish = sample_profile_senior_wishes.json (the senior profile plus schwerpunkte Restrukturierung, Konzernrechnungslegung nach IFRS, Treasury, Finanztransformation; wunschrollen Interim CFO, Head of Finance, Leitung Konzernrechnungswesen; einsatzpraeferenzen tagessatz_wunsch 1300, remote ueberwiegend, regionen München and Bayern, branchen Maschinenbau, Automobilindustrie, Private Equity) and wishSap = sample_profile_sap_wishes.json (the SAP profile plus schwerpunkte SAP S/4HANA Finance, Datenmigration, Central Finance; wunschrollen SAP FI/CO Berater, S/4HANA Finance Lead; tagessatz_wunsch 1100, remote 'mindestens 60 %' (old free text), regionen Frankfurt am Main and Hessen, branchen Banken, Versicherungen, Pharma), plus K53-K58 aimed at the wishes (all met, all missed, a target-role title on an off-field ad, SAP all met, SAP rate missed and hybrid, a permanent target role). Bands were written before the engine change from the ad and the profile like the others: a target role and wishes met move a job up by a few points, wishes clearly missed move it down, nothing lifts a capped or excluded job; statuses, violations and checks are those of the base profile, since wishes never exclude. Gated from ENGINE_VERSION 4 on.",
+  "profiles": {"fin": "sample_profile.json", "it": "sample_profile_it.json", "senior": "sample_profile_senior.json", "sap": "sample_profile_sap.json", "wish": "sample_profile_senior_wishes.json", "wishSap": "sample_profile_sap_wishes.json"},
+  "profileSince": {"senior": 3, "sap": 3, "wish": 4, "wishSap": 4},
   "violationCodes": ["anue", "country", "dayRate", "salary", "permanentRegion", "tooJunior", "formalOpen"],
   "checkCodes": ["anueOptional", "anueHidden", "countryUnclear", "dayRateCurrency", "startVague", "availabilityGap", "permanent", "formalOpen", "lowEvidence", "shortText", "salaryUnknown", "permanentRegion", "permanentRegionUnclear", "anueRisk", "seniorityUnclear", "salary"],
   "jobs": [
@@ -16,7 +16,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "All musts (controlling, IFRS group accounting, S/4HANA, project management) and the Power BI nice-to-have are core skills; interim, remote from DE."},
         "sap": {"band": [15, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "Only S/4HANA fits; an SAP FI/CO consultant is not a group controller."}
+          "why": "Only S/4HANA fits; an SAP FI/CO consultant is not a group controller."},
+        "wish": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 1,200 EUR below the wish of 1,300 (missed), fully remote (remote and region met), IFRS Schwerpunkt demanded."},
+        "wishSap": {"band": [20, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "As sap; rate, remote and region met, the S/4HANA Schwerpunkt meets one must, three musts stay open (capped)."}
       }
     },
     {
@@ -29,7 +33,11 @@
         "senior": {"band": [25, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Salesforce", "Tableau", "Python"],
           "why": "Controlling and project management fit, three tool musts (Salesforce, Tableau, Python) are open."},
         "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Salesforce"],
-          "why": "Product controlling with Salesforce, Tableau and Python; nothing of the SAP FI/CO profile."}
+          "why": "Product controlling with Salesforce, Tableau and Python; nothing of the SAP FI/CO profile."},
+        "wish": {"band": [25, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Salesforce", "Tableau", "Python"],
+          "why": "As senior; rate below the wish, two days on site (60 % remote meets \"ueberwiegend\"), Berlin outside but mostly remote."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Salesforce"],
+          "why": "As sap; rate met, 60 % remote met."}
       }
     },
     {
@@ -42,7 +50,11 @@
         "senior": {"band": [80, 100], "status": "excluded", "violations": ["anue"], "checks": [], "mustOpen": [],
           "why": "Named ANUE (not negated): decided exclusion; the fit itself is strong."},
         "sap": {"band": [10, 40], "status": "excluded", "violations": ["anue"], "checks": [], "mustOpen": [],
-          "why": "Named ANUE: decided exclusion; only S/4HANA fits."}
+          "why": "Named ANUE: decided exclusion; only S/4HANA fits."},
+        "wish": {"band": [75, 100], "status": "excluded", "violations": ["anue"], "checks": [], "mustOpen": [],
+          "why": "As senior (ANUE excluded, score kept); rate below the wish, on site in Frankfurt (remote and region missed), the title names Konzernrechnungswesen without the lead level (half target role), IFRS Schwerpunkt."},
+        "wishSap": {"band": [10, 40], "status": "excluded", "violations": ["anue"], "checks": [], "mustOpen": [],
+          "why": "As sap (ANUE excluded, score kept); Frankfurt met, on site (remote missed), rate met."}
       }
     },
     {
@@ -55,7 +67,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "ANUE explicitly negated (Werkvertrag); controlling, IFRS and S/4HANA fit."},
         "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "ANUE negated; only S/4HANA fits."}
+          "why": "ANUE negated; only S/4HANA fits."},
+        "wish": {"band": [70, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior but rate, remote and region missed (on site in Duesseldorf, 1,150 EUR); IFRS Schwerpunkt demanded."},
+        "wishSap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate met, on site in Duesseldorf (remote and region missed)."}
       }
     },
     {
@@ -68,7 +84,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
           "why": "ANUE only one option (check); controlling, project management and SAP FI/CO fit."},
         "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
-          "why": "ANUE optional (check); SAP FI/CO fits, controlling and project management do not."}
+          "why": "ANUE optional (check); SAP FI/CO fits, controlling and project management do not."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "As senior; 80 % remote met, rate below the wish, Stuttgart outside but mostly remote."},
+        "wishSap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "As sap; 80 % remote met, 1,050 EUR just below the wish."}
       }
     },
     {
@@ -81,7 +101,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["anueHidden"], "mustOpen": [],
           "why": "Payrolling, iGZ/BAP and equal pay describe ANUE without the name: check; skills fit."},
         "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["anueHidden"], "mustOpen": ["Controlling"],
-          "why": "Hidden ANUE (check); controlling, budgeting and forecast are not SAP consulting skills."}
+          "why": "Hidden ANUE (check); controlling, budgeting and forecast are not SAP consulting skills."},
+        "wish": {"band": [70, 95], "status": "scored", "violations": [], "checks": ["anueHidden"], "mustOpen": [],
+          "why": "As senior but on site in Hamburg at 1,100 EUR: rate, remote and region missed."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["anueHidden"], "mustOpen": ["Controlling"],
+          "why": "As sap; on site in Hamburg, rate met."}
       }
     },
     {
@@ -94,7 +118,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Upper bound 1,100 reaches the minimum 1,000; controlling, IFRS and S/4HANA fit."},
         "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Rate range fine; only S/4HANA fits."}
+          "why": "Rate range fine; only S/4HANA fits."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; fully remote from Munich (remote and region met), rate below the wish, IFRS Schwerpunkt."},
+        "wishSap": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate (upper bound 1,100), remote and region met, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -107,7 +135,11 @@
         "senior": {"band": [80, 100], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
           "why": "95 EUR per hour = 760 EUR per day, below 1,000: decided; skills fit."},
         "sap": {"band": [0, 25], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
-          "why": "760 EUR per day below 950: decided; controlling, budgeting and project management do not fit."}
+          "why": "760 EUR per day below 950: decided; controlling, budgeting and project management do not fit."},
+        "wish": {"band": [80, 100], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "As senior (day rate excluded, score kept); fully remote from Nuremberg, rate below the wish."},
+        "wishSap": {"band": [0, 25], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "As sap (day rate excluded)."}
       }
     },
     {
@@ -120,7 +152,11 @@
         "senior": {"band": [80, 100], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
           "why": "750 EUR per day below 1,000: decided; skills fit."},
         "sap": {"band": [0, 25], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
-          "why": "750 EUR per day below 950: decided; no fitting skill."}
+          "why": "750 EUR per day below 950: decided; no fitting skill."},
+        "wish": {"band": [70, 95], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "As senior (day rate excluded, score kept); on site in Leipzig: rate, remote and region missed."},
+        "wishSap": {"band": [0, 25], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "As sap (day rate excluded); on site in Leipzig."}
       }
     },
     {
@@ -133,7 +169,11 @@
         "senior": {"band": [80, 100], "status": "excluded", "violations": ["country"], "checks": [], "mustOpen": [],
           "why": "On site in Warsaw (PL), outside DACH: decided; skills fit."},
         "sap": {"band": [0, 25], "status": "excluded", "violations": ["country"], "checks": [], "mustOpen": [],
-          "why": "On site in Poland: decided; no fitting skill."}
+          "why": "On site in Poland: decided; no fitting skill."},
+        "wish": {"band": [70, 95], "status": "excluded", "violations": ["country"], "checks": [], "mustOpen": [],
+          "why": "As senior (country excluded, score kept); on site in Warsaw: remote and region missed, rate below the wish; the title names Finance Transformation (Schwerpunkt)."},
+        "wishSap": {"band": [0, 25], "status": "excluded", "violations": ["country"], "checks": [], "mustOpen": [],
+          "why": "As sap (country excluded)."}
       }
     },
     {
@@ -146,7 +186,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "US headquarters is no work location; fully remote from DE; all musts fit."},
         "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Group reporting lead with controlling and IFRS; none of it is SAP FI/CO work."}
+          "why": "Group reporting lead with controlling and IFRS; none of it is SAP FI/CO work."},
+        "wish": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; rate, remote and region met, IFRS Schwerpunkt demanded."},
+        "wishSap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate, remote and region met."}
       }
     },
     {
@@ -159,7 +203,11 @@
         "senior": {"band": [75, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Both musts fit (controlling, English C1 with a C1 profile)."},
         "sap": {"band": [25, 55], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "English C1 fits, controlling does not."}
+          "why": "English C1 fits, controlling does not."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 1,300 EUR meets the wish, fully remote."},
+        "wishSap": {"band": [30, 60], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate, remote and Frankfurt met."}
       }
     },
     {
@@ -172,7 +220,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Ten years controlling and fifteen years consolidation are covered (28 and 20 years); minimum 10 is not below the target profile."},
         "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling"],
-          "why": "Group controlling head; no controlling or consolidation experience."}
+          "why": "Group controlling head; no controlling or consolidation experience."},
+        "wish": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 1,250 EUR just below the wish, fully remote."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling"],
+          "why": "As sap; rate and remote met, off the field."}
       }
     },
     {
@@ -185,7 +237,11 @@
         "senior": {"band": [50, 80], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
           "why": "No requirement section, only vocabulary (S/4HANA, Power BI, LucaNet, consolidation): low evidence."},
         "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
-          "why": "Vocabulary only; S/4HANA is the only overlap."}
+          "why": "Vocabulary only; S/4HANA is the only overlap."},
+        "wish": {"band": [50, 80], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "As senior; 60 % remote met, rate below the wish, thin ad."},
+        "wishSap": {"band": [20, 50], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "As sap; rate and 60 % remote met, thin ad."}
       }
     },
     {
@@ -198,7 +254,11 @@
         "senior": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
           "why": "Too little text."},
         "sap": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
-          "why": "Too little text."}
+          "why": "Too little text."},
+        "wish": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Unscorable as for senior."},
+        "wishSap": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Unscorable as for sap."}
       }
     },
     {
@@ -211,7 +271,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Carve-out, PMI, change management and LucaNet are core skills."},
         "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Carve-out and PMI are not SAP FI/CO work."}
+          "why": "Carve-out and PMI are not SAP FI/CO work."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 80 % remote met, 1,250 EUR just below the wish."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate and remote met, off the field."}
       }
     },
     {
@@ -224,7 +288,11 @@
         "senior": {"band": [65, 85], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Oracle Hyperion"],
           "why": "Controlling, IFRS and S/4HANA fit; Oracle Hyperion is open."},
         "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Only S/4HANA fits."}
+          "why": "Only S/4HANA fits."},
+        "wish": {"band": [70, 90], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Oracle Hyperion"],
+          "why": "As senior (Oracle Hyperion open); fully remote, rate below the wish, machine building is a wished industry, IFRS Schwerpunkt."},
+        "wishSap": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate, remote and region met, machine building not wished, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -237,7 +305,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Budgeting, forecast, liquidity planning, S/4HANA and Power BI all fit."},
         "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Only S/4HANA fits."}
+          "why": "Only S/4HANA fits."},
+        "wish": {"band": [75, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior but on site in Hanover at 1,200 EUR: rate, remote and region missed."},
+        "wishSap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; on site in Hanover, rate met, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -250,7 +322,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Each OR requirement is met by one branch (LucaNet, S/4HANA, Power BI)."},
         "sap": {"band": [20, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "S/4HANA or ECC fits; LucaNet/Cognos and Power BI/Tableau do not."}
+          "why": "S/4HANA or ECC fits; LucaNet/Cognos and Power BI/Tableau do not."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 1,300 EUR meets the wish, on site in Cologne: remote and region missed."},
+        "wishSap": {"band": [20, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; on site in Cologne, rate met, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -263,7 +339,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Examples (LucaNet, Power BI) and controlling incl. budgeting fit."},
         "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Consolidation tools, reporting tools and controlling are not in the profile."}
+          "why": "Consolidation tools, reporting tools and controlling are not in the profile."},
+        "wish": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; rate, remote and region (Munich) met."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate, remote and region met, off the field."}
       }
     },
     {
@@ -276,7 +356,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Finance transformation, restructuring and S/4HANA projects fit."},
         "sap": {"band": [20, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "S/4HANA projects fit; finance transformation and restructuring do not."}
+          "why": "S/4HANA projects fit; finance transformation and restructuring do not."},
+        "wish": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; rate and remote met; Finanztransformation and Restrukturierung (Schwerpunkte) demanded in title and musts."},
+        "wishSap": {"band": [25, 55], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate, remote and region met, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -289,7 +373,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Closings, consolidation and restructuring are core skills."},
         "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Closing and consolidation work, not SAP configuration."}
+          "why": "Closing and consolidation work, not SAP configuration."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; on site (remote missed), 1,250 EUR just below the wish; restructuring Schwerpunkt demanded."},
+        "wishSap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; on site, rate met."}
       }
     },
     {
@@ -302,7 +390,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Zurich office but fully remote from DE (CH allowed anyway); large group, IFRS and finance process optimisation fit."},
         "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Group accounting in Switzerland (allowed); no fitting skill."}
+          "why": "Group accounting in Switzerland (allowed); no fitting skill."},
+        "wish": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; rate, remote and region met."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate, remote and region met, off the field."}
       }
     },
     {
@@ -315,7 +407,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Controlling, IFRS group accounting, S/4HANA and fluent German and English (C1) fit."},
         "sap": {"band": [30, 60], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "S/4HANA and both languages fit, controlling and IFRS do not."}
+          "why": "S/4HANA and both languages fit, controlling and IFRS do not."},
+        "wish": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; rate, remote and region met, IFRS Schwerpunkt; \"Interim Finance Manager\" is at most half of \"Head of Finance\"."},
+        "wishSap": {"band": [35, 65], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate, remote and region met, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -328,7 +424,11 @@
         "senior": {"band": [65, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Project management and group consolidation fit; a bare 'management' requirement stays vague."},
         "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Consolidation support; no fitting skill."}
+          "why": "Consolidation support; no fitting skill."},
+        "wish": {"band": [65, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; fully remote, rate below the wish."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate, remote and region met, off the field."}
       }
     },
     {
@@ -341,7 +441,11 @@
         "senior": {"band": [70, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Controlling and IFRS fit; soft skills count little, travel and availability are frame items."},
         "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Controlling and IFRS are open."}
+          "why": "Controlling and IFRS are open."},
+        "wish": {"band": [75, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 60 % remote and Munich met, 1,250 EUR just below the wish, IFRS Schwerpunkt."},
+        "wishSap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate and 60 % remote met."}
       }
     },
     {
@@ -354,7 +458,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Requirement sentences: controlling and IFRS fit; a PM certificate is only a plus."},
         "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Controlling and IFRS are open."}
+          "why": "Controlling and IFRS are open."},
+        "wish": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; on site in Nuremberg (Bavaria, region met; remote missed), rate below the wish, the title names Konzernrechnungswesen without the lead level, IFRS Schwerpunkt."},
+        "wishSap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; on site in Nuremberg, rate met."}
       }
     },
     {
@@ -367,7 +475,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Controlling, consolidation and project management fit; a later start is fine."},
         "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Controlling and consolidation are open."}
+          "why": "Controlling and consolidation are open."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 50 % remote just below \"ueberwiegend\", rate below the wish, Leipzig outside."},
+        "wishSap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; 50 % remote just below 60 %, Leipzig outside, rate met."}
       }
     },
     {
@@ -380,7 +492,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Vienna is in AT (allowed); controlling, consolidation and S/4HANA fit."},
         "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Only S/4HANA fits; Austria is allowed."}
+          "why": "Only S/4HANA fits; Austria is allowed."},
+        "wish": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; rate and 60 % remote met, Vienna outside but mostly remote."},
+        "wishSap": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate and 60 % remote met, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -393,7 +509,11 @@
         "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": ["dayRateCurrency"], "mustOpen": [],
           "why": "Rate in CHF: no EUR comparison, check only; skills fit."},
         "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["dayRateCurrency"], "mustOpen": [],
-          "why": "CHF rate: check only; Switzerland allowed; no fitting skill."}
+          "why": "CHF rate: check only; Switzerland allowed; no fitting skill."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["dayRateCurrency"], "mustOpen": [],
+          "why": "As senior; on site in Zurich (remote and region missed), CHF rate not comparable, IFRS Schwerpunkt."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["dayRateCurrency"], "mustOpen": [],
+          "why": "As sap; on site in Zurich, CHF rate not comparable."}
       }
     },
     {
@@ -406,7 +526,11 @@
         "senior": {"band": [75, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Interim S/4HANA finance lead: 'at least 8 years' is an open range with a Lead title (no exclusion, over-qualified at most); skills and languages fit."},
         "sap": {"band": [40, 70], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "SAP ECC/S/4HANA finance projects and languages fit; controlling and ERP project management are open."}
+          "why": "SAP ECC/S/4HANA finance projects and languages fit; controlling and ERP project management are open."},
+        "wish": {"band": [75, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 60 % remote met, rate below the wish, logistics is not a wished industry, \"SAP S/4HANA Finance Lead\" is at most half of \"Head of Finance\"."},
+        "wishSap": {"band": [55, 85], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; the title is the target role \"S/4HANA Finance Lead\", 60 % remote and rate met, logistics not wished, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -419,7 +543,11 @@
         "senior": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
           "why": "Teaser only; an S/4HANA rollout lead is a side topic for this profile."},
         "sap": {"band": [35, 65], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
-          "why": "Teaser only; S/4HANA and rollout fit, project leadership is not shown."}
+          "why": "Teaser only; S/4HANA and rollout fit, project leadership is not shown."},
+        "wish": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Teaser as for senior; Hamburg outside the regions."},
+        "wishSap": {"band": [30, 60], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Teaser as for sap; Hamburg outside the regions."}
       }
     },
     {
@@ -432,7 +560,11 @@
         "senior": {"band": [65, 95], "status": "excluded", "violations": ["permanentRegion", "salary"], "checks": ["permanent"], "mustOpen": [],
           "why": "Permanent: stated salary 110,000 EUR below 150,000 and Bielefeld outside the Munich region with only two home-office days: both decided."},
         "sap": {"band": [20, 50], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
-          "why": "Permanent with 110,000 EUR (above 95,000); degree and S/4HANA fit, group controlling does not."}
+          "why": "Permanent with 110,000 EUR (above 95,000); degree and S/4HANA fit, group controlling does not."},
+        "wish": {"band": [65, 95], "status": "excluded", "violations": ["permanentRegion", "salary"], "checks": ["permanent"], "mustOpen": [],
+          "why": "As senior (salary and region excluded, score kept); machine building wished, two home-office days just below \"ueberwiegend\", Bielefeld outside."},
+        "wishSap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "As sap; permanent, Bielefeld outside, machine building not wished."}
       }
     },
     {
@@ -445,7 +577,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Duplicate of K07; must score like K07."},
         "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Duplicate of K07."}
+          "why": "Duplicate of K07."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; fully remote from Munich, rate below the wish, IFRS Schwerpunkt."},
+        "wishSap": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate (upper bound), remote and region met, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -458,7 +594,11 @@
         "senior": {"band": [5, 35], "status": "excluded", "violations": ["dayRate"], "checks": ["anueOptional"], "mustOpen": [],
           "why": "980 EUR below 1,000: decided; SAP MM is outside the finance profile."},
         "sap": {"band": [40, 70], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
-          "why": "980 EUR reaches 950; data migration, test management and German fit, SAP MM itself does not."}
+          "why": "980 EUR reaches 950; data migration, test management and German fit, SAP MM itself does not."},
+        "wish": {"band": [5, 35], "status": "excluded", "violations": ["dayRate"], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "As senior (day rate excluded, score kept); mostly on site, rate below the wish, retail not wished."},
+        "wishSap": {"band": [30, 60], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "As sap; 980 EUR below the wish, mostly on site in Munich, retail not wished, Datenmigration Schwerpunkt."}
       }
     },
     {
@@ -471,7 +611,11 @@
         "senior": {"band": [55, 85], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
           "why": "Only nice-to-haves (HGB closings, DATEV, LucaNet): low evidence."},
         "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
-          "why": "Nice-to-haves only; none fits."}
+          "why": "Nice-to-haves only; none fits."},
+        "wish": {"band": [55, 85], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "As senior; fully remote, rate below the wish."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "As sap; remote met, 1,050 EUR just below the wish."}
       }
     },
     {
@@ -484,7 +628,11 @@
         "senior": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "SAP EWM implementation lead with soft skills; not a finance role."},
         "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "SAP EWM project lead; FI/CO consulting does not cover it."}
+          "why": "SAP EWM project lead; FI/CO consulting does not cover it."},
+        "wish": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 60 % remote met, rate below the wish, logistics not wished."},
+        "wishSap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; 60 % remote met, logistics not wished."}
       }
     },
     {
@@ -497,7 +645,11 @@
         "senior": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
           "why": "Title only."},
         "sap": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
-          "why": "Title only."}
+          "why": "Title only."},
+        "wish": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Unscorable as for senior."},
+        "wishSap": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Unscorable as for sap."}
       }
     },
     {
@@ -510,7 +662,11 @@
         "senior": {"band": [75, 100], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": [],
           "why": "Finance transformation programme lead; degree, ten years, IFRS, change and languages fit; travel to PL/CZ is a check."},
         "sap": {"band": [35, 65], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": [],
-          "why": "Degree, general experience and languages fit; programme lead, controlling and IFRS do not; travel to PL/CZ is a check."}
+          "why": "Degree, general experience and languages fit; programme lead, controlling and IFRS do not; travel to PL/CZ is a check."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": [],
+          "why": "As senior; up to 1,450 EUR meets the wish, remote up to 40 % just below, Hamburg outside, machine building and automotive named; Finanztransformation and IFRS Schwerpunkte demanded."},
+        "wishSap": {"band": [40, 70], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": [],
+          "why": "As sap; the title (Gesamtprojektleitung Finance Transformation S/4HANA) matches \"S/4HANA Finance Lead\", rate met, remote up to 40 %, Hamburg outside, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -523,7 +679,11 @@
         "senior": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["SAP SD", "Order-to-Cash"],
           "why": "SAP SD role; only S/4HANA and English fit."},
         "sap": {"band": [25, 55], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "S/4HANA and English fit; SAP SD and order-to-cash are logistics modules the FI/CO profile does not cover; Basel is in CH (allowed)."}
+          "why": "S/4HANA and English fit; SAP SD and order-to-cash are logistics modules the FI/CO profile does not cover; Basel is in CH (allowed)."},
+        "wish": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["SAP SD", "Order-to-Cash"],
+          "why": "As senior; remote met, rate below the wish, pharma not wished."},
+        "wishSap": {"band": [30, 60], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; pharma wished, remote met, 1,000 EUR below the wish."}
       }
     },
     {
@@ -536,7 +696,11 @@
         "senior": {"band": [65, 95], "status": "excluded", "violations": ["salary"], "checks": ["permanent"], "mustOpen": [],
           "why": "Stated upper bound 130,000 EUR per year is below 150,000: decided; Munich itself is inside the region."},
         "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": ["IFRS"],
-          "why": "Salary up to 130,000 EUR reaches 95,000; degree and S/4HANA fit, IFRS and consolidation do not."}
+          "why": "Salary up to 130,000 EUR reaches 95,000; degree and S/4HANA fit, IFRS and consolidation do not."},
+        "wish": {"band": [70, 100], "status": "excluded", "violations": ["salary"], "checks": ["permanent"], "mustOpen": [],
+          "why": "As senior (salary excluded, score kept); the title is the target role \"Leitung Konzernrechnungswesen\", Munich met, medical technology not wished, IFRS Schwerpunkt."},
+        "wishSap": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": ["IFRS"],
+          "why": "As sap; permanent, Munich outside, medical technology not wished."}
       }
     },
     {
@@ -549,7 +713,11 @@
         "senior": {"band": [65, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
           "why": "Salary 160,000-190,000 EUR reaches the minimum; 'Frankfurt am Main oder München' counts as Munich; 15+ years is above the target; strong fit."},
         "sap": {"band": [5, 30], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
-          "why": "Permanent CFO; only English fits."}
+          "why": "Permanent CFO; only English fits."},
+        "wish": {"band": [65, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "As senior; Frankfurt or Munich (region met), energy not wished; Treasury and IFRS Schwerpunkte demanded."},
+        "wishSap": {"band": [5, 30], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "As sap; Frankfurt met, energy not wished."}
       }
     },
     {
@@ -562,7 +730,11 @@
         "senior": {"band": [65, 95], "status": "excluded", "violations": ["permanentRegion"], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
           "why": "Stated permanent role in Frankfurt; 'bis zu drei Tage mobiles Arbeiten' is no proof of 60 % remote: decided; no salary given (check); treasury skills fit."},
         "sap": {"band": [5, 30], "status": "scored", "violations": [], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
-          "why": "Permanent treasury role without salary (check); only English fits."}
+          "why": "Permanent treasury role without salary (check); only English fits."},
+        "wish": {"band": [65, 95], "status": "excluded", "violations": ["permanentRegion"], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
+          "why": "As senior (region excluded, score kept); three mobile days meet \"ueberwiegend\", logistics not wished, Treasury Schwerpunkt in title and musts."},
+        "wishSap": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
+          "why": "As sap; three mobile days meet 60 %, Frankfurt met, logistics not wished."}
       }
     },
     {
@@ -575,7 +747,11 @@
         "senior": {"band": [65, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
           "why": "Hamburg is outside the region but the ad states 80 % remote (>= 60 %): no exclusion; 170,000 EUR reaches the minimum; strong fit."},
         "sap": {"band": [30, 60], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
-          "why": "Salary fine; S/4HANA, years and languages fit, transformation and change do not."}
+          "why": "Salary fine; S/4HANA, years and languages fit, transformation and change do not."},
+        "wish": {"band": [70, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "As senior; 80 % remote met, retail not wished, \"Director Finance Transformation\" is half of \"Head of Finance\", Finanztransformation Schwerpunkt."},
+        "wishSap": {"band": [30, 60], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "As sap; 80 % remote met, retail not wished, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -588,7 +764,11 @@
         "senior": {"band": [70, 95], "status": "scored", "violations": [], "checks": ["permanent", "permanentRegionUnclear", "salaryUnknown"], "mustOpen": [],
           "why": "Location only 'Deutschland' without a remote statement: no exclusion, region unclear; no salary given; all musts fit."},
         "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
-          "why": "Permanent role without salary (check); controlling, IFRS, LucaNet and Power BI are open."}
+          "why": "Permanent role without salary (check); controlling, IFRS, LucaNet and Power BI are open."},
+        "wish": {"band": [70, 95], "status": "scored", "violations": [], "checks": ["permanent", "permanentRegionUnclear", "salaryUnknown"], "mustOpen": [],
+          "why": "As senior; wishes unknown (no place, no remote share, no industry), IFRS Schwerpunkt."},
+        "wishSap": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
+          "why": "As sap; wishes unknown."}
       }
     },
     {
@@ -601,7 +781,11 @@
         "senior": {"band": [70, 100], "status": "scored", "violations": [], "checks": ["anueRisk", "permanentRegionUnclear", "salaryUnknown"], "mustOpen": [],
           "why": "Agency without details: checked like a permanent role (Nuremberg outside the region, no salary) but nothing is decided; ANUE risk; skills fit."},
         "sap": {"band": [35, 65], "status": "scored", "violations": [], "checks": ["anueRisk", "salaryUnknown"], "mustOpen": [],
-          "why": "Agency without details: ANUE risk, no salary; SAP FI/CO and Excel fit, controlling does not."}
+          "why": "Agency without details: ANUE risk, no salary; SAP FI/CO and Excel fit, controlling does not."},
+        "wish": {"band": [75, 100], "status": "scored", "violations": [], "checks": ["anueRisk", "permanentRegionUnclear", "salaryUnknown"], "mustOpen": [],
+          "why": "As senior; Nuremberg is in Bavaria and automotive is wished; no rate, no remote share."},
+        "wishSap": {"band": [30, 60], "status": "scored", "violations": [], "checks": ["anueRisk", "salaryUnknown"], "mustOpen": [],
+          "why": "As sap; Nuremberg outside, automotive not wished."}
       }
     },
     {
@@ -614,7 +798,11 @@
         "senior": {"band": [80, 100], "status": "excluded", "violations": ["tooJunior"], "checks": [], "mustOpen": [],
           "why": "'3-5 Jahre Berufserfahrung' is a closed range below the target of 10 years: decided; the skills themselves fit."},
         "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling"],
-          "why": "Range 3-5 years reaches the target of 5 (no exclusion); only S/4HANA fits."}
+          "why": "Range 3-5 years reaches the target of 5 (no exclusion); only S/4HANA fits."},
+        "wish": {"band": [70, 95], "status": "excluded", "violations": ["tooJunior"], "checks": [], "mustOpen": [],
+          "why": "As senior (too junior, score kept); rate below the wish, Kassel outside, food not wished."},
+        "wishSap": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling"],
+          "why": "As sap; Kassel is in Hesse, food not wished, S/4HANA Schwerpunkt."}
       }
     },
     {
@@ -627,7 +815,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "'7+ years' is an open range with a Senior title: no exclusion (over-qualified at most); all requirements fit."},
         "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Seven years reach the target of 5; only the languages fit."}
+          "why": "Seven years reach the target of 5; only the languages fit."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; fully remote, rate below the wish; \"Senior Finance Manager FP&A\" is at most half of \"Head of Finance\"."},
+        "wishSap": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate, remote and region met."}
       }
     },
     {
@@ -640,7 +832,11 @@
         "senior": {"band": [25, 45], "status": "excluded", "violations": ["formalOpen"], "checks": [], "mustOpen": [],
           "why": "Mandatory engineering degree vs Diplom-Kauffrau: decided; project controlling, restructuring and S/4HANA would fit (score capped)."},
         "sap": {"band": [5, 35], "status": "excluded", "violations": ["formalOpen"], "checks": [], "mustOpen": [],
-          "why": "Mandatory engineering degree vs business bachelor: decided; only S/4HANA fits."}
+          "why": "Mandatory engineering degree vs business bachelor: decided; only S/4HANA fits."},
+        "wish": {"band": [25, 45], "status": "excluded", "violations": ["formalOpen"], "checks": [], "mustOpen": [],
+          "why": "As senior (formal duty excluded, capped); Regensburg in Bavaria, plant engineering counts as machine building, rate below the wish."},
+        "wishSap": {"band": [5, 35], "status": "excluded", "violations": ["formalOpen"], "checks": [], "mustOpen": [],
+          "why": "As sap (formal duty excluded)."}
       }
     },
     {
@@ -653,7 +849,11 @@
         "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Diplom-Kauffrau (Univ.) meets the Master's degree; 10+ years group reporting, IFRS consolidation, LucaNet and fluent English fit."},
         "sap": {"band": [30, 60], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "A business bachelor is below the required Master (partial); SAP Group Reporting and English fit; ten years of group reporting and IFRS consolidation are open."}
+          "why": "A business bachelor is below the required Master (partial); SAP Group Reporting and English fit; ten years of group reporting and IFRS consolidation are open."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 60 % remote met, rate just below the wish, chemicals not wished."},
+        "wishSap": {"band": [30, 60], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; rate and 60 % remote met, chemicals not wished."}
       }
     },
     {
@@ -666,7 +866,11 @@
         "senior": {"band": [55, 85], "status": "excluded", "violations": ["tooJunior"], "checks": ["permanent", "permanentRegion", "salaryUnknown"], "mustOpen": [],
           "why": "'At least 5 years' of professional experience for a plain 'Finance Manager' is below the target of 10: decided; inferred permanent role in Berlin (region only a check), no salary."},
         "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
-          "why": "Five years reach the target of 5; inferred permanent without salary; only the languages fit."}
+          "why": "Five years reach the target of 5; inferred permanent without salary; only the languages fit."},
+        "wish": {"band": [55, 85], "status": "excluded", "violations": ["tooJunior"], "checks": ["permanent", "permanentRegion", "salaryUnknown"], "mustOpen": [],
+          "why": "As senior (too junior, score kept); Berlin outside the regions."},
+        "wishSap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
+          "why": "As sap; Berlin outside."}
       }
     },
     {
@@ -679,7 +883,113 @@
         "senior": {"band": [25, 45], "status": "scored", "violations": [], "checks": ["formalOpen"], "mustOpen": [],
           "why": "Computer science degree required, Diplom-Kauffrau: formal requirement open, score capped; the other musts fit."},
         "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["formalOpen"], "mustOpen": [],
-          "why": "Computer science degree open (business bachelor): capped; only S/4HANA fits."}
+          "why": "Computer science degree open (business bachelor): capped; only S/4HANA fits."},
+        "wish": {"band": [25, 45], "status": "scored", "violations": [], "checks": ["formalOpen"], "mustOpen": [],
+          "why": "As senior (capped by the open degree); fully remote, rate below the wish."},
+        "wishSap": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["formalOpen"], "mustOpen": [],
+          "why": "As sap (capped by the open degree); rate, remote and region met."}
+      }
+    },
+    {
+      "id": "K53", "portal": "linkedin", "location": "München, Bayern, Deutschland", "mailDate": "2026-09-24", "kind": "full", "facts": null, "duplicateOf": null, "since": 4,
+      "expect": {
+        "fin": {"band": [60, 85], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Interim CFO in a restructuring: restructuring, IFRS and liquidity planning fit, Treasury and leading finance teams are not in the profile."},
+        "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": [],
+          "why": "Finance leadership role; no fit for an SAP project lead."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Every must (restructuring, IFRS group accounting, Treasury, liquidity planning, leading finance teams) is a core competence; 1,450 EUR."},
+        "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "No must fits an SAP FI/CO consultant."},
+        "wish": {"band": [90, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior plus everything wished: the target role Interim CFO, 1,450 EUR, 80 % remote, Munich, machine building; three Schwerpunkte demanded."},
+        "wishSap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; the wishes cannot lift an off-field ad."}
+      }
+    },
+    {
+      "id": "K54", "portal": "freelancermap", "location": "Brooktorkai 9, 20457 Hamburg", "mailDate": "2026-09-24", "kind": "full", "facts": null, "duplicateOf": null, "since": 4,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "IFRS, monthly and annual closing under HGB and budgeting are core competences; 1,100 EUR."},
+        "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": [],
+          "why": "Group accounting; no fit."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "All three musts are core competences."},
+        "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Closing support in SAP at best; IFRS, HGB and budgeting are open."},
+        "wish": {"band": [70, 90], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior but every wish missed: 1,100 EUR below 1,300, 100 % on site, Hamburg, retail; no target role; the IFRS Schwerpunkt is demanded."},
+        "wishSap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap; on site in Hamburg, retail not wished."}
+      }
+    },
+    {
+      "id": "K55", "portal": "linkedin", "location": "Augsburg, Bayern, Deutschland", "mailDate": "2026-09-24", "kind": "full", "facts": null, "duplicateOf": null, "since": 4,
+      "expect": {
+        "fin": {"band": [5, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Hospital accounting, DRG, care rates and the hospital pay law are all open: off the field."},
+        "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": [],
+          "why": "Off the field."},
+        "senior": {"band": [5, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Interim CFO title, but every must is hospital-specific and open: off the field (capped)."},
+        "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Off the field."},
+        "wish": {"band": [5, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "The title is the target role Interim CFO and rate, remote and Bavaria are met, yet every must is open: the off-field cap holds."},
+        "wishSap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Off the field."}
+      }
+    },
+    {
+      "id": "K56", "portal": "freelance", "location": "D-60311 Frankfurt am Main", "mailDate": "2026-09-24", "kind": "full", "facts": null, "duplicateOf": null, "since": 4,
+      "expect": {
+        "fin": {"band": [25, 55], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Central Finance"],
+          "why": "SAP FI/CO and S/4HANA as a user; Central Finance and data migration are open."},
+        "it": {"band": [20, 50], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": [],
+          "why": "S/4HANA migration and data migration fit; SAP FI/CO and Central Finance are open."},
+        "senior": {"band": [20, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Central Finance"],
+          "why": "SAP FI/CO and S/4HANA as a user; Central Finance and data migration are open."},
+        "sap": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "SAP FI, SAP CO, S/4HANA migrations, Central Finance and data migration are all core competences; 1,150 EUR fully remote."},
+        "wish": {"band": [20, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Central Finance"],
+          "why": "As senior; remote met, rate below the wish, banking not wished."},
+        "wishSap": {"band": [90, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As sap plus the target role SAP FI/CO Berater, rate, remote, Frankfurt and banking; three Schwerpunkte demanded."}
+      }
+    },
+    {
+      "id": "K57", "portal": "linkedin", "location": "Wiesbaden, Hessen, Deutschland (Hybrid)", "mailDate": "2026-09-24", "kind": "full", "facts": null, "duplicateOf": null, "since": 4,
+      "expect": {
+        "fin": {"band": [40, 70], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "S/4HANA, SAP FI and CO as a user and IFRS; data migration and test management are open."},
+        "it": {"band": [20, 45], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": [],
+          "why": "S/4HANA, data migration and test management fit; SAP FI, SAP CO and IFRS 17 are open (several musts open)."},
+        "senior": {"band": [40, 70], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "S/4HANA, SAP FI and CO as a user and IFRS; data migration and test management are open."},
+        "sap": {"band": [70, 90], "status": "scored", "violations": [], "checks": [], "mustOpen": ["IFRS 17"],
+          "why": "S/4HANA Finance, data migration, SAP FI, SAP CO and test management fit; IFRS 17 is open."},
+        "wish": {"band": [35, 65], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "As senior; 1,000 EUR below the wish, three office days, Wiesbaden outside, insurance not wished; \"S/4HANA Finance Lead\" is at most half of \"Head of Finance\"."},
+        "wishSap": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": ["IFRS 17"],
+          "why": "As sap plus the target role S/4HANA Finance Lead, Hesse and insurance; 1,000 EUR below the wish of 1,100 and three office days pull back a little; two Schwerpunkte demanded."}
+      }
+    },
+    {
+      "id": "K58", "portal": "linkedin", "location": "München, Bayern, Deutschland", "mailDate": "2026-09-24", "kind": "full", "facts": null, "duplicateOf": null, "since": 4,
+      "expect": {
+        "fin": {"band": [35, 65], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent; IFRS fits, Treasury and corporate finance are open."},
+        "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent finance head; no fit."},
+        "senior": {"band": [70, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent in Munich at 180,000 EUR (salary and region fine, second category); 12 years, IFRS, Treasury, corporate finance and leadership fit."},
+        "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent finance head; IFRS, Treasury and financing are open."},
+        "wish": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "As senior plus the target role Head of Finance, 60 % remote, Munich and automotive; IFRS and Treasury Schwerpunkte demanded."},
+        "wishSap": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "As sap; Munich outside, automotive not wished."}
       }
     }
   ]

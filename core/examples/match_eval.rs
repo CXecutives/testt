@@ -171,6 +171,7 @@ fn run_profile(
     for job in jobs {
         let input = JobInput {
             title: &job.title,
+            company: &job.job.company,
             location: &job.job.location,
             portal: job.portal,
             text: &job.body,

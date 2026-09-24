@@ -768,6 +768,8 @@ mod tests {
             ("hybrid", Some(RemoteWish::Partly)),
             ("gern vor Ort", Some(RemoteWish::OnSite)),
             ("Remote", Some(RemoteWish::Full)),
+            ("kein Remote", Some(RemoteWish::OnSite)),
+            ("no remote", Some(RemoteWish::OnSite)),
             ("egal", None),
         ] {
             assert_eq!(RemoteWish::read(text), wish, "{text}");

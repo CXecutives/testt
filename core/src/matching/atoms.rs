@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 use super::lexicon::domains::{DOMAINS, Domain};
 use super::lexicon::{self, engine as lex};
 use super::normalize::casefold;
+use super::params::PACK_HITS;
 
 /// Case-folded, umlauts folded (`Übersicht` -> `ubersicht`, `ß` -> `ss`).
 pub(crate) fn fold(text: &str) -> String {
@@ -57,15 +58,19 @@ impl Vocab {
         Self::with(&[])
     }
 
-    /// Core plus every pack a token of `texts` triggers.
+    /// Core plus every pack that at least `PACK_HITS` tokens of `texts` trigger (one stray
+    /// word such as `Budget` in an HR profile switches on no finance pack).
     pub(crate) fn for_texts<'a>(texts: impl IntoIterator<Item = &'a str>) -> Self {
         let folded: Vec<String> = texts.into_iter().map(fold).collect();
         let packs: Vec<&'static Domain> = DOMAINS
             .iter()
             .filter(|domain| {
-                folded.iter().any(|text| {
-                    raw_tokens(text).any(|t| domain.triggers.iter().any(|p| t.starts_with(p)))
-                })
+                let hits = folded
+                    .iter()
+                    .flat_map(|text| raw_tokens(text))
+                    .filter(|t| domain.triggers.iter().any(|p| t.starts_with(p)))
+                    .count();
+                hits >= PACK_HITS
             })
             .copied()
             .collect();
@@ -112,10 +117,12 @@ pub(crate) fn raw_tokens(folded: &str) -> impl Iterator<Item = &str> {
 /// `FI/CO` and `UI/UX`: short codes joined by `/` are separate tokens.
 fn split_codes(token: &str) -> Vec<&str> {
     let parts: Vec<&str> = token.split('/').collect();
+    // Short codes (`FI/CO`) and short words (`HGB/IFRS`); `S/4HANA` and `m/w/d` stay.
     let codes = parts.len() > 1
-        && parts
-            .iter()
-            .all(|p| p.len() <= 3 && lexicon::synonym(p).is_some());
+        && parts.iter().all(|p| {
+            (p.len() <= 3 && lexicon::synonym(p).is_some())
+                || ((2..=5).contains(&p.len()) && p.chars().all(|c| c.is_ascii_alphabetic()))
+        });
     if codes { parts } else { vec![token] }
 }
 
@@ -166,9 +173,31 @@ fn stem_once(word: &str) -> String {
     word.to_owned()
 }
 
+/// Gender forms end a word (`Personalleiter:in`, `Berater*innen`, `Leiter/in`,
+/// `Controller(in)`): the base word counts.
+fn strip_gender(folded: &str) -> String {
+    let mut out = String::with_capacity(folded.len());
+    let mut rest = folded;
+    while let Some(c) = rest.chars().next() {
+        let form = lex::GENDER_FORMS.iter().find(|form| {
+            rest.strip_prefix(**form).is_some_and(|after| {
+                after.chars().next().is_none_or(|n| !n.is_alphanumeric())
+                    && out.chars().next_back().is_some_and(char::is_alphanumeric)
+            })
+        });
+        if let Some(form) = form {
+            rest = &rest[form.len()..];
+        } else {
+            out.push(c);
+            rest = &rest[c.len_utf8()..];
+        }
+    }
+    out
+}
+
 /// Atoms of a text: tokens without fillers, stemmed, concepts of `vocab` applied.
 pub(crate) fn atoms(text: &str, vocab: &Vocab) -> Vec<String> {
-    let folded = fold(text);
+    let folded = strip_gender(&fold(text));
     let raw: Vec<&str> = raw_tokens(&folded).flat_map(split_codes).collect();
     let stems: Vec<String> = raw
         .iter()
@@ -245,8 +274,28 @@ fn light(part: &str, table: &[&str]) -> bool {
             .any(|p| lexicon::contains(table, p) || lexicon::contains(table, &stem(p)))
 }
 
-/// How a job atom relates to a profile atom (V2 compounds, V4 specific/general).
+/// How a job atom relates to a profile atom (V2 compounds, V4 specific/general). A head
+/// the lexicon treats as a near equivalent (`Projektleitung` for `Projektmanagement`, also
+/// in `Projektleitungserfahrung`) meets it in half: close, but leading a project and
+/// managing projects are not always the same skill.
 pub(crate) fn fit(job: &str, profile: &str) -> Fit {
+    let direct = fit_direct(job, profile);
+    if direct != Fit::None {
+        return direct;
+    }
+    for &(a, b) in lex::EQUIVALENT_HEADS {
+        for (from, to) in [(a, b), (b, a)] {
+            if let Some(rest) = job.strip_prefix(from)
+                && fit_direct(&format!("{to}{rest}"), profile) != Fit::None
+            {
+                return Fit::General;
+            }
+        }
+    }
+    Fit::None
+}
+
+fn fit_direct(job: &str, profile: &str) -> Fit {
     if job == profile {
         return Fit::Equal;
     }
@@ -389,8 +438,11 @@ mod tests {
     fn packs_follow_the_profile() {
         let finance = Vocab::for_texts(["Controlling", "Konzernrechnungslegung nach IFRS"]);
         assert_eq!(finance.packs(), ["finance"]);
-        let sap = Vocab::for_texts(["SAP FI", "Datenmigration"]);
+        let sap = Vocab::for_texts(["SAP FI", "SAP S/4HANA", "Datenmigration", "Jira"]);
         assert_eq!(sap.packs(), ["sap", "itProject"]);
+        // One stray trigger switches on no pack.
+        let hr = Vocab::for_texts(["Recruiting", "Arbeitsrecht", "Budgetverantwortung"]);
+        assert!(hr.packs().is_empty(), "{:?}", hr.packs());
         let clinical = Vocab::for_texts(["Klinische Studien", "Clinical Trial Management"]);
         assert!(clinical.packs().is_empty());
         assert_ne!(
@@ -400,6 +452,24 @@ mod tests {
         assert_eq!(
             atoms("project management", &clinical),
             atoms("Projektmanagement", &clinical)
+        );
+    }
+
+    #[test]
+    fn codes_gender_forms_and_near_equivalents() {
+        assert_eq!(all("HGB/IFRS"), all("HGB IFRS"));
+        assert_eq!(all("S/4HANA"), all("S/4HANA"));
+        assert_eq!(all("Personalleiter:in"), all("Personalleiter"));
+        assert_eq!(all("Berater*innen"), all("Berater"));
+        assert_eq!(all("Controller/in (m/w/d)"), all("Controller"));
+        let a = |s: &str| all(s).remove(0);
+        assert_eq!(
+            fit(&a("Projektleitungserfahrung"), &a("Projektmanagement")),
+            Fit::General
+        );
+        assert_eq!(
+            fit(&a("Projektmanagement"), &a("Projektleitung")),
+            Fit::General
         );
     }
 

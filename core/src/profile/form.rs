@@ -154,7 +154,16 @@ impl RemoteWish {
         }
         let has = |words: &[&str]| words.iter().any(|w| folded.contains(w));
         if has(&[
-            "vor ort", "vor_ort", "vor-ort", "onsite", "on-site", "praesenz",
+            "vor ort",
+            "vor_ort",
+            "vor-ort",
+            "onsite",
+            "on-site",
+            "praesenz",
+            "kein remote",
+            "keine remote",
+            "no remote",
+            "nicht remote",
         ]) {
             Some(RemoteWish::OnSite)
         } else if has(&["ueberwiegend", "mostly", "mainly"]) {

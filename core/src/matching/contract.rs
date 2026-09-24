@@ -62,7 +62,20 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
         .unwrap_or_default();
     let title = fold(job.title);
     let interim_at = |f: &str| any(f, lex::INTERIM_CUES) || parse_rate(f).is_some();
-    let stated_at = |f: &str| any(f, lex::PERMANENT_WORDS) || any(f, lex::PERMANENT_STATED);
+    // A denied or merely possible later permanent position is no statement of one.
+    let stated_at = |f: &str| {
+        (any(f, lex::PERMANENT_WORDS) || any(f, lex::PERMANENT_STATED))
+            && !any(f, lex::PERMANENT_NEGATED)
+            && !any(f, lex::PERMANENT_OPTION)
+    };
+    // A contract type field (`Vertragsart: Festanstellung`, the page fact) decides
+    // before cues elsewhere (a field label `Honorar:`, `Interim ... denkbar`).
+    let field_permanent =
+        |f: &str| stated_at(f) && !interim_at(f) && !f.contains(" oder ") && !f.contains(" or ");
+    let field = field_permanent(&contract_fact)
+        || segments.iter().any(|(_, f)| {
+            lex::CONTRACT_LINES.iter().any(|l| f.starts_with(l)) && field_permanent(f)
+        });
     let hint_at = |f: &str| any(f, lex::PERMANENT_HINTS);
     let spans_of = |pred: &dyn Fn(&str) -> bool| -> Vec<Range<usize>> {
         segments
@@ -91,6 +104,9 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
     if decided_anue {
         let spans = anue.iter().flat_map(|f| f.spans.clone()).collect();
         return contract(ContractKind::Anue, false, spans);
+    }
+    if field {
+        return contract(ContractKind::Permanent, false, spans_of(&stated_at));
     }
     match (stated, interim) {
         (true, true) => contract(ContractKind::Unclear, false, spans_of(&stated_at)),
@@ -185,5 +201,38 @@ mod tests {
             li,
         );
         assert_eq!((both.kind, both.stated_permanent), (Unclear, true));
+    }
+
+    #[test]
+    fn stated_denied_optional_and_field_permanent_roles() {
+        use ContractKind::{Interim, Permanent};
+        let li = Portal::LinkedIn;
+        let fm = Portal::FreelanceDe;
+        let kind = |title, text, portal| infer_text(title, text, portal).kind;
+        assert_eq!(
+            kind("Group Accountant", "A permanent full-time position.", li),
+            Permanent
+        );
+        let denied = infer_text(
+            "Interim Controller",
+            "Daily rate: EUR 1,100. This is not a permanent position.",
+            li,
+        );
+        assert_eq!((denied.kind, denied.stated_permanent), (Interim, false));
+        let option = infer_text(
+            "Interim Controller",
+            "Tagessatz 1.000 €. Perspektivisch ist eine Übernahme in eine Festanstellung denkbar.",
+            fm,
+        );
+        assert_eq!((option.kind, option.stated_permanent), (Interim, false));
+        // The contract field decides over a rate label and interim wording elsewhere.
+        assert_eq!(
+            kind(
+                "Leitung Controlling",
+                "Vertragsart: Festanstellung\nHonorar: nach Vereinbarung\nAuch ein Interim Manager ist denkbar.",
+                fm
+            ),
+            Permanent
+        );
     }
 }

@@ -1,0 +1,35 @@
+Titel: Teamleitung Business Intelligence & Reporting (m/w/d)
+Unternehmen: Wendelstein Handelsgruppe GmbH & Co. KG
+Ort: Oldenburg, Niedersachsen, Deutschland (Vor Ort)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4320311856/
+Abgerufen am: 16.09.2026 07:30
+
+Über den Job
+Wer wir sind
+Die Wendelstein Handelsgruppe ist ein familiengeführtes Handelsunternehmen mit über 180 Lebensmittelmärkten im Nordwesten Deutschlands und rund 7.500 Mitarbeitenden. In unserer Zentrale in Oldenburg bauen wir den Bereich Data & Analytics weiter aus.
+
+Deine Aufgaben
+• Du führst ein Team aus 6 BI-Entwickler:innen und Data Analysts fachlich und disziplinarisch
+• Du verantwortest unser Data Warehouse (Snowflake) und die Reporting-Landschaft in Power BI
+• Du treibst den Ausbau von Self-Service-BI in Vertrieb, Einkauf und Logistik voran
+• Du priorisierst Anforderungen gemeinsam mit den Fachbereichen und steuerst die Umsetzung
+- Du etablierst Standards für Datenqualität, Dokumentation und Berechtigungen
+- Du bist Ansprechpartner:in für externe Dienstleister
+
+Dein Profil
+• Abgeschlossenes Studium der (Wirtschafts-)Informatik, BWL oder eine vergleichbare Qualifikation
+• Mindestens 5 Jahre Erfahrung im Bereich Business Intelligence, idealerweise im Handel
+• Erste Führungserfahrung, fachlich oder disziplinarisch
+• Sehr gute Kenntnisse in Power BI und SQL, Erfahrung mit dbt ist ein Plus
+• Kommunikationsstärke und Spaß daran, Menschen mitzunehmen
+
+Was wir bieten
+• Unbefristeter Arbeitsvertrag in Vollzeit (39 Std./Woche)
+• 30 Tage Urlaub, 24.12. und 31.12. zusätzlich frei
+• Jahresgehalt zwischen 85.000 und 98.000 € je nach Erfahrung
+• Bis zu 2 Tage mobiles Arbeiten pro Woche
+• 10 % Mitarbeiterrabatt in allen Märkten
+• JobRad, betriebliche Altersvorsorge und eine Kantine mit regionaler Küche
+
+Klingt nach dir? Dann bewirb dich einfach mit deinem Lebenslauf, ein Anschreiben brauchen wir nicht.

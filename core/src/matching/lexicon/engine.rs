@@ -174,6 +174,17 @@ pub(crate) const CORE_CONCEPTS: &[(&str, &str)] = &[
     ("spanish", "spanisch"),
 ];
 
+/// Heads that name nearly the same skill (half a match, both ways, also at the start of a
+/// compound).
+pub(crate) const EQUIVALENT_HEADS: &[(&str, &str)] = &[
+    ("projektleitung", "projektmanagement"),
+    ("programmleitung", "programmmanagement"),
+];
+/// Gender endings of a word (after folding).
+pub(crate) const GENDER_FORMS: &[&str] = &[
+    ":innen", "*innen", "_innen", ":in", "*in", "_in", "/in", "(in)",
+];
+
 /// Language stems and their canonical name.
 pub(crate) const LANGUAGES: &[&str] = &[
     "deutsch",
@@ -245,29 +256,61 @@ pub(crate) const SOFT_SKILLS: &[&str] = &[
 /// Frame conditions: weight 0 (travel, availability, presence, driving licence) (prefix
 /// stems, sorted).
 pub(crate) const FRAME_WORDS: &[&str] = &[
+    "auslastung",
     "availability",
     "bereitschaft",
+    "dauer",
+    "duration",
+    "einsatzort",
+    "freelancer",
     "fuhrerschein",
+    "gehalt",
+    "honorar",
+    "hybrid",
+    "laufzeit",
+    "location",
+    "monday",
+    "on-site",
+    "onsite",
+    "permanent",
+    "prasenz",
+    "rate",
     "reise",
     "reisebereitschaft",
+    "remote",
+    "salary",
+    "standort",
     "start",
+    "stundensatz",
+    "tagessatz",
     "travel",
     "verfugbar",
+    "vergutung",
+    "vertragsart",
     "vor-ort-prasenz",
     "willingness",
+    "workload",
 ];
 
 /// Formal requirements: degrees (prefix stems; a bare `Abschluss` is also a financial
 /// statement, so it does not count).
 pub(crate) const DEGREE_WORDS: &[&str] = &[
+    "b.sc",
     "bachelor",
+    "bsc",
     "degree",
     "diplom",
     "hochschulabschluss",
+    "m.sc",
     "master",
+    "msc",
+    "ph.d",
+    "phd",
     "studium",
     "university",
 ];
+/// Words after `master` that make it no degree (`Master Data Management`).
+pub(crate) const MASTER_NOT_DEGREE: &[&str] = &["data", "daten", "file", "plan", "record"];
 
 /// Degree fields: stems in a requirement or profile degree -> field id. A match inside a
 /// longer match (`informatik` in `wirtschaftsinformatik`) does not count.
@@ -302,10 +345,25 @@ pub(crate) const DEGREE_FIELDS: &[(&str, &str)] = &[
     ("mathematik", "science"),
     ("physik", "science"),
     ("naturwissenschaft", "science"),
+    ("natural science", "science"),
+    ("rer. nat", "science"),
+    ("rer.nat", "science"),
+    ("pharmaz", "life-science"),
+    ("pharmacy", "life-science"),
+    ("pharmaceutical science", "life-science"),
+    ("apothek", "life-science"),
+    ("chemie", "life-science"),
+    ("chemistry", "life-science"),
+    ("biolog", "life-science"),
+    ("biochem", "life-science"),
+    ("biotechnolog", "life-science"),
+    ("life science", "life-science"),
+    ("lebenswissenschaft", "life-science"),
 ];
 
 /// Neighbouring degree fields: a degree in one half-meets a requirement for the other.
 pub(crate) const DEGREE_RELATED: &[(&str, &str)] = &[
+    ("science", "life-science"),
     ("business", "business-it"),
     ("it", "business-it"),
     ("business", "business-engineering"),
@@ -451,6 +509,28 @@ pub(crate) const OTHER_PREFIXES: &[&str] = &[
     "projektbeschreibung",
     "ausgangslage",
     "das programmteam",
+    // Frame blocks and portal footers (they are no requirements).
+    "engagement details",
+    "compensation",
+    "conditions",
+    "project details",
+    "projektdaten",
+    "projektdetails",
+    "key facts",
+    "the role",
+    "your mission",
+    "what you will do",
+    "rahmendaten",
+    "vertragsdetails",
+    "contract details",
+    "details",
+    "eckpunkte",
+    "sonstiges",
+    "seniority level",
+    "employment type",
+    "job function",
+    "industries",
+    "bitte beachten",
 ];
 /// A must line containing one of these is a nice-to-have.
 pub(crate) const NICE_CUES: &[&str] = &[
@@ -463,6 +543,30 @@ pub(crate) const NICE_CUES: &[&str] = &[
     "a plus",
     "vorteilhaft",
     "bonus",
+    "ein plus",
+    "strong plus",
+    "gerne mit",
+];
+/// Nice cues that close a line (`X und Y von Vorteil`): the whole line is nice.
+pub(crate) const NICE_CLOSING: &[&str] = &[
+    "von vorteil",
+    "wunschenswert",
+    "a plus",
+    "ein plus",
+    "strong plus",
+    "nice to have",
+    "nice-to-have",
+    "vorteilhaft",
+    "bonus",
+];
+/// A requirement item that says something is not needed.
+pub(crate) const NOT_NEEDED: &[&str] = &[
+    "nicht notwendig",
+    "nicht erforderlich",
+    "nicht notig",
+    "nicht zwingend",
+    "keine voraussetzung",
+    "not required",
 ];
 /// English requirement cues for the sentence stage.
 pub(crate) const EN_CUES: &[&str] = &[
@@ -488,7 +592,7 @@ pub(crate) const EXAMPLES: &[&str] = &[
 pub(crate) const EXAMPLE_SEPARATORS: &[&str] = &[", ", " und ", " oder ", " or ", " and "];
 /// Abbreviations that end with a dot but not a sentence.
 pub(crate) const ABBREVIATIONS: &[&str] = &[
-    "bzw", "ca", "dr", "evtl", "ggf", "inkl", "max", "min", "nr", "vgl", "zzgl",
+    "approx", "bzw", "ca", "dr", "evtl", "ggf", "inkl", "max", "min", "mind", "nr", "vgl", "zzgl",
 ];
 /// AND separators of requirement items.
 pub(crate) const AND: &[&str] = &[
@@ -524,6 +628,29 @@ pub(crate) const RATE_WORDS: &[&str] = &[
     "€/h",
 ];
 pub(crate) const SALARY_WORDS: &[&str] = &["gehalt", "salary"];
+/// A rate to be agreed, without an amount (with a rate word in the same sentence).
+pub(crate) const RATE_OPEN: &[&str] = &[
+    "nach absprache",
+    "nach vereinbarung",
+    "auf anfrage",
+    "verhandelbar",
+    "verhandlungssache",
+    "negotiable",
+    "on request",
+    "to be agreed",
+    "tbd",
+];
+/// Sentences that state a duration, and the units of one.
+pub(crate) const DURATION_WORDS: &[&str] = &[
+    "laufzeit",
+    "dauer",
+    "duration",
+    "zeitraum",
+    "einsatzzeitraum",
+    "length",
+];
+pub(crate) const MONTH_UNITS: &[&str] = &["monat", "month"];
+pub(crate) const WEEK_UNITS: &[&str] = &["woche", "week"];
 pub(crate) const HOURLY_WORDS: &[&str] = &["stunde", "std", "hour", "/h", "stundensatz"];
 pub(crate) const OTHER_CURRENCIES: &[&str] = &["chf", "usd", "gbp", "$", "£"];
 /// Sentences that state a start.
@@ -585,11 +712,15 @@ pub(crate) const COUNTRIES: &[(&str, &str)] = &[
     ("czech", "CZ"),
     ("deutschland", "DE"),
     ("england", "GB"),
-    ("frankreich", "FR"),
     ("france", "FR"),
+    ("frankreich", "FR"),
     ("germany", "DE"),
+    ("grossbritannien", "GB"),
+    ("hungary", "HU"),
     ("india", "IN"),
     ("indien", "IN"),
+    ("ireland", "IE"),
+    ("irland", "IE"),
     ("italien", "IT"),
     ("italy", "IT"),
     ("luxemburg", "LU"),
@@ -599,31 +730,54 @@ pub(crate) const COUNTRIES: &[(&str, &str)] = &[
     ("osterreich", "AT"),
     ("poland", "PL"),
     ("polen", "PL"),
+    ("portugal", "PT"),
+    ("romania", "RO"),
+    ("rumanien", "RO"),
+    ("schweden", "SE"),
     ("schweiz", "CH"),
     ("spain", "ES"),
     ("spanien", "ES"),
+    ("sweden", "SE"),
     ("switzerland", "CH"),
     ("tschechien", "CZ"),
     ("uk", "GB"),
+    ("ungarn", "HU"),
+    ("united kingdom", "GB"),
+    ("united states", "US"),
     ("usa", "US"),
+    ("vereinigte staaten", "US"),
+    ("vereinigtes konigreich", "GB"),
 ];
 
 /// Cities outside Germany that job locations name without a country (sorted).
 pub(crate) const CITIES: &[(&str, &str)] = &[
+    ("amsterdam", "NL"),
+    ("bangalore", "IN"),
     ("basel", "CH"),
     ("bern", "CH"),
     ("brussel", "BE"),
+    ("bucharest", "RO"),
+    ("budapest", "HU"),
+    ("bukarest", "RO"),
+    ("chicago", "US"),
+    ("cluj-napoca", "RO"),
+    ("dublin", "IE"),
     ("graz", "AT"),
     ("innsbruck", "AT"),
     ("krakau", "PL"),
     ("linz", "AT"),
+    ("lisbon", "PT"),
+    ("lissabon", "PT"),
     ("london", "GB"),
     ("luxembourg", "LU"),
+    ("madrid", "ES"),
+    ("new york", "US"),
     ("paris", "FR"),
     ("prag", "CZ"),
+    ("pune", "IN"),
     ("salzburg", "AT"),
-    ("warschau", "PL"),
     ("warsaw", "PL"),
+    ("warschau", "PL"),
     ("wien", "AT"),
     ("zug", "CH"),
     ("zurich", "CH"),
@@ -657,7 +811,7 @@ pub(crate) const ANUE_PARTS: &[&str] = &["uberlassung", "temporary agency"];
 pub(crate) const ANUE_HIDDEN: &[&str] = &["payrolling", "equal pay", "igz", "bap", "gvp"];
 /// Negations in the same sentence: whole words, then substrings.
 pub(crate) const ANUE_NEGATION: &[&str] = &["kein", "keine", "nicht", "ohne", "not", "no"];
-pub(crate) const ANUE_NEGATION_PARTS: &[&str] = &["ausgeschlossen"];
+pub(crate) const ANUE_NEGATION_PARTS: &[&str] = &["ausgeschlossen", "abgrenzung"];
 /// ANÜ only one option: whole words, then substrings.
 pub(crate) const ANUE_OPTION: &[&str] = &["oder", "or", "wahlweise", "alternativ", "optional"];
 pub(crate) const ANUE_OPTION_PARTS: &[&str] = &["je nach", "moglich"];
@@ -705,9 +859,36 @@ pub(crate) const PERMANENT_STATED: &[&str] = &[
     "festangestellt",
     "permanent contract",
     "permanent employment",
+    "permanent full-time",
+    "full-time permanent",
+    "annual gross salary",
+    "gross annual salary",
     "zielgehalt",
     "bruttojahresgehalt",
 ];
+/// A permanent position denied (`this is not a permanent position`).
+pub(crate) const PERMANENT_NEGATED: &[&str] = &[
+    "not a permanent",
+    "no permanent",
+    "keine festanstellung",
+    "nicht um eine festanstellung",
+    "keine feste anstellung",
+];
+/// A permanent position only as a later option (`Übernahme in eine Festanstellung denkbar`).
+pub(crate) const PERMANENT_OPTION: &[&str] = &[
+    "ubernahme in eine festanstellung",
+    "ubernahme in festanstellung",
+    "option auf festanstellung",
+    "option auf eine festanstellung",
+    "spatere festanstellung",
+    "anschliessende festanstellung",
+    "possibility of a permanent",
+    "option of a permanent",
+    "temp-to-perm",
+    "temp to perm",
+];
+/// A contract type line (`Vertragsart: Festanstellung`).
+pub(crate) const CONTRACT_LINES: &[&str] = &["vertragsart:", "anstellungsart:", "employment type:"];
 /// Indirect hints of a permanent position (benefits, work permit, career page).
 pub(crate) const PERMANENT_HINTS: &[&str] = &[
     "why join",
@@ -867,6 +1048,8 @@ pub(crate) const GERMAN_CITIES: &[&str] = &[
 
 /// Experience statements: words and bounds.
 pub(crate) const EXPERIENCE_WORDS: &[&str] = &["erfahrung", "experience", "praxis"];
+/// A minimum of years without the word experience (`Min. 5 years in ...`).
+pub(crate) const MIN_MARKERS: &[&str] = &["min.", "mind.", "mindestens", "at least", "minimum"];
 /// The years refer to the whole career, not one topic.
 pub(crate) const CAREER_WORDS: &[&str] = &[
     "berufserfahrung",
@@ -915,8 +1098,14 @@ pub(crate) const JUNIOR_TITLES: &[&str] = &[
 pub(crate) const CLOSING_WORDS: &[&str] = &[
     "interessiert?",
     "freuen wir uns auf",
-    "freuen uns auf ihre",
+    "freuen uns auf",
+    "bitte beachten sie",
     "we look forward",
     "jetzt bewerben",
     "apply now",
+];
+/// Bullet glyphs of pasted and LinkedIn ads on top of the old engine's bullets (the new
+/// engine only; the old one is frozen).
+pub(crate) const EXTRA_BULLETS: &[char] = &[
+    '▪', '■', '●', '◦', '✅', '✔', '✓', '➡', '→', '👉', '➤', '\u{fe0f}',
 ];
