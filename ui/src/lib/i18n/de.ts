@@ -789,16 +789,19 @@ export const de = {
   },
   profile: {
     none: 'Noch kein Profil',
-    noneText: 'Gegen das Profil wird jeder Job geprüft.',
+    /** Under the error of a profile that no longer reads. */
+    replaces: 'Ein neues Profil ersetzt die Datei.',
     create: 'Profil anlegen',
     fromCv: 'Aus Lebenslauf erstellen',
     pick: 'Datei wählen',
+    pickOther: 'Andere Datei wählen',
     remove: 'Entfernen',
     removeHeading: 'Profil entfernen?',
     removeText: 'Ohne Profil zeigen die Jobs keine Passung mehr.',
-    meta: (size: string, date: string) => (date ? `${size} · ${date}` : size),
+    savedAt: (date: string, time: string) => `Gespeichert ${date}, ${time}`,
+    unnamed: 'Profil ohne Namen',
     quality: {
-      good: 'Gut lesbar',
+      good: 'Vollständig',
       thin: 'Wenig Inhalt',
       empty: 'Ohne Kompetenzen',
     } satisfies Record<ProfileQuality, string>,
@@ -812,9 +815,7 @@ export const de = {
     /** The badge of a well filled profile that still has something to check. */
     check: 'Bitte prüfen',
     next: 'Weiter zum ersten Abruf',
-    parseError: 'Das Profil ist nicht mehr lesbar.',
-    understood: (competences: number) =>
-      `${count(competences, 'Kompetenz', 'Kompetenzen')} erkannt`,
+    understood: (terms: number) => `${count(terms, 'Begriff', 'Begriffe')} für die Passung`,
     focusCount: (focus: number) => count(focus, 'Schwerpunkt', 'Schwerpunkte'),
     packs: (packs: string[]) => `Fachgebiete ${packs.join(', ')}`,
     warning,
@@ -909,6 +910,10 @@ export const de = {
       placesPlaceholder: 'München',
       remoteMin: 'Remote-Anteil ab (%)',
       remoteMinHint: 'Stellen außerhalb der Orte zählen erst ab so viel Remote.',
+      /** A value in the file that the app could not read, shown at its field. */
+      unreadableNumber: (value: string) => `In der Datei stand „${value}“, das ist keine Zahl.`,
+      unreadableDate: (value: string) => `In der Datei stand „${value}“, das ist kein Datum.`,
+      unreadablePlaces: (value: string) => `In der Datei stand „${value}“, das sind keine Orte.`,
     },
     level: {
       a1: 'A1',

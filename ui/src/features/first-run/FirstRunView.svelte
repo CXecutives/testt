@@ -41,7 +41,7 @@
     profile === null || profileDone
       ? null
       : profile.parseError
-        ? t.profile.parseError
+        ? t.overview.profileUnreadable
         : t.profile.qualityText.empty,
   );
   /** The step whose action is the primary one. */

@@ -14,7 +14,7 @@
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { navigation, type ViewId } from '$lib/state/navigation.svelte';
-  import { editor, sameForm } from '$lib/state/profile.svelte';
+  import { editor, sameForm, unreadableValues } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
   import { onMount, untrack } from 'svelte';
   import ProfileEditor from './ProfileEditor.svelte';
@@ -209,10 +209,10 @@
   {:else if editor.origin === null}
     <div class="empty">
       <ProfileStart
-        heading={profile?.parseError ? t.profile.parseError : t.profile.none}
+        heading={profile?.parseError ? t.overview.profileUnreadable : t.profile.none}
         text={profile?.parseError
-          ? t.error.text(profile.parseError.kind, profile.parseError.params)
-          : t.profile.noneText}
+          ? `${t.error.text(profile.parseError.kind, profile.parseError.params)} ${t.profile.replaces}`
+          : t.overview.noProfileText}
         picking={busy === 'pick'}
         {note}
         oncreate={() => editor.create()}
@@ -237,6 +237,9 @@
     <ProfileEditor
       bind:this={panel}
       {quality}
+      unreadable={editor.origin === 'stored'
+        ? unreadableValues(profile?.understood?.warnings ?? [])
+        : {}}
       busy={busy === 'save'}
       note={saveNote}
       {result}

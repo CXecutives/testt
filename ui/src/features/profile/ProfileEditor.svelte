@@ -19,7 +19,7 @@
   import { formKeys } from '$lib/input/input';
   import type { ProfileAvailability, ProfileQuality, RemoteWish } from '$lib/ipc/types';
   import { primaryFirst } from '$lib/platform';
-  import { editor, isoDate } from '$lib/state/profile.svelte';
+  import { editor, isoDate, type UnreadableField } from '$lib/state/profile.svelte';
   import ChoiceButtons from './ChoiceButtons.svelte';
   import CompetenceList from './CompetenceList.svelte';
   import LanguageList from './LanguageList.svelte';
@@ -34,16 +34,43 @@
     note: string | null;
     /** The outcome of the last save (until the next change). */
     result: string | null;
+    /** Values of the file the app could not read, by field (said there while it is empty). */
+    unreadable: Partial<Record<UnreadableField, string>>;
     onsave: () => void;
     ondiscard: () => void;
   }
 
-  let { quality, busy, note, result, onsave, ondiscard }: Props = $props();
+  let { quality, busy, note, result, unreadable, onsave, ondiscard }: Props = $props();
+
 
   const words = $derived(t.profile.field);
   const id = $props.id();
   const form = $derived(editor.after);
   const c = $derived(editor.after.criteria);
+
+  /** What the file had at a field the app could not read, while the field is empty. */
+  const unread = $derived({
+    minSalary:
+      unreadable.minSalary !== undefined && c.minSalary === null
+        ? words.unreadableNumber(unreadable.minSalary)
+        : null,
+    remoteMin:
+      unreadable.remoteMin !== undefined && c.permanentRemoteMin === null
+        ? words.unreadableNumber(unreadable.remoteMin)
+        : null,
+    targetYears:
+      unreadable.targetYears !== undefined && c.targetYears === null
+        ? words.unreadableNumber(unreadable.targetYears)
+        : null,
+    places:
+      unreadable.places !== undefined && c.permanentPlaces.length === 0
+        ? words.unreadablePlaces(unreadable.places)
+        : null,
+    available:
+      unreadable.available !== undefined && c.available.kind === 'unset'
+        ? words.unreadableDate(unreadable.available)
+        : null,
+  });
   const thin = $derived(quality === 'thin' || quality === 'empty');
   const actionFirst = primaryFirst();
 
@@ -291,7 +318,12 @@
       <Field label={words.minDayRate} for="{id}-min-rate">
         <NumberField id="{id}-min-rate" bind:value={c.minDayRate} testid="profile-min-rate" />
       </Field>
-      <Field label={words.targetYears} for="{id}-target" hint={words.targetYearsHint}>
+      <Field
+        label={words.targetYears}
+        for="{id}-target"
+        hint={words.targetYearsHint}
+        error={unread.targetYears}
+      >
         <NumberField
           id="{id}-target"
           bind:value={c.targetYears}
@@ -338,6 +370,13 @@
       </div>
       {#if dateError}
         <Notice tone="danger" variant="inline" text={dateError} testid="profile-date-error" />
+      {:else if unread.available}
+        <Notice
+          tone="danger"
+          variant="inline"
+          text={unread.available}
+          testid="profile-available-unread"
+        />
       {/if}
     </div>
     <div class="toggles">
@@ -366,10 +405,15 @@
     </div>
     <h3 class="sub">{t.profile.section.permanent}</h3>
     <div class="pair">
-      <Field label={words.minSalary} for="{id}-salary">
+      <Field label={words.minSalary} for="{id}-salary" error={unread.minSalary}>
         <NumberField id="{id}-salary" bind:value={c.minSalary} testid="profile-min-salary" />
       </Field>
-      <Field label={words.remoteMin} for="{id}-remote-min" hint={words.remoteMinHint}>
+      <Field
+        label={words.remoteMin}
+        for="{id}-remote-min"
+        hint={words.remoteMinHint}
+        error={unread.remoteMin}
+      >
         <NumberField
           id="{id}-remote-min"
           bind:value={c.permanentRemoteMin}
@@ -378,7 +422,7 @@
         />
       </Field>
     </div>
-    <Field label={words.places} for="{id}-places">
+    <Field label={words.places} for="{id}-places" error={unread.places}>
       <ChipInput
         id="{id}-places"
         bind:values={c.permanentPlaces}

@@ -1,8 +1,8 @@
 <!--
   No profile yet (or one that no longer reads): one sentence what the profile is for and
-  the three ways in. "Profil anlegen" is the primary, "Aus Lebenslauf erstellen" the way for
-  people who use Claude, "Datei wählen" for an existing JSON file. Sits at about 38 % of
-  the height.
+  the three ways in, side by side as siblings: "Profil anlegen" (the primary), "Aus
+  Lebenslauf erstellen" (with a prompt for an AI) and "Datei wählen" (an existing JSON
+  file). Sits at about 38 % of the height.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -24,21 +24,31 @@
 </script>
 
 <div class="start" data-testid="profile-empty">
-  <EmptyState
-    icon="file-text"
-    {heading}
-    {text}
-    action={{ label: t.profile.create, onclick: oncreate }}
-    secondary={{ label: t.profile.fromCv, onclick: onfromcv }}
-  />
-  <Button
-    variant="ghost"
-    icon="file-up"
-    label={t.profile.pick}
-    loading={picking}
-    testid="profile-pick"
-    onclick={onpick}
-  />
+  <EmptyState icon="file-text" {heading} {text} />
+  <div class="ways">
+    <Button
+      variant="primary"
+      icon="plus"
+      label={t.profile.create}
+      testid="profile-create"
+      onclick={oncreate}
+    />
+    <Button
+      variant="secondary"
+      icon="clipboard-paste"
+      label={t.profile.fromCv}
+      testid="profile-from-cv"
+      onclick={onfromcv}
+    />
+    <Button
+      variant="secondary"
+      icon="file-up"
+      label={t.profile.pick}
+      loading={picking}
+      testid="profile-pick"
+      onclick={onpick}
+    />
+  </div>
   {#if note}
     <Notice tone="danger" variant="inline" text={note} testid="profile-note" />
   {/if}
@@ -49,6 +59,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-8);
+    gap: var(--space-16);
+  }
+
+  .ways {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-12);
   }
 </style>

@@ -32,18 +32,23 @@ async function paste(field: Locator, text: string): Promise<void> {
 
 test('the profile is a form, filled from the stored profile', async ({ page }) => {
   await profile(page);
-  await expect(page.getByTestId('profile-name')).toHaveText('profil-interim-finance.json');
+  // The person first, the time of the last save; the file name only as the tooltip.
+  await expect(page.getByTestId('profile-name')).toHaveText('Erika Beispiel');
+  await expect(page.getByTestId('profile-role')).toHaveText('Interim Managerin Finanzen');
+  await expect(page.getByTestId('profile-saved-at')).toHaveText('Gespeichert 21.09.2026, 09:30');
   const head = page.getByTestId('profile-file');
-  await expect(head).toContainText('18 KB · 21.09.2026');
-  // Well filled, but something to check: no "Gut lesbar" next to a warning.
+  await expect(head).not.toContainText('KB');
+  // Well filled, but something to check: no "Vollständig" next to a value that did not read.
   await expect(head).toContainText('Bitte prüfen');
-  await expect(head).not.toContainText('Gut lesbar');
-  // What the app understood, once and compact; what it could not use as a warning.
+  await expect(head).not.toContainText('Vollständig');
+  // What the app understood: terms for the match, never "Kompetenzen" against 6 rows.
   await expect(page.getByTestId('profile-understood')).toHaveText(
-    '42 Kompetenzen erkannt · 2 Schwerpunkte · Fachgebiete Finanzen, SAP',
+    '42 Begriffe für die Passung · 2 Schwerpunkte · Fachgebiete Finanzen, SAP',
   );
-  await expect(page.getByTestId('profile-warning')).toHaveText(
-    '„Remote-Anteil ab“ ist nicht lesbar.',
+  // The value the app could not read is said at its field, not in the head.
+  await expect(page.getByTestId('profile-warning')).toHaveCount(0);
+  await expect(page.getByTestId('section-criteria')).toContainText(
+    'In der Datei stand „viel“, das ist keine Zahl.',
   );
   for (const section of [
     'person',
@@ -131,7 +136,7 @@ test('edit and save: both forms go to the backend, the change is confirmed', asy
   expect(sent.after.criteria.available).toEqual({ kind: 'from', date: '2026-11-01' });
   // Saved: the form is the stored profile again.
   await expect(save(page)).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
+  await expect(page.getByTestId('profile-saved-at')).toBeVisible();
   await expect(page.getByTestId('profile-date')).toHaveValue('01.11.2026');
 });
 
@@ -341,7 +346,7 @@ test('no profile: one sentence and the three ways in', async ({ page }) => {
   await profile(page, 'no-profile');
   const empty = page.getByTestId('profile-empty');
   await expect(empty).toContainText('Noch kein Profil');
-  await expect(empty).toContainText('Gegen das Profil wird jeder Job geprüft.');
+  await expect(empty).toContainText('Mit einem Profil zeigt jeder Job, wie gut er passt.');
   await expect(empty.getByRole('button')).toHaveText([
     'Profil anlegen',
     'Aus Lebenslauf erstellen',
@@ -373,7 +378,7 @@ test('create from the empty form and save', async ({ page }) => {
     { name: 'Controlling', years: 18, aliases: [], origin: null },
   ]);
   expect(sent.after.languages).toEqual([{ language: 'Englisch', level: 'c1', origin: null }]);
-  await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
+  await expect(page.getByTestId('profile-name')).toHaveText('Erika Beispiel');
   await expect(save(page)).toHaveAttribute('aria-disabled', 'true');
 });
 
@@ -396,7 +401,7 @@ test('a chosen file fills the form for review; discarding keeps what was there',
   await page.getByTestId('profile-pick').click();
   await save(page).click();
   expect((await lastSave(page)).source).toBe('{"name": "Jonas Muster"}');
-  await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
+  await expect(page.getByTestId('profile-name')).toHaveText('Jonas Muster');
 });
 
 const ANSWER = [
@@ -486,8 +491,10 @@ test('a thin profile marks its empty sections', async ({ page }) => {
 test('a profile edited into broken JSON says so and where', async ({ page }) => {
   await profile(page, 'profile-broken');
   const empty = page.getByTestId('profile-empty');
-  await expect(empty).toContainText('Das Profil ist nicht mehr lesbar.');
-  await expect(empty).toContainText('Die Datei ist kein gültiges JSON, Zeile 12.');
+  await expect(empty).toContainText('Profil nicht lesbar');
+  await expect(empty).toContainText(
+    'Die Datei ist kein gültiges JSON, Zeile 12. Ein neues Profil ersetzt die Datei.',
+  );
 });
 
 test('remove asks first', async ({ page }) => {
