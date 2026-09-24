@@ -110,7 +110,7 @@
 
 <Card padding="none" testid="portal-{portal.portal}">
   <div class="head">
-    <IconTile monogram={PORTAL_MONOGRAM[portal.portal]} size="md" />
+    <IconTile tone="navy" monogram={PORTAL_MONOGRAM[portal.portal]} size="md" />
     <h3 class="name">{de.portal[portal.portal]}</h3>
     <div class="tools">
       <Button
