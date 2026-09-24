@@ -48,7 +48,7 @@
   /** What the dry run cannot do, and why (the backend would refuse it). */
   const dryRun = $derived(cfg?.dryRun ?? false);
   const dryRunReason = de.error.text('dryRun', {});
-  const lockedReason = $derived(dryRun ? dryRunReason : de.settings.running);
+  const lockedReason = $derived(dryRun ? dryRunReason : run.busyText);
 
   async function act(
     name: string,
@@ -356,7 +356,7 @@
             icon="mail"
             label={de.settings.fullMailboxAction}
             disabled={run.active || !cfg.mailbox.user}
-            disabledReason={run.active ? de.settings.running : de.toolbar.needsMailbox}
+            disabledReason={run.active ? run.busyText : de.toolbar.needsMailbox}
             testid="full-mailbox"
             onclick={() => (confirmFull = true)}
           />

@@ -210,7 +210,7 @@
                     label={de.settings.signIn}
                     loading={busy}
                     disabled={run.active || dryRun}
-                    disabledReason={dryRun ? de.error.text('dryRun', {}) : de.settings.running}
+                    disabledReason={dryRun ? de.error.text('dryRun', {}) : run.busyText}
                     testid="sign-in-{portal.portal}"
                     onclick={() => void session(true)}
                   />

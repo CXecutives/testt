@@ -3,14 +3,16 @@
   reader. It answers "what is worth my time today" first and never looks empty: tiles that
   filter the list (their numbers count over every job, whatever the search; a tile that
   appears later, Gemerkt, rises in), without a usable profile the tiles Neu and Ohne Details
-  and a calm card that leads to one, with one "Beste Passung" (up to three best scored jobs
-  of the last fetch as list rows; a click opens the job), the open points (one per portal
-  and problem, a failed fetch) only when there are any, the new jobs per portal (each a
-  filter of the list) only when there are any, and at the end the overview file and the
-  folder, their one place in the Jobs view. "Nothing new" is said by the list and the run
-  card, not here. The time of the last fetch is said once, in the sidebar.
+  and a calm card that leads to one, with one "Beste Passung" (the three best scored new
+  jobs as list rows; a click opens the job), the open points (one per portal and problem, a
+  failed fetch) only when there are any, the new jobs per portal (each a filter of the
+  list) only when there are any, and at the end the overview file and the folder, their one
+  place in the Jobs view. "Nothing new" is said by the list and the run card, not here. The
+  time of the last fetch is said once, in the sidebar. Every number comes from the backend's
+  counts over every job, and the portals keep the one order of the app (the settings').
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import Card from '$components/Card.svelte';
   import JobRow from '$components/JobRow.svelte';
@@ -23,21 +25,19 @@
   import type { EmptyAlert, JobView, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
   import { rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
-  import { isExcluded, jobs, keyOf, sameKey, type JobFilter } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf, sameKey, type JobFilter } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
 
-  const PORTALS: readonly Portal[] = ['linkedin', 'freelancermap', 'freelance'];
-
+  // The one order of the portals (the backend's, as in the settings).
+  const portals = $derived((app.state?.portals ?? []).map((p) => p.portal));
   const counts = $derived(jobs.overviewCounts ?? app.state?.counts ?? null);
   // "Neu" is unread and not excluded, exactly like the facet Neu (they add up to its count).
   const unread = $derived(
     jobs.overviewStatus === 'ready'
-      ? PORTALS.map((portal) => ({
-          portal,
-          count: jobs.overview.filter((j) => j.portal === portal && j.unread && !isExcluded(j))
-            .length,
-        })).filter((line) => line.count > 0)
+      ? (counts?.newByPortal ?? [])
+          .map((line) => ({ portal: line.portal, count: line.new }))
+          .filter((line) => line.count > 0)
       : [],
   );
 
@@ -83,14 +83,33 @@
   });
 
   const BEST = 3;
-  // The best scored jobs of the last fetch, as the list knows them now (read, pinned).
-  const best = $derived.by((): JobView[] => {
-    if (!app.hasProfile) return [];
-    return (app.state?.topMatches ?? [])
-      .filter((job) => job.match?.status === 'scored')
-      .slice(0, BEST)
-      .map((job) => jobs.overview.find((row) => sameKey(row.key, job.key)) ?? job);
+  /** The best scored new jobs (one small query; again whenever the counts move). */
+  let top = $state.raw<JobView[]>([]);
+  let topRequest = 0;
+  $effect(() => {
+    void jobs.overviewCounts;
+    const scoring = app.hasProfile;
+    untrack(() => {
+      const request = ++topRequest;
+      if (!scoring) {
+        top = [];
+        return;
+      }
+      invoke('list_jobs', {
+        query: { facet: 'new', sort: 'match', search: null, limit: BEST, offset: 0 },
+      })
+        .then((page) => {
+          if (request === topRequest) top = page.jobs;
+        })
+        .catch((error: unknown) => (actionError = errorText(error)));
+    });
   });
+  // As the list knows them now (read, pinned); only scored ones are a match.
+  const best = $derived(
+    top
+      .map((job) => jobs.rows.find((row) => sameKey(row.key, job.key)) ?? job)
+      .filter((job) => job.match?.status === 'scored'),
+  );
 
   function toggle(tile: Tile): void {
     if (tile.id === 'new') jobs.setFacet('new');
@@ -99,7 +118,9 @@
 
   // While a run goes, the run card shows pauses and limits; they are not repeated here.
   const troubled = $derived(
-    run.active ? [] : (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
+    run.fetching
+      ? []
+      : (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
   );
   const emptyAlerts = $derived(app.state?.lastRun?.emptyAlerts ?? []);
 
@@ -138,7 +159,7 @@
   }
 
   const portalIssues = $derived(
-    PORTALS.flatMap((portal) =>
+    portals.flatMap((portal) =>
       issuesOf(
         portal,
         troubled.find((p) => p.portal === portal),
@@ -146,10 +167,12 @@
       ),
     ),
   );
-  // A failed fetch from before this session; a run of this session speaks in the run card.
+  // The last fetch failed; while the run card is up it speaks, not this.
   const lastFailure = $derived.by(() => {
-    const previous = app.state?.lastRun;
-    if (run.active || run.panel !== 'hidden' || previous?.outcome.kind !== 'failed') return null;
+    const previous = app.state?.lastRun ?? null;
+    if (run.fetching || run.panel !== 'hidden' || previous?.outcome.kind !== 'failed') {
+      return null;
+    }
     return previous.outcome.error;
   });
   const hasIssues = $derived(portalIssues.length > 0 || lastFailure !== null);
@@ -260,7 +283,10 @@
             variant="row"
             heading={de.overview.lastRun}
             text={de.error.text(lastFailure.kind, lastFailure.params)}
-            action={{ label: de.common.retry, onclick: () => void run.start({ kind: 'fetch' }) }}
+            action={{
+              label: de.common.retry,
+              onclick: () => run.retry(app.state?.lastRun ?? null),
+            }}
             testid="run-failed"
           />
         {/if}

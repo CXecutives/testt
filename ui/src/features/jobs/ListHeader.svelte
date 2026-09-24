@@ -1,8 +1,8 @@
 <!--
   The header of the list column, every list control in one place.
   Row 1: the search and next to it "Abrufen", the one primary of the Jobs view, which fills
-  this list ("Abbrechen" in its place while a run goes; without a mailbox it stays locked
-  and says why). The action slot is as wide as the wider of the two and both fill it, so the
+  this list ("Abbrechen" in its place while a fetch or details run goes; locked while the
+  app scores the jobs anew, and without a mailbox, saying why). The action slot is as wide as the wider of the two and both fill it, so the
   search never jumps when a run starts; the one that comes fades in, the one that goes is
   gone at once.
   On macOS this row is the list's part of the toolbar row, centred on the traffic lights,
@@ -41,8 +41,8 @@
     variant={app.hasMailbox ? 'primary' : 'secondary'}
     icon="refresh-cw"
     label={de.toolbar.fetch}
-    disabled={!app.hasMailbox}
-    disabledReason={de.toolbar.needsMailbox}
+    disabled={!app.hasMailbox || run.active}
+    disabledReason={run.active ? run.busyText : de.toolbar.needsMailbox}
     wide
     testid={live ? 'fetch' : null}
     onclick={() => void run.start({ kind: 'fetch' })}
@@ -75,7 +75,7 @@
     </span>
     <!-- The other button stands invisible in the same cell and only keeps the width. -->
     <span class="action">
-      {#if run.active}
+      {#if run.fetching}
         <span class="live" in:fade>{@render cancelButton(true)}</span>
         <span class="spare" aria-hidden="true" inert>{@render fetchButton(false)}</span>
       {:else}

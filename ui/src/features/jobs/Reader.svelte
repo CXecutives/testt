@@ -155,6 +155,13 @@
           (allViolations[0] ? reasonText(allViolations[0]) : de.reader.note.hardCriterion))
       : null,
   );
+  // Why a job cannot be scored (too little text, an engine failure); without a note the ad
+  // simply names no clear requirements.
+  const unscorable = $derived(
+    match?.status === 'unscorable'
+      ? (noteText(job.match?.note ?? match.summary) ?? de.reader.noReasons)
+      : null,
+  );
   // A violation that says exactly what the match line says is not repeated.
   const violations = $derived(allViolations.filter((r) => reasonText(r) !== exclusion));
 
@@ -340,6 +347,8 @@
         </p>
         {#if exclusion}
           <p class="because" data-testid="exclusion">{exclusion}</p>
+        {:else if unscorable}
+          <p class="because" data-testid="unscorable">{unscorable}</p>
         {/if}
         {#if chips.length > 0}
           <ul class="chips" aria-label={de.reader.criteria} data-testid="criteria">
@@ -391,7 +400,7 @@
         icon="download"
         label={de.reader.fetchDetails}
         disabled={run.active}
-        disabledReason={de.settings.running}
+        disabledReason={run.busyText}
         testid="fetch-details"
         onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
       />
@@ -459,7 +468,7 @@
           : de.reader.detail[detailKind]}
         testid="detail-note"
       />
-    {:else if job.short}
+    {:else if job.short && unscorable === null}
       <Notice tone="info" variant="inline" text={de.reader.short} />
     {/if}
     {#if detail.text}

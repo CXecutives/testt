@@ -106,6 +106,15 @@ test('counts equal the list, with and without search', async ({ page }) => {
     .toBe(true);
 });
 
+test('a hidden job is in no list and no count', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await expect(page.getByTestId('excluded-divider')).toBeVisible();
+  await expect(row(page, 'linkedin-4100200306')).toHaveCount(0);
+  const listed = (await rows(page).count()) + (await excludedRows(page).count());
+  expect(listed).toBe(await segmentCount(page, 'Alle'));
+});
+
 test('mark_read only on a real click, and only once', async ({ page }) => {
   await open(page, WIN);
   expect(await calls(page, 'mark_read')).toHaveLength(0);
@@ -159,6 +168,17 @@ test('excluded jobs sit grey behind the divider and explain themselves', async (
   await expect(page.getByTestId('criteria').locator('[data-state="violated"]')).toHaveCount(1);
   // ANÜ is one chip: the contract chip steps back behind the criterion of the same name.
   await expect(page.getByTestId('criteria').getByText('ANÜ', { exact: true })).toHaveCount(1);
+});
+
+test('a job that cannot be scored says why, once', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await row(page, 'freelancermap-2806').click();
+  await expect(page.getByTestId('band')).toHaveText('Nicht bewertbar');
+  await expect(page.getByTestId('unscorable')).toHaveText('Zu wenig Text für eine Bewertung.');
+  // The short-text note of the ad does not say it a second time.
+  await expect(page.getByText('Die Anzeige ist sehr kurz.')).toHaveCount(0);
+  await expect(page.getByTestId('why')).toHaveCount(0);
 });
 
 test('the day overview tiles filter the list and match the counts', async ({ page }) => {
@@ -395,29 +415,14 @@ test('a removed mailbox keeps the jobs: Abrufen waits and the list says how', as
 test('a rescore is no fetch: no fetch texts, no run card afterwards', async ({ page }) => {
   await open(page, `${WIN}&tick=15`);
   await page.getByTestId('nav-profile').click();
-  await page.evaluate(() => {
-    window.__harness.emit({ type: 'status', code: 'scoring', portal: null, until: null });
-    window.__harness.emit({
-      type: 'finished',
-      summary: {
-        run: 42,
-        kind: 'rescore',
-        outcome: { kind: 'completed' },
-        dryRun: false,
-        startedAt: '2026-09-24T07:29:00Z',
-        finishedAt: '2026-09-24T07:30:00Z',
-        scan: null,
-        perPortal: [],
-        score: null,
-        export: null,
-        emptyAlerts: [],
-      },
-    });
-  });
+  // The rescore the app starts after a profile change: on the page's channel, no start_run.
+  await page.evaluate(() => window.__harness.appRun('rescore'));
+  await runFinished(page);
   await expect(page.getByTestId('toast')).toHaveCount(0);
   await page.getByTestId('nav-jobs').click();
   await expect(page.getByTestId('run-card')).toHaveCount(0);
   await expect(page.getByText('Abruf fertig')).toHaveCount(0);
+  expect(await calls(page, 'start_run')).toHaveLength(0);
 });
 
 test('under reduced motion a run without progress still shows its bar', async ({ page }) => {
@@ -739,7 +744,7 @@ test('the run card: steps side by side, a finished step draws its check once', a
   await expect(page.getByTestId('step-scan').locator('.mark')).toHaveClass(/drawn/);
   await runFinished(page);
   // Finished: the time and the pills; the chevron turns when the card collapses.
-  await expect(page.getByTestId('last-new')).toContainText('3 neu');
+  await expect(page.getByTestId('last-new')).toContainText('2 neu');
   const toggle = page.getByTestId('run-toggle');
   await expect(toggle).toHaveClass(/turned/);
   await toggle.click();

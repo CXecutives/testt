@@ -161,6 +161,44 @@ impl MatchStatus {
     }
 }
 
+/// Where the user's application for a job stands (set by the user, never by a run).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum AppStatus {
+    /// Applied.
+    Applied,
+    /// In talks with the client.
+    Interview,
+    /// An offer came in.
+    Offer,
+    /// Turned down (by either side).
+    Rejected,
+}
+
+impl AppStatus {
+    pub const ALL: [AppStatus; 4] = [
+        AppStatus::Applied,
+        AppStatus::Interview,
+        AppStatus::Offer,
+        AppStatus::Rejected,
+    ];
+
+    /// The stored key (the same as the JSON value).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            AppStatus::Applied => "applied",
+            AppStatus::Interview => "interview",
+            AppStatus::Offer => "offer",
+            AppStatus::Rejected => "rejected",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|s| s.as_str() == text)
+    }
+}
+
 /// Score band of a match.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

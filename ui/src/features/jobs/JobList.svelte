@@ -4,8 +4,10 @@
   the user's own change and for the re-sort at the end of a run: after the sort switch, Neu |
   Alle or a filter the rows on screen glide to their new place (150 ms); rows off screen and
   new rows are simply there. A search and live updates never move anything. Excluded jobs
-  sit grey behind the divider "Ausgeschlossen" with a soft count (under Neu too, uncounted). Clicking the selected row again changes
-  nothing (a native list keeps its selection). Every empty
+  sit grey behind the divider "Ausgeschlossen" with a soft count (under Neu or a filter too,
+  there without the count: the rows below are only a part of the excluded jobs). A page that
+  fails to load while scrolling says so at the end of the list, with a retry. Clicking the
+  selected row again changes nothing (a native list keeps its selection). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
   view's primary). Without a mailbox one note says how to connect one; a missing profile is
   said once, in the day overview.
@@ -32,11 +34,14 @@
   const shown = $derived(jobs.shown);
   const active = $derived(shown.filter((job) => !isExcluded(job)));
   const excluded = $derived(shown.filter(isExcluded));
+  // The number only where the divider heads every excluded job of the list (its count, like
+  // the facet's, follows the search).
   const excludedCount = $derived(
-    jobs.filter === null && jobs.facet === 'all'
-      ? jobs.counts.excluded
-      : jobs.visible.filter(isExcluded).length,
+    jobs.filter === null && jobs.facet === 'all' ? jobs.counts.excluded : null,
   );
+  // "No jobs in the alert mails" only after a fetch that read the mailbox.
+  const lastFetch = $derived(run.summary ?? app.state?.lastRun ?? null);
+  const mailRead = $derived(lastFetch?.outcome.kind === 'completed' && lastFetch.scan !== null);
   const searching = $derived(jobs.search.trim() !== '');
   const profileMissing = $derived(app.state !== null && !app.hasProfile);
   const mailboxMissing = $derived(app.state !== null && !app.hasMailbox);
@@ -201,7 +206,7 @@
         <EmptyState
           icon="inbox"
           tone="neutral"
-          text={app.state?.lastRun ? de.list.emptyAfterRun : de.list.emptyAll}
+          text={mailRead ? de.list.emptyAfterRun : de.list.emptyAll}
           testid="empty-all"
         />
       {/if}
@@ -235,13 +240,23 @@
     {#if excluded.length > 0}
       <div class="divider" data-testid="excluded-divider">
         <span class="divider-label">{de.list.excluded}</span>
-        <Count value={excludedCount} testid="excluded-count" />
+        {#if excludedCount !== null}<Count value={excludedCount} testid="excluded-count" />{/if}
       </div>
       <div class="rows" data-testid="excluded-rows">
         {@render group(excluded, active.length)}
       </div>
     {/if}
-    {#if jobs.more}
+    {#if jobs.pageError}
+      <div class="page-error">
+        <Notice
+          tone="warning"
+          variant="row"
+          text={de.list.pageFailed}
+          action={{ label: de.common.retry, onclick: () => void jobs.grow() }}
+          testid="page-error"
+        />
+      </div>
+    {:else if jobs.more}
       {#key shown.length}
         <div class="sentinel" use:nearEnd={() => void jobs.grow()}>
           <Skeleton width={60} />
@@ -262,6 +277,10 @@
   .note {
     padding: var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
+  }
+
+  .page-error {
+    padding: var(--space-12) var(--pane-padding);
   }
 
   .rows {

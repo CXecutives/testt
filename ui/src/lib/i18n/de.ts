@@ -96,6 +96,7 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   mailAddress: 'Die Adresse ist unvollständig.',
   appPassword: 'Ein App-Passwort hat 16 Buchstaben.',
   noSignIn: (p) => `${portalOf(p.portal)} bietet keine Anmeldung.`,
+  noteTooLong: (p) => `Die Notiz ist länger als ${n(num(p.max))} Zeichen.`,
 };
 
 const status: Record<StatusCode, string> = {
@@ -295,7 +296,6 @@ export type CriterionState = 'met' | 'violated' | 'unknown' | 'unset';
 /** `JobMatch.note` / `MatchDetail.summary` codes. */
 const note = {
   hardCriterion: 'Ein Ausschlusskriterium greift.',
-  fewMust: 'Wenige Muss-Anforderungen erfüllt.',
   shortText: 'Zu wenig Text für eine Bewertung.',
   lowEvidence: LOW_TEXT,
   engineFailed: 'Diese Anzeige ließ sich nicht bewerten.',
@@ -487,6 +487,36 @@ export const de = {
     nothingNew: 'Nichts Neues seit dem letzten Abruf.',
     cancelled: 'Abruf abgebrochen',
     failed: 'Abruf fehlgeschlagen',
+    /** A details run (the reader's "Details holen"): its title, what it did not get. */
+    details: {
+      done: 'Details geholt',
+      none: 'Keine Details geholt',
+      cancelled: 'Details holen abgebrochen',
+      failed: 'Details holen fehlgeschlagen',
+      failedAds: (value: number) =>
+        `${count(value, 'Anzeige ließ', 'Anzeigen ließen')} sich nicht holen.`,
+      goneAds: (value: number) =>
+        `${count(value, 'Anzeige ist', 'Anzeigen sind')} nicht mehr online.`,
+    },
+    /** A rescore the card speaks about (only when something went wrong). */
+    rescore: {
+      cancelled: 'Bewertung abgebrochen',
+      failed: 'Bewertung fehlgeschlagen',
+    },
+    rescoring: 'Die Jobs werden gerade neu bewertet.',
+    /**
+     * A file the export could not write (`export.error.params.target`); the old file stays.
+     * `overviewLocked`: the Excel file is open in another program.
+     */
+    exportFailed: {
+      overview: 'Die Excel-Datei ließ sich nicht schreiben und blieb unverändert.',
+      overviewLocked:
+        'Die Excel-Datei ist in einem anderen Programm geöffnet und blieb unverändert.',
+      overviewHtml: 'Die Übersicht ließ sich nicht schreiben.',
+      txt: 'Nicht alle Textdateien ließen sich schreiben.',
+      txtFolder: 'Der Ordner der Textdateien ist nicht erreichbar.',
+      backup: 'Die alte Excel-Datei ließ sich nicht sichern, die neue wurde nicht geschrieben.',
+    },
     skipped: (value: number) => `${count(value, 'Job folgt', 'Jobs folgen')} beim nächsten Abruf.`,
     filesFailed: (value: number) =>
       count(value, 'Datei ließ', 'Dateien ließen') + ' sich nicht schreiben.',
@@ -514,6 +544,7 @@ export const de = {
   },
   list: {
     label: 'Jobs',
+    /** The divider (its count is a pill of its own, left out where the rows are a part). */
     excluded: 'Ausgeschlossen',
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
@@ -522,6 +553,7 @@ export const de = {
     noHit: (query: string) => `Keine Jobs zu „${query}“.`,
     showAll: 'Alle zeigen',
     loadFailed: 'Die Liste ließ sich nicht laden.',
+    pageFailed: 'Weitere Jobs ließen sich nicht laden.',
     pickProfile: 'Profil wählen',
     noMailbox: 'Ohne Postfach kommen keine neuen Jobs dazu.',
     connectMailbox: 'Postfach verbinden',
@@ -755,6 +787,7 @@ export const de = {
       value === 0
         ? 'Abruf fertig, nichts Neues.'
         : `Abruf fertig, ${count(value, 'neuer Job', 'neue Jobs')}.`,
+    runDoneFilesOld: 'Abruf fertig, die Dateien sind nicht aktuell.',
   },
   error: {
     text: (kind: ErrorKind | 'unknown', params: Params): string => {

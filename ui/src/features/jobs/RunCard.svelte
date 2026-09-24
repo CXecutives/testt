@@ -5,13 +5,17 @@
   gone at once when it closes) and closes.
   running: the header line (the spinner, the status naming the portal it is about, which
   cross-fades when it changes, and the countdown of a pause as a soft navy pill), the navy
-  progress bar right below it, the steps Postfach, Details, Bewertung side by side (a navy
-  dot for the current one, a check that draws itself when a step finishes while the card is
-  on screen, the counters roll), then every limit or pause with its reason and end.
-  finished: the outcome and its time (the header cross-fades from the running one), the
-  pills "n neu" and "n passen gut" (nothing when there are none: the note says it), what
-  went wrong with a fitting action, the history with copy. The overview file and the folder
-  have their one place in the day overview. A finished rescore only says so.
+  progress bar right below it, the steps of the kind side by side (a fetch: Postfach,
+  Details, Bewertung; a details run: Details, Bewertung) with a navy dot for the current
+  one, a check that draws itself when a step finishes while the card is on screen, and
+  counters that roll; then every limit or pause with its reason and end.
+  finished (the header cross-fades from the running one): the outcome, its time and, for a
+  fetch, the pills "n neu" and "n passen gut" (the run's own numbers from the backend;
+  nothing when there are none, the note says it), a details run what it got, a rescore only
+  that it is done; then what went wrong with a fitting action, a file the export could not
+  write (once), the history with copy. The overview file and the folder have their one
+  place in the day overview. A rescore shows here only when it failed or could not write
+  the files.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
@@ -30,18 +34,43 @@
   import { fade, roll } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
-  import { outcomeText, run, STEPS } from '$lib/state/run.svelte';
+  import { exportError, isFetch, outcomeText, run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
 
-  const summary = $derived(run.summary ?? app.state?.lastRun ?? null);
+  // The run the card followed, else the last fetch (after a restart).
+  const summary = $derived(run.result ?? app.state?.lastRun ?? null);
   const open = $derived(run.panel === 'open');
-  const newJobs = $derived(summary?.perPortal.reduce((sum, p) => sum + p.new, 0) ?? 0);
-  const topJobs = $derived(
-    (app.state?.topMatches ?? []).filter((job) => job.match?.band === 'high').length,
-  );
-  const skipped = $derived(summary?.perPortal.reduce((sum, p) => sum + p.skipped, 0) ?? 0);
+  const fetchRun = $derived(summary !== null && isFetch(summary.kind));
+  const sum = (key: 'fetched' | 'failed' | 'gone' | 'skipped'): number =>
+    summary?.perPortal.reduce((total, p) => total + p[key], 0) ?? 0;
+  // A fetch counts what it brought (new, not excluded) and how many of those fit well.
+  const newJobs = $derived(summary?.newJobs?.count ?? 0);
+  const topJobs = $derived(summary?.newJobs?.high ?? 0);
+  const skipped = $derived(sum('skipped'));
   const failure = $derived(summary?.outcome.kind === 'failed' ? summary.outcome.error : null);
-  const rescore = $derived(summary?.kind === 'rescore');
+  const files = $derived(summary ? exportError(summary) : null);
+  const filesText = $derived.by(() => {
+    if (files === null) return null;
+    const texts = de.run.exportFailed;
+    switch (files.params.target) {
+      case 'overview':
+        return files.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
+      case 'overviewHtml':
+        return texts.overviewHtml;
+      case 'txtFolder':
+        return texts.txtFolder;
+      case 'backup':
+        return texts.backup;
+      default:
+        return texts.txt;
+    }
+  });
+  // A text file problem is said once: by the export error when it names the text files.
+  const txtFailed = $derived(
+    files !== null && (files.params.target === 'txt' || files.params.target === 'txtFolder')
+      ? 0
+      : (summary?.export?.txtFailed ?? 0),
+  );
   const pauses = $derived(
     (Object.entries(run.health) as [Portal, PortalHealth][]).filter(([, h]) => h.kind !== 'ok'),
   );
@@ -74,7 +103,9 @@
   const drawn = $state<Partial<Record<Step, true>>>({});
   let states: Partial<Record<Step, string>> = {};
   $effect.pre(() => {
-    const now = STEPS.map((step) => [step, run.active ? run.stepState(step) : 'idle'] as const);
+    const now = run.steps.map(
+      (step) => [step, run.fetching ? run.stepState(step) : 'idle'] as const,
+    );
     untrack(() => {
       for (const [step, state] of now) {
         if (state === 'done' && states[step] === 'current') drawn[step] = true;
@@ -97,7 +128,7 @@
       case 'internal':
         return { label: de.common.openLog, onclick: () => openTarget({ kind: 'logDir' }) };
       default:
-        return { label: de.common.retry, onclick: () => void run.start({ kind: 'fetch' }) };
+        return { label: de.common.retry, onclick: () => run.retry(summary) };
     }
   });
 </script>
@@ -117,7 +148,7 @@
         testid="run-toggle"
         onclick={toggle}
       />
-      {#if !run.active}
+      {#if !run.fetching}
         <Button
           variant="ghost"
           size="sm"
@@ -125,15 +156,15 @@
           icon="x"
           label={de.common.hide}
           testid="run-close"
-          onclick={() => (run.panel = 'hidden')}
+          onclick={() => run.hide()}
         />
       {/if}
     </span>
   </div>
 {/snippet}
 
-<section class="panel" data-testid="run-card">
-  {#if run.active}
+<section class="panel" data-testid="run-card" data-kind={run.fetching ? run.kind : summary?.kind}>
+  {#if run.fetching}
     <div class="running" data-testid="run-running" in:fade>
       <div class="lead">
         <Spinner size="sm" label={null} />
@@ -148,7 +179,7 @@
       {#if open}
         <div class="more" in:fade>
           <ol class="steps">
-            {#each STEPS as step (step)}
+            {#each run.steps as step (step)}
               {@const state = run.stepState(step)}
               {@const progress = run.progress[step]}
               <li class="step {state}" data-testid="step-{step}">
@@ -193,20 +224,26 @@
     </div>
   {:else if summary}
     <div class="finished" data-testid="run-finished" in:fade>
-      <div class="lead" class:failed={failure !== null}>
-        <Icon name={failure ? 'triangle-alert' : 'circle-check'} size="sm" />
+      <div
+        class="lead"
+        class:failed={failure !== null}
+        class:warned={failure === null && filesText !== null}
+      >
+        <Icon name={failure || filesText ? 'triangle-alert' : 'circle-check'} size="sm" />
         {@render head(title, null)}
       </div>
       {#if open}
         <div class="more" in:fade>
           <p class="facts">
             <span class="time">{formatMoment(summary.finishedAt)}</span>
-            {#if !rescore && newJobs > 0}
+            {#if fetchRun && newJobs > 0}
               <span data-testid="last-new"
                 ><Badge label={de.run.newPill(newJobs)} tone="navy" /></span
               >
               {#if app.hasProfile && topJobs > 0}
-                <Badge label={de.run.topPill(topJobs)} tone="success" />
+                <span data-testid="last-top"
+                  ><Badge label={de.run.topPill(topJobs)} tone="success" /></span
+                >
               {/if}
             {/if}
           </p>
@@ -218,18 +255,41 @@
               action={failureAction}
               testid="run-failed"
             />
-          {:else if summary.outcome.kind === 'completed' && newJobs === 0 && !rescore}
+          {:else if fetchRun && summary.outcome.kind === 'completed' && newJobs === 0}
             <Notice tone="info" variant="inline" text={de.run.nothingNew} testid="nothing-new" />
+          {/if}
+          {#if summary.kind === 'details' && sum('failed') > 0}
+            <Notice
+              tone="warning"
+              variant="inline"
+              text={de.run.details.failedAds(sum('failed'))}
+              testid="details-failed"
+            />
+          {/if}
+          {#if summary.kind === 'details' && sum('gone') > 0}
+            <Notice
+              tone="info"
+              variant="inline"
+              text={de.run.details.goneAds(sum('gone'))}
+              testid="details-gone"
+            />
           {/if}
           {#if skipped > 0}
             <Notice tone="info" variant="inline" text={de.run.skipped(skipped)} />
           {/if}
-          {#if (summary.export?.txtFailed ?? 0) > 0}
+          {#if filesText}
             <Notice
               tone="warning"
-              variant="inline"
-              text={de.run.filesFailed(summary.export?.txtFailed ?? 0)}
+              variant="row"
+              text={filesText}
+              action={failure || run.active
+                ? null
+                : { label: de.common.retry, onclick: () => run.retry(summary) }}
+              testid="export-failed"
             />
+          {/if}
+          {#if txtFailed > 0}
+            <Notice tone="warning" variant="inline" text={de.run.filesFailed(txtFailed)} />
           {/if}
           {#if run.history.length > 0}
             <Disclosure label={de.run.history} testid="run-history">
@@ -288,6 +348,10 @@
     color: var(--danger-strong);
   }
 
+  .lead.warned {
+    color: var(--warning-strong);
+  }
+
   .head {
     display: flex;
     flex: 1;
@@ -326,10 +390,12 @@
     margin-left: auto;
   }
 
-  /* The steps side by side: marker and name, below them the counter. */
+  /* The steps side by side, as many equal columns as the kind has steps: marker and name,
+     below them the counter. */
   .steps {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
     gap: var(--space-8);
   }
 

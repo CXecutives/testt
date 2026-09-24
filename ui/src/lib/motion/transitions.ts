@@ -79,14 +79,6 @@ export function pop(node: Element, params: MotionParams = {}): TransitionConfig 
   });
 }
 
-/**
- * View switch: the old view leaves at once (no cross-fade of two full views), the new one
- * fades in while rising 4 px (base/out, 150 ms).
- */
-export function viewIn(node: Element): TransitionConfig {
-  return rise(node, { duration: 'base', easing: 'out', distance: 'md' });
-}
-
 /** Maximum rows that may FLIP; above this a list cross-fades. */
 export const FLIP_LIMIT = 100;
 

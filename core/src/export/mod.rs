@@ -2,6 +2,7 @@
 //! file per job for the matching. Everything is generated from the database and written
 //! atomically - an open Excel file or a crash never leaves half a file behind.
 
+mod claude_prompt;
 mod job_txt;
 mod overview_html;
 pub mod texts;
@@ -16,6 +17,7 @@ use crate::error::{Error, Result};
 use crate::store::JobRow;
 use crate::text::split_company_location;
 
+pub use claude_prompt::{MAX_AD_CHARS, MAX_PROFILE_CHARS, claude_prompt};
 pub use job_txt::{TXT_DIR, write_job_txt};
 pub use overview_html::write_overview_html;
 pub use texts::{COLUMNS, details_label};

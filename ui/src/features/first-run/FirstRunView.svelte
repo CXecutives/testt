@@ -145,7 +145,7 @@
                   tone="warning"
                   variant="inline"
                   text={profileProblem}
-                  testid="first-profile-problem"
+                  testid="profile-hint"
                 />
               {:else}
                 <p class="hint">{de.profile.noneText}</p>
@@ -186,6 +186,7 @@
                 label={de.toolbar.fetch}
                 disabled={!mailboxDone}
                 disabledReason={de.toolbar.needsMailbox}
+                loading={run.starting}
                 testid="first-fetch"
                 onclick={() => void run.start({ kind: 'fetch' })}
               />

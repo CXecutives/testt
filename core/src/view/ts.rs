@@ -13,18 +13,18 @@ use ts_rs::{Config, TS, TypeVisitor};
 use crate::error::{ErrorInfo, ErrorKind, InvalidInput};
 use crate::fetch::PortalHealth;
 use crate::fetch::policy::PauseReason;
-use crate::model::{Band, MatchStatus, Notice};
+use crate::model::{AppStatus, Band, MatchStatus, Notice};
 use crate::pipeline::{
-    ExportSummary, Outcome, PortalSummary, RunEvent, RunKind, RunKindName, RunRequest, RunSnapshot,
-    RunSummary, ScanCounts, ScoreSummary, StatusCode, Step,
+    ExportSummary, NewJobs, Outcome, PortalSummary, RunEvent, RunKind, RunKindName, RunRequest,
+    RunSnapshot, RunSummary, ScanCounts, ScoreSummary, StatusCode, Step,
 };
 use crate::portal::{JobKey, Portal};
 use crate::view::{
     AppState, ClearedTxt, DetailState, EmptyAlert, Evidence, Highlight, JobCounts, JobDetail,
     JobFacet, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, Mailbox, MatchDetail,
-    OpenTarget, Platform, PortalLogin, PortalPatch, PortalState, ProfileInfo, ProfileQuality,
-    ProfileUnderstanding, Quota, Reason, ReasonKind, ReasonWeight, ResetSummary, Risk,
-    SettingsPatch, SettingsView, TextRange, VaultKind, WorkMode,
+    OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState, ProfileInfo,
+    ProfileQuality, ProfileUnderstanding, Quota, Reason, ReasonKind, ReasonWeight, ResetSummary,
+    Risk, SettingsPatch, SettingsView, TextRange, VaultKind, WorkMode,
 };
 
 /// A portal key.
@@ -130,6 +130,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<ErrorInfo>();
     f.add::<InvalidInput>();
     f.add::<MatchStatus>();
+    f.add::<AppStatus>();
     f.add::<Band>();
     f.add::<Notice>();
     f.add::<PauseReason>();
@@ -150,6 +151,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<JobFacet>();
     f.add::<JobSort>();
     f.add::<JobQuery>();
+    f.add::<PortalNew>();
     f.add::<JobCounts>();
     f.add::<JobPage>();
     f.add::<EmptyAlert>();
@@ -180,6 +182,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<ScanCounts>();
     f.add::<PortalSummary>();
     f.add::<ScoreSummary>();
+    f.add::<NewJobs>();
     f.add::<ExportSummary>();
     f.add::<RunSummary>();
     f.add::<RunSnapshot>();
