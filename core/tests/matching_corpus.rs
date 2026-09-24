@@ -126,6 +126,45 @@ fn legacy_port_equals_python_on_local_data() {
     );
 }
 
+/// The new engine on local private ads: no panic, one line per job (old vs new score).
+/// `JOBALERT_FIDELITY_DIR=DIR cargo test -p jobalert-core --test matching_corpus -- --ignored new_engine_on_local`
+#[test]
+#[ignore = "needs local private data"]
+fn new_engine_on_local_data() {
+    let dir = std::env::var("JOBALERT_FIDELITY_DIR").expect("set JOBALERT_FIDELITY_DIR");
+    let root = fixtures();
+    for name in ["sample_profile.json", "sample_profile_it.json"] {
+        let data = read_json(&root.join(name));
+        let profile = compile_profile(&data);
+        let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
+            .expect("folder")
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| p.extension().is_some_and(|e| e == "txt"))
+            .collect();
+        files.sort();
+        for (index, path) in files.iter().enumerate() {
+            let content = std::fs::read_to_string(path).expect("job file");
+            let file = parse_any_job_file(&content);
+            let input = JobInput {
+                title: &file.title,
+                location: &file.location,
+                portal: Portal::LinkedIn,
+                text: &file.text,
+                facts: None,
+                posted: None,
+                kind: TextKind::Full,
+            };
+            let new = assess(&profile, &input, None);
+            let old = legacy::legacy_percent(&data, &file.text).map(|s| s.pct);
+            let verdict = new.as_ref().map(|a| code_of_verdict(a.verdict));
+            println!(
+                "{name} #{index}: old {old:?} new {:?} {verdict:?}",
+                new.map(|a| a.score)
+            );
+        }
+    }
+}
+
 #[test]
 fn legacy_port_equals_frozen_edge_outputs() {
     let (compared, mismatches) = parity("legacy_edge.json", "legacy_edge");
