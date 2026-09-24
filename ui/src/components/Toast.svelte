@@ -3,7 +3,8 @@
   that rise in (150 ms) and slide out sideways (100 ms), at most three, the stack moving up
   as one leaves. A 2 px navy line at the bottom drains over the toast's lifetime and stops
   while the toast is hovered (so does its timer); under reduced motion there is no line.
-  The check of a success draws itself once as the toast appears. Closable.
+  The check of a success draws itself once as the toast appears. Closable; an undo of what
+  the user just did sits before the close button.
 -->
 <script lang="ts">
   import { de } from '$lib/i18n/de';
@@ -38,6 +39,19 @@
         ><Icon name={toast.tone === 'success' ? 'circle-check' : 'info'} size="sm" /></span
       >
       <span class="text">{toast.text}</span>
+      {#if toast.action}
+        {@const action = toast.action}
+        <Button
+          variant="ghost"
+          size="sm"
+          label={action.label}
+          testid="toast-action"
+          onclick={() => {
+            action.onclick();
+            toasts.dismiss(toast.id);
+          }}
+        />
+      {/if}
       <Button
         variant="ghost"
         size="sm"

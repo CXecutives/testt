@@ -7,16 +7,31 @@
   open (must before nice, only "Kann" carries a badge), what to check and what excludes;
   hovering a reason lights its passage in the ad text below, a click scrolls to it. Title,
   facts and the ad text are selectable and copy with Ctrl/Cmd+C (`data-copy`).
+  Actions by weight: at the end of the title line the star (Merken), Archivieren and a quiet
+  close back to the day overview (below 900 px the view's back button does); below the match
+  line "Anzeige öffnen" first, then "Als Prompt kopieren" (the job as a prompt for any AI
+  chat), the alert mail and "Details holen" when the details are missing (right under the
+  band when the job has no score yet). Then the user's own marks: where the application
+  stands (one chip per step, the chosen one again clears it, with the time it was set) and
+  a note that saves when the field is left (Enter saves, Esc takes the stored one back).
+  After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
+  that jumps to its passage makes the passage flash once when it has arrived. Once the
+  action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
+  it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
+  import Count from '$components/Count.svelte';
   import Icon, { type IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
+  import TextField from '$components/TextField.svelte';
   import ReasonItem from '$components/ReasonItem.svelte';
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
+  import { inView, scrollArea } from '$lib/actions/inView';
   import { tooltip } from '$lib/actions/tooltip';
   import { de, type CriterionState } from '$lib/i18n/de';
-  import { displayTitle, formatDate } from '$lib/i18n/format';
+  import { displayTitle, formatDate, formatRelative } from '$lib/i18n/format';
   import {
     criterionKey,
     criterionState,
@@ -26,17 +41,21 @@
     reasonText,
   } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { JobDetail, OpenTarget, Reason } from '$lib/ipc/types';
-  import { isReducedMotion } from '$lib/motion/motion';
+  import { formKeys } from '$lib/input/input';
+  import type { AppStatus, JobDetail, JobKey, OpenTarget, Reason } from '$lib/ipc/types';
+  import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
 
   interface Props {
     detail: JobDetail;
+    /** Close the job (back to the day overview). */
+    onclose?: (() => void) | null;
   }
-  let { detail }: Props = $props();
+  let { detail, onclose = null }: Props = $props();
 
   const job = $derived(detail.job);
   const match = $derived(detail.match);
@@ -55,6 +74,11 @@
   });
   let textElement = $state<HTMLElement | null>(null);
   let actionError = $state<string | null>(null);
+  /** The action row has scrolled away: the compact bar is up. */
+  let compact = $state(false);
+  /** The passage that flashes once after a jump to it. */
+  let flash = $state<string | null>(null);
+  let flashTimer: ReturnType<typeof setTimeout> | null = null;
 
   const WEIGHT_ORDER = { must: 0, hard: 1, nice: 2, info: 3 } as const;
   const byWeight = (a: Reason, b: Reason): number =>
@@ -65,11 +89,23 @@
   // The contract type is a fact about the ad, not a requirement: it goes into the chips.
   const contract = $derived(all.find((r) => r.code === CONTRACT) ?? null);
   const reasons = $derived(all.filter((r) => r.code !== CONTRACT));
+  // Only passages a reason under "Warum" explains are marked (the contract type is a chip).
+  const passages = $derived(
+    (match?.highlights ?? []).filter((h) => contract === null || h.reason !== contract.id),
+  );
   const met = $derived(reasons.filter((r) => r.kind === 'met').sort(byWeight));
   // Met only in part is not met: its own group, never under "Erfüllt".
   const partial = $derived(reasons.filter((r) => r.kind === 'partial').sort(byWeight));
   const open = $derived(reasons.filter((r) => r.kind === 'open').sort(byWeight));
-  const checks = $derived(reasons.filter((r) => r.kind === 'check'));
+  // Under "Zu prüfen" what decides fastest comes first: the temporary agency work (ANÜ).
+  const FIRST_CHECKS: readonly string[] = ['anue'];
+  const checks = $derived(
+    reasons
+      .filter((r) => r.kind === 'check')
+      .sort(
+        (a, b) => Number(FIRST_CHECKS.includes(b.code)) - Number(FIRST_CHECKS.includes(a.code)),
+      ),
+  );
   const allViolations = $derived(reasons.filter((r) => r.kind === 'violation'));
   const partialMust = $derived(
     reasons.filter((r) => r.kind === 'partial' && r.weight === 'must').length,
@@ -166,15 +202,118 @@
     ].filter((fact) => fact !== ''),
   );
 
+  /** No score yet and the details can be fetched: the button stands right under the band. */
+  const fetchUnderBand = $derived(
+    canFetch && withRing && (match === null || match.status === 'unscorable'),
+  );
+  /** A score from a teaser only is a first guess. */
+  const preliminary = $derived(match?.status === 'scored' && detailKind === 'teaser');
+
+  const STATUSES: readonly AppStatus[] = ['applied', 'interview', 'offer', 'rejected'];
+  /** The note as typed; the stored one is the detail's. */
+  let note = $state(untrack(() => detail.note ?? ''));
+
+  async function setStatus(status: AppStatus): Promise<void> {
+    actionError = null;
+    const error = await jobs.setAppStatus(job.key, job.appStatus === status ? null : status);
+    if (error !== null) actionError = error;
+  }
+
+  async function saveNote(): Promise<void> {
+    if (note.trim() === (detail.note ?? '').trim()) return;
+    actionError = null;
+    const error = await jobs.setNote(job.key, note);
+    if (error !== null) actionError = error;
+  }
+
+  function revertNote(): void {
+    note = detail.note ?? '';
+  }
+
+  async function copyPrompt(): Promise<void> {
+    actionError = null;
+    try {
+      await navigator.clipboard.writeText(await jobs.aiPrompt(job.key));
+      toasts.show(de.toast.prompt);
+    } catch (error) {
+      actionError = errorText(error);
+    }
+  }
+
+  /** Hide the job and open the next one of the list (the toast takes it back). */
+  async function hide(): Promise<void> {
+    actionError = null;
+    const key = job.key;
+    if (job.hidden) {
+      const error = await jobs.hide(key, false);
+      if (error !== null) actionError = error;
+      return;
+    }
+    const list = jobs.visible;
+    const at = list.findIndex((row) => sameKey(row.key, key));
+    const next = at < 0 ? null : (list[at + 1] ?? list[at - 1] ?? null);
+    const error = await jobs.hide(key, true);
+    if (error !== null) {
+      actionError = error;
+      return;
+    }
+    toasts.show(de.toast.hidden, 'success', {
+      label: de.common.undo,
+      onclick: () => void undoHide(key),
+    });
+    if (next !== null) void jobs.select(next, false);
+    else jobs.clearSelection();
+  }
+
+  async function undoHide(key: JobKey): Promise<void> {
+    if ((await jobs.hide(key, false)) === null) void jobs.load(true);
+  }
+
   function openTarget(target: OpenTarget): void {
     actionError = null;
     invoke('open_target', { target }).catch((error: unknown) => (actionError = errorText(error)));
   }
 
+  function flashPassage(id: string): void {
+    if (flashTimer !== null) clearTimeout(flashTimer);
+    flash = null;
+    requestAnimationFrame(() => {
+      flash = id;
+      flashTimer = setTimeout(() => (flash = null), duration('base'));
+    });
+  }
+
+  /** Once the scroll area has come to rest (at the latest after the time a scroll takes). */
+  function afterScroll(area: Element | null, then: () => void): void {
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      area?.removeEventListener('scrollend', finish);
+      then();
+    };
+    area?.addEventListener('scrollend', finish);
+    setTimeout(finish, 2 * duration('reveal'));
+  }
+
   function scrollTo(reason: Reason): void {
     pinned = reason.id;
     const mark = textElement?.querySelector(`[data-reason="${CSS.escape(reason.id)}"]`);
-    mark?.scrollIntoView({ block: 'center', behavior: isReducedMotion() ? 'auto' : 'smooth' });
+    if (!mark) return;
+    const area = scrollArea(mark);
+    const box = mark.getBoundingClientRect();
+    const view = area?.getBoundingClientRect() ?? { top: 0, bottom: innerHeight };
+    const inside = box.top >= view.top && box.bottom <= view.bottom;
+    if (isReducedMotion()) {
+      if (!inside) mark.scrollIntoView({ block: 'center' });
+      return;
+    }
+    if (inside) {
+      flashPassage(reason.id);
+      return;
+    }
+    afterScroll(area, () => flashPassage(reason.id));
+    mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
   function hover(reason: Reason, on: boolean): void {
@@ -183,29 +322,115 @@
   }
 </script>
 
+{#snippet sub(label: string, count: number)}
+  <h3 class="sub">{label}<Count value={count} /></h3>
+{/snippet}
+
 {#snippet reasonList(items: Reason[], testid: string)}
   <ul class="reasons" data-testid={testid}>
     {#each items as reason (reason.id)}
+      {@const evidence = reason.evidence ? reasonHint(reason) : null}
       <li data-weight={reason.weight}>
         <ReasonItem
           kind={reason.kind}
-          weight={reason.weight === 'nice' ? 'nice' : null}
+          weight={reason.weight === 'nice'
+            ? 'nice'
+            : reason.kind === 'open' && reason.weight === 'must'
+              ? 'must'
+              : null}
           label={reasonText(reason)}
-          hint={reasonHint(reason)}
+          hint={evidence ? null : reasonHint(reason)}
           active={active === reason.id}
           onhover={(on) => hover(reason, on)}
           onselect={reason.ranges.length > 0 ? () => scrollTo(reason) : null}
         />
+        {#if evidence}<p class="evidence" data-testid="evidence">{evidence}</p>{/if}
       </li>
     {/each}
   </ul>
 {/snippet}
 
 <article class="reader" data-testid="reader">
+  <!-- Sticks to the top of the stage; up only while the action row is scrolled away. -->
+  <div class="compact-anchor">
+    <div
+      class="compact"
+      class:shown={compact}
+      aria-hidden={!compact}
+      inert={!compact}
+      data-testid="reader-compact"
+    >
+      {#if withRing}
+        <ScoreRing
+          ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
+          size="sm"
+        />
+      {/if}
+      <span class="compact-title">{job.title ? displayTitle(job.title) : de.job.untitled}</span>
+      <span class="compact-tools">
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          icon="external-link"
+          label={de.reader.open}
+          testid="compact-open"
+          onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          icon="star"
+          label={de.reader.pin}
+          pressed={job.pinned}
+          testid="compact-pin"
+          onclick={() => void jobs.pin(job.key, !job.pinned)}
+        />
+      </span>
+    </div>
+  </div>
+
   <header class="head">
-    <h1 class="title" data-testid="reader-title" data-copy>
-      {job.title ? displayTitle(job.title) : de.job.untitled}
-    </h1>
+    <div class="title-line">
+      <h1 class="title" data-testid="reader-title" data-copy>
+        {job.title ? displayTitle(job.title) : de.job.untitled}
+      </h1>
+      <span class="title-tools">
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          icon="star"
+          label={de.reader.pin}
+          pressed={job.pinned}
+          testid="pin"
+          onclick={() => void jobs.pin(job.key, !job.pinned)}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          icon={job.hidden ? 'eye' : 'eye-off'}
+          label={job.hidden ? de.reader.unhide : de.reader.hide}
+          testid="hide"
+          onclick={() => void hide()}
+        />
+        {#if onclose}
+          <span class="close">
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
+              icon="x"
+              label={de.reader.close}
+              testid="reader-close"
+              onclick={onclose}
+            />
+          </span>
+        {/if}
+      </span>
+    </div>
     <p class="facts" data-copy>
       <span class="facts-line">
         {#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}
@@ -215,14 +440,12 @@
 
   {#if headline}
     <div class="match">
-      {#key keyOf(job.key)}
-        <ScoreRing
-          ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
-          size="md"
-          animate={keyOf(job.key)}
-          testid="reader-ring"
-        />
-      {/key}
+      <ScoreRing
+        ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
+        size="md"
+        animate={keyOf(job.key)}
+        testid="reader-ring"
+      />
       <div class="verdict">
         <p class="line">
           <span class="band {headline.tone}" data-testid="band">{headline.word}</span>
@@ -238,6 +461,22 @@
           <p class="because" data-testid="exclusion">{exclusion}</p>
         {:else if unscorable}
           <p class="because" data-testid="unscorable">{unscorable}</p>
+        {:else if preliminary}
+          <p class="because" data-testid="preliminary">{de.reader.preliminary}</p>
+        {/if}
+        {#if fetchUnderBand}
+          <span class="fetch-here">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="download"
+              label={de.reader.fetchDetails}
+              disabled={run.active}
+              disabledReason={run.busyText}
+              testid="fetch-details"
+              onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
+            />
+          </span>
         {/if}
         {#if chips.length > 0}
           <ul class="chips" aria-label={de.reader.criteria} data-testid="criteria">
@@ -268,11 +507,10 @@
     />
     <Button
       variant="ghost"
-      icon="star"
-      label={de.reader.pin}
-      pressed={job.pinned}
-      testid="pin"
-      onclick={() => void jobs.pin(job.key, !job.pinned)}
+      icon="copy"
+      label={de.reader.prompt}
+      testid="prompt"
+      onclick={() => void copyPrompt()}
     />
     {#if detail.mail.gmailUrl}
       <Button
@@ -283,7 +521,7 @@
         onclick={() => openTarget({ kind: 'gmail', key: job.key })}
       />
     {/if}
-    {#if canFetch}
+    {#if canFetch && !fetchUnderBand}
       <Button
         variant="ghost"
         icon="download"
@@ -295,6 +533,37 @@
       />
     {/if}
   </div>
+  <div class="marks">
+    <div class="status" role="group" aria-label={de.reader.status} data-testid="status">
+      {#each STATUSES as status (status)}
+        <Button
+          variant="secondary"
+          size="sm"
+          label={de.reader.appStatus[status]}
+          pressed={job.appStatus === status}
+          testid="status-{status}"
+          onclick={() => void setStatus(status)}
+        />
+      {/each}
+      {#if job.appStatus !== null && detail.appStatusAt}
+        <span class="since" data-testid="status-since">{formatRelative(detail.appStatusAt)}</span>
+      {/if}
+    </div>
+    <span
+      class="note"
+      onfocusout={() => void saveNote()}
+      use:formKeys={{ save: () => void saveNote(), cancel: revertNote }}
+    >
+      <TextField
+        value={note}
+        label={de.reader.noteLabel}
+        placeholder={de.reader.noteLabel}
+        testid="note"
+        oninput={(value) => (note = value)}
+      />
+    </span>
+  </div>
+  <span class="past-actions" use:inView={(place) => (compact = place === 'above')}></span>
   {#if actionError}
     <Notice tone="danger" variant="inline" text={actionError} />
   {/if}
@@ -310,13 +579,13 @@
             <div class="stack">
               {#if met.length > 0}
                 <div class="group">
-                  <h3 class="sub">{de.reader.met}</h3>
+                  {@render sub(de.reader.met, met.length)}
                   {@render reasonList(met, 'reasons-met')}
                 </div>
               {/if}
               {#if partial.length > 0}
                 <div class="group">
-                  <h3 class="sub">{de.reader.partial}</h3>
+                  {@render sub(de.reader.partial, partial.length)}
                   {@render reasonList(partial, 'reasons-partial')}
                 </div>
               {/if}
@@ -324,7 +593,7 @@
           {/if}
           {#if open.length > 0}
             <div class="group">
-              <h3 class="sub">{de.reader.missing}</h3>
+              {@render sub(de.reader.missing, open.length)}
               {@render reasonList(open, 'reasons-open')}
             </div>
           {/if}
@@ -332,13 +601,13 @@
       {/if}
       {#if checks.length > 0}
         <div class="group">
-          <h3 class="sub">{de.reader.check}</h3>
+          {@render sub(de.reader.check, checks.length)}
           {@render reasonList(checks, 'reasons-check')}
         </div>
       {/if}
       {#if violations.length > 0}
         <div class="group">
-          <h3 class="sub">{de.reader.violations}</h3>
+          {@render sub(de.reader.violations, violations.length)}
           {@render reasonList(violations, 'reasons-violation')}
         </div>
       {/if}
@@ -362,8 +631,9 @@
     {#if detail.text}
       <AdText
         text={detail.text}
-        highlights={match?.highlights ?? []}
+        highlights={passages}
         {active}
+        {flash}
         bind:element={textElement}
       />
     {/if}
@@ -384,11 +654,103 @@
     gap: var(--space-8);
   }
 
+  /* No room of its own: it sticks to the top of the stage (under the macOS toolbar row)
+     and cancels the gap it would add. */
+  .compact-anchor {
+    position: sticky;
+    top: var(--window-top);
+    z-index: var(--z-sticky);
+    height: 0;
+    margin-bottom: calc(-1 * var(--space-20));
+  }
+
+  /* The compact bar over the whole column: ring, title, open, pin. Enters in 150 ms with
+     ease-out sliding down 4 px, leaves in 100 ms with ease-in. */
+  .compact {
+    position: absolute;
+    top: 0;
+    right: calc(-1 * var(--reader-padding));
+    left: calc(-1 * var(--reader-padding));
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    height: var(--compact-header);
+    padding: 0 var(--reader-padding);
+    border-bottom: var(--border-width) solid var(--border);
+    background-color: var(--surface);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(calc(-1 * var(--move-md)));
+    transition:
+      opacity var(--dur-fast) var(--ease-in),
+      transform var(--dur-fast) var(--ease-in);
+    will-change: transform;
+  }
+
+  .compact.shown {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    transition-duration: var(--dur-base);
+    transition-timing-function: var(--ease-out);
+  }
+
+  .compact-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-heading);
+    font: var(--type-title);
+    font-weight: var(--weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .compact-tools {
+    display: flex;
+    flex: none;
+    gap: var(--space-2);
+    margin-right: calc(-1 * var(--space-6));
+  }
+
+  /* Watched: once it has scrolled away, the compact bar comes up. No room of its own. */
+  .past-actions {
+    height: 0;
+    margin-top: calc(-1 * var(--space-20));
+  }
+
+  .title-line {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-8);
+  }
+
   .title {
+    flex: 1;
+    min-width: 0;
     color: var(--text-heading);
     font: var(--type-2xl);
     letter-spacing: var(--tracking-tight);
     text-wrap: balance;
+  }
+
+  /* On the axis of the first title line; the last glyph ends on the edge of the column. */
+  .title-tools {
+    display: flex;
+    flex: none;
+    gap: var(--space-2);
+    margin-top: calc((var(--leading-2xl) - var(--control-sm)) / 2);
+    margin-right: calc(-1 * var(--space-6));
+  }
+
+  .close {
+    display: flex;
+  }
+
+  @media (width < 900px) {
+    .close {
+      display: none;
+    }
   }
 
   /* Facts joined by middle dots; a dot that would start a wrapped line is clipped (every
@@ -476,7 +838,8 @@
     gap: var(--space-6);
   }
 
-  /* Quiet chips: a neutral name, the state only in the icon (and in red when violated). */
+  /* Quiet chips: a neutral name, the state only in the icon (and in red when violated). A
+     hover only deepens the chip a little while its tooltip comes. */
   .chip {
     display: inline-flex;
     align-items: center;
@@ -489,6 +852,12 @@
     font: var(--type-xs);
     font-weight: var(--weight-medium);
     white-space: nowrap;
+    transition: background-color var(--dur-base) var(--ease-standard);
+  }
+
+  .chip:hover {
+    background-color: var(--border);
+    transition-duration: var(--dur-hover);
   }
 
   .chip-icon {
@@ -504,7 +873,8 @@
     --chip-icon: var(--warning-strong);
   }
 
-  .chip.violated {
+  .chip.violated,
+  .chip.violated:hover {
     --chip-icon: var(--danger-strong);
 
     background-color: var(--danger-soft);
@@ -521,6 +891,44 @@
     gap: var(--space-8);
   }
 
+  .fetch-here {
+    display: flex;
+    margin-top: var(--space-2);
+  }
+
+  /* The user's own marks: the step of the application, the note. */
+  .marks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-6);
+  }
+
+  .since {
+    margin-left: var(--space-2);
+    color: var(--text-muted);
+    font: var(--type-sm);
+    font-variant-numeric: var(--numeric);
+  }
+
+  .note {
+    display: flex;
+    max-width: var(--list-max);
+  }
+
+  /* The evidence of a point, quiet under it (on the axis of its words). */
+  .evidence {
+    padding: 0 var(--space-8) var(--space-4) calc(var(--space-8) + var(--icon-sm) + var(--space-8));
+    color: var(--text-subtle);
+    font: var(--type-sm);
+  }
+
   .why,
   .ad {
     display: flex;
@@ -535,9 +943,12 @@
     font: var(--type-lg);
   }
 
-  /* Sentence case, quiet: the groups of "Warum". */
+  /* The groups of "Warum": navy sub-labels with a soft count. */
   .sub {
-    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    color: var(--text-label);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
   }

@@ -34,7 +34,7 @@ test('a rescore the app starts shows as a rescore and leaves the fetch card alon
   const card = page.getByTestId('run-card');
   await expect(card).toHaveAttribute('data-kind', 'fetch');
   await expect(page.getByTestId('run-finished')).toContainText('Abruf fertig');
-  await expect(page.getByTestId('last-new')).toHaveText('2 neue Jobs');
+  await expect(page.getByTestId('last-new')).toHaveText('2 neu');
   await page.getByTestId('run-history').getByRole('button').first().click();
   const history = await page.getByTestId('run-history').locator('li').count();
 
@@ -55,7 +55,7 @@ test('a rescore the app starts shows as a rescore and leaves the fetch card alon
 
   // Afterwards the fetch card is unchanged and Abrufen is back.
   await expect(page.getByTestId('run-finished')).toContainText('Abruf fertig');
-  await expect(page.getByTestId('last-new')).toHaveText('2 neue Jobs');
+  await expect(page.getByTestId('last-new')).toHaveText('2 neu');
   await expect(page.getByTestId('run-history').locator('li')).toHaveCount(history);
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
   expect(await calls(page, 'start_run')).toHaveLength(1);
@@ -110,8 +110,8 @@ test('a fetch that cannot write the Excel file says so once, and the toast too',
   await expect(page.getByTestId('export-failed')).toHaveCount(1);
   await expect(page.getByText('blieb unverändert')).toHaveCount(1);
   // The numbers of the run still stand next to it.
-  await expect(page.getByTestId('last-new')).toHaveText('2 neue Jobs');
-  await expect(page.getByTestId('last-top')).toHaveText('1 mit hoher Passung');
+  await expect(page.getByTestId('last-new')).toHaveText('2 neu');
+  await expect(page.getByTestId('last-top')).toHaveText('1 passen gut');
 });
 
 test('the run card counts the run: new and not excluded, high among those', async ({ page }) => {
@@ -119,8 +119,8 @@ test('the run card counts the run: new and not excluded, high among those', asyn
   await page.getByTestId('fetch').click();
   await runFinished(page);
   // Three new jobs came in, one of them excluded: two new, one fits well.
-  await expect(page.getByTestId('last-new')).toHaveText('2 neue Jobs');
-  await expect(page.getByTestId('last-top')).toHaveText('1 mit hoher Passung');
+  await expect(page.getByTestId('last-new')).toHaveText('2 neu');
+  await expect(page.getByTestId('last-top')).toHaveText('1 passen gut');
   await expect(page.getByTestId('nothing-new')).toHaveCount(0);
 });
 
@@ -163,7 +163,7 @@ test('a start that fails keeps the last result and says why', async ({ page }) =
   await open(page, `${WIN}&tick=15`);
   await page.getByTestId('fetch').click();
   await runFinished(page);
-  await expect(page.getByTestId('last-new')).toHaveText('2 neue Jobs');
+  await expect(page.getByTestId('last-new')).toHaveText('2 neu');
   // A run the page has not heard of yet holds the slot: start_run answers "busy".
   await page.evaluate(() => {
     window.__harness.holdAfter = 0;
@@ -172,7 +172,7 @@ test('a start that fails keeps the last result and says why', async ({ page }) =
   await page.getByTestId('fetch').click();
   await expect(page.getByTestId('start-error')).toHaveText('Gerade läuft schon ein Abruf.');
   await expect(page.getByTestId('run-finished')).toContainText('Abruf fertig');
-  await expect(page.getByTestId('last-new')).toHaveText('2 neue Jobs');
+  await expect(page.getByTestId('last-new')).toHaveText('2 neu');
   await page.evaluate(() => (window.__harness.holdAfter = null));
   await runFinished(page);
 });
@@ -258,7 +258,9 @@ test('a page that fails while scrolling says so and loads on retry', async ({ pa
     .toBeGreaterThan(mounted);
 });
 
-test('the divider under Neu names no number that differs from the tile', async ({ page }) => {
+test('the divider under Neu names no number; under Alle the one of every excluded job', async ({
+  page,
+}) => {
   await open(page, WIN);
   await expect(page.getByTestId('facet').getByRole('radio', { name: /Neu/ })).toHaveAttribute(
     'aria-checked',
@@ -266,23 +268,18 @@ test('the divider under Neu names no number that differs from the tile', async (
   );
   await expect(page.getByTestId('excluded-divider')).toHaveText('Ausgeschlossen');
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  const tile = await page.getByTestId('tile-excluded').innerText();
+  await expect(page.getByTestId('excluded-count')).toBeVisible();
   await expect(page.getByTestId('excluded-divider')).toHaveText(
-    `Ausgeschlossen ${tile.replace(/\D/g, '')}`,
+    `Ausgeschlossen ${await page.getByTestId('excluded-rows').locator('[data-testid^="job-row-"]').count()}`,
   );
 });
 
-test('the new jobs per portal follow the one order of the app', async ({ page }) => {
-  await open(page, WIN);
+test('the portals follow the one order of the app', async ({ page }) => {
+  await open(page, `${WIN}&scenario=empty`);
   const order = await page
-    .getByTestId('new-per-portal')
-    .getByRole('button')
-    .evaluateAll((items) => items.map((item) => item.textContent?.trim() ?? ''));
-  expect(order.map((text) => text.replace(/^\d+ neu auf /, ''))).toEqual([
-    'LinkedIn',
-    'freelance.de',
-    'freelancermap',
-  ]);
+    .locator('[data-testid^="alert-"]')
+    .evaluateAll((items) => items.map((item) => item.getAttribute('data-testid')));
+  expect(order).toEqual(['alert-linkedin', 'alert-freelance', 'alert-freelancermap']);
   await page.getByTestId('nav-settings').click();
   const cards = await page
     .locator('[data-testid^="portal-"]')

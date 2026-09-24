@@ -737,8 +737,10 @@ fn the_macos_toolbar_row_matches_the_traffic_lights() {
         lights["x"].as_u64().expect("x"),
         lights["y"].as_u64().expect("y"),
     );
-    // The buttons' frame is 16 pt high: centred in the row.
-    assert_eq!(y + 8, row / 2, "traffic lights centred in the {row} px row");
+    // Measured on the macOS CI runner (smoke line `SMOKE {"lights":...}`): the buttons are
+    // 14 pt high and their centre sits 2 pt above `y` (y 18 gave centre 16), so y - 2 is the
+    // centre that must meet the middle of the row.
+    assert_eq!(y - 2, row / 2, "traffic lights centred in the {row} px row");
     // Three buttons of 14 pt, 6 pt apart, and room to the right.
     assert!(
         x + 3 * 14 + 2 * 6 < px("--traffic-lights-width"),
@@ -751,6 +753,20 @@ fn the_macos_toolbar_row_matches_the_traffic_lights() {
         "--rail-width: var(--traffic-lights-width);",
     ] {
         assert!(base.contains(rule), "base.css (macOS): {rule}");
+    }
+    // The app places the lights itself (tao applies the inset only while its covered content
+    // view draws) and reads the position from this configuration: one source, no second
+    // number in the code.
+    let platform = std::fs::read_to_string(repo("src-tauri/src/platform.rs")).expect("platform.rs");
+    assert!(
+        platform.contains("traffic_light_position") && platform.contains("pub mod lights"),
+        "platform.rs places the traffic lights from trafficLightPosition"
+    );
+    for literal in [format!("{x}.0"), format!("{y}.0")] {
+        assert!(
+            !platform.contains(&literal),
+            "platform.rs repeats the position ({literal}); read it from the configuration"
+        );
     }
 }
 

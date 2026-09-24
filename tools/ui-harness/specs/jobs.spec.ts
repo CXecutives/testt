@@ -38,6 +38,14 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await runFinished(page);
   await expect(page.getByTestId('run-finished')).toBeVisible();
   await expect(page.getByTestId('fetch')).toBeVisible();
+  // The overview file and the folder have one place: the day overview, not the run card.
+  await expect(page.getByRole('button', { name: 'Übersicht öffnen' })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Ordner öffnen' })).toHaveCount(1);
+  await expect(page.getByTestId('day-overview').getByTestId('overview-open')).toBeVisible();
+  // A history line copies like "Kopieren" does: the time, a space, the text.
+  await page.getByTestId('run-history').getByRole('button').first().click();
+  const line = await page.getByTestId('run-card').locator('.history li').first().textContent();
+  expect(line?.trim()).toMatch(/^\d{2}:\d{2} \S/);
 
   // The new job with the best score is scored live and sorted to the top once finished.
   const top = rows(page).first();
@@ -63,7 +71,10 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
 
   const reason = page.getByTestId('reasons-met').getByRole('button').first();
   await reason.hover();
-  await expect(page.getByRole('tooltip')).toContainText('im Profil');
+  // The evidence stands under the point, quiet (no tooltip needed to trust it).
+  await expect(page.getByTestId('reasons-met').getByTestId('evidence').first()).toContainText(
+    'im Profil',
+  );
   await expect(page.locator('mark.active')).toHaveCount(1);
   // A click scrolls the passage into view (smooth; retried until it has arrived).
   await expect(async () => {
@@ -133,11 +144,11 @@ test('the sort switch reorders the list and keeps the selection', async ({ page 
   const before = await rows(page).evaluateAll((els) =>
     els.map((e) => e.getAttribute('data-testid')),
   );
-  // One quiet icon button: its tooltip names the current order, a click switches it.
+  // One quiet button names the order in words; a click switches it.
   const sort = page.getByTestId('sort');
-  await expect(sort).toHaveAttribute('aria-label', 'Beste Passung zuerst');
+  await expect(sort).toHaveText('Beste Passung');
   await sort.click();
-  await expect(sort).toHaveAttribute('aria-label', 'Neueste zuerst');
+  await expect(sort).toHaveText('Neueste');
   await expect
     .poll(() => rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid'))))
     .not.toEqual(before);
@@ -173,43 +184,54 @@ test('a job that cannot be scored says why, once', async ({ page }) => {
   await expect(page.getByTestId('why')).toHaveCount(0);
 });
 
-test('the day overview tiles filter the list and match the counts', async ({ page }) => {
+test('one place for filters: Neu, Alle, Gemerkt, Bewerbungen; the overview says what now', async ({
+  page,
+}) => {
   await open(page, WIN);
   const overview = page.getByTestId('day-overview');
   await expect(overview).toBeVisible();
-  const tileValue = async (id: string): Promise<number> =>
-    Number((await page.getByTestId(id).innerText()).replace(/\D/g, ''));
-  await expect.poll(() => tileValue('tile-high')).toBe(2);
-  await page.getByTestId('tile-high').click();
-  await expect(page.getByTestId('tile-high')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('filter')).toBeVisible();
-  await expect(rows(page)).toHaveCount(await tileValue('tile-high'));
-  await page.getByTestId('clear-filter').click();
-  await page.getByTestId('tile-no-detail').click();
-  await expect(rows(page)).toHaveCount(await tileValue('tile-no-detail'));
-  await page.getByTestId('tile-excluded').click();
-  await expect(excludedRows(page)).toHaveCount(await tileValue('tile-excluded'));
-  // A second click on the active tile takes the filter off again.
-  await page.getByTestId('tile-excluded').click();
-  await expect(page.getByTestId('filter')).toHaveCount(0);
-  await expect(page.getByTestId('issue-freelance-mails')).toBeVisible();
-
-  // The overview does not repeat the list: no job rows, and "neu" per portal adds up to Neu.
-  await expect(overview.locator('[data-testid^="job-row-"]')).toHaveCount(0);
-  const perPortal = await page
-    .getByTestId('new-per-portal')
-    .locator('li')
-    .evaluateAll((items) => items.map((item) => Number(item.textContent?.match(/\d+/)?.[0])));
-  expect(perPortal.reduce((sum, value) => sum + value, 0)).toBe(await segmentCount(page, 'Neu'));
+  // No counts in the overview: its best new jobs (as rows that open the job), the open
+  // points with their action, the files.
+  await expect(overview.getByTestId('tile-high')).toHaveCount(0);
+  await expect(overview.getByTestId('new-per-portal')).toHaveCount(0);
+  const best = page.getByTestId('best').locator('[data-testid^="job-row-"]');
+  expect(await best.count()).toBeGreaterThan(0);
+  expect(await best.count()).toBeLessThanOrEqual(3);
+  await expect(page.getByTestId('issue-freelance-mails')).toContainText(
+    'Eine Alert-Mail enthielt keine Jobs.',
+  );
+  await expect(overview.getByTestId('overview-excel')).toBeVisible();
+  // The one filter place: the segments in the list header count their lists.
+  const facet = page.getByTestId('facet');
+  await facet.getByRole('radio', { name: /Gemerkt/ }).click();
+  await expect(facet.getByRole('radio', { name: /Gemerkt/ })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await expect(rows(page)).toHaveCount(await segmentCount(page, 'Gemerkt'));
+  await facet.getByRole('radio', { name: /Bewerbungen/ }).click();
+  await expect(page.getByTestId('list-scroll')).toBeVisible();
+  expect(await calls(page, 'list_jobs')).toContainEqual([
+    'list_jobs',
+    expect.objectContaining({ query: expect.objectContaining({ facet: 'applications' }) }),
+  ]);
 });
 
 test('the reader summary agrees with the listed must requirements', async ({ page }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  // The window mounts a few rows per frame: wait until it is complete.
+  await expect
+    .poll(async () => {
+      const before = await rows(page).count();
+      await settle(page);
+      return before > 6 && before === (await rows(page).count());
+    })
+    .toBe(true);
   const keys = await rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
   let checked = 0;
   for (const key of keys) {
-    const row = page.getByTestId(key!);
+    const row = page.getByTestId('job-rows').getByTestId(key!);
     await row.click();
     // Wait until the reader shows this job (a slow machine would still show the last one).
     await expect(page.getByTestId('reader-title')).toHaveText(
@@ -223,11 +245,14 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
     if (numbers === null) continue;
     const [met, total] = [Number(numbers[1]), Number(numbers[2])];
     const listed = await page.getByTestId('why').evaluate((why) => {
-      // Muss is the default and carries no badge; only Kann does.
-      const musts = [...why.querySelectorAll('li[data-weight="must"]')];
-      if (musts.some((li) => li.querySelector('.badge') !== null)) return null;
+      // Muss is the default and carries no badge, except on an open one (it stands out
+      // there); Kann always does.
       const kind = (li: Element): string =>
         li.querySelector('[role="img"]')?.getAttribute('aria-label') ?? '';
+      const musts = [...why.querySelectorAll('li[data-weight="must"]')];
+      if (musts.some((li) => li.querySelector('.badge') !== null && kind(li) !== 'Offen')) {
+        return null;
+      }
       return {
         met: musts.filter((li) => kind(li) === 'Erfüllt').length,
         partial: musts.filter((li) => kind(li) === 'Teilweise erfüllt').length,
@@ -300,13 +325,9 @@ test('no search hit: one empty state with a way back', async ({ page }) => {
 
 test('without a profile: no rings, newest first, the overview leads to one', async ({ page }) => {
   await open(page, `${WIN}&scenario=no-profile`);
-  // Said once, in the overview: the tiles Neu and Ohne Details and a calm card.
+  // Said once, in the overview: a calm card, no best matches without a profile.
   await expect(page.getByTestId('no-profile')).toBeVisible();
-  await expect
-    .poll(async () => Number((await page.getByTestId('tile-new').innerText()).replace(/\D/g, '')))
-    .toBe(await segmentCount(page, 'Neu'));
-  await expect(page.getByTestId('tile-no-detail')).toBeVisible();
-  await expect(page.getByTestId('tile-high')).toHaveCount(0);
+  await expect(page.getByTestId('best')).toHaveCount(0);
   await expect(page.getByTestId('no-profile').locator('.btn.primary')).toHaveCount(0);
   await expect(page.getByTestId('sort')).toHaveCount(0);
   await expect(rows(page).first().locator('[role="img"][aria-label^="Passung"]')).toHaveCount(0);
@@ -334,6 +355,21 @@ test('an empty list and a first fetch without news', async ({ page }) => {
   await expect(page.getByTestId('empty-all')).toBeVisible();
   expect(await visibleCount(page, '[data-testid^="empty-"]')).toBe(1);
   await expect(page.getByTestId('run-status')).toContainText('Zuletzt');
+  // The overview does not say "nothing new" again; the files keep their place.
+  await expect(page.getByTestId('new-jobs')).toHaveCount(0);
+  await expect(page.getByTestId('day-overview')).not.toContainText('Keine neuen Jobs');
+  await expect(page.getByTestId('overview-open')).toBeVisible();
+});
+
+test('an unusable profile: the overview names it and leads to the Profil view', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&scenario=profile-broken`);
+  const card = page.getByTestId('no-profile');
+  await expect(card.getByRole('heading')).toHaveText('Profil nicht lesbar');
+  await expect(card).toContainText('Die Jobs zeigen deshalb keine Passung.');
+  await card.getByRole('button', { name: 'Profil öffnen' }).click();
+  await expect(page.getByTestId('view-profile')).toBeVisible();
 });
 
 test('a run can be cancelled', async ({ page }) => {
@@ -414,6 +450,9 @@ test('offline: the failed run says why and offers a retry', async ({ page }) => 
   await open(page, `${WIN}&scenario=offline`);
   const failed = page.getByTestId('run-failed');
   await expect(failed).toContainText('Gmail ist nicht erreichbar.');
+  // The sidebar says the fetch failed; the open point names it once and says why.
+  await expect(failed).toContainText('Letzter Abruf');
+  await expect(page.getByText('Abruf fehlgeschlagen')).toHaveCount(1);
   await failed.getByRole('button', { name: 'Erneut versuchen' }).click();
   await runFinished(page);
   expect(await calls(page, 'start_run')).toHaveLength(1);
@@ -427,7 +466,9 @@ test('a run in progress after a reload: steps, portals, countdown and pause', as
   // The status names the portal it is about.
   await expect(page.getByTestId('run-running')).toContainText('Wartet auf LinkedIn');
   await expect(page.getByTestId('countdown')).toHaveText('Weiter in 0:42');
-  await expect(page.getByTestId('pause-freelance')).toContainText('Pause bis 09:42.');
+  await expect(page.getByTestId('pause-freelance')).toContainText(
+    'Pause bis 09:42, das Portal bremst die Anfragen.',
+  );
 });
 
 test('loading takes a moment: skeletons, then the list', async ({ page }) => {
@@ -457,6 +498,328 @@ test('details and pins: teaser note, fetch details, pin star', async ({ page }) 
   await page.getByTestId('pin').click();
   await expect(page.getByTestId('pin')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('pin-freelance-900411')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('the close button in the reader leads back to the day overview', async ({ page }) => {
+  await open(page, WIN);
+  const first = rows(page).first();
+  await first.click();
+  await expect(page.getByTestId('reader')).toBeVisible();
+  await expect(page.getByTestId('day-overview')).toHaveCount(0);
+  await page.getByTestId('reader-close').click();
+  await expect(page.getByTestId('day-overview')).toBeVisible();
+  await expect(page.getByTestId('reader')).toHaveCount(0);
+  await expect(first).not.toHaveAttribute('aria-current', 'true');
+  // Below 900 px the view's back button does it; the close button steps aside.
+  await first.click();
+  await page.setViewportSize({ width: 780, height: 560 });
+  await expect(page.getByTestId('reader-close')).toBeHidden();
+  await expect(page.getByTestId('back')).toBeVisible();
+});
+
+test('a second click on the selected row closes it; a search that drops it too', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  const first = rows(page).first();
+  await first.click();
+  await expect(page.getByTestId('reader-ring')).toContainText('91');
+  await first.click();
+  await expect(page.getByTestId('day-overview')).toBeVisible();
+  await expect(first).not.toHaveAttribute('aria-current', 'true');
+  // A search that no longer finds the open job goes back to the overview too.
+  await first.click();
+  await expect(page.getByTestId('reader')).toBeVisible();
+  await page.getByTestId('search').fill('Kernfusion');
+  await expect(page.getByTestId('day-overview')).toBeVisible();
+});
+
+test('switching jobs: never blank, the old text stays put, the new job starts at the top', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await rows(page).first().click();
+  await expect(page.getByTestId('reader-ring')).toContainText('91');
+  const top = await page.getByTestId('stage').evaluate((node) => {
+    node.scrollTo({ top: 400 });
+    return node.scrollTop;
+  });
+  expect(top).toBeGreaterThan(0);
+  // Every frame from the click on: some stage shows content, no test id exists twice, and a
+  // still picture of the old job (while there is one) keeps the old scroll position.
+  await page.evaluate(() => {
+    const pane = document.querySelector('[data-testid="reader-pane"]')!;
+    const w = window as unknown as { __frames: [boolean, number, number][] };
+    w.__frames = [];
+    const sample = (): void => {
+      const stages = [...pane.querySelectorAll<HTMLElement>('.stage')];
+      const still = stages.find((node) => node.getAttribute('aria-hidden') === 'true');
+      w.__frames.push([
+        stages.some((node) => (node.textContent ?? '').trim() !== ''),
+        document.querySelectorAll('[data-testid="reader"]').length,
+        still?.scrollTop ?? -1,
+      ]);
+      if (w.__frames.length < 40) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+  const next = rows(page).nth(1);
+  await next.click();
+  await expect(page.getByTestId('reader-title')).toHaveText(
+    await next.locator('.title').innerText(),
+  );
+  await page.waitForFunction(
+    () => (window as unknown as { __frames: unknown[] }).__frames.length >= 40,
+  );
+  const frames = await page.evaluate(
+    () => (window as unknown as { __frames: [boolean, number, number][] }).__frames,
+  );
+  expect(frames.every(([filled]) => filled)).toBe(true);
+  expect(frames.every(([, readers]) => readers <= 1)).toBe(true);
+  const stills = frames.map(([, , still]) => still).filter((still) => still >= 0);
+  expect(stills.length).toBeGreaterThan(0);
+  expect(stills.every((still) => still === top)).toBe(true);
+  expect(await page.getByTestId('stage').evaluate((node) => node.scrollTop)).toBe(0);
+});
+
+/** Watch the list for the next frames: the most rows that glide at once (a re-sort). */
+async function watchGlides(page: Page, frames: number, during?: string): Promise<void> {
+  await page.evaluate(
+    ([count, selector]) => {
+      const w = window as unknown as { __glides: number; __left: number };
+      w.__glides = 0;
+      w.__left = count;
+      const gliding = (row: Element): boolean =>
+        row.getAnimations().some((animation) => {
+          const keyframes = (animation.effect as KeyframeEffect | null)?.getKeyframes() ?? [];
+          return (
+            keyframes.some((k) => 'transform' in k) && keyframes.every((k) => !('opacity' in k))
+          );
+        });
+      const sample = (): void => {
+        // A watch "during" something ends with it (before counting what comes after it).
+        if (selector && document.querySelector(selector) === null) {
+          w.__left = 0;
+          return;
+        }
+        const list = document.querySelector('[data-testid="job-list"]');
+        const now = list ? [...list.querySelectorAll('[data-key]')].filter(gliding).length : 0;
+        w.__glides = Math.max(w.__glides, now);
+        w.__left -= 1;
+        if (w.__left > 0) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    },
+    [frames, during ?? ''] as const,
+  );
+}
+
+/** Wait until no row moves any more. */
+async function rowsAtRest(page: Page): Promise<void> {
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('[data-key]')].every((row) => row.getAnimations().length === 0),
+  );
+}
+
+async function glides(page: Page): Promise<number> {
+  await page.waitForFunction(() => (window as unknown as { __left: number }).__left <= 0);
+  return page.evaluate(() => (window as unknown as { __glides: number }).__glides);
+}
+
+test('only a re-sort moves rows: new jobs of a run land in place, the sort switch glides', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&tick=30`);
+  // During the run new jobs come in at the top: nothing below them slides.
+  await page.getByTestId('fetch').click();
+  await expect(page.getByTestId('run-running')).toBeVisible();
+  const before = await rows(page).count();
+  await watchGlides(page, 600, '[data-testid="run-running"]');
+  expect(await glides(page)).toBe(0);
+  expect(await rows(page).count()).toBeGreaterThan(before);
+  await runFinished(page);
+  // The re-sort at the end of the run glides; a search then filters in place.
+  await rowsAtRest(page);
+  await watchGlides(page, 20);
+  await page.getByTestId('search').fill('Interim');
+  await expect(rows(page)).toHaveCount(3);
+  expect(await glides(page)).toBe(0);
+  await page.getByTestId('search').fill('');
+  await expect(rows(page)).not.toHaveCount(3);
+  await rowsAtRest(page);
+  // The sort switch is a re-sort: the rows on screen glide to their new place.
+  await watchGlides(page, 120);
+  await page.getByTestId('sort').click();
+  expect(await glides(page)).toBeGreaterThan(0);
+});
+
+test('the list header: one slot for Abrufen and Abbrechen, the filter, a line once scrolled', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&tick=200`);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const header = page.getByTestId('list-header');
+  const clear = 'rgba(0, 0, 0, 0)';
+  // The bottom line only once the list is scrolled.
+  await expect(header).toHaveCSS('border-bottom-color', clear);
+  const list = page.getByTestId('list-scroll');
+  await list.evaluate((node) => node.scrollTo({ top: 300 }));
+  await expect(header).not.toHaveCSS('border-bottom-color', clear);
+  await list.evaluate((node) => node.scrollTo({ top: 0 }));
+  await expect(header).toHaveCSS('border-bottom-color', clear);
+  // The search keeps its width when Abbrechen takes the place of Abrufen.
+  const search = page.getByTestId('search');
+  const before = (await search.boundingBox())!.width;
+  await page.getByTestId('fetch').click();
+  await expect(page.getByTestId('cancel-run')).toBeVisible();
+  expect((await search.boundingBox())!.width).toBe(before);
+  await expect(page.getByRole('button', { name: 'Abrufen' })).toHaveCount(0);
+  await page.getByTestId('cancel-run').click();
+  await runFinished(page);
+  // The hidden jobs are reached from the end of Alle; they show as a pill with its x.
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await page.getByTestId('show-hidden').click();
+  await expect(header.getByTestId('filter')).toContainText('Archiv');
+  await header.getByTestId('clear-filter').click();
+  await expect(page.getByTestId('filter')).toHaveCount(0);
+  // The sort glyph turns.
+  await expect(page.getByTestId('sort')).not.toHaveClass(/turned/);
+  await page.getByTestId('sort').click();
+  await expect(page.getByTestId('sort')).toHaveClass(/turned/);
+});
+
+test('the reader: a compact bar once the actions scroll away, a jump flashes its passage', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await rows(page).first().click();
+  await expect(page.getByTestId('reader-ring')).toContainText('91');
+  const bar = page.getByTestId('reader-compact');
+  await expect(bar).toHaveCSS('opacity', '0');
+  await expect(bar).toHaveAttribute('inert', '');
+  const stage = page.getByTestId('stage');
+  await stage.evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
+  await expect(bar).toHaveCSS('opacity', '1');
+  await expect(bar).not.toHaveAttribute('inert');
+  await expect(bar).toContainText('Interim CFO für Familienunternehmen');
+  const pinned = await page.getByTestId('pin').getAttribute('aria-pressed');
+  await bar.getByTestId('compact-pin').click();
+  await expect(page.getByTestId('pin')).not.toHaveAttribute('aria-pressed', pinned ?? '');
+  await stage.evaluate((node) => node.scrollTo({ top: 0 }));
+  await expect(bar).toHaveCSS('opacity', '0');
+
+  // A reason that jumps to its passage makes the passage flash once it has arrived.
+  await page.evaluate(() => {
+    const w = window as unknown as { __flashes: string[] };
+    w.__flashes = [];
+    new MutationObserver((records) => {
+      for (const record of records) {
+        const mark = record.target as Element;
+        if (mark.classList.contains('flash')) w.__flashes.push(mark.getAttribute('data-reason')!);
+      }
+    }).observe(document.querySelector('[data-testid="ad-text"]')!, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  });
+  await settle(page);
+  await page.getByTestId('reasons-met').getByRole('button').first().click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __flashes: string[] }).__flashes))
+    .not.toEqual([]);
+  await expect(page.locator('mark.flash')).toHaveCount(0);
+});
+
+test('the run card: steps side by side, a finished step draws its check once', async ({ page }) => {
+  // A card that mounts with a step already done shows a plain check.
+  await open(page, `${WIN}&scenario=running`);
+  const tops = await Promise.all(
+    ['scan', 'fetch', 'score'].map(async (step) =>
+      Math.round((await page.getByTestId(`step-${step}`).boundingBox())!.y),
+    ),
+  );
+  expect(new Set(tops).size).toBe(1);
+  await expect(page.getByTestId('step-scan').locator('.mark')).not.toHaveClass(/drawn/);
+  await expect(page.getByTestId('countdown')).toHaveText('Weiter in 0:42');
+  // A step that finishes while the card is on screen draws its check.
+  await open(page, `${WIN}&tick=80`);
+  await page.getByTestId('fetch').click();
+  await expect(page.getByTestId('step-scan')).toHaveClass(/current/);
+  await expect(page.getByTestId('step-scan')).toHaveClass(/done/, { timeout: 10_000 });
+  await expect(page.getByTestId('step-scan').locator('.mark')).toHaveClass(/drawn/);
+  await runFinished(page);
+  // Finished: the time and the pills; the chevron turns when the card collapses.
+  await expect(page.getByTestId('last-new')).toContainText('2 neu');
+  const toggle = page.getByTestId('run-toggle');
+  await expect(toggle).toHaveClass(/turned/);
+  await toggle.click();
+  await expect(toggle).not.toHaveClass(/turned/);
+  await expect(page.getByTestId('last-new')).toHaveCount(0);
+});
+
+test('the day overview: its best jobs open the reader', async ({ page }) => {
+  await open(page, WIN);
+  const best = page.getByTestId('best').locator('[data-testid^="job-row-"]').first();
+  const title = await best.locator('.title').innerText();
+  await best.click();
+  await expect(page.getByTestId('reader-title')).toHaveText(title);
+});
+
+test('the reader marks a job: status, note, hide with undo, copy as a prompt', async ({
+  page,
+  browserName,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const first = rows(page).first();
+  const second = await rows(page).nth(1).locator('.title').innerText();
+  await first.click();
+  await expect(page.getByTestId('reader')).toBeVisible();
+  // One chip per step; the chosen one again clears it.
+  await page.getByTestId('status-applied').click();
+  await expect(page.getByTestId('status-applied')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('status-since')).toBeVisible();
+  await page.getByTestId('status-interview').click();
+  await expect(page.getByTestId('status-applied')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('status-interview').click();
+  await expect(page.getByTestId('status-since')).toHaveCount(0);
+  expect((await calls(page, 'set_app_status')).map(([, args]) => args)).toHaveLength(3);
+  // The note saves when the field is left; Esc takes the stored one back.
+  const note = page.getByTestId('note');
+  await note.fill('Agentur anrufen');
+  await page.getByTestId('reader-title').click();
+  await expect
+    .poll(async () => (await calls(page, 'set_note')).map(([, args]) => args))
+    .toEqual([expect.objectContaining({ note: 'Agentur anrufen' })]);
+  await note.fill('etwas anderes');
+  await note.press('Escape');
+  await expect(note).toHaveValue('Agentur anrufen');
+  // As a prompt for any AI chat.
+  if (browserName === 'chromium') {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  }
+  await page.getByTestId('prompt').click();
+  await expect(page.getByTestId('toast').last()).toContainText(
+    'Prompt kopiert. In einen KI-Chat einfügen.',
+  );
+  // Archivieren opens the next job; the toast takes it back.
+  const title = await page.getByTestId('reader-title').innerText();
+  await page.getByTestId('hide').click();
+  await expect(page.getByTestId('reader-title')).toHaveText(second);
+  await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(0);
+  await page.getByTestId('toast-action').click();
+  await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(1);
+});
+
+test('an empty list says where jobs come from', async ({ page }) => {
+  await open(page, `${WIN}&scenario=empty`);
+  await expect(page.getByTestId('alert-linkedin')).toBeVisible();
+  await page.getByTestId('alert-linkedin').click();
+  expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({
+    target: { kind: 'portalHome', portal: 'linkedin' },
+  });
+  await expect(page.getByTestId('read-older')).toBeVisible();
 });
 
 test('2000 jobs render in windows without long tasks', async ({ page, browserName }) => {

@@ -287,11 +287,36 @@ fn view_settled(value: &Value) -> bool {
 
 fn view_shown<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
     println!("SMOKE view {}", value["tab"].as_str().unwrap_or_default());
+    #[cfg(target_os = "macos")]
+    report_traffic_lights(window, value);
     let window = window.clone();
     std::thread::spawn(move || {
         std::thread::sleep(HOLD);
         TAB.fetch_add(1, Ordering::SeqCst);
         show_next_tab(&window);
+    });
+}
+
+/// macOS, once the Jobs view is on screen: where the close button sits
+/// (`SMOKE {"lights":...}`: configured position, the button's x, y from the top, width and
+/// height in points, and its centre), so the CI log shows whether the lights are centred in
+/// the page's 52 px toolbar row (centre 26).
+#[cfg(target_os = "macos")]
+fn report_traffic_lights<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
+    if value["tab"] != "jobs" {
+        return;
+    }
+    crate::platform::lights::report(window, |report| {
+        let centre = report.close.map(|[_, top, _, height]| top + height / 2.0);
+        let line = serde_json::json!({
+            "lights": {
+                "configured": report.configured.map(|(x, y)| [x, y]),
+                "close": report.close,
+                "centreY": centre,
+                "windowHeight": report.window_height,
+            }
+        });
+        println!("SMOKE {line}");
     });
 }
 

@@ -8,9 +8,10 @@
 //!
 //! Both OS show the native window frame (title bar, caption buttons, system menu, snap
 //! layouts). Documented differences: WebView2 switches and the title bar in the app's
-//! colours (Windows) vs. a minimal app menu, link preview and first-mouse clicks (macOS), and
-//! the user agent of the HTTP client. What differs inside the page (dialog button order,
-//! scrollbars, OS words) lives in `ui/src/lib/platform.ts`.
+//! colours (Windows) vs. a minimal app menu, link preview, first-mouse clicks and the
+//! traffic lights centred in the page's toolbar row (macOS), and the user agent of the HTTP
+//! client. What differs inside the page (dialog button order, scrollbars, OS words) lives in
+//! `ui/src/lib/platform.ts`.
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -222,7 +223,33 @@ pub fn apply<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
     })
 }
 
-#[cfg(not(windows))]
+/// macOS: the traffic lights of the unified title bar sit where `trafficLightPosition` says
+/// (centred in the page's 52 px toolbar row), and stay there whenever macOS lays the title
+/// bar out again: on resize (fullscreen exit and zoom included), focus, theme and scale
+/// changes, and once the window is shown ([`reveal`]).
+#[cfg(target_os = "macos")]
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "same signature as the Windows variant"
+)]
+pub fn apply<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
+    lights::place(window);
+    let watched = window.clone();
+    window.on_window_event(move |event| {
+        if matches!(
+            event,
+            tauri::WindowEvent::Resized(_)
+                | tauri::WindowEvent::Focused(_)
+                | tauri::WindowEvent::ThemeChanged(_)
+                | tauri::WindowEvent::ScaleFactorChanged { .. }
+        ) {
+            lights::place(&watched);
+        }
+    });
+    Ok(())
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
 #[allow(
     clippy::unnecessary_wraps,
     reason = "same signature as the Windows variant"
@@ -239,8 +266,9 @@ mod webview2 {
     };
     use windows_core::Interface as _;
 
-    /// One of the app's two `unsafe` blocks (the other colours the title bar): Tauri does
-    /// not pass these WebView2 switches through, so they are set on WebView2 directly.
+    /// One of the app's few `unsafe` spots (the others colour the Windows title bar and
+    /// place the macOS traffic lights): Tauri does not pass these WebView2 switches through,
+    /// so they are set on WebView2 directly.
     #[expect(
         unsafe_code,
         reason = "WebView2 switches that Tauri does not pass through"
@@ -325,6 +353,155 @@ mod frame {
     }
 }
 
+// ------------------------------------------------------------------ traffic lights (macOS)
+
+/// The traffic lights of the unified title bar, placed exactly like tao's
+/// `inset_traffic_lights` (tao 0.35, `platform_impl/macos/view.rs`). tao applies
+/// `trafficLightPosition` only while its content view draws, which the web view covering
+/// that view never lets happen: the lights stayed at the default place. Here the same
+/// geometry is applied after every event that lets macOS lay the title bar out again.
+///
+/// The position is read from the main window's configuration (`tauri.macos.conf.json`, the
+/// single source); `core/tests/ui_contract.rs` ties it to the page's 52 px toolbar row.
+#[cfg(target_os = "macos")]
+pub mod lights {
+    use dispatch2::DispatchQueue;
+    use objc2::MainThreadMarker;
+    use objc2::rc::Retained;
+    use objc2_app_kit::{NSButton, NSWindow, NSWindowButton, NSWindowStyleMask};
+    use objc2_foundation::NSPoint;
+    use tauri::{Manager as _, Runtime, WebviewWindow};
+
+    /// `trafficLightPosition` of the main window: where the close button starts, in points
+    /// from the window's top-left corner.
+    fn position<R: Runtime>(window: &WebviewWindow<R>) -> Option<(f64, f64)> {
+        let config = window.app_handle().config();
+        let main = config.app.windows.iter().find(|w| w.label == super::MAIN)?;
+        let at = main.traffic_light_position.as_ref()?;
+        Some((at.x, at.y))
+    }
+
+    /// Places the lights now (on the main thread) and once more from the main queue, after
+    /// the system's own title bar layout of this turn of the run loop.
+    pub fn place<R: Runtime>(window: &WebviewWindow<R>) {
+        let Some(at) = position(window) else {
+            return;
+        };
+        if let Some(main) = MainThreadMarker::new() {
+            let _ = with_window(window, main, |ns_window| inset(ns_window, at));
+        }
+        let later = window.clone();
+        DispatchQueue::main().exec_async(move || {
+            if let Some(main) = MainThreadMarker::new() {
+                let _ = with_window(&later, main, |ns_window| inset(ns_window, at));
+            }
+        });
+    }
+
+    /// Runs `work` with the `NSWindow` behind Tauri's window. The marker proves the main
+    /// thread, the only one where window objects may be touched.
+    #[expect(
+        unsafe_code,
+        reason = "the NSWindow behind Tauri's window, to place the traffic lights"
+    )]
+    fn with_window<R: Runtime, T>(
+        window: &WebviewWindow<R>,
+        _main: MainThreadMarker,
+        work: impl FnOnce(&NSWindow) -> T,
+    ) -> Option<T> {
+        let pointer = window.ns_window().ok()?;
+        // SAFETY: Tauri hands out the pointer of the NSWindow it owns for this live window;
+        // we are on the main thread (the marker), and the reference ends with this call.
+        let ns_window = unsafe { pointer.cast::<NSWindow>().as_ref() }?;
+        Some(work(ns_window))
+    }
+
+    fn buttons(window: &NSWindow) -> Option<[Retained<NSButton>; 3]> {
+        Some([
+            window.standardWindowButton(NSWindowButton::CloseButton)?,
+            window.standardWindowButton(NSWindowButton::MiniaturizeButton)?,
+            window.standardWindowButton(NSWindowButton::ZoomButton)?,
+        ])
+    }
+
+    /// tao's geometry: the title bar container is as high as a button plus `y` and stays at
+    /// the top of the window; the three buttons start at `x`, their spacing unchanged.
+    #[expect(unsafe_code, reason = "the container view of the window buttons")]
+    fn inset(window: &NSWindow, (x, y): (f64, f64)) {
+        // In fullscreen the title bar lives in a window of its own above the screen.
+        if window.styleMask().contains(NSWindowStyleMask::FullScreen) {
+            return;
+        }
+        let Some([close, minimize, zoom]) = buttons(window) else {
+            return;
+        };
+        // SAFETY: the close button sits in the title bar view, which the window's frame view
+        // holds while the window lives; the returned `Retained` keeps it alive for this call.
+        let Some(bar) = (unsafe { close.superview() }) else {
+            return;
+        };
+        // SAFETY: the same for the container around the title bar view.
+        let Some(container) = (unsafe { bar.superview() }) else {
+            return;
+        };
+        let close_frame = close.frame();
+        let height = close_frame.size.height + y;
+        let mut frame = container.frame();
+        frame.size.height = height;
+        frame.origin.y = window.frame().size.height - height;
+        container.setFrame(frame);
+        let spacing = minimize.frame().origin.x - close_frame.origin.x;
+        for (step, button) in [0.0, 1.0, 2.0].into_iter().zip([close, minimize, zoom]) {
+            let origin = NSPoint::new(x + step * spacing, button.frame().origin.y);
+            button.setFrameOrigin(origin);
+        }
+    }
+
+    /// Where the close button is on screen and where it should be (the smoke check prints
+    /// it, so the macOS CI shows the position).
+    #[cfg(debug_assertions)]
+    pub struct Report {
+        /// `trafficLightPosition` from the configuration.
+        pub configured: Option<(f64, f64)>,
+        /// The close button: x, y from the window's top edge, width, height (points).
+        pub close: Option<[f64; 4]>,
+        /// Height of the window frame (points).
+        pub window_height: Option<f64>,
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn report<R: Runtime>(
+        window: &WebviewWindow<R>,
+        done: impl FnOnce(Report) + Send + 'static,
+    ) {
+        let configured = position(window);
+        let target = window.clone();
+        DispatchQueue::main().exec_async(move || {
+            let measured = MainThreadMarker::new()
+                .and_then(|main| with_window(&target, main, measure))
+                .flatten();
+            done(Report {
+                configured,
+                close: measured.map(|(close, _)| close),
+                window_height: measured.map(|(_, height)| height),
+            });
+        });
+    }
+
+    /// The close button in window coordinates, turned into points from the top edge.
+    #[cfg(debug_assertions)]
+    fn measure(window: &NSWindow) -> Option<([f64; 4], f64)> {
+        let close = window.standardWindowButton(NSWindowButton::CloseButton)?;
+        let rect = close.convertRect_toView(close.bounds(), None);
+        let height = window.frame().size.height;
+        let top = height - (rect.origin.y + rect.size.height);
+        Some((
+            [rect.origin.x, top, rect.size.width, rect.size.height],
+            height,
+        ))
+    }
+}
+
 // ------------------------------------------------------------------ first paint
 
 /// If the first page load never reports back, the window still appears after this long -
@@ -370,6 +547,8 @@ fn reveal<R: Runtime, M: Manager<R>>(manager: &M) {
     }
     let _ = window.show();
     let _ = window.set_focus();
+    #[cfg(target_os = "macos")]
+    lights::place(&window);
 }
 
 // ------------------------------------------------------------------ navigation guard

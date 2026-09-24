@@ -103,7 +103,7 @@ pub fn details_label(job: &JobRow) -> &'static str {
         DescStatus::Ok => "Vorhanden",
         DescStatus::Teaser => "Nur Anriss",
         DescStatus::Missing => "Details folgen",
-        DescStatus::Failed => "Abruf fehlgeschlagen",
+        DescStatus::Failed => "Details fehlen",
         DescStatus::Gone => "Nicht mehr online",
         DescStatus::Unfetchable => "Nicht abrufbar",
     }

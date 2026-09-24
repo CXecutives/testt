@@ -2390,10 +2390,14 @@ dependencies = [
 name = "job-alert-monitor"
 version = "3.0.0"
 dependencies = [
+ "dispatch2",
  "fastrand",
  "jiff",
  "jobalert-core",
  "log",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "open",
  "rfd",
  "serde",
