@@ -536,3 +536,32 @@ fn every_alert_is_a_candidate_by_its_head() {
     // An unreadable head is loaded (and then counted as defective).
     assert!(is_candidate(b"", ALL));
 }
+
+/// Found in a real test mailbox: the portal's onboarding mail about its project agent was
+/// taken for an alert without jobs and raised "mail layout changed?". It is no alert; a
+/// real alert whose links are unknown still is one (the guard keeps working).
+#[test]
+fn a_promo_mail_from_the_alert_sender_is_no_alert() {
+    let promo = mail(
+        "freelancermap <projekte@freelancermap.de>",
+        "Der freelancermap Projektagent findet für Sie automatisch passende Projekte, Erika",
+        Some(
+            r#"<p>Mit dem Projektagenten verpassen Sie keine neuen Projekte mehr.</p>
+               <a href="https://www.freelancermap.de/mein-bereich/projektagent">Projektagent einrichten</a>"#,
+        ),
+        None,
+    );
+    assert!(is_other(&promo, ALL));
+    let changed = mail(
+        "freelancermap <projekte@freelancermap.de>",
+        "Change - Anzahl neue Projekte: 2",
+        Some(
+            r#"<p>unser Projektagent hat neue Aufträge zu Ihrer gespeicherten Suche gefunden:</p>
+               <a href="https://www.freelancermap.de/p/2990101">ERP-Projektleiter (m/w/d)</a>"#,
+        ),
+        None,
+    );
+    let a = alert(&changed, ALL);
+    assert_eq!(a.portal, Portal::Freelancermap);
+    assert!(a.postings.is_empty());
+}
