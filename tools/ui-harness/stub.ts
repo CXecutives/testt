@@ -1203,7 +1203,24 @@ function detailOf(j: JobView): JobDetail {
 const PROMPT_PROFILE = [
   'Mein Profil (JSON, ohne Name und Kontaktdaten)',
   '```json',
-  JSON.stringify({ kernkompetenzen: PROFILE.understood?.competences ?? [] }, null, 2),
+  JSON.stringify(
+    {
+      titel: PROFILE_FORM.title,
+      kernkompetenzen: PROFILE.understood?.competences ?? [],
+      schwerpunkte: PROFILE_FORM.focus,
+      wunschrollen: PROFILE_FORM.roles,
+      harte_kriterien: {
+        min_tagessatz: PROFILE_FORM.criteria.minDayRate,
+        laender: PROFILE_FORM.criteria.countries,
+      },
+      einsatzpraeferenzen: {
+        tagessatz_wunsch: PROFILE_FORM.wishes.dayRate,
+        remote: PROFILE_FORM.wishes.remote,
+      },
+    },
+    null,
+    2,
+  ),
   '```',
 ];
 
