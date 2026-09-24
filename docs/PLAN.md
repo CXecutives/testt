@@ -20,7 +20,8 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults, risk badge per switch |
 | HTML overview | no full text: title, company, location, portal, link, match, 3 met, 2 open, exclusion reason |
 | Extras | Pin (star) + auto fetch on start (> 6 h, switchable); no notifications, no "still open?" checks |
-| Logo | no CXpertise company logo; app icon and brand tile stay coral |
+| Logo | no CXpertise company logo; the coral app icon (folder + check) is the brand mark in the title bar |
+| Windows caption buttons | native Windows 11 look: Segoe Fluent Icons glyphs, 46 px wide, red close hover |
 | Cleanup outside | `.notes` archived to `../_archive/TEST-notes`; user deletes `origin/ci-macos` and release `latest`; CI publishes nothing |
 | Self-decided | TXT header stays German and byte-identical · primary button brand-near (coral 56 %, label 600) · excluded jobs grey behind a divider, also under "Neu" but not counted · Excel for excluded: domain score, grey row · merge cross-portal duplicates · Smart App Control is off on the dev PC |
 
@@ -118,7 +119,7 @@ cache, profile dir, marker, then verifies `signedIn=false`.
 - Tokens (`tokens.css`, `:root`, light only, `color-scheme: light`): palette from the brief (coral 13 73% 63%, slate
   212 34% 37%, cream 32 33% 96%, ink 45 7% 17%, ...) plus shades (coral-800 13 62% 45% for text, *-strong/*-soft for
   status, info), semantic tokens only in components, score colours (high 152 50% 31%, mid coral-800, low 30 4% 42%),
-  gradients brand/hero/card/wash/shimmer, warm shadows incl. elegant and glow from the brief, radii 6/8/10/12/16,
+  gradients coral-only (coral-glow -> coral-variant; NO coral -> slate, user 2026-09-24), card/wash/shimmer; brand mark = the real coral app icon (folder + check) as SVG, warm shadows incl. elegant and glow from the brief, radii 6/8/10/12/16,
   4 px spacing, controls 32/40/48, type 12/13/15/15/17/20/26/34 (UI standard 15/22), motion 80/150/220/320/700/600/1400 ms,
   stagger 30 ms, four easings.
 - 23 components (Button primary|secondary|ghost|danger x sm|md|lg, Icon, IconTile, Card, Badge, Segmented, Toggle,
