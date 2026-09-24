@@ -165,7 +165,8 @@ pub fn txt_files(result_dir: &Path, txt_names: &[String]) -> Vec<PathBuf> {
     })
 }
 
-fn files_in(dir: &Path, ours: impl Fn(&str) -> bool) -> Vec<PathBuf> {
+/// The files in `dir` whose name (or the name before a reset leftover's mark) is `ours`.
+pub(crate) fn files_in(dir: &Path, ours: impl Fn(&str) -> bool) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
     };
@@ -184,7 +185,8 @@ fn files_in(dir: &Path, ours: impl Fn(&str) -> bool) -> Vec<PathBuf> {
         .collect()
 }
 
-fn is_tmp(name: &str) -> bool {
+/// A temporary file of [`write_atomic`] (left behind by an interrupted write).
+pub(crate) fn is_tmp(name: &str) -> bool {
     name.starts_with(TMP_PREFIX) && name.ends_with(TMP_SUFFIX)
 }
 
