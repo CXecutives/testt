@@ -35,7 +35,7 @@ pub use scoring::Scoring;
     dead_code,
     reason = "read by core/tests/contract.rs, which generates the TypeScript command map"
 )]
-pub const COMMANDS: [(&str, &str, &str); 33] = [
+pub const COMMANDS: [(&str, &str, &str); 31] = [
     ("app_state", "{ channel: Channel<RunEvent> }", "AppState"),
     (
         "start_run",
@@ -46,27 +46,17 @@ pub const COMMANDS: [(&str, &str, &str); 33] = [
     ("list_jobs", "{ query: JobQuery }", "JobPage"),
     ("job_detail", "{ key: JobKey }", "JobDetail"),
     ("mark_read", "{ key: JobKey }", "boolean"),
-    ("mark_all_read", "{ facet: JobFacet }", "JobKey[]"),
+    ("mark_all_read", "{ place: Place }", "JobKey[]"),
     ("mark_unread", "{ keys: JobKey[] }", "number"),
     ("set_pinned", "{ key: JobKey; on: boolean }", "boolean"),
-    (
-        "set_app_status",
-        "{ key: JobKey; status: AppStatus | null }",
-        "boolean",
-    ),
-    ("set_note", "{ key: JobKey; note: string }", "boolean"),
-    (
-        "set_archived",
-        "{ key: JobKey; archived: boolean }",
-        "boolean",
-    ),
+    ("move_jobs", "{ to: Place; keys: JobKey[] }", "number"),
     (
         "set_override",
         "{ key: JobKey; include: boolean }",
         "boolean",
     ),
-    ("delete_jobs", "{ keys: JobKey[] }", "Deleted"),
-    ("empty_archive", "Record<string, never>", "Deleted"),
+    ("purge_jobs", "{ keys: JobKey[] }", "Deleted"),
+    ("empty_trash", "Record<string, never>", "Deleted"),
     ("ai_prompt", "{ key: JobKey }", "string"),
     ("ai_prompt_top", "{ limit: number }", "string"),
     (
@@ -111,12 +101,10 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + '
         jobs::mark_all_read,
         jobs::mark_unread,
         jobs::set_pinned,
-        jobs::set_app_status,
-        jobs::set_note,
-        jobs::set_archived,
+        jobs::move_jobs,
         jobs::set_override,
-        jobs::delete_jobs,
-        jobs::empty_archive,
+        jobs::purge_jobs,
+        jobs::empty_trash,
         jobs::ai_prompt,
         jobs::ai_prompt_top,
         profile::pick_profile,

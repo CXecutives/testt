@@ -19,11 +19,10 @@
   import Segmented from '$components/Segmented.svelte';
   import TextField from '$components/TextField.svelte';
   import { t } from '$lib/i18n/t';
-  import type { JobFacet } from '$lib/ipc/types';
   import { fade, pop } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
-  import { jobs } from '$lib/state/jobs.svelte';
+  import { jobs, type JobFacet } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
 
   interface Props {
@@ -32,21 +31,22 @@
   }
   let { scrolled = false }: Props = $props();
 
-  /** Gemerkt is Alle with the pinned filter (until the backend has a list of its own). */
-  type View = JobFacet | 'pinned';
-  const counts = $derived(jobs.overviewCounts ?? jobs.counts);
+  /** The inbox views: its unread jobs, all of it, the favourites (of inbox and archive). */
+  type View = JobFacet;
   const views = $derived([
-    { id: 'new' as View, label: t.toolbar.facetNew, count: jobs.counts.new },
-    { id: 'all' as View, label: t.toolbar.facetAll, count: jobs.counts.all },
+    { id: 'new' as View, label: t.toolbar.facetNew, count: jobs.counts.unread },
+    { id: 'all' as View, label: t.toolbar.facetAll, count: jobs.counts.inbox },
     // An empty list of the user's own shows no zero (the row stays narrow).
-    { id: 'pinned' as View, label: t.toolbar.facetPinned, count: counts.saved || null },
-    { id: 'sent' as View, label: t.toolbar.facetSent, count: counts.sent || null },
+    {
+      id: 'favourites' as View,
+      label: t.toolbar.facetPinned,
+      count: jobs.counts.favourites || null,
+    },
   ]);
-  const view = $derived<View>(jobs.filter === 'pinned' ? 'pinned' : jobs.facet);
+  const view = $derived<View>(jobs.facet);
 
   function choose(id: View): void {
-    if (id === 'pinned') jobs.setFilter('pinned');
-    else jobs.setFacet(id);
+    jobs.setFacet(id);
   }
   /** A filter the segments do not name (a portal, a tile). */
   const otherFilter = $derived(

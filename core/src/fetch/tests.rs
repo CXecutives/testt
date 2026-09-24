@@ -1547,7 +1547,8 @@ async fn a_breaker_series_costs_one_attempt() {
 /// title with another text stays its own job.
 #[tokio::test(start_paused = true)]
 async fn the_same_job_on_two_portals_is_one_row() {
-    use crate::view::{JobFacet, JobQuery, JobSort, job_page};
+    use crate::model::Place;
+    use crate::view::{JobQuery, JobSort, job_page};
     let c = clock();
     let store = store_with(&[(LI, 4_000_000_001, 1), (FM, 10_001, 2), (FM, 10_002, 3)]);
     let same = "Für unseren Kunden suchen wir einen SAP FI/CO Berater. Aufgaben: Einführung \
@@ -1573,7 +1574,9 @@ async fn the_same_job_on_two_portals_is_one_row() {
     let page = job_page(
         &store,
         &JobQuery {
-            facet: JobFacet::All,
+            place: Place::Inbox,
+            unread: false,
+            favourites: false,
             sort: JobSort::Newest,
             search: None,
             limit: 50,
@@ -1581,7 +1584,7 @@ async fn the_same_job_on_two_portals_is_one_row() {
         },
     )
     .unwrap();
-    assert_eq!(page.counts.all, 2);
+    assert_eq!(page.counts.inbox, 2);
     let row = page.jobs.iter().find(|j| j.key == li).unwrap();
     assert_eq!(row.also_on, [FM]);
     assert!(page.jobs.iter().all(|j| j.key != dup));

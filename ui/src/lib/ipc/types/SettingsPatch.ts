@@ -12,6 +12,10 @@ export type SettingsPatch = { portals: Array<PortalPatch>, autoFetchOnStart: boo
  */
 autoArchiveDays: number | null, 
 /**
+ * Days after which the trash empties itself; 0 = never (`null` = unchanged).
+ */
+autoEmptyTrashDays: number | null, 
+/**
  * The language the user chose (from then on the OS language no longer counts).
  */
 language: Language | null, };
