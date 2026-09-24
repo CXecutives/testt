@@ -28,12 +28,12 @@ use sha2::Digest as _;
 
 /// SHA-256 (16 hex) over every profile x job result of the corpus. Update it only together
 /// with `ENGINE_VERSION` and the before/after table in `docs/MATCHING.md`.
-const GOLDEN_DIGEST: &str = "dbdfbc646c18e5c3";
+const GOLDEN_DIGEST: &str = "3724662656328e5e";
 
 /// SHA-256 (16 hex) over the results of the four profiles without the version-4 keys
 /// (`schwerpunkte`, `wunschrollen`, the wishes in `einsatzpraeferenzen`; the IT profile's
 /// old `remote` text is taken out) on K01-K52, without the engine version: frozen from
-/// ENGINE_VERSION 3 (with the line `engine 3` in front these rows gave its golden digest
+/// `ENGINE_VERSION` 3 (with the line `engine 3` in front these rows gave its golden digest
 /// `df1d52ce75759f41`). The version-4 inputs must leave such profiles exactly as they were.
 const V3_ROWS_DIGEST: &str = "cc7ce7f0ce68f654";
 
@@ -169,6 +169,7 @@ fn new_engine_on_local_data() {
             let file = parse_any_job_file(&content);
             let input = JobInput {
                 title: &file.title,
+                company: &file.company,
                 location: &file.location,
                 portal: Portal::LinkedIn,
                 text: &file.text,
@@ -415,6 +416,7 @@ fn run_with(prepare: impl Fn(&str, Value) -> Value) -> Run {
         for job in &jobs {
             let input = JobInput {
                 title: &job.file.title,
+                company: &job.file.company,
                 location: &job.file.location,
                 portal: job.portal,
                 text: &job.file.text,
@@ -591,7 +593,7 @@ fn golden_digest_of_all_corpus_results() {
     assert_eq!(hex, GOLDEN_DIGEST, "corpus results changed:\n{canonical}");
 }
 
-/// Profiles without the version-4 keys score exactly as under ENGINE_VERSION 3: every new
+/// Profiles without the version-4 keys score exactly as under `ENGINE_VERSION` 3: every new
 /// input is off while its key is missing.
 #[test]
 fn profiles_without_the_new_keys_score_as_before() {
@@ -644,6 +646,7 @@ fn engine_is_fast_enough() {
         let job = &jobs[i % jobs.len()];
         let input = JobInput {
             title: &job.file.title,
+            company: &job.file.company,
             location: &job.file.location,
             portal: job.portal,
             text: &job.file.text,

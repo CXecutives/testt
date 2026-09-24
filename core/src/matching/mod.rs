@@ -11,6 +11,7 @@ mod engine;
 mod explain;
 mod facts;
 mod fit;
+mod focus;
 mod job;
 mod ladder;
 mod lexicon;
@@ -21,11 +22,13 @@ mod profile;
 mod pyre;
 mod relevance;
 mod requirements;
+mod roles;
 mod score;
 mod sections;
 mod seniority;
 mod signals;
 mod types;
+mod wishes;
 
 #[doc(hidden)]
 pub mod legacy;
@@ -40,9 +43,11 @@ pub use types::*;
 
 use engine::EngineProfile;
 use facts::{Availability, HardCriteria};
+use params::FOCUS_MAX;
 
-/// Version of the scoring behaviour; part of the match revision (`match_rev`).
-pub const ENGINE_VERSION: u32 = 3;
+/// Version of the scoring behaviour; part of the match revision (`match_rev`). 4: the
+/// Schwerpunkte, target roles and wishes of the profile.
+pub const ENGINE_VERSION: u32 = 4;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.
@@ -203,6 +208,19 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
     if c.remote_min.is_some() && c.places.is_none() {
         warnings.push(warn(ProfileWarningCode::RegionWithoutPlaces, json!({})));
     }
+    for (key, value) in &engine.unreadable {
+        warnings.push(warn(
+            ProfileWarningCode::CriterionNotUnderstood,
+            json!({ "key": key, "value": value }),
+        ));
+    }
+    if engine.focus_count > FOCUS_MAX {
+        warnings.push(warn(
+            ProfileWarningCode::FocusTrimmed,
+            json!({ "count": engine.focus_count, "max": FOCUS_MAX }),
+        ));
+    }
+    let wishes = wishes_info(engine);
     let skills = &engine.skills;
     let aliases = skills
         .entries
@@ -241,6 +259,36 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
             .collect(),
         criteria,
         warnings,
+        wishes,
+    }
+}
+
+/// Schwerpunkte, target roles and the wishes as understood.
+fn wishes_info(engine: &EngineProfile) -> Vec<WishInfo> {
+    let mut wishes = vec![
+        WishInfo {
+            key: WishKey::Focus,
+            set: !engine.focus.is_empty(),
+            params: object(json!({
+                "focus": engine.focus.iter().map(|f| f.text.clone()).collect::<Vec<_>>(),
+            })),
+        },
+        WishInfo {
+            key: WishKey::TargetRoles,
+            set: !engine.roles.is_empty(),
+            params: object(json!({
+                "roles": engine.roles.iter().map(|r| r.text.clone()).collect::<Vec<_>>(),
+            })),
+        },
+    ];
+    wishes.extend(engine.wishes.info());
+    wishes
+}
+
+fn object(value: Value) -> Map<String, Value> {
+    match value {
+        Value::Object(map) => map,
+        _ => Map::new(),
     }
 }
 
@@ -278,10 +326,15 @@ fn fingerprint(engine: &EngineProfile) -> String {
     countries.sort();
     let mut places: Vec<String> = c.places.iter().flatten().map(|p| atoms::fold(p)).collect();
     places.sort();
+    // Schwerpunkte keep their order (the first ones add relevance); roles do not.
+    let focus: Vec<String> = engine.focus.iter().map(|f| atoms::fold(&f.text)).collect();
+    let mut roles: Vec<String> = engine.roles.iter().map(|r| atoms::fold(&r.text)).collect();
+    roles.sort();
     let canonical = format!(
         "engine {ENGINE_VERSION}\nentries {}\nlanguages {languages:?}\ndegree {:?} {}\nyears {:?}\n\
          min {:?}\ncountries {countries:?}\nremote {:?}\nanue {}\navailable {:?}\n\
-         salary {:?}\nplaces {places:?}\nremoteMin {:?}\ntarget {:?}\npacks {:?}\n",
+         salary {:?}\nplaces {places:?}\nremoteMin {:?}\ntarget {:?}\npacks {:?}\n\
+         focus {focus:?}\nroles {roles:?}\nwishes {}\n",
         entries.join("|"),
         engine.skills.degree_fields,
         engine.skills.degree_level,
@@ -294,6 +347,7 @@ fn fingerprint(engine: &EngineProfile) -> String {
         c.remote_min,
         c.target_years,
         engine.skills.vocab.packs(),
+        engine.wishes.canonical(),
     );
     let digest = Sha256::digest(canonical.as_bytes());
     digest.iter().take(8).fold(String::new(), |mut hex, b| {

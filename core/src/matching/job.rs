@@ -153,6 +153,43 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
     (phrases, in_nice)
 }
 
+/// Byte ranges of the lines outside requirement and task sections (the introduction, the
+/// company, the frame): where an ad says what the client does.
+pub(crate) fn context_lines(text: &str) -> Vec<Range<usize>> {
+    let mut current: Option<HeadingKind> = None;
+    let mut out = Vec::new();
+    for line in splitlines(text) {
+        let stripped = strip(line);
+        if stripped.is_empty() {
+            continue;
+        }
+        match sections::inline_heading(stripped) {
+            Inline::Section(..) => {
+                current = Some(HeadingKind::Must);
+                continue;
+            }
+            Inline::Other => {
+                current = Some(HeadingKind::Neutral);
+                continue;
+            }
+            Inline::None => {}
+        }
+        if let Some(kind) = heading(stripped) {
+            let norm = fold(&sections::norm_heading(stripped));
+            let task = super::lexicon::wishes::TASK_HEADINGS
+                .iter()
+                .any(|p| norm.starts_with(p));
+            current = Some(if task { HeadingKind::Task } else { kind });
+            continue;
+        }
+        if matches!(current, None | Some(HeadingKind::Neutral)) {
+            let start = offset(text, stripped);
+            out.push(start..start + stripped.len());
+        }
+    }
+    out
+}
+
 /// Reads the requirements of a job text.
 pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
     let mut doc = JobDoc::default();

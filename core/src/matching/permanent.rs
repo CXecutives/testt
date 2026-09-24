@@ -177,7 +177,7 @@ pub(crate) fn salary(
 }
 
 /// Percentages in a folded sentence.
-fn percents(folded: &str) -> Vec<u64> {
+pub(crate) fn percents(folded: &str) -> Vec<u64> {
     let bytes = folded.as_bytes();
     let mut out = Vec::new();
     let mut i = 0;

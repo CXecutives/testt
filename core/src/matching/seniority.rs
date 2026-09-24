@@ -78,7 +78,7 @@ pub(crate) fn senior_title(title: &str) -> bool {
     })
 }
 
-fn junior_title(title: &str) -> bool {
+pub(crate) fn junior_title(title: &str) -> bool {
     let folded = fold(title);
     lex::JUNIOR_TITLES.iter().any(|w| contains_word(&folded, w))
 }

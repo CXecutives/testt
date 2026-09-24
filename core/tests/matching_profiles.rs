@@ -21,6 +21,7 @@ fn fixture(name: &str) -> Value {
 fn run(profile: &Value, title: &str, text: &str) -> Assessment {
     let job = JobInput {
         title,
+        company: "Muster AG",
         location: "Berlin, Deutschland",
         portal: Portal::LinkedIn,
         text,

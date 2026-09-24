@@ -9,6 +9,7 @@
 pub(crate) mod domains;
 pub(crate) mod engine;
 mod tables;
+pub(crate) mod wishes;
 
 pub(crate) use tables::*;
 
@@ -139,6 +140,19 @@ pub(crate) const KEYS_TOTAL_YEARS: &[&str] = &[
 ];
 /// Alternative terms of a competence entry.
 pub(crate) const KEYS_ALIASES: &[&str] = &["auch", "aliases"];
+/// Core competences the consultant wants to be booked for (top level, 3-5 entries).
+pub(crate) const KEYS_FOCUS: &[&str] = &["schwerpunkte", "focus_areas"];
+/// Target roles (top level).
+pub(crate) const KEYS_TARGET_ROLES: &[&str] = &["wunschrollen", "target_roles"];
+/// The section of the wishes (it also holds the old `tagessatz_ab` and `verfuegbar_ab`).
+pub(crate) const KEY_PREFERENCES_ALIASES: &[&str] = &[KEY_PREFERENCES, "preferences"];
+/// Wishes inside that section.
+pub(crate) const KEYS_RATE_WISH: &[&str] = &["tagessatz_wunsch", "desired_day_rate"];
+pub(crate) const KEYS_REMOTE_WISH: &[&str] = &["remote"];
+pub(crate) const KEYS_REGIONS: &[&str] = &["regionen", "regions"];
+pub(crate) const KEYS_INDUSTRIES: &[&str] = &["branchen", "industries"];
+/// Item fields that name a competence when a list holds objects.
+pub(crate) const KEYS_ITEM_TEXT: &[&str] = &["kompetenz", "name", "rolle", "titel"];
 /// Contract type value meaning temporary agency work (ANÜ).
 pub(crate) const CONTRACT_ANUE: &str = "anue";
 /// Availability value meaning "immediately".

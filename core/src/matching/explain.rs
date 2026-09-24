@@ -14,7 +14,7 @@ use super::params::{E_FULL, E_NONE, W_MUST};
 use super::sections::ReqKind;
 use super::types::{
     Assessment, CriterionKey, CriterionState, CriterionStatus, Evidence, EvidenceLevel, Highlight,
-    Reason, ReasonCode, ReasonKind, Summary, Weight,
+    Reason, ReasonCode, ReasonKind, Summary, Via, Weight,
 };
 
 /// Longest quote in a reason.
@@ -155,6 +155,10 @@ pub(crate) fn assessment(
         if let Some(years) = item.years {
             params["years"] = json!(years);
         }
+        if let Some((index, true)) = scored.focus {
+            // Met in full through a Schwerpunkt: it counts double.
+            params["focus"] = json!(profile.focus[index].text);
+        }
         let reason = b.reason(kind, weight, code);
         reason.label = Some(quote(&item.text));
         reason.params = object(&params);
@@ -174,6 +178,7 @@ pub(crate) fn assessment(
     summary.must_total = summary.must_met + summary.must_partial + summary.must_open;
 
     let criteria = criterion_states(profile, &mut b, evaluation);
+    preferences(profile, &mut b, evaluation);
     if evaluation.short {
         b.reason(ReasonKind::Check, Weight::Info, ReasonCode::ShortText);
     } else if evaluation.evidence != EvidenceLevel::Full {
@@ -186,6 +191,63 @@ pub(crate) fn assessment(
         reasons: b.reasons,
         highlights: b.highlights,
         criteria,
+    }
+}
+
+/// Reasons of the version-4 inputs: every demanded Schwerpunkt (with the passages it
+/// meets), the target role the title matches, every wish.
+fn preferences(profile: &EngineProfile, b: &mut Builder<'_>, evaluation: &Evaluation) {
+    for hit in &evaluation.focus {
+        let focus = &profile.focus[hit.index];
+        let kind = if hit.title || !hit.met.is_empty() {
+            ReasonKind::Met
+        } else {
+            ReasonKind::Partial
+        };
+        let first = hit.met.iter().chain(&hit.partial).next();
+        let quote_of = first.map(|&i| quote(&evaluation.items[i].item.text));
+        let reason = b.reason(kind, Weight::Info, ReasonCode::Focus);
+        reason.params = object(&json!({
+            "focus": focus.text,
+            "met": hit.met.len(),
+            "partial": hit.partial.len(),
+            "inTitle": hit.title,
+            "relevance": hit.relevance,
+        }));
+        reason.evidence = quote_of.map(|quote| Evidence {
+            profile: focus.text.clone(),
+            path: focus.path.clone(),
+            via: Via::Exact,
+            quote,
+        });
+        for &i in hit.met.iter().chain(&hit.partial) {
+            if let Some(span) = evaluation.items[i].item.span.clone() {
+                b.highlight(span);
+            }
+        }
+    }
+    if let Some((fit, points, title)) = &evaluation.role {
+        let role = &profile.roles[fit.role];
+        let (kind, name, via) = if fit.full {
+            (ReasonKind::Met, "full", Via::Exact)
+        } else {
+            (ReasonKind::Partial, "half", Via::General)
+        };
+        let reason = b.reason(kind, Weight::Info, ReasonCode::TargetRole);
+        reason.params = object(&json!({ "role": role.text, "fit": name, "points": points / 10 }));
+        reason.evidence = Some(Evidence {
+            profile: role.text.clone(),
+            path: role.path.clone(),
+            via,
+            quote: quote(title),
+        });
+    }
+    for wish in &evaluation.wishes {
+        let reason = b.reason(wish.state.kind(), Weight::Info, wish.code);
+        reason.params = object(&wish.params);
+        for span in &wish.spans {
+            b.highlight(span.clone());
+        }
     }
 }
 

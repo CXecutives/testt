@@ -171,6 +171,7 @@ fn check(
 ) {
     let job = JobInput {
         title: "Interim Controller (m/w/d)",
+        company: "Muster AG",
         location: "Hamburg",
         portal: Portal::LinkedIn,
         text,

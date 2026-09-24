@@ -58,7 +58,7 @@ fn criterion<'a>(data: &'a Value, keys: &[&'static str]) -> Option<(&'static str
 }
 
 /// A whole number from a JSON number or a string (`150000`, `150.000`, `150k`, `60 %`).
-fn number(value: &Value) -> Option<u64> {
+pub(crate) fn number(value: &Value) -> Option<u64> {
     if let Some(n) = value.as_u64() {
         return Some(n);
     }
@@ -476,9 +476,37 @@ fn country(
 
 /// A rate statement: highest amount, hourly or daily, EUR or not.
 pub(crate) struct Rate {
-    upper: u64,
-    hourly: bool,
-    currency: Option<&'static str>,
+    pub upper: u64,
+    pub hourly: bool,
+    pub currency: Option<&'static str>,
+}
+
+impl Rate {
+    /// The rate per day (an hourly rate times eight); absurd digit runs saturate.
+    pub(crate) fn per_day(&self) -> u64 {
+        if self.hourly {
+            self.upper.saturating_mul(HOURS_PER_DAY)
+        } else {
+            self.upper
+        }
+    }
+}
+
+/// The rate the ad states: the page facts first, then the first sentence with a rate (and
+/// its range).
+pub(crate) fn stated_rate(
+    job: &JobFacts<'_>,
+    segments: &[Segment],
+) -> Option<(Rate, Option<Range<usize>>)> {
+    let from_facts = fact(job.facts, super::fact_key::RATE)
+        .and_then(Value::as_str)
+        .and_then(|s| parse_rate(&fold(s)))
+        .map(|r| (r, None));
+    from_facts.or_else(|| {
+        segments
+            .iter()
+            .find_map(|(range, f)| parse_rate(f).map(|r| (r, Some(range.clone()))))
+    })
 }
 
 pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
@@ -545,16 +573,7 @@ fn day_rate(
     job: &JobFacts<'_>,
     segments: &[(Range<usize>, String)],
 ) -> Vec<Finding> {
-    let from_facts = fact(job.facts, super::fact_key::RATE)
-        .and_then(Value::as_str)
-        .and_then(|s| parse_rate(&fold(s)))
-        .map(|r| (r, None));
-    let rate = from_facts.or_else(|| {
-        segments
-            .iter()
-            .find_map(|(range, f)| parse_rate(f).map(|r| (r, Some(range.clone()))))
-    });
-    let Some((rate, span)) = rate else {
+    let Some((rate, span)) = stated_rate(job, segments) else {
         return Vec::new();
     };
     let spans: Vec<Range<usize>> = span.into_iter().collect();
@@ -570,11 +589,7 @@ fn day_rate(
     }
     // `parse_rate` saturates absurd digit runs at `u64::MAX`: such an amount stays far
     // above any minimum instead of wrapping below it.
-    let per_day = if rate.hourly {
-        rate.upper.saturating_mul(HOURS_PER_DAY)
-    } else {
-        rate.upper
-    };
+    let per_day = rate.per_day();
     match criteria.min_rate {
         Some(min) if i128::from(per_day) < min => {
             let params = json!({ "rate": per_day, "min": min.to_string(), "hourly": rate.hourly });
