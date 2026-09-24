@@ -1,0 +1,13 @@
+From: freelance.de <info@freelance.de>
+To: ich@example.org
+Subject: Willkommen bei freelance.de - 15% Rabatt auf EXPERT Mitgliedschaft
+Date: Mon, 21 Sep 2026 04:15:00 +0200
+Message-ID: <promo-freelance_willkommen_rabatt@example.org>
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><body><p>Hallo Erika Beispiel,</p>
+<p>schön, dass Sie da sind. Als Willkommensgeschenk erhalten Sie 15% Rabatt auf die EXPERT Mitgliedschaft und sehen sofort alle Details neuer Projekte.</p>
+<p><a href="https://www.freelance.de/expert-mitgliedschaft?code=WILLKOMMEN15">Jetzt EXPERT werden</a></p>
+<p>Ihr freelance.de-Team</p></body></html>

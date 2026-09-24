@@ -1,0 +1,10 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: "describe(std::fs::read(&path).unwrap())"
+---
+freelance.de | Fwd: Neue Jobs bei LinkedIn, freelancermap und freelance.de | Ich
+- linkedin:4990000011 | Interim Senior Controller (m/w/d) | Beispiel Personal GmbH | München | https://www.linkedin.com/jobs/view/4990000011/
+- linkedin:4990000012 | Interim Werkscontroller (m/w/d) FMCG Umfeld |  |  | https://www.linkedin.com/jobs/view/4990000012/
+- freelancermap:ue8d8937589a7 | Test Automation Engineer Lead |  |  | https://www.freelancermap.de/projekt/test-automation-engineer-lead-beispiel
+- freelance:1990201 | VMware Lead Solution Architect (m/f/d) |  |  | https://www.freelance.de/project/index.php?id=1990201
+- freelance:1990202 | Senior Requirements Engineer im Bankenumfeld (w/m/d) |  |  | https://www.freelance.de/project/index.php?id=1990202

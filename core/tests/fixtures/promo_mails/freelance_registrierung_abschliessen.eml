@@ -1,0 +1,12 @@
+From: freelance.de <noreply@freelance.de>
+To: ich@example.org
+Subject: =?utf-8?q?freelance=2Ede_-_Registrierung_abschlie=C3=9Fen?=
+Date: Mon, 21 Sep 2026 01:15:00 +0200
+Message-ID: <promo-freelance_registrierung_abschliessen@example.org>
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><body><p>Hallo,</p>
+<p>bitte bestätigen Sie Ihre E-Mail-Adresse, um die Registrierung abzuschließen.</p>
+<p><a href="https://www.freelance.de/register/confirm?token=0000000000">Registrierung abschließen</a></p></body></html>

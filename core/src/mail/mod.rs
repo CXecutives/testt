@@ -68,8 +68,10 @@ pub fn head_part(bytes: &[u8]) -> &[u8] {
 /// Recognises a job alert mail of the chosen portals.
 ///
 /// Entries carry their own portal: a forwarded collection mail can hold jobs of several
-/// portals (formerly the second portal got lost). An alert without a single recognised
-/// entry stays an alert (layout guard) when its subject reads like one.
+/// portals (formerly the second portal got lost). A mail without a single recognised entry
+/// stays an alert (layout guard: the portal probably changed its mail layout) only when it
+/// carries a real alert's markers - the portals' promo, onboarding and network mails come
+/// from the same addresses and are no alerts.
 pub fn classify_mail(raw: &RawMail, allowed: &[Portal]) -> MailKind {
     let Some(mail) = parse_mail(&raw.bytes) else {
         return MailKind::Defective;
@@ -89,16 +91,25 @@ pub fn classify_mail(raw: &RawMail, allowed: &[Portal]) -> MailKind {
         .into_iter()
         .filter(|f| allowed.contains(&f.link.key.portal))
         .collect();
-    let Some(portal) = classify::portal_of(&mail, &found, allowed) else {
+    // Without a single job: an alert only with a real alert's markers (layout guard).
+    let unlinked_alert = found.is_empty() && classify::looks_like_alert(&mail);
+    if found.is_empty() && !unlinked_alert {
+        return nothing;
+    }
+    // A forwarded alert whose links are no longer recognised names its portal in the
+    // forwarded part ("Von: freelancermap Service") when the head does not.
+    let portal = classify::portal_of(&mail, &found, allowed).or_else(|| {
+        unlinked_alert
+            .then(|| classify::portal_in_body(&mail, allowed))
+            .flatten()
+    });
+    let Some(portal) = portal else {
         return nothing;
     };
     let postings: Vec<Posting> = found
         .into_iter()
         .map(|f| Posting::new(f.link.key, f.link.url, &f.title, &f.company, &f.location))
         .collect();
-    if postings.is_empty() && !classify::is_alert_subject(&mail.subject) {
-        return nothing;
-    }
     MailKind::Alert(AlertMail {
         key: mail_key(raw, &mail),
         portal,
