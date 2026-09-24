@@ -244,8 +244,14 @@ pub(crate) fn atoms(text: &str, vocab: &Vocab) -> Vec<String> {
 }
 
 /// The core's generic atoms plus the broad words of every domain pack (as written and
-/// stemmed): a field word is broad whoever reads it.
-static GENERIC: LazyLock<Vec<String>> = LazyLock::new(|| {
+/// stemmed): a broad word is broad whoever reads it. `longest` lets the hot path skip the
+/// long compounds that make up most atoms.
+struct Generic {
+    words: Vec<String>,
+    longest: usize,
+}
+
+static GENERIC: LazyLock<Generic> = LazyLock::new(|| {
     let mut words: Vec<String> = lex::GENERIC_ATOMS
         .iter()
         .map(|w| (*w).to_owned())
@@ -258,12 +264,18 @@ static GENERIC: LazyLock<Vec<String>> = LazyLock::new(|| {
         .collect();
     words.sort();
     words.dedup();
-    words
+    let longest = words.iter().map(String::len).max().unwrap_or(0);
+    Generic { words, longest }
 });
 
 /// Is the atom too generic to meet a requirement on its own?
 pub(crate) fn is_generic(atom: &str) -> bool {
-    GENERIC.binary_search_by(|w| w.as_str().cmp(atom)).is_ok()
+    let generic = &*GENERIC;
+    atom.len() <= generic.longest
+        && generic
+            .words
+            .binary_search_by(|w| w.as_str().cmp(atom))
+            .is_ok()
 }
 
 /// Relation of a job atom to a profile atom.
