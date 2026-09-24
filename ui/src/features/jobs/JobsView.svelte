@@ -27,6 +27,7 @@
   import { fade, rise } from '$lib/motion/transitions';
   import { inView } from '$lib/actions/inView';
   import { dragBands } from '$lib/platform';
+  import { tokenPx } from '$lib/tokens';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { shell } from '$lib/state/shell.svelte';
@@ -73,6 +74,10 @@
   let scrolled = $state(false);
   /** The width of the list column (the splitter keeps it per user). */
   let listWidth = $state<number | undefined>(undefined);
+  /** The first width (and the one a double click on the handle restores): 40 % of the
+   *  window beside the sidebar, which the splitter keeps between 360 and 460 px. */
+  const LIST_SHARE = 0.4;
+  const firstWidth = Math.round((window.innerWidth - tokenPx('--sidebar-width')) * LIST_SHARE);
 
   function close(): void {
     jobs.clearSelection();
@@ -123,7 +128,12 @@
       </div>
     </aside>
     <span class="split"
-      ><Splitter bind:size={listWidth} storageKey="jobs-list-width" testid="list-splitter" /></span
+      ><Splitter
+        bind:size={listWidth}
+        initial={firstWidth}
+        storageKey="jobs-list-width"
+        testid="list-splitter"
+      /></span
     >
     <section class="right" data-testid="reader-pane">
       {#key stage.turn}
