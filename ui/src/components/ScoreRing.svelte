@@ -11,9 +11,11 @@
   the band. The centre and the track say the state:
   provisional: a score from a teaser only, not final: the value and its colour on a dashed
   track. none: not scored yet: a dashed track alone. excluded: a pale red track and a ban
-  icon. unscorable: the track and a dash. pending: the track and a quarter arc (turning
-  only in the reader). A score of 100 sets its digits smaller in the list ring. A selected
-  row passes a warm --ring-track.
+  icon. unscorable: the track and a dash. pending: in the reader the track and a quarter
+  arc that turns; in the list (sm, where many turning arcs would cost frames and a still
+  arc looks like a frozen spinner) the dashed track breathes slowly (2 s, opacity only);
+  under reduced motion both stand still. A score of 100 sets its digits smaller in the list
+  ring. A selected row passes a warm --ring-track.
 -->
 <script lang="ts" module>
   import type { Band, DetailState, JobMatch } from '$lib/ipc/types';
@@ -171,8 +173,9 @@
     {/if}
   </svg>
   {#if ring.status === 'pending'}
-    <!-- A quarter arc on its own HTML wrapper: it turns only in the reader (md), never in
-         the list, and stops under reduced motion. -->
+    <!-- On its own HTML wrapper (a loop on an SVG child runs on the main thread): the
+         reader's quarter arc turns, the list's dashed track breathes; both stand still
+         under reduced motion. -->
     <span class="wait" aria-hidden="true">
       <svg class="svg" viewBox="0 0 36 36">
         <circle class="arc" cx="18" cy="18" r="15.9155" />
@@ -252,6 +255,23 @@
   /* Only the reader's ring turns while it waits; many turning rings in a list cost frames. */
   .md .wait {
     animation: spin var(--dur-loop) linear infinite;
+    animation-play-state: var(--loop-state);
+  }
+
+  /* The list ring that waits: no spinner shape, the dashed track breathes instead. */
+  .sm.pending .track {
+    stroke: none;
+  }
+
+  .sm .arc {
+    stroke: var(--ring-track, var(--score-track));
+    stroke-dasharray: 2.5 2.5;
+    stroke-dashoffset: 0;
+    stroke-linecap: butt;
+  }
+
+  .sm .wait {
+    animation: breathe var(--dur-breathe) var(--ease-standard) infinite;
     animation-play-state: var(--loop-state);
   }
 

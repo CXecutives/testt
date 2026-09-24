@@ -50,6 +50,25 @@ test('score rings show their value; excluded and unscorable show no number', asy
   await expect(page.getByTestId('ring-unscorable-lg')).toHaveText('–');
 });
 
+test("a ring that waits: the reader's arc turns, the list's dashed track breathes", async ({
+  page,
+}) => {
+  await open(page, '?gallery');
+  const wait = (id: string): Promise<{ name: string; dashes: string }> =>
+    page.getByTestId(id).evaluate((ring) => {
+      const layer = ring.querySelector('.wait')!;
+      return {
+        name: getComputedStyle(layer).animationName,
+        dashes: getComputedStyle(layer.querySelector('circle')!).strokeDasharray,
+      };
+    });
+  expect((await wait('ring-pending-md')).name).toBe('spin');
+  // In the list no spinner shape stands still: a dashed full track, breathing.
+  const list = await wait('ring-pending-sm');
+  expect(list.name).toBe('breathe');
+  expect(list.dashes).toMatch(/^2\.5(px)?,? 2\.5(px)?$/);
+});
+
 test('under reduced motion the rings jump to their value', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '?gallery');
