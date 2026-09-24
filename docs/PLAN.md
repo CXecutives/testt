@@ -24,7 +24,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Logo | no CXpertise company logo; the coral app icon (folder + check) is the brand mark in the title bar |
 | Heading colour | warm dark ink (45 7% 17%), not slate; coral is the only accent colour (user chose variant A) |
 | Windows caption buttons | size like common Windows apps (the Claude app was only a size reference, user 2026-09-24): 46 x 40, Segoe Fluent glyphs 10 px in ink (muted at rest), warm hover ink/.06, pressed ink/.10, close hsl(4 62% 50%) with a white glyph |
-| Sizes | smaller (user 2026-09-24): title bar 40, tabs 14/500 (active 600), controls 28/36/40, toolbar 56, list rows 72; body text stays 15 |
+| Sizes | top strip 40, controls 28/32 (bar)/36/40, list rows 86 (fixed, one-line title, date top right), body text 15 |
 | Layout | variant C chosen by the user: calm sidebar (~196 px, no own surface, hairline divider, brand, nav with icons and unread count, quiet run status at the bottom; icons only below ~1100 px); "Abrufen" at the top left of the content strip, caption buttons at the top right; search and filters in the list column header |
 | Toasts | allowed for short confirmations whose result is not visible otherwise (saved, copied, files written, run finished): bottom right, at most 3, ~4 s, paused on hover; anything needing action stays inline |
 | Cleanup outside | `.notes` archived to `../_archive/TEST-notes`; user deletes `origin/ci-macos` and release `latest`; CI publishes nothing |
@@ -235,6 +235,8 @@ For each of Jobs, Reader, Day overview, Profil, Einstellungen, First run, dialog
 ## Glossary (UI)
 Job · Portal · Passung · Details · Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu (= unread) ·
 Zu prüfen · Merken. Checked for the UI catalog and the Rust export texts.
+
+| UI round 2 (design critique) | one white sheet for all views (no floating cards), coral only for Abrufen, selection bar, unread dot, active nav (progress bars stay coral as Abrufen feedback); mid scores ochre; primary in deep coral (4.9:1); reader like an issue view (title, facts, match line, chips, actions); sort as icon toggle; switches ink when on |
 
 ## Budget and models
 The user's usage limit is tight: work token-efficiently without lowering quality - targeted reads, focused test runs,
