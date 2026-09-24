@@ -23,9 +23,9 @@ noDetail: number,
  */
 saved: number, 
 /**
- * In an application stage (applied, interview, offer, rejected).
+ * "Beworben".
  */
-applications: number, 
+sent: number, 
 /**
  * Archived - the only count an archived job is in.
  */

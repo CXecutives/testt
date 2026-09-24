@@ -32,7 +32,6 @@ export type Commands = {
   mark_unread: { args: { keys: JobKey[] }; result: number };
   set_pinned: { args: { key: JobKey; on: boolean }; result: boolean };
   set_app_status: { args: { key: JobKey; status: AppStatus | null }; result: boolean };
-  set_follow_up: { args: { key: JobKey; on: string | null }; result: boolean };
   set_note: { args: { key: JobKey; note: string }; result: boolean };
   set_archived: { args: { key: JobKey; archived: boolean }; result: boolean };
   set_override: { args: { key: JobKey; include: boolean }; result: boolean };

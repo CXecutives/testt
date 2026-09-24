@@ -195,7 +195,6 @@ function sample(
     alsoOn: [],
     appStatus: null,
     statusAt: null,
-    followUpOn: null,
     archived: false,
     overridden: false,
     ...extra,
@@ -249,7 +248,7 @@ export function sampleJobs(now: Date): JobView[] {
       key: { portal: 'linkedin', id: '1002' },
       unread: true,
       workMode: 'remote',
-      appStatus: 'interview',
+      appStatus: 'sent',
       match: scored(64, 'Controlling mit SAP S/4HANA'),
     }),
     sample(now, '1003', 'Kaufmännische Leitung Projektgeschäft', 'Werft 7 GmbH', 'Kiel', 30, {

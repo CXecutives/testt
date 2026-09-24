@@ -163,13 +163,10 @@ pub struct JobView {
     pub match_: Option<JobMatch>,
     /// The same job was also announced by these portals.
     pub also_on: Vec<Portal>,
-    /// The stage in the user's pipeline (`null` = none; `saved` is the star).
+    /// The user's mark (`null` = none; `saved` is the star, `sent` "Beworben").
     pub app_status: Option<AppStatus>,
-    /// When the stage was set last.
+    /// When the mark was set.
     pub status_at: Option<Timestamp>,
-    /// The day to follow up (while applied or in talks).
-    #[cfg_attr(test, ts(type = "string | null"))]
-    pub follow_up_on: Option<jiff::civil::Date>,
     /// The job is archived (by the user or by age).
     pub archived: bool,
     /// The user marked the job as fitting although the engine excludes it ("Trotzdem
@@ -207,7 +204,6 @@ impl From<&JobRow> for JobView {
             also_on: Vec::new(),
             app_status: job.app_status,
             status_at: job.app_status_at,
-            follow_up_on: job.follow_up_on,
             archived: job.archived_at.is_some(),
             overridden: job.override_include,
         }
@@ -719,9 +715,8 @@ pub enum JobFacet {
     All,
     /// Saved (the star), the latest saved first.
     Saved,
-    /// In an application stage: a due follow-up first, then the latest change, the rejected
-    /// ones last.
-    Applications,
+    /// "Beworben", the latest first.
+    Sent,
     /// Archived, the latest archived first; in no other list or count.
     Archived,
 }
@@ -764,8 +759,8 @@ pub struct JobCounts {
     pub no_detail: u32,
     /// Saved ("Gemerkt", the star).
     pub saved: u32,
-    /// In an application stage (applied, interview, offer, rejected).
-    pub applications: u32,
+    /// "Beworben".
+    pub sent: u32,
     /// Archived - the only count an archived job is in.
     pub archived: u32,
     /// `new` per portal: every portal, in the order of `Portal::ALL`.
@@ -798,7 +793,7 @@ pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
             JobFacet::New => ListFacet::New,
             JobFacet::All => ListFacet::All,
             JobFacet::Saved => ListFacet::Saved,
-            JobFacet::Applications => ListFacet::Applications,
+            JobFacet::Sent => ListFacet::Sent,
             JobFacet::Archived => ListFacet::Archived,
         },
         new_since: crate::store::new_since(Timestamp::now()),
@@ -816,7 +811,7 @@ pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
             high: counts.high,
             no_detail: counts.no_detail,
             saved: counts.saved,
-            applications: counts.applications,
+            sent: counts.sent,
             archived: counts.archived,
             new_by_portal: counts
                 .new_by_portal
@@ -1488,7 +1483,7 @@ mod tests {
             high: 1,
             no_detail: 3,
             saved: 0,
-            applications: 0,
+            sent: 0,
             archived: 0,
             new_by_portal: vec![
                 PortalNew {
@@ -1536,11 +1531,11 @@ mod tests {
         assert_eq!((found.jobs.len(), found.counts.all), (1, 1));
     }
 
-    /// Applications and archived jobs: an archived job leaves "New" and "All" and every count but
-    /// "archived"; "applications" lists the jobs with a status, the latest change first. List
+    /// Sent and archived jobs: an archived job leaves "New" and "All" and every count but
+    /// "archived"; "sent" lists the jobs applied for, the latest first. List
     /// and counts still agree for every facet.
     #[test]
-    fn applications_and_archived_jobs_have_their_own_lists() {
+    fn sent_and_archived_jobs_have_their_own_lists() {
         let store = four_jobs();
         let key = |i: u8| {
             job_link(&format!("https://www.linkedin.com/jobs/view/400000000{i}/"))
@@ -1549,12 +1544,12 @@ mod tests {
         };
         let at = Timestamp::now();
         let later = at + jiff::SignedDuration::from_mins(5);
-        // B (high, unread) applied, D (unscored, unread) in talks later, C (excluded) archived.
+        // B (high, unread) sent, D (unscored, unread) sent later, C (excluded) archived.
         store
-            .set_app_status(&key(2), Some(AppStatus::Applied), at)
+            .set_app_status(&key(2), Some(AppStatus::Sent), at)
             .unwrap();
         store
-            .set_app_status(&key(4), Some(AppStatus::Interview), later)
+            .set_app_status(&key(4), Some(AppStatus::Sent), later)
             .unwrap();
         store.set_pinned(&key(3), true, at).unwrap();
         store.set_archived(&key(3), true, at).unwrap();
@@ -1579,30 +1574,24 @@ mod tests {
             (3, 2, 0, 0),
             "archived in no count but its own"
         );
-        assert_eq!((counts.applications, counts.archived), (2, 1));
+        assert_eq!((counts.sent, counts.archived), (2, 1));
         assert_eq!(titles(&page(JobFacet::New)), ["B", "D"]);
-        let applications = page(JobFacet::Applications);
-        assert_eq!(titles(&applications), ["D", "B"], "latest change first");
-        assert_eq!(applications.jobs[0].app_status, Some(AppStatus::Interview));
-        assert_eq!(
-            applications.counts, all.counts,
-            "the counts ignore the facet"
-        );
+        let sent = page(JobFacet::Sent);
+        assert_eq!(titles(&sent), ["D", "B"], "latest sent first");
+        assert_eq!(sent.jobs[0].app_status, Some(AppStatus::Sent));
+        assert_eq!(sent.counts, all.counts, "the counts ignore the facet");
         let archived = page(JobFacet::Archived);
         assert_eq!(titles(&archived), ["C"]);
         assert!(archived.jobs[0].archived);
         // The facet lists exactly as many jobs as its count says.
         assert_eq!(u32::try_from(all.jobs.len()).unwrap(), counts.all);
-        assert_eq!(
-            u32::try_from(applications.jobs.len()).unwrap(),
-            counts.applications
-        );
+        assert_eq!(u32::try_from(sent.jobs.len()).unwrap(), counts.sent);
         assert_eq!(u32::try_from(archived.jobs.len()).unwrap(), counts.archived);
-        // An archived application is in "archived" only.
+        // An archived sent job is in "archived" only.
         store.set_archived(&key(2), true, later).unwrap();
-        let after = page(JobFacet::Applications);
+        let after = page(JobFacet::Sent);
         assert_eq!(titles(&after), ["D"]);
-        assert_eq!((after.counts.applications, after.counts.archived), (1, 2));
+        assert_eq!((after.counts.sent, after.counts.archived), (1, 2));
         assert_eq!(
             titles(&page(JobFacet::Archived)),
             ["B", "C"],
@@ -1620,15 +1609,15 @@ mod tests {
         // Whole seconds, as the store keeps them.
         let at = Timestamp::from_second(Timestamp::now().as_second()).unwrap();
         store
-            .set_app_status(&key, Some(AppStatus::Offer), at)
+            .set_app_status(&key, Some(AppStatus::Sent), at)
             .unwrap();
-        store.set_note(&key, "Zusage per Mail").unwrap();
+        store.set_note(&key, "Profil an die Agentur").unwrap();
         let detail = job_detail(&store, &key, None, false, at).unwrap().unwrap();
-        assert_eq!(detail.note.as_deref(), Some("Zusage per Mail"));
+        assert_eq!(detail.note.as_deref(), Some("Profil an die Agentur"));
         assert_eq!(detail.job.status_at, Some(at));
-        assert_eq!(detail.job.app_status, Some(AppStatus::Offer));
+        assert_eq!(detail.job.app_status, Some(AppStatus::Sent));
         let json = serde_json::to_value(&detail).unwrap();
-        assert_eq!(json["job"]["appStatus"], "offer");
+        assert_eq!(json["job"]["appStatus"], "sent");
         assert_eq!(json["job"]["archived"], false);
     }
 

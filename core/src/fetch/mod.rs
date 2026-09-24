@@ -488,6 +488,28 @@ pub enum Admission {
     Cancelled,
 }
 
+/// How signing out goes after [`admit`]: the portal's own logout page only when a request is
+/// allowed now; a pause or the cap never keep the local session (cookies, storage) on disk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SignOut {
+    /// Load the logout page, then delete the local session.
+    Remote,
+    /// Delete the local session without contacting the portal.
+    LocalOnly,
+    /// Cancelled before anything happened.
+    Cancelled,
+}
+
+impl SignOut {
+    pub fn after(admission: &Admission) -> SignOut {
+        match admission {
+            Admission::Go => SignOut::Remote,
+            Admission::Stop(_) => SignOut::LocalOnly,
+            Admission::Cancelled => SignOut::Cancelled,
+        }
+    }
+}
+
 /// Every portal request passes here - pages, the sign-in during a run and signing in/out by
 /// hand: first check pause and caps (a paused portal does not wait first), then wait for
 /// the gap (cancellable; `on_wait` learns the end of longer waits beforehand), then count and

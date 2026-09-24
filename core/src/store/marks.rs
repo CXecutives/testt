@@ -1,14 +1,12 @@
-//! What the user keeps about a job - one pipeline of stages (saved, the star, then applied,
-//! interview, offer, rejected) with the time of the last change and a follow-up day, a free
-//! note, "archived", "fits anyway" - plus reading in bulk and deleting for good. Runs never
-//! touch these columns (only the age archives a job without a stage); an archived job leaves
-//! every list and count but its own.
+//! What the user keeps about a job - one mark (saved, the star, or "Beworben") with
+//! the time it was set, a free note, "archived", "fits anyway" - plus reading in bulk and
+//! deleting for good. Runs never touch these columns (only the age archives a job without a
+//! mark); an archived job leaves every list and count but its own.
 //!
 //! Every column is nullable, so the migrations (in `schema`) add them with
 //! `ALTER TABLE job ADD COLUMN`: schema 4 the first marks, schema 5 the rest.
 
 use jiff::Timestamp;
-use jiff::civil::Date;
 use rusqlite::{OptionalExtension, params};
 
 use super::{ListFacet, Store, bump};
@@ -20,9 +18,9 @@ use crate::time::to_db;
 /// The nullable columns schema 4 added to the `job` table, as `(name, sql_type)` pairs.
 /// Frozen: schema 5 renamed `hidden_at` to `archived_at`.
 ///
-/// - `app_status`: the stage, `saved`, `applied`, `interview`, `offer` or `rejected`;
-///   `NULL` = none.
-/// - `app_status_at`: when the stage was set last (Unix seconds).
+/// - `app_status`: the mark, `saved` or `sent` since schema 5 (schema 4 stored `applied`,
+///   `interview`, `offer` and `rejected`); `NULL` = none.
+/// - `app_status_at`: when the mark was set last (Unix seconds).
 /// - `note`: the user's note (at most [`MAX_NOTE_CHARS`] characters); `NULL` = none.
 /// - `hidden_at`, now `archived_at`: when the job was archived (by the user or by age);
 ///   `NULL` = listed.
@@ -35,21 +33,20 @@ pub const SCHEMA_4_JOB_COLUMNS: &[(&str, &str)] = &[
 
 /// The nullable columns schema 5 adds to the `job` table.
 ///
-/// - `follow_up_on`: the day to follow up (`YYYY-MM-DD`), only while applied or in talks.
 /// - `override_include`: `1` = the user marked an excluded job as fitting anyway; the
 ///   engine's exclusion is then stored as "scored" (with the fit score) on every rescore.
 /// - `mail_version`: the mail parser that read title, company and location
 ///   (`mail::MAIL_PARSER_VERSION`); `NULL` = one before the versions.
-pub const SCHEMA_5_JOB_COLUMNS: &[(&str, &str)] = &[
-    ("follow_up_on", "TEXT"),
-    ("override_include", "INTEGER"),
-    ("mail_version", "INTEGER"),
-];
+pub const SCHEMA_5_JOB_COLUMNS: &[(&str, &str)] =
+    &[("override_include", "INTEGER"), ("mail_version", "INTEGER")];
 
 /// What the migration to schema 5 does beyond the new columns: "hidden" is "archived" now,
-/// a pinned job without a stage is saved (the star is the first stage), and the table of
-/// deleted job keys (a later scan of an old alert mail never brings them back).
+/// every application status is "sent" (one mark instead of four stages), a pinned job
+/// without a mark is saved, and the table of deleted job keys (a later scan of an old alert
+/// mail never brings them back).
 pub const SCHEMA_5_EXTRA: &str = "ALTER TABLE job RENAME COLUMN hidden_at TO archived_at;
+UPDATE job SET app_status = 'sent'
+ WHERE app_status IN ('applied', 'interview', 'offer', 'rejected');
 UPDATE job SET app_status = 'saved', app_status_at = pinned_at
  WHERE pinned_at IS NOT NULL AND app_status IS NULL;
 CREATE TABLE tombstone (
@@ -66,28 +63,25 @@ pub const USER_OVERRIDE: &str = "userOverride";
 pub const MAX_NOTE_CHARS: usize = 2000;
 
 impl Store {
-    /// Sets or clears the stage of a job; `true` if it changed. A new stage takes the time of
-    /// the change; a stage that waits for no answer drops the follow-up date; clearing clears
-    /// both. The Excel file shows the stage, so a change is a visible one.
+    /// Sets or clears the mark of a job; `true` if it changed. A new mark takes the time of
+    /// the change; clearing clears both. The Excel file shows "Beworben am", so a change
+    /// is a visible one.
     pub fn set_app_status(
         &self,
         key: &JobKey,
         status: Option<AppStatus>,
         now: Timestamp,
     ) -> Result<bool> {
-        let keeps_follow_up = status.is_some_and(AppStatus::takes_follow_up);
         self.write(|conn| {
             let changed = conn.execute(
                 "UPDATE job SET app_status = ?3,
-                                app_status_at = CASE WHEN ?3 IS NULL THEN NULL ELSE ?4 END,
-                                follow_up_on = CASE WHEN ?5 THEN follow_up_on END
+                                app_status_at = CASE WHEN ?3 IS NULL THEN NULL ELSE ?4 END
                  WHERE portal = ?1 AND job_id = ?2 AND app_status IS NOT ?3",
                 params![
                     key.portal.key(),
                     key.id,
                     status.map(AppStatus::as_str),
-                    to_db(now),
-                    keeps_follow_up
+                    to_db(now)
                 ],
             )? > 0;
             if changed {
@@ -97,33 +91,15 @@ impl Store {
         })
     }
 
-    /// The star, a thin alias of the stage "saved": on saves a job without a stage (a later
-    /// stage stays), off clears only "saved". `true` if something changed.
+    /// The star, a thin alias of the mark "saved": on saves a job without a mark ("sent"
+    /// stays), off clears only "saved". `true` if something changed.
     pub fn set_pinned(&self, key: &JobKey, on: bool, now: Timestamp) -> Result<bool> {
-        let stage = self.job(key)?.and_then(|job| job.app_status);
-        match (on, stage) {
+        let mark = self.job(key)?.and_then(|job| job.app_status);
+        match (on, mark) {
             (true, None) => self.set_app_status(key, Some(AppStatus::Saved), now),
             (false, Some(AppStatus::Saved)) => self.set_app_status(key, None, now),
             _ => Ok(false),
         }
-    }
-
-    /// The day to follow up an application (only while applied or in talks; `None` clears
-    /// it); `true` if it changed.
-    pub fn set_follow_up(&self, key: &JobKey, on: Option<Date>) -> Result<bool> {
-        let day = on.map(|d| d.to_string());
-        self.write(|conn| {
-            let changed = conn.execute(
-                "UPDATE job SET follow_up_on = ?3
-                 WHERE portal = ?1 AND job_id = ?2 AND follow_up_on IS NOT ?3
-                   AND (?3 IS NULL OR app_status IN ('applied', 'interview'))",
-                params![key.portal.key(), key.id, day],
-            )? > 0;
-            if changed {
-                bump(conn)?;
-            }
-            Ok(changed)
-        })
     }
 
     /// Stores the note of a job (blank = none); `true` if it changed. The Excel file shows
@@ -207,8 +183,8 @@ impl Store {
         })
     }
 
-    /// Archives the jobs first seen before `before` that have no stage (neither saved nor in
-    /// an application) - "old jobs archive themselves" at the end of a run; returns how many.
+    /// Archives the jobs first seen before `before` that have no mark (neither saved nor
+    /// sent) - "old jobs archive themselves" at the end of a run; returns how many.
     pub fn auto_archive(&self, before: Timestamp, now: Timestamp) -> Result<usize> {
         self.write(|conn| {
             let archived = conn.execute(
@@ -366,69 +342,39 @@ mod tests {
         (store, p.key)
     }
 
-    fn day(text: &str) -> Date {
-        text.parse().unwrap()
-    }
-
     #[test]
-    fn the_stage_keeps_the_time_of_its_change_and_its_follow_up() {
+    fn the_mark_keeps_the_time_it_was_set() {
         let (store, key) = store_with_job();
         let rev = store.data_rev().unwrap();
         let at = now();
         assert!(
             store
-                .set_app_status(&key, Some(AppStatus::Applied), at)
+                .set_app_status(&key, Some(AppStatus::Sent), at)
                 .unwrap()
         );
         let job = store.job(&key).unwrap().unwrap();
         assert_eq!(
             (job.app_status, job.app_status_at),
-            (Some(AppStatus::Applied), Some(at))
+            (Some(AppStatus::Sent), Some(at))
         );
         assert!(store.data_rev().unwrap() > rev, "the Excel file shows it");
-        // The same stage again changes nothing, not even the time.
+        // The same mark again changes nothing, not even the time.
         let later = at + jiff::SignedDuration::from_hours(1);
         assert!(
             !store
-                .set_app_status(&key, Some(AppStatus::Applied), later)
+                .set_app_status(&key, Some(AppStatus::Sent), later)
                 .unwrap()
         );
-        // A follow-up day while applied, kept into the talks, dropped with an offer.
-        assert!(store.set_follow_up(&key, Some(day("2026-09-25"))).unwrap());
-        assert!(!store.set_follow_up(&key, Some(day("2026-09-25"))).unwrap());
-        assert!(
-            store
-                .set_app_status(&key, Some(AppStatus::Interview), later)
-                .unwrap()
-        );
-        let job = store.job(&key).unwrap().unwrap();
-        assert_eq!(
-            (job.app_status, job.app_status_at, job.follow_up_on),
-            (
-                Some(AppStatus::Interview),
-                Some(later),
-                Some(day("2026-09-25"))
-            )
-        );
-        assert!(
-            store
-                .set_app_status(&key, Some(AppStatus::Offer), later)
-                .unwrap()
-        );
-        assert_eq!(store.job(&key).unwrap().unwrap().follow_up_on, None);
-        assert!(
-            !store.set_follow_up(&key, Some(day("2026-09-30"))).unwrap(),
-            "an offer waits for no follow-up"
-        );
+        assert_eq!(store.job(&key).unwrap().unwrap().app_status_at, Some(at));
         assert!(store.set_app_status(&key, None, later).unwrap());
         let job = store.job(&key).unwrap().unwrap();
         assert_eq!((job.app_status, job.app_status_at), (None, None));
     }
 
-    /// The star is the stage "saved": it never overwrites a later stage, and taking it off
-    /// clears only "saved".
+    /// The star is the mark "saved": it never overwrites "sent", and taking it off clears
+    /// only "saved".
     #[test]
-    fn the_star_is_the_first_stage() {
+    fn the_star_never_overwrites_sent() {
         let (store, key) = store_with_job();
         assert!(store.set_pinned(&key, true, now()).unwrap());
         assert!(!store.set_pinned(&key, true, now()).unwrap());
@@ -439,13 +385,13 @@ mod tests {
         assert!(store.set_pinned(&key, false, now()).unwrap());
         assert_eq!(store.job(&key).unwrap().unwrap().app_status, None);
         store
-            .set_app_status(&key, Some(AppStatus::Applied), now())
+            .set_app_status(&key, Some(AppStatus::Sent), now())
             .unwrap();
         assert!(!store.set_pinned(&key, true, now()).unwrap());
         assert!(!store.set_pinned(&key, false, now()).unwrap());
         assert_eq!(
             store.job(&key).unwrap().unwrap().app_status,
-            Some(AppStatus::Applied)
+            Some(AppStatus::Sent)
         );
     }
 
@@ -572,8 +518,8 @@ mod tests {
         );
     }
 
-    /// The best matches for an AI chat: saved first, then the best open ones (no stage) by
-    /// score; never excluded, archived, unscored, gone or in an application.
+    /// The best matches for an AI chat: saved first, then the best open ones (no mark) by
+    /// score; never excluded, archived, unscored, gone or sent.
     #[test]
     fn the_best_matches_put_the_saved_first_and_leave_out_the_rest() {
         let store = Store::in_memory().unwrap();
@@ -612,11 +558,11 @@ mod tests {
                 now(),
             )
             .unwrap();
-        // Job 6 has no score; job 4 is archived; job 1 is saved; job 7 is applied for.
+        // Job 6 has no score; job 4 is archived; job 1 is saved; job 7 is sent.
         store.set_archived(&keys[3], true, now()).unwrap();
         store.set_pinned(&keys[0], true, now()).unwrap();
         store
-            .set_app_status(&keys[6], Some(AppStatus::Applied), now())
+            .set_app_status(&keys[6], Some(AppStatus::Sent), now())
             .unwrap();
         let titles = |limit| -> Vec<String> {
             store
@@ -681,7 +627,7 @@ mod tests {
         assert_eq!(store.delete_jobs(&[p.key], now()).unwrap(), (0, Vec::new()));
     }
 
-    /// Old jobs archive themselves unless they have a stage (saved or applied); the young
+    /// Old jobs archive themselves unless they have a mark (saved or sent); the young
     /// and the archived stay as they are.
     #[test]
     fn old_jobs_archive_themselves_except_the_marked() {
@@ -701,7 +647,7 @@ mod tests {
         }
         store.set_pinned(&keys[1], true, now()).unwrap();
         store
-            .set_app_status(&keys[2], Some(AppStatus::Applied), now())
+            .set_app_status(&keys[2], Some(AppStatus::Sent), now())
             .unwrap();
         let before = now() - jiff::SignedDuration::from_hours(24 * 30);
         assert_eq!(store.auto_archive(before, now()).unwrap(), 1);
@@ -763,7 +709,7 @@ mod tests {
             .key;
         assert!(
             !store
-                .set_app_status(&other, Some(AppStatus::Offer), now())
+                .set_app_status(&other, Some(AppStatus::Sent), now())
                 .unwrap()
         );
         assert!(!store.set_pinned(&other, true, now()).unwrap());

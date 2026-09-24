@@ -868,6 +868,15 @@ async fn admit_checks_the_pause_first_and_counts_only_real_accesses() {
     ));
     assert_eq!(started.elapsed(), Duration::ZERO);
     assert_eq!(lock(&policy).state(LI).accesses.len(), 1, "nothing counted");
+    // Signing out during the pause still deletes the local session (only the logout page
+    // stays unrequested); a cap is the same.
+    assert_eq!(SignOut::after(&admission), SignOut::LocalOnly);
+    assert_eq!(SignOut::after(&Admission::Go), SignOut::Remote);
+    assert_eq!(
+        SignOut::after(&Admission::Stop(StopReason::Quota { next_at: c() })),
+        SignOut::LocalOnly
+    );
+    assert_eq!(SignOut::after(&Admission::Cancelled), SignOut::Cancelled);
 
     let policy = Mutex::new(Policy::in_memory());
     lock(&policy).record_access(FM, c());

@@ -558,7 +558,7 @@ export const de = {
     facet: 'Auswahl',
     facetNew: 'Neu',
     facetAll: 'Alle',
-    facetApplications: 'Bewerbungen',
+    facetSent: 'Beworben',
     facetPinned: 'Gemerkt',
     /** The order of the list in words (the sort button). */
     sortLabel: {
@@ -671,7 +671,7 @@ export const de = {
     emptySources: 'Die Jobs kommen aus den Alert-Mails der Portale.',
     createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
     readOlder: 'Ältere Mails lesen',
-    emptyApplications: 'Noch keine Bewerbung vermerkt.',
+    emptySent: 'Noch keine Bewerbung vermerkt.',
     emptyHidden: 'Das Archiv ist leer.',
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
@@ -722,12 +722,8 @@ export const de = {
     status: 'Bewerbung',
     appStatus: {
       saved: 'Gemerkt',
-      applied: 'Beworben',
-      interview: 'Im Gespräch',
-      offer: 'Zusage',
-      rejected: 'Absage',
+      sent: 'Beworben',
     } satisfies Record<AppStatus, string>,
-    /** "Beworben vor 9 Tagen", "Im Gespräch gestern". */
     mail: OPEN_MAIL,
     fetchDetails: 'Details holen',
     why: 'Warum',
@@ -1006,6 +1002,8 @@ export const de = {
     quota: (used: number, cap: number) => `Heute ${n(used)} von ${n(cap)} Seiten`,
     quotaHour: (used: number, cap: number) => `Diese Stunde ${n(used)} von ${n(cap)} Seiten`,
     signedIn: 'Angemeldet',
+    /** A sign-in still stored while the portal or its sign-in is switched off. */
+    sessionLeft: 'Die Anmeldung ist noch gespeichert.',
     signedOut: 'Nicht angemeldet',
     signIn: 'Anmelden',
     signOut: 'Abmelden',
