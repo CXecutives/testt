@@ -10,13 +10,15 @@ for that job instead of aborting the run.
 Run from the repository root with Python 3.14:
 
   py -3.14 tools/eval/legacy_baseline.py corpus     # -> core/tests/fixtures/matching/legacy.json
+  py -3.14 tools/eval/legacy_baseline.py corpus --extend   # add new jobs/profiles, old entries must match
   py -3.14 tools/eval/legacy_baseline.py edge       # -> core/tests/fixtures/matching/legacy_edge.json
   py -3.14 tools/eval/legacy_baseline.py lexicon    # -> core/tests/fixtures/matching/legacy_lexicon.json
   py -3.14 tools/eval/legacy_baseline.py unicode    # -> core/src/matching/python_unicode.txt
   py -3.14 tools/eval/legacy_baseline.py run --corpus DIR --profile P.json [--profile Q.json] --out FILE
 
 `corpus` and `edge` refuse to change an existing file (the frozen baseline must
-never change); `--check` recomputes and compares instead of writing.
+never change); `--check` recomputes and compares instead of writing; `--extend`
+adds entries for new jobs and profiles and refuses if any frozen entry differs.
 """
 
 from __future__ import annotations
@@ -38,6 +40,7 @@ OLD_FILES = ("matcher.py", "descriptions.py", "profile_store.py", "config.py")
 REPO = Path(__file__).resolve().parents[2]
 FIXTURES = REPO / "core" / "tests" / "fixtures" / "matching"
 PROFILES = (FIXTURES / "sample_profile.json", FIXTURES / "sample_profile_it.json")
+CORPUS_PROFILES = (*PROFILES, FIXTURES / "sample_profile_senior.json", FIXTURES / "sample_profile_sap.json")
 
 
 def git(*args: str) -> bytes:
@@ -120,6 +123,34 @@ def write_frozen(out: Path, data: dict, check: bool, force: bool) -> int:
     return 0
 
 
+def extend_frozen(out: Path, data: dict) -> int:
+    """Add new (profile, job) entries; every frozen entry must be recomputed identically."""
+    old = json.loads(out.read_text(encoding="utf-8"))
+    if old.get("sourceCommit") != data["sourceCommit"]:
+        print("source commit differs")
+        return 1
+    changed = [
+        f"{profile} {job}"
+        for profile, jobs in old["profiles"].items()
+        for job, entry in jobs.items()
+        if data["profiles"].get(profile, {}).get(job) != entry
+    ]
+    if changed:
+        print("frozen entries differ: " + ", ".join(changed))
+        return 1
+    added = 0
+    for profile, jobs in data["profiles"].items():
+        frozen = old["profiles"].setdefault(profile, {})
+        for job, entry in jobs.items():
+            if job not in frozen:
+                frozen[job] = entry
+                added += 1
+        old["profiles"][profile] = dict(sorted(frozen.items()))
+    out.write_text(json.dumps(old, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
+    print(f"extended {out.relative_to(REPO)} by {added} entries")
+    return 0
+
+
 def lexicon() -> dict:
     with tempfile.TemporaryDirectory() as temp:
         m = load_old_engine(Path(temp))
@@ -180,11 +211,14 @@ def main() -> int:
     parser.add_argument("--out", type=Path, help="output file (run)")
     parser.add_argument("--check", action="store_true", help="compare with the frozen file instead of writing")
     parser.add_argument("--force", action="store_true", help="overwrite a frozen file (never for legacy.json)")
+    parser.add_argument("--extend", action="store_true", help="add new jobs/profiles to legacy.json (corpus)")
     args = parser.parse_args()
     command = "py -3.14 tools/eval/legacy_baseline.py " + args.command
 
     if args.command == "corpus":
-        data = baseline(FIXTURES / "corpus", list(PROFILES), command)
+        data = baseline(FIXTURES / "corpus", list(CORPUS_PROFILES), command)
+        if args.extend:
+            return extend_frozen(FIXTURES / "legacy.json", data)
         return write_frozen(FIXTURES / "legacy.json", data, args.check, args.force)
     if args.command == "edge":
         edge_profiles = [*PROFILES, FIXTURES / "legacy_edge_profile.json"]

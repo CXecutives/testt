@@ -1,0 +1,187 @@
+{
+  "name": "Tim Platzhalter",
+  "email": "tim.platzhalter@example.invalid",
+  "telefon": "+49 171 0000000",
+  "titel": "Senior SAP FI/CO Berater",
+  "berufserfahrung_jahre": 14,
+  "ausbildung": [
+    {
+      "abschluss": "Bachelor of Arts Betriebswirtschaftslehre (Duale Hochschule)",
+      "fach": "Rechnungswesen und Controlling",
+      "jahr": 2012
+    }
+  ],
+  "stationen": [
+    {
+      "zeitraum": "2018 - heute",
+      "rolle": "Freiberuflicher SAP FI/CO Berater",
+      "schwerpunkte": [
+        "S/4HANA-Migrationen im Finanzwesen",
+        "Customizing SAP FI und SAP CO"
+      ]
+    },
+    {
+      "zeitraum": "2012 - 2018",
+      "rolle": "SAP Berater Finanzwesen bei einem SAP-Partner",
+      "schwerpunkte": [
+        "Einführung von SAP FI/CO im Mittelstand",
+        "Key-User-Schulungen"
+      ]
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "SAP FI",
+      "jahre": 12
+    },
+    {
+      "kompetenz": "SAP CO",
+      "jahre": 12
+    },
+    {
+      "kompetenz": "SAP S/4HANA Finance",
+      "jahre": 7
+    },
+    {
+      "kompetenz": "Hauptbuchhaltung (FI-GL)",
+      "jahre": 12,
+      "auch": ["General Ledger"]
+    },
+    {
+      "kompetenz": "Kreditoren- und Debitorenbuchhaltung (FI-AP/AR)",
+      "jahre": 12
+    },
+    {
+      "kompetenz": "Anlagenbuchhaltung (FI-AA)",
+      "jahre": 10,
+      "auch": ["Asset Accounting"]
+    },
+    {
+      "kompetenz": "Kostenstellenrechnung (CO-OM)",
+      "jahre": 12
+    },
+    {
+      "kompetenz": "Produktkostenrechnung (CO-PC)",
+      "jahre": 9
+    },
+    {
+      "kompetenz": "Ergebnisrechnung (CO-PA)",
+      "jahre": 8
+    },
+    {
+      "kompetenz": "Customizing",
+      "jahre": 12
+    },
+    {
+      "kompetenz": "Datenmigration",
+      "jahre": 7
+    },
+    {
+      "kompetenz": "SAP Group Reporting",
+      "jahre": 4
+    },
+    {
+      "kompetenz": "Central Finance",
+      "jahre": 3
+    },
+    {
+      "kompetenz": "Abschlussunterstützung in SAP",
+      "jahre": 10
+    },
+    {
+      "kompetenz": "Integration FI/CO mit MM und SD",
+      "jahre": 8
+    },
+    {
+      "kompetenz": "Testmanagement",
+      "jahre": 6
+    },
+    {
+      "kompetenz": "Rollout",
+      "jahre": 8
+    },
+    {
+      "kompetenz": "Anforderungsanalyse",
+      "jahre": 10,
+      "auch": ["Requirements Engineering"]
+    }
+  ],
+  "methoden_tools": [
+    {
+      "name": "SAP S/4HANA"
+    },
+    {
+      "name": "SAP ECC"
+    },
+    {
+      "name": "SAP Fiori"
+    },
+    {
+      "name": "SAP Solution Manager"
+    },
+    {
+      "name": "SAP Activate"
+    },
+    {
+      "name": "Jira"
+    },
+    {
+      "name": "Excel"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "SAP Certified Application Associate - Financial Accounting with SAP S/4HANA"
+    },
+    {
+      "name": "SAP Certified Application Associate - Management Accounting with SAP S/4HANA"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Automotive"
+    },
+    {
+      "branche": "Pharma"
+    },
+    {
+      "branche": "Handel"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C1"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Neun S/4HANA-Finance-Projekte von der Konzeption bis zum Go-Live",
+    "Verbindet Buchhaltung und Controlling im System"
+  ],
+  "keywords": [
+    "SAP FI",
+    "SAP CO",
+    "S/4HANA",
+    "Customizing",
+    "Migration"
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 950,
+    "laender": [
+      "DE",
+      "AT",
+      "CH"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "anue"
+    ],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "sofort",
+    "min_jahresgehalt": 95000,
+    "zielprofil_min_jahre": 5
+  }
+}

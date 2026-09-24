@@ -1,9 +1,10 @@
 {
-  "version": 2,
-  "note": "Expectations for the synthetic corpus, fixed before any engine work (track 1d) and corrected after an independent review (version 2). Judged like a careful recruiter with the job-matching skill rubric. band = expected score range 0-100 (width <= 30; the effective score of an unscorable or absent job is 0). status = excluded (a decided violation) > unscorable (too little text) > scored. violations = decided hard-criterion violations (anue, country, dayRate). Availability is never decided: a start before the profile's availability is the check availabilityGap {days} (job start = explicit date, or the mail date for 'sofort'). checks = codes the engine should raise instead of deciding. mustOpen = case-insensitive substrings of must requirements that must NOT count as met. The IT profile's minimum day rate comes from the old fallback einsatzpraeferenzen.tagessatz_ab (950) because harte_kriterien has no min_tagessatz.",
-  "profiles": {"fin": "sample_profile.json", "it": "sample_profile_it.json"},
-  "violationCodes": ["anue", "country", "dayRate"],
-  "checkCodes": ["anueOptional", "anueHidden", "countryUnclear", "dayRateCurrency", "startVague", "availabilityGap", "permanent", "formalOpen", "lowEvidence", "shortText"],
+  "version": 3,
+  "note": "Expectations for the synthetic corpus, fixed before any engine work (track 1d) and corrected after an independent review (version 2). Judged like a careful recruiter with the job-matching skill rubric. band = expected score range 0-100 (width <= 30; the effective score of an unscorable or absent job is 0). status = excluded (a decided violation) > unscorable (too little text) > scored. violations = decided hard-criterion violations (anue, country, dayRate). Availability is never decided: a start before the profile's availability is the check availabilityGap {days} (job start = explicit date, or the mail date for 'sofort'). checks = codes the engine should raise instead of deciding. mustOpen = case-insensitive substrings of must requirements that must NOT count as met. The IT profile's minimum day rate comes from the old fallback einsatzpraeferenzen.tagessatz_ab (950) because harte_kriterien has no min_tagessatz. Version 3 (matching track round 2): two more invented profiles, senior = sample_profile_senior.json (very senior interim finance and transformation consultant modelled on the job-matching rubric, with the permanent-role keys min_jahresgehalt, festanstellung_orte, festanstellung_remote_min and zielprofil_min_jahre) and sap = sample_profile_sap.json (SAP FI/CO consultant), and K41-K52 covering the new rules; all version-3 expectations were written before the engine change and are gated from ENGINE_VERSION 3 on (profileSince, since). New violations: salary, permanentRegion, tooJunior, formalOpen (only a mandatory, unattainable formal duty). New checks: salaryUnknown, permanentRegion (inferred permanent role), permanentRegionUnclear, anueRisk, seniorityUnclear.",
+  "profiles": {"fin": "sample_profile.json", "it": "sample_profile_it.json", "senior": "sample_profile_senior.json", "sap": "sample_profile_sap.json"},
+  "profileSince": {"senior": 3, "sap": 3},
+  "violationCodes": ["anue", "country", "dayRate", "salary", "permanentRegion", "tooJunior", "formalOpen"],
+  "checkCodes": ["anueOptional", "anueHidden", "countryUnclear", "dayRateCurrency", "startVague", "availabilityGap", "permanent", "formalOpen", "lowEvidence", "shortText", "salaryUnknown", "permanentRegion", "permanentRegionUnclear", "anueRisk", "seniorityUnclear", "salary"],
   "jobs": [
     {
       "id": "K01", "portal": "linkedin", "location": "Köln (Deutschland)", "mailDate": "2026-09-16", "kind": "full", "facts": null, "duplicateOf": null,
@@ -11,7 +12,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "All four musts (Controlling, IFRS group accounting, S/4HANA, project management) and the Power BI nice-to-have are core skills; 1,200 EUR/day, remote from DE."},
         "it": {"band": [15, 40], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "Only S/4HANA and project management fit; the controller core of the role is missing. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only S/4HANA and project management fit; the controller core of the role is missing. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "All musts (controlling, IFRS group accounting, S/4HANA, project management) and the Power BI nice-to-have are core skills; interim, remote from DE."},
+        "sap": {"band": [15, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
+          "why": "Only S/4HANA fits; an SAP FI/CO consultant is not a group controller."}
       }
     },
     {
@@ -20,7 +25,11 @@
         "fin": {"band": [25, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Salesforce", "Tableau", "Python"],
           "why": "Controlling and project management fit; three named tools (Salesforce, Tableau, Python) are missing."},
         "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Salesforce", "Tableau", "Python"],
-          "why": "Product controlling role; only generic project management overlaps. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Product controlling role; only generic project management overlaps. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [25, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Salesforce", "Tableau", "Python"],
+          "why": "Controlling and project management fit, three tool musts (Salesforce, Tableau, Python) are open."},
+        "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Salesforce"],
+          "why": "Product controlling with Salesforce, Tableau and Python; nothing of the SAP FI/CO profile."}
       }
     },
     {
@@ -29,7 +38,11 @@
         "fin": {"band": [80, 100], "status": "excluded", "violations": ["anue"], "checks": [], "mustOpen": [],
           "why": "ANÜ is named as the contract type and is not negated; the domain fit itself is full."},
         "it": {"band": [10, 40], "status": "excluded", "violations": ["anue"], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "Same explicit ANÜ; only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Same explicit ANÜ; only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "excluded", "violations": ["anue"], "checks": [], "mustOpen": [],
+          "why": "Named ANUE (not negated): decided exclusion; the fit itself is strong."},
+        "sap": {"band": [10, 40], "status": "excluded", "violations": ["anue"], "checks": [], "mustOpen": [],
+          "why": "Named ANUE: decided exclusion; only S/4HANA fits."}
       }
     },
     {
@@ -38,7 +51,11 @@
         "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "ANÜ is explicitly negated ('ausdrücklich nicht im Rahmen der Arbeitnehmerüberlassung'); full domain fit."},
         "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "Explicitly no ANÜ; only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Explicitly no ANÜ; only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "ANUE explicitly negated (Werkvertrag); controlling, IFRS and S/4HANA fit."},
+        "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "ANUE negated; only S/4HANA fits."}
       }
     },
     {
@@ -47,7 +64,11 @@
         "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
           "why": "ANÜ is only one of two offered contract forms; Controlling, project management and SAP FI/CO fit."},
         "it": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["anueOptional", "availabilityGap"], "mustOpen": ["Controlling", "SAP FI/CO"],
-          "why": "Only project management fits; FI/CO is not the module of an SD/MM project lead. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only project management fits; FI/CO is not the module of an SD/MM project lead. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "ANUE only one option (check); controlling, project management and SAP FI/CO fit."},
+        "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "ANUE optional (check); SAP FI/CO fits, controlling and project management do not."}
       }
     },
     {
@@ -56,7 +77,11 @@
         "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["anueHidden"], "mustOpen": [],
           "why": "Payrolling under iGZ/BAP with equal pay is ANÜ in substance but not named; Controlling, PM, budgeting and forecast fit."},
         "it": {"band": [5, 30], "status": "scored", "violations": [], "checks": ["anueHidden", "availabilityGap"], "mustOpen": ["Controlling", "Budgetierung"],
-          "why": "Hidden ANÜ; only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Hidden ANÜ; only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["anueHidden"], "mustOpen": [],
+          "why": "Payrolling, iGZ/BAP and equal pay describe ANUE without the name: check; skills fit."},
+        "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["anueHidden"], "mustOpen": ["Controlling"],
+          "why": "Hidden ANUE (check); controlling, budgeting and forecast are not SAP consulting skills."}
       }
     },
     {
@@ -65,7 +90,11 @@
         "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Rate 900 - 1,100 EUR/day: the upper bound reaches the 1,000 EUR minimum, so no exclusion; full domain fit."},
         "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "Upper bound 1,100 >= 950; only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Upper bound 1,100 >= 950; only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Upper bound 1,100 reaches the minimum 1,000; controlling, IFRS and S/4HANA fit."},
+        "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Rate range fine; only S/4HANA fits."}
       }
     },
     {
@@ -74,7 +103,11 @@
         "fin": {"band": [80, 100], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
           "why": "95 EUR/hour x 8 = 760 EUR/day, clearly below 1,000; the domain fit is full."},
         "it": {"band": [10, 40], "status": "excluded", "violations": ["dayRate"], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Budgetierung"],
-          "why": "760 EUR/day below 950; only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only). The 950 minimum comes from einsatzpraeferenzen.tagessatz_ab."}
+          "why": "760 EUR/day below 950; only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only). The 950 minimum comes from einsatzpraeferenzen.tagessatz_ab."},
+        "senior": {"band": [80, 100], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "95 EUR per hour = 760 EUR per day, below 1,000: decided; skills fit."},
+        "sap": {"band": [0, 25], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "760 EUR per day below 950: decided; controlling, budgeting and project management do not fit."}
       }
     },
     {
@@ -83,7 +116,11 @@
         "fin": {"band": [80, 100], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
           "why": "750 EUR/day below 1,000; Controlling, consolidation and PM fit."},
         "it": {"band": [5, 35], "status": "excluded", "violations": ["dayRate"], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konsolidierung"],
-          "why": "750 below 950; only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only). The 950 minimum comes from einsatzpraeferenzen.tagessatz_ab."}
+          "why": "750 below 950; only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only). The 950 minimum comes from einsatzpraeferenzen.tagessatz_ab."},
+        "senior": {"band": [80, 100], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "750 EUR per day below 1,000: decided; skills fit."},
+        "sap": {"band": [0, 25], "status": "excluded", "violations": ["dayRate"], "checks": [], "mustOpen": [],
+          "why": "750 EUR per day below 950: decided; no fitting skill."}
       }
     },
     {
@@ -92,7 +129,11 @@
         "fin": {"band": [80, 100], "status": "excluded", "violations": ["country"], "checks": [], "mustOpen": [],
           "why": "On-site in Warsaw, Poland, not remote; PL is outside DE/AT/CH. Domain fit is full."},
         "it": {"band": [10, 40], "status": "excluded", "violations": ["country"], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Changemanagement"],
-          "why": "On-site in Poland; only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "On-site in Poland; only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "excluded", "violations": ["country"], "checks": [], "mustOpen": [],
+          "why": "On site in Warsaw (PL), outside DACH: decided; skills fit."},
+        "sap": {"band": [0, 25], "status": "excluded", "violations": ["country"], "checks": [], "mustOpen": [],
+          "why": "On site in Poland: decided; no fitting skill."}
       }
     },
     {
@@ -101,7 +142,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "The USA is only the client's headquarters; work is 100 % remote from Germany; all three musts fit."},
         "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "The US mention is not a work country (remote from DE); only PM fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "The US mention is not a work country (remote from DE); only PM fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "US headquarters is no work location; fully remote from DE; all musts fit."},
+        "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Group reporting lead with controlling and IFRS; none of it is SAP FI/CO work."}
       }
     },
     {
@@ -110,7 +155,11 @@
         "fin": {"band": [45, 75], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Niveau C1"],
           "why": "Controlling fits, but the profile states English B2 while C1 is required."},
         "it": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling"],
-          "why": "English C1 fits; the controlling core of the role is missing. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "English C1 fits; the controlling core of the role is missing. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [75, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Both musts fit (controlling, English C1 with a C1 profile)."},
+        "sap": {"band": [25, 55], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "English C1 fits, controlling does not."}
       }
     },
     {
@@ -119,7 +168,11 @@
         "fin": {"band": [55, 80], "status": "scored", "violations": [], "checks": [], "mustOpen": ["15 Jahre Erfahrung in der Konsolidierung"],
           "why": "Controlling (18 >= 10 years) and PM fit; consolidation has 11 of the required 15 years."},
         "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konsolidierung"],
-          "why": "Only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only project management fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Ten years controlling and fifteen years consolidation are covered (28 and 20 years); minimum 10 is not below the target profile."},
+        "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling"],
+          "why": "Group controlling head; no controlling or consolidation experience."}
       }
     },
     {
@@ -128,7 +181,11 @@
         "fin": {"band": [50, 80], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
           "why": "No explicit requirements; the described environment (S/4HANA, Power BI, consolidation, LucaNet) matches well but evidence is thin."},
         "it": {"band": [20, 50], "status": "scored", "violations": [], "checks": ["lowEvidence", "availabilityGap"], "mustOpen": [],
-          "why": "Only S/4HANA from the described environment fits; no explicit requirements. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only S/4HANA from the described environment fits; no explicit requirements. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [50, 80], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "No requirement section, only vocabulary (S/4HANA, Power BI, LucaNet, consolidation): low evidence."},
+        "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Vocabulary only; S/4HANA is the only overlap."}
       }
     },
     {
@@ -137,7 +194,11 @@
         "fin": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
           "why": "No description beyond ID, place and start."},
         "it": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText", "availabilityGap"], "mustOpen": [],
-          "why": "No description beyond ID, place and start. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "No description beyond ID, place and start. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Too little text."},
+        "sap": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Too little text."}
       }
     },
     {
@@ -146,7 +207,11 @@
         "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Carve-out projects, post merger integration and change management are core skills ('Carve-out-Projekten' must match 'Carve-out'); LucaNet nice-to-have fits."},
         "it": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Carve-out", "Post Merger Integration", "Changemanagement"],
-          "why": "No transaction or change management background. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "No transaction or change management background. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Carve-out, PMI, change management and LucaNet are core skills."},
+        "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Carve-out and PMI are not SAP FI/CO work."}
       }
     },
     {
@@ -155,7 +220,11 @@
         "fin": {"band": [65, 85], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Oracle Hyperion"],
           "why": "Controlling, IFRS, S/4HANA and Power BI fit ('Ihre Qualifikation' is a must heading); Oracle Hyperion is not in the profile."},
         "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "IFRS", "Oracle Hyperion"],
-          "why": "Only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [65, 85], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Oracle Hyperion"],
+          "why": "Controlling, IFRS and S/4HANA fit; Oracle Hyperion is open."},
+        "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Only S/4HANA fits."}
       }
     },
     {
@@ -164,7 +233,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Budgeting, forecast, liquidity planning, S/4HANA and Power BI are all profile skills."},
         "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Budgetierung", "Liquiditätsplanung", "Power BI"],
-          "why": "Only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only S/4HANA fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Budgeting, forecast, liquidity planning, S/4HANA and Power BI all fit."},
+        "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Only S/4HANA fits."}
       }
     },
     {
@@ -173,7 +246,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "'LucaNet oder IBM Cognos', 'S/4HANA bzw. SAP ECC' and 'Power BI / Tableau' are alternatives; one option of each is in the profile."},
         "it": {"band": [20, 50], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["LucaNet", "Power BI"],
-          "why": "S/4HANA/ECC fits; the consolidation tool and BI tool alternatives are missing. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "S/4HANA/ECC fits; the consolidation tool and BI tool alternatives are missing. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Each OR requirement is met by one branch (LucaNet, S/4HANA, Power BI)."},
+        "sap": {"band": [20, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "S/4HANA or ECC fits; LucaNet/Cognos and Power BI/Tableau do not."}
       }
     },
     {
@@ -182,7 +259,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Consolidation tools 'z. B. LucaNet', reporting tools 'u. a. Power BI' and controlling incl. budgeting are covered; examples must not become separate musts."},
         "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["LucaNet", "Controlling"],
-          "why": "Nothing of the finance tool stack fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Nothing of the finance tool stack fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Examples (LucaNet, Power BI) and controlling incl. budgeting fit."},
+        "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Consolidation tools, reporting tools and controlling are not in the profile."}
       }
     },
     {
@@ -191,7 +272,11 @@
         "fin": {"band": [75, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "'Finanztransformation', 'Restrukturierungsumfeld' and 'SAP-S/4HANA-Projekten' are compounds of profile skills (Business Transformation, Restrukturierung, SAP S/4HANA)."},
         "it": {"band": [20, 50], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Finanztransformation", "Restrukturierungsumfeld"],
-          "why": "Only S/4HANA projects fit. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only S/4HANA projects fit. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Finance transformation, restructuring and S/4HANA projects fit."},
+        "sap": {"band": [20, 50], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "S/4HANA projects fit; finance transformation and restructuring do not."}
       }
     },
     {
@@ -200,7 +285,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Month-end and year-end closings, consolidation and restructuring are core skills in inflected forms."},
         "it": {"band": [0, 20], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Monatsabschlüssen", "Konsolidierung", "Restrukturierungen"],
-          "why": "No finance closing background. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "No finance closing background. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Closings, consolidation and restructuring are core skills."},
+        "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Closing and consolidation work, not SAP configuration."}
       }
     },
     {
@@ -209,7 +298,11 @@
         "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Großkonzern (Swiss spelling in the title), IFRS closings and process optimisation in finance fit; Switzerland allowed and work is remote from DE."},
         "it": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["IFRS", "Prozessoptimierung im Finanzbereich"],
-          "why": "No accounting background; work is remote from DE, so the Swiss seat is no violation. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "No accounting background; work is remote from DE, so the Swiss seat is no violation. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Zurich office but fully remote from DE (CH allowed anyway); large group, IFRS and finance process optimisation fit."},
+        "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Group accounting in Switzerland (allowed); no fitting skill."}
       }
     },
     {
@@ -218,7 +311,11 @@
         "fin": {"band": [70, 90], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Controlling, IFRS group accounting, S/4HANA and German fit (English wording must map to German skills); English B2 against 'fluent'; Power BI nice-to-have fits."},
         "it": {"band": [25, 50], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["controlling", "IFRS"],
-          "why": "S/4HANA and both languages fit; the finance core is missing. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "S/4HANA and both languages fit; the finance core is missing. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Controlling, IFRS group accounting, S/4HANA and fluent German and English (C1) fit."},
+        "sap": {"band": [30, 60], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "S/4HANA and both languages fit, controlling and IFRS do not."}
       }
     },
     {
@@ -227,7 +324,11 @@
         "fin": {"band": [65, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "PM and group consolidation ('Konzernkonsolidierung' compound) fit; 'Management' is generic but covered by interim management."},
         "it": {"band": [25, 50], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Konzernkonsolidierung"],
-          "why": "Only project management fits; group consolidation is missing and a generic 'Management' cannot carry the fit. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only project management fits; group consolidation is missing and a generic 'Management' cannot carry the fit. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [65, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Project management and group consolidation fit; a bare 'management' requirement stays vague."},
+        "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Consolidation support; no fitting skill."}
       }
     },
     {
@@ -236,7 +337,11 @@
         "fin": {"band": [70, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Both hard musts fit; the other lines are soft skills, travel and availability that must not weigh like hard skills."},
         "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "Hard musts missing; soft skills cannot rescue the fit. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Hard musts missing; soft skills cannot rescue the fit. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [70, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Controlling and IFRS fit; soft skills count little, travel and availability are frame items."},
+        "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Controlling and IFRS are open."}
       }
     },
     {
@@ -245,7 +350,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Requirement sentences ('Vorausgesetzt werden ...') name Controlling and IFRS; the PM certification nice-to-have fits (GPM)."},
         "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "Only the PM certification nice-to-have fits (PMP). Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only the PM certification nice-to-have fits (PMP). Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Requirement sentences: controlling and IFRS fit; a PM certificate is only a plus."},
+        "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Controlling and IFRS are open."}
       }
     },
     {
@@ -254,7 +363,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "A start in January 2027 is later than immediate availability, which is no violation; full domain fit."},
         "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling", "Konsolidierung"],
-          "why": "Start after 01.11.2026 is fine; only PM fits."}
+          "why": "Start after 01.11.2026 is fine; only PM fits."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Controlling, consolidation and project management fit; a later start is fine."},
+        "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Controlling and consolidation are open."}
       }
     },
     {
@@ -263,7 +376,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Austria allowed, 60 % remote; Controlling, consolidation and S/4HANA fit; a vague start is harmless with immediate availability."},
         "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["startVague"], "mustOpen": ["Controlling", "Konsolidierung"],
-          "why": "AT allowed; 'Start: nach Abstimmung' cannot be checked against availability from 01.11.2026; only S/4HANA fits."}
+          "why": "AT allowed; 'Start: nach Abstimmung' cannot be checked against availability from 01.11.2026; only S/4HANA fits."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Vienna is in AT (allowed); controlling, consolidation and S/4HANA fit."},
+        "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Only S/4HANA fits; Austria is allowed."}
       }
     },
     {
@@ -272,7 +389,11 @@
         "fin": {"band": [85, 100], "status": "scored", "violations": [], "checks": ["dayRateCurrency"], "mustOpen": [],
           "why": "CHF 950/day cannot be compared with the EUR minimum without conversion; Switzerland allowed; full domain fit."},
         "it": {"band": [5, 35], "status": "excluded", "violations": ["country"], "checks": ["dayRateCurrency", "availabilityGap"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "On-site in Zürich; CH is outside DE/AT; only PM fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only). The day-rate check uses the 950 fallback from einsatzpraeferenzen.tagessatz_ab."}
+          "why": "On-site in Zürich; CH is outside DE/AT; only PM fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only). The day-rate check uses the 950 fallback from einsatzpraeferenzen.tagessatz_ab."},
+        "senior": {"band": [85, 100], "status": "scored", "violations": [], "checks": ["dayRateCurrency"], "mustOpen": [],
+          "why": "Rate in CHF: no EUR comparison, check only; skills fit."},
+        "sap": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["dayRateCurrency"], "mustOpen": [],
+          "why": "CHF rate: check only; Switzerland allowed; no fitting skill."}
       }
     },
     {
@@ -281,7 +402,11 @@
         "fin": {"band": [75, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "English ad: S/4HANA finance projects, controlling and month-end closing, project management and German fit; English B2 vs fluent; LucaNet and a comparable certification (GPM) fit."},
         "it": {"band": [45, 75], "status": "scored", "violations": [], "checks": [], "mustOpen": ["controlling and month-end closing"],
-          "why": "S/4HANA migration leadership, PM, languages and PMP fit; the finance/controlling background is missing."}
+          "why": "S/4HANA migration leadership, PM, languages and PMP fit; the finance/controlling background is missing."},
+        "senior": {"band": [75, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Interim S/4HANA finance lead: 'at least 8 years' is an open range with a Lead title (no exclusion, over-qualified at most); skills and languages fit."},
+        "sap": {"band": [40, 70], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "SAP ECC/S/4HANA finance projects and languages fit; controlling and ERP project management are open."}
       }
     },
     {
@@ -290,7 +415,11 @@
         "fin": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
           "why": "Teaser only: S/4HANA rollout project lead; the finance profile knows S/4HANA but not rollout leadership."},
         "it": {"band": [50, 80], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
-          "why": "The teaser matches the profile exactly (S/4HANA rollout project lead) but states almost no requirements."}
+          "why": "The teaser matches the profile exactly (S/4HANA rollout project lead) but states almost no requirements."},
+        "senior": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Teaser only; an S/4HANA rollout lead is a side topic for this profile."},
+        "sap": {"band": [35, 65], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Teaser only; S/4HANA and rollout fit, project leadership is not shown."}
       }
     },
     {
@@ -299,7 +428,11 @@
         "fin": {"band": [70, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
           "why": "Permanent position with salary (check only, no day-rate rule); degree, group controlling leadership, IFRS/HGB and S/4HANA fit."},
         "it": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": ["Konzerncontrolling", "IFRS"],
-          "why": "Permanent position; only S/4HANA and a business degree fit."}
+          "why": "Permanent position; only S/4HANA and a business degree fit."},
+        "senior": {"band": [65, 95], "status": "excluded", "violations": ["permanentRegion", "salary"], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent: stated salary 110,000 EUR below 150,000 and Bielefeld outside the Munich region with only two home-office days: both decided."},
+        "sap": {"band": [20, 50], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent with 110,000 EUR (above 95,000); degree and S/4HANA fit, group controlling does not."}
       }
     },
     {
@@ -308,7 +441,11 @@
         "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
           "why": "Same project as K07 on another portal; must score like K07 (upper bound 1,100 reaches the minimum)."},
         "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling", "Konzernrechnungslegung nach IFRS"],
-          "why": "Same as K07. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Same as K07. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Duplicate of K07; must score like K07."},
+        "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Duplicate of K07."}
       }
     },
     {
@@ -317,7 +454,11 @@
         "fin": {"band": [5, 35], "status": "excluded", "violations": ["dayRate"], "checks": ["anueOptional"], "mustOpen": ["SAP MM", "Datenmigration", "Testmanagement"],
           "why": "980 EUR/day below 1,000; an SAP MM role outside the finance profile; ANÜ only offered as an option."},
         "it": {"band": [85, 100], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
-          "why": "SAP MM, data migration, test management and German fit; 980 >= 950; ANÜ only optional ('direkt oder über einen Personaldienstleister ... Überlassung')."}
+          "why": "SAP MM, data migration, test management and German fit; 980 >= 950; ANÜ only optional ('direkt oder über einen Personaldienstleister ... Überlassung')."},
+        "senior": {"band": [5, 35], "status": "excluded", "violations": ["dayRate"], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "980 EUR below 1,000: decided; SAP MM is outside the finance profile."},
+        "sap": {"band": [40, 70], "status": "scored", "violations": [], "checks": ["anueOptional"], "mustOpen": [],
+          "why": "980 EUR reaches 950; data migration, test management and German fit, SAP MM itself does not."}
       }
     },
     {
@@ -326,7 +467,11 @@
         "fin": {"band": [55, 85], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
           "why": "Only nice-to-haves; year-end closing under HGB and LucaNet fit, DATEV does not; nice-to-haves must not turn into musts."},
         "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["lowEvidence", "availabilityGap"], "mustOpen": [],
-          "why": "Only nice-to-haves and none fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Only nice-to-haves and none fits. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [55, 85], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Only nice-to-haves (HGB closings, DATEV, LucaNet): low evidence."},
+        "sap": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["lowEvidence"], "mustOpen": [],
+          "why": "Nice-to-haves only; none fits."}
       }
     },
     {
@@ -335,7 +480,11 @@
         "fin": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": ["SAP EWM"],
           "why": "Project lead of SAP implementations and SAP EWM are outside the finance profile; soft skills do not decide."},
         "it": {"band": [70, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
-          "why": "Project lead of SAP implementations and SAP EWM fit; seven soft-skill lines must not drag the score down."}
+          "why": "Project lead of SAP implementations and SAP EWM fit; seven soft-skill lines must not drag the score down."},
+        "senior": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "SAP EWM implementation lead with soft skills; not a finance role."},
+        "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "SAP EWM project lead; FI/CO consulting does not cover it."}
       }
     },
     {
@@ -344,7 +493,11 @@
         "fin": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
           "why": "Title only; 'Interim CFO' looks relevant but there is no text to assess."},
         "it": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText", "availabilityGap"], "mustOpen": [],
-          "why": "Title only. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."}
+          "why": "Title only. Start 'sofort' is 46 days before the availability 01.11.2026 (check only)."},
+        "senior": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Title only."},
+        "sap": {"band": [0, 30], "status": "unscorable", "violations": [], "checks": ["shortText"], "mustOpen": [],
+          "why": "Title only."}
       }
     },
     {
@@ -353,7 +506,11 @@
         "fin": {"band": [65, 90], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": [],
           "why": "Degree, transformation leadership, controlling/IFRS, change management and German fit; S/4HANA overall lead only partly; ANÜ explicitly excluded by the client; travel to PL/CZ sites while based in Hamburg."},
         "it": {"band": [45, 75], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": ["Controlling und Konzernrechnungslegung"],
-          "why": "Degree (Wirtschaftsinformatik named), programme lead, S/4HANA, stakeholders and languages fit; finance core missing; PL/CZ travel unclear for DE/AT."}
+          "why": "Degree (Wirtschaftsinformatik named), programme lead, S/4HANA, stakeholders and languages fit; finance core missing; PL/CZ travel unclear for DE/AT."},
+        "senior": {"band": [75, 100], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": [],
+          "why": "Finance transformation programme lead; degree, ten years, IFRS, change and languages fit; travel to PL/CZ is a check."},
+        "sap": {"band": [35, 65], "status": "scored", "violations": [], "checks": ["countryUnclear"], "mustOpen": [],
+          "why": "Degree, general experience and languages fit; programme lead, controlling and IFRS do not; travel to PL/CZ is a check."}
       }
     },
     {
@@ -362,7 +519,167 @@
         "fin": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["SAP SD", "Order-to-Cash"],
           "why": "Only S/4HANA and (B2) English partly fit; Switzerland is allowed, so the remote/on-site conflict does not matter."},
         "it": {"band": [80, 100], "status": "scored", "violations": [], "checks": ["countryUnclear", "startVague"], "mustOpen": [],
-          "why": "SAP SD, order-to-cash, S/4HANA and English fit; facts say 100 % remote while the text says mostly on-site in Basel (CH): a check, not a decided exclusion. Facts say 'sofort' while the text says 01.12.2026: startVague."}
+          "why": "SAP SD, order-to-cash, S/4HANA and English fit; facts say 100 % remote while the text says mostly on-site in Basel (CH): a check, not a decided exclusion. Facts say 'sofort' while the text says 01.12.2026: startVague."},
+        "senior": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["SAP SD", "Order-to-Cash"],
+          "why": "SAP SD role; only S/4HANA and English fit."},
+        "sap": {"band": [25, 55], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "S/4HANA and English fit; SAP SD and order-to-cash are logistics modules the FI/CO profile does not cover; Basel is in CH (allowed)."}
+      }
+    },
+    {
+      "id": "K41", "portal": "linkedin", "location": "München, Bayern, Deutschland", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [60, 90], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent group accounting head; degree, IFRS/HGB, consolidation and S/4HANA fit, leadership not shown; this profile sets no salary rule."},
+        "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": ["Konsolidierung"],
+          "why": "Permanent accounting role; only S/4HANA fits."},
+        "senior": {"band": [65, 95], "status": "excluded", "violations": ["salary"], "checks": ["permanent"], "mustOpen": [],
+          "why": "Stated upper bound 130,000 EUR per year is below 150,000: decided; Munich itself is inside the region."},
+        "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": ["IFRS"],
+          "why": "Salary up to 130,000 EUR reaches 95,000; degree and S/4HANA fit, IFRS and consolidation do not."}
+      }
+    },
+    {
+      "id": "K42", "portal": "linkedin", "location": "Frankfurt am Main, Hessen, Deutschland", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [25, 55], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": ["Treasury", "M&A"],
+          "why": "Permanent CFO; IFRS/HGB and years fit, treasury, M&A and negotiation-level English are open."},
+        "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": ["IFRS"],
+          "why": "Permanent CFO; nothing of the IT profile."},
+        "senior": {"band": [65, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Salary 160,000-190,000 EUR reaches the minimum; 'Frankfurt am Main oder München' counts as Munich; 15+ years is above the target; strong fit."},
+        "sap": {"band": [5, 30], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent CFO; only English fits."}
+      }
+    },
+    {
+      "id": "K43", "portal": "linkedin", "location": "Frankfurt am Main, Hessen, Deutschland", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": ["Treasury"],
+          "why": "Permanent treasury head; only liquidity planning fits."},
+        "it": {"band": [0, 25], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent treasury role; no fit."},
+        "senior": {"band": [65, 95], "status": "excluded", "violations": ["permanentRegion"], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
+          "why": "Stated permanent role in Frankfurt; 'bis zu drei Tage mobiles Arbeiten' is no proof of 60 % remote: decided; no salary given (check); treasury skills fit."},
+        "sap": {"band": [5, 30], "status": "scored", "violations": [], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
+          "why": "Permanent treasury role without salary (check); only English fits."}
+      }
+    },
+    {
+      "id": "K44", "portal": "linkedin", "location": "Hamburg, Deutschland", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [55, 85], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent finance transformation director; years, process optimisation, change, S/4HANA and German fit, negotiation-level English is open."},
+        "it": {"band": [30, 60], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "S/4HANA, years and languages fit; finance process optimisation and change management do not."},
+        "senior": {"band": [65, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Hamburg is outside the region but the ad states 80 % remote (>= 60 %): no exclusion; 170,000 EUR reaches the minimum; strong fit."},
+        "sap": {"band": [30, 60], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Salary fine; S/4HANA, years and languages fit, transformation and change do not."}
+      }
+    },
+    {
+      "id": "K45", "portal": "linkedin", "location": "Deutschland", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [70, 95], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent group controlling; ten years controlling, IFRS, LucaNet and Power BI fit."},
+        "it": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Group controlling role; no fit."},
+        "senior": {"band": [70, 95], "status": "scored", "violations": [], "checks": ["permanent", "permanentRegionUnclear", "salaryUnknown"], "mustOpen": [],
+          "why": "Location only 'Deutschland' without a remote statement: no exclusion, region unclear; no salary given; all musts fit."},
+        "sap": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
+          "why": "Permanent role without salary (check); controlling, IFRS, LucaNet and Power BI are open."}
+      }
+    },
+    {
+      "id": "K46", "portal": "linkedin", "location": "Nürnberg, Bayern, Deutschland", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [70, 100], "status": "scored", "violations": [], "checks": ["anueRisk"], "mustOpen": [],
+          "why": "Staffing agency without contract details: ANUE risk (check); controlling, SAP FI/CO and Excel fit."},
+        "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["anueRisk"], "mustOpen": [],
+          "why": "Agency without details (ANUE risk); controller role outside the IT profile."},
+        "senior": {"band": [70, 100], "status": "scored", "violations": [], "checks": ["anueRisk", "permanentRegionUnclear", "salaryUnknown"], "mustOpen": [],
+          "why": "Agency without details: checked like a permanent role (Nuremberg outside the region, no salary) but nothing is decided; ANUE risk; skills fit."},
+        "sap": {"band": [35, 65], "status": "scored", "violations": [], "checks": ["anueRisk", "salaryUnknown"], "mustOpen": [],
+          "why": "Agency without details: ANUE risk, no salary; SAP FI/CO and Excel fit, controlling does not."}
+      }
+    },
+    {
+      "id": "K47", "portal": "freelancermap", "location": "Kasseler Straße 10, 34117 Kassel", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Interim closing support at 1,050 EUR; controlling, HGB closings and S/4HANA fit; this profile sets no target-years rule."},
+        "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["Controlling"],
+          "why": "Only S/4HANA fits; start 'ab sofort' is before the availability."},
+        "senior": {"band": [80, 100], "status": "excluded", "violations": ["tooJunior"], "checks": [], "mustOpen": [],
+          "why": "'3-5 Jahre Berufserfahrung' is a closed range below the target of 10 years: decided; the skills themselves fit."},
+        "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": [], "mustOpen": ["Controlling"],
+          "why": "Range 3-5 years reaches the target of 5 (no exclusion); only S/4HANA fits."}
+      }
+    },
+    {
+      "id": "K48", "portal": "linkedin", "location": "München, Bayern, Deutschland (Remote)", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [70, 90], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "FP&A/controlling, budgeting and forecasting, Power BI and German fit; English B2 is below fluent."},
+        "it": {"band": [5, 35], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": [],
+          "why": "FP&A role; only the languages fit; start 01.10.2026 is before the availability."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "'7+ years' is an open range with a Senior title: no exclusion (over-qualified at most); all requirements fit."},
+        "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Seven years reach the target of 5; only the languages fit."}
+      }
+    },
+    {
+      "id": "K49", "portal": "freelance", "location": "D-93047 Regensburg", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [25, 45], "status": "excluded", "violations": ["formalOpen"], "checks": [], "mustOpen": [],
+          "why": "A technical degree is 'zwingend erforderlich' and the profile holds a business degree: an unattainable formal duty, decided; score capped."},
+        "it": {"band": [5, 35], "status": "excluded", "violations": ["formalOpen"], "checks": ["availabilityGap"], "mustOpen": [],
+          "why": "Mandatory engineering degree, profile holds business informatics: decided; little else fits."},
+        "senior": {"band": [25, 45], "status": "excluded", "violations": ["formalOpen"], "checks": [], "mustOpen": [],
+          "why": "Mandatory engineering degree vs Diplom-Kauffrau: decided; project controlling, restructuring and S/4HANA would fit (score capped)."},
+        "sap": {"band": [5, 35], "status": "excluded", "violations": ["formalOpen"], "checks": [], "mustOpen": [],
+          "why": "Mandatory engineering degree vs business bachelor: decided; only S/4HANA fits."}
+      }
+    },
+    {
+      "id": "K50", "portal": "linkedin", "location": "Stuttgart, Baden-Württemberg, Deutschland", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [70, 95], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Diplom-Kauffrau (Univ.) meets the Master's degree in business administration; group reporting, consolidation and LucaNet fit; English B2 is below fluent."},
+        "it": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": ["consolidation"],
+          "why": "Business informatics is only related and an FH diploma is below a Master; group reporting and consolidation are open."},
+        "senior": {"band": [80, 100], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "Diplom-Kauffrau (Univ.) meets the Master's degree; 10+ years group reporting, IFRS consolidation, LucaNet and fluent English fit."},
+        "sap": {"band": [30, 60], "status": "scored", "violations": [], "checks": [], "mustOpen": [],
+          "why": "A business bachelor is below the required Master (partial); SAP Group Reporting and English fit; ten years of group reporting and IFRS consolidation are open."}
+      }
+    },
+    {
+      "id": "K51", "portal": "linkedin", "location": "Berlin, Deutschland", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [45, 75], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "'Why join us', benefits and a work-permit question make it permanent; accounting/controlling and HGB closing fit, DATEV and fluent English are open."},
+        "it": {"band": [0, 30], "status": "scored", "violations": [], "checks": ["permanent"], "mustOpen": [],
+          "why": "Permanent finance manager; no fit."},
+        "senior": {"band": [55, 85], "status": "excluded", "violations": ["tooJunior"], "checks": ["permanent", "permanentRegion", "salaryUnknown"], "mustOpen": [],
+          "why": "'At least 5 years' of professional experience for a plain 'Finance Manager' is below the target of 10: decided; inferred permanent role in Berlin (region only a check), no salary."},
+        "sap": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["permanent", "salaryUnknown"], "mustOpen": [],
+          "why": "Five years reach the target of 5; inferred permanent without salary; only the languages fit."}
+      }
+    },
+    {
+      "id": "K52", "portal": "freelancermap", "location": "Rheinuferstraße 2, 68159 Mannheim", "mailDate": "2026-09-23", "kind": "full", "facts": null, "duplicateOf": null, "since": 3,
+      "expect": {
+        "fin": {"band": [25, 45], "status": "scored", "violations": [], "checks": ["formalOpen"], "mustOpen": [],
+          "why": "A computer science degree is required (not worded as mandatory) and the profile holds a business degree: formal requirement open, score capped although LucaNet, IFRS and S/4HANA fit."},
+        "it": {"band": [15, 45], "status": "scored", "violations": [], "checks": ["availabilityGap"], "mustOpen": [],
+          "why": "Business informatics is related to computer science (partial); S/4HANA fits, consolidation software and IFRS do not."},
+        "senior": {"band": [25, 45], "status": "scored", "violations": [], "checks": ["formalOpen"], "mustOpen": [],
+          "why": "Computer science degree required, Diplom-Kauffrau: formal requirement open, score capped; the other musts fit."},
+        "sap": {"band": [10, 40], "status": "scored", "violations": [], "checks": ["formalOpen"], "mustOpen": [],
+          "why": "Computer science degree open (business bachelor): capped; only S/4HANA fits."}
       }
     }
   ]
