@@ -1,7 +1,8 @@
 <!--
   Label, control, hint (or the error in its place) and the hint's way on, which stays while
-  an error shows: it is what helps most then. The action's text lines up with the edges of
-  the field, next to the hint or on a line of its own.
+  an error shows: it is what helps most then. The way on is a navy link (it underlines on
+  hover; one that leaves the app shows the hand) whose text lines up with the edges of the
+  field, next to the hint or on a line of its own.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -38,9 +39,10 @@
       {#if action}
         <span class="action">
           <Button
-            variant="ghost"
+            variant="link"
             size="sm"
             icon={action.icon ?? null}
+            external={action.icon === 'external-link'}
             label={action.label}
             testid={action.testid ?? null}
             onclick={action.onclick}
@@ -84,10 +86,8 @@
     min-height: var(--control-sm);
   }
 
-  /* The ghost button's own padding stays outside the field's edges: right of the hint its
-     text ends on the right edge, wrapped onto its own line it starts on the left edge. */
   .action {
-    margin: 0 calc(-1 * var(--space-12));
+    display: inline-flex;
   }
 
   .error {

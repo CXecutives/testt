@@ -1,12 +1,17 @@
 <!--
-  A number with a label; optionally clickable (a filter). Calm: a white tile with a
-  hairline, the icon small in the label line, coloured only when the tone means something.
-  The number is simply there (no count-up each time the view comes back). A clickable tile
-  darkens its hairline on hover; the active tile (its filter is on) takes an ink edge on a
-  muted surface (coral stays for the few accents).
+  A number with a label; optionally clickable (a filter). Calm at rest: a white tile with a
+  hairline, the icon small in the label line (navy for a neutral tile, the tone's colour
+  otherwise), the value in ink. A clickable tile answers on hover with a navy hairline and a
+  soft shadow that fades in (painted once on ::after, never animated as a shadow, no lift),
+  and gives a little under the pointer (0.985, 60 ms). The active tile (its filter is on)
+  takes the navy trio of a chosen filter. A value of 0 is quiet (subtle) and not a filter:
+  the tile is static then. The number rolls when it changes on screen, not when the view
+  comes back.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { formatNumber } from '$lib/i18n/format';
+  import { roll } from '$lib/motion/transitions';
   import Icon, { type IconName } from './Icon.svelte';
   import type { TileTone } from './IconTile.svelte';
 
@@ -32,6 +37,20 @@
     onclick = null,
     testid = null,
   }: Props = $props();
+
+  // An empty tile filters nothing (an active one stays a button, so it can be cleared).
+  const clickable = $derived(onclick !== null && (value !== 0 || active));
+
+  let previous = untrack(() => value);
+  let up = $state(true);
+
+  $effect.pre(() => {
+    const next = value;
+    untrack(() => {
+      up = next >= previous;
+      previous = next;
+    });
+  });
 </script>
 
 {#snippet body()}
@@ -39,11 +58,13 @@
     {#if icon}<span class="icon {tone}"><Icon name={icon} size="sm" /></span>{/if}
     <span class="label">{label}</span>
   </span>
-  <span class="value">{formatNumber(value)}</span>
+  <span class="value" class:zero={value === 0}>
+    {#key value}<span class="digits" in:roll={{ up }}>{formatNumber(value)}</span>{/key}
+  </span>
   {#if hint}<span class="hint">{hint}</span>{/if}
 {/snippet}
 
-{#if onclick}
+{#if clickable}
   <button
     type="button"
     class="tile clickable"
@@ -62,6 +83,7 @@
 
 <style>
   .tile {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
@@ -75,16 +97,42 @@
 
   .clickable {
     transition:
-      border-color var(--dur-fast) var(--ease-standard),
-      background-color var(--dur-fast) var(--ease-standard);
+      border-color var(--dur-base) var(--ease-standard),
+      background-color var(--dur-base) var(--ease-standard),
+      color var(--dur-base) var(--ease-standard),
+      transform var(--dur-base) var(--ease-emphasized);
+  }
+
+  /* The hover shadow, painted once and shown by opacity. */
+  .clickable::after {
+    position: absolute;
+    inset: calc(-1 * var(--border-width));
+    border-radius: inherit;
+    box-shadow: var(--sh-hover);
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-standard);
   }
 
   .clickable:hover {
-    border-color: var(--border-strong);
+    border-color: var(--border-navy);
+    transition-duration: var(--dur-hover), var(--dur-hover), var(--dur-hover), var(--dur-base);
+  }
+
+  .clickable:hover::after {
+    opacity: 1;
+    transition-duration: var(--dur-hover);
   }
 
   .clickable:active {
     background-color: var(--surface-muted);
+    transform: scale(var(--scale-press-soft));
+    transition-duration: var(--dur-instant);
+  }
+
+  .clickable:active::after {
+    opacity: 0;
     transition-duration: var(--dur-instant);
   }
 
@@ -93,9 +141,10 @@
   }
 
   .active,
-  .active:hover {
-    border-color: var(--text);
-    background-color: var(--surface-muted);
+  .active:hover,
+  .active:active {
+    border-color: var(--active-edge);
+    background-color: var(--active-surface);
   }
 
   .head {
@@ -107,7 +156,7 @@
 
   .icon {
     display: inline-flex;
-    color: var(--text-subtle);
+    color: var(--nav-active-icon);
   }
 
   .icon.success {
@@ -135,12 +184,26 @@
     white-space: nowrap;
   }
 
+  .active .label,
+  .active .value {
+    color: var(--active-text);
+  }
+
   .value {
+    overflow: hidden;
     color: var(--text-heading);
     font: var(--type-xl);
     font-weight: var(--weight-medium);
     font-variant-numeric: var(--numeric);
     letter-spacing: var(--tracking-tight);
+  }
+
+  .value.zero {
+    color: var(--text-subtle);
+  }
+
+  .digits {
+    display: inline-block;
   }
 
   .hint {

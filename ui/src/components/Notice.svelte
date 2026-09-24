@@ -1,7 +1,9 @@
 <!--
   Feedback where the action happened: info | success | warning | danger, inline (icon and
   sentence in the tone), banner (tinted box) or row (a calm line inside a card: the icon in
-  the tone, the text in ink), with at most one action.
+  the tone, the text in ink), with at most one action. Info is navy. A notice that appears in
+  a view already on screen rises 2 px and fades in (150 ms) and fades out (100 ms); one that
+  comes with its view is simply there.
 -->
 <script lang="ts" module>
   export type NoticeTone = 'info' | 'success' | 'warning' | 'danger';
@@ -9,6 +11,7 @@
 </script>
 
 <script lang="ts">
+  import { fade, rise } from '$lib/motion/transitions';
   import Button from './Button.svelte';
   import Icon, { type IconName } from './Icon.svelte';
 
@@ -42,6 +45,8 @@
   class="notice {tone} {variant}"
   role={tone === 'danger' || tone === 'warning' ? 'alert' : 'status'}
   data-testid={testid ?? undefined}
+  in:rise={{ distance: 'sm' }}
+  out:fade
 >
   <span class="icon"><Icon name={ICONS[tone]} size="sm" /></span>
   <div class="copy">

@@ -18,7 +18,7 @@
   import StatTile from '$components/StatTile.svelte';
   import { cssVars } from '$lib/actions/cssVars';
   import { de } from '$lib/i18n/de';
-  import { errorText, healthText } from '$lib/i18n/texts';
+  import { errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { EmptyAlert, JobView, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
   import { rise } from '$lib/motion/transitions';
@@ -113,7 +113,7 @@
 
   /**
    * Each problem of a portal once: alert mails without jobs (the portal's "layout suspect"
-   * health and the empty alerts of the last fetch are one thing) with "In Gmail öffnen", and
+   * health and the empty alerts of the last fetch are one thing) with "Alert-Mail öffnen", and
    * a pause, a limit or a sign-in as its own line.
    */
   function issuesOf(portal: Portal, state: PortalState | undefined, alerts: EmptyAlert[]): Issue[] {
@@ -132,8 +132,7 @@
       out.push({ id: `${portal}-pages`, portal, text: de.health.layoutPages, mail: null });
     }
     if (health !== null && health.kind !== 'ok' && suspect === null) {
-      const said = healthText(health);
-      out.push({ id: `${portal}-health`, portal, text: said.text ?? said.label, mail: null });
+      out.push({ id: `${portal}-health`, portal, text: healthSentence(health) ?? '', mail: null });
     }
     return out;
   }
@@ -273,7 +272,7 @@
             text={issue.text}
             action={issue.mail
               ? {
-                  label: de.overview.openGmail,
+                  label: de.reader.mail,
                   onclick: () => open({ kind: 'alertMail', gmailId: issue.mail ?? '' }),
                 }
               : null}

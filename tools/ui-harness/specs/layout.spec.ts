@@ -102,7 +102,8 @@ test('empty screens are never dead: an icon, one sentence, one way on, centred',
 test('toasts: at most three, they stay while hovered and leave on their own', async ({ page }) => {
   await open(page, '?platform=windows');
   await page.getByTestId('nav-settings').click();
-  for (let i = 0; i < 4; i += 1) await page.getByTestId('toggle-auto-fetch').click();
+  // Switches answer by themselves; rewriting the text files still reports by toast.
+  for (let i = 0; i < 4; i += 1) await page.getByTestId('txt-rewrite').click();
   const toasts = page.getByTestId('toast');
   await expect(toasts).toHaveCount(3);
   await toasts.first().hover();

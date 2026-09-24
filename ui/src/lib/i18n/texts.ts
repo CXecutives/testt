@@ -128,26 +128,21 @@ export function warningText(notice: Notice): string | null {
     : null;
 }
 
-/** Label and one sentence for a portal's health (`ok` has no sentence). */
-export function healthText(health: PortalHealth): { label: string; text: string | null } {
+/** One sentence for a portal's health (`ok` has none). */
+export function healthSentence(health: PortalHealth): string | null {
   switch (health.kind) {
     case 'ok':
-      return { label: de.health.ok, text: null };
+      return null;
     case 'paused':
-      return {
-        label: de.health.paused,
-        text: `${de.run.pause[health.reason]} ${de.run.pausedUntil(health.until)}`,
-      };
+      return de.run.pausedWhy(health.reason, health.until);
     case 'quotaReached':
-      return { label: de.health.quotaReached, text: de.run.quota(health.until) };
+      return de.run.quota(health.until);
     case 'layoutSuspect':
       // Empty alert mails point at the mail format; otherwise the pages looked odd.
-      return {
-        label: de.health.layoutSuspect,
-        text:
-          health.emptyMails > 0 ? de.health.layoutText(health.emptyMails) : de.health.layoutPages,
-      };
+      return health.emptyMails > 0
+        ? de.health.layoutText(health.emptyMails)
+        : de.health.layoutPages;
     case 'loginRequired':
-      return { label: de.health.loginRequired, text: de.health.loginText };
+      return de.health.loginText;
   }
 }

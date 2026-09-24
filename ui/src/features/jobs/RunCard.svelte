@@ -24,7 +24,7 @@
   import Spinner from '$components/Spinner.svelte';
   import { de } from '$lib/i18n/de';
   import { formatMoment, formatNumber, formatTime } from '$lib/i18n/format';
-  import { errorText, healthText } from '$lib/i18n/texts';
+  import { errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget, Portal, PortalHealth, Step } from '$lib/ipc/types';
   import { fade, roll } from '$lib/motion/transitions';
@@ -181,7 +181,7 @@
               tone="warning"
               variant="inline"
               heading={de.portal[portal]}
-              text={healthText(health).text ?? ''}
+              text={healthSentence(health) ?? ''}
               testid="pause-{portal}"
             />
           {/each}

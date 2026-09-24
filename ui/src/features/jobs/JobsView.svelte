@@ -8,9 +8,11 @@
 
   The right pane is a stage with its own scroll position. A job opens once its details are
   there: until then the pane keeps what it shows (the overview or the previous job), so it
-  never goes blank. The new stage rises in over a still picture of the old one, which keeps
-  its own scroll position and fades: the new job starts at the top and the old text never
-  jumps. The close button in the reader head goes back to the day overview.
+  never goes blank. The new stage rises in over the old one, which keeps its own scroll
+  position and fades: the new job starts at the top and the old text never jumps. The old
+  stage is the real one on its way out (nothing is copied or laid out again); it answers no
+  pointer and drops its test ids. The close button in the reader head goes back to the day
+  overview.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -18,7 +20,6 @@
   import EmptyState from '$components/EmptyState.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import { de } from '$lib/i18n/de';
-  import { play } from '$lib/motion/motion';
   import { fade, rise } from '$lib/motion/transitions';
   import { inView } from '$lib/actions/inView';
   import { dragBands } from '$lib/platform';
@@ -47,16 +48,23 @@
    * takes a while, else the day overview. While a job loads quickly the pane keeps what it
    * showed last.
    */
-  let last = OVERVIEW;
-  const stage = $derived.by((): string => {
+  let shown = OVERVIEW;
+  /** Counts the changes: a stage that comes back while the old one still fades is new. */
+  let turns = 0;
+  const stage = $derived.by((): { what: string; turn: number } => {
     const selected = jobs.selected !== null;
-    if (selected && jobs.detailStatus === 'error') last = ERROR;
-    else if (jobs.detail !== null) last = keyOf(jobs.detail.job.key);
-    else if (selected && jobs.detailSlow) last = WAITING;
-    else if (!selected) last = OVERVIEW;
-    return last;
+    let next = shown;
+    if (selected && jobs.detailStatus === 'error') next = ERROR;
+    else if (jobs.detail !== null) next = keyOf(jobs.detail.job.key);
+    else if (selected && jobs.detailSlow) next = WAITING;
+    else if (!selected) next = OVERVIEW;
+    if (next !== shown) {
+      shown = next;
+      turns += 1;
+    }
+    return { what: shown, turn: turns };
   });
-  const reading = $derived(stage !== OVERVIEW);
+  const reading = $derived(stage.what !== OVERVIEW);
   /** The list is scrolled away from its top (the header shows its hairline). */
   let scrolled = $state(false);
 
@@ -72,29 +80,18 @@
   }
 
   /**
-   * The stage that leaves stays behind as a still picture: a copy without test ids, inert
-   * and hidden from assistive technology, at the old scroll position. It fades while the
-   * next stage rises over it. Nothing to leave behind when the pane is not on screen (the
-   * one-column layout switches columns instead).
+   * The stage that leaves stays where it is, at its own scroll position, and fades (150 ms,
+   * ease-in) while the next one rises over it. On its way out it is hidden from assistive
+   * technology and drops its test ids, so nothing on the page exists twice. The one-column
+   * layout switches columns instead: there the old stage simply goes.
    */
-  function leave(node: HTMLElement): Record<string, never> {
-    if (viewport.narrow || node.getClientRects().length === 0) return {};
-    const still = node.cloneNode(true) as HTMLElement;
-    for (const element of [still, ...still.querySelectorAll('[data-testid]')]) {
+  function leave(node: HTMLElement): ReturnType<typeof fade> | Record<string, never> {
+    if (viewport.narrow) return {};
+    for (const element of [node, ...node.querySelectorAll('[data-testid]')]) {
       element.removeAttribute('data-testid');
     }
-    still.inert = true;
-    still.setAttribute('aria-hidden', 'true');
-    node.after(still);
-    still.scrollTop = node.scrollTop;
-    const fading = play(still, [{ opacity: 1 }, { opacity: 0 }], {
-      duration: 'base',
-      easing: 'in',
-      crossfade: true,
-    });
-    if (fading === null) still.remove();
-    else fading.addEventListener('finish', () => still.remove());
-    return {};
+    node.setAttribute('aria-hidden', 'true');
+    return fade(node, { duration: 'base', easing: 'in' });
   }
 </script>
 
@@ -113,11 +110,11 @@
       </div>
     </aside>
     <section class="right" data-testid="reader-pane">
-      {#key stage}
-        <div class="stage" data-testid="stage" in:enter={stage !== OVERVIEW} out:leave>
+      {#key stage.turn}
+        <div class="stage" data-testid="stage" in:enter={stage.what !== OVERVIEW} out:leave>
           {#if dragBands()}<DragBand sheet />{/if}
           <div class="column">
-            {#if stage === OVERVIEW}
+            {#if stage.what === OVERVIEW}
               <DayOverview />
             {:else}
               <div class="back">
@@ -130,7 +127,7 @@
                   onclick={close}
                 />
               </div>
-              {#if stage === ERROR}
+              {#if stage.what === ERROR}
                 <EmptyState
                   icon="triangle-alert"
                   tone="danger"
@@ -141,7 +138,7 @@
                   }}
                   testid="reader-error"
                 />
-              {:else if stage === WAITING}
+              {:else if stage.what === WAITING}
                 <div class="skeleton" data-testid="reader-skeleton">
                   <Skeleton width={80} />
                   <Skeleton width={55} />

@@ -1,7 +1,9 @@
 <!--
   A white card with a hairline, flat (it sits on the white sheet of the content, no shadow).
   plain | interactive | tinted (a calm muted surface).
-  Interactive cards (with onclick) only darken their hairline on hover: no lift, no shadow.
+  Interactive cards (with onclick) answer like a stat tile: a navy hairline and a soft
+  shadow that fades in on hover (no lift), a slight give under the pointer (0.985). Plain
+  and tinted cards never react; only their controls do.
 -->
 <script lang="ts" module>
   export type CardVariant = 'plain' | 'interactive' | 'tinted';
@@ -63,15 +65,42 @@
   }
 
   .interactive {
-    transition: border-color var(--dur-fast) var(--ease-standard);
+    position: relative;
+    transition:
+      border-color var(--dur-base) var(--ease-standard),
+      transform var(--dur-base) var(--ease-emphasized);
+  }
+
+  /* The hover shadow, painted once and shown by opacity (no lift, no animated shadow). */
+  .interactive::after {
+    position: absolute;
+    inset: calc(-1 * var(--border-width));
+    border-radius: inherit;
+    box-shadow: var(--sh-hover);
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-standard);
   }
 
   .interactive:hover {
-    border-color: var(--border-strong);
+    border-color: var(--border-navy);
+    transition-duration: var(--dur-hover), var(--dur-base);
+  }
+
+  .interactive:hover::after {
+    opacity: 1;
+    transition-duration: var(--dur-hover);
   }
 
   .interactive:active {
-    border-color: var(--border-input);
+    transform: scale(var(--scale-press-soft));
+    transition-duration: var(--dur-instant);
+  }
+
+  .interactive:active::after {
+    opacity: 0;
+    transition-duration: var(--dur-instant);
   }
 
   .interactive:focus-visible {

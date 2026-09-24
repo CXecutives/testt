@@ -13,6 +13,7 @@
   const noop = (): void => undefined;
 
   const rings: { id: string; state: RingState }[] = [
+    { id: 'full', state: { status: 'scored', score: 100, band: 'high' } },
     { id: 'high', state: { status: 'scored', score: 91, band: 'high' } },
     { id: 'mid', state: { status: 'scored', score: 64, band: 'mid' } },
     { id: 'low', state: { status: 'scored', score: 28, band: 'low' } },
@@ -23,6 +24,7 @@
   ];
 
   let count = $state(12);
+  let filtered = $state(true);
   let confirmOpen = $state(false);
   let dangerOpen = $state(false);
   /** The danger dialog fails like an action in the dry run: the error shows inside. */
@@ -50,6 +52,16 @@
       tone="warning"
       onclick={noop}
     />
+    <!-- A chosen filter (navy) and an empty tile (static, quiet). -->
+    <StatTile
+      label={t.statFilter}
+      value={4}
+      icon="circle-dashed"
+      active={filtered}
+      onclick={() => (filtered = !filtered)}
+      testid="tile-filter"
+    />
+    <StatTile label={t.statPinned} value={0} icon="star" onclick={noop} testid="tile-empty" />
   </div>
   <!-- Counts roll when they change on screen (not when they first appear). -->
   <div class="row">

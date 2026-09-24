@@ -143,9 +143,9 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   no decorative gradients or glow (one gradient: the light of a loading placeholder); brand mark = the real coral app
   icon (folder + check) as SVG; small shadows only for what floats (dialog, toast, tooltip), none animated; radii
   6/8/10/12/16, 4 px spacing, controls 28/36/40, type 12/13/14 (tabs)/15/15/17/20/26/34 (UI standard 15/22), weights
-  400/500/600, motion 60/80/100/150/180 ms, ring fill 360 ms, loop 1400 ms, ease-out, no stagger, no bounce; window
+  400/500/600, motion 60/80 (hover-in)/100/150/180 ms, ring fill 360 ms, loop 1400 ms, ease-out, no stagger, no bounce; window
   tokens `--mac-toolbar` 52 px and `--traffic-lights-width` 80 px (macOS row, checked against `tauri.macos.conf.json`).
-- 28 components (Button primary|secondary|ghost|danger x sm|md|lg, Icon, IconTile, BrandMark, Card, Badge, Segmented,
+- 29 components (Button primary|secondary|ghost|danger|link x sm|md|lg, Count, Icon, IconTile, BrandMark, Card, Badge, Segmented,
   Toggle, TextField+Field, SideNav, ScoreRing, Meter, Skeleton, Spinner, Notice, EmptyState, StatTile, StatusLine,
   Dialog, Tooltip, Disclosure, SettingRow, ListRow/JobRow, ReasonItem, Toast, DragBand (macOS toolbar row)). Not:
   select, checkbox, radio, context menu, window controls.
