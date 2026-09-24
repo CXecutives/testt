@@ -13,7 +13,11 @@ export type JobView = { key: JobKey, portal: Portal,
 /**
  * Empty when neither the mail nor the link carries a usable title.
  */
-title: string, company: string, location: string, workMode: WorkMode | null, mailDate: string | null, firstSeenAt: string, unread: boolean, pinned: boolean, detail: DetailState, 
+title: string, company: string, location: string, workMode: WorkMode | null, mailDate: string | null, firstSeenAt: string, unread: boolean, 
+/**
+ * Saved ("Gemerkt", the star): the stage `saved`.
+ */
+pinned: boolean, detail: DetailState, 
 /**
  * The full text is short (verified, but under 100 characters).
  */
@@ -23,10 +27,23 @@ short: boolean, match: JobMatch | null,
  */
 alsoOn: Array<Portal>, 
 /**
- * Where the user's application stands (`null` = no application).
+ * The stage in the user's pipeline (`null` = none; `saved` is the star).
  */
 appStatus: AppStatus | null, 
 /**
- * The user hid the job ("not interesting").
+ * When the stage was set last.
  */
-hidden: boolean, };
+statusAt: string | null, 
+/**
+ * The day to follow up (while applied or in talks).
+ */
+followUpOn: string | null, 
+/**
+ * The job is archived (by the user or by age).
+ */
+archived: boolean, 
+/**
+ * The user marked the job as fitting although the engine excludes it ("Trotzdem
+ * passend"): it counts as scored with its fit score, its note is `userOverride`.
+ */
+overridden: boolean, };

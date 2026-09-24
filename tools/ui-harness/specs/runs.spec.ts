@@ -297,3 +297,23 @@ async function jobOf(page: Page, portal: JobView['portal'], id: string): Promise
   expect(job, `${portal}-${id}`).not.toBeNull();
   return job!;
 }
+
+test('an archived job leaves the list and every count but the archive', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const all = await segmentCount(page, 'Alle');
+  const link = page.getByTestId('show-archive');
+  const archived = Number((await link.innerText()).replace(/\D/g, ''));
+  await row(page, 'linkedin-4100200301').click();
+  await page.getByTestId('hide').click();
+  await expect(row(page, 'linkedin-4100200301')).toHaveCount(0);
+  await expect.poll(() => segmentCount(page, 'Alle')).toBe(all - 1);
+  await expect(link).toContainText(String(archived + 1));
+  expect((await calls(page, 'set_archived')).map(([, args]) => args)).toEqual([
+    { key: { portal: 'linkedin', id: '4100200301' }, archived: true },
+  ]);
+  expect((await jobOf(page, 'linkedin', '4100200301')).archived).toBe(true);
+  // The archive lists it.
+  await link.click();
+  await expect(row(page, 'linkedin-4100200301')).toHaveCount(1);
+});

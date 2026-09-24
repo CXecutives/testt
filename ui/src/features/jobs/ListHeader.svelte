@@ -8,7 +8,7 @@
   On macOS this row is the list's part of the toolbar row, centred on the traffic lights,
   and its empty parts move the window.
   Row 2: the one place for filters, Neu · Alle · Gemerkt · Bewerbungen with their counts
-  (always there, also while the reader is open); the archive (hidden jobs), reached from the end of
+  (always there, also while the reader is open); the archive (archived jobs), reached from the end of
   Alle, show as a pill with its x instead.
   Row 3 (with a profile): the order in words ("Beste Passung", "Neueste"), a quiet button
   whose glyph stands half a turn for newest first; a click switches it. Under Gemerkt the
@@ -17,6 +17,8 @@
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
+  import Count from '$components/Count.svelte';
+  import Dialog from '$components/Dialog.svelte';
   import Segmented from '$components/Segmented.svelte';
   import Notice from '$components/Notice.svelte';
   import TextField from '$components/TextField.svelte';
@@ -27,6 +29,8 @@
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { toasts } from '$lib/state/toasts.svelte';
+  import { tooltip } from '$lib/actions/tooltip';
   import { copyTopPrompt } from './prompt';
 
   interface Props {
@@ -35,32 +39,40 @@
   }
   let { scrolled = false }: Props = $props();
 
-  /** Gemerkt is Alle with the pinned filter (until the backend has a list of its own). */
-  type View = JobFacet | 'pinned';
-  const counts = $derived(jobs.overviewCounts ?? jobs.counts);
+  // Every count follows the search, the same way for every segment.
   const views = $derived([
-    { id: 'new' as View, label: de.toolbar.facetNew, count: jobs.counts.new },
-    { id: 'all' as View, label: de.toolbar.facetAll, count: jobs.counts.all },
+    { id: 'new' as JobFacet, label: de.toolbar.facetNew, count: jobs.counts.new },
+    { id: 'all' as JobFacet, label: de.toolbar.facetAll, count: jobs.counts.all },
     // An empty list of the user's own shows no zero (the row stays narrow).
-    { id: 'pinned' as View, label: de.toolbar.facetPinned, count: counts.pinned || null },
+    { id: 'saved' as JobFacet, label: de.toolbar.facetSaved, count: jobs.counts.saved || null },
     {
-      id: 'applications' as View,
+      id: 'applications' as JobFacet,
       label: de.toolbar.facetApplications,
-      count: counts.applications || null,
+      count: jobs.counts.applications || null,
     },
   ]);
-  const view = $derived<View>(jobs.filter === 'pinned' ? 'pinned' : jobs.facet);
 
   let promptError = $state<string | null>(null);
+  let confirmEmpty = $state(false);
+  let emptying = $state(false);
+  let emptyError = $state<string | null>(null);
 
-  function choose(id: View): void {
-    if (id === 'pinned') jobs.setFilter('pinned');
-    else jobs.setFacet(id);
-  }
   /** A filter the segments do not name (a portal, a tile). */
-  const otherFilter = $derived(
-    jobs.filter !== null && jobs.filter !== 'pinned' ? jobs.filter : null,
-  );
+  const otherFilter = $derived(jobs.filter);
+
+  async function emptyArchive(): Promise<void> {
+    emptying = true;
+    emptyError = null;
+    const result = await jobs.emptyArchive();
+    emptying = false;
+    if ('error' in result) {
+      emptyError = result.error;
+      return;
+    }
+    confirmEmpty = false;
+    toasts.show(de.toast.deleted(result.count));
+    void jobs.loadOverview();
+  }
 </script>
 
 {#snippet fetchButton(live: boolean)}
@@ -112,9 +124,10 @@
     </span>
   </div>
   <div class="filters">
-    {#if jobs.facet === 'hidden'}
+    {#if jobs.facet === 'archived'}
       <span class="filter" data-testid="filter" in:pop out:fade>
-        <span class="filter-label">{de.list.hidden}</span>
+        <span class="filter-label">{de.list.archive}</span>
+        <Count value={jobs.counts.archived} tone="plain" />
         <Button
           variant="ghost"
           size="sm"
@@ -128,11 +141,11 @@
     {:else}
       <Segmented
         options={views}
-        value={view}
+        value={jobs.facet}
         label={de.toolbar.facet}
         size="sm"
         testid="facet"
-        onchange={choose}
+        onchange={(id) => jobs.setFacet(id)}
       />
     {/if}
     {#if otherFilter !== null}
@@ -163,22 +176,61 @@
           onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
         />
       </span>
-      {#if view === 'pinned' && counts.pinned > 0}
-        <Button
-          variant="ghost"
-          size="sm"
-          icon="copy"
-          label={de.overview.promptTop}
-          testid="prompt-pinned"
-          onclick={() => void copyTopPrompt().then((error) => (promptError = error))}
-        />
-      {/if}
+      <span class="order-tools">
+        {#if jobs.facet === 'saved' && jobs.counts.saved > 0}
+          <span use:tooltip={de.reader.promptHint}>
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
+              icon="copy"
+              label={de.overview.promptTop}
+              testid="prompt-pinned"
+              onclick={() => void copyTopPrompt().then((error) => (promptError = error))}
+            />
+          </span>
+        {/if}
+        {#if jobs.facet === 'archived'}
+          {#if jobs.counts.archived > 0}
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="trash-2"
+              label={de.list.emptyArchive}
+              testid="empty-archive"
+              onclick={() => (confirmEmpty = true)}
+            />
+          {/if}
+        {:else if jobs.counts.archived > 0}
+          <!-- The archive, reachable from every list; its count follows the search. -->
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="archive"
+            label={de.list.archiveLink(jobs.counts.archived)}
+            testid="show-archive"
+            onclick={() => jobs.setFacet('archived')}
+          />
+        {/if}
+      </span>
     </span>
     {#if promptError}
       <Notice tone="danger" variant="inline" text={promptError} />
     {/if}
   {/if}
 </div>
+
+<Dialog
+  bind:open={confirmEmpty}
+  variant="danger"
+  heading={de.list.emptyArchiveHeading}
+  text={de.list.emptyArchiveText}
+  confirmLabel={de.list.emptyArchive}
+  busy={emptying}
+  error={emptyError}
+  testid="dialog-empty-archive"
+  onconfirm={() => void emptyArchive()}
+/>
 
 <style>
   .header {

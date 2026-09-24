@@ -8,7 +8,7 @@
   there without the count: the rows below are only a part of the excluded jobs). A page that
   fails to load while scrolling says so at the end of the list, with a retry. Clicking the
   selected row again closes it (back to the day overview). At the end of Alle a divider
-  leads to the hidden jobs. An empty list says where jobs come from (an alert on each
+  leads to the archived jobs. An empty list says where jobs come from (an alert on each
   portal, older mails). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
   view's primary). Without a mailbox one note says how to connect one; a missing profile is
@@ -58,7 +58,9 @@
     if (sameKey(jobs.selected, job.key)) jobs.clearSelection();
     else void jobs.select(job, true);
   }
-  const hiddenCount = $derived((jobs.overviewCounts ?? jobs.counts).hidden);
+  // A search also finds archived jobs: their count (the list's, with the search) under the
+  // live hits, a way into the archive with the same search.
+  const archivedHits = $derived(searching && jobs.facet !== 'archived' ? jobs.counts.archived : 0);
   const PORTALS = $derived((app.state?.portals ?? []).filter((p) => p.enabled));
   function openPortal(portal: Portal): void {
     invoke('open_target', { target: { kind: 'portalHome', portal } }).catch(() => undefined);
@@ -150,6 +152,22 @@
   }
 </script>
 
+{#snippet archiveHits()}
+  <div class="divider" data-testid="archive-hits">
+    <span class="divider-label">{de.list.inArchive}</span>
+    <Count value={archivedHits} tone="plain" />
+    <span class="divider-link">
+      <Button
+        variant="link"
+        size="sm"
+        label={de.list.showArchive}
+        testid="show-archive-hits"
+        onclick={() => jobs.setFacet('archived')}
+      />
+    </span>
+  </div>
+{/snippet}
+
 <div
   class="list"
   bind:this={list}
@@ -201,13 +219,16 @@
   {:else if jobs.visible.length === 0 && jobs.status === 'ready'}
     <div class="empty">
       {#if searching}
-        <EmptyState
-          icon="search"
-          tone="neutral"
-          text={de.list.noHit(jobs.search.trim())}
-          secondary={{ label: de.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
-          testid="empty-search"
-        />
+        <div class="stack">
+          <EmptyState
+            icon="search"
+            tone="neutral"
+            text={de.list.noHit(jobs.search.trim())}
+            secondary={{ label: de.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
+            testid="empty-search"
+          />
+          {#if archivedHits > 0}{@render archiveHits()}{/if}
+        </div>
       {:else if jobs.filter !== null}
         <EmptyState
           icon="inbox"
@@ -223,11 +244,11 @@
           text={de.list.emptyApplications}
           testid="empty-applications"
         />
-      {:else if jobs.facet === 'hidden'}
+      {:else if jobs.facet === 'archived'}
         <EmptyState
           icon="inbox"
           tone="neutral"
-          text={de.list.emptyHidden}
+          text={de.list.emptyArchived}
           secondary={{ label: de.list.showAll, onclick: () => jobs.setFacet('all') }}
           testid="empty-hidden"
         />
@@ -311,21 +332,7 @@
         {@render group(excluded, active.length)}
       </div>
     {/if}
-    {#if jobs.facet === 'all' && jobs.filter === null && hiddenCount > 0 && !jobs.more}
-      <div class="divider" data-testid="hidden-divider">
-        <span class="divider-label">{de.list.hidden}</span>
-        <Count value={hiddenCount} tone="plain" />
-        <span class="divider-link">
-          <Button
-            variant="link"
-            size="sm"
-            label={de.list.showHidden}
-            testid="show-hidden"
-            onclick={() => jobs.setFacet('hidden')}
-          />
-        </span>
-      </div>
-    {/if}
+    {#if archivedHits > 0 && !jobs.more}{@render archiveHits()}{/if}
     {#if jobs.pageError}
       <div class="page-error">
         <Notice
@@ -385,6 +392,13 @@
     height: var(--border-width);
     background-color: var(--border);
     content: '';
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
   }
 
   .divider-link {

@@ -1055,13 +1055,8 @@ fn the_catalog_keeps_the_glossary() {
             ("Treffer", "Passung"),
             ("Mailbox", "Postfach"),
         ] {
-            // Only the words the user reads count (keys like `fullMailbox` are code). The
-            // user chose "Beste Treffer als Prompt kopieren" for the prompt of the best
-            // matches (2026-09-24); that label keeps its word.
-            if literals(line)
-                .iter()
-                .any(|text| words(text).contains(old) && !text.contains("als Prompt kopieren"))
-            {
+            // Only the words the user reads count (keys like `fullMailbox` are code).
+            if literals(line).iter().any(|text| words(text).contains(old)) {
                 problems.push(format!("de.ts:{n}: \"{old}\" is called \"{new}\""));
             }
         }

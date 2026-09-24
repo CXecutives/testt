@@ -11,7 +11,7 @@ use jiff::{Timestamp, ToSpan as _};
 use tokio_util::sync::CancellationToken;
 
 use super::imap::{BATCH, MailError, MailSource};
-use super::{MailKind, classify_mail, is_candidate};
+use super::{MAIL_PARSER_VERSION, MailKind, classify_mail, is_candidate};
 use crate::model::AlertMail;
 use crate::portal::Portal;
 use crate::store::{Seen, Store};
@@ -87,7 +87,25 @@ pub enum ScanEvent<'a> {
     Progress { done: usize, total: usize },
 }
 
-/// The day the search starts from (`None` = everything).
+/// The mail parser version the mailbox was last read back with for the jobs an older one
+/// had read (see [`crate::mail::MAIL_PARSER_VERSION`]).
+const MAIL_HEALED: &str = "mail_healed";
+
+/// Jobs an older mail parser read, when they were not read back yet: the oldest mail date.
+fn heal_from(store: &Store) -> crate::Result<Option<Timestamp>> {
+    let healed = store
+        .kv_get(MAIL_HEALED)?
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(0);
+    if healed >= MAIL_PARSER_VERSION {
+        return Ok(None);
+    }
+    store.stale_mail_since()
+}
+
+/// The day the search starts from (`None` = everything). After an update of the mail
+/// parser the first scan reaches back once to the oldest job the older one read, so the
+/// current one reads it again (read-only, alert mails only).
 fn scan_since(
     store: &Store,
     scope: Scope,
@@ -108,6 +126,9 @@ fn scan_since(
                     _ => first,
                 };
                 since = since.min(from);
+            }
+            if let Some(stale) = heal_from(store)?.filter(|at| *at <= now) {
+                since = since.min(local_date(stale).saturating_sub(1.day()));
             }
             Some(since)
         }
@@ -186,6 +207,8 @@ pub async fn scan<S: MailSource>(
             store.set_last_scan(portal, started)?;
         }
     }
+    // A complete pass read back what an older mail parser had read: once is enough.
+    store.kv_set(MAIL_HEALED, &MAIL_PARSER_VERSION.to_string())?;
     Ok(())
 }
 
@@ -436,6 +459,38 @@ mod tests {
             "first run 30 days; then last state minus 1 day; \"All\" without a limit"
         );
         assert_eq!(store.last_scan(Portal::LinkedIn).unwrap(), Some(later));
+    }
+
+    /// After an update of the mail parser the first scan reads back once to the oldest job
+    /// the older parser read; the job takes the current reading, the next scan is normal.
+    #[tokio::test]
+    async fn an_updated_mail_parser_reads_back_once() {
+        let store = Store::in_memory().unwrap();
+        let mut source = fake(None);
+        run_scan(&store, &mut source, Scope::New, now())
+            .await
+            .1
+            .unwrap();
+        let key = crate::portal::job_link("https://www.linkedin.com/jobs/view/4000000001/")
+            .unwrap()
+            .key;
+        store.make_mail_stale(&key);
+        store.kv_set(MAIL_HEALED, "1").unwrap();
+        assert!(store.stale_mail_since().unwrap().is_some());
+        let later: Timestamp = "2026-09-25T08:00:00Z".parse().unwrap();
+        for _ in 0..2 {
+            run_scan(&store, &mut source, Scope::New, later)
+                .await
+                .1
+                .unwrap();
+        }
+        let day = |s: &str| Some(s.parse::<Date>().unwrap());
+        assert_eq!(
+            source.searched[1..],
+            [day("2026-09-02"), day("2026-09-24")],
+            "back to the old job's mail once, then from the last scan"
+        );
+        assert_eq!(store.stale_mail_since().unwrap(), None, "read again");
     }
 
     /// A state in the future (clock set wrong) counts as unknown: "New" searches thirty

@@ -139,23 +139,6 @@ impl Store {
         )? > 0)
     }
 
-    /// Pins or unpins a job; `true` if something changed. The HTML overview shows pinned
-    /// jobs, so this is a visible change.
-    pub fn set_pinned(&self, key: &JobKey, on: bool, now: Timestamp) -> Result<bool> {
-        self.write(|conn| {
-            let changed = conn.execute(
-                "UPDATE job SET pinned_at = CASE WHEN ?3 THEN COALESCE(pinned_at, ?4) END
-                 WHERE portal = ?1 AND job_id = ?2
-                   AND (pinned_at IS NULL) = ?3",
-                params![key.portal.key(), key.id, on, to_db(now)],
-            )? > 0;
-            if changed {
-                bump(conn)?;
-            }
-            Ok(changed)
-        })
-    }
-
     /// Stores the matches of a page of jobs as one change (`rev`: who scored them).
     pub fn save_matches(
         &self,
@@ -168,7 +151,9 @@ impl Store {
         }
         self.write(|conn| {
             let mut stmt = conn.prepare_cached(
-                "UPDATE job SET match_score = ?3, match_status = ?4, match_note = ?5,
+                "UPDATE job SET match_score = ?3, match_note = ?5,
+                                match_status = CASE WHEN override_include = 1 AND ?4 = 'excluded'
+                                                    THEN 'scored' ELSE ?4 END,
                                 match_rev = ?6, match_at = ?7
                  WHERE portal = ?1 AND job_id = ?2",
             )?;
@@ -200,7 +185,9 @@ impl Store {
     ) -> Result<bool> {
         self.write(|conn| {
             let changed = conn.execute(
-                "UPDATE job SET match_score = ?3, match_status = ?4, match_note = ?5,
+                "UPDATE job SET match_score = ?3, match_note = ?5,
+                                match_status = CASE WHEN override_include = 1 AND ?4 = 'excluded'
+                                                    THEN 'scored' ELSE ?4 END,
                                 match_rev = ?6, match_at = ?7
                  WHERE portal = ?1 AND job_id = ?2 AND match_rev IS ?8 AND dup_of IS NULL",
                 params![
@@ -292,17 +279,20 @@ impl Store {
         Ok(at.and_then(from_db))
     }
 
-    /// The best scored (not excluded) jobs first seen in `run`; duplicates show as their
-    /// original, hidden jobs ("not interesting") are left out.
-    pub fn top_matches(&self, run: i64, limit: u32) -> Result<Vec<JobRow>> {
+    /// The jobs for the skill's `top_matches.json`: scored (not excluded), unread or saved,
+    /// not archived, not rejected, no duplicate, the alert mail at most since `since`; best
+    /// first. A fetch without new jobs keeps the list (it does not depend on the last run).
+    pub fn skill_matches(&self, since: Timestamp, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
-             WHERE first_seen_run = ?1 AND match_status = 'scored' AND dup_of IS NULL
-               AND hidden_at IS NULL
+             WHERE match_status = 'scored' AND dup_of IS NULL AND archived_at IS NULL
+               AND (read_at IS NULL OR app_status = 'saved')
+               AND app_status IS NOT 'rejected'
+               AND COALESCE(mail_date, first_seen_at) >= ?1
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id LIMIT ?2"
         ))?;
-        let rows = stmt.query_map(params![run, limit], job_row)?;
+        let rows = stmt.query_map(params![to_db(since), limit], job_row)?;
         rows.map(|r| r?).collect()
     }
 
@@ -324,28 +314,31 @@ impl Store {
     }
 
     /// The best current matches for a comparison in an AI chat: scored (not excluded), not
-    /// hidden, not a duplicate, the ad still online; the pinned ones first (like the HTML
-    /// overview's choice), then the highest scores, the newest first among equals.
+    /// archived, not a duplicate, the ad still online, saved or without a stage (an
+    /// application is decided already); the saved ones first (like the HTML overview's
+    /// choice), then the highest scores, the newest first among equals.
     pub fn best_matches(&self, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
-             WHERE match_status = 'scored' AND dup_of IS NULL AND hidden_at IS NULL
-               AND desc_status <> 'gone'
-             ORDER BY (pinned_at IS NULL), match_score DESC, first_seen_at DESC, portal, job_id
+             WHERE match_status = 'scored' AND dup_of IS NULL AND archived_at IS NULL
+               AND desc_status <> 'gone' AND (app_status IS NULL OR app_status = 'saved')
+             ORDER BY (app_status IS NOT 'saved'), match_score DESC, first_seen_at DESC,
+                      portal, job_id
              LIMIT ?1"
         ))?;
         let rows = stmt.query_map([limit], job_row)?;
         rows.map(|r| r?).collect()
     }
 
-    /// The jobs of the HTML overview: the pinned ones if there are any (`true`), else the
-    /// unread scored jobs of the mailbox run `run`; best first. Hidden jobs are in neither.
+    /// The jobs of the HTML overview: the saved ones (the star) if there are any (`true`),
+    /// else the unread scored jobs of the mailbox run `run`; best first. Archived jobs are in
+    /// neither.
     pub fn overview_jobs(&self, run: i64) -> Result<(Vec<JobRow>, bool)> {
         let conn = self.conn();
         let mut pinned = conn.prepare_cached(&format!(
-            "SELECT {JOB_COLUMNS} FROM job WHERE pinned_at IS NOT NULL AND hidden_at IS NULL
-             ORDER BY (match_status IS 'excluded'), match_score DESC, pinned_at DESC"
+            "SELECT {JOB_COLUMNS} FROM job WHERE app_status = 'saved' AND archived_at IS NULL
+             ORDER BY (match_status IS 'excluded'), match_score DESC, app_status_at DESC"
         ))?;
         let jobs: Vec<JobRow> = pinned
             .query_map([], job_row)?
@@ -357,7 +350,7 @@ impl Store {
         let mut new = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE first_seen_run = ?1 AND read_at IS NULL AND match_status = 'scored'
-               AND dup_of IS NULL AND hidden_at IS NULL
+               AND dup_of IS NULL AND archived_at IS NULL
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id"
         ))?;
         let jobs = new
@@ -425,9 +418,10 @@ mod tests {
         assert!(!store.set_pinned(&key, true, now()).unwrap());
         assert!(store.data_rev().unwrap() > rev);
         let job = store.job(&key).unwrap().unwrap();
-        assert!(job.read_at.is_some() && job.pinned_at.is_some());
+        assert!(job.read_at.is_some());
+        assert_eq!(job.app_status, Some(crate::model::AppStatus::Saved));
         assert!(store.set_pinned(&key, false, now()).unwrap());
-        assert!(store.job(&key).unwrap().unwrap().pinned_at.is_none());
+        assert!(store.job(&key).unwrap().unwrap().app_status.is_none());
     }
 
     #[test]

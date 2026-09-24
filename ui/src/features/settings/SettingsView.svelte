@@ -19,7 +19,7 @@
   import { de } from '$lib/i18n/de';
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { OpenTarget } from '$lib/ipc/types';
+  import type { OpenTarget, SettingsPatch } from '$lib/ipc/types';
   import { platform } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -92,15 +92,26 @@
     );
   }
 
+  /** Days after which old jobs archive themselves when the switch is on. */
+  const AUTO_ARCHIVE_DAYS = 30;
+
   /** The switch moves at once; a failure puts it back (reload) and says why below it. */
   function autoFetch(on: boolean): Promise<void> {
-    const save = ++saves;
     if (app.state) app.state.autoFetchOnStart = on;
+    return saveFetch({ autoFetchOnStart: on, autoArchiveDays: null });
+  }
+
+  function autoArchive(on: boolean): Promise<void> {
+    const days = on ? AUTO_ARCHIVE_DAYS : 0;
+    if (app.state) app.state.autoArchiveDays = days;
+    return saveFetch({ autoFetchOnStart: null, autoArchiveDays: days });
+  }
+
+  function saveFetch(change: Omit<SettingsPatch, 'portals'>): Promise<void> {
+    const save = ++saves;
     return act('fetch', setFetch, async () => {
       try {
-        const next = await invoke('save_settings', {
-          patch: { portals: [], autoFetchOnStart: on },
-        });
+        const next = await invoke('save_settings', { patch: { portals: [], ...change } });
         if (save === saves) app.set(next);
       } catch (error) {
         void app.load();
@@ -265,6 +276,19 @@
             label={de.settings.autoFetch}
             testid="toggle-auto-fetch"
             onchange={autoFetch}
+          />
+        </SettingRow>
+        <SettingRow
+          label={de.settings.autoArchive}
+          hint={de.settings.autoArchiveHint}
+          for="switch-auto-archive"
+        >
+          <Toggle
+            id="switch-auto-archive"
+            checked={cfg.autoArchiveDays > 0}
+            label={de.settings.autoArchive}
+            testid="toggle-auto-archive"
+            onchange={autoArchive}
           />
         </SettingRow>
         {@render note(fetchNote, 'fetch-note')}

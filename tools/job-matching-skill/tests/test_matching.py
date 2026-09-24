@@ -122,6 +122,18 @@ class Brief(Base):
         self.assertNotIn("NOT ANALYSED", out)
         self.assertIn("Ort: 68159 Mannheim // Vertragsart: Freiberuflich", out)
 
+    def test_the_file_the_app_writes_is_read(self):
+        # Written by core/src/export/top_matches.rs (test the_skill_reads_what_the_app_writes).
+        app_file = HERE / "app_top_matches.json"
+        shutil.copy(app_file, self.work / "auswertung" / "top_matches.json")
+        out = matching.brief(self.work, matching.TOP_DEFAULT)
+        self.assertNotIn("NOTE unknown schema", out)
+        self.assertIn("TOP FILE schema 2", out)
+        self.assertIn("JOB 1 key freelancermap:2801", out)
+        self.assertIn("stage: saved", out)
+        self.assertIn("first seen: 2026-09-20T07:30:00Z", out)
+        self.assertIn("open: Power BI", out)
+
     def test_text_file_name_cannot_leave_the_text_folder(self):
         self.assertIsNone(matching.txt_path(self.work, "../../profil/beraterprofil.json"))
         self.assertIsNone(matching.txt_path(self.work, None))

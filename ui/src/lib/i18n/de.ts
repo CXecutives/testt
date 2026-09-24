@@ -5,7 +5,7 @@
 // period; headings and labels end without a colon; no dash or em dash as a separator, no
 // "X: Y", no exclamation marks, no text twice. Glossary: Job · Portal · Passung · Details ·
 // Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu · Zu prüfen ·
-// Merken.
+// Favorit · Archiv.
 //
 // Every code of the generated types has exactly one text here: the tables are typed as
 // `Record<Code, ...>`, so a new code without a text is a type error.
@@ -561,7 +561,7 @@ export const de = {
       gone: 'Nicht mehr online',
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     unread: 'Neu',
-    pinned: 'Gemerkt',
+    pinned: 'Favorit',
     alsoOn: (portals: string) => `auch auf ${portals}`,
     untitled: 'Job ohne Titel',
   },
@@ -573,7 +573,7 @@ export const de = {
     facetNew: 'Neu',
     facetAll: 'Alle',
     facetApplications: 'Bewerbungen',
-    facetPinned: 'Gemerkt',
+    facetSaved: 'Favoriten',
     /** The order of the list in words (the sort button). */
     sortLabel: {
       match: 'Beste Passung',
@@ -681,14 +681,20 @@ export const de = {
     label: 'Jobs',
     /** The divider (its count is a pill of its own, left out where the rows are a part). */
     excluded: 'Ausgeschlossen',
-    hidden: 'Archiv',
-    showHidden: 'Anzeigen',
+    archive: 'Archiv',
+    showArchive: 'Anzeigen',
+    archiveLink: (value: number) => `Archiv ${n(value)}`,
+    /** Search hits among the archived jobs, under the live ones. */
+    inArchive: 'Im Archiv',
+    emptyArchive: 'Archiv leeren',
+    emptyArchiveHeading: 'Archiv leeren?',
+    emptyArchiveText: 'Die Jobs werden gelöscht und kommen nicht wieder.',
     /** The empty list says where jobs come from and how to get more. */
     emptySources: 'Die Jobs kommen aus den Alert-Mails der Portale.',
     createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
     readOlder: 'Ältere Mails lesen',
     emptyApplications: 'Noch keine Bewerbung vermerkt.',
-    emptyHidden: 'Das Archiv ist leer.',
+    emptyArchived: 'Das Archiv ist leer.',
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
     emptyAfterRun: 'Die Alert-Mails enthielten bisher keine Jobs.',
@@ -705,7 +711,7 @@ export const de = {
       high: 'Hohe Passung',
       noDetail: 'Ohne Details',
       excluded: 'Ausgeschlossen',
-      pinned: 'Gemerkt',
+      pinned: 'Favoriten',
       linkedin: `Neu auf ${portalName.linkedin}`,
       freelancermap: `Neu auf ${portalName.freelancermap}`,
       freelance: `Neu auf ${portalName.freelance}`,
@@ -754,15 +760,28 @@ export const de = {
     note,
     open: 'Anzeige öffnen',
     close: 'Schließen',
-    pin: 'Merken',
-    hide: 'Archivieren',
-    unhide: 'Wiederherstellen',
-    prompt: 'Als Prompt kopieren',
+    pin: 'Als Favorit markieren',
+    unpin: 'Favorit entfernen',
+    archive: 'Archivieren',
+    restore: 'Wiederherstellen',
+    archived: 'Dieser Job ist archiviert.',
+    deleteForGood: 'Endgültig löschen',
+    deleteHeading: 'Job endgültig löschen?',
+    deleteText: 'Der Job wird gelöscht und kommt auch mit alten Alert-Mails nicht wieder.',
+    /** An excluded job the user counts anyway, and back. */
+    override: 'Trotzdem passend',
+    overrideUndo: 'Wieder ausschließen',
+    overridden: 'Von dir als passend markiert.',
+    prompt: 'Prompt für KI-Bewertung kopieren',
+    promptShort: 'KI-Bewertung',
+    promptHint:
+      'Kopiert Anzeige und Profil als fertigen Prompt für ChatGPT, Claude oder eine andere KI.',
     /** Under the band of a score that comes from a teaser only. */
     preliminary: 'Vorläufig, aus einem Anriss bewertet',
     noteLabel: 'Notiz',
     status: 'Bewerbung',
     appStatus: {
+      saved: 'Favorit',
       applied: 'Beworben',
       interview: 'Im Gespräch',
       offer: 'Zusage',
@@ -798,12 +817,12 @@ export const de = {
     high: 'Hohe Passung',
     noDetail: 'Ohne Details',
     excluded: 'Ausgeschlossen',
-    pinned: 'Gemerkt',
+    pinned: 'Favoriten',
     issues: 'Offene Punkte',
     best: 'Beste Passung',
     excel: 'Excel öffnen',
     /** The best matches as one prompt for any AI chat (no brand named). */
-    promptTop: 'Beste Treffer als Prompt kopieren',
+    promptTop: 'Prompt für KI-Vergleich kopieren',
     promptTopNone: 'Noch kein Job bewertet.',
     newJobs: 'Neue Jobs',
     newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
@@ -1028,6 +1047,8 @@ export const de = {
     removeMailboxText: 'Das App-Passwort wird gelöscht, die Jobs bleiben.',
     autoFetch: 'Beim Start abrufen',
     autoFetchHint: 'Wenn der letzte Abruf mehr als sechs Stunden her ist.',
+    autoArchive: 'Alte Jobs automatisch archivieren',
+    autoArchiveHint: 'Nach 30 Tagen, außer Favoriten und Bewerbungen.',
     active: 'Aktiv',
     details: 'Details holen',
     needsDetails: 'Erst Details holen einschalten.',
@@ -1117,7 +1138,11 @@ export const de = {
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
     prompt: 'Prompt kopiert. In einen KI-Chat einfügen.',
-    hidden: 'Archiviert.',
+    archivedOne: (name: string) => `„${name}“ archiviert.`,
+    archivedMany: (value: number) => `${n(value)} Jobs archiviert.`,
+    restored: (name: string) => `„${name}“ wiederhergestellt.`,
+    deleted: (value: number) =>
+      value === 1 ? 'Der Job ist gelöscht.' : `${n(value)} Jobs sind gelöscht.`,
     runDone: (value: number) =>
       value === 0
         ? 'Abruf fertig, nichts Neues.'

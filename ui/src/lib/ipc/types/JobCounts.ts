@@ -19,17 +19,17 @@ high: number,
  */
 noDetail: number, 
 /**
- * Pinned ("Merken").
+ * Saved ("Gemerkt", the star).
  */
-pinned: number, 
+saved: number, 
 /**
- * With an application status.
+ * In an application stage (applied, interview, offer, rejected).
  */
 applications: number, 
 /**
- * Hidden - the only count a hidden job is in.
+ * Archived - the only count an archived job is in.
  */
-hidden: number, 
+archived: number, 
 /**
  * `new` per portal: every portal, in the order of `Portal::ALL`.
  */

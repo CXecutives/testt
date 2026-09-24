@@ -1,31 +1,62 @@
-// Archiving a job, the same from the list row and from the reader: the job leaves the list
-// it no longer belongs to, the toast can take it back, and when it was the open job the
-// next one of the list opens (the previous one at the end, else the day overview).
-// Bringing a job back from the archive needs no toast: the row leaving the archive says it.
+// Archiving a job, the same from the list row and from the reader.
+// - The job leaves the list it no longer belongs to; the reader keeps showing it, marked
+//   archived with "Wiederherstellen", so a second click never lands on another job.
+// - A second toggle of the same job within GUARD_MS is ignored (a double click).
+// - The toast names the job; archives in a row merge into one toast ("3 Jobs archiviert.")
+//   whose "Rückgängig" takes them all back. Restoring says so too.
+// - The counts over every job (sidebar, segments, Archiv) follow at once.
 
 import { de } from '$lib/i18n/de';
+import { displayTitle } from '$lib/i18n/format';
 import type { JobKey, JobView } from '$lib/ipc/types';
-import { jobs, sameKey } from '$lib/state/jobs.svelte';
+import { jobs, keyOf } from '$lib/state/jobs.svelte';
 import { toasts } from '$lib/state/toasts.svelte';
 
-async function undo(key: JobKey): Promise<void> {
-  if ((await jobs.hide(key, false)) === null) void jobs.load(true);
+const GUARD_MS = 600;
+const lastToggle = new Map<string, number>();
+/** The archives the current toast speaks of. */
+let batch: { keys: JobKey[]; toast: number } | null = null;
+
+function title(job: JobView): string {
+  return job.title ? displayTitle(job.title) : de.job.untitled;
+}
+
+/** A second toggle of the same job right after the first is a double click. */
+function doubled(key: JobKey): boolean {
+  const now = performance.now();
+  const last = lastToggle.get(keyOf(key));
+  lastToggle.set(keyOf(key), now);
+  return last !== undefined && now - last < GUARD_MS;
+}
+
+async function undo(keys: JobKey[]): Promise<void> {
+  // Taken back on purpose: the next toggle of these jobs is no double click.
+  for (const key of keys) lastToggle.delete(keyOf(key));
+  for (const key of keys) await jobs.archive(key, false);
+  await Promise.all([jobs.load(true), jobs.loadOverview()]);
 }
 
 /** Archive a job, or bring an archived one back. Resolves with the error text, or null. */
 export async function archive(job: JobView): Promise<string | null> {
   const key = job.key;
-  if (job.hidden) return jobs.hide(key, false);
-  const open = sameKey(jobs.selected, key);
-  const list = jobs.visible;
-  const at = list.findIndex((row) => sameKey(row.key, key));
-  const next = open && at >= 0 ? (list[at + 1] ?? list[at - 1] ?? null) : null;
-  const error = await jobs.hide(key, true);
+  if (doubled(key)) return null;
+  const restoring = job.archived;
+  const error = await jobs.archive(key, !restoring);
   if (error !== null) return error;
-  toasts.show(de.toast.hidden, 'success', { label: de.common.undo, onclick: () => void undo(key) });
-  if (open) {
-    if (next !== null) void jobs.select(next, false);
-    else jobs.clearSelection();
+  void jobs.loadOverview();
+  if (restoring) {
+    toasts.show(de.toast.restored(title(job)));
+    return null;
   }
+  const open = batch !== null && toasts.items.some((item) => item.id === batch?.toast);
+  const keys = open && batch !== null ? [...batch.keys, key] : [key];
+  if (open && batch !== null) toasts.dismiss(batch.toast);
+  toasts.show(
+    keys.length === 1 ? de.toast.archivedOne(title(job)) : de.toast.archivedMany(keys.length),
+    'success',
+    { label: de.common.undo, onclick: () => void undo(keys) },
+  );
+  const shown = toasts.items.at(-1);
+  batch = shown ? { keys, toast: shown.id } : null;
   return null;
 }

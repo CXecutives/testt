@@ -24,12 +24,14 @@
   import Button from '$components/Button.svelte';
   import Chip from '$components/Chip.svelte';
   import Count from '$components/Count.svelte';
+  import Dialog from '$components/Dialog.svelte';
   import Icon, { type IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
   import TextField from '$components/TextField.svelte';
   import ReasonItem from '$components/ReasonItem.svelte';
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
   import { inView, scrollArea } from '$lib/actions/inView';
+  import { tooltip } from '$lib/actions/tooltip';
   import { de, type CriterionState } from '$lib/i18n/de';
   import { displayTitle, formatDate, formatRelative } from '$lib/i18n/format';
   import {
@@ -46,7 +48,7 @@
   import type { AppStatus, JobDetail, OpenTarget, Reason } from '$lib/ipc/types';
   import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf } from '$lib/state/jobs.svelte';
+  import { isApplication, jobs, keyOf } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
@@ -272,6 +274,29 @@
     actionError = await archive(job);
   }
 
+  let confirmDelete = $state(false);
+  let deleting = $state(false);
+  let deleteError = $state<string | null>(null);
+
+  async function deleteJob(): Promise<void> {
+    deleting = true;
+    deleteError = null;
+    const result = await jobs.deleteJobs([job.key]);
+    deleting = false;
+    if ('error' in result) {
+      deleteError = result.error;
+      return;
+    }
+    confirmDelete = false;
+    toasts.show(de.toast.deleted(result.count));
+    void jobs.loadOverview();
+  }
+
+  /** "Trotzdem passend": an excluded job counts with its fit score, and back. */
+  async function override(): Promise<void> {
+    actionError = await jobs.setOverride(job.key, !job.overridden);
+  }
+
   function openTarget(target: OpenTarget): void {
     actionError = null;
     invoke('open_target', { target }).catch((error: unknown) => (actionError = errorText(error)));
@@ -389,7 +414,7 @@
           size="sm"
           iconOnly
           icon="star"
-          label={de.reader.pin}
+          label={job.pinned ? de.reader.unpin : de.reader.pin}
           pressed={job.pinned}
           testid="compact-pin"
           onclick={() => void jobs.pin(job.key, !job.pinned)}
@@ -409,7 +434,7 @@
           size="sm"
           iconOnly
           icon="star"
-          label={de.reader.pin}
+          label={job.pinned ? de.reader.unpin : de.reader.pin}
           pressed={job.pinned}
           testid="pin"
           onclick={() => void jobs.pin(job.key, !job.pinned)}
@@ -418,8 +443,8 @@
           variant="ghost"
           size="sm"
           iconOnly
-          icon={job.hidden ? 'archive-restore' : 'archive'}
-          label={job.hidden ? de.reader.unhide : de.reader.hide}
+          icon={job.archived ? 'archive-restore' : 'archive'}
+          label={job.archived ? de.reader.restore : de.reader.archive}
           testid="hide"
           onclick={() => void hide()}
         />
@@ -444,6 +469,24 @@
       </span>
     </p>
   </header>
+  {#if job.archived}
+    <div class="archived" data-testid="archived-note">
+      <Notice
+        tone="info"
+        variant="row"
+        text={de.reader.archived}
+        action={{ label: de.reader.restore, onclick: () => void hide() }}
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        icon="trash-2"
+        label={de.reader.deleteForGood}
+        testid="delete-job"
+        onclick={() => (confirmDelete = true)}
+      />
+    </div>
+  {/if}
 
   {#if headline}
     <div class="match">
@@ -469,7 +512,31 @@
           {/if}
         </p>
         {#if exclusion}
-          <p class="because" data-testid="exclusion">{exclusion}</p>
+          <p class="because" data-testid="exclusion">
+            {exclusion}
+            <span class="inline-action">
+              <Button
+                variant="link"
+                size="sm"
+                label={de.reader.override}
+                testid="override"
+                onclick={() => void override()}
+              />
+            </span>
+          </p>
+        {:else if job.overridden}
+          <p class="because" data-testid="overridden">
+            {de.reader.overridden}
+            <span class="inline-action">
+              <Button
+                variant="link"
+                size="sm"
+                label={de.reader.overrideUndo}
+                testid="override-undo"
+                onclick={() => void override()}
+              />
+            </span>
+          </p>
         {:else if unscorable}
           <p class="because" data-testid="unscorable">{unscorable}</p>
         {:else if preliminary}
@@ -526,13 +593,15 @@
       testid="open-ad"
       onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
     />
-    <Button
-      variant="ghost"
-      icon="copy"
-      label={de.reader.prompt}
-      testid="prompt"
-      onclick={() => void copyPrompt()}
-    />
+    <span class="with-hint" use:tooltip={de.reader.promptHint}>
+      <Button
+        variant="ghost"
+        icon="copy"
+        label={de.reader.prompt}
+        testid="prompt"
+        onclick={() => void copyPrompt()}
+      />
+    </span>
     {#if detail.mail.gmailUrl}
       <Button
         variant="ghost"
@@ -566,8 +635,8 @@
           onclick={() => void setStatus(status)}
         />
       {/each}
-      {#if job.appStatus !== null && detail.appStatusAt}
-        <span class="since" data-testid="status-since">{formatRelative(detail.appStatusAt)}</span>
+      {#if isApplication(job.appStatus) && job.statusAt}
+        <span class="since" data-testid="status-since">{formatRelative(job.statusAt)}</span>
       {/if}
     </div>
     <span
@@ -666,6 +735,18 @@
     {/if}
   </section>
 </article>
+
+<Dialog
+  bind:open={confirmDelete}
+  variant="danger"
+  heading={de.reader.deleteHeading}
+  text={de.reader.deleteText}
+  confirmLabel={de.reader.deleteForGood}
+  busy={deleting}
+  error={deleteError}
+  testid="dialog-delete-job"
+  onconfirm={() => void deleteJob()}
+/>
 
 <style>
   .reader {
@@ -889,6 +970,28 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-8);
+  }
+
+  .inline-action {
+    display: inline-flex;
+    margin-left: var(--space-6);
+    vertical-align: baseline;
+  }
+
+  .with-hint {
+    display: inline-flex;
+  }
+
+  /* An archived job says so under its facts, with the way back and the way out. */
+  .archived {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  .archived > :global(:first-child) {
+    flex: 1;
   }
 
   .fetch-here {

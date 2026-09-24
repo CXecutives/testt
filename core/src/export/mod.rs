@@ -25,7 +25,10 @@ pub use ai_prompt::{
 pub use job_txt::{TXT_DIR, write_job_txt};
 pub use overview_html::write_overview_html;
 pub use texts::{COLUMNS, details_label};
-pub use top_matches::{TOP_MATCHES_MAX, TOP_MATCHES_NAME, TopMatch, TopMatches, top_matches};
+pub use top_matches::{
+    TOP_MATCHES_MAX, TOP_MATCHES_NAME, TOP_MATCHES_SCHEMA, TopMatch, TopMatches, findings,
+    top_matches,
+};
 pub use xlsx::write_xlsx;
 
 /// File and folder names below are a contract with the user's workspace and the matching

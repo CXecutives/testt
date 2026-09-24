@@ -13,6 +13,12 @@ use crate::portal::{Portal, hex12};
 use crate::text::truncate_chars;
 
 pub(crate) use extract::Found;
+
+/// Version of the mail parser (title, company and location of an entry). A job an older
+/// version read takes the current reading the next time a mail names it, and the first scan
+/// after an update reads back to the oldest such job once (`scan`).
+/// 2: a collection mail never takes the next job's title as company.
+pub const MAIL_PARSER_VERSION: i64 = 2;
 pub(crate) use parse::{ParsedMail, parse_mail};
 
 /// A mail as it comes from the mailbox.

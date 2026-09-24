@@ -199,6 +199,7 @@ fn run_context(
             .into_iter()
             .filter(|&p| settings.fetch_path(p) == Some(FetchPath::Session))
             .collect(),
+        auto_archive_days: settings.auto_archive_days,
     };
     Ok((ctx, credentials))
 }

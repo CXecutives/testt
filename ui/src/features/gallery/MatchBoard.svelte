@@ -30,7 +30,7 @@
   }
 
   /** The row tools of the gallery: pin or archive a sample job. */
-  function toggle(job: JobView, field: 'pinned' | 'hidden'): void {
+  function toggle(job: JobView, field: 'pinned' | 'archived'): void {
     jobs = jobs.map((j) => (j.key.id === job.key.id ? { ...j, [field]: !j[field] } : j));
   }
 </script>
@@ -81,7 +81,7 @@
             selected={selected === job.key.id}
             onselect={(j) => (selected = j.key.id)}
             onpin={(j) => toggle(j, 'pinned')}
-            onarchive={(j) => toggle(j, 'hidden')}
+            onarchive={(j) => toggle(j, 'archived')}
           />
         </div>
       {/each}

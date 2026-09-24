@@ -184,7 +184,7 @@ test('a job that cannot be scored says why, once', async ({ page }) => {
   await expect(page.getByTestId('why')).toHaveCount(0);
 });
 
-test('one place for filters: Neu, Alle, Gemerkt, Bewerbungen; the overview says what now', async ({
+test('one place for filters: Neu, Alle, Favoriten, Bewerbungen; the overview says what now', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -203,12 +203,12 @@ test('one place for filters: Neu, Alle, Gemerkt, Bewerbungen; the overview says 
   await expect(overview.getByTestId('overview-excel')).toBeVisible();
   // The one filter place: the segments in the list header count their lists.
   const facet = page.getByTestId('facet');
-  await facet.getByRole('radio', { name: /Gemerkt/ }).click();
-  await expect(facet.getByRole('radio', { name: /Gemerkt/ })).toHaveAttribute(
+  await facet.getByRole('radio', { name: /Favoriten/ }).click();
+  await expect(facet.getByRole('radio', { name: /Favoriten/ })).toHaveAttribute(
     'aria-checked',
     'true',
   );
-  await expect(rows(page)).toHaveCount(await segmentCount(page, 'Gemerkt'));
+  await expect(rows(page)).toHaveCount(await segmentCount(page, 'Favoriten'));
   await facet.getByRole('radio', { name: /Bewerbungen/ }).click();
   await expect(page.getByTestId('list-scroll')).toBeVisible();
   expect(await calls(page, 'list_jobs')).toContainEqual([
@@ -676,9 +676,8 @@ test('the list header: one slot for Abrufen and Abbrechen, the filter, a line on
   await expect(page.getByRole('button', { name: 'Abrufen' })).toHaveCount(0);
   await page.getByTestId('cancel-run').click();
   await runFinished(page);
-  // The hidden jobs are reached from the end of Alle; they show as a pill with its x.
-  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  await page.getByTestId('show-hidden').click();
+  // The archive is reached from every list; it shows as a pill with its x.
+  await page.getByTestId('show-archive').click();
   await expect(header.getByTestId('filter')).toContainText('Archiv');
   await header.getByTestId('clear-filter').click();
   await expect(page.getByTestId('filter')).toHaveCount(0);
@@ -766,14 +765,13 @@ test('the day overview: its best jobs open the reader', async ({ page }) => {
   await expect(page.getByTestId('reader-title')).toHaveText(title);
 });
 
-test('the reader marks a job: status, note, hide with undo, copy as a prompt', async ({
+test('the reader marks a job: status, note, archive in place with undo, a prompt', async ({
   page,
   browserName,
 }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   const first = rows(page).first();
-  const second = await rows(page).nth(1).locator('.title').innerText();
   await first.click();
   await expect(page.getByTestId('reader')).toBeVisible();
   // One chip per step; the chosen one again clears it.
@@ -784,7 +782,6 @@ test('the reader marks a job: status, note, hide with undo, copy as a prompt', a
   await expect(page.getByTestId('status-applied')).toHaveAttribute('aria-pressed', 'false');
   await page.getByTestId('status-interview').click();
   await expect(page.getByTestId('status-since')).toHaveCount(0);
-  expect((await calls(page, 'set_app_status')).map(([, args]) => args)).toHaveLength(3);
   // The note saves when the field is left; Esc takes the stored one back.
   const note = page.getByTestId('note');
   await note.fill('Agentur anrufen');
@@ -795,7 +792,7 @@ test('the reader marks a job: status, note, hide with undo, copy as a prompt', a
   await note.fill('etwas anderes');
   await note.press('Escape');
   await expect(note).toHaveValue('Agentur anrufen');
-  // As a prompt for any AI chat.
+  // A prompt for any AI chat.
   if (browserName === 'chromium') {
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   }
@@ -803,41 +800,65 @@ test('the reader marks a job: status, note, hide with undo, copy as a prompt', a
   await expect(page.getByTestId('toast').last()).toContainText(
     'Prompt kopiert. In einen KI-Chat einfügen.',
   );
-  // Archivieren opens the next job; the toast takes it back.
+  // Archivieren keeps the job in the pane, marked; a double click archives nothing else.
   const title = await page.getByTestId('reader-title').innerText();
-  await page.getByTestId('hide').click();
-  await expect(page.getByTestId('reader-title')).toHaveText(second);
+  await page.getByTestId('hide').dblclick();
+  await expect(page.getByTestId('reader-title')).toHaveText(title);
+  await expect(page.getByTestId('archived-note')).toBeVisible();
+  expect(await calls(page, 'set_archived')).toHaveLength(1);
+  await expect(page.getByTestId('toast').last()).toContainText(`„${title}“ archiviert.`);
   await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(0);
-  await page.getByTestId('toast-action').click();
+  await page.getByTestId('toast').last().getByTestId('toast-action').click();
   await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(1);
 });
 
-test('archive from the row: the toast takes it back, the Archiv brings it back', async ({
+test('archive from the row: toasts merge, the Archiv brings a job back and says so', async ({
   page,
 }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  const key = 'freelancermap-2802';
-  const target = row(page, key);
-  await target.hover();
-  await page.getByTestId(`archive-${key}`).click();
-  await expect(row(page, key)).toHaveCount(0);
-  await expect(page.getByTestId('toast').last()).toContainText('Archiviert.');
+  const one = 'freelancermap-2802';
+  const two = 'freelancermap-2803';
+  for (const key of [one, two]) {
+    await row(page, key).hover();
+    await page.getByTestId(`archive-${key}`).click();
+    await expect(row(page, key)).toHaveCount(0);
+  }
+  // Two archives in a row are one toast that takes both back.
+  await expect(page.getByTestId('toast')).toHaveCount(1);
+  await expect(page.getByTestId('toast')).toContainText('2 Jobs archiviert.');
   await page.getByTestId('toast-action').click();
-  await expect(row(page, key)).toHaveCount(1);
-  // Archived again, the job is in the Archiv at the end of Alle and comes back from there.
-  await row(page, key).hover();
-  await page.getByTestId(`archive-${key}`).click();
-  await expect(row(page, key)).toHaveCount(0);
-  await page.getByTestId('show-hidden').click();
-  await row(page, key).hover();
-  await page.getByTestId(`archive-${key}`).click();
-  await expect(row(page, key)).toHaveCount(0);
+  await expect(row(page, one)).toHaveCount(1);
+  await expect(row(page, two)).toHaveCount(1);
+  // Archived again, the job comes back from the Archiv, with a toast.
+  await row(page, one).hover();
+  await page.getByTestId(`archive-${one}`).click();
+  await page.getByTestId('show-archive').click();
+  // (Past the guard against a double click on the same job.)
+  await page.waitForTimeout(700);
+  await row(page, one).hover();
+  await page.getByTestId(`archive-${one}`).click();
+  await expect(row(page, one)).toHaveCount(0);
+  await expect(page.getByTestId('toast').last()).toContainText('wiederhergestellt.');
   await page.getByTestId('clear-filter').click();
+  await expect(row(page, one)).toHaveCount(1);
+});
+
+test('a search also finds archived jobs, and the Archiv count follows it', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const key = 'freelancermap-2802';
+  const title = await row(page, key).locator('.title').innerText();
+  await row(page, key).hover();
+  await page.getByTestId(`archive-${key}`).click();
+  await page.getByTestId('search').fill(title);
+  await expect(page.getByTestId('archive-hits')).toContainText('Im Archiv');
+  await expect(page.getByTestId('show-archive')).toHaveText('Archiv 1');
+  await page.getByTestId('show-archive-hits').click();
   await expect(row(page, key)).toHaveCount(1);
 });
 
-test('the best matches as one prompt: in the overview and under Gemerkt', async ({
+test('the best matches as one prompt: in the overview and under Favoriten', async ({
   page,
   browserName,
 }) => {
@@ -851,7 +872,7 @@ test('the best matches as one prompt: in the overview and under Gemerkt', async 
   );
   await page
     .getByTestId('facet')
-    .getByRole('radio', { name: /Gemerkt/ })
+    .getByRole('radio', { name: /Favoriten/ })
     .click();
   await page.getByTestId('prompt-pinned').click();
   expect(await calls(page, 'ai_prompt_top')).toHaveLength(2);

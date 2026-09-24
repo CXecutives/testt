@@ -123,6 +123,23 @@ test('removing the mailbox asks first', async ({ page }) => {
   expect(await calls(page, 'remove_mailbox')).toHaveLength(1);
 });
 
+test('old jobs archive themselves unless switched off', async ({ page }) => {
+  await settings(page);
+  const archive = page.getByTestId('toggle-auto-archive');
+  await expect(archive).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('settings-fetch')).toContainText(
+    'Nach 30 Tagen, außer Favoriten und Bewerbungen.',
+  );
+  await archive.click();
+  await expect(archive).toHaveAttribute('aria-checked', 'false');
+  await archive.click();
+  await expect(archive).toHaveAttribute('aria-checked', 'true');
+  expect((await calls(page, 'save_settings')).map(([, args]) => args)).toEqual([
+    { patch: { portals: [], autoFetchOnStart: null, autoArchiveDays: 0 } },
+    { patch: { portals: [], autoFetchOnStart: null, autoArchiveDays: 30 } },
+  ]);
+});
+
 test('auto fetch and portal switches save at once', async ({ page }) => {
   await settings(page);
   await page.getByTestId('toggle-auto-fetch').click();
@@ -142,11 +159,12 @@ test('auto fetch and portal switches save at once', async ({ page }) => {
   await expect(page.getByTestId('toast')).toHaveCount(0);
   const saved = (await calls(page, 'save_settings')).map(([, args]) => args);
   expect(saved).toEqual([
-    { patch: { portals: [], autoFetchOnStart: false } },
+    { patch: { portals: [], autoFetchOnStart: false, autoArchiveDays: null } },
     {
       patch: {
         portals: [{ portal: 'linkedin', enabled: false, fetchDetails: null, loginEnabled: null }],
         autoFetchOnStart: null,
+        autoArchiveDays: null,
       },
     },
   ]);
@@ -248,7 +266,7 @@ test('reset asks with a danger dialog; the report shows after the restart', asyn
   await expect(dialog.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
   await dialog.getByRole('button', { name: 'Zurücksetzen' }).click();
   expect(await calls(page, 'reset_all')).toHaveLength(1);
-  // After the restart the app starts at the first-run page, which reports the reset.
+  // After the restart the app is empty: the first-run page with the report.
   await open(page, `${WIN}&scenario=reset`);
   await expect(page.getByTestId('first-reset-report')).toHaveText(
     'Die App ist zurückgesetzt, 1 Datei ließ sich nicht löschen.',
@@ -271,12 +289,10 @@ test('a refused app password says so in the form', async ({ page }) => {
 test('the dry run shows its mailbox and refuses what would write outside it', async ({ page }) => {
   await settings(page, `${WIN}&scenario=dry-run`);
   await expect(page.getByTestId('settings')).toContainText('probelauf@example.org');
-  // What would write outside the dry run is locked and says why.
   const remove = page.getByTestId('mailbox-remove');
   await expect(remove).toHaveAttribute('aria-disabled', 'true');
   await remove.hover();
   await expect(page.getByRole('tooltip')).toHaveText('Im Probelauf geht das nicht.');
-  await expect(page.getByTestId('settings')).toContainText('probelauf@example.org');
 });
 
 test('locked buttons explain themselves', async ({ page }) => {

@@ -21,8 +21,8 @@ const MAX_CELL_CHARS: usize = 32_767;
 /// reports "unreadable content" and removes all links when repairing).
 const MAX_LINKS: usize = 65_530;
 /// Column widths in characters (order as in `COLUMNS`).
-const WIDTHS: [f64; 13] = [
-    15.0, 16.0, 50.0, 32.0, 22.0, 45.0, 40.0, 20.0, 16.0, 22.0, 24.0, 10.0, 14.0,
+const WIDTHS: [f64; 15] = [
+    15.0, 16.0, 50.0, 32.0, 22.0, 45.0, 40.0, 20.0, 16.0, 22.0, 24.0, 10.0, 14.0, 16.0, 50.0,
 ];
 /// Grey of the header row and of excluded jobs.
 const HEADER_GREY: u32 = 0x00E7_E6E6;
@@ -94,6 +94,12 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
         }
         if let Some(status) = job.app_status {
             text(sheet, row, 12, app_status_label(status))?;
+        }
+        if let Some(at) = job.app_status_at {
+            sheet.write_datetime_with_format(row, 13, time::local(at), date)?;
+        }
+        if let Some(note) = &job.note {
+            text(sheet, row, 14, note)?;
         }
     }
     let last_row = u32::try_from(jobs.len()).unwrap_or(u32::MAX);
@@ -179,13 +185,15 @@ mod tests {
             txt_name: None,
             desc_attempted_at: None,
             read_at: None,
-            pinned_at: None,
             match_: None,
             match_rev: None,
             facts: None,
             app_status: None,
             app_status_at: None,
-            hidden_at: None,
+            follow_up_on: None,
+            note: None,
+            archived_at: None,
+            override_include: false,
         }
     }
 
@@ -217,6 +225,8 @@ mod tests {
         jobs[0].match_ = Some(scored(MatchStatus::Scored, 83));
         jobs[1].match_ = Some(scored(MatchStatus::Excluded, 71));
         jobs[0].app_status = Some(crate::model::AppStatus::Interview);
+        jobs[0].app_status_at = Some("2026-09-20T08:00:00Z".parse().unwrap());
+        jobs[0].note = Some("Zweites Gespräch am Freitag".into());
         let info = [(
             crate::export::texts::INFO_LAST_RUN.to_string(),
             "x".to_string(),
@@ -260,7 +270,13 @@ mod tests {
         assert_eq!(range.get((2, 11)), Some(&Data::Float(71.0)));
         // The application status in the words of the interface; none stays empty.
         assert_eq!(first[12].to_string(), "Im Gespräch");
+        assert!(
+            matches!(first[13], Data::DateTime(_)),
+            "since when, as a date"
+        );
+        assert_eq!(first[14].to_string(), "Zweites Gespräch am Freitag");
         assert!(matches!(range.get((2, 12)), None | Some(Data::Empty)));
+        assert!(matches!(range.get((2, 14)), None | Some(Data::Empty)));
         assert_eq!(range.rows().count(), 3);
         let info = book.worksheet_range(INFO_SHEET).unwrap();
         assert_eq!(info.get((0, 1)).unwrap().to_string(), "x");
