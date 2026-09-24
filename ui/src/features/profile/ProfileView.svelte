@@ -1,7 +1,8 @@
 <!--
   Profil (centred 720): the file card (name, size, date, how well it reads; choose, save a
   template, remove; the rescore it triggers) and "Das hat die App verstanden": competences,
-  the hard criteria in plain words, warnings and where the app read from.
+  background (years, degrees) and the domains it switched on, the hard criteria in plain
+  words and warnings. A file that no longer reads shows only the file card with the error.
 -->
 <script lang="ts">
   import Badge, { type BadgeTone } from '$components/Badge.svelte';
@@ -17,7 +18,7 @@
   import { formatBytes, formatDate, formatNumber } from '$lib/i18n/format';
   import { errorText, profileCriterionText, warningText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { ProfileQuality } from '$lib/ipc/types';
+  import type { ProfileQuality, ProfileUnderstanding } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -30,8 +31,19 @@
     empty: 'danger',
   };
 
+  /** Engine v3 fields that reach the view once the IPC type carries them. */
+  type Understood = ProfileUnderstanding &
+    Partial<{ packs: string[]; years: number | null; degrees: string[] }>;
+
   const profile = $derived(app.state?.profile ?? null);
-  const understood = $derived(profile?.understood ?? null);
+  const understood = $derived<Understood | null>(profile?.understood ?? null);
+  const background = $derived(
+    [
+      understood?.years ? de.profile.years(understood.years) : '',
+      ...(understood?.degrees ?? []),
+    ].filter((part) => part !== ''),
+  );
+  const packs = $derived((understood?.packs ?? []).map((pack) => de.profile.pack[pack] ?? pack));
   const criteria = $derived(
     (understood?.criteria ?? []).flatMap((notice) => {
       const text = profileCriterionText(notice);
@@ -114,7 +126,7 @@
   {:else}
     <Card padding="md" testid="profile-file">
       <div class="file">
-        <IconTile icon="file-text" tone="coral" size="lg" />
+        <IconTile icon="file-text" size="md" />
         <div class="facts">
           <h2 class="name" data-testid="profile-name">{profile.fileName}</h2>
           <p class="meta">
@@ -185,52 +197,71 @@
       {/if}
     </Card>
 
-    <Card padding="md" testid="profile-understood">
-      <h2 class="heading">{de.profile.understood}</h2>
-      {#if understood === null}
-        <p class="quiet">{de.profile.notYet}</p>
-      {:else}
-        <section class="block">
-          <h3 class="sub">
-            {de.profile.competences}
-            <span class="count">{formatNumber(understood.competenceCount)}</span>
-          </h3>
-          <div class="chips" data-testid="competences">
-            {#each understood.competences.slice(0, SHOWN) as competence, index (index)}
-              <Badge label={competence} tone="coral" />
-            {/each}
-            {#if understood.competenceCount > Math.min(SHOWN, understood.competences.length)}
-              <Badge
-                label={de.profile.more(
-                  understood.competenceCount - Math.min(SHOWN, understood.competences.length),
-                )}
-              />
-            {/if}
-          </div>
-        </section>
-
-        <section class="block">
-          <h3 class="sub">{de.profile.criteria}</h3>
-          <ul class="criteria" data-testid="criteria-list">
-            {#each criteria as item, index (index)}
-              <li class="criterion" class:unset={!item.set}>
-                <Icon name={item.set ? 'check' : 'minus'} size="sm" />
-                <span>{item.text}</span>
-              </li>
-            {/each}
-          </ul>
-        </section>
-
-        {#if warnings.length > 0}
+    {#if !profile.parseError}
+      <Card padding="md" testid="profile-understood">
+        <h2 class="heading">{de.profile.understood}</h2>
+        {#if understood === null}
+          <p class="quiet">{de.profile.notYet}</p>
+        {:else}
           <section class="block">
-            <h3 class="sub">{de.profile.warnings}</h3>
-            {#each warnings as warning, index (index)}
-              <Notice tone="warning" variant="inline" text={warning} />
-            {/each}
+            <h3 class="sub">
+              {de.profile.competences}
+              <span class="count">{formatNumber(understood.competenceCount)}</span>
+            </h3>
+            <div class="chips" data-testid="competences">
+              {#each understood.competences.slice(0, SHOWN) as competence, index (index)}
+                <Badge label={competence} />
+              {/each}
+              {#if understood.competenceCount > Math.min(SHOWN, understood.competences.length)}
+                <Badge
+                  label={de.profile.more(
+                    understood.competenceCount - Math.min(SHOWN, understood.competences.length),
+                  )}
+                />
+              {/if}
+            </div>
           </section>
+
+          {#if background.length > 0 || packs.length > 0}
+            <section class="block pair">
+              {#if background.length > 0}
+                <div class="part">
+                  <h3 class="sub">{de.profile.background}</h3>
+                  <p class="line" data-testid="background">{background.join(' · ')}</p>
+                </div>
+              {/if}
+              {#if packs.length > 0}
+                <div class="part">
+                  <h3 class="sub">{de.profile.packs}</h3>
+                  <p class="line" data-testid="packs">{packs.join(' · ')}</p>
+                </div>
+              {/if}
+            </section>
+          {/if}
+
+          <section class="block">
+            <h3 class="sub">{de.profile.criteria}</h3>
+            <ul class="criteria" data-testid="criteria-list">
+              {#each criteria as item, index (index)}
+                <li class="criterion" class:unset={!item.set}>
+                  <Icon name={item.set ? 'check' : 'minus'} size="sm" />
+                  <span>{item.text}</span>
+                </li>
+              {/each}
+            </ul>
+          </section>
+
+          {#if warnings.length > 0}
+            <section class="block">
+              <h3 class="sub">{de.profile.warnings}</h3>
+              {#each warnings as warning, index (index)}
+                <Notice tone="warning" variant="inline" text={warning} />
+              {/each}
+            </section>
+          {/if}
         {/if}
-      {/if}
-    </Card>
+      </Card>
+    {/if}
   {/if}
 </div>
 
@@ -249,11 +280,11 @@
   .page {
     display: flex;
     flex-direction: column;
-    gap: var(--space-24);
-    max-width: var(--reader-width);
+    gap: var(--space-16);
+    max-width: calc(var(--reader-width) + 2 * var(--pane-padding));
     min-height: 100%;
     margin: 0 auto;
-    padding: var(--space-32) var(--space-32) var(--space-64);
+    padding: var(--pane-padding) var(--pane-padding) var(--space-64);
   }
 
   .empty {
@@ -268,7 +299,7 @@
   .file {
     display: flex;
     align-items: center;
-    gap: var(--space-16);
+    gap: var(--space-12);
     margin-bottom: var(--space-16);
   }
 
@@ -283,16 +314,33 @@
   .name {
     overflow: hidden;
     color: var(--text-heading);
-    font: var(--type-xl);
+    font: var(--type-lg);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .meta,
-  .quiet {
+  .meta {
+    color: var(--text-muted);
+    font: var(--type-sm);
+    font-variant-numeric: var(--numeric);
+  }
+
+  .quiet,
+  .line {
     color: var(--text-muted);
     font: var(--type-md);
-    font-variant-numeric: var(--numeric);
+  }
+
+  .block.pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--stat-min), 1fr));
+    gap: var(--space-24);
+  }
+
+  .part {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
   }
 
   .status {
@@ -326,7 +374,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-12);
-    padding: var(--space-20) 0;
+    padding: var(--space-16) 0;
     border-top: var(--border-width) solid var(--border);
   }
 
@@ -339,7 +387,7 @@
     align-items: center;
     gap: var(--space-8);
     color: var(--text-heading);
-    font: var(--type-md);
+    font: var(--type-sm);
     font-weight: var(--weight-semibold);
   }
 

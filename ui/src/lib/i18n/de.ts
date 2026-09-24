@@ -27,7 +27,14 @@ import type {
   VaultKind,
   WorkMode,
 } from '../ipc/types';
-import { formatCountdown, formatDate, formatEuro, formatMoment, formatNumber } from './format';
+import {
+  formatCountdown,
+  formatDate,
+  formatEuro,
+  formatMoment,
+  formatNumber,
+  formatPercent,
+} from './format';
 
 type Params = Record<string, string | number | boolean | null>;
 type Text = string | ((params: Params) => string);
@@ -112,6 +119,21 @@ const ANUE = 'Die Anzeige nennt Arbeitnehmerüberlassung.';
 const LOW_TEXT = 'Die Anzeige hat wenig Text.';
 const SHORT_TEXT = 'Die Anzeige ist sehr kurz.';
 
+/** Contract type of an ad (`contractType` params `type`, `inferred`). */
+const contract = {
+  interim: 'Interim',
+  permanent: 'Festanstellung',
+  anue: 'ANÜ',
+  unclear: 'Vertragsart unklar',
+} as const;
+export type ContractKind = keyof typeof contract;
+
+function contractName(p: Params): string {
+  const type = typeof p.type === 'string' && p.type in contract ? (p.type as ContractKind) : null;
+  if (type === null) return contract.unclear;
+  return p.inferred && type !== 'unclear' ? `Vermutlich ${contract[type]}` : contract[type];
+}
+
 /**
  * Reason codes of the matching engine (`Reason.code`, core/src/matching/types.rs). One entry
  * per code: a new engine code needs exactly one line here. `requirement` and `term` show the
@@ -121,7 +143,7 @@ const reasonCode = {
   requirement: '',
   term: '',
   anue: ANUE,
-  anueRisk: 'Die Anzeige könnte Arbeitnehmerüberlassung sein.',
+  anueRisk: 'Ein Personaldienstleister ohne Angaben zum Vertrag, Überlassung ist möglich.',
   dayRate: (p) => `Der Tagessatz von ${formatEuro(p.rate)} liegt unter ${formatEuro(p.min)}.`,
   availability: 'Die Verfügbarkeit passt nicht.',
   country: (p) =>
@@ -135,18 +157,46 @@ const reasonCode = {
   availabilityGap: (p) => `Der Start liegt ${n(num(p.days))} Tage vor der Verfügbarkeit.`,
   startVague: 'Der Starttermin ist offen.',
   permanent: 'Das klingt nach einer Festanstellung.',
-  permanentRegion: 'Die Festanstellung liegt außerhalb der Wunschregion.',
-  permanentRegionUnclear: 'Die Region der Festanstellung ist unklar.',
-  salary: (p) =>
-    p.amount !== undefined && p.min !== undefined
-      ? `Das Jahresgehalt von ${formatEuro(p.amount)} liegt unter ${formatEuro(p.min)}.`
-      : 'Das Gehalt liegt unter dem Minimum im Profil.',
+  permanentRegion: (p) =>
+    p.location
+      ? `Die Festanstellung in ${str(p.location)} liegt außerhalb der Region im Profil.`
+      : 'Die Festanstellung liegt außerhalb der Region im Profil.',
+  permanentRegionUnclear: (p) =>
+    p.location
+      ? `Ob ${str(p.location)} in der Region liegt, ist unklar.`
+      : 'Der Arbeitsort der Festanstellung ist unklar.',
+  salary: (p) => {
+    if (p.salary === undefined || p.salary === null || p.min === undefined) {
+      return 'Das Gehalt liegt unter dem Minimum im Profil.';
+    }
+    const amount =
+      typeof p.currency === 'string' && p.currency !== 'EUR'
+        ? `${n(num(p.salary))} ${p.currency}`
+        : formatEuro(p.salary);
+    const from = p.lowerBound ? `ab ${amount}` : `von ${amount}`;
+    return `Das Jahresgehalt ${from} liegt unter ${formatEuro(p.min)}.`;
+  },
   salaryUnknown: 'Die Anzeige nennt kein Gehalt.',
-  tooJunior: 'Die Stelle richtet sich an weniger Erfahrene.',
-  seniorityUnclear: 'Das gesuchte Erfahrungslevel ist unklar.',
-  overqualified: 'Das Profil liegt deutlich über der Stelle.',
-  contractType: 'Die Vertragsart passt nicht zum Profil.',
-  formalOpen: 'Das Profil nennt keinen Abschluss.',
+  tooJunior: (p) =>
+    p.years !== undefined && p.years !== null
+      ? `Die Stelle verlangt ${n(num(p.years))} Jahre Erfahrung, das Profil zielt auf ${n(num(p.target))}.`
+      : 'Die Stelle richtet sich an weniger Erfahrene.',
+  seniorityUnclear: (p) =>
+    p.junior
+      ? 'Der Titel klingt nach einer Einstiegsstelle.'
+      : 'Das gesuchte Erfahrungslevel ist unklar.',
+  overqualified: (p) =>
+    p.years !== undefined && p.years !== null
+      ? `Gesucht sind ${n(num(p.years))} Jahre Erfahrung, das Profil bringt deutlich mehr mit.`
+      : 'Das Profil ist deutlich erfahrener als gesucht.',
+  contractType: (p) => contractName(p),
+  formalOpen: (p) => {
+    if (p.class === undefined || p.class === null) return 'Das Profil nennt keinen Abschluss.';
+    const what = p.class === 'licence' ? 'eine Zulassung' : 'einen Abschluss';
+    return p.mandatory
+      ? `Die Anzeige verlangt ${what}, den das Profil nicht nennt.`
+      : `Die Anzeige wünscht ${what}, den das Profil nicht nennt.`;
+  },
   lowEvidence: LOW_TEXT,
   shortText: SHORT_TEXT,
 } satisfies Record<string, Text>;
@@ -170,7 +220,7 @@ interface CriterionText {
 const criteria = {
   minDayRate: {
     label: 'Tagessatz',
-    set: (p) => `Tagessatz ab ${formatEuro(p.rate ?? p.value)}`,
+    set: (p) => `Tagessatz ab ${formatEuro(p.min ?? p.rate ?? p.value)}`,
     unset: 'Kein Mindest-Tagessatz',
     exclusion: 'Der Tagessatz liegt unter dem Minimum im Profil.',
   },
@@ -181,19 +231,42 @@ const criteria = {
     exclusion: 'Der Einsatzort liegt außerhalb der Länder im Profil.',
   },
   noAnue: {
-    label: 'Keine ANÜ',
+    label: 'ANÜ',
     set: () => 'Keine Arbeitnehmerüberlassung',
     unset: 'Arbeitnehmerüberlassung ist erlaubt',
     exclusion: ANUE,
   },
   availability: {
     label: 'Verfügbarkeit',
-    set: (p) =>
-      typeof (p.from ?? p.value) === 'string'
-        ? `Verfügbar ab ${formatDate(str(p.from ?? p.value))}`
-        : 'Verfügbarkeit angegeben',
+    set: (p) => {
+      const from = p.from ?? p.value;
+      if (from === 'now') return 'Sofort verfügbar';
+      const date = typeof from === 'string' ? formatDate(from) : '';
+      return date ? `Verfügbar ab ${date}` : 'Verfügbarkeit angegeben';
+    },
     unset: 'Keine Verfügbarkeit angegeben',
     exclusion: 'Der Start passt nicht zur Verfügbarkeit.',
+  },
+  minSalary: {
+    label: 'Gehalt',
+    set: (p) => `Festanstellung ab ${formatEuro(p.min ?? p.value)} im Jahr`,
+    unset: 'Kein Mindestgehalt für Festanstellungen',
+    exclusion: 'Das Gehalt liegt unter dem Minimum im Profil.',
+  },
+  permanentRegion: {
+    label: 'Region',
+    set: (p) =>
+      typeof p.remoteMin === 'number' && p.remoteMin > 0
+        ? `Festanstellung in ${str(p.places)} oder ab ${formatPercent(p.remoteMin)} remote`
+        : `Festanstellung nur in ${str(p.places)}`,
+    unset: 'Keine Region für Festanstellungen',
+    exclusion: 'Die Festanstellung liegt außerhalb der Region im Profil.',
+  },
+  targetYears: {
+    label: 'Seniorität',
+    set: (p) => `Stellen ab ${n(num(p.min ?? p.value))} Jahren Erfahrung`,
+    unset: 'Kein Mindestlevel für Stellen',
+    exclusion: 'Die Stelle verlangt deutlich weniger Erfahrung.',
   },
 } satisfies Record<string, CriterionText>;
 export type CriterionKey = keyof typeof criteria;
@@ -216,6 +289,8 @@ const warning = {
   noCriteria: 'Das Profil setzt keine Ausschlusskriterien.',
   availabilityNotUnderstood: 'Die Verfügbarkeit im Profil ist nicht lesbar.',
   ignoredKeys: (p) => `Nicht ausgewertet ${str(p.keys)}.`,
+  criterionNotUnderstood: (p) => `Der Wert von ${str(p.key)} ist nicht lesbar.`,
+  regionWithoutPlaces: 'Für die Region fehlen die Orte, die Regel bleibt aus.',
 } satisfies Record<string, Text>;
 export type ProfileWarning = keyof typeof warning;
 
@@ -306,7 +381,7 @@ export const de = {
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     unread: 'Neu',
     pinned: 'Gemerkt',
-    alsoOn: (portals: string) => `Auch auf ${portals}`,
+    alsoOn: (portals: string) => `auch auf ${portals}`,
     untitled: 'Job ohne Titel',
   },
   toolbar: {
@@ -368,6 +443,7 @@ export const de = {
     excluded: (value: number) => `Ausgeschlossen ${n(value)}`,
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
+    emptyAfterRun: 'Die Alert-Mails enthielten bisher keine Jobs.',
     emptyFilter: 'Dazu gibt es gerade keine Jobs.',
     noHit: (query: string) => `Keine Jobs zu „${query}“.`,
     showAll: 'Alle zeigen',
@@ -382,14 +458,18 @@ export const de = {
     clearFilter: 'Filter entfernen',
   },
   reader: {
-    mustMet: (met: number, total: number) => `${n(met)} von ${n(total)} Muss-Anforderungen erfüllt`,
+    mustMet: (met: number, total: number, partial = 0) =>
+      `${n(met)} von ${n(total)} Muss-Anforderungen erfüllt` +
+      (partial > 0 ? `, ${n(partial)} teilweise` : ''),
     noMust: 'Keine Muss-Anforderungen erkannt',
     criteria: 'Ausschlusskriterien',
+    contract,
+    contractLabel: 'Vertragsart',
     criterion: criteria,
     criterionState: {
       met: 'Erfüllt',
       violated: 'Verletzt',
-      unknown: 'Unklar',
+      unknown: 'Zu prüfen',
       unset: 'Nicht gesetzt',
     } satisfies Record<CriterionState, string>,
     note,
@@ -420,14 +500,13 @@ export const de = {
     high: 'Hohe Passung',
     noDetail: 'Ohne Details',
     excluded: 'Ausgeschlossen',
-    unread: 'Neu je Portal',
-    best: 'Beste Jobs',
-    pinned: 'Gemerkt',
     issues: 'Offene Punkte',
+    lastRun: 'Letzter Abruf',
+    newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
+    nothingNew: 'Keine neuen Jobs',
     emptyAlert: (portal: Portal) =>
       `Eine Alert-Mail von ${portalName[portal]} enthielt keine Jobs.`,
     openGmail: 'In Gmail öffnen',
-    choose: 'Einen Job links wählen, um die Passung zu sehen.',
   },
   health: {
     ok: 'Bereit',
@@ -440,7 +519,7 @@ export const de = {
     loginText: 'Die Anmeldung ist abgelaufen.',
   },
   profile: {
-    none: 'Noch kein Profil.',
+    none: 'Noch kein Profil',
     noneText: 'Gegen das Profil wird jeder Job geprüft.',
     pick: 'Profil wählen',
     template: 'Vorlage speichern',
@@ -461,13 +540,21 @@ export const de = {
     } satisfies Record<ProfileQuality, string>,
     rescoring: (value: number) => `${n(value)} Jobs werden neu bewertet.`,
     rescored: 'Neu bewertet.',
-    parseError: 'Die Datei ist kein gültiges Profil mehr.',
+    parseError: 'Das Profil ist nicht mehr lesbar.',
     understood: 'Das hat die App verstanden',
     competences: 'Kompetenzen',
     more: (value: number) => `+${n(value)}`,
     criteria: 'Ausschlusskriterien',
     warnings: 'Hinweise',
     warning,
+    background: 'Werdegang',
+    years: (value: number) => `${n(value)} Jahre Berufserfahrung`,
+    packs: 'Fachgebiete',
+    pack: {
+      finance: 'Finanzen',
+      sap: 'SAP',
+      itProject: 'IT-Projekte',
+    } as Record<string, string>,
     notYet: 'Die Auswertung folgt nach dem nächsten Start.',
   },
   settings: {

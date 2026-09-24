@@ -48,6 +48,10 @@
   function select(job: JobView): void {
     void jobs.select(job, true);
   }
+
+  function pin(job: JobView): void {
+    void jobs.pin(job.key, !job.pinned);
+  }
 </script>
 
 <div
@@ -132,7 +136,12 @@
           testid="empty-new"
         />
       {:else}
-        <EmptyState icon="inbox" tone="neutral" text={de.list.emptyAll} testid="empty-all" />
+        <EmptyState
+          icon="inbox"
+          tone="neutral"
+          text={app.state?.lastRun ? de.list.emptyAfterRun : de.list.emptyAll}
+          testid="empty-all"
+        />
       {/if}
     </div>
   {:else}
@@ -150,6 +159,7 @@
             fresh={jobs.fresh.has(keyOf(job.key))}
             selected={sameKey(jobs.selected, job.key)}
             onselect={select}
+            onpin={pin}
           />
         </div>
       {/each}
@@ -172,6 +182,7 @@
               fresh={jobs.fresh.has(keyOf(job.key))}
               selected={sameKey(jobs.selected, job.key)}
               onselect={select}
+              onpin={pin}
             />
           </div>
         {/each}
@@ -190,12 +201,13 @@
 <style>
   .list {
     display: flex;
+    flex: 1;
     flex-direction: column;
     min-height: 0;
   }
 
   .note {
-    padding: var(--space-12) var(--space-16) 0;
+    padding: var(--pane-padding) var(--pane-padding) 0;
   }
 
   .filter {
@@ -203,7 +215,7 @@
     align-items: center;
     gap: var(--space-4);
     align-self: flex-start;
-    margin: var(--space-12) var(--space-16) 0;
+    margin: var(--pane-padding) var(--pane-padding) var(--space-4);
     padding-left: var(--space-12);
     border-radius: var(--radius-full);
     background-color: var(--surface-selected);
@@ -221,7 +233,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-12);
-    padding: var(--space-16) var(--space-16) var(--space-8);
+    padding: var(--space-24) var(--pane-padding) var(--space-8);
     color: var(--text-muted);
     font: var(--type-xs);
     font-weight: var(--weight-semibold);
@@ -241,7 +253,7 @@
     flex: 1;
     align-items: center;
     justify-content: center;
-    padding: var(--space-32) var(--space-16);
+    padding: var(--space-32) var(--pane-padding);
   }
 
   .skeletons {
@@ -254,7 +266,7 @@
     align-items: center;
     gap: var(--space-12);
     height: var(--row-height);
-    padding: 0 var(--space-16);
+    padding: 0 var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
   }
 
@@ -266,6 +278,6 @@
   }
 
   .sentinel {
-    padding: var(--space-16);
+    padding: var(--pane-padding);
   }
 </style>

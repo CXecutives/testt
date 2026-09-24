@@ -1,7 +1,7 @@
 <!--
   The navigation of the sidebar: icon and label per view, an optional count (unread jobs).
-  Active item in accent-soft with ink text, hover surface-hover. Collapsed (icon rail) the
-  labels move into tooltips and the count sits on the icon.
+  Active item in accent-soft with ink text, hover surface-hover, the count in coral text.
+  Collapsed (icon rail) the labels move into tooltips and a dot on the icon stands for the count.
 -->
 <script lang="ts" module>
   import type { IconName } from './Icon.svelte';
@@ -108,7 +108,7 @@
     right: calc(-1 * var(--space-2));
     width: var(--dot);
     height: var(--dot);
-    border: var(--border-width) solid var(--surface-sidebar);
+    border: var(--border-width) solid var(--bg);
     border-radius: var(--radius-full);
     background-color: var(--accent);
   }
@@ -121,19 +121,11 @@
     white-space: nowrap;
   }
 
+  /* The unread count: coral text only, no pill (the unread dot's colour). */
   .count {
-    min-width: var(--space-20);
-    padding: 0 var(--space-6);
-    border-radius: var(--radius-full);
-    background-color: var(--accent-soft);
     color: var(--accent-text);
     font: var(--type-xs);
     font-weight: var(--weight-semibold);
     font-variant-numeric: var(--numeric);
-    text-align: center;
-  }
-
-  .item[aria-current='page'] .count {
-    background-color: var(--surface);
   }
 </style>

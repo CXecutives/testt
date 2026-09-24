@@ -34,7 +34,7 @@
 
   let {
     icon = null,
-    tone = 'coral',
+    tone = 'neutral',
     heading = null,
     text,
     action = null,
@@ -81,7 +81,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-20);
+    gap: var(--space-16);
     max-width: var(--form-width);
     text-align: center;
   }
@@ -94,8 +94,7 @@
 
   .heading {
     color: var(--text-heading);
-    font: var(--type-xl);
-    letter-spacing: var(--tracking-tight);
+    font: var(--type-lg);
   }
 
   .text {

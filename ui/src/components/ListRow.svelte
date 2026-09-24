@@ -1,7 +1,9 @@
 <!--
-  A 76 px list row: leading, content, trailing. Hover tints the row and grows a gradient
-  bar on the left (scaleY); the selected row keeps both. A `tint` row (new during a run)
-  starts with a soft accent wash that fades out once.
+  A list row: leading, content, trailing, top-aligned, at least 72 px high and growing with
+  its content (a title may take two lines). The one inner padding of the columns on the
+  sides. Hover tints the row and grows a coral bar on the left (scaleY); the selected row
+  keeps both. A `tint` row (new during a run) starts with a soft accent wash that fades out
+  once.
 -->
 <script lang="ts">
   import { play } from '$lib/motion/motion';
@@ -61,11 +63,11 @@
     position: relative;
     isolation: isolate;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-12);
     width: 100%;
-    height: var(--row-height);
-    padding: 0 var(--space-16);
+    min-height: var(--row-height);
+    padding: var(--space-12) var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
     background-color: transparent;
     text-align: left;
@@ -119,14 +121,11 @@
   .trailing {
     display: flex;
     flex: none;
-    align-items: center;
   }
 
   .trailing {
     flex-direction: column;
     align-items: flex-end;
-    align-self: stretch;
-    justify-content: center;
     gap: var(--space-4);
   }
 

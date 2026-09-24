@@ -31,6 +31,8 @@ const ALIASES: Record<string, CriterionKey> = {
   dayRate: 'minDayRate',
   country: 'countries',
   anue: 'noAnue',
+  salary: 'minSalary',
+  tooJunior: 'targetYears',
 };
 
 export function criterionKey(value: unknown): CriterionKey | null {

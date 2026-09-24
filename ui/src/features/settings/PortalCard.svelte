@@ -87,122 +87,133 @@
   }
 </script>
 
-<Card padding="md" testid="portal-{portal.portal}">
+<Card padding="none" testid="portal-{portal.portal}">
   <div class="head">
-    <IconTile monogram={PORTAL_MONOGRAM[portal.portal]} tone="coral" size="md" />
+    <IconTile monogram={PORTAL_MONOGRAM[portal.portal]} size="md" />
     <div class="title">
       <h3 class="name">{de.portal[portal.portal]}</h3>
       <p class="risk">{de.settings.riskText[risk]}</p>
     </div>
     <div class="badges">
       <Badge label={de.settings.risk[risk]} tone={RISK_TONE[risk]} icon="shield" />
-      {#if portal.enabled && portal.health.kind !== 'ok'}
-        <Badge label={health.label} tone="warning" />
-      {/if}
+      <Button
+        variant="ghost"
+        size="sm"
+        iconOnly
+        icon="external-link"
+        label={de.settings.openPortal}
+        testid="open-portal-{portal.portal}"
+        onclick={openPortal}
+      />
     </div>
   </div>
+  <div class="body">
+    {#if portal.enabled && health.text}
+      <Notice tone="warning" variant="inline" text={health.text} testid="health-{portal.portal}" />
+    {/if}
+    {#if quota}
+      <div class="quota" data-testid="quota-{portal.portal}">
+        <span>{de.settings.quota(quota.used, quota.cap)}</span>
+        <Meter
+          value={quota.share}
+          tone="warning"
+          size="sm"
+          label={de.settings.quota(quota.used, quota.cap)}
+        />
+      </div>
+    {/if}
 
-  {#if portal.enabled && health.text}
-    <Notice tone="warning" variant="inline" text={health.text} testid="health-{portal.portal}" />
-  {/if}
-  {#if quota}
-    <div class="quota" data-testid="quota-{portal.portal}">
-      <span>{de.settings.quota(quota.used, quota.cap)}</span>
-      <Meter
-        value={quota.share}
-        tone="warning"
-        size="sm"
-        label={de.settings.quota(quota.used, quota.cap)}
-      />
-    </div>
-  {/if}
-
-  <div class="rows">
-    <SettingRow label={de.settings.active}>
-      <Toggle
-        checked={portal.enabled}
-        label={de.settings.active}
-        testid="toggle-enabled-{portal.portal}"
-        onchange={(on) => void change({ enabled: on })}
-      />
-    </SettingRow>
-    <SettingRow label={de.settings.details}>
-      <Toggle
-        checked={portal.fetchDetails && portal.enabled}
-        label={de.settings.details}
-        disabled={!portal.enabled}
-        disabledReason={de.settings.needsActive}
-        testid="toggle-details-{portal.portal}"
-        onchange={(on) => void change({ fetchDetails: on })}
-      />
-    </SettingRow>
-    {#if portal.login === 'optional'}
-      <SettingRow label={de.settings.login} hint={de.settings.loginHint}>
-        {#snippet badges()}
-          <Badge label={de.settings.risk.account} tone="danger" />
-        {/snippet}
+    <div class="rows">
+      <SettingRow label={de.settings.active}>
         <Toggle
-          checked={portal.loginEnabled}
-          label={de.settings.login}
-          disabled={!portal.enabled || !portal.fetchDetails}
-          disabledReason={de.settings.needsDetails}
-          testid="toggle-login-{portal.portal}"
-          onchange={(on) => void change({ loginEnabled: on })}
+          checked={portal.enabled}
+          label={de.settings.active}
+          testid="toggle-enabled-{portal.portal}"
+          onchange={(on) => void change({ enabled: on })}
         />
       </SettingRow>
-      {#if portal.loginEnabled}
-        <SettingRow
-          label={portal.signedIn ? de.settings.signedIn : de.settings.signedOut}
-          hint={run.loginNeeded === portal.portal ? de.settings.signInWaiting : null}
-        >
-          {#if portal.signedIn}
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="log-out"
-              label={de.settings.signOut}
-              loading={busy}
-              testid="sign-out-{portal.portal}"
-              onclick={() => void session(false)}
-            />
-          {:else}
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="log-in"
-              label={de.settings.signIn}
-              loading={busy}
-              disabled={run.active}
-              disabledReason={de.settings.running}
-              testid="sign-in-{portal.portal}"
-              onclick={() => void session(true)}
-            />
-          {/if}
+      <SettingRow label={de.settings.details}>
+        <Toggle
+          checked={portal.fetchDetails && portal.enabled}
+          label={de.settings.details}
+          disabled={!portal.enabled}
+          disabledReason={de.settings.needsActive}
+          testid="toggle-details-{portal.portal}"
+          onchange={(on) => void change({ fetchDetails: on })}
+        />
+      </SettingRow>
+      {#if portal.login === 'optional'}
+        <SettingRow label={de.settings.login} hint={de.settings.loginHint}>
+          {#snippet badges()}
+            <Badge label={de.settings.risk.account} tone="danger" />
+          {/snippet}
+          <Toggle
+            checked={portal.loginEnabled}
+            label={de.settings.login}
+            disabled={!portal.enabled || !portal.fetchDetails}
+            disabledReason={de.settings.needsDetails}
+            testid="toggle-login-{portal.portal}"
+            onchange={(on) => void change({ loginEnabled: on })}
+          />
         </SettingRow>
+        {#if portal.loginEnabled}
+          <SettingRow
+            label={portal.signedIn ? de.settings.signedIn : de.settings.signedOut}
+            hint={run.loginNeeded === portal.portal ? de.settings.signInWaiting : null}
+          >
+            {#if portal.signedIn}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="log-out"
+                label={de.settings.signOut}
+                loading={busy}
+                testid="sign-out-{portal.portal}"
+                onclick={() => void session(false)}
+              />
+            {:else}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="log-in"
+                label={de.settings.signIn}
+                loading={busy}
+                disabled={run.active}
+                disabledReason={de.settings.running}
+                testid="sign-in-{portal.portal}"
+                onclick={() => void session(true)}
+              />
+            {/if}
+          </SettingRow>
+        {/if}
       {/if}
-    {/if}
-  </div>
+    </div>
 
-  {#if error}
-    <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
-  {/if}
-  <div class="foot">
-    <Button
-      variant="ghost"
-      size="sm"
-      icon="external-link"
-      label={de.settings.openPortal}
-      onclick={openPortal}
-    />
+    {#if error}
+      <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
+    {/if}
   </div>
 </Card>
 
 <style>
   .head {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--space-12);
-    margin-bottom: var(--space-12);
+    padding: var(--space-16) var(--space-20) var(--space-12);
+  }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    margin: 0 var(--space-20);
+    padding-bottom: var(--space-4);
+    border-top: var(--border-width) solid var(--border);
+  }
+
+  .body > :global(:first-child:not(.rows)) {
+    margin-top: var(--space-12);
   }
 
   .title {
@@ -226,15 +237,20 @@
   .badges {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     justify-content: flex-end;
-    gap: var(--space-6);
+    gap: var(--space-8);
+  }
+
+  /* The icon of the last ghost button lines up with the toggles below it. */
+  .badges :global(.btn.ghost:last-child) {
+    margin-right: calc((var(--icon-sm) - var(--control-sm)) / 2);
   }
 
   .quota {
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
-    margin: var(--space-8) 0;
     color: var(--text-muted);
     font: var(--type-sm);
     font-variant-numeric: var(--numeric);
@@ -243,11 +259,5 @@
   .rows {
     display: flex;
     flex-direction: column;
-  }
-
-  .foot {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: var(--space-8);
   }
 </style>

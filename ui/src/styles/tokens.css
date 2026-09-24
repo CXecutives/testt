@@ -23,8 +23,6 @@
   --p-slate-deep: 212 30% 26%;
   --p-peach: 20 62% 71%;
   --p-muted: 45 23% 95%;
-  /* The sidebar: a warm surface a shade deeper than the cream content. */
-  --p-sidebar: 34 28% 92.5%;
   --p-muted-fg: 30 4% 35%;
   --p-line: 45 22% 90%;
   --p-accent-soft: 20 62% 91%;
@@ -74,7 +72,8 @@
   --surface-press: hsl(var(--p-ink) / 0.08);
   --surface-selected: hsl(var(--p-accent-soft));
   --surface-tinted: hsl(var(--p-coral-50));
-  --surface-sidebar: hsl(var(--p-sidebar));
+  /* Track of segmented controls: visible on white and on cream alike. */
+  --surface-track: hsl(var(--p-ink) / 0.055);
   --scrim: hsl(var(--p-scrim) / 0.4);
   --surface-inverse: hsl(var(--p-ink));
 
@@ -209,9 +208,12 @@
   --titlebar-height: 40px;
   --toolbar-height: 56px;
   --list-min: 360px;
-  --list-max: 440px;
+  --list-max: 460px;
   --reader-width: 720px;
   --form-width: 560px;
+  /* The one inner padding of every content column: list header, list rows, reader, overview,
+     and the left edge of the top strip, so their edges line up. */
+  --pane-padding: var(--space-16);
   --ring-sm: 40px;
   --ring-sm-stroke: 4px;
   --ring-lg: 96px;
@@ -246,7 +248,7 @@
   --dialog-width: 440px;
   --stat-min: 180px;
   /* Sidebar (collapses to the icon rail below 1100 px) and the toast stack. */
-  --sidebar-width: 232px;
+  --sidebar-width: 196px;
   --rail-width: 64px;
   --toast-width: 360px;
   --blur-scrim: 4px;
@@ -270,6 +272,8 @@
   --leading-sm: 18px;
   --font-md: 15px;
   --leading-md: 22px;
+  /* List titles: 15 px on a tighter 20 px line, so two lines stay one block. */
+  --leading-title: 20px;
   /* Word tabs of the title bar (14/20, weight 500, active 600). */
   --font-tab: 14px;
   --leading-tab: 20px;
@@ -286,6 +290,7 @@
   --type-xs: var(--weight-regular) var(--font-xs) / var(--leading-xs) var(--font-sans);
   --type-sm: var(--weight-regular) var(--font-sm) / var(--leading-sm) var(--font-sans);
   --type-md: var(--weight-regular) var(--font-md) / var(--leading-md) var(--font-sans);
+  --type-title: var(--weight-medium) var(--font-md) / var(--leading-title) var(--font-sans);
   --type-tab: var(--weight-medium) var(--font-tab) / var(--leading-tab) var(--font-sans);
   --type-body: var(--weight-regular) var(--font-body) / var(--leading-body) var(--font-sans);
   --type-lg: var(--weight-semibold) var(--font-lg) / var(--leading-lg) var(--font-sans);

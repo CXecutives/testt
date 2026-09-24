@@ -1,11 +1,12 @@
 <!--
   White card on the cream background. plain | interactive | tinted.
-  Interactive cards (with onclick) lift 2 px on hover; the card shadow fades in on ::after,
-  a coral hairline border and a gradient top edge appear.
+  Interactive cards (with onclick) lift 1 px on hover: the hairline darkens and a warm
+  shadow fades in on ::after. No colour: coral is kept for selection and the primary.
 -->
 <script lang="ts" module>
   export type CardVariant = 'plain' | 'interactive' | 'tinted';
-  export type CardPadding = 'none' | 'md' | 'lg';
+  /** `rows`: for a card of SettingRows (they bring their own vertical padding). */
+  export type CardPadding = 'none' | 'rows' | 'md' | 'lg';
 </script>
 
 <script lang="ts">
@@ -71,40 +72,24 @@
       border-color var(--dur-base) var(--ease-standard);
   }
 
-  .interactive::before,
+  /* Card shadow, faded in (box-shadow itself never animates). */
   .interactive::after {
     position: absolute;
+    z-index: var(--z-below);
+    inset: calc(-1 * var(--border-width));
     border-radius: inherit;
+    box-shadow: var(--sh-card);
     content: '';
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--dur-base) var(--ease-standard);
   }
 
-  /* Card shadow, faded in (box-shadow itself never animates). */
-  .interactive::after {
-    z-index: var(--z-below);
-    inset: calc(-1 * var(--border-width));
-    box-shadow: var(--sh-card), var(--sh-elegant);
-  }
-
-  /* Gradient top edge. */
-  .interactive::before {
-    z-index: var(--z-raised);
-    top: calc(-1 * var(--border-width));
-    right: var(--space-12);
-    left: var(--space-12);
-    height: var(--marker-height);
-    border-radius: var(--radius-full);
-    background-color: var(--accent);
-  }
-
   .interactive:hover {
-    border-color: var(--border-accent);
-    transform: translateY(var(--lift-card));
+    border-color: var(--border-strong);
+    transform: translateY(var(--lift));
   }
 
-  .interactive:hover::before,
   .interactive:hover::after {
     opacity: 1;
   }
@@ -122,8 +107,12 @@
     padding: 0;
   }
 
+  .pad-rows {
+    padding: var(--space-4) var(--space-20);
+  }
+
   .pad-md {
-    padding: var(--space-16);
+    padding: var(--space-16) var(--space-20);
   }
 
   .pad-lg {

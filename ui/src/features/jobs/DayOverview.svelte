@@ -1,68 +1,57 @@
 <!--
-  What the reader shows while no job is selected: three tiles that filter the list, new
-  jobs per portal, the best three, the pinned ones and the open points (portal health,
-  alert mails without jobs, missing profile) plus the overview file.
+  What the reader side shows while no job is selected. It never repeats the list: three
+  tiles that filter it (their numbers are the counts of those filters), the open points
+  (portal health, alert mails without jobs, missing profile, a failed fetch) only when there
+  are any, and the last fetch: when, what is new per portal, the overview and the folder.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import Card from '$components/Card.svelte';
-  import IconTile, { PORTAL_MONOGRAM } from '$components/IconTile.svelte';
-  import JobRow from '$components/JobRow.svelte';
   import Notice from '$components/Notice.svelte';
   import StatTile from '$components/StatTile.svelte';
   import { de } from '$lib/i18n/de';
-  import { formatNumber } from '$lib/i18n/format';
+  import { formatMoment } from '$lib/i18n/format';
   import { errorText, healthText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { JobView, OpenTarget, Portal } from '$lib/ipc/types';
+  import type { OpenTarget, Portal } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf } from '$lib/state/jobs.svelte';
+  import { jobs } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
 
   const PORTALS: readonly Portal[] = ['linkedin', 'freelancermap', 'freelance'];
-  const BEST = 3;
 
-  const all = $derived(jobs.overview);
+  // "Neu" is unread and not excluded, exactly like the facet Neu (they add up to its count).
   const unread = $derived(
     PORTALS.map((portal) => ({
       portal,
-      count: all.filter((j) => j.portal === portal && j.unread && j.match?.status !== 'excluded')
-        .length,
+      count: jobs.overview.filter(
+        (j) => j.portal === portal && j.unread && j.match?.status !== 'excluded',
+      ).length,
     })).filter((line) => line.count > 0),
   );
-  const best = $derived(
-    app.hasProfile
-      ? all
-          .filter((j) => j.match?.status === 'scored')
-          .sort((a, b) => (b.match?.score ?? 0) - (a.match?.score ?? 0))
-          .slice(0, BEST)
-      : [],
-  );
-  const pinned = $derived(all.filter((j) => j.pinned));
   // While a run goes, the run card shows pauses and limits; they are not repeated here.
   const troubled = $derived(
     run.active ? [] : (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
   );
+  const last = $derived(run.summary ?? app.state?.lastRun ?? null);
   const emptyAlerts = $derived(app.state?.lastRun?.emptyAlerts ?? []);
-  const profileMissing = $derived(app.state !== null && app.state.profile === null);
+  // A missing profile is said once, above the list where the rings are missing.
   const profileBroken = $derived(app.state?.profile?.parseError != null);
-  const hasJobs = $derived(all.length > 0);
   // A failed fetch from before this session; a run of this session speaks in the run card.
   const lastFailure = $derived.by(() => {
-    const last = app.state?.lastRun;
-    if (run.active || run.panel !== 'hidden' || last?.outcome.kind !== 'failed') return null;
-    return last.outcome.error;
+    const previous = app.state?.lastRun;
+    if (run.active || run.panel !== 'hidden' || previous?.outcome.kind !== 'failed') return null;
+    return previous.outcome.error;
   });
+  const hasIssues = $derived(
+    troubled.length > 0 || emptyAlerts.length > 0 || profileBroken || lastFailure !== null,
+  );
   let actionError = $state<string | null>(null);
 
   function open(target: OpenTarget): void {
     actionError = null;
     invoke('open_target', { target }).catch((error: unknown) => (actionError = errorText(error)));
-  }
-
-  function select(job: JobView): void {
-    void jobs.select(job, true);
   }
 </script>
 
@@ -72,49 +61,54 @@
       <StatTile
         label={de.overview.high}
         value={jobs.counts.high}
-        icon="star"
+        icon="circle-check"
         tone="success"
+        active={jobs.filter === 'high'}
         testid="tile-high"
-        onclick={() => jobs.setFilter('high')}
+        onclick={() => jobs.setFilter(jobs.filter === 'high' ? null : 'high')}
       />
     {/if}
     <StatTile
       label={de.overview.noDetail}
       value={jobs.counts.noDetail}
       icon="file-text"
-      tone="neutral"
+      active={jobs.filter === 'noDetail'}
       testid="tile-no-detail"
-      onclick={() => jobs.setFilter('noDetail')}
+      onclick={() => jobs.setFilter(jobs.filter === 'noDetail' ? null : 'noDetail')}
     />
     {#if app.hasProfile}
       <StatTile
         label={de.overview.excluded}
         value={jobs.counts.excluded}
         icon="ban"
-        tone="danger"
+        active={jobs.filter === 'excluded'}
         testid="tile-excluded"
-        onclick={() => jobs.setFilter('excluded')}
+        onclick={() => jobs.setFilter(jobs.filter === 'excluded' ? null : 'excluded')}
       />
     {/if}
   </div>
 
-  {#if troubled.length > 0 || emptyAlerts.length > 0 || profileMissing || profileBroken || lastFailure}
-    <Card padding="md" testid="issues">
-      <h2 class="heading">{de.overview.issues}</h2>
-      <div class="stack">
+  {#if hasIssues}
+    <Card padding="none" testid="issues">
+      <div class="card-head">
+        <h2 class="heading">{de.overview.issues}</h2>
+      </div>
+      <div class="rows">
         {#if lastFailure}
           <Notice
             tone="danger"
+            variant="row"
             heading={de.run.failed}
             text={de.error.text(lastFailure.kind, lastFailure.params)}
             action={{ label: de.common.retry, onclick: () => void run.start({ kind: 'fetch' }) }}
             testid="run-failed"
           />
         {/if}
-        {#if profileMissing || profileBroken}
+        {#if profileBroken}
           <Notice
             tone="info"
-            text={profileBroken ? de.profile.parseError : de.list.noProfile}
+            variant="row"
+            text={de.profile.parseError}
             action={{ label: de.list.pickProfile, onclick: () => navigation.go('profile') }}
           />
         {/if}
@@ -122,6 +116,7 @@
           {@const health = healthText(portal.health)}
           <Notice
             tone="warning"
+            variant="row"
             heading={de.portal[portal.portal]}
             text={health.text ?? health.label}
             testid="issue-{portal.portal}"
@@ -130,6 +125,7 @@
         {#each emptyAlerts as alert, index (index)}
           <Notice
             tone="warning"
+            variant="row"
             text={de.overview.emptyAlert(alert.portal)}
             action={alert.gmailId
               ? {
@@ -144,52 +140,47 @@
     </Card>
   {/if}
 
-  {#if unread.length > 0}
-    <Card padding="md" testid="unread-portals">
-      <h2 class="heading">{de.overview.unread}</h2>
-      <ul class="portals">
-        {#each unread as line (line.portal)}
-          <li class="portal">
-            <IconTile monogram={PORTAL_MONOGRAM[line.portal]} tone="coral" size="sm" />
-            <span class="name">{de.portal[line.portal]}</span>
-            <span class="count">{formatNumber(line.count)}</span>
-          </li>
-        {/each}
-      </ul>
+  <!-- While the run card is open it tells the same; the overview does not repeat it. -->
+  {#if last && !run.active && run.panel === 'hidden'}
+    <Card padding="none" testid="last-run">
+      <div class="card-head">
+        <h2 class="heading">{de.overview.lastRun}</h2>
+        <span class="time">{formatMoment(last.finishedAt)}</span>
+      </div>
+      <div class="last">
+        {#if unread.length > 0}
+          <ul class="portals" data-testid="new-per-portal">
+            {#each unread as line (line.portal)}
+              <li class="chip">{de.overview.newOn(de.portal[line.portal], line.count)}</li>
+            {/each}
+          </ul>
+        {:else if jobs.overviewReady}
+          <p class="quiet">{de.overview.nothingNew}</p>
+        {:else}
+          <span></span>
+        {/if}
+        <div class="actions">
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="external-link"
+            label={de.run.openOverview}
+            testid="overview-open"
+            onclick={() => open({ kind: 'overview' })}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="folder-open"
+            label={de.common.openFolder}
+            onclick={() => open({ kind: 'workspace' })}
+          />
+        </div>
+      </div>
+      {#if actionError}
+        <div class="error"><Notice tone="danger" variant="inline" text={actionError} /></div>
+      {/if}
     </Card>
-  {/if}
-
-  {#if best.length > 0}
-    <Card padding="none" testid="best">
-      <h2 class="heading padded">{de.overview.best}</h2>
-      {#each best as job (keyOf(job.key))}
-        <JobRow {job} onselect={select} />
-      {/each}
-    </Card>
-  {/if}
-
-  {#if pinned.length > 0}
-    <Card padding="none" testid="pinned">
-      <h2 class="heading padded">{de.overview.pinned}</h2>
-      {#each pinned as job (keyOf(job.key))}
-        <JobRow {job} ring={app.hasProfile} onselect={select} />
-      {/each}
-    </Card>
-  {/if}
-
-  {#if hasJobs}
-    <div class="footer">
-      <p class="hint">{de.overview.choose}</p>
-      <Button
-        variant="secondary"
-        icon="external-link"
-        label={de.run.openOverview}
-        onclick={() => open({ kind: 'overview' })}
-      />
-    </div>
-  {/if}
-  {#if actionError}
-    <Notice tone="danger" variant="inline" text={actionError} />
   {/if}
 </div>
 
@@ -197,62 +188,96 @@
   .overview {
     display: flex;
     flex-direction: column;
-    gap: var(--space-24);
+    gap: var(--space-16);
+    container-type: inline-size;
   }
 
+  /* Always three columns (a missing tile leaves its place empty), one column only when
+     three would be too narrow for their labels. */
   .tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(var(--stat-min), 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-16);
   }
 
+  @container (width < 460px) {
+    .tiles {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-8);
+    padding: var(--space-16) var(--space-20) 0;
+  }
+
   .heading {
-    margin-bottom: var(--space-12);
     color: var(--text-heading);
     font: var(--type-lg);
   }
 
-  .padded {
-    margin: 0;
-    padding: var(--space-16) var(--space-16) var(--space-8);
-  }
-
-  .stack {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-  }
-
-  .portals {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-  }
-
-  .portal {
-    display: flex;
-    align-items: center;
-    gap: var(--space-12);
+  .time {
+    color: var(--text-muted);
     font: var(--type-md);
-  }
-
-  .count {
-    margin-left: auto;
-    color: var(--text-heading);
-    font-weight: var(--weight-semibold);
     font-variant-numeric: var(--numeric);
   }
 
-  .footer {
+  .rows {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-4) var(--space-20) var(--space-4);
+  }
+
+  .rows > :global(*) {
+    padding: var(--space-12) 0;
+  }
+
+  .rows > :global(* + *) {
+    border-top: var(--border-width) solid var(--border);
+  }
+
+  .last {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-12);
+    gap: var(--space-12) var(--space-16);
+    padding: var(--space-12) var(--space-20) var(--space-16);
   }
 
-  .hint {
+  .portals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    height: var(--badge-height);
+    padding: 0 var(--space-8);
+    border-radius: var(--radius-full);
+    background-color: var(--surface-muted);
     color: var(--text-muted);
-    font: var(--type-md);
+    font: var(--type-xs);
+    font-weight: var(--weight-medium);
+    font-variant-numeric: var(--numeric);
+    white-space: nowrap;
+  }
+
+  .quiet {
+    color: var(--text-muted);
+    font: var(--type-sm);
+  }
+
+  .actions {
+    display: flex;
+    gap: var(--space-8);
+  }
+
+  .error {
+    padding: 0 var(--space-20) var(--space-16);
   }
 </style>

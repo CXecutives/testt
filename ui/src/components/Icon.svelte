@@ -12,7 +12,9 @@
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronUp from '@lucide/svelte/icons/chevron-up';
   import CircleDashed from '@lucide/svelte/icons/circle-dashed';
+  import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
   import Clock from '@lucide/svelte/icons/clock';
+  import Contrast from '@lucide/svelte/icons/contrast';
   import Copy from '@lucide/svelte/icons/copy';
   import Download from '@lucide/svelte/icons/download';
   import ExternalLink from '@lucide/svelte/icons/external-link';
@@ -87,6 +89,10 @@
     'user-round': UserRound,
     'sliders-horizontal': SlidersHorizontal,
     'circle-check': CircleCheck,
+    // Criteria chips: a point the ad leaves open ("zu prüfen").
+    'circle-help': CircleQuestionMark,
+    // A requirement met only in part: half a circle, next to the full check and the empty ring.
+    'circle-half': Contrast,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

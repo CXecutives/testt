@@ -19,14 +19,15 @@
 
   const ICON: Record<ReasonKind, IconName> = {
     met: 'check',
-    partial: 'circle-dashed',
+    partial: 'circle-half',
     open: 'circle-dashed',
     violation: 'ban',
     check: 'info',
   };
 
+  // Muss and Kann are plain facts, never alarms: both neutral. Only a decided exclusion is red.
   const WEIGHT_TONE: Record<ReasonWeight, BadgeTone> = {
-    must: 'coral',
+    must: 'neutral',
     nice: 'neutral',
     hard: 'danger',
     info: 'neutral',
@@ -142,7 +143,7 @@
 
   .reason:not(.compact) .label {
     white-space: normal;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   .reason:not(.compact) .icon {

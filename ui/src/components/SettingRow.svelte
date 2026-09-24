@@ -31,7 +31,8 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-24);
-    padding: var(--space-16) 0;
+    min-height: calc(var(--control-md) + 2 * var(--space-12));
+    padding: var(--space-12) 0;
     border-bottom: var(--border-width) solid var(--border);
   }
 
@@ -69,5 +70,11 @@
     flex: none;
     align-items: center;
     gap: var(--space-12);
+  }
+
+  /* A ghost button at the end lines its text up with the edge, like toggles and bordered
+     buttons (the ghost's own padding would inset it). */
+  .control :global(.btn.ghost.sm:last-child) {
+    margin-right: calc(-1 * var(--space-12));
   }
 </style>

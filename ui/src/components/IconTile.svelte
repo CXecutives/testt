@@ -30,7 +30,7 @@
     monogram?: string | null;
   }
 
-  let { tone = 'coral', size = 'md', icon = null, monogram = null }: Props = $props();
+  let { tone = 'neutral', size = 'md', icon = null, monogram = null }: Props = $props();
 
   const ICON_SIZE: Record<TileSize, IconSize> = { sm: 'sm', md: 'md', lg: 'lg' };
 </script>
@@ -82,8 +82,9 @@
     --tile-fg: var(--danger-strong);
   }
 
+  /* The track tone reads on white cards and on the cream page alike. */
   .neutral {
-    --tile-bg: var(--surface-muted);
+    --tile-bg: var(--surface-track);
     --tile-fg: var(--text-muted);
   }
 

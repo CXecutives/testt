@@ -60,6 +60,8 @@ export const text = {
     tabs: ['Jobs', 'Profil', 'Einstellungen'],
     toast: 'Toast zeigen',
     toastText: 'Gespeichert.',
+    status: 'Zuletzt 08:30',
+    running: 'Holt Details',
   },
   surfaces: {
     cards: 'Karten',
