@@ -26,6 +26,8 @@
     variant?: 'confirm' | 'danger';
     heading: string;
     text: string;
+    /** The bare verb of the heading ("Postfach entfernen?": Entfernen; "Ganzes Postfach
+     *  lesen?": Lesen), the same pattern in every dialog. */
     confirmLabel: string;
     cancelLabel?: string;
     busy?: boolean;

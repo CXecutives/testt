@@ -978,6 +978,7 @@ export const en: Catalog = {
     fullMailbox: 'Read the whole mailbox',
     fullMailboxHint: 'Reads all alert mails, not only the new ones.',
     fullMailboxAction: 'Read mailbox',
+    fullMailboxConfirm: 'Read',
     fullMailboxHeading: 'Read the whole mailbox?',
     fullMailboxText: 'This takes longer and fetches more pages from the portals.',
     logs: 'Logs',

@@ -1036,6 +1036,8 @@ export const de = {
     fullMailbox: 'Ganzes Postfach lesen',
     fullMailboxHint: 'Liest alle Alert-Mails, nicht nur die neuen.',
     fullMailboxAction: 'Postfach lesen',
+    /** The dialog's confirm: the bare verb of its heading, like every dialog. */
+    fullMailboxConfirm: 'Lesen',
     fullMailboxHeading: 'Ganzes Postfach lesen?',
     fullMailboxText: 'Das dauert länger und ruft mehr Seiten der Portale ab.',
     logs: 'Protokolle',
