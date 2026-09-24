@@ -785,7 +785,13 @@ fn motion_stays_quick_and_calm() {
             .parse()
             .expect("milliseconds")
     };
-    for name in ["--dur-instant", "--dur-fast", "--dur-base", "--dur-slow"] {
+    for name in [
+        "--dur-instant",
+        "--dur-hover",
+        "--dur-fast",
+        "--dur-base",
+        "--dur-slow",
+    ] {
         assert!(ms(name) <= 180, "{name} is {} ms (at most 180)", ms(name));
     }
     assert!(ms("--dur-reveal") <= 400, "--dur-reveal above 400 ms");
@@ -818,7 +824,8 @@ fn motion_stays_quick_and_calm() {
     fail(&problems, "quick, calm and cheap motion");
 }
 
-/// Coral-only brand (user decision): no second hue in a gradient, no gradient text, no
+/// Two brand colours with two jobs (user decisions): coral acts, navy orients - and they
+/// never blend. No second hue in a gradient (no coral-to-navy), no gradient text, no
 /// "sparkles" cliché.
 #[test]
 fn the_brand_stays_coral() {
@@ -836,6 +843,7 @@ fn the_brand_stays_coral() {
         if in_gradient
             && [
                 "--p-slate",
+                "--p-navy",
                 "--p-success",
                 "--p-info",
                 "--p-warning",

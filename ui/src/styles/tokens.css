@@ -7,6 +7,12 @@
  *
  * Lint (stylelint + eslint + core/tests/ui_contract.rs) rejects hex, named colours, colour
  * functions, px/rem/em/ms/s units, keyframes and `var(--p-*)` everywhere else.
+ *
+ * Two brand colours with two jobs (user, 2026-09-24): coral means act or new (the one
+ * primary per view, switches that are on, the unread dot); the cxpertise navy means where
+ * you are and what the data says (selection, active navigation, the chosen filter, focus,
+ * progress, counts, tooltips, info, sub-labels). Navy appears as small dense marks and soft
+ * washes, never as a large fill; headings stay ink. Green, ochre and grey are the scores.
  */
 
 :root {
@@ -29,7 +35,15 @@
   --p-warning: 45 76% 75%;
   --p-danger: 4 51% 56%;
   --p-coral-800: 13 62% 45%;
-  --p-slate-700: 212 38% 27%;
+  /* The cxpertise navy: slate navy for focus, links, sub-labels, progress and icons (6.9:1
+     on white), deep navy for dark pills, the tooltip, the selection bar and active labels
+     (white on it about 10.5:1), and soft washes for selection, chosen filters and pills. */
+  --p-navy: 212 34% 37%;
+  --p-navy-deep: 212 30% 26%;
+  --p-navy-50: 212 30% 96%;
+  --p-navy-100: 212 32% 93%;
+  --p-navy-150: 212 30% 90%;
+  --p-navy-200: 212 26% 84%;
   --p-fg-subtle: 30 4% 48%;
   --p-border-strong: 40 12% 78%;
   --p-border-input: 40 10% 66%;
@@ -39,8 +53,6 @@
   --p-warning-soft: 45 76% 93%;
   --p-danger-strong: 4 55% 45%;
   --p-danger-soft: 4 51% 95%;
-  --p-info: 212 45% 45%;
-  --p-info-soft: 212 45% 95%;
   /* Hover and press steps of the filled danger button (same hue). */
   --p-danger-700: 4 55% 41%;
   --p-danger-750: 4 56% 37%;
@@ -50,11 +62,14 @@
   --p-score-high-soft: 150 27% 93%;
   /* A mid match is ochre, not coral: coral would read as a warning next to the accent. */
   --p-score-mid: 38 55% 55%;
-  --p-score-low: 30 5% 62%;
+  /* A low arc that still stands apart from its track. */
+  --p-score-low: 30 5% 56%;
   --p-score-low-text: 30 4% 42%;
-  --p-scrim: 30 8% 14%;
+  --p-scrim: 212 30% 14%;
   --p-shade-xs: 30 20% 30%;
   --p-shade-pop: 30 20% 20%;
+  /* The tint of the hover shadow: cool like cxpertise, not brown. */
+  --p-shade-navy: 212 30% 20%;
 
   /* ---------------------------------------------------------------- surfaces */
   --bg: hsl(var(--p-cream));
@@ -62,29 +77,39 @@
   --surface-muted: hsl(var(--p-muted));
   --surface-hover: hsl(var(--p-ink) / 0.04);
   --surface-press: hsl(var(--p-ink) / 0.08);
-  --surface-selected: hsl(var(--p-accent-soft));
+  /* The selected list row: a solid navy wash, clearly apart from the warm hover; one step
+     deeper under the pointer; grey while the window is inactive (like Mail, Explorer). */
+  --surface-selected: hsl(var(--p-navy-100));
+  --surface-selected-hover: hsl(var(--p-navy-150));
+  --surface-selected-inactive: hsl(var(--p-ink) / 0.06);
   /* Track of segmented controls: visible on white and on cream alike. */
   --surface-track: hsl(var(--p-ink) / 0.055);
-  --scrim: hsl(var(--p-scrim) / 0.4);
-  --surface-inverse: hsl(var(--p-ink));
+  --scrim: hsl(var(--p-scrim) / 0.36);
+  /* The tooltip bubble: the brand's dark pill, softer than near-black ink. */
+  --surface-inverse: hsl(var(--p-navy-deep));
 
   /* -------------------------------------------------------------------- text */
   --text: hsl(var(--p-ink));
   --text-muted: hsl(var(--p-muted-fg));
   --text-subtle: hsl(var(--p-fg-subtle));
-  /* Headings in the warm dark ink (user decision); coral is the only accent colour and
-     slate survives only in the info status tone. */
+  /* Headings (h1, h2) in the warm dark ink (user decision A). Navy colours only the
+     13/500 sub-labels (Erfüllt, Offen, Kompetenzen, the Ausgeschlossen divider) and links. */
   --text-heading: hsl(var(--p-ink));
+  --text-label: hsl(var(--p-navy));
   --text-on-accent: hsl(var(--p-on-accent));
   --text-inverse: hsl(var(--p-white));
+  --link: hsl(var(--p-navy));
+  --link-hover: hsl(var(--p-navy-deep));
 
   /* ------------------------------------------------------------------- lines */
   --border: hsl(var(--p-line));
   --border-strong: hsl(var(--p-border-strong));
   --border-input: hsl(var(--p-border-input));
   --border-accent: hsl(var(--p-coral) / 0.2);
+  /* The hover edge of tiles, interactive cards and filter chips. */
+  --border-navy: hsl(var(--p-navy-200));
 
-  /* ---------------------------------------------------- brand and interaction */
+  /* ------------------------------------------------ coral: act or new */
   --accent: hsl(var(--p-coral));
   --accent-soft: hsl(var(--p-accent-soft));
   --accent-text: hsl(var(--p-coral-800));
@@ -92,17 +117,48 @@
   --primary: hsl(var(--p-coral));
   --primary-hover: hsl(var(--p-coral-variant));
   --primary-active: hsl(var(--p-coral-press));
-  /* Switches are coral when on. */
+  /* Switches are coral when on (user decision). */
   --toggle-on: hsl(var(--p-coral));
   --toggle-on-hover: hsl(var(--p-coral-variant));
-  /* The fill of a progress bar; a bar that nears a limit takes the calm ochre, not the
-     dark warning text colour. */
-  --meter-fill: hsl(var(--p-coral));
+  /* The unread dot of a list row and of the nav rail. */
+  --unread: hsl(var(--p-coral));
+
+  /* ----------------------------------- navy: where you are, what the data says */
+  /* The 3 px bar of the selected row and the ring track on its wash. */
+  --selection-bar: hsl(var(--p-navy-deep));
+  --ring-track-selected: hsl(var(--p-navy-200));
+  /* The sliding white pill of the active sidebar entry (the sibling of the segmented
+     thumb); its label deep navy, its icon navy. Any nav icon turns navy on hover. */
+  --nav-active-bg: hsl(var(--p-white));
+  --nav-active-border: hsl(var(--p-line));
+  --nav-active-fg: hsl(var(--p-navy-deep));
+  --nav-active-icon: hsl(var(--p-navy));
+  /* The dark count pill (the sidebar unread count, nowhere else at rest) and the soft one
+     (the chosen segment, dividers, sub-labels, countdown, "n neu"). */
+  --count-bg: hsl(var(--p-navy-deep));
+  --count-fg: hsl(var(--p-white));
+  --count-soft-bg: hsl(var(--p-navy-100));
+  --count-soft-fg: hsl(var(--p-navy-deep));
+  --count-soft-hover: hsl(var(--p-navy-150));
+  /* A filter that is on: the active stat tile and a pressed secondary chip. */
+  --active-surface: hsl(var(--p-navy-50));
+  --active-edge: hsl(var(--p-navy));
+  --active-text: hsl(var(--p-navy-deep));
+  /* Progress: the fill and track of brand meters and the colour of their spinners. */
+  --meter-fill: hsl(var(--p-navy));
+  --meter-track: hsl(var(--p-navy-100));
+  /* A bar that nears a limit takes the calm ochre, not the dark warning text colour. */
   --meter-warning: hsl(var(--p-score-mid));
-  /* The pinned star: ink, not coral. */
-  --pressed: hsl(var(--p-ink));
-  --focus: hsl(var(--p-coral));
-  --selection: hsl(var(--p-coral) / 0.22);
+  /* The pinned star and pressed ghost toggles. */
+  --pressed: hsl(var(--p-navy-deep));
+  /* Focus (keyboard only), caret and text selection: navy, like the native blue of both
+     OS; coral focus was 2.9:1 on white and read as an error or a call to action. */
+  --focus: hsl(var(--p-navy));
+  --caret: hsl(var(--p-navy));
+  --selection: hsl(var(--p-navy) / 0.2);
+  /* The lifetime line of a toast. */
+  --toast-bar: hsl(var(--p-navy) / 0.35);
+  /* Scrollbars stay ink. */
   --scrollbar: hsl(var(--p-ink) / 0.2);
   --scrollbar-hover: hsl(var(--p-ink) / 0.34);
 
@@ -118,9 +174,10 @@
   --danger-soft: hsl(var(--p-danger-soft));
   --danger-hover: hsl(var(--p-danger-700));
   --danger-active: hsl(var(--p-danger-750));
-  --info: hsl(var(--p-info));
-  --info-strong: hsl(var(--p-slate-700));
-  --info-soft: hsl(var(--p-info-soft));
+  /* One blue in the app: info is the navy. */
+  --info: hsl(var(--p-navy));
+  --info-strong: hsl(var(--p-navy-deep));
+  --info-soft: hsl(var(--p-navy-50));
 
   /* ------------------------------------------------------------------- score */
   --score-high-ring: hsl(var(--p-score-high));
@@ -134,6 +191,8 @@
   --score-low-surface: hsl(var(--p-muted));
   --score-track: hsl(var(--p-line));
   --score-excluded: hsl(var(--p-danger-strong));
+  /* The solid track of an excluded ring (one silhouette for every state). */
+  --score-excluded-track: hsl(var(--p-danger) / 0.25);
 
   /* --------------------------------------------------------------- gradients */
   /* One, and only for the light of a loading placeholder. No decorative gradients. */
@@ -141,14 +200,19 @@
 
   /* ----------------------------------------------------------------- shadows */
   /* Small and few: large blurred shadows are expensive to paint in the web view. Only what
-     floats above the sheet (dialog, toast, tooltip) casts one; nothing animates a shadow. */
+     floats above the sheet (dialog, toast, tooltip) casts one; nothing animates a shadow.
+     A hover shadow (tiles, interactive cards) is painted once on ::after and fades by
+     opacity; the primary's inner highlight is static. */
   --sh-xs: 0 1px 2px hsl(var(--p-shade-xs) / 0.06);
   --sh-thumb: 0 1px 2px hsl(var(--p-shade-xs) / 0.18);
   --sh-pop: 0 8px 24px -6px hsl(var(--p-shade-pop) / 0.2), 0 1px 3px hsl(var(--p-shade-pop) / 0.08);
-  /* Focus of a text field: the coral edge with a soft halo. */
-  --focus-halo: 0 0 0 3px hsl(var(--p-coral) / 0.18);
-  --focus-ring: 0 0 0 2px hsl(var(--p-white)), 0 0 0 4px hsl(var(--p-coral));
-  --focus-ring-inset: inset 0 0 0 2px hsl(var(--p-coral));
+  --sh-hover:
+    0 4px 12px -4px hsl(var(--p-shade-navy) / 0.14), 0 1px 2px hsl(var(--p-shade-navy) / 0.06);
+  --sh-primary: inset 0 1px 0 hsl(var(--p-white) / 0.16), 0 1px 2px hsl(var(--p-shade-xs) / 0.12);
+  /* Focus of a text field: the navy edge with a soft halo (on ::after, faded by opacity). */
+  --focus-halo: 0 0 0 3px hsl(var(--p-navy) / 0.16);
+  --focus-ring: 0 0 0 2px hsl(var(--p-white)), 0 0 0 4px hsl(var(--p-navy));
+  --focus-ring-inset: inset 0 0 0 2px hsl(var(--p-navy));
 
   /* ------------------------------------------------------------------- radii */
   --radius-xs: 6px;
@@ -216,9 +280,15 @@
   --tile-sm: 32px;
   --tile-md: 40px;
   --tile-lg: 56px;
+  /* The rail badge; the unread dot of a list row is smaller and sits on the ring axis in
+     the pane padding. */
   --dot: 8px;
+  --dot-unread: 6px;
   --scrollbar-size: 8px;
+  /* The Windows thumb: 2 px at rest (a 3 px border in the 8 px track), 4 px when hovered
+     (--scrollbar-gap), as in Windows 11. */
   --scrollbar-gap: 2px;
+  --scrollbar-thumb-rest: 3px;
   --tooltip-max: 280px;
   --tooltip-gap: 8px;
   --viewport-gap: 8px;
@@ -241,6 +311,13 @@
   --sidebar-width: 196px;
   --rail-width: 64px;
   --toast-width: 360px;
+  /* One step of the sliding nav pill: an item plus the 2 px gap (full and rail). */
+  --nav-step: calc(var(--control-md) + var(--space-2));
+  --nav-step-rail: calc(var(--control-lg) + var(--space-2));
+  /* The sticky compact bar of the reader once its action row scrolled away. */
+  --compact-header: 48px;
+  /* Dash length and start offset of a drawn check (the Lucide check path is under 24). */
+  --draw-length: 24;
   /* Score ring: r = 15.9155 in a 36-unit viewBox (circumference 100). Stroke widths are
      scaled into viewBox units: 36/40, 36/56 and 36/96. */
   --ring-sm-scale: 0.9;
@@ -293,10 +370,16 @@
   --tracking-caps: 0.04em;
 
   /* ------------------------------------------------------------------ motion */
-  /* Snappy and calm (user test of the installed app): colour changes 100 ms, entries and
-     view switches 150 ms, dialogs 180 ms, the fill of a score ring 360 ms. Ease-out, never a
-     bounce; only transform and opacity move. */
+  /* Snappy and calm (user test of the installed app), quiet at rest and rich on contact
+     (user, 2026-09-24): every control answers without waiting for an animation. Hover-in
+     takes 80 ms (--dur-hover on the :hover rule), hover-out relaxes in 150 ms (--dur-base on
+     the base rule), a press takes 60 ms with a small scale, the release settles in 150 ms
+     (--ease-emphasized). Colour changes 100 ms, entries 150 ms, every slide (nav pill,
+     segmented and toggle thumbs, chevrons, dialog) 180 ms, the ring fill 360 ms. Only
+     transform and opacity move; nothing overshoots; the only pop is a keyframed 1, 1.18, 1;
+     no lift, glow, stagger, blur or replay. */
   --dur-instant: 60ms;
+  --dur-hover: 80ms;
   --dur-fast: 100ms;
   --dur-base: 150ms;
   --dur-slow: 180ms;
@@ -311,13 +394,33 @@
   /* A loading placeholder shows only once a load has taken this long (a quicker load
      never flashes one). */
   --delay-placeholder: 300ms;
+  /* Hover stays suppressed this long after the last wheel or scroll event (input.ts). */
+  --scroll-idle: 120ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* Everything that slides or settles: indicators, thumbs, chevrons, the release after a
+     press, rolling counts. */
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+  --move-xs: 1px;
   --move-sm: 2px;
   --move-md: 4px;
   --move-lg: 8px;
   --scale-enter: 0.98;
+  /* While the left button is down: text buttons, segment labels, chips and reason rows;
+     icon-only buttons; tiles and interactive cards (larger surfaces move less). */
+  --scale-press: 0.97;
+  --scale-press-icon: 0.94;
+  --scale-press-soft: 0.985;
+  /* The one-shot pop of the star on pin (keyframes 1, 1.18, 1), the star on hover, and the
+     stretch of a toggle thumb while pressed. */
+  --scale-pop: 1.18;
+  --scale-nudge: 1.1;
+  --scale-stretch: 1.15;
+  /* The refresh glyph of Abrufen on hover; half a turn is state (sort order, open
+     chevron) and keeps its angle under reduced motion. */
+  --turn-nudge: 45deg;
+  --turn-half: 180deg;
   --loop-state: running;
 
   /* ------------------------------------------------------------------ layers */
@@ -333,16 +436,27 @@
 }
 
 /* Reduced motion, switched by lib/motion/motion.ts (Svelte and WAAPI ignore the media query,
-   so one switch drives both): no movement, no loops, instant CSS transitions. */
+   so one switch drives both): no movement, no scale, no loops, instant CSS transitions.
+   What remains are colour changes and 100 ms cross-fades, which carry state; a half turn
+   (sort order, open chevron) keeps its angle and only loses its duration. */
 :root[data-motion='reduce'] {
   --dur-instant: 0ms;
+  --dur-hover: 0ms;
   --dur-fast: 0ms;
   --dur-base: 0ms;
   --dur-slow: 0ms;
   --dur-reveal: 0ms;
+  --move-xs: 0px;
   --move-sm: 0px;
   --move-md: 0px;
   --move-lg: 0px;
   --scale-enter: 1;
+  --scale-press: 1;
+  --scale-press-icon: 1;
+  --scale-press-soft: 1;
+  --scale-pop: 1;
+  --scale-nudge: 1;
+  --scale-stretch: 1;
+  --turn-nudge: 0deg;
   --loop-state: paused;
 }
