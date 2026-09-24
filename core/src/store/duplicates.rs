@@ -289,6 +289,14 @@ mod tests {
         );
         let dup = store.job(&second.key).unwrap().unwrap();
         assert_eq!((dup.match_, dup.match_rev), (None, None), "no stale score");
+        // The reader's fresh score (compare and set on "never scored") skips it too.
+        assert!(
+            !store
+                .save_match_if(&second.key, &record, "r2", None, now())
+                .unwrap()
+        );
+        let dup = store.job(&second.key).unwrap().unwrap();
+        assert_eq!((dup.match_, dup.match_rev), (None, None), "still unscored");
         let keys = |jobs: Vec<crate::store::JobRow>| -> Vec<JobKey> {
             jobs.into_iter().map(|j| j.key).collect()
         };
