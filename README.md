@@ -29,10 +29,16 @@ workflow's artifacts.
 
 ## First start
 
-Connect the Gmail mailbox with an app password, then choose an existing profile or create
-one from the template, then press **Abrufen** (fetch).
+Connect the Gmail mailbox with an app password, then create the profile in the **Profil**
+view (as a form, from a CV with the help of Claude, or from an existing file), then press
+**Abrufen** (fetch).
 
 ## The profile
+
+The Profil view edits the profile as a form. Saving writes only the changed fields into the
+file, keeps every other key as it is and leaves the previous version next to it
+(`profil/beraterprofil.json.bak`). "Aus Lebenslauf erstellen" copies a request for Claude;
+Claude's answer, pasted back, fills the form for review.
 
 The consultant profile is a JSON file with German keys, in the structure shown by
 `core/tests/fixtures/matching/sample_profile_senior.json` (name, years of experience,
