@@ -22,6 +22,10 @@ firstRun: boolean,
  */
 running: RunSnapshot | null, settings: SettingsView, mailbox: Mailbox, profile: ProfileInfo | null, portals: Array<PortalState>, autoFetchOnStart: boolean, 
 /**
+ * Days after which old jobs without a stage archive themselves; 0 = never.
+ */
+autoArchiveDays: number, 
+/**
  * The last fetch (fetch or whole mailbox) - a rescore or a details run is none.
  */
 lastRun: RunSummary | null, counts: JobCounts, matchPending: number, dataDir: string, logDir: string, resetReport: ResetSummary | null, };

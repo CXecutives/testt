@@ -3,6 +3,7 @@ export type { AppState } from "./AppState";
 export type { AppStatus } from "./AppStatus";
 export type { Band } from "./Band";
 export type { ClearedTxt } from "./ClearedTxt";
+export type { Deleted } from "./Deleted";
 export type { DetailState } from "./DetailState";
 export type { EmptyAlert } from "./EmptyAlert";
 export type { ErrorInfo } from "./ErrorInfo";

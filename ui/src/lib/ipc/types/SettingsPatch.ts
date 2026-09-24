@@ -5,4 +5,8 @@ import type { PortalPatch } from "./PortalPatch";
  * Changes of the settings. `null` = unchanged; the workspace only changes through the
  * folder dialog (`pick_workspace`).
  */
-export type SettingsPatch = { portals: Array<PortalPatch>, autoFetchOnStart: boolean | null, };
+export type SettingsPatch = { portals: Array<PortalPatch>, autoFetchOnStart: boolean | null, 
+/**
+ * Days after which old jobs archive themselves; 0 = never (`null` = unchanged).
+ */
+autoArchiveDays: number | null, };

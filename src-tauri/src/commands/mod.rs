@@ -35,7 +35,7 @@ pub use scoring::Scoring;
     dead_code,
     reason = "read by core/tests/contract.rs, which generates the TypeScript command map"
 )]
-pub const COMMANDS: [(&str, &str, &str); 27] = [
+pub const COMMANDS: [(&str, &str, &str); 34] = [
     ("app_state", "{ channel: Channel<RunEvent> }", "AppState"),
     (
         "start_run",
@@ -46,15 +46,34 @@ pub const COMMANDS: [(&str, &str, &str); 27] = [
     ("list_jobs", "{ query: JobQuery }", "JobPage"),
     ("job_detail", "{ key: JobKey }", "JobDetail"),
     ("mark_read", "{ key: JobKey }", "boolean"),
+    ("mark_all_read", "{ facet: JobFacet }", "JobKey[]"),
+    ("mark_unread", "{ keys: JobKey[] }", "number"),
     ("set_pinned", "{ key: JobKey; on: boolean }", "boolean"),
     (
         "set_app_status",
         "{ key: JobKey; status: AppStatus | null }",
         "boolean",
     ),
+    (
+        "set_follow_up",
+        "{ key: JobKey; on: string | null }",
+        "boolean",
+    ),
     ("set_note", "{ key: JobKey; note: string }", "boolean"),
-    ("set_hidden", "{ key: JobKey; hidden: boolean }", "boolean"),
-    ("claude_prompt", "{ key: JobKey }", "string"),
+    (
+        "set_archived",
+        "{ key: JobKey; archived: boolean }",
+        "boolean",
+    ),
+    (
+        "set_override",
+        "{ key: JobKey; include: boolean }",
+        "boolean",
+    ),
+    ("delete_jobs", "{ keys: JobKey[] }", "Deleted"),
+    ("empty_archive", "Record<string, never>", "Deleted"),
+    ("ai_prompt", "{ key: JobKey }", "string"),
+    ("ai_prompt_top", "{ limit: number }", "string"),
     (
         "pick_profile",
         "Record<string, never>",
@@ -94,11 +113,18 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + '
         jobs::list_jobs,
         jobs::job_detail,
         jobs::mark_read,
+        jobs::mark_all_read,
+        jobs::mark_unread,
         jobs::set_pinned,
         jobs::set_app_status,
+        jobs::set_follow_up,
         jobs::set_note,
-        jobs::set_hidden,
-        jobs::claude_prompt,
+        jobs::set_archived,
+        jobs::set_override,
+        jobs::delete_jobs,
+        jobs::empty_archive,
+        jobs::ai_prompt,
+        jobs::ai_prompt_top,
         profile::pick_profile,
         profile::parse_profile,
         profile::profile_prompt,

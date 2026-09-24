@@ -17,4 +17,4 @@ export type RunEvent = { "type": "started", kind: RunKindName, } | { "type": "pr
 /**
  * Gmail message id (hexadecimal) - opened through `open_target`.
  */
-gmailId: string | null, } | { "type": "jobUpdated", job: JobView, fresh: boolean, } | { "type": "portalHealth", portal: Portal, health: PortalHealth, } | { "type": "loginNeeded", portal: Portal, waiting: boolean, } | { "type": "finished", summary: RunSummary, };
+gmailId: string | null, } | { "type": "jobUpdated", job: JobView, fresh: boolean, } | { "type": "portalHealth", portal: Portal, health: PortalHealth, actionNeeded: boolean, } | { "type": "loginNeeded", portal: Portal, waiting: boolean, } | { "type": "finished", summary: RunSummary, };

@@ -737,6 +737,7 @@ export const de = {
     noteLabel: 'Notiz',
     status: 'Bewerbung',
     appStatus: {
+      saved: 'Gemerkt',
       applied: 'Beworben',
       interview: 'Im Gespräch',
       offer: 'Zusage',
@@ -998,6 +999,8 @@ export const de = {
     removeMailboxText: 'Das App-Passwort wird gelöscht, die Jobs bleiben.',
     autoFetch: 'Beim Start abrufen',
     autoFetchHint: 'Wenn der letzte Abruf mehr als sechs Stunden her ist.',
+    autoArchive: 'Alte Jobs automatisch archivieren',
+    autoArchiveHint: 'Nach 30 Tagen, außer gemerkte und beworbene.',
     active: 'Aktiv',
     details: 'Details holen',
     needsDetails: 'Erst Details holen einschalten.',

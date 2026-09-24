@@ -2,7 +2,7 @@
 //! file per job for the matching. Everything is generated from the database and written
 //! atomically - an open Excel file or a crash never leaves half a file behind.
 
-mod claude_prompt;
+mod ai_prompt;
 mod job_txt;
 mod overview_html;
 pub mod scale;
@@ -18,11 +18,17 @@ use crate::error::{Error, Result};
 use crate::store::JobRow;
 use crate::text::split_company_location;
 
-pub use claude_prompt::{MAX_AD_CHARS, MAX_PROFILE_CHARS, claude_prompt};
+pub use ai_prompt::{
+    MAX_AD_CHARS, MAX_PROFILE_CHARS, MAX_TOP_AD_CHARS, PromptJob, TOP_LIMITS, ai_prompt,
+    ai_prompt_top,
+};
 pub use job_txt::{TXT_DIR, write_job_txt};
 pub use overview_html::write_overview_html;
 pub use texts::{COLUMNS, details_label};
-pub use top_matches::{TOP_MATCHES_MAX, TOP_MATCHES_NAME, TopMatch, TopMatches, top_matches};
+pub use top_matches::{
+    TOP_MATCHES_MAX, TOP_MATCHES_NAME, TOP_MATCHES_SCHEMA, TopMatch, TopMatches, findings,
+    top_matches,
+};
 pub use xlsx::write_xlsx;
 
 /// File and folder names below are a contract with the user's workspace and the matching

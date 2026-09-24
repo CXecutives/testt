@@ -5,8 +5,8 @@
 // - Rows are plain objects (`$state.raw`): a change replaces the row, so only that row
 //   renders again, and no proxy sits between the template and 2000 jobs.
 // - Every number comes from the backend (one truth): the counts of the list (with the
-//   search) and the counts over every job (tiles, sidebar, new jobs per portal, pinned).
-//   A change the page makes itself (read, pinned) or a run update of a listed row moves
+//   search) and the counts over every job (tiles, sidebar, new jobs per portal, saved).
+//   A change the page makes itself (read, a stage) or a run update of a listed row moves
 //   them at once; during a run a counts-only query follows every update (throttled), so
 //   they stay exact for rows the page does not hold.
 // - During a run the new jobs of the run are inserted at the top (they fade in) and listed
@@ -14,16 +14,20 @@
 //   next load puts it. The list re-sorts once, when the run finishes, and keeps the
 //   selection.
 // - `mark_read` only on a real click on a row (select(..., true)).
-// - The user's marks: the application status, a note and "not interesting" (hidden). A
-//   hidden job is in no list but "hidden" and in no count but its own; hiding or listing it
-//   again takes the row out of a list it no longer belongs to. A status change keeps the row
-//   where it is until the next load (the list does not jump under the pointer).
+// - The user's marks: one pipeline of stages (saved, the star, then the application) with a
+//   follow-up day, a note, "fits anyway" and the archive. An archived job is in no list but
+//   the archive and in no count but its own; archiving or listing it again takes the row out
+//   of a list it no longer belongs to. A stage change keeps the row where it is until the
+//   next load (the list does not jump under the pointer). Deleting for good removes the row.
+// - "Neu" holds the unread jobs of the last 14 days (store::new_since): older unread ones
+//   stay under "Alle".
 
 import { SvelteSet } from 'svelte/reactivity';
 import { errorText } from '../i18n/texts';
 import { invoke } from '../ipc/api';
 import type {
   AppStatus,
+  Deleted,
   JobCounts,
   JobDetail,
   JobFacet,
@@ -57,11 +61,29 @@ const ZERO: JobCounts = {
   excluded: 0,
   high: 0,
   noDetail: 0,
-  pinned: 0,
+  saved: 0,
   applications: 0,
-  hidden: 0,
+  archived: 0,
   newByPortal: [],
 };
+
+/** "Neu" holds the unread jobs of this many days (store::NEW_DAYS). */
+const NEW_DAYS = 14;
+const DAY = 86_400_000;
+
+/** Is the job recent enough for "Neu" (by the date of its alert mail; store::new_since)? */
+export function isRecent(job: JobView, now = Date.now()): boolean {
+  const since = Math.floor(now / DAY) * DAY - NEW_DAYS * DAY;
+  return Date.parse(job.mailDate ?? job.firstSeenAt) >= since;
+}
+
+/** A stage of an application (everything after "saved"). */
+export const isApplication = (status: AppStatus | null): boolean =>
+  status !== null && status !== 'saved';
+
+/** Stages that wait for an answer: only they keep a follow-up day. */
+const awaitsAnswer = (status: AppStatus | null): boolean =>
+  status === 'applied' || status === 'interview';
 
 export function keyOf(key: JobKey): string {
   return `${key.portal}:${key.id}`;
@@ -77,13 +99,15 @@ export const isExcluded = (job: JobView): boolean => job.match?.status === 'excl
 export function inFacet(job: JobView, facet: JobFacet): boolean {
   switch (facet) {
     case 'new':
-      return !job.hidden && job.unread;
+      return !job.archived && job.unread && isRecent(job);
     case 'all':
-      return !job.hidden;
+      return !job.archived;
+    case 'saved':
+      return !job.archived && job.appStatus === 'saved';
     case 'applications':
-      return !job.hidden && job.appStatus !== null;
-    case 'hidden':
-      return job.hidden;
+      return !job.archived && isApplication(job.appStatus);
+    case 'archived':
+      return job.archived;
   }
 }
 const TILES: readonly string[] = ['high', 'noDetail', 'excluded', 'pinned'];
@@ -107,14 +131,14 @@ function matches(job: JobView, filter: JobFilter | null): boolean {
 }
 
 /**
- * What one job adds to the counts (the backend's definitions, store::job_page): a hidden
- * job only to "hidden".
+ * What one job adds to the counts (the backend's definitions, store::job_page): an archived
+ * job only to "archived".
  */
 function add(counts: JobCounts, job: JobView | null, sign: 1 | -1): JobCounts {
   if (job === null) return counts;
-  const shown = job.hidden ? 0 : sign;
+  const shown = job.archived ? 0 : sign;
   const out = isExcluded(job);
-  const isNew = job.unread && !out ? shown : 0;
+  const isNew = job.unread && !out && isRecent(job) ? shown : 0;
   const high = job.match?.status === 'scored' && job.match.score >= HIGH;
   return {
     all: counts.all + shown,
@@ -122,9 +146,9 @@ function add(counts: JobCounts, job: JobView | null, sign: 1 | -1): JobCounts {
     excluded: counts.excluded + (out ? shown : 0),
     high: counts.high + (high ? shown : 0),
     noDetail: counts.noDetail + (job.detail.kind !== 'ok' ? shown : 0),
-    pinned: counts.pinned + (job.pinned ? shown : 0),
-    applications: counts.applications + (job.appStatus !== null ? shown : 0),
-    hidden: counts.hidden + (job.hidden ? sign : 0),
+    saved: counts.saved + (job.appStatus === 'saved' ? shown : 0),
+    applications: counts.applications + (isApplication(job.appStatus) ? shown : 0),
+    archived: counts.archived + (job.archived ? sign : 0),
     newByPortal: counts.newByPortal.map((line) =>
       line.portal === job.portal ? { ...line, new: line.new + isNew } : line,
     ),
@@ -204,9 +228,9 @@ class JobsStore {
       (this.window < this.visible.length || this.rows.length < this.total),
   );
 
-  /** Jobs the user pinned ("Merken"), over every job. */
+  /** Jobs the user saved (the star), over every job. */
   get pinned(): number {
-    return this.overviewCounts?.pinned ?? 0;
+    return this.overviewCounts?.saved ?? 0;
   }
 
   /** Mount the window in chunks, one per frame: no frame builds 60 rows at once. */
@@ -308,10 +332,12 @@ class JobsStore {
         return Number.MAX_SAFE_INTEGER;
       case 'all':
         return counts.all;
+      case 'saved':
+        return counts.saved;
       case 'applications':
         return counts.applications;
-      case 'hidden':
-        return counts.hidden;
+      case 'archived':
+        return counts.archived;
     }
   }
 
@@ -456,13 +482,31 @@ class JobsStore {
     }
   }
 
+  /**
+   * The star is the stage "saved": it never overwrites a later stage, and taking it off
+   * clears only "saved" (store::set_pinned).
+   */
   async pin(key: JobKey, on: boolean): Promise<void> {
-    this.patch(key, { pinned: on });
+    const before = this.held(key);
+    if (before === null) return;
+    const stage = before.appStatus;
+    if (on ? stage !== null : stage !== 'saved') return;
+    this.patch(key, this.stageChange(on ? 'saved' : null));
     try {
       await invoke('set_pinned', { key, on });
     } catch {
-      this.patch(key, { pinned: !on });
+      this.patch(key, { pinned: before.pinned, appStatus: stage, statusAt: before.statusAt });
     }
+  }
+
+  /** The fields a new stage changes in a row (the backend's rule, store::set_app_status). */
+  private stageChange(status: AppStatus | null): Partial<JobView> {
+    return {
+      appStatus: status,
+      pinned: status === 'saved',
+      statusAt: status === null ? null : new Date().toISOString(),
+      ...(awaitsAnswer(status) ? {} : { followUpOn: null }),
+    };
   }
 
   /** The job as the page holds it (a row or the reader). */
@@ -473,21 +517,121 @@ class JobsStore {
   }
 
   /**
-   * Where the application stands (`null` = none). Moves at once and back on an error;
-   * resolves with the error text, or null.
+   * The stage of a job (`null` = none). Moves at once and back on an error; resolves with
+   * the error text, or null.
    */
   async setAppStatus(key: JobKey, status: AppStatus | null): Promise<string | null> {
     const before = this.held(key);
-    const previous = { status: before?.appStatus ?? null, at: this.detailOf(key)?.appStatusAt };
-    this.patch(key, { appStatus: status });
-    this.patchDetail(key, { appStatusAt: status === null ? null : new Date().toISOString() });
+    if (before === null || before.appStatus === status) return null;
+    const { pinned, appStatus, statusAt, followUpOn } = before;
+    this.patch(key, this.stageChange(status));
     try {
       await invoke('set_app_status', { key, status });
       return null;
     } catch (error) {
-      this.patch(key, { appStatus: previous.status });
-      this.patchDetail(key, { appStatusAt: previous.at ?? null });
+      this.patch(key, { pinned, appStatus, statusAt, followUpOn });
       return errorText(error);
+    }
+  }
+
+  /**
+   * The day to follow up an application (`YYYY-MM-DD`, `null` clears it; only while applied
+   * or in talks). Resolves with the error text, or null.
+   */
+  async setFollowUp(key: JobKey, on: string | null): Promise<string | null> {
+    const before = this.held(key);
+    if (before === null || !awaitsAnswer(before.appStatus)) return null;
+    this.patch(key, { followUpOn: on });
+    try {
+      await invoke('set_follow_up', { key, on });
+      return null;
+    } catch (error) {
+      this.patch(key, { followUpOn: before.followUpOn });
+      return errorText(error);
+    }
+  }
+
+  /**
+   * "All read": every unread job of the current facet. Resolves with the keys for the undo
+   * (`markUnread`), or the error text.
+   */
+  async markAllRead(): Promise<{ keys: JobKey[] } | { error: string }> {
+    try {
+      const keys = await invoke('mark_all_read', { facet: this.facet });
+      for (const key of keys) this.patch(key, { unread: false });
+      void this.refreshCounts();
+      return { keys };
+    } catch (error) {
+      return { error: errorText(error) };
+    }
+  }
+
+  /** The undo of "all read". Resolves with the error text, or null. */
+  async markUnread(keys: JobKey[]): Promise<string | null> {
+    try {
+      await invoke('mark_unread', { keys });
+      for (const key of keys) this.patch(key, { unread: true });
+      void this.refreshCounts();
+      return null;
+    } catch (error) {
+      return errorText(error);
+    }
+  }
+
+  /**
+   * "Fits anyway": an excluded job counts as scored with its fit score, or the engine's
+   * verdict applies again. The backend assesses it anew, so the row and the reader follow
+   * its answer. Resolves with the error text, or null.
+   */
+  async setOverride(key: JobKey, include: boolean): Promise<string | null> {
+    try {
+      await invoke('set_override', { key, include });
+    } catch (error) {
+      return errorText(error);
+    }
+    try {
+      const detail = await invoke('job_detail', { key });
+      this.patch(key, detail.job);
+      if (sameKey(this.selected, key)) {
+        this.#detailRequest++;
+        this.detail = detail;
+        this.detailStatus = 'ready';
+      }
+    } catch {
+      void this.load(true);
+    }
+    return null;
+  }
+
+  /**
+   * Deletes jobs for good (rows, text files and Excel rows; a later scan never brings them
+   * back). Resolves with what the backend did, or the error text.
+   */
+  async deleteJobs(keys: JobKey[]): Promise<Deleted | { error: string }> {
+    return this.forget(() => invoke('delete_jobs', { keys }), keys);
+  }
+
+  /** Deletes every archived job for good. */
+  async emptyArchive(): Promise<Deleted | { error: string }> {
+    const archived = this.rows.filter((job) => job.archived).map((job) => job.key);
+    return this.forget(() => invoke('empty_archive'), archived);
+  }
+
+  private async forget(
+    command: () => Promise<Deleted>,
+    keys: JobKey[],
+  ): Promise<Deleted | { error: string }> {
+    try {
+      const deleted = await command();
+      const gone = new Set(keys.map(keyOf));
+      const rows = this.rows.filter((job) => !gone.has(keyOf(job.key)));
+      this.total = Math.max(0, this.total - (this.rows.length - rows.length));
+      this.rows = rows;
+      if (this.selected !== null && gone.has(keyOf(this.selected))) this.clearSelection();
+      await this.refreshCounts();
+      return deleted;
+    } catch (error) {
+      return { error: errorText(error) };
     }
   }
 
@@ -503,25 +647,30 @@ class JobsStore {
   }
 
   /**
-   * Hides a job ("not interesting") or lists it again. The row leaves a list it no longer
-   * belongs to; on an error the list loads again. Resolves with the error text, or null.
+   * Archives a job or lists it again. The row leaves a list it no longer belongs to; on an
+   * error the list loads again. Resolves with the error text, or null.
    */
-  async hide(key: JobKey, hidden: boolean): Promise<string | null> {
-    this.patch(key, { hidden });
+  async archive(key: JobKey, archived: boolean): Promise<string | null> {
+    this.patch(key, { archived });
     this.dropStray(key);
     try {
-      await invoke('set_hidden', { key, hidden });
+      await invoke('set_archived', { key, archived });
       return null;
     } catch (error) {
-      this.patch(key, { hidden: !hidden });
+      this.patch(key, { archived: !archived });
       void this.load(true);
       return errorText(error);
     }
   }
 
-  /** The prompt for a deep analysis of a job in the user's own Claude. */
-  async claudePrompt(key: JobKey): Promise<string> {
-    return invoke('claude_prompt', { key });
+  /** The prompt for a deep analysis of a job in any AI chat. */
+  async aiPrompt(key: JobKey): Promise<string> {
+    return invoke('ai_prompt', { key });
+  }
+
+  /** One prompt that compares the best current matches (3 to 5) in any AI chat. */
+  async aiPromptTop(limit: number): Promise<string> {
+    return invoke('ai_prompt_top', { limit });
   }
 
   /** A listed row that no longer belongs to the facet leaves the list. */
@@ -536,8 +685,8 @@ class JobsStore {
     return this.detail && sameKey(this.detail.job.key, key) ? this.detail : null;
   }
 
-  /** Change the reader's own fields (note, time of the status) of a job it shows. */
-  private patchDetail(key: JobKey, change: Partial<Pick<JobDetail, 'note' | 'appStatusAt'>>): void {
+  /** Change the reader's own fields (the note) of a job it shows. */
+  private patchDetail(key: JobKey, change: Partial<Pick<JobDetail, 'note'>>): void {
     const detail = this.detailOf(key);
     if (detail !== null) this.detail = { ...detail, ...change };
   }

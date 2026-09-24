@@ -81,6 +81,7 @@
             },
           ],
           autoFetchOnStart: null,
+          autoArchiveDays: null,
         },
       });
       if (save === saves) app.set(next);

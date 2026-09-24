@@ -85,13 +85,15 @@ mod tests {
             txt_name: None,
             desc_attempted_at: None,
             read_at: None,
-            pinned_at: None,
             match_: None,
             match_rev: None,
             facts: None,
             app_status: None,
             app_status_at: None,
-            hidden_at: None,
+            follow_up_on: None,
+            note: None,
+            archived_at: None,
+            override_include: false,
         }
     }
 
@@ -121,7 +123,7 @@ mod tests {
         );
     }
 
-    /// The user's marks (application status, hidden) never reach the text file: its bytes
+    /// The user's marks (application status, archived) never reach the text file: its bytes
     /// are the contract with the skill.
     #[test]
     fn the_user_marks_never_change_a_text_file() {
@@ -129,7 +131,7 @@ mod tests {
         let mut marked = plain.clone();
         marked.app_status = Some(crate::model::AppStatus::Interview);
         marked.app_status_at = Some("2026-09-20T10:00:00Z".parse().unwrap());
-        marked.hidden_at = Some("2026-09-21T10:00:00Z".parse().unwrap());
+        marked.archived_at = Some("2026-09-21T10:00:00Z".parse().unwrap());
         let at = plain.desc_fetched_at.unwrap();
         assert_eq!(
             txt_contents(&plain, "Text", at),

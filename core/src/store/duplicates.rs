@@ -301,7 +301,11 @@ mod tests {
         let keys = |jobs: Vec<crate::store::JobRow>| -> Vec<JobKey> {
             jobs.into_iter().map(|j| j.key).collect()
         };
-        let top = keys(store.top_matches(run, 10).unwrap());
+        let top = keys(
+            store
+                .skill_matches(crate::store::new_since(now()), 10)
+                .unwrap(),
+        );
         assert_eq!(top, std::slice::from_ref(&first.key));
         let (overview, pinned) = store.overview_jobs(run).unwrap();
         assert!(!pinned);

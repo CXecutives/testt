@@ -3,6 +3,7 @@
 
 use std::fmt::Write as _;
 
+use jiff::civil::Date;
 use jiff::{SignedDuration, Timestamp};
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use url::Url;
@@ -10,7 +11,8 @@ use url::Url;
 use super::{Store, bump};
 use crate::error::{Error, Result};
 use crate::fetch::policy::MAX_FETCH_ATTEMPTS;
-use crate::mail::extract::has_gender_tag;
+use crate::mail::MAIL_PARSER_VERSION;
+use crate::mail::extract::{has_gender_tag, looks_like_job_title};
 use crate::model::{
     AlertMail, AppStatus, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord,
     Posting, is_usable_title,
@@ -58,43 +60,72 @@ pub struct JobRow {
     pub desc_attempted_at: Option<Timestamp>,
     /// `None` = unread.
     pub read_at: Option<Timestamp>,
-    pub pinned_at: Option<Timestamp>,
     /// `None` = not scored yet.
     pub match_: Option<MatchRecord>,
     /// Who scored it; `None` = to be scored (again).
     pub match_rev: Option<String>,
     /// The facts the job page stated (unreadable JSON counts as none).
     pub facts: Option<Facts>,
-    /// Where the user's application stands (`None` = no application).
+    /// The stage in the user's pipeline (`None` = none; `Saved` is the star).
     pub app_status: Option<AppStatus>,
-    /// When the application status was set last.
+    /// When the stage was set last.
     pub app_status_at: Option<Timestamp>,
-    /// When the user hid the job ("not interesting"); `None` = listed.
-    pub hidden_at: Option<Timestamp>,
+    /// The day to follow up an application (while applied or in talks).
+    pub follow_up_on: Option<Date>,
+    /// The user's note.
+    pub note: Option<String>,
+    /// When the job was archived (by the user or by age); `None` = listed.
+    pub archived_at: Option<Timestamp>,
+    /// The user marked the job as fitting although the engine excludes it.
+    pub override_include: bool,
 }
 
-/// Which jobs a page of the list holds. A hidden job is in no list but "Hidden".
+/// "Neu" holds the unread jobs of this many days (by the date of the alert mail); older
+/// unread ones stay under "Alle" - freelance projects are often taken within two weeks.
+pub const NEW_DAYS: i64 = 14;
+
+/// Where "Neu" starts for `now`: [`NEW_DAYS`] back, at the start of that day (UTC), so the
+/// border moves once a day.
+pub fn new_since(now: Timestamp) -> Timestamp {
+    const DAY: i64 = 86_400;
+    let start = now.as_second().div_euclid(DAY) * DAY - NEW_DAYS * DAY;
+    Timestamp::from_second(start).unwrap_or(Timestamp::UNIX_EPOCH)
+}
+
+/// Which jobs a page of the list holds. An archived job is in no list but "Archived".
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ListFacet {
-    /// The unread jobs, the excluded ones last. Its count leaves the excluded ones out.
+    /// The unread jobs of the last [`NEW_DAYS`] days, the excluded ones last. Its count
+    /// leaves the excluded ones out.
     New,
     /// Every job.
     #[default]
     All,
-    /// The jobs with an application status, the latest change first.
+    /// The saved jobs (the star), the latest saved first.
+    Saved,
+    /// The applications (applied, interview, offer, rejected): a due follow-up first, then
+    /// the latest change, the rejected ones last.
     Applications,
-    /// The hidden jobs, the latest hidden first.
-    Hidden,
+    /// The archived jobs, the latest archived first.
+    Archived,
 }
 
+/// The stages of an application (everything after "saved").
+const APPLICATION: &str = "app_status IN ('applied', 'interview', 'offer', 'rejected')";
+
 impl ListFacet {
-    /// The condition of the facet on the rows of `base`.
-    const fn condition(self) -> &'static str {
+    /// The condition of the facet on the rows of `base`; `since`: where "Neu" starts (Unix
+    /// seconds, computed here, never input).
+    pub(super) fn condition(self, since: i64) -> String {
         match self {
-            ListFacet::New => "hidden_at IS NULL AND read_at IS NULL",
-            ListFacet::All => "hidden_at IS NULL",
-            ListFacet::Applications => "hidden_at IS NULL AND app_status IS NOT NULL",
-            ListFacet::Hidden => "hidden_at IS NOT NULL",
+            ListFacet::New => format!(
+                "archived_at IS NULL AND read_at IS NULL \
+                 AND COALESCE(mail_date, first_seen_at) >= {since}"
+            ),
+            ListFacet::All => "archived_at IS NULL".to_owned(),
+            ListFacet::Saved => "archived_at IS NULL AND app_status = 'saved'".to_owned(),
+            ListFacet::Applications => format!("archived_at IS NULL AND {APPLICATION}"),
+            ListFacet::Archived => "archived_at IS NOT NULL".to_owned(),
         }
     }
 }
@@ -104,9 +135,11 @@ impl ListFacet {
 #[derive(Debug, Clone, Default)]
 pub struct PageQuery {
     pub facet: ListFacet,
+    /// Where "Neu" starts ([`new_since`] of now).
+    pub new_since: Timestamp,
     /// Best match first; otherwise newest first. Excluded jobs come last either way. Only
-    /// for "New" and "All": the applications follow their latest change, the hidden jobs
-    /// the moment they were hidden.
+    /// for "New" and "All": the applications follow their latest change, the archived jobs
+    /// the moment they were archived.
     pub by_match: bool,
     /// Search term in title, company, location and full text (case-insensitive).
     pub search: Option<String>,
@@ -128,12 +161,12 @@ pub struct PageCounts {
     pub high: u32,
     /// Jobs without a full text.
     pub no_detail: u32,
-    /// Pinned ("Merken").
-    pub pinned: u32,
-    /// With an application status.
+    /// Saved (the star, "Gemerkt").
+    pub saved: u32,
+    /// In an application stage.
     pub applications: u32,
-    /// Hidden - the only count a hidden job is in.
-    pub hidden: u32,
+    /// Archived - the only count an archived job is in.
+    pub archived: u32,
     /// `new` per portal: every portal, in the order of `Portal::ALL`.
     pub new_by_portal: Vec<(Portal, u32)>,
 }
@@ -308,10 +341,14 @@ impl Store {
         let pattern = like_pattern(query.search.as_deref());
         // Excluded jobs always come last; "match" puts the best score first (unscored after
         // scored), "newest" the latest first sighting. Applications follow their latest
-        // change, hidden jobs the moment they were hidden.
+        // change, archived jobs the moment they were archived.
         let order = |p: &str| match query.facet {
-            ListFacet::Applications => format!("{p}app_status_at DESC, {p}portal, {p}job_id"),
-            ListFacet::Hidden => format!("{p}hidden_at DESC, {p}portal, {p}job_id"),
+            ListFacet::Saved => format!("{p}app_status_at DESC, {p}portal, {p}job_id"),
+            ListFacet::Applications => format!(
+                "({p}app_status = 'rejected'), ({p}follow_up_on IS NULL), {p}follow_up_on, \
+                 {p}app_status_at DESC, {p}portal, {p}job_id"
+            ),
+            ListFacet::Archived => format!("{p}archived_at DESC, {p}portal, {p}job_id"),
             ListFacet::New | ListFacet::All => {
                 let by_match = if query.by_match {
                     format!("({p}match_score IS NULL), {p}match_score DESC, ")
@@ -324,11 +361,15 @@ impl Store {
                 )
             }
         };
-        // Every count but "hidden" leaves the hidden jobs out. "New" lists every unread job,
+        // Every count but "archived" leaves the archived jobs out. "New" lists every unread job,
         // the excluded ones last (grey in the list); its count leaves them out.
-        let shown = "hidden_at IS NULL";
-        let new = "hidden_at IS NULL AND read_at IS NULL AND match_status IS NOT 'excluded'";
-        let facet = query.facet.condition();
+        let since = to_db(query.new_since);
+        let shown = "archived_at IS NULL";
+        let new = format!(
+            "{} AND match_status IS NOT 'excluded'",
+            ListFacet::New.condition(since)
+        );
+        let facet = query.facet.condition(since);
         // "New" per portal: one column each, in the order of `Portal::ALL` (the keys are
         // constants of the code, never input).
         let mut per_portal = String::new();
@@ -352,9 +393,9 @@ impl Store {
                         COALESCE(SUM({shown} AND match_status IS 'scored'
                                      AND match_score >= ?4), 0) AS n_high,
                         COALESCE(SUM({shown} AND desc_status <> 'ok'), 0) AS n_no_detail,
-                        COALESCE(SUM({shown} AND pinned_at IS NOT NULL), 0) AS n_pinned,
-                        COALESCE(SUM({shown} AND app_status IS NOT NULL), 0) AS n_applications,
-                        COALESCE(SUM(hidden_at IS NOT NULL), 0) AS n_hidden{per_portal}
+                        COALESCE(SUM({shown} AND app_status = 'saved'), 0) AS n_saved,
+                        COALESCE(SUM({shown} AND {APPLICATION}), 0) AS n_applications,
+                        COALESCE(SUM(archived_at IS NOT NULL), 0) AS n_archived{per_portal}
                  FROM base
              ), page AS (
                  SELECT {JOB_COLUMNS} FROM base
@@ -363,8 +404,8 @@ impl Store {
                  LIMIT ?2 OFFSET ?3
              )
              SELECT counts.n_all, counts.n_new, counts.n_excluded, counts.n_high,
-                    counts.n_no_detail, counts.n_pinned, counts.n_applications,
-                    counts.n_hidden{per_portal_out}, page.*
+                    counts.n_no_detail, counts.n_saved, counts.n_applications,
+                    counts.n_archived{per_portal_out}, page.*
              FROM counts LEFT JOIN page
              ORDER BY {}",
             order(""),
@@ -387,9 +428,9 @@ impl Store {
                 excluded: row.get(2)?,
                 high: row.get(3)?,
                 no_detail: row.get(4)?,
-                pinned: row.get(5)?,
+                saved: row.get(5)?,
                 applications: row.get(6)?,
-                hidden: row.get(7)?,
+                archived: row.get(7)?,
                 new_by_portal,
             };
             if row.get::<_, Option<String>>(first)?.is_some() {
@@ -425,6 +466,29 @@ impl Store {
             ));
         }
         Ok(out)
+    }
+
+    /// The oldest mail date (else first sighting) of a job an older mail parser read, or
+    /// `None` when every job is current.
+    pub fn stale_mail_since(&self) -> Result<Option<Timestamp>> {
+        let oldest: Option<i64> = self.conn().query_row(
+            "SELECT MIN(COALESCE(mail_date, first_seen_at)) FROM job
+             WHERE mail_version IS NULL OR mail_version < ?1",
+            [MAIL_PARSER_VERSION],
+            |r| r.get(0),
+        )?;
+        Ok(oldest.and_then(from_db))
+    }
+
+    /// Test helper: the job reads as if an older mail parser had read it.
+    #[cfg(test)]
+    pub(crate) fn make_mail_stale(&self, key: &JobKey) {
+        self.conn()
+            .execute(
+                "UPDATE job SET mail_version = NULL WHERE portal = ?1 AND job_id = ?2",
+                params![key.portal.key(), key.id],
+            )
+            .unwrap();
     }
 
     /// Number of all jobs.
@@ -719,9 +783,9 @@ impl Store {
 pub(super) const JOB_COLUMNS: &str = "portal, job_id, url, title, company, location, mail_date,
     mail_subject, gmail_id, first_seen_at, first_seen_run, desc_status, desc_short, desc_closed,
     COALESCE(LENGTH(desc_text), 0) AS desc_len, desc_fetched_at, desc_attempts, desc_error,
-    txt_name, desc_attempted_at, read_at, pinned_at, match_status, match_score, match_note,
-    match_rev, desc_facts, app_status, app_status_at, hidden_at";
-pub(super) const JOB_COLUMN_COUNT: usize = 30;
+    txt_name, desc_attempted_at, read_at, match_status, match_score, match_note, match_rev,
+    desc_facts, app_status, app_status_at, follow_up_on, note, archived_at, override_include";
+pub(super) const JOB_COLUMN_COUNT: usize = 32;
 
 /// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
 /// or a teaser (right away, after a failed attempt like a failure, at most
@@ -788,28 +852,34 @@ fn job_row_at(r: &Row<'_>, at: usize) -> rusqlite::Result<Result<JobRow>> {
         txt_name: r.get(col(18))?,
         desc_attempted_at: r.get::<_, Option<i64>>(col(19))?.and_then(from_db),
         read_at: r.get::<_, Option<i64>>(col(20))?.and_then(from_db),
-        pinned_at: r.get::<_, Option<i64>>(col(21))?.and_then(from_db),
         match_: super::matches::decode_match(
-            r.get::<_, Option<String>>(col(22))?.as_deref(),
-            r.get(col(23))?,
-            r.get::<_, Option<String>>(col(24))?.as_deref(),
+            r.get::<_, Option<String>>(col(21))?.as_deref(),
+            r.get(col(22))?,
+            r.get::<_, Option<String>>(col(23))?.as_deref(),
         ),
-        match_rev: r.get(col(25))?,
+        match_rev: r.get(col(24))?,
         facts: r
-            .get::<_, Option<String>>(col(26))?
+            .get::<_, Option<String>>(col(25))?
             .and_then(|json| serde_json::from_str(&json).ok()),
         app_status: r
-            .get::<_, Option<String>>(col(27))?
+            .get::<_, Option<String>>(col(26))?
             .as_deref()
             .and_then(AppStatus::parse),
-        app_status_at: r.get::<_, Option<i64>>(col(28))?.and_then(from_db),
-        hidden_at: r.get::<_, Option<i64>>(col(29))?.and_then(from_db),
+        app_status_at: r.get::<_, Option<i64>>(col(27))?.and_then(from_db),
+        follow_up_on: r
+            .get::<_, Option<String>>(col(28))?
+            .and_then(|day| day.parse().ok()),
+        note: r.get(col(29))?,
+        archived_at: r.get::<_, Option<i64>>(col(30))?.and_then(from_db),
+        override_include: r.get::<_, Option<i64>>(col(31))?.is_some(),
     }))
 }
 
 /// Records one entry. Merge rule for known jobs: mail details and first sighting stay
 /// unchanged; title, company and location are only filled in when they are empty or the
-/// placeholder - never replaced just because another value is longer.
+/// placeholder - never replaced just because another value is longer. A job an older mail
+/// parser read ([`MAIL_PARSER_VERSION`]) and whose page is not read yet takes the current
+/// parser's title and details: that heals what the older one got wrong.
 fn upsert(
     conn: &Connection,
     run: i64,
@@ -818,20 +888,42 @@ fn upsert(
     now: Timestamp,
 ) -> Result<Seen> {
     let key = &posting.key;
-    let known: Option<(i64, String, String, String)> = conn
+    // A job deleted for good stays deleted: an old alert mail never brings it back.
+    let deleted = conn
         .query_row(
-            "SELECT last_seen_run, title, company, location FROM job
-             WHERE portal = ?1 AND job_id = ?2",
+            "SELECT 1 FROM tombstone WHERE portal = ?1 AND job_id = ?2",
             params![key.portal.key(), key.id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if deleted {
+        return Ok(Seen::KnownBefore);
+    }
+    let known: Option<(i64, String, String, String, Option<i64>, bool)> = conn
+        .query_row(
+            "SELECT last_seen_run, title, company, location, mail_version,
+                    desc_fetched_at IS NOT NULL
+             FROM job WHERE portal = ?1 AND job_id = ?2",
+            params![key.portal.key(), key.id],
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                ))
+            },
         )
         .optional()?;
-    let Some((last_run, title, company, location)) = known else {
+    let Some((last_run, title, company, location, version, page_read)) = known else {
         conn.execute(
             "INSERT INTO job (portal, job_id, url, title, company, location, mail_date,
                               mail_subject, gmail_id, first_seen_at, first_seen_run,
-                              last_seen_run, search)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11, ?12)",
+                              last_seen_run, search, mail_version)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11, ?12, ?13)",
             params![
                 key.portal.key(),
                 key.id,
@@ -845,6 +937,7 @@ fn upsert(
                 to_db(now),
                 run,
                 search_text(&posting.title, &posting.company, &posting.location, ""),
+                MAIL_PARSER_VERSION,
             ],
         )?;
         bump(conn)?;
@@ -852,16 +945,27 @@ fn upsert(
     };
     // The last sighting is invisible to export and UI - hence no bump().
     conn.execute(
-        "UPDATE job SET last_seen_run = ?3 WHERE portal = ?1 AND job_id = ?2",
-        params![key.portal.key(), key.id, run],
+        "UPDATE job SET last_seen_run = ?3, mail_version = ?4 WHERE portal = ?1 AND job_id = ?2",
+        params![key.portal.key(), key.id, run, MAIL_PARSER_VERSION],
     )?;
-    let new_title = if !is_usable_title(&title) && posting.has_real_title() {
+    // Read by an older mail parser and no page yet: the current parser's reading wins (it
+    // heals what an older one got wrong). Otherwise the merge rules below.
+    // With the page read, the page's values stand; only a stored pair that reads like a job
+    // title (the older parser's mistake) gives way to the current reading.
+    let older = version.is_none_or(|v| v < MAIL_PARSER_VERSION);
+    let stale = older && !page_read;
+    let has_pair = !(posting.company.is_empty() && posting.location.is_empty());
+    let wrong_pair = older && (looks_like_job_title(&company) || looks_like_job_title(&location));
+    let new_title = if (stale || !is_usable_title(&title)) && posting.has_real_title() {
         posting.title.clone()
     } else {
         title.clone()
     };
-    let (new_company, new_location) =
-        merge_details((&company, &location), (&posting.company, &posting.location));
+    let (new_company, new_location) = if (stale || wrong_pair) && has_pair {
+        (posting.company.clone(), posting.location.clone())
+    } else {
+        merge_details((&company, &location), (&posting.company, &posting.location))
+    };
     if new_title != title || new_company != company || new_location != location {
         // The engine reads title and location (the country criterion): a change to either
         // makes the score pending again - the same rule as for page fields.
@@ -1189,6 +1293,87 @@ mod tests {
             .record_page_fields(&key, "", "", "Manchester")
             .unwrap();
         assert_eq!(pending(), 0, "the same location changes nothing");
+    }
+
+    /// A job an older mail parser read takes the current reading when a mail names it again:
+    /// a wrong company (the next job's title) and missing details heal. A current reading,
+    /// and a job whose page was read, keep the merge rules.
+    #[test]
+    fn an_older_mail_reading_heals_when_the_job_is_seen_again() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let seen = |url: &str, title: &str, company: &str, location: &str| {
+            store
+                .upsert_posting(run, &posting(url, title, company, location), mail(), now())
+                .unwrap();
+            job_link(url).unwrap().key
+        };
+        let details = |key: &JobKey| {
+            let job = store.job(key).unwrap().unwrap();
+            (job.title, job.company, job.location)
+        };
+        let triple = |a: &str, b: &str, c: &str| (a.to_owned(), b.to_owned(), c.to_owned());
+        let vmware = "https://www.linkedin.com/jobs/view/4000000011/";
+        let wrong = seen(
+            vmware,
+            "VMware Lead Solution Architect",
+            "Senior Requirements Engineer im Bankenumfeld",
+            "",
+        );
+        let bare = "https://www.linkedin.com/jobs/view/4000000012/";
+        let empty = seen(bare, "Interim CFO", "", "");
+        let current = "https://www.linkedin.com/jobs/view/4000000013/";
+        let kept = seen(current, "Controller", "Nordlicht AG", "Hamburg");
+        let paged = "https://www.linkedin.com/jobs/view/4000000014/";
+        let page = seen(paged, "Treasury", "", "");
+        store
+            .record_text(&page, "Anzeige", false, false, now())
+            .unwrap();
+        store
+            .record_page_fields(&page, "", "Seitenfirma GmbH", "")
+            .unwrap();
+        // A page that named no company left the older parser's wrong one in place.
+        let titled = "https://www.linkedin.com/jobs/view/4000000015/";
+        let paged_wrong = seen(titled, "Architekt", "Senior Requirements Engineer", "");
+        store
+            .record_text(&paged_wrong, "Anzeige", false, false, now())
+            .unwrap();
+        for key in [&wrong, &empty, &kept, &page, &paged_wrong] {
+            store.make_mail_stale(key);
+        }
+        // `kept` stands for a job the current parser read.
+        seen(current, "Controller", "Nordlicht AG", "Hamburg");
+        assert!(store.stale_mail_since().unwrap().is_some());
+
+        seen(
+            vmware,
+            "VMware Lead Solution Architect",
+            "Acme Cloud GmbH",
+            "München",
+        );
+        seen(bare, "Interim CFO", "Hanseatic Holding GmbH", "Hamburg");
+        seen(current, "Controller", "Andere Firma GmbH", "Berlin");
+        seen(paged, "Treasury", "Mailfirma GmbH", "Köln");
+        seen(titled, "Architekt", "Beispiel IT GmbH", "Frankfurt am Main");
+        assert_eq!(
+            details(&wrong),
+            triple(
+                "VMware Lead Solution Architect",
+                "Acme Cloud GmbH",
+                "München"
+            )
+        );
+        assert_eq!(
+            details(&empty),
+            triple("Interim CFO", "Hanseatic Holding GmbH", "Hamburg")
+        );
+        assert_eq!(
+            details(&kept),
+            triple("Controller", "Nordlicht AG", "Hamburg")
+        );
+        assert_eq!(details(&page).1, "Seitenfirma GmbH", "the page wins");
+        assert_eq!(details(&paged_wrong).1, "Beispiel IT GmbH");
+        assert_eq!(store.stale_mail_since().unwrap(), None);
     }
 
     /// The page's company and location win over the mail heuristics; what the page leaves

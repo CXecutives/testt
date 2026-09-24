@@ -1,7 +1,7 @@
 # Bewertungsregel
 
-Diese Regel gilt für die Prüfung mit Claude in der App und für den Skill job-matching. Beide
-lesen genau diesen Text. Das Profil gewinnt: Jede Schwelle kommt aus dem Profil, ein Schlüssel,
+Diese Regel gilt für die Prüfung in einem KI-Chat aus der App und für den Skill job-matching.
+Beide lesen genau diesen Text. Das Profil gewinnt: Jede Schwelle kommt aus dem Profil, ein Schlüssel,
 den das Profil nicht setzt, schaltet seine Regel ab.
 
 ## Punkte von 1 bis 10

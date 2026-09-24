@@ -66,7 +66,7 @@
   /** A date this old is marked (days). */
   const AGED_DAYS = 10;
   const DAY_MS = 86_400_000;
-  const APP_TONE: Record<AppStatus, BadgeTone> = {
+  const APP_TONE: Record<Exclude<AppStatus, 'saved'>, BadgeTone> = {
     applied: 'neutral',
     interview: 'neutral',
     offer: 'success',
@@ -79,9 +79,9 @@
     aged ?? (now ?? new Date()).getTime() - new Date(when).getTime() > AGED_DAYS * DAY_MS,
   );
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
-  /** Where the user's application stands (pinned needs no badge: the star says it). */
+  /** Where the user's application stands (saved needs no badge: the star says it). */
   const status = $derived(
-    job.appStatus
+    job.appStatus && job.appStatus !== 'saved'
       ? { label: de.reader.appStatus[job.appStatus], tone: APP_TONE[job.appStatus] }
       : null,
   );
@@ -156,8 +156,8 @@
             variant="ghost"
             size="sm"
             iconOnly
-            icon={job.hidden ? 'archive-restore' : 'archive'}
-            label={job.hidden ? de.reader.unhide : de.reader.hide}
+            icon={job.archived ? 'archive-restore' : 'archive'}
+            label={job.archived ? de.reader.unhide : de.reader.hide}
             testid="archive-{job.key.portal}-{job.key.id}"
             onclick={() => onarchive?.(job)}
           />
