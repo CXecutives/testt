@@ -1,175 +1,110 @@
 # Job-Alert-Monitor
 
-Windows-App, die die **Job-Alert-Mails von LinkedIn, freelance.de und freelancermap.de** aus einem
-Gmail-Posteingang liest, daraus eine dublettenfreie Liste der Jobs macht, zu jedem Job den
-**vollständigen Ausschreibungstext** holt und alles als Excel-/CSV-Datei und als Textdateien für das
-KI-Matching ablegt. Ein Klick: *Mails rein → Projekte mit Volltext raus.*
+Desktop app (Tauri 2 + Rust, Windows and macOS) that turns job alert mails into a scored,
+searchable list of postings.
 
-Die App **liest nur**: Der Posteingang wird schreibgeschützt geöffnet, Mails bleiben ungelesen, nichts
-wird verändert, gelöscht oder versendet.
+## What it does
 
----
+Reads job alert mails from LinkedIn, freelancermap and freelance.de out of a Gmail mailbox
+(read-only IMAP; the Gmail app password is stored only in the OS keychain). Fetches each
+job's full posting page politely: every portal can be switched off individually, and each
+has its own request limits and pauses. Scores every job locally against a consultant
+profile with an explainable, integer-only rule engine — nothing is sent to the cloud.
+Writes an Excel workbook (`JobAlerts.xlsx`), one TXT file per job and an HTML overview into
+a work folder. An optional stage-2 Claude skill in `tools/job-matching-skill/` can re-rank
+the app's top matches.
 
-## Einrichten
+## Install
 
-**Voraussetzungen:** Windows 10 oder 11 mit der Microsoft-Edge-WebView2-Laufzeit (auf Windows 11
-vorinstalliert). Sonst nichts – keine Installation, kein Python.
+**Windows:** run the NSIS installer (current-user install, no admin rights needed). The
+build is unsigned, so Windows SmartScreen blocks it on first launch — choose
+*More info -> Run anyway*.
 
-**Gmail-App-Passwort:** Gmail erlaubt Programmen den Zugriff nur mit einem App-Passwort
-(16 Buchstaben), nicht mit dem normalen Passwort.
+**macOS:** open the `.dmg` (Apple Silicon only, macOS 14 or newer). On first start, go to
+*System Settings -> Privacy & Security -> Open Anyway*. The build is only ad-hoc signed, so
+the keychain also asks for permission again after every update.
 
-1. Im Google-Konto die **Bestätigung in zwei Schritten** einschalten.
-2. <https://myaccount.google.com/apppasswords> öffnen (in der App: *System → App-Passwort anlegen…*),
-   einen Namen vergeben, **Erstellen** klicken, das Passwort kopieren. Leerzeichen sind egal.
-3. In der App unter **System** Gmail-Adresse und App-Passwort eintragen → **Speichern**.
-   Beides liegt danach in der Windows-Anmeldeinformationsverwaltung („Windows-Tresor“) – nie im
-   Klartext.
+Builds are not published as GitHub releases; download the current installer/dmg from the CI
+workflow's artifacts.
 
-Falls Gmail die Anmeldung ablehnt: in Gmail unter *Einstellungen → Weiterleitung und POP/IMAP* prüfen,
-dass IMAP aktiviert ist.
+## First start
 
-**Starten:** `job-alert-monitor.exe` doppelklicken. Ein zweiter Start holt nur das offene Fenster nach
-vorn.
+Connect the Gmail mailbox with an app password, then choose an existing profile or create
+one from the template, then press **Abrufen** (fetch).
 
-## Bedienen
+## The profile
 
-| Ansicht | Wofür |
-|---|---|
-| **Job-Alerts** | **Postfach abrufen** = Mails prüfen → neue Jobs speichern → Jobdetails holen → Dateien schreiben. **Jobdetails extrahieren** holt nur noch Fehlendes. Klick auf eine Zeile zeigt die Jobdetails, Doppelklick öffnet die Anzeige (auf dem Datum: die Mail in Gmail). Suche über Titel, Firma, Ort und Jobdetails. |
-| **Portal-Zugänge** | Je Portal: Pausen, verbrauchte Abrufe, offene Jobdetails; freelance.de **Anmelden…/Abmelden**. |
-| **Beraterprofil** | Profil als JSON hinterlegen (bleibt lokal). |
-| **System** | Gmail-Zugang, Arbeitsordner, Ergebnisordner öffnen/leeren, Textdateien neu schreiben, Protokoll, **Alles zurücksetzen**. |
+The consultant profile is a JSON file with German keys, in the structure shown by
+`core/tests/fixtures/matching/sample_profile_senior.json` (name, years of experience,
+education, career stations, competences, and hard criteria such as minimum day rate or
+allowed countries). A competence entry can carry an `auch` list of alternative terms that
+count toward it. Everything personal about the consultant lives only in this file, never in
+the app itself or its code.
 
-Die **Laufleiste** unter der Kopfzeile zeigt in jeder Ansicht, was die App gerade tut – mit Fortschritt,
-Wartezeit bis zum nächsten Portalabruf und **Abbrechen** –, sonst das Ergebnis des letzten Laufs.
+## How matching works
 
-**Umfang und Portale** (rechts neben der Tabelle, *Ändern*): *Neu seit letztem Lauf* (Standard; beim ersten Mal 7 Tage) · *Letzte 7 Tage* · *Alle*.
-Mehrfach gefundene Jobs werden nur einmal gespeichert – überlappende Läufe schaden nie.
+The engine reads the posting text (must/nice/other sections, inline headings, requirement
+sentences), splits requirements into AND/OR items, and matches each item against the
+profile's competences and their `auch` aliases through a stemming/compound-aware ladder.
+Hard criteria (ANÜ, country, day rate, availability, and — for permanent roles — minimum
+salary and region) are evaluated separately and can exclude a job outright. The final score
+combines must/nice coverage with a relevance-weighted shrinkage estimate; jobs are banded
+into high/mid/low, or marked excluded or unscorable. Details, formulas and the full
+parameter set are in `docs/MATCHING.md`.
 
-**freelance.de** zeigt Projekttexte nur angemeldeten Nutzern: Einmal selbst anmelden
-(*Portal-Zugänge → Anmelden…* oder wenn ein Lauf danach fragt), „angemeldet bleiben“ aktiviert lassen.
-Die App trägt nichts ein und speichert kein freelance.de-Passwort; die Anmeldung lebt nur im eigenen
-Profil des Anmeldefensters. **LinkedIn und freelancermap.de** brauchen kein Konto.
+Measured against the old engine on the 52-job corpus, across four test profiles (in-band =
+score inside the pre-agreed band, distance = sum of band-distance errors, Spearman =
+rank correlation of score vs. band):
 
-**Trockenlauf** zum Ausprobieren ohne Postfach, Portale und Dateien: `job-alert-monitor.exe --dry-run`.
+| Profile | Jobs | In band, old | In band, new | Distance, old | Distance, new | Spearman, old | Spearman, new |
+|---|---|---|---|---|---|---|---|
+| fin (interim finance) | 52 | 24/52 | 49/52 | 561 | 14 | 0.60 | 0.87 |
+| it (SAP/IT project lead) | 52 | 41/52 | 51/52 | 193 | 5 | 0.60 | 0.84 |
+| senior (interim CFO) | 52 | 20/52 | 49/52 | 549 | 14 | 0.62 | 0.75 |
+| sap (SAP FI/CO consultant) | 52 | 35/52 | 51/52 | 224 | 6 | 0.68 | 0.89 |
 
-## Arbeitsordner und Matching
+## Privacy and portals
 
-Standard: `Dokumente\Job-Alert-Monitor` (änderbar unter *System → Arbeitsordner wählen…*).
+Everything runs locally: jobs, full texts, the database and logs never leave the machine
+except for the IMAP connection to Gmail, the HTTP requests to the job portals themselves,
+and — only if the user runs the optional stage-2 skill — the user's own Claude, without an
+API key. The mailbox is opened read-only: mails stay unread, and nothing is changed, deleted
+or sent. No passwords are stored by the app except the Gmail app password, which lives in
+the OS keychain (Windows Credential Manager / macOS Keychain).
 
+Portal notes: LinkedIn postings are fetched through its public guest view without a
+LinkedIn account, which sits in a grey zone under LinkedIn's terms of use. freelancermap
+postings are fetched through its public project pages. freelance.de sign-in is off by
+default, because freelance.de's crawling policy does not clearly permit signed-in scraping;
+enabling it is a manual per-portal choice with an account-risk warning in the UI. All
+portals are fetched conservatively — request limits, randomized pauses, and an automatic
+stop on rate limits, blocks or captchas, never bypassed.
+
+## Development
+
+**Requirements:** the Rust toolchain pinned in `rust-toolchain.toml`, Node 24, npm.
+
+**Commands:**
 ```
-Job-Alert-Monitor\
-├─ auswertung\
-│  ├─ JobAlerts.xlsx (bzw. .csv)      aus der Datenbank erzeugt, nie von Hand gepflegt
-│  └─ beschreibungen_txt\*.txt        je Job mit Volltext genau eine Datei (für das Matching)
-└─ profil\beraterprofil.json
-```
-
-Die Textdateien haben einen festen Kopf (`Titel`, `Unternehmen`, `Ort`, `Quelle`, `Link`,
-`Abgerufen am`; `Quelle` heißt dort so, weil die Matching-Skills darauf zeigen – die App selbst sagt
-„Portal“), dann eine Leerzeile und den Volltext. Jede Datei wird **einmal** geschrieben und nie
-von selbst neu. Fremde Dateien im Arbeitsordner (z. B. `auswertung\beschreibungen_matching\`,
-`Profil_*.json`, `tools\`) fasst die App nie an.
-
-**Einmalig:** In den Matching-Skills (`job-matching`, `job-matching-email`) den Projektordner auf den
-Arbeitsordner stellen. Den Arbeitsordner nicht auf den Ordner des alten Programms legen: Dessen
-Textdateien würden das Matching sonst doppelt füttern. Findet die App dort eine fremde
-`JobAlerts.xlsx`/`.csv`, sichert sie diese vor dem ersten Schreiben als `JobAlerts.alt-<Datum>.xlsx`.
-
-Die Übersicht ist eine Ausgabe, kein Notizort: Excel wird bei jedem Lauf komplett neu geschrieben,
-die CSV nur, wenn sich die Daten geändert haben (eine offene CSV stört so nicht bei jedem Lauf).
-Das Gedächtnis der App ist ihre Datenbank.
-
-## Schonender Abruf der Portale
-
-Die App ruft Portale zurückhaltend ab – wie ein ruhiger Mensch, nicht wie ein Crawler:
-strikt nacheinander, mit zufälligen Pausen, Obergrenzen und ohne Tarnung.
-
-| Portal | Weg | Abstand | Obergrenze |
-|---|---|---|---|
-| LinkedIn | öffentliche Gastansicht, ohne Konto | 4–7 s | 20 je Stunde, 40 je 24 h |
-| freelancermap.de | öffentliche Projektseite | 3–5 s | 25 je Stunde, 60 je 24 h |
-| freelance.de | unsichtbares Anmeldefenster (echte Edge-Engine) | 10–20 s + Verweildauer | 15 je Stunde, 30 je 24 h |
-
-- **Sperrsignal** (z. B. LinkedIn-Code 999, Umleitung zur Anmeldung, Captcha): Das Portal pausiert
-  24 Stunden, beim zweiten Mal binnen einer Woche 7 Tage. Die App versucht nie, eine Sperre zu umgehen.
-- **Zu viele Anfragen / Serverfehler:** 1 Stunde Pause. **Zwei Seiten ohne Beschreibung in Folge:**
-  1 Stunde Pause (vermutlich hat sich der Seitenaufbau geändert).
-- Pausen und Abrufzähler überleben Neustarts und auch *Alles zurücksetzen*. Ein erneuter
-  Klick umgeht nichts; die Abschlussmeldung nennt, wann der Rest möglich ist.
-- Erfolgreich Geholtes wird nie erneut abgerufen. Automatisch geholt werden Jobs aus Mails der letzten
-  30 Tage; ältere per *Details holen* im Detailbereich.
-
-Ein großer Rückstand braucht deshalb mehrere Tage – das ist gewollt.
-
-## Speicherorte
-
-| Was | Wo |
-|---|---|
-| Jobs, Volltexte, Einstellungen | `%LOCALAPPDATA%\de.cxecutives.job-alert-monitor\jobs.db` |
-| Pausen und Abrufzähler | `…\policy.json` |
-| Anmeldung freelance.de | `…\session-freelance\` |
-| Protokoll (1 MB, eine Vorgängerdatei) | `…\logs\` – *System → Protokoll öffnen* |
-| Gmail-Zugang | Windows-Anmeldeinformationsverwaltung, Eintrag `gmail.de.cxecutives.job-alert-monitor` |
-
-## Fehlerbehebung
-
-- **Windows blockiert den Start („Der Computer wurde durch Windows geschützt“):** Die Exe ist nicht
-  signiert. *Weitere Informationen → Trotzdem ausführen.* Ist **Smart App Control** aktiv
-  (*Windows-Sicherheit → App- & Browsersteuerung*), startet eine unsignierte Exe gar nicht; dann hilft
-  nur, Smart App Control auszuschalten – je nach Windows-Version lässt es sich danach nur mit einer
-  Neuinstallation wieder einschalten.
-- **Die App startet nicht:** Die Fehlermeldung nennt Grund und Abhilfe (z. B. fehlende
-  WebView2-Laufzeit, eine gesperrte oder beschädigte Datenbank samt Dateipfad, eine Datenbank aus einer
-  neueren Version); Details stehen im Protokoll unter
-  `%LOCALAPPDATA%\de.cxecutives.job-alert-monitor\logs\`.
-- **„Die Datei ist gerade geöffnet (z. B. in Excel)“:** Excel schließen und erneut abrufen – es geht
-  nichts verloren, die Datei wird beim nächsten Lauf geschrieben.
-- **Gmail: Anmeldung abgelehnt:** App-Passwort neu anlegen und unter *System* speichern; IMAP in Gmail
-  aktiviert?
-- **Ein Portal ist pausiert:** *Portal-Zugänge* zeigt Grund und Ende. Bei einer Sperre das Portal im
-  eigenen Browser öffnen (*Im Browser öffnen*) und nachsehen, ob eine Sicherheitsprüfung wartet.
-- **freelance.de: „Anmeldung nötig“:** *Portal-Zugänge → Anmelden…*
-- **Alert-Mails ohne Jobs (graue Zeilen):** Das Mail-Layout hat sich vermutlich geändert.
-  Doppelklick öffnet die Mail in Gmail; bitte melden.
-- **Alles zurücksetzen** löscht Jobs, Einstellungen, Gmail-Zugang, freelance.de-Anmeldung, das
-  Beraterprofil und die App-Dateien im Ergebnisordner und startet neu. Pausen und Abrufzähler bleiben
-  aus Sicherheitsgründen.
-
----
-
-## Für Entwickler
-
-Rust (Edition 2024) + Tauri 2, Oberfläche in reinem JavaScript ohne Build-Schritt.
-
-```
-core/        jobalert-core: die gesamte Fachlogik und alle Tests – kennt Tauri nicht
-  src/mail/     IMAP (nur lesend), Mail-Zerlegung, Portal-Erkennung, Extraktion
-  src/fetch/    Abrufregeln (policy.json), HTTP (LinkedIn, freelancermap), freelance.de-Auswertung
-  src/export/   xlsx, csv, Textdateien (atomar)
-  src/pipeline/ ein Lauf: Postfach → Jobdetails → Export; Trockenlauf-Attrappen
-src-tauri/   dünne App-Schicht: Befehle, Fenster, Sitzungsfenster freelance.de
-ui/          index.html, style.css, js/ (api.js ist die einzige Stelle mit Tauri-Zugriff)
-tools/       ui-harness (Oberfläche im Browser mit nachgebautem Backend), icon.py (App-Symbol)
-```
-
-```bash
-cargo test --workspace                                         # alle Tests (ohne Netz)
+npm ci
+npm run check          # svelte-check, eslint, stylelint, prettier
+npm run harness         # Playwright UI harness (Chromium + WebKit)
+npm run build           # builds the UI into ui/dist
+cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo tauri dev -- -- --dry-run                                # App mit Attrappen
-cargo build -p job-alert-monitor && target/debug/job-alert-monitor --dry-run --smoke --smoke-run
-cargo tauri build                                              # target/release/job-alert-monitor.exe
-node tools/ui-harness/server.mjs 5177                          # Oberfläche ohne Backend: http://localhost:5177
-python tools/icon.py                                           # App-Symbol neu erzeugen (Pillow)
-cargo run -p jobalert-core --example dump_alerts               # eigene Alert-Mails als Testdaten sichern
+cargo test --workspace
+cargo tauri build       # release bundles (NSIS on Windows, app/dmg on macOS)
 ```
 
-Im Prüfstand laufen die Interaktions-Szenarien in der Browser-Konsole:
-`await (await import('/__checks.js')).run()` (URL-Parameter: `?jobs=5000`, `?dry`, `?nogmail`, `?first`).
+**Project layout:**
+- `core/` - `jobalert-core`: mail scanning, portal fetching, the matching engine, storage
+  and export; no UI code, no `unsafe`.
+- `src-tauri/` - the thin app layer: Tauri commands, window and platform glue.
+- `ui/` - Svelte 5 + Vite + TypeScript frontend.
+- `tools/` - UI harness, evaluation scripts, icon generation, the optional
+  `job-matching-skill/`.
+- `docs/` - `PLAN.md` (project plan and decisions) and `MATCHING.md` (matching engine
+  reference and measurements).
 
-Der Push-Wächter in `.githooks/pre-push` lässt nur Fast-Forward-Pushes nach `CXecutives/TEST` zu.
-Einmal pro Klon aktivieren: `git config core.hooksPath .githooks`.
-
-`--smoke` (nur Debug-Build) prüft die Oberfläche und beendet sich mit 0/1/2; `--smoke-run` klickt im
-Trockenlauf zusätzlich „Postfach abrufen“ und prüft das Ergebnis. Tests berühren weder Portale noch den
-echten Tresor-Eintrag.
+**Dry run:** `--dry-run` starts the app without touching the real mailbox, portals or work
+folder, for trying out or screenshotting the UI.
