@@ -280,6 +280,7 @@ const note = {
   fewMust: 'Wenige Muss-Anforderungen erfüllt.',
   shortText: 'Zu wenig Text für eine Bewertung.',
   lowEvidence: LOW_TEXT,
+  engineFailed: 'Diese Anzeige ließ sich nicht bewerten.',
 } satisfies Record<string, Text>;
 export type MatchNote = keyof typeof note;
 

@@ -218,6 +218,7 @@ fn read_db(conn: &Connection) -> Res<(Vec<DbJob>, usize)> {
                 pinned_at: None,
                 match_: None,
                 match_rev: None,
+                facts: None,
             },
             text: r.get(11)?,
             facts,
