@@ -730,7 +730,7 @@ pub(crate) const ANUE_PARTS: &[&str] = &["uberlassung", "temporary agency"];
 pub(crate) const ANUE_HIDDEN: &[&str] = &["payrolling", "equal pay", "igz", "bap", "gvp"];
 /// Negations in the same sentence: whole words, then substrings.
 pub(crate) const ANUE_NEGATION: &[&str] = &["kein", "keine", "nicht", "ohne", "not", "no"];
-pub(crate) const ANUE_NEGATION_PARTS: &[&str] = &["ausgeschlossen"];
+pub(crate) const ANUE_NEGATION_PARTS: &[&str] = &["ausgeschlossen", "abgrenzung"];
 /// ANÜ only one option: whole words, then substrings.
 pub(crate) const ANUE_OPTION: &[&str] = &["oder", "or", "wahlweise", "alternativ", "optional"];
 pub(crate) const ANUE_OPTION_PARTS: &[&str] = &["je nach", "moglich"];
@@ -778,9 +778,36 @@ pub(crate) const PERMANENT_STATED: &[&str] = &[
     "festangestellt",
     "permanent contract",
     "permanent employment",
+    "permanent full-time",
+    "full-time permanent",
+    "annual gross salary",
+    "gross annual salary",
     "zielgehalt",
     "bruttojahresgehalt",
 ];
+/// A permanent position denied (`this is not a permanent position`).
+pub(crate) const PERMANENT_NEGATED: &[&str] = &[
+    "not a permanent",
+    "no permanent",
+    "keine festanstellung",
+    "nicht um eine festanstellung",
+    "keine feste anstellung",
+];
+/// A permanent position only as a later option (`Übernahme in eine Festanstellung denkbar`).
+pub(crate) const PERMANENT_OPTION: &[&str] = &[
+    "ubernahme in eine festanstellung",
+    "ubernahme in festanstellung",
+    "option auf festanstellung",
+    "option auf eine festanstellung",
+    "spatere festanstellung",
+    "anschliessende festanstellung",
+    "possibility of a permanent",
+    "option of a permanent",
+    "temp-to-perm",
+    "temp to perm",
+];
+/// A contract type line (`Vertragsart: Festanstellung`).
+pub(crate) const CONTRACT_LINES: &[&str] = &["vertragsart:", "anstellungsart:", "employment type:"];
 /// Indirect hints of a permanent position (benefits, work permit, career page).
 pub(crate) const PERMANENT_HINTS: &[&str] = &[
     "why join",

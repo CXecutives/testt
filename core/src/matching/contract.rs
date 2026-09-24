@@ -62,7 +62,20 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
         .unwrap_or_default();
     let title = fold(job.title);
     let interim_at = |f: &str| any(f, lex::INTERIM_CUES) || parse_rate(f).is_some();
-    let stated_at = |f: &str| any(f, lex::PERMANENT_WORDS) || any(f, lex::PERMANENT_STATED);
+    // A denied or merely possible later permanent position is no statement of one.
+    let stated_at = |f: &str| {
+        (any(f, lex::PERMANENT_WORDS) || any(f, lex::PERMANENT_STATED))
+            && !any(f, lex::PERMANENT_NEGATED)
+            && !any(f, lex::PERMANENT_OPTION)
+    };
+    // A contract type field (`Vertragsart: Festanstellung`, the page fact) decides
+    // before cues elsewhere (a field label `Honorar:`, `Interim ... denkbar`).
+    let field_permanent =
+        |f: &str| stated_at(f) && !interim_at(f) && !f.contains(" oder ") && !f.contains(" or ");
+    let field = field_permanent(&contract_fact)
+        || segments.iter().any(|(_, f)| {
+            lex::CONTRACT_LINES.iter().any(|l| f.starts_with(l)) && field_permanent(f)
+        });
     let hint_at = |f: &str| any(f, lex::PERMANENT_HINTS);
     let spans_of = |pred: &dyn Fn(&str) -> bool| -> Vec<Range<usize>> {
         segments
@@ -91,6 +104,9 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
     if decided_anue {
         let spans = anue.iter().flat_map(|f| f.spans.clone()).collect();
         return contract(ContractKind::Anue, false, spans);
+    }
+    if field {
+        return contract(ContractKind::Permanent, false, spans_of(&stated_at));
     }
     match (stated, interim) {
         (true, true) => contract(ContractKind::Unclear, false, spans_of(&stated_at)),

@@ -322,7 +322,9 @@ pub(crate) fn anue(job: &JobFacts<'_>, segments: &[Segment]) -> Vec<Finding> {
         }
     }
     let spans = |v: Vec<Range<usize>>| v.into_iter().filter(|r| !r.is_empty()).collect();
-    if !decided.is_empty() {
+    // An ad that offers ANÜ as one option somewhere is optional, even where another
+    // sentence names it plainly (`bei ANÜ entsprechender Stundenlohn`).
+    if !decided.is_empty() && option.is_empty() {
         vec![Finding::new(
             ReasonCode::Anue,
             true,
@@ -331,6 +333,7 @@ pub(crate) fn anue(job: &JobFacts<'_>, segments: &[Segment]) -> Vec<Finding> {
             spans(decided),
         )]
     } else if !option.is_empty() {
+        option.extend(decided);
         vec![Finding::new(
             ReasonCode::AnueOptional,
             false,
