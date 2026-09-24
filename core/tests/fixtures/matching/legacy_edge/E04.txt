@@ -1,0 +1,10 @@
+Titel: Anforderungssätze
+Unternehmen: Beispiel GmbH
+Ort: D-10115 Berlin
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=04000
+Abgerufen am: 16.09.2026 07:30
+
+Wir suchen Verstärkung für ein Projekt im Rechnungswesen. Vorausgesetzt wird ein sicherer Umgang mit SAP FI/CO.
+Idealerweise bringen Sie Erfahrung mit Power BI mit! Der Kunde nutzt Jira, Confluence und Scrum.
+Mehrjährige Praxis in der Konzernrechnungslegung nach IFRS setzen wir voraus? Ja.

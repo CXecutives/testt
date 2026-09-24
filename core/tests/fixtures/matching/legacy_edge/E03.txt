@@ -1,0 +1,15 @@
+Titel: Aufzählungen und Sätze
+Unternehmen: Beispiel GmbH
+Ort: D-10115 Berlin
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=03000
+Abgerufen am: 16.09.2026 07:30
+
+Anforderungen:
+- Erfahrung mit Controlling. Kenntnisse in IFRS; Umgang mit SAP S/4HANA & Power BI sowie LucaNet bzw. HGB
+- 1) Projektmanagement-Erfahrung, Konsolidierung und Forecast oder Budgetierung beziehungsweise Liquiditätsplanung
+* Englischkenntnisse, Französischkenntnisse, Fremdsprachkenntnisse, Deutschsprache
+- Working Capital Management und Working Capital Steuerung, Post-Merger-Integration
+2. Wünschenswert
+- „Design Thinking“ (Workshops) [optional] {intern}
+- Erfahrung mit Carve-outs, Monatsabschlüssen und KI-Implementierung

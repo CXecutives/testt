@@ -1,0 +1,11 @@
+Titel: Genau 100 Zeichen
+Unternehmen: Beispiel GmbH
+Ort: D-10115 Berlin
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=08000
+Abgerufen am: 16.09.2026 07:30
+
+Anforderungen
+- Erfahrung im Controlling
+- Kenntnisse in SAP S/4HANA
+- Erfahrung mit Power BIxxxxxxy

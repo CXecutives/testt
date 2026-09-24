@@ -1,0 +1,489 @@
+{
+ "command": "py -3.14 tools/eval/legacy_baseline.py edge",
+ "source": "ca9a2cd^",
+ "sourceCommit": "d1f7c0aee2a084dd787491fcc713b067ec5fea18",
+ "python": "3.14.4",
+ "date": "2026-09-24",
+ "profiles": {
+  "sample_profile.json": {
+   "E01": {
+    "pct": null,
+    "error": "IndexError: no such group"
+   },
+   "E02": {
+    "pct": 35,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung im CONTROLLING‍",
+     "Sichere Kenntnisse in der KONSOLIDIERUNG",
+     "Erfahrung mit LUCANET",
+     "Kenntnisse in HGB",
+     "Fließende Deutschkenntnisse"
+    ],
+    "missing": [
+     "– Zertiﬁzierung als PMP",
+     "GROẞKONZERN-Erfahrung",
+     "Erfahrung in SAP.",
+     "Kenntnisse in İFRS",
+     "ıFRS"
+    ],
+    "violations": [
+     "Start liegt in der Zukunft (Verfügbarkeit: sofort)"
+    ],
+    "termHits": 5,
+    "mustTotal": 10,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E03": {
+    "pct": 77,
+    "coverage": 78,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung mit Controlling.",
+     "Kenntnisse in IFRS;",
+     "Umgang mit SAP S/4HANA",
+     "Power BI",
+     "LucaNet bzw.",
+     "HGB",
+     "Konsolidierung",
+     "Forecast",
+     "Budgetierung",
+     "Liquiditätsplanung",
+     "Englischkenntnisse",
+     "Französischkenntnisse",
+     "Deutschsprache",
+     "Working Capital Management",
+     "„Design Thinking“  Workshops  [optional] {intern} (wünschenswert)",
+     "Erfahrung mit Carve-outs (wünschenswert)",
+     "Monatsabschlüssen (wünschenswert)"
+    ],
+    "missing": [
+     "Projektmanagement-Erfahrung",
+     "Fremdsprachkenntnisse",
+     "Working Capital Steuerung",
+     "Post-Merger-Integration"
+    ],
+    "violations": [],
+    "termHits": 17,
+    "mustTotal": 18,
+    "niceTotal": 4,
+    "niceCovered": 3
+   },
+   "E04": {
+    "pct": 100,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Vorausgesetzt wird ein sicherer Umgang mit SAP FI/CO.",
+     "Idealerweise bringen Sie Erfahrung mit Power BI mit! (wünschenswert)",
+     "Mehrjährige Praxis in der Konzernrechnungslegung nach IFRS setzen wir voraus?"
+    ],
+    "missing": [],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 2,
+    "niceTotal": 1,
+    "niceCovered": 1
+   },
+   "E05": {
+    "pct": 50,
+    "coverage": 50,
+    "mode": "vocab",
+    "matched": [
+     "designthinking (Job-Fachbegriff)",
+     "sap s/4hana (Job-Fachbegriff)",
+     "power bi (Job-Fachbegriff)"
+    ],
+    "missing": [
+     "schnittstellen",
+     "kubernetes",
+     "python"
+    ],
+    "violations": [],
+    "termHits": 3,
+    "mustTotal": 0,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E06": {
+    "pct": 34,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung im Controlling",
+     "Kenntnisse in der Konsolidierung"
+    ],
+    "missing": [],
+    "violations": [
+     "Tagessatz 950 € unter 1000 €",
+     "Start liegt in der Zukunft (Verfügbarkeit: sofort)",
+     "Einsatzland GB außerhalb DE/AT/CH"
+    ],
+    "termHits": 2,
+    "mustTotal": 2,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E07": {
+    "pct": null
+   },
+   "E08": {
+    "pct": 67,
+    "coverage": 67,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung im Controlling",
+     "Kenntnisse in SAP S/4HANA"
+    ],
+    "missing": [
+     "Erfahrung mit Power BIxxxxxxy"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E09": {
+    "pct": 73,
+    "coverage": 75,
+    "mode": "requirements",
+    "matched": [
+     "Kenntnisse in LucaNet (wünschenswert)",
+     "Erfahrung mit Power BI (wünschenswert)",
+     "Kenntnisse in LucaNet",
+     "Erfahrung mit Power BI",
+     "Umfassende Kenntnisse im Controlling sind erforderlich"
+    ],
+    "missing": [
+     "Wir sind ein Team mit Erfahrung in der Beratung von Banken."
+    ],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 4,
+    "niceTotal": 3,
+    "niceCovered": 2
+   }
+  },
+  "sample_profile_it.json": {
+   "E01": {
+    "pct": null,
+    "error": "IndexError: no such group"
+   },
+   "E02": {
+    "pct": 21,
+    "coverage": 30,
+    "mode": "requirements",
+    "matched": [
+     "– Zertiﬁzierung als PMP",
+     "Fließende Deutschkenntnisse",
+     "Erfahrung in SAP."
+    ],
+    "missing": [
+     "Erfahrung im CONTROLLING‍",
+     "Sichere Kenntnisse in der KONSOLIDIERUNG",
+     "Erfahrung mit LUCANET",
+     "Kenntnisse in HGB",
+     "GROẞKONZERN-Erfahrung",
+     "Kenntnisse in İFRS",
+     "ıFRS"
+    ],
+    "violations": [
+     "Einsatzland CH außerhalb DE/AT"
+    ],
+    "termHits": 3,
+    "mustTotal": 10,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E03": {
+    "pct": 12,
+    "coverage": 17,
+    "mode": "requirements",
+    "matched": [
+     "Umgang mit SAP S/4HANA",
+     "Englischkenntnisse",
+     "Deutschsprache"
+    ],
+    "missing": [
+     "Erfahrung mit Controlling.",
+     "Kenntnisse in IFRS;",
+     "Power BI",
+     "LucaNet bzw.",
+     "HGB",
+     "Projektmanagement-Erfahrung",
+     "Konsolidierung",
+     "Forecast",
+     "Budgetierung",
+     "Liquiditätsplanung",
+     "Französischkenntnisse",
+     "Fremdsprachkenntnisse",
+     "Working Capital Management",
+     "Working Capital Steuerung",
+     "Post-Merger-Integration"
+    ],
+    "violations": [],
+    "termHits": 6,
+    "mustTotal": 18,
+    "niceTotal": 4,
+    "niceCovered": 0
+   },
+   "E04": {
+    "pct": 38,
+    "coverage": 50,
+    "mode": "requirements",
+    "matched": [
+     "Vorausgesetzt wird ein sicherer Umgang mit SAP FI/CO."
+    ],
+    "missing": [
+     "Mehrjährige Praxis in der Konzernrechnungslegung nach IFRS setzen wir voraus?"
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 2,
+    "niceTotal": 1,
+    "niceCovered": 0
+   },
+   "E05": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "vocab",
+    "matched": [
+     "schnittstellen (Job-Fachbegriff)",
+     "sap s/4hana (Job-Fachbegriff)"
+    ],
+    "missing": [
+     "designthinking",
+     "kubernetes",
+     "power bi",
+     "python"
+    ],
+    "violations": [],
+    "termHits": 5,
+    "mustTotal": 0,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E06": {
+    "pct": 0,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [],
+    "missing": [
+     "Erfahrung im Controlling",
+     "Kenntnisse in der Konsolidierung"
+    ],
+    "violations": [
+     "Einsatzland CH, GB außerhalb DE/AT"
+    ],
+    "termHits": 0,
+    "mustTotal": 2,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E07": {
+    "pct": null
+   },
+   "E08": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "requirements",
+    "matched": [
+     "Kenntnisse in SAP S/4HANA"
+    ],
+    "missing": [
+     "Erfahrung im Controlling",
+     "Erfahrung mit Power BIxxxxxxy"
+    ],
+    "violations": [],
+    "termHits": 4,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E09": {
+    "pct": 8,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung mit Jira ist nice-to-have (wünschenswert)"
+    ],
+    "missing": [
+     "Kenntnisse in LucaNet",
+     "Erfahrung mit Power BI",
+     "Umfassende Kenntnisse im Controlling sind erforderlich",
+     "Wir sind ein Team mit Erfahrung in der Beratung von Banken."
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 4,
+    "niceTotal": 3,
+    "niceCovered": 1
+   }
+  },
+  "legacy_edge_profile.json": {
+   "E01": {
+    "pct": null,
+    "error": "IndexError: no such group"
+   },
+   "E02": {
+    "pct": 20,
+    "coverage": 40,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung im CONTROLLING‍",
+     "Sichere Kenntnisse in der KONSOLIDIERUNG",
+     "Erfahrung mit LUCANET",
+     "Kenntnisse in HGB"
+    ],
+    "missing": [
+     "– Zertiﬁzierung als PMP",
+     "Fließende Deutschkenntnisse",
+     "GROẞKONZERN-Erfahrung",
+     "Erfahrung in SAP.",
+     "Kenntnisse in İFRS",
+     "ıFRS"
+    ],
+    "violations": [
+     "Start liegt in der Zukunft (Verfügbarkeit: sofort)",
+     "Einsatzland CH außerhalb DE/AT"
+    ],
+    "termHits": 4,
+    "mustTotal": 10,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E03": {
+    "pct": 29,
+    "coverage": 39,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung mit Controlling.",
+     "Umgang mit SAP S/4HANA",
+     "Power BI",
+     "LucaNet bzw.",
+     "HGB",
+     "Konsolidierung",
+     "Englischkenntnisse"
+    ],
+    "missing": [
+     "Kenntnisse in IFRS;",
+     "Projektmanagement-Erfahrung",
+     "Forecast",
+     "Budgetierung",
+     "Liquiditätsplanung",
+     "Französischkenntnisse",
+     "Fremdsprachkenntnisse",
+     "Deutschsprache",
+     "Working Capital Management",
+     "Working Capital Steuerung",
+     "Post-Merger-Integration"
+    ],
+    "violations": [],
+    "termHits": 7,
+    "mustTotal": 18,
+    "niceTotal": 4,
+    "niceCovered": 0
+   },
+   "E04": {
+    "pct": 25,
+    "coverage": 0,
+    "mode": "requirements",
+    "matched": [
+     "Idealerweise bringen Sie Erfahrung mit Power BI mit! (wünschenswert)"
+    ],
+    "missing": [
+     "Vorausgesetzt wird ein sicherer Umgang mit SAP FI/CO.",
+     "Mehrjährige Praxis in der Konzernrechnungslegung nach IFRS setzen wir voraus?"
+    ],
+    "violations": [],
+    "termHits": 1,
+    "mustTotal": 2,
+    "niceTotal": 1,
+    "niceCovered": 1
+   },
+   "E05": {
+    "pct": 33,
+    "coverage": 33,
+    "mode": "vocab",
+    "matched": [
+     "sap s/4hana (Job-Fachbegriff)",
+     "power bi (Job-Fachbegriff)"
+    ],
+    "missing": [
+     "designthinking",
+     "schnittstellen",
+     "kubernetes",
+     "python"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 0,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E06": {
+    "pct": 34,
+    "coverage": 100,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung im Controlling",
+     "Kenntnisse in der Konsolidierung"
+    ],
+    "missing": [],
+    "violations": [
+     "Tagessatz 950 € unter 999 €",
+     "Start liegt in der Zukunft (Verfügbarkeit: sofort)",
+     "Einsatzland CH, GB außerhalb DE/AT"
+    ],
+    "termHits": 2,
+    "mustTotal": 2,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E07": {
+    "pct": null
+   },
+   "E08": {
+    "pct": 67,
+    "coverage": 67,
+    "mode": "requirements",
+    "matched": [
+     "Erfahrung im Controlling",
+     "Kenntnisse in SAP S/4HANA"
+    ],
+    "missing": [
+     "Erfahrung mit Power BIxxxxxxy"
+    ],
+    "violations": [],
+    "termHits": 2,
+    "mustTotal": 3,
+    "niceTotal": 0,
+    "niceCovered": 0
+   },
+   "E09": {
+    "pct": 81,
+    "coverage": 75,
+    "mode": "requirements",
+    "matched": [
+     "Kenntnisse in LucaNet (wünschenswert)",
+     "Erfahrung mit Power BI (wünschenswert)",
+     "Kenntnisse in LucaNet",
+     "Erfahrung mit Power BI",
+     "Umfassende Kenntnisse im Controlling sind erforderlich",
+     "Erfahrung mit Jira ist nice-to-have (wünschenswert)"
+    ],
+    "missing": [
+     "Wir sind ein Team mit Erfahrung in der Beratung von Banken."
+    ],
+    "violations": [],
+    "termHits": 6,
+    "mustTotal": 4,
+    "niceTotal": 3,
+    "niceCovered": 3
+   }
+  }
+ }
+}
