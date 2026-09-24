@@ -28,7 +28,22 @@ use sha2::Digest as _;
 
 /// SHA-256 (16 hex) over every profile x job result of the corpus. Update it only together
 /// with `ENGINE_VERSION` and the before/after table in `docs/MATCHING.md`.
-const GOLDEN_DIGEST: &str = "df1d52ce75759f41";
+const GOLDEN_DIGEST: &str = "dbdfbc646c18e5c3";
+
+/// SHA-256 (16 hex) over the results of the four profiles without the version-4 keys
+/// (`schwerpunkte`, `wunschrollen`, the wishes in `einsatzpraeferenzen`; the IT profile's
+/// old `remote` text is taken out) on K01-K52, without the engine version: frozen from
+/// ENGINE_VERSION 3 (with the line `engine 3` in front these rows gave its golden digest
+/// `df1d52ce75759f41`). The version-4 inputs must leave such profiles exactly as they were.
+const V3_ROWS_DIGEST: &str = "cc7ce7f0ce68f654";
+
+/// The profiles of `V3_ROWS_DIGEST` and the jobs it covers.
+const V3_PROFILES: &[&str] = &["fin", "it", "senior", "sap"];
+const V3_JOBS: usize = 52;
+
+/// Keys of the version-4 inputs (`einsatzpraeferenzen` holds older keys as well).
+const V4_KEYS: &[&str] = &["schwerpunkte", "wunschrollen"];
+const V4_PREFERENCE_KEYS: &[&str] = &["tagessatz_wunsch", "remote", "regionen", "branchen"];
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/matching")
@@ -89,7 +104,7 @@ fn parity_in(frozen: &Path, jobs: &Path) -> (usize, Vec<String>) {
 #[test]
 fn legacy_port_equals_frozen_corpus_outputs() {
     let (compared, mismatches) = parity("legacy.json", "corpus");
-    assert_eq!(compared, 208, "4 profiles x 52 jobs");
+    assert_eq!(compared, 348, "6 profiles x 58 jobs");
     assert!(
         mismatches.is_empty(),
         "{} of {compared} differ:\n{}",
@@ -364,7 +379,30 @@ struct Row {
     gated: bool,
 }
 
+/// A profile without the version-4 keys.
+fn without_v4_keys(mut profile: Value) -> Value {
+    if let Some(map) = profile.as_object_mut() {
+        for key in V4_KEYS {
+            map.remove(*key);
+        }
+        if let Some(preferences) = map
+            .get_mut("einsatzpraeferenzen")
+            .and_then(Value::as_object_mut)
+        {
+            for key in V4_PREFERENCE_KEYS {
+                preferences.remove(*key);
+            }
+        }
+    }
+    profile
+}
+
 fn run() -> Run {
+    run_with(|_, profile| profile)
+}
+
+/// The corpus with every profile passed through `prepare` (profile key, profile JSON).
+fn run_with(prepare: impl Fn(&str, Value) -> Value) -> Run {
     let root = fixtures();
     let (corpus, jobs) = corpus();
     let legacy = read_json(&root.join("legacy.json"));
@@ -372,7 +410,7 @@ fn run() -> Run {
     for (key, file) in corpus["profiles"].as_object().expect("profiles") {
         let file = file.as_str().expect("profile file");
         let profile_since = since(&corpus["profileSince"][key]);
-        let data = read_json(&root.join(file));
+        let data = prepare(key, read_json(&root.join(file)));
         let profile = compile_profile(&data);
         for job in &jobs {
             let input = JobInput {
@@ -508,39 +546,78 @@ fn checks_and_open_musts_match_the_expectations() {
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
 
+/// One line of a digest: verdict, score, must counts, highlights and every reason.
+fn digest_line(canonical: &mut String, row: &Row) {
+    let Some(a) = &row.new else {
+        let _ = writeln!(canonical, "{} {} none", row.profile, row.job);
+        return;
+    };
+    let codes: Vec<String> = a
+        .reasons
+        .iter()
+        .map(|r| format!("{}:{}", code(r.code), code_of_kind(r.kind)))
+        .collect();
+    let _ = writeln!(
+        canonical,
+        "{} {} {} {} {}/{}/{} {}",
+        row.profile,
+        row.job,
+        code_of_verdict(a.verdict),
+        a.score,
+        a.summary.must_met,
+        a.summary.must_total,
+        a.highlights.len(),
+        codes.join(",")
+    );
+}
+
+/// The first 16 hex characters of the SHA-256 of `canonical`.
+fn hex16(canonical: &str) -> String {
+    let digest = sha2::Sha256::digest(canonical.as_bytes());
+    digest.iter().take(8).fold(String::new(), |mut s, b| {
+        let _ = write!(s, "{b:02x}");
+        s
+    })
+}
+
 #[test]
 fn golden_digest_of_all_corpus_results() {
     let run = run();
     let mut canonical = format!("engine {}\n", jobalert_core::matching::ENGINE_VERSION);
     for row in &run.rows {
-        let Some(a) = &row.new else {
-            let _ = writeln!(canonical, "{} {} none", row.profile, row.job);
-            continue;
-        };
-        let codes: Vec<String> = a
-            .reasons
-            .iter()
-            .map(|r| format!("{}:{}", code(r.code), code_of_kind(r.kind)))
-            .collect();
-        let _ = writeln!(
-            canonical,
-            "{} {} {} {} {}/{}/{} {}",
-            row.profile,
-            row.job,
-            code_of_verdict(a.verdict),
-            a.score,
-            a.summary.must_met,
-            a.summary.must_total,
-            a.highlights.len(),
-            codes.join(",")
-        );
+        digest_line(&mut canonical, row);
     }
-    let digest = sha2::Sha256::digest(canonical.as_bytes());
-    let hex = digest.iter().take(8).fold(String::new(), |mut s, b| {
-        let _ = write!(s, "{b:02x}");
-        s
-    });
+    let hex = hex16(&canonical);
     assert_eq!(hex, GOLDEN_DIGEST, "corpus results changed:\n{canonical}");
+}
+
+/// Profiles without the version-4 keys score exactly as under ENGINE_VERSION 3: every new
+/// input is off while its key is missing.
+#[test]
+fn profiles_without_the_new_keys_score_as_before() {
+    let run = run_with(|key, profile| {
+        if V3_PROFILES.contains(&key) {
+            without_v4_keys(profile)
+        } else {
+            profile
+        }
+    });
+    let jobs: Vec<String> = (1..=V3_JOBS).map(|n| format!("K{n:02}")).collect();
+    let mut canonical = String::new();
+    for row in run
+        .rows
+        .iter()
+        .filter(|r| V3_PROFILES.contains(&r.profile.as_str()) && jobs.contains(&r.job))
+    {
+        digest_line(&mut canonical, row);
+    }
+    assert_eq!(
+        canonical.lines().count(),
+        V3_PROFILES.len() * V3_JOBS,
+        "rows"
+    );
+    let hex = hex16(&canonical);
+    assert_eq!(hex, V3_ROWS_DIGEST, "old profiles changed:\n{canonical}");
 }
 
 fn code_of_kind(kind: ReasonKind) -> String {
