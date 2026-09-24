@@ -195,26 +195,85 @@ fn strip_gender(folded: &str) -> String {
     out
 }
 
-/// Atoms of a text: tokens without fillers, stemmed, concepts of `vocab` applied.
+/// A hyphenated skill without a part that only says "knowledge of" (`SQL-Kenntnisse`).
+fn without_knowledge(token: &str) -> &str {
+    lex::KNOWLEDGE_SUFFIXES
+        .iter()
+        .find_map(|s| token.strip_suffix(s).filter(|rest| !rest.is_empty()))
+        .unwrap_or(token)
+}
+
+/// A short token that names a skill (`QP`, `R`, `8D`)?
+fn short_skill(token: &str) -> bool {
+    lex::SHORT_TOKENS.binary_search(&token).is_ok()
+}
+
+/// Raw tokens with codes completed by their number (`iso 9001` -> `iso-9001`).
+fn numbered(raw: &[&str]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::with_capacity(raw.len());
+    let mut i = 0;
+    while i < raw.len() {
+        let t = raw[i];
+        let number = raw
+            .get(i + 1)
+            .filter(|n| n.len() <= 6 && n.chars().all(|c| c.is_ascii_digit()));
+        if let Some(n) = number.filter(|_| lex::NUMBERED_CODES.binary_search(&t).is_ok()) {
+            out.push(format!("{t}-{n}"));
+            i += 2;
+        } else {
+            out.push(t.to_owned());
+            i += 1;
+        }
+    }
+    out
+}
+
+/// A token the atoms keep: long enough (or a known short skill or synonym), no filler,
+/// with a letter.
+fn kept(token: &str) -> Option<String> {
+    let mapped = match lexicon::synonym(token) {
+        Some(Some(mapped)) => mapped.to_owned(),
+        Some(None) => return None,
+        None if token.len() < 3 && !short_skill(token) => return None,
+        None => token.to_owned(),
+    };
+    let skill = short_skill(&mapped)
+        || (!is_filler(&mapped) && mapped.chars().any(|c| c.is_ascii_alphabetic()));
+    skill.then_some(mapped)
+}
+
+/// Atoms of a text: tokens without fillers, stemmed, concepts of `vocab` applied. A
+/// concept whose words include a filler, a stopword or a short word (`US GAAP`, `Order to
+/// Cash`, `Year End Closing`) is found before those words go.
 pub(crate) fn atoms(text: &str, vocab: &Vocab) -> Vec<String> {
     let folded = strip_gender(&fold(text));
-    let raw: Vec<&str> = raw_tokens(&folded).flat_map(split_codes).collect();
-    let stems: Vec<String> = raw
-        .iter()
-        .enumerate()
-        // `GmbH & Co. KG` is a company form, not SAP CO.
-        .filter(|&(i, t)| !(*t == "co" && raw.get(i + 1) == Some(&"kg")))
-        .map(|(_, t)| *t)
-        .filter(|t| t.len() >= 3 || lexicon::synonym(t).is_some())
-        .filter_map(|t| match lexicon::synonym(t) {
-            Some(Some(mapped)) => Some(mapped.to_owned()),
-            Some(None) => None,
-            None => Some(t.to_owned()),
-        })
-        .filter(|t| !is_filler(t))
-        .filter(|t| t.chars().any(|c| c.is_ascii_alphabetic()))
-        .flat_map(|t| {
-            let t = t.as_str();
+    let split: Vec<&str> = raw_tokens(&folded)
+        .map(without_knowledge)
+        .flat_map(split_codes)
+        .collect();
+    let raw: Vec<String> = numbered(
+        &split
+            .iter()
+            .enumerate()
+            // `GmbH & Co. KG` is a company form, not SAP CO.
+            .filter(|&(i, t)| !(*t == "co" && split.get(i + 1) == Some(&"kg")))
+            .map(|(_, t)| *t)
+            .collect::<Vec<_>>(),
+    );
+    // Concepts across dropped words: the whole stream, stemmed.
+    let full: Vec<String> = raw.iter().map(|t| stem(t)).collect();
+    let mut pieces: Vec<(String, bool)> = Vec::with_capacity(raw.len());
+    let mut i = 0;
+    while i < raw.len() {
+        if let Some((n, concept)) = vocab.concept_at(&full, i)
+            && n > 1
+            && raw[i..i + n].iter().any(|t| kept(t).is_none())
+        {
+            pieces.push((concept, true));
+            i += n;
+            continue;
+        }
+        if let Some(t) = kept(&raw[i]) {
             // Hyphenated words that form a known concept count as that concept.
             let spaced: Vec<String> = t.split('-').map(stem).collect();
             if spaced.len() > 1
@@ -222,16 +281,24 @@ pub(crate) fn atoms(text: &str, vocab: &Vocab) -> Vec<String> {
                     .concept_at(&spaced, 0)
                     .is_some_and(|(n, _)| n == spaced.len())
             {
-                spaced
+                pieces.extend(spaced.into_iter().map(|s| (s, false)));
             } else {
-                vec![stem(t)]
+                pieces.push((stem(&t), false));
             }
-        })
-        .collect();
+        }
+        i += 1;
+    }
+    let stems: Vec<String> = pieces.iter().map(|(s, _)| s.clone()).collect();
     let mut result = Vec::with_capacity(stems.len());
     let mut i = 0;
     while i < stems.len() {
-        if let Some((len, concept)) = vocab.concept_at(&stems, i) {
+        if pieces[i].1 {
+            result.push(stems[i].clone());
+            i += 1;
+        } else if let Some((len, concept)) = vocab
+            .concept_at(&stems, i)
+            .filter(|(len, _)| !pieces[i..i + len].iter().any(|(_, done)| *done))
+        {
             result.push(concept);
             i += len;
         } else {
@@ -243,9 +310,39 @@ pub(crate) fn atoms(text: &str, vocab: &Vocab) -> Vec<String> {
     result
 }
 
+/// The core's generic atoms plus the broad words of every domain pack (as written and
+/// stemmed): a broad word is broad whoever reads it. `longest` lets the hot path skip the
+/// long compounds that make up most atoms.
+struct Generic {
+    words: Vec<String>,
+    longest: usize,
+}
+
+static GENERIC: LazyLock<Generic> = LazyLock::new(|| {
+    let mut words: Vec<String> = lex::GENERIC_ATOMS
+        .iter()
+        .map(|w| (*w).to_owned())
+        .chain(
+            DOMAINS
+                .iter()
+                .flat_map(|d| d.generic.iter())
+                .flat_map(|w| [(*w).to_owned(), stem(w)]),
+        )
+        .collect();
+    words.sort();
+    words.dedup();
+    let longest = words.iter().map(String::len).max().unwrap_or(0);
+    Generic { words, longest }
+});
+
 /// Is the atom too generic to meet a requirement on its own?
 pub(crate) fn is_generic(atom: &str) -> bool {
-    lexicon::contains(lex::GENERIC_ATOMS, atom)
+    let generic = &*GENERIC;
+    atom.len() <= generic.longest
+        && generic
+            .words
+            .binary_search_by(|w| w.as_str().cmp(atom))
+            .is_ok()
 }
 
 /// Relation of a job atom to a profile atom.
@@ -306,8 +403,10 @@ fn fit_direct(job: &str, profile: &str) -> Fit {
     }
     // Four letters are too short to be a compound part (`steu` of `Steuern` is not the
     // head of `Steuerung`).
+    // A compound needs a real modifier: `h` + `erstellung` is `Herstellung`, no compound.
+    let modifier_ok = |m: &str| m.trim_end_matches('-').len() >= lex::MIN_COMPOUND_MODIFIER;
     if profile.len() >= 5 {
-        if let Some(modifier) = job.strip_suffix(profile) {
+        if let Some(modifier) = job.strip_suffix(profile).filter(|m| modifier_ok(m)) {
             return if light(modifier, lex::LIGHT_MODIFIERS) {
                 Fit::Equal
             } else {
@@ -326,6 +425,7 @@ fn fit_direct(job: &str, profile: &str) -> Fit {
         // `cash` is not the head of `Order-to-Cash`: a short atom never ends a hyphenated
         // name.
         if let Some(modifier) = profile.strip_suffix(job)
+            && modifier_ok(modifier)
             && !(modifier.ends_with('-') && job.len() < 5)
         {
             return Fit::Specific;
@@ -440,9 +540,9 @@ mod tests {
         assert_eq!(finance.packs(), ["finance"]);
         let sap = Vocab::for_texts(["SAP FI", "SAP S/4HANA", "Datenmigration", "Jira"]);
         assert_eq!(sap.packs(), ["sap", "itProject"]);
-        // One stray trigger switches on no pack.
+        // One stray trigger switches on no pack: the HR profile gets no finance pack.
         let hr = Vocab::for_texts(["Recruiting", "Arbeitsrecht", "Budgetverantwortung"]);
-        assert!(hr.packs().is_empty(), "{:?}", hr.packs());
+        assert_eq!(hr.packs(), ["hr"]);
         let clinical = Vocab::for_texts(["Klinische Studien", "Clinical Trial Management"]);
         assert!(clinical.packs().is_empty());
         assert_ne!(
@@ -471,6 +571,49 @@ mod tests {
             fit(&a("Projektmanagement"), &a("Projektleitung")),
             Fit::General
         );
+    }
+
+    /// A compound needs a real modifier: `Herstellung` is no `Erstellung`.
+    #[test]
+    fn compound_boundaries() {
+        let a = |s: &str| all(s).remove(0);
+        assert_eq!(fit(&a("Herstellung"), &a("Erstellung")), Fit::None);
+        assert_eq!(fit(&a("Erstellung"), &a("Herstellung")), Fit::None);
+        assert_eq!(fit(&a("Berichterstellung"), &a("Erstellung")), Fit::General);
+    }
+
+    /// `SQL-Kenntnisse` is SQL; `ISO 9001` and `ISO 13485` differ; short skills stay.
+    #[test]
+    fn codes_numbers_and_short_skills() {
+        assert_eq!(all("SQL-Kenntnisse"), all("SQL"));
+        assert_eq!(all("IFRS-Kenntnisse"), all("IFRS"));
+        assert_eq!(all("CAPA-Erfahrung"), all("CAPA"));
+        assert_eq!(all("SAP-Know-how"), all("SAP"));
+        assert_eq!(all("ISO 9001"), ["iso-9001"]);
+        assert_ne!(all("ISO 13485"), all("ISO 9001"));
+        assert_eq!(all("ISO-9001"), all("ISO 9001:2015"));
+        assert!(all("EU GMP Annex 1").contains(&"annex-1".to_owned()));
+        assert_ne!(all("Annex 11"), all("Annex 1"));
+        for short in ["R", "Go", "5S", "8D", "ML", "VP"] {
+            assert_eq!(all(short).len(), 1, "{short}");
+        }
+        assert_eq!(all("IQ/OQ/PQ").len(), 3);
+        assert_eq!(all("CI/CD").len(), 2);
+    }
+
+    /// Lexicon terms with a stopword, filler or short word match with spaces too.
+    #[test]
+    fn multiword_terms_across_dropped_words() {
+        assert_eq!(all("US GAAP"), all("US-GAAP"));
+        assert_eq!(all("Order to Cash"), all("Order-to-Cash"));
+        assert_eq!(all("Working Capital"), all("Working-Capital-Management"));
+        assert_eq!(all("Year End Closing"), all("Jahresabschluss"));
+        assert_eq!(all("React Native"), all("React-Native"));
+        assert_eq!(all("React Native").len(), 1);
+        assert_eq!(all("Customer Experience"), all("Customer-Experience"));
+        assert_eq!(all("Customer Experience").len(), 1);
+        assert_eq!(all("Job Evaluation"), all("Stellenbewertung"));
+        assert_eq!(all("General Counsel"), ["leitung-recht"]);
     }
 
     #[test]

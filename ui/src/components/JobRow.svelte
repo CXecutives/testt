@@ -1,7 +1,8 @@
 <!--
   One job in the list, mail-style with fixed gutters: the unread dot (6 px, coral) centred
   in the pane padding on the axis of the ring (so a title never moves when the job is
-  read), the ring, then the title on one line with the relative date at its end, company
+  read), the ring, then the title on up to two lines with the relative date at its end,
+  company
   and place, and one reason line with a status badge right after it only when something
   deviates. Every row has the same height. Without a ring (no usable profile) the dot sits
   on the title axis and the row shows no reason line: the reasons belong to a match.
@@ -208,12 +209,17 @@
     top: calc(var(--space-12) + (var(--leading-title) - var(--dot-unread)) / 2);
   }
 
+  /* A long title takes a second line (the row grows by one line); past that it ends in an
+     ellipsis and shows in full in a tooltip. */
   .title {
+    display: -webkit-box;
     overflow: hidden;
     color: var(--text);
     font: var(--type-title);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 
   .title.unread {

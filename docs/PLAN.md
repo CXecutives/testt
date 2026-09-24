@@ -24,7 +24,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Logo | no CXpertise company logo; the coral app icon (folder + check) is the window icon of the native title bar and the mark of the first run and empty states |
 | Heading colour | warm dark ink (45 7% 17%), not slate; coral is the only accent colour (user chose variant A). Headings stay ink; "only accent colour" is superseded by "cxpertise navy" below |
 | Windows caption buttons | superseded (2026-09-24 night): the native caption buttons of the Windows title bar |
-| Sizes | controls 28/36/40, list rows 86 (fixed, one-line title, date top right), body text 15 (the top strip is gone: the native title bar of the OS) |
+| Sizes | controls 28/36/40, list rows 86 (one-line title, date top right; amended 2026-09-25: a long title takes a second line and the row grows to 106, the rest is a tooltip), body text 15 (the top strip is gone: the native title bar of the OS) |
 | Layout | variant C chosen by the user: calm sidebar (~196 px, no own surface, hairline divider, nav with icons and unread count, quiet run status at the bottom; icons only below ~1100 px); search, "Abrufen" and filters in the list column header (revised 2026-09-24 night: no content strip, the native title bar) |
 | Toasts | allowed for short confirmations whose result is not visible otherwise (saved, copied, files written, run finished): bottom right, at most 3, ~4 s, paused on hover; anything needing action stays inline |
 | User test of the installed app (2026-09-24 evening) | Windows title bar like a native one (full width, 16 px app icon + app name at the left, caption buttons at the native height, no tooltips); macOS uses the normal native title bar; "Abrufen" lives in the list column header next to the search; the cxpertise palette again: light coral (13 73% 63%) for primary fills, hover 13 64% 56%, switches coral when on; lighter font weights; faster, snappier motion; no lag in the real app; native-feeling input (left click only for controls, middle-button scrolling in scroll areas, copyable text where it makes sense); no unneeded micro details |
@@ -213,7 +213,8 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   transition properties, keyframes only in motion.css) · ESLint (no inline styles, raw elements only in components,
   restricted imports, no title attribute, no empty catch, listeners only in input.ts) · Rust architecture tests ·
   gallery · Playwright screenshots in Chromium + WebKit against `vite preview` with production CSP · per-screen audit.
-- Input policy: prevent contextmenu everywhere, non-left buttons, dblclick outside drag area, dragstart, selection
+- Input policy: prevent the browser context menu everywhere (the native OS menu with the OS edit commands only in
+  text fields and on selected copyable text, via `popupEditMenu` in api.ts), non-left buttons, dblclick outside drag area, dragstart, selection
   outside fields, keys outside fields (except Tab and Enter/Space on controls, see Decisions "Keys"), Ctrl/Cmd+wheel
   (a wheel listener only while Ctrl/Cmd is held), pinch. Native: WebView2 switches, macOS minimal menu,
   `accept_first_mouse`, no link preview, devtools off in release, navigation guard, window shown after first load.
@@ -282,7 +283,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       into the high band while fewer than half of the musts are met); fixes of held-out sets 1 and 2, now regression
       corpora with frozen floors (NDCG@10 0.822 to 0.930 and 0.632 to 0.805); criteria met only with the ad's value
       as evidence, key facts on `JobMatch`; one German rubric for the Claude check and the skill
-      (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3, the new domain packs.
+      (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3.
+- [x] Domain packs for every field: hr, procurement, data, pharma, operations, sales, legal, software (held-out 2
+      NDCG@10 0.805 to 0.862). Open: synthetic corpus ads and profiles of the new fields.
 
 ### Phase 3 - screens and core workflow (two UI agents)
 - [x] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)

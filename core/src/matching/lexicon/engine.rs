@@ -292,6 +292,180 @@ pub(crate) const FRAME_WORDS: &[&str] = &[
     "workload",
 ];
 
+/// Endings of a frame or soft word that keep its meaning (`Verfügbarkeit`, `Reisen`,
+/// `analytische`, `Flexibilität`) (sorted).
+pub(crate) const WORD_ENDINGS: &[&str] = &[
+    "at", "e", "em", "en", "er", "es", "ing", "itat", "keit", "keiten", "ly", "n", "s", "t", "te",
+    "ten", "ter", "ung", "ungen",
+];
+/// Linking letters between the parts of a compound (`Gehalt-s-vorstellung`).
+pub(crate) const LINKERS: &[&str] = &["es", "keits", "n", "s", "ungs"];
+/// Heads that keep a frame word a frame (`Reisebereitschaft`, `Startdatum`,
+/// `Gehaltsvorstellung`, `Remote-Arbeit`) (sorted).
+pub(crate) const FRAME_HEADS: &[&str] = &[
+    "aktivitat",
+    "anteil",
+    "arbeit",
+    "basis",
+    "bereit",
+    "date",
+    "datum",
+    "days",
+    "dienst",
+    "expectation",
+    "expectations",
+    "first",
+    "freudig",
+    "freudigkeit",
+    "klasse",
+    "model",
+    "modell",
+    "option",
+    "pflicht",
+    "presence",
+    "quote",
+    "range",
+    "requirement",
+    "requirements",
+    "share",
+    "tag",
+    "tage",
+    "tatigkeit",
+    "termin",
+    "time",
+    "vorstellung",
+    "work",
+    "working",
+    "zeit",
+    "zeiten",
+    "zeitpunkt",
+    "zeitraum",
+];
+/// Skill heads after an English frame word: the frame word is then a modifier
+/// (`Hybrid Cloud`, `Travel Management`, `Salary Benchmarking`) (sorted).
+pub(crate) const FRAME_MODIFIED_HEADS: &[&str] = &[
+    "accounting",
+    "administration",
+    "analysis",
+    "analytics",
+    "architecture",
+    "audit",
+    "audits",
+    "banding",
+    "bands",
+    "benchmark",
+    "benchmarking",
+    "cloud",
+    "compliance",
+    "controlling",
+    "design",
+    "governance",
+    "infrastructure",
+    "integration",
+    "management",
+    "manager",
+    "migration",
+    "modeling",
+    "modelling",
+    "monitoring",
+    "negotiation",
+    "negotiations",
+    "operations",
+    "optimisation",
+    "optimization",
+    "planning",
+    "policies",
+    "policy",
+    "process",
+    "processes",
+    "program",
+    "programme",
+    "reporting",
+    "review",
+    "reviews",
+    "services",
+    "solution",
+    "solutions",
+    "sourcing",
+    "strategy",
+    "structure",
+    "structures",
+    "survey",
+    "surveys",
+    "system",
+    "systems",
+];
+/// Modifiers that make a compound ending in a frame word a skill (`Online-Präsenz`).
+pub(crate) const NOT_FRAME_MODIFIERS: &[&str] = &[
+    "brand", "digital", "internet", "markt", "medien", "online", "social", "web",
+];
+/// An item naming compensation work is a skill, not a frame (`Vergütung und Benefits`).
+pub(crate) const FRAME_SKILL_CONTEXT: &[&str] = &[
+    "benefit",
+    "compensation",
+    "entgelt",
+    "grading",
+    "payroll",
+    "reward",
+    "tarif",
+];
+/// Heads that keep a soft word soft (`Kommunikationsfähigkeit`, `analytisches Denken`)
+/// (sorted).
+pub(crate) const SOFT_HEADS: &[&str] = &[
+    "arbeitsweise",
+    "art",
+    "auftreten",
+    "denken",
+    "denkvermogen",
+    "denkweise",
+    "fahigkeit",
+    "fahigkeiten",
+    "geschick",
+    "kompetenz",
+    "kompetenzen",
+    "mindset",
+    "personlichkeit",
+    "skill",
+    "skills",
+    "starke",
+    "starken",
+    "talent",
+    "thinking",
+    "vermogen",
+    "vorgehen",
+    "vorgehensweise",
+];
+
+/// Short tokens that name a skill or role (`QP`, `R`, `Go`, `5S`, `8D`, `IQ/OQ/PQ`, `CI/CD`)
+/// and survive the minimum length (sorted).
+pub(crate) const SHORT_TOKENS: &[&str] = &[
+    "5s", "8d", "ai", "bi", "cd", "ci", "go", "hr", "iq", "ml", "oq", "pq", "qa", "qc", "qp", "r",
+    "ux", "vp",
+];
+/// Codes that a number completes (`ISO 9001`, `Annex 11`, `IEC 62304`) (sorted).
+pub(crate) const NUMBERED_CODES: &[&str] = &["anhang", "annex", "din", "iec", "iso", "part"];
+/// Parts after a hyphenated skill that only say "knowledge of" (`SQL-Kenntnisse`,
+/// `CAPA-Erfahrung`, `SAP-Know-how`).
+pub(crate) const KNOWLEDGE_SUFFIXES: &[&str] = &[
+    "-erfahrung",
+    "-erfahrungen",
+    "-expertise",
+    "-kenntnis",
+    "-kenntnisse",
+    "-kenntnissen",
+    "-know-how",
+    "-knowledge",
+    "-wissen",
+];
+/// Endings of an adjective that can share the noun of the next item
+/// (`Classic and agile project management`, `klassische und agile Methoden`).
+pub(crate) const ADJECTIVE_ENDINGS: &[&str] = &[
+    "al", "ale", "alen", "aler", "ales", "ic", "ical", "isch", "ische", "ischen", "ischer",
+    "isches", "iv", "ive", "iven", "iver", "ives", "lich", "liche", "lichen", "licher", "liches",
+];
+/// Shortest modifier of a compound (`Bericht-erstellung`); `h` of `Herstellung` is none.
+pub(crate) const MIN_COMPOUND_MODIFIER: usize = 3;
+
 /// Formal requirements: degrees (prefix stems; a bare `Abschluss` is also a financial
 /// statement, so it does not count).
 pub(crate) const DEGREE_WORDS: &[&str] = &[
@@ -300,14 +474,27 @@ pub(crate) const DEGREE_WORDS: &[&str] = &[
     "bsc",
     "degree",
     "diplom",
+    "doctorate",
     "hochschulabschluss",
     "m.sc",
     "master",
     "msc",
     "ph.d",
     "phd",
+    "promotion",
+    "promoviert",
+    "staatsexamen",
     "studium",
     "university",
+];
+/// Words that make `Promotion` sales work, not a doctorate (`Sales Promotion`).
+pub(crate) const PROMOTION_NOT_DEGREE: &[&str] = &[
+    "handel",
+    "marketing",
+    "sales",
+    "trade",
+    "verkauf",
+    "vertrieb",
 ];
 /// Words after `master` that make it no degree (`Master Data Management`).
 pub(crate) const MASTER_NOT_DEGREE: &[&str] = &["data", "daten", "file", "plan", "record"];
@@ -359,6 +546,21 @@ pub(crate) const DEGREE_FIELDS: &[(&str, &str)] = &[
     ("biotechnolog", "life-science"),
     ("life science", "life-science"),
     ("lebenswissenschaft", "life-science"),
+    // Fields of the other domain packs (data, HR, operations, software, marketing).
+    ("statistik", "science"),
+    ("statistics", "science"),
+    ("medizin", "medicine"),
+    ("medicine", "medicine"),
+    ("medizintechnik", "engineering"),
+    ("mechatronik", "engineering"),
+    ("produktionstechnik", "engineering"),
+    ("fertigungstechnik", "engineering"),
+    ("fahrzeugtechnik", "engineering"),
+    ("psycholog", "psychology"),
+    ("softwaretechnik", "it"),
+    ("software engineering", "it"),
+    ("data science", "it"),
+    ("marketing", "business"),
 ];
 
 /// Neighbouring degree fields: a degree in one half-meets a requirement for the other.
@@ -414,9 +616,22 @@ pub(crate) const LICENCE_WORDS: &[&str] = &[
     "approbation",
     "certified public accountant",
     "chartered accountant",
+    "qualified person",
+    "sachkundige person",
+    "sachkundigen person",
 ];
+/// Names of the same licence: a profile holding one meets a requirement for another.
+pub(crate) const LICENCE_SYNONYMS: &[&[&str]] = &[&[
+    "qualified person",
+    "sachkundige person",
+    "sachkundigen person",
+    "sachkundiger person",
+    "qp",
+]];
 /// A licence word counts only as a qualification (`Zulassung als ...`, `... examen`).
 pub(crate) const LICENCE_CONTEXT: &[&str] = &[
+    "amg",
+    "(qp)",
     "zulassung",
     "bestellung",
     "examen",

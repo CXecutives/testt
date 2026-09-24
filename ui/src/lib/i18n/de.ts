@@ -4,8 +4,9 @@
 // human. Buttons are one verb phrase without a period; notes are one short sentence with a
 // period; headings and labels end without a colon; no dash or em dash as a separator, no
 // "X: Y", no exclamation marks, no text twice. Glossary: Job · Portal · Passung · Details ·
-// Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu · Zu prüfen ·
-// Merken.
+// Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Excel-Datei · Ausgeschlossen · Neu ·
+// Zu prüfen · Favorit (Favoriten) · Bewerbung · Archiv. A profile field has one name: the
+// label of its form field (without the unit) in errors, warnings and the profile.
 //
 // Every code of the generated types has exactly one text here: the tables are typed as
 // `Record<Code, ...>`, so a new code without a text is a type error.
@@ -33,15 +34,7 @@ import type {
   VaultKind,
   WorkMode,
 } from '../ipc/types';
-import type { Platform } from '../platform';
-import {
-  formatCountdown,
-  formatDate,
-  formatEuro,
-  formatMoment,
-  formatNumber,
-  formatPercent,
-} from './format';
+import { formatCountdown, formatEuro, formatMoment, formatNumber, formatPercent } from './format';
 
 type Params = Record<string, string | number | boolean | null>;
 type Text = string | ((params: Params) => string);
@@ -96,8 +89,8 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
 const profileField: Record<string, string> = {
   name: 'Name',
   title: 'Rolle',
-  competences: 'Kernkompetenzen',
-  strengths: 'Stärken',
+  competences: 'Kompetenzen',
+  strengths: 'Besondere Stärken',
   keywords: 'Stichworte',
   years: 'Berufserfahrung',
   degrees: 'Abschlüsse',
@@ -105,13 +98,13 @@ const profileField: Record<string, string> = {
   tools: 'Werkzeuge und Methoden',
   certificates: 'Zertifikate',
   languages: 'Sprachen',
-  minDayRate: 'Tagessatz',
+  minDayRate: 'Tagessatz ab',
   countries: 'Einsatzländer',
   available: 'Verfügbar ab',
-  targetYears: 'Erfahrung der Stelle',
-  minSalary: 'Jahresgehalt',
+  targetYears: 'Verlangte Erfahrung ab',
+  minSalary: 'Jahresgehalt ab',
   permanentPlaces: 'Orte',
-  permanentRemoteMin: 'Remote-Anteil',
+  permanentRemoteMin: 'Remote-Anteil ab',
   focus: 'Schwerpunkte',
   roles: 'Wunschrollen',
   wishDayRate: 'Wunschtagessatz',
@@ -125,7 +118,7 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   profileNotUtf8: 'Die Datei ist keine Textdatei.',
   profileNotJson: (p) => `Die Datei ist kein gültiges JSON, Zeile ${str(p.line)}.`,
   profileNotObject: 'Die Datei enthält kein Profil.',
-  profileValue: (p) => `Der Wert bei ${fieldName(p.field)} passt nicht.`,
+  profileValue: (p) => `Der Wert bei „${fieldName(p.field)}“ passt nicht.`,
   profileAnswer: 'In der Antwort steht kein Profil.',
   mailAddress: 'Die Adresse ist unvollständig.',
   appPassword: 'Ein App-Passwort hat 16 Buchstaben.',
@@ -335,10 +328,6 @@ export type ReasonCode = keyof typeof reasonCode;
 interface CriterionText {
   /** Short name in the criteria strip of the reader. */
   label: string;
-  /** Name of the row in the profile. */
-  field: string;
-  /** Value of the row in the profile when set (params carry the value). */
-  value: (p: Params) => string;
   /** Why a job is excluded by it. */
   exclusion: string;
 }
@@ -350,55 +339,30 @@ interface CriterionText {
 const criteria = {
   minDayRate: {
     label: 'Tagessatz',
-    field: 'Tagessatz',
-    value: (p) => `ab ${formatEuro(p.min ?? p.rate ?? p.value)}`,
     exclusion: 'Der Tagessatz liegt unter dem Minimum im Profil.',
   },
   countries: {
-    label: 'Einsatzland',
-    field: 'Einsatzland',
-    value: (p) => str(p.countries ?? p.value),
+    label: 'Einsatzländer',
     exclusion: 'Der Einsatzort liegt außerhalb der Länder im Profil.',
   },
   noAnue: {
     label: 'ANÜ',
-    field: 'Arbeitnehmerüberlassung',
-    value: () => 'ausgeschlossen',
     exclusion: ANUE,
   },
   availability: {
     label: 'Verfügbarkeit',
-    field: 'Verfügbarkeit',
-    value: (p) => {
-      const from = p.from ?? p.value;
-      if (from === 'now') return 'sofort';
-      const date = typeof from === 'string' ? formatDate(from) : '';
-      return date ? `ab ${date}` : 'angegeben';
-    },
     exclusion: 'Der Start passt nicht zur Verfügbarkeit.',
   },
   minSalary: {
-    label: 'Gehalt',
-    field: 'Mindestgehalt',
-    value: (p) => `${formatEuro(p.min ?? p.value)} im Jahr`,
+    label: 'Jahresgehalt',
     exclusion: 'Das Gehalt liegt unter dem Minimum im Profil.',
   },
   permanentRegion: {
-    label: 'Region',
-    field: 'Region',
-    value: (p) =>
-      typeof p.remoteMin === 'number' && p.remoteMin > 0
-        ? `${str(p.places)} oder ab ${formatPercent(p.remoteMin)} remote`
-        : str(p.places),
+    label: 'Orte',
     exclusion: 'Die Festanstellung liegt außerhalb der Region im Profil.',
   },
   targetYears: {
-    label: 'Seniorität',
-    field: 'Seniorität',
-    value: (p) => {
-      const years = num(p.min ?? p.value);
-      return `ab ${n(years)} ${years === 1 ? 'Jahr' : 'Jahren'} Erfahrung`;
-    },
+    label: 'Erfahrung',
     exclusion: 'Die Stelle verlangt deutlich weniger Erfahrung.',
   },
 } satisfies Record<string, CriterionText>;
@@ -417,23 +381,35 @@ export type MatchNote = keyof typeof note;
 
 /** Names of profile keys the app speaks about (the keys themselves are an external contract). */
 const profileKey: Record<string, string> = {
-  // Only for `ignoredKeys`, which the core never sends (the harness stub does): they go with it.
+  // Keys the engine does not read (`ignoredKeys`).
   hobbys: 'Hobbys',
   referenzen: 'Referenzen',
   sprachen: 'Sprachen',
   zertifikate: 'Zertifikate',
   ausbildung: 'Ausbildung',
-  // The keys of the newer hard criteria (German and English), named like their field.
-  min_jahresgehalt: 'Mindestgehalt',
-  min_annual_salary: 'Mindestgehalt',
-  min_salary: 'Mindestgehalt',
-  festanstellung_orte: 'Region',
-  permanent_locations: 'Region',
-  permanent_places: 'Region',
-  festanstellung_remote_min: 'Region',
-  permanent_remote_min: 'Region',
-  zielprofil_min_jahre: 'Seniorität',
-  target_min_years: 'Seniorität',
+  // The criteria keys (German and English), named like their field in the Profil
+  // form (the label without its unit).
+  min_tagessatz: 'Tagessatz ab',
+  min_day_rate: 'Tagessatz ab',
+  tagessatz_ab: 'Tagessatz ab',
+  laender: 'Einsatzländer',
+  countries: 'Einsatzländer',
+  ausgeschlossene_vertragsarten: 'Arbeitnehmerüberlassung ausschließen',
+  excluded_contract_types: 'Arbeitnehmerüberlassung ausschließen',
+  remote_ausserhalb_erlaubt: 'Remote außerhalb erlaubt',
+  remote_outside_allowed: 'Remote außerhalb erlaubt',
+  verfuegbar_ab: 'Verfügbar ab',
+  available_from: 'Verfügbar ab',
+  min_jahresgehalt: 'Jahresgehalt ab',
+  min_annual_salary: 'Jahresgehalt ab',
+  min_salary: 'Jahresgehalt ab',
+  festanstellung_orte: 'Orte',
+  permanent_locations: 'Orte',
+  permanent_places: 'Orte',
+  festanstellung_remote_min: 'Remote-Anteil ab',
+  permanent_remote_min: 'Remote-Anteil ab',
+  zielprofil_min_jahre: 'Verlangte Erfahrung ab',
+  target_min_years: 'Verlangte Erfahrung ab',
   // Schwerpunkte, target roles and wishes (German and English keys).
   schwerpunkte: 'Schwerpunkte',
   focus_areas: 'Schwerpunkte',
@@ -441,9 +417,9 @@ const profileKey: Record<string, string> = {
   target_roles: 'Wunschrollen',
   tagessatz_wunsch: 'Wunschtagessatz',
   desired_day_rate: 'Wunschtagessatz',
-  remote: 'Remote-Wunsch',
-  regionen: 'Regionen',
-  regions: 'Regionen',
+  remote: 'Remote',
+  regionen: 'Wunschregionen',
+  regions: 'Wunschregionen',
   branchen: 'Branchen',
   industries: 'Branchen',
 };
@@ -463,14 +439,14 @@ const warning = {
   noCompetences: 'Das Profil nennt keine Kompetenzen.',
   fewCompetences: 'Das Profil nennt nur wenige Kompetenzen.',
   noCriteria: 'Das Profil setzt keine Ausschlusskriterien.',
-  availabilityNotUnderstood: 'Die Verfügbarkeit im Profil ist nicht lesbar.',
-  // Not a core code: only the harness stub sends it. Goes with ProfileView's ignored branch.
+  availabilityNotUnderstood: '„Verfügbar ab“ ist nicht lesbar.',
+  // Keys of a criteria section the engine does not read (a typo, an unknown rule).
   ignoredKeys: (p) => {
     const keys = keyList(p.keys);
     return `${joined(keys)} ${keys.length === 1 ? 'bleibt' : 'bleiben'} unberücksichtigt.`;
   },
-  criterionNotUnderstood: (p) => `Der Wert von ${keyLabel(str(p.key))} ist nicht lesbar.`,
-  regionWithoutPlaces: 'Für die Region fehlen die Orte, die Regel bleibt aus.',
+  criterionNotUnderstood: (p) => `„${keyLabel(str(p.key))}“ ist nicht lesbar.`,
+  regionWithoutPlaces: 'Der Remote-Anteil wirkt nur zusammen mit Orten.',
   focusTrimmed: (p) => `Nur die ersten ${n(num(p.max))} Schwerpunkte zählen.`,
 } satisfies Record<string, Text>;
 export type ProfileWarning = keyof typeof warning;
@@ -503,6 +479,16 @@ export const de = {
   portal: portalName,
   chips: {
     remove: (value: string) => `${value} entfernen`,
+  },
+  splitter: {
+    label: 'Breite der Liste',
+  },
+  /** The native context menu of fields and selected text (the OS's words). */
+  edit: {
+    cut: 'Ausschneiden',
+    copy: 'Kopieren',
+    paste: 'Einfügen',
+    selectAll: 'Alles auswählen',
   },
   field: {
     reveal: 'Passwort zeigen',
@@ -585,8 +571,6 @@ export const de = {
   },
   run: {
     never: 'Noch kein Abruf',
-    newCount: (value: number) => count(value, 'neuer Job', 'neue Jobs'),
-    topCount: (value: number) => `${n(value)} mit hoher Passung`,
     step: {
       scan: 'Postfach',
       fetch: 'Details',
@@ -763,16 +747,9 @@ export const de = {
   },
   overview: {
     label: 'Tagesüberblick',
-    new: 'Neu',
-    high: 'Hohe Passung',
-    noDetail: 'Ohne Details',
-    excluded: 'Ausgeschlossen',
-    pinned: 'Gemerkt',
     issues: 'Offene Punkte',
     best: 'Beste Passung',
     excel: 'Excel öffnen',
-    newJobs: 'Neue Jobs',
-    newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
     /** Under the portal's name, so the sentence does not name it again. */
     emptyAlerts: (value: number) =>
       value === 1
@@ -829,11 +806,14 @@ export const de = {
     } satisfies Record<ProfileQuality, string>,
     rescoring: (value: number) => `${count(value, 'Job wird', 'Jobs werden')} neu bewertet.`,
     rescored: 'Neu bewertet.',
+    /** The badge of a well filled profile that still has something to check. */
+    check: 'Bitte prüfen',
+    next: 'Weiter zum ersten Abruf',
     parseError: 'Das Profil ist nicht mehr lesbar.',
-    understood: (competences: number, focus: number) =>
-      focus > 0
-        ? `${count(competences, 'Kompetenz', 'Kompetenzen')} erkannt, ${count(focus, 'Schwerpunkt', 'Schwerpunkte')}`
-        : `${count(competences, 'Kompetenz', 'Kompetenzen')} erkannt`,
+    understood: (competences: number) =>
+      `${count(competences, 'Kompetenz', 'Kompetenzen')} erkannt`,
+    focusCount: (focus: number) => count(focus, 'Schwerpunkt', 'Schwerpunkte'),
+    packs: (packs: string[]) => `Fachgebiete ${packs.join(', ')}`,
     warning,
     pack: {
       finance: 'Finanzen',
@@ -870,14 +850,14 @@ export const de = {
     field: {
       name: 'Name',
       title: 'Rolle',
-      titlePlaceholder: 'Interim CFO',
+      titlePlaceholder: 'Projektleitung',
       roles: 'Wunschrollen',
-      rolesPlaceholder: 'Head of Controlling',
+      rolesPlaceholder: 'Teamleitung',
       competence: 'Kompetenz',
-      competencePlaceholder: 'Controlling',
+      competencePlaceholder: 'Projektmanagement',
       years: 'Jahre',
       aliases: 'Auch genannt',
-      aliasesPlaceholder: 'FP&A',
+      aliasesPlaceholder: 'Project Management',
       addCompetence: 'Kompetenz hinzufügen',
       removeCompetence: (name: string) => `${name || 'Kompetenz'} entfernen`,
       star: 'Als Schwerpunkt markieren',
@@ -885,17 +865,17 @@ export const de = {
       focusHint: 'Mit dem Stern bis zu fünf Kompetenzen markieren.',
       focusFull: 'Höchstens fünf Schwerpunkte.',
       strengths: 'Besondere Stärken',
-      strengthsPlaceholder: 'Konzernreporting in 100 Tagen aufgebaut',
+      strengthsPlaceholder: 'Große Projekte im Zeitplan übergeben',
       keywords: 'Stichworte',
-      keywordsPlaceholder: 'IFRS, HGB',
+      keywordsPlaceholder: 'Agil, Change Management',
       keywordsHint: 'Begriffe, die in passenden Anzeigen stehen.',
       totalYears: 'Berufserfahrung (Jahre)',
       degrees: 'Abschlüsse',
-      degreesPlaceholder: 'Diplom-Kauffrau (Univ.)',
+      degreesPlaceholder: 'Master of Science',
       industries: 'Branchen',
       industriesPlaceholder: 'Maschinenbau',
       tools: 'Werkzeuge und Methoden',
-      toolsPlaceholder: 'SAP S/4HANA',
+      toolsPlaceholder: 'Microsoft Excel',
       certificates: 'Zertifikate',
       certificatesPlaceholder: 'PMP',
       language: 'Sprache',
@@ -912,19 +892,19 @@ export const de = {
       minDayRate: 'Tagessatz ab (€)',
       countries: 'Einsatzländer',
       remoteOutside: 'Remote außerhalb erlaubt',
-      remoteOutsideHint: 'Voll remote Jobs dürfen in anderen Ländern sitzen.',
+      remoteOutsideHint: 'Dann zählen auch Stellen im Ausland, die ganz remote sind.',
       noAnue: 'Arbeitnehmerüberlassung ausschließen',
       available: 'Verfügbar ab',
       date: 'Datum',
       datePlaceholder: '01.11.2026',
-      dateInvalid: 'Das Datum so eingeben wie 01.11.2026.',
+      dateInvalid: 'Datum im Format 01.11.2026 eingeben.',
       targetYears: 'Verlangte Erfahrung ab (Jahre)',
       targetYearsHint: 'Stellen für deutlich weniger Erfahrung fallen weg.',
       minSalary: 'Jahresgehalt ab (€)',
       places: 'Orte',
       placesPlaceholder: 'München',
       remoteMin: 'Remote-Anteil ab (%)',
-      remoteMinHint: 'Außerhalb der Orte reicht eine Stelle mit so viel Remote.',
+      remoteMinHint: 'Stellen außerhalb der Orte zählen erst ab so viel Remote.',
     },
     level: {
       a1: 'A1',
@@ -1011,6 +991,14 @@ export const de = {
       grey: 'Gastzugang, kein Konto ist betroffen.',
       account: 'Angemeldet steht das eigene Konto auf dem Spiel.',
     } satisfies Record<Risk, string>,
+    /** What the risk word means (the badge's tooltip). */
+    riskInfo: {
+      low: 'Die App öffnet nur, was jeder im Browser sehen kann.',
+      grey: 'Das Portal erlaubt automatisches Lesen nicht ausdrücklich.',
+      account: 'Im schlimmsten Fall sperrt das Portal das eigene Konto.',
+    } satisfies Record<Risk, string>,
+    /** "Details holen" is off: what that changes. */
+    detailsOff: 'Ohne Details bekommen die Jobs dieses Portals keine Passung.',
     quota: (used: number, cap: number) => `Heute ${n(used)} von ${n(cap)} Seiten`,
     quotaHour: (used: number, cap: number) => `Diese Stunde ${n(used)} von ${n(cap)} Seiten`,
     signedIn: 'Angemeldet',
@@ -1024,11 +1012,6 @@ export const de = {
     workspace: 'Arbeitsordner',
     workspaceDefault: 'Standard',
     excel: 'Excel-Datei',
-    /** Where the OS shows a file: the Explorer on Windows, the Finder on macOS. */
-    excelShow: {
-      windows: 'Im Explorer zeigen',
-      macos: 'Im Finder zeigen',
-    } satisfies Record<Platform, string>,
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
     txt: 'Textdateien',
     txtCount: (value: number) => count(value, 'Datei', 'Dateien'),
@@ -1066,9 +1049,6 @@ export const de = {
     mailbox: 'Postfach',
     mailboxText: 'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
     profile: 'Profil',
-    /** Opens the Profil view with its editor. */
-    createProfile: 'Profil anlegen',
-    openProfile: 'Profil öffnen',
     profileText: 'Das Profil entsteht in der App, auf Wunsch aus dem Lebenslauf.',
     fetch: 'Erster Abruf',
     fetchHint: 'Das dauert ein paar Minuten.',
@@ -1086,7 +1066,7 @@ export const de = {
     rescored: 'Die Jobs sind neu bewertet.',
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
-    prompt: 'Prompt kopiert. In einen KI-Chat einfügen.',
+    prompt: 'Prompt kopiert, bereit für einen KI-Chat.',
     hidden: 'Archiviert.',
     runDone: (value: number) =>
       value === 0

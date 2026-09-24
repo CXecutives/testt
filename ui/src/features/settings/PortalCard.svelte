@@ -42,7 +42,7 @@
   /** Only the answer to the latest save may replace the state (quick double flips). */
   let saves = 0;
 
-  /** Its problem, and whether she has to act (warning) or the app carries on (info). */
+  /** Its problem in one sentence; `portal.actionNeeded` says whether she has to act. */
   const health = $derived(healthAdvice(portal.health));
   /** The fuller of the two windows: its numbers are the ones the text names. */
   const quota = $derived.by(() => {
@@ -140,9 +140,9 @@
     <div class="body" in:rise={{ distance: 'sm' }} out:fade>
       {#if portal.enabled && health}
         <Notice
-          tone={health.act ? 'warning' : 'info'}
+          tone={portal.actionNeeded ? 'warning' : 'info'}
           variant="inline"
-          text={health.text}
+          text={health}
           testid="health-{portal.portal}"
         />
       {/if}
@@ -157,12 +157,17 @@
         <div class="rows">
           <SettingRow
             label={de.settings.details}
-            hint={de.settings.riskText[risk]}
+            hint={portal.fetchDetails ? de.settings.riskText[risk] : de.settings.detailsOff}
             for="switch-details-{portal.portal}"
             testid="details-{portal.portal}"
           >
             {#snippet badges()}
-              <Badge label={de.settings.risk[risk]} tone={RISK_TONE[risk]} icon="shield" />
+              <Badge
+                label={de.settings.risk[risk]}
+                tone={RISK_TONE[risk]}
+                icon="shield"
+                hint={de.settings.riskInfo[risk]}
+              />
             {/snippet}
             <Toggle
               id="switch-details-{portal.portal}"
@@ -181,7 +186,12 @@
             >
               {#snippet badges()}
                 {#if risk !== 'account'}
-                  <Badge label={de.settings.risk.account} tone="danger" icon="shield" />
+                  <Badge
+                    label={de.settings.risk.account}
+                    tone="danger"
+                    icon="shield"
+                    hint={de.settings.riskInfo.account}
+                  />
                 {/if}
               {/snippet}
               <Toggle
