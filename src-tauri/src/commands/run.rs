@@ -127,6 +127,8 @@ struct AppBackends {
     matcher: Option<Arc<dyn Matcher>>,
     /// The same engine, typed: it also orders the fetch queue (likely matches first).
     local: Option<Arc<jobalert_core::pipeline::LocalMatcher>>,
+    /// The settings stay live: a portal switched off during the run gets no further request.
+    store: Arc<Store>,
 }
 
 impl Backends for AppBackends {
@@ -168,6 +170,10 @@ impl Backends for AppBackends {
             }
             None => jobalert_core::fetch::neutral_prescore(),
         }
+    }
+
+    fn live_paths(&self) -> Option<pipeline::LivePaths> {
+        Some(pipeline::stored_paths(Arc::clone(&self.store)))
     }
 }
 
@@ -277,6 +283,7 @@ pub(super) fn launch(
             notify,
             matcher: state.matcher().map(|m| m as Arc<dyn Matcher>),
             local: state.matcher(),
+            store: Arc::clone(&store),
         };
         tauri::async_runtime::spawn(drive(backends, store, policy, request, ctx, cancel, emit))
     };

@@ -211,7 +211,7 @@ async fn run_inner(
         },
         store,
         &shared,
-        (selection, &|_: &str, _: &str| 0),
+        (selection, &|_: &str, _: &str| 0, &|_| true),
         cancel,
         clock,
         &mut summary,
@@ -1360,13 +1360,17 @@ async fn a_duplicate_is_found_with_the_page_fields() {
     };
     let known = job_link(&url(FM, 12_345)).unwrap();
     let posting = Posting::new(known.key.clone(), known.url, title, "Ferrum Systems SE", "");
-    store.upsert_posting(run_id, &posting, mail, base()).unwrap();
+    store
+        .upsert_posting(run_id, &posting, mail, base())
+        .unwrap();
     store
         .record_text(&known.key, ad, false, false, base())
         .unwrap();
     let new = job_link(&url(LI, 4_000_000_001)).unwrap();
     let posting = Posting::new(new.key.clone(), new.url, title, "", "");
-    store.upsert_posting(run_id, &posting, mail, base()).unwrap();
+    store
+        .upsert_posting(run_id, &posting, mail, base())
+        .unwrap();
     let page = PageOutcome::Text {
         text: ad.into(),
         short: false,
@@ -1607,7 +1611,7 @@ async fn the_queue_follows_the_prescore_then_recency() {
         |_| Ok(fake.clone()),
         &store,
         &shared,
-        (Selection::Queue(&[FM]), &prescore),
+        (Selection::Queue(&[FM]), &prescore, &|_| true),
         &CancellationToken::new(),
         &c,
         &mut summary,
@@ -1632,4 +1636,46 @@ async fn the_queue_follows_the_prescore_then_recency() {
     order(&mut jobs, &panics);
     let ids: Vec<&str> = jobs.iter().map(|j| j.key.id.as_str()).collect();
     assert_eq!(ids, ["10001", "10003", "10002", "10004"]);
+}
+
+/// A portal switched off during the run gets no further request - the other portals go on,
+/// and its remaining jobs wait untouched for a run with the portal switched on.
+#[tokio::test(start_paused = true)]
+async fn a_portal_switched_off_during_the_run_gets_no_further_request() {
+    let c = clock();
+    let store = store_with(&[
+        (FM, 10_001, 1),
+        (FM, 10_002, 2),
+        (FM, 10_003, 3),
+        (LI, 4_000_000_001, 1),
+    ]);
+    let fake = Fake::default();
+    // Switched off right after freelancermap's first answer.
+    let on = |portal: Portal| portal != FM || fake.calls().iter().all(|call| call.portal != FM);
+    let shared = Mutex::new(Policy::in_memory());
+    let mut summary = FetchSummary::default();
+    let completed = fetch_all(
+        |_| Ok(fake.clone()),
+        &store,
+        &shared,
+        (Selection::Queue(&[FM, LI]), &|_: &str, _: &str| 0, &on),
+        &CancellationToken::new(),
+        &c,
+        &mut summary,
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert!(completed, "switching off is no cancellation");
+    let fm = fake.calls().iter().filter(|call| call.portal == FM).count();
+    assert_eq!(fm, 1);
+    let counts = &summary.per_portal[&FM];
+    assert_eq!(
+        (counts.ok, counts.skipped, counts.stop.as_ref()),
+        (1, 2, None)
+    );
+    assert_eq!(summary.per_portal[&LI].ok, 1, "the other portals go on");
+    let open = store.fetch_queue(c(), MAX_AGE, RETRY_AFTER).unwrap();
+    assert_eq!(open.len(), 2);
+    assert!(open.iter().all(|job| job.desc_attempts == 0), "untouched");
 }

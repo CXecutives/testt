@@ -1395,3 +1395,69 @@ async fn switches_decide_the_fetch_path() {
     .await;
     assert!(paths.0.contains(&(Portal::FreelanceDe, FetchPath::Session)));
 }
+
+/// The demo, with the fetch paths read from the stored settings like in the app.
+struct Stored(Arc<Store>);
+
+impl Backends for Stored {
+    type Mail = DemoMail;
+    type Pages = DemoPages;
+    async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
+        DemoBackends.connect_mail(cancel).await
+    }
+    fn pages(&mut self, _portal: Portal, _path: FetchPath) -> Result<DemoPages, String> {
+        Ok(DemoPages)
+    }
+    fn live_paths(&self) -> Option<LivePaths> {
+        Some(stored_paths(Arc::clone(&self.0)))
+    }
+}
+
+/// Details switched off while the run fetches: the portal gets no further request, although
+/// the run started with it switched on ("off = zero requests").
+#[tokio::test(start_paused = true)]
+async fn a_portal_switched_off_during_the_run_stops_at_once() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(Store::in_memory().unwrap());
+    let settings = crate::settings::Settings::default();
+    settings.save(&store).unwrap();
+    let context = RunContext {
+        fetch_portals: settings.fetch_portals(),
+        sign_in: Vec::new(),
+        ..ctx(dir.path(), false)
+    };
+    let policy = Mutex::new(Policy::in_memory());
+    let mut switched = false;
+    let summary = run(
+        &mut Stored(Arc::clone(&store)),
+        &store,
+        &policy,
+        &request(),
+        &context,
+        &CancellationToken::new(),
+        &c,
+        |event| {
+            if let RunEvent::JobUpdated { job } = &event
+                && job.key.portal == Portal::LinkedIn
+                && !switched
+            {
+                switched = true;
+                let mut off = crate::settings::Settings::load(&store).unwrap();
+                off.portals
+                    .get_mut(&Portal::LinkedIn)
+                    .unwrap()
+                    .fetch_details = false;
+                off.save(&store).unwrap();
+            }
+        },
+    )
+    .await;
+    assert_eq!(summary.outcome, Outcome::Completed);
+    let li = summary
+        .per_portal
+        .iter()
+        .find(|p| p.portal == Portal::LinkedIn)
+        .unwrap();
+    assert_eq!((li.new, li.fetched, li.skipped), (2, 1, 1));
+}

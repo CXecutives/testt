@@ -134,6 +134,26 @@ pub trait Backends {
     fn prescore(&self) -> Prescore {
         neutral_prescore()
     }
+    /// The fetch path of every portal as the settings say right now, asked before every
+    /// request: a portal switched off (or to another path) during the run gets no further
+    /// request. `None` by default - the paths stay as the run started.
+    fn live_paths(&self) -> Option<LivePaths> {
+        None
+    }
+}
+
+/// The current fetch path of a portal (`None` = switched off), see [`Backends::live_paths`].
+pub type LivePaths = Arc<dyn Fn(Portal) -> Option<FetchPath> + Send + Sync>;
+
+/// The fetch paths as the stored settings say right now (the app's
+/// [`Backends::live_paths`]). Unreadable settings count as switched off: no request without
+/// a readable switch.
+pub fn stored_paths(store: Arc<Store>) -> LivePaths {
+    Arc::new(move |portal| {
+        crate::settings::Settings::load(&store)
+            .ok()
+            .and_then(|settings| settings.fetch_path(portal))
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -763,11 +783,17 @@ async fn fetch_step<B: Backends>(
     // Activity in the status line - not anew for every job, again after a wait.
     let mut activity: Option<(StatusCode, Portal)> = None;
     let prescore = backends.prescore();
+    // A portal stays on while the settings still name the path the run started with.
+    let live = backends.live_paths();
+    let on = |portal: Portal| {
+        live.as_ref()
+            .is_none_or(|now| now(portal) == Some(ctx.path(portal)))
+    };
     let result = fetch_all(
         |portal| backends.pages(portal, ctx.path(portal)),
         store,
         policy,
-        (selection, &*prescore),
+        (selection, &*prescore, &on),
         cancel,
         clock,
         fetched,

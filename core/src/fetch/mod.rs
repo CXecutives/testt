@@ -527,10 +527,25 @@ pub async fn admit(
     Ok(Admission::Go)
 }
 
+/// Whether a portal may still be fetched (its switches in the settings right now). Asked
+/// before every request and sign-in: a portal switched off during a run gets no further
+/// request.
+pub type PortalOnFn<'a> = dyn Fn(Portal) -> bool + Send + Sync + 'a;
+
+/// Why a portal loop ends without a request.
+enum Halt {
+    /// Pause or cap: reported as the portal's stop.
+    Stop(StopReason),
+    /// The user switched the portal off during the run.
+    Off,
+}
+
 /// What all portal loops share.
 struct Shared<'a, C: Fn() -> Timestamp> {
     store: &'a Store,
     policy: &'a Mutex<Policy>,
+    /// The portal's switches right now.
+    on: &'a PortalOnFn<'a>,
     /// Cancellation of **this** fetch - a database error in one portal stops the others this
     /// way, instead of letting them continue without a saved state.
     cancel: &'a CancellationToken,
@@ -602,8 +617,9 @@ fn fetch_order() -> impl Iterator<Item = &'static dyn PortalAdapter> {
 }
 
 /// Fetches the job details. `pages` returns the fetch path of a portal - every portal gets
-/// its own (own HTTP session, own window) so the portals can run side by side. `clock`
-/// returns the current time (controllable in tests).
+/// its own (own HTTP session, own window) so the portals can run side by side. `on` tells
+/// whether a portal is still switched on (asked before every request). `clock` returns the
+/// current time (controllable in tests).
 ///
 /// Errors of the database or while saving `policy.json` abort - without a durable safety
 /// state no portal is fetched any further.
@@ -615,7 +631,7 @@ pub async fn fetch_all<F: PageFetcher>(
     mut pages: impl FnMut(Portal) -> Result<F, String>,
     store: &Store,
     policy: &Mutex<Policy>,
-    (selection, prescore): (Selection<'_>, &PrescoreFn),
+    (selection, prescore, on): (Selection<'_>, &PrescoreFn, &PortalOnFn<'_>),
     cancel: &CancellationToken,
     clock: impl Fn() -> Timestamp,
     summary: &mut FetchSummary,
@@ -668,6 +684,7 @@ pub async fn fetch_all<F: PageFetcher>(
     let shared = Shared {
         store,
         policy,
+        on,
         cancel: &inner,
         clock: &clock,
     };
@@ -747,6 +764,7 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
     notes: &mpsc::UnboundedSender<Note>,
 ) -> crate::Result<(PortalCounts, bool)> {
     let (store, policy, cancel, clock) = (shared.store, shared.policy, shared.cancel, shared.clock);
+    let on = shared.on;
     let mut counts = PortalCounts::default();
     let session = fetcher.session();
     let parser_version = portal.adapter().parser_version();
@@ -762,13 +780,18 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
             key: job.key.clone(),
             url: job.url.clone(),
         };
-        let mut outcome = match access(&mut fetcher, policy, &link, cancel, clock, notes).await? {
-            Ok(outcome) => outcome,
-            Err(reason) => {
-                stop(&mut counts, &reason, remaining, portal, notes);
-                break;
-            }
-        };
+        let mut outcome =
+            match access(&mut fetcher, (policy, on), &link, cancel, clock, notes).await? {
+                Ok(outcome) => outcome,
+                Err(Halt::Stop(reason)) => {
+                    stop(&mut counts, &reason, remaining, portal, notes);
+                    break;
+                }
+                Err(Halt::Off) => {
+                    switched_off(&mut counts, portal, remaining);
+                    break;
+                }
+            };
         if let PageOutcome::NetError { .. } = outcome {
             // Retry once - after 30 s, again with all rules.
             note(
@@ -781,14 +804,18 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
             if !sleep_for(NET_RETRY, cancel).await {
                 return Ok((counts, false));
             }
-            outcome = match access(&mut fetcher, policy, &link, cancel, clock, notes).await? {
+            outcome = match access(&mut fetcher, (policy, on), &link, cancel, clock, notes).await? {
                 Ok(PageOutcome::NetError { timeout: true, .. }) => PageOutcome::Throttled {
                     cause: Cause::NoAnswerTwice,
                     retry_after: None,
                 },
                 Ok(outcome) => outcome,
-                Err(reason) => {
+                Err(Halt::Stop(reason)) => {
                     stop(&mut counts, &reason, remaining, portal, notes);
+                    break;
+                }
+                Err(Halt::Off) => {
+                    switched_off(&mut counts, portal, remaining);
                     break;
                 }
             };
@@ -929,6 +956,10 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                     Some(StopReason::LoginRequired)
                 } else {
                     login_tried = true;
+                    if !on(portal) {
+                        switched_off(&mut counts, portal, remaining);
+                        return Ok((counts, true));
+                    }
                     // The sign-in page is a portal request like any other.
                     let admission = admit(policy, portal, cancel, clock, |until| {
                         note(notes, FetchEvent::Waiting { portal, until });
@@ -939,6 +970,12 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                         Admission::Cancelled => {
                             lock(policy).save()?;
                             return Ok((counts, false));
+                        }
+                        // Switched off during the wait: no sign-in window.
+                        Admission::Go if !on(portal) => {
+                            lock(policy).save()?;
+                            switched_off(&mut counts, portal, remaining);
+                            return Ok((counts, true));
                         }
                         Admission::Go => {
                             note(notes, FetchEvent::SigningIn { portal });
@@ -1034,29 +1071,44 @@ fn queue(store: &Store, selection: Selection<'_>, now: Timestamp) -> crate::Resu
     })
 }
 
-/// Requests a page with all rules. `Err` = the portal may not be requested right now; a
-/// cancellation before the request comes as `PageOutcome::Cancelled`.
+/// Requests a page with all rules. `Err` = the portal may not be requested right now
+/// (pause, cap, or switched off - also during the wait for the gap); a cancellation before
+/// the request comes as `PageOutcome::Cancelled`.
 async fn access<F: PageFetcher>(
     fetcher: &mut F,
-    policy: &Mutex<Policy>,
+    (policy, on): (&Mutex<Policy>, &PortalOnFn<'_>),
     link: &JobLink,
     cancel: &CancellationToken,
     clock: &impl Fn() -> Timestamp,
     notes: &mpsc::UnboundedSender<Note>,
-) -> crate::Result<Result<PageOutcome, StopReason>> {
+) -> crate::Result<Result<PageOutcome, Halt>> {
     let portal = link.key.portal;
+    if !on(portal) {
+        return Ok(Err(Halt::Off));
+    }
     let admission = admit(policy, portal, cancel, clock, |until| {
         note(notes, FetchEvent::Waiting { portal, until });
     })
     .await?;
     match admission {
+        Admission::Go if !on(portal) => Ok(Err(Halt::Off)),
         Admission::Go => {
             note(notes, FetchEvent::Fetching { portal });
             Ok(Ok(fetcher.fetch(link, cancel).await))
         }
-        Admission::Stop(reason) => Ok(Err(reason)),
+        Admission::Stop(reason) => Ok(Err(Halt::Stop(reason))),
         Admission::Cancelled => Ok(Ok(PageOutcome::Cancelled)),
     }
+}
+
+/// The user switched the portal off during the run: its remaining jobs wait, untouched, for a
+/// run with the portal switched on.
+fn switched_off(counts: &mut PortalCounts, portal: Portal, skipped: usize) {
+    counts.skipped += skipped;
+    log::info!(
+        "{}: switched off during the run, {skipped} left",
+        portal.key()
+    );
 }
 
 fn stop(
