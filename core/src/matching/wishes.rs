@@ -56,6 +56,24 @@ pub(crate) enum RemoteWish {
     OnSite,
 }
 
+impl RemoteWish {
+    /// Params of the wish: the minimum share, on site, and the level of the profile editor
+    /// (`full`, `mostly`, `partly`, `onSite`).
+    fn params(self) -> Value {
+        match self {
+            RemoteWish::Min(min) => {
+                let level = match min {
+                    REMOTE_FULL => "full",
+                    REMOTE_MOSTLY => "mostly",
+                    _ => "partly",
+                };
+                json!({ "min": min, "onsite": false, "level": level })
+            }
+            RemoteWish::OnSite => json!({ "min": null, "onsite": true, "level": "onSite" }),
+        }
+    }
+}
+
 /// An industry wish: its text, the industries it names and its atoms (for industries the
 /// word list does not know).
 #[derive(Debug, Clone)]
@@ -77,13 +95,30 @@ pub(crate) struct Wishes {
     /// The regions folded, with the places of states, regions and countries.
     places: Vec<String>,
     industry: Vec<Industry>,
+    /// Per wish reason: the profile value as written and its JSON path.
+    sources: Vec<(ReasonCode, String, String)>,
 }
 
-/// The wishes section: `einsatzpraeferenzen` (or `preferences`).
-fn section(data: &Value) -> Option<&Value> {
+/// The wishes section: `einsatzpraeferenzen` (or `preferences`), with its key.
+fn section(data: &Value) -> Option<(&'static str, &Value)> {
     lexicon::KEY_PREFERENCES_ALIASES
         .iter()
-        .find_map(|key| data.get(*key).filter(|v| v.is_object()))
+        .find_map(|key| data.get(*key).filter(|v| v.is_object()).map(|v| (*key, v)))
+}
+
+/// A profile value as written (a list joined with commas).
+fn as_text(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        Value::Array(list) => list
+            .iter()
+            .map(as_text)
+            .filter(|t| !t.is_empty())
+            .collect::<Vec<_>>()
+            .join(", "),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    }
 }
 
 fn entry<'a>(section: &'a Value, keys: &[&'static str]) -> Option<(&'static str, &'a Value)> {
@@ -216,9 +251,21 @@ impl Wishes {
     pub(crate) fn new(data: &Value, vocab: &Vocab) -> (Self, Vec<(&'static str, String)>) {
         let mut wishes = Wishes::default();
         let mut unreadable = Vec::new();
-        let Some(section) = section(data) else {
+        let Some((name, section)) = section(data) else {
             return (wishes, unreadable);
         };
+        for (code, keys) in [
+            (ReasonCode::DayRateWish, lexicon::KEYS_RATE_WISH),
+            (ReasonCode::RemoteWish, lexicon::KEYS_REMOTE_WISH),
+            (ReasonCode::RegionWish, lexicon::KEYS_REGIONS),
+            (ReasonCode::IndustryWish, lexicon::KEYS_INDUSTRIES),
+        ] {
+            if let Some((key, value)) = entry(section, keys) {
+                wishes
+                    .sources
+                    .push((code, as_text(value), format!("{name}.{key}")));
+            }
+        }
         if let Some((key, value)) = entry(section, lexicon::KEYS_RATE_WISH) {
             wishes.rate = facts::number(value).filter(|n| *n > 0);
             if wishes.rate.is_none() {
@@ -276,11 +323,10 @@ impl Wishes {
             set,
             params: params.as_object().cloned().unwrap_or_default(),
         };
-        let remote = match self.remote {
-            Some(RemoteWish::Min(min)) => json!({ "min": min, "onsite": false }),
-            Some(RemoteWish::OnSite) => json!({ "min": null, "onsite": true }),
-            None => json!({ "min": null, "onsite": null }),
-        };
+        let remote = self.remote.map_or_else(
+            || json!({ "min": null, "onsite": null, "level": null }),
+            RemoteWish::params,
+        );
         vec![
             info(
                 WishKey::DayRate,
@@ -317,6 +363,14 @@ impl Wishes {
             sorted(&self.regions),
             sorted(&self.industries)
         )
+    }
+
+    /// The profile value (as written) and JSON path behind a wish reason.
+    pub(crate) fn source(&self, code: ReasonCode) -> Option<(&str, &str)> {
+        self.sources
+            .iter()
+            .find(|(c, _, _)| *c == code)
+            .map(|(_, text, path)| (text.as_str(), path.as_str()))
     }
 
     fn any(&self) -> bool {
@@ -618,10 +672,7 @@ pub(crate) fn remote_share(
 
 fn remote(wish: RemoteWish, share: Option<(u64, u64)>) -> WishResult {
     let code = ReasonCode::RemoteWish;
-    let mut params = match wish {
-        RemoteWish::Min(min) => json!({ "min": min, "onsite": false }),
-        RemoteWish::OnSite => json!({ "min": null, "onsite": true }),
-    };
+    let mut params = wish.params();
     let Some((from, to)) = share else {
         return result(code, State::Unknown, WISH_REMOTE, params, Vec::new());
     };

@@ -195,30 +195,27 @@ function dayRateWish(p: Params): string {
   }
 }
 
+/** The remote wish of the profile (`level` of the profile editor). */
+const REMOTE_LEVEL: Record<string, string> = {
+  full: 'voll remote',
+  mostly: 'überwiegend remote',
+  partly: 'teilweise remote',
+  onSite: 'vor Ort',
+};
+
+/** The ad's remote share next to the wish ("zu 60 % remote, gewünscht ist überwiegend remote"). */
 function remoteWish(p: Params): string {
   if (p.state === 'unknown') return 'Die Anzeige nennt keinen Remote-Anteil.';
-  if (p.onsite === true) {
-    if (p.state === 'met') return 'Die Stelle ist vor Ort, wie gewünscht.';
-    return p.state === 'near'
-      ? 'Die Stelle ist überwiegend remote, gewünscht ist vor Ort.'
-      : 'Die Stelle ist ganz remote, gewünscht ist vor Ort.';
-  }
-  if (p.share === 0) return 'Die Stelle ist ganz vor Ort.';
-  const share = typeof p.share === 'number' ? `Mit ${formatPercent(p.share)} remote` : null;
-  switch (p.state) {
-    case 'met':
-      return share
-        ? `${share} passt die Stelle zum Wunsch.`
-        : 'Der Remote-Anteil passt zum Wunsch.';
-    case 'near':
-      return share
-        ? `${share} liegt die Stelle knapp unter dem Wunsch.`
-        : 'Der Remote-Anteil liegt knapp unter dem Wunsch.';
-    default:
-      return share
-        ? `${share} liegt die Stelle unter dem Wunsch.`
-        : 'Der Remote-Anteil liegt unter dem Wunsch.';
-  }
+  const level = typeof p.level === 'string' ? REMOTE_LEVEL[p.level] : undefined;
+  const wished = level ? `, gewünscht ist ${level}` : '';
+  let ad: string;
+  if (p.share === 0) ad = 'Die Stelle ist ganz vor Ort';
+  else if (p.share === 100) ad = 'Die Stelle ist ganz remote';
+  else if (typeof p.share === 'number') ad = `Die Stelle ist zu ${formatPercent(p.share)} remote`;
+  else if (typeof p.from === 'number' && typeof p.to === 'number')
+    ad = `Die Stelle ist zu ${str(p.from)} bis ${formatPercent(p.to)} remote`;
+  else ad = 'Die Stelle ist teilweise remote';
+  return `${ad}${wished}.`;
 }
 
 function regionWish(p: Params): string {

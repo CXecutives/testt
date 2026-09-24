@@ -243,8 +243,23 @@ fn preferences(profile: &EngineProfile, b: &mut Builder<'_>, evaluation: &Evalua
         });
     }
     for wish in &evaluation.wishes {
+        let text = b.text;
         let reason = b.reason(wish.state.kind(), Weight::Info, wish.code);
         reason.params = object(&wish.params);
+        reason.evidence = profile
+            .wishes
+            .source(wish.code)
+            .map(|(value, path)| Evidence {
+                profile: value.to_owned(),
+                path: path.to_owned(),
+                via: Via::Exact,
+                quote: wish
+                    .spans
+                    .first()
+                    .and_then(|span| text.get(span.clone()))
+                    .map(quote)
+                    .unwrap_or_default(),
+            });
         for span in &wish.spans {
             b.highlight(span.clone());
         }

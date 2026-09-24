@@ -165,8 +165,8 @@ pub enum ReasonCode {
     /// Day rate wish (`state` met, near, missed or unknown, `points`, `wish`, `rate`,
     /// `hourly`, `currency`).
     DayRateWish,
-    /// Remote wish (`state`, `points`, `min` or `onsite`, the ad's share `share` or
-    /// `from`/`to`).
+    /// Remote wish (`state`, `points`, `min` or `onsite`, `level` full, mostly, partly or
+    /// onSite, the ad's share `share` or `from`/`to`).
     RemoteWish,
     /// Region wish (`state`, `points`, `location`, `remote`).
     RegionWish,
