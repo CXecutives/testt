@@ -17,14 +17,18 @@ pub const MAX_DISTANCE: u32 = 3;
 
 impl Store {
     /// Compares a job that just got its full text with the other portals' jobs and marks
-    /// it as a duplicate of the earliest match. Returns that job.
+    /// it as a duplicate of the earliest match. Returns that job. A job the user marked (a
+    /// stage, a note, archived, "fits anyway") is never linked: a duplicate leaves every
+    /// list, and her marks must not leave with it.
     pub fn link_duplicate(&self, key: &JobKey) -> Result<Option<JobKey>> {
         self.write(|conn| {
             let Some((title, company, text)) = conn
                 .query_row(
                     "SELECT title, company, desc_text FROM job
                      WHERE portal = ?1 AND job_id = ?2 AND desc_status = 'ok'
-                       AND dup_of IS NULL AND desc_text IS NOT NULL",
+                       AND dup_of IS NULL AND desc_text IS NOT NULL
+                       AND app_status IS NULL AND note IS NULL AND archived_at IS NULL
+                       AND override_include IS NULL",
                     params![key.portal.key(), key.id],
                     |r| {
                         Ok((
@@ -310,5 +314,72 @@ mod tests {
         let (overview, pinned) = store.overview_jobs(run).unwrap();
         assert!(!pinned);
         assert_eq!(keys(overview), [first.key]);
+    }
+
+    /// A job the user marked stays a job of its own: linked as a duplicate it would leave
+    /// every list with its stage, note or archive mark.
+    #[test]
+    fn a_marked_job_is_never_hidden_as_a_duplicate() {
+        use crate::model::AppStatus;
+        use crate::store::test_support::{mail, now, posting};
+
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let original = posting(
+            "https://www.freelancermap.de/nproj/12345.html",
+            "SAP FI/CO Berater (m/w/d)",
+            "Ferrum Systems SE",
+            "Hamburg",
+        );
+        store.upsert_posting(run, &original, mail(), now()).unwrap();
+        store
+            .record_text(&original.key, TEXT, false, false, now())
+            .unwrap();
+        let marks: [(&str, &dyn Fn(&JobKey)); 4] = [
+            ("4000000001", &|key| {
+                store
+                    .set_app_status(key, Some(AppStatus::Applied), now())
+                    .unwrap();
+            }),
+            ("4000000002", &|key| {
+                store.set_note(key, "Agentur anrufen").unwrap();
+            }),
+            ("4000000003", &|key| {
+                store.set_archived(key, true, now()).unwrap();
+            }),
+            ("4000000004", &|key| {
+                store.set_pinned(key, true, now()).unwrap();
+            }),
+        ];
+        for (id, mark) in marks {
+            let later = posting(
+                &format!("https://www.linkedin.com/jobs/view/{id}/"),
+                "SAP FI/CO Berater (m/w/d)",
+                "Ferrum Systems SE",
+                "Hamburg",
+            );
+            store.upsert_posting(run, &later, mail(), now()).unwrap();
+            mark(&later.key);
+            store
+                .record_text(&later.key, TEXT, false, false, now())
+                .unwrap();
+            assert_eq!(store.link_duplicate(&later.key).unwrap(), None, "{id}");
+            assert_eq!(store.dup_of(&later.key).unwrap(), None);
+        }
+        // An unmarked one is linked as before.
+        let plain = posting(
+            "https://www.linkedin.com/jobs/view/4000000005/",
+            "SAP FI/CO Berater (m/w/d)",
+            "Ferrum Systems SE",
+            "Hamburg",
+        );
+        store.upsert_posting(run, &plain, mail(), now()).unwrap();
+        store
+            .record_text(&plain.key, TEXT, false, false, now())
+            .unwrap();
+        assert_eq!(
+            store.link_duplicate(&plain.key).unwrap(),
+            Some(original.key)
+        );
     }
 }
