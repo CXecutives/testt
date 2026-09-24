@@ -8,7 +8,8 @@
   "permissions": [
     "allow-app-state",
     "allow-cancel-run",
-    "allow-claude-prompt",
+    "allow-ai-prompt",
+    "allow-ai-prompt-top",
     "allow-clear-txt",
     "allow-job-detail",
     "allow-list-jobs",

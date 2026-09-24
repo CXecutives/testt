@@ -936,24 +936,62 @@ function detailOf(j: JobView): JobDetail {
   };
 }
 
-/** A prompt like core's export::claude_prompt: the rubric in short, the profile, the ad. */
-function promptOf(j: JobView): string {
+/** The profile part of the prompts (core leaves out name and contact data the same way). */
+const PROMPT_PROFILE = [
+  'Mein Profil (JSON, ohne Name und Kontaktdaten)',
+  '```json',
+  JSON.stringify({ kernkompetenzen: PROFILE.understood?.competences ?? [] }, null, 2),
+  '```',
+];
+
+/** The facts and text of one ad in a prompt. */
+function adOf(j: JobView): string[] {
   const d = detailOf(j);
   return [
-    'Bitte prüfe gründlich, wie gut diese Stellenanzeige zu meinem Beraterprofil passt.',
-    '',
-    'Mein Profil (JSON, ohne Name und Kontaktdaten)',
-    '```json',
-    JSON.stringify({ kernkompetenzen: PROFILE.understood?.competences ?? [] }, null, 2),
-    '```',
-    '',
-    'Die Anzeige',
     `Titel: ${j.title}`,
     `Unternehmen: ${j.company}`,
     `Ort: ${j.location}`,
     `Link: ${d.url}`,
+    ...(j.match ? [`Passung laut App: ${j.match.score} von 100`] : []),
     '',
     d.text ?? 'Den vollständigen Anzeigentext hat die App noch nicht.',
+  ];
+}
+
+/** A prompt like core's export::ai_prompt: the rubric in short, the profile, the ad. */
+function promptOf(j: JobView): string {
+  return [
+    'Du unterstützt mich als KI-Assistent bei der Auswahl von Projekten. Bitte prüfe gründlich, wie gut diese Stellenanzeige zu meinem Beraterprofil passt.',
+    '',
+    ...PROMPT_PROFILE,
+    '',
+    'Die Anzeige',
+    ...adOf(j),
+  ].join('\n');
+}
+
+/**
+ * Like core's export::ai_prompt_top: the best current matches (3 to 5; pinned first, then by
+ * score; never excluded, hidden or gone), compared in one prompt with a ranking.
+ */
+function promptTopOf(limit: number): string {
+  const best = jobs
+    .filter((j) => j.match?.status === 'scored' && !j.hidden && j.detail.kind !== 'gone')
+    .sort(
+      (a, b) =>
+        Number(b.pinned) - Number(a.pinned) ||
+        (b.match?.score ?? 0) - (a.match?.score ?? 0) ||
+        b.firstSeenAt.localeCompare(a.firstSeenAt),
+    )
+    .slice(0, Math.min(5, Math.max(3, limit)));
+  if (best.length === 0) throw fail('notFound', { what: 'jobs' });
+  return [
+    'Du unterstützt mich als KI-Assistent bei der Auswahl von Projekten. Bitte vergleiche die besten aktuellen Jobs aus meiner Job-Alert-App mit meinem Beraterprofil und bring sie in eine Reihenfolge.',
+    '',
+    ...PROMPT_PROFILE,
+    '',
+    'Die Jobs',
+    ...best.flatMap((j, i) => ['', `Job ${i + 1}`, ...adOf(j)]),
   ].join('\n');
 }
 
@@ -1382,11 +1420,15 @@ const handlers: Handlers = {
     refresh();
     return true;
   },
-  claude_prompt: ({ key }) => {
+  ai_prompt: ({ key }) => {
     const j = find(key);
     if (j === undefined) throw fail('notFound', { what: 'job' });
     if (state.profile === null) throw fail('notFound', { what: 'profile' });
     return promptOf(j);
+  },
+  ai_prompt_top: ({ limit }) => {
+    if (state.profile === null) throw fail('notFound', { what: 'profile' });
+    return promptTopOf(limit);
   },
   pick_profile: () => {
     state.profile = PROFILE;

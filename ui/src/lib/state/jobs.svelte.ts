@@ -519,9 +519,14 @@ class JobsStore {
     }
   }
 
-  /** The prompt for a deep analysis of a job in the user's own Claude. */
-  async claudePrompt(key: JobKey): Promise<string> {
-    return invoke('claude_prompt', { key });
+  /** The prompt for a deep analysis of a job in any AI chat. */
+  async aiPrompt(key: JobKey): Promise<string> {
+    return invoke('ai_prompt', { key });
+  }
+
+  /** One prompt that compares the best current matches (3 to 5) in any AI chat. */
+  async aiPromptTop(limit: number): Promise<string> {
+    return invoke('ai_prompt_top', { limit });
   }
 
   /** A listed row that no longer belongs to the facet leaves the list. */

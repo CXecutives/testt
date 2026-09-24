@@ -28,7 +28,8 @@ export type Commands = {
   set_app_status: { args: { key: JobKey; status: AppStatus | null }; result: boolean };
   set_note: { args: { key: JobKey; note: string }; result: boolean };
   set_hidden: { args: { key: JobKey; hidden: boolean }; result: boolean };
-  claude_prompt: { args: { key: JobKey }; result: string };
+  ai_prompt: { args: { key: JobKey }; result: string };
+  ai_prompt_top: { args: { limit: number }; result: string };
   pick_profile: { args: Record<string, never>; result: ProfileInfo | null };
   remove_profile: { args: Record<string, never>; result: boolean };
   save_profile_template: { args: Record<string, never>; result: string | null };

@@ -53,9 +53,12 @@ New nullable `job` columns: `app_status TEXT` (applied|interview|offer|rejected)
 (<= 2000 characters, no export shows it), `hidden_at` ("Nicht interessant"). Frozen fixture
 `core/tests/fixtures/schema_v3.sql`. A hidden job is in no list but "hidden" and in no count but its own; the HTML
 overview and `top_matches.json` leave it out. Excel gets a "Status" column (Beworben, Im Gespräch, Zusage, Absage); the
-TXT files stay byte-identical. `claude_prompt(key)` builds the German prompt for a deep analysis in the user's own
-Claude (`export/claude_prompt.rs`, external contract): the rubric intent of the skill in short, the profile without
-name, contact data, links and references, the ad (text <= 12,000 characters, profile <= 8,000).
+TXT files stay byte-identical. The AI prompts (user decision: universal for any AI chat, they replace the skill for
+normal use; `export/ai_prompt.rs`, external contract) address the assistant as "du" without naming a product and carry
+the rubric intent of the skill in short and the profile without name, contact data, links and references (<= 8,000
+characters): `ai_prompt(key)` for a deep analysis of one ad (text <= 12,000 characters), `ai_prompt_top(limit 3..5)`
+for one comparison with a ranking of the best current matches (scored, not hidden, ad still online; pinned first, then
+by score), all ad texts together <= 24,000 characters, an equal share each, the prompt says when one was cut.
 
 ### IPC v3 (types from Rust via ts-rs; camelCase; `null` instead of missing; backend never sends prose)
 Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | rescore | fullMailbox})` · `cancel_run` ·
@@ -63,7 +66,7 @@ Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | res
 (list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only; applications
 newest status change first, hidden latest hidden first) · `job_detail(key)` · `mark_read(key) -> bool` · `set_pinned(key, on)` ·
 `set_app_status(key, status|null) -> bool` · `set_note(key, note) -> bool` · `set_hidden(key, hidden) -> bool` ·
-`claude_prompt(key) -> string` · `pick_profile` ·
+`ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile` ·
 `remove_profile` · `save_profile_template` · `save_mailbox` · `remove_mailbox` · `portal_login` · `portal_logout` ·
 `pick_workspace` · `rewrite_txt` · `clear_txt` · `open_target({jobUrl|gmail|workspace|excel|overview|logDir})` ·
 `save_settings(SettingsPatch)` · `reset_all` · `report_ui_error` (truncated, <= 10/min).
