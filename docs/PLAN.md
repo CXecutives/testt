@@ -154,7 +154,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
 - Done when: worktree list = main, stash empty, branches = main + legacy-python, `cargo test --workspace` green.
 
 ### Phase 1 - contracts and foundation (parallel tracks)
-- [ ] 1a Contract (integrator): IPC v3 in `view.rs` + ts-rs; codes for notices/errors/status; RunEvent v3;
+- [x] 1a Contract (merged ab97def; deviations: DetailState.failed={attempts,retryAt}, paused.until nullable, extra OpenTarget variants, app_state(channel) + RunSnapshot; PortalAdapter/prescore still open): IPC v3 in `view.rs` + ts-rs; codes for notices/errors/status; RunEvent v3;
       `RunRequest.kind`; new command signatures; `Matcher` trait with empty score step; `PortalAdapter` trait +
       `prescore` signature; `PortalHealth`; split `store.rs` into `store/{mod,schema,jobs,matches}.rs`; schema-3 column
       list; prose out of core; split `commands.rs`; `contract.rs` reads `.ts`.
@@ -176,7 +176,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
 ### Phase 2 - core work (parallel, disjoint files; contracts frozen)
 - [ ] 2A Matching better: V5, V6, V3, V2, V1, V4, V15, V7, V9, V8, V16, V10-V13, decided/check model, V17, V18, V19,
       explain.rs, prescore - one commit each with corpus guard; calibrate, freeze.
-- [ ] 2B Store, runs, export: schema 3 + chain + WAL; save_match(es), mark_read, set_pinned, job_page; settings
+- [ ] 2B Store, runs, export (done with 1a except: wiring the real engine as LocalMatcher, profile quality/understood, topMatches, alsoOn, freelance.de guest teaser): schema 3 + chain + WAL; save_match(es), mark_read, set_pinned, job_page; settings
       (portal switches, autoFetchOnStart); LocalMatcher, scoring at JobUpdated + catch-up, Rust-triggered rescore and
       auto fetch; profile summary + template; Excel column + grey header, mail address out of info sheet; HTML
       overview; TXT byte tests; demo with high/mid/low/excluded.
