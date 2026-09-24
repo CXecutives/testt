@@ -243,9 +243,27 @@ pub(crate) fn atoms(text: &str, vocab: &Vocab) -> Vec<String> {
     result
 }
 
+/// The core's generic atoms plus the broad words of every domain pack (as written and
+/// stemmed): a field word is broad whoever reads it.
+static GENERIC: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut words: Vec<String> = lex::GENERIC_ATOMS
+        .iter()
+        .map(|w| (*w).to_owned())
+        .chain(
+            DOMAINS
+                .iter()
+                .flat_map(|d| d.generic.iter())
+                .flat_map(|w| [(*w).to_owned(), stem(w)]),
+        )
+        .collect();
+    words.sort();
+    words.dedup();
+    words
+});
+
 /// Is the atom too generic to meet a requirement on its own?
 pub(crate) fn is_generic(atom: &str) -> bool {
-    lexicon::contains(lex::GENERIC_ATOMS, atom)
+    GENERIC.binary_search_by(|w| w.as_str().cmp(atom)).is_ok()
 }
 
 /// Relation of a job atom to a profile atom.
@@ -440,9 +458,9 @@ mod tests {
         assert_eq!(finance.packs(), ["finance"]);
         let sap = Vocab::for_texts(["SAP FI", "SAP S/4HANA", "Datenmigration", "Jira"]);
         assert_eq!(sap.packs(), ["sap", "itProject"]);
-        // One stray trigger switches on no pack.
+        // One stray trigger switches on no pack: the HR profile gets no finance pack.
         let hr = Vocab::for_texts(["Recruiting", "Arbeitsrecht", "Budgetverantwortung"]);
-        assert!(hr.packs().is_empty(), "{:?}", hr.packs());
+        assert_eq!(hr.packs(), ["hr"]);
         let clinical = Vocab::for_texts(["Klinische Studien", "Clinical Trial Management"]);
         assert!(clinical.packs().is_empty());
         assert_ne!(

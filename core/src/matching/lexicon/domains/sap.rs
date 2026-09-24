@@ -7,6 +7,7 @@ use super::Domain;
 pub(crate) const DOMAIN: Domain = Domain {
     name: "sap",
     triggers: &["abap", "fiori", "s/4hana", "s4hana", "sap"],
+    generic: &[],
     concepts: &[
         ("order to cash", "order-to-cash"),
         ("otc", "order-to-cash"),
