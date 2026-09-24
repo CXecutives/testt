@@ -39,6 +39,9 @@ GLOW = (0xE9, 0x8C, 0x72)     # hsl(13 73% 68%)
 VARIANT = (0xD7, 0x66, 0x47)  # hsl(13 64% 56%)
 WHITE = (255, 255, 255)
 SMOOTHING = 0.6
+# The plate keeps the original circular-arc corners (the user preferred its rounder look);
+# only the folder uses corner smoothing.
+PLATE_SMOOTHING = 0.0
 
 # 1024 grid, Windows layout.
 PLATE, PLATE_R = 48, 212
@@ -198,12 +201,12 @@ RIGHT, DOWN, LEFT, UP = (1, 0), (0, 1), (-1, 0), (0, -1)
 
 
 def squircle(x0, y0, x1, y1, r):
-    p = (1 + SMOOTHING) * r
+    p = (1 + PLATE_SMOOTHING) * r
     path = Path2((x0 + p, y0))
     for v, e, f in [((x1, y0), RIGHT, DOWN), ((x1, y1), DOWN, LEFT),
                     ((x0, y1), LEFT, UP), ((x0, y0), UP, RIGHT)]:
         path.line(add(v, (-p, e)))
-        smooth_corner(path, v, e, f, r)
+        smooth_corner(path, v, e, f, r, PLATE_SMOOTHING)
     return path
 
 
