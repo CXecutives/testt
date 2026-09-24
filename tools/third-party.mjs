@@ -1,30 +1,37 @@
-// Erzeugt ui/THIRD-PARTY.txt: die Lizenzhinweise aller Bausteine, die im Programm landen.
+// Generates src-tauri/resources/THIRD-PARTY.txt: the license notices of everything that
+// ships inside the app - Rust crates, the npm runtime packages bundled into the UI, and the
+// Inter font.
 //
-// MIT und Apache-2.0 verlangen, dass der Urheberhinweis bei der Weitergabe mitgeht;
-// MPL-2.0 zusätzlich den Hinweis, wo der Quelltext liegt. Die Datei liegt in `ui/` und
-// wird damit ins Programm eingebettet – sie kann nicht verlorengehen, wenn jemand nur
-// die Exe weitergibt. Angezeigt wird sie nirgends.
+// MIT, Apache-2.0 and ISC require the copyright notice to travel with the program; MPL-2.0
+// additionally requires telling where the source is. The file is bundled as an app resource
+// and shown nowhere.
 //
 //     node tools/third-party.mjs
 //
-// Nach jedem Hinzufügen oder Entfernen einer Abhängigkeit erneut laufen lassen
-// (ein Test vergleicht die Liste mit Cargo.lock).
+// Run it again after adding or removing a dependency (core/tests/notices.rs compares the
+// list with the manifests).
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = join(repo, 'src-tauri', 'resources', 'THIRD-PARTY.txt');
+const FONT_LICENSE = join(repo, 'ui', 'src', 'assets', 'fonts', 'Inter-LICENSE.txt');
 
-// Beide Plattformen zusammen: Windows-eigene Kisten fehlen sonst im Mac-Lauf und umgekehrt.
+// Both platforms together: Windows-only crates would be missing from a Mac run and vice versa.
 const TARGETS = ['x86_64-pc-windows-msvc', 'aarch64-apple-darwin', 'x86_64-apple-darwin'];
 
-/** Alle Pakete, die wirklich ins Programm kommen (reine Test-Abhängigkeiten nicht). */
-function collect(target) {
-  const raw = execFileSync('cargo', [
-    'metadata', '--format-version', '1', '--filter-platform', target,
-  ], { cwd: repo, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' });
+/* ------------------------------------------------------------------ Rust */
+
+/** Every crate that ends up in the program (pure dev-dependencies do not). */
+function crates(target) {
+  const raw = execFileSync(
+    'cargo',
+    ['metadata', '--format-version', '1', '--filter-platform', target],
+    { cwd: repo, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' },
+  );
   const meta = JSON.parse(raw);
   const byId = new Map(meta.packages.map((p) => [p.id, p]));
   const nodes = new Map(meta.resolve.nodes.map((n) => [n.id, n]));
@@ -43,11 +50,33 @@ function collect(target) {
   return [...seen].map((id) => byId.get(id)).filter(Boolean);
 }
 
+/* ------------------------------------------------------------------- npm */
+
+/** The runtime packages of the UI and everything they depend on (dev tooling excluded). */
+function npmPackages() {
+  const lock = JSON.parse(readFileSync(join(repo, 'package-lock.json'), 'utf8'));
+  const out = [];
+  for (const [path, entry] of Object.entries(lock.packages ?? {})) {
+    if (path === '' || entry.dev || entry.devOptional || !path.startsWith('node_modules/')) {
+      continue;
+    }
+    const name = path.slice(path.lastIndexOf('node_modules/') + 'node_modules/'.length);
+    const dir = join(repo, path);
+    let license = entry.license;
+    if (!license && existsSync(join(dir, 'package.json'))) {
+      license = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).license;
+    }
+    out.push({ name, version: entry.version, license, dir });
+  }
+  return out;
+}
+
+/* ----------------------------------------------------------- license texts */
+
 const LICENSE_FILE = /^(licen[cs]e|copying|notice|unlicense)([-_.].*)?$/i;
 
-/** Die Lizenztexte, die eine Kiste selbst mitliefert. */
-function texts(pkg) {
-  const dir = dirname(pkg.manifest_path);
+/** The license texts a package ships itself. */
+function texts(dir) {
   if (!existsSync(dir)) return [];
   const out = [];
   for (const name of readdirSync(dir).sort()) {
@@ -55,107 +84,120 @@ function texts(pkg) {
     try {
       const body = readFileSync(join(dir, name), 'utf8').replace(/\r\n/g, '\n').trim();
       if (body.length > 40) out.push({ name, body });
-    } catch { /* unlesbar: dann steht nur die Lizenzangabe da */ }
+    } catch (error) {
+      // Unreadable: the package is still listed with its declared license.
+      console.warn(`${join(dir, name)}: ${error.message}`);
+    }
   }
   return out;
 }
 
-const packages = new Map();
-for (const target of TARGETS) {
-  let list;
-  try {
-    list = collect(target);
-  } catch {
-    // Ein Ziel, das hier nicht aufgelöst werden kann, wird übersprungen; der Hinweis
-    // steht am Ende der Datei, damit niemand glaubt, sie sei vollständig.
-    continue;
-  }
-  for (const p of list) {
-    if (p.source === null) continue;            // eigener Code
-    packages.set(`${p.name} ${p.version}`, p);
-  }
-}
-
-const sorted = [...packages.entries()].sort(([a], [b]) => a.localeCompare(b, 'en'));
-
-// Fast alle Texte sind derselbe Lizenzwortlaut mit einer anderen Urheberzeile. Der
-// Wortlaut wird einmal abgedruckt, die Urheberzeilen stehen bei den Bausteinen – so
-// bleibt jeder Hinweis erhalten und die Datei ein Fünftel so groß.
-// Eine echte Urheberzeile beginnt mit „Copyright“ und nennt ein Jahr. Ohne diese
-// Bedingung fängt man Sätze aus dem Apache-Wortlaut mit ein („copyright notice that …“).
+// Almost all texts are the same license wording with a different copyright line. The
+// wording is printed once; the copyright lines stay with each package, so every notice is
+// kept and the file is a fifth of the size. A real copyright line starts with "Copyright"
+// and names a year or an address (the Apache wording itself has lines starting with it).
 const HOLDER = /^[ \t]*copyright\b[^\n]*$/gim;
-// Der Apache-Wortlaut enthält selbst Zeilen, die mit „copyright“ beginnen. Eine echte
-// Urheberzeile nennt ein Jahr oder eine Adresse.
 const isHolder = (line) => /\b(19|20)\d{2}\b|[@<]/.test(line) && !line.includes('[yyyy]');
-const normalize = (body) => body.replace(HOLDER, '').replace(/\n{3,}/g, '\n\n').trim();
+const normalize = (body) =>
+  body
+    .replace(HOLDER, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
-const bodies = new Map();   // Wortlaut ohne Urheberzeile → Nummer
+const bodies = new Map(); // wording without copyright lines -> number
 const keyOf = (body) => {
   const core = normalize(body);
   if (!bodies.has(core)) bodies.set(core, bodies.size + 1);
   return bodies.get(core);
 };
-const holdersOf = (body) => (body.match(HOLDER) ?? [])
-  .map((l) => l.trim())
-  .filter((l) => l.length > 12 && l.length < 200 && isHolder(l));
+const holdersOf = (body) =>
+  (body.match(HOLDER) ?? [])
+    .map((l) => l.trim())
+    .filter((l) => l.length > 12 && l.length < 200 && isHolder(l));
 
+const RULE = '---------------------------------------------------------------------------';
 const lines = [];
-lines.push('Mitgelieferte Bausteine');
-lines.push('=======================');
-lines.push('');
-lines.push('Der Job-Alert-Monitor enthält die unten aufgeführten freien Bibliotheken.');
-lines.push('Diese Datei erfüllt die Hinweispflicht ihrer Lizenzen (vor allem MIT,');
-lines.push('Apache-2.0 und MPL-2.0). Sie wird von tools/third-party.mjs erzeugt.');
-lines.push('');
-lines.push('Quelltext jeder Bibliothek: https://crates.io/crates/<name> – dort steht auch');
-lines.push('das Projektarchiv. Das erfüllt die Quelltext-Auskunft der MPL-2.0.');
-lines.push('');
-lines.push('Die Schrift Inter steht unter der SIL Open Font License; ihr Text liegt in');
-lines.push('ui/fonts/Inter-LICENSE.txt.');
-lines.push('');
-lines.push(`Bausteine: ${sorted.length}`);
-lines.push('');
-lines.push('---------------------------------------------------------------------------');
-lines.push('');
+const withoutText = [];
 
-const ohneText = [];
-for (const [label, p] of sorted) {
-  const own = texts(p);
-  if (!own.length) ohneText.push(`${label} — ${p.license ?? 'ohne Angabe'}`);
-  const marks = [...new Set(own.map((t) => keyOf(t.body)))].map((n) => `[${n}]`).join(' ');
-  lines.push(`${label} — ${p.license ?? 'siehe Lizenzdatei'}${marks ? `  ${marks}` : ''}`);
-  for (const holder of [...new Set(own.flatMap((t) => holdersOf(t.body)))]) {
-    lines.push(`    ${holder}`);
+function listing(title, packages) {
+  lines.push(RULE, title, RULE, '');
+  for (const p of packages) {
+    const own = texts(p.dir);
+    const label = `${p.name} ${p.version}`;
+    if (!own.length) withoutText.push(`${label} - ${p.license ?? 'no license declared'}`);
+    const marks = [...new Set(own.map((t) => keyOf(t.body)))].map((n) => `[${n}]`).join(' ');
+    lines.push(`${label} - ${p.license ?? 'see license file'}${marks ? `  ${marks}` : ''}`);
+    for (const holder of [...new Set(own.flatMap((t) => holdersOf(t.body)))]) {
+      lines.push(`    ${holder}`);
+    }
+  }
+  lines.push('');
+}
+
+const rust = new Map();
+for (const target of TARGETS) {
+  let list;
+  try {
+    list = crates(target);
+  } catch (error) {
+    // A target that cannot be resolved here is skipped and named at the end of the file,
+    // so nobody takes the list for complete.
+    console.warn(`${target}: ${error.message}`);
+    continue;
+  }
+  for (const p of list) {
+    if (p.source === null) continue; // own code
+    rust.set(`${p.name} ${p.version}`, {
+      name: p.name,
+      version: p.version,
+      license: p.license,
+      dir: dirname(p.manifest_path),
+    });
   }
 }
+const byLabel = (a, b) => `${a.name} ${a.version}`.localeCompare(`${b.name} ${b.version}`, 'en');
+const rustList = [...rust.values()].sort(byLabel);
+const npmList = npmPackages().sort(byLabel);
 
-// Nichts verschweigen: Wer keinen Lizenztext mitliefert, steht trotzdem hier – mit der
-// Lizenzangabe aus seiner Cargo.toml und dem Verweis auf crates.io.
-if (ohneText.length) {
-  lines.push('');
-  lines.push('---------------------------------------------------------------------------');
-  lines.push('Ohne beigelegten Lizenztext');
-  lines.push('---------------------------------------------------------------------------');
-  lines.push('');
-  lines.push('Diese Bausteine nennen ihre Lizenz nur in den Metadaten. Der Wortlaut steht');
-  lines.push('unter https://spdx.org/licenses/, der Quelltext auf crates.io.');
-  lines.push('');
-  for (const line of ohneText) lines.push(line);
-}
-
+lines.push('Bundled components');
+lines.push('==================');
 lines.push('');
-lines.push('---------------------------------------------------------------------------');
-lines.push('Lizenztexte');
-lines.push('---------------------------------------------------------------------------');
-for (const [body, number] of [...bodies.entries()].sort((a, b) => a[1] - b[1])) {
+lines.push('Job-Alert-Monitor contains the free libraries listed below. This file fulfils');
+lines.push('the notice requirements of their licenses (mainly MIT, Apache-2.0, ISC and');
+lines.push('MPL-2.0). It is generated by tools/third-party.mjs.');
+lines.push('');
+lines.push('Source code: Rust crates at https://crates.io/crates/<name>, npm packages at');
+lines.push('https://www.npmjs.com/package/<name>; both name the repository. This fulfils');
+lines.push('the source information of the MPL-2.0.');
+lines.push('');
+lines.push('The font Inter is licensed under the SIL Open Font License 1.1; its text is');
+lines.push('at the end of this file.');
+lines.push('');
+lines.push(`Rust crates: ${rustList.length}`);
+lines.push(`npm packages: ${npmList.length}`);
+lines.push('');
+listing('Rust crates', rustList);
+listing('npm packages (user interface)', npmList);
+
+if (withoutText.length) {
+  lines.push(RULE, 'Without an included license text', RULE, '');
+  lines.push('These components declare their license only in their metadata. The wording');
+  lines.push('is at https://spdx.org/licenses/, the source at crates.io or npmjs.com.');
   lines.push('');
-  lines.push(`[${number}]`);
-  lines.push('');
-  lines.push(body);
-  lines.push('');
-  lines.push('---------------------------------------------------------------------------');
+  lines.push(...withoutText, '');
 }
 
-const out = join(repo, 'ui', 'THIRD-PARTY.txt');
-writeFileSync(out, `${lines.join('\n')}\n`, 'utf8');
-console.log(`${out}: ${sorted.length} Bausteine, ${bodies.size} Lizenztexte, ${Math.round(lines.join('\n').length / 1024)} KB`);
+lines.push(RULE, 'License texts', RULE);
+for (const [body, number] of [...bodies.entries()].sort((a, b) => a[1] - b[1])) {
+  lines.push('', `[${number}]`, '', body, '', RULE);
+}
+
+lines.push('', RULE, 'Font: Inter', RULE, '');
+lines.push(readFileSync(FONT_LICENSE, 'utf8').replace(/\r\n/g, '\n').trim());
+
+const text = `${lines.join('\n')}\n`;
+writeFileSync(OUT, text, 'utf8');
+console.log(
+  `${OUT}: ${rustList.length} crates, ${npmList.length} npm packages, ` +
+    `${bodies.size} license texts, ${Math.round(text.length / 1024)} KB`,
+);

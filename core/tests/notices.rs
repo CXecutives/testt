@@ -1,10 +1,12 @@
-//! `ui/THIRD-PARTY.txt` muss zu den Abhängigkeiten passen. MIT und Apache-2.0 verlangen,
-//! dass der Urheberhinweis bei der Weitergabe mitgeht – eine veraltete Liste wäre schlimmer
-//! als keine, weil sie Vollständigkeit vortäuscht.
+//! `src-tauri/resources/THIRD-PARTY.txt` muss zu den Abhängigkeiten passen. MIT und
+//! Apache-2.0 verlangen, dass der Urheberhinweis bei der Weitergabe mitgeht – eine veraltete
+//! Liste wäre schlimmer als keine, weil sie Vollständigkeit vortäuscht.
 //!
 //! Erzeugt wird die Datei mit `node tools/third-party.mjs`.
 
 use std::path::Path;
+
+const NOTICES: &str = "src-tauri/resources/THIRD-PARTY.txt";
 
 fn read(relative: &str) -> String {
     std::fs::read_to_string(
@@ -39,9 +41,18 @@ fn direct_dependencies(manifest: &str) -> Vec<String> {
     out
 }
 
+/// The runtime packages of the UI (`dependencies` in package.json, not the dev tooling).
+fn npm_runtime_dependencies(package_json: &str) -> Vec<String> {
+    let manifest: serde_json::Value = serde_json::from_str(package_json).expect("package.json");
+    manifest["dependencies"]
+        .as_object()
+        .map(|deps| deps.keys().cloned().collect())
+        .unwrap_or_default()
+}
+
 #[test]
 fn every_dependency_is_listed() {
-    let notices = read("ui/THIRD-PARTY.txt");
+    let notices = read(NOTICES);
     let mut missing = Vec::new();
     for manifest in ["core/Cargo.toml", "src-tauri/Cargo.toml"] {
         for name in direct_dependencies(&read(manifest)) {
@@ -55,36 +66,55 @@ fn every_dependency_is_listed() {
     }
     assert!(
         missing.is_empty(),
-        "Diese Abhängigkeiten fehlen in ui/THIRD-PARTY.txt: {}\n\
+        "Diese Abhängigkeiten fehlen in {NOTICES}: {}\n\
          Neu erzeugen mit: node tools/third-party.mjs",
         missing.join(", ")
+    );
+}
+
+/// The npm packages bundled into the UI need their notices as much as the crates.
+#[test]
+fn every_npm_runtime_package_is_listed() {
+    let notices = read(NOTICES);
+    let runtime = npm_runtime_dependencies(&read("package.json"));
+    assert!(
+        runtime.len() >= 3,
+        "package.json lists only {runtime:?} as runtime dependencies"
+    );
+    let missing: Vec<&String> = runtime
+        .iter()
+        .filter(|name| !notices.contains(&format!("\n{name} ")))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "npm packages missing in {NOTICES}: {missing:?}\n\
+         Regenerate with: node tools/third-party.mjs"
     );
 }
 
 /// Ein leerer oder abgeschnittener Hinweis wäre schlimmer als keiner.
 #[test]
 fn the_notice_file_is_complete() {
-    let notices = read("ui/THIRD-PARTY.txt");
+    let notices = read(NOTICES);
     assert!(
         notices.len() > 100_000,
-        "ui/THIRD-PARTY.txt ist nur {} Bytes groß – abgeschnitten?",
+        "{NOTICES} ist nur {} Bytes groß – abgeschnitten?",
         notices.len()
     );
     for marker in [
-        "Mitgelieferte Bausteine",
-        "Lizenztexte",
+        "Bundled components",
+        "npm packages",
+        "License texts",
         "MIT",
         "Apache License",
+        "SIL OPEN FONT LICENSE",
     ] {
-        assert!(
-            notices.contains(marker),
-            "„{marker}“ fehlt in ui/THIRD-PARTY.txt"
-        );
+        assert!(notices.contains(marker), "„{marker}“ fehlt in {NOTICES}");
     }
     // Die Schrift wird getrennt gehalten, der Verweis darauf muss stimmen.
     assert!(
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../ui/fonts/Inter-LICENSE.txt")
+            .join("../ui/src/assets/fonts/Inter-LICENSE.txt")
             .exists(),
         "Die Lizenz der mitgelieferten Schrift fehlt"
     );
