@@ -156,6 +156,8 @@ export const text = {
     rows: 'Jobliste',
     shuffle: 'Sortieren',
     replay: 'Neu einblenden',
+    archive: 'Archivieren',
+    delete: 'Löschen',
     reasonLabels: {
       met: 'Controlling mit SAP S/4HANA',
       partial: 'Konzernabschluss nach IFRS',

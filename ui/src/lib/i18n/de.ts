@@ -486,6 +486,11 @@ export const de = {
   splitter: {
     label: 'Breite der Liste',
   },
+  /** The bar that replaces the list's second row while several jobs are selected. */
+  selection: {
+    count: (n: number) => `${n} ausgewählt`,
+    clear: 'Auswahl aufheben',
+  },
   /** The native context menu of fields and selected text (the OS's words). */
   edit: {
     cut: 'Ausschneiden',

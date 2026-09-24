@@ -28,6 +28,8 @@
 // - no Ctrl/Cmd+wheel zoom (the wheel is watched only while Ctrl or Cmd is held, so plain
 //   scrolling never waits for the page) and no pinch zoom
 // - no hover flicker while a list scrolls (`:root[data-scrolling]`, see onScroll)
+// - Esc outside fields and dialogs clears what is selected (`escape`: the selection of
+//   several jobs), like in a mail app
 
 import type { Action } from 'svelte/action';
 import { t } from '../i18n/t';
@@ -332,8 +334,32 @@ function onKeyDown(event: KeyboardEvent): void {
   }
   if (isFocusMove(event) || pressesControl(event)) return;
   if (closest(event.target, `${FORM}, ${DIALOG}`) !== null) dispatchFormKey(event);
+  if (!event.defaultPrevented && event.key === 'Escape' && !hasModifier(event)) {
+    escapes.at(-1)?.();
+  }
   event.preventDefault();
 }
+
+/** What Esc clears outside fields and dialogs; the newest first. */
+const escapes: (() => void)[] = [];
+
+/**
+ * `use:escape={clear}`: while the node is mounted, Esc outside fields and dialogs calls
+ * `clear` (the selection bar: Esc clears the selection). No listener of its own.
+ */
+export const escape: Action<HTMLElement, () => void> = (_node, handler) => {
+  let current = handler;
+  const call = (): void => current();
+  escapes.push(call);
+  return {
+    update(next: () => void) {
+      current = next;
+    },
+    destroy() {
+      escapes.splice(escapes.indexOf(call), 1);
+    },
+  };
+};
 
 const prevent = (event: Event): void => event.preventDefault();
 
