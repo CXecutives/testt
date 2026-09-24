@@ -133,6 +133,17 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   await expect(quota.getByRole('progressbar')).toHaveAttribute('aria-valuenow', /^9[45]/);
 });
 
+test('first run: a profile that names nothing to score keeps step two open', async ({ page }) => {
+  await open(page, `${WIN}&scenario=first-run-empty-profile`);
+  const step = page.getByTestId('step-profile');
+  await expect(step).toHaveAttribute('data-done', 'false');
+  await expect(page.getByTestId('profile-hint')).toHaveText(
+    'Ohne Kompetenzen wird nichts bewertet.',
+  );
+  await expect(page.getByTestId('first-pick-profile')).toHaveClass(/primary/);
+  await expect(page.getByTestId('first-fetch')).not.toHaveClass(/primary/);
+});
+
 test('files: rewrite and delete the text files where they are', async ({ page }) => {
   await settings(page);
   await page.getByTestId('txt-rewrite').click();

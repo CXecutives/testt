@@ -16,7 +16,8 @@
 //   window.__harness.job(key)       a copy of a job as the stub holds it
 //
 // Scenarios (`?scenario=`): default · first-run · mailbox-only · no-profile · empty ·
-// many (2000 jobs) · offline · paused · running · slow · list-error · reset.
+// many (2000 jobs) · offline · paused · running · slow · list-error · reset ·
+// first-run-empty-profile.
 // `?tick=ms` sets the pace of a scripted run (default 40); `?export=locked` lets the export
 // of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail.
 // Dates are fixed so screenshots stay stable (the tests also fix the clock). The portals
@@ -582,6 +583,13 @@ function initial(): void {
       state.firstRun = true;
       state.profile = null;
       state.lastRun = null;
+      break;
+    case 'first-run-empty-profile':
+      // A profile that names no competences: nothing can be scored with it.
+      jobs = [];
+      state.firstRun = true;
+      state.lastRun = null;
+      state.profile = { ...PROFILE, quality: 'empty' };
       break;
     case 'no-profile':
       state.profile = null;

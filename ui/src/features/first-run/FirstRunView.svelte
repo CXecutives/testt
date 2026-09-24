@@ -1,8 +1,9 @@
 <!--
   First run (full page) on the white sheet: the app mark, one sentence of what the app
   does, one about privacy, and three real steps that tick themselves: connect the mailbox,
-  choose a profile (or save a template first), fetch. The next open step carries the one
-  primary button; "Abrufen" stays locked with its reason until a mailbox is connected.
+  choose a profile (or save a template first), fetch. A profile that does not read or names
+  nothing to score with leaves step two open and says why. The next open step carries the
+  one primary button; "Abrufen" stays locked with its reason until a mailbox is connected.
   Compact enough that the third step is in view at 1280 x 720; the sidebar is inert here.
 -->
 <script lang="ts">
@@ -20,7 +21,13 @@
   import MailboxForm from '../shared/MailboxForm.svelte';
 
   const mailboxDone = $derived(app.hasMailbox);
-  const profileDone = $derived(app.state?.profile != null);
+  // Done only with a profile the app can score with (the same rule as everywhere).
+  const profileDone = $derived(app.hasProfile);
+  const profileHint = $derived.by(() => {
+    const profile = app.state?.profile ?? null;
+    if (profile === null) return de.firstRun.profileOr;
+    return profile.parseError ? de.profile.parseError : de.profile.qualityText.empty;
+  });
   /** The step whose action is the primary one. */
   const current = $derived(!mailboxDone ? 1 : !profileDone ? 2 : 3);
   let profileNote = $state<{ tone: 'danger'; text: string } | null>(null);
@@ -86,7 +93,7 @@
             {#if profileDone}
               <p class="done-text">{app.state?.profile?.fileName}</p>
             {:else}
-              <p class="hint">{de.firstRun.profileOr}</p>
+              <p class="hint" data-testid="profile-hint">{profileHint}</p>
               <div class="actions">
                 <Button
                   variant={current === 2 ? 'primary' : 'secondary'}
@@ -123,6 +130,7 @@
                 label={de.toolbar.fetch}
                 disabled={!mailboxDone}
                 disabledReason={de.toolbar.needsMailbox}
+                loading={run.starting}
                 testid="first-fetch"
                 onclick={() => void run.start({ kind: 'fetch' })}
               />
