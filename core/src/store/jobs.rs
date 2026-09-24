@@ -223,12 +223,13 @@ impl Store {
         row.transpose()
     }
 
-    /// Full text of a job (only with status `ok`).
+    /// Text of a job: the full text (status `ok`) or the teaser a guest sees (`teaser`).
     pub fn description(&self, key: &JobKey) -> Result<Option<String>> {
         Ok(self
             .conn()
             .query_row(
-                "SELECT desc_text FROM job WHERE portal = ?1 AND job_id = ?2 AND desc_status = 'ok'",
+                "SELECT desc_text FROM job WHERE portal = ?1 AND job_id = ?2
+                 AND desc_status IN ('ok', 'teaser')",
                 params![key.portal.key(), key.id],
                 |r| r.get(0),
             )
@@ -449,6 +450,26 @@ impl Store {
         })
     }
 
+    /// Only the teaser a guest sees: stored for matching and marked, never as a text file.
+    /// A full text is never downgraded. The attempt counter starts again, so that a sign-in
+    /// switched on later fetches the full text right away.
+    pub fn record_teaser(&self, key: &JobKey, text: &str, now: Timestamp) -> Result<()> {
+        self.write(|conn| {
+            let changed = conn.execute(
+                "UPDATE job SET desc_status = 'teaser', desc_text = ?3, desc_short = 0,
+                                desc_closed = 0, desc_fetched_at = ?4, desc_attempted_at = ?4,
+                                desc_attempts = 0, desc_error = NULL, match_rev = NULL
+                 WHERE portal = ?1 AND job_id = ?2 AND desc_status <> 'ok'",
+                params![key.portal.key(), key.id, text, to_db(now)],
+            )?;
+            if changed > 0 {
+                bump(conn)?;
+                refresh_search(conn, key)?;
+            }
+            Ok(())
+        })
+    }
+
     /// The ad no longer exists.
     pub fn record_gone(&self, key: &JobKey, now: Timestamp) -> Result<()> {
         self.write(|conn| {
@@ -466,7 +487,8 @@ impl Store {
     }
 
     /// Page loaded, but no valid text: count the attempt; after `MAX_FETCH_ATTEMPTS` the job
-    /// counts as unfetchable. A job with a valid text stays unchanged (returns its status).
+    /// counts as unfetchable. A job with a valid text stays unchanged (returns its status); a
+    /// teaser stays a teaser (it is only fetched again with a sign-in, see `DUE`).
     /// The reason often comes from the page (redirect target, script error) - it is stored
     /// as one short line.
     pub fn record_failed(&self, key: &JobKey, error: &str, now: Timestamp) -> Result<DescStatus> {
@@ -475,7 +497,9 @@ impl Store {
             let updated: Option<String> = conn
                 .query_row(
                     "UPDATE job SET desc_attempts = desc_attempts + 1, desc_attempted_at = ?3, desc_error = ?4,
-                                    desc_status = CASE WHEN desc_attempts + 1 >= ?5 THEN 'unfetchable' ELSE 'failed' END
+                                    desc_status = CASE WHEN desc_status = 'teaser' THEN 'teaser'
+                                                       WHEN desc_attempts + 1 >= ?5 THEN 'unfetchable'
+                                                       ELSE 'failed' END
                      WHERE portal = ?1 AND job_id = ?2 AND desc_status <> 'ok'
                      RETURNING desc_status",
                     params![key.portal.key(), key.id, to_db(now), error, MAX_FETCH_ATTEMPTS],
@@ -584,10 +608,14 @@ pub(super) const JOB_COLUMNS: &str = "portal, job_id, url, title, company, locat
 pub(super) const JOB_COLUMN_COUNT: usize = 26;
 
 /// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
-/// mail not older than `?1`.
+/// or a teaser (right away, after a failed attempt like a failure, at most
+/// `MAX_FETCH_ATTEMPTS` times) - mail not older than `?1`. Teasers are only fetched on a
+/// session path (`fetch::fetch_all`).
 const DUE: &str = "COALESCE(mail_date, first_seen_at) >= ?1
     AND (desc_status = 'missing'
-         OR (desc_status = 'failed' AND COALESCE(desc_attempted_at, 0) <= ?2))";
+         OR (desc_status = 'failed' AND COALESCE(desc_attempted_at, 0) <= ?2)
+         OR (desc_status = 'teaser' AND desc_attempts < 3
+             AND (desc_attempts = 0 OR COALESCE(desc_attempted_at, 0) <= ?2)))";
 
 fn due_params(now: Timestamp, max_age: SignedDuration, retry_after: SignedDuration) -> [i64; 2] {
     [

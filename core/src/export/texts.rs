@@ -64,6 +64,7 @@ pub fn details_label(job: &JobRow) -> &'static str {
         DescStatus::Ok if job.desc_closed => "vorhanden (Anzeige geschlossen)",
         DescStatus::Ok if job.desc_short => "vorhanden (kurz)",
         DescStatus::Ok => "vorhanden",
+        DescStatus::Teaser => "nur Kurzfassung (ohne Anmeldung)",
         DescStatus::Missing => "fehlt",
         DescStatus::Failed => "fehlgeschlagen – neuer Versuch folgt",
         DescStatus::Gone => "Anzeige nicht mehr abrufbar",

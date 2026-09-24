@@ -142,6 +142,12 @@ pub enum PageOutcome {
         closed: bool,
         fields: Option<PageFields>,
     },
+    /// Only the teaser a guest sees (freelance.de without sign-in): short, but the right
+    /// page - stored for matching and marked, never as a text file.
+    Teaser {
+        text: String,
+        fields: Option<PageFields>,
+    },
     /// The ad no longer exists.
     Gone,
     /// Page loaded but without a recognisable description.
@@ -355,6 +361,8 @@ impl StopReason {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PortalCounts {
     pub ok: usize,
+    /// Only the teaser (guest path).
+    pub teaser: usize,
     pub short: usize,
     pub closed: usize,
     pub gone: usize,
@@ -540,10 +548,6 @@ pub async fn fetch_all<F: PageFetcher>(
     mut on_event: impl FnMut(FetchEvent),
 ) -> crate::Result<bool> {
     let queue = queue(store, selection, clock())?;
-    let total = queue.len();
-    summary.queued = total;
-    on_event(FetchEvent::Queued { total });
-
     let mut by_portal: BTreeMap<Portal, Vec<JobRow>> = BTreeMap::new();
     for job in queue {
         by_portal.entry(job.key.portal).or_default().push(job);
@@ -553,12 +557,22 @@ pub async fn fetch_all<F: PageFetcher>(
     let mut work = Vec::new();
     for adapter in fetch_order() {
         let portal = adapter.portal();
-        if let Some(jobs) = by_portal.remove(&portal) {
+        if let Some(mut jobs) = by_portal.remove(&portal) {
             let fetcher = pages(portal)
                 .map_err(|detail| crate::Error::FetchUnavailable { portal, detail })?;
-            work.push((portal, jobs, fetcher));
+            // A teaser is only worth another request where the full text can come: in the
+            // session window.
+            if !fetcher.session() {
+                jobs.retain(|job| job.desc_status != DescStatus::Teaser);
+            }
+            if !jobs.is_empty() {
+                work.push((portal, jobs, fetcher));
+            }
         }
     }
+    let total = work.iter().map(|(_, jobs, _)| jobs.len()).sum();
+    summary.queued = total;
+    on_event(FetchEvent::Queued { total });
 
     // Own cancellation: the user cancels through the given token, an error in a portal
     // through this one.
@@ -743,6 +757,23 @@ async fn portal_loop<F: PageFetcher, C: Fn() -> Timestamp>(
                     FetchEvent::JobUpdated {
                         key: job.key.clone(),
                         status: DescStatus::Ok,
+                    },
+                );
+                None
+            }
+            PageOutcome::Teaser { text, fields } => {
+                store.record_teaser(&job.key, &text, now)?;
+                if let Some(f) = fields {
+                    store.record_page_fields(&job.key, &f.title, &f.company, &f.location)?;
+                }
+                // The right page, read as far as a guest can: the layout is fine.
+                lock(policy).clear_suspicious(portal);
+                counts.teaser += 1;
+                note(
+                    notes,
+                    FetchEvent::JobUpdated {
+                        key: job.key.clone(),
+                        status: DescStatus::Teaser,
                     },
                 );
                 None

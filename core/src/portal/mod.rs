@@ -16,6 +16,10 @@ mod linkedin;
 mod probe;
 
 #[cfg(test)]
+pub(crate) use freelance_de::tests::{
+    TEASER as FREELANCE_DE_TEASER, guest_html as freelance_de_page,
+};
+#[cfg(test)]
 pub(crate) use freelancermap::tests::page as freelancermap_page;
 #[cfg(test)]
 pub(crate) use linkedin::tests::page as linkedin_page;
@@ -723,7 +727,7 @@ mod tests {
             Portal::ALL.map(Portal::access),
             [
                 Access::Guest,
-                Access::Session { required: true },
+                Access::Session { required: false },
                 Access::Guest
             ]
         );

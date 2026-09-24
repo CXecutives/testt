@@ -1077,3 +1077,76 @@ fn run_requests_are_flat_json() {
     }
     assert!(serde_json::from_str::<RunRequest>(r#"{"kind":"scan"}"#).is_err());
 }
+
+/// Records which fetch path the run builds per portal (mails and pages from the demo).
+#[derive(Default)]
+struct Paths(Vec<(Portal, FetchPath)>);
+
+impl Backends for Paths {
+    type Mail = DemoMail;
+    type Pages = DemoPages;
+    async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
+        DemoBackends.connect_mail(cancel).await
+    }
+    fn pages(&mut self, portal: Portal, path: FetchPath) -> Result<DemoPages, String> {
+        self.0.push((portal, path));
+        Ok(DemoPages)
+    }
+}
+
+/// The switches reach the fetch: details off = no fetch path at all (zero requests);
+/// sign-in off = the guest path, never a session window; sign-in on = the session window.
+#[tokio::test(start_paused = true)]
+async fn switches_decide_the_fetch_path() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let mut settings = crate::settings::Settings::default();
+    settings
+        .portals
+        .get_mut(&Portal::LinkedIn)
+        .unwrap()
+        .fetch_details = false;
+    let context = RunContext {
+        fetch_portals: settings.fetch_portals(),
+        sign_in: Vec::new(),
+        ..ctx(dir.path(), false)
+    };
+    let mut paths = Paths::default();
+    let (s, _) = go(
+        &mut paths,
+        &store,
+        &request(),
+        &context,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.outcome, Outcome::Completed);
+    assert_eq!(
+        paths.0,
+        [
+            (Portal::Freelancermap, FetchPath::Guest),
+            (Portal::FreelanceDe, FetchPath::Guest)
+        ]
+    );
+    let fetch = s.fetch.unwrap();
+    assert!(!fetch.per_portal.contains_key(&Portal::LinkedIn));
+
+    let context = RunContext {
+        sign_in: vec![Portal::FreelanceDe],
+        ..context
+    };
+    let mut paths = Paths::default();
+    let store = Store::in_memory().unwrap();
+    go(
+        &mut paths,
+        &store,
+        &request(),
+        &context,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert!(paths.0.contains(&(Portal::FreelanceDe, FetchPath::Session)));
+}

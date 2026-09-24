@@ -1,12 +1,20 @@
-//! freelance.de. Alerts come from freelance.de; the full project page is only readable
-//! signed in, in the session window. The window only collects findings by script (status,
-//! address, sign-in signs, page fields, HTML of the description field); judging them and
-//! turning them into text happens here in Rust. Company and location show up for non-EXPERT
-//! members only as a placeholder - that one stays out.
+//! freelance.de. Alerts come from freelance.de. A guest sees the public project page with a
+//! teaser (measured 242-306 characters); the full text is only readable signed in, in the
+//! session window - and only if the user switched the sign-in on.
+//!
+//! The session window only collects findings by script (status, address, sign-in signs,
+//! page fields, HTML of the description field); the guest page is read from its HTML with
+//! the same rules. Judging them and turning them into text happens here in Rust. Company and
+//! location show up for non-EXPERT members only as a placeholder - that one stays out.
 
+use std::sync::LazyLock;
+
+use scraper::{ElementRef, Html};
 use url::Url;
 
-use super::{Access, JobLink, Portal, PortalAdapter, all_digits, host_and_segments, host_is};
+use super::{
+    Access, Css, JobLink, Portal, PortalAdapter, all_digits, host_and_segments, host_is, selector,
+};
 use crate::fetch::policy::Limits;
 use crate::fetch::site::{PortalSite, SessionPage};
 use crate::fetch::{Cause, PageFields, PageOutcome, Parsed, judge};
@@ -57,8 +65,9 @@ impl PortalAdapter for FreelanceDe {
             per_day: 30,
         }
     }
+    /// Without a sign-in a guest still gets the teaser.
     fn access(&self) -> Access {
-        Access::Session { required: true }
+        Access::Session { required: false }
     }
 
     /// `/project/index.php?id=<ID>`, `/projekte/projekt-<ID>[-slug]` or
@@ -100,9 +109,39 @@ impl PortalAdapter for FreelanceDe {
         PageOutcome::Suspicious(Cause::RedirectNotFollowed)
     }
 
-    /// Not reached: without a sign-in the portal is not fetched at all.
-    fn guest_page(&self, _html: &str, _path: &str, _link: &JobLink) -> PageOutcome {
-        PageOutcome::LoginRequired(Cause::NoLogoutLink)
+    /// The public project page: the teaser, rarely the full text. Measured anonymously: an
+    /// expired project leads to a project list or category - for a guest that is "gone".
+    fn guest_page(&self, html: &str, path: &str, link: &JobLink) -> PageOutcome {
+        if path.starts_with("/login") {
+            return PageOutcome::Blocked(Cause::LoginWall);
+        }
+        if is_listing(path) {
+            return PageOutcome::Gone;
+        }
+        let page = guest_findings(html);
+        if page.has_captcha && page.panel_html.is_none() {
+            return PageOutcome::Blocked(Cause::Captcha);
+        }
+        // The id from the mail is in the path of every project address; the fetch address
+        // itself carries it in the query.
+        if !path.contains(&link.key.id) && path != "/project/index.php" {
+            return PageOutcome::Suspicious(Cause::WrongPage);
+        }
+        let full = page.panel_html.as_deref().map(html_to_text);
+        let text = full.as_deref().map(cut_at_end_markers);
+        let fields = page_fields(&page.title, &page.company, &page.location);
+        if is_teaser(full.as_deref(), text.as_deref()) || (page.has_expert_marker && full.is_none())
+        {
+            return PageOutcome::Teaser {
+                text: text.unwrap_or_default(),
+                fields: Some(fields).filter(|f| *f != PageFields::default()),
+            };
+        }
+        judge(Parsed {
+            text,
+            fields,
+            ..Parsed::default()
+        })
     }
 
     fn session(&self) -> Option<&'static PortalSite> {
@@ -245,6 +284,85 @@ pub fn judge_page(page: &SessionPage, project_id: &str) -> PageOutcome {
     })
 }
 
+/// The findings of the probe script, read from the HTML of a guest page (same rules).
+fn guest_findings(html: &str) -> SessionPage {
+    static HEADINGS: Css = LazyLock::new(|| selector("h1, h2, h3"));
+    static PANEL_BODY: Css = LazyLock::new(|| selector(".panel-body"));
+    static HEADER: Css = LazyLock::new(|| selector(".panel-body.project-header"));
+    static TITLE: Css = LazyLock::new(|| selector("h1"));
+    static ANY: Css = LazyLock::new(|| selector("*"));
+    static CAPTCHA: Css = LazyLock::new(|| {
+        selector(
+            r#".g-recaptcha, .h-captcha, [data-sitekey], iframe[src*="captcha"], iframe[src*="challenges.cloudflare"]"#,
+        )
+    });
+    let doc = Html::parse_document(html);
+    let text = |el: ElementRef<'_>| one_line(&el.text().collect::<String>());
+    let heading = doc
+        .select(&HEADINGS)
+        .find(|h| text(*h).to_lowercase().contains("projektbeschreibung"));
+    let panel = heading.map(|h| {
+        let parent = h.parent().and_then(ElementRef::wrap).unwrap_or(h);
+        let panel = h
+            .ancestors()
+            .filter_map(ElementRef::wrap)
+            .find(|a| a.value().classes().any(|c| c == "panel"))
+            .unwrap_or(parent);
+        panel.select(&PANEL_BODY).next().unwrap_or(panel)
+    });
+    let header = doc.select(&HEADER).next();
+    // A leaf with the label, the value in the next element or after the label.
+    let labelled = |labels: &[&str]| -> String {
+        let Some(header) = header else {
+            return String::new();
+        };
+        for el in header.select(&ANY) {
+            if el.children().any(|c| c.value().is_element()) {
+                continue;
+            }
+            let label = text(el);
+            let bare = label.trim_end_matches(':').trim().to_lowercase();
+            if !labels.contains(&bare.as_str()) {
+                continue;
+            }
+            let next = el.next_siblings().find_map(ElementRef::wrap).map(text);
+            let value = next.filter(|v| !v.is_empty()).unwrap_or_else(|| {
+                el.parent()
+                    .and_then(ElementRef::wrap)
+                    .and_then(|p| text(p).get(label.len()..).map(|v| v.trim().to_string()))
+                    .unwrap_or_default()
+            });
+            if !value.is_empty() {
+                return value;
+            }
+        }
+        String::new()
+    };
+    SessionPage {
+        ok: true,
+        status: 200,
+        has_expert_marker: text(doc.root_element())
+            .to_lowercase()
+            .contains("für expert-mitglieder sichtbar"),
+        has_captcha: doc.select(&CAPTCHA).next().is_some(),
+        title: header
+            .and_then(|h| h.select(&TITLE).next())
+            .map(text)
+            .unwrap_or_default(),
+        // German page labels, do not translate.
+        company: labelled(&[
+            "firma",
+            "unternehmen",
+            "projektanbieter",
+            "auftraggeber",
+            "kunde",
+        ]),
+        location: labelled(&["ort", "einsatzort", "standort", "plz / ort", "plz/ort"]),
+        panel_html: panel.map(|p| p.inner_html()),
+        ..SessionPage::default()
+    }
+}
+
 /// Status codes that decide without looking at the content.
 fn status_outcome(status: u16) -> Option<PageOutcome> {
     Some(match status {
@@ -297,8 +415,95 @@ fn cut_at_end_markers(text: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+    use crate::portal::job_link;
+
+    /// A public project page as a guest sees it (invented content, layout of the probe).
+    pub(crate) fn guest_html(panel: &str) -> String {
+        format!(
+            r#"<html><body>
+            <div class="panel"><div class="panel-body project-header"><h1>Interim Controller (m/w/d)</h1>
+              <ul><li><span>Ort:</span> <span>Hamburg</span></li><li><span>Start:</span> <span>01.11.2026</span></li>
+              <li><span>Dauer:</span> <span>6 Monate</span></li><li><span>Remote:</span> <span>100 %</span></li></ul></div></div>
+            <div class="panel"><div class="panel-heading"><h2>Projektbeschreibung</h2></div><div class="panel-body">{panel}</div></div>
+            </body></html>"#
+        )
+    }
+
+    pub(crate) const TEASER: &str = "<p>Derzeit suchen wir für unseren Kunden einen Controller.</p><p>Kostenlos registrieren und alle Details sehen</p>";
+
+    fn guest(html: &str, path: &str) -> PageOutcome {
+        let link = job_link("https://www.freelance.de/project/index.php?id=1255067").unwrap();
+        FreelanceDe.guest_page(html, path, &link)
+    }
+
+    #[test]
+    fn a_guest_gets_the_teaser_with_the_page_fields() {
+        let teaser = guest_html(TEASER);
+        match guest(&teaser, "/projekte/projekt-1255067-interim-controlling") {
+            PageOutcome::Teaser { text, fields } => {
+                assert_eq!(
+                    text,
+                    "Derzeit suchen wir für unseren Kunden einen Controller."
+                );
+                let fields = fields.unwrap();
+                assert_eq!(fields.title, "Interim Controller (m/w/d)");
+                assert_eq!(fields.location, "Hamburg");
+                assert_eq!(fields.company, "");
+            }
+            other => panic!("{other:?}"),
+        }
+        // The fetch address itself (no redirect): the id is in the query.
+        assert!(matches!(
+            guest(&teaser, "/project/index.php"),
+            PageOutcome::Teaser { .. }
+        ));
+        // Only the EXPERT notice, no text field: an empty teaser - still the right page.
+        let expert = "<html><body><p>Details für EXPERT-Mitglieder sichtbar</p></body></html>";
+        assert_eq!(
+            guest(expert, "/project/index.php"),
+            PageOutcome::Teaser {
+                text: String::new(),
+                fields: None
+            }
+        );
+    }
+
+    /// What a guest sees in full is the full text.
+    #[test]
+    fn a_full_text_for_a_guest_is_the_full_text() {
+        let long = format!("<p>{}</p>", "Aufgaben und Anforderungen. ".repeat(6));
+        assert!(matches!(
+            guest(&guest_html(&long), "/projekte/projekt-1255067-x"),
+            PageOutcome::Text { short: false, .. }
+        ));
+    }
+
+    #[test]
+    fn guest_walls_lists_and_wrong_pages() {
+        let teaser = guest_html(TEASER);
+        assert_eq!(
+            guest(&teaser, "/login.php"),
+            PageOutcome::Blocked(Cause::LoginWall)
+        );
+        assert_eq!(
+            guest("<html>Liste</html>", "/projekte/it-entwicklung-projekte"),
+            PageOutcome::Gone
+        );
+        assert_eq!(
+            guest(&teaser, "/projekte/projekt-9999999-x"),
+            PageOutcome::Suspicious(Cause::WrongPage)
+        );
+        assert_eq!(
+            guest(r#"<div class="g-recaptcha"></div>"#, "/project/index.php"),
+            PageOutcome::Blocked(Cause::Captcha)
+        );
+        assert_eq!(
+            guest("<html>nichts</html>", "/project/index.php"),
+            PageOutcome::Suspicious(Cause::NoDescription)
+        );
+    }
 
     fn page(url: &str, logout: bool, panel: Option<&str>) -> SessionPage {
         SessionPage {

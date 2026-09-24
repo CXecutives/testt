@@ -210,6 +210,7 @@ mod tests {
     use crate::portal::freelancermap_page as fm_page;
     use crate::portal::job_link;
     use crate::portal::linkedin_page as li_page;
+    use crate::portal::{FREELANCE_DE_TEASER, freelance_de_page as fl_page};
 
     const UA: &str = "Mozilla/5.0 Test";
 
@@ -481,6 +482,51 @@ mod tests {
             fetch(&mut f, "https://jobs.probe.example/job/4711").await,
             PageOutcome::Text { short: false, .. }
         ));
+    }
+
+    /// freelance.de without the sign-in: the public page as a guest gives the teaser; an
+    /// expired project leads to a project list and is gone.
+    #[tokio::test]
+    async fn freelance_de_as_a_guest_gives_the_teaser() {
+        let (server, mut f) = server().await;
+        Mock::given(path("/project/index.php"))
+            .respond_with(
+                ResponseTemplate::new(301)
+                    .insert_header("location", "/projekte/projekt-1255067-interim"),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(path("/projekte/projekt-1255067-interim"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(fl_page(FREELANCE_DE_TEASER)))
+            .mount(&server)
+            .await;
+        let outcome = fetch(
+            &mut f,
+            "https://www.freelance.de/project/index.php?id=1255067",
+        )
+        .await;
+        assert!(
+            matches!(&outcome, PageOutcome::Teaser { text, .. } if text.contains("Controller")),
+            "{outcome:?}"
+        );
+
+        server.reset().await;
+        Mock::given(path("/project/index.php"))
+            .respond_with(ResponseTemplate::new(302).insert_header("location", "/projekte/it"))
+            .mount(&server)
+            .await;
+        Mock::given(path("/projekte/it"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("<html>Liste</html>"))
+            .mount(&server)
+            .await;
+        assert_eq!(
+            fetch(
+                &mut f,
+                "https://www.freelance.de/project/index.php?id=1255068"
+            )
+            .await,
+            PageOutcome::Gone
+        );
     }
 
     #[tokio::test]

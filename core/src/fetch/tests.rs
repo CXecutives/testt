@@ -41,6 +41,8 @@ struct Fake {
     login_delay: Duration,
     /// This copy is a session window (like freelance.de with the sign-in switched on).
     session: bool,
+    /// Every portal goes as a guest (freelance.de with the sign-in switched off).
+    guest_only: bool,
 }
 
 impl Fake {
@@ -206,7 +208,7 @@ async fn run_inner(
         // guest path everywhere else.
         |portal| {
             Ok(Fake {
-                session: portal == FL,
+                session: portal == FL && !fake.guest_only,
                 ..fake.clone()
             })
         },
@@ -1263,4 +1265,80 @@ async fn a_fourth_portal_runs_through_the_registry_alone() {
     )
     .await;
     assert!(fake.calls().is_empty());
+}
+
+fn teaser() -> PageOutcome {
+    PageOutcome::Teaser {
+        text: "Derzeit suchen wir einen Controller.".into(),
+        fields: Some(PageFields {
+            title: "Interim Controller (m/w/d)".into(),
+            ..PageFields::default()
+        }),
+    }
+}
+
+/// Without the sign-in freelance.de goes as a guest: the teaser is stored for matching and
+/// marked as such - no text file, and it counts as no full text.
+#[tokio::test(start_paused = true)]
+async fn a_guest_teaser_is_stored_and_marked() {
+    let c = clock();
+    let store = store_with(&[(FL, 1_255_067, 1)]);
+    let fake = Fake {
+        guest_only: true,
+        ..Fake::default()
+    }
+    .with("1255067", [teaser()]);
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[FL]), &c).await;
+    assert_eq!(r.summary.per_portal[&FL].teaser, 1);
+    assert_eq!(r.summary.per_portal[&FL].ok, 0);
+    let job = store.job(&key(FL, 1_255_067)).unwrap().unwrap();
+    assert_eq!(job.desc_status, DescStatus::Teaser);
+    assert_eq!(job.title, "Interim Controller (m/w/d)");
+    assert_eq!(
+        store.description(&job.key).unwrap().as_deref(),
+        Some("Derzeit suchen wir einen Controller.")
+    );
+    assert!(store.txt_jobs(true).unwrap().is_empty(), "no text file");
+    assert!(fake.calls().iter().all(|call| !call.session));
+    // As a guest the teaser is not fetched again.
+    run(&fake, &store, &mut policy, Selection::Queue(&[FL]), &c).await;
+    assert_eq!(fake.calls().len(), 1);
+    // With the sign-in switched on, the full text comes in the session window.
+    let signed_in = Fake::default();
+    let r = run(&signed_in, &store, &mut policy, Selection::Queue(&[FL]), &c).await;
+    assert_eq!(r.summary.per_portal[&FL].ok, 1);
+    assert!(signed_in.calls().iter().all(|call| call.session));
+    let job = store.job(&key(FL, 1_255_067)).unwrap().unwrap();
+    assert_eq!(job.desc_status, DescStatus::Ok);
+}
+
+/// Sign-in switched off: even a sign-in wall never opens the sign-in window - the portal
+/// waits for the next run without another request.
+#[tokio::test(start_paused = true)]
+async fn without_the_sign_in_switch_no_window_ever_opens() {
+    let c = clock();
+    let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 1)]);
+    let fake = Fake {
+        guest_only: true,
+        login: Some(Login::SignedIn),
+        ..Fake::default()
+    }
+    .with("1255067", [PageOutcome::LoginRequired(Cause::NoLogoutLink)]);
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[FL]), &c).await;
+    assert!(fake.logins().is_empty(), "no sign-in window");
+    assert!(matches!(
+        r.stops.as_slice(),
+        [(FL, StopReason::LoginRequired, 2)]
+    ));
+    assert_eq!(
+        policy.state(FL).accesses.len(),
+        1,
+        "no sign-in page requested"
+    );
+    assert!(
+        !policy.state(FL).login_needed,
+        "the guest path says nothing about a session"
+    );
 }

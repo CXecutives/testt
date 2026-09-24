@@ -102,6 +102,7 @@ impl DetailState {
                     .desc_attempted_at
                     .and_then(|at| at.checked_add(RETRY_AFTER).ok()),
             },
+            DescStatus::Teaser => DetailState::Teaser,
             DescStatus::Gone => DetailState::Gone,
             DescStatus::Unfetchable => DetailState::Unfetchable,
         }
