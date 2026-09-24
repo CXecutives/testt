@@ -40,9 +40,8 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   await expect(page.getByTestId('profile-understood')).toHaveText(
     '42 Kompetenzen erkannt, 2 Schwerpunkte · Finanzen · SAP',
   );
-  await expect(page.getByTestId('profile-warning')).toHaveText(
-    'Der Wert von Region ist nicht lesbar.',
-  );
+  // The field named as the form names it.
+  await expect(page.getByTestId('profile-warning')).toHaveText('„Remote-Anteil“ ist nicht lesbar.');
   for (const section of [
     'person',
     'competences',
@@ -138,7 +137,7 @@ test('a wrong date is said at the field and nothing is saved', async ({ page }) 
   await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('31.02.2026');
   await expect(page.getByTestId('profile-date-error')).toHaveText(
-    'Das Datum so eingeben wie 01.11.2026.',
+    'Datum im Format 01.11.2026 eingeben.',
   );
   await save(page).click();
   expect(await calls(page, 'save_profile')).toHaveLength(0);

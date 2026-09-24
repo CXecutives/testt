@@ -111,17 +111,6 @@ export function criterionState(reason: Reason): CriterionState {
   }
 }
 
-/** A hard criterion of the profile as a row: its name and its value (null = not set). */
-export function profileCriterion(notice: Notice): { field: string; value: string | null } | null {
-  const key = criterionKey(notice.code);
-  if (key === null) return null;
-  const text = de.reader.criterion[key];
-  return {
-    field: text.field,
-    value: notice.params.set === false ? null : text.value(notice.params),
-  };
-}
-
 export function warningText(notice: Notice): string | null {
   return has(de.profile.warning, notice.code)
     ? textOf(de.profile.warning[notice.code as ProfileWarning], notice.params)
