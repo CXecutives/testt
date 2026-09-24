@@ -35,7 +35,7 @@ pub use scoring::Scoring;
     dead_code,
     reason = "read by core/tests/contract.rs, which generates the TypeScript command map"
 )]
-pub const COMMANDS: [(&str, &str, &str); 25] = [
+pub const COMMANDS: [(&str, &str, &str); 27] = [
     ("app_state", "{ channel: Channel<RunEvent> }", "AppState"),
     (
         "start_run",
@@ -58,14 +58,12 @@ pub const COMMANDS: [(&str, &str, &str); 25] = [
     (
         "pick_profile",
         "Record<string, never>",
-        "ProfileInfo | null",
+        "ProfileDraft | null",
     ),
+    ("parse_profile", "{ text: string }", "ProfileDraft"),
+    ("profile_prompt", "Record<string, never>", "string"),
+    ("save_profile", "{ save: ProfileSave }", "ProfileInfo"),
     ("remove_profile", "Record<string, never>", "boolean"),
-    (
-        "save_profile_template",
-        "Record<string, never>",
-        "string | null",
-    ),
     (
         "save_mailbox",
         "{ user: string; password: string }",
@@ -102,8 +100,10 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + '
         jobs::set_hidden,
         jobs::claude_prompt,
         profile::pick_profile,
+        profile::parse_profile,
+        profile::profile_prompt,
+        profile::save_profile,
         profile::remove_profile,
-        profile::save_profile_template,
         mailbox::save_mailbox,
         mailbox::remove_mailbox,
         portals::portal_login,
@@ -124,8 +124,6 @@ mod texts {
     pub const PICK_WORKSPACE: &str = "Arbeitsordner wählen";
     pub const PICK_PROFILE: &str = "Beraterprofil (JSON) wählen";
     pub const PROFILE_FILTER: &str = "Beraterprofil";
-    pub const SAVE_TEMPLATE: &str = "Profilvorlage speichern";
-    pub const TEMPLATE_NAME: &str = "beraterprofil-vorlage.json";
     // end of user-facing text
 }
 

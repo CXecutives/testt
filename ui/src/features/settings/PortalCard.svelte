@@ -1,13 +1,9 @@
 <!--
-  One portal in the settings. The header row carries the portal, the portal in the browser
-  and its switch (Aktiv); reading its alert mails touches nothing but the own Gmail. Only an
-  active portal shows more: its health, the quota only from 80 % or while paused (the window
-  that binds, a 6 px meter), and one row per switch with the risk that switch brings (PLAN:
-  a risk badge per switch). Details holen carries the risk of the requests with its sentence;
-  for freelance.de Mit Anmeldung warns with Kontorisiko while the Details row does not say it
-  yet, then sign in / sign out (which deletes the session).
-  A switch moves at once (the state is patched before the save); a failure puts it back and
-  says why here. The switch itself is the answer: no toast.
+  One portal in the settings: the header row carries the portal, its risk (badge and one
+  sentence), the portal in the browser and the switch Aktiv. Only an active portal shows
+  more: its health, the quota only from 80 % or while paused (a 6 px meter), Details holen,
+  for freelance.de Mit Anmeldung and sign in / sign out (which deletes the session).
+  A switch saves at once; a failure puts the switch back and says why here.
 -->
 <script lang="ts">
   import Badge, { type BadgeTone } from '$components/Badge.svelte';
@@ -21,53 +17,35 @@
   import { de } from '$lib/i18n/de';
   import { errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { PortalState, Risk } from '$lib/ipc/types';
-  import { fade, rise } from '$lib/motion/transitions';
+  import type { PortalPatch, PortalState, Risk } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { toasts } from '$lib/state/toasts.svelte';
 
   interface Props {
     portal: PortalState;
   }
   let { portal }: Props = $props();
-  const id = $props.id();
-
-  type Switches = Partial<Pick<PortalState, 'enabled' | 'fetchDetails' | 'loginEnabled'>>;
 
   const QUOTA_SHOWN = 0.8;
   const RISK_TONE: Record<Risk, BadgeTone> = { low: 'success', grey: 'warning', account: 'danger' };
 
   let error = $state<string | null>(null);
   let busy = $state(false);
-  /** Only the answer to the latest save may replace the state (quick double flips). */
-  let saves = 0;
 
-  const health = $derived(healthSentence(portal.health));
-  /** The fuller of the two windows: its numbers are the ones the text names. */
+  const health = $derived({ text: healthSentence(portal.health) });
   const quota = $derived.by(() => {
     const q = portal.quota;
     if (q === null) return null;
-    const day = q.usedDay / Math.max(q.capDay, 1);
-    const hour = q.usedHour / Math.max(q.capHour, 1);
+    const share = Math.max(q.usedDay / Math.max(q.capDay, 1), q.usedHour / Math.max(q.capHour, 1));
     const paused = portal.health.kind === 'paused' || portal.health.kind === 'quotaReached';
-    const share = Math.max(day, hour);
     if (share < QUOTA_SHOWN && !paused) return null;
-    const text =
-      hour > day
-        ? de.settings.quotaHour(q.usedHour, q.capHour)
-        : de.settings.quota(q.usedDay, q.capDay);
-    return { share, text };
+    return { share, used: q.usedDay, cap: q.capDay };
   });
-  /** The risk of fetching details now: signed in it is the own account. */
   const risk = $derived<Risk>(portal.loginEnabled ? 'account' : portal.risk);
-  const dryRun = $derived(app.state?.dryRun ?? false);
 
-  async function change(patch: Switches): Promise<void> {
+  async function change(patch: Partial<Omit<PortalPatch, 'portal'>>): Promise<void> {
     error = null;
-    const save = ++saves;
-    // The switch and the rows that hang on it follow at once, not after the round trip.
-    const item = app.state?.portals.find((p) => p.portal === portal.portal);
-    if (item) Object.assign(item, patch);
     try {
       const next = await invoke('save_settings', {
         patch: {
@@ -82,7 +60,8 @@
           autoFetchOnStart: null,
         },
       });
-      if (save === saves) app.set(next);
+      app.set(next);
+      toasts.show(de.toast.saved);
     } catch (failure) {
       error = errorText(failure);
       void app.load();
@@ -112,8 +91,12 @@
 <Card padding="none" testid="portal-{portal.portal}">
   <div class="head">
     <IconTile tone="navy" monogram={PORTAL_MONOGRAM[portal.portal]} size="md" />
-    <h3 class="name">{de.portal[portal.portal]}</h3>
-    <div class="tools">
+    <div class="title">
+      <h3 class="name">{de.portal[portal.portal]}</h3>
+      <p class="risk">{de.settings.riskText[risk]}</p>
+    </div>
+    <div class="badges">
+      <Badge label={de.settings.risk[risk]} tone={RISK_TONE[risk]} icon="shield" />
       <Button
         variant="ghost"
         size="sm"
@@ -127,36 +110,37 @@
         checked={portal.enabled}
         label={de.settings.active}
         testid="toggle-enabled-{portal.portal}"
-        onchange={(on) => change({ enabled: on })}
+        onchange={(on) => void change({ enabled: on })}
       />
     </div>
   </div>
-  <!-- Switching the portal on, its rows rise in; off, they fade (no height animation). -->
   {#if portal.enabled || error}
-    <div class="body" in:rise={{ distance: 'sm' }} out:fade>
-      {#if portal.enabled && health}
-        <Notice tone="warning" variant="inline" text={health} testid="health-{portal.portal}" />
+    <div class="body">
+      {#if portal.enabled && health.text}
+        <Notice
+          tone="warning"
+          variant="inline"
+          text={health.text}
+          testid="health-{portal.portal}"
+        />
       {/if}
       {#if quota}
         <div class="quota" data-testid="quota-{portal.portal}">
-          <span>{quota.text}</span>
-          <Meter value={quota.share} tone="warning" size="md" label={quota.text} />
+          <span>{de.settings.quota(quota.used, quota.cap)}</span>
+          <Meter
+            value={quota.share}
+            tone="warning"
+            size="md"
+            label={de.settings.quota(quota.used, quota.cap)}
+          />
         </div>
       {/if}
 
       {#if portal.enabled}
         <div class="rows">
-          <SettingRow
-            label={de.settings.details}
-            hint={de.settings.riskText[risk]}
-            for="{id}-details"
-            testid="details-{portal.portal}"
-          >
-            {#snippet badges()}
-              <Badge label={de.settings.risk[risk]} tone={RISK_TONE[risk]} icon="shield" />
-            {/snippet}
+          <SettingRow label={de.settings.details} for="switch-details-{portal.portal}">
             <Toggle
-              id="{id}-details"
+              id="switch-details-{portal.portal}"
               checked={portal.fetchDetails}
               label={de.settings.details}
               testid="toggle-details-{portal.portal}"
@@ -167,16 +151,13 @@
             <SettingRow
               label={de.settings.login}
               hint={de.settings.loginHint}
-              for="{id}-login"
-              testid="login-{portal.portal}"
+              for="switch-login-{portal.portal}"
             >
               {#snippet badges()}
-                {#if risk !== 'account'}
-                  <Badge label={de.settings.risk.account} tone="danger" icon="shield" />
-                {/if}
+                <Badge label={de.settings.risk.account} tone="danger" />
               {/snippet}
               <Toggle
-                id="{id}-login"
+                id="switch-login-{portal.portal}"
                 checked={portal.loginEnabled}
                 label={de.settings.login}
                 disabled={!portal.fetchDetails}
@@ -197,8 +178,6 @@
                     icon="log-out"
                     label={de.settings.signOut}
                     loading={busy}
-                    disabled={dryRun}
-                    disabledReason={de.error.text('dryRun', {})}
                     testid="sign-out-{portal.portal}"
                     onclick={() => void session(false)}
                   />
@@ -209,8 +188,8 @@
                     icon="log-in"
                     label={de.settings.signIn}
                     loading={busy}
-                    disabled={run.active || dryRun}
-                    disabledReason={dryRun ? de.error.text('dryRun', {}) : run.busyText}
+                    disabled={run.active}
+                    disabledReason={de.settings.running}
                     testid="sign-in-{portal.portal}"
                     onclick={() => void session(true)}
                   />
@@ -235,13 +214,15 @@
     padding: var(--space-16) var(--space-20);
   }
 
+  /* The rows run edge to edge like the card's dividers (--row-inset); other content keeps
+     the card's inset of 20. */
   .body {
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
-    margin: 0 var(--space-20);
-    padding-bottom: var(--space-4);
+    padding: 0 var(--space-20) var(--space-4);
     border-top: var(--border-width) solid var(--border);
+    --row-inset: var(--space-20);
   }
 
   .body > :global(:first-child:not(.rows)) {
@@ -252,17 +233,30 @@
     margin-bottom: var(--space-12);
   }
 
-  /* A card label, not a heading of its own: 15/500 under the 17/600 section heading. */
-  .name {
+  .title {
+    display: flex;
     flex: 1;
+    flex-direction: column;
+    gap: var(--space-2);
     min-width: 0;
+  }
+
+  /* A card label, not a heading: 15/500 under the 17/600 section heading. */
+  .name {
     color: var(--text-heading);
     font: var(--type-title);
   }
 
-  .tools {
+  .risk {
+    color: var(--text-muted);
+    font: var(--type-sm);
+  }
+
+  .badges {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: var(--space-8);
   }
 

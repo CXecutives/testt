@@ -4,4 +4,4 @@ import type { Portal } from "./Portal";
 /**
  * Why an input was refused - a code with data, never a sentence.
  */
-export type InvalidInput = { "reason": "noPortal" } | { "reason": "profileNotUtf8" } | { "reason": "profileNotJson", line: number, column: number, } | { "reason": "profileNotObject", found: string, } | { "reason": "mailAddress" } | { "reason": "appPassword" } | { "reason": "noSignIn", portal: Portal, } | { "reason": "noteTooLong", max: number, };
+export type InvalidInput = { "reason": "noPortal" } | { "reason": "profileNotUtf8" } | { "reason": "profileNotJson", line: number, column: number, } | { "reason": "profileNotObject", found: string, } | { "reason": "profileValue", field: string, } | { "reason": "profileAnswer" } | { "reason": "mailAddress" } | { "reason": "appPassword" } | { "reason": "noSignIn", portal: Portal, } | { "reason": "noteTooLong", max: number, };

@@ -1,8 +1,7 @@
 <!--
   The reader's empty state: what the sheet shows while no job is selected, unboxed like the
   reader. It answers "what is worth my time today" first and never looks empty: tiles that
-  filter the list (their numbers count over every job, whatever the search; a tile that
-  appears later, Gemerkt, rises in), without a usable profile the tiles Neu and Ohne Details
+  filter the list (their numbers count over every job, whatever the search), without a usable profile the tiles Neu and Ohne Details
   and a calm card that leads to one, with one "Beste Passung" (the three best scored new
   jobs as list rows; a click opens the job), the open points (one per portal and problem, a
   failed fetch) only when there are any, the new jobs per portal (each a filter of the
@@ -23,7 +22,6 @@
   import { errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { EmptyAlert, JobView, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
-  import { rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf, sameKey, type JobFilter } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -184,43 +182,23 @@
       return {
         heading: de.overview.noProfile,
         text: de.overview.noProfileText,
-        label: de.list.pickProfile,
-        icon: 'file-up' as const,
+        label: de.list.createProfile,
+        icon: 'file-text' as const,
       };
     }
     return {
       heading: profile.parseError ? de.overview.profileUnreadable : de.overview.profileEmpty,
       text: de.overview.profileBrokenText,
-      label: de.overview.openProfile,
+      label: de.list.openProfile,
       icon: 'user-round' as const,
     };
   });
   const fetchedOnce = $derived((run.summary ?? app.state?.lastRun ?? null) !== null);
   let actionError = $state<string | null>(null);
-  let picking = $state(false);
 
   function open(target: OpenTarget): void {
     actionError = null;
     invoke('open_target', { target }).catch((error: unknown) => (actionError = errorText(error)));
-  }
-
-  /** No profile: choose one right here. A profile that no longer reads: the Profil view. */
-  function chooseProfile(): void {
-    if (app.state?.profile != null) {
-      navigation.go('profile');
-      return;
-    }
-    actionError = null;
-    picking = true;
-    invoke('pick_profile')
-      .then(async (profile) => {
-        if (profile === null) return;
-        await app.load();
-        void jobs.load(true);
-        void jobs.loadOverview();
-      })
-      .catch((error: unknown) => (actionError = errorText(error)))
-      .finally(() => (picking = false));
   }
 </script>
 
@@ -228,7 +206,7 @@
   {#if tiles.length > 0}
     <div class="tiles" class:many={tiles.length > 3} use:cssVars={{ tiles: tiles.length }}>
       {#each tiles as tile (tile.id)}
-        <div class="tile" in:rise={{ distance: 'md' }}>
+        <div class="tile">
           <StatTile
             label={tile.label}
             value={tile.value}
@@ -254,9 +232,8 @@
           variant="secondary"
           icon={profileCard.icon}
           label={profileCard.label}
-          loading={picking}
           testid="choose-profile"
-          onclick={chooseProfile}
+          onclick={() => navigation.go('profile')}
         />
       </div>
     </Card>

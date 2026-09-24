@@ -2,12 +2,13 @@
   A white card with a hairline, flat (it sits on the white sheet of the content, no shadow).
   plain | interactive | tinted (a calm muted surface).
   Interactive cards (with onclick) answer like a stat tile: a navy hairline and a soft
-  shadow that fades in on hover (no lift), a slight give under the pointer (0.985). Plain
+  shadow that fades in on hover (no lift) and a darker hairline while pressed. Plain
   and tinted cards never react; only their controls do.
 -->
 <script lang="ts" module>
   export type CardVariant = 'plain' | 'interactive' | 'tinted';
-  /** `rows`: for a card of SettingRows (they bring their own vertical padding). */
+  /** `rows`: for a card of SettingRows: the rows run edge to edge (their washes and
+   *  dividers too) and bring their own padding; anything else in it keeps the card's inset. */
   export type CardPadding = 'none' | 'rows' | 'md' | 'lg';
 </script>
 
@@ -66,9 +67,7 @@
 
   .interactive {
     position: relative;
-    transition:
-      border-color var(--dur-base) var(--ease-standard),
-      transform var(--dur-base) var(--ease-emphasized);
+    transition: border-color var(--dur-base) var(--ease-standard);
   }
 
   /* The hover shadow, painted once and shown by opacity (no lift, no animated shadow). */
@@ -85,7 +84,7 @@
 
   .interactive:hover {
     border-color: var(--border-navy);
-    transition-duration: var(--dur-hover), var(--dur-base);
+    transition-duration: var(--dur-hover);
   }
 
   .interactive:hover::after {
@@ -94,7 +93,7 @@
   }
 
   .interactive:active {
-    transform: scale(var(--scale-press-soft));
+    border-color: var(--active-edge);
     transition-duration: var(--dur-instant);
   }
 
@@ -112,7 +111,13 @@
   }
 
   .pad-rows {
-    padding: var(--space-4) var(--space-20);
+    overflow: hidden;
+    padding: 0 var(--space-20);
+    --row-inset: var(--space-20);
+  }
+
+  .pad-rows > :global(:not([data-setting-row])) {
+    margin-block: var(--space-12);
   }
 
   .pad-md {

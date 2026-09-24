@@ -158,6 +158,8 @@ export function scrim(
 export interface RollParams {
   /** The number went up (it rises from below) or down (it drops from above). */
   up: boolean;
+  /** Roll at all (false while the view is still being built: the number is simply there). */
+  on?: boolean;
 }
 
 /**
@@ -167,7 +169,8 @@ export interface RollParams {
  * fades in (150 ms, emphasized); the old one leaves at once (no out, so nothing stacks or
  * reflows). It does not play when the count first appears (a local transition).
  */
-export function roll(node: Element, { up }: RollParams): TransitionConfig {
+export function roll(node: Element, { up, on = true }: RollParams): TransitionConfig {
+  if (!on) return {};
   if (isReducedMotion()) return crossfade(node);
   const y = move('md') * (up ? 1 : -1);
   return {

@@ -123,7 +123,7 @@ fn command_names_agree_everywhere() {
     );
     assert!(capability.get("remote").is_none(), "never remote");
 
-    assert_eq!(names.len(), 25);
+    assert_eq!(names.len(), 27);
     assert_eq!(manifest, names, "build.rs <-> COMMANDS");
     assert_eq!(handler_names(), names, "generate_handler! <-> COMMANDS");
     assert_eq!(allowed, names, "capability <-> COMMANDS");
@@ -132,6 +132,7 @@ fn command_names_agree_everywhere() {
         "save_gmail_credentials",
         "delete_gmail_credentials",
         "clear_txt_files",
+        "save_profile_template",
     ] {
         assert!(!names.contains(old), "{old}");
     }

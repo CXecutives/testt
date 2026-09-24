@@ -2,7 +2,9 @@
   A heading that opens a section. One chevron turns half a turn when open (180 ms,
   emphasized; the angle stays under reduced motion). The content fades in (100 ms) when the
   user opens it and is gone at once when closed: no height animation, which would lay out
-  the page in every frame. The head washes on hover and its chevron turns navy.
+  the page in every frame. On hover the head's text darkens and its chevron turns navy (no
+  background); like a row it runs edge to edge in its container and pads its label by
+  --row-inset.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -44,29 +46,19 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-12);
-    /* The label lines up with the text around it; the hover wash reaches a little out. */
-    width: calc(100% + 2 * var(--space-8));
+    width: calc(100% + 2 * var(--row-inset));
     min-height: var(--control-sm);
-    margin: 0 calc(-1 * var(--space-8));
-    padding: 0 var(--space-8);
-    border-radius: var(--radius-sm);
+    margin-inline: calc(-1 * var(--row-inset));
+    padding-inline: var(--row-inset);
     color: var(--text-muted);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
-    transition:
-      background-color var(--dur-base) var(--ease-standard),
-      color var(--dur-base) var(--ease-standard);
+    transition: color var(--dur-base) var(--ease-standard);
   }
 
   .head:hover {
-    background-color: var(--surface-hover);
     color: var(--text);
     transition-duration: var(--dur-hover);
-  }
-
-  .head:active {
-    background-color: var(--surface-press);
-    transition-duration: var(--dur-instant);
   }
 
   .head:focus-visible {
@@ -82,7 +74,7 @@
   }
 
   .head:hover .chevron {
-    color: var(--nav-active-icon);
+    color: var(--icon-accent);
   }
 
   .open .chevron {

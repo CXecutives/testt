@@ -346,9 +346,9 @@ test('without a profile: no rings, newest first, the overview leads to one', asy
   expect(gap).toBeGreaterThanOrEqual(10);
   const query = (await calls(page, 'list_jobs'))[0]?.[1] as { query: { sort: string } };
   expect(query.query.sort).toBe('newest');
+  // The way on is the Profil view with its three ways in.
   await page.getByTestId('no-profile').getByRole('button').click();
-  await expect(page.getByTestId('sort')).toBeVisible();
-  await expect(page.getByTestId('no-profile')).toHaveCount(0);
+  await expect(page.getByTestId('profile-empty')).toBeVisible();
 });
 
 test('an empty list and a first fetch without news', async ({ page }) => {

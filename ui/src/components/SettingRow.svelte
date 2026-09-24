@@ -1,9 +1,12 @@
 <!-- One setting: label and one-sentence hint on the left, badges and the control right. A
      hint that is a value to copy (a path, the address) selects like text (`copy`).
+     The row runs edge to edge in its container and pads its content by the container's
+     --row-inset, so its divider and its text share the container's grid.
      With `for` (the id of its switch) the row works like a row of the system settings of
      Windows 11 and macOS: its label and hint are a native <label>, so a click on the text
-     toggles the switch, and the row washes on hover. A copyable hint stays outside the
-     label and never toggles. Rows without a control stay static. -->
+     toggles the switch, and the switch shows its hover while the pointer is anywhere on
+     the row. The row itself never gets a background (user decision: only the switch
+     reacts). A copyable hint stays outside the label and never toggles. -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
@@ -38,7 +41,12 @@
   </span>
 {/snippet}
 
-<div class="row" class:labelled={control !== null} data-testid={testid ?? undefined}>
+<div
+  class="row"
+  data-setting-row
+  data-toggle-row={control !== null ? '' : undefined}
+  data-testid={testid ?? undefined}
+>
   {#if control !== null}
     <div class="text">
       <label class="for" for={control}>
@@ -66,7 +74,8 @@
     justify-content: space-between;
     gap: var(--space-24);
     min-height: calc(var(--control-md) + 2 * var(--space-12));
-    padding: var(--space-12) 0;
+    margin-inline: calc(-1 * var(--row-inset));
+    padding: var(--space-12) var(--row-inset);
     border-bottom: var(--border-width) solid var(--border);
     isolation: isolate;
   }
@@ -75,45 +84,18 @@
     border-bottom: 0;
   }
 
-  /* The wash reaches a little past the text edges; the box and its hairline stay put. */
-  .labelled::before {
-    position: absolute;
-    z-index: var(--z-below);
-    top: 0;
-    right: calc(-1 * var(--space-8));
-    bottom: 0;
-    left: calc(-1 * var(--space-8));
-    border-radius: var(--radius-sm);
-    background-color: var(--surface-hover);
-    content: '';
-    opacity: 0;
-    transition:
-      opacity var(--dur-base) var(--ease-standard),
-      background-color var(--dur-base) var(--ease-standard);
-  }
-
-  .labelled:hover::before {
-    opacity: 1;
-    transition-duration: var(--dur-hover);
-  }
-
-  .labelled:active::before {
-    background-color: var(--surface-press);
-    transition-duration: var(--dur-instant);
-  }
-
   .text {
     display: flex;
     flex: 1;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-2);
     min-width: 0;
   }
 
   .for {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-2);
   }
 
   .title {

@@ -126,7 +126,7 @@
   }
 
   .neutral:hover .glyph {
-    color: var(--nav-active-icon);
+    color: var(--icon-accent);
     transition-duration: var(--dur-hover);
   }
 

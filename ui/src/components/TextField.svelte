@@ -232,7 +232,7 @@
   }
 
   .field:focus-within .lead {
-    color: var(--nav-active-icon);
+    color: var(--icon-accent);
   }
 
   .trail {

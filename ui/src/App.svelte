@@ -153,6 +153,13 @@
     background-color: var(--surface);
   }
 
+  /* A view that scrolls always keeps its scrollbar's room (Windows: a transparent track,
+     the thumb only under the pointer; macOS overlay scrollbars take none), so a centred
+     column never jumps sideways between a short and a long view. */
+  .view:not(.fixed) {
+    overflow-y: scroll;
+  }
+
   .fixed {
     overflow: hidden;
   }

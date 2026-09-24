@@ -65,11 +65,12 @@ pub(super) fn profile_info(state: &AppState, workspace: &std::path::Path) -> Opt
             parse_error: None,
         };
         ProfileInfo::of(&sample, Some(demo::PROFILE_NAME.to_owned()))
+            .with_form(profile::form_of(demo::PROFILE_JSON))
     } else {
         match profile::info(workspace) {
             Ok(info) => {
                 let source = state.store.kv_get(PROFILE_SOURCE).ok().flatten();
-                ProfileInfo::of(&info?, source)
+                ProfileInfo::of(&info?, source).with_form(profile::stored_form(workspace))
             }
             Err(e) => {
                 log::warn!("profile not readable: {e}");

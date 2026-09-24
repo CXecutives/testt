@@ -21,10 +21,12 @@ use crate::pipeline::{
 use crate::portal::{JobKey, Portal};
 use crate::view::{
     AppState, ClearedTxt, DetailState, EmptyAlert, Evidence, Highlight, JobCounts, JobDetail,
-    JobFacet, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, Mailbox, MatchDetail,
-    OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState, ProfileInfo,
-    ProfileQuality, ProfileUnderstanding, Quota, Reason, ReasonKind, ReasonWeight, ResetSummary,
-    Risk, SettingsPatch, SettingsView, TextRange, VaultKind, WorkMode,
+    JobFacet, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel, Mailbox,
+    MatchDetail, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
+    ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileDraft, ProfileForm,
+    ProfileInfo, ProfileLanguage, ProfileQuality, ProfileSave, ProfileUnderstanding, ProfileWishes,
+    Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary, Risk, SettingsPatch,
+    SettingsView, TextRange, VaultKind, WorkMode,
 };
 
 /// A portal key.
@@ -168,6 +170,16 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<ProfileQuality>();
     f.add::<ProfileUnderstanding>();
     f.add::<ProfileInfo>();
+    f.add::<LanguageLevel>();
+    f.add::<ProfileAvailability>();
+    f.add::<ProfileCompetence>();
+    f.add::<ProfileLanguage>();
+    f.add::<ProfileCriteria>();
+    f.add::<RemoteWish>();
+    f.add::<ProfileWishes>();
+    f.add::<ProfileForm>();
+    f.add::<ProfileDraft>();
+    f.add::<ProfileSave>();
     f.add::<ResetSummary>();
     f.add::<AppState>();
     f.add::<OpenTarget>();

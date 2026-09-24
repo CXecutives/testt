@@ -443,7 +443,9 @@ test('the ad text, title and facts select and copy; the rest does not select', a
   await page.locator('[data-testid^="job-row-"]').first().click();
   const text = page.getByTestId('ad-text');
   await expect(text).toBeVisible();
-  // A drag across the ad text selects it, like in a document.
+  // A drag across the ad text selects it, like in a document (in view, below the reader's
+  // compact bar).
+  await text.evaluate((node) => node.scrollIntoView({ block: 'center' }));
   const box = (await text.boundingBox())!;
   await page.mouse.move(box.x + 4, box.y + 6);
   await page.mouse.down();
@@ -482,6 +484,7 @@ test('the ad text, title and facts select and copy; the rest does not select', a
     await page.mouse.up();
     return page.evaluate(() => getSelection()?.toString() ?? '');
   };
+  await page.getByTestId('stage').evaluate((node) => node.scrollTo({ top: 0 }));
   expect((await drag('reader-title')).length).toBeGreaterThan(5);
   for (const id of ['band', 'must', 'reasons-met']) {
     expect(await drag(id), id).toBe('');
