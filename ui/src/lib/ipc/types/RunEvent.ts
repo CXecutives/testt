@@ -2,6 +2,7 @@
 import type { JobView } from "./JobView";
 import type { Portal } from "./Portal";
 import type { PortalHealth } from "./PortalHealth";
+import type { RunKindName } from "./RunKindName";
 import type { RunSummary } from "./RunSummary";
 import type { StatusCode } from "./StatusCode";
 import type { Step } from "./Step";
@@ -12,8 +13,8 @@ import type { Step } from "./Step";
  * `job_detail`). Struct variants only - with `tag = "type"` a newtype variant would merge
  * into the tag.
  */
-export type RunEvent = { "type": "progress", step: Step, portal: Portal | null, done: number, total: number, } | { "type": "status", code: StatusCode, portal: Portal | null, until: string | null, } | { "type": "alert", portal: Portal, subject: string, date: string | null, postings: number, 
+export type RunEvent = { "type": "started", kind: RunKindName, } | { "type": "progress", step: Step, portal: Portal | null, done: number, total: number, } | { "type": "status", code: StatusCode, portal: Portal | null, until: string | null, } | { "type": "alert", portal: Portal, subject: string, date: string | null, postings: number, 
 /**
  * Gmail message id (hexadecimal) - opened through `open_target`.
  */
-gmailId: string | null, } | { "type": "jobUpdated", job: JobView, } | { "type": "portalHealth", portal: Portal, health: PortalHealth, } | { "type": "loginNeeded", portal: Portal, waiting: boolean, } | { "type": "finished", summary: RunSummary, };
+gmailId: string | null, } | { "type": "jobUpdated", job: JobView, fresh: boolean, } | { "type": "portalHealth", portal: Portal, health: PortalHealth, } | { "type": "loginNeeded", portal: Portal, waiting: boolean, } | { "type": "finished", summary: RunSummary, };

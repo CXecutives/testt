@@ -3,10 +3,14 @@
   run is going or right after it (or when the run status in the sidebar is clicked); it
   collapses to its header line and closes.
   running: the header (the status, naming the portal it is about, and the countdown of a
-  pause) and the progress bar right below it, the steps Postfach, Details, Bewertung (16 px
-  check / loader / circle) and every limit or pause with its reason and end.
-  finished: how many new and well-fitting jobs, what went wrong with a fitting action, the
-  overview and the folder, the history with copy. A finished rescore only says so.
+  pause) and the progress bar right below it, the steps of the kind (a fetch: Postfach,
+  Details, Bewertung; a details run: Details, Bewertung) with 16 px check / loader / circle,
+  and every limit or pause with its reason and end.
+  finished: a fetch says how many new and well-fitting jobs it brought (the run's own
+  numbers from the backend), a details run what it got, a rescore only that it is done;
+  then what went wrong with a fitting action, a file the export could not write (once),
+  the overview and the folder, the history with copy. A rescore shows here only when it
+  failed or could not write the files.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -22,18 +26,43 @@
   import type { OpenTarget, Portal, PortalHealth } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
-  import { outcomeText, run, STEPS } from '$lib/state/run.svelte';
+  import { exportError, isFetch, outcomeText, run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
 
-  const summary = $derived(run.summary ?? app.state?.lastRun ?? null);
+  // The run the card followed, else the last fetch (after a restart).
+  const summary = $derived(run.result ?? app.state?.lastRun ?? null);
   const open = $derived(run.panel === 'open');
-  const newJobs = $derived(summary?.perPortal.reduce((sum, p) => sum + p.new, 0) ?? 0);
-  const topJobs = $derived(
-    (app.state?.topMatches ?? []).filter((job) => job.match?.band === 'high').length,
-  );
-  const skipped = $derived(summary?.perPortal.reduce((sum, p) => sum + p.skipped, 0) ?? 0);
+  const fetchRun = $derived(summary !== null && isFetch(summary.kind));
+  const sum = (key: 'fetched' | 'failed' | 'gone' | 'skipped'): number =>
+    summary?.perPortal.reduce((total, p) => total + p[key], 0) ?? 0;
+  // A fetch counts what it brought (new, not excluded) and how many of those fit well.
+  const newJobs = $derived(summary?.newJobs?.count ?? 0);
+  const topJobs = $derived(summary?.newJobs?.high ?? 0);
+  const skipped = $derived(sum('skipped'));
   const failure = $derived(summary?.outcome.kind === 'failed' ? summary.outcome.error : null);
-  const rescore = $derived(summary?.kind === 'rescore');
+  const files = $derived(summary ? exportError(summary) : null);
+  const filesText = $derived.by(() => {
+    if (files === null) return null;
+    const texts = de.run.exportFailed;
+    switch (files.params.target) {
+      case 'overview':
+        return files.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
+      case 'overviewHtml':
+        return texts.overviewHtml;
+      case 'txtFolder':
+        return texts.txtFolder;
+      case 'backup':
+        return texts.backup;
+      default:
+        return texts.txt;
+    }
+  });
+  // A text file problem is said once: by the export error when it names the text files.
+  const txtFailed = $derived(
+    files !== null && (files.params.target === 'txt' || files.params.target === 'txtFolder')
+      ? 0
+      : (summary?.export?.txtFailed ?? 0),
+  );
   const pauses = $derived(
     (Object.entries(run.health) as [Portal, PortalHealth][]).filter(([, h]) => h.kind !== 'ok'),
   );
@@ -74,7 +103,7 @@
       case 'internal':
         return { label: de.common.openLog, onclick: () => openTarget({ kind: 'logDir' }) };
       default:
-        return { label: de.common.retry, onclick: () => void run.start({ kind: 'fetch' }) };
+        return { label: de.common.retry, onclick: () => run.retry(summary) };
     }
   });
 </script>
@@ -84,7 +113,7 @@
     <span class="title">{text}</span>
     {#if extra}<span class="extra" data-testid="countdown">{extra}</span>{/if}
     <span class="tools">
-      {#if !run.active}
+      {#if !run.fetching}
         <!-- System actions stay quiet: icons with tooltips, like in the day overview. -->
         <Button
           variant="ghost"
@@ -114,7 +143,7 @@
         testid="run-toggle"
         onclick={toggle}
       />
-      {#if !run.active}
+      {#if !run.fetching}
         <Button
           variant="ghost"
           size="sm"
@@ -122,15 +151,15 @@
           icon="x"
           label={de.common.hide}
           testid="run-close"
-          onclick={() => (run.panel = 'hidden')}
+          onclick={() => run.hide()}
         />
       {/if}
     </span>
   </div>
 {/snippet}
 
-<section class="panel" data-testid="run-card">
-  {#if run.active}
+<section class="panel" data-testid="run-card" data-kind={run.fetching ? run.kind : summary?.kind}>
+  {#if run.fetching}
     <div class="running" data-testid="run-running">
       <div class="lead">
         <Spinner size="sm" label={null} />
@@ -144,7 +173,7 @@
       <Meter value={run.fraction} size="sm" label={de.toolbar.progress} />
       {#if open}
         <ol class="steps">
-          {#each STEPS as step (step)}
+          {#each run.steps as step (step)}
             {@const state = run.stepState(step)}
             {@const progress = run.progress[step]}
             <li class="step {state}" data-testid="step-{step}">
@@ -181,16 +210,22 @@
     </div>
   {:else if summary}
     <div class="finished" data-testid="run-finished">
-      <div class="lead" class:failed={failure !== null}>
-        <Icon name={failure ? 'triangle-alert' : 'circle-check'} size="sm" />
+      <div
+        class="lead"
+        class:failed={failure !== null}
+        class:warned={failure === null && filesText !== null}
+      >
+        <Icon name={failure || filesText ? 'triangle-alert' : 'circle-check'} size="sm" />
         {@render head(title, formatMoment(summary.finishedAt))}
       </div>
       {#if open}
-        {#if !rescore}
+        {#if fetchRun && newJobs > 0}
           <p class="numbers">
             <span data-testid="last-new">{de.run.newCount(newJobs)}</span>
             {#if app.hasProfile && topJobs > 0}
-              <span class="sep">·</span><span class="top">{de.run.topCount(topJobs)}</span>
+              <span class="sep">·</span><span class="top" data-testid="last-top"
+                >{de.run.topCount(topJobs)}</span
+              >
             {/if}
           </p>
         {/if}
@@ -202,18 +237,41 @@
             action={failureAction}
             testid="run-failed"
           />
-        {:else if summary.outcome.kind === 'completed' && newJobs === 0 && !rescore}
+        {:else if fetchRun && summary.outcome.kind === 'completed' && newJobs === 0}
           <Notice tone="info" variant="inline" text={de.run.nothingNew} testid="nothing-new" />
+        {/if}
+        {#if summary.kind === 'details' && sum('failed') > 0}
+          <Notice
+            tone="warning"
+            variant="inline"
+            text={de.run.details.failedAds(sum('failed'))}
+            testid="details-failed"
+          />
+        {/if}
+        {#if summary.kind === 'details' && sum('gone') > 0}
+          <Notice
+            tone="info"
+            variant="inline"
+            text={de.run.details.goneAds(sum('gone'))}
+            testid="details-gone"
+          />
         {/if}
         {#if skipped > 0}
           <Notice tone="info" variant="inline" text={de.run.skipped(skipped)} />
         {/if}
-        {#if (summary.export?.txtFailed ?? 0) > 0}
+        {#if filesText}
           <Notice
             tone="warning"
-            variant="inline"
-            text={de.run.filesFailed(summary.export?.txtFailed ?? 0)}
+            variant="row"
+            text={filesText}
+            action={failure || run.active
+              ? null
+              : { label: de.common.retry, onclick: () => run.retry(summary) }}
+            testid="export-failed"
           />
+        {/if}
+        {#if txtFailed > 0}
+          <Notice tone="warning" variant="inline" text={de.run.filesFailed(txtFailed)} />
         {/if}
         {#if run.history.length > 0}
           <Disclosure label={de.run.history} testid="run-history">
@@ -267,6 +325,10 @@
 
   .lead.failed {
     color: var(--danger-strong);
+  }
+
+  .lead.warned {
+    color: var(--warning-strong);
   }
 
   .head {

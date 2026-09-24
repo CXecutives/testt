@@ -127,6 +127,10 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   await expect(page.getByTestId('health-freelance')).toContainText(
     '2 Alert-Mails ohne erkannte Jobs',
   );
+  // The hour binds: bar and words speak of the same window.
+  const quota = page.getByTestId('quota-freelancermap');
+  await expect(quota).toContainText('Diese Stunde 38 von 40 Seiten');
+  await expect(quota.getByRole('progressbar')).toHaveAttribute('aria-valuenow', /^9[45]/);
 });
 
 test('files: rewrite and delete the text files where they are', async ({ page }) => {

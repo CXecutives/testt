@@ -5,7 +5,8 @@
   Ohne Details and a calm card that leads to choosing one, the open points (one per portal
   and problem, a failed fetch) only when there are any, and the new jobs per portal (each a
   filter of the list) with the overview and the folder as quiet icon buttons. The time of
-  the last fetch is said once, in the sidebar.
+  the last fetch is said once, in the sidebar. Every number comes from the backend's counts
+  over every job, and the portals keep the one order of the app (the settings' order).
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -18,21 +19,19 @@
   import { invoke } from '$lib/ipc/api';
   import type { EmptyAlert, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
-  import { isExcluded, jobs, type JobFilter } from '$lib/state/jobs.svelte';
+  import { jobs, type JobFilter } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
 
-  const PORTALS: readonly Portal[] = ['linkedin', 'freelancermap', 'freelance'];
-
+  // The one order of the portals (the backend's, as in the settings).
+  const portals = $derived((app.state?.portals ?? []).map((p) => p.portal));
   const counts = $derived(jobs.overviewCounts ?? app.state?.counts ?? null);
   // "Neu" is unread and not excluded, exactly like the facet Neu (they add up to its count).
   const unread = $derived(
     jobs.overviewStatus === 'ready'
-      ? PORTALS.map((portal) => ({
-          portal,
-          count: jobs.overview.filter((j) => j.portal === portal && j.unread && !isExcluded(j))
-            .length,
-        })).filter((line) => line.count > 0)
+      ? (counts?.newByPortal ?? [])
+          .map((line) => ({ portal: line.portal, count: line.new }))
+          .filter((line) => line.count > 0)
       : [],
   );
 
@@ -84,7 +83,9 @@
 
   // While a run goes, the run card shows pauses and limits; they are not repeated here.
   const troubled = $derived(
-    run.active ? [] : (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
+    run.fetching
+      ? []
+      : (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
   );
   const emptyAlerts = $derived(app.state?.lastRun?.emptyAlerts ?? []);
 
@@ -124,7 +125,7 @@
   }
 
   const portalIssues = $derived(
-    PORTALS.flatMap((portal) =>
+    portals.flatMap((portal) =>
       issuesOf(
         portal,
         troubled.find((p) => p.portal === portal),
@@ -132,10 +133,12 @@
       ),
     ),
   );
-  // A failed fetch from before this session; a run of this session speaks in the run card.
+  // The last fetch failed; while the run card is up it speaks, not this.
   const lastFailure = $derived.by(() => {
-    const previous = app.state?.lastRun;
-    if (run.active || run.panel !== 'hidden' || previous?.outcome.kind !== 'failed') return null;
+    const previous = app.state?.lastRun ?? null;
+    if (run.fetching || run.panel !== 'hidden' || previous?.outcome.kind !== 'failed') {
+      return null;
+    }
     return previous.outcome.error;
   });
   const hasIssues = $derived(portalIssues.length > 0 || lastFailure !== null);
@@ -221,7 +224,10 @@
             variant="row"
             heading={de.run.failed}
             text={de.error.text(lastFailure.kind, lastFailure.params)}
-            action={{ label: de.common.retry, onclick: () => void run.start({ kind: 'fetch' }) }}
+            action={{
+              label: de.common.retry,
+              onclick: () => run.retry(app.state?.lastRun ?? null),
+            }}
             testid="run-failed"
           />
         {/if}

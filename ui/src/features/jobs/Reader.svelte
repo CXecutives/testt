@@ -280,7 +280,7 @@
         icon="download"
         label={de.reader.fetchDetails}
         disabled={run.active}
-        disabledReason={de.settings.running}
+        disabledReason={run.busyText}
         testid="fetch-details"
         onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
       />

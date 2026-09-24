@@ -1,6 +1,8 @@
 //! Jobs, alert mails, job details and text files: the types the rest of the app sees and
 //! every query on the `job` and `alert_mail` tables.
 
+use std::fmt::Write as _;
+
 use jiff::{SignedDuration, Timestamp};
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use url::Url;
@@ -79,8 +81,11 @@ pub struct PageQuery {
     pub offset: u32,
 }
 
+/// Column of the first per-portal count in the statement of [`Store::job_page`].
+const PER_PORTAL_AT: usize = 6;
+
 /// Counts that belong to a page of the job list.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PageCounts {
     /// Unread and not excluded.
     pub new: u32,
@@ -90,6 +95,10 @@ pub struct PageCounts {
     pub high: u32,
     /// Jobs without a full text.
     pub no_detail: u32,
+    /// Pinned ("Merken").
+    pub pinned: u32,
+    /// `new` per portal: every portal, in the order of `Portal::ALL`.
+    pub new_by_portal: Vec<(Portal, u32)>,
 }
 
 /// Jobs of one portal with a given job details state.
@@ -276,6 +285,18 @@ impl Store {
         // "New" lists every unread job, the excluded ones last (grey in the list); its count
         // leaves them out.
         let new = "read_at IS NULL AND match_status IS NOT 'excluded'";
+        // "New" per portal: one column each, in the order of `Portal::ALL` (the keys are
+        // constants of the code, never input).
+        let mut per_portal = String::new();
+        let mut per_portal_out = String::new();
+        for (i, portal) in Portal::ALL.iter().enumerate() {
+            let _ = write!(
+                per_portal,
+                ",\n COALESCE(SUM({new} AND portal = '{}'), 0) AS n_new_{i}",
+                portal.key()
+            );
+            let _ = write!(per_portal_out, ", counts.n_new_{i}");
+        }
         let sql = format!(
             "WITH base AS (
                  SELECT * FROM job WHERE dup_of IS NULL
@@ -286,7 +307,8 @@ impl Store {
                         COALESCE(SUM(match_status IS 'excluded'), 0) AS n_excluded,
                         COALESCE(SUM(match_status IS 'scored' AND match_score >= ?5), 0)
                             AS n_high,
-                        COALESCE(SUM(desc_status <> 'ok'), 0) AS n_no_detail
+                        COALESCE(SUM(desc_status <> 'ok'), 0) AS n_no_detail,
+                        COALESCE(SUM(pinned_at IS NOT NULL), 0) AS n_pinned{per_portal}
                  FROM base
              ), page AS (
                  SELECT {JOB_COLUMNS} FROM base
@@ -295,12 +317,14 @@ impl Store {
                  LIMIT ?3 OFFSET ?4
              )
              SELECT counts.n_all, counts.n_new, counts.n_excluded, counts.n_high,
-                    counts.n_no_detail, page.*
+                    counts.n_no_detail, counts.n_pinned{per_portal_out}, page.*
              FROM counts LEFT JOIN page
              ORDER BY {}",
             order(""),
             order("page.")
         );
+        // The columns of the page follow the counts.
+        let first = PER_PORTAL_AT + Portal::ALL.len();
         let mut stmt = conn.prepare_cached(&sql)?;
         let mut counts = PageCounts::default();
         let mut jobs = Vec::new();
@@ -312,15 +336,21 @@ impl Store {
             HIGH_FROM
         ])?;
         while let Some(row) = rows.next()? {
+            let mut new_by_portal = Vec::with_capacity(Portal::ALL.len());
+            for (i, portal) in Portal::ALL.into_iter().enumerate() {
+                new_by_portal.push((portal, row.get(PER_PORTAL_AT + i)?));
+            }
             counts = PageCounts {
                 all: row.get(0)?,
                 new: row.get(1)?,
                 excluded: row.get(2)?,
                 high: row.get(3)?,
                 no_detail: row.get(4)?,
+                pinned: row.get(5)?,
+                new_by_portal,
             };
-            if row.get::<_, Option<String>>(5)?.is_some() {
-                jobs.push(job_row_at(row, 5)??);
+            if row.get::<_, Option<String>>(first)?.is_some() {
+                jobs.push(job_row_at(row, first)??);
             }
         }
         Ok((jobs, counts))

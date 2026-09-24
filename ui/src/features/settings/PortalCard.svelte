@@ -34,13 +34,17 @@
   let busy = $state(false);
 
   const health = $derived(healthText(portal.health));
+  // The window that binds (the hour or the day) gives bar and words the same numbers.
   const quota = $derived.by(() => {
     const q = portal.quota;
     if (q === null) return null;
-    const share = Math.max(q.usedDay / Math.max(q.capDay, 1), q.usedHour / Math.max(q.capHour, 1));
+    const day = q.usedDay / Math.max(q.capDay, 1);
+    const hour = q.usedHour / Math.max(q.capHour, 1);
     const paused = portal.health.kind === 'paused' || portal.health.kind === 'quotaReached';
-    if (share < QUOTA_SHOWN && !paused) return null;
-    return { share, used: q.usedDay, cap: q.capDay };
+    if (Math.max(day, hour) < QUOTA_SHOWN && !paused) return null;
+    return hour > day
+      ? { share: hour, text: de.settings.quotaHour(q.usedHour, q.capHour) }
+      : { share: day, text: de.settings.quota(q.usedDay, q.capDay) };
   });
   const risk = $derived<Risk>(portal.loginEnabled ? 'account' : portal.risk);
 
@@ -126,13 +130,8 @@
       {/if}
       {#if quota}
         <div class="quota" data-testid="quota-{portal.portal}">
-          <span>{de.settings.quota(quota.used, quota.cap)}</span>
-          <Meter
-            value={quota.share}
-            tone="warning"
-            size="md"
-            label={de.settings.quota(quota.used, quota.cap)}
-          />
+          <span>{quota.text}</span>
+          <Meter value={quota.share} tone="warning" size="md" label={quota.text} />
         </div>
       {/if}
 
@@ -183,7 +182,7 @@
                     label={de.settings.signIn}
                     loading={busy}
                     disabled={run.active}
-                    disabledReason={de.settings.running}
+                    disabledReason={run.busyText}
                     testid="sign-in-{portal.portal}"
                     onclick={() => void session(true)}
                   />

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::jobs::{JOB_COLUMNS, JobRow, job_row};
 use super::{Store, bump};
 use crate::error::Result;
-use crate::model::{MatchRecord, MatchStatus, Notice};
+use crate::model::{HIGH_FROM, MatchRecord, MatchStatus, Notice};
 use crate::portal::JobKey;
 use crate::text::truncate_chars;
 use crate::time::{from_db, to_db};
@@ -288,6 +288,23 @@ impl Store {
         ))?;
         let rows = stmt.query_map(params![run, limit], job_row)?;
         rows.map(|r| r?).collect()
+    }
+
+    /// The jobs a mailbox run brought and how many of them are scored in the high band: first
+    /// seen in `run`, a job several portals announce once (as its original), excluded ones
+    /// left out - the numbers of the run card.
+    pub fn new_jobs(&self, run: i64) -> Result<(usize, usize)> {
+        let (count, high): (i64, i64) = self.conn().query_row(
+            "SELECT COUNT(*), COALESCE(SUM(match_status IS 'scored' AND match_score >= ?2), 0)
+             FROM job WHERE first_seen_run = ?1 AND dup_of IS NULL
+                        AND match_status IS NOT 'excluded'",
+            params![run, HIGH_FROM],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        Ok((
+            usize::try_from(count).unwrap_or(0),
+            usize::try_from(high).unwrap_or(0),
+        ))
     }
 
     /// The jobs of the HTML overview: the pinned ones if there are any (`true`), else the

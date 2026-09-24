@@ -1,9 +1,10 @@
 <!--
   The header of the list column: the search and next to it "Abrufen", the one primary of
-  the Jobs view, which fills this list ("Abbrechen" in its place while a run goes; without
-  a mailbox it stays locked and says why). Below, Neu | Alle on the left and (with a
-  profile) the sort as one quiet icon button on the right. Its tooltip says the current
-  order; a click switches between best match and newest first.
+  the Jobs view, which fills this list ("Abbrechen" in its place while a fetch or details
+  run goes; locked while the app scores the jobs anew, and without a mailbox, saying why).
+  Below, Neu | Alle on the left and (with a profile) the sort as one quiet icon button on
+  the right. Its tooltip says the current order; a click switches between best match and
+  newest first.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -33,7 +34,7 @@
         oninput={(value) => jobs.setSearch(value)}
       />
     </span>
-    {#if run.active}
+    {#if run.fetching}
       <Button
         variant="secondary"
         icon="circle-stop"
@@ -47,8 +48,8 @@
         variant={app.hasMailbox ? 'primary' : 'secondary'}
         icon="refresh-cw"
         label={de.toolbar.fetch}
-        disabled={!app.hasMailbox}
-        disabledReason={de.toolbar.needsMailbox}
+        disabled={!app.hasMailbox || run.active}
+        disabledReason={run.active ? run.busyText : de.toolbar.needsMailbox}
         testid="fetch"
         onclick={() => void run.start({ kind: 'fetch' })}
       />

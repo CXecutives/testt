@@ -654,16 +654,33 @@ pub struct JobQuery {
     pub offset: u32,
 }
 
-/// Counts of the list (with the search applied, whatever the facet).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+/// Counts of the list (with the search applied, whatever the facet). Every number of the
+/// page comes from here: the facets, the tiles, the sidebar and the new jobs per portal.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub struct JobCounts {
+    /// Unread and not excluded ("Neu").
     pub new: u32,
     pub all: u32,
     pub excluded: u32,
+    /// Scored in the high band.
     pub high: u32,
+    /// Without a full text.
     pub no_detail: u32,
+    /// Pinned ("Merken").
+    pub pinned: u32,
+    /// `new` per portal: every portal, in the order of `Portal::ALL`.
+    pub new_by_portal: Vec<PortalNew>,
+}
+
+/// The new jobs ("Neu") of one portal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct PortalNew {
+    pub portal: Portal,
+    pub new: u32,
 }
 
 /// One page of the job list with its counts.
@@ -693,6 +710,12 @@ pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
             excluded: counts.excluded,
             high: counts.high,
             no_detail: counts.no_detail,
+            pinned: counts.pinned,
+            new_by_portal: counts
+                .new_by_portal
+                .into_iter()
+                .map(|(portal, new)| PortalNew { portal, new })
+                .collect(),
         },
     })
 }
@@ -1046,10 +1069,9 @@ pub struct AppState {
     pub profile: Option<ProfileInfo>,
     pub portals: Vec<PortalState>,
     pub auto_fetch_on_start: bool,
+    /// The last fetch (fetch or whole mailbox) - a rescore or a details run is none.
     pub last_run: Option<RunSummary>,
     pub counts: JobCounts,
-    /// The best matches of the last mailbox run (at most five).
-    pub top_matches: Vec<JobView>,
     pub match_pending: u32,
     pub data_dir: PathBuf,
     pub log_dir: PathBuf,
@@ -1261,12 +1283,27 @@ mod tests {
             excluded: 1,
             high: 1,
             no_detail: 3,
+            pinned: 0,
+            new_by_portal: vec![
+                PortalNew {
+                    portal: Portal::LinkedIn,
+                    new: 2,
+                },
+                PortalNew {
+                    portal: Portal::FreelanceDe,
+                    new: 0,
+                },
+                PortalNew {
+                    portal: Portal::Freelancermap,
+                    new: 0,
+                },
+            ],
         };
         // New lists every unread job: the excluded one behind the others (grey in the list),
         // unscored after scored. Its count leaves the excluded one out.
         let new = job_page(&store, &query(JobFacet::New, JobSort::Match, 50, 0)).unwrap();
         assert_eq!(titles(&new), ["B", "D", "C"]);
-        assert_eq!(new.counts, expected);
+        assert_eq!(&new.counts, &expected);
         assert!(new.jobs[0].unread && new.jobs[0].match_.is_some());
         let excluded = new.jobs[2].match_.as_ref().unwrap();
         assert!(new.jobs[2].unread && excluded.status == MatchStatus::Excluded);
@@ -1280,14 +1317,107 @@ mod tests {
         // Past the end or counts only: no rows, the same counts.
         let past = job_page(&store, &query(JobFacet::All, JobSort::Match, 50, 10)).unwrap();
         assert!(past.jobs.is_empty());
-        assert_eq!(past.counts, expected);
+        assert_eq!(&past.counts, &expected);
         let counts_only = job_page(&store, &query(JobFacet::All, JobSort::Match, 0, 0)).unwrap();
-        assert_eq!((counts_only.jobs.len(), counts_only.counts), (0, expected));
+        assert_eq!(
+            (counts_only.jobs.len(), &counts_only.counts),
+            (0, &expected)
+        );
         // The search narrows list and counts alike.
         let mut search = query(JobFacet::All, JobSort::Match, 50, 0);
         search.search = Some("volltext".into());
         let found = job_page(&store, &search).unwrap();
         assert_eq!((found.jobs.len(), found.counts.all), (1, 1));
+    }
+
+    /// The new jobs per portal and the pinned ones come with every page, from the same
+    /// statement: every portal in the order of `Portal::ALL` (one order on every screen), read
+    /// or excluded jobs are no new ones, the search narrows them like the other counts.
+    #[test]
+    fn new_per_portal_and_pinned_come_with_the_counts() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let add = |url: &str, title: &str| {
+            let link = job_link(url).unwrap();
+            let posting = Posting::new(link.key.clone(), link.url, title, "", "");
+            let mail = MailRef {
+                subject: "x",
+                date: None,
+                gmail_id: None,
+            };
+            store
+                .upsert_posting(run, &posting, mail, Timestamp::now())
+                .unwrap();
+            link.key
+        };
+        let map_new = add(
+            "https://www.freelancermap.de/nproj/12345.html",
+            "Controlling",
+        );
+        let map_out = add(
+            "https://www.freelancermap.de/nproj/12346.html",
+            "Buchhaltung",
+        );
+        add(
+            "https://www.linkedin.com/jobs/view/4000000001/",
+            "Interim CFO",
+        );
+        let li_read = add(
+            "https://www.linkedin.com/jobs/view/4000000002/",
+            "Controller",
+        );
+        let now = Timestamp::now();
+        store.mark_read(&li_read, now).unwrap();
+        store
+            .save_matches(&[(map_out, record(MatchStatus::Excluded, 90))], "r", now)
+            .unwrap();
+        store.set_pinned(&map_new, true, now).unwrap();
+        store.set_pinned(&li_read, true, now).unwrap();
+        let counts = |search: Option<&str>| {
+            job_page(
+                &store,
+                &JobQuery {
+                    facet: JobFacet::New,
+                    sort: JobSort::Match,
+                    search: search.map(str::to_owned),
+                    limit: 0,
+                    offset: 0,
+                },
+            )
+            .unwrap()
+            .counts
+        };
+        let per_portal = |counts: &JobCounts| -> Vec<(Portal, u32)> {
+            counts
+                .new_by_portal
+                .iter()
+                .map(|p| (p.portal, p.new))
+                .collect()
+        };
+        let all = counts(None);
+        assert_eq!(
+            per_portal(&all),
+            [
+                (Portal::LinkedIn, 1),
+                (Portal::FreelanceDe, 0),
+                (Portal::Freelancermap, 1)
+            ]
+        );
+        assert_eq!(
+            all.new_by_portal.iter().map(|p| p.new).sum::<u32>(),
+            all.new
+        );
+        assert_eq!(all.pinned, 2);
+        let found = counts(Some("interim"));
+        assert_eq!(
+            per_portal(&found),
+            [
+                (Portal::LinkedIn, 1),
+                (Portal::FreelanceDe, 0),
+                (Portal::Freelancermap, 0)
+            ]
+        );
+        assert_eq!(found.pinned, 0);
     }
 
     #[test]

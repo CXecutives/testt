@@ -182,7 +182,7 @@
                 icon="trash-2"
                 label={de.common.remove}
                 disabled={run.active}
-                disabledReason={de.settings.running}
+                disabledReason={run.busyText}
                 testid="mailbox-remove"
                 onclick={() => (confirmRemove = true)}
               />
@@ -278,7 +278,7 @@
               label={de.settings.txtRewrite}
               loading={busy === 'rewrite'}
               disabled={run.active}
-              disabledReason={de.settings.running}
+              disabledReason={run.busyText}
               testid="txt-rewrite"
               onclick={rewrite}
             />
@@ -318,7 +318,7 @@
             icon="mail"
             label={de.settings.fullMailboxAction}
             disabled={run.active || !cfg.mailbox.user}
-            disabledReason={run.active ? de.settings.running : de.toolbar.needsMailbox}
+            disabledReason={run.active ? run.busyText : de.toolbar.needsMailbox}
             testid="full-mailbox"
             onclick={() => (confirmFull = true)}
           />
@@ -348,7 +348,7 @@
             icon="rotate-ccw"
             label={de.settings.resetAction}
             disabled={run.active}
-            disabledReason={de.settings.running}
+            disabledReason={run.busyText}
             testid="reset"
             onclick={() => (confirmReset = true)}
           />

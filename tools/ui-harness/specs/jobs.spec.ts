@@ -364,29 +364,14 @@ test('a removed mailbox keeps the jobs: Abrufen waits and the list says how', as
 test('a rescore is no fetch: no fetch texts, no run card afterwards', async ({ page }) => {
   await open(page, `${WIN}&tick=15`);
   await page.getByTestId('nav-profile').click();
-  await page.evaluate(() => {
-    window.__harness.emit({ type: 'status', code: 'scoring', portal: null, until: null });
-    window.__harness.emit({
-      type: 'finished',
-      summary: {
-        run: 42,
-        kind: 'rescore',
-        outcome: { kind: 'completed' },
-        dryRun: false,
-        startedAt: '2026-09-24T07:29:00Z',
-        finishedAt: '2026-09-24T07:30:00Z',
-        scan: null,
-        perPortal: [],
-        score: null,
-        export: null,
-        emptyAlerts: [],
-      },
-    });
-  });
+  // The rescore the app starts after a profile change: on the page's channel, no start_run.
+  await page.evaluate(() => window.__harness.appRun('rescore'));
+  await runFinished(page);
   await expect(page.getByTestId('toast')).toHaveCount(0);
   await page.getByTestId('nav-jobs').click();
   await expect(page.getByTestId('run-card')).toHaveCount(0);
   await expect(page.getByText('Abruf fertig')).toHaveCount(0);
+  expect(await calls(page, 'start_run')).toHaveLength(0);
 });
 
 test('under reduced motion a run without progress still shows its bar', async ({ page }) => {

@@ -1,7 +1,9 @@
 <!--
   The job list: rows in windows of 60 (a sentinel at the end shows the next window), a new
   job of a run fades in, FLIP when sort or filter reorders a list of up to 100 rows, excluded
-  jobs grey behind the divider "Ausgeschlossen n" (under Neu too, uncounted). Every empty
+  jobs grey behind the divider "Ausgeschlossen n" (under Neu or a filter too, there without
+  a number: the rows below are only a part of the excluded jobs). A page that fails to load
+  while scrolling says so at the end of the list, with a retry. Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
   view's primary). Without a mailbox one note says how to connect one; a missing profile is
   said once, in the day overview.
@@ -29,11 +31,14 @@
   const animated = $derived(total <= FLIP_LIMIT);
   const active = $derived(shown.filter((job) => !isExcluded(job)));
   const excluded = $derived(shown.filter(isExcluded));
+  // The number only where the divider heads every excluded job of the list (its count, like
+  // the facet's, follows the search).
   const excludedCount = $derived(
-    jobs.filter === null && jobs.facet === 'all'
-      ? jobs.counts.excluded
-      : jobs.visible.filter(isExcluded).length,
+    jobs.filter === null && jobs.facet === 'all' ? jobs.counts.excluded : null,
   );
+  // "No jobs in the alert mails" only after a fetch that read the mailbox.
+  const lastFetch = $derived(run.summary ?? app.state?.lastRun ?? null);
+  const mailRead = $derived(lastFetch?.outcome.kind === 'completed' && lastFetch.scan !== null);
   const searching = $derived(jobs.search.trim() !== '');
   const profileMissing = $derived(app.state !== null && !app.hasProfile);
   const mailboxMissing = $derived(app.state !== null && !app.hasMailbox);
@@ -134,7 +139,7 @@
         <EmptyState
           icon="inbox"
           tone="neutral"
-          text={app.state?.lastRun ? de.list.emptyAfterRun : de.list.emptyAll}
+          text={mailRead ? de.list.emptyAfterRun : de.list.emptyAll}
           testid="empty-all"
         />
       {/if}
@@ -186,7 +191,17 @@
         {@render group(excluded, active.length)}
       </div>
     {/if}
-    {#if jobs.more}
+    {#if jobs.pageError}
+      <div class="page-error">
+        <Notice
+          tone="warning"
+          variant="row"
+          text={de.list.pageFailed}
+          action={{ label: de.common.retry, onclick: () => void jobs.grow() }}
+          testid="page-error"
+        />
+      </div>
+    {:else if jobs.more}
       {#key shown.length}
         <div class="sentinel" use:nearEnd={() => void jobs.grow()}>
           <Skeleton width={60} />
@@ -207,6 +222,10 @@
   .note {
     padding: var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
+  }
+
+  .page-error {
+    padding: var(--space-12) var(--pane-padding);
   }
 
   .filter {
