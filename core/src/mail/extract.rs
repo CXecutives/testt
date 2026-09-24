@@ -1,15 +1,15 @@
-//! Job-Einträge aus einer Alert-Mail ziehen.
+//! Pull job entries out of an alert mail.
 //!
-//! Die Portale ändern ihre Mail-Layouts gelegentlich; verlassen wird sich deshalb nicht
-//! auf CSS-Klassen, sondern auf das, was stabil bleibt: die Ziel-URLs der Stellen-Links
-//! (`portal::job_link`) und den Text der Links bzw. den Text dahinter.
+//! Portals change their mail layouts occasionally; this relies not on CSS classes but on
+//! what stays stable: the target URLs of the job links (`portal::job_link`) and the text
+//! of the links, or the text behind them.
 //!
-//! Firma und Ort stehen hinter dem Titel. Gesucht wird zuerst in der „Karte“ des Jobs –
-//! dem größten Layout-Block um den Link, der keinen anderen Job enthält (Tabellen-Layouts
-//! wie bei LinkedIn). So kann Text aus der Fußzeile oder aus dem Block des nächsten Jobs
-//! nicht mehr zu Firma oder Ort werden. Gibt es keine solche Karte (flaches Layout mit
-//! Zeilenumbrüchen), gilt der Text bis zum nächsten Link – begrenzt vom Block des Links
-//! (`<div>`, `<p>`, `<td>`), damit der Nachbarblock nie Firma oder Ort liefert.
+//! Company and location sit behind the title. The search starts in the job's "card" - the
+//! largest layout block around the link that holds no other job (table layouts like
+//! LinkedIn's). That keeps text from the footer or from the next job's block from ever
+//! becoming company or location. Where there is no such card (a flat layout with line
+//! breaks), the text up to the next link counts - bounded by the link's own block
+//! (`<div>`, `<p>`, `<td>`), so the neighbouring block never supplies company or location.
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -22,7 +22,7 @@ use scraper::{ElementRef, Html, Node, Selector};
 use crate::portal::{JobKey, JobLink, job_link};
 use crate::text::{one_line, strip_chars};
 
-/// Ein erkannter Job mit Rohwerten aus der Mail.
+/// A recognised job with raw values from the mail.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Found {
     pub link: JobLink,
@@ -31,12 +31,12 @@ pub struct Found {
     pub location: String,
 }
 
-/// Höchstens so viele Textzeilen hinter dem Titel werden für Firma/Ort betrachtet.
+/// At most this many text lines behind the title are considered for company/location.
 const MAX_TRAILING: usize = 8;
 
 use crate::text::SKIP;
 
-/// Elemente, an deren Grenzen eine Textzeile endet.
+/// Elements at whose boundaries a text line ends.
 const BREAKS: &[&str] = &[
     "address",
     "article",
@@ -67,7 +67,7 @@ const BREAKS: &[&str] = &[
     "ul",
 ];
 
-/// Absatzgrenzen: Im flachen Layout endet dort der Block eines Jobs.
+/// Paragraph boundaries: in the flat layout a job's block ends there.
 const PARAGRAPH: &[&str] = &[
     "article",
     "blockquote",
@@ -88,9 +88,9 @@ const PARAGRAPH: &[&str] = &[
 ];
 
 static A_HREF: LazyLock<Selector> =
-    LazyLock::new(|| Selector::parse("a[href]").expect("gültiger Selektor"));
+    LazyLock::new(|| Selector::parse("a[href]").expect("valid selector"));
 
-/// Link-Texte, die keinen Titel darstellen.
+/// Link texts that are not a title. German and English link texts, do not translate.
 const GENERIC: &[&str] = &[
     "job ansehen",
     "jobs ansehen",
@@ -128,46 +128,47 @@ const GENERIC: &[&str] = &[
     "mehr lesen",
 ];
 
-/// Zusatztexte hinter dem Titel, die weder Firma noch Ort sind. Die Wort-Etiketten gelten
-/// nur als ganzes Wort (früher: „Aktiva Consulting“ oder „Neumann GmbH“ fielen weg) –
-/// und nur, wenn klein weitergeschrieben wird („Aktiv vor 2 Tagen“), nicht vor einem
-/// Namen („Neu Isenburg“, „New York“).
+/// Extra text behind the title that is neither company nor location. The word labels
+/// only match as whole words (previously "Aktiva Consulting" or "Neumann GmbH" got
+/// dropped) - and only when followed by a lowercase word ("Aktiv vor 2 Tagen"), not
+/// before a name ("Neu Isenburg", "New York"). German mail patterns, do not translate.
 static NOISE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"^(?:(?i:vor \d+|\d+\s*(?:std|min|tag|stunde|minute|day|hour)|\d+ bewerber|be an early|erstellt:|von:$|ab (?:sofort|\w+ \d{4})|start:|beginn:|dauer:|laufzeit:|vertragsart:|/$)|(?i:aktiv|neu|new|promoted|anzeige|gesponsert|sofort|easy apply|einfach bewerben|schnell bewerben|remote möglich|bewerbungsfrist)(?:$|\s*[:!·|]|\s+[\p{Ll}\d]))",
     )
-    .expect("gültiges Muster")
+    .expect("valid pattern")
 });
 
-/// „Ort: Hamburg // Vertragsart: … // Start: …“ (freelancermap).
+/// Matches "Ort: Hamburg // Vertragsart: ... // Start: ..." style field lines
+/// (freelancermap). German field labels, do not translate.
 static PLACE_FIELD: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\b(?:Ort|Standort|Location)\s*:\s*(.+?)\s*(?://|\||$)")
-        .expect("gültiges Muster")
+    Regex::new(r"(?i)\b(?:Ort|Standort|Location)\s*:\s*(.+?)\s*(?://|\||$)").expect("valid pattern")
 });
 
-/// URL im Klartext – auch in Klammern, Anführungszeichen oder hinter „Link:“ (ein Zerlegen
-/// in Wörter verlöre solche Links).
+/// A URL in plain text - also in brackets, quotes or behind "Link:" (splitting into
+/// words would lose such links).
 static PLAIN_URL: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)https?://[^\s<>"'()\[\]{}„“”«»‹›]+"#).expect("gültiges Muster")
+    Regex::new(r#"(?i)https?://[^\s<>"'()\[\]{}„“”«»‹›]+"#).expect("valid pattern")
 });
 
-/// Portal-Adresse im Klartext ohne `https://`.
+/// Portal address in plain text without `https://`.
 static BARE_URL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)\b(?:[a-z0-9-]+\.)*(?:linkedin\.com|freelance\.de|freelancermap\.(?:de|com))/[^\s<>"'()\[\]{}„“”«»‹›]*"#)
-        .expect("gültiges Muster")
+        .expect("valid pattern")
 });
 
-/// „Ort:“ allein in einer Zeile – der Wert steht in der nächsten.
+/// "Ort:" alone on a line - the value is on the next one. German field label, do not
+/// translate.
 static PLACE_LABEL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)^(?:Ort|Standort|Location)\s*:?$").expect("gültiges Muster"));
+    LazyLock::new(|| Regex::new(r"(?i)^(?:Ort|Standort|Location)\s*:?$").expect("valid pattern"));
 
-/// „Firma · Ort“ in einer Zeile (LinkedIn).
+/// "Company · Location" on a single line (LinkedIn).
 static SEPARATOR: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\s+[·•|]\s+").expect("gültiges Muster"));
+    LazyLock::new(|| Regex::new(r"\s+[·•|]\s+").expect("valid pattern"));
 
-/// Alle Jobs aus den HTML- und Textteilen einer Mail, in Reihenfolge des ersten
-/// Auftretens, ohne Dubletten. Der Klartext ergänzt, was im HTML fehlt (früher: er
-/// wurde nur gelesen, wenn das HTML gar nichts lieferte).
+/// All jobs from the HTML and text parts of a mail, in order of first appearance,
+/// without duplicates. The plain text fills in what the HTML misses (previously it was
+/// only read when the HTML delivered nothing at all).
 pub fn extract(html_parts: &[String], text_parts: &[String]) -> Vec<Found> {
     let mut jobs = Jobs::default();
     for html in html_parts {
@@ -175,9 +176,10 @@ pub fn extract(html_parts: &[String], text_parts: &[String]) -> Vec<Found> {
             jobs.add(found);
         }
     }
-    // Der Klartext ergänzt Jobs, die im HTML fehlen – und einen HTML-Fund, der ohne Titel
-    // blieb (auto-verlinkte Adresse ohne Zeile davor). Sonst bleibt er außen vor: Seine
-    // Titel-Heuristik ist schwächer und soll keinen fertigen HTML-Eintrag überschreiben.
+    // The plain text fills in jobs missing from the HTML - and an HTML find that was
+    // left without a title (an auto-linked address with no line before it). Otherwise
+    // it stays out: its title heuristic is weaker and must not overwrite a finished
+    // HTML entry.
     for text in text_parts {
         for found in extract_plain(text) {
             let known = jobs.index.get(&found.link.key).copied();
@@ -189,11 +191,11 @@ pub fn extract(html_parts: &[String], text_parts: &[String]) -> Vec<Found> {
     jobs.list
 }
 
-/// Sammelt Funde; derselbe Job mehrmals: der erste echte Titel bleibt (früher: ein
-/// späterer, längerer Linktext ersetzte einen sauberen Titel). Firma und Ort
-/// werden nie überschrieben (früher: eine spätere „Zum Projekt“-Dublette löschte den
-/// schon erkannten Ort) und stammen immer gemeinsam aus einer Stelle der Mail – nur wenn
-/// die erste Nennung gar keine hatte, zählt die spätere.
+/// Collects finds; the same job seen more than once: the first real title stays
+/// (previously a later, longer link text replaced a clean title). Company and location
+/// are never overwritten (previously a later "Zum Projekt" duplicate erased an already
+/// recognised location) and always come together from one spot in the mail - only when
+/// the first mention had neither does the later one count.
 #[derive(Default)]
 struct Jobs {
     list: Vec<Found>,
@@ -228,27 +230,27 @@ enum Token {
         job: Option<JobLink>,
         lines: Vec<String>,
         node: NodeId,
-        /// Vor diesem Link lag eine Absatzgrenze (p, h1–h6, hr …).
+        /// A paragraph boundary (p, h1-h6, hr, ...) preceded this link.
         para: bool,
-        /// Innerster offener Block (div, p, td …) an dieser Stelle.
+        /// Innermost open block (div, p, td, ...) at this point.
         block: Option<NodeId>,
     },
     Text {
         line: String,
         node: NodeId,
-        /// Vor dieser Zeile lag eine Absatzgrenze (p, h1–h6, hr …).
+        /// A paragraph boundary (p, h1-h6, hr, ...) preceded this line.
         para: bool,
     },
 }
 
-/// Welche Jobs ein Element enthält – genug für die Karten-Suche.
+/// Which jobs an element holds - enough for the card search.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Holds<'a> {
     One(&'a JobKey),
     Many,
 }
 
-/// So viele Tokens hinter einem Link werden höchstens betrachtet (Laufzeitgrenze).
+/// At most this many tokens behind a link are considered (a runtime bound).
 const MAX_SCAN: usize = 200;
 
 fn extract_html(html: &str) -> Vec<Found> {
@@ -256,8 +258,8 @@ fn extract_html(html: &str) -> Vec<Found> {
     let (tokens, span) = tokenize(&doc);
     let inside = |node: NodeId, container: NodeId| is_inside(&span, node, container);
 
-    // Je Element: enthält es genau einen Job oder mehrere? Linear – der Weg nach oben endet,
-    // sobald ein Vorfahr schon Bescheid weiß.
+    // Per element: does it hold exactly one job or several? Linear - the walk upward
+    // stops as soon as an ancestor already knows the answer.
     let mut holds: HashMap<NodeId, Holds<'_>> = HashMap::new();
     for token in &tokens {
         let Token::Link {
@@ -312,9 +314,9 @@ fn extract_html(html: &str) -> Vec<Found> {
             _ => None,
         })
         .collect();
-    // Karten gelten nur, wenn wenigstens eine Karte Angaben hinter ihrem Link enthält – sonst
-    // ist das „Karte“ genannte Element nur eine Hülle um den Link (<b>, <p>, eine Tabellenzeile
-    // je Angabe) und die Angaben stehen daneben.
+    // Cards only count when at least one card holds details behind its link - otherwise
+    // the element called a "card" is just a wrapper around the link (<b>, <p>, one table
+    // row per detail) and the details sit beside it, not inside it.
     let card_layout = jobs.iter().any(|&(i, _, card)| {
         let Some(card) = card else { return false };
         let own = matches!(&tokens[i], Token::Link { lines, .. } if lines.iter().filter(|l| !is_generic(l)).count() > 1);
@@ -337,18 +339,19 @@ fn extract_html(html: &str) -> Vec<Found> {
         };
         let mut texts = lines.iter().map(String::as_str).filter(|l| !is_generic(l));
         let first = texts.next().unwrap_or_default();
-        // Gmail und Outlook machen aus einer nackten Adresse im Klartext einen Link, dessen
-        // Text die Adresse **ist** – ein Titel ist das nicht. Dann steht der Titel in der
-        // Zeile davor, und alles zum Job steht vor dem Link: Hinter ihm beginnt der nächste
-        // Block (früher wurde dessen Titel zur Firma).
+        // Gmail and Outlook turn a bare address in plain text into a link whose text
+        // **is** the address - that is not a title. Then the title sits on the line
+        // before it, and everything about the job sits before the link: the next block
+        // starts right after it (previously its title became the company).
         let (title, company, location) = if is_url(first) {
             (line_before(&tokens, i), String::new(), String::new())
         } else if first.is_empty() {
-            // Ohne Titel keine Angaben: Im flachen Layout gehörte der Text dahinter meist zum
-            // nächsten Job.
+            // No title, no details: in the flat layout the text behind it usually
+            // belonged to the next job.
             (String::new(), String::new(), String::new())
         } else {
-            // Link um eine ganze Karte: Die weiteren Zeilen im Link sind Firma und Ort.
+            // A link wrapping a whole card: the further lines inside the link are
+            // company and location.
             let (company, location) =
                 details_after(&tokens, i, link, first, texts.collect(), card, &span);
             (first.to_string(), company, location)
@@ -363,7 +366,7 @@ fn extract_html(html: &str) -> Vec<Found> {
     out
 }
 
-/// Ein Text, der nur aus einer Adresse besteht.
+/// A text consisting of nothing but an address.
 pub(crate) fn is_url(text: &str) -> bool {
     let line = one_line(text);
     let line = line.trim();
@@ -374,9 +377,9 @@ pub(crate) fn is_url(text: &str) -> bool {
             .is_some_and(|m| m.start() == 0 && m.end() == line.len())
 }
 
-/// Die Textzeile unmittelbar vor dem Link, im selben Absatz – der Titel eines Blocks, dessen
-/// Adresse auto-verlinkt wurde. Leer, wenn der Link einen Absatz beginnt oder davor nichts
-/// Brauchbares steht; den Titel liefert dann der Klartextteil der Mail.
+/// The text line immediately before the link, in the same paragraph - the title of a
+/// block whose address got auto-linked. Empty when the link starts a paragraph or
+/// nothing usable precedes it; the plain-text part of the mail then supplies the title.
 fn line_before(tokens: &[Token], i: usize) -> String {
     if i == 0 || matches!(&tokens[i], Token::Link { para: true, .. }) {
         return String::new();
@@ -387,8 +390,8 @@ fn line_before(tokens: &[Token], i: usize) -> String {
     }
 }
 
-/// Firma und Ort hinter einem Stellen-Link: in der Karte, sonst bis zum nächsten Job,
-/// fremden Link oder – nach den ersten Angaben – bis zum nächsten Absatz.
+/// Company and location behind a job link: inside the card, otherwise up to the next
+/// job, a foreign link, or - after the first details - up to the next paragraph.
 fn details_after<'a>(
     tokens: &'a [Token],
     i: usize,
@@ -399,8 +402,8 @@ fn details_after<'a>(
     span: &HashMap<NodeId, (usize, usize)>,
 ) -> (String, String) {
     let mut seen_detail = !trailing.is_empty();
-    // Absatz je Zeile (Outlook): Dann trennen Absätze keine Jobs – der Satz-Filter hält die
-    // Fußzeile fern.
+    // One paragraph per line (Outlook): then paragraphs don't separate jobs - the
+    // sentence filter keeps the footer out.
     let mut paragraph_lines = false;
     let bounds = block_of(tokens, i, span).filter(|_| card.is_none());
     for next in tokens[i + 1..].iter().take(MAX_SCAN) {
@@ -416,7 +419,7 @@ fn details_after<'a>(
             Token::Link {
                 job: Some(other), ..
             } if other.key != link.key => break,
-            // Derselbe Job noch einmal verlinkt (Logo, Firmenzeile als Link …).
+            // The same job linked again (logo, company line as a link, ...).
             Token::Link {
                 job: Some(_),
                 lines,
@@ -437,24 +440,24 @@ fn details_after<'a>(
                     .map(String::as_str)
                     .filter(|l| !is_generic(l))
                     .collect();
-                // Flaches Layout: ein anderer Link mit Text (Login, Abmelden …) beendet den Job.
+                // Flat layout: another link with text (login, sign out, ...) ends the job.
                 if card.is_none() && !useful.is_empty() {
                     break;
                 }
                 trailing.extend(useful);
             }
             Token::Text { line, para, node } => {
-                // Flaches Layout: Was außerhalb des Blocks des Links steht, gehört schon zum
-                // nächsten Job – das gilt auch vor der ersten Angabe (früher las der Abruf
-                // über die `<div>`-Grenze hinweg und nahm den Titel des nächsten Blocks als
-                // Firma).
+                // Flat layout: whatever sits outside the link's block already belongs
+                // to the next job - that applies even before the first detail
+                // (previously the fetch read across the `<div>` boundary and took the
+                // next block's title as the company).
                 if let Some(block) = bounds
                     && !is_inside(span, *node, block)
                 {
                     break;
                 }
-                // Flaches Layout: Ein neuer Absatz nach den ersten Angaben ist nicht mehr
-                // dieser Job (Gruß, Fußzeile).
+                // Flat layout: a new paragraph after the first details is no longer
+                // this job (sign-off, footer).
                 if card.is_none() && *para && seen_detail && !paragraph_lines {
                     break;
                 }
@@ -469,9 +472,10 @@ fn details_after<'a>(
     split_details(&trailing)
 }
 
-/// Der Block (div, p, td …), der den Job begrenzt – aber nur, wenn er mehr als den Link
-/// enthält. Steht der Link allein in seinem Block (ein Absatz je Zeile, Outlook), sagt der
-/// Block nichts über die Grenze des Jobs aus und die Angaben stehen daneben.
+/// The block (div, p, td, ...) that bounds the job - but only when it holds more than
+/// just the link. When the link is alone in its block (one paragraph per line,
+/// Outlook), the block says nothing about the job's boundary and the details sit
+/// beside it.
 fn block_of(tokens: &[Token], i: usize, span: &HashMap<NodeId, (usize, usize)>) -> Option<NodeId> {
     let Token::Link {
         block: Some(block), ..
@@ -483,7 +487,7 @@ fn block_of(tokens: &[Token], i: usize, span: &HashMap<NodeId, (usize, usize)>) 
     started.then_some(*block)
 }
 
-/// Liegt `node` in `container`? (Lage in Lesereihenfolge, ohne Vorfahren-Suche.)
+/// Is `node` inside `container`? (Position in reading order, no ancestor walk.)
 fn is_inside(span: &HashMap<NodeId, (usize, usize)>, node: NodeId, container: NodeId) -> bool {
     let (Some(&(start, _)), Some(&(from, to))) = (span.get(&node), span.get(&container)) else {
         return false;
@@ -497,12 +501,12 @@ fn node_of(token: &Token) -> NodeId {
     }
 }
 
-/// Ein Block, der einen Job begrenzen kann; `br` und `hr` sind leer und umschließen nichts.
+/// A block that can bound a job; `br` and `hr` are empty and enclose nothing.
 fn is_block(name: &str) -> bool {
     BREAKS.contains(&name) && !matches!(name, "br" | "hr")
 }
 
-/// Gepufferten Text als Zeile ablegen.
+/// Flush the buffered text out as a line.
 fn flush(tokens: &mut Vec<Token>, buffer: &mut String, node: &mut Option<NodeId>, para: &mut bool) {
     let line = one_line(buffer);
     if let (false, Some(n)) = (line.is_empty(), node.take()) {
@@ -517,8 +521,8 @@ fn flush(tokens: &mut Vec<Token>, buffer: &mut String, node: &mut Option<NodeId>
     *node = None;
 }
 
-/// Zerlegt das Dokument in Link- und Textzeilen in Lesereihenfolge und merkt je Knoten
-/// seine Lage in dieser Reihenfolge (für „liegt in der Karte“).
+/// Splits the document into link and text lines in reading order, and records each
+/// node's position in that order (for the "is inside the card" check).
 fn tokenize(doc: &Html) -> (Vec<Token>, HashMap<NodeId, (usize, usize)>) {
     let mut tokens = Vec::new();
     let mut span: HashMap<NodeId, (usize, usize)> = HashMap::new();
@@ -544,8 +548,9 @@ fn tokenize(doc: &Html) -> (Vec<Token>, HashMap<NodeId, (usize, usize)>) {
                     Node::Element(el) if el.name() == "a" => {
                         let href = el.attr("href").map(str::trim).unwrap_or_default();
                         let job = job_link(href);
-                        // Anker ohne Ziel (Textmarken) sind nur Text; ein fremder Link um
-                        // Stellen-Links (Klick-Zähler um die ganze Karte) wird durchlaufen.
+                        // Anchors without a target (bookmarks) are just text; a foreign
+                        // link wrapping job links (a click counter around the whole
+                        // card) is walked through.
                         let wraps_jobs = || {
                             ElementRef::wrap(node).is_some_and(|e| {
                                 e.select(&A_HREF)
@@ -612,8 +617,8 @@ fn tokenize(doc: &Html) -> (Vec<Token>, HashMap<NodeId, (usize, usize)>) {
     (tokens, span)
 }
 
-/// Text eines Links als Zeilen: Blöcke (div, p, td …) trennen, `<br>` nicht – ein Titel mit
-/// Zeilenumbruch bleibt ein Titel („Senior Controller<br>(m/w/d)“).
+/// A link's text as lines: blocks (div, p, td, ...) separate them, `<br>` does not - a
+/// title with a line break stays one title ("Senior Controller<br>(m/w/d)").
 fn link_lines(link: ElementRef<'_>) -> Vec<String> {
     let mut lines = Vec::new();
     let mut current = String::new();
@@ -651,11 +656,12 @@ fn link_lines(link: ElementRef<'_>) -> Vec<String> {
     lines
 }
 
-// -------------------------------------------------------------------- Klartext
+// -------------------------------------------------------------------- Plain text
 
-/// Klartext-Mails: jede URL, die ein Job-Link ist (auch ohne `https://`). Der Titel ist die
-/// erste Zeile ihres Blocks (seit der letzten Leerzeile oder URL), die Zeilen danach sind
-/// Firma und Ort – so wird bei „Titel / Firma / Ort / Link“ nicht der Ort zum Titel.
+/// Plain-text mails: every URL that is a job link (even without `https://`). The title
+/// is the first line of its block (since the last blank line or URL), the lines after
+/// it are company and location - so with "title / company / location / link" the
+/// location never becomes the title.
 fn extract_plain(text: &str) -> Vec<Found> {
     let lines: Vec<&str> = text.lines().collect();
     let mut out = Vec::new();
@@ -675,7 +681,7 @@ fn extract_plain(text: &str) -> Vec<Found> {
                 .map(|l| one_line(l))
                 .filter(|l| !l.is_empty() && !is_generic(l))
                 .collect();
-            // „SAP Berater: https://…“ – der Titel steht vor dem Link in derselben Zeile.
+            // "SAP Berater: https://..." - the title sits before the link on the same line.
             if block.is_empty() {
                 let before = one_line(line[..start].trim_end_matches([':', '-', '–', ' ']));
                 if !before.is_empty() && !is_generic(&before) {
@@ -696,7 +702,7 @@ fn extract_plain(text: &str) -> Vec<Found> {
     out
 }
 
-/// URLs einer Zeile samt Startposition; Adressen der Portale auch ohne Schema.
+/// A line's URLs with their start position; portal addresses count even without a scheme.
 fn urls(line: &str) -> Vec<(usize, String)> {
     let trim = |s: &str| {
         s.trim_end_matches(['.', ',', ';', ':', '!', '?'])
@@ -718,7 +724,7 @@ fn urls(line: &str) -> Vec<(usize, String)> {
     found.into_iter().map(|(s, _, url)| (s, url)).collect()
 }
 
-// ---------------------------------------------------------------------- Hilfen
+// ---------------------------------------------------------------------- Helpers
 
 fn is_generic(text: &str) -> bool {
     let folded = one_line(text).to_lowercase();
@@ -726,7 +732,7 @@ fn is_generic(text: &str) -> bool {
     folded.chars().count() < 3 || GENERIC.contains(&folded)
 }
 
-/// Ein Satz ist weder Firma noch Ort (Fußzeile, Gruß, Hinweis).
+/// A sentence is neither company nor location (footer, sign-off, notice).
 fn is_sentence(text: &str) -> bool {
     let words = text.split_whitespace().count();
     words > 8
@@ -735,12 +741,12 @@ fn is_sentence(text: &str) -> bool {
         || (text.ends_with('.') && words >= 5)
 }
 
-/// Firma und Ort (Rohwerte) aus den Texten hinter dem Titel.
+/// Company and location (raw values) from the texts behind the title.
 ///
-/// Gesehene Layouts: LinkedIn „Firma · Ort“ in einer Zeile; freelance.de „Firma“,
-/// „D-68159 Mannheim“; freelancermap „von:“, „Firma“, „Ort: Hamburg // Vertragsart: …“.
-/// Bereinigt (ohne „von:“, Anschrift → Ort) wird erst für Anzeige und Export. Ein Satz
-/// beendet die Suche – er gehört zur Fußzeile, nicht zum Job.
+/// Layouts seen: LinkedIn "Company · Location" on one line; freelance.de "Company",
+/// "D-68159 Mannheim"; freelancermap "von:", "Company", "Ort: Hamburg // Vertragsart: ...".
+/// Cleaning (dropping "von:", address -> location) only happens for display and export.
+/// A sentence ends the search - it belongs to the footer, not the job.
 pub(crate) fn split_details(texts: &[&str]) -> (String, String) {
     let mut parts: Vec<String> = Vec::new();
     let mut location = String::new();
@@ -750,7 +756,7 @@ pub(crate) fn split_details(texts: &[&str]) -> (String, String) {
         if text.is_empty() {
             continue;
         }
-        // „Ort:“ allein (z. B. farbig abgesetzt), der Wert folgt in der nächsten Zeile.
+        // "Ort:" alone (e.g. set off in colour), the value follows on the next line.
         if place_next {
             place_next = false;
             if location.is_empty() {
@@ -807,7 +813,7 @@ mod tests {
             split_details(&["Nordwind Consulting · Berlin (Vor Ort)"]),
             ("Nordwind Consulting".into(), "Berlin (Vor Ort)".into())
         );
-        // freelancermap: Rohwerte; bereinigt wird für die Anzeige.
+        // freelancermap: raw values; cleaning happens for display.
         let raw = split_details(&[
             "von: Nordstern Personalberatung GmbH",
             "Ort: Am Mühlenweg 68, 27356 Rotenburg Wümme // Start: ab sofort",
@@ -819,7 +825,7 @@ mod tests {
                 "Rotenburg Wümme".into()
             )
         );
-        // freelance.de: hinter dem Titel nur der Ort.
+        // freelance.de: only the location behind the title.
         let raw = split_details(&["D-20038 Hamburg"]);
         assert_eq!(
             split_company_location(&raw.0, &raw.1),
@@ -840,7 +846,7 @@ mod tests {
         );
     }
 
-    /// Früher: „aktiv“, „neu“, „new“ ohne Wortgrenze löschten echte Namen.
+    /// Previously: "aktiv", "neu", "new" without a word boundary deleted real names.
     #[test]
     fn noise_labels_only_as_whole_words() {
         for keep in [
@@ -894,7 +900,7 @@ mod tests {
         assert_eq!(
             (found[1].company.as_str(), found[1].location.as_str()),
             ("", ""),
-            "Fußzeile ist nicht Firma/Ort"
+            "footer is not company/location"
         );
     }
 
@@ -911,7 +917,7 @@ mod tests {
         );
     }
 
-    /// Früher: Die zweite Nennung desselben Jobs löschte den Ort.
+    /// Previously: the second mention of the same job erased the location.
     #[test]
     fn duplicate_link_does_not_erase_known_place() {
         let html = r#"<body>
@@ -936,9 +942,9 @@ mod tests {
         );
     }
 
-    /// Gmail und Outlook verlinken eine nackte Adresse im Klartext automatisch – der
-    /// Linktext ist dann die Adresse. Früher wurde sie zum Titel und der Titel des nächsten
-    /// Blocks zur Firma.
+    /// Gmail and Outlook auto-link a bare address in plain text - the link text is then
+    /// the address. Previously it became the title and the next block's title became
+    /// the company.
     #[test]
     fn an_auto_linked_url_is_no_title() {
         let block = |title: &str, url: &str| {
@@ -965,8 +971,9 @@ mod tests {
         }
     }
 
-    /// Ohne brauchbare Zeile vor dem Link bleibt der Titel im HTML leer – dann füllt ihn der
-    /// Klartextteil derselben Mail. Ein fertiger HTML-Titel bleibt dagegen stehen.
+    /// Without a usable line before the link the title stays empty in the HTML - then
+    /// the plain-text part of the same mail fills it. A finished HTML title, however,
+    /// stays as is.
     #[test]
     fn the_plain_text_fills_a_title_the_html_left_empty() {
         let url = "https://www.freelance.de/projekte/projekt-1292304-VMware";
@@ -988,8 +995,8 @@ mod tests {
         assert_eq!(titled[0].company, "");
     }
 
-    /// Flaches Layout: Der Block des Links begrenzt den Job – der Nachbarblock liefert weder
-    /// Firma noch Ort, auch wenn der Job noch gar keine Angabe hatte.
+    /// Flat layout: the link's block bounds the job - the neighbouring block supplies
+    /// neither company nor location, even when the job had no detail yet.
     #[test]
     fn a_neighbouring_block_is_never_company() {
         let html = format!(
@@ -1005,8 +1012,7 @@ mod tests {
         assert_eq!(found[1].company, "Projektbüro Nord GmbH");
     }
 
-    /// Links in Klammern, Anführungszeichen, hinter „Link:“ oder in
-    /// Markdown-Form gehen nicht verloren.
+    /// Links in brackets, quotes, behind "Link:" or in Markdown form are not lost.
     #[test]
     fn plain_links_in_brackets_and_quotes() {
         let text = [
@@ -1032,7 +1038,7 @@ mod tests {
         assert_eq!(ids, ["1200001", "1200002", "1200003", "1200004", "1200005"]);
     }
 
-    // ------------------------------------------------------ Layouts der Portale
+    // ------------------------------------------------------ Portal layouts
 
     fn details(html: &str) -> Vec<(String, String, String)> {
         extract(&[html.to_string()], &[])
@@ -1053,8 +1059,8 @@ mod tests {
     const FD1: &str = "https://www.freelance.de/project/index.php?id=1255067";
     const FD2: &str = "https://www.freelance.de/project/index.php?id=1255068";
 
-    /// Hülle um den Titel-Link (<b>, eine Zeile je Angabe, Outlook-Absätze, <h3>): Die
-    /// Angaben stehen neben der „Karte“ und werden trotzdem gelesen.
+    /// A wrapper around the title link (<b>, one line per detail, Outlook paragraphs,
+    /// <h3>): the details sit beside the "card" and are still read.
     #[test]
     fn wrapper_layouts_keep_company_and_place() {
         let expected = [
@@ -1065,13 +1071,13 @@ mod tests {
             r#"<table><tr><td><b><a href="{FM1}">Senior DevOps Engineer</a></b><br>von: Ferrum Systems SE<br>Ort: München // Start: ab sofort<br>
                <b><a href="{FM2}">IT-Architekt</a></b><br>von: Nordwind Consulting<br>Ort: Remote // Start: ab sofort</td></tr></table>"#
         );
-        assert_eq!(details(&bold), expected, "<b>-Hülle");
+        assert_eq!(details(&bold), expected, "<b> wrapper");
         let outlook = format!(
             r#"<div class="WordSection1"><p class="MsoNormal"><a href="{FM1}">Senior DevOps Engineer</a></p><p class="MsoNormal">von: Ferrum Systems SE</p>
                <p class="MsoNormal">Ort: München // Start: ab sofort</p><p class="MsoNormal"><a href="{FM2}">IT-Architekt</a></p>
                <p class="MsoNormal">von: Nordwind Consulting</p><p class="MsoNormal">Ort: Remote</p></div>"#
         );
-        assert_eq!(details(&outlook), expected, "Outlook-Absätze");
+        assert_eq!(details(&outlook), expected, "Outlook paragraphs");
         let rows = format!(
             r#"<table><tr><td><a href="{FD1}">SAP S/4HANA-Projektleiter</a></td></tr><tr><td>Muster Consulting GmbH</td></tr><tr><td>D-20038 Hamburg</td></tr>
                <tr><td><a href="{FD2}">PMO Manager</a></td></tr><tr><td>Projektbüro Nord GmbH</td></tr><tr><td>Berlin</td></tr></table>"#
@@ -1086,7 +1092,7 @@ mod tests {
                 ),
                 row("PMO Manager", "Projektbüro Nord GmbH", "Berlin")
             ],
-            "eine Zeile je Angabe"
+            "one line per detail"
         );
         let heading = format!(
             r#"<h3><a href="{FD1}">SAP S/4HANA-Projektleiter</a></h3><p>Muster Consulting GmbH<br>D-20038 Hamburg</p>
@@ -1098,8 +1104,8 @@ mod tests {
         );
     }
 
-    /// Stellen-Links in einem fremden Link (Klick-Zähler um die Karte), hinter einem nicht
-    /// geschlossenen Anker oder einer Textmarke gehen nicht verloren.
+    /// Job links inside a foreign link (a click counter around the card), behind an
+    /// unclosed anchor, or behind a bookmark are not lost.
     #[test]
     fn nested_and_broken_anchors() {
         let tracker = format!(
@@ -1128,7 +1134,7 @@ mod tests {
         );
     }
 
-    /// Fußzeile und Gruß hinter dem letzten (oder einzigen) Job sind weder Firma noch Ort.
+    /// A footer and sign-off behind the last (or only) job are neither company nor location.
     #[test]
     fn footer_after_the_last_job_is_ignored() {
         let single = format!(
@@ -1146,7 +1152,8 @@ mod tests {
         assert_eq!(details(&flat)[1], row("PMO Manager", "", "Berlin"));
     }
 
-    /// Trenner und Etiketten in eigenen <span>: „·“ ist kein Ort, „Ort:“ gehört zum Wert.
+    /// Separators and labels in their own <span>: "·" is not a location, "Ort:" belongs
+    /// to the value.
     #[test]
     fn inline_spans_are_not_lines() {
         let li = r#"<table><tr><td><a href="https://www.linkedin.com/jobs/view/4123456789/">Senior Controller</a>
@@ -1172,7 +1179,7 @@ mod tests {
         );
     }
 
-    /// Ein Titel mit <br> bleibt ein Titel; Firma und Ort bleiben an ihrem Platz.
+    /// A title with a <br> stays one title; company and location stay in their place.
     #[test]
     fn line_break_inside_the_title_link() {
         let html = r#"<table><tr><td><a href="https://www.linkedin.com/comm/jobs/view/4123456789/">Senior Controller<br>(m/w/d)</a>
@@ -1183,7 +1190,7 @@ mod tests {
         );
     }
 
-    /// Logo, Titel und Firmenzeile jeweils als Link auf denselben Job.
+    /// Logo, title and company line each linked to the same job.
     #[test]
     fn same_job_linked_three_times() {
         let html = r#"<table><tr><td><a href="https://www.linkedin.com/jobs/view/4123456789/?trk=logo"><img alt=""></a></td>
@@ -1195,8 +1202,8 @@ mod tests {
         );
     }
 
-    /// Ein Link ohne Titel („Zum Projekt“ vor dem nächsten Job) nimmt keine Angaben – die
-    /// gehörten im flachen Layout zum nächsten Job.
+    /// A link without a title ("Zum Projekt" before the next job) takes no details -
+    /// in the flat layout they belonged to the next job.
     #[test]
     fn untitled_link_takes_no_details() {
         let html = format!(
@@ -1208,8 +1215,8 @@ mod tests {
         }
     }
 
-    /// Klartext „Titel / Firma / Ort / Link“: Titel ist die erste Zeile des Blocks, und
-    /// Portal-Adressen ohne `https://` zählen auch.
+    /// Plain text "title / company / location / link": the title is the first line of
+    /// the block, and portal addresses without `https://` count too.
     #[test]
     fn plain_text_blocks_and_bare_urls() {
         let text = "Senior Controller (m/w/d)\nMusterwerke GmbH\nKöln, Nordrhein-Westfalen\nDiesen Job anzeigen: https://www.linkedin.com/comm/jobs/view/4123456789/\n\n\
@@ -1234,7 +1241,7 @@ mod tests {
         );
     }
 
-    /// Kaputtes HTML mit tausenden verschachtelten Karten bleibt schnell (linear).
+    /// Broken HTML with thousands of nested cards stays fast (linear).
     #[test]
     fn deeply_nested_mail_stays_fast() {
         let jobs = 4_000;
