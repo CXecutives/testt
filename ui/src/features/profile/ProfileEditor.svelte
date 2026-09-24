@@ -83,11 +83,17 @@
     editor.dateInvalid && (tried || editor.dateText.trim().length >= 8) ? words.dateInvalid : null,
   );
 
+  /** Ready to save: a day that does not read is said at its field, which gets the caret. */
+  export function ready(): boolean {
+    tried = true;
+    if (!editor.dateInvalid) return true;
+    document.querySelector<HTMLInputElement>('[data-testid="profile-date"]')?.focus();
+    return false;
+  }
+
   function save(): void {
     if (!editor.dirty || busy) return;
-    tried = true;
-    if (editor.dateInvalid) return;
-    onsave();
+    if (ready()) onsave();
   }
 
   const empty = (...values: unknown[]): boolean =>

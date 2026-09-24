@@ -115,7 +115,10 @@
     }
   }
 
-  async function save(): Promise<void> {
+  let panel = $state<{ ready: () => boolean } | null>(null);
+
+  /** `true` when the profile is saved. */
+  async function save(): Promise<boolean> {
     busy = 'save';
     saveNote = null;
     try {
@@ -126,8 +129,10 @@
       else editor.close();
       saved = true;
       toasts.show(t.profile.saved);
+      return true;
     } catch (error) {
       saveNote = errorText(error);
+      return false;
     } finally {
       busy = null;
     }
@@ -155,11 +160,24 @@
     }
   }
 
+  /** Leaving without saving. */
   function leave(): void {
     const next = leaving;
     leaving = null;
     editor.discard(stored);
     if (next !== null) navigation.go(next, true);
+  }
+
+  /** Saving, then leaving; a date that does not read or a failed save keeps the view. */
+  async function saveAndLeave(): Promise<void> {
+    const next = leaving;
+    if (panel !== null && !panel.ready()) {
+      leaving = null;
+      return;
+    }
+    const done = await save();
+    leaving = null;
+    if (done && next !== null) navigation.go(next, true);
   }
 
   const quality = $derived(
@@ -209,6 +227,7 @@
       onnext={saved && app.state?.firstRun ? () => navigation.go('jobs') : null}
     />
     <ProfileEditor
+      bind:this={panel}
       {quality}
       busy={busy === 'save'}
       note={saveNote}
@@ -231,12 +250,14 @@
 
 <Dialog
   open={leaving !== null}
-  variant="danger"
   heading={t.profile.leaveHeading}
   text={t.profile.leaveText}
-  confirmLabel={t.profile.discard}
+  confirmLabel={t.profile.save}
+  altLabel={t.profile.discard}
+  busy={busy === 'save'}
   testid="dialog-leave-profile"
-  onconfirm={leave}
+  onconfirm={() => void saveAndLeave()}
+  onalt={leave}
   oncancel={() => (leaving = null)}
 />
 

@@ -781,8 +781,8 @@ export const en: Catalog = {
     save: 'Save',
     discard: 'Discard',
     saved: 'The profile is saved.',
-    leaveHeading: 'Discard changes?',
-    leaveText: 'The profile has changes that are not saved yet.',
+    leaveHeading: 'Save changes?',
+    leaveText: 'The changes to the profile are not saved.',
     empty: 'Still empty',
     section: {
       person: 'Person',

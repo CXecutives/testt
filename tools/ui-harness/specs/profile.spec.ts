@@ -152,7 +152,9 @@ test('leaving with unsaved changes asks once; cancel stays, discard leaves', asy
   await name.fill('Erika Muster');
   await page.getByTestId('nav-jobs').click();
   const dialog = page.getByTestId('dialog-leave-profile');
-  await expect(dialog).toContainText('Änderungen verwerfen?');
+  await expect(dialog).toContainText('Änderungen speichern?');
+  await expect(dialog).toContainText('Die Änderungen am Profil sind nicht gespeichert.');
+  await expect(dialog.getByRole('button')).toHaveText(['Speichern', 'Verwerfen', 'Abbrechen']);
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByTestId('view-profile')).toBeVisible();
@@ -165,6 +167,15 @@ test('leaving with unsaved changes asks once; cancel stays, discard leaves', asy
   await expect(name).toHaveValue('Erika Beispiel');
   await page.getByTestId('nav-jobs').click();
   await expect(page.getByTestId('view-jobs')).toBeVisible();
+});
+
+test('leaving with changes can save first, then it leaves', async ({ page }) => {
+  await profile(page);
+  await page.getByTestId('profile-name-field').fill('Erika Muster');
+  await page.getByTestId('nav-settings').click();
+  await page.getByTestId('dialog-leave-profile').getByRole('button', { name: 'Speichern' }).click();
+  await expect(page.getByTestId('view-settings')).toBeVisible();
+  expect((await lastSave(page)).after.name).toBe('Erika Muster');
 });
 
 test('at most five Schwerpunkte: a sixth star is refused with one sentence', async ({ page }) => {

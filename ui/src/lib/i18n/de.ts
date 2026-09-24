@@ -833,8 +833,8 @@ export const de = {
     save: 'Speichern',
     discard: 'Verwerfen',
     saved: 'Das Profil ist gespeichert.',
-    leaveHeading: 'Änderungen verwerfen?',
-    leaveText: 'Das Profil hat Änderungen, die noch nicht gespeichert sind.',
+    leaveHeading: 'Änderungen speichern?',
+    leaveText: 'Die Änderungen am Profil sind nicht gespeichert.',
     empty: 'Noch leer',
     section: {
       person: 'Person',
