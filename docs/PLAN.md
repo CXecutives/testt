@@ -16,7 +16,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Evaluation data | no access to Katharina: local real data + real runs through the app, two realistic invented profiles, blind labels by two independent agents + tie-breaker |
 | Embeddings | dropped (user, 2026-09-24): the rule engine covers the measured failures; the `Embedder` seam stays for later |
 | AI stage | two-stage like professional systems: stage 1 = our engine for every job (incl. the skill rubric); stage 2 = the improved `job-matching` skill, optional, only for the app's top matches, in the user's own Claude (no API key). The app writes a machine-readable top-matches file for it |
-| Reuse | the app is generic: everything personal lives in the profile; lexicon = general core + domain packs; new portals via adapters |
+| Reuse | the app is generic: everything personal lives in the profile; competences may carry alternative terms (`auch`); lexicon = general core + domain packs that activate automatically from the profile; no pack editor in the UI; new portals via adapters |
 | Extra criteria | superseded: the engine adopts the skill rubric (contract type, permanent-role salary and region, seniority, formal requirements) via optional profile keys - exclusions only on clear wording, otherwise checks |
 | Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults, risk badge per switch |
 | HTML overview | no full text: title, company, location, portal, link, match, 3 met, 2 open, exclusion reason |
