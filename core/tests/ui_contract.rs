@@ -1,8 +1,19 @@
-//! Die festen Regeln der Oberfläche. Sie beschreiben, was sich beim Weiterbauen nicht
-//! von selbst wieder einschleichen soll – jede Regel steht hier, weil sie schon einmal
-//! gebrochen wurde oder weil der Nutzer sie ausdrücklich verlangt hat.
+//! Architecture rules of the UI (`ui/src`, Svelte 5 + TypeScript). They run without Node,
+//! so `cargo test` alone keeps them: each rule protects a promise of the design system
+//! that ESLint/Stylelint also enforce, or one that no linter can see (gallery coverage,
+//! per-OS markup, the release build without gallery).
+//!
+//! Every test asserts how many files it scanned: a moved folder must not turn a rule into
+//! a silent no-op.
 
 use std::path::{Path, PathBuf};
+
+/// File kinds of the UI source.
+const EXTENSIONS: [&str; 3] = ["svelte", "ts", "css"];
+/// Lower bounds of the scan (the foundation has more than this).
+const MIN_FILES: usize = 30;
+const MIN_SVELTE: usize = 15;
+const MIN_COMPONENTS: usize = 8;
 
 fn repo(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -10,468 +21,609 @@ fn repo(relative: &str) -> PathBuf {
         .join(relative)
 }
 
-fn read(relative: &str) -> String {
-    std::fs::read_to_string(repo(relative)).unwrap_or_else(|e| panic!("{relative}: {e}"))
+struct Source {
+    /// Path relative to `ui/src`, with forward slashes.
+    path: String,
+    ext: String,
+    /// The text with comments blanked out (line numbers stay valid).
+    code: String,
 }
 
-/// Alle Dateien eines Ordners (rekursiv) mit passender Endung – Pfad und Inhalt.
-fn files(dir: &str, ext: &str) -> Vec<(String, String)> {
-    let mut out = Vec::new();
-    let mut stack = vec![repo(dir)];
-    while let Some(path) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&path) else {
-            continue;
+impl Source {
+    fn is(&self, path: &str) -> bool {
+        self.path == path
+    }
+
+    fn under(&self, dir: &str) -> bool {
+        self.path.starts_with(dir)
+    }
+
+    fn lines(&self) -> impl Iterator<Item = (usize, &str)> {
+        self.code.lines().enumerate().map(|(i, l)| (i + 1, l))
+    }
+}
+
+fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            walk(&path, out);
+        } else {
+            out.push(path);
+        }
+    }
+}
+
+fn sources() -> Vec<Source> {
+    let root = repo("ui/src");
+    let mut paths = Vec::new();
+    walk(&root, &mut paths);
+    let mut out: Vec<Source> = paths
+        .into_iter()
+        .filter_map(|path| {
+            let ext = path.extension()?.to_str()?.to_string();
+            if !EXTENSIONS.contains(&ext.as_str()) {
+                return None;
+            }
+            let text = std::fs::read_to_string(&path).ok()?;
+            let rel = path
+                .strip_prefix(&root)
+                .ok()?
+                .to_string_lossy()
+                .replace('\\', "/");
+            Some(Source {
+                path: rel,
+                code: strip_comments(&text),
+                ext,
+            })
+        })
+        .collect();
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    out
+}
+
+/// All sources, after checking that the scan found the UI at all.
+fn scanned(min: usize) -> Vec<Source> {
+    let all = sources();
+    assert!(
+        all.len() >= min,
+        "only {} files scanned in ui/src (expected at least {min}) - did the UI move?",
+        all.len()
+    );
+    all
+}
+
+/// Blank out `/* */`, `<!-- -->` and `//` comments, keeping newlines. A `//` only starts a
+/// comment at the line start or after whitespace (URLs such as `https://` stay).
+fn strip_comments(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    let starts = |i: usize, pat: &str| {
+        pat.chars()
+            .enumerate()
+            .all(|(k, c)| chars.get(i + k) == Some(&c))
+    };
+    while i < chars.len() {
+        let end = if starts(i, "/*") {
+            Some("*/")
+        } else if starts(i, "<!--") {
+            Some("-->")
+        } else {
+            None
         };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                stack.push(path);
-            } else if path.extension().is_some_and(|e| e == ext) {
-                let name = path
-                    .strip_prefix(repo(""))
-                    .unwrap_or(&path)
-                    .to_string_lossy()
-                    .replace('\\', "/");
-                if let Ok(text) = std::fs::read_to_string(&path) {
-                    out.push((name, text));
+        if let Some(end) = end {
+            while i < chars.len() && !starts(i, end) {
+                out.push(if chars[i] == '\n' { '\n' } else { ' ' });
+                i += 1;
+            }
+            for _ in 0..end.len() {
+                if i < chars.len() {
+                    out.push(' ');
+                    i += 1;
+                }
+            }
+            continue;
+        }
+        let line_comment = starts(i, "//") && (i == 0 || chars[i - 1].is_whitespace());
+        if line_comment {
+            while i < chars.len() && chars[i] != '\n' {
+                out.push(' ');
+                i += 1;
+            }
+            continue;
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+/// The markup of a `.svelte` file: script and style blocks blanked out.
+fn markup(code: &str) -> String {
+    let mut out = code.to_string();
+    for (open, close) in [("<script", "</script>"), ("<style", "</style>")] {
+        while let Some(start) = out.find(open) {
+            let Some(len) = out[start..].find(close) else {
+                break;
+            };
+            let end = start + len + close.len();
+            let blank: String = out[start..end]
+                .chars()
+                .map(|c| if c == '\n' { '\n' } else { ' ' })
+                .collect();
+            out.replace_range(start..end, &blank);
+        }
+    }
+    out
+}
+
+/// Blank `{...}` expressions (nested braces included), keeping newlines.
+fn without_expressions(text: &str) -> String {
+    let mut depth = 0usize;
+    text.chars()
+        .map(|c| {
+            let inside = depth > 0 || c == '{';
+            if c == '{' {
+                depth += 1;
+            } else if c == '}' && depth > 0 {
+                depth -= 1;
+                return ' ';
+            }
+            if inside && c != '\n' { ' ' } else { c }
+        })
+        .collect()
+}
+
+fn fail(problems: &[String], rule: &str) {
+    assert!(problems.is_empty(), "{rule}:\n  {}", problems.join("\n  "));
+}
+
+/// Lines of files outside `allowed` that contain one of `needles`.
+fn find(all: &[Source], needles: &[&str], allowed: impl Fn(&Source) -> bool) -> Vec<String> {
+    let mut problems = Vec::new();
+    for source in all.iter().filter(|s| !allowed(s)) {
+        for (n, line) in source.lines() {
+            for needle in needles {
+                if line.contains(needle) {
+                    problems.push(format!("{}:{n}: {needle}", source.path));
                 }
             }
         }
     }
-    out.sort();
-    out
+    problems
 }
 
-fn scripts() -> Vec<(String, String)> {
-    files("ui/js", "js")
-}
-
-/// Zeilen ohne Kommentar – sonst schlagen die Regeln auf ihrer eigenen Erklärung an.
-fn code_lines(text: &str) -> impl Iterator<Item = (usize, &str)> {
-    text.lines().enumerate().filter(|(_, line)| {
-        let t = line.trim_start();
-        !t.starts_with("//") && !t.starts_with('*') && !t.starts_with("/*")
-    })
-}
-
-/// Nur `ui/js/api.js` darf Tauri kennen: sonst ließe sich die Oberfläche nicht im
-/// Prüfstand ohne Rust betreiben – und ein zweiter Zugang wäre nie wieder zu finden.
 #[test]
 fn tauri_only_in_api() {
-    for (name, text) in scripts() {
-        if name.ends_with("api.js") {
-            continue;
-        }
-        for (i, line) in code_lines(&text) {
-            assert!(
-                !line.contains("__TAURI__"),
-                "{name}:{}: __TAURI__ gehört allein in api.js",
-                i + 1
-            );
-        }
-    }
+    let all = scanned(MIN_FILES);
+    fail(
+        &find(&all, &["@tauri-apps/", "__TAURI"], |s| {
+            s.is("lib/ipc/api.ts")
+        }),
+        "Tauri is reached only through lib/ipc/api.ts (the harness swaps exactly that door)",
+    );
 }
 
-/// Fremde Texte (Titel, Firmen) kommen aus Mails. Sie werden nie als HTML eingesetzt.
+#[test]
+fn lucide_only_in_icon() {
+    let all = scanned(MIN_FILES);
+    fail(
+        &find(&all, &["@lucide", "lucide-svelte"], |s| {
+            s.is("components/Icon.svelte")
+        }),
+        "icons come only from components/Icon.svelte",
+    );
+}
+
+#[test]
+fn motion_libraries_only_in_lib_motion() {
+    let all = scanned(MIN_FILES);
+    fail(
+        &find(
+            &all,
+            &[
+                "svelte/transition",
+                "svelte/animate",
+                "svelte/motion",
+                "svelte/easing",
+                ".animate(",
+            ],
+            |s| s.under("lib/motion/"),
+        ),
+        "motion goes through lib/motion/ (tokens, reduced motion)",
+    );
+}
+
+#[test]
+fn raw_controls_only_in_components() {
+    let all = scanned(MIN_FILES);
+    let svelte: Vec<&Source> = all.iter().filter(|s| s.ext == "svelte").collect();
+    assert!(
+        svelte.len() >= MIN_SVELTE,
+        "only {} .svelte files",
+        svelte.len()
+    );
+    let mut problems = Vec::new();
+    for source in svelte.iter().filter(|s| !s.under("components/")) {
+        let text = without_expressions(&markup(&source.code));
+        for (n, line) in text.lines().enumerate() {
+            for tag in [
+                "button", "input", "textarea", "select", "a", "svg", "img", "dialog",
+            ] {
+                let open = format!("<{tag}");
+                for (at, _) in line.match_indices(&open) {
+                    let next = line[at + open.len()..].chars().next();
+                    if next.is_none_or(|c| c.is_whitespace() || c == '>' || c == '/') {
+                        problems.push(format!("{}:{}: <{tag}>", source.path, n + 1));
+                    }
+                }
+            }
+        }
+    }
+    fail(
+        &problems,
+        "raw controls only inside components/ (use the design system)",
+    );
+}
+
+#[test]
+fn no_title_attribute_and_no_inline_style() {
+    let all = scanned(MIN_FILES);
+    let mut problems = Vec::new();
+    for source in &all {
+        let text = if source.ext == "svelte" {
+            without_expressions(&markup(&source.code))
+        } else {
+            String::new()
+        };
+        for (n, line) in text.lines().enumerate() {
+            for bad in [" title=", " style=", " style:", "\ttitle=", "\tstyle="] {
+                if line.contains(bad) {
+                    problems.push(format!("{}:{}: {}", source.path, n + 1, bad.trim()));
+                }
+            }
+        }
+        for (n, line) in source.lines() {
+            for bad in [
+                "{title}",
+                "style:",
+                "cssText",
+                "setAttribute('style'",
+                "setAttribute('title'",
+                ".title =",
+            ] {
+                // `style:` inside CSS (`font-style:` etc.) is fine; only markup directives count.
+                if bad == "style:" && source.ext != "svelte" {
+                    continue;
+                }
+                if bad == "style:" && !line.contains(" style:") {
+                    continue;
+                }
+                if line.contains(bad) {
+                    problems.push(format!("{}:{n}: {bad}", source.path));
+                }
+            }
+        }
+    }
+    fail(
+        &problems,
+        "no native title (use the tooltip action) and no inline style (CSP; use cssVars)",
+    );
+}
+
 #[test]
 fn no_html_injection() {
-    for (name, text) in scripts() {
-        for (i, line) in code_lines(&text) {
-            for bad in [
+    let all = scanned(MIN_FILES);
+    fail(
+        &find(
+            &all,
+            &[
+                "{@html",
                 "innerHTML",
                 "outerHTML",
                 "insertAdjacentHTML",
                 "document.write",
-            ] {
-                assert!(
-                    !line.contains(bad),
-                    "{name}:{}: {bad} – Inhalte werden als Text gesetzt, nie als HTML",
-                    i + 1
-                );
-            }
-        }
-    }
+            ],
+            |_| false,
+        ),
+        "texts from mails are never inserted as HTML",
+    );
 }
 
-/// Es ist ein Werkzeug, kein Browserfenster: Tasten und fremde Maustasten werden an genau
-/// einer Stelle behandelt. Sonst wächst wieder ein Geflecht aus Kürzeln (zuletzt: Escape
-/// an vier Stellen, zwei Doppelklick-Gesten).
 #[test]
-fn input_handling_lives_in_one_file() {
-    const EVENTS: [&str; 7] = [
+fn keyframes_only_in_motion_css() {
+    let all = scanned(MIN_FILES);
+    fail(
+        &find(&all, &["@keyframes"], |s| s.is("styles/motion.css")),
+        "@keyframes live only in styles/motion.css",
+    );
+}
+
+#[test]
+fn forbidden_css_features() {
+    let all = scanned(MIN_FILES);
+    let mut problems = find(
+        &all,
+        &[
+            "prefers-color-scheme",
+            "view-transition",
+            "@starting-style",
+            "scrollbar-gutter",
+            "content-visibility",
+            "!important",
+        ],
+        |_| false,
+    );
+    problems.extend(find(&all, &["color-mix("], |s| s.is("styles/tokens.css")));
+    fail(
+        &problems,
+        "light mode only, Safari 17 baseline (no View Transitions, @starting-style, \
+         scrollbar-gutter, content-visibility), colour maths only in tokens.css",
+    );
+}
+
+#[test]
+fn palette_only_in_tokens() {
+    let all = scanned(MIN_FILES);
+    fail(
+        &find(&all, &["var(--p-"], |s| s.is("styles/tokens.css")),
+        "palette tokens (--p-*) are used only inside tokens.css; components use semantic tokens",
+    );
+}
+
+#[test]
+fn input_listeners_only_in_input_ts() {
+    let all = scanned(MIN_FILES);
+    let events = [
         "keydown",
         "keyup",
         "keypress",
-        "dblclick",
         "contextmenu",
         "auxclick",
+        "dblclick",
         "dragstart",
+        "selectstart",
+        "wheel",
+        "gesturestart",
+        "gesturechange",
     ];
-    for (name, text) in scripts() {
-        if name.ends_with("input.js") {
-            continue;
-        }
-        for (i, line) in code_lines(&text) {
-            for event in EVENTS {
-                assert!(
-                    !line.contains(event),
-                    "{name}:{}: „{event}“ gehört nach ui/js/input.js",
-                    i + 1
-                );
-            }
-        }
-    }
-    // Diese muss input.js tatsächlich abfangen; die übrigen sind nur anderswo verboten.
-    let input = read("ui/js/input.js");
+    let needles: Vec<String> = events
+        .iter()
+        .flat_map(|e| [format!("'{e}'"), format!("\"{e}\""), format!("on{e}")])
+        .collect();
+    let needles: Vec<&str> = needles.iter().map(String::as_str).collect();
+    fail(
+        &find(&all, &needles, |s| s.is("lib/input/input.ts")),
+        "key, context-menu, aux-button, wheel and gesture handling only in lib/input/input.ts",
+    );
+    let input = all
+        .iter()
+        .find(|s| s.is("lib/input/input.ts"))
+        .expect("lib/input/input.ts");
     for event in [
         "keydown",
         "contextmenu",
-        "dblclick",
         "auxclick",
+        "dblclick",
         "dragstart",
+        "wheel",
     ] {
-        assert!(input.contains(event), "input.js fängt „{event}“ nicht ab");
+        assert!(
+            input.code.contains(&format!("'{event}'")),
+            "input.ts does not handle {event}"
+        );
     }
 }
 
-/// Bedienelemente entstehen ausschließlich über die Fabriken in `ui.js`. Damit kann es
-/// keine zweite Bauart desselben Knopfs geben – das war der Grund für 27 Optiken.
 #[test]
-fn controls_come_from_the_factories() {
-    for (name, text) in scripts() {
-        if name.ends_with("ui.js") {
-            continue;
-        }
-        for (i, line) in code_lines(&text) {
-            for bad in ["el('button'", "el('input'", "el('select'", "el('textarea'"] {
-                assert!(
-                    !line.contains(bad),
-                    "{name}:{}: {bad} – Bedienelemente kommen aus den Fabriken in ui.js",
-                    i + 1
-                );
-            }
-        }
-    }
-}
-
-// Die Bauteilliste der Oberfläche. Eine Klasse, die hier fehlt, ist entweder ein neuer
-// Baustein (dann gehört er auch in components.css) oder ein Alleingang.
-const KNOWN: [&str; 42] = [
-    // Bausteine
-    "btn",
-    "primary",
-    "ghost",
-    "danger",
-    "icon",
-    "seg",
-    "seg-thumb",
-    "seg-item",
-    "seg-count",
-    "switch",
-    "switch-track",
-    "field",
-    "field-label",
-    "field-hint",
-    "input",
-    "notice",
-    "notice-dot",
-    "notice-text",
-    "row",
-    "row-title",
-    "row-date",
-    "row-meta",
-    "row-new",
-    "row-flag",
-    "row-where",
-    "setting",
-    "setting-text",
-    "setting-label",
-    "setting-hint",
-    "setting-controls",
-    "steps",
-    "step",
-    "step-num",
-    "step-label",
-    "dialog",
-    "dialog-title",
-    "dialog-body",
-    "dialog-foot",
-    "spinner",
-    "skeleton",
-    "win-btn",
-    "win-close",
-];
-// Klassen, die den Aufbau beschreiben (app.css), nicht die Bausteine.
-const LAYOUT: [&str; 26] = [
-    "titlebar",
-    "brand",
-    "brand-mark",
-    "brand-text",
-    "titlebar-fill",
-    "mode-tag",
-    "win-buttons",
-    "app",
-    "toolbar",
-    "toolbar-fill",
-    "search",
-    "page",
-    "page-body",
-    "split",
-    "list",
-    "reader",
-    "reader-inner",
-    "reader-title",
-    "reader-meta",
-    "reader-actions",
-    "reader-rule",
-    "reader-text",
-    "reader-empty",
-    "reader-skeleton",
-    "reader-body",
-    "blank",
-];
-const EXTRA: [&str; 17] = [
-    "settings",
-    "settings-inner",
-    "group",
-    "group-title",
-    "form-grid",
-    "form-actions",
-    "statusbar",
-    "status-dot",
-    "status-text",
-    "status-count",
-    "status-line",
-    "panel",
-    "panel-list",
-    "log-line",
-    "boot",
-    "sheet",
-    "notices",
-];
-// Zustände, die nur gesetzt, nie als Baustein gemeint sind.
-const STATES: [&str; 8] = [
-    "is-open",
-    "is-new",
-    "is-swapping",
-    "indeterminate",
-    "stacked",
-    "compact",
-    "busy",
-    "pointer-away",
-];
-// Teile der beiden Zeichnungen (Marke, Fensterknopf) – Grafik, kein Bedienelement.
-const DRAWING: [&str; 4] = ["plate", "paper", "tick", "caption-glyph"];
-
-/// Die Klassenliste der Bausteine. Taucht eine neue auf, ist entweder ein Baustein
-/// dazugekommen (dann gehört er in components.css und hierher) oder es war ein Alleingang.
-#[test]
-fn only_known_components() {
-    let mut allowed: Vec<&str> = KNOWN.into_iter().collect();
-    allowed.extend(LAYOUT);
-    allowed.extend(EXTRA);
-    allowed.extend(STATES);
-    allowed.extend(DRAWING);
-
-    for (name, text) in scripts() {
-        for (i, line) in code_lines(&text) {
-            let Some(rest) = line.split("class: '").nth(1) else {
-                continue;
-            };
-            let Some(value) = rest.split('\'').next() else {
-                continue;
-            };
-            for class in value.split_whitespace() {
-                // Vorlagenteile (`${…}`) prüft die Laufzeit, nicht dieser Test.
-                if class.contains('$') || class.contains('{') {
-                    continue;
-                }
-                assert!(
-                    allowed.contains(&class),
-                    "{name}:{}: unbekannte Klasse „{class}“ – neuer Baustein oder Alleingang?",
-                    i + 1
-                );
-            }
-        }
-    }
-}
-
-/// Farben, Radien und Dauern stehen in `tokens.css`. Ein Literal daneben wäre der Anfang
-/// einer zweiten Farbwelt.
-#[test]
-fn colours_only_in_tokens() {
-    for file in ["ui/components.css", "ui/app.css"] {
-        let text = read(file);
-        for (i, line) in text.lines().enumerate() {
-            let t = line.trim_start();
-            if t.starts_with("/*") || t.starts_with('*') {
-                continue;
-            }
-            // Schatten und Fokusringe dürfen eine Farbe nennen, sie sind Teil der Form.
-            if t.starts_with("box-shadow") || t.contains("outline:") {
-                continue;
-            }
-            for bad in ["#", "rgb(", "rgba(", "hsl("] {
-                assert!(
-                    !t.contains(bad),
-                    "{file}:{}: Farbe „{bad}“ außerhalb von tokens.css",
-                    i + 1
-                );
-            }
-        }
-    }
-}
-
-/// Was unter Windows funktioniert, muss auch unter macOS funktionieren: `-webkit-app-region`
-/// kennt `WKWebView` nicht, und die Symbolschrift „Segoe Fluent Icons“ gibt es dort nicht.
-#[test]
-fn nothing_windows_only_in_the_interface() {
-    let mut all: Vec<(String, String)> = files("ui", "css");
-    all.extend(scripts());
-    all.push(("ui/index.html".into(), read("ui/index.html")));
-    for (name, text) in all {
-        for (i, line) in code_lines(&text) {
-            for bad in ["app-region", "Segoe Fluent", "Segoe MDL2"] {
-                assert!(
-                    !line.contains(bad),
-                    "{name}:{}: „{bad}“ gibt es auf dem Mac nicht",
-                    i + 1
-                );
-            }
-        }
-    }
-    // Der Ziehbereich muss über den plattformneutralen Weg laufen.
+fn every_component_is_in_the_gallery() {
+    let all = scanned(MIN_FILES);
+    let components: Vec<&Source> = all.iter().filter(|s| s.under("components/")).collect();
     assert!(
-        read("ui/index.html").contains("data-tauri-drag-region"),
-        "Die Titelleiste braucht data-tauri-drag-region, sonst lässt sich das Fenster auf dem Mac nicht ziehen"
+        components.len() >= MIN_COMPONENTS,
+        "only {} components scanned",
+        components.len()
+    );
+    let gallery: String = all
+        .iter()
+        .filter(|s| s.under("features/gallery/"))
+        .map(|s| s.code.as_str())
+        .collect();
+    let missing: Vec<String> = components
+        .iter()
+        .filter(|c| !gallery.contains(&format!("$components/{}", &c.path["components/".len()..])))
+        .map(|c| c.path.clone())
+        .collect();
+    fail(
+        &missing,
+        "every component appears in the gallery (features/gallery/)",
     );
 }
 
-/// Der Prüfstand hängt an genau dieser Zeile: Er ersetzt sie, um das nachgebaute Backend
-/// davorzuschieben. Ändert sie sich, lädt der Prüfstand stillschweigend eine Seite ohne Backend.
+/// Letter-bearing text in markup outside `{...}` expressions, or as a literal value of a
+/// text prop. Texts come from `lib/i18n/de.ts` (gallery samples from its `gallery.ts`).
 #[test]
-fn the_harness_hook_is_intact() {
-    assert!(
-        read("ui/index.html").contains(r#"<script type="module" src="js/main.js"></script>"#),
-        "tools/ui-harness/server.mjs ersetzt genau diese Zeichenkette"
-    );
-}
-
-/// Es ist ein Werkzeug: kurze Beschriftungen, kurze Hinweise, keine Textwände.
-/// Gemessen wurde vorher: 22 Texte über 60 Zeichen, der längste 640.
-#[test]
-fn the_interface_stays_short() {
-    const MAX: usize = 140;
-    for (name, text) in scripts() {
-        for (i, line) in code_lines(&text) {
-            for quoted in line.split('\'').skip(1).step_by(2) {
-                // Kein Fließtext: Vorlagen, Selektoren und SVG-Pfaddaten zählen nicht.
-                if quoted.contains("${") || !quoted.contains(' ') || is_path_data(quoted) {
-                    continue;
-                }
-                assert!(
-                    quoted.chars().count() <= MAX,
-                    "{name}:{}: {} Zeichen – höchstens {MAX} („{}…“)",
-                    i + 1,
-                    quoted.chars().count(),
-                    quoted.chars().take(50).collect::<String>()
-                );
-            }
-        }
-    }
-}
-
-/// SVG-Pfaddaten („M12 9.2a2.8 …“) sind lang, aber niemand liest sie.
-fn is_path_data(text: &str) -> bool {
-    let body = text.trim();
-    body.starts_with('M')
-        && body
-            .chars()
-            .all(|c| c.is_ascii_digit() || "MLHVCSQTAZmlhvcsqtaz .,-".contains(c))
-}
-
-/// Ein Wort je Sache. Die alten Begriffe sind gefallen, sie dürfen nicht zurückkommen.
-#[test]
-fn one_word_per_thing() {
-    const GONE: [(&str, &str); 4] = [
-        ("Quelle", "Portal"),
-        ("Eintrag", "Job"),
-        ("Volltext", "Jobdetails"),
-        ("Kandidat", "Job"),
+fn no_text_literals_in_markup() {
+    let all = scanned(MIN_FILES);
+    let props = [
+        "label=\"",
+        "heading=\"",
+        "text=\"",
+        "placeholder=\"",
+        "aria-label=\"",
+        "alt=\"",
+        "disabledReason=\"",
+        "hint=\"",
+        "message=\"",
     ];
-    for (name, text) in scripts() {
-        for (i, line) in code_lines(&text) {
-            for (old, new) in GONE {
-                assert!(
-                    !line.contains(old),
-                    "{name}:{}: „{old}“ heißt überall „{new}“",
-                    i + 1
-                );
+    let mut problems = Vec::new();
+    for source in all.iter().filter(|s| s.ext == "svelte") {
+        let text = without_expressions(&markup(&source.code));
+        // Text between tags: blank everything inside <...> (tags span lines).
+        let mut depth = 0usize;
+        let outside: String = text
+            .chars()
+            .map(|c| match c {
+                '<' => {
+                    depth += 1;
+                    ' '
+                }
+                '>' => {
+                    depth = depth.saturating_sub(1);
+                    ' '
+                }
+                '\n' => '\n',
+                _ if depth > 0 => ' ',
+                _ => c,
+            })
+            .collect();
+        for (n, line) in outside.lines().enumerate() {
+            if line.chars().any(char::is_alphabetic) {
+                problems.push(format!("{}:{}: \"{}\"", source.path, n + 1, line.trim()));
+            }
+        }
+        for (n, line) in text.lines().enumerate() {
+            for prop in props {
+                for (at, _) in line.match_indices(prop) {
+                    let value: String = line[at + prop.len()..]
+                        .chars()
+                        .take_while(|c| *c != '"')
+                        .collect();
+                    if value.chars().any(char::is_alphabetic) {
+                        problems.push(format!("{}:{}: {prop}{value}\"", source.path, n + 1));
+                    }
+                }
             }
         }
     }
+    fail(&problems, "UI text only from lib/i18n/de.ts");
 }
 
-/// Keine Reste aus der Entwicklung und keine Verweise auf Arbeitsnotizen: Was beim
-/// Ausliefern verschwindet, darf im Code nicht als Quelle genannt werden.
+#[test]
+fn per_os_markup_only_in_the_title_bar() {
+    let all = scanned(MIN_FILES);
+    fail(
+        &find(
+            &all,
+            &[
+                "'macos'",
+                "\"macos\"",
+                "'windows'",
+                "\"windows\"",
+                "userAgent",
+                "data-platform",
+            ],
+            |s| {
+                s.is("features/shell/TitleBar.svelte")
+                    || s.is("components/WindowControls.svelte")
+                    || s.is("lib/platform.ts")
+                    // Font smoothing on macOS only (documented platform difference).
+                    || s.is("styles/base.css")
+                    // `AppState.platform` is part of the IPC contract.
+                    || s.under("lib/ipc/types/")
+            },
+        ),
+        "per-OS differences live only in TitleBar, WindowControls and platform.ts",
+    );
+}
+
+#[test]
+fn at_most_one_primary_button_per_view() {
+    let all = scanned(MIN_FILES);
+    let mut problems = Vec::new();
+    for source in all
+        .iter()
+        .filter(|s| s.ext == "svelte" && s.under("features/") && !s.under("features/gallery/"))
+    {
+        let count = source.code.matches("variant=\"primary\"").count();
+        if count > 1 {
+            problems.push(format!("{}: {count} primary buttons", source.path));
+        }
+    }
+    fail(&problems, "at most one primary button per view");
+}
+
 #[test]
 fn no_leftovers_from_development() {
-    let mut all = scripts();
-    all.extend(files("ui", "css"));
-    all.push(("ui/index.html".into(), read("ui/index.html")));
-    for (name, text) in all {
-        for (i, line) in code_lines(&text) {
-            for bad in [
-                "console.",
-                "debugger",
-                "TODO",
-                "FIXME",
-                "XXX",
-                "Altfehler",
-                "UI-SPEC",
-                "Review Phase",
-                "Plan §",
-                "Spike",
-            ] {
-                assert!(!line.contains(bad), "{name}:{}: „{bad}“", i + 1);
+    let all = scanned(MIN_FILES);
+    fail(
+        &find(
+            &all,
+            &["console.", "debugger", "TODO", "FIXME", "XXX"],
+            |_| false,
+        ),
+        "no debugging leftovers in the UI",
+    );
+}
+
+/// One word per thing (glossary in docs/PLAN.md); short texts, no walls of text.
+#[test]
+fn the_catalog_keeps_the_glossary() {
+    let all = scanned(MIN_FILES);
+    let catalog = all
+        .iter()
+        .find(|s| s.is("lib/i18n/de.ts"))
+        .expect("lib/i18n/de.ts");
+    let mut problems = Vec::new();
+    for (n, line) in catalog.lines() {
+        for (old, new) in [
+            ("Quelle", "Portal"),
+            ("Eintrag", "Job"),
+            ("Volltext", "Details"),
+            ("Kandidat", "Job"),
+            ("Treffer", "Passung"),
+            ("Mailbox", "Postfach"),
+        ] {
+            if line.contains(old) {
+                problems.push(format!("de.ts:{n}: \"{old}\" is called \"{new}\""));
+            }
+        }
+        for quoted in line.split('\'').skip(1).step_by(2) {
+            if quoted.chars().count() > 140 {
+                problems.push(format!(
+                    "de.ts:{n}: {} characters (max 140)",
+                    quoted.chars().count()
+                ));
             }
         }
     }
+    fail(&problems, "glossary and length of the UI catalog");
 }
 
-/// Die Strenge Sicherheitsrichtlinie verbietet Stil und Skript im Markup. Ein Verstoß
-/// fiele erst zur Laufzeit auf – als stumm nicht angewandte Regel.
+/// The release build must not ship the gallery (it is compiled out via `__GALLERY__`).
 #[test]
-fn no_inline_style_or_script() {
-    let html = read("ui/index.html");
-    assert!(!html.contains(" style="), "index.html: Stil im Markup");
-    assert!(!html.contains("<script>"), "index.html: Skript im Markup");
-    for (name, text) in scripts() {
-        for (i, line) in code_lines(&text) {
-            assert!(
-                !line.contains("setAttribute('style'"),
-                "{name}:{}: Stil als Attribut – die Richtlinie verbietet es",
-                i + 1
-            );
-        }
+fn the_release_build_has_no_gallery() {
+    scanned(MIN_FILES);
+    let dist = repo("ui/dist");
+    if !dist.exists() {
+        return;
     }
-}
-
-/// Jedes `:hover` nur, solange der Zeiger wirklich über dem Fenster ist. Sonst bleibt der
-/// Zustand hängen, wenn das Fenster minimiert wird oder den Fokus verliert.
-#[test]
-fn hover_only_while_the_pointer_is_here() {
-    for file in ["ui/components.css", "ui/app.css"] {
-        let text = read(file);
-        for (i, line) in text.lines().enumerate() {
-            if !line.contains(":hover") || line.trim_start().starts_with('*') {
-                continue;
+    let mut files = Vec::new();
+    walk(&dist, &mut files);
+    let mut problems = Vec::new();
+    let mut checked = 0;
+    for file in files {
+        let Some(ext) = file.extension().and_then(|e| e.to_str()) else {
+            continue;
+        };
+        if !["js", "css", "html"].contains(&ext) {
+            continue;
+        }
+        checked += 1;
+        let text = std::fs::read_to_string(&file).unwrap_or_default();
+        for bad in ["Galerie", "gallery", "ColourBoard", "MotionBoard"] {
+            if text.contains(bad) {
+                problems.push(format!("{}: {bad}", file.display()));
             }
-            assert!(
-                line.contains(":root:not(.pointer-away)"),
-                "{file}:{}: :hover ohne Zeigerschalter",
-                i + 1
-            );
         }
     }
+    assert!(
+        checked >= 2,
+        "ui/dist exists but holds no build ({checked} files)"
+    );
+    fail(&problems, "the gallery is development-only");
 }

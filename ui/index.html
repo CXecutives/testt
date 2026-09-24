@@ -1,32 +1,13 @@
 <!doctype html>
 <html lang="de">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Job-Alert-Monitor</title>
-<link rel="preload" href="fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css">
-<link rel="stylesheet" href="components.css">
-<link rel="stylesheet" href="app.css">
-</head>
-<body>
-<!-- Nur das Gerüst. Jedes Bedienelement entsteht über die Fabriken in js/ui.js –
-     so kann es keine zweite Bauart desselben Knopfs geben. -->
-<header class="titlebar" id="titlebar" data-tauri-drag-region></header>
-
-<main class="app" id="app" hidden>
-  <div class="toolbar" id="toolbar"></div>
-  <div class="page-body">
-    <section class="page" id="page-jobs"></section>
-    <section class="page" id="page-settings" hidden></section>
-    <div class="panel" id="panel" hidden></div>
-  </div>
-  <footer class="statusbar" id="statusbar" data-level=""></footer>
-</main>
-
-<div class="boot" id="boot"><span class="spinner"></span></div>
-<div class="sheet" id="sheet" hidden></div>
-
-<script type="module" src="js/main.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Job-Alert-Monitor</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>
