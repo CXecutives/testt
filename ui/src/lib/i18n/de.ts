@@ -504,6 +504,9 @@ export const de = {
   chips: {
     remove: (value: string) => `${value} entfernen`,
   },
+  splitter: {
+    label: 'Breite der Liste',
+  },
   field: {
     reveal: 'Passwort zeigen',
     conceal: 'Passwort verbergen',

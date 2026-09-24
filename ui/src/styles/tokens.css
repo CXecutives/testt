@@ -321,6 +321,9 @@
   --list-min: 360px;
   --list-max: 460px;
   --reader-width: 720px;
+  /* The column handle: the strip that catches the pointer and the line it shows. */
+  --splitter-hit: 8px;
+  --splitter-line: 2px;
   --form-width: 560px;
   /* Rows and their washes: a row's hover wash is the row's own box, and rows run edge to
      edge inside their container. A container that insets its content sets --row-inset to

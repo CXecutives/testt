@@ -17,6 +17,7 @@ const SECTIONS = [
   'cards',
   'badges',
   'loading',
+  'split',
   'inputs',
   'rings',
   'stats',
@@ -163,6 +164,48 @@ test('a long row title takes two lines, the row grows by one line, the rest is a
   // Still cut off after two lines: the full title shows in a tooltip.
   await title.hover();
   await expect(page.getByRole('tooltip')).toContainText('vierzehn Ländern');
+});
+
+test('the column handle: left drag resizes within min and max, double click resets, it is kept', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('split-list');
+  const handle = page.getByTestId('splitter').locator('.hit');
+  await handle.scrollIntoViewIfNeeded();
+  const width = async (): Promise<number> => Math.round((await list.boundingBox())!.width);
+  expect(await width()).toBe(360);
+  await expect(handle).toHaveCSS('cursor', 'col-resize');
+  const drag = async (dx: number, button: 'left' | 'right' = 'left'): Promise<void> => {
+    const box = (await handle.boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down({ button });
+    await page.mouse.move(x + dx / 2, y, { steps: 3 });
+    await page.mouse.move(x + dx, y, { steps: 3 });
+    await page.mouse.up({ button });
+  };
+  await drag(60);
+  await expect.poll(width).toBe(420);
+  // Never past max (460) or min (360); the right button does nothing.
+  await drag(200);
+  await expect.poll(width).toBe(460);
+  await drag(-40, 'right');
+  await expect.poll(width).toBe(460);
+  await drag(-400);
+  await expect.poll(width).toBe(360);
+  await drag(50);
+  await expect.poll(width).toBe(410);
+  // Kept across a reload; a double click sets it back.
+  await page.reload();
+  await handle.scrollIntoViewIfNeeded();
+  await expect.poll(width).toBe(410);
+  await handle.dblclick();
+  await expect.poll(width).toBe(360);
+  await page.reload();
+  await handle.scrollIntoViewIfNeeded();
+  await expect.poll(width).toBe(360);
 });
 
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {

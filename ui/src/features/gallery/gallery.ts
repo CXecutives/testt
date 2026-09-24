@@ -88,6 +88,9 @@ export const text = {
     badge: 'Hinweis',
     loading: 'Platzhalter und Fortschritt',
     meter: 'Fortschritt des Abrufs',
+    split: 'Liste und Anzeige',
+    list: 'Liste',
+    reader: 'Anzeige',
   },
   inputs: {
     heading: 'Eingaben',
