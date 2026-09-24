@@ -30,7 +30,6 @@
     portal: PortalState;
   }
   let { portal }: Props = $props();
-  const id = $props.id();
 
   type Switches = Partial<Pick<PortalState, 'enabled' | 'fetchDetails' | 'loginEnabled'>>;
 
@@ -149,14 +148,14 @@
           <SettingRow
             label={de.settings.details}
             hint={de.settings.riskText[risk]}
-            for="{id}-details"
+            for="switch-details-{portal.portal}"
             testid="details-{portal.portal}"
           >
             {#snippet badges()}
               <Badge label={de.settings.risk[risk]} tone={RISK_TONE[risk]} icon="shield" />
             {/snippet}
             <Toggle
-              id="{id}-details"
+              id="switch-details-{portal.portal}"
               checked={portal.fetchDetails}
               label={de.settings.details}
               testid="toggle-details-{portal.portal}"
@@ -167,7 +166,7 @@
             <SettingRow
               label={de.settings.login}
               hint={de.settings.loginHint}
-              for="{id}-login"
+              for="switch-login-{portal.portal}"
               testid="login-{portal.portal}"
             >
               {#snippet badges()}
@@ -176,7 +175,7 @@
                 {/if}
               {/snippet}
               <Toggle
-                id="{id}-login"
+                id="switch-login-{portal.portal}"
                 checked={portal.loginEnabled}
                 label={de.settings.login}
                 disabled={!portal.fetchDetails}
@@ -235,13 +234,15 @@
     padding: var(--space-16) var(--space-20);
   }
 
+  /* The rows run edge to edge like the card's dividers (--row-inset); other content keeps
+     the card's inset of 20. */
   .body {
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
-    margin: 0 var(--space-20);
-    padding-bottom: var(--space-4);
+    padding: 0 var(--space-20) var(--space-4);
     border-top: var(--border-width) solid var(--border);
+    --row-inset: var(--space-20);
   }
 
   .body > :global(:first-child:not(.rows)) {

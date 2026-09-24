@@ -310,16 +310,18 @@
       {/if}
     </div>
     <div class="toggles">
-      <SettingRow label={t.remoteOutside} hint={t.remoteOutsideHint}>
+      <SettingRow label={t.remoteOutside} hint={t.remoteOutsideHint} for="{id}-remote-outside">
         <Toggle
+          id="{id}-remote-outside"
           checked={c.remoteOutside}
           label={t.remoteOutside}
           testid="profile-remote-outside"
           onchange={(on) => (c.remoteOutside = on)}
         />
       </SettingRow>
-      <SettingRow label={t.noAnue}>
+      <SettingRow label={t.noAnue} for="{id}-no-anue">
         <Toggle
+          id="{id}-no-anue"
           checked={c.noAnue}
           label={t.noAnue}
           testid="profile-no-anue"

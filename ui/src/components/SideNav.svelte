@@ -1,9 +1,9 @@
 <!--
   The navigation of the sidebar: icon and label per view, an optional count (unread jobs).
   The active entry sits on one white pill that slides to it (180 ms, emphasized; the
-  sibling of the segmented thumb), its label deep navy and its icon navy. An idle entry
-  washes on hover and its icon turns navy. The count is the deep navy pill and rolls when
-  it changes. Collapsed (icon rail) the labels move into tooltips and a coral dot on the
+  sibling of the segmented thumb), its label ink and its icon coral. An idle entry washes
+  on hover and its icon turns coral. The count is the deep navy pill and rolls when it
+  changes. Collapsed (icon rail) the labels move into tooltips and a coral dot on the
   icon stands for the count. While the window is inactive the active label turns ink.
 -->
 <script lang="ts" module>
@@ -21,6 +21,7 @@
 <script lang="ts" generics="Id extends string">
   import { tooltip } from '$lib/actions/tooltip';
   import { cssVars } from '$lib/actions/cssVars';
+  import { settled } from '$lib/motion/settled.svelte';
   import { fade, pop } from '$lib/motion/transitions';
   import Count from './Count.svelte';
   import Icon from './Icon.svelte';
@@ -35,9 +36,16 @@
   let { items, active, label, collapsed = false, onselect }: Props = $props();
 
   const index = $derived(items.findIndex((item) => item.id === active));
+  const motion = settled();
 </script>
 
-<nav class="nav" class:collapsed aria-label={label} use:cssVars={{ index: Math.max(0, index) }}>
+<nav
+  class="nav"
+  class:collapsed
+  class:ready={motion.ready}
+  aria-label={label}
+  use:cssVars={{ index: Math.max(0, index) }}
+>
   <!-- Re-created when the rail flips, so crossing 1100 px places it without sliding. -->
   {#key collapsed}
     <span class="indicator" class:none={index < 0} aria-hidden="true"></span>
@@ -87,8 +95,12 @@
     background-color: var(--nav-active-bg);
     box-shadow: var(--sh-xs);
     transform: translateY(calc(var(--index) * var(--nav-step)));
-    transition: transform var(--dur-slow) var(--ease-emphasized);
     will-change: transform;
+  }
+
+  /* It slides only once the nav has been drawn (never when it mounts). */
+  .ready .indicator {
+    transition: transform var(--dur-slow) var(--ease-emphasized);
   }
 
   .indicator.none {

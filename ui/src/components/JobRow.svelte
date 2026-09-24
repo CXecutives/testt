@@ -257,16 +257,13 @@
     color: var(--pressed);
   }
 
-  /* The pin button over the reserved slot below the date: it appears on hover (100 ms). */
+  /* The pin button over the reserved slot below the date: it fades in on hover (100 ms). */
   .pin {
     position: absolute;
     top: calc(var(--space-12) + var(--leading-title) + var(--space-4));
     right: var(--pane-padding);
     opacity: 0;
-    transform: scale(var(--scale-appear));
-    transition:
-      opacity var(--dur-fast) var(--ease-standard),
-      transform var(--dur-fast) var(--ease-out);
+    transition: opacity var(--dur-fast) var(--ease-standard);
   }
 
   /* On the washed row the star's own hover is one step deeper. */
@@ -278,7 +275,6 @@
   .pin:focus-within,
   .pinned .pin {
     opacity: 1;
-    transform: none;
   }
 
   .muted:hover .pin,

@@ -24,8 +24,11 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
   Buttons and controls react to the left click only; scroll areas also scroll with the middle mouse button
   (autoscroll where the OS offers it); text a user would want to copy (ad text, job title, company, facts, profile
   values, paths) is marked `data-copy`, selectable and copies with Ctrl/Cmd+C; everything else is not selectable.
-  Keys inside fields: Tab, Enter, Esc, Ctrl/Cmd+C/V/X/A/Z. No browser context menu, no zoom, no reload. All input
-  handling in `ui/src/lib/input/input.ts`. Motion is quick (<= 180 ms, ring fill <= 400 ms), ease-out, no bounce.
+  Fields behave like native fields: every character the keyboard layout produces (AltGr, macOS Option), the OS
+  editing keys (word and line moves, delete word, Home/End, Shift selection, undo/redo, copy/paste/cut/select all),
+  Tab, Enter, Esc. No browser context menu, no zoom, no reload, no find/print. All input handling in
+  `ui/src/lib/input/input.ts`, per-OS key conventions in `ui/src/lib/platform.ts`. Motion is quick (<= 180 ms, ring
+  fill <= 400 ms), ease-out, no bounce; nothing deforms on press; no grey washes behind switch rows.
 - Styling only via tokens in `ui/src/styles/tokens.css`; controls only from `ui/src/components/`; Tauri only via
   `ui/src/lib/ipc/api.ts`; motion only via `ui/src/lib/motion/`. At most one primary button per view. Lint enforces it.
 - UI text (German): little text, only what is needed, plain and human. No AI-style writing: no dashes or

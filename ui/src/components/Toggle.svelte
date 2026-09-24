@@ -1,12 +1,14 @@
 <!--
   On/off switch, coral when on (user decision). The thumb travels in 180 ms (emphasized, no
-  bounce) and the track changes colour in 100 ms; while the left button is down the thumb
-  stretches toward where it will go (60 ms). Disabled switches stay hoverable so the tooltip
-  can say why (disabledReason).
+  bounce) and the track changes colour in 100 ms; while the left button is down the track
+  darkens a step (the thumb never changes shape). Disabled switches stay hoverable so the
+  tooltip can say why (disabledReason).
   It flips at once, like a native switch: when `onchange` returns a promise (the save),
   the switch shows the new state until it settles, then `checked` again - which is the old
   state if the save failed, so the thumb slides back.
-  `id` lets a SettingRow label it: a click on the row's text then toggles it natively.
+  `id` lets a SettingRow label it: a click on the row's text then toggles it natively, and
+  the switch shows its hover while the pointer is anywhere on that row (the row itself never
+  changes).
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
@@ -90,7 +92,6 @@
     transition: background-color var(--dur-fast) var(--ease-standard);
   }
 
-  /* Off: it grows from the left edge; on: from the right edge (toward where it goes). */
   .thumb {
     position: absolute;
     top: calc((var(--toggle-height) - var(--toggle-thumb)) / 2);
@@ -100,11 +101,11 @@
     border-radius: var(--radius-full);
     background-color: var(--surface);
     box-shadow: var(--sh-thumb);
-    transform-origin: left center;
     transition: transform var(--dur-slow) var(--ease-emphasized);
   }
 
-  .toggle:not([aria-disabled='true']):hover .track {
+  .toggle:not([aria-disabled='true']):hover .track,
+  :global([data-toggle-row]:hover) .toggle:not([aria-disabled='true']) .track {
     background-color: var(--border-input);
     transition-duration: var(--dur-hover);
   }
@@ -113,22 +114,23 @@
     background-color: var(--toggle-on);
   }
 
-  .toggle[aria-checked='true']:not([aria-disabled='true']):hover .track {
+  .toggle[aria-checked='true']:not([aria-disabled='true']):hover .track,
+  :global([data-toggle-row]:hover) .toggle[aria-checked='true']:not([aria-disabled='true']) .track {
     background-color: var(--toggle-on-hover);
   }
 
   .toggle[aria-checked='true'] .thumb {
     transform: translateX(var(--toggle-travel));
-    transform-origin: right center;
   }
 
-  .toggle:not([aria-disabled='true']):active .thumb {
-    transform: scaleX(var(--scale-stretch));
+  /* Pressed: the track darkens a step, 60 ms. */
+  .toggle:not([aria-disabled='true']):active .track {
+    background-color: var(--border-input);
     transition-duration: var(--dur-instant);
   }
 
-  .toggle[aria-checked='true']:not([aria-disabled='true']):active .thumb {
-    transform: translateX(var(--toggle-travel)) scaleX(var(--scale-stretch));
+  .toggle[aria-checked='true']:not([aria-disabled='true']):active .track {
+    background-color: var(--primary-active);
   }
 
   .toggle:focus-visible .track {

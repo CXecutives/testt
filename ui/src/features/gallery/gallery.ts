@@ -308,7 +308,7 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
     ],
   },
   {
-    title: 'Koralle, handeln und neu',
+    title: 'Koralle, handeln, neu und hier',
     tokens: [
       { name: 'accent', role: 'decor' },
       { name: 'accent-soft', role: 'surface' },
@@ -317,21 +317,22 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'primary-active', role: 'fill', exception: true },
       { name: 'toggle-on', role: 'decor' },
       { name: 'unread', role: 'decor' },
-    ],
-  },
-  {
-    title: 'Navy, Ort und Daten',
-    tokens: [
       { name: 'surface-selected', role: 'surface' },
       { name: 'surface-selected-hover', role: 'surface' },
       { name: 'surface-selected-inactive', role: 'surface' },
       { name: 'selection-bar', role: 'decor' },
       { name: 'ring-track-selected', role: 'decor' },
       { name: 'nav-active-fg', role: 'text' },
-      { name: 'nav-active-icon', role: 'text' },
-      { name: 'count-bg', role: 'fill' },
+      { name: 'nav-active-icon', role: 'decor' },
       { name: 'count-soft-bg', role: 'surface' },
       { name: 'count-soft-fg', role: 'text' },
+    ],
+  },
+  {
+    title: 'Navy, Daten und Struktur',
+    tokens: [
+      { name: 'count-bg', role: 'fill' },
+      { name: 'icon-accent', role: 'text' },
       { name: 'active-surface', role: 'surface' },
       { name: 'active-edge', role: 'decor' },
       { name: 'active-text', role: 'text' },

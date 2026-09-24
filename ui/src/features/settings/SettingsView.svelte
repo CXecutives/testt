@@ -30,7 +30,6 @@
 
   type Feedback = { tone: NoticeTone; text: string } | null;
 
-  const id = $props.id();
   const cfg = $derived(app.state);
   let editing = $state(false);
   let mailboxNote = $state<Feedback>(null);
@@ -258,10 +257,10 @@
         <SettingRow
           label={de.settings.autoFetch}
           hint={de.settings.autoFetchHint}
-          for="{id}-auto-fetch"
+          for="switch-auto-fetch"
         >
           <Toggle
-            id="{id}-auto-fetch"
+            id="switch-auto-fetch"
             checked={cfg.autoFetchOnStart}
             label={de.settings.autoFetch}
             testid="toggle-auto-fetch"
