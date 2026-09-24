@@ -201,6 +201,7 @@ fn run_context(
             .collect(),
         auto_archive_days: settings.auto_archive_days,
         auto_empty_trash_days: settings.auto_empty_trash_days,
+        language: settings.language_or(state.system_language),
     };
     Ok((ctx, credentials))
 }

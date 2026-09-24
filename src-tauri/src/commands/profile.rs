@@ -16,9 +16,10 @@ pub async fn pick_profile(
     state: State<'_, AppState>,
 ) -> CmdResult<Option<ProfileDraft>> {
     let workspace = state.workspace()?;
+    let words = texts::of(state.language()?);
     let Some(file) = rfd::AsyncFileDialog::new()
-        .set_title(texts::PICK_PROFILE)
-        .add_filter(texts::PROFILE_FILTER, &["json"])
+        .set_title(words.pick_profile)
+        .add_filter(words.profile_filter, &["json"])
         .set_directory(&workspace)
         .set_parent(&window)
         .pick_file()
@@ -37,10 +38,11 @@ pub async fn parse_profile(text: String) -> CmdResult<ProfileDraft> {
         .into())
 }
 
-/// The request for Claude that turns a CV into a profile (copied by the page).
+/// The request for Claude that turns a CV into a profile (copied by the page), in the app's
+/// language.
 #[tauri::command]
-pub fn profile_prompt() -> String {
-    profile::prompt::text()
+pub async fn profile_prompt(state: State<'_, AppState>) -> CmdResult<String> {
+    Ok(profile::prompt::text(state.language()?))
 }
 
 /// Saves the editor: merges the form into the profile (or the draft it came from), keeps

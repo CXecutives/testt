@@ -14,7 +14,7 @@
   import Card from '$components/Card.svelte';
   import JobRow from '$components/JobRow.svelte';
   import Notice from '$components/Notice.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { EmptyAlert, JobView, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
@@ -85,11 +85,11 @@
       out.push({
         id: `${portal}-mails`,
         portal,
-        text: de.overview.emptyAlerts(mails),
+        text: t.overview.emptyAlerts(mails),
         mail: alerts.find((a) => a.gmailId !== null)?.gmailId ?? null,
       });
     } else if (suspect !== null) {
-      out.push({ id: `${portal}-pages`, portal, text: de.health.layoutPages, mail: null });
+      out.push({ id: `${portal}-pages`, portal, text: t.health.layoutPages, mail: null });
     }
     if (health !== null && health.kind !== 'ok' && suspect === null) {
       out.push({ id: `${portal}-health`, portal, text: healthSentence(health) ?? '', mail: null });
@@ -121,16 +121,16 @@
     const profile = app.state?.profile ?? null;
     if (profile === null) {
       return {
-        heading: de.overview.noProfile,
-        text: de.overview.noProfileText,
-        label: de.list.createProfile,
+        heading: t.overview.noProfile,
+        text: t.overview.noProfileText,
+        label: t.list.createProfile,
         icon: 'file-text' as const,
       };
     }
     return {
-      heading: profile.parseError ? de.overview.profileUnreadable : de.overview.profileEmpty,
-      text: de.overview.profileBrokenText,
-      label: de.list.openProfile,
+      heading: profile.parseError ? t.overview.profileUnreadable : t.overview.profileEmpty,
+      text: t.overview.profileBrokenText,
+      label: t.list.openProfile,
       icon: 'user-round' as const,
     };
   });
@@ -143,7 +143,7 @@
   }
 </script>
 
-<div class="overview" data-testid="day-overview" aria-label={de.overview.label}>
+<div class="overview" data-testid="day-overview" aria-label={t.overview.label}>
   {#if profileMissing}
     <Card variant="tinted" padding="md" testid="no-profile">
       <div class="profile">
@@ -168,7 +168,7 @@
 
   {#if best.length > 0}
     <section class="block" data-testid="best">
-      <h2 class="heading">{de.overview.best}</h2>
+      <h2 class="heading">{t.overview.best}</h2>
       <div class="best">
         {#each best as job (keyOf(job.key))}
           <JobRow {job} onselect={(chosen) => void jobs.select(chosen, true)} />
@@ -179,16 +179,16 @@
 
   {#if hasIssues}
     <section class="block" data-testid="issues">
-      <h2 class="heading">{de.overview.issues}</h2>
+      <h2 class="heading">{t.overview.issues}</h2>
       <div class="rows">
         {#if lastFailure}
           <Notice
             tone="danger"
             variant="row"
-            heading={de.overview.lastRun}
-            text={de.error.text(lastFailure.kind, lastFailure.params)}
+            heading={t.overview.lastRun}
+            text={t.error.text(lastFailure.kind, lastFailure.params)}
             action={{
-              label: de.common.retry,
+              label: t.common.retry,
               onclick: () => run.retry(app.state?.lastRun ?? null),
             }}
             testid="run-failed"
@@ -198,11 +198,11 @@
           <Notice
             tone="warning"
             variant="row"
-            heading={de.portal[issue.portal]}
+            heading={t.portal[issue.portal]}
             text={issue.text}
             action={issue.mail
               ? {
-                  label: de.reader.mail,
+                  label: t.reader.mail,
                   onclick: () => open({ kind: 'alertMail', gmailId: issue.mail ?? '' }),
                 }
               : null}
@@ -219,7 +219,7 @@
         variant="ghost"
         size="sm"
         icon="external-link"
-        label={de.run.openOverview}
+        label={t.run.openOverview}
         testid="overview-open"
         onclick={() => open({ kind: 'overview' })}
       />
@@ -227,7 +227,7 @@
         variant="ghost"
         size="sm"
         icon="file-text"
-        label={de.overview.excel}
+        label={t.overview.excel}
         testid="overview-excel"
         onclick={() => open({ kind: 'excel' })}
       />
@@ -235,7 +235,7 @@
         variant="ghost"
         size="sm"
         icon="folder-open"
-        label={de.common.openFolder}
+        label={t.common.openFolder}
         testid="overview-folder"
         onclick={() => open({ kind: 'workspace' })}
       />

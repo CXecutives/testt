@@ -30,7 +30,8 @@
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
   import { inView, scrollArea } from '$lib/actions/inView';
   import { tooltip } from '$lib/actions/tooltip';
-  import { de, type CriterionState } from '$lib/i18n/de';
+  import type { CriterionState } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { displayTitle, formatDate, formatRelative } from '$lib/i18n/format';
   import {
     criterionKey,
@@ -130,7 +131,7 @@
     const labels = new Set(
       (match?.criteria ?? []).flatMap((reason) => {
         const key = criterionKey(reason.code);
-        return key === null ? [] : [de.reader.criterion[key].label];
+        return key === null ? [] : [t.reader.criterion[key].label];
       }),
     );
     if (contract && !labels.has(reasonText(contract))) {
@@ -140,7 +141,7 @@
         label: reasonText(contract),
         state: unclear ? 'unknown' : 'plain',
         icon: unclear ? 'circle-help' : 'file-text',
-        hint: de.reader.contractLabel,
+        hint: t.reader.contractLabel,
       });
     }
     for (const reason of match?.criteria ?? []) {
@@ -149,10 +150,10 @@
       const state = criterionState(reason);
       out.push({
         id: reason.id,
-        label: de.reader.criterion[key].label,
+        label: t.reader.criterion[key].label,
         state,
         icon: STATE_ICON[state],
-        hint: de.reader.criterionState[state],
+        hint: t.reader.criterionState[state],
       });
     }
     return out;
@@ -161,23 +162,23 @@
   const headline = $derived.by((): { word: string; tone: string } | null => {
     if (!withRing) return null;
     if (match === null) {
-      return { word: app.state?.matchPending ? de.score.pending : de.score.none, tone: 'none' };
+      return { word: app.state?.matchPending ? t.score.pending : t.score.none, tone: 'none' };
     }
-    if (match.status === 'excluded') return { word: de.score.excluded, tone: 'excluded' };
-    if (match.status === 'unscorable') return { word: de.score.unscorable, tone: 'none' };
-    return { word: de.score.band[match.band], tone: match.band };
+    if (match.status === 'excluded') return { word: t.score.excluded, tone: 'excluded' };
+    if (match.status === 'unscorable') return { word: t.score.unscorable, tone: 'none' };
+    return { word: t.score.band[match.band], tone: match.band };
   });
   const exclusion = $derived(
     match?.status === 'excluded'
       ? (noteText(job.match?.note ?? match.summary) ??
-          (allViolations[0] ? reasonText(allViolations[0]) : de.reader.note.hardCriterion))
+          (allViolations[0] ? reasonText(allViolations[0]) : t.reader.note.hardCriterion))
       : null,
   );
   // Why a job cannot be scored (too little text, an engine failure); without a note the ad
   // simply names no clear requirements.
   const unscorable = $derived(
     match?.status === 'unscorable'
-      ? (noteText(job.match?.note ?? match.summary) ?? de.reader.noReasons)
+      ? (noteText(job.match?.note ?? match.summary) ?? t.reader.noReasons)
       : null,
   );
   // A violation that says exactly what the match line says is not repeated.
@@ -194,10 +195,10 @@
     [
       job.company,
       job.location,
-      job.workMode ? de.job.workMode[job.workMode] : '',
+      job.workMode ? t.job.workMode[job.workMode] : '',
       job.alsoOn.length > 0
-        ? `${de.portal[job.portal]}, ${de.job.alsoOn(job.alsoOn.map((p) => de.portal[p]).join(', '))}`
-        : de.portal[job.portal],
+        ? `${t.portal[job.portal]}, ${t.job.alsoOn(job.alsoOn.map((p) => t.portal[p]).join(', '))}`
+        : t.portal[job.portal],
       formatDate(job.mailDate ?? job.firstSeenAt),
     ].filter((fact) => fact !== ''),
   );
@@ -234,7 +235,7 @@
     actionError = null;
     try {
       await navigator.clipboard.writeText(await jobs.aiPrompt(job.key));
-      toasts.show(de.toast.prompt);
+      toasts.show(t.toast.prompt);
     } catch (error) {
       actionError = errorText(error);
     }
@@ -257,8 +258,8 @@
       actionError = error;
       return;
     }
-    toasts.show(de.toast.hidden, 'success', {
-      label: de.common.undo,
+    toasts.show(t.toast.hidden, 'success', {
+      label: t.common.undo,
       onclick: () => void undoHide(key),
     });
     if (next !== null) void jobs.select(next, false);
@@ -366,14 +367,14 @@
           size="sm"
         />
       {/if}
-      <span class="compact-title">{job.title ? displayTitle(job.title) : de.job.untitled}</span>
+      <span class="compact-title">{job.title ? displayTitle(job.title) : t.job.untitled}</span>
       <span class="compact-tools">
         <Button
           variant="ghost"
           size="sm"
           iconOnly
           icon="external-link"
-          label={de.reader.open}
+          label={t.reader.open}
           testid="compact-open"
           onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
         />
@@ -382,7 +383,7 @@
           size="sm"
           iconOnly
           icon="star"
-          label={de.reader.pin}
+          label={t.reader.pin}
           pressed={job.pinned}
           testid="compact-pin"
           onclick={() => void jobs.pin(job.key, !job.pinned)}
@@ -394,7 +395,7 @@
   <header class="head">
     <div class="title-line">
       <h1 class="title" data-testid="reader-title" data-copy>
-        {job.title ? displayTitle(job.title) : de.job.untitled}
+        {job.title ? displayTitle(job.title) : t.job.untitled}
       </h1>
       <span class="title-tools">
         <Button
@@ -402,7 +403,7 @@
           size="sm"
           iconOnly
           icon="star"
-          label={de.reader.pin}
+          label={t.reader.pin}
           pressed={job.pinned}
           testid="pin"
           onclick={() => void jobs.pin(job.key, !job.pinned)}
@@ -412,7 +413,7 @@
           size="sm"
           iconOnly
           icon={job.archived ? 'eye' : 'eye-off'}
-          label={job.archived ? de.reader.unhide : de.reader.hide}
+          label={job.archived ? t.reader.unhide : t.reader.hide}
           testid="hide"
           onclick={() => void hide()}
         />
@@ -423,7 +424,7 @@
               size="sm"
               iconOnly
               icon="x"
-              label={de.reader.close}
+              label={t.reader.close}
               testid="reader-close"
               onclick={onclose}
             />
@@ -452,8 +453,8 @@
           {#if match && match.status === 'scored'}
             <span class="must" data-testid="must">
               {job.match && job.match.mustTotal > 0
-                ? de.reader.mustMet(job.match.mustMet, job.match.mustTotal, partialMust)
-                : de.reader.noMust}
+                ? t.reader.mustMet(job.match.mustMet, job.match.mustTotal, partialMust)
+                : t.reader.noMust}
             </span>
           {/if}
         </p>
@@ -462,7 +463,7 @@
         {:else if unscorable}
           <p class="because" data-testid="unscorable">{unscorable}</p>
         {:else if preliminary}
-          <p class="because" data-testid="preliminary">{de.reader.preliminary}</p>
+          <p class="because" data-testid="preliminary">{t.reader.preliminary}</p>
         {/if}
         {#if fetchUnderBand}
           <span class="fetch-here">
@@ -470,7 +471,7 @@
               variant="secondary"
               size="sm"
               icon="download"
-              label={de.reader.fetchDetails}
+              label={t.reader.fetchDetails}
               disabled={run.active}
               disabledReason={run.busyText}
               testid="fetch-details"
@@ -479,7 +480,7 @@
           </span>
         {/if}
         {#if chips.length > 0}
-          <ul class="chips" aria-label={de.reader.criteria} data-testid="criteria">
+          <ul class="chips" aria-label={t.reader.criteria} data-testid="criteria">
             {#each chips as chip (chip.id)}
               <li
                 class="chip {chip.state}"
@@ -501,14 +502,14 @@
     <Button
       variant="secondary"
       icon="external-link"
-      label={de.reader.open}
+      label={t.reader.open}
       testid="open-ad"
       onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
     />
     <Button
       variant="ghost"
       icon="copy"
-      label={de.reader.prompt}
+      label={t.reader.prompt}
       testid="prompt"
       onclick={() => void copyPrompt()}
     />
@@ -516,7 +517,7 @@
       <Button
         variant="ghost"
         icon="mail"
-        label={de.reader.mail}
+        label={t.reader.mail}
         testid="open-mail"
         onclick={() => openTarget({ kind: 'gmail', key: job.key })}
       />
@@ -525,7 +526,7 @@
       <Button
         variant="ghost"
         icon="download"
-        label={de.reader.fetchDetails}
+        label={t.reader.fetchDetails}
         disabled={run.active}
         disabledReason={run.busyText}
         testid="fetch-details"
@@ -534,12 +535,12 @@
     {/if}
   </div>
   <div class="marks">
-    <div class="status" role="group" aria-label={de.reader.status} data-testid="status">
+    <div class="status" role="group" aria-label={t.reader.status} data-testid="status">
       {#each STATUSES as status (status)}
         <Button
           variant="secondary"
           size="sm"
-          label={de.reader.appStatus[status]}
+          label={t.reader.appStatus[status]}
           pressed={job.appStatus === status}
           testid="status-{status}"
           onclick={() => void setStatus(status)}
@@ -556,8 +557,8 @@
     >
       <TextField
         value={note}
-        label={de.reader.noteLabel}
-        placeholder={de.reader.noteLabel}
+        label={t.reader.noteLabel}
+        placeholder={t.reader.noteLabel}
         testid="note"
         oninput={(value) => (note = value)}
       />
@@ -570,22 +571,22 @@
 
   {#if match && match.status !== 'unscorable' && withRing}
     <section class="why" data-testid="why">
-      <h2 class="section">{de.reader.why}</h2>
+      <h2 class="section">{t.reader.why}</h2>
       {#if met.length + partial.length + open.length === 0}
-        <p class="quiet">{de.reader.noReasons}</p>
+        <p class="quiet">{t.reader.noReasons}</p>
       {:else}
         <div class="columns">
           {#if met.length + partial.length > 0}
             <div class="stack">
               {#if met.length > 0}
                 <div class="group">
-                  {@render sub(de.reader.met, met.length)}
+                  {@render sub(t.reader.met, met.length)}
                   {@render reasonList(met, 'reasons-met')}
                 </div>
               {/if}
               {#if partial.length > 0}
                 <div class="group">
-                  {@render sub(de.reader.partial, partial.length)}
+                  {@render sub(t.reader.partial, partial.length)}
                   {@render reasonList(partial, 'reasons-partial')}
                 </div>
               {/if}
@@ -593,7 +594,7 @@
           {/if}
           {#if open.length > 0}
             <div class="group">
-              {@render sub(de.reader.missing, open.length)}
+              {@render sub(t.reader.missing, open.length)}
               {@render reasonList(open, 'reasons-open')}
             </div>
           {/if}
@@ -601,13 +602,13 @@
       {/if}
       {#if checks.length > 0}
         <div class="group">
-          {@render sub(de.reader.check, checks.length)}
+          {@render sub(t.reader.check, checks.length)}
           {@render reasonList(checks, 'reasons-check')}
         </div>
       {/if}
       {#if violations.length > 0}
         <div class="group">
-          {@render sub(de.reader.violations, violations.length)}
+          {@render sub(t.reader.violations, violations.length)}
           {@render reasonList(violations, 'reasons-violation')}
         </div>
       {/if}
@@ -615,18 +616,18 @@
   {/if}
 
   <section class="ad">
-    <h2 class="section">{de.reader.ad}</h2>
+    <h2 class="section">{t.reader.ad}</h2>
     {#if detailKind !== 'ok'}
       <Notice
         tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
         variant="inline"
         text={portalState && !portalState.fetchDetails && detailKind === 'pending'
-          ? de.reader.detailsOff
-          : de.reader.detail[detailKind]}
+          ? t.reader.detailsOff
+          : t.reader.detail[detailKind]}
         testid="detail-note"
       />
     {:else if job.short && unscorable === null}
-      <Notice tone="info" variant="inline" text={de.reader.short} />
+      <Notice tone="info" variant="inline" text={t.reader.short} />
     {/if}
     {#if detail.text}
       <AdText

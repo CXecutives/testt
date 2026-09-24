@@ -30,7 +30,7 @@
 // - no hover flicker while a list scrolls (`:root[data-scrolling]`, see onScroll)
 
 import type { Action } from 'svelte/action';
-import { de } from '../i18n/de';
+import { t } from '../i18n/t';
 import { popupEditMenu, type EditEntry } from '../ipc/api';
 import { keyConventions, type KeyConventions } from '../platform';
 import { tokenMs } from '../tokens';
@@ -345,10 +345,10 @@ function fieldMenu(field: HTMLInputElement | HTMLTextAreaElement): EditEntry[] {
   const hidden = field instanceof HTMLInputElement && field.type === 'password';
   const selected = (field.selectionStart ?? 0) !== (field.selectionEnd ?? 0);
   return [
-    { command: 'Cut', text: de.edit.cut, enabled: editable && selected && !hidden },
-    { command: 'Copy', text: de.edit.copy, enabled: selected && !hidden },
-    { command: 'Paste', text: de.edit.paste, enabled: editable },
-    { command: 'SelectAll', text: de.edit.selectAll, enabled: field.value !== '' },
+    { command: 'Cut', text: t.edit.cut, enabled: editable && selected && !hidden },
+    { command: 'Copy', text: t.edit.copy, enabled: selected && !hidden },
+    { command: 'Paste', text: t.edit.paste, enabled: editable },
+    { command: 'SelectAll', text: t.edit.selectAll, enabled: field.value !== '' },
   ];
 }
 
@@ -367,7 +367,7 @@ function onContextMenu(event: MouseEvent): void {
   if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
     void popupEditMenu(fieldMenu(field));
   } else if (selectedCopy(event.target)) {
-    void popupEditMenu([{ command: 'Copy', text: de.edit.copy, enabled: true }]);
+    void popupEditMenu([{ command: 'Copy', text: t.edit.copy, enabled: true }]);
   }
 }
 

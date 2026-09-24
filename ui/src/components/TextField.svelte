@@ -10,7 +10,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { FIELD_ATTRIBUTES, formKeys } from '$lib/input/input';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { move, play } from '$lib/motion/motion';
   import { pop } from '$lib/motion/transitions';
   import Button from './Button.svelte';
@@ -129,7 +129,7 @@
         size="sm"
         iconOnly
         icon={revealed ? 'eye-off' : 'eye'}
-        label={revealed ? de.field.conceal : de.field.reveal}
+        label={revealed ? t.field.conceal : t.field.reveal}
         inField
         onclick={() => void reveal()}
       />
@@ -141,7 +141,7 @@
         size="sm"
         iconOnly
         icon="x"
-        label={de.field.clear}
+        label={t.field.clear}
         inField
         onclick={clear}
       />

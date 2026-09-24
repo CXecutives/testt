@@ -24,7 +24,7 @@
   import Card from '$components/Card.svelte';
   import Icon from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -41,8 +41,8 @@
     profile === null || profileDone
       ? null
       : profile.parseError
-        ? de.profile.parseError
-        : de.profile.qualityText.empty,
+        ? t.profile.parseError
+        : t.profile.qualityText.empty,
   );
   /** The step whose action is the primary one. */
   const current = $derived(!mailboxDone ? 1 : !profileDone ? 2 : 3);
@@ -101,21 +101,21 @@
   <div class="column">
     <header class="intro">
       <BrandMark size="lg" />
-      <h1 class="title">{de.app.name}</h1>
-      <p class="benefit">{de.firstRun.benefit}</p>
-      <p class="privacy"><Icon name="shield" size="sm" />{de.firstRun.privacy}</p>
+      <h1 class="title">{t.app.name}</h1>
+      <p class="benefit">{t.firstRun.benefit}</p>
+      <p class="privacy"><Icon name="shield" size="sm" />{t.firstRun.privacy}</p>
     </header>
 
     {#if reset}
       <Notice
         tone={reset.failed > 0 ? 'warning' : 'success'}
-        text={reset.failed > 0 ? de.settings.resetPartly(reset.failed) : de.settings.resetDone}
+        text={reset.failed > 0 ? t.settings.resetPartly(reset.failed) : t.settings.resetDone}
         testid="first-reset-report"
       />
     {/if}
 
     <Card padding="md">
-      <ol class="steps" aria-label={de.firstRun.steps}>
+      <ol class="steps" aria-label={t.firstRun.steps}>
         <li
           class="step"
           class:done={mailboxDone}
@@ -125,12 +125,12 @@
         >
           {@render rail(1, mailboxDone, ticked.mailbox)}
           <div class="body">
-            <h2 class="name">{de.firstRun.mailbox}</h2>
+            <h2 class="name">{t.firstRun.mailbox}</h2>
             {#if mailboxDone}
               <p class="done-text" in:rise>{app.state?.mailbox.user}</p>
             {:else}
-              <p class="hint">{de.firstRun.mailboxText}</p>
-              <MailboxForm saveLabel={de.settings.connect} />
+              <p class="hint">{t.firstRun.mailboxText}</p>
+              <MailboxForm saveLabel={t.settings.connect} />
             {/if}
           </div>
         </li>
@@ -144,7 +144,7 @@
         >
           {@render rail(2, profileDone, ticked.profile)}
           <div class="body">
-            <h2 class="name">{de.firstRun.profile}</h2>
+            <h2 class="name">{t.firstRun.profile}</h2>
             {#if profileDone}
               <p class="done-text" in:rise>{profileName}</p>
             {:else}
@@ -156,13 +156,13 @@
                   testid="first-profile-problem"
                 />
               {:else}
-                <p class="hint">{de.firstRun.profileText}</p>
+                <p class="hint">{t.firstRun.profileText}</p>
               {/if}
               <div class="actions" bind:this={profileActions}>
                 <Button
                   variant={current === 2 ? 'primary' : 'secondary'}
                   icon="file-text"
-                  label={profile ? de.list.openProfile : de.profile.create}
+                  label={profile ? t.list.openProfile : t.profile.create}
                   testid="first-profile"
                   onclick={openProfile}
                 />
@@ -174,15 +174,15 @@
         <li class="step" aria-current={current === 3 ? 'step' : undefined} data-testid="step-fetch">
           {@render rail(3, false, false, true)}
           <div class="body">
-            <h2 class="name">{de.firstRun.fetch}</h2>
-            <p class="hint">{de.firstRun.fetchHint}</p>
+            <h2 class="name">{t.firstRun.fetch}</h2>
+            <p class="hint">{t.firstRun.fetchHint}</p>
             <div class="actions">
               <Button
                 variant={current === 3 ? 'primary' : 'secondary'}
                 icon="refresh-cw"
-                label={de.toolbar.fetch}
+                label={t.toolbar.fetch}
                 disabled={!mailboxDone}
-                disabledReason={de.toolbar.needsMailbox}
+                disabledReason={t.toolbar.needsMailbox}
                 testid="first-fetch"
                 onclick={() => void run.start({ kind: 'fetch' })}
               />

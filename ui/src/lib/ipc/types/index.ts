@@ -21,6 +21,7 @@ export type { JobQuery } from "./JobQuery";
 export type { JobSort } from "./JobSort";
 export type { JobView } from "./JobView";
 export type { KeyFacts } from "./KeyFacts";
+export type { Language } from "./Language";
 export type { LanguageLevel } from "./LanguageLevel";
 export type { Mailbox } from "./Mailbox";
 export type { MatchDetail } from "./MatchDetail";

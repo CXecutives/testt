@@ -5,7 +5,7 @@
 <script lang="ts">
   import Badge from '$components/Badge.svelte';
   import Card from '$components/Card.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import type { Snippet } from 'svelte';
 
   interface Props {
@@ -24,7 +24,7 @@
 <section class="section" aria-labelledby="{id}-heading" data-testid={testid ?? undefined}>
   <div class="head">
     <h2 class="heading" id="{id}-heading">{heading}</h2>
-    {#if empty}<Badge label={de.profile.empty} tone="warning" />{/if}
+    {#if empty}<Badge label={t.profile.empty} tone="warning" />{/if}
   </div>
   {#if hint}<p class="hint">{hint}</p>{/if}
   <Card padding="md">

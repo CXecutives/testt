@@ -32,6 +32,48 @@ pub struct Settings {
     /// Delete the jobs that lie in the trash this long for good, at the end of every run;
     /// 0 = never.
     pub auto_empty_trash_days: u32,
+    /// Language of the interface and of the exported Excel file, HTML overview and prompts;
+    /// `None` = the language of the OS ([`Settings::language_or`]). The text files per job
+    /// stay German (a contract with the matching skill). A code of a newer version reads as
+    /// `None`.
+    #[serde(deserialize_with = "known_language")]
+    pub language: Option<Language>,
+}
+
+/// The app's language. German on a German system, English on any other.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum Language {
+    De,
+    En,
+}
+
+impl Language {
+    /// The language for a BCP 47 tag of the OS (`de-DE`, `de_AT.UTF-8`, `gsw-CH` ...): German
+    /// for German, English for everything else (and for no tag at all).
+    pub fn from_locale(tag: Option<&str>) -> Language {
+        let primary = tag
+            .unwrap_or_default()
+            .split(['-', '_', '.', '@'])
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        // `gsw` is Swiss German, `nds` Low German: their readers read German.
+        if matches!(primary.as_str(), "de" | "gsw" | "nds") {
+            Language::De
+        } else {
+            Language::En
+        }
+    }
+
+    /// The code of the language (`de`, `en`), as in `<html lang>`.
+    pub fn code(self) -> &'static str {
+        match self {
+            Language::De => "de",
+            Language::En => "en",
+        }
+    }
 }
 
 /// Days after which old jobs archive themselves when the switch is on.
@@ -70,6 +112,7 @@ impl Default for Settings {
                 .map(|p| (p, PortalSwitches::default()))
                 .collect(),
             auto_fetch_on_start: true,
+            language: None,
             auto_archive_days: AUTO_ARCHIVE_DAYS,
             auto_empty_trash_days: AUTO_EMPTY_TRASH_DAYS,
         }
@@ -141,12 +184,25 @@ impl Settings {
         portal.access().path(switches.login_enabled)
     }
 
+    /// The chosen language, else the one of the OS.
+    pub fn language_or(&self, system: Language) -> Language {
+        self.language.unwrap_or(system)
+    }
+
     /// Workspace (chosen or default).
     pub fn workspace_or(&self, default: &std::path::Path) -> PathBuf {
         self.workspace
             .clone()
             .unwrap_or_else(|| default.to_path_buf())
     }
+}
+
+/// A stored language; one this version does not know (a newer version wrote it) is none.
+fn known_language<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<Language>, D::Error> {
+    let code = Option::<String>::deserialize(deserializer)?;
+    Ok(code.and_then(|code| serde_json::from_value(serde_json::Value::String(code)).ok()))
 }
 
 /// Reads the portal switches in today's map form or the list form of earlier versions.
@@ -246,6 +302,51 @@ mod tests {
         assert!(back.auto_fetch_on_start);
         store.kv_set(KEY, r#"{"portals":[]}"#).unwrap();
         assert!(Settings::load(&store).unwrap().enabled_portals().is_empty());
+    }
+
+    /// Without a choice the app follows the OS: German only on a German system. A stored
+    /// choice wins and survives a restart; an unknown code falls back to the OS.
+    #[test]
+    fn the_language_follows_the_system_until_chosen() {
+        for (tag, language) in [
+            (Some("de-DE"), Language::De),
+            (Some("de-AT"), Language::De),
+            (Some("de_CH.UTF-8"), Language::De),
+            (Some("gsw-CH"), Language::De),
+            (Some("DE"), Language::De),
+            (Some("en-US"), Language::En),
+            (Some("fr-FR"), Language::En),
+            (Some("nl"), Language::En),
+            (Some("dev"), Language::En),
+            (Some(""), Language::En),
+            (None, Language::En),
+        ] {
+            assert_eq!(Language::from_locale(tag), language, "{tag:?}");
+        }
+
+        let store = Store::in_memory().unwrap();
+        let mut s = Settings::load(&store).unwrap();
+        assert_eq!(s.language, None);
+        assert_eq!(s.language_or(Language::De), Language::De);
+        assert_eq!(s.language_or(Language::En), Language::En);
+        s.language = Some(Language::En);
+        s.save(&store).unwrap();
+        let back = Settings::load(&store).unwrap();
+        assert_eq!(back.language_or(Language::De), Language::En);
+        assert!(
+            store
+                .kv_get(KEY)
+                .unwrap()
+                .unwrap()
+                .contains(r#""language":"en""#)
+        );
+        // A language of a newer version: the settings stay, the language follows the OS.
+        store
+            .kv_set(KEY, r#"{"language":"fr","autoFetchOnStart":false}"#)
+            .unwrap();
+        let newer = Settings::load(&store).unwrap();
+        assert!(!newer.auto_fetch_on_start);
+        assert_eq!(newer.language, None);
     }
 
     #[test]

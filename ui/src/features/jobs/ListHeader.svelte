@@ -18,7 +18,7 @@
   import Button from '$components/Button.svelte';
   import Segmented from '$components/Segmented.svelte';
   import TextField from '$components/TextField.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import type { JobFacet } from '$lib/ipc/types';
   import { fade, pop } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
@@ -36,11 +36,11 @@
   type View = JobFacet | 'pinned';
   const counts = $derived(jobs.overviewCounts ?? jobs.counts);
   const views = $derived([
-    { id: 'new' as View, label: de.toolbar.facetNew, count: jobs.counts.new },
-    { id: 'all' as View, label: de.toolbar.facetAll, count: jobs.counts.all },
+    { id: 'new' as View, label: t.toolbar.facetNew, count: jobs.counts.new },
+    { id: 'all' as View, label: t.toolbar.facetAll, count: jobs.counts.all },
     // An empty list of the user's own shows no zero (the row stays narrow).
-    { id: 'pinned' as View, label: de.toolbar.facetPinned, count: counts.saved || null },
-    { id: 'sent' as View, label: de.toolbar.facetSent, count: counts.sent || null },
+    { id: 'pinned' as View, label: t.toolbar.facetPinned, count: counts.saved || null },
+    { id: 'sent' as View, label: t.toolbar.facetSent, count: counts.sent || null },
   ]);
   const view = $derived<View>(jobs.filter === 'pinned' ? 'pinned' : jobs.facet);
 
@@ -58,9 +58,9 @@
   <Button
     variant={app.hasMailbox ? 'primary' : 'secondary'}
     icon="refresh-cw"
-    label={de.toolbar.fetch}
+    label={t.toolbar.fetch}
     disabled={!app.hasMailbox || run.active}
-    disabledReason={run.active ? run.busyText : de.toolbar.needsMailbox}
+    disabledReason={run.active ? run.busyText : t.toolbar.needsMailbox}
     wide
     testid={live ? 'fetch' : null}
     onclick={() => void run.start({ kind: 'fetch' })}
@@ -71,7 +71,7 @@
   <Button
     variant="secondary"
     icon="circle-stop"
-    label={de.toolbar.cancel}
+    label={t.toolbar.cancel}
     loading={live && run.cancelling}
     wide
     testid={live ? 'cancel-run' : null}
@@ -85,8 +85,8 @@
       <TextField
         kind="search"
         value={jobs.search}
-        label={de.toolbar.searchLabel}
-        placeholder={de.toolbar.search}
+        label={t.toolbar.searchLabel}
+        placeholder={t.toolbar.search}
         testid="search"
         oninput={(value) => jobs.setSearch(value)}
       />
@@ -105,13 +105,13 @@
   <div class="filters">
     {#if jobs.facet === 'archived'}
       <span class="filter" data-testid="filter" in:pop out:fade>
-        <span class="filter-label">{de.list.hidden}</span>
+        <span class="filter-label">{t.list.hidden}</span>
         <Button
           variant="ghost"
           size="sm"
           iconOnly
           icon="x"
-          label={de.list.clearFilter}
+          label={t.list.clearFilter}
           testid="clear-filter"
           onclick={() => jobs.setFacet('all')}
         />
@@ -120,7 +120,7 @@
       <Segmented
         options={views}
         value={view}
-        label={de.toolbar.facet}
+        label={t.toolbar.facet}
         size="sm"
         testid="facet"
         onchange={choose}
@@ -128,13 +128,13 @@
     {/if}
     {#if otherFilter !== null}
       <span class="filter" data-testid="filter" in:pop out:fade>
-        <span class="filter-label">{de.list.filter[otherFilter]}</span>
+        <span class="filter-label">{t.list.filter[otherFilter]}</span>
         <Button
           variant="ghost"
           size="sm"
           iconOnly
           icon="x"
-          label={de.list.clearFilter}
+          label={t.list.clearFilter}
           testid="clear-filter"
           onclick={() => jobs.setFilter(null)}
         />
@@ -147,7 +147,7 @@
         variant="ghost"
         size="sm"
         icon="arrow-up-down"
-        label={de.toolbar.sortLabel[jobs.sortChoice]}
+        label={t.toolbar.sortLabel[jobs.sortChoice]}
         turned={jobs.sortChoice === 'newest'}
         testid="sort"
         onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
