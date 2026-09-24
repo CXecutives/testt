@@ -5,7 +5,8 @@
 //   - dialog buttons: Windows puts the primary first, macOS last (right),
 //   - scrollbars: slim styled ones on Windows, the native overlay scrollbars on macOS
 //     (base.css keys them off `:root[data-platform]`, like the font smoothing),
-//   - words that name OS things (Explorer / Finder, the password store).
+//   - words that name OS things (Explorer / Finder, the password store),
+//   - the editing keys of text fields (`keyConventions()`, applied by lib/input/input.ts).
 // Components ask here (`primaryFirst()`, `platform()`), never compare OS names themselves.
 
 export type Platform = 'windows' | 'macos';
@@ -36,4 +37,27 @@ export function platform(): Platform {
 /** Dialog buttons: the primary action comes first on Windows, last (right) on macOS. */
 export function primaryFirst(): boolean {
   return platform() === 'windows';
+}
+
+/** How the keyboard of the OS edits text in a field (lib/input/input.ts applies it). */
+export interface KeyConventions {
+  /** Option types characters (@ is Option+L on a German Mac) and moves by word, like
+   *  AltGr on Windows; on Windows a plain Alt is the menu and navigation key. */
+  optionTypes: boolean;
+  /** The modifier of the editing shortcuts: Cmd on macOS, Ctrl on Windows. */
+  command: 'metaKey' | 'ctrlKey';
+  /** Ctrl+Y redoes (Windows); macOS redoes with Cmd+Shift+Z only. */
+  redoWithY: boolean;
+  /** Ctrl+A/E/B/F/N/P/D/H/K move and delete like in every macOS text field. */
+  controlEdits: boolean;
+}
+
+export function keyConventions(): KeyConventions {
+  const mac = platform() === 'macos';
+  return {
+    optionTypes: mac,
+    command: mac ? 'metaKey' : 'ctrlKey',
+    redoWithY: !mac,
+    controlEdits: mac,
+  };
 }

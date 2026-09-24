@@ -63,7 +63,7 @@
     width: 40%;
     transform: translateX(-100%);
     transition: none;
-    animation: sweep var(--dur-loop) var(--ease-standard) infinite;
+    animation: sweep var(--dur-loop) linear infinite;
     animation-play-state: var(--loop-state);
   }
 
@@ -84,7 +84,7 @@
   }
 
   .warning {
-    --meter-color: var(--warning-strong);
+    --meter-color: var(--meter-warning);
   }
 
   .sm {
