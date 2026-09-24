@@ -577,3 +577,17 @@ test('baseline: jobs without a profile', async ({ page }) => {
   await expect(page.getByTestId('no-profile')).toBeVisible();
   await expectShot(page, 'jobs-no-profile');
 });
+
+test('baseline: jobs at the minimum size 480 x 360', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 360 });
+  await open(page, WIN);
+  await expectShot(page, 'jobs-min');
+});
+
+test('baseline: a job at the minimum size 480 x 360', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 360 });
+  await open(page, WIN);
+  await rows(page).first().click();
+  await expect(page.getByTestId('reader-ring')).toContainText('91');
+  await expectShot(page, 'jobs-min-reader');
+});

@@ -359,12 +359,6 @@ export const de = {
     profile: 'Profil',
     settings: 'Einstellungen',
   },
-  window: {
-    minimize: 'Minimieren',
-    maximize: 'Maximieren',
-    restore: 'Verkleinern',
-    close: 'Schließen',
-  },
   common: {
     loading: 'Wird geladen',
     cancel: 'Abbrechen',
@@ -740,6 +734,8 @@ export const de = {
     last: (iso: string) => `Zuletzt ${formatMoment(iso)}`,
     showRun: 'Abruf anzeigen',
     runFailed: 'Abruf fehlgeschlagen',
+    /** Closing while a fetch runs: the window waits until it has stopped. */
+    closing: 'Der Abruf wird beendet, dann schließt die App.',
   },
   toast: {
     saved: 'Gespeichert.',
