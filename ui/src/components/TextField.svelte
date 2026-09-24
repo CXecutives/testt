@@ -1,9 +1,12 @@
 <!--
   Single-line field: text | password (with show/hide) | search (with clear). Spellcheck,
   autocorrect and autocapitalize are off. Use inside Field for label, hint and error.
+  Like the native ones: the show and clear buttons are not in the Tab order and leave the
+  caret in the field; a search clears on Esc, and a click on its magnifier lands in it.
 -->
 <script lang="ts">
-  import { FIELD_ATTRIBUTES } from '$lib/input/input';
+  import { tick } from 'svelte';
+  import { FIELD_ATTRIBUTES, formKeys } from '$lib/input/input';
   import { de } from '$lib/i18n/de';
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
@@ -49,9 +52,26 @@
     update('');
     input?.focus();
   }
+
+  /** Show or hide the password; the caret and selection stay where they were. */
+  async function reveal(): Promise<void> {
+    const start = input?.selectionStart ?? null;
+    const end = input?.selectionEnd ?? null;
+    revealed = !revealed;
+    await tick();
+    if (input === null) return;
+    input.focus();
+    // Chromium rebuilds the editor of an input whose type changed at the next style
+    // update and puts the caret at the start; update now, then restore.
+    void input.offsetWidth;
+    if (start !== null) input.setSelectionRange(start, end ?? start);
+  }
+
+  /** Esc clears a search that has text; otherwise it goes on to the form around. */
+  const keys = $derived(kind === 'search' && value !== '' ? { cancel: clear } : {});
 </script>
 
-<div class="field {kind}" class:invalid class:disabled>
+<div class="field {kind}" class:invalid class:disabled use:formKeys={keys}>
   {#if kind === 'search'}
     <span class="lead"><Icon name="search" size="sm" /></span>
   {/if}
@@ -81,18 +101,28 @@
         iconOnly
         icon={revealed ? 'eye-off' : 'eye'}
         label={revealed ? de.field.conceal : de.field.reveal}
-        onclick={() => (revealed = !revealed)}
+        inField
+        onclick={() => void reveal()}
       />
     </span>
   {:else if kind === 'search' && value !== ''}
     <span class="trail">
-      <Button variant="ghost" size="sm" iconOnly icon="x" label={de.field.clear} onclick={clear} />
+      <Button
+        variant="ghost"
+        size="sm"
+        iconOnly
+        icon="x"
+        label={de.field.clear}
+        inField
+        onclick={clear}
+      />
     </span>
   {/if}
 </div>
 
 <style>
   .field {
+    position: relative;
     display: flex;
     align-items: center;
     width: 100%;
@@ -137,14 +167,20 @@
     color: var(--text-subtle);
   }
 
+  /* The magnifier lies over the input, so a click on it lands in the field. */
   .search .input {
-    padding-left: var(--space-8);
+    padding-left: calc(var(--space-12) + var(--icon-sm) + var(--space-8));
   }
 
   .lead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--space-12);
     display: inline-flex;
-    padding-left: var(--space-12);
+    align-items: center;
     color: var(--text-subtle);
+    pointer-events: none;
   }
 
   .trail {

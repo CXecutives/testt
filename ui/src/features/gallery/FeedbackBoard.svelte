@@ -23,6 +23,8 @@
 
   let confirmOpen = $state(false);
   let dangerOpen = $state(false);
+  /** The danger dialog fails like an action in the dry run: the error shows inside. */
+  let dangerError = $state<string | null>(null);
 </script>
 
 <Section heading={t.rings} id="rings">
@@ -89,7 +91,9 @@
     heading={t.dangerHeading}
     text={t.dangerText}
     confirmLabel={t.dangerLabel}
-    onconfirm={() => (dangerOpen = false)}
+    error={dangerError}
+    onconfirm={() => (dangerError = t.dangerError)}
+    oncancel={() => (dangerError = null)}
     testid="dialog-danger"
   />
 </Section>
