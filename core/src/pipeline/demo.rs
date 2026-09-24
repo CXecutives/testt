@@ -163,7 +163,7 @@ fn ad(id: &str) -> &'static str {
     }
 }
 
-const AD_HIGH: &str = "Beispielanzeige (Trockenlauf)
+const AD_HIGH: &str = "Beispielanzeige (Probelauf)
 
 Für die Nordlicht AG suchen wir ab sofort einen Interim CFO (m/w/d) für neun Monate.
 
@@ -183,7 +183,7 @@ Rahmenbedingungen:
 - Tagessatz 1.200 €
 - Einsatzort Hamburg, 60 % remote";
 
-const AD_MID: &str = "Beispielanzeige (Trockenlauf)
+const AD_MID: &str = "Beispielanzeige (Probelauf)
 
 Die Hafenwerke GmbH sucht für ein Interim-Mandat von sechs Monaten eine Leitung Controlling (m/w/d).
 
@@ -202,7 +202,7 @@ Anforderungen:
 Rahmenbedingungen:
 - Einsatzort Bremen, zwei Tage remote";
 
-const AD_LOW: &str = "Beispielanzeige (Trockenlauf)
+const AD_LOW: &str = "Beispielanzeige (Probelauf)
 
 Für ein Entwicklungsprojekt suchen wir Unterstützung (m/w/d).
 
@@ -215,7 +215,7 @@ Anforderungen:
 Rahmenbedingungen:
 - Einsatzort München, remote möglich";
 
-const AD_EXCLUDED: &str = "Beispielanzeige (Trockenlauf)
+const AD_EXCLUDED: &str = "Beispielanzeige (Probelauf)
 
 Für die Einführung von SAP S/4HANA im Finanzbereich suchen wir eine Projektleitung (m/w/d).
 
