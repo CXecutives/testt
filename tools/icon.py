@@ -1,152 +1,93 @@
-"""App icon: coral plate, white folder, coral check mark - the single source of every icon.
+"""App-Symbol: Koralle mit weißer Projektmappe und Haken – für Windows und für macOS.
 
-Writes
-    src-tauri/icons/icon.ico       Windows (stages 48, 16, 24, 32, 64, 256; 48 first)
-    src-tauri/icons/icon.icns      macOS bundle (PNG entries, written directly)
-    src-tauri/icons/icon.png       1024 px (Tauri's window icon on non-Windows targets)
-    ui/src/assets/app-icon.svg     the same geometry as a vector (BrandMark.svelte)
+Erzeugt werden src-tauri/icons/icon.ico (Windows), icon.icns (macOS-Bündel) und
+icon.png (1024; Tauri braucht auf allen Nicht-Windows-Zielen ein PNG als Fenstersymbol).
 
-Geometry (all in plate units 0..1, so every output shares it):
-- plate: a continuous-corner squircle (superellipse, exponent 5) with a diagonal gradient
-  from light coral (top left) to deeper coral (bottom right). macOS and the 1024 PNG use the
-  usual macOS body of 824/1024; Windows stages fill the tile up to a 1/16 margin.
-- folder: white, corner radius R everywhere; the tab ends in an S-curve (convex, then
-  concave, both half the tab height) instead of a hard diagonal.
-- check: optically centred in the folder body (a little above its geometric centre),
-  round caps and joins, one stroke width.
-Small stages (16 and 24 px) are drawn for the pixel grid: whole-pixel folder edges, a
-simplified square tab and a bolder check; 32 and 48 px get a slightly bolder check too.
+Jede Stufe liegt auf dem Pixelraster: gerade Kanten auf ganzen Pixeln, Ränder symmetrisch,
+gerendert mit Überabtastung und Flächenmittel – dadurch bleiben sie scharf.
 
-    python tools/icon.py            (needs Pillow)
+Die Reihenfolge im ICO ist wichtig: Tauri nimmt für das Fenstersymbol (Taskleiste, Alt+Tab)
+stur den ersten Eintrag. Er ist deshalb die 48er-Stufe – Windows rechnet daraus sauber
+herunter, statt eine kleine Stufe aufzublasen.
+
+Windows und macOS unterscheiden sich in der Form: Unter Windows füllt die farbige Platte
+die Kachel bis auf einen schmalen Rand, unter macOS steht sie frei (siehe MAC_PLATE).
+
+    python tools/icon.py            (braucht Pillow)
 """
-import math
 import struct
 from io import BytesIO
 from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-ROOT = Path(__file__).resolve().parent.parent
-
-GLOW = (0xE9, 0x8C, 0x72)     # hsl(13 73% 68%) - coral-glow token
-VARIANT = (0xD7, 0x66, 0x47)  # hsl(13 64% 56%) - coral-variant token
-CHECK = (0xD0, 0x5E, 0x3F)    # a step deeper than VARIANT: contrast on white
+SS = 16
+GLOW = (0xE9, 0x8C, 0x72)     # hsl(13 73% 68%)
+VARIANT = (0xD7, 0x66, 0x47)  # hsl(13 64% 56%)
+CHECK = (0xD0, 0x5E, 0x3F)    # etwas tiefer als VARIANT: Kontrast auf Weiß
 WHITE = (255, 255, 255)
 
-SQUIRCLE_N = 5.0
-MAC_MARGIN = 100 / 1024       # macOS icon grid: 824 px body in a 1024 canvas
+# Vorlage im 1024er-Raster: Platte 48…976, Mappe 224…800 × 336…752 (Reiter ab 272,
+# Reiterende 436), Haken mit 68 Strichbreite.
+PLATE, RADIUS = 48, 212
+BODY = (224, 336, 800, 752)
+TAB_Y, TAB_X, BODY_R = 272, 436, 60
+CHECK_POINTS, CHECK_W = [(390, 548), (482, 640), (652, 468)], 68
+SIZES = [48, 16, 20, 24, 32, 40, 64, 96, 256]
 
-# Folder and check in plate units (derived from the previous icon, then refined).
-BODY = (0.1897, 0.3103, 0.8103, 0.7586)  # x0, top, x1, bottom
-TAB_Y = 0.2414                            # top of the tab
-TAB_X = 0.4526                            # x of the tab's right edge (centre of the S-curve)
-RADIUS = 0.0647                           # folder corner radius
-CHECK_POINTS = [(0.3588, 0.5135), (0.4580, 0.6126), (0.6412, 0.4273)]
-CHECK_WIDTH = 0.0733
-
-# ICO stages. Tauri takes the FIRST entry as window icon (title bar, Alt+Tab, taskbar), so
-# it is the 48 stage - Windows scales that down cleanly instead of blowing a small one up.
-SIZES = [48, 16, 24, 32, 64, 256]
-# Minimum check stroke in px for small stages (bolder than the plain scale-down).
-BOLD = {16: 2.0, 24: 2.6, 32: 3.0, 48: 3.8}
-SIMPLE_TAB = 24               # up to this size the tab is a plain pixel step
-# ICNS entries: OSType and edge length (PNG types only; 16 px is drawn from ic11 = 16@2x).
+# macOS: Das Symbol steht frei auf seiner Kachel – die Platte nimmt 80 % der Kantenlänge
+# ein (1024 − 2·102 = 820) und trägt den üblichen Radius von rund 22 % ihrer Breite
+# (184/820). Randfüllend wie unter Windows wirkte es im Dock neben den Systemsymbolen
+# eine Nummer zu groß.
+MAC_PLATE, MAC_RADIUS = 102, 184
+# ICNS-Einträge: OSType und Kantenlänge. 256 und 512 stehen doppelt (einfach und @2x) –
+# genau so legt Apples iconutil sie ab. Nur PNG-Typen; die alten RLE-Typen (is32/il32)
+# braucht macOS nicht mehr, und 16 px zeichnet es aus der 32er-Stufe (ic11 = 16@2x).
 ICNS_ENTRIES = [('ic11', 32), ('ic12', 64), ('ic07', 128), ('ic13', 256),
                 ('ic08', 256), ('ic14', 512), ('ic09', 512), ('ic10', 1024)]
 
 
-# ------------------------------------------------------------------- geometry
+def layout(s, mac=False):
+    """Maße einer Stufe in Zielpixeln – waagerecht und senkrecht symmetrisch gerundet.
 
-def squircle(x0, y0, size, steps=256):
-    """Points of a superellipse filling the square (x0, y0, size)."""
-    a = size / 2
-    cx, cy = x0 + a, y0 + a
-    pts = []
-    for i in range(steps):
-        t = 2 * math.pi * i / steps
-        c, s = math.cos(t), math.sin(t)
-        pts.append((cx + a * math.copysign(abs(c) ** (2 / SQUIRCLE_N), c),
-                    cy + a * math.copysign(abs(s) ** (2 / SQUIRCLE_N), s)))
-    return pts
-
-
-def folder_segments(x0, top, x1, bottom, tab_y, tab_x, r):
-    """The folder outline as segments: ('M'|'L', x, y) and ('A', rx, sweep, x, y)."""
-    h = top - tab_y
-    k = h / 2  # S-curve radii: convex then concave, together the tab height
-    return [
-        ('M', x0, tab_y + r),
-        ('A', r, 1, x0 + r, tab_y),
-        ('L', tab_x - k, tab_y),
-        ('A', k, 1, tab_x, tab_y + k),
-        ('A', k, 0, tab_x + k, top),
-        ('L', x1 - r, top),
-        ('A', r, 1, x1, top + r),
-        ('L', x1, bottom - r),
-        ('A', r, 1, x1 - r, bottom),
-        ('L', x0 + r, bottom),
-        ('A', r, 1, x0, bottom - r),
-    ]
-
-
-def simple_folder(x0, top, x1, bottom, tab_y, tab_x):
-    """Small stages: body rectangle plus a square tab step, all on whole pixels."""
-    return [
-        ('M', x0, tab_y), ('L', tab_x, tab_y), ('L', tab_x, top), ('L', x1, top),
-        ('L', x1, bottom), ('L', x0, bottom),
-    ]
-
-
-def flatten(segments, steps=32):
-    """Segments to polygon points (arcs are quarter circles with the given sweep)."""
-    pts, cur = [], None
-    for seg in segments:
-        if seg[0] in 'ML':
-            cur = (seg[1], seg[2])
-            pts.append(cur)
-            continue
-        _, r, sweep, x, y = seg
-        # A quarter arc: its centre is one of the two free corners of the box spanned by
-        # the end points - the one around which the turn has the sweep's direction
-        # (sweep 1 = clockwise on screen, as in SVG).
-        px, py = cur
-        for cx, cy in ((px, y), (x, py)):
-            a0 = math.atan2(py - cy, px - cx)
-            a1 = math.atan2(y - cy, x - cx)
-            d = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
-            if (d > 0) == bool(sweep):
-                break
-        for i in range(1, steps + 1):
-            a = a0 + d * i / steps
-            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
-        cur = (x, y)
-    return pts
-
-
-def layout(s, mac):
-    """Geometry of one stage in target pixels."""
-    margin = s * MAC_MARGIN if mac else max(1, round(s / 16))
+    `mac`: schmalere Platte mit größerem Radius. Die Zeichnung darauf behält ihr Verhältnis
+    zur Platte, deshalb skalieren Mappenradius und Hakenbreite dort mit der Platte statt mit
+    der Kantenlänge. Unter Windows bleibt es bei der Kantenlänge, damit sich an den
+    ausgelieferten ICO-Stufen kein Pixel verschiebt.
+    """
+    k = s / 1024
+    inset, radius = (MAC_PLATE, MAC_RADIUS) if mac else (PLATE, RADIUS)
+    margin = max(1, round(inset * k))
     plate = s - 2 * margin
-    u = lambda v: margin + v * plate  # noqa: E731 - plate units to pixels
-    small = not mac and s <= SIMPLE_TAB
-    snap = round if (not mac and s <= 48) else (lambda v: v)
-    x0, top, x1, bottom = (snap(u(v)) for v in BODY)
-    tab_y, tab_x = snap(u(TAB_Y)), snap(u(TAB_X))
-    if small and tab_y >= top:
-        tab_y = top - 1
-    width = max(CHECK_WIDTH * plate, BOLD.get(s, 0) if not mac else 0)
-    check = [(u(x), u(y)) for x, y in CHECK_POINTS]
-    if small:
-        folder = simple_folder(x0, top, x1, bottom, tab_y, tab_x)
-    else:
-        folder = folder_segments(x0, top, x1, bottom, tab_y, tab_x, RADIUS * plate)
-    return dict(margin=margin, plate=plate, folder=folder, check=check, width=width)
+    art = plate / (1024 - 2 * PLATE) if mac else k
+    side = round((BODY[0] - PLATE) / (1024 - 2 * PLATE) * plate)
+    top = round((BODY[1] - PLATE) / (1024 - 2 * PLATE) * plate)
+    tab = round((TAB_Y - PLATE) / (1024 - 2 * PLATE) * plate)
+    body = (margin + side, margin + top, s - margin - side, s - margin - tab)
+    tab_x = margin + round((TAB_X - PLATE) / (1024 - 2 * PLATE) * plate)
 
+    def point(x, y):
+        """Hakenpunkt: gleiche Lage im Mappenkörper wie in der Vorlage."""
+        return (body[0] + (x - BODY[0]) / (BODY[2] - BODY[0]) * (body[2] - body[0]),
+                body[1] + (y - BODY[1]) / (BODY[3] - BODY[1]) * (body[3] - body[1]))
 
-# ------------------------------------------------------------------ raster
+    return dict(
+        bg=(margin, margin, s - margin, s - margin, radius * k),
+        tab_y=margin + tab,
+        tab_x=tab_x,
+        body=(*body, max(1, BODY_R * art)),
+        check=[point(x, y) for x, y in CHECK_POINTS],
+        w=max(1.7, CHECK_W * art + 0.6),
+    )
+
 
 def gradient(size):
-    """Diagonal GLOW -> VARIANT; the colour depends on x + y only."""
+    """Schräger Verlauf GLOW → VARIANT.
+
+    Die Farbe hängt allein von x+y ab, deshalb genügt eine Zeile mit allen 2·size−1 Werten;
+    jede Bildzeile ist ein Ausschnitt daraus. Pixelweise in Python gerechnet wäre die
+    überabgetastete Fläche (bis 4096²) sonst zu langsam.
+    """
     span = 2 * (size - 1)
     ramp = Image.new('RGB', (span + 1, 1))
     ramp.putdata([tuple(round(a + (b - a) * (i / span)) for a, b in zip(GLOW, VARIANT))
@@ -157,87 +98,63 @@ def gradient(size):
     return g
 
 
-def render(s, mac=False):
-    """One stage, supersampled (about 4096 px wide) and box-filtered down."""
-    ss = min(16, max(4, 4096 // s))
+def render(s, mac=False, ss=SS):
     L = layout(s, mac)
     S = s * ss
-    sc = lambda p: (p[0] * ss, p[1] * ss)  # noqa: E731
+    sc = lambda v: v * ss
     img = Image.new('RGBA', (S, S), (0, 0, 0, 0))
     mask = Image.new('L', (S, S), 0)
-    m = L['margin']
-    ImageDraw.Draw(mask).polygon([sc(p) for p in squircle(m, m, L['plate'], 720)], fill=255)
+    x0, y0, x1, y1, r = L['bg']
+    ImageDraw.Draw(mask).rounded_rectangle([sc(x0), sc(y0), sc(x1) - 1, sc(y1) - 1], radius=sc(r), fill=255)
     img.paste(gradient(S), (0, 0), mask)
     d = ImageDraw.Draw(img)
-    d.polygon([sc(p) for p in flatten(L['folder'])], fill=WHITE)
-    pts = [sc(p) for p in L['check']]
-    w = L['width'] * ss
+    bx0, by0, bx1, by1, br = L['body']
+    # Reiter: vom linken Rand bis tab_x, dann schräg hinunter zur Körperoberkante
+    slant = by0 - L['tab_y']
+    d.rounded_rectangle([sc(bx0), sc(L['tab_y']), sc(L['tab_x']) - 1, sc(by0 + br) - 1],
+                        radius=sc(min(br, slant)), fill=WHITE, corners=(True, False, False, False))
+    d.polygon([(sc(L['tab_x']) - 1, sc(L['tab_y'])), (sc(L['tab_x'] + slant), sc(by0)),
+               (sc(L['tab_x'] + slant), sc(by0 + br)), (sc(L['tab_x']) - 1, sc(by0 + br))], fill=WHITE)
+    d.rounded_rectangle([sc(bx0), sc(by0), sc(bx1) - 1, sc(by1) - 1], radius=sc(br), fill=WHITE)
+    pts = [(sc(x), sc(y)) for x, y in L['check']]
+    w = sc(L['w'])
     d.line(pts, fill=CHECK, width=round(w), joint='curve')
     for x, y in (pts[0], pts[-1]):
         d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=CHECK)
     return img.resize((s, s), Image.BOX)
 
 
-# --------------------------------------------------------------------- SVG
-
-def svg():
-    """The 1024 macOS geometry as a vector, cropped to the plate (fills its box)."""
-    L = layout(1024, mac=True)
-    m, p = L['margin'], L['plate']
-    f = lambda v: f'{v:.1f}'.rstrip('0').rstrip('.')  # noqa: E731
-    plate = 'M' + 'L'.join(f'{f(x)} {f(y)}' for x, y in squircle(m, m, p, 180)) + 'Z'
-    folder = ''
-    for seg in L['folder']:
-        if seg[0] in 'ML':
-            folder += f'{seg[0]}{f(seg[1])} {f(seg[2])}'
-        else:
-            _, r, sweep, x, y = seg
-            folder += f'A{f(r)} {f(r)} 0 0 {sweep} {f(x)} {f(y)}'
-    folder += 'Z'
-    check = ' '.join(f'{f(x)},{f(y)}' for x, y in L['check'])
-    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="{f(m)} {f(m)} {f(p)} {f(p)}" width="{f(p)}" height="{f(p)}">
-  <!-- Generated by tools/icon.py - do not edit. Coral plate, white folder, check mark. -->
-  <defs>
-    <linearGradient id="plate" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#{GLOW[0]:02X}{GLOW[1]:02X}{GLOW[2]:02X}"/>
-      <stop offset="1" stop-color="#{VARIANT[0]:02X}{VARIANT[1]:02X}{VARIANT[2]:02X}"/>
-    </linearGradient>
-  </defs>
-  <path fill="url(#plate)" d="{plate}"/>
-  <path fill="#FFFFFF" d="{folder}"/>
-  <polyline points="{check}" fill="none" stroke="#{CHECK[0]:02X}{CHECK[1]:02X}{CHECK[2]:02X}" stroke-width="{f(L['width'])}" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-'''
-
-
-# -------------------------------------------------------------- containers
-
 def dib(img):
-    """A stage as uncompressed DIB: BITMAPINFOHEADER, BGRA bottom-up, then the AND mask.
+    """Stufe als unkomprimiertes DIB: BITMAPINFOHEADER, BGRA von unten, dann UND-Maske.
 
-    Only the 256 stage is stored as PNG: tools that read ICO files (older Windows imaging
-    libraries included) cannot always unpack compressed smaller stages. The AND mask comes
-    from the alpha channel; a zero mask would give 1-bit readers an opaque square.
+    Nur die 256er-Stufe wird als PNG abgelegt: Werkzeuge, die die ICO-Datei auslesen
+    (auch ältere Windows-Bildbibliotheken), können komprimierte Stufen darunter nicht
+    immer entpacken – Windows selbst zeigt dann nichts an, ohne einen Fehler zu melden.
+
+    Die UND-Maske wird aus dem Alphakanal abgeleitet, nicht mit Nullen gefüllt: Wer nur
+    die Maske liest (1-Bit-Anzeigen, Cursor-Umwandlung), bekäme sonst ein Symbol mit
+    undurchsichtigem Rand.
     """
     s = img.width
     head = struct.pack('<IiiHHIIiiII', 40, s, s * 2, 1, 32, 0, 0, 0, 0, 0, 0)
     px = img.load()
-    rows = list(reversed(range(s)))
+    rows = list(reversed(range(s)))  # DIB-Zeilen laufen von unten nach oben
     xor = b''.join(bytes(v for x in range(s) for v in
                          (lambda p: (p[2], p[1], p[0], p[3]))(px[x, y]))
                    for y in rows)
-    stride = ((s + 31) // 32) * 4
+    stride = ((s + 31) // 32) * 4  # 1 Bit je Pixel, Zeilen auf 4 Byte aufgefüllt
     mask = bytearray()
     for y in rows:
         row = bytearray(stride)
         for x in range(s):
-            if px[x, y][3] == 0:
+            if px[x, y][3] == 0:  # gesetztes Bit = durchsichtig
                 row[x >> 3] |= 0x80 >> (x & 7)
         mask += row
     return head + xor + bytes(mask)
 
 
-def build_ico(out):
+def build(out):
+    """ICO selbst schreiben: Verzeichnis in der Reihenfolge von SIZES."""
     frames = []
     for s in SIZES:
         img = render(s)
@@ -257,13 +174,24 @@ def build_ico(out):
     out.write_bytes(header + entries + blobs)
 
 
+def mac_stage(s):
+    """Eine macOS-Stufe. Die Überabtastung ist so gewählt, dass die Zwischenfläche stets
+    rund 4096 px breit bleibt – darüber wächst nur der Speicherbedarf, nicht die Schärfe."""
+    return render(s, mac=True, ss=min(SS, max(4, 4096 // s)))
+
+
 def build_mac(icns_out, png_out):
-    """ICNS (tag, total length, then OSType + length + PNG per entry) and the 1024 PNG."""
+    """ICNS und das 1024er PNG schreiben.
+
+    Ein ICNS ist ein einfacher Behälter: die Kennung `icns`, die Gesamtlänge, danach je
+    Eintrag OSType, Länge (einschließlich der 8 Kopfbytes) und ein vollständiges PNG –
+    dafür braucht es kein fremdes Werkzeug (iconutil gibt es nur auf einem Mac).
+    """
     frames = {}
     for _, s in ICNS_ENTRIES:
         if s not in frames:
             buf = BytesIO()
-            render(s, mac=True).save(buf, 'PNG')
+            mac_stage(s).save(buf, 'PNG')
             frames[s] = buf.getvalue()
     body = b''.join(ostype.encode('ascii') + struct.pack('>I', len(frames[s]) + 8) + frames[s]
                     for ostype, s in ICNS_ENTRIES)
@@ -272,7 +200,6 @@ def build_mac(icns_out, png_out):
 
 
 if __name__ == '__main__':
-    icons = ROOT / 'src-tauri' / 'icons'
-    build_ico(icons / 'icon.ico')
+    icons = Path(__file__).resolve().parent.parent / 'src-tauri' / 'icons'
+    build(icons / 'icon.ico')
     build_mac(icons / 'icon.icns', icons / 'icon.png')
-    (ROOT / 'ui' / 'src' / 'assets' / 'app-icon.svg').write_text(svg(), encoding='utf-8', newline='\n')

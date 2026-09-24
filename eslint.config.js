@@ -149,6 +149,9 @@ export default ts.config(
       // Generated IPC types (ts-rs, contract.rs): not linted, not formatted.
       'ui/src/lib/ipc/types/**',
       'node_modules/**',
+      // Agent worktrees and Rust build output (never part of the UI).
+      '.claude/**',
+      '**/target/**',
       'target/**',
       'test-results/**',
       'playwright-report/**',
