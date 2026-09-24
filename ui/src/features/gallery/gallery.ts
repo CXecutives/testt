@@ -99,6 +99,7 @@ export const text = {
     risk: 'Konto betroffen',
     facet: 'Ansicht',
     facets: ['Neu', 'Alle'],
+    views: ['Neu', 'Alle', 'Gemerkt', 'Bewerbungen'],
     sort: 'Sortierung',
     sorts: ['Beste Passung', 'Neueste', 'Portal'],
     address: 'Postfach',

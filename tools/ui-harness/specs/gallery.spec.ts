@@ -158,6 +158,38 @@ test('a switch row toggles from its text; an empty tile is no filter', async ({ 
   await expect(page.getByTestId('tile-filter')).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('a segmented control never overlaps: each pill covers exactly its option', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  for (const id of ['segmented-views', 'segmented-narrow']) {
+    const control = page.getByTestId(id);
+    await control.scrollIntoViewIfNeeded();
+    for (const option of ['Neu', 'Alle', 'Gemerkt', 'Bewerbungen']) {
+      await control.getByRole('radio', { name: new RegExp(option) }).click();
+      const geometry = await control.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const options = [...node.querySelectorAll('.option')].map((o) => o.getBoundingClientRect());
+        const chosen = node.querySelector('[aria-checked="true"]')!;
+        const pill = chosen.querySelector('.pill')!.getBoundingClientRect();
+        const own = chosen.getBoundingClientRect();
+        return {
+          inside: options.every((o) => o.left >= box.left - 0.5 && o.right <= box.right + 0.5),
+          apart: options.every((o, i) => i === 0 || o.left >= options[i - 1]!.right - 0.5),
+          pill: [pill.left - own.left, pill.right - own.right].map((d) => Math.abs(d) < 0.5),
+          overflow: node.scrollWidth - node.clientWidth,
+        };
+      });
+      expect(geometry, `${id} ${option}`).toEqual({
+        inside: true,
+        apart: true,
+        pill: [true, true],
+        overflow: 0,
+      });
+    }
+  }
+});
+
 test('baseline: gallery (reduced motion, so counters and loops are at rest)', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '?gallery');
