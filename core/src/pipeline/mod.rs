@@ -7,11 +7,12 @@
 //! English lines with the run id (never content, addresses or passwords).
 
 pub mod demo;
+pub mod score;
 
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
@@ -28,6 +29,8 @@ use crate::store::{JobFilter, JobRow, Store};
 use crate::text::truncate_chars;
 use crate::time;
 use crate::view::{EmptyAlert, JobView, MAX_SUBJECT_CHARS};
+pub use score::Matcher;
+use score::Tally;
 
 /// What the interface starts. The JSON is flat: `{ "kind": "details", "keys": [...] }`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -104,6 +107,10 @@ pub trait Backends {
     /// Fetch route of **one** portal: own HTTP session, own window. The portals run side by
     /// side and therefore share none.
     fn pages(&mut self, portal: Portal) -> Result<Self::Pages, String>;
+    /// The matcher of the run; `None` = nothing is scored (no usable profile or engine).
+    fn matcher(&self) -> Option<Arc<dyn Matcher>> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -380,7 +387,9 @@ impl<'a> Plan<'a> {
 /// could not even be created.
 #[expect(
     clippy::too_many_arguments,
-    reason = "store, rules, request, cancellation, clock and events separately (replaceable in tests)"
+    clippy::too_many_lines,
+    reason = "store, rules, request, cancellation, clock and events separately (replaceable in \
+              tests); the steps of a run read best in one place"
 )]
 pub async fn run<B: Backends>(
     backends: &mut B,
@@ -458,25 +467,37 @@ pub async fn run<B: Backends>(
         }
     }
 
+    let matcher = backends.matcher();
+    let mut tally = Tally::default();
     if let Some(selection) = plan.fetch
         && summary.outcome == Outcome::Completed
     {
         let mut fetched = FetchSummary::default();
         summary.outcome = fetch_step(
             backends,
-            store,
-            policy,
+            (store, policy, matcher.as_deref()),
             run,
             selection,
             cancel,
             &clock,
-            &mut fetched,
+            (&mut fetched, &mut tally),
             &mut emit,
         )
         .await;
         summary.fetch = Some(fetched);
     }
     summary.per_portal = per_portal(store, run, &postings, summary.fetch.as_ref());
+    if let Some(matcher) = &matcher {
+        score_step(
+            store,
+            &**matcher,
+            cancel,
+            &clock,
+            &mut tally,
+            &mut summary,
+            &mut emit,
+        );
+    }
 
     summary.finished_at = clock();
     if !ctx.dry_run {
@@ -497,6 +518,32 @@ pub async fn run<B: Backends>(
         summary: Box::new(summary.clone()),
     });
     summary
+}
+
+/// Catch-up scoring after a completed run and the score summary.
+fn score_step(
+    store: &Store,
+    matcher: &dyn Matcher,
+    cancel: &CancellationToken,
+    clock: &impl Fn() -> Timestamp,
+    tally: &mut Tally,
+    summary: &mut RunSummary,
+    emit: &mut impl FnMut(RunEvent),
+) {
+    let run = summary.run;
+    if summary.outcome == Outcome::Completed {
+        match score::catch_up(store, matcher, cancel, clock, tally, emit) {
+            Ok(true) => {}
+            Ok(false) => summary.outcome = Outcome::Cancelled,
+            Err(e) => {
+                log::warn!("run {run}: scoring failed: {e}");
+                summary.outcome = failed(ErrorInfo::from(&e));
+            }
+        }
+    }
+    let pending = store.match_pending(matcher.rev()).unwrap_or(0);
+    summary.score = Some(tally.summary(usize::try_from(pending).unwrap_or(0)));
+    log::info!("run {run}: score {:?}", summary.score);
 }
 
 fn failed(error: ErrorInfo) -> Outcome {
@@ -622,13 +669,12 @@ async fn scan_step<B: Backends>(
 )]
 async fn fetch_step<B: Backends>(
     backends: &mut B,
-    store: &Store,
-    policy: &Mutex<Policy>,
+    (store, policy, matcher): (&Store, &Mutex<Policy>, Option<&dyn Matcher>),
     run: i64,
     selection: Selection<'_>,
     cancel: &CancellationToken,
     clock: &impl Fn() -> Timestamp,
-    fetched: &mut FetchSummary,
+    (fetched, tally): (&mut FetchSummary, &mut Tally),
     emit: &mut impl FnMut(RunEvent),
 ) -> Outcome {
     // Activity in the status line - not anew for every job, again after a wait.
@@ -654,6 +700,10 @@ async fn fetch_step<B: Backends>(
                 emit(status(StatusCode::Waiting, Some(portal), Some(until)));
             }
             FetchEvent::JobUpdated { key, .. } => {
+                // Scored before the row goes out: the ring appears with the details.
+                if let Some(matcher) = matcher {
+                    score::score_one(store, matcher, &key, clock(), tally);
+                }
                 if let Ok(Some(job)) = store.job(&key) {
                     emit(RunEvent::JobUpdated {
                         job: Box::new(JobView::from(&job)),

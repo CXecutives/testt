@@ -172,15 +172,22 @@ impl Store {
         })
     }
 
-    /// Up to `limit` jobs not scored with `rev` yet, with their full text.
-    pub fn unscored(&self, rev: &str, limit: u32) -> Result<Vec<(JobRow, Option<String>)>> {
+    /// Up to `limit` jobs not scored with `rev` yet (after skipping `offset`), with their
+    /// full text; newest first.
+    pub fn unscored(
+        &self,
+        rev: &str,
+        limit: u32,
+        offset: usize,
+    ) -> Result<Vec<(JobRow, Option<String>)>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS}, desc_text FROM job
              WHERE match_rev IS NOT ?1
-             ORDER BY first_seen_at DESC, portal, job_id LIMIT ?2"
+             ORDER BY first_seen_at DESC, portal, job_id LIMIT ?2 OFFSET ?3"
         ))?;
-        let rows = stmt.query_map(params![rev, limit], |r| {
+        let offset = i64::try_from(offset).unwrap_or(i64::MAX);
+        let rows = stmt.query_map(params![rev, limit, offset], |r| {
             let text: Option<String> = r.get(super::jobs::JOB_COLUMN_COUNT)?;
             Ok(job_row(r)?.map(|job| (job, text)))
         })?;
@@ -298,6 +305,7 @@ mod tests {
             .record_text(&key, "Volltext", false, false, now())
             .unwrap();
         assert_eq!(store.match_rev(&key).unwrap(), None);
-        assert_eq!(store.unscored("r1", 10).unwrap().len(), 1);
+        assert_eq!(store.unscored("r1", 10, 0).unwrap().len(), 1);
+        assert!(store.unscored("r1", 10, 1).unwrap().is_empty());
     }
 }

@@ -128,7 +128,34 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     assert_eq!((fl.new, fl.fetched, fl.skipped), (1, 0, 1));
     assert_eq!(fl.stopped, Some(health));
     assert!(s.empty_alerts.is_empty());
-    assert_eq!(s.score, None);
+    // The demo matcher: scored at the details (high, mid, low, excluded), the job without
+    // details in the catch-up.
+    assert_eq!(
+        s.score,
+        Some(ScoreSummary {
+            scored: 3,
+            excluded: 1,
+            unscorable: 1,
+            pending: 0,
+            best: Some(88)
+        })
+    );
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            RunEvent::JobUpdated { job } if job.match_.as_ref().is_some_and(|m| m.score == 88)
+        )),
+        "the ring appears with the details"
+    );
+    assert!(events.iter().any(|e| matches!(
+        e,
+        RunEvent::Progress {
+            step: Step::Score,
+            done: 1,
+            total: 1,
+            ..
+        }
+    )));
     let export = s.export.as_ref().unwrap();
     assert_eq!(export.txt_written, 4);
     assert!(export.overview_xlsx.as_ref().unwrap().exists());
@@ -840,6 +867,170 @@ async fn a_run_that_cannot_begin_fails() {
     assert_eq!(s.run, 0);
     assert_eq!(finished(&events), 1);
     assert_eq!(store.job_count().unwrap(), 0);
+}
+
+/// The dry-run backends without a matcher.
+struct Unscored;
+
+impl Backends for Unscored {
+    type Mail = DemoMail;
+    type Pages = DemoPages;
+    async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
+        DemoBackends.connect_mail(cancel).await
+    }
+    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+        Ok(DemoPages)
+    }
+}
+
+/// A matcher that judges only LinkedIn jobs, with a changeable revision.
+struct Picky(&'static str);
+
+impl Matcher for Picky {
+    fn rev(&self) -> &str {
+        self.0
+    }
+    fn assess(&self, job: &JobRow, _text: Option<&str>) -> Option<crate::model::MatchRecord> {
+        (job.key.portal == Portal::LinkedIn).then(|| crate::model::MatchRecord {
+            status: crate::model::MatchStatus::Scored,
+            score: 50,
+            note: None,
+            must_met: 0,
+            must_total: 0,
+            top: Vec::new(),
+        })
+    }
+}
+
+struct WithPicky(&'static str);
+
+impl Backends for WithPicky {
+    type Mail = DemoMail;
+    type Pages = DemoPages;
+    async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
+        DemoBackends.connect_mail(cancel).await
+    }
+    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+        Ok(DemoPages)
+    }
+    fn matcher(&self) -> Option<Arc<dyn Matcher>> {
+        Some(Arc::new(Picky(self.0)))
+    }
+}
+
+/// Without a matcher nothing is scored and the summary has no score; jobs the matcher does
+/// not judge stay pending without stalling the catch-up; a new revision scores again.
+#[tokio::test(start_paused = true)]
+async fn scoring_follows_the_matcher() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let (s, _) = go(
+        &mut Unscored,
+        &store,
+        &request(),
+        &scan_only(dir.path()),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.score, None);
+    assert!(store.top_matches(s.run, 5).unwrap().is_empty());
+    let rescore = RunRequest {
+        kind: RunKind::Rescore,
+    };
+    let (s, _) = go(
+        &mut WithPicky("r1"),
+        &store,
+        &rescore,
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let first = s.score.unwrap();
+    assert_eq!((first.scored, first.pending), (2, 3), "{first:?}");
+    let (s, _) = go(
+        &mut WithPicky("r1"),
+        &store,
+        &rescore,
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.score.unwrap().scored, 0, "nothing stale");
+    let (s, _) = go(
+        &mut WithPicky("r2"),
+        &store,
+        &rescore,
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.score.unwrap().scored, 2, "a new revision scores again");
+}
+
+/// The text files do not know the match: byte-identical with and without a matcher.
+#[tokio::test(start_paused = true)]
+async fn txt_is_blind_to_the_match() {
+    let c = clock();
+    let read_all = |root: &Path| {
+        let dir = root.join(RESULT_DIR).join(TXT_DIR);
+        let mut files: Vec<(String, Vec<u8>)> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| {
+                let e = e.unwrap();
+                (
+                    e.file_name().to_string_lossy().into_owned(),
+                    std::fs::read(e.path()).unwrap(),
+                )
+            })
+            .collect();
+        files.sort();
+        files
+    };
+    let (with, without) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let scored = Store::in_memory().unwrap();
+    let (s, _) = go(
+        &mut DemoBackends,
+        &scored,
+        &request(),
+        &ctx(with.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert!(s.score.is_some());
+    let plain = Store::in_memory().unwrap();
+    go(
+        &mut Unscored,
+        &plain,
+        &request(),
+        &ctx(without.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let (a, b) = (read_all(with.path()), read_all(without.path()));
+    assert_eq!(a.len(), 4);
+    // The fetch time is part of the header; the simulated clocks of both runs differ, so
+    // compare everything but that line.
+    let strip = |files: &[(String, Vec<u8>)]| -> Vec<(String, String)> {
+        files
+            .iter()
+            .map(|(name, bytes)| {
+                let text = String::from_utf8(bytes.clone()).unwrap();
+                let kept: Vec<&str> = text
+                    .split_inclusive('\n')
+                    .filter(|l| !l.starts_with("Abgerufen am: "))
+                    .collect();
+                (name.clone(), kept.concat())
+            })
+            .collect()
+    };
+    assert_eq!(strip(&a), strip(&b));
 }
 
 /// The auto fetch at the start: switched on, with a mailbox, last fetch older than 6 hours.

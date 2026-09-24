@@ -2,16 +2,19 @@
 //! behaves like a real one (pace, events, summary) but writes nothing: database and safety
 //! state then only live in memory. The sample mails are German like real alert mails.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use jiff::civil::Date;
 use tokio_util::sync::CancellationToken;
 
-use super::Backends;
+use super::{Backends, Matcher};
 use crate::fetch::{PageFetcher, PageOutcome, Route};
 use crate::mail::RawMail;
 use crate::mail::imap::{MailError, MailSource};
+use crate::model::{MatchRecord, MatchStatus, Notice};
 use crate::portal::{JobLink, Portal};
+use crate::store::JobRow;
 
 /// Sample alerts per portal (invented companies).
 const MAILS: [(Portal, &str, &str, &str); 3] = [
@@ -53,6 +56,47 @@ impl Backends for DemoBackends {
 
     fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
         Ok(DemoPages)
+    }
+
+    fn matcher(&self) -> Option<Arc<dyn Matcher>> {
+        Some(Arc::new(DemoMatcher))
+    }
+}
+
+/// Scores to look at: one job of each band, one excluded, one without a judgement basis.
+pub struct DemoMatcher;
+
+impl Matcher for DemoMatcher {
+    fn rev(&self) -> &'static str {
+        "demo"
+    }
+
+    fn assess(&self, job: &JobRow, _text: Option<&str>) -> Option<MatchRecord> {
+        let (status, score, note) = match job.key.id.as_str() {
+            "4999000001" => (MatchStatus::Scored, 88, None),
+            "4999000002" => (MatchStatus::Scored, 62, None),
+            "2999001" => (MatchStatus::Scored, 24, None),
+            "2999002" => (
+                MatchStatus::Excluded,
+                71,
+                Some(Notice {
+                    code: "hardCriterion".into(),
+                    params: serde_json::Map::from_iter([("criterion".into(), "dayRate".into())]),
+                }),
+            ),
+            _ => (MatchStatus::Unscorable, 0, None),
+        };
+        Some(MatchRecord {
+            status,
+            score,
+            note,
+            must_met: 2,
+            must_total: 3,
+            top: vec![
+                "Projektleitung".into(),
+                "Abstimmung mit Fachbereichen".into(),
+            ],
+        })
     }
 }
 
