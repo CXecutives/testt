@@ -11,6 +11,7 @@
 // `Record<Code, ...>`, so a new code without a text is a type error.
 
 import type {
+  AppStatus,
   Band,
   DetailState,
   ErrorKind,
@@ -129,6 +130,7 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   mailAddress: 'Die Adresse ist unvollständig.',
   appPassword: 'Ein App-Passwort hat 16 Buchstaben.',
   noSignIn: (p) => `${portalOf(p.portal)} bietet keine Anmeldung.`,
+  noteTooLong: (p) => `Die Notiz ist länger als ${n(num(p.max))} Zeichen.`,
 };
 
 const status: Record<StatusCode, string> = {
@@ -328,7 +330,6 @@ export type CriterionState = 'met' | 'violated' | 'unknown' | 'unset';
 /** `JobMatch.note` / `MatchDetail.summary` codes. */
 const note = {
   hardCriterion: 'Ein Ausschlusskriterium greift.',
-  fewMust: 'Wenige Muss-Anforderungen erfüllt.',
   shortText: 'Zu wenig Text für eine Bewertung.',
   lowEvidence: LOW_TEXT,
   engineFailed: 'Diese Anzeige ließ sich nicht bewerten.',
@@ -403,6 +404,7 @@ export const de = {
     hide: 'Ausblenden',
     back: 'Zurück',
     retry: 'Erneut versuchen',
+    undo: 'Rückgängig',
     openFolder: 'Ordner öffnen',
     openLog: 'Protokoll öffnen',
   },
@@ -421,7 +423,7 @@ export const de = {
     excluded: 'Ausgeschlossen',
     unscorable: 'Nicht bewertbar',
     pending: 'Wird bewertet',
-    none: 'Ohne Passung',
+    none: 'Noch nicht bewertet',
     band: {
       high: 'Hohe Passung',
       mid: 'Mittlere Passung',
@@ -458,7 +460,7 @@ export const de = {
     } satisfies Record<WorkMode, string>,
     /** Badge per DetailState kind (`ok` shows none). */
     detail: {
-      pending: 'Details folgen',
+      pending: 'Ohne Details',
       teaser: 'Nur Anriss',
       failed: 'Details fehlen',
       unfetchable: 'Nicht abrufbar',
@@ -476,9 +478,12 @@ export const de = {
     facet: 'Auswahl',
     facetNew: 'Neu',
     facetAll: 'Alle',
-    sortedBy: {
-      match: 'Beste Passung zuerst',
-      newest: 'Neueste zuerst',
+    facetApplications: 'Bewerbungen',
+    facetPinned: 'Gemerkt',
+    /** The order of the list in words (the sort button). */
+    sortLabel: {
+      match: 'Beste Passung',
+      newest: 'Neueste',
     } satisfies Record<JobSort, string>,
     search: 'Suchen',
     searchLabel: 'Jobs durchsuchen',
@@ -501,6 +506,10 @@ export const de = {
       return at !== undefined && portal !== null ? at(portalName[portal]) : status[code];
     },
     of: (done: number, total: number) => `${n(done)} von ${n(total)}`,
+    /** After the rolling number of a step counter: "von 7". */
+    ofTotal: (total: number) => `von ${n(total)}`,
+    newPill: (value: number) => `${n(value)} neu`,
+    topPill: (value: number) => `${n(value)} passen gut`,
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
     /** A paused portal in one sentence: until when, then why. */
     pausedWhy: (reason: PauseReason, iso: string | null) =>
@@ -519,6 +528,36 @@ export const de = {
     nothingNew: 'Nichts Neues seit dem letzten Abruf.',
     cancelled: 'Abruf abgebrochen',
     failed: 'Abruf fehlgeschlagen',
+    /** A details run (the reader's "Details holen"): its title, what it did not get. */
+    details: {
+      done: 'Details geholt',
+      none: 'Keine Details geholt',
+      cancelled: 'Details holen abgebrochen',
+      failed: 'Details holen fehlgeschlagen',
+      failedAds: (value: number) =>
+        `${count(value, 'Anzeige ließ', 'Anzeigen ließen')} sich nicht holen.`,
+      goneAds: (value: number) =>
+        `${count(value, 'Anzeige ist', 'Anzeigen sind')} nicht mehr online.`,
+    },
+    /** A rescore the card speaks about (only when something went wrong). */
+    rescore: {
+      cancelled: 'Bewertung abgebrochen',
+      failed: 'Bewertung fehlgeschlagen',
+    },
+    rescoring: 'Die Jobs werden gerade neu bewertet.',
+    /**
+     * A file the export could not write (`export.error.params.target`); the old file stays.
+     * `overviewLocked`: the Excel file is open in another program.
+     */
+    exportFailed: {
+      overview: 'Die Excel-Datei ließ sich nicht schreiben und blieb unverändert.',
+      overviewLocked:
+        'Die Excel-Datei ist in einem anderen Programm geöffnet und blieb unverändert.',
+      overviewHtml: 'Die Übersicht ließ sich nicht schreiben.',
+      txt: 'Nicht alle Textdateien ließen sich schreiben.',
+      txtFolder: 'Der Ordner der Textdateien ist nicht erreichbar.',
+      backup: 'Die alte Excel-Datei ließ sich nicht sichern, die neue wurde nicht geschrieben.',
+    },
     skipped: (value: number) => `${count(value, 'Job folgt', 'Jobs folgen')} beim nächsten Abruf.`,
     filesFailed: (value: number) =>
       count(value, 'Datei ließ', 'Dateien ließen') + ' sich nicht schreiben.',
@@ -546,7 +585,16 @@ export const de = {
   },
   list: {
     label: 'Jobs',
-    excluded: (value: number) => `Ausgeschlossen ${n(value)}`,
+    /** The divider (its count is a pill of its own, left out where the rows are a part). */
+    excluded: 'Ausgeschlossen',
+    hidden: 'Archiv',
+    showHidden: 'Anzeigen',
+    /** The empty list says where jobs come from and how to get more. */
+    emptySources: 'Die Jobs kommen aus den Alert-Mails der Portale.',
+    createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
+    readOlder: 'Ältere Mails lesen',
+    emptyApplications: 'Noch keine Bewerbung vermerkt.',
+    emptyHidden: 'Das Archiv ist leer.',
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
     emptyAfterRun: 'Die Alert-Mails enthielten bisher keine Jobs.',
@@ -554,6 +602,7 @@ export const de = {
     noHit: (query: string) => `Keine Jobs zu „${query}“.`,
     showAll: 'Alle zeigen',
     loadFailed: 'Die Liste ließ sich nicht laden.',
+    pageFailed: 'Weitere Jobs ließen sich nicht laden.',
     createProfile: 'Profil anlegen',
     openProfile: 'Profil öffnen',
     noMailbox: 'Ohne Postfach kommen keine neuen Jobs dazu.',
@@ -584,7 +633,23 @@ export const de = {
     } satisfies Record<CriterionState, string>,
     note,
     open: 'Anzeige öffnen',
+    close: 'Schließen',
     pin: 'Merken',
+    hide: 'Archivieren',
+    unhide: 'Wiederherstellen',
+    prompt: 'Als Prompt kopieren',
+    /** Under the band of a score that comes from a teaser only. */
+    preliminary: 'Vorläufig, aus einem Anriss bewertet',
+    noteLabel: 'Notiz',
+    status: 'Bewerbung',
+    appStatus: {
+      applied: 'Beworben',
+      interview: 'Im Gespräch',
+      offer: 'Zusage',
+      rejected: 'Absage',
+    } satisfies Record<AppStatus, string>,
+    /** "Beworben vor 9 Tagen", "Im Gespräch gestern". */
+    statusSince: (status: string, when: string) => `${status} ${when}`,
     mail: OPEN_MAIL,
     fetchDetails: 'Details holen',
     why: 'Warum',
@@ -614,16 +679,21 @@ export const de = {
     excluded: 'Ausgeschlossen',
     pinned: 'Gemerkt',
     issues: 'Offene Punkte',
+    best: 'Beste Passung',
+    excel: 'Excel öffnen',
     newJobs: 'Neue Jobs',
     newOn: (portal: string, value: number) => `${n(value)} neu auf ${portal}`,
-    nothingNew: 'Keine neuen Jobs',
-    emptyAlerts: (portal: Portal, value: number) =>
+    /** Under the portal's name, so the sentence does not name it again. */
+    emptyAlerts: (value: number) =>
       value === 1
-        ? `Eine Alert-Mail von ${portalName[portal]} enthielt keine Jobs.`
-        : `${n(value)} Alert-Mails von ${portalName[portal]} enthielten keine Jobs.`,
-    openGmail: OPEN_MAIL,
+        ? 'Eine Alert-Mail enthielt keine Jobs.'
+        : `${n(value)} Alert-Mails enthielten keine Jobs.`,
+    lastRun: 'Letzter Abruf',
     noProfile: 'Noch kein Profil',
     noProfileText: 'Mit einem Profil zeigt jeder Job, wie gut er passt.',
+    profileUnreadable: 'Profil nicht lesbar',
+    profileEmpty: 'Profil ohne Kompetenzen',
+    profileBrokenText: 'Die Jobs zeigen deshalb keine Passung.',
   },
   health: {
     layoutText: (mails: number) =>
@@ -902,6 +972,9 @@ export const de = {
     mailbox: 'Postfach',
     mailboxText: 'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
     profile: 'Profil',
+    /** Opens the Profil view with its editor. */
+    createProfile: 'Profil anlegen',
+    openProfile: 'Profil öffnen',
     profileText: 'Das Profil entsteht in der App, auf Wunsch aus dem Lebenslauf.',
     fetch: 'Erster Abruf',
     fetchHint: 'Das dauert ein paar Minuten.',
@@ -918,10 +991,14 @@ export const de = {
     saved: 'Gespeichert.',
     rescored: 'Die Jobs sind neu bewertet.',
     copied: 'Kopiert.',
+    /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
+    prompt: 'Prompt kopiert. In einen KI-Chat einfügen.',
+    hidden: 'Archiviert.',
     runDone: (value: number) =>
       value === 0
         ? 'Abruf fertig, nichts Neues.'
         : `Abruf fertig, ${count(value, 'neuer Job', 'neue Jobs')}.`,
+    runDoneFilesOld: 'Abruf fertig, die Dateien sind nicht aktuell.',
   },
   error: {
     text: (kind: ErrorKind | 'unknown', params: Params): string => {

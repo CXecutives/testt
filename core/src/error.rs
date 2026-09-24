@@ -79,6 +79,9 @@ pub enum InvalidInput {
     AppPassword,
     #[error("{portal} has no sign-in")]
     NoSignIn { portal: Portal },
+    /// A note of a job is longer than `max` characters.
+    #[error("the note is longer than {max} characters")]
+    NoteTooLong { max: usize },
 }
 
 /// Stable error codes for the interface (it reacts to these, never to a text).

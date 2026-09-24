@@ -212,6 +212,9 @@ mod tests {
             match_: record,
             match_rev: None,
             facts: None,
+            app_status: None,
+            app_status_at: None,
+            hidden_at: None,
         }
     }
 

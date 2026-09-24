@@ -17,8 +17,8 @@ use jobalert_core::fetch::http::HttpFetcher;
 use jobalert_core::fetch::policy::Policy;
 use jobalert_core::mail::imap::{Credentials, Gmail, MailError};
 use jobalert_core::pipeline::{
-    self, Backends, Matcher, Outcome, RunContext, RunEvent, RunKind, RunKindName, RunRequest,
-    RunSnapshot, RunSummary, demo::DemoBackends,
+    self, Backends, Matcher, Outcome, RunContext, RunEvent, RunKindName, RunRequest, RunSnapshot,
+    RunSummary, demo::DemoBackends,
 };
 use jobalert_core::portal::{FetchPath, Portal};
 use jobalert_core::secrets::Vault;
@@ -95,7 +95,7 @@ impl Snapshot {
                 }
                 self.alerts.push_back(event.clone());
             }
-            RunEvent::JobUpdated { .. } | RunEvent::Finished { .. } => {}
+            RunEvent::Started { .. } | RunEvent::JobUpdated { .. } | RunEvent::Finished { .. } => {}
         }
     }
 
@@ -184,7 +184,7 @@ fn run_context(
     request: &RunRequest,
 ) -> CmdResult<(RunContext, Option<Credentials>)> {
     let settings = state.settings()?;
-    let scans = matches!(request.kind, RunKind::Fetch | RunKind::FullMailbox);
+    let scans = request.kind.name().reads_mail();
     let credentials = if state.dry_run || !scans {
         None
     } else {

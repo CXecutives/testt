@@ -1,15 +1,23 @@
 // Short confirmations whose result is not visible otherwise (saved, copied, files written,
 // run finished). At most three at once, each leaves after --dur-toast unless hovered.
-// Anything that needs an action stays inline where it belongs, never here.
+// Anything that needs an action stays inline where it belongs; the one exception is an
+// undo of what the user just did (a hidden job), which the toast may carry.
 
 import { tokenMs } from '../tokens';
 
 export type ToastTone = 'success' | 'info';
 
+/** An undo of what the user just did; clicking it also closes the toast. */
+export interface ToastAction {
+  label: string;
+  onclick: () => void;
+}
+
 export interface ToastItem {
   id: number;
   text: string;
   tone: ToastTone;
+  action: ToastAction | null;
 }
 
 const MAX = 3;
@@ -22,9 +30,9 @@ class Toasts {
     { timer: ReturnType<typeof setTimeout> | null; left: number; since: number }
   >();
 
-  show(text: string, tone: ToastTone = 'success'): void {
+  show(text: string, tone: ToastTone = 'success', action: ToastAction | null = null): void {
     const id = this.#next++;
-    this.items = [...this.items, { id, text, tone }];
+    this.items = [...this.items, { id, text, tone, action }];
     while (this.items.length > MAX) this.dismiss(this.items[0]!.id);
     this.#timers.set(id, { timer: null, left: tokenMs('--dur-toast'), since: 0 });
     this.resume(id);

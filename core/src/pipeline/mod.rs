@@ -2,9 +2,12 @@
 //!
 //! The run kinds pick the steps (`RunKind`); the portals come from the settings, never from
 //! the page. The export always runs at the end - after a cancellation, a portal stop or an
-//! error too (it is purely local). Every run ends with exactly one `Finished`, which is also
-//! stored as `last_run_summary`. Events carry codes and data, never prose; the log gets
-//! English lines with the run id (never content, addresses or passwords).
+//! error too (it is purely local). Every run starts with exactly one `Started` (its kind: the
+//! page also follows runs it did not start) and ends with exactly one `Finished`; the summary
+//! of a mailbox run (fetch, whole mailbox) is also stored as `last_run_summary` - "the last
+//! fetch" for the page, which a rescore or a details run never replaces. Events carry codes
+//! and data, never prose; the log gets English lines with the run id (never content,
+//! addresses or passwords).
 
 pub mod demo;
 pub mod local;
@@ -75,6 +78,13 @@ pub enum RunKindName {
     Details,
     Rescore,
     FullMailbox,
+}
+
+impl RunKindName {
+    /// A mailbox run (fetch or the whole mailbox): the kind "the last fetch" means.
+    pub fn reads_mail(self) -> bool {
+        matches!(self, RunKindName::Fetch | RunKindName::FullMailbox)
+    }
 }
 
 impl RunKind {
@@ -194,6 +204,9 @@ pub enum StatusCode {
 )]
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub enum RunEvent {
+    /// The first event of every run: its kind (the auto fetch and the rescores the app starts
+    /// by itself included).
+    Started { kind: RunKindName },
     Progress {
         step: Step,
         portal: Option<Portal>,
@@ -214,8 +227,9 @@ pub enum RunEvent {
         /// Gmail message id (hexadecimal) - opened through `open_target`.
         gmail_id: Option<String>,
     },
-    /// A job has a new state - the finished list row.
-    JobUpdated { job: Box<JobView> },
+    /// A job has a new state - the finished list row. `fresh`: first seen in this run (a
+    /// new job, not one the page may already list further down).
+    JobUpdated { job: Box<JobView>, fresh: bool },
     /// A portal stopped for the rest of the run, or its health changed.
     PortalHealth {
         portal: Portal,
@@ -308,6 +322,17 @@ pub struct ScoreSummary {
     pub best: Option<u8>,
 }
 
+/// The jobs a mailbox run brought - the "neue Jobs" of the run card: first seen in the run
+/// (a job several portals announce counts once, as its original), excluded ones left out;
+/// `high`: how many of them are scored in the high band.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct NewJobs {
+    pub count: usize,
+    pub high: usize,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -340,6 +365,9 @@ pub struct RunSummary {
     pub finished_at: Timestamp,
     pub scan: Option<ScanCounts>,
     pub per_portal: Vec<PortalSummary>,
+    /// Set by a mailbox run (summaries of earlier versions have none).
+    #[serde(default)]
+    pub new_jobs: Option<NewJobs>,
     pub score: Option<ScoreSummary>,
     pub export: Option<ExportSummary>,
     /// Alert mails of this run without recognised jobs (at most [`MAX_EMPTY_ALERTS`]).
@@ -360,6 +388,7 @@ impl RunSummary {
             finished_at: started_at,
             scan: None,
             per_portal: Vec::new(),
+            new_jobs: None,
             score: None,
             export: None,
             empty_alerts: Vec::new(),
@@ -418,7 +447,7 @@ pub struct RunSnapshot {
     pub replay: Vec<RunEvent>,
 }
 
-/// Summary of the last run (JSON).
+/// Summary of the last mailbox run, "the last fetch" (JSON).
 pub const LAST_RUN: &str = "last_run_summary";
 /// Number of the last run with a mailbox scan.
 const LAST_SCAN_RUN: &str = "last_scan_run";
@@ -499,6 +528,7 @@ pub async fn run<B: Backends>(
 ) -> RunSummary {
     let started_at = clock();
     let mut summary = RunSummary::new(request.kind.name(), ctx.dry_run, started_at);
+    emit(RunEvent::Started { kind: summary.kind });
     // Without a run number (database locked or broken) nothing can be assigned: then
     // neither mailbox nor fetch nor export.
     let run = match store.begin_run() {
@@ -594,6 +624,13 @@ pub async fn run<B: Backends>(
         );
     }
 
+    if summary.scan.is_some() {
+        match store.new_jobs(run) {
+            Ok((count, high)) => summary.new_jobs = Some(NewJobs { count, high }),
+            Err(e) => log::warn!("run {run}: new jobs not counted: {e}"),
+        }
+    }
+
     summary.finished_at = clock();
     if !ctx.dry_run {
         emit(status(StatusCode::WritingFiles, None, None));
@@ -608,7 +645,9 @@ pub async fn run<B: Backends>(
         log_export(run, &exported);
         summary.export = Some(exported);
     }
+    // "The last fetch" of the page: a rescore or a details run never replaces it.
     if !ctx.dry_run
+        && summary.kind.reads_mail()
         && let Ok(json) = serde_json::to_string(&summary)
         && let Err(e) = store.kv_set(LAST_RUN, &json)
     {
@@ -657,7 +696,8 @@ pub fn last_scan_run(store: &Store) -> crate::Result<i64> {
         .unwrap_or(0))
 }
 
-/// The summary of the last run, if one is stored (and readable).
+/// The summary of the last mailbox run (fetch or whole mailbox), if one is stored (and
+/// readable).
 pub fn last_run(store: &Store) -> crate::Result<Option<RunSummary>> {
     Ok(store
         .kv_get(LAST_RUN)?
@@ -841,6 +881,7 @@ async fn fetch_step<B: Backends>(
                 {
                     emit(RunEvent::JobUpdated {
                         job: Box::new(view),
+                        fresh: job.first_seen_run == run,
                     });
                 }
             }

@@ -22,7 +22,7 @@ use jobalert_core::pipeline::{self, Matcher as _, RunEvent, demo};
 use jobalert_core::profile;
 use jobalert_core::reset::{self, ResetPlan};
 use jobalert_core::view::{
-    self, JobFacet, JobQuery, JobSort, JobView, Mailbox, ProfileInfo, ResetSummary, SettingsPatch,
+    self, JobFacet, JobQuery, JobSort, Mailbox, ProfileInfo, ResetSummary, SettingsPatch,
     SettingsView,
 };
 use tauri::ipc::Channel;
@@ -36,8 +36,6 @@ pub(super) const PROFILE_SOURCE: &str = "profile_source";
 const UI_ERRORS_PER_MINUTE: usize = 10;
 const MAX_UI_MESSAGE_CHARS: usize = 500;
 const MAX_UI_SOURCE_CHARS: usize = 200;
-/// Best matches of the last mailbox run on the day overview.
-const TOP_MATCHES: u32 = 5;
 
 /// The mailbox as the interface shows it. The dry run never touches the vault but shows a
 /// mailbox: otherwise the app would stay in the setup state and exactly what the dry run
@@ -118,12 +116,6 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
         },
     )?
     .counts;
-    let top_matches = state
-        .store
-        .top_matches(last_scan_run, TOP_MATCHES)?
-        .iter()
-        .map(JobView::from)
-        .collect();
     let last_run = pipeline::last_run(&state.store)?;
     let result_dir = workspace.join(RESULT_DIR);
     // Only the app's own text files - exactly those "delete text files" would remove.
@@ -151,7 +143,6 @@ fn build_state(state: &AppState) -> CmdResult<view::AppState> {
         auto_fetch_on_start: settings.auto_fetch_on_start,
         last_run,
         counts,
-        top_matches,
         match_pending: state.match_pending(),
         log_dir: state.data_dir.join(jobalert_core::LOG_DIR),
         data_dir: state.data_dir.clone(),
