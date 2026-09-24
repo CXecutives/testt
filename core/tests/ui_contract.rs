@@ -532,7 +532,7 @@ fn no_text_literals_in_markup() {
 }
 
 /// The keyboard stays native (audit 2026-09-24): fields take every character the layout
-/// types, including AltGr (Windows) and Option (macOS, where @ is Option+L on a German
+/// types, including `AltGr` (Windows) and Option (macOS, where @ is Option+L on a German
 /// keyboard), and the editing keys of the OS; the macOS menu keeps its Cmd shortcuts
 /// (Cmd+, too); Tab and Enter/Space work on controls; a modal dialog holds the focus; the
 /// zoom guard is a wheel listener that exists only while Ctrl/Cmd is held. The behaviour

@@ -138,13 +138,15 @@ cache, profile dir, marker, then verifies `signedIn=false`.
 - All states per screen (first use, no profile, empty, loading, run, nothing new, no search hit, errors, offline,
   portal paused, no details, teaser, unscorable, excluded). Feedback where the action happened; no toasts.
 - Tokens (`tokens.css`, `:root`, light only, `color-scheme: light`): palette from the brief (coral 13 73% 63%, navy
-  212 34% 37% with deep navy 212 30% 26% and washes 96/93/90/84 %, cream 32 33% 96%, ink 45 7% 17%, ...) plus shades (coral-800 13 62% 45% for text, *-strong/*-soft for
-  status, info), semantic tokens only in components, score colours (high 152 50% 31%, mid ochre, low 30 4% 42%),
-  no decorative gradients or glow (one gradient: the light of a loading placeholder); brand mark = the real coral app
-  icon (folder + check) as SVG; small shadows only for what floats (dialog, toast, tooltip), none animated; radii
-  6/8/10/12/16, 4 px spacing, controls 28/36/40, type 12/13/14 (tabs)/15/15/17/20/26/34 (UI standard 15/22), weights
-  400/500/600, motion 60/80 (hover-in)/100/150/180 ms, ring fill 360 ms, loop 1400 ms, ease-out, no stagger, no bounce; window
-  tokens `--mac-toolbar` 52 px and `--traffic-lights-width` 80 px (macOS row, checked against `tauri.macos.conf.json`).
+  212 34% 37% with deep navy 212 30% 26% and washes 96/93/90/84 %, cream 32 33% 96%, ink 45 7% 17%, ...) plus shades
+  (coral-800 13 62% 45% for text, *-strong/*-soft for status; info is navy), semantic tokens only in components, score
+  colours (high 152 50% 31%, mid ochre 38 55% 55%, low 30 5% 56% with text 30 4% 42%), no decorative gradients or glow
+  (one gradient: the light of a loading placeholder); brand mark = the real coral app icon (folder + check) as SVG;
+  small shadows only for what floats (dialog, toast, tooltip) plus the static hover shadow on `::after`, none
+  animated; radii 6/8/10/12/16, 4 px spacing, controls 28/36/40, type 12/13/14 (tabs)/15/15/17/20/26/34 (UI standard
+  15/22), weights 400/500/600, motion 60/80 (hover-in)/100/150/180 ms, ring fill 360 ms, loop 1400 ms, ease-out and
+  `--ease-emphasized`, no stagger, no bounce; window tokens `--mac-toolbar` 52 px and `--traffic-lights-width` 80 px
+  (macOS row, checked against `tauri.macos.conf.json`).
 - 29 components (Button primary|secondary|ghost|danger|link x sm|md|lg, Count, Icon, IconTile, BrandMark, Card, Badge, Segmented,
   Toggle, TextField+Field, SideNav, ScoreRing, Meter, Skeleton, Spinner, Notice, EmptyState, StatTile, StatusLine,
   Dialog, Tooltip, Disclosure, SettingRow, ListRow/JobRow, ReasonItem, Toast, DragBand (macOS toolbar row)). Not:
