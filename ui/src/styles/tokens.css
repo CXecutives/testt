@@ -157,6 +157,8 @@
   --active-surface: hsl(var(--p-navy-50));
   --active-edge: hsl(var(--p-navy));
   --active-text: hsl(var(--p-navy-deep));
+  /* Under the pointer inside a navy chip (the remove button of a chip). */
+  --active-hover: hsl(var(--p-navy-150));
   /* Progress: the fill and track of brand meters and the colour of their spinners. */
   --meter-fill: hsl(var(--p-navy));
   --meter-track: hsl(var(--p-navy-100));
