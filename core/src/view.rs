@@ -27,7 +27,7 @@ pub use crate::profile::{
     LanguageLevel, ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileForm,
     ProfileLanguage, ProfileWishes, RemoteWish,
 };
-use crate::settings::{PortalSwitches, Settings};
+use crate::settings::{Language, PortalSwitches, Settings};
 use crate::store::{AlertMailRow, JobRow, ListFacet, PageQuery, Store};
 use crate::text::split_company_location;
 
@@ -902,6 +902,8 @@ pub struct SettingsPatch {
     pub auto_fetch_on_start: Option<bool>,
     /// Days after which old jobs archive themselves; 0 = never (`null` = unchanged).
     pub auto_archive_days: Option<u32>,
+    /// The language the user chose (from then on the OS language no longer counts).
+    pub language: Option<Language>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -933,6 +935,9 @@ impl SettingsPatch {
         }
         if let Some(days) = self.auto_archive_days {
             settings.auto_archive_days = days;
+        }
+        if let Some(language) = self.language {
+            settings.language = Some(language);
         }
     }
 }
@@ -1253,6 +1258,8 @@ pub struct AppState {
     pub auto_fetch_on_start: bool,
     /// Days after which old jobs without a stage archive themselves; 0 = never.
     pub auto_archive_days: u32,
+    /// The language of the interface and the exports: the chosen one, else the OS language.
+    pub language: Language,
     /// The last fetch (fetch or whole mailbox) - a rescore or a details run is none.
     pub last_run: Option<RunSummary>,
     pub counts: JobCounts,

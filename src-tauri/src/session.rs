@@ -29,6 +29,7 @@ use jobalert_core::fetch::site::{PortalSite, SessionPage, eval_result};
 use jobalert_core::fetch::{Cause, Login, PageFetcher, PageOutcome};
 use jobalert_core::pipeline::RunEvent;
 use jobalert_core::portal::{JobLink, Portal};
+use jobalert_core::settings::Language;
 use jobalert_core::time::sleep_cancellable;
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
 use tauri::{AppHandle, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
@@ -39,9 +40,12 @@ use tokio_util::sync::CancellationToken;
 use crate::platform;
 
 // ------------------------------------------------------------------ window title
-// User-facing text, German by product decision (UI language).
+// User-facing text, German (the app's language).
 /// Title of the visible sign-in window, before the portal's name ("Anmeldung bei freelance.de").
 const TEXT_SIGN_IN_TITLE: &str = "Anmeldung bei";
+// ------------------------------------------------------------------ end of user-facing text
+// User-facing text, English.
+const TEXT_SIGN_IN_TITLE_EN: &str = "Sign in to";
 // ------------------------------------------------------------------ end of user-facing text
 
 /// How long a page may load.
@@ -184,9 +188,13 @@ impl Session {
         let (tx, rx) = mpsc::unbounded_channel();
         let on_load = tx.clone();
         let site = self.site;
+        let title = match crate::commands::language(&self.app) {
+            Language::De => TEXT_SIGN_IN_TITLE,
+            Language::En => TEXT_SIGN_IN_TITLE_EN,
+        };
         let builder =
             WebviewWindowBuilder::new(&self.app, site.label(), WebviewUrl::External(url.clone()))
-                .title(format!("{TEXT_SIGN_IN_TITLE} {}", site.portal.label()));
+                .title(format!("{title} {}", site.portal.label()));
         let window = platform::session_storage(builder, site.portal.key(), &self.profile)
             .inner_size(1100.0, 820.0)
             .center()

@@ -25,7 +25,7 @@ pub use ai_prompt::{
 };
 pub use job_txt::{TXT_DIR, write_job_txt};
 pub use overview_html::write_overview_html;
-pub use texts::{COLUMNS, details_label};
+pub use texts::{COLUMNS, Texts, details_label};
 pub use top_matches::{
     TOP_MATCHES_MAX, TOP_MATCHES_NAME, TOP_MATCHES_SCHEMA, TopMatch, TopMatches, findings,
     top_matches,
@@ -61,7 +61,7 @@ pub(crate) struct Line {
 }
 
 impl Line {
-    pub fn of(job: &JobRow) -> Line {
+    pub fn of(job: &JobRow, texts: &Texts) -> Line {
         let (company, location) = split_company_location(&job.company, &job.location);
         Line {
             source: job.key.portal.label(),
@@ -75,7 +75,7 @@ impl Line {
                 .and_then(crate::model::gmail_url)
                 .map(|u| u.to_string())
                 .unwrap_or_default(),
-            details: details_label(job),
+            details: texts.details_label(job),
             key: job.key.to_string(),
         }
     }

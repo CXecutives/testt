@@ -6,7 +6,7 @@
 //   whose "Rückgängig" takes them all back. Restoring says so too.
 // - The counts over every job (sidebar, segments, Archiv) follow at once.
 
-import { de } from '$lib/i18n/de';
+import { t } from '$lib/i18n/t';
 import { displayTitle } from '$lib/i18n/format';
 import type { JobKey, JobView } from '$lib/ipc/types';
 import { jobs, keyOf } from '$lib/state/jobs.svelte';
@@ -18,7 +18,7 @@ const lastToggle = new Map<string, number>();
 let batch: { keys: JobKey[]; toast: number } | null = null;
 
 function title(job: JobView): string {
-  return job.title ? displayTitle(job.title) : de.job.untitled;
+  return job.title ? displayTitle(job.title) : t.job.untitled;
 }
 
 /** A second toggle of the same job right after the first is a double click. */
@@ -45,16 +45,16 @@ export async function archive(job: JobView): Promise<string | null> {
   if (error !== null) return error;
   void jobs.loadOverview();
   if (restoring) {
-    toasts.show(de.toast.restored(title(job)));
+    toasts.show(t.toast.restored(title(job)));
     return null;
   }
   const open = batch !== null && toasts.items.some((item) => item.id === batch?.toast);
   const keys = open && batch !== null ? [...batch.keys, key] : [key];
   if (open && batch !== null) toasts.dismiss(batch.toast);
   toasts.show(
-    keys.length === 1 ? de.toast.archivedOne(title(job)) : de.toast.archivedMany(keys.length),
+    keys.length === 1 ? t.toast.archivedOne(title(job)) : t.toast.archivedMany(keys.length),
     'success',
-    { label: de.common.undo, onclick: () => void undo(keys) },
+    { label: t.common.undo, onclick: () => void undo(keys) },
   );
   const shown = toasts.items.at(-1);
   batch = shown ? { keys, toast: shown.id } : null;

@@ -38,6 +38,7 @@ import type {
   JobKey,
   JobQuery,
   JobView,
+  Language,
   Portal,
   PortalState,
   ProfileDraft,
@@ -156,6 +157,8 @@ const TICK = Number(params.get('tick') ?? 40);
 const DELAY = scenario === 'slow' ? 900 : 0;
 const EXPORT_LOCKED = params.get('export') === 'locked';
 const MAIL_OFFLINE = scenario === 'offline' || params.get('mail') === 'offline';
+/** The app's language as the backend says it (`lang=en`; German by default). */
+const LANGUAGE: Language = params.get('lang') === 'en' ? 'en' : 'de';
 /** The order of the backend (`Portal::ALL`), on every screen. */
 const PORTALS: readonly Portal[] = ['linkedin', 'freelance', 'freelancermap'];
 
@@ -786,6 +789,7 @@ function initial(): void {
     ],
     autoFetchOnStart: true,
     autoArchiveDays: 30,
+    language: LANGUAGE,
     lastRun: lastRun(),
     counts: countsOf([]),
     matchPending: 0,
@@ -1899,6 +1903,7 @@ const handlers: Handlers = {
     if (state.portals.every((p) => !p.enabled)) throw fail('invalid', { reason: 'noPortal' });
     if (patch.autoFetchOnStart !== null) state.autoFetchOnStart = patch.autoFetchOnStart;
     if (patch.autoArchiveDays !== null) state.autoArchiveDays = patch.autoArchiveDays;
+    if (patch.language !== null) state.language = patch.language;
     return structuredClone(state);
   },
   reset_all: () => null,

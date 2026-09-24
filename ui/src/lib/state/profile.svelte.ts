@@ -5,6 +5,7 @@
 // something differs. Leaving the view with unsaved changes asks first (ProfileView holds
 // the guard and the dialog).
 
+import { language } from '../i18n/language.svelte';
 import { invoke } from '../ipc/api';
 import type {
   ProfileCompetence,
@@ -121,16 +122,20 @@ const copy = (form: ProfileForm): ProfileForm => structuredClone($state.snapshot
 
 const pad = (value: number): string => String(value).padStart(2, '0');
 
-/** `2026-11-01` -> `01.11.2026` (as the field shows a day). */
-export function germanDate(iso: string): string {
+/** `2026-11-01` -> `01.11.2026`, in English `01/11/2026` (as the field shows a day). */
+export function shownDate(iso: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  return match ? `${match[3]}.${match[2]}.${match[1]}` : iso;
+  const mark = language.current === 'de' ? '.' : '/';
+  return match ? `${match[3]}${mark}${match[2]}${mark}${match[1]}` : iso;
 }
 
-/** A typed day (`1.11.2026`, `01.11.26`, `2026-11-01`) as `YYYY-MM-DD`; `null` if it is none. */
+/**
+ * A typed day (`1.11.2026`, `01.11.26`, `01/11/2026`, `2026-11-01`) as `YYYY-MM-DD`; `null`
+ * if it is none. Day first in both languages (German and British English).
+ */
 export function isoDate(text: string): string | null {
   const value = text.trim();
-  const german = /^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/.exec(value);
+  const german = /^(\d{1,2})[./](\d{1,2})[./](\d{2}|\d{4})$/.exec(value);
   const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value);
   const [year, month, day] = german
     ? [
@@ -149,7 +154,7 @@ export function isoDate(text: string): string | null {
 
 /** The day field's text for a form. */
 const dateTextOf = (form: ProfileForm): string =>
-  form.criteria.available.kind === 'from' ? germanDate(form.criteria.available.date) : '';
+  form.criteria.available.kind === 'from' ? shownDate(form.criteria.available.date) : '';
 
 class ProfileEditor {
   /** `null`: nothing in the editor (no profile yet, or the view has not opened one). */

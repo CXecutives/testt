@@ -22,7 +22,7 @@
   import Segmented from '$components/Segmented.svelte';
   import Notice from '$components/Notice.svelte';
   import TextField from '$components/TextField.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import type { JobFacet } from '$lib/ipc/types';
   import { fade, pop } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
@@ -41,10 +41,10 @@
 
   // Every count follows the search, the same way for every segment.
   const views = $derived([
-    { id: 'new' as JobFacet, label: de.toolbar.facetNew, count: jobs.counts.new },
-    { id: 'all' as JobFacet, label: de.toolbar.facetAll, count: jobs.counts.all },
+    { id: 'new' as JobFacet, label: t.toolbar.facetNew, count: jobs.counts.new },
+    { id: 'all' as JobFacet, label: t.toolbar.facetAll, count: jobs.counts.all },
     // An empty list of the user's own shows no zero (the row stays narrow).
-    { id: 'saved' as JobFacet, label: de.toolbar.facetSaved, count: jobs.counts.saved || null },
+    { id: 'saved' as JobFacet, label: t.toolbar.facetSaved, count: jobs.counts.saved || null },
   ]);
 
   let searchBox = $state<HTMLElement | null>(null);
@@ -74,7 +74,7 @@
       return;
     }
     confirmEmpty = false;
-    toasts.show(de.toast.deleted(result.count));
+    toasts.show(t.toast.deleted(result.count));
     void jobs.loadOverview();
   }
 </script>
@@ -83,9 +83,9 @@
   <Button
     variant={app.hasMailbox ? 'primary' : 'secondary'}
     icon="refresh-cw"
-    label={de.toolbar.fetch}
+    label={t.toolbar.fetch}
     disabled={!app.hasMailbox || run.active}
-    disabledReason={run.active ? run.busyText : de.toolbar.needsMailbox}
+    disabledReason={run.active ? run.busyText : t.toolbar.needsMailbox}
     wide
     testid={live ? 'fetch' : null}
     onclick={() => void run.start({ kind: 'fetch' })}
@@ -96,7 +96,7 @@
   <Button
     variant="secondary"
     icon="circle-stop"
-    label={de.toolbar.cancel}
+    label={t.toolbar.cancel}
     loading={live && run.cancelling}
     wide
     testid={live ? 'cancel-run' : null}
@@ -110,8 +110,8 @@
       <TextField
         kind="search"
         value={jobs.search}
-        label={de.toolbar.searchLabel}
-        placeholder={de.toolbar.search}
+        label={t.toolbar.searchLabel}
+        placeholder={t.toolbar.search}
         testid="search"
         oninput={(value) => jobs.setSearch(value)}
       />
@@ -130,14 +130,14 @@
   <div class="filters">
     {#if jobs.facet === 'archived'}
       <span class="filter" data-testid="filter" in:pop out:fade>
-        <span class="filter-label">{de.list.archive}</span>
+        <span class="filter-label">{t.list.archive}</span>
         <Count value={jobs.counts.archived} tone="plain" />
         <Button
           variant="ghost"
           size="sm"
           iconOnly
           icon="x"
-          label={de.list.clearFilter}
+          label={t.list.clearFilter}
           testid="clear-filter"
           onclick={() => jobs.setFacet('all')}
         />
@@ -146,7 +146,7 @@
       <Segmented
         options={views}
         value={jobs.facet}
-        label={de.toolbar.facet}
+        label={t.toolbar.facet}
         size="sm"
         testid="facet"
         onchange={(id) => jobs.setFacet(id)}
@@ -154,13 +154,13 @@
     {/if}
     {#if otherFilter !== null}
       <span class="filter" data-testid="filter" in:pop out:fade>
-        <span class="filter-label">{de.list.filter[otherFilter]}</span>
+        <span class="filter-label">{t.list.filter[otherFilter]}</span>
         <Button
           variant="ghost"
           size="sm"
           iconOnly
           icon="x"
-          label={de.list.clearFilter}
+          label={t.list.clearFilter}
           testid="clear-filter"
           onclick={() => jobs.setFilter(null)}
         />
@@ -174,7 +174,7 @@
           variant="ghost"
           size="sm"
           icon="arrow-up-down"
-          label={de.toolbar.sortLabel[jobs.sortChoice]}
+          label={t.toolbar.sortLabel[jobs.sortChoice]}
           turned={jobs.sortChoice === 'newest'}
           testid="sort"
           onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
@@ -182,13 +182,13 @@
       </span>
       <span class="order-tools">
         {#if jobs.facet === 'saved' && jobs.counts.saved > 0}
-          <span use:tooltip={de.reader.promptHint}>
+          <span use:tooltip={t.reader.promptHint}>
             <Button
               variant="ghost"
               size="sm"
               iconOnly
               icon="copy"
-              label={de.overview.promptTop}
+              label={t.overview.promptTop}
               testid="prompt-pinned"
               onclick={() => void copyTopPrompt().then((error) => (promptError = error))}
             />
@@ -200,7 +200,7 @@
               variant="ghost"
               size="sm"
               icon="trash-2"
-              label={de.list.emptyArchive}
+              label={t.list.emptyArchive}
               testid="empty-archive"
               onclick={() => (confirmEmpty = true)}
             />
@@ -211,7 +211,7 @@
             variant="ghost"
             size="sm"
             icon="archive"
-            label={de.list.archiveLink(jobs.counts.archived)}
+            label={t.list.archiveLink(jobs.counts.archived)}
             testid="show-archive"
             onclick={() => jobs.setFacet('archived')}
           />
@@ -227,9 +227,9 @@
 <Dialog
   bind:open={confirmEmpty}
   variant="danger"
-  heading={de.list.emptyArchiveHeading}
-  text={de.list.emptyArchiveText}
-  confirmLabel={de.list.emptyArchive}
+  heading={t.list.emptyArchiveHeading}
+  text={t.list.emptyArchiveText}
+  confirmLabel={t.list.emptyArchive}
   busy={emptying}
   error={emptyError}
   testid="dialog-empty-archive"

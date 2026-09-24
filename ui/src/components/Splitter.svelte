@@ -9,7 +9,7 @@
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { tokenPx } from '$lib/tokens';
 
   interface Props {
@@ -32,7 +32,7 @@
     min = tokenPx('--list-min'),
     max = tokenPx('--list-max'),
     storageKey = null,
-    label = de.splitter.label,
+    label,
     testid = null,
   }: Props = $props();
 
@@ -112,7 +112,7 @@
   class:dragging
   role="separator"
   aria-orientation="vertical"
-  aria-label={label}
+  aria-label={label ?? t.splitter.label}
   aria-valuenow={size}
   aria-valuemin={min}
   aria-valuemax={max}

@@ -1,15 +1,15 @@
-// Turns codes with params (errors, notices, reasons, criteria, health) into catalog text.
-// The screens never build sentences themselves.
+// Turns codes with params (errors, notices, reasons, criteria, health) into catalog text of
+// the app's language (`t`). The screens never build sentences themselves.
 //
 // Engine codes travel as plain strings (`Reason.code`, `Notice.code`). The catalog tables
-// in de.ts are the one place that knows them: a new code needs one entry there. Unknown
-// codes from a newer core fall back to the ad's words or are left out, never to a raw code.
+// in t.ts (and en.ts, the same keys) are the one place that knows them: a new code needs one
+// entry there. Unknown codes from a newer core fall back to the ad's words or are left out,
+// never to a raw code.
 
 import { IpcError } from '../ipc/api';
 import type { JobView, KeyFacts, Notice, PortalHealth, Reason } from '../ipc/types';
 import { formatDate } from './format';
 import {
-  de,
   textOf,
   type CriterionKey,
   type CriterionState,
@@ -17,14 +17,15 @@ import {
   type ProfileWarning,
   type ReasonCode,
 } from './de';
+import { t } from './t';
 
 const has = <T extends object>(table: T, key: string): key is Extract<keyof T, string> =>
   Object.prototype.hasOwnProperty.call(table, key);
 
 /** The text of any failure (IpcError from api.ts, or something unexpected). */
 export function errorText(error: unknown): string {
-  if (error instanceof IpcError) return de.error.text(error.kind, error.params);
-  return de.error.text('unknown', {});
+  if (error instanceof IpcError) return t.error.text(error.kind, error.params);
+  return t.error.text('unknown', {});
 }
 
 /** Criterion names differ between a note (`dayRate`) and the key (`minDayRate`). */
@@ -38,35 +39,35 @@ const ALIASES: Record<string, CriterionKey> = {
 
 export function criterionKey(value: unknown): CriterionKey | null {
   if (typeof value !== 'string') return null;
-  if (has(de.reader.criterion, value)) return value;
+  if (has(t.reader.criterion, value)) return value;
   return ALIASES[value] ?? null;
 }
 
 /** The words of a reason: the ad's quote for requirements, a catalog sentence otherwise. */
 export function reasonText(reason: Reason): string {
   const code = reason.code;
-  if (!has(de.reason.code, code) || code === 'requirement' || code === 'term') {
+  if (!has(t.reason.code, code) || code === 'requirement' || code === 'term') {
     return reason.label;
   }
-  return textOf(de.reason.code[code as ReasonCode], reason.params) || reason.label;
+  return textOf(t.reason.code[code as ReasonCode], reason.params) || reason.label;
 }
 
 /** The line under a reason: the profile's side of its evidence (null without one). */
 export function reasonEvidence(reason: Reason): string | null {
   if (!reason.evidence?.profile) return null;
-  return de.reason.evidenceLine(reason.evidence.profile, reason.kind === 'partial');
+  return t.reason.evidenceLine(reason.evidence.profile, reason.kind === 'partial');
 }
 
 /** Tooltip of a reason: quote and profile evidence, or that the profile lacks it. */
 export function reasonHint(reason: Reason): string | null {
   if (reason.evidence) {
-    return de.reason.evidence(
+    return t.reason.evidence(
       reason.evidence.quote || reason.label,
       reason.evidence.profile,
       reason.kind === 'partial',
     );
   }
-  if (reason.kind === 'open' && reason.label) return de.reason.missing(reason.label);
+  if (reason.kind === 'open' && reason.label) return t.reason.missing(reason.label);
   return null;
 }
 
@@ -79,17 +80,17 @@ export function noteText(note: Notice | null): string | null {
   if (note === null) return null;
   if (note.code === 'hardCriterion') {
     const key = criterionKey(note.params.criterion);
-    return key ? de.reader.criterion[key].exclusion : de.reader.note.hardCriterion;
+    return key ? t.reader.criterion[key].exclusion : t.reader.note.hardCriterion;
   }
-  if (has(de.reader.note, note.code)) {
-    return textOf(de.reader.note[note.code as MatchNote], note.params);
+  if (has(t.reader.note, note.code)) {
+    return textOf(t.reader.note[note.code as MatchNote], note.params);
   }
-  if (has(de.reason.code, note.code) && note.code !== 'requirement' && note.code !== 'term') {
-    const text = textOf(de.reason.code[note.code as ReasonCode], note.params);
+  if (has(t.reason.code, note.code) && note.code !== 'requirement' && note.code !== 'term') {
+    const text = textOf(t.reason.code[note.code as ReasonCode], note.params);
     if (text) return text;
   }
   const key = criterionKey(note.code);
-  return key ? de.reader.criterion[key].exclusion : null;
+  return key ? t.reader.criterion[key].exclusion : null;
 }
 
 /** The reason line of a list row: the exclusion note, else the best met requirement. */
@@ -97,7 +98,7 @@ export function rowReason(job: JobView): { kind: 'met' | 'violation'; text: stri
   const match = job.match;
   if (match === null) return null;
   if (match.status === 'excluded') {
-    return { kind: 'violation', text: noteText(match.note) ?? de.score.excluded };
+    return { kind: 'violation', text: noteText(match.note) ?? t.score.excluded };
   }
   const top = match.top[0];
   return top ? { kind: 'met', text: top } : null;
@@ -105,9 +106,9 @@ export function rowReason(job: JobView): { kind: 'met' | 'violation'; text: stri
 
 /** The start of an ad in words (`now`, `vague` or an ISO date); `vague` only when asked. */
 function startWords(start: unknown, vague: boolean): string | null {
-  if (start === 'now') return de.facts.now;
-  if (start === 'vague') return vague ? de.facts.vague : null;
-  if (typeof start === 'string' && start !== '') return de.facts.from(formatDate(start));
+  if (start === 'now') return t.facts.now;
+  if (start === 'vague') return vague ? t.facts.vague : null;
+  if (typeof start === 'string' && start !== '') return t.facts.from(formatDate(start));
   return null;
 }
 
@@ -118,7 +119,7 @@ function rateWords(
   unit: boolean,
 ): string | null {
   if (typeof rate !== 'number') return null;
-  return de.facts.rate(
+  return t.facts.rate(
     rate,
     hourly === true,
     typeof currency === 'string' && currency !== '' ? currency : null,
@@ -135,13 +136,13 @@ export function factWords(facts: KeyFacts | null | undefined): string[] {
   const out: string[] = [];
   const start = startWords(facts.start, false);
   if (start) out.push(start);
-  if (facts.months) out.push(de.facts.months(facts.months));
+  if (facts.months) out.push(t.facts.months(facts.months));
   const from = facts.remoteFrom ?? facts.remoteTo;
   const to = facts.remoteTo ?? facts.remoteFrom;
-  if (from !== null && to !== null) out.push(de.facts.remote(from, to));
+  if (from !== null && to !== null) out.push(t.facts.remote(from, to));
   const rate =
     rateWords(facts.rate, facts.hourly, facts.currency, false) ??
-    (facts.rateOpen ? de.facts.rateOpen : null);
+    (facts.rateOpen ? t.facts.rateOpen : null);
   if (rate) out.push(rate);
   return out;
 }
@@ -156,22 +157,22 @@ export function criterionValue(reason: Reason): string | null {
     case 'minDayRate':
       return (
         rateWords(p.rate, p.hourly, p.currency, true) ??
-        (p.rateOpen === true ? de.facts.rateOpen : null)
+        (p.rateOpen === true ? t.facts.rateOpen : null)
       );
     case 'countries':
     case 'permanentRegion':
-      if (p.remote === true) return de.facts.fullRemote;
+      if (p.remote === true) return t.facts.fullRemote;
       return typeof p.location === 'string' && p.location !== '' ? p.location : null;
     case 'noAnue':
-      return typeof p.contract === 'string' && has(de.facts.contract, p.contract)
-        ? de.facts.contract[p.contract]
+      return typeof p.contract === 'string' && has(t.facts.contract, p.contract)
+        ? t.facts.contract[p.contract]
         : null;
     case 'availability':
       return startWords(p.start, true);
     case 'minSalary':
-      return typeof p.salary === 'number' ? de.facts.salary(p.salary) : null;
+      return typeof p.salary === 'number' ? t.facts.salary(p.salary) : null;
     case 'targetYears':
-      return typeof p.years === 'number' ? de.facts.years(p.years) : null;
+      return typeof p.years === 'number' ? t.facts.years(p.years) : null;
     default:
       return null;
   }
@@ -193,8 +194,8 @@ export function criterionState(reason: Reason): CriterionState {
 }
 
 export function warningText(notice: Notice): string | null {
-  return has(de.profile.warning, notice.code)
-    ? textOf(de.profile.warning[notice.code as ProfileWarning], notice.params)
+  return has(t.profile.warning, notice.code)
+    ? textOf(t.profile.warning[notice.code as ProfileWarning], notice.params)
     : null;
 }
 
@@ -204,16 +205,14 @@ export function healthSentence(health: PortalHealth): string | null {
     case 'ok':
       return null;
     case 'paused':
-      return de.run.pausedWhy(health.reason, health.until);
+      return t.run.pausedWhy(health.reason, health.until);
     case 'quotaReached':
-      return de.run.quota(health.until);
+      return t.run.quota(health.until);
     case 'layoutSuspect':
       // Empty alert mails point at the mail format; otherwise the pages looked odd.
-      return health.emptyMails > 0
-        ? de.health.layoutText(health.emptyMails)
-        : de.health.layoutPages;
+      return health.emptyMails > 0 ? t.health.layoutText(health.emptyMails) : t.health.layoutPages;
     case 'loginRequired':
-      return de.health.loginText;
+      return t.health.loginText;
   }
 }
 
@@ -226,15 +225,15 @@ export function healthAdvice(health: PortalHealth): string | null {
     case 'ok':
       return null;
     case 'paused':
-      return de.health.advice.paused(health.reason, health.until);
+      return t.health.advice.paused(health.reason, health.until);
     case 'quotaReached':
-      return de.health.advice.quota(health.until);
+      return t.health.advice.quota(health.until);
     case 'layoutSuspect':
       return health.emptyMails > 0
-        ? de.health.advice.emptyMails(health.emptyMails)
-        : de.health.advice.pages;
+        ? t.health.advice.emptyMails(health.emptyMails)
+        : t.health.advice.pages;
     case 'loginRequired':
-      return de.health.advice.login;
+      return t.health.advice.login;
   }
 }
 

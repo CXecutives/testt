@@ -10,7 +10,7 @@
   import ChipInput from '$components/ChipInput.svelte';
   import Notice from '$components/Notice.svelte';
   import TextField from '$components/TextField.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { formKeys } from '$lib/input/input';
   import type { ProfileCompetence } from '$lib/ipc/types';
   import { MAX_FOCUS } from '$lib/state/profile.svelte';
@@ -25,7 +25,7 @@
 
   let { rows = $bindable(), focus = $bindable() }: Props = $props();
 
-  const t = de.profile.field;
+  const words = $derived(t.profile.field);
   const id = $props.id();
   let full = $state(false);
   let list = $state<HTMLElement | null>(null);
@@ -83,9 +83,9 @@
   {#if rows.length > 0}
     <div class="head" aria-hidden="true">
       <span></span>
-      <span>{t.competence}</span>
-      <span>{t.years}</span>
-      <span class="aliases-head">{t.aliases}</span>
+      <span>{words.competence}</span>
+      <span>{words.years}</span>
+      <span class="aliases-head">{words.aliases}</span>
       <span></span>
     </div>
   {/if}
@@ -102,7 +102,7 @@
           size="sm"
           iconOnly
           icon="star"
-          label={t.star}
+          label={words.star}
           pressed={starred(row.name)}
           disabled={row.name.trim() === ''}
           testid="competence-star"
@@ -113,20 +113,20 @@
         <TextField
           value={row.name}
           id="{id}-name-{index}"
-          label={t.competence}
-          placeholder={rows.length === 1 ? t.competencePlaceholder : null}
+          label={words.competence}
+          placeholder={rows.length === 1 ? words.competencePlaceholder : null}
           testid="competence-name"
           oninput={(next) => rename(row, next)}
         />
       </span>
       <span class="years">
-        <NumberField bind:value={row.years} label={t.years} testid="competence-years" />
+        <NumberField bind:value={row.years} label={words.years} testid="competence-years" />
       </span>
       <span class="aliases">
         <ChipInput
           bind:values={row.aliases}
-          label={t.aliases}
-          placeholder={rows.length === 1 ? t.aliasesPlaceholder : null}
+          label={words.aliases}
+          placeholder={rows.length === 1 ? words.aliasesPlaceholder : null}
           testid="competence-aliases"
         />
       </span>
@@ -136,7 +136,7 @@
           size="sm"
           iconOnly
           icon="x"
-          label={t.removeCompetence(row.name.trim())}
+          label={words.removeCompetence(row.name.trim())}
           testid="competence-remove"
           onclick={() => remove(row)}
         />
@@ -148,21 +148,21 @@
       variant="secondary"
       size="sm"
       icon="plus"
-      label={t.addCompetence}
+      label={words.addCompetence}
       testid="competence-add"
       onclick={() => void add()}
     />
   </span>
   <div class="focus" data-testid="focus">
-    <span class="focus-label">{t.focus}</span>
+    <span class="focus-label">{words.focus}</span>
     {#if focus.length > 0}
       <ChipInput bind:values={focus} entry={false} onchange={() => (full = false)} />
     {:else}
-      <span class="focus-hint">{t.focusHint}</span>
+      <span class="focus-hint">{words.focusHint}</span>
     {/if}
   </div>
   {#if full}
-    <Notice tone="warning" variant="inline" text={t.focusFull} testid="focus-full" />
+    <Notice tone="warning" variant="inline" text={words.focusFull} testid="focus-full" />
   {/if}
 </div>
 

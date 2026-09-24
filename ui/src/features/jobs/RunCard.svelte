@@ -26,7 +26,7 @@
   import Meter from '$components/Meter.svelte';
   import Notice from '$components/Notice.svelte';
   import Spinner from '$components/Spinner.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { formatMoment, formatNumber, formatTime } from '$lib/i18n/format';
   import { errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
@@ -51,7 +51,7 @@
   const files = $derived(summary ? exportError(summary) : null);
   const filesText = $derived.by(() => {
     if (files === null) return null;
-    const texts = de.run.exportFailed;
+    const texts = t.run.exportFailed;
     switch (files.params.target) {
       case 'overview':
         return files.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
@@ -74,7 +74,7 @@
   const pauses = $derived(
     (Object.entries(run.health) as [Portal, PortalHealth][]).filter(([, h]) => h.kind !== 'ok'),
   );
-  const title = $derived(summary ? outcomeText(summary) : de.run.done);
+  const title = $derived(summary ? outcomeText(summary) : t.run.done);
   let actionError = $state<string | null>(null);
 
   function openTarget(target: OpenTarget): void {
@@ -88,7 +88,7 @@
     );
     try {
       await navigator.clipboard.writeText(lines.join('\n'));
-      toasts.show(de.toast.copied);
+      toasts.show(t.toast.copied);
     } catch (error) {
       actionError = errorText(error);
     }
@@ -124,11 +124,11 @@
       case 'mailNotGmail':
       case 'secretCorrupt':
       case 'secretStore':
-        return { label: de.run.checkMailbox, onclick: () => navigation.go('settings') };
+        return { label: t.run.checkMailbox, onclick: () => navigation.go('settings') };
       case 'internal':
-        return { label: de.common.openLog, onclick: () => openTarget({ kind: 'logDir' }) };
+        return { label: t.common.openLog, onclick: () => openTarget({ kind: 'logDir' }) };
       default:
-        return { label: de.common.retry, onclick: () => run.retry(summary) };
+        return { label: t.common.retry, onclick: () => run.retry(summary) };
     }
   });
 </script>
@@ -144,7 +144,7 @@
         iconOnly
         icon="chevron-down"
         turned={open}
-        label={open ? de.run.collapse : de.run.expand}
+        label={open ? t.run.collapse : t.run.expand}
         testid="run-toggle"
         onclick={toggle}
       />
@@ -154,7 +154,7 @@
           size="sm"
           iconOnly
           icon="x"
-          label={de.common.hide}
+          label={t.common.hide}
           testid="run-close"
           onclick={() => run.hide()}
         />
@@ -170,12 +170,12 @@
         <Spinner size="sm" label={null} />
         {@render head(
           run.status
-            ? de.run.statusOf(run.status.code, run.status.portal)
-            : de.run.kind[run.kind ?? 'fetch'],
-          run.waitLeft !== null ? de.run.resumesIn(run.waitLeft) : null,
+            ? t.run.statusOf(run.status.code, run.status.portal)
+            : t.run.kind[run.kind ?? 'fetch'],
+          run.waitLeft !== null ? t.run.resumesIn(run.waitLeft) : null,
         )}
       </div>
-      <Meter value={run.fraction} size="sm" label={de.toolbar.progress} />
+      <Meter value={run.fraction} size="sm" label={t.toolbar.progress} />
       {#if open}
         <div class="more" in:fade>
           <ol class="steps">
@@ -194,14 +194,14 @@
                       size="sm"
                     />
                   </span>
-                  <span class="name">{de.run.step[step]}</span>
+                  <span class="name">{t.run.step[step]}</span>
                 </span>
                 <span class="count">
                   {#if progress && progress.total > 0}
                     {#key progress.done}<span class="value" in:roll={{ up: true }}
                         >{formatNumber(progress.done)}</span
                       >{/key}
-                    {de.run.ofTotal(progress.total)}
+                    {t.run.ofTotal(progress.total)}
                   {/if}
                 </span>
               </li>
@@ -211,13 +211,13 @@
             <Notice
               tone="warning"
               variant="inline"
-              heading={de.portal[portal]}
+              heading={t.portal[portal]}
               text={healthSentence(health) ?? ''}
               testid="pause-{portal}"
             />
           {/each}
           {#if run.loginNeeded}
-            <Notice tone="info" variant="inline" text={de.settings.signInWaiting} />
+            <Notice tone="info" variant="inline" text={t.settings.signInWaiting} />
           {/if}
         </div>
       {/if}
@@ -238,11 +238,11 @@
             <span class="time">{formatMoment(summary.finishedAt)}</span>
             {#if fetchRun && newJobs > 0}
               <span data-testid="last-new"
-                ><Badge label={de.run.newPill(newJobs)} tone="navy" /></span
+                ><Badge label={t.run.newPill(newJobs)} tone="navy" /></span
               >
               {#if app.hasProfile && topJobs > 0}
                 <span data-testid="last-top"
-                  ><Badge label={de.run.topPill(topJobs)} tone="success" /></span
+                  ><Badge label={t.run.topPill(topJobs)} tone="success" /></span
                 >
               {/if}
             {/if}
@@ -251,18 +251,18 @@
             <Notice
               tone="danger"
               variant="row"
-              text={de.error.text(failure.kind, failure.params)}
+              text={t.error.text(failure.kind, failure.params)}
               action={failureAction}
               testid="run-failed"
             />
           {:else if fetchRun && summary.outcome.kind === 'completed' && newJobs === 0}
-            <Notice tone="info" variant="inline" text={de.run.nothingNew} testid="nothing-new" />
+            <Notice tone="info" variant="inline" text={t.run.nothingNew} testid="nothing-new" />
           {/if}
           {#if summary.kind === 'details' && sum('failed') > 0}
             <Notice
               tone="warning"
               variant="inline"
-              text={de.run.details.failedAds(sum('failed'))}
+              text={t.run.details.failedAds(sum('failed'))}
               testid="details-failed"
             />
           {/if}
@@ -270,12 +270,12 @@
             <Notice
               tone="info"
               variant="inline"
-              text={de.run.details.goneAds(sum('gone'))}
+              text={t.run.details.goneAds(sum('gone'))}
               testid="details-gone"
             />
           {/if}
           {#if skipped > 0}
-            <Notice tone="info" variant="inline" text={de.run.skipped(skipped)} />
+            <Notice tone="info" variant="inline" text={t.run.skipped(skipped)} />
           {/if}
           {#if filesText}
             <Notice
@@ -284,15 +284,15 @@
               text={filesText}
               action={failure || run.active
                 ? null
-                : { label: de.common.retry, onclick: () => run.retry(summary) }}
+                : { label: t.common.retry, onclick: () => run.retry(summary) }}
               testid="export-failed"
             />
           {/if}
           {#if txtFailed > 0}
-            <Notice tone="warning" variant="inline" text={de.run.filesFailed(txtFailed)} />
+            <Notice tone="warning" variant="inline" text={t.run.filesFailed(txtFailed)} />
           {/if}
           {#if run.history.length > 0}
-            <Disclosure label={de.run.history} testid="run-history">
+            <Disclosure label={t.run.history} testid="run-history">
               <ol class="history" data-copy>
                 {#each run.history as line, index (index)}
                   <li>
@@ -301,7 +301,7 @@
                   </li>
                 {/each}
               </ol>
-              <Button variant="ghost" size="sm" icon="copy" label={de.common.copy} onclick={copy} />
+              <Button variant="ghost" size="sm" icon="copy" label={t.common.copy} onclick={copy} />
             </Disclosure>
           {/if}
         </div>

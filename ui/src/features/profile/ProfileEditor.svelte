@@ -15,7 +15,7 @@
   import SettingRow from '$components/SettingRow.svelte';
   import TextField from '$components/TextField.svelte';
   import Toggle from '$components/Toggle.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { formKeys } from '$lib/input/input';
   import type { ProfileAvailability, ProfileQuality, RemoteWish } from '$lib/ipc/types';
   import { primaryFirst } from '$lib/platform';
@@ -38,31 +38,33 @@
 
   let { quality, busy, note, onsave, ondiscard }: Props = $props();
 
-  const t = de.profile.field;
+  const words = $derived(t.profile.field);
   const id = $props.id();
   const form = $derived(editor.after);
   const c = $derived(editor.after.criteria);
   const thin = $derived(quality === 'thin' || quality === 'empty');
   const actionFirst = primaryFirst();
 
-  const COUNTRIES = Object.entries(de.profile.country).map(([code, label]) => ({
-    id: code,
-    label,
-  }));
   /** Known countries, then codes of the profile the app does not name. */
   const countries = $derived([
-    ...COUNTRIES,
+    ...Object.entries(t.profile.country).map(([code, label]) => ({ id: code, label })),
     ...c.countries
-      .filter((code) => !(code in de.profile.country))
+      .filter((code) => !(code in t.profile.country))
       .map((code) => ({ id: code, label: code })),
   ]);
 
-  const REMOTE: { id: RemoteWish; label: string }[] = (
-    ['full', 'mostly', 'partly', 'onSite'] as const
-  ).map((wish) => ({ id: wish, label: de.profile.remoteWish[wish] }));
-  const AVAILABLE: { id: ProfileAvailability['kind']; label: string }[] = (
-    ['unset', 'now', 'from'] as const
-  ).map((kind) => ({ id: kind, label: de.profile.availability[kind] }));
+  const REMOTE = $derived<{ id: RemoteWish; label: string }[]>(
+    (['full', 'mostly', 'partly', 'onSite'] as const).map((wish) => ({
+      id: wish,
+      label: t.profile.remoteWish[wish],
+    })),
+  );
+  const AVAILABLE = $derived<{ id: ProfileAvailability['kind']; label: string }[]>(
+    (['unset', 'now', 'from'] as const).map((kind) => ({
+      id: kind,
+      label: t.profile.availability[kind],
+    })),
+  );
 
   function setAvailable(kind: ProfileAvailability['kind']): void {
     c.available =
@@ -78,7 +80,7 @@
 
   let tried = $state(false);
   const dateError = $derived(
-    editor.dateInvalid && (tried || editor.dateText.trim().length >= 8) ? t.dateInvalid : null,
+    editor.dateInvalid && (tried || editor.dateText.trim().length >= 8) ? words.dateInvalid : null,
   );
 
   function save(): void {
@@ -100,50 +102,50 @@
 </script>
 
 <div class="editor" use:formKeys={{ shortcut: save }} data-testid="profile-form">
-  <ProfileSection heading={de.profile.section.person} testid="section-person">
+  <ProfileSection heading={t.profile.section.person} testid="section-person">
     <div class="pair">
-      <Field label={t.name} for="{id}-name">
+      <Field label={words.name} for="{id}-name">
         <TextField id="{id}-name" bind:value={form.name} testid="profile-name-field" />
       </Field>
-      <Field label={t.title} for="{id}-title">
+      <Field label={words.title} for="{id}-title">
         <TextField
           id="{id}-title"
           bind:value={form.title}
-          placeholder={t.titlePlaceholder}
+          placeholder={words.titlePlaceholder}
           testid="profile-title"
         />
       </Field>
     </div>
-    <Field label={t.roles} for="{id}-roles">
+    <Field label={words.roles} for="{id}-roles">
       <ChipInput
         id="{id}-roles"
         bind:values={form.roles}
-        placeholder={t.rolesPlaceholder}
+        placeholder={words.rolesPlaceholder}
         testid="profile-roles"
       />
     </Field>
   </ProfileSection>
 
   <ProfileSection
-    heading={de.profile.section.competences}
-    hint={quality && quality !== 'good' ? de.profile.qualityText[quality] : null}
+    heading={t.profile.section.competences}
+    hint={quality && quality !== 'good' ? t.profile.qualityText[quality] : null}
     empty={thin && form.competences.length === 0}
     testid="section-competences"
   >
     <CompetenceList bind:rows={form.competences} bind:focus={form.focus} />
-    <Field label={t.strengths} for="{id}-strengths">
+    <Field label={words.strengths} for="{id}-strengths">
       <ChipInput
         id="{id}-strengths"
         bind:values={form.strengths}
-        placeholder={t.strengthsPlaceholder}
+        placeholder={words.strengthsPlaceholder}
         testid="profile-strengths"
       />
     </Field>
-    <Field label={t.keywords} for="{id}-keywords" hint={t.keywordsHint}>
+    <Field label={words.keywords} for="{id}-keywords" hint={words.keywordsHint}>
       <ChipInput
         id="{id}-keywords"
         bind:values={form.keywords}
-        placeholder={t.keywordsPlaceholder}
+        placeholder={words.keywordsPlaceholder}
         describedby="{id}-keywords-message"
         testid="profile-keywords"
       />
@@ -151,58 +153,58 @@
   </ProfileSection>
 
   <ProfileSection
-    heading={de.profile.section.experience}
+    heading={t.profile.section.experience}
     empty={thin && empty(form.years, form.degrees, form.industries)}
     testid="section-experience"
   >
     <div class="pair">
-      <Field label={t.totalYears} for="{id}-years">
+      <Field label={words.totalYears} for="{id}-years">
         <NumberField id="{id}-years" bind:value={form.years} testid="profile-years" />
       </Field>
     </div>
-    <Field label={t.degrees} for="{id}-degrees">
+    <Field label={words.degrees} for="{id}-degrees">
       <ChipInput
         id="{id}-degrees"
         bind:values={form.degrees}
-        placeholder={t.degreesPlaceholder}
+        placeholder={words.degreesPlaceholder}
         testid="profile-degrees"
       />
     </Field>
-    <Field label={t.industries} for="{id}-industries">
+    <Field label={words.industries} for="{id}-industries">
       <ChipInput
         id="{id}-industries"
         bind:values={form.industries}
-        placeholder={t.industriesPlaceholder}
+        placeholder={words.industriesPlaceholder}
         testid="profile-industries"
       />
     </Field>
   </ProfileSection>
 
   <ProfileSection
-    heading={de.profile.section.tools}
+    heading={t.profile.section.tools}
     empty={thin && empty(form.tools, form.certificates)}
     testid="section-tools"
   >
-    <Field label={t.tools} for="{id}-tools">
+    <Field label={words.tools} for="{id}-tools">
       <ChipInput
         id="{id}-tools"
         bind:values={form.tools}
-        placeholder={t.toolsPlaceholder}
+        placeholder={words.toolsPlaceholder}
         testid="profile-tools"
       />
     </Field>
-    <Field label={t.certificates} for="{id}-certificates">
+    <Field label={words.certificates} for="{id}-certificates">
       <ChipInput
         id="{id}-certificates"
         bind:values={form.certificates}
-        placeholder={t.certificatesPlaceholder}
+        placeholder={words.certificatesPlaceholder}
         testid="profile-certificates"
       />
     </Field>
   </ProfileSection>
 
   <ProfileSection
-    heading={de.profile.section.languages}
+    heading={t.profile.section.languages}
     empty={thin && form.languages.length === 0}
     testid="section-languages"
   >
@@ -210,12 +212,12 @@
   </ProfileSection>
 
   <ProfileSection
-    heading={de.profile.section.wishes}
-    hint={de.profile.sectionHint.wishes}
+    heading={t.profile.section.wishes}
+    hint={t.profile.sectionHint.wishes}
     testid="section-wishes"
   >
     <div class="pair">
-      <Field label={t.wishRate} for="{id}-wish-rate">
+      <Field label={words.wishRate} for="{id}-wish-rate">
         <NumberField
           id="{id}-wish-rate"
           bind:value={form.wishes.dayRate}
@@ -224,44 +226,44 @@
       </Field>
     </div>
     <div class="block">
-      <span class="label">{t.remote}</span>
+      <span class="label">{words.remote}</span>
       <ChoiceButtons
         options={REMOTE}
         selected={form.wishes.remote === null ? [] : [form.wishes.remote]}
-        label={t.remote}
+        label={words.remote}
         testid="profile-remote"
         onchange={(next) => (form.wishes.remote = (next[0] as RemoteWish | undefined) ?? null)}
       />
     </div>
-    <Field label={t.regions} for="{id}-regions">
+    <Field label={words.regions} for="{id}-regions">
       <ChipInput
         id="{id}-regions"
         bind:values={form.wishes.regions}
-        placeholder={t.regionsPlaceholder}
+        placeholder={words.regionsPlaceholder}
         testid="profile-regions"
       />
     </Field>
-    <Field label={t.wishIndustries} for="{id}-wish-industries">
+    <Field label={words.wishIndustries} for="{id}-wish-industries">
       <ChipInput
         id="{id}-wish-industries"
         bind:values={form.wishes.industries}
-        placeholder={t.wishIndustriesPlaceholder}
+        placeholder={words.wishIndustriesPlaceholder}
         testid="profile-wish-industries"
       />
     </Field>
   </ProfileSection>
 
   <ProfileSection
-    heading={de.profile.section.criteria}
-    hint={de.profile.sectionHint.criteria}
+    heading={t.profile.section.criteria}
+    hint={t.profile.sectionHint.criteria}
     empty={noCriteria}
     testid="section-criteria"
   >
     <div class="pair">
-      <Field label={t.minDayRate} for="{id}-min-rate">
+      <Field label={words.minDayRate} for="{id}-min-rate">
         <NumberField id="{id}-min-rate" bind:value={c.minDayRate} testid="profile-min-rate" />
       </Field>
-      <Field label={t.targetYears} for="{id}-target" hint={t.targetYearsHint}>
+      <Field label={words.targetYears} for="{id}-target" hint={words.targetYearsHint}>
         <NumberField
           id="{id}-target"
           bind:value={c.targetYears}
@@ -271,23 +273,23 @@
       </Field>
     </div>
     <div class="block">
-      <span class="label">{t.countries}</span>
+      <span class="label">{words.countries}</span>
       <ChoiceButtons
         options={countries}
         selected={c.countries}
-        label={t.countries}
+        label={words.countries}
         multiple
         testid="profile-countries"
         onchange={(next) => (c.countries = next)}
       />
     </div>
     <div class="block">
-      <span class="label">{t.available}</span>
+      <span class="label">{words.available}</span>
       <div class="available">
         <Segmented
           options={AVAILABLE}
           value={c.available.kind}
-          label={t.available}
+          label={words.available}
           size="sm"
           testid="profile-available"
           onchange={setAvailable}
@@ -296,8 +298,8 @@
           <span class="date">
             <TextField
               value={editor.dateText}
-              label={t.date}
-              placeholder={t.datePlaceholder}
+              label={words.date}
+              placeholder={words.datePlaceholder}
               invalid={dateError !== null}
               describedby="{id}-date-message"
               testid="profile-date"
@@ -311,31 +313,35 @@
       {/if}
     </div>
     <div class="toggles">
-      <SettingRow label={t.remoteOutside} hint={t.remoteOutsideHint} for="{id}-remote-outside">
+      <SettingRow
+        label={words.remoteOutside}
+        hint={words.remoteOutsideHint}
+        for="{id}-remote-outside"
+      >
         <Toggle
           id="{id}-remote-outside"
           checked={c.remoteOutside}
-          label={t.remoteOutside}
+          label={words.remoteOutside}
           testid="profile-remote-outside"
           onchange={(on) => (c.remoteOutside = on)}
         />
       </SettingRow>
-      <SettingRow label={t.noAnue} for="{id}-no-anue">
+      <SettingRow label={words.noAnue} for="{id}-no-anue">
         <Toggle
           id="{id}-no-anue"
           checked={c.noAnue}
-          label={t.noAnue}
+          label={words.noAnue}
           testid="profile-no-anue"
           onchange={(on) => (c.noAnue = on)}
         />
       </SettingRow>
     </div>
-    <h3 class="sub">{de.profile.section.permanent}</h3>
+    <h3 class="sub">{t.profile.section.permanent}</h3>
     <div class="pair">
-      <Field label={t.minSalary} for="{id}-salary">
+      <Field label={words.minSalary} for="{id}-salary">
         <NumberField id="{id}-salary" bind:value={c.minSalary} testid="profile-min-salary" />
       </Field>
-      <Field label={t.remoteMin} for="{id}-remote-min" hint={t.remoteMinHint}>
+      <Field label={words.remoteMin} for="{id}-remote-min" hint={words.remoteMinHint}>
         <NumberField
           id="{id}-remote-min"
           bind:value={c.permanentRemoteMin}
@@ -344,11 +350,11 @@
         />
       </Field>
     </div>
-    <Field label={t.places} for="{id}-places">
+    <Field label={words.places} for="{id}-places">
       <ChipInput
         id="{id}-places"
         bind:values={c.permanentPlaces}
-        placeholder={t.placesPlaceholder}
+        placeholder={words.placesPlaceholder}
         testid="profile-places"
       />
     </Field>
@@ -365,7 +371,7 @@
     {#snippet discard()}
       <Button
         variant="secondary"
-        label={de.profile.discard}
+        label={t.profile.discard}
         disabled={!editor.dirty || busy}
         testid="profile-discard"
         onclick={ondiscard}
@@ -374,7 +380,7 @@
     {#if !actionFirst}{@render discard()}{/if}
     <Button
       variant="primary"
-      label={de.profile.save}
+      label={t.profile.save}
       disabled={!editor.dirty}
       loading={busy}
       testid="profile-save"

@@ -58,7 +58,7 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import { cssVars } from '$lib/actions/cssVars';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { formatPercent } from '$lib/i18n/format';
   import { duration, isReducedMotion, play } from '$lib/motion/motion';
   import { countUp } from '$lib/motion/transitions';
@@ -91,19 +91,19 @@
   const label = $derived.by(() => {
     switch (ring.status) {
       case 'scored':
-        return `${de.score.value(formatPercent(ring.score))} · ${de.score.band[ring.band]}`;
+        return `${t.score.value(formatPercent(ring.score))} · ${t.score.band[ring.band]}`;
       case 'provisional':
-        return `${de.score.value(formatPercent(ring.score))} · ${de.score.band[ring.band]} · ${de.score.provisional}`;
+        return `${t.score.value(formatPercent(ring.score))} · ${t.score.band[ring.band]} · ${t.score.provisional}`;
       case 'excluded':
-        return de.score.excluded;
+        return t.score.excluded;
       case 'unscorable':
-        return de.score.unscorable;
+        return t.score.unscorable;
       case 'pending':
-        return de.score.pending;
+        return t.score.pending;
       case 'off':
-        return de.score.off;
+        return t.score.off;
       default:
-        return de.score.none;
+        return t.score.none;
     }
   });
 

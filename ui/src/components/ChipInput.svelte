@@ -6,7 +6,7 @@
   and removes (chips chosen elsewhere). Keys come from input.ts (chipKeys).
 -->
 <script lang="ts">
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { chipKeys, FIELD_ATTRIBUTES } from '$lib/input/input';
   import Icon from './Icon.svelte';
 
@@ -124,7 +124,7 @@
         class="remove"
         tabindex="-1"
         data-keep-focus
-        aria-label={de.chips.remove(value)}
+        aria-label={t.chips.remove(value)}
         onclick={() => remove(index)}
       >
         <Icon name="x" size="xs" />

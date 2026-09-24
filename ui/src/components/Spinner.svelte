@@ -1,7 +1,7 @@
 <!-- Indeterminate activity. Colour follows the text, or the navy of progress (`progress`:
      the run card, the sidebar status); stops under reduced motion. -->
 <script lang="ts">
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
 
   interface Props {
     size?: 'sm' | 'md' | 'lg';
@@ -11,15 +11,17 @@
     progress?: boolean;
   }
 
-  let { size = 'md', label = de.common.loading, progress = false }: Props = $props();
+  let { size = 'md', label, progress = false }: Props = $props();
+  // Without a label the spinner says "loading" in the app's language (null says nothing).
+  const spoken = $derived(label === undefined ? t.common.loading : label);
 </script>
 
 <span
   class="spinner {size}"
   class:progress
-  role={label ? 'status' : undefined}
-  aria-label={label ?? undefined}
-  aria-hidden={label ? undefined : 'true'}
+  role={spoken ? 'status' : undefined}
+  aria-label={spoken ?? undefined}
+  aria-hidden={spoken ? undefined : 'true'}
 ></span>
 
 <style>

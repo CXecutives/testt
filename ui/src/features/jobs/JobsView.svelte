@@ -25,7 +25,7 @@
   import { cssVars } from '$lib/actions/cssVars';
   import EmptyState from '$components/EmptyState.svelte';
   import Skeleton from '$components/Skeleton.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { fade, rise } from '$lib/motion/transitions';
   import { inView } from '$lib/actions/inView';
   import { listKeys } from '$lib/input/input';
@@ -164,7 +164,7 @@
                   variant="ghost"
                   size="sm"
                   icon="chevron-left"
-                  label={de.common.back}
+                  label={t.common.back}
                   testid="back"
                   onclick={close}
                 />
@@ -173,9 +173,9 @@
                 <EmptyState
                   icon="triangle-alert"
                   tone="danger"
-                  text={jobs.detailError ?? de.reader.loadFailed}
+                  text={jobs.detailError ?? t.reader.loadFailed}
                   secondary={{
-                    label: de.common.retry,
+                    label: t.common.retry,
                     onclick: () => jobs.selected && void jobs.loadDetail(jobs.selected),
                   }}
                   testid="reader-error"

@@ -24,7 +24,7 @@
   import Notice from '$components/Notice.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import { nearEnd } from '$lib/actions/nearEnd';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { invoke } from '$lib/ipc/api';
   import type { JobView, Portal } from '$lib/ipc/types';
   import { play } from '$lib/motion/motion';
@@ -55,12 +55,12 @@
   const profileNote = $derived.by(() => {
     const profile = app.state?.profile ?? null;
     if (profile === null) {
-      return { heading: null, text: de.list.noProfile, label: de.list.createProfile };
+      return { heading: null, text: t.list.noProfile, label: t.list.createProfile };
     }
     return {
-      heading: profile.parseError ? de.list.profileUnreadable : de.list.profileEmpty,
-      text: de.list.profileBrokenText,
-      label: de.list.openProfile,
+      heading: profile.parseError ? t.list.profileUnreadable : t.list.profileEmpty,
+      text: t.list.profileBrokenText,
+      label: t.list.openProfile,
     };
   });
 
@@ -205,13 +205,13 @@
 
 {#snippet archiveHits()}
   <div class="divider" data-testid="archive-hits">
-    <span class="divider-label">{de.list.inArchive}</span>
+    <span class="divider-label">{t.list.inArchive}</span>
     <Count value={archivedHits} tone="plain" />
     <span class="divider-link">
       <Button
         variant="link"
         size="sm"
-        label={de.list.showArchive}
+        label={t.list.showArchive}
         testid="show-archive-hits"
         onclick={() => jobs.setFacet('archived')}
       />
@@ -223,7 +223,7 @@
   class="list"
   bind:this={list}
   data-testid="job-list"
-  aria-label={de.list.label}
+  aria-label={t.list.label}
   aria-busy={jobs.status === 'loading'}
 >
   {#if mailboxMissing}
@@ -231,8 +231,8 @@
       <Notice
         tone="info"
         variant="row"
-        text={de.list.noMailbox}
-        action={{ label: de.list.connectMailbox, onclick: () => navigation.go('settings') }}
+        text={t.list.noMailbox}
+        action={{ label: t.list.connectMailbox, onclick: () => navigation.go('settings') }}
         testid="no-mailbox"
       />
     </div>
@@ -262,8 +262,8 @@
       <EmptyState
         icon="triangle-alert"
         tone="danger"
-        text={jobs.error ?? de.list.loadFailed}
-        secondary={{ label: de.common.retry, icon: 'rotate-ccw', onclick: () => void jobs.load() }}
+        text={jobs.error ?? t.list.loadFailed}
+        secondary={{ label: t.common.retry, icon: 'rotate-ccw', onclick: () => void jobs.load() }}
         testid="list-error"
       />
     </div>
@@ -288,8 +288,8 @@
           <EmptyState
             icon="search"
             tone="neutral"
-            text={de.list.noHit(jobs.search.trim())}
-            secondary={{ label: de.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
+            text={t.list.noHit(jobs.search.trim())}
+            secondary={{ label: t.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
             testid="empty-search"
           />
           {#if archivedHits > 0}{@render archiveHits()}{/if}
@@ -298,26 +298,26 @@
         <EmptyState
           icon="inbox"
           tone="neutral"
-          text={de.list.emptyFilter}
-          secondary={{ label: de.list.clearFilter, onclick: () => jobs.setFilter(null) }}
+          text={t.list.emptyFilter}
+          secondary={{ label: t.list.clearFilter, onclick: () => jobs.setFilter(null) }}
           testid="empty-filter"
         />
       {:else if jobs.facet === 'sent'}
-        <EmptyState icon="inbox" tone="neutral" text={de.list.emptySent} testid="empty-sent" />
+        <EmptyState icon="inbox" tone="neutral" text={t.list.emptySent} testid="empty-sent" />
       {:else if jobs.facet === 'archived'}
         <EmptyState
           icon="inbox"
           tone="neutral"
-          text={de.list.emptyArchived}
-          secondary={{ label: de.list.showAll, onclick: () => jobs.setFacet('all') }}
+          text={t.list.emptyArchived}
+          secondary={{ label: t.list.showAll, onclick: () => jobs.setFacet('all') }}
           testid="empty-hidden"
         />
       {:else if jobs.facet === 'new' && jobs.counts.all > 0}
         <EmptyState
           icon="check"
           tone="success"
-          text={de.list.emptyNew}
-          secondary={{ label: de.list.showAll, onclick: () => jobs.setFacet('all') }}
+          text={t.list.emptyNew}
+          secondary={{ label: t.list.showAll, onclick: () => jobs.setFacet('all') }}
           testid="empty-new"
         />
       {:else}
@@ -325,17 +325,17 @@
           <EmptyState
             icon="inbox"
             tone="neutral"
-            text={mailRead ? de.list.emptyAfterRun : de.list.emptyAll}
+            text={mailRead ? t.list.emptyAfterRun : t.list.emptyAll}
             testid="empty-all"
           />
-          <p class="sources-text">{de.list.emptySources}</p>
+          <p class="sources-text">{t.list.emptySources}</p>
           <div class="sources-actions">
             {#each PORTALS as portal (portal.portal)}
               <Button
                 variant="ghost"
                 size="sm"
                 icon="external-link"
-                label={de.list.createAlert(de.portal[portal.portal])}
+                label={t.list.createAlert(t.portal[portal.portal])}
                 testid="alert-{portal.portal}"
                 onclick={() => openPortal(portal.portal)}
               />
@@ -345,7 +345,7 @@
                 variant="ghost"
                 size="sm"
                 icon="mail"
-                label={de.list.readOlder}
+                label={t.list.readOlder}
                 disabled={run.active}
                 disabledReason={run.busyText}
                 testid="read-older"
@@ -385,7 +385,7 @@
     </div>
     {#if excluded.length > 0}
       <div class="divider" data-testid="excluded-divider">
-        <span class="divider-label">{de.list.excluded}</span>
+        <span class="divider-label">{t.list.excluded}</span>
         {#if excludedCount !== null}<Count value={excludedCount} testid="excluded-count" />{/if}
       </div>
       <div class="rows" data-testid="excluded-rows">
@@ -398,8 +398,8 @@
         <Notice
           tone="warning"
           variant="row"
-          text={de.list.pageFailed}
-          action={{ label: de.common.retry, onclick: () => void jobs.grow() }}
+          text={t.list.pageFailed}
+          action={{ label: t.common.retry, onclick: () => void jobs.grow() }}
           testid="page-error"
         />
       </div>

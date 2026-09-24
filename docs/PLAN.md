@@ -7,7 +7,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 ## Decisions (user answers, binding)
 | Topic | Decision |
 |---|---|
-| UI language | German, one catalog `ui/src/lib/i18n/de.ts`, no switcher |
+| UI language | superseded (user, 2026-09-25): German and English. Einstellungen > Sprache (Deutsch / English) switches the whole app at once, no restart; the default follows the OS language (German system = Deutsch, any other = English, `sys-locale` in `platform.rs`); the choice is stored in the settings (`language`, `save_settings`). `de.ts` stays the source catalog, `en.ts` has its type (a missing or extra key is a type error), the screens read `t` (`lib/i18n/t.ts`); numbers and dates de-DE / en-GB. Excel file, HTML overview, the AI prompts (with `ai_rubric.en.md`), the CV prompt, file dialogs and the sign-in window follow the setting, the macOS menu the OS; the TXT files stay German and byte-identical |
 | Frontend | Svelte 5 + Vite + TypeScript, no SvelteKit, no animation library, Lucide icons only |
 | Keys | only inside fields/dialogs: Tab/Shift+Tab, Enter = save, Esc = cancel, Ctrl/Cmd+C/V/X/A/Z. Amended by the input audit (2026-09-24): fields take every character of the layout (AltGr on Windows, Option on macOS) and the OS editing keys (word/line moves, delete word, redo, Shift selection); Tab/Shift+Tab move the focus everywhere and Enter/Space press the focused control (no dead end after a field); a modal dialog holds the focus; Cmd+, reaches the macOS menu. Still no own shortcuts and no WebView shortcut |
 | OS window functions | keep Alt+F4, Cmd+Q/W/M/H, double-click on title bar; no own shortcuts |
@@ -293,6 +293,10 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [x] Profile editor (form over the profile JSON, merge with one backup, Claude answer, chip fields, Schwerpunkte,
       wishes; 17 harness scenarios in both engines, baselines `profile`, `profile-empty`, `profile-paste`)
 - [x] >= 30 harness scenarios (200 in Chromium + WebKit after the polish round) in Chromium + WebKit; screenshot baselines; smoke probe of the real app
+- [x] German and English (see Decisions "UI language"): `en.ts`, reactive `t`, locale-aware `format.ts`, Sprache in
+      Einstellungen, exports and prompts in both languages; `ui_contract.rs` checks both catalogs (punctuation,
+      glossary, no German in English), `rust_texts.rs` the English Rust texts, `rubric.rs` the English rubric;
+      harness `language.spec.ts` with the English baselines `jobs-reader-en` and `settings-en`
 - Done when: core workflow works in both engines and the real app; every view in every state is captured; 0 lint
   exceptions; all 33 audit findings of the old UI are resolved. Send screenshots (Windows + macOS CI) to the user.
 
@@ -324,6 +328,8 @@ For each of Jobs, Reader, Day overview, Profil, Einstellungen, First run, dialog
 ## Glossary (UI)
 Job · Portal · Passung · Details · Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu (= unread) ·
 Zu prüfen · Merken. Checked for the UI catalog (`ui_contract.rs`) and the Rust texts: exports, startup dialog, window titles, file dialogs, macOS menu (`rust_texts.rs`).
+English (`en.ts`, the English exports): Job · Portal · Match · Details · Fetch · Profile · Mailbox · Alert mail · Overview ·
+Excel file · Excluded · New · To check · Saved · Applications · Archive; "Copy as prompt"; product and portal names stay.
 
 
 ## Budget and models

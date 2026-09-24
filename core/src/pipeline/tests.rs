@@ -33,6 +33,7 @@ fn ctx(workspace: &Path, dry_run: bool) -> RunContext {
         fetch_portals: Portal::ALL.to_vec(),
         sign_in: vec![Portal::FreelanceDe],
         auto_archive_days: 0,
+        language: Language::De,
     }
 }
 
@@ -239,7 +240,7 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     assert_eq!(s.export.as_ref().unwrap().txt_written, 0);
     assert_eq!(txt_files(dir.path()), 4);
     // Without a change the overview is not touched (an open Excel file is not disturbed).
-    let again = export_all(&store, dir.path(), &[], s.run, c());
+    let again = export_all(&store, dir.path(), &[], s.run, c(), Language::De);
     assert_eq!(again.overview_xlsx, None);
 }
 
@@ -666,14 +667,14 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
     std::fs::write(result_dir.join(export::XLSX_NAME), b"fremd").unwrap();
     let now = Timestamp::now();
 
-    let first = export_all(&store, dir.path(), &[], 1, now);
+    let first = export_all(&store, dir.path(), &[], 1, now, Language::De);
     let backup = first.backup.clone().expect("foreign file backed up");
     assert_eq!(std::fs::read(&backup).unwrap(), b"fremd");
     assert!(first.overview_xlsx.is_some());
 
     // Further runs continue the app's own file without backing it up again.
-    let second = export_all(&store, dir.path(), &[], 2, now);
-    let back = export_all(&store, dir.path(), &[], 3, now);
+    let second = export_all(&store, dir.path(), &[], 2, now, Language::De);
+    let back = export_all(&store, dir.path(), &[], 3, now, Language::De);
     assert_eq!((second.backup, back.backup), (None, None));
     assert!(back.overview_xlsx.is_some(), "new run: sheet \"Info\" anew");
     let backups = std::fs::read_dir(&result_dir)
@@ -688,7 +689,7 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
         .count();
     assert_eq!(backups, 1);
     // Without a new run and without new data the overview stays.
-    let again = export_all(&store, dir.path(), &[], 3, now);
+    let again = export_all(&store, dir.path(), &[], 3, now, Language::De);
     assert_eq!(again.overview_xlsx, None);
 }
 
@@ -699,7 +700,7 @@ fn an_unreadable_export_stamp_leaves_the_overview_alone() {
     let dir = tempfile::tempdir().unwrap();
     let (store, db) = store_on_disk(dir.path());
     let now = Timestamp::now();
-    let first = export_all(&store, dir.path(), &[], 1, now);
+    let first = export_all(&store, dir.path(), &[], 1, now, Language::De);
     assert!(first.overview_xlsx.is_some() && first.backup.is_none());
     let path = dir.path().join(RESULT_DIR).join(export::XLSX_NAME);
     let before = std::fs::read(&path).unwrap();
@@ -709,7 +710,7 @@ fn an_unreadable_export_stamp_leaves_the_overview_alone() {
         .unwrap()
         .execute("DROP TABLE kv", [])
         .unwrap();
-    let again = export_all(&store, dir.path(), &[], 2, now);
+    let again = export_all(&store, dir.path(), &[], 2, now, Language::De);
     assert_eq!(again.backup, None, "no backup with unknown ownership");
     assert_eq!(again.overview_xlsx, None);
     assert_eq!(std::fs::read(&path).unwrap(), before, "file unchanged");
@@ -738,7 +739,7 @@ fn a_failed_mark_counts_the_rest_and_keeps_the_first_error() {
             [],
         )
         .unwrap();
-    let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now());
+    let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now(), Language::De);
     assert_eq!(
         (summary.txt_written, summary.txt_failed),
         (0, 2),
@@ -763,7 +764,7 @@ fn the_first_error_survives_a_later_one() {
     let (store, _) = store_with_texts();
     // A file stands where the result folder should be: nothing can be written there.
     std::fs::write(dir.path().join(RESULT_DIR), b"no folder").unwrap();
-    let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now());
+    let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now(), Language::De);
     assert_eq!((summary.txt_written, summary.txt_failed), (0, 2));
     assert_eq!(summary.overview_xlsx, None);
     let error = summary.error.expect("an error");
@@ -800,8 +801,8 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
         &c,
     )
     .await;
-    let after_good = store.kv_get(LAST_SCAN_INFO).unwrap().unwrap();
-    assert!(after_good.contains("\"5\""));
+    let after_good = store.kv_get(LAST_SCAN_FACTS).unwrap().unwrap();
+    assert!(after_good.contains("\"new\":5"), "{after_good}");
     assert!(!after_good.contains('@'), "no mail address in the file");
     let (failed, _) = go(
         &mut Failing,
@@ -825,9 +826,27 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
         &c,
     )
     .await;
-    assert_eq!(store.kv_get(LAST_SCAN_INFO).unwrap().unwrap(), after_good);
-    let rows = info_rows(&store, c());
+    assert_eq!(store.kv_get(LAST_SCAN_FACTS).unwrap().unwrap(), after_good);
+    let rows = info_rows(&store, c(), &texts::DE);
     assert!(rows.iter().any(|(k, v)| k == texts::INFO_NEW && v == "5"));
+    assert!(
+        rows.iter()
+            .any(|(k, v)| k == texts::INFO_SCOPE && v == texts::SCOPE_NEW)
+    );
+    // The same scan in English: the words follow the language, the numbers stay.
+    let rows = info_rows(&store, c(), &texts::EN);
+    assert!(
+        rows.iter()
+            .any(|(k, v)| k == texts::en::INFO_NEW && v == "5")
+    );
+    assert!(
+        rows.iter()
+            .any(|(k, v)| k == texts::en::INFO_SCOPE && v == texts::en::SCOPE_NEW)
+    );
+    assert!(
+        rows.iter().all(|(k, _)| !k.contains("Postfach")),
+        "{rows:?}"
+    );
 }
 
 /// Rows stored by an earlier version (mail address, "Lauf" for a mailbox scan) come out in
@@ -844,7 +863,17 @@ fn info_rows_of_an_earlier_version_use_todays_words() {
         ["Doppelt in mehreren Mails (letzter Lauf)", "0"]
     ]);
     store.kv_set(LAST_SCAN_INFO, &old.to_string()).unwrap();
-    let rows = info_rows(&store, Timestamp::now());
+    let english = info_rows(&store, Timestamp::now(), &texts::EN);
+    assert_eq!(
+        english[0],
+        (
+            texts::en::INFO_LAST_SCAN.to_owned(),
+            "01.09.2026 08:00".to_owned()
+        )
+    );
+    assert_eq!(english[1].1, texts::en::SCOPE_NEW);
+    assert_eq!(english[2], (texts::en::INFO_NEW.to_owned(), "3".to_owned()));
+    let rows = info_rows(&store, Timestamp::now(), &texts::DE);
     let labels: Vec<&str> = rows.iter().map(|(label, _)| label.as_str()).collect();
     assert_eq!(
         labels,
@@ -870,14 +899,17 @@ fn a_text_file_the_user_removed_is_never_recreated_by_itself() {
     let dir = tempfile::tempdir().unwrap();
     let (store, keys) = store_with_texts();
     let now = Timestamp::now();
-    assert_eq!(export_all(&store, dir.path(), &[], 1, now).txt_written, 2);
+    assert_eq!(
+        export_all(&store, dir.path(), &[], 1, now, Language::De).txt_written,
+        2
+    );
     let txt_dir = dir.path().join(RESULT_DIR).join(TXT_DIR);
     let name = |key| store.job(key).unwrap().unwrap().txt_name.unwrap();
     let (deleted, emptied) = (txt_dir.join(name(&keys[0])), txt_dir.join(name(&keys[1])));
     std::fs::remove_file(&deleted).unwrap();
     std::fs::write(&emptied, b"").unwrap();
 
-    let next = export_all(&store, dir.path(), &[], 2, now);
+    let next = export_all(&store, dir.path(), &[], 2, now, Language::De);
     assert_eq!((next.txt_written, next.txt_failed), (0, 0));
     assert!(!deleted.exists(), "a deleted file stays away");
     assert!(
@@ -896,7 +928,7 @@ fn a_failed_rewrite_keeps_the_marks() {
     let dir = tempfile::tempdir().unwrap();
     let (store, keys) = store_with_texts();
     let now = Timestamp::now();
-    let first = export_all(&store, dir.path(), &[], 1, now);
+    let first = export_all(&store, dir.path(), &[], 1, now, Language::De);
     assert_eq!(first.txt_written, 2);
     let txt_dir = dir.path().join(RESULT_DIR).join(TXT_DIR);
     let blocked = txt_dir.join(store.job(&keys[1]).unwrap().unwrap().txt_name.unwrap());
@@ -909,7 +941,7 @@ fn a_failed_rewrite_keeps_the_marks() {
     assert_eq!(rewrite.txt_failed_keys, [keys[1].to_string()]);
     // No mark was removed: nothing counts as "still to write".
     assert!(store.txt_jobs(false).unwrap().is_empty());
-    let next = export_all(&store, dir.path(), &[], 2, now);
+    let next = export_all(&store, dir.path(), &[], 2, now, Language::De);
     assert_eq!(
         (next.txt_written, next.txt_failed),
         (0, 0),
@@ -926,7 +958,7 @@ fn an_unusable_text_folder_is_one_clear_error() {
     let result_dir = dir.path().join(RESULT_DIR);
     std::fs::create_dir_all(&result_dir).unwrap();
     std::fs::write(result_dir.join(TXT_DIR), b"a file instead of the folder").unwrap();
-    let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now());
+    let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now(), Language::De);
     assert_eq!((summary.txt_written, summary.txt_failed), (0, 2));
     // Here too the list names the affected jobs - it is never empty next to a number.
     let mut failed = summary.txt_failed_keys.clone();
@@ -1895,7 +1927,7 @@ async fn a_deleted_job_leaves_its_files_and_stays_gone() {
         Some(dir.path()),
         None,
         std::slice::from_ref(&victim.key),
-        c(),
+        (c(), Language::De),
     )
     .unwrap();
     assert_eq!(deleted.export_error, None);
@@ -2005,10 +2037,10 @@ async fn the_excel_sheet_leaves_out_archived_jobs() {
     let rows = overview_rows(dir.path());
     let key = store.jobs(&JobFilter::default()).unwrap()[0].key.clone();
     store.set_archived(&key, true, c()).unwrap();
-    export_all(&store, dir.path(), &[], 2, c());
+    export_all(&store, dir.path(), &[], 2, c(), Language::De);
     assert_eq!(overview_rows(dir.path()), rows - 1);
     store.set_archived(&key, false, c()).unwrap();
-    export_all(&store, dir.path(), &[], 3, c());
+    export_all(&store, dir.path(), &[], 3, c(), Language::De);
     assert_eq!(overview_rows(dir.path()), rows);
     let all = store.jobs(&JobFilter::default()).unwrap().len();
     let listed = store

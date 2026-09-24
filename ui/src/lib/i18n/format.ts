@@ -1,35 +1,66 @@
-// Numbers and dates for the German UI. Render the results with tabular numbers
+// Numbers and dates in the app's language (language.svelte.ts): German (de-DE) or British
+// English (en-GB, 24 h, day first). Every call reads the current language, so what a
+// template formats follows a switch at once. Render the results with tabular numbers
 // (`font-variant-numeric: var(--numeric)`), so counters do not jitter.
 
-const LOCALE = 'de-DE';
+import type { Language } from '../ipc/types';
+import { language } from './language.svelte';
+
 /** U+202F, the narrow no-break space between a number and its unit (`87 %`). */
 export const NARROW_NBSP = ' ';
 
-const integer = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
-const relative = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' });
-const relativeShort = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto', style: 'short' });
-const dayMonth = new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: '2-digit' });
-const weekday = new Intl.DateTimeFormat(LOCALE, { weekday: 'short' });
-const dayMonthYear = new Intl.DateTimeFormat(LOCALE, {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-});
-const clock = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit' });
+interface Formats {
+  integer: Intl.NumberFormat;
+  oneDecimal: Intl.NumberFormat;
+  relative: Intl.RelativeTimeFormat;
+  relativeShort: Intl.RelativeTimeFormat;
+  dayMonth: Intl.DateTimeFormat;
+  weekday: Intl.DateTimeFormat;
+  dayMonthYear: Intl.DateTimeFormat;
+  clock: Intl.DateTimeFormat;
+}
+
+/** The formats of each language, built on first use. */
+const built = new Map<Language, Formats>();
+
+function formats(): Formats {
+  const current = language.current;
+  let found = built.get(current);
+  if (found === undefined) {
+    const locale = language.locale;
+    found = {
+      integer: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }),
+      oneDecimal: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
+      relative: new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }),
+      relativeShort: new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' }),
+      dayMonth: new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }),
+      weekday: new Intl.DateTimeFormat(locale, { weekday: 'short' }),
+      dayMonthYear: new Intl.DateTimeFormat(locale, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }),
+      clock: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }),
+    };
+    built.set(current, found);
+  }
+  return found;
+}
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 const RELATIVE_DAYS = 7;
 
-/** `1.234` */
+/** `1.234`, `1,234` */
 export function formatNumber(value: number): string {
-  return integer.format(value);
+  return formats().integer.format(value);
 }
 
-/** `87 %` with a narrow no-break space. */
+/** `87 %` with a narrow no-break space in German, `87%` in English. */
 export function formatPercent(value: number): string {
-  return `${integer.format(value)}${NARROW_NBSP}%`;
+  const number = formats().integer.format(value);
+  return language.current === 'de' ? `${number}${NARROW_NBSP}%` : `${number}%`;
 }
 
 function startOfDay(date: Date): number {
@@ -37,14 +68,16 @@ function startOfDay(date: Date): number {
 }
 
 /**
- * `jetzt` · `vor 5 Minuten` · `vor 3 Stunden` · `gestern` · `vor 4 Tagen`, then `12.09.`
- * (with the year if it is not the current one). `short` abbreviates the units for dense
- * lines (`vor 3 Std.`, `vor 5 Min.`).
+ * `jetzt` · `vor 5 Minuten` · `vor 3 Stunden` · `gestern` · `vor 4 Tagen`, then `Sa 12.09.`
+ * (with the year if it is not the current one); in English `now` · `5 minutes ago` ·
+ * `yesterday` ... `12/09`. `short` abbreviates the units for dense lines (`vor 3 Std.`,
+ * `3 hr ago`).
  */
 export function formatRelative(iso: string, now: Date = new Date(), short = false): string {
   const date = new Date(iso);
   const time = date.getTime();
   if (Number.isNaN(time)) return '';
+  const { relative, relativeShort, dayMonth, weekday, dayMonthYear } = formats();
   const format = short ? relativeShort : relative;
   const diff = now.getTime() - time;
   const days = Math.round((startOfDay(now) - startOfDay(date)) / DAY);
@@ -54,7 +87,8 @@ export function formatRelative(iso: string, now: Date = new Date(), short = fals
     return format.format(-Math.floor(diff / HOUR), 'hour');
   }
   if (days > 0 && days <= RELATIVE_DAYS) return format.format(-days, 'day');
-  // Older: the weekday with the date ("So 20.09."), so last week is found without counting.
+  // Older: the weekday with the date ("So 20.09.", "Sun 20/09"), so last week is found
+  // without counting.
   if (date.getFullYear() !== now.getFullYear()) return dayMonthYear.format(date);
   return `${weekday.format(date).replace(/\.$/, '')} ${dayMonth.format(date)}`;
 }
@@ -62,39 +96,38 @@ export function formatRelative(iso: string, now: Date = new Date(), short = fals
 /** `14:05` */
 export function formatTime(iso: string): string {
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '' : clock.format(date);
+  return Number.isNaN(date.getTime()) ? '' : formats().clock.format(date);
 }
 
-/** `24.09.2026` */
+/** `24.09.2026`, `24/09/2026` */
 export function formatDate(iso: string): string {
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '' : dayMonthYear.format(date);
+  return Number.isNaN(date.getTime()) ? '' : formats().dayMonthYear.format(date);
 }
 
-/** `14:05` today, `25.09. 14:05` on another day. */
+/** `14:05` today, `25.09. 14:05` (`25/09 14:05`) on another day. */
 export function formatMoment(iso: string, now: Date = new Date()): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
+  const { clock, dayMonth } = formats();
   return startOfDay(date) === startOfDay(now)
     ? clock.format(date)
     : `${dayMonth.format(date)} ${clock.format(date)}`;
 }
 
-const oneDecimal = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 });
-
-/** `18 KB`, `1,2 MB` */
+/** `18 KB`, `1,2 MB` (`1.2 MB`) */
 export function formatBytes(bytes: number): string {
+  const { integer, oneDecimal } = formats();
   const kb = bytes / 1024;
   if (kb < 1024) return `${integer.format(Math.max(1, Math.round(kb)))}${NARROW_NBSP}KB`;
   return `${oneDecimal.format(kb / 1024)}${NARROW_NBSP}MB`;
 }
 
-/** `1.200 €` */
+/** `1.200 €` in German, `€1,200` in English. */
 export function formatEuro(value: number | string | boolean | null | undefined): string {
   const number = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(number)
-    ? `${integer.format(number)}${NARROW_NBSP}€`
-    : `${String(value ?? '')}${NARROW_NBSP}€`;
+  const amount = Number.isFinite(number) ? formats().integer.format(number) : String(value ?? '');
+  return language.current === 'de' ? `${amount}${NARROW_NBSP}€` : `€${amount}`;
 }
 
 /** Remaining time as `4:05` (minutes and seconds) or `1:04:05`. */

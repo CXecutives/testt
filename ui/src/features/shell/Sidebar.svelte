@@ -13,7 +13,7 @@
   import DragBand from '$components/DragBand.svelte';
   import SideNav, { type SideNavItem } from '$components/SideNav.svelte';
   import StatusLine from '$components/StatusLine.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { settled } from '$lib/motion/settled.svelte';
   import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
@@ -27,9 +27,9 @@
   // New jobs over everything (the overview's unfiltered counts), whatever the list shows.
   const unread = $derived(jobs.overviewCounts?.new ?? app.state?.counts.new ?? 0);
   const items = $derived<SideNavItem<ViewId>[]>([
-    { id: 'jobs', label: de.nav.jobs, icon: 'briefcase', count: unread, testid: 'nav-jobs' },
-    { id: 'profile', label: de.nav.profile, icon: 'user-round', testid: 'nav-profile' },
-    { id: 'settings', label: de.nav.settings, icon: 'sliders-horizontal', testid: 'nav-settings' },
+    { id: 'jobs', label: t.nav.jobs, icon: 'briefcase', count: unread, testid: 'nav-jobs' },
+    { id: 'profile', label: t.nav.profile, icon: 'user-round', testid: 'nav-profile' },
+    { id: 'settings', label: t.nav.settings, icon: 'sliders-horizontal', testid: 'nav-settings' },
   ]);
   // The last fetch: a rescore of this session is no fetch.
   const fetched = $derived(run.summary?.kind === 'rescore' ? null : run.summary);
@@ -37,11 +37,11 @@
   const failed = $derived(!run.active && last?.outcome.kind === 'failed');
   const status = $derived.by(() => {
     if (run.active) {
-      if (run.status) return de.run.statusOf(run.status.code, run.status.portal);
-      return run.step ? de.run.step[run.step] : de.run.kind[run.kind ?? 'fetch'];
+      if (run.status) return t.run.statusOf(run.status.code, run.status.portal);
+      return run.step ? t.run.step[run.step] : t.run.kind[run.kind ?? 'fetch'];
     }
-    if (failed) return de.shell.runFailed;
-    return last ? de.shell.last(last.finishedAt) : de.run.never;
+    if (failed) return t.shell.runFailed;
+    return last ? t.shell.last(last.finishedAt) : t.run.never;
   });
   const setup = $derived(navigation.current === 'jobs' && shell.firstRun);
   // A click opens the run card: without a run to open the status would be a dead button.
@@ -68,7 +68,7 @@
     <SideNav
       {items}
       active={navigation.current}
-      label={de.nav.label}
+      label={t.nav.label}
       collapsed={viewport.rail}
       onselect={(id) => navigation.go(id)}
     />
@@ -78,12 +78,12 @@
     <div class="status" transition:fade={{ on: motion.ready }}>
       <StatusLine
         text={status}
-        label={de.shell.showRun}
+        label={t.shell.showRun}
         icon={failed ? 'triangle-alert' : 'clock'}
         tone={failed ? 'danger' : 'neutral'}
         busy={run.active}
         progress={run.active && !viewport.rail ? run.fraction : undefined}
-        progressLabel={de.toolbar.progress}
+        progressLabel={t.toolbar.progress}
         collapsed={viewport.rail}
         testid="run-status"
         onclick={openRun}

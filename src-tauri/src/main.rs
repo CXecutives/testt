@@ -196,6 +196,7 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), Failure> {
         data_dir,
         dry_run,
         user_agent: platform::USER_AGENT.to_owned(),
+        system_language: platform::system_language(),
         reset_report: Mutex::new(reset_report),
         gmail_user: Mutex::new(GmailUser::Unread),
         activity: Mutex::new(Activity::Idle),

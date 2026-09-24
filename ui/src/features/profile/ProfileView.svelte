@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
   import Dialog from '$components/Dialog.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import { app } from '$lib/state/app.svelte';
@@ -125,7 +125,7 @@
       if (form) editor.edit(form);
       else editor.close();
       saved = true;
-      toasts.show(de.profile.saved);
+      toasts.show(t.profile.saved);
     } catch (error) {
       saveNote = errorText(error);
     } finally {
@@ -182,10 +182,10 @@
   {:else if editor.origin === null}
     <div class="empty">
       <ProfileStart
-        heading={profile?.parseError ? de.profile.parseError : de.profile.none}
+        heading={profile?.parseError ? t.profile.parseError : t.profile.none}
         text={profile?.parseError
-          ? de.error.text(profile.parseError.kind, profile.parseError.params)
-          : de.profile.noneText}
+          ? t.error.text(profile.parseError.kind, profile.parseError.params)
+          : t.profile.noneText}
         picking={busy === 'pick'}
         {note}
         oncreate={() => editor.create()}
@@ -221,9 +221,9 @@
 <Dialog
   bind:open={confirmRemove}
   variant="danger"
-  heading={de.profile.removeHeading}
-  text={de.profile.removeText}
-  confirmLabel={de.profile.remove}
+  heading={t.profile.removeHeading}
+  text={t.profile.removeText}
+  confirmLabel={t.profile.remove}
   busy={busy === 'remove'}
   testid="dialog-remove-profile"
   onconfirm={() => void remove()}
@@ -232,9 +232,9 @@
 <Dialog
   open={leaving !== null}
   variant="danger"
-  heading={de.profile.leaveHeading}
-  text={de.profile.leaveText}
-  confirmLabel={de.profile.discard}
+  heading={t.profile.leaveHeading}
+  text={t.profile.leaveText}
+  confirmLabel={t.profile.discard}
   testid="dialog-leave-profile"
   onconfirm={leave}
   oncancel={() => (leaving = null)}

@@ -18,7 +18,7 @@
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
   import { factWords, rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
@@ -75,7 +75,7 @@
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
   const reason = $derived(ring ? rowReason(job) : null);
   const facts = $derived(ring ? factWords(job.match?.facts) : []);
-  const heading = $derived(job.title ? displayTitle(job.title) : de.job.untitled);
+  const heading = $derived(job.title ? displayTitle(job.title) : t.job.untitled);
 
   /** At most one badge, and only when something is not as usual. */
   const deviation = $derived.by(
@@ -85,10 +85,10 @@
       const detail = job.detail.kind;
       if (detail !== 'ok') {
         const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
-        return { label: de.job.detail[detail], tone, hint: de.job.detailHint[detail] };
+        return { label: t.job.detail[detail], tone, hint: t.job.detailHint[detail] };
       }
       if (job.match?.status === 'unscorable') {
-        return { label: de.score.unscorable, tone: 'neutral', hint: null };
+        return { label: t.score.unscorable, tone: 'neutral', hint: null };
       }
       return null;
     },
@@ -107,7 +107,7 @@
   {#if onpin || onarchive}
     <span class="tool-slot" class:two={onpin && onarchive} aria-hidden="true"></span>
   {:else if job.pinned}
-    <span class="star" role="img" aria-label={de.job.pinned}
+    <span class="star" role="img" aria-label={t.job.pinned}
       ><Icon name="star" size="sm" filled /></span
     >
   {/if}
@@ -144,7 +144,7 @@
         />{/if}
     </span>
   </ListRow>
-  {#if job.unread && !excluded}<span class="dot" role="img" aria-label={de.job.unread} out:dotOut
+  {#if job.unread && !excluded}<span class="dot" role="img" aria-label={t.job.unread} out:dotOut
     ></span>{/if}
   {#if onpin || onarchive}
     <span class="tools">
@@ -155,7 +155,7 @@
             size="sm"
             iconOnly
             icon={job.archived ? 'archive-restore' : 'archive'}
-            label={job.archived ? de.reader.restore : de.reader.archive}
+            label={job.archived ? t.reader.restore : t.reader.archive}
             testid="archive-{job.key.portal}-{job.key.id}"
             onclick={() => onarchive?.(job)}
           />
@@ -168,7 +168,7 @@
             size="sm"
             iconOnly
             icon="star"
-            label={job.pinned ? de.reader.unpin : de.reader.pin}
+            label={job.pinned ? t.reader.unpin : t.reader.pin}
             pressed={job.pinned}
             testid="pin-{job.key.portal}-{job.key.id}"
             onclick={() => onpin?.(job)}
