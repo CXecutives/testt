@@ -12,8 +12,8 @@
   never goes blank. The new stage rises in over the old one, which keeps its own scroll
   position and fades: the new job starts at the top and the old text never jumps. The old
   stage is the real one on its way out (nothing is copied or laid out again); it answers no
-  pointer and drops its test ids. The close button in the reader head, a second click on the
-  selected row, Esc and a search that no longer finds the job go back to the day overview.
+  pointer and drops its test ids. The close button in the reader head, Esc and a search
+  that no longer finds the job go back to the day overview.
   The keys of a mail app (lib/input/input.ts): ArrowUp/ArrowDown open the previous/next job,
   Home/End the first/last, Ctrl+F (Cmd+F on macOS) goes to the search.
 -->

@@ -14,7 +14,8 @@
 
 import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
+import { LogicalPosition } from '@tauri-apps/api/dpi';
+import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import type { Commands, ErrorInfo, ErrorKind, RunEvent } from './types';
 
 export type CommandName = keyof Commands;
@@ -208,6 +209,41 @@ export async function popupEditMenu(entries: readonly EditEntry[]): Promise<void
     await menu.popup();
   } catch (error) {
     reportUiError(`context menu: ${String(error)}`, null, null);
+  }
+}
+
+/** One choice of a menu under a control (the order of the list). */
+export interface MenuChoice {
+  text: string;
+  checked: boolean;
+  onselect: () => void;
+}
+
+/**
+ * A native menu of choices that opens under a control, the OS's own: check items, the
+ * current one ticked. `at` is where it opens, in page pixels (the control's bottom left).
+ */
+export async function popupChoiceMenu(
+  choices: readonly MenuChoice[],
+  at: { x: number; y: number },
+): Promise<void> {
+  try {
+    const items = await Promise.all(
+      choices.map((choice) =>
+        CheckMenuItem.new({
+          text: choice.text,
+          checked: choice.checked,
+          action: () => choice.onselect(),
+        }),
+      ),
+    );
+    const menu = await Menu.new({ items });
+    const previous = shownMenu;
+    shownMenu = menu;
+    void previous?.close();
+    await menu.popup(new LogicalPosition(at.x, at.y));
+  } catch (error) {
+    reportUiError(`choice menu: ${String(error)}`, null, null);
   }
 }
 

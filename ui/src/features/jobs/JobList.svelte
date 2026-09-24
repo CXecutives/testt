@@ -6,8 +6,8 @@
   new rows are simply there. A search and live updates never move anything. Excluded jobs
   sit grey behind the divider "Ausgeschlossen" with a soft count (under Neu or a filter too,
   there without the count: the rows below are only a part of the excluded jobs). A page that
-  fails to load while scrolling says so at the end of the list, with a retry. Clicking the
-  selected row again closes it (back to the day overview). At the end of Alle a divider
+  fails to load while scrolling says so at the end of the list, with a retry. At the end of
+  Alle a divider
   leads to the archived jobs. An empty list says where jobs come from (an alert on each
   portal, older mails). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
@@ -104,10 +104,9 @@
     openAt(last ? order.length - 1 : 0);
   }
 
-  /** A click on the selected row closes it again: back to the day overview. */
+  /** A click opens the job (the open one stays open). */
   function select(job: JobView): void {
-    if (sameKey(jobs.selected, job.key)) jobs.clearSelection();
-    else void jobs.select(job, true);
+    if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
   }
   // A search also finds archived jobs: their count (the list's, with the search) under the
   // live hits, a way into the archive with the same search.

@@ -577,9 +577,11 @@ export const de = {
     facetSaved: 'Favoriten',
     /** The order of the list in words (the sort button). */
     sortLabel: {
-      match: 'Beste Passung',
-      newest: 'Neueste',
+      match: 'Nach Passung',
+      newest: 'Nach Datum',
     } satisfies Record<JobSort, string>,
+    /** The order without a usable profile: there is no fit to sort by. */
+    sortNoProfile: 'Ohne Profil nur nach Datum.',
     search: 'Suchen',
     searchLabel: 'Jobs durchsuchen',
     needsMailbox: 'Erst ein Postfach verbinden.',
@@ -792,6 +794,7 @@ export const de = {
       sent: 'Beworben',
     } satisfies Record<AppStatus, string>,
     mail: OPEN_MAIL,
+    noMail: 'Zu diesem Job gibt es keine Alert-Mail.',
     fetchDetails: 'Details holen',
     why: 'Warum',
     wishes: 'Wünsche',

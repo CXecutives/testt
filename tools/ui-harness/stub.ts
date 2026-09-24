@@ -66,8 +66,11 @@ interface Harness {
   holdAfter: number | null;
   /** A copy of a job as the stub holds it (null if unknown). */
   job: (key: JobKey) => JobView | null;
-  /** The native context menus shown (entries: text, enabled, OS command or null). */
-  menus: { text: string; enabled: boolean; command: string | null }[][];
+  /** The native menus shown (entries: text, enabled, OS command or null; a choice menu's
+   *  items say whether they are ticked). */
+  menus: { text: string; enabled: boolean; command: string | null; checked?: boolean }[][];
+  /** Picks the item with this text in the menu shown last (the user's click on it). */
+  choose: (text: string) => void;
 }
 
 declare global {
@@ -1941,6 +1944,10 @@ const harness: Harness = {
   failPages: 0,
   holdAfter: null,
   menus: [],
+  choose(text) {
+    const item = lastMenu.find((entry) => entry.entry.text === text);
+    if (item instanceof CheckMenuItem) item.action?.(text);
+  },
   job(key) {
     const found = find(key);
     return found === undefined ? null : structuredClone(found);
@@ -1957,6 +1964,42 @@ interface StubItem {
   text: string;
   enabled: boolean;
   command: string | null;
+  checked?: boolean;
+}
+
+/** The items of the menu shown last (`harness.choose` clicks one). */
+let lastMenu: (MenuItem | PredefinedMenuItem | CheckMenuItem)[] = [];
+
+/** @tauri-apps/api/dpi: where a menu opens. */
+export class LogicalPosition {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+}
+
+export class CheckMenuItem {
+  constructor(
+    readonly entry: StubItem,
+    readonly action: ((id: string) => void) | undefined,
+  ) {}
+
+  static async new(options: {
+    text: string;
+    checked?: boolean;
+    enabled?: boolean;
+    action?: (id: string) => void;
+  }): Promise<CheckMenuItem> {
+    return new CheckMenuItem(
+      {
+        text: options.text,
+        enabled: options.enabled ?? true,
+        command: null,
+        checked: options.checked ?? false,
+      },
+      options.action,
+    );
+  }
 }
 
 export class MenuItem {
@@ -1980,14 +2023,17 @@ export class PredefinedMenuItem {
 }
 
 export class Menu {
-  constructor(readonly items: (MenuItem | PredefinedMenuItem)[]) {}
+  constructor(readonly items: (MenuItem | PredefinedMenuItem | CheckMenuItem)[]) {}
 
-  static async new(options: { items: (MenuItem | PredefinedMenuItem)[] }): Promise<Menu> {
+  static async new(options: {
+    items: (MenuItem | PredefinedMenuItem | CheckMenuItem)[];
+  }): Promise<Menu> {
     return new Menu(options.items);
   }
 
-  async popup(): Promise<void> {
+  async popup(_at?: LogicalPosition): Promise<void> {
     harness.menus.push(this.items.map((item) => item.entry));
+    lastMenu = this.items;
   }
 
   async close(): Promise<void> {}

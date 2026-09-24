@@ -11,7 +11,8 @@
     not react otherwise.
   - Loading keeps the width: the content fades out under the spinner.
   - A ghost toggle (the pin star) pops once when it is switched on by a click.
-  - turned: the glyph stands half a turn (the sort order); it turns in 180 ms.
+  - turned: the glyph stands half a turn; it turns in 180 ms.
+  - menu: it opens a menu (the order of the list): a small chevron after the label.
   - link: navy text that underlines on hover (a way on, e.g. under a field).
   - inField: a button inside a text field (show password, clear search), like the native
     ones: not in the Tab order, and a click leaves the caret in the field.
@@ -49,8 +50,10 @@
     type?: 'button' | 'submit';
     /** Toggle buttons (e.g. the pin star). */
     pressed?: boolean | null;
-    /** The glyph stands half a turn (the sort toggle: newest first). */
+    /** The glyph stands half a turn. */
     turned?: boolean;
+    /** Opens a menu: a chevron after the label. */
+    menu?: boolean;
     /** Opens something outside the app (a link shows the hand then). */
     external?: boolean;
     /** Fill the width of the container. */
@@ -73,6 +76,7 @@
     type = 'button',
     pressed = null,
     turned = false,
+    menu = false,
     external = false,
     wide = false,
     inField = false,
@@ -113,6 +117,7 @@
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
   aria-pressed={pressed === null ? undefined : pressed}
+  aria-haspopup={menu ? 'menu' : undefined}
   tabindex={inField ? -1 : undefined}
   data-keep-focus={inField ? '' : undefined}
   data-testid={testid ?? undefined}
@@ -131,6 +136,9 @@
     {/if}
     {#if !iconOnly}
       <span class="label">{label}</span>
+    {/if}
+    {#if menu && !iconOnly}
+      <span class="caret"><Icon name="chevron-down" size="xs" /></span>
     {/if}
   </span>
   {#if loading}
@@ -174,6 +182,13 @@
   .glyph {
     display: inline-flex;
     transition: transform var(--dur-base) var(--ease-emphasized);
+  }
+
+  /* The chevron of a menu button sits a little closer to its label. */
+  .caret {
+    display: inline-flex;
+    margin-left: calc(-1 * var(--space-2));
+    color: var(--text-muted);
   }
 
   .busy {

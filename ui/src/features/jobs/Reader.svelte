@@ -9,10 +9,10 @@
   facts and the ad text are selectable and copy with Ctrl/Cmd+C (`data-copy`).
   Actions by weight: at the end of the title line the star (Favorit), Archivieren and a quiet
   close back to the day overview (below 900 px the view's back button does); below the match
-  line one row of outlined buttons, all alike: "Anzeige öffnen", "Alert-Mail öffnen",
-  "Prompt für KI-Bewertung kopieren" (the job as a prompt for any AI chat; "KI-Bewertung"
-  where the whole label does not fit) and "Details holen" when the details are missing (right
-  under the band when the job has no score yet).
+  line always the same three outlined buttons: "Anzeige öffnen", "Alert-Mail öffnen"
+  (disabled, saying why, without a mail) and "Prompt für KI-Bewertung kopieren" (the job as
+  a prompt for any AI chat; "KI-Bewertung" where the whole label does not fit). "Details
+  holen" has one place: next to the note on the missing text, above the ad.
   After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
   that jumps to its passage makes the passage flash once when it has arrived. Once the
   action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
@@ -235,9 +235,6 @@
   );
 
   /** No score yet and the details can be fetched: the button stands right under the band. */
-  const fetchUnderBand = $derived(
-    canFetch && withRing && (match === null || match.status === 'unscorable'),
-  );
   /** A score from a teaser only is a first guess. */
   const preliminary = $derived(match?.status === 'scored' && detailKind === 'teaser');
 
@@ -562,20 +559,6 @@
         {:else if preliminary}
           <p class="because" data-testid="preliminary">{t.reader.preliminary}</p>
         {/if}
-        {#if fetchUnderBand}
-          <span class="fetch-here">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="download"
-              label={t.reader.fetchDetails}
-              disabled={run.active}
-              disabledReason={run.busyText}
-              testid="fetch-details"
-              onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
-            />
-          </span>
-        {/if}
         {#if clean}
           <p class="clean" aria-label={t.reader.frame} data-testid="criteria-clean">
             <span class="strip-label">{t.reader.frame}</span>
@@ -615,15 +598,15 @@
       testid="open-ad"
       onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
     />
-    {#if detail.mail.gmailUrl}
-      <Button
-        variant="secondary"
-        icon="mail"
-        label={t.reader.mail}
-        testid="open-mail"
-        onclick={() => openTarget({ kind: 'gmail', key: job.key })}
-      />
-    {/if}
+    <Button
+      variant="secondary"
+      icon="mail"
+      label={t.reader.mail}
+      disabled={!detail.mail.gmailUrl}
+      disabledReason={t.reader.noMail}
+      testid="open-mail"
+      onclick={() => openTarget({ kind: 'gmail', key: job.key })}
+    />
     <span class="with-hint" use:tooltip={t.reader.promptHint}>
       <Button
         variant="secondary"
@@ -633,17 +616,6 @@
         onclick={() => void copyPrompt()}
       />
     </span>
-    {#if canFetch && !fetchUnderBand}
-      <Button
-        variant="secondary"
-        icon="download"
-        label={t.reader.fetchDetails}
-        disabled={run.active}
-        disabledReason={run.busyText}
-        testid="fetch-details"
-        onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
-      />
-    {/if}
   </div>
   <span class="past-actions" use:inView={(place) => (compact = place === 'above')}></span>
   {#if actionError}
@@ -705,16 +677,30 @@
   <section class="ad">
     <h2 class="section">{t.reader.ad}</h2>
     {#if detailKind !== 'ok'}
-      <Notice
-        tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
-        variant="inline"
-        text={portalState &&
-        (!portalState.enabled || !portalState.fetchDetails) &&
-        detailKind === 'pending'
-          ? t.reader.detailsOff
-          : t.reader.detail[detailKind]}
-        testid="detail-note"
-      />
+      <div class="missing">
+        <Notice
+          tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
+          variant="inline"
+          text={portalState &&
+          (!portalState.enabled || !portalState.fetchDetails) &&
+          detailKind === 'pending'
+            ? t.reader.detailsOff
+            : t.reader.detail[detailKind]}
+          testid="detail-note"
+        />
+        {#if canFetch}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="download"
+            label={t.reader.fetchDetails}
+            disabled={run.active}
+            disabledReason={run.busyText}
+            testid="fetch-details"
+            onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
+          />
+        {/if}
+      </div>
     {:else if job.short && unscorable === null}
       <Notice tone="info" variant="inline" text={t.reader.short} />
     {/if}
@@ -996,9 +982,12 @@
     flex: 1;
   }
 
-  .fetch-here {
+  /* The note on the missing text, and the way to fetch it. */
+  .missing {
     display: flex;
-    margin-top: var(--space-2);
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8) var(--space-16);
   }
 
   /* The evidence of a point, quiet under it (on the axis of its words). */

@@ -137,18 +137,24 @@ test('mark_read only on a real click, and only once', async ({ page }) => {
   await expect(first).toBeVisible();
 });
 
-test('the sort switch reorders the list and keeps the selection', async ({ page }) => {
+test('the order menu reorders the list and keeps the selection', async ({ page }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   await row(page, 'freelancermap-2803').click();
   const before = await rows(page).evaluateAll((els) =>
     els.map((e) => e.getAttribute('data-testid')),
   );
-  // One quiet button names the order in words; a click switches it.
+  // One quiet button names the order; it opens the OS's menu with both, the current ticked.
   const sort = page.getByTestId('sort');
-  await expect(sort).toHaveText('Beste Passung');
+  await expect(sort).toHaveText('Nach Passung');
+  await expect(sort).toHaveAttribute('aria-haspopup', 'menu');
   await sort.click();
-  await expect(sort).toHaveText('Neueste');
+  expect((await page.evaluate(() => window.__harness.menus)).at(-1)).toEqual([
+    { text: 'Nach Passung', enabled: true, command: null, checked: true },
+    { text: 'Nach Datum', enabled: true, command: null, checked: false },
+  ]);
+  await page.evaluate(() => window.__harness.choose('Nach Datum'));
+  await expect(sort).toHaveText('Nach Datum');
   await expect
     .poll(() => rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid'))))
     .not.toEqual(before);
@@ -349,7 +355,11 @@ test('without a profile: empty rings, newest first, one line in the list leads t
   await expect(page.getByTestId('day-overview').getByTestId('no-profile')).toHaveCount(0);
   await expect(page.getByTestId('best')).toHaveCount(0);
   await expect(notice.locator('.btn.primary')).toHaveCount(0);
-  await expect(page.getByTestId('sort')).toHaveCount(0);
+  // Without a profile the order is by date; the menu cannot open, its tooltip says why.
+  await expect(page.getByTestId('sort')).toHaveText('Nach Datum');
+  await expect(page.getByTestId('sort')).toHaveAttribute('aria-disabled', 'true');
+  await page.getByTestId('sort').click({ force: true });
+  expect(await page.evaluate(() => window.__harness.menus)).toEqual([]);
   // Every row keeps its ring, empty: the titles stand where they always do.
   await expect(
     rows(page).first().getByRole('img', { name: 'Ohne Profil keine Passung' }),
@@ -501,8 +511,12 @@ test('details and pins: teaser note, fetch details, pin star', async ({ page }) 
   await row(page, 'freelance-900411').click();
   await expect(page.getByTestId('detail-note')).toContainText('Anriss');
   await expect(page.getByTestId('fetch-details')).toHaveCount(0);
-  // A job whose details are still missing fetches them.
+  // A job whose details are still missing fetches them, from the note on the missing text.
   await row(page, 'linkedin-4100200302').click();
+  await expect(page.getByTestId('fetch-details')).toHaveCount(1);
+  await expect(
+    page.getByTestId('detail-note').locator('xpath=..').getByTestId('fetch-details'),
+  ).toBeVisible();
   await page.getByTestId('fetch-details').click();
   const started = await calls(page, 'start_run');
   expect((started[0]?.[1] as { request: unknown }).request).toEqual({
@@ -533,7 +547,7 @@ test('the close button in the reader leads back to the day overview', async ({ p
   await expect(page.getByTestId('back')).toBeVisible();
 });
 
-test('a second click on the selected row closes it; a search that drops it too', async ({
+test('a second click on the open row keeps it open; a search that drops it closes it', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -541,11 +555,9 @@ test('a second click on the selected row closes it; a search that drops it too',
   await first.click();
   await expect(page.getByTestId('reader-ring')).toContainText('91');
   await first.click();
-  await expect(page.getByTestId('day-overview')).toBeVisible();
-  await expect(first).not.toHaveAttribute('aria-current', 'true');
-  // A search that no longer finds the open job goes back to the overview too.
-  await first.click();
   await expect(page.getByTestId('reader')).toBeVisible();
+  await expect(first).toHaveAttribute('aria-current', 'true');
+  // A search that no longer finds the open job goes back to the overview.
   await page.getByTestId('search').fill('Kernfusion');
   await expect(page.getByTestId('day-overview')).toBeVisible();
 });
@@ -663,9 +675,10 @@ test('only a re-sort moves rows: new jobs of a run land in place, the sort switc
   await page.getByTestId('search').fill('');
   await expect(rows(page)).not.toHaveCount(3);
   await rowsAtRest(page);
-  // The sort switch is a re-sort: the rows on screen glide to their new place.
+  // Another order is a re-sort: the rows on screen glide to their new place.
   await watchGlides(page, 120);
   await page.getByTestId('sort').click();
+  await page.evaluate(() => window.__harness.choose('Nach Datum'));
   expect(await glides(page)).toBeGreaterThan(0);
 });
 
@@ -697,10 +710,6 @@ test('the list header: one slot for Abrufen and Abbrechen, the filter, a line on
   await expect(header.getByTestId('filter')).toContainText('Archiv');
   await header.getByTestId('clear-filter').click();
   await expect(page.getByTestId('filter')).toHaveCount(0);
-  // The sort glyph turns.
-  await expect(page.getByTestId('sort')).not.toHaveClass(/turned/);
-  await page.getByTestId('sort').click();
-  await expect(page.getByTestId('sort')).toHaveClass(/turned/);
 });
 
 test('the reader: a compact bar once the actions scroll away, a jump flashes its passage', async ({

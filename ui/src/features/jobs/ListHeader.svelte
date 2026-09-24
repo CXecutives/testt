@@ -10,9 +10,10 @@
   Row 2: the one place for filters, Neu · Alle · Gemerkt · Bewerbungen with their counts
   (always there, also while the reader is open); the archive (archived jobs), reached from the end of
   Alle, show as a pill with its x instead.
-  Row 3 (with a profile): the order in words ("Beste Passung", "Neueste"), a quiet button
-  whose glyph stands half a turn for newest first; a click switches it. Under Gemerkt the
-  pinned jobs can be copied as one prompt for any AI chat at its end.
+  Row 3: the order, a quiet button with its name and a chevron ("Nach Passung", "Nach
+  Datum") that opens the OS's own menu with both, the current one ticked; one choice for
+  every list, kept. Without a usable profile it says "Nach Datum" and cannot open (why, in
+  its tooltip). Under Favoriten the favourites can be copied as one prompt for any AI chat.
   The bottom hairline shows only once the list below is scrolled.
 -->
 <script lang="ts">
@@ -27,6 +28,8 @@
   import { fade, pop } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
+  import { popupChoiceMenu } from '$lib/ipc/api';
+  import type { JobSort } from '$lib/ipc/types';
   import { jobs } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
@@ -54,6 +57,21 @@
     const input = searchBox?.querySelector('input');
     input?.focus();
     input?.select();
+  }
+
+  const SORTS: readonly JobSort[] = ['match', 'newest'];
+
+  /** The order menu opens under its button, the current order ticked. */
+  function chooseSort(event: MouseEvent): void {
+    const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    void popupChoiceMenu(
+      SORTS.map((sort) => ({
+        text: t.toolbar.sortLabel[sort],
+        checked: jobs.sortChoice === sort,
+        onselect: () => jobs.setSort(sort),
+      })),
+      { x: box.left, y: box.bottom },
+    );
   }
 
   let promptError = $state<string | null>(null);
@@ -167,60 +185,59 @@
       </span>
     {/if}
   </div>
-  {#if app.hasProfile}
-    <span class="order">
-      <span class="sort">
-        <Button
-          variant="ghost"
-          size="sm"
-          icon="arrow-up-down"
-          label={t.toolbar.sortLabel[jobs.sortChoice]}
-          turned={jobs.sortChoice === 'newest'}
-          testid="sort"
-          onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
-        />
-      </span>
-      <span class="order-tools">
-        {#if jobs.facet === 'saved' && jobs.counts.saved > 0}
-          <span use:tooltip={t.reader.promptHint}>
-            <Button
-              variant="ghost"
-              size="sm"
-              iconOnly
-              icon="copy"
-              label={t.overview.promptTop}
-              testid="prompt-pinned"
-              onclick={() => void copyTopPrompt().then((error) => (promptError = error))}
-            />
-          </span>
-        {/if}
-        {#if jobs.facet === 'archived'}
-          {#if jobs.counts.archived > 0}
-            <Button
-              variant="ghost"
-              size="sm"
-              icon="trash-2"
-              label={t.list.emptyArchive}
-              testid="empty-archive"
-              onclick={() => (confirmEmpty = true)}
-            />
-          {/if}
-        {:else if jobs.counts.archived > 0}
-          <!-- The archive, reachable from every list; its count follows the search. -->
+  <span class="order">
+    <span class="sort">
+      <Button
+        variant="ghost"
+        size="sm"
+        label={t.toolbar.sortLabel[app.hasProfile ? jobs.sortChoice : 'newest']}
+        menu
+        disabled={!app.hasProfile}
+        disabledReason={t.toolbar.sortNoProfile}
+        testid="sort"
+        onclick={chooseSort}
+      />
+    </span>
+    <span class="order-tools">
+      {#if jobs.facet === 'saved' && jobs.counts.saved > 0}
+        <span use:tooltip={t.reader.promptHint}>
           <Button
             variant="ghost"
             size="sm"
-            icon="archive"
-            label={t.list.archiveLink(jobs.counts.archived)}
-            testid="show-archive"
-            onclick={() => jobs.setFacet('archived')}
+            iconOnly
+            icon="copy"
+            label={t.overview.promptTop}
+            testid="prompt-pinned"
+            onclick={() => void copyTopPrompt().then((error) => (promptError = error))}
+          />
+        </span>
+      {/if}
+      {#if jobs.facet === 'archived'}
+        {#if jobs.counts.archived > 0}
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="trash-2"
+            label={t.list.emptyArchive}
+            testid="empty-archive"
+            onclick={() => (confirmEmpty = true)}
           />
         {/if}
-      </span>
+      {:else if jobs.counts.archived > 0}
+        <!-- The archive, reachable from every list; its count follows the search. -->
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="archive"
+          label={t.list.archiveLink(jobs.counts.archived)}
+          testid="show-archive"
+          onclick={() => jobs.setFacet('archived')}
+        />
+      {/if}
     </span>
-    {#if promptError}
-      <Notice tone="danger" variant="inline" text={promptError} />
-    {/if}
+  </span>
+  {#if promptError}
+    <Notice tone="danger" variant="inline" text={promptError} />
   {/if}
 </div>
 
