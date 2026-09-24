@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (portal, (mails, postings)) in &per_portal {
         println!("{portal}: {mails} alert mails, {postings} postings");
     }
-    println!("keine Alerts: {other}, unlesbar: {defective}");
-    println!("{saved} Mails gespeichert in {}", dir.display());
+    println!("no alerts: {other}, unreadable: {defective}");
+    println!("{saved} mails saved in {}", dir.display());
     Ok(())
 }

@@ -181,7 +181,7 @@ fn ui_brand_mark_is_the_generated_vector() {
         svg.contains(r#"fill-rule="evenodd""#),
         "the check is a cut-out"
     );
-    for colour in ["#E98C72", "#D76647"] {
+    for colour in ["#EA8F76", "#D66343"] {
         assert!(svg.contains(colour), "gradient colour {colour}");
     }
     assert_eq!(

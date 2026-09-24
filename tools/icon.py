@@ -35,16 +35,16 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-GLOW = (0xE9, 0x8C, 0x72)     # hsl(13 73% 68%)
-VARIANT = (0xD7, 0x66, 0x47)  # hsl(13 64% 56%)
+GLOW = (0xEA, 0x8F, 0x76)     # hsl(13 73% 69%) - a touch lighter than the coral-glow token
+VARIANT = (0xD6, 0x63, 0x43)  # hsl(13 64% 55%) - a touch deeper: slightly stronger gradient
 WHITE = (255, 255, 255)
 SMOOTHING = 0.6
-# The plate keeps the original circular-arc corners (the user preferred its rounder look);
-# only the folder uses corner smoothing.
-PLATE_SMOOTHING = 0.0
+# The plate has the Apple app-icon shape: corner radius 22.37 % of the plate with 60 %
+# continuous-corner smoothing (as macOS and iOS icons).
+PLATE_SMOOTHING = 0.6
 
 # 1024 grid, Windows layout.
-PLATE, PLATE_R = 48, 212
+PLATE, PLATE_R = 48, round(0.2237 * (1024 - 2 * 48))
 FOLDER_X0, FOLDER_X1 = 224, 800
 TAB_Y, BODY_Y0, BODY_Y1 = 252, 316, 732
 SLOPE_X0, SLOPE_X1 = 436, 500
@@ -54,7 +54,7 @@ CHECK_W = 72
 # macOS: plate 824 of 1024 (margin 100) with the corner of the old macOS plate (184 of 820,
 # close to Apple's template).
 MAC_PLATE = 100
-MAC_PLATE_R = 184 * (1024 - 2 * MAC_PLATE) / 820
+MAC_PLATE_R = 0.2237 * (1024 - 2 * MAC_PLATE)
 
 SIZES = [48, 16, 20, 24, 32, 40, 64, 96, 256]
 # Check width in pixels at the small stages (bolder than the plain scale, which would be

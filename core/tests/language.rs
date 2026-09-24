@@ -1,7 +1,6 @@
 //! English-only sweep (see `CLAUDE.md`): every git-tracked text file must be English in
 //! its comments and doc text. Exceptions are data and user-facing German text by product
-//! decision (see `ALLOWLIST_PATHS`) and, for now, the tracks other agents are translating
-//! in parallel (see `PENDING_PATHS`, which the integrator removes once those tracks land).
+//! decision (see `ALLOWLIST_PATHS`).
 //!
 //! The check only looks at comment lines (or, for Markdown, the whole line - Markdown has
 //! no other kind of "code"), not at string literals: data such as mail/page parsing
@@ -30,19 +29,6 @@ const ALLOWLIST_PATHS: &[&str] = &[
     "src-tauri/resources/THIRD-PARTY.txt",
 ];
 
-/// Paths another track owns and is translating in parallel right now (see
-/// `docs/PLAN.md` phase 4: matching and the UI). TODO(integrator): once both tracks have
-/// landed their English sweep, delete this list (and its use below) so the full repo is
-/// covered by `ALLOWLIST_PATHS` and the default deny-German rule alone.
-const PENDING_PATHS: &[&str] = &[];
-
-/// Not owned by another track, but outside the phase-4 English-sweep file list too (the
-/// task scope was `core/src/**`, `src-tauri/**`, `core/tests/**`, `tools/**` minus their
-/// exceptions - `core/examples/` was not covered by any granted glob). TODO: translate and
-/// remove once someone is scoped to touch it; flagged for follow-up rather than silently
-/// left out or edited outside the granted scope.
-const OUT_OF_SCOPE_PATHS: &[&str] = &[];
-
 /// Individual `path:line` false positives: a comment that is already English but quotes a
 /// real German example (a place name, a mail field label, a job title) to explain what the
 /// code matches. The line number is 1-based, exactly as reported by a test failure below.
@@ -56,9 +42,8 @@ const LINE_ALLOWLIST: &[(&str, u32)] = &[
 
 /// True if `path` (repo-relative, `/`-separated) must not be scanned.
 fn is_excluded(path: &str) -> bool {
-    [ALLOWLIST_PATHS, PENDING_PATHS, OUT_OF_SCOPE_PATHS]
-        .into_iter()
-        .flatten()
+    ALLOWLIST_PATHS
+        .iter()
         .any(|p| path == *p || path.starts_with(p))
 }
 
