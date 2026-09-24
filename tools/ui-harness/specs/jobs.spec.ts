@@ -830,6 +830,68 @@ test('the reader: one row of alike actions, archive in place with undo, a prompt
   await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(1);
 });
 
+test('keys like a mail app: arrows open the next job, Home and End, Esc, Ctrl+F', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const all = page.getByTestId('job-list').locator('[data-testid^="job-row-"]');
+  await expect.poll(async () => all.count()).toBeGreaterThan(6);
+  await settle(page);
+  const titles = await all.locator('.title').allInnerTexts();
+  const reader = page.getByTestId('reader-title');
+  // Nothing open and no focus: ArrowDown opens the first job, then the next; ArrowUp back.
+  const blur = (): Promise<void> =>
+    page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await blur();
+  await page.keyboard.press('ArrowDown');
+  await expect(reader).toHaveText(titles[0]!);
+  await page.keyboard.press('ArrowDown');
+  await expect(reader).toHaveText(titles[1]!);
+  await expect(all.nth(1)).toHaveAttribute('aria-current', 'true');
+  await expect(all.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(reader).toHaveText(titles[0]!);
+  // Home and End: the first and the last row (the excluded ones come last).
+  await page.keyboard.press('End');
+  await expect(reader).toHaveText(titles.at(-1)!);
+  await expect(all.last()).toBeInViewport();
+  await page.keyboard.press('Home');
+  await expect(reader).toHaveText(titles[0]!);
+  // Esc closes the job: the day overview again.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('day-overview')).toBeVisible();
+  // A click on plain text in the reader leaves the keys working.
+  await all.nth(2).click();
+  await expect(reader).toHaveText(titles[2]!);
+  await page.getByTestId('reader-title').click();
+  await page.keyboard.press('ArrowDown');
+  await expect(reader).toHaveText(titles[3]!);
+  // Ctrl+F goes to the search, from anywhere; in the search Esc clears it first, then closes.
+  await page.keyboard.press('Control+f');
+  const search = page.getByTestId('search');
+  await expect(search).toBeFocused();
+  await page.keyboard.type(titles[3]!.slice(0, 12));
+  await page.keyboard.press('Escape');
+  await expect(search).toHaveValue('');
+  await expect(reader).toHaveText(titles[3]!);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('day-overview')).toBeVisible();
+  // The arrows inside the search move the caret, not the list.
+  await search.fill('Finance');
+  await search.press('ArrowLeft');
+  await expect(page.getByTestId('day-overview')).toBeVisible();
+});
+
+test('Cmd+F is the find key on macOS, Ctrl+F is not', async ({ page }) => {
+  await open(page, '?platform=macos');
+  const search = page.getByTestId('search');
+  await page.keyboard.press('Control+f');
+  await expect(search).not.toBeFocused();
+  await page.keyboard.press('Meta+f');
+  await expect(search).toBeFocused();
+});
+
 test('archive from the row: toasts merge, the Archiv brings a job back and says so', async ({
   page,
 }) => {

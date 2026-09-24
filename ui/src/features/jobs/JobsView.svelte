@@ -13,7 +13,9 @@
   position and fades: the new job starts at the top and the old text never jumps. The old
   stage is the real one on its way out (nothing is copied or laid out again); it answers no
   pointer and drops its test ids. The close button in the reader head, a second click on the
-  selected row and a search that no longer finds the job go back to the day overview.
+  selected row, Esc and a search that no longer finds the job go back to the day overview.
+  The keys of a mail app (lib/input/input.ts): ArrowUp/ArrowDown open the previous/next job,
+  Home/End the first/last, Ctrl+F (Cmd+F on macOS) goes to the search.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
@@ -26,6 +28,7 @@
   import { de } from '$lib/i18n/de';
   import { fade, rise } from '$lib/motion/transitions';
   import { inView } from '$lib/actions/inView';
+  import { listKeys } from '$lib/input/input';
   import { dragBands } from '$lib/platform';
   import { tokenPx } from '$lib/tokens';
   import { app } from '$lib/state/app.svelte';
@@ -83,6 +86,9 @@
     jobs.clearSelection();
   }
 
+  let header = $state<ListHeader | null>(null);
+  let list = $state<JobList | null>(null);
+
   // A search that no longer finds the open job closes it (the list shows what it found).
   $effect(() => {
     const selected = jobs.selected;
@@ -113,10 +119,20 @@
   }
 </script>
 
-<div class="jobs" class:reading data-testid="jobs">
+<div
+  class="jobs"
+  class:reading
+  data-testid="jobs"
+  use:listKeys={{
+    step: (by) => list?.step(by),
+    edge: (last) => list?.edge(last),
+    close,
+    find: () => header?.find(),
+  }}
+>
   <div class="body">
     <aside class="left" use:cssVars={listWidth ? { 'list-width': `${listWidth}px` } : {}}>
-      <ListHeader {scrolled} />
+      <ListHeader bind:this={header} {scrolled} />
       <div class="scroll" data-testid="list-scroll">
         <span class="top" use:inView={(place) => (scrolled = place === 'above')}></span>
         {#if shell.runCard}
@@ -124,7 +140,7 @@
             <RunCard />
           </div>
         {/if}
-        <JobList />
+        <JobList bind:this={list} />
       </div>
     </aside>
     <span class="split"

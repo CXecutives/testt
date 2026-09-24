@@ -73,6 +73,37 @@
   // Jobs without a match get one soon while a run goes or a rescore is pending.
   const pending = $derived(app.hasProfile && (run.active || (app.state?.matchPending ?? 0) > 0));
 
+  /** The rows in the order they stand: the active ones, then the excluded ones. */
+  const order = $derived([...active, ...excluded]);
+
+  /** Open the row at `index` (the keyboard): it scrolls into view and takes the focus. */
+  function openAt(index: number): void {
+    const job = order[index];
+    if (job === undefined) return;
+    if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
+    const row = list?.querySelector<HTMLElement>(`[data-key="${CSS.escape(keyOf(job.key))}"] .row`);
+    row?.focus({ preventScroll: true });
+    row?.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** ArrowUp / ArrowDown (lib/input/input.ts): the previous or next row opens; with none
+   *  open, the first (down) or the last (up). */
+  export function step(by: -1 | 1): void {
+    const at = order.findIndex((job) => sameKey(jobs.selected, job.key));
+    openAt(
+      at === -1
+        ? by === 1
+          ? 0
+          : order.length - 1
+        : Math.max(0, Math.min(order.length - 1, at + by)),
+    );
+  }
+
+  /** Home / End: the first or the last row shown. */
+  export function edge(last: boolean): void {
+    openAt(last ? order.length - 1 : 0);
+  }
+
   /** A click on the selected row closes it again: back to the day overview. */
   function select(job: JobView): void {
     if (sameKey(jobs.selected, job.key)) jobs.clearSelection();

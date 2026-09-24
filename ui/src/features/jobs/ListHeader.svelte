@@ -47,6 +47,15 @@
     { id: 'saved' as JobFacet, label: de.toolbar.facetSaved, count: jobs.counts.saved || null },
   ]);
 
+  let searchBox = $state<HTMLElement | null>(null);
+
+  /** Ctrl+F (Cmd+F on macOS, lib/input/input.ts): into the search, its text selected. */
+  export function find(): void {
+    const input = searchBox?.querySelector('input');
+    input?.focus();
+    input?.select();
+  }
+
   let promptError = $state<string | null>(null);
   let confirmEmpty = $state(false);
   let emptying = $state(false);
@@ -97,7 +106,7 @@
 
 <div class="header" class:scrolled data-testid="list-header">
   <div class="top" data-tauri-drag-region={dragBands() ? '' : undefined}>
-    <span class="search">
+    <span class="search" bind:this={searchBox}>
       <TextField
         kind="search"
         value={jobs.search}
