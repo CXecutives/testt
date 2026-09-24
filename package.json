@@ -1,0 +1,48 @@
+{
+  "name": "job-alert-monitor-ui",
+  "version": "3.0.0",
+  "private": true,
+  "description": "User interface of the Job-Alert-Monitor desktop app (Svelte 5, Vite, TypeScript).",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "vite ui",
+    "build": "vite build ui",
+    "preview": "vite preview ui",
+    "check": "npm run check:types && npm run check:eslint && npm run check:stylelint && npm run check:format",
+    "check:types": "svelte-check --workspace ui --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p tools/ui-harness/tsconfig.json",
+    "check:eslint": "eslint --max-warnings 0 .",
+    "check:stylelint": "stylelint --max-warnings 0 \"ui/src/**/*.{css,svelte}\"",
+    "check:format": "prettier --check .",
+    "harness": "playwright test -c tools/ui-harness/playwright.config.ts",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@lucide/svelte": "^1.48.0",
+    "@tauri-apps/api": "^2.11.1",
+    "svelte": "^5.57.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tauri-apps/cli": "^2.11.5",
+    "@types/node": "^24.13.6",
+    "eslint": "^10.11.0",
+    "eslint-plugin-svelte": "^3.23.0",
+    "globals": "^17.12.0",
+    "postcss": "^8.5.6",
+    "postcss-html": "^2.0.0",
+    "prettier": "^3.9.9",
+    "prettier-plugin-svelte": "^4.1.1",
+    "stylelint": "^17.15.0",
+    "stylelint-declaration-strict-value": "^1.12.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vite": "^8.3.0"
+  }
+}

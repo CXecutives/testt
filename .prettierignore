@@ -1,0 +1,13 @@
+# Prettier formats the UI and its tooling only.
+*
+!*/
+!/ui/**
+!/tools/ui-harness/**
+!/tools/third-party.mjs
+!/package.json
+!/eslint.config.js
+!/stylelint.config.js
+!/.prettierrc
+/ui/dist/
+/node_modules/
+/tools/ui-harness/baselines/
