@@ -4,6 +4,7 @@
 //! once per profile, then [`assess`] per job. [`legacy`] reproduces the old Python engine
 //! for parity tests. See `docs/MATCHING.md`.
 
+mod ad_facts;
 mod atoms;
 mod contract;
 mod criteria;
@@ -11,6 +12,7 @@ mod engine;
 mod explain;
 pub(crate) mod facts;
 mod fit;
+mod focus;
 mod job;
 mod ladder;
 pub(crate) mod lexicon;
@@ -21,11 +23,13 @@ mod profile;
 mod pyre;
 mod relevance;
 mod requirements;
+mod roles;
 mod score;
 mod sections;
 mod seniority;
 mod signals;
 mod types;
+mod wishes;
 
 #[doc(hidden)]
 pub mod legacy;
@@ -40,9 +44,11 @@ pub use types::*;
 
 use engine::EngineProfile;
 use facts::{Availability, HardCriteria};
+use params::FOCUS_MAX;
 
-/// Version of the scoring behaviour; part of the match revision (`match_rev`).
-pub const ENGINE_VERSION: u32 = 3;
+/// Version of the scoring behaviour; part of the match revision (`match_rev`). 4: the
+/// Schwerpunkte, target roles and wishes of the profile.
+pub const ENGINE_VERSION: u32 = 4;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.
@@ -57,8 +63,10 @@ pub mod fact_key {
     pub const RATE: &str = "rate";
     /// Start as the page words it ("ab sofort", "01.11.2026").
     pub const START: &str = "start";
+    /// Duration as the page words it ("6 Monate").
+    pub const DURATION: &str = "duration";
     /// Every key the engine reads.
-    pub const ALL: &[&str] = &[CONTRACT, LOCATION, REMOTE_PERCENT, RATE, START];
+    pub const ALL: &[&str] = &[CONTRACT, LOCATION, REMOTE_PERCENT, RATE, START, DURATION];
 }
 
 /// Profiles with fewer competences than this are `Thin`.
@@ -167,42 +175,9 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
         slot.0 = slot.0.saturating_add(1);
         slot.1 &= !entry.explicit;
     }
-    let c = &engine.criteria;
-    let availability_raw = facts::availability_text(data);
-    let criteria = criteria_info(c);
-    let warn = |code, params: Value| ProfileWarning {
-        code,
-        params: params.as_object().cloned().unwrap_or_default(),
-    };
-    let mut warnings = Vec::new();
-    match quality {
-        ProfileQuality::Empty => warnings.push(warn(ProfileWarningCode::NoCompetences, json!({}))),
-        ProfileQuality::Thin => {
-            warnings.push(warn(
-                ProfileWarningCode::FewCompetences,
-                json!({ "count": core.len() }),
-            ));
-        }
-        ProfileQuality::Good => {}
-    }
-    if criteria.iter().all(|c| !c.set) {
-        warnings.push(warn(ProfileWarningCode::NoCriteria, json!({})));
-    }
-    if let Some(raw) = availability_raw.filter(|_| c.available == Availability::Unset) {
-        warnings.push(warn(
-            ProfileWarningCode::AvailabilityNotUnderstood,
-            json!({ "value": raw }),
-        ));
-    }
-    for (key, value) in &c.not_understood {
-        warnings.push(warn(
-            ProfileWarningCode::CriterionNotUnderstood,
-            json!({ "key": key, "value": value }),
-        ));
-    }
-    if c.remote_min.is_some() && c.places.is_none() {
-        warnings.push(warn(ProfileWarningCode::RegionWithoutPlaces, json!({})));
-    }
+    let criteria = criteria_info(&engine.criteria);
+    let warnings = warnings(engine, data, quality, &criteria);
+    let wishes = wishes_info(engine);
     let skills = &engine.skills;
     let aliases = skills
         .entries
@@ -241,6 +216,101 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
             .collect(),
         criteria,
         warnings,
+        wishes,
+    }
+}
+
+/// What the user should fix or know about the profile.
+fn warnings(
+    engine: &EngineProfile,
+    data: &Value,
+    quality: ProfileQuality,
+    criteria: &[CriterionInfo],
+) -> Vec<ProfileWarning> {
+    let c = &engine.criteria;
+    let core = &engine.legacy.signals.core;
+    let availability_raw = facts::availability_text(data);
+    let warn = |code, params: Value| ProfileWarning {
+        code,
+        params: params.as_object().cloned().unwrap_or_default(),
+    };
+    let mut warnings = Vec::new();
+    match quality {
+        ProfileQuality::Empty => warnings.push(warn(ProfileWarningCode::NoCompetences, json!({}))),
+        ProfileQuality::Thin => {
+            warnings.push(warn(
+                ProfileWarningCode::FewCompetences,
+                json!({ "count": core.len() }),
+            ));
+        }
+        ProfileQuality::Good => {}
+    }
+    if criteria.iter().all(|c| !c.set) {
+        warnings.push(warn(ProfileWarningCode::NoCriteria, json!({})));
+    }
+    if let Some(raw) = availability_raw.filter(|_| c.available == Availability::Unset) {
+        warnings.push(warn(
+            ProfileWarningCode::AvailabilityNotUnderstood,
+            json!({ "value": raw }),
+        ));
+    }
+    for (key, value) in &c.not_understood {
+        warnings.push(warn(
+            ProfileWarningCode::CriterionNotUnderstood,
+            json!({ "key": key, "value": value }),
+        ));
+    }
+    if c.remote_min.is_some() && c.places.is_none() {
+        warnings.push(warn(ProfileWarningCode::RegionWithoutPlaces, json!({})));
+    }
+    let ignored = facts::ignored_criteria_keys(data);
+    if !ignored.is_empty() {
+        warnings.push(warn(
+            ProfileWarningCode::IgnoredKeys,
+            json!({ "keys": ignored }),
+        ));
+    }
+    for (key, value) in &engine.unreadable {
+        warnings.push(warn(
+            ProfileWarningCode::CriterionNotUnderstood,
+            json!({ "key": key, "value": value }),
+        ));
+    }
+    if engine.focus_count > FOCUS_MAX {
+        warnings.push(warn(
+            ProfileWarningCode::FocusTrimmed,
+            json!({ "count": engine.focus_count, "max": FOCUS_MAX }),
+        ));
+    }
+    warnings
+}
+
+/// Schwerpunkte, target roles and the wishes as understood.
+fn wishes_info(engine: &EngineProfile) -> Vec<WishInfo> {
+    let mut wishes = vec![
+        WishInfo {
+            key: WishKey::Focus,
+            set: !engine.focus.is_empty(),
+            params: object(json!({
+                "focus": engine.focus.iter().map(|f| f.text.clone()).collect::<Vec<_>>(),
+            })),
+        },
+        WishInfo {
+            key: WishKey::TargetRoles,
+            set: !engine.roles.is_empty(),
+            params: object(json!({
+                "roles": engine.roles.iter().map(|r| r.text.clone()).collect::<Vec<_>>(),
+            })),
+        },
+    ];
+    wishes.extend(engine.wishes.info());
+    wishes
+}
+
+fn object(value: Value) -> Map<String, Value> {
+    match value {
+        Value::Object(map) => map,
+        _ => Map::new(),
     }
 }
 
@@ -278,10 +348,15 @@ fn fingerprint(engine: &EngineProfile) -> String {
     countries.sort();
     let mut places: Vec<String> = c.places.iter().flatten().map(|p| atoms::fold(p)).collect();
     places.sort();
+    // Schwerpunkte keep their order (the first ones add relevance); roles do not.
+    let focus: Vec<String> = engine.focus.iter().map(|f| atoms::fold(&f.text)).collect();
+    let mut roles: Vec<String> = engine.roles.iter().map(|r| atoms::fold(&r.text)).collect();
+    roles.sort();
     let canonical = format!(
         "engine {ENGINE_VERSION}\nentries {}\nlanguages {languages:?}\ndegree {:?} {}\nyears {:?}\n\
          min {:?}\ncountries {countries:?}\nremote {:?}\nanue {}\navailable {:?}\n\
-         salary {:?}\nplaces {places:?}\nremoteMin {:?}\ntarget {:?}\npacks {:?}\n",
+         salary {:?}\nplaces {places:?}\nremoteMin {:?}\ntarget {:?}\npacks {:?}\n\
+         focus {focus:?}\nroles {roles:?}\nwishes {}\n",
         entries.join("|"),
         engine.skills.degree_fields,
         engine.skills.degree_level,
@@ -294,6 +369,7 @@ fn fingerprint(engine: &EngineProfile) -> String {
         c.remote_min,
         c.target_years,
         engine.skills.vocab.packs(),
+        engine.wishes.canonical(),
     );
     let digest = Sha256::digest(canonical.as_bytes());
     digest.iter().take(8).fold(String::new(), |mut hex, b| {

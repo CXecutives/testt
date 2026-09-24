@@ -1,0 +1,37 @@
+Titel: Projektleitung Data Governance / Stammdatenmanagement (m/w/d)
+Unternehmen: von: Lindenhain Consulting Partners GmbH
+Ort: Hohenzollernring 72, 50672 Köln
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/2987730.html
+Abgerufen am: 22.09.2026 07:30
+
+Ort: 50672 Köln // Vertragsart: Freiberuflich // Start: 02.11.2026
+
+Projektbeschreibung
+Unser Kunde, ein international tätiges Chemieunternehmen (ca. 9.000 MA), startet ein konzernweites Programm zur Verbesserung der Datenqualität in Einkauf, Supply Chain und Vertrieb. Hintergrund sind wiederkehrende Probleme im Reporting (Power BI) sowie die anstehende Migration auf SAP S/4HANA.
+
+Gesucht wird eine erfahrene Projektleitung, die das Data-Governance-Framework aufbaut und das Programm fachlich und organisatorisch steuert.
+
+Aufgaben
+- Gesamtprojektleitung des Programms (Budget, Plan, Risiken, Statusberichte an den Lenkungsausschuss)
+- Aufbau eines Data-Governance-Modells mit Rollen (Data Owner, Data Steward), Prozessen und Richtlinien
+- Definition von Datenqualitäts-KPIs und Aufbau eines DQ-Dashboards in Power BI gemeinsam mit dem BI-Team
+- Analyse und Bereinigung der Material-, Lieferanten- und Kundenstammdaten in Vorbereitung auf die Migration
+- Moderation von Workshops mit den Fachbereichen an mehreren europäischen Standorten
+- Change Management und Schulungskonzept für die Data Stewards
+
+Anforderungen
+- Mehrjährige Erfahrung in der Leitung von Daten- oder BI-Programmen in der Industrie
+- Fundierte Kenntnisse in Data Governance und Master Data Management (z.B. DAMA-DMBOK)
+- Erfahrung mit SAP MDG oder vergleichbaren MDM-Lösungen im Stammdatenmanagment
+- Sicherer Umgang mit Power BI, SQL-Kenntnisse von Vorteil
+- Verhandlungssicheres Deutsch und Englisch
+- Reisebereitschaft (ca. 20 %, Standorte in DE, BE, ES)
+
+Rahmendaten
+- Laufzeit: 12 Monate mit Option auf Verlängerung
+- Auslastung: 80-100 %
+- 60 % remote, 40 % vor Ort in Köln
+- Tagessatz: 1.000 - 1.150 € (zzgl. Reisekosten)
+
+Bitte beachten Sie: Aufgrund der Kundenvorgaben können wir nur Freiberufler mit eigener Rechnungsstellung berücksichtigen (keine ANÜ).

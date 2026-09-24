@@ -273,6 +273,7 @@ mod tests {
             must_met: 1,
             must_total: 1,
             top: Vec::new(),
+            facts: crate::model::KeyFacts::default(),
         };
         for p in [&first, &second] {
             store.upsert_posting(run, p, mail(), now()).unwrap();

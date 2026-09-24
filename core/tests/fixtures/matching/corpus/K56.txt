@@ -1,0 +1,21 @@
+Titel: SAP FI/CO Berater (m/w/d) für S/4HANA-Migration
+Unternehmen: Mainbogen Consulting GmbH
+Ort: D-60311 Frankfurt am Main
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=4100056
+Abgerufen am: 24.09.2026 07:30
+
+Projekt-ID: 4100056
+Ort: Frankfurt am Main
+Remote: 100 %
+Start: sofort
+Dauer: 10 Monate
+Vertragsart: Freiberuflich
+Honorar: 1.150 € pro Tag
+Projektbeschreibung
+Für eine Bank migrieren wir das Finanzwesen von SAP ECC auf SAP S/4HANA Finance, inklusive Central Finance.
+Anforderungen:
+- Mehrjährige Erfahrung in SAP FI und SAP CO
+- Erfahrung mit S/4HANA-Migrationen im Finanzwesen
+- Kenntnisse in Central Finance
+- Erfahrung in der Datenmigration

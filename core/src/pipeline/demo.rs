@@ -250,6 +250,7 @@ mod tests {
         let judge = |id: &str, title: &str, location: &str| {
             let job = JobInput {
                 title,
+                company: "Muster AG",
                 location,
                 portal: Portal::LinkedIn,
                 text: ad(id),

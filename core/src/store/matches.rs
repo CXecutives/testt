@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::jobs::{JOB_COLUMNS, JobRow, job_row};
 use super::{Store, bump};
 use crate::error::Result;
-use crate::model::{HIGH_FROM, MatchRecord, MatchStatus, Notice};
+use crate::model::{HIGH_FROM, KeyFacts, MatchRecord, MatchStatus, Notice};
 use crate::portal::JobKey;
 use crate::text::truncate_chars;
 use crate::time::{from_db, to_db};
@@ -20,7 +20,8 @@ use crate::time::{from_db, to_db};
 ///
 /// - `match_score`: score 0-100.
 /// - `match_status`: `scored`, `excluded` or `unscorable`.
-/// - `match_note`: JSON `{code, params, mustMet, mustTotal, top[<=2]}`, at most 400 bytes.
+/// - `match_note`: JSON `{code, params, mustMet, mustTotal, top[<=2], facts}`, at most 400
+///   bytes.
 /// - `match_at`: when the job was scored.
 /// - `match_rev`: revision of engine, profile and model that produced the score; `NULL`
 ///   after a change of title or text (the job is scored again).
@@ -58,9 +59,21 @@ struct StoredNote {
     must_met: u16,
     must_total: u16,
     top: Vec<String>,
+    #[serde(skip_serializing_if = "KeyFacts::is_empty", serialize_with = "compact")]
+    facts: KeyFacts,
 }
 
-/// The note of a match as JSON of at most 400 bytes (quotes are cut, then dropped).
+/// The key facts without their `null` values (the note has 400 bytes).
+fn compact<S: serde::Serializer>(facts: &KeyFacts, serializer: S) -> Result<S::Ok, S::Error> {
+    let mut value = serde_json::to_value(facts).map_err(serde::ser::Error::custom)?;
+    if let Some(map) = value.as_object_mut() {
+        map.retain(|_, v| !v.is_null());
+    }
+    value.serialize(serializer)
+}
+
+/// The note of a match as JSON of at most 400 bytes (quotes are cut, then dropped; the key
+/// facts stay).
 pub(super) fn encode_note(record: &MatchRecord) -> String {
     let mut note = StoredNote {
         code: record.note.as_ref().map(|n| n.code.clone()),
@@ -77,6 +90,7 @@ pub(super) fn encode_note(record: &MatchRecord) -> String {
             .take(MAX_TOP)
             .map(|t| truncate_chars(t, MAX_TOP_CHARS))
             .collect(),
+        facts: record.facts.clone(),
     };
     loop {
         let json = serde_json::to_string(&note).unwrap_or_default();
@@ -111,6 +125,7 @@ pub(super) fn decode_match(
         must_met: note.must_met,
         must_total: note.must_total,
         top: note.top,
+        facts: note.facts,
     })
 }
 
@@ -388,6 +403,7 @@ mod tests {
             must_met: 2,
             must_total: 3,
             top: vec!["SAP FI".into(), "x".repeat(500), "dritter".into()],
+            facts: crate::model::KeyFacts::default(),
         }
     }
 
@@ -431,6 +447,25 @@ mod tests {
             .params
             .insert("x".into(), "y".repeat(600).into());
         assert!(encode_note(&huge).len() <= MAX_NOTE_BYTES);
+        // The key facts come back; the note keeps them without null values.
+        let mut with_facts = record(MatchStatus::Scored, 83);
+        with_facts.facts = crate::model::KeyFacts {
+            rate: Some(1100),
+            hourly: Some(false),
+            start: Some("now".into()),
+            months: Some(6),
+            remote_from: Some(60),
+            remote_to: Some(60),
+            contract: Some("interim".into()),
+            ..crate::model::KeyFacts::default()
+        };
+        let json = encode_note(&with_facts);
+        assert!(
+            json.len() <= MAX_NOTE_BYTES && !json.contains("null"),
+            "{json}"
+        );
+        let back = decode_match(Some("scored"), Some(83), Some(&json)).unwrap();
+        assert_eq!(back.facts, with_facts.facts);
         // A new text or title makes the job pending again.
         store
             .record_text(&key, "Volltext", false, false, now())

@@ -166,6 +166,19 @@ const later = (minutes: number): string => new Date(NOW + minutes * 60_000).toIS
 
 type Match = NonNullable<JobView['match']>;
 
+/** A job whose ad states no key facts. */
+const NO_FACTS = {
+  rate: null,
+  hourly: null,
+  currency: null,
+  rateOpen: null,
+  start: null,
+  months: null,
+  remoteFrom: null,
+  remoteTo: null,
+  contract: null,
+};
+
 const scored = (score: number, top: string[], mustMet = 3, mustTotal = 4): Match => ({
   score,
   band: score >= 80 ? 'high' : score >= 40 ? 'mid' : 'low',
@@ -174,6 +187,7 @@ const scored = (score: number, top: string[], mustMet = 3, mustTotal = 4): Match
   mustMet,
   mustTotal,
   top,
+  facts: NO_FACTS,
 });
 
 /** Excluded by a hard criterion: the engine names the first violation's reason code. */
@@ -189,6 +203,7 @@ const excludedBy = (
   mustMet: 2,
   mustTotal: 4,
   top: [],
+  facts: NO_FACTS,
 });
 
 function job(
@@ -384,6 +399,7 @@ function sampleJobs(): JobView[] {
         mustMet: 0,
         mustTotal: 0,
         top: [],
+        facts: NO_FACTS,
       },
     }),
   ];

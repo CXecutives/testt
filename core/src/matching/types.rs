@@ -4,6 +4,7 @@
 use serde::Serialize;
 use serde_json::{Map, Value};
 
+pub use crate::model::KeyFacts;
 use crate::portal::Portal;
 
 /// How complete the job text is.
@@ -20,6 +21,8 @@ pub enum TextKind {
 #[derive(Debug, Clone, Copy)]
 pub struct JobInput<'a> {
     pub title: &'a str,
+    /// Hiring company or agency as the portal or mail gave it (industry wish).
+    pub company: &'a str,
     /// Location as the portal or mail gave it.
     pub location: &'a str,
     pub portal: Portal,
@@ -84,6 +87,8 @@ pub struct Assessment {
     pub reasons: Vec<Reason>,
     pub highlights: Vec<Highlight>,
     pub criteria: Vec<CriterionState>,
+    /// Rate, start, duration, remote share and contract type as read from the ad.
+    pub facts: KeyFacts,
 }
 
 /// Kind of a reason.
@@ -155,6 +160,21 @@ pub enum ReasonCode {
     ContractType,
     /// A staffing agency without contract details: temporary agency work is possible.
     AnueRisk,
+    /// A Schwerpunkt of the profile the ad demands (`focus`, `met`, `partial`, `inTitle`,
+    /// `relevance`): its requirements met in full count double.
+    Focus,
+    /// The title matches a target role (`role`, `fit` full or half, `points`).
+    TargetRole,
+    /// Day rate wish (`state` met, near, missed or unknown, `points`, `wish`, `rate`,
+    /// `hourly`, `currency`).
+    DayRateWish,
+    /// Remote wish (`state`, `points`, `min` or `onsite`, `level` full, mostly, partly or
+    /// onSite, the ad's share `share` or `from`/`to`).
+    RemoteWish,
+    /// Region wish (`state`, `points`, `location`, `remote`).
+    RegionWish,
+    /// Industry wish (`state`, `points`, `industry`, `wish`).
+    IndustryWish,
 }
 
 /// How a profile entry met a requirement.
@@ -231,20 +251,29 @@ pub enum CriterionKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CriterionStatus {
-    /// Not set in the profile.
+    /// Not set in the profile, or not for this kind of job (a salary for a freelance role).
     Inactive,
+    /// Set, and the ad says nothing that shows whether it is met.
+    NotMentioned,
+    /// Met, with the ad's value as evidence.
     Ok,
     Check,
     Violated,
 }
 
-/// A hard criterion for one job, with the reason that decided it.
+/// A hard criterion for one job, with the reason that decided it and the ad's value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CriterionState {
     pub key: CriterionKey,
     pub status: CriterionStatus,
     pub reason: Option<u16>,
+    /// The ad's value: `rate`, `hourly`, `currency`, `rateOpen` (day rate); `start` (`now`,
+    /// `vague` or an ISO date); `location` or `remote` (countries, region); `contract`
+    /// (ANUE); `salary`; `years` (target years).
+    pub params: Map<String, Value>,
+    /// Where the ad states it, in UTF-16 offsets (start, end).
+    pub range: Option<(u32, u32)>,
 }
 
 /// How usable the profile is.
@@ -298,6 +327,37 @@ pub enum ProfileWarningCode {
     CriterionNotUnderstood,
     /// A remote minimum for permanent roles without places: the region rule stays off.
     RegionWithoutPlaces,
+    /// More Schwerpunkte than count (`count`, `max`): the first ones are used.
+    FocusTrimmed,
+    /// Keys of a criteria section the engine does not read (`keys`).
+    IgnoredKeys,
+}
+
+/// A wish of the profile (`einsatzpraeferenzen`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WishKey {
+    /// Schwerpunkte (`schwerpunkte`).
+    Focus,
+    /// Target roles (`wunschrollen`).
+    TargetRoles,
+    /// Wished day rate (`tagessatz_wunsch`).
+    DayRate,
+    /// Wished remote share (`remote`).
+    Remote,
+    /// Wished regions (`regionen`).
+    Regions,
+    /// Wished industries (`branchen`).
+    Industries,
+}
+
+/// A wish as understood from the profile.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WishInfo {
+    pub key: WishKey,
+    pub set: bool,
+    pub params: Map<String, Value>,
 }
 
 /// An alternative term of a profile competence (`auch` / `aliases`).
@@ -330,4 +390,6 @@ pub struct ProfileSummary {
     pub years: Option<u32>,
     /// Degrees as written in the profile.
     pub degrees: Vec<String>,
+    /// Schwerpunkte, target roles and the wishes, each with `set`.
+    pub wishes: Vec<WishInfo>,
 }

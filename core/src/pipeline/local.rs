@@ -18,8 +18,9 @@ use crate::store::JobRow;
 const TOP: usize = 2;
 
 /// Version of what a stored job hands the engine besides its text (2: page facts and the
-/// teaser flag). Part of the revision: a change scores every stored job again.
-const INPUTS: u32 = 2;
+/// teaser flag; 3: the company, for the industry wish). Part of the revision: a change
+/// scores every stored job again.
+const INPUTS: u32 = 3;
 
 /// The local engine with one profile.
 pub struct LocalMatcher {
@@ -70,6 +71,7 @@ impl LocalMatcher {
         };
         let input = JobInput {
             title: &title,
+            company: &job.company,
             location: &job.location,
             portal: job.key.portal,
             text: text.unwrap_or_default(),
@@ -114,6 +116,7 @@ pub(crate) fn engine_facts(facts: &Facts) -> Option<Value> {
     );
     put(fact_key::RATE, facts.rate.clone().map(Value::from));
     put(fact_key::START, facts.start.clone().map(Value::from));
+    put(fact_key::DURATION, facts.duration.clone().map(Value::from));
     (!map.is_empty()).then_some(Value::Object(map))
 }
 
@@ -132,6 +135,7 @@ pub fn record(assessment: &Assessment) -> MatchRecord {
         must_met: assessment.summary.must_met,
         must_total: assessment.summary.must_total,
         top: top(assessment),
+        facts: assessment.facts.clone(),
     }
 }
 

@@ -1,0 +1,38 @@
+Titel: SAP S/4HANA Finance Solution Architect (Central Finance), Contract
+Unternehmen: Thamesreach Advisory Ltd.
+Ort: London (Vereinigtes Königreich)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4187733508/
+Abgerufen am: 23.09.2026 07:00
+
+About the job
+Thamesreach Advisory is retained by a listed consumer goods group to lead the design authority of its finance transformation. We are looking for an experienced contractor to act as Finance Solution Architect.
+
+Context
+The group operates 23 ERP instances across Europe and North America, most of them SAP ECC, some Oracle and JD Edwards. As the first step towards a single S/4HANA core, the programme implements SAP Central Finance to harmonise group reporting, intercompany processes and the close. A shared service centre in Frankfurt will take over accounting for the German, Austrian and Swiss entities.
+
+Responsibilities
+Own the end-to-end solution design for record to report, intercompany and cost allocation
+Define the replication scope, mapping (MDG) and error handling concept for Central Finance
+Lead design workshops with finance process owners and the system integrator
+Review functional specifications and challenge the integrator on scope and effort
+Align the chart of accounts, profit centre and segment structure with group reporting
+Support the business case and the roadmap towards a full S/4HANA migration
+Contribute to steering committee materials and design authority decisions
+
+Requirements
+At least ten years of SAP FI/CO experience, including solution architect roles
+Hands-on delivery of at least one Central Finance implementation
+Deep understanding of IFRS group reporting and intercompany reconciliation
+Experience with SAP MDG, SLT and the Universal Journal
+Confident communication with CFO level stakeholders
+
+Nice to have
+SAP Group Reporting, BlackLine, experience with shared service centre set-ups
+German language skills
+
+Contract details
+Day rate GBP 750 to 850, outside IR35
+Remote first, based in the UK; travel to London and to the Frankfurt shared service centre about 25 %
+Right to work in the UK required, no sponsorship available
+Start 2 November 2026, initial term 9 months

@@ -132,6 +132,95 @@ Nothing person-specific is in code: every threshold comes from the profile.
 `aliases`, `packs`, `years`, `degrees` and the warnings `criterionNotUnderstood {key, value}`
 and `regionWithoutPlaces`.
 
+## Version 4 (ENGINE_VERSION 4)
+
+Three optional profile inputs, the fixes of two held-out evaluations, criteria with evidence and
+one rubric for the Claude check. A profile without the new keys scores exactly as before those
+inputs (`profiles_without_the_new_keys_score_as_before`, digest of the 4 x 52 old rows); the
+held-out fixes move old profiles too and are gated by the corpus and the held-out floors.
+
+### New profile keys (missing key = feature off)
+
+| Key | Alias | Meaning |
+|---|---|---|
+| `schwerpunkte` | `focus_areas` | 3 to 5 core competences (strings or `{kompetenz}`), at most `FOCUS_MAX` 5 (warning `focusTrimmed`) |
+| `wunschrollen` | `target_roles` | target roles, matched against the title |
+| `einsatzpraeferenzen.tagessatz_wunsch` | `preferences.desired_day_rate` | wished day rate (EUR); never a minimum |
+| `einsatzpraeferenzen.remote` | `preferences.remote` | `voll`, `ueberwiegend`, `teilweise`, `vor_ort` or old free text (`mindestens 50 %`), read by `profile::RemoteWish::read` |
+| `einsatzpraeferenzen.regionen` | `preferences.regions` | wished regions (cities, states, regions such as `Rhein-Main`, countries) |
+| `einsatzpraeferenzen.branchen` | `preferences.industries` | wished industries |
+
+Also read now: the old criteria under `hard_criteria` with English keys (`min_day_rate`,
+`countries`, `excluded_contract_types`, `available_from`, ...), ISO dates in `verfuegbar_ab`, and
+a warning `ignoredKeys` for every criteria key the engine does not read.
+
+### Formulas (integer per-mille, parameters in `params.rs`)
+
+- Schwerpunkt: a must or nice met in full through a Schwerpunkt entry weighs `FOCUS_FACTOR` = 2
+  in `M` and `K` (`M = sum(w*f*e)/sum(w*f)`, `K = sum(f*e)/sum(f)`); the evidence `n` stays
+  unweighted. A Schwerpunkt the ad demands (the title names it, or a requirement names it and
+  is met in full) adds `FOCUS_RELEVANCE` = 100 to the relevance, for at most
+  `FOCUS_RELEVANCE_MAX` = 3: `R' = min(1000, R + 100 * demanded)`. Partial hits are shown, never
+  counted. No bonus or malus beyond this.
+- Shrinkage as before: `P' = (n*P + k*R' + prior_w*prior) / (n + k + prior_w)`, permanent x 0.9.
+- Target role: the title meets a role (topic atoms without lead words, contract words such as
+  `Interim` met by the title or an interim contract, a lead role needs a lead title) = `ROLE_FULL`
+  80; a junior title or a lead role without lead title = `ROLE_HALF` 40.
+- Wishes: met `+w`, clearly missed `-w`, near or unknown 0; `w` = rate 30, remote 30, region 20,
+  industry 20; sum clamped to `WISH_MAX` +-100. Day rate: met at or above the wish, near from
+  `WISH_RATE_NEAR` 95 %, else missed (only for non-permanent roles). Remote: wish levels as minimum
+  shares `voll` 100, `ueberwiegend` 60, `teilweise` 20, `vor_ort` at most `ONSITE_MAX` 60; the
+  ad's share is an interval (page fact > stated percent or days (`2 Tage vor Ort` = 60 %) > full
+  remote wording > `REMOTE_NONE` (0) > hybrid (20-60) > remote named (60-100) > on site only
+  (0)); met when the interval's low end reaches the wish, missed when its high end is 0 or more
+  than `REMOTE_MARGIN` 30 below it. Region: the first place of the ad in a wished region = met,
+  outside with at least `REGION_REMOTE_NEAR` 60 % remote = near, outside = missed, fully remote
+  = met. Industry: the ad's industry (context lines, the company on LinkedIn) in the wish = met,
+  another named industry = missed.
+- `S = clamp(P' + role + clamp(sum wishes, -100, 100), 0, 1000)`; while fewer than half of the
+  musts are met in full, a lift ends at `LIFT_CAP` 790 (score 79, below the high band 80); then
+  `round_half_even(S/10)`, the caps (formal 40, several open 40, title topic open 60, off field
+  25; target role and wishes never lift a capped score) and the floor 10.
+
+Every input is a reason with code and params (no prose): `focus {focus, met, partial, inTitle,
+relevance}`, `targetRole {role, fit, points}`, `dayRateWish`, `remoteWish {min|onsite, level,
+share|from,to}`, `regionWish {location, remote}`, `industryWish {industry, wish}`, each with
+`state` and `points`, the passages, and the profile entry with its JSON path as evidence.
+Requirements met through a Schwerpunkt carry `params.focus`.
+
+### Held-out fixes
+
+Two blind held-out sets (48 ads x 4 profiles, 24 ads x 8 profiles incl. HR, procurement, BI and
+pharma QA; labels in `core/tests/fixtures/matching/heldout1/`, `heldout2/`) are now permanent
+regression corpora (`matching_heldout.rs`, floors frozen at the values below). Fixed in the
+engine: frame blocks and unknown headings no longer read as musts (rate, duration, location and
+portal footers end requirements, glyph bullets); more countries and cities; stated, denied and
+optional permanent roles and the contract type line; ANÜ only decided without an option or a
+distinction; one language level below = half; `HGB/IFRS` split, gender forms (`Leiter:in`),
+`Projektleitung` half-meets `Projektmanagement`, finance role paraphrases (`Kaufmännischer
+Leiter` = CFO); nice cues per item (a cue no longer demotes a whole must line), negated items
+dropped, `mind.`/`approx.` no sentence end, hyphen compounds cut at `und`; `Min. 5 years`;
+domain packs switch on with at least `PACK_HITS` 2 trigger tokens; life-science degree fields,
+`MSc`/`PhD`, `Master Data` no degree. P@5 is measured against what is reachable:
+`P@5 / min(5, relevant)` (`examples/common/metrics.rs`).
+
+### Criteria with evidence, key facts
+
+A criterion of the strip is `ok` only when the ad states a value that meets it (rate, place,
+contract type, start, salary, years), with that value in `params` and the passage as a UTF-16
+range; without one it is `notMentioned` (strip kind `open`); a criterion that does not fit the
+contract type (salary for a freelance role, day rate for a permanent one) is left out. The key
+facts of every ad (`KeyFacts`: rate, hourly, currency, rateOpen, start `now`/`vague`/ISO date,
+months, remote from/to, contract) are stored in the match note and sent on `JobMatch.facts`.
+
+### Rubric of the Claude check
+
+`core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the
+`job-matching` skill (`tools/job-matching-skill/rubric.de.md`, identical): bands 1 to 10 (9 to
+10 only with a met Schwerpunkt when the profile names some), the caps of the render check,
+contract and ANÜ rules, wishes never exclude and move at most one point. `core/tests/rubric.rs`
+keeps both files identical and the caps of SKILL.md and `matching.py` equal to the rubric.
+
 ## New vs old
 
 Corpus results (`cargo test -p jobalert-core --test matching_corpus -- --ignored report --nocapture`).
@@ -264,6 +353,47 @@ sap K32 71 (teaser).
 
 Private gold set (real ads, blind grades 0-3, NDCG@10, P@5, Spearman, high-band precision, bootstrap): pending (phase 5).
 
+### Version 4 against version 3
+
+Corpus of 58 ads (K53-K58 added with the new inputs, their bands fixed before the engine work)
+and six profiles (`wish`, `wishSap`: the fin and SAP profiles with Schwerpunkte, target roles and
+wishes). v3 = the engine before this version on the same rows.
+
+| Profile | Jobs | In band old | In band v3 | In band v4 | Distance old | Distance v3 | Distance v4 | Spearman old | Spearman v3 | Spearman v4 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| fin | 58 | 26 / 58 | 54 / 58 | 55 / 58 | 613 | 20 | 17 | 0.66 | 0.89 | 0.88 |
+| it | 58 | 45 / 58 | 57 / 58 | 57 / 58 | 241 | 5 | 5 | 0.66 | 0.86 | 0.87 |
+| sap | 58 | 40 / 58 | 57 / 58 | 57 / 58 | 229 | 6 | 6 | 0.73 | 0.90 | 0.89 |
+| senior | 58 | 22 / 58 | 54 / 58 | 53 / 58 | 611 | 15 | 19 | 0.69 | 0.79 | 0.79 |
+| wish | 58 | 20 / 58 | 50 / 58 | 55 / 58 | 609 | 38 | 14 | 0.55 | 0.76 | 0.85 |
+| wishSap | 58 | 39 / 58 | 55 / 58 | 57 / 58 | 275 | 19 | 9 | 0.74 | 0.91 | 0.90 |
+
+Off band in v4 (none further from its band than the old engine): fin K32 46, K50 60, K58 29;
+it K39 40; sap K32 71; senior K02 55, K17 93, K32 46, K37 44 (v3 25), K58 69; wish K02 55, K17
+97, K37 42; wishSap K32 69.
+
+Held-out sets (`cargo test -p jobalert-core --test matching_heldout -- --ignored heldout_report
+--nocapture`); old = the old engine, v3 = before this version.
+
+| Set | Metric | Old | v3 | v4 |
+|---|---|---|---|---|
+| held-out 1 (192 pairs) | NDCG@10 | 0.546 | 0.822 | 0.930 |
+| | NDCG@20 | 0.602 | 0.855 | 0.933 |
+| | P@5 (reachable) | 0.750 | 1.000 | 1.000 |
+| | Spearman | 0.337 | 0.603 | 0.701 |
+| | grade-3 jobs buried | 15 | 6 | 1 |
+| | exclusion precision / recall | | 1.000 / 0.886 | 1.000 / 1.000 |
+| held-out 2 (192 pairs) | NDCG@10 | 0.558 | 0.632 | 0.805 |
+| | NDCG@20 | 0.644 | 0.711 | 0.849 |
+| | P@5 (reachable) | 0.450 | 0.750 | 0.938 |
+| | Spearman | 0.338 | 0.366 | 0.554 |
+| | grade-3 jobs buried | 9 | 3 | 1 |
+| | exclusion precision / recall | | 0.825 / 0.810 | 1.000 / 0.948 |
+
+Left: the buried grade-3 jobs are teasers (held-out 1 senior D04, held-out 2 P1 X03); missed
+exclusions P1, P4 and senior on Y12 (a career rule the engine does not read); the HR profile P1
+(NDCG@10 0.387) waits for its domain pack.
+
 ## In the app
 
 `pipeline::LocalMatcher` wraps one compiled profile; revision `e{ENGINE_VERSION}.{INPUTS}:{fingerprint}`
@@ -276,8 +406,8 @@ scored and nothing is pending. Jobs without text are judged from title and locat
 
 | Output | Content |
 |---|---|
-| List (`JobMatch`, stored) | status, score, `mustMet`/`mustTotal`, `top` (<= 2 met musts, then nice), `note`: first violation code (excluded), `shortText` (unscorable), else first check code; params flattened to scalars (lists joined with `, `) |
-| Reader (`MatchDetail`, recomputed) | reasons `r{id}` (<= 40: violations, checks, musts, nice, info), highlights `h{id}` of kept reasons (<= 200, UTF-16), `summary` = `{code: "summary", params: mustMet, mustPartial, mustOpen, mustTotal, niceMet, niceTotal, evidence}`, criteria strip `c:{key}` for every criterion the profile sets (kind met/check/violation, profile values + `reason` id + its ranges) |
+| List (`JobMatch`, stored) | status, score, `mustMet`/`mustTotal`, `top` (<= 2 met musts, then nice), `note`: first violation code (excluded), `shortText` (unscorable), else first check code; params flattened to scalars (lists joined with `, `); `facts` (`KeyFacts`, null values left out in the store) |
+| Reader (`MatchDetail`, recomputed) | reasons `r{id}` (<= 40: violations, checks, musts, nice, info), highlights `h{id}` of kept reasons (<= 200, UTF-16), `summary` = `{code: "summary", params: mustMet, mustPartial, mustOpen, mustTotal, niceMet, niceTotal, evidence}`, criteria strip `c:{key}` for every criterion the profile sets that fits the contract type (kind met only with the ad's value as evidence, open = not mentioned, check, violation; profile values, the ad's value, `reason` id, the passages) |
 | Profile (`ProfileInfo`) | quality, understood (competences, source path patterns, criteria `{code, params.set, ...}`, warnings), `scoredAt`, `pending` |
 | `auswertung/top_matches.json` | for the matching skill (optional stage 2): `{schema, generatedAt, rev, jobs[<=10]{key, title, company, location, portal, url, score, band, mustMet, mustTotal, met, partial, open, checks, txtFile}}`, scored jobs of the last mailbox run, best first |
 

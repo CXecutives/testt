@@ -1,0 +1,27 @@
+Titel: SAP S/4HANA FI/CO Berater (m/w/d) freiberuflich
+Unternehmen: Hafenblick Logistik AG
+Ort: Bremen (Deutschland)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4187320114/
+Abgerufen am: 02.09.2026 07:45
+
+Info zum Job
+Die Hafenblick Logistik AG führt SAP S/4HANA im Greenfield-Ansatz ein. Für den Finanzstream suchen wir einen erfahrenen freiberuflichen Berater, der die Konzeption und Umsetzung in FI und CO verantwortet.
+
+Ihre Aufgaben
+Fachliche Konzeption für Hauptbuch, Kreditoren, Debitoren und Anlagenbuchhaltung
+Aufbau der Kostenstellen- und Innenauftragsrechnung sowie der Ergebnisrechnung (CO-PA, Margin Analysis)
+Customizing im S/4HANA-System und Abstimmung der Integration zu MM und SD
+Vorbereitung und Durchführung der Integrationstests mit den Key Usern
+Begleitung von Cutover und Hypercare
+
+Ihr Profil
+Mindestens fünf Jahre Beratungserfahrung in SAP FI/CO
+Mindestens ein abgeschlossenes S/4HANA-Einführungsprojekt
+Gutes Verständnis der Prozesse in Logistik und Transport
+Verhandlungssichere Deutschkenntnisse, gutes Englisch
+
+Rahmenbedingungen
+Tagessatz bis 1.050 € pro Tag
+Start 01.11.2026, Laufzeit 9 Monate mit Option auf Verlängerung
+60 % remote, sonst vor Ort in Bremen

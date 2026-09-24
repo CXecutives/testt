@@ -1218,6 +1218,7 @@ mod tests {
                 must_met: 1,
                 must_total: 1,
                 top: Vec::new(),
+                facts: crate::model::KeyFacts::default(),
             };
             store
                 .save_matches(&[(key.clone(), record)], "r1", now())

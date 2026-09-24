@@ -36,6 +36,27 @@ pub fn precision_at(scores: &[f64], grades: &[u8], k: usize, relevant: u8) -> f6
     top.iter().filter(|&&i| grades[i] >= relevant).count() as f64 / top.len() as f64
 }
 
+/// Precision@k against what is reachable: relevant jobs in the top k divided by
+/// `min(k, relevant jobs)`, so a profile with only two relevant jobs can reach 1.0; `None`
+/// when no job is relevant.
+pub fn reachable_precision_at(
+    scores: &[f64],
+    grades: &[u8],
+    k: usize,
+    relevant: u8,
+) -> Option<f64> {
+    let total = grades.iter().filter(|&&g| g >= relevant).count();
+    if total == 0 {
+        return None;
+    }
+    let hits = ranking(scores)
+        .into_iter()
+        .take(k)
+        .filter(|&i| grades[i] >= relevant)
+        .count();
+    Some(hits as f64 / k.min(total) as f64)
+}
+
 /// Average ranks (1-based), ties share their mean rank.
 fn ranks(values: &[f64]) -> Vec<f64> {
     let mut order: Vec<usize> = (0..values.len()).collect();
@@ -156,6 +177,12 @@ mod tests {
         assert!(close(precision_at(&scores, &grades, 3, 2), 2.0 / 3.0));
         assert_eq!(high_band_precision(&scores, &grades, 2), Some(0.5));
         assert_eq!(high_band_precision(&[10.0], &[3], 2), None);
+        // Two relevant jobs: both in the top 5 is all a profile can reach.
+        assert_eq!(reachable_precision_at(&scores, &grades, 5, 2), Some(1.0));
+        assert_eq!(reachable_precision_at(&scores, &grades, 1, 2), Some(1.0));
+        let one_off = [90.0, 95.0, 50.0, 10.0];
+        assert_eq!(reachable_precision_at(&one_off, &grades, 2, 2), Some(0.5));
+        assert_eq!(reachable_precision_at(&scores, &[0, 1, 0, 1], 5, 2), None);
     }
 
     #[test]

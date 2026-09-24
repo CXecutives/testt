@@ -1,0 +1,35 @@
+Titel: Interim Finance Transformation Manager (Contract, 6 months)
+Unternehmen: Alderbrook Beverages GmbH
+Ort: Munich, Bavaria, Germany (Hybrid)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4213176433/
+Abgerufen am: 20.09.2026 07:30
+
+About the job
+Alderbrook Beverages is a fast-growing producer of premium soft drinks with operations in Germany, Austria and Poland. Following two acquisitions in 2025, we are harmonising our finance processes and moving all entities onto one S4 Hana instance.
+
+We are looking for an experienced interim Finance Transformation Manager to lead the finance workstream for the next 6 months (extension likely).
+
+What you'll do
+• Own the finance workstream of our S4 Hana rollout for the acquired entities (Austria, Poland)
+• Design harmonised record-to-report and procure-to-pay processes
+• Coordinate with our implementation partner, local finance teams and group IT
+• Plan and steer testing, data migration and cutover for finance
+• Prepare decision papers for the CFO and the steering committee
+• Make sure month-end close keeps running during the transition
+
+What you bring
+• 7+ years of experience in finance, controlling or accounting, ideally in FMCG or food & beverage
+• Proven track record in at least one S/4HANA finance implementation (FI/CO)
+• Strong project management skills, PMP or PRINCE2 is a plus
+• Solid understanding of group reporting and IFRS
+• Fluent English and German (C1 or higher) – Polish is a nice-to-have
+• Comfortable working in a hands-on, fast-moving environment
+
+What we offer
+• Day rate: EUR 950–1,100 depending on experience
+• Start: ASAP, latest November 1st
+• Hybrid set-up: 2–3 days per week in our Munich office, occasional travel to Vienna and Poznań
+• Freelance contract directly with Alderbrook, no staffing agencies please
+
+Alderbrook Beverages is an equal opportunity employer. We welcome applications from all backgrounds.
