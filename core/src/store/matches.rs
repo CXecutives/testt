@@ -172,6 +172,39 @@ impl Store {
         })
     }
 
+    /// Stores the match of one job only while its revision is still `expected` (compare and
+    /// set): a run that scored the job in the meantime wins. `true` if stored.
+    pub fn save_match_if(
+        &self,
+        key: &JobKey,
+        record: &MatchRecord,
+        rev: &str,
+        expected: Option<&str>,
+        now: Timestamp,
+    ) -> Result<bool> {
+        self.write(|conn| {
+            let changed = conn.execute(
+                "UPDATE job SET match_score = ?3, match_status = ?4, match_note = ?5,
+                                match_rev = ?6, match_at = ?7
+                 WHERE portal = ?1 AND job_id = ?2 AND match_rev IS ?8",
+                params![
+                    key.portal.key(),
+                    key.id,
+                    record.score,
+                    record.status.as_str(),
+                    encode_note(record),
+                    rev,
+                    to_db(now),
+                    expected,
+                ],
+            )?;
+            if changed > 0 {
+                bump(conn)?;
+            }
+            Ok(changed > 0)
+        })
+    }
+
     /// Up to `limit` jobs not scored with `rev` yet (after skipping `offset`), with their
     /// full text; newest first. A duplicate of another portal's job is scored with that one.
     pub fn unscored(
@@ -376,6 +409,34 @@ mod tests {
         assert_eq!(store.match_rev(&key).unwrap(), None);
         assert_eq!(store.unscored("r1", 10, 0).unwrap().len(), 1);
         assert!(store.unscored("r1", 10, 1).unwrap().is_empty());
+    }
+
+    /// The reader stores its fresh score only over the one it read: a run that scored the
+    /// job in between keeps its score.
+    #[test]
+    fn a_fresh_score_only_replaces_the_one_it_read() {
+        let (store, key) = store_with_job();
+        let run = record(MatchStatus::Scored, 70);
+        store
+            .save_matches(&[(key.clone(), run.clone())], "r2", now())
+            .unwrap();
+        let stale = record(MatchStatus::Scored, 10);
+        assert!(
+            !store
+                .save_match_if(&key, &stale, "r1", None, now())
+                .unwrap()
+        );
+        let job = store.job(&key).unwrap().unwrap();
+        assert_eq!(
+            (job.match_.unwrap().score, job.match_rev.unwrap()),
+            (70, "r2".into())
+        );
+        assert!(
+            store
+                .save_match_if(&key, &stale, "r3", Some("r2"), now())
+                .unwrap()
+        );
+        assert_eq!(store.match_rev(&key).unwrap().as_deref(), Some("r3"));
     }
 
     #[test]
