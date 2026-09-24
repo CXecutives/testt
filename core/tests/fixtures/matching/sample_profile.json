@@ -1,0 +1,164 @@
+{
+  "name": "Erika Beispiel",
+  "email": "erika.beispiel@example.invalid",
+  "telefon": "+49 170 0000000",
+  "abschluss": "Diplom-Kauffrau (Univ.)",
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Interim Management",
+      "jahre": 12
+    },
+    {
+      "kompetenz": "Controlling",
+      "jahre": 18
+    },
+    {
+      "kompetenz": "Konzernrechnungslegung nach IFRS",
+      "jahre": 14
+    },
+    {
+      "kompetenz": "Konsolidierung",
+      "jahre": 11
+    },
+    {
+      "kompetenz": "Monatsabschlüsse",
+      "jahre": 16
+    },
+    {
+      "kompetenz": "Jahresabschlüsse",
+      "jahre": 16
+    },
+    {
+      "kompetenz": "Budgetierung",
+      "jahre": 16
+    },
+    {
+      "kompetenz": "Forecast",
+      "jahre": 16
+    },
+    {
+      "kompetenz": "Liquiditätsplanung",
+      "jahre": 10
+    },
+    {
+      "kompetenz": "Working Capital Management",
+      "jahre": 7
+    },
+    {
+      "kompetenz": "Business Transformation",
+      "jahre": 9
+    },
+    {
+      "kompetenz": "Restrukturierung",
+      "jahre": 8
+    },
+    {
+      "kompetenz": "Changemanagement",
+      "jahre": 7
+    },
+    {
+      "kompetenz": "Post Merger Integration",
+      "jahre": 6
+    },
+    {
+      "kompetenz": "Carve-out",
+      "jahre": 5
+    },
+    {
+      "kompetenz": "Projektmanagement",
+      "jahre": 15
+    },
+    {
+      "kompetenz": "Prozessoptimierung im Finanzbereich",
+      "jahre": 9
+    },
+    {
+      "kompetenz": "Shared Service Center",
+      "jahre": 5
+    }
+  ],
+  "methoden_tools": [
+    {
+      "name": "SAP S/4HANA"
+    },
+    {
+      "name": "SAP FI/CO"
+    },
+    {
+      "name": "LucaNet"
+    },
+    {
+      "name": "Power BI"
+    },
+    {
+      "name": "Excel"
+    },
+    {
+      "name": "Lean Management"
+    },
+    {
+      "name": "Design Thinking"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Certified Interim Manager (DDIM)"
+    },
+    {
+      "name": "Projektmanagement-Fachfrau (GPM)"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Maschinenbau"
+    },
+    {
+      "branche": "Automotive"
+    },
+    {
+      "branche": "Chemie"
+    },
+    {
+      "branche": "Konsumgüter"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "B2"
+    },
+    {
+      "sprache": "Französisch",
+      "niveau": "Grundkenntnisse"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Aufbau von Konzernreportings in weniger als 100 Tagen",
+    "Verbindet Zahlenwerk mit Veränderungsarbeit"
+  ],
+  "keywords": [
+    "IFRS",
+    "HGB",
+    "Konzernabschluss",
+    "Transformation",
+    "Großkonzern",
+    "CFO"
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 1000,
+    "laender": [
+      "DE",
+      "AT",
+      "CH"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "anue"
+    ],
+    "remote_ausserhalb_erlaubt": true,
+    "verfuegbar_ab": "sofort"
+  }
+}
