@@ -82,6 +82,19 @@ fn heading(line: &str) -> Option<HeadingKind> {
     }
 }
 
+/// A stripped line without a leading glyph bullet (`✅`, `👉`, `→`), and whether it had
+/// one: such a line is a bullet, never a heading.
+fn line_of(line: &str) -> (&str, bool) {
+    let stripped = strip(line);
+    let rest = stripped.trim_start_matches(lex::EXTRA_BULLETS);
+    (strip(rest), rest.len() != stripped.len())
+}
+
+/// A heading, unless the line is a glyph bullet.
+fn heading_of(stripped: &str, bullet: bool) -> Option<HeadingKind> {
+    if bullet { None } else { heading(stripped) }
+}
+
 fn offset(text: &str, part: &str) -> usize {
     (part.as_ptr() as usize).saturating_sub(text.as_ptr() as usize)
 }
@@ -99,7 +112,7 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
     let mut phrases: Vec<Phrase<'_>> = Vec::new();
     let mut in_nice = Vec::new();
     for line in splitlines(text) {
-        let stripped = strip(line);
+        let (stripped, bullet) = line_of(line);
         if stripped.is_empty() {
             continue;
         }
@@ -122,7 +135,7 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
             }
             Inline::None => {}
         }
-        if let Some(kind) = heading(stripped) {
+        if let Some(kind) = heading_of(stripped, bullet) {
             current = Some(kind);
             continue;
         }
@@ -159,7 +172,7 @@ pub(crate) fn context_lines(text: &str) -> Vec<Range<usize>> {
     let mut current: Option<HeadingKind> = None;
     let mut out = Vec::new();
     for line in splitlines(text) {
-        let stripped = strip(line);
+        let (stripped, bullet) = line_of(line);
         if stripped.is_empty() {
             continue;
         }
@@ -174,7 +187,7 @@ pub(crate) fn context_lines(text: &str) -> Vec<Range<usize>> {
             }
             Inline::None => {}
         }
-        if let Some(kind) = heading(stripped) {
+        if let Some(kind) = heading_of(stripped, bullet) {
             let norm = fold(&sections::norm_heading(stripped));
             let task = super::lexicon::wishes::TASK_HEADINGS
                 .iter()
@@ -196,9 +209,9 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
     let (mut phrases, in_nice) = section_phrases(text);
     if !phrases.iter().any(|(_, kind, _)| *kind == ReqKind::Must) {
         for line in splitlines(text) {
-            let stripped = strip(line);
+            let (stripped, bullet) = line_of(line);
             if stripped.is_empty()
-                || heading(stripped).is_some()
+                || heading_of(stripped, bullet).is_some()
                 || in_nice.contains(&offset(text, stripped))
             {
                 continue;
