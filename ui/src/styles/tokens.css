@@ -23,6 +23,8 @@
   --p-slate-deep: 212 30% 26%;
   --p-peach: 20 62% 71%;
   --p-muted: 45 23% 95%;
+  /* The sidebar: a warm surface a shade deeper than the cream content. */
+  --p-sidebar: 34 28% 92.5%;
   --p-muted-fg: 30 4% 35%;
   --p-line: 45 22% 90%;
   --p-accent-soft: 20 62% 91%;
@@ -72,6 +74,7 @@
   --surface-press: hsl(var(--p-ink) / 0.08);
   --surface-selected: hsl(var(--p-accent-soft));
   --surface-tinted: hsl(var(--p-coral-50));
+  --surface-sidebar: hsl(var(--p-sidebar));
   --scrim: hsl(var(--p-scrim) / 0.4);
   --surface-inverse: hsl(var(--p-ink));
 
@@ -242,6 +245,10 @@
   --row-bar: 3px;
   --dialog-width: 440px;
   --stat-min: 180px;
+  /* Sidebar (collapses to the icon rail below 1100 px) and the toast stack. */
+  --sidebar-width: 232px;
+  --rail-width: 64px;
+  --toast-width: 360px;
   --blur-scrim: 4px;
   /* Score ring: r = 15.9155 in a 36-unit viewBox (circumference 100). Stroke widths are
      scaled into viewBox units: 36/40 and 36/96. */
@@ -298,6 +305,8 @@
   --dur-reveal: 700ms;
   --dur-hero: 600ms;
   --dur-loop: 1400ms;
+  /* How long a toast stays (paused while hovered). */
+  --dur-toast: 4000ms;
   --dur-crossfade: 120ms;
   --dur-stagger: 30ms;
   --stagger-max: 10;

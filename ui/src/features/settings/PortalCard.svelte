@@ -19,6 +19,7 @@
   import type { PortalPatch, PortalState, Risk } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { toasts } from '$lib/state/toasts.svelte';
 
   interface Props {
     portal: PortalState;
@@ -59,6 +60,7 @@
         },
       });
       app.set(next);
+      toasts.show(de.toast.saved);
     } catch (failure) {
       error = errorText(failure);
       void app.load();

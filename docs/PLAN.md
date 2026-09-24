@@ -24,6 +24,8 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Heading colour | warm dark ink (45 7% 17%), not slate; coral is the only accent colour (user chose variant A) |
 | Windows caption buttons | flat like the Claude desktop app (user 2026-09-24): 46 x 40, Segoe Fluent glyphs 10 px in ink (muted at rest), warm hover ink/.06, pressed ink/.10, close hsl(4 62% 50%) with a white glyph |
 | Sizes | smaller (user 2026-09-24): title bar 40, tabs 14/500 (active 600), controls 28/36/40, toolbar 56, list rows 72; body text stays 15 |
+| Layout | like the Claude desktop app (user 2026-09-24): left sidebar 232 px (brand, "Abrufen" as the window's primary, nav with icons and unread count, run status at the bottom), icon rail of 64 px below 1100 px; content gets a 40 px drag strip with the caption buttons; word tabs are gone. Test ids `nav-jobs`, `nav-profile`, `nav-settings`, `view-*` |
+| Toasts | allowed for short confirmations whose result is not visible otherwise (saved, copied, files written, run finished): bottom right, at most 3, ~4 s, paused on hover; anything needing action stays inline |
 | Cleanup outside | `.notes` archived to `../_archive/TEST-notes`; user deletes `origin/ci-macos` and release `latest`; CI publishes nothing |
 | Self-decided | TXT header stays German and byte-identical · primary button brand-near (coral 56 %, label 600) · excluded jobs grey behind a divider, also under "Neu" but not counted · Excel for excluded: domain score, grey row · merge cross-portal duplicates · Smart App Control is off on the dev PC |
 
@@ -106,8 +108,9 @@ Sessions: Windows `data_directory`, macOS `data_store_identifier` + `clear_all_b
 cache, profile dir, marker, then verifies `signedIn=false`.
 
 ### UI
-- Title bar 40 px: brand tile + name, centered word tabs Jobs · Profil · Einstellungen with gliding gradient marker,
-  Windows caption buttons right, macOS traffic lights left. No menu, no status bar, no gear icon.
+- Shell (revised 2026-09-24, see Decisions "Layout"): sidebar with brand, Abrufen, nav Jobs · Profil · Einstellungen
+  and the run status; a 40 px drag strip over the content with the Windows caption buttons; macOS traffic lights in
+  the sidebar's top left. No menu, no gear icon.
 - Jobs: toolbar (Abrufen primary lg / Abbrechen · Neu n | Alle n · Beste Passung | Neueste · search) · left column
   run card + list (72 px rows: ring 40, title with unread dot, meta, reason line, date, status badge only on deviation;
   excluded grey behind divider; duplicates as one row) · reader card 720 px (ring 96 counting up, band word, n of m must,
@@ -126,7 +129,8 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   stagger 30 ms, four easings.
 - 23 components (Button primary|secondary|ghost|danger x sm|md|lg, Icon, IconTile, Card, Badge, Segmented, Toggle,
   TextField+Field, NavTabs, ScoreRing, Meter, Skeleton, Spinner, Notice, EmptyState, StatTile, Dialog, Tooltip,
-  Disclosure, SettingRow, ListRow/JobRow, ReasonItem, WindowControls). Not: toast, select, checkbox, radio, context menu.
+  Disclosure, SettingRow, ListRow/JobRow, ReasonItem, WindowControls; since phase 3 SideNav instead of NavTabs, and
+  Toast). Not: select, checkbox, radio, context menu.
 - Motion: only transform/opacity (colour on hover); shadows/glow on `::after` via opacity; whole-pixel end values;
   <= 10 staggered, <= 10 rings animating, FLIP <= 100 rows else cross-fade; reduced motion via `motion.ts`.
 - Consistency: stylelint (no hex/named colours, no colour functions/units outside tokens, strict values, allowed
@@ -191,7 +195,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
 
 ### Phase 3 - screens and core workflow (two UI agents)
 - [x] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)
-- [ ] Shell, Profil, Einstellungen, first run; all states; texts only from `de.ts`; `mark_read` only on a real click
+- [x] Shell, Profil, Einstellungen, first run; all states; texts only from `de.ts`; `mark_read` only on a real click
 - [ ] >= 30 harness scenarios in Chromium + WebKit; screenshot baselines; smoke probe of the real app
 - Done when: core workflow works in both engines and the real app; every view in every state is captured; 0 lint
   exceptions; all 33 audit findings of the old UI are resolved. Send screenshots (Windows + macOS CI) to the user.

@@ -36,7 +36,7 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await expect(page.getByTestId('run-running')).toBeVisible();
   await expect(page.getByTestId('cancel-run')).toBeVisible();
   await runFinished(page);
-  await expect(page.getByTestId('run-idle')).toBeVisible();
+  await expect(page.getByTestId('run-finished')).toBeVisible();
   await expect(page.getByTestId('fetch')).toBeVisible();
 
   // The new job with the best score is scored live and sorted to the top once finished.
@@ -174,7 +174,7 @@ test('an empty list and a first fetch without news', async ({ page }) => {
   await open(page, `${WIN}&scenario=empty`);
   await expect(page.getByTestId('empty-all')).toBeVisible();
   expect(await visibleCount(page, '[data-testid^="empty-"]')).toBe(1);
-  await expect(page.getByTestId('last-new')).toHaveText('0 neue Jobs');
+  await expect(page.getByTestId('run-status')).toContainText('Zuletzt');
 });
 
 test('a run can be cancelled', async ({ page }) => {
@@ -182,7 +182,7 @@ test('a run can be cancelled', async ({ page }) => {
   await page.getByTestId('fetch').click();
   await page.getByTestId('cancel-run').click();
   await runFinished(page);
-  await expect(page.getByTestId('run-idle')).toContainText('Der Abruf wurde abgebrochen.');
+  await expect(page.getByTestId('run-finished')).toContainText('Der Abruf wurde abgebrochen.');
 });
 
 test('offline: the failed run says why and offers a retry', async ({ page }) => {

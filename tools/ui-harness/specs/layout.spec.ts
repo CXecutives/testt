@@ -45,29 +45,83 @@ for (const size of SIZES) {
   }
 }
 
-test('the brand name hides below 900 px, the tabs stay centered', async ({ page }) => {
-  await page.setViewportSize({ width: 880, height: 600 });
-  await open(page, '?platform=windows');
-  await expect(page.getByTestId('brand').getByText('Job-Alert-Monitor')).toBeHidden();
-  const { center, tabs } = await page.evaluate(() => {
-    const bar = document.querySelector('[data-testid="titlebar"]')!.getBoundingClientRect();
-    const list = document.querySelector('[role="tablist"]')!.getBoundingClientRect();
-    return { center: bar.left + bar.width / 2, tabs: list.left + list.width / 2 };
+for (const [width, rail] of [
+  [1280, false],
+  [1100, false],
+  [1099, true],
+  [780, true],
+] as const) {
+  test(`the sidebar ${rail ? 'is the icon rail' : 'is full'} at ${width} px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 700 });
+    await open(page, '?platform=windows');
+    const sidebar = await page.getByTestId('sidebar').boundingBox();
+    expect(sidebar?.width).toBe(rail ? 64 : 232);
+    const label = page.getByTestId('nav-profile');
+    if (rail) {
+      await expect(label).toHaveAttribute('aria-label', 'Profil');
+      await label.hover();
+      await expect(page.getByRole('tooltip')).toHaveText('Profil');
+      await expect(page.getByTestId('brand').getByText('Job-Alert-Monitor')).toHaveCount(0);
+    } else {
+      await expect(label).toHaveText('Profil');
+      await expect(page.getByTestId('brand')).toContainText('Job-Alert-Monitor');
+    }
   });
-  expect(Math.abs(center - tabs)).toBeLessThanOrEqual(1);
+}
+
+test('empty screens are never dead: an icon, one sentence, one way on, centred', async ({
+  page,
+}) => {
+  await open(page, '?platform=windows&scenario=no-profile');
+  await page.getByTestId('nav-profile').click();
+  const empty = page.getByTestId('profile-empty');
+  await expect(empty).toBeVisible();
+  // "Abrufen" in the sidebar is the window's primary; the empty state stays secondary.
+  await expect(empty.locator('.btn.primary')).toHaveCount(0);
+  await expect(empty.getByRole('button')).toHaveCount(2);
+  const offset = await empty.evaluate((node) => {
+    const view = node.closest('.view')!.getBoundingClientRect();
+    const box = node.getBoundingClientRect();
+    return Math.abs(box.left + box.width / 2 - (view.left + view.width / 2));
+  });
+  expect(offset).toBeLessThanOrEqual(1);
+  expect(await page.locator('.btn.primary').count()).toBe(1);
 });
 
-test('placeholders are never dead: mark, one sentence, one action, centred', async ({ page }) => {
+test('toasts: at most three, they stay while hovered and leave on their own', async ({ page }) => {
   await open(page, '?platform=windows');
-  for (const [tab, id] of [['tab-profile', 'placeholder-profile']] as const) {
-    await page.getByTestId(tab).click();
-    const placeholder = page.getByTestId(id);
-    await expect(placeholder).toBeVisible();
-    await expect(placeholder.getByRole('button')).toHaveCount(1);
-    const offset = await placeholder.evaluate((node) => {
-      const box = node.getBoundingClientRect();
-      return Math.abs(box.left + box.width / 2 - document.documentElement.clientWidth / 2);
-    });
-    expect(offset).toBeLessThanOrEqual(1);
-  }
+  await page.getByTestId('nav-settings').click();
+  for (let i = 0; i < 4; i += 1) await page.getByTestId('toggle-auto-fetch').click();
+  const toasts = page.getByTestId('toast');
+  await expect(toasts).toHaveCount(3);
+  await toasts.first().hover();
+  await page.waitForTimeout(4500);
+  await expect(toasts).toHaveCount(1);
+  await page.mouse.move(5, 5);
+  await expect(toasts).toHaveCount(0, { timeout: 6000 });
 });
+
+for (const scenario of ['default', 'first-run', 'running']) {
+  for (const tab of ['nav-jobs', 'nav-profile', 'nav-settings']) {
+    test(`nothing clipped or scrolling sideways at 780x560: ${scenario} ${tab}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 780, height: 560 });
+      await open(page, `?platform=windows&scenario=${scenario}`);
+      await page.getByTestId(tab).click();
+      await page.waitForTimeout(300);
+      const wide = await page.evaluate(() =>
+        [...document.querySelectorAll('.view, .view *')]
+          .filter(
+            (node) =>
+              node.scrollWidth > node.clientWidth + 1 &&
+              getComputedStyle(node).overflowX !== 'visible' &&
+              // The meter clips its travelling light edge on purpose.
+              node.closest('[role="progressbar"]') === null,
+          )
+          .map((node) => `${node.tagName}.${node.className}`),
+      );
+      expect(wide).toEqual([]);
+    });
+  }
+}

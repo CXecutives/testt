@@ -243,7 +243,7 @@ export const de = {
     change: 'Ändern',
     open: 'Öffnen',
     copy: 'Kopieren',
-    copied: 'Kopiert',
+    hide: 'Ausblenden',
     back: 'Zurück',
     retry: 'Erneut versuchen',
     openFolder: 'Ordner öffnen',
@@ -324,8 +324,6 @@ export const de = {
     needsMailbox: 'Erst ein Postfach verbinden.',
   },
   run: {
-    label: 'Abruf',
-    lastFetch: 'Letzter Abruf',
     never: 'Noch kein Abruf',
     newCount: (value: number) => count(value, 'neuer Job', 'neue Jobs'),
     topCount: (value: number) => `${n(value)} mit hoher Passung`,
@@ -358,6 +356,8 @@ export const de = {
       count(value, 'Datei ließ', 'Dateien ließen') + ' sich nicht schreiben.',
     openOverview: 'Übersicht öffnen',
     history: 'Verlauf',
+    collapse: 'Einklappen',
+    expand: 'Ausklappen',
     alert: (portal: Portal, postings: number) =>
       `Alert-Mail von ${portalName[portal]} mit ${count(postings, 'Job', 'Jobs')}`,
     health: (portal: Portal) => `${portalName[portal]} meldet sich`,
@@ -414,7 +414,6 @@ export const de = {
     detailsOff: 'Details holen ist für dieses Portal aus.',
     short: SHORT_TEXT,
     loadFailed: 'Der Job ließ sich nicht laden.',
-    seen: (iso: string) => `Gesehen ${formatDate(iso)}`,
   },
   overview: {
     label: 'Tagesüberblick',
@@ -428,7 +427,6 @@ export const de = {
     emptyAlert: (portal: Portal) =>
       `Eine Alert-Mail von ${portalName[portal]} enthielt keine Jobs.`,
     openGmail: 'In Gmail öffnen',
-    allRead: 'Alles gelesen.',
     choose: 'Einen Job links wählen, um die Passung zu sehen.',
   },
   health: {
@@ -442,11 +440,9 @@ export const de = {
     loginText: 'Die Anmeldung ist abgelaufen.',
   },
   profile: {
-    file: 'Profildatei',
     none: 'Noch kein Profil.',
     noneText: 'Gegen das Profil wird jeder Job geprüft.',
     pick: 'Profil wählen',
-    pickOther: 'Anderes Profil wählen',
     template: 'Vorlage speichern',
     templateSaved: 'Die Vorlage liegt im Arbeitsordner.',
     remove: 'Entfernen',
@@ -472,7 +468,6 @@ export const de = {
     criteria: 'Ausschlusskriterien',
     warnings: 'Hinweise',
     warning,
-    sources: 'Gelesen aus',
     notYet: 'Die Auswertung folgt nach dem nächsten Start.',
   },
   settings: {
@@ -566,12 +561,17 @@ export const de = {
   },
   shell: {
     loadFailed: 'Die App konnte ihre Daten nicht laden.',
+    last: (iso: string) => `Zuletzt ${formatMoment(iso)}`,
+    showRun: 'Abruf anzeigen',
+    runFailed: 'Abruf fehlgeschlagen',
   },
-  views: {
-    profile: {
-      text: 'Hier liegt das Profil, gegen das jeder Job geprüft wird.',
-      action: 'Profil wählen',
-    },
+  toast: {
+    saved: 'Gespeichert.',
+    copied: 'Kopiert.',
+    runDone: (value: number) =>
+      value === 0
+        ? 'Abruf fertig, nichts Neues.'
+        : `Abruf fertig, ${count(value, 'neuer Job', 'neue Jobs')}.`,
   },
   error: {
     text: (kind: ErrorKind | 'unknown', params: Params): string => {

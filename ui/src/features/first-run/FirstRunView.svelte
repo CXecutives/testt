@@ -15,13 +15,14 @@
   import { invoke } from '$lib/ipc/api';
   import { app } from '$lib/state/app.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { toasts } from '$lib/state/toasts.svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
 
   const mailboxDone = $derived(app.hasMailbox);
   const profileDone = $derived(app.state?.profile != null);
   /** The step whose action is the primary one. */
   const current = $derived(!mailboxDone ? 1 : !profileDone ? 2 : 3);
-  let profileNote = $state<{ tone: 'success' | 'danger'; text: string } | null>(null);
+  let profileNote = $state<{ tone: 'danger'; text: string } | null>(null);
   let busy = $state(false);
 
   async function pick(): Promise<void> {
@@ -40,7 +41,7 @@
     profileNote = null;
     try {
       if ((await invoke('save_profile_template')) !== null) {
-        profileNote = { tone: 'success', text: de.profile.templateSaved };
+        toasts.show(de.profile.templateSaved);
       }
     } catch (error) {
       profileNote = { tone: 'danger', text: errorText(error) };

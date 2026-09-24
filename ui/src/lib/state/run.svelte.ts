@@ -18,6 +18,7 @@ import type {
   Step,
 } from '../ipc/types';
 import { app } from './app.svelte';
+import { toasts } from './toasts.svelte';
 
 export const STEPS: readonly Step[] = ['scan', 'fetch', 'score'];
 const ORDER: readonly Step[] = ['scan', 'fetch', 'score', 'export'];
@@ -48,6 +49,8 @@ class RunStore {
   /** An error of `start_run` itself (busy, no mailbox ...). */
   startError = $state<string | null>(null);
   cancelling = $state(false);
+  /** The run card above the list: open while running and right after, collapsible. */
+  panel = $state<'open' | 'collapsed' | 'hidden'>('hidden');
   /** Ticks every second while a countdown is shown. */
   now = $state(Date.now());
 
@@ -87,6 +90,7 @@ class RunStore {
     this.summary = null;
     this.startError = null;
     this.cancelling = false;
+    if (this.panel === 'hidden') this.panel = 'open';
   }
 
   async start(request: RunRequest): Promise<boolean> {
@@ -205,7 +209,13 @@ class RunStore {
               ? de.run.cancelled
               : de.run.failed,
         );
-        if (live) void app.load();
+        if (live) {
+          if (this.panel === 'hidden') this.panel = 'open';
+          if (event.summary.outcome.kind === 'completed') {
+            toasts.show(de.toast.runDone(this.newJobs));
+          }
+          void app.load();
+        }
         break;
       case 'jobUpdated':
         break;

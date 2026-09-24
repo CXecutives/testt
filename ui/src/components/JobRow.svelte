@@ -85,9 +85,11 @@
       use:tooltip={de.portal[job.portal]}>{PORTAL_MONOGRAM[job.portal]}</span
     >
     {#if alsoOn}<span class="also" use:tooltip={alsoOn}>+{job.alsoOn.length}</span>{/if}
-    <span class="text">{job.company}</span>
+    <span class="text company">{job.company}</span>
     {#if job.location}<span class="sep">·</span><span class="text place">{job.location}</span>{/if}
-    {#if job.workMode}<Badge label={de.job.workMode[job.workMode]} tone="neutral" />{/if}
+    {#if job.workMode}<span class="mode"
+        ><Badge label={de.job.workMode[job.workMode]} tone="neutral" /></span
+      >{/if}
   </span>
   {#if reason}
     <span class="reason"><ReasonItem kind={reason.kind} label={reason.text} compact /></span>
@@ -166,14 +168,26 @@
     white-space: nowrap;
   }
 
+  .company {
+    flex: 0 1 auto;
+    min-width: var(--space-48);
+  }
+
   .sep {
     color: var(--text-subtle);
   }
 
   /* The place is short and says more than the end of a long company name. */
   .place {
-    flex: none;
-    max-width: 50%;
+    flex: 0 1 auto;
+    max-width: 45%;
+  }
+
+  /* In a narrow list the work mode gives way to company and place (the reader shows it). */
+  @container (width < 460px) {
+    .mode {
+      display: none;
+    }
   }
 
   .reason {

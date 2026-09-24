@@ -299,7 +299,7 @@ class JobsStore {
 
   async loadDetail(key: JobKey): Promise<void> {
     const request = ++this.#detailRequest;
-    if (!sameKey(this.detail?.job.key ?? null, key)) this.detail = null;
+    // The previous job stays until the next one is there (no blank flash between two jobs).
     this.detailStatus = 'loading';
     this.detailError = null;
     const timer = setTimeout(() => {

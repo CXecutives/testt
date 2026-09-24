@@ -528,7 +528,8 @@ fn per_os_markup_only_in_the_title_bar() {
                 "data-platform",
             ],
             |s| {
-                s.is("features/shell/TitleBar.svelte")
+                // The shell: the top strip (caption buttons) and the sidebar (traffic lights).
+                s.under("features/shell/")
                     || s.is("components/WindowControls.svelte")
                     || s.is("lib/platform.ts")
                     // Font smoothing on macOS only (documented platform difference).
@@ -537,7 +538,7 @@ fn per_os_markup_only_in_the_title_bar() {
                     || s.under("lib/ipc/types/")
             },
         ),
-        "per-OS differences live only in TitleBar, WindowControls and platform.ts",
+        "per-OS differences live only in the shell (strip, sidebar), WindowControls and platform.ts",
     );
     // The Windows icon font draws the native caption glyphs - nowhere else (macOS has none).
     fail(

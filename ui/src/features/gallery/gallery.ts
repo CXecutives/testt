@@ -58,6 +58,8 @@ export const text = {
   },
   navigation: {
     tabs: ['Jobs', 'Profil', 'Einstellungen'],
+    toast: 'Toast zeigen',
+    toastText: 'Gespeichert.',
   },
   surfaces: {
     cards: 'Karten',

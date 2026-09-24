@@ -93,8 +93,8 @@ test('keys do nothing outside fields; fields keep typing and clipboard keys', as
 });
 
 test('real right and middle clicks change nothing', async ({ page }) => {
-  await page.getByTestId('tab-profile').click({ button: 'right' });
-  await page.getByTestId('tab-settings').click({ button: 'middle' });
+  await page.getByTestId('nav-profile').click({ button: 'right' });
+  await page.getByTestId('nav-settings').click({ button: 'middle' });
   await expect(page.getByTestId('view-jobs')).toBeVisible();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');

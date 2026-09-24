@@ -18,6 +18,7 @@
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { toasts } from '$lib/state/toasts.svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
   import PortalCard from './PortalCard.svelte';
 
@@ -74,6 +75,7 @@
   function autoFetch(on: boolean): void {
     void act('fetch', setFetch, async () => {
       app.set(await invoke('save_settings', { patch: { portals: [], autoFetchOnStart: on } }));
+      toasts.show(de.toast.saved);
       return null;
     });
   }
@@ -94,7 +96,8 @@
         return { tone: 'danger', text: de.error.text(result.error.kind, result.error.params) };
       if (result.txtFailed > 0)
         return { tone: 'warning', text: de.settings.txtFailed(result.txtFailed) };
-      return { tone: 'success', text: de.settings.txtWritten(result.txtWritten) };
+      toasts.show(de.settings.txtWritten(result.txtWritten));
+      return null;
     });
   }
 
@@ -103,9 +106,11 @@
       const result = await invoke('clear_txt');
       confirmClear = false;
       await app.load();
-      return result.failed.length > 0
-        ? { tone: 'warning', text: de.settings.txtFailed(result.failed.length) }
-        : { tone: 'success', text: de.settings.txtCleared(result.removed) };
+      if (result.failed.length > 0) {
+        return { tone: 'warning', text: de.settings.txtFailed(result.failed.length) };
+      }
+      toasts.show(de.settings.txtCleared(result.removed));
+      return null;
     });
   }
 
@@ -127,7 +132,7 @@
   async function copyPath(path: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(path);
-      setCare({ tone: 'success', text: de.common.copied });
+      toasts.show(de.toast.copied);
     } catch (error) {
       setCare({ tone: 'danger', text: errorText(error) });
     }
@@ -399,7 +404,7 @@
     gap: var(--space-32);
     max-width: var(--reader-width);
     margin: 0 auto;
-    padding: var(--space-32) var(--space-24) var(--space-64);
+    padding: var(--space-32) var(--space-32) var(--space-64);
   }
 
   .section {

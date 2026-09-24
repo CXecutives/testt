@@ -10,7 +10,9 @@
   import Skeleton from '$components/Skeleton.svelte';
   import { de } from '$lib/i18n/de';
   import { app } from '$lib/state/app.svelte';
-  import { jobs } from '$lib/state/jobs.svelte';
+  import { fade, rise } from '$lib/motion/transitions';
+  import { jobs, keyOf } from '$lib/state/jobs.svelte';
+  import { run } from '$lib/state/run.svelte';
   import DayOverview from './DayOverview.svelte';
   import JobList from './JobList.svelte';
   import Reader from './Reader.svelte';
@@ -35,7 +37,9 @@
   <Toolbar />
   <div class="body">
     <aside class="left">
-      <div class="run"><RunCard /></div>
+      {#if run.active || (run.panel !== 'hidden' && (run.summary ?? app.state?.lastRun))}
+        <div class="run" in:rise={{ distance: 'md' }}><RunCard /></div>
+      {/if}
       <div class="scroll" data-testid="list-scroll"><JobList /></div>
     </aside>
     <section class="right" bind:this={pane} data-testid="reader-pane">
@@ -52,7 +56,9 @@
             />
           </div>
           {#if jobs.detail}
-            <Reader detail={jobs.detail} />
+            {#key keyOf(jobs.detail.job.key)}
+              <div in:fade={{ duration: 'base' }}><Reader detail={jobs.detail} /></div>
+            {/key}
           {:else if jobs.detailStatus === 'error'}
             <EmptyState
               icon="triangle-alert"
@@ -75,7 +81,7 @@
             </Card>
           {/if}
         {:else}
-          <DayOverview />
+          <div in:fade={{ duration: 'base' }}><DayOverview /></div>
         {/if}
       </div>
     </section>
@@ -99,7 +105,8 @@
     display: flex;
     flex: none;
     flex-direction: column;
-    width: clamp(var(--list-min), 32%, var(--list-max));
+    width: clamp(var(--list-min), 38%, var(--list-max));
+    container-type: inline-size;
     min-height: 0;
     border-right: var(--border-width) solid var(--border);
     background-color: var(--surface);
@@ -132,7 +139,7 @@
     gap: var(--space-12);
     max-width: var(--reader-width);
     margin: 0 auto;
-    padding: var(--space-32) var(--space-32) var(--space-48);
+    padding: var(--space-32) var(--space-32) var(--space-64);
   }
 
   .back {

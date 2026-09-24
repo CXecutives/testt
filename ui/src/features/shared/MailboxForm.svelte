@@ -13,9 +13,13 @@
   import { formKeys } from '$lib/input/input';
   import { invoke, IpcError } from '$lib/ipc/api';
   import { app } from '$lib/state/app.svelte';
+  import { toasts } from '$lib/state/toasts.svelte';
 
   interface Props {
-    /** Label of the save button ("Verbinden" first, "Speichern" when changing). */
+    /**
+     * Label of the save button ("Verbinden" first: the primary while nothing can be fetched;
+     * "Speichern" when changing, next to cancel, as a secondary: "Abrufen" is the primary then).
+     */
     saveLabel: string;
     /** Only when changing an existing mailbox. */
     oncancel?: (() => void) | null;
@@ -39,6 +43,7 @@
       await invoke('save_mailbox', { user: user.trim(), password });
       password = '';
       await app.load();
+      if (oncancel) toasts.show(de.toast.saved);
       onsaved?.();
     } catch (error) {
       const reason = error instanceof IpcError ? error.params.reason : null;
@@ -103,7 +108,7 @@
   {/if}
   <div class="actions">
     <Button
-      variant="primary"
+      variant={oncancel ? 'secondary' : 'primary'}
       label={saveLabel}
       loading={busy}
       testid="mailbox-save"

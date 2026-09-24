@@ -7,7 +7,7 @@ const WIN = '?platform=windows';
 
 async function settings(page: Page, query = WIN): Promise<void> {
   await open(page, query);
-  await page.getByTestId('tab-settings').click();
+  await page.getByTestId('nav-settings').click();
   await expect(page.getByTestId('settings')).toBeVisible();
 }
 
@@ -37,9 +37,7 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
 
   await page.getByTestId('first-template').click();
-  await expect(page.getByTestId('step-profile')).toContainText(
-    'Die Vorlage liegt im Arbeitsordner.',
-  );
+  await expect(page.getByTestId('toast')).toHaveText('Die Vorlage liegt im Arbeitsordner.');
   await page.getByTestId('first-pick-profile').click();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
@@ -54,7 +52,8 @@ test('settings: sections, no primary while nothing asks for one', async ({ page 
   for (const id of ['mailbox', 'fetch', 'portals', 'files', 'care']) {
     await expect(page.getByTestId(`settings-${id}`)).toBeVisible();
   }
-  expect(await visibleCount(page, '.btn.primary')).toBe(0);
+  expect(await visibleCount(page, '[data-testid="view-settings"] .btn.primary')).toBe(0);
+  expect(await visibleCount(page, '.btn.primary')).toBe(1);
   await expect(page.getByTestId('settings-mailbox')).toContainText('alerts.demo@gmail.com');
 });
 
@@ -63,6 +62,7 @@ test('changing the mailbox: form with save and cancel, Esc cancels', async ({ pa
   await page.getByTestId('mailbox-change').click();
   await expect(page.getByTestId('mailbox-form')).toBeVisible();
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
+  await expect(page.getByTestId('mailbox-save')).toHaveClass(/secondary/);
   await page.getByTestId('mailbox-password').press('Escape');
   await expect(page.getByTestId('mailbox-form')).toHaveCount(0);
 });
@@ -130,10 +130,10 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
 test('files: rewrite and delete the text files where they are', async ({ page }) => {
   await settings(page);
   await page.getByTestId('txt-rewrite').click();
-  await expect(page.getByTestId('files-note')).toHaveText('38 Dateien geschrieben.');
+  await expect(page.getByTestId('toast').last()).toHaveText('38 Dateien geschrieben.');
   await page.getByTestId('txt-clear').click();
   await page.getByTestId('dialog-clear').getByRole('button', { name: 'Löschen' }).click();
-  await expect(page.getByTestId('files-note')).toHaveText('38 Dateien gelöscht.');
+  await expect(page.getByTestId('toast').last()).toHaveText('38 Dateien gelöscht.');
   await expect(page.getByTestId('txt-clear')).toHaveAttribute('aria-disabled', 'true');
 });
 

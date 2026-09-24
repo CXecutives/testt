@@ -18,6 +18,7 @@
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
+  import { run } from '$lib/state/run.svelte';
 
   const PORTALS: readonly Portal[] = ['linkedin', 'freelancermap', 'freelance'];
   const BEST = 3;
@@ -46,6 +47,12 @@
   const profileMissing = $derived(app.state !== null && app.state.profile === null);
   const profileBroken = $derived(app.state?.profile?.parseError != null);
   const hasJobs = $derived(all.length > 0);
+  // A failed fetch from before this session; a run of this session speaks in the run card.
+  const lastFailure = $derived.by(() => {
+    const last = app.state?.lastRun;
+    if (run.active || run.panel !== 'hidden' || last?.outcome.kind !== 'failed') return null;
+    return last.outcome.error;
+  });
   let actionError = $state<string | null>(null);
 
   function open(target: OpenTarget): void {
@@ -90,10 +97,19 @@
     {/if}
   </div>
 
-  {#if troubled.length > 0 || emptyAlerts.length > 0 || profileMissing || profileBroken}
+  {#if troubled.length > 0 || emptyAlerts.length > 0 || profileMissing || profileBroken || lastFailure}
     <Card padding="md" testid="issues">
       <h2 class="heading">{de.overview.issues}</h2>
       <div class="stack">
+        {#if lastFailure}
+          <Notice
+            tone="danger"
+            heading={de.run.failed}
+            text={de.error.text(lastFailure.kind, lastFailure.params)}
+            action={{ label: de.common.retry, onclick: () => void run.start({ kind: 'fetch' }) }}
+            testid="run-failed"
+          />
+        {/if}
         {#if profileMissing || profileBroken}
           <Notice
             tone="info"

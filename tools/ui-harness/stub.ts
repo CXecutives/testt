@@ -492,6 +492,14 @@ function initial(): void {
     case 'reset':
       state.resetReport = { removed: 12, failed: 1 };
       break;
+    case 'profile-broken':
+      state.profile = {
+        ...PROFILE,
+        quality: null,
+        understood: null,
+        parseError: { kind: 'invalid', params: { reason: 'profileNotJson', line: 12, column: 3 } },
+      };
+      break;
     case 'running':
       state.running = {
         kind: 'fetch',

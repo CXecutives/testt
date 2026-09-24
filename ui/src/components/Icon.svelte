@@ -4,7 +4,9 @@
 -->
 <script lang="ts" module>
   import Ban from '@lucide/svelte/icons/ban';
+  import Briefcase from '@lucide/svelte/icons/briefcase';
   import Building2 from '@lucide/svelte/icons/building-2';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
   import Check from '@lucide/svelte/icons/check';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
@@ -31,10 +33,12 @@
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import Search from '@lucide/svelte/icons/search';
   import Shield from '@lucide/svelte/icons/shield';
+  import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
   import Square from '@lucide/svelte/icons/square';
   import Star from '@lucide/svelte/icons/star';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import UserRound from '@lucide/svelte/icons/user-round';
   import WifiOff from '@lucide/svelte/icons/wifi-off';
   import X from '@lucide/svelte/icons/x';
   import type { Component } from 'svelte';
@@ -76,6 +80,11 @@
     'eye-off': EyeOff,
     // Empty states (the user ruled out "sparkles" as an AI cliché).
     inbox: Inbox,
+    // Sidebar navigation and toasts.
+    briefcase: Briefcase,
+    'user-round': UserRound,
+    'sliders-horizontal': SlidersHorizontal,
+    'circle-check': CircleCheck,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;
