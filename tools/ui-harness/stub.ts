@@ -304,9 +304,9 @@ const PROFILE: ProfileInfo = {
   quality: 'good',
   understood: {
     competenceCount: 42,
-    packs: ["finance", "sap"],
+    packs: ['finance', 'sap'],
     years: 28,
-    degrees: ["Diplom-Kauffrau (Univ.)"],
+    degrees: ['Diplom-Kauffrau (Univ.)'],
     competences: [
       'Interim-Management',
       'Konzernabschluss nach HGB',
