@@ -1,14 +1,14 @@
-// Turns codes with params (errors, notices, reasons, criteria, health) into catalog text.
-// The screens never build sentences themselves.
+// Turns codes with params (errors, notices, reasons, criteria, health) into catalog text of
+// the app's language (`t`). The screens never build sentences themselves.
 //
 // Engine codes travel as plain strings (`Reason.code`, `Notice.code`). The catalog tables
-// in de.ts are the one place that knows them: a new code needs one entry there. Unknown
-// codes from a newer core fall back to the ad's words or are left out, never to a raw code.
+// in de.ts (and en.ts, the same keys) are the one place that knows them: a new code needs one
+// entry there. Unknown codes from a newer core fall back to the ad's words or are left out,
+// never to a raw code.
 
 import { IpcError } from '../ipc/api';
 import type { JobView, Notice, PortalHealth, Reason } from '../ipc/types';
 import {
-  de,
   textOf,
   type CriterionKey,
   type CriterionState,
@@ -16,14 +16,15 @@ import {
   type ProfileWarning,
   type ReasonCode,
 } from './de';
+import { t } from './t';
 
 const has = <T extends object>(table: T, key: string): key is Extract<keyof T, string> =>
   Object.prototype.hasOwnProperty.call(table, key);
 
 /** The text of any failure (IpcError from api.ts, or something unexpected). */
 export function errorText(error: unknown): string {
-  if (error instanceof IpcError) return de.error.text(error.kind, error.params);
-  return de.error.text('unknown', {});
+  if (error instanceof IpcError) return t.error.text(error.kind, error.params);
+  return t.error.text('unknown', {});
 }
 
 /** Criterion names differ between a note (`dayRate`) and the key (`minDayRate`). */
@@ -37,29 +38,29 @@ const ALIASES: Record<string, CriterionKey> = {
 
 export function criterionKey(value: unknown): CriterionKey | null {
   if (typeof value !== 'string') return null;
-  if (has(de.reader.criterion, value)) return value;
+  if (has(t.reader.criterion, value)) return value;
   return ALIASES[value] ?? null;
 }
 
 /** The words of a reason: the ad's quote for requirements, a catalog sentence otherwise. */
 export function reasonText(reason: Reason): string {
   const code = reason.code;
-  if (!has(de.reason.code, code) || code === 'requirement' || code === 'term') {
+  if (!has(t.reason.code, code) || code === 'requirement' || code === 'term') {
     return reason.label;
   }
-  return textOf(de.reason.code[code as ReasonCode], reason.params) || reason.label;
+  return textOf(t.reason.code[code as ReasonCode], reason.params) || reason.label;
 }
 
 /** Tooltip of a reason: quote and profile evidence, or that the profile lacks it. */
 export function reasonHint(reason: Reason): string | null {
   if (reason.evidence) {
-    return de.reason.evidence(
+    return t.reason.evidence(
       reason.evidence.quote || reason.label,
       reason.evidence.profile,
       reason.kind === 'partial',
     );
   }
-  if (reason.kind === 'open' && reason.label) return de.reason.missing(reason.label);
+  if (reason.kind === 'open' && reason.label) return t.reason.missing(reason.label);
   return null;
 }
 
@@ -72,17 +73,17 @@ export function noteText(note: Notice | null): string | null {
   if (note === null) return null;
   if (note.code === 'hardCriterion') {
     const key = criterionKey(note.params.criterion);
-    return key ? de.reader.criterion[key].exclusion : de.reader.note.hardCriterion;
+    return key ? t.reader.criterion[key].exclusion : t.reader.note.hardCriterion;
   }
-  if (has(de.reader.note, note.code)) {
-    return textOf(de.reader.note[note.code as MatchNote], note.params);
+  if (has(t.reader.note, note.code)) {
+    return textOf(t.reader.note[note.code as MatchNote], note.params);
   }
-  if (has(de.reason.code, note.code) && note.code !== 'requirement' && note.code !== 'term') {
-    const text = textOf(de.reason.code[note.code as ReasonCode], note.params);
+  if (has(t.reason.code, note.code) && note.code !== 'requirement' && note.code !== 'term') {
+    const text = textOf(t.reason.code[note.code as ReasonCode], note.params);
     if (text) return text;
   }
   const key = criterionKey(note.code);
-  return key ? de.reader.criterion[key].exclusion : null;
+  return key ? t.reader.criterion[key].exclusion : null;
 }
 
 /** The reason line of a list row: the exclusion note, else the best met requirement. */
@@ -90,7 +91,7 @@ export function rowReason(job: JobView): { kind: 'met' | 'violation'; text: stri
   const match = job.match;
   if (match === null) return null;
   if (match.status === 'excluded') {
-    return { kind: 'violation', text: noteText(match.note) ?? de.score.excluded };
+    return { kind: 'violation', text: noteText(match.note) ?? t.score.excluded };
   }
   const top = match.top[0];
   return top ? { kind: 'met', text: top } : null;
@@ -115,7 +116,7 @@ export function criterionState(reason: Reason): CriterionState {
 export function profileCriterion(notice: Notice): { field: string; value: string | null } | null {
   const key = criterionKey(notice.code);
   if (key === null) return null;
-  const text = de.reader.criterion[key];
+  const text = t.reader.criterion[key];
   return {
     field: text.field,
     value: notice.params.set === false ? null : text.value(notice.params),
@@ -123,8 +124,8 @@ export function profileCriterion(notice: Notice): { field: string; value: string
 }
 
 export function warningText(notice: Notice): string | null {
-  return has(de.profile.warning, notice.code)
-    ? textOf(de.profile.warning[notice.code as ProfileWarning], notice.params)
+  return has(t.profile.warning, notice.code)
+    ? textOf(t.profile.warning[notice.code as ProfileWarning], notice.params)
     : null;
 }
 
@@ -134,16 +135,14 @@ export function healthSentence(health: PortalHealth): string | null {
     case 'ok':
       return null;
     case 'paused':
-      return de.run.pausedWhy(health.reason, health.until);
+      return t.run.pausedWhy(health.reason, health.until);
     case 'quotaReached':
-      return de.run.quota(health.until);
+      return t.run.quota(health.until);
     case 'layoutSuspect':
       // Empty alert mails point at the mail format; otherwise the pages looked odd.
-      return health.emptyMails > 0
-        ? de.health.layoutText(health.emptyMails)
-        : de.health.layoutPages;
+      return health.emptyMails > 0 ? t.health.layoutText(health.emptyMails) : t.health.layoutPages;
     case 'loginRequired':
-      return de.health.loginText;
+      return t.health.loginText;
   }
 }
 
@@ -156,15 +155,15 @@ export function healthAdvice(health: PortalHealth): { text: string; act: boolean
     case 'ok':
       return null;
     case 'paused':
-      return { text: de.health.advice.paused(health.reason, health.until), act: false };
+      return { text: t.health.advice.paused(health.reason, health.until), act: false };
     case 'quotaReached':
-      return { text: de.health.advice.quota(health.until), act: false };
+      return { text: t.health.advice.quota(health.until), act: false };
     case 'layoutSuspect':
       return health.emptyMails > 0
-        ? { text: de.health.advice.emptyMails(health.emptyMails), act: true }
-        : { text: de.health.advice.pages, act: false };
+        ? { text: t.health.advice.emptyMails(health.emptyMails), act: true }
+        : { text: t.health.advice.pages, act: false };
     case 'loginRequired':
-      return { text: de.health.advice.login, act: true };
+      return { text: t.health.advice.login, act: true };
   }
 }
 

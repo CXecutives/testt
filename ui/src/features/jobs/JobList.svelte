@@ -23,7 +23,7 @@
   import Notice from '$components/Notice.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import { nearEnd } from '$lib/actions/nearEnd';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { invoke } from '$lib/ipc/api';
   import type { JobView, Portal } from '$lib/ipc/types';
   import { play } from '$lib/motion/motion';
@@ -148,15 +148,15 @@
   class="list"
   bind:this={list}
   data-testid="job-list"
-  aria-label={de.list.label}
+  aria-label={t.list.label}
   aria-busy={jobs.status === 'loading'}
 >
   {#if mailboxMissing}
     <div class="note">
       <Notice
         tone="info"
-        text={de.list.noMailbox}
-        action={{ label: de.list.connectMailbox, onclick: () => navigation.go('settings') }}
+        text={t.list.noMailbox}
+        action={{ label: t.list.connectMailbox, onclick: () => navigation.go('settings') }}
         testid="no-mailbox"
       />
     </div>
@@ -167,8 +167,8 @@
       <EmptyState
         icon="triangle-alert"
         tone="danger"
-        text={jobs.error ?? de.list.loadFailed}
-        secondary={{ label: de.common.retry, icon: 'rotate-ccw', onclick: () => void jobs.load() }}
+        text={jobs.error ?? t.list.loadFailed}
+        secondary={{ label: t.common.retry, icon: 'rotate-ccw', onclick: () => void jobs.load() }}
         testid="list-error"
       />
     </div>
@@ -192,39 +192,39 @@
         <EmptyState
           icon="search"
           tone="neutral"
-          text={de.list.noHit(jobs.search.trim())}
-          secondary={{ label: de.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
+          text={t.list.noHit(jobs.search.trim())}
+          secondary={{ label: t.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
           testid="empty-search"
         />
       {:else if jobs.filter !== null}
         <EmptyState
           icon="inbox"
           tone="neutral"
-          text={de.list.emptyFilter}
-          secondary={{ label: de.list.clearFilter, onclick: () => jobs.setFilter(null) }}
+          text={t.list.emptyFilter}
+          secondary={{ label: t.list.clearFilter, onclick: () => jobs.setFilter(null) }}
           testid="empty-filter"
         />
       {:else if jobs.facet === 'applications'}
         <EmptyState
           icon="inbox"
           tone="neutral"
-          text={de.list.emptyApplications}
+          text={t.list.emptyApplications}
           testid="empty-applications"
         />
       {:else if jobs.facet === 'hidden'}
         <EmptyState
           icon="inbox"
           tone="neutral"
-          text={de.list.emptyHidden}
-          secondary={{ label: de.list.showAll, onclick: () => jobs.setFacet('all') }}
+          text={t.list.emptyHidden}
+          secondary={{ label: t.list.showAll, onclick: () => jobs.setFacet('all') }}
           testid="empty-hidden"
         />
       {:else if jobs.facet === 'new' && jobs.counts.all > 0}
         <EmptyState
           icon="check"
           tone="success"
-          text={de.list.emptyNew}
-          secondary={{ label: de.list.showAll, onclick: () => jobs.setFacet('all') }}
+          text={t.list.emptyNew}
+          secondary={{ label: t.list.showAll, onclick: () => jobs.setFacet('all') }}
           testid="empty-new"
         />
       {:else}
@@ -232,17 +232,17 @@
           <EmptyState
             icon="inbox"
             tone="neutral"
-            text={mailRead ? de.list.emptyAfterRun : de.list.emptyAll}
+            text={mailRead ? t.list.emptyAfterRun : t.list.emptyAll}
             testid="empty-all"
           />
-          <p class="sources-text">{de.list.emptySources}</p>
+          <p class="sources-text">{t.list.emptySources}</p>
           <div class="sources-actions">
             {#each PORTALS as portal (portal.portal)}
               <Button
                 variant="ghost"
                 size="sm"
                 icon="external-link"
-                label={de.list.createAlert(de.portal[portal.portal])}
+                label={t.list.createAlert(t.portal[portal.portal])}
                 testid="alert-{portal.portal}"
                 onclick={() => openPortal(portal.portal)}
               />
@@ -252,7 +252,7 @@
                 variant="ghost"
                 size="sm"
                 icon="mail"
-                label={de.list.readOlder}
+                label={t.list.readOlder}
                 disabled={run.active}
                 disabledReason={run.busyText}
                 testid="read-older"
@@ -291,7 +291,7 @@
     </div>
     {#if excluded.length > 0}
       <div class="divider" data-testid="excluded-divider">
-        <span class="divider-label">{de.list.excluded}</span>
+        <span class="divider-label">{t.list.excluded}</span>
         {#if excludedCount !== null}<Count value={excludedCount} testid="excluded-count" />{/if}
       </div>
       <div class="rows" data-testid="excluded-rows">
@@ -300,13 +300,13 @@
     {/if}
     {#if jobs.facet === 'all' && jobs.filter === null && hiddenCount > 0 && !jobs.more}
       <div class="divider" data-testid="hidden-divider">
-        <span class="divider-label">{de.list.hidden}</span>
+        <span class="divider-label">{t.list.hidden}</span>
         <Count value={hiddenCount} tone="plain" />
         <span class="divider-link">
           <Button
             variant="link"
             size="sm"
-            label={de.list.showHidden}
+            label={t.list.showHidden}
             testid="show-hidden"
             onclick={() => jobs.setFacet('hidden')}
           />
@@ -318,8 +318,8 @@
         <Notice
           tone="warning"
           variant="row"
-          text={de.list.pageFailed}
-          action={{ label: de.common.retry, onclick: () => void jobs.grow() }}
+          text={t.list.pageFailed}
+          action={{ label: t.common.retry, onclick: () => void jobs.grow() }}
           testid="page-error"
         />
       </div>

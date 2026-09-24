@@ -11,7 +11,7 @@
   The buttons follow the OS: the action first on Windows, last (right) on macOS.
 -->
 <script lang="ts">
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { formKeys } from '$lib/input/input';
   import { primaryFirst } from '$lib/platform';
   import { dialogIn, dialogOut, scrim } from '$lib/motion/transitions';
@@ -40,7 +40,7 @@
     heading,
     text,
     confirmLabel,
-    cancelLabel = de.common.cancel,
+    cancelLabel,
     busy = false,
     error = null,
     testid = null,
@@ -117,7 +117,7 @@
         {#snippet dismiss()}
           <Button
             variant="secondary"
-            label={cancelLabel}
+            label={cancelLabel ?? t.common.cancel}
             disabled={busy}
             testid="dialog-cancel"
             onclick={cancel}

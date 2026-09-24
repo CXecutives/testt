@@ -5,7 +5,7 @@
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import TextField from '$components/TextField.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import type { LanguageLevel, ProfileLanguage } from '$lib/ipc/types';
   import { tick } from 'svelte';
   import ChoiceButtons from './ChoiceButtons.svelte';
@@ -16,8 +16,10 @@
 
   let { rows = $bindable() }: Props = $props();
 
-  const t = de.profile.field;
-  const LEVELS = Object.entries(de.profile.level).map(([level, label]) => ({ id: level, label }));
+  const words = $derived(t.profile.field);
+  const LEVELS = $derived(
+    Object.entries(t.profile.level).map(([level, label]) => ({ id: level, label })),
+  );
   let list = $state<HTMLElement | null>(null);
 
   async function add(): Promise<void> {
@@ -34,15 +36,15 @@
       <span class="name">
         <TextField
           bind:value={row.language}
-          label={t.language}
-          placeholder={rows.length === 1 ? t.languagePlaceholder : null}
+          label={words.language}
+          placeholder={rows.length === 1 ? words.languagePlaceholder : null}
           testid="language-name"
         />
       </span>
       <ChoiceButtons
         options={LEVELS}
         selected={row.level === null ? [] : [row.level]}
-        label={t.level}
+        label={words.level}
         testid="language-level"
         onchange={(next) => (row.level = (next[0] as LanguageLevel | undefined) ?? null)}
       />
@@ -52,7 +54,7 @@
           size="sm"
           iconOnly
           icon="x"
-          label={t.removeLanguage(row.language.trim())}
+          label={words.removeLanguage(row.language.trim())}
           testid="language-remove"
           onclick={() => (rows = rows.filter((other) => other !== row))}
         />
@@ -63,7 +65,7 @@
     <Button
       variant="ghost"
       size="sm"
-      label={t.addLanguage}
+      label={words.addLanguage}
       testid="language-add"
       onclick={() => void add()}
     />

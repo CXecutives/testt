@@ -8,7 +8,7 @@
   import Button from '$components/Button.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Notice from '$components/Notice.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
 
   interface Props {
     heading: string;
@@ -28,13 +28,13 @@
     icon="file-text"
     {heading}
     {text}
-    action={{ label: de.profile.create, onclick: oncreate }}
-    secondary={{ label: de.profile.fromCv, onclick: onfromcv }}
+    action={{ label: t.profile.create, onclick: oncreate }}
+    secondary={{ label: t.profile.fromCv, onclick: onfromcv }}
   />
   <Button
     variant="ghost"
     icon="file-up"
-    label={de.profile.pick}
+    label={t.profile.pick}
     loading={picking}
     testid="profile-pick"
     onclick={onpick}

@@ -1,4 +1,6 @@
-// German UI catalog - the only source of UI text.
+// German UI catalog - the source of UI text. en.ts says the same in English under the same
+// keys (a missing or extra key there is a type error); the screens read the catalog of the
+// app's language through `t` (t.ts).
 //
 // Style rules (CLAUDE.md, checked by core/tests/ui_contract.rs): little text, plain and
 // human. Buttons are one verb phrase without a period; notes are one short sentence with a
@@ -17,6 +19,7 @@ import type {
   ErrorKind,
   InvalidInput,
   JobSort,
+  Language,
   PauseReason,
   Portal,
   PortalHealth,
@@ -1058,6 +1061,15 @@ export const de = {
       `Die App ist zurückgesetzt, ${count(value, 'Datei ließ', 'Dateien ließen')} sich nicht löschen.`,
     running: 'Ein Abruf läuft gerade.',
     dryRun: 'Probelauf, es werden keine Daten verändert.',
+    language: 'Sprache',
+    languageLabel: 'Sprache der App',
+    /** Excel file and overview are written at the next fetch (the text files stay German). */
+    languageHint: 'Excel-Datei und Übersicht folgen beim nächsten Abruf.',
+    /** Each language in its own words, in both catalogs. */
+    languageName: {
+      de: 'Deutsch',
+      en: 'English',
+    } satisfies Record<Language, string>,
   },
   firstRun: {
     benefit: 'Die App liest die Alert-Mails aus Gmail und zeigt, welche Jobs zum Profil passen.',
@@ -1108,4 +1120,14 @@ export function textOf(text: Text, params: Params = {}): string {
   return typeof text === 'function' ? text(params) : text;
 }
 
-export type Catalog = typeof de;
+/** The shape of this catalog with any words: the type of every catalog (en.ts). */
+export type Catalog = Widen<typeof de>;
+
+/** Words become `string`; keys, nesting and function signatures stay. */
+type Widen<T> = T extends string
+  ? string
+  : T extends (...args: infer A) => infer R
+    ? (...args: A) => Widen<R>
+    : T extends object
+      ? { -readonly [K in keyof T]: Widen<T[K]> }
+      : T;

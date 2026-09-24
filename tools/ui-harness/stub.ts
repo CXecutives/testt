@@ -33,6 +33,7 @@ import type {
   JobKey,
   JobQuery,
   JobView,
+  Language,
   Portal,
   PortalState,
   ProfileDraft,
@@ -149,6 +150,8 @@ const TICK = Number(params.get('tick') ?? 40);
 const DELAY = scenario === 'slow' ? 900 : 0;
 const EXPORT_LOCKED = params.get('export') === 'locked';
 const MAIL_OFFLINE = scenario === 'offline' || params.get('mail') === 'offline';
+/** The app's language as the backend says it (`lang=en`; German by default). */
+const LANGUAGE: Language = params.get('lang') === 'en' ? 'en' : 'de';
 /** The order of the backend (`Portal::ALL`), on every screen. */
 const PORTALS: readonly Portal[] = ['linkedin', 'freelance', 'freelancermap'];
 
@@ -758,7 +761,7 @@ function initial(): void {
       portal('freelancermap', { quota: { usedHour: 9, capHour: 40, usedDay: 86, capDay: 100 } }),
     ],
     autoFetchOnStart: true,
-    language: 'de',
+    language: LANGUAGE,
     lastRun: lastRun(),
     counts: countsOf([]),
     matchPending: 0,

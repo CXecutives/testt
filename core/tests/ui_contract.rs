@@ -1037,16 +1037,22 @@ fn no_leftovers_from_development() {
     );
 }
 
-/// One word per thing (glossary in docs/PLAN.md); short texts, no walls of text.
+/// The UI catalogs: German, the source, and English, the same keys (a type error otherwise).
+const CATALOGS: [&str; 2] = ["lib/i18n/de.ts", "lib/i18n/en.ts"];
+
+fn catalog<'a>(all: &'a [Source], path: &str) -> &'a Source {
+    all.iter()
+        .find(|s| s.is(path))
+        .unwrap_or_else(|| panic!("{path} missing"))
+}
+
+/// One word per thing (glossary in docs/PLAN.md and the header of en.ts); short texts, no
+/// walls of text.
 #[test]
 fn the_catalog_keeps_the_glossary() {
     let all = scanned(MIN_FILES);
-    let catalog = all
-        .iter()
-        .find(|s| s.is("lib/i18n/de.ts"))
-        .expect("lib/i18n/de.ts");
     let mut problems = Vec::new();
-    for (n, line) in catalog.lines() {
+    for (n, line) in catalog(&all, "lib/i18n/de.ts").lines() {
         for (old, new) in [
             ("Quelle", "Portal"),
             ("Eintrag", "Job"),
@@ -1060,16 +1066,81 @@ fn the_catalog_keeps_the_glossary() {
                 problems.push(format!("de.ts:{n}: \"{old}\" is called \"{new}\""));
             }
         }
-        for quoted in line.split('\'').skip(1).step_by(2) {
-            if quoted.chars().count() > 140 {
-                problems.push(format!(
-                    "de.ts:{n}: {} characters (max 140)",
-                    quoted.chars().count()
-                ));
+    }
+    for (n, line) in catalog(&all, "lib/i18n/en.ts").lines() {
+        for (old, new) in [
+            ("Entry", "Job"),
+            ("Entries", "Jobs"),
+            ("Candidate", "Job"),
+            ("Source", "Portal"),
+            ("Full text", "Details"),
+            ("Hit", "Match"),
+            ("Hits", "Matches"),
+            ("Inbox", "Mailbox"),
+            ("Pinned", "Saved"),
+            ("Bookmark", "Saved"),
+        ] {
+            // Whole words in any case ("Hit" is no part of "white").
+            let used = literals(line).iter().any(|text| {
+                let plain: String = words(text)
+                    .to_lowercase()
+                    .chars()
+                    .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+                    .collect();
+                format!(" {plain} ").contains(&format!(" {} ", old.to_lowercase()))
+            });
+            if used {
+                problems.push(format!("en.ts:{n}: \"{old}\" is called \"{new}\""));
             }
         }
     }
-    fail(&problems, "glossary and length of the UI catalog");
+    for path in CATALOGS {
+        let name = path.rsplit('/').next().unwrap_or(path);
+        for (n, line) in catalog(&all, path).lines() {
+            for quoted in line.split('\'').skip(1).step_by(2) {
+                if quoted.chars().count() > 140 {
+                    problems.push(format!(
+                        "{name}:{n}: {} characters (max 140)",
+                        quoted.chars().count()
+                    ));
+                }
+            }
+        }
+    }
+    fail(&problems, "glossary and length of the UI catalogs");
+}
+
+/// The English catalog is English: no umlaut or sharp s and no German word in anything the
+/// user reads. Product and portal names (Job-Alert-Monitor, freelance.de) and the name of
+/// the German language (Deutsch) are no German words.
+#[test]
+fn the_english_catalog_has_no_german() {
+    let all = scanned(MIN_FILES);
+    let german = [
+        "und", "der", "die", "das", "den", "dem", "nicht", "ist", "sind", "mit", "von", "für",
+        "oder", "auf", "bei", "aus", "neu", "alle", "ein", "eine", "wird", "werden", "bitte",
+        "noch", "kein", "keine", "zu", "im", "ohne", "abrufen", "passung", "postfach",
+        "gemerkt", "merken", "profil", "einstellungen",
+    ];
+    let mut problems = Vec::new();
+    let mut strings = 0;
+    for (n, line) in catalog(&all, "lib/i18n/en.ts").lines() {
+        for literal in literals(line) {
+            let text = words(literal);
+            strings += 1;
+            if text.chars().any(|c| "äöüÄÖÜß„".contains(c)) {
+                problems.push(format!("en.ts:{n}: German letters in \"{text}\""));
+            }
+            let lower = text.to_lowercase();
+            for word in lower.split(|c: char| !c.is_alphanumeric()) {
+                if german.contains(&word) {
+                    problems.push(format!("en.ts:{n}: German \"{word}\" in \"{text}\""));
+                }
+            }
+        }
+    }
+    assert!(strings >= 200, "only {strings} strings in en.ts");
+    fail(&problems, "no German in the English catalog");
 }
 
 /// The string literals of one line: between single quotes and between backticks.
@@ -1104,43 +1175,42 @@ fn words(text: &str) -> String {
     out
 }
 
-/// The catalog speaks plainly (CLAUDE.md): no dash or em dash as a separator, no colon at
+/// Both catalogs speak plainly (CLAUDE.md): no dash or em dash as a separator, no colon at
 /// the end of a label or heading, no "X: Y" construction, no exclamation mark.
 #[test]
 fn the_catalog_has_no_ai_punctuation() {
     let all = scanned(MIN_FILES);
-    let catalog = all
-        .iter()
-        .find(|s| s.is("lib/i18n/de.ts"))
-        .expect("lib/i18n/de.ts");
     let mut problems = Vec::new();
-    let mut strings = 0;
-    for (n, line) in catalog.lines() {
-        for literal in literals(line) {
-            let text = words(literal);
-            let text = text.as_str();
-            strings += 1;
-            for dash in [" - ", " – ", "–", "—"] {
-                if text.contains(dash) {
-                    problems.push(format!("de.ts:{n}: dash as a separator in \"{text}\""));
+    for path in CATALOGS {
+        let name = path.rsplit('/').next().unwrap_or(path);
+        let mut strings = 0;
+        for (n, line) in catalog(&all, path).lines() {
+            for literal in literals(line) {
+                let text = words(literal);
+                let text = text.as_str();
+                strings += 1;
+                for dash in [" - ", " – ", "–", "—"] {
+                    if text.contains(dash) {
+                        problems.push(format!("{name}:{n}: dash as a separator in \"{text}\""));
+                    }
                 }
-            }
-            if text.trim_end().ends_with(':') {
-                problems.push(format!("de.ts:{n}: colon at the end of \"{text}\""));
-            }
-            if text.contains(": ") {
-                problems.push(format!("de.ts:{n}: \"X: Y\" in \"{text}\""));
-            }
-            let mut chars = text.chars().peekable();
-            while let Some(c) = chars.next() {
-                if c == '!' && chars.peek() != Some(&'=') {
-                    problems.push(format!("de.ts:{n}: exclamation mark in \"{text}\""));
+                if text.trim_end().ends_with(':') {
+                    problems.push(format!("{name}:{n}: colon at the end of \"{text}\""));
+                }
+                if text.contains(": ") {
+                    problems.push(format!("{name}:{n}: \"X: Y\" in \"{text}\""));
+                }
+                let mut chars = text.chars().peekable();
+                while let Some(c) = chars.next() {
+                    if c == '!' && chars.peek() != Some(&'=') {
+                        problems.push(format!("{name}:{n}: exclamation mark in \"{text}\""));
+                    }
                 }
             }
         }
+        assert!(strings >= 200, "only {strings} strings in {name}");
     }
-    assert!(strings >= 200, "only {strings} strings in de.ts");
-    fail(&problems, "plain punctuation in the UI catalog");
+    fail(&problems, "plain punctuation in the UI catalogs");
 }
 
 /// The release build must not ship the gallery (it is compiled out via `__GALLERY__`).

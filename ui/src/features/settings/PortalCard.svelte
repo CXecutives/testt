@@ -19,7 +19,7 @@
   import Notice from '$components/Notice.svelte';
   import SettingRow from '$components/SettingRow.svelte';
   import Toggle from '$components/Toggle.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { errorText, healthAdvice } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { PortalState, Risk } from '$lib/ipc/types';
@@ -55,8 +55,8 @@
     if (share < QUOTA_SHOWN && !paused) return null;
     const text =
       hour > day
-        ? de.settings.quotaHour(q.usedHour, q.capHour)
-        : de.settings.quota(q.usedDay, q.capDay);
+        ? t.settings.quotaHour(q.usedHour, q.capHour)
+        : t.settings.quota(q.usedDay, q.capDay);
     return { share, text };
   });
   /** The risk of fetching details now: signed in it is the own account. */
@@ -114,20 +114,20 @@
 <Card padding="none" testid="portal-{portal.portal}">
   <div class="head">
     <IconTile tone="navy" monogram={PORTAL_MONOGRAM[portal.portal]} size="md" />
-    <h3 class="name">{de.portal[portal.portal]}</h3>
+    <h3 class="name">{t.portal[portal.portal]}</h3>
     <div class="tools">
       <Button
         variant="ghost"
         size="sm"
         iconOnly
         icon="external-link"
-        label={de.settings.openPortal}
+        label={t.settings.openPortal}
         testid="open-portal-{portal.portal}"
         onclick={openPortal}
       />
       <Toggle
         checked={portal.enabled}
-        label={de.settings.active}
+        label={t.settings.active}
         testid="toggle-enabled-{portal.portal}"
         onchange={(on) => change({ enabled: on })}
       />
@@ -154,58 +154,58 @@
       {#if portal.enabled}
         <div class="rows">
           <SettingRow
-            label={de.settings.details}
-            hint={de.settings.riskText[risk]}
+            label={t.settings.details}
+            hint={t.settings.riskText[risk]}
             for="switch-details-{portal.portal}"
             testid="details-{portal.portal}"
           >
             {#snippet badges()}
-              <Badge label={de.settings.risk[risk]} tone={RISK_TONE[risk]} icon="shield" />
+              <Badge label={t.settings.risk[risk]} tone={RISK_TONE[risk]} icon="shield" />
             {/snippet}
             <Toggle
               id="switch-details-{portal.portal}"
               checked={portal.fetchDetails}
-              label={de.settings.details}
+              label={t.settings.details}
               testid="toggle-details-{portal.portal}"
               onchange={(on) => change({ fetchDetails: on })}
             />
           </SettingRow>
           {#if portal.login === 'optional'}
             <SettingRow
-              label={de.settings.login}
-              hint={de.settings.loginHint}
+              label={t.settings.login}
+              hint={t.settings.loginHint}
               for="switch-login-{portal.portal}"
               testid="login-{portal.portal}"
             >
               {#snippet badges()}
                 {#if risk !== 'account'}
-                  <Badge label={de.settings.risk.account} tone="danger" icon="shield" />
+                  <Badge label={t.settings.risk.account} tone="danger" icon="shield" />
                 {/if}
               {/snippet}
               <Toggle
                 id="switch-login-{portal.portal}"
                 checked={portal.loginEnabled}
-                label={de.settings.login}
+                label={t.settings.login}
                 disabled={!portal.fetchDetails}
-                disabledReason={de.settings.needsDetails}
+                disabledReason={t.settings.needsDetails}
                 testid="toggle-login-{portal.portal}"
                 onchange={(on) => change({ loginEnabled: on })}
               />
             </SettingRow>
             {#if portal.loginEnabled}
               <SettingRow
-                label={portal.signedIn ? de.settings.signedIn : de.settings.signedOut}
-                hint={run.loginNeeded === portal.portal ? de.settings.signInWaiting : null}
+                label={portal.signedIn ? t.settings.signedIn : t.settings.signedOut}
+                hint={run.loginNeeded === portal.portal ? t.settings.signInWaiting : null}
               >
                 {#if portal.signedIn}
                   <Button
                     variant="secondary"
                     size="sm"
                     icon="log-out"
-                    label={de.settings.signOut}
+                    label={t.settings.signOut}
                     loading={busy}
                     disabled={dryRun}
-                    disabledReason={de.error.text('dryRun', {})}
+                    disabledReason={t.error.text('dryRun', {})}
                     testid="sign-out-{portal.portal}"
                     onclick={() => void session(false)}
                   />
@@ -214,10 +214,10 @@
                     variant="secondary"
                     size="sm"
                     icon="log-in"
-                    label={de.settings.signIn}
+                    label={t.settings.signIn}
                     loading={busy}
                     disabled={run.active || dryRun}
-                    disabledReason={dryRun ? de.error.text('dryRun', {}) : de.settings.running}
+                    disabledReason={dryRun ? t.error.text('dryRun', {}) : t.settings.running}
                     testid="sign-in-{portal.portal}"
                     onclick={() => void session(true)}
                   />

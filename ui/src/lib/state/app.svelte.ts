@@ -1,8 +1,10 @@
 // The app state from the backend (`app_state`): settings, mailbox, profile, portals, last
 // run. Loaded once at start and again after anything that changes it (a finished run,
 // settings, profile, mailbox). `slow` turns on skeletons only when loading takes longer
-// than --dur-fast, so a quick start never flashes placeholders.
+// than --dur-fast, so a quick start never flashes placeholders. Every state brings the
+// app's language, which the whole page follows at once.
 
+import { language } from '../i18n/language.svelte';
 import { invoke } from '../ipc/api';
 import type { AppState, Portal, PortalHealth } from '../ipc/types';
 import { tokenMs } from '../tokens';
@@ -21,6 +23,7 @@ class AppStore {
     try {
       const next = await invoke('app_state');
       this.state = next;
+      language.set(next.language);
       return next;
     } catch (error) {
       this.error = error;
@@ -35,6 +38,7 @@ class AppStore {
   /** Replace the state with a newer one a command returned (save_settings). */
   set(next: AppState): void {
     this.state = next;
+    language.set(next.language);
   }
 
   /** Portal health from a run event, without a reload. */

@@ -11,7 +11,7 @@
   import IconTile from '$components/IconTile.svelte';
   import Notice from '$components/Notice.svelte';
   import Spinner from '$components/Spinner.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { formatBytes, formatDate } from '$lib/i18n/format';
   import { warningText } from '$lib/i18n/texts';
   import type { ProfileInfo, ProfileQuality } from '$lib/ipc/types';
@@ -54,11 +54,11 @@
 
   const stored = $derived(origin === 'stored' && profile !== null);
   const understood = $derived(stored ? (profile?.understood ?? null) : null);
-  const packs = $derived((understood?.packs ?? []).map((pack) => de.profile.pack[pack] ?? pack));
+  const packs = $derived((understood?.packs ?? []).map((pack) => t.profile.pack[pack] ?? pack));
   const summary = $derived(
     understood === null
       ? null
-      : [de.profile.understood(understood.competenceCount, understood.focus.length), ...packs].join(
+      : [t.profile.understood(understood.competenceCount, understood.focus.length), ...packs].join(
           ' · ',
         ),
   );
@@ -78,20 +78,20 @@
         {#if stored && profile}
           <h2 class="name" data-testid="profile-name" data-copy>{profile.fileName}</h2>
           <p class="meta">
-            {de.profile.meta(
+            {t.profile.meta(
               formatBytes(profile.bytes),
               profile.savedAt ? formatDate(profile.savedAt) : '',
             )}
           </p>
         {:else}
           <h2 class="name" data-testid="profile-name">
-            {de.profile.draft[origin === 'stored' ? 'new' : origin]}
+            {t.profile.draft[origin === 'stored' ? 'new' : origin]}
           </h2>
-          <p class="meta">{de.profile.unsaved}</p>
+          <p class="meta">{t.profile.unsaved}</p>
         {/if}
       </div>
       {#if quality}
-        <Badge label={de.profile.quality[quality]} tone={QUALITY_TONE[quality]} />
+        <Badge label={t.profile.quality[quality]} tone={QUALITY_TONE[quality]} />
       {/if}
     </div>
 
@@ -102,19 +102,14 @@
       <Notice tone="warning" variant="inline" text={warning} testid="profile-warning" />
     {/each}
     {#if origin === 'file' || origin === 'answer'}
-      <Notice tone="info" variant="inline" text={de.profile.review} testid="profile-review" />
+      <Notice tone="info" variant="inline" text={t.profile.review} testid="profile-review" />
     {/if}
     {#if rescoring}
       <p class="status" data-testid="profile-rescoring">
-        <Spinner size="sm" label={null} />{de.profile.rescoring(profile?.pending ?? 0)}
+        <Spinner size="sm" label={null} />{t.profile.rescoring(profile?.pending ?? 0)}
       </p>
     {:else if rescored}
-      <Notice
-        tone="success"
-        variant="inline"
-        text={de.profile.rescored}
-        testid="profile-rescored"
-      />
+      <Notice tone="success" variant="inline" text={t.profile.rescored} testid="profile-rescored" />
     {/if}
 
     {#if stored}
@@ -123,10 +118,10 @@
           variant="secondary"
           size="sm"
           icon="file-up"
-          label={de.profile.pick}
+          label={t.profile.pick}
           loading={picking}
           disabled={dirty}
-          disabledReason={de.profile.leaveText}
+          disabledReason={t.profile.leaveText}
           testid="profile-pick"
           onclick={onpick}
         />
@@ -135,7 +130,7 @@
             variant="ghost"
             size="sm"
             icon="trash-2"
-            label={de.profile.remove}
+            label={t.profile.remove}
             testid="profile-remove"
             onclick={onremove}
           />

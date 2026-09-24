@@ -13,7 +13,7 @@
 //   followed. A rescore opens no run card and brings no fetch news; only when it failed or
 //   could not write the files the card says so.
 
-import { de } from '../i18n/de';
+import { t } from '../i18n/t';
 import { errorText } from '../i18n/texts';
 import { invoke, IpcError, onRun } from '../ipc/api';
 import type {
@@ -54,6 +54,22 @@ export interface HistoryLine {
   text: string;
 }
 
+/**
+ * A line of the history. Its words are made when it is shown, so after a switch of the
+ * language the history reads in the new one (a class: `$state` leaves its instances as they
+ * are, with the getter).
+ */
+class Line implements HistoryLine {
+  constructor(
+    readonly at: number,
+    private readonly say: () => string,
+  ) {}
+
+  get text(): string {
+    return this.say();
+  }
+}
+
 /** A mailbox run: what "the last fetch" means (`app.state.lastRun`). */
 export const isFetch = (kind: RunKindName): boolean => kind === 'fetch' || kind === 'fullMailbox';
 
@@ -71,8 +87,8 @@ class RunStore {
   result = $state<RunSummary | null>(null);
   /** The history of the run the card shows. */
   history = $state<HistoryLine[]>([]);
-  /** An error of `start_run` itself (busy, no mailbox ...). */
-  startError = $state<string | null>(null);
+  /** An error of `start_run` itself (busy, no mailbox ...); said in the current language. */
+  #startFailure = $state.raw<{ error: unknown } | null>(null);
   /** `start_run` is on its way: nothing is known yet (the first-run page stays until then). */
   starting = $state(false);
   cancelling = $state(false);
@@ -122,9 +138,14 @@ class RunStore {
     return this.active && this.kind !== 'rescore';
   }
 
+  /** The words of a failed `start_run`, or null. */
+  get startError(): string | null {
+    return this.#startFailure === null ? null : errorText(this.#startFailure.error);
+  }
+
   /** Why an action waits while a run goes. */
   get busyText(): string {
-    return this.kind === 'rescore' ? de.run.rescoring : de.settings.running;
+    return this.kind === 'rescore' ? t.run.rescoring : t.settings.running;
   }
 
   /** The steps of the run in progress. */
@@ -150,7 +171,7 @@ class RunStore {
     }
     this.result = null;
     this.history = [];
-    this.startError = null;
+    this.#startFailure = null;
     if (this.panel === 'hidden') this.panel = 'open';
   }
 
@@ -173,7 +194,7 @@ class RunStore {
         this.history = before.history;
         this.panel = before.panel;
       }
-      this.startError = errorText(error);
+      this.#startFailure = { error };
       if (error instanceof IpcError && error.kind === 'busy') void app.load();
       return false;
     } finally {
@@ -191,7 +212,7 @@ class RunStore {
   /** Close the run card (and the note of a failed start with it). */
   hide(): void {
     this.panel = 'hidden';
-    this.startError = null;
+    this.#startFailure = null;
   }
 
   async cancel(): Promise<void> {
@@ -201,7 +222,7 @@ class RunStore {
       await invoke('cancel_run');
     } catch (error) {
       this.cancelling = false;
-      this.startError = errorText(error);
+      this.#startFailure = { error };
     }
   }
 
@@ -228,8 +249,9 @@ class RunStore {
     return index < current ? 'done' : index === current ? 'current' : 'waiting';
   }
 
-  private log(text: string): void {
-    const line = { at: Date.now(), text };
+  /** Adds a line to the history; `say` makes its words whenever it is shown. */
+  private log(say: () => string): void {
+    const line = new Line(Date.now(), say);
     if (this.kind === 'rescore') {
       this.#quiet = [...this.#quiet, line].slice(-HISTORY_MAX);
       return;
@@ -273,17 +295,20 @@ class RunStore {
         const changed = this.status?.code !== event.code || this.status?.portal !== event.portal;
         this.status = { code: event.code, portal: event.portal, until: event.until };
         this.tick(event.code === 'waiting' && event.until !== null);
-        if (changed) this.log(de.run.statusOf(event.code, event.portal));
+        if (changed) this.log(() => t.run.statusOf(event.code, event.portal));
         break;
       }
       case 'alert':
-        if (this.active) this.log(de.run.alert(event.portal, event.postings));
+        if (this.active) this.log(() => t.run.alert(event.portal, event.postings));
         break;
       case 'portalHealth':
         app.setHealth(event.portal, event.health);
         if (!this.active) break;
         this.health = { ...this.health, [event.portal]: event.health };
-        if (event.health.kind !== 'ok') this.log(de.run.health(event.portal, event.health.kind));
+        if (event.health.kind !== 'ok') {
+          const kind = event.health.kind;
+          this.log(() => t.run.health(event.portal, kind));
+        }
         break;
       case 'loginNeeded':
         this.loginNeeded = event.waiting ? event.portal : null;
@@ -310,14 +335,14 @@ class RunStore {
       const trouble = summary.outcome.kind === 'failed' || exportError(summary) !== null;
       if (trouble) {
         this.result = summary;
-        this.history = [...this.#quiet, { at: Date.now(), text: outcomeText(summary) }];
+        this.history = [...this.#quiet, new Line(Date.now(), () => outcomeText(summary))];
         if (live) this.panel = 'open';
       }
       this.#quiet = [];
     } else {
       if (isFetch(kind)) this.summary = summary;
       this.result = summary;
-      this.log(outcomeText(summary));
+      this.log(() => outcomeText(summary));
       if (live && this.panel === 'hidden') this.panel = 'open';
     }
     if (!live) return;
@@ -327,11 +352,11 @@ class RunStore {
       if (isFetch(kind)) {
         toasts.show(
           exportError(summary) === null
-            ? de.toast.runDone(summary.newJobs?.count ?? 0)
-            : de.toast.runDoneFilesOld,
+            ? t.toast.runDone(summary.newJobs?.count ?? 0)
+            : t.toast.runDoneFilesOld,
         );
       } else if (kind === 'rescore' && navigation.current !== 'profile') {
-        toasts.show(de.toast.rescored);
+        toasts.show(t.toast.rescored);
       }
     }
     void app.load();
@@ -349,22 +374,22 @@ export function outcomeText(summary: RunSummary): string {
   switch (summary.kind) {
     case 'rescore':
       return outcome === 'completed'
-        ? de.run.rescored
+        ? t.run.rescored
         : outcome === 'cancelled'
-          ? de.run.rescore.cancelled
-          : de.run.rescore.failed;
+          ? t.run.rescore.cancelled
+          : t.run.rescore.failed;
     case 'details': {
-      if (outcome === 'cancelled') return de.run.details.cancelled;
-      if (outcome === 'failed') return de.run.details.failed;
+      if (outcome === 'cancelled') return t.run.details.cancelled;
+      if (outcome === 'failed') return t.run.details.failed;
       const fetched = summary.perPortal.reduce((sum, p) => sum + p.fetched, 0);
-      return fetched > 0 ? de.run.details.done : de.run.details.none;
+      return fetched > 0 ? t.run.details.done : t.run.details.none;
     }
     default:
       return outcome === 'completed'
-        ? de.run.done
+        ? t.run.done
         : outcome === 'cancelled'
-          ? de.run.cancelled
-          : de.run.failed;
+          ? t.run.cancelled
+          : t.run.failed;
   }
 }
 

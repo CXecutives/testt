@@ -7,7 +7,7 @@
   the user just did sits before the close button.
 -->
 <script lang="ts">
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { flip, toastIn, toastOut } from '$lib/motion/transitions';
   import { toasts } from '$lib/state/toasts.svelte';
   import Button from './Button.svelte';
@@ -57,7 +57,7 @@
         size="sm"
         icon="x"
         iconOnly
-        label={de.common.hide}
+        label={t.common.hide}
         onclick={() => toasts.dismiss(toast.id)}
       />
       <span class="life" aria-hidden="true"></span>

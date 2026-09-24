@@ -10,7 +10,7 @@
   import Field from '$components/Field.svelte';
   import Notice from '$components/Notice.svelte';
   import TextField from '$components/TextField.svelte';
-  import { de } from '$lib/i18n/de';
+  import { t } from '$lib/i18n/t';
   import { errorText } from '$lib/i18n/texts';
   import { formKeys } from '$lib/input/input';
   import { invoke, IpcError } from '$lib/ipc/api';
@@ -48,7 +48,7 @@
       await invoke('save_mailbox', { user: user.trim(), password });
       password = '';
       await app.load();
-      if (oncancel) toasts.show(de.toast.saved);
+      if (oncancel) toasts.show(t.toast.saved);
       onsaved?.();
     } catch (error) {
       const reason = error instanceof IpcError ? error.params.reason : null;
@@ -87,7 +87,7 @@
     : { save: () => void save() }}
 >
   <div class="fields">
-    <Field label={de.settings.address} for="{id}-user" error={userError}>
+    <Field label={t.settings.address} for="{id}-user" error={userError}>
       <TextField
         id="{id}-user"
         bind:value={user}
@@ -97,11 +97,11 @@
       />
     </Field>
     <Field
-      label={de.settings.password}
+      label={t.settings.password}
       for="{id}-password"
-      hint={de.settings.passwordHint}
+      hint={t.settings.passwordHint}
       action={{
-        label: de.settings.createPassword,
+        label: t.settings.createPassword,
         icon: 'external-link',
         testid: 'create-password',
         onclick: () => openPage('appPasswordPage'),
@@ -121,13 +121,13 @@
   </div>
   <!-- Before an app password exists, Google wants 2-step verification: said once, with the way there. -->
   <p class="two-step">
-    <span>{de.settings.twoStep}</span>
+    <span>{t.settings.twoStep}</span>
     <Button
       variant="link"
       size="sm"
       icon="external-link"
       external
-      label={de.settings.twoStepAction}
+      label={t.settings.twoStepAction}
       testid="two-step"
       onclick={() => openPage('twoStepPage')}
     />
@@ -140,7 +140,7 @@
       {#if oncancel}
         <Button
           variant="secondary"
-          label={de.common.cancel}
+          label={t.common.cancel}
           disabled={busy}
           testid="mailbox-cancel"
           onclick={() => oncancel?.()}
