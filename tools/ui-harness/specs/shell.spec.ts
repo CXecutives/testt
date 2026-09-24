@@ -1,4 +1,4 @@
-import { expect, expectShot, open, test } from './fixtures';
+import { expect, expectShot, open, settle, test } from './fixtures';
 
 test('the preview server sends the production CSP', async ({ page }) => {
   const response = await page.goto('/');
@@ -186,6 +186,76 @@ test('macos: the unified toolbar row', async ({ page, browserName }) => {
     });
     await page.screenshot({ path: `${process.env.SHOTS_DIR}/macos-toolbar-marked.png` });
   }
+});
+
+// macOS: every point of the 52 px toolbar row either moves the window (Tauri's drag script:
+// a direct hit on an element with data-tauri-drag-region; a double click there zooms) or is
+// a control. Hairlines (the borders between the columns) are the only exception.
+const DRAG_PROBE = (): string[] => {
+  const CONTROL =
+    'a, button, input, select, textarea, label, summary, [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"]), [role="button"], [role="link"], [role="tab"], [role="switch"], [role="radio"], [role="checkbox"], [role="option"], [role="menuitem"]';
+  const dead: string[] = [];
+  const width = document.documentElement.clientWidth;
+  for (const y of [1, 14, 26, 38, 51]) {
+    for (let x = 1; x < width - 1; x += 5) {
+      const hit = document.elementFromPoint(x, y);
+      if (hit === null) {
+        dead.push(`${x},${y} nothing`);
+        continue;
+      }
+      if (hit.hasAttribute('data-tauri-drag-region')) continue;
+      // A control, or the frame right around a field (it focuses the field); a point just
+      // outside a rounded corner of either lands on the wrapper around it.
+      const control = (node: Element): boolean =>
+        node.closest(CONTROL) !== null ||
+        node.querySelector(':scope > input, :scope > textarea') !== null;
+      const corner = [...hit.querySelectorAll('*')].some((node) => {
+        const b = node.getBoundingClientRect();
+        return control(node) && x >= b.left && x < b.right && y >= b.top && y < b.bottom;
+      });
+      if (control(hit) || corner) continue;
+      const box = hit.getBoundingClientRect();
+      const style = getComputedStyle(hit);
+      const hairline =
+        x < box.left + parseFloat(style.borderLeftWidth) ||
+        x >= box.right - parseFloat(style.borderRightWidth) ||
+        y < box.top + parseFloat(style.borderTopWidth) ||
+        y >= box.bottom - parseFloat(style.borderBottomWidth);
+      if (!hairline) dead.push(`${x},${y} ${hit.tagName.toLowerCase()}.${hit.className}`);
+    }
+  }
+  return dead;
+};
+
+test('macos: the whole toolbar row moves the window, in every view and width', async ({ page }) => {
+  const states: [string, { width: number; height: number }, (p: typeof page) => Promise<void>][] = [
+    ['overview', { width: 1360, height: 900 }, async () => undefined],
+    [
+      'reader',
+      { width: 1360, height: 900 },
+      (p) => p.locator('[data-testid^="job-row-"]').first().click(),
+    ],
+    ['rail', { width: 1000, height: 700 }, async () => undefined],
+    ['narrow list', { width: 780, height: 560 }, async () => undefined],
+    [
+      'narrow reader',
+      { width: 780, height: 560 },
+      (p) => p.locator('[data-testid^="job-row-"]').first().click(),
+    ],
+    ['profile', { width: 1360, height: 900 }, (p) => p.getByTestId('nav-profile').click()],
+    ['settings', { width: 1360, height: 900 }, (p) => p.getByTestId('nav-settings').click()],
+    ['minimum', { width: 480, height: 360 }, async () => undefined],
+  ];
+  for (const [name, size, go] of states) {
+    await page.setViewportSize(size);
+    await open(page, '?platform=macos');
+    await go(page);
+    await settle(page);
+    expect(await page.evaluate(DRAG_PROBE), name).toEqual([]);
+  }
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await open(page, '?platform=macos&scenario=first-run');
+  expect(await page.evaluate(DRAG_PROBE), 'first run').toEqual([]);
 });
 
 test('the native menu opens a view (macOS: Einstellungen with Cmd+,)', async ({ page }) => {
