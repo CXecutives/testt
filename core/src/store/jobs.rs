@@ -68,7 +68,7 @@ pub struct JobRow {
 /// search, whatever the facet.
 #[derive(Debug, Clone, Default)]
 pub struct PageQuery {
-    /// "New" = unread and not excluded.
+    /// "New": the unread jobs, excluded ones last. Its count leaves the excluded ones out.
     pub only_new: bool,
     /// Best match first; otherwise newest first. Excluded jobs come last either way.
     pub by_match: bool,
@@ -272,6 +272,8 @@ impl Store {
                  {p}portal, {p}job_id"
             )
         };
+        // "New" lists every unread job, the excluded ones last (grey in the list); its count
+        // leaves them out.
         let new = "read_at IS NULL AND match_status IS NOT 'excluded'";
         let sql = format!(
             "WITH base AS (
@@ -287,7 +289,7 @@ impl Store {
                  FROM base
              ), page AS (
                  SELECT {JOB_COLUMNS} FROM base
-                 WHERE (?2 = 0 OR ({new}))
+                 WHERE (?2 = 0 OR read_at IS NULL)
                  ORDER BY {}
                  LIMIT ?3 OFFSET ?4
              )

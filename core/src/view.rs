@@ -675,7 +675,8 @@ pub struct JobPage {
     pub counts: JobCounts,
 }
 
-/// List and counts from one store query. "New" means unread and not excluded.
+/// List and counts from one store query. "New" lists the unread jobs, the excluded ones last;
+/// its count leaves the excluded ones out.
 pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
     let (rows, counts) = store.job_page(&PageQuery {
         only_new: query.facet == JobFacet::New,
@@ -1261,11 +1262,16 @@ mod tests {
             high: 1,
             no_detail: 3,
         };
-        // New = unread and not excluded; excluded behind the others, unscored after scored.
+        // New lists every unread job: the excluded one behind the others (grey in the list),
+        // unscored after scored. Its count leaves the excluded one out.
         let new = job_page(&store, &query(JobFacet::New, JobSort::Match, 50, 0)).unwrap();
-        assert_eq!(titles(&new), ["B", "D"]);
+        assert_eq!(titles(&new), ["B", "D", "C"]);
         assert_eq!(new.counts, expected);
         assert!(new.jobs[0].unread && new.jobs[0].match_.is_some());
+        let excluded = new.jobs[2].match_.as_ref().unwrap();
+        assert!(new.jobs[2].unread && excluded.status == MatchStatus::Excluded);
+        let newest = job_page(&store, &query(JobFacet::New, JobSort::Newest, 50, 0)).unwrap();
+        assert_eq!(titles(&newest), ["D", "B", "C"]);
         let by_match = job_page(&store, &query(JobFacet::All, JobSort::Match, 50, 0)).unwrap();
         assert_eq!(titles(&by_match), ["B", "A", "D", "C"]);
         let newest = job_page(&store, &query(JobFacet::All, JobSort::Newest, 50, 0)).unwrap();
