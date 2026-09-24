@@ -232,6 +232,11 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [x] Integration: engine wired (LocalMatcher, rescore, job detail, profile summary, template, top_matches.json), scraping merged, prescore orders the fetch queue; engine v3 with the skill rubric, domain packs and aliases (in band 49/51/49/51 of 52 for the four profiles). A + B done (LocalMatcher, Rust-triggered
       rescore, reader recompute, profile summary, template, demo on the real engine, `auswertung/top_matches.json` for the
       skill as optional stage 2); D open (prescore hook not exposed by the fetch queue yet).
+- [x] Engine v4 (`docs/MATCHING.md`): Schwerpunkte, target roles and wishes (bounded, never an exclusion, no lift
+      into the high band while fewer than half of the musts are met); fixes of held-out sets 1 and 2, now regression
+      corpora with frozen floors (NDCG@10 0.822 to 0.930 and 0.632 to 0.805); criteria met only with the ad's value
+      as evidence, key facts on `JobMatch`; one German rubric for the Claude check and the skill
+      (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3, the new domain packs.
 
 ### Phase 3 - screens and core workflow (two UI agents)
 - [x] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)
