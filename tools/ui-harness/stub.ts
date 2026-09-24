@@ -16,7 +16,8 @@
 //   window.__harness.job(key)       a copy of a job as the stub holds it
 //
 // Scenarios (`?scenario=`): default · first-run · mailbox-only · no-profile · empty ·
-// many (2000 jobs) · offline · paused · running · slow · list-error · reset (the state after
+// many (2000 jobs) · offline · paused · running · slow · list-error · profile-broken ·
+// profile-thin · reset (the state after
 // "reset everything": first run, no mailbox, no profile, the report) · first-run-empty-profile
 // · dry-run (the demo: a Probelauf mailbox, every command that writes outside the database
 // refuses with `dryRun` like `ensure_real`).
@@ -38,6 +39,8 @@ import type {
   JobView,
   Portal,
   PortalState,
+  ProfileDraft,
+  ProfileForm,
   ProfileInfo,
   Reason,
   RunEvent,
@@ -417,6 +420,70 @@ function manyJobs(count: number): JobView[] {
   return out;
 }
 
+/** The invented sample profile of the fixtures (core/tests/fixtures/matching/sample_profile.json). */
+const row = (name: string, years: number | null, aliases: string[], origin: number) => ({
+  name,
+  years,
+  aliases,
+  origin,
+});
+const PROFILE_FORM: ProfileForm = {
+  name: 'Erika Beispiel',
+  title: 'Interim Managerin Finanzen',
+  competences: [
+    row('Interim Management', 12, [], 0),
+    row('Controlling', 18, ['Financial Controlling', 'FP&A'], 1),
+    row('Konzernrechnungslegung nach IFRS', 14, [], 2),
+    row('Konsolidierung', 11, [], 3),
+    row('Liquiditätsplanung', 10, [], 4),
+    row('Restrukturierung', 8, ['Sanierung'], 5),
+  ],
+  strengths: ['Aufbau von Konzernreportings in weniger als 100 Tagen'],
+  keywords: ['IFRS', 'HGB', 'Konzernabschluss'],
+  years: 20,
+  degrees: ['Diplom-Kauffrau (Univ.)'],
+  industries: ['Maschinenbau', 'Automotive', 'Chemie'],
+  tools: ['SAP S/4HANA', 'LucaNet', 'Power BI'],
+  certificates: ['Certified Interim Manager (DDIM)'],
+  languages: [
+    { language: 'Deutsch', level: 'native', origin: 0 },
+    { language: 'Englisch', level: 'b2', origin: 1 },
+  ],
+  focus: ['Controlling', 'Konzernrechnungslegung nach IFRS'],
+  roles: ['Interim CFO'],
+  wishes: { dayRate: 1200, remote: 'mostly', regions: ['Hamburg'], industries: [] },
+  criteria: {
+    minDayRate: 1100,
+    countries: ['DE', 'AT'],
+    noAnue: true,
+    available: { kind: 'unset' },
+    remoteOutside: true,
+    targetYears: 15,
+    minSalary: null,
+    permanentPlaces: [],
+    permanentRemoteMin: null,
+  },
+};
+
+/** The IT sample of the fixtures (sample_profile_it.json) as a chosen file. */
+const FILE_DRAFT: ProfileDraft = {
+  form: {
+    ...structuredClone(PROFILE_FORM),
+    name: 'Jonas Muster',
+    title: '',
+    competences: [
+      row('SAP-Projektleitung', 12, [], 0),
+      row('SAP S/4HANA Migration', 6, [], 1),
+      row('Programmmanagement', 8, [], 2),
+    ],
+    focus: [],
+    roles: [],
+    wishes: { dayRate: null, remote: 'partly', regions: [], industries: [] },
+  },
+  source: '{"name": "Jonas Muster"}',
+  quality: 'thin',
+};
+
 const PROFILE: ProfileInfo = {
   fileName: 'profil-interim-finance.json',
   bytes: 18_422,
@@ -451,15 +518,118 @@ const PROFILE: ProfileInfo = {
       { code: 'permanentRegion', params: { set: false, places: null, remoteMin: null } },
       { code: 'targetYears', params: { set: true, min: 15 } },
     ],
-    warnings: [],
-    // Engine v3 summary fields the IPC type does not carry yet; the Profil view shows them
-    // when they arrive.
-    ...({ packs: ['finance', 'sap'], years: 28, degrees: ['Diplom-Kauffrau'] } as object),
+    warnings: [
+      {
+        code: 'criterionNotUnderstood',
+        params: { key: 'festanstellung_remote_min', value: '"viel"' },
+      },
+    ],
+    focus: PROFILE_FORM.focus,
+    roles: PROFILE_FORM.roles,
+    wishes: PROFILE_FORM.wishes,
   },
   scoredAt: at(1),
   pending: 0,
   parseError: null,
+  form: PROFILE_FORM,
 };
+
+/** The request for Claude (the real text lives in core/src/profile/prompt.rs). */
+const PROMPT = 'Erstelle aus meinem angehängten Lebenslauf ein Beraterprofil.';
+
+type Json = Record<string, unknown>;
+const texts = (value: unknown, key?: string): string[] =>
+  (Array.isArray(value) ? value : [])
+    .map((item) =>
+      typeof item === 'string'
+        ? item
+        : key && item && typeof item === 'object'
+          ? (item as Json)[key]
+          : null,
+    )
+    .filter((item): item is string => typeof item === 'string' && item.trim() !== '');
+const LEVELS: Record<string, ProfileForm['languages'][number]['level']> = {
+  a1: 'a1',
+  a2: 'a2',
+  b1: 'b1',
+  b2: 'b2',
+  c1: 'c1',
+  c2: 'c2',
+  muttersprache: 'native',
+};
+
+/** Claude's answer as the backend reads it: the JSON (also in a code block) into the form. */
+function answerDraft(answer: string): ProfileDraft {
+  const fenced = /```[a-z]*\s*([\s\S]*?)```/.exec(answer)?.[1];
+  const text = fenced ?? answer.slice(answer.indexOf('{'), answer.lastIndexOf('}') + 1);
+  let data: Json;
+  try {
+    data = JSON.parse(text) as Json;
+  } catch {
+    throw fail('invalid', { reason: 'profileAnswer' });
+  }
+  const list = (key: string): unknown[] =>
+    Array.isArray(data[key]) ? (data[key] as unknown[]) : [];
+  const form: ProfileForm = {
+    ...structuredClone(PROFILE_FORM),
+    name: typeof data.name === 'string' ? data.name : '',
+    title: typeof data.titel === 'string' ? data.titel : '',
+    competences: list('kernkompetenzen').map((item, index) => {
+      const entry = item as Json;
+      return row(
+        String(entry.kompetenz ?? ''),
+        typeof entry.jahre === 'number' ? entry.jahre : null,
+        texts(entry.auch),
+        index,
+      );
+    }),
+    strengths: texts(data.alleinstellungsmerkmale),
+    keywords: texts(data.keywords),
+    years: typeof data.berufserfahrung_jahre === 'number' ? data.berufserfahrung_jahre : null,
+    degrees: texts(data.ausbildung, 'abschluss'),
+    industries: texts(data.branchen, 'branche'),
+    tools: texts(data.methoden_tools, 'name'),
+    certificates: texts(data.zertifizierungen, 'name'),
+    languages: list('sprachen').map((item, index) => {
+      const entry = item as Json;
+      return {
+        language: String(entry.sprache ?? ''),
+        level: LEVELS[String(entry.niveau ?? '').toLowerCase()] ?? null,
+        origin: index,
+      };
+    }),
+    focus: texts(data.schwerpunkte),
+    roles: [],
+    wishes: { dayRate: null, remote: null, regions: [], industries: [] },
+    criteria: {
+      ...PROFILE_FORM.criteria,
+      minDayRate: null,
+      countries: [],
+      noAnue: false,
+      targetYears: null,
+    },
+  };
+  if (form.competences.length === 0 && form.name === '')
+    throw fail('invalid', { reason: 'profileAnswer' });
+  return { form, source: text, quality: form.competences.length >= 5 ? 'good' : 'thin' };
+}
+
+/** A saved form: trimmed, empty rows gone, origins as the backend reads them back. */
+function savedForm(form: ProfileForm): ProfileForm {
+  const clean = (items: string[]): string[] => items.map((t) => t.trim()).filter((t) => t !== '');
+  return {
+    ...structuredClone(form),
+    name: form.name.trim(),
+    title: form.title.trim(),
+    competences: form.competences
+      .filter((r) => r.name.trim() !== '')
+      .map((r, index) => ({ ...r, name: r.name.trim(), aliases: clean(r.aliases), origin: index })),
+    languages: form.languages
+      .filter((r) => r.language.trim() !== '')
+      .map((r, index) => ({ ...r, language: r.language.trim(), origin: index })),
+    focus: clean(form.focus),
+  };
+}
 
 const portal = (name: PortalState['portal'], extra: Partial<PortalState> = {}): PortalState => ({
   portal: name,
@@ -658,6 +828,33 @@ function initial(): void {
         quality: null,
         understood: null,
         parseError: { kind: 'invalid', params: { reason: 'profileNotJson', line: 12, column: 3 } },
+        form: null,
+      };
+      break;
+    case 'profile-thin':
+      state.profile = {
+        ...PROFILE,
+        quality: 'thin',
+        understood: {
+          ...PROFILE.understood!,
+          competenceCount: 3,
+          competences: ['Controlling', 'Treasury', 'IFRS'],
+          packs: ['finance'],
+          focus: [],
+          roles: [],
+          warnings: [{ code: 'fewCompetences', params: { count: 3 } }],
+        },
+        form: {
+          ...structuredClone(PROFILE_FORM),
+          competences: [row('Controlling', 18, [], 0), row('Treasury', null, [], 1)],
+          focus: [],
+          roles: [],
+          keywords: ['IFRS'],
+          tools: [],
+          certificates: [],
+          languages: [],
+          wishes: { dayRate: null, remote: null, regions: [], industries: [] },
+        },
       };
       break;
     case 'running':
@@ -1430,20 +1627,46 @@ const handlers: Handlers = {
     if (state.profile === null) throw fail('notFound', { what: 'profile' });
     return promptTopOf(limit);
   },
-  pick_profile: () => {
-    state.profile = PROFILE;
+  pick_profile: () => structuredClone(FILE_DRAFT),
+  parse_profile: ({ text }) => answerDraft(text),
+  profile_prompt: () => PROMPT,
+  save_profile: ({ save }) => {
+    const after = save.after;
+    if (after.focus.length > 5) throw fail('invalid', { reason: 'profileValue', field: 'focus' });
+    if ((after.criteria.minDayRate ?? 0) > 100_000) {
+      throw fail('invalid', { reason: 'profileValue', field: 'minDayRate' });
+    }
+    const form = savedForm(after);
+    const count = form.competences.length + form.tools.length + form.keywords.length;
+    const quality = count === 0 ? 'empty' : count < 5 ? 'thin' : 'good';
+    state.profile = {
+      ...PROFILE,
+      fileName: 'beraterprofil.json',
+      bytes: JSON.stringify(form).length,
+      savedAt: at(0),
+      quality,
+      understood: {
+        ...PROFILE.understood!,
+        competenceCount: count,
+        competences: form.competences.map((r) => r.name),
+        warnings: [],
+        focus: form.focus,
+        roles: form.roles,
+        wishes: form.wishes,
+      },
+      form,
+    };
     if (jobs.every((j) => j.match === null)) {
       const sample = sampleJobs();
       for (const j of jobs) j.match = sample.find((s) => s.key.id === j.key.id)?.match ?? null;
     }
     refresh();
-    return PROFILE;
+    return structuredClone(state.profile);
   },
   remove_profile: () => {
     state.profile = null;
     return true;
   },
-  save_profile_template: () => 'C:/Users/demo/Documents/Job-Alerts/profil-vorlage.json',
   save_mailbox: ({ user, password }) => {
     if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(user)) {
       throw fail('invalid', { reason: 'mailAddress' });

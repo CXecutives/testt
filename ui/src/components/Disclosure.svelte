@@ -1,9 +1,14 @@
 <!--
-  A heading that opens a section. The chevron turns 180° (150 ms) and the content is there
-  at once: no height animation, which would lay out the page in every frame.
+  A heading that opens a section. One chevron turns half a turn when open (180 ms,
+  emphasized; the angle stays under reduced motion). The content fades in (100 ms) when the
+  user opens it and is gone at once when closed: no height animation, which would lay out
+  the page in every frame. On hover the head's text darkens and its chevron turns navy (no
+  background); like a row it runs edge to edge in its container and pads its label by
+  --row-inset.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { fade } from '$lib/motion/transitions';
   import Icon from './Icon.svelte';
 
   interface Props {
@@ -28,8 +33,10 @@
     <span class="label">{label}</span>
     <span class="chevron"><Icon name="chevron-down" size="sm" /></span>
   </button>
-  <div class="panel" id="{id}-panel" role="region" inert={!open}>
-    <div class="inner">{@render children()}</div>
+  <div class="panel" id="{id}-panel" role="region">
+    {#if open}
+      <div class="inner" in:fade>{@render children()}</div>
+    {/if}
   </div>
 </div>
 
@@ -39,21 +46,19 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-12);
-    /* The label lines up with the text around it; the hover wash reaches a little out. */
-    width: calc(100% + 2 * var(--space-8));
+    width: calc(100% + 2 * var(--row-inset));
     min-height: var(--control-sm);
-    margin: 0 calc(-1 * var(--space-8));
-    padding: 0 var(--space-8);
-    border-radius: var(--radius-sm);
+    margin-inline: calc(-1 * var(--row-inset));
+    padding-inline: var(--row-inset);
     color: var(--text-muted);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition: color var(--dur-base) var(--ease-standard);
   }
 
   .head:hover {
-    background-color: var(--surface-hover);
     color: var(--text);
+    transition-duration: var(--dur-hover);
   }
 
   .head:focus-visible {
@@ -63,22 +68,20 @@
   .chevron {
     display: inline-flex;
     color: var(--text-muted);
-    transition: transform var(--dur-base) var(--ease-out);
+    transition:
+      transform var(--dur-slow) var(--ease-emphasized),
+      color var(--dur-base) var(--ease-standard);
+  }
+
+  .head:hover .chevron {
+    color: var(--icon-accent);
   }
 
   .open .chevron {
-    transform: rotate(180deg);
+    transform: rotate(var(--turn-half));
   }
 
-  .panel {
-    display: none;
-  }
-
-  .open .panel {
-    display: block;
-  }
-
-  .open .inner {
+  .inner {
     padding-top: var(--space-8);
   }
 </style>

@@ -73,8 +73,8 @@
     });
   }
 
-  function autoFetch(on: boolean): void {
-    void act('fetch', setFetch, async () => {
+  function autoFetch(on: boolean): Promise<void> {
+    return act('fetch', setFetch, async () => {
       await app.patchSettings({ autoFetchOnStart: on });
       toasts.show(de.toast.saved);
       return null;
@@ -212,8 +212,13 @@
     <section class="section" data-testid="settings-fetch">
       <h2 class="heading">{de.settings.fetch}</h2>
       <Card padding="rows">
-        <SettingRow label={de.settings.autoFetch} hint={de.settings.autoFetchHint}>
+        <SettingRow
+          label={de.settings.autoFetch}
+          hint={de.settings.autoFetchHint}
+          for="switch-auto-fetch"
+        >
           <Toggle
+            id="switch-auto-fetch"
             checked={cfg.autoFetchOnStart}
             label={de.settings.autoFetch}
             testid="toggle-auto-fetch"

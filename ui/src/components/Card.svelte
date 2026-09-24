@@ -1,11 +1,14 @@
 <!--
   A white card with a hairline, flat (it sits on the white sheet of the content, no shadow).
   plain | interactive | tinted (a calm muted surface).
-  Interactive cards (with onclick) only darken their hairline on hover: no lift, no shadow.
+  Interactive cards (with onclick) answer like a stat tile: a navy hairline and a soft
+  shadow that fades in on hover (no lift) and a darker hairline while pressed. Plain
+  and tinted cards never react; only their controls do.
 -->
 <script lang="ts" module>
   export type CardVariant = 'plain' | 'interactive' | 'tinted';
-  /** `rows`: for a card of SettingRows (they bring their own vertical padding). */
+  /** `rows`: for a card of SettingRows: the rows run edge to edge (their washes and
+   *  dividers too) and bring their own padding; anything else in it keeps the card's inset. */
   export type CardPadding = 'none' | 'rows' | 'md' | 'lg';
 </script>
 
@@ -63,15 +66,40 @@
   }
 
   .interactive {
-    transition: border-color var(--dur-fast) var(--ease-standard);
+    position: relative;
+    transition: border-color var(--dur-base) var(--ease-standard);
+  }
+
+  /* The hover shadow, painted once and shown by opacity (no lift, no animated shadow). */
+  .interactive::after {
+    position: absolute;
+    inset: calc(-1 * var(--border-width));
+    border-radius: inherit;
+    box-shadow: var(--sh-hover);
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-standard);
   }
 
   .interactive:hover {
-    border-color: var(--border-strong);
+    border-color: var(--border-navy);
+    transition-duration: var(--dur-hover);
+  }
+
+  .interactive:hover::after {
+    opacity: 1;
+    transition-duration: var(--dur-hover);
   }
 
   .interactive:active {
-    border-color: var(--border-input);
+    border-color: var(--active-edge);
+    transition-duration: var(--dur-instant);
+  }
+
+  .interactive:active::after {
+    opacity: 0;
+    transition-duration: var(--dur-instant);
   }
 
   .interactive:focus-visible {
@@ -83,7 +111,13 @@
   }
 
   .pad-rows {
-    padding: var(--space-4) var(--space-20);
+    overflow: hidden;
+    padding: 0 var(--space-20);
+    --row-inset: var(--space-20);
+  }
+
+  .pad-rows > :global(:not([data-setting-row])) {
+    margin-block: var(--space-12);
   }
 
   .pad-md {

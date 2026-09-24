@@ -24,9 +24,11 @@
 // - OS window and menu functions stay: Alt+F4 and Cmd+Q/W/M/H/, (Settings), Cmd+Option+H.
 // - no Ctrl/Cmd+wheel zoom (the wheel is watched only while Ctrl or Cmd is held, so plain
 //   scrolling never waits for the page) and no pinch zoom
+// - no hover flicker while a list scrolls (`:root[data-scrolling]`, see onScroll)
 
 import type { Action } from 'svelte/action';
 import { keyConventions, type KeyConventions } from '../platform';
+import { tokenMs } from '../tokens';
 
 const FIELD = 'input, textarea, [contenteditable="true"], [contenteditable=""]';
 /** Text a user would copy (selectable, Ctrl/Cmd+C). */
@@ -228,6 +230,54 @@ function cycleFocus(modal: HTMLElement, back: boolean): void {
   items[next]?.focus();
 }
 
+export interface ChipKeyHandlers {
+  /** Enter: turn the typed text into chips; `true` if there was text. */
+  commit: () => boolean;
+  /** Backspace in an empty field: remove the last chip; `true` if one went. */
+  removeLast: () => boolean;
+  /** Esc: drop the typed text; `true` if there was some. */
+  clear: () => boolean;
+}
+
+const CHIPS = '[data-chip-keys]';
+const chipFields = new WeakMap<Element, ChipKeyHandlers>();
+
+/**
+ * The keys of a chip field (components/ChipInput.svelte): Enter adds, Backspace in the empty
+ * field removes the last chip, Esc drops the typed text. What a chip field does not use
+ * goes on to the form (Enter on an empty chip field saves it).
+ */
+export const chipKeys: Action<HTMLElement, ChipKeyHandlers> = (node, handlers) => {
+  chipFields.set(node, handlers);
+  node.dataset.chipKeys = '';
+  return {
+    update(next: ChipKeyHandlers) {
+      chipFields.set(node, next);
+    },
+    destroy() {
+      chipFields.delete(node);
+      delete node.dataset.chipKeys;
+    },
+  };
+};
+
+function dispatchChipKey(event: KeyboardEvent): boolean {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
+  const field = closest(event.target, CHIPS);
+  const handlers = field === null ? undefined : chipFields.get(field);
+  if (handlers === undefined) return false;
+  const handled =
+    event.key === 'Enter'
+      ? handlers.commit()
+      : event.key === 'Backspace'
+        ? handlers.removeLast()
+        : event.key === 'Escape'
+          ? handlers.clear()
+          : false;
+  if (handled) event.preventDefault();
+  return handled;
+}
+
 function onKeyDown(event: KeyboardEvent): void {
   if (event.ctrlKey || event.metaKey) guardZoom(true);
   if (isWindowShortcut(event)) return;
@@ -252,6 +302,7 @@ function onKeyDown(event: KeyboardEvent): void {
       event.preventDefault();
       return;
     }
+    if (dispatchChipKey(event)) return;
     dispatchFormKey(event);
     return;
   }
@@ -279,6 +330,21 @@ function guardZoom(on: boolean): void {
   zoomGuarded = on;
   if (on) document.addEventListener('wheel', blockZoom, { capture: true, passive: false });
   else document.removeEventListener('wheel', blockZoom, { capture: true });
+}
+
+/**
+ * Hover stays still while a list scrolls: `:root[data-scrolling]` is set from the first
+ * scroll event until --scroll-idle after the last one (rows and pins take no pointer
+ * events meanwhile, the scroller keeps its own). A passive listener: it never delays a
+ * scroll.
+ */
+let scrollIdle: ReturnType<typeof setTimeout> | undefined;
+
+function onScroll(): void {
+  const root = document.documentElement;
+  if (root.dataset.scrolling === undefined) root.dataset.scrolling = '';
+  clearTimeout(scrollIdle);
+  scrollIdle = setTimeout(() => delete root.dataset.scrolling, tokenMs('--scroll-idle'));
 }
 
 /**
@@ -371,6 +437,7 @@ export function installInput(): void {
     capture,
   );
   window.addEventListener('blur', () => guardZoom(false));
+  document.addEventListener('scroll', onScroll, { capture: true, passive: true });
   // Safari/WKWebView pinch zoom.
   document.addEventListener('gesturestart', prevent, capture);
   document.addEventListener('gesturechange', prevent, capture);

@@ -80,7 +80,7 @@
 
 <Card padding="none" testid="portal-{portal.portal}">
   <div class="head">
-    <IconTile monogram={PORTAL_MONOGRAM[portal.portal]} size="md" />
+    <IconTile tone="navy" monogram={PORTAL_MONOGRAM[portal.portal]} size="md" />
     <div class="title">
       <h3 class="name">{de.portal[portal.portal]}</h3>
       <p class="risk">{de.settings.riskText[risk]}</p>
@@ -123,26 +123,32 @@
 
       {#if portal.enabled}
         <div class="rows">
-          <SettingRow label={de.settings.details}>
+          <SettingRow label={de.settings.details} for="switch-details-{portal.portal}">
             <Toggle
+              id="switch-details-{portal.portal}"
               checked={portal.fetchDetails}
               label={de.settings.details}
               testid="toggle-details-{portal.portal}"
-              onchange={(on) => void change({ fetchDetails: on })}
+              onchange={(on) => change({ fetchDetails: on })}
             />
           </SettingRow>
           {#if portal.login === 'optional'}
-            <SettingRow label={de.settings.login} hint={de.settings.loginHint}>
+            <SettingRow
+              label={de.settings.login}
+              hint={de.settings.loginHint}
+              for="switch-login-{portal.portal}"
+            >
               {#snippet badges()}
                 <Badge label={de.settings.risk.account} tone="danger" />
               {/snippet}
               <Toggle
+                id="switch-login-{portal.portal}"
                 checked={portal.loginEnabled}
                 label={de.settings.login}
                 disabled={!portal.fetchDetails}
                 disabledReason={de.settings.needsDetails}
                 testid="toggle-login-{portal.portal}"
-                onchange={(on) => void change({ loginEnabled: on })}
+                onchange={(on) => change({ loginEnabled: on })}
               />
             </SettingRow>
             {#if portal.loginEnabled}
@@ -193,13 +199,15 @@
     padding: var(--space-16) var(--space-20);
   }
 
+  /* The rows run edge to edge like the card's dividers (--row-inset); other content keeps
+     the card's inset of 20. */
   .body {
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
-    margin: 0 var(--space-20);
-    padding-bottom: var(--space-4);
+    padding: 0 var(--space-20) var(--space-4);
     border-top: var(--border-width) solid var(--border);
+    --row-inset: var(--space-20);
   }
 
   .body > :global(:first-child:not(.rows)) {
@@ -218,9 +226,10 @@
     min-width: 0;
   }
 
+  /* A card label, not a heading: 15/500 under the 17/600 section heading. */
   .name {
     color: var(--text-heading);
-    font: var(--type-lg);
+    font: var(--type-title);
   }
 
   .risk {

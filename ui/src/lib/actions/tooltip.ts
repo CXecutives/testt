@@ -1,18 +1,35 @@
-// `use:tooltip={text}` - a styled tooltip after --delay-tooltip (350 ms) of hover.
+// `use:tooltip={text}` - a styled tooltip after --delay-tooltip (400 ms) of hover.
 // Hides on leave and on press; moving on to the next anchor shows it at once.
+// `{ text, truncated: true }` shows it only while the text of the node is cut off (a long
+// row title): measured once when the pointer enters, never per frame.
 
 import type { Action } from 'svelte/action';
 import { tooltipDelay } from '../motion/motion';
 import { tooltipState, type TooltipPlacement } from '../state/tooltip.svelte';
 
 export type TooltipParam =
-  string | null | undefined | { text: string | null | undefined; placement?: TooltipPlacement };
+  | string
+  | null
+  | undefined
+  | { text: string | null | undefined; placement?: TooltipPlacement; truncated?: boolean };
 
-function normalize(param: TooltipParam): { text: string; placement: TooltipPlacement } | null {
+interface Options {
+  text: string;
+  placement: TooltipPlacement;
+  truncated: boolean;
+}
+
+function normalize(param: TooltipParam): Options | null {
   if (param === null || param === undefined) return null;
-  if (typeof param === 'string') return param === '' ? null : { text: param, placement: 'bottom' };
+  if (typeof param === 'string') {
+    return param === '' ? null : { text: param, placement: 'bottom', truncated: false };
+  }
   if (!param.text) return null;
-  return { text: param.text, placement: param.placement ?? 'bottom' };
+  return {
+    text: param.text,
+    placement: param.placement ?? 'bottom',
+    truncated: param.truncated ?? false,
+  };
 }
 
 export const tooltip: Action<HTMLElement, TooltipParam> = (node, param) => {
@@ -30,6 +47,7 @@ export const tooltip: Action<HTMLElement, TooltipParam> = (node, param) => {
   const enter = (): void => {
     cancel();
     if (options === null) return;
+    if (options.truncated && node.scrollWidth <= node.clientWidth) return;
     if (tooltipState.warm) show();
     else timer = setTimeout(show, tooltipDelay());
   };

@@ -1,10 +1,12 @@
-<!-- Gallery: toggles, segmented controls, fields, disclosure and setting rows. -->
+<!-- Gallery: toggles, segmented controls, fields, chip fields, disclosure and setting rows. -->
 <script lang="ts">
   import Badge from '$components/Badge.svelte';
+  import ChipInput from '$components/ChipInput.svelte';
   import Disclosure from '$components/Disclosure.svelte';
   import Field from '$components/Field.svelte';
   import Segmented from '$components/Segmented.svelte';
   import SettingRow from '$components/SettingRow.svelte';
+  import TextArea from '$components/TextArea.svelte';
   import TextField from '$components/TextField.svelte';
   import Toggle from '$components/Toggle.svelte';
   import Section from './Section.svelte';
@@ -21,6 +23,10 @@
   let search = $state('Controlling');
   let empty = $state('');
   let open = $state(true);
+  let tools = $state([...t.chipValues]);
+  let industries = $state<string[]>([]);
+  let focus = $state([...t.chipsShownValues]);
+  let answer = $state('');
 
   /** A save that fails after a round trip (the dry run refuses it). */
   const failingSave = (): Promise<void> =>
@@ -76,7 +82,12 @@
           describedby="gallery-address-message"
         />
       </Field>
-      <Field label={t.password} for="gallery-password" error={t.passwordError}>
+      <Field
+        label={t.password}
+        for="gallery-password"
+        error={t.passwordError}
+        action={{ label: t.createPassword, icon: 'external-link', onclick: () => undefined }}
+      >
         <TextField
           id="gallery-password"
           kind="password"
@@ -89,11 +100,39 @@
       <TextField kind="search" label={t.search} placeholder={t.search} bind:value={empty} />
       <TextField label={t.address} bind:value={address} disabled />
     </div>
+    <div class="stack">
+      <Field label={t.chips} for="gallery-chips" hint={t.chipsHint}>
+        <ChipInput
+          id="gallery-chips"
+          bind:values={tools}
+          describedby="gallery-chips-message"
+          testid="gallery-chips"
+        />
+      </Field>
+      <Field label={t.chipsEmpty} for="gallery-chips-empty">
+        <ChipInput
+          id="gallery-chips-empty"
+          bind:values={industries}
+          placeholder={t.chipsPlaceholder}
+        />
+      </Field>
+      <ChipInput label={t.chipsShown} bind:values={focus} entry={false} />
+      <Field label={t.area} for="gallery-area">
+        <TextArea id="gallery-area" bind:value={answer} rows={4} />
+      </Field>
+    </div>
   </div>
 
   <div class="panel">
-    <SettingRow label={t.toggle} hint={t.toggleHint}>
-      <Toggle checked={autoFetch} label={t.toggle} onchange={(v) => (autoFetch = v)} />
+    <!-- A switch row like the system settings: a click on its text toggles the switch. -->
+    <SettingRow label={t.toggle} hint={t.toggleHint} for="gallery-auto-fetch">
+      <Toggle
+        id="gallery-auto-fetch"
+        checked={autoFetch}
+        label={t.toggle}
+        testid="gallery-row-toggle"
+        onchange={(v) => (autoFetch = v)}
+      />
     </SettingRow>
     <SettingRow label={t.locked} hint={t.lockedReason}>
       {#snippet badges()}<Badge tone="warning" label={t.risk} icon="shield" />{/snippet}
@@ -134,7 +173,9 @@
 
   .panel {
     max-width: var(--reader-width);
+    overflow: hidden;
     padding: 0 var(--space-24);
+    --row-inset: var(--space-24);
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
   }

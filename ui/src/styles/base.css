@@ -74,6 +74,7 @@ textarea,
 [contenteditable='true'] {
   font: inherit;
   color: inherit;
+  caret-color: var(--caret);
   cursor: text;
   user-select: auto;
   -webkit-user-select: auto;
@@ -124,6 +125,7 @@ ol {
   display: none;
 }
 
+/* Navy like the native selection of both OS (and the caret of the fields above). */
 ::selection {
   background-color: var(--selection);
 }
@@ -144,11 +146,13 @@ ol {
 }
 
 /* The thumb shows only while the pointer is over its scroller (every ancestor of the
-   hovered element matches :hover), so resting screens carry no scrollbars at all. */
+   hovered element matches :hover), so resting screens carry no scrollbars at all. It is
+   2 px thin and thickens to 4 px under the pointer, as in Windows 11 (scrollbar
+   pseudo-elements cannot transition). */
 [data-platform='windows'] ::-webkit-scrollbar-thumb {
   background-color: transparent;
   background-clip: content-box;
-  border: var(--scrollbar-gap) solid transparent;
+  border: var(--scrollbar-thumb-rest) solid transparent;
   border-radius: var(--radius-full);
 }
 
@@ -156,6 +160,8 @@ ol {
   background-color: var(--scrollbar);
 }
 
-[data-platform='windows'] ::-webkit-scrollbar-thumb:hover {
+[data-platform='windows'] ::-webkit-scrollbar-thumb:hover,
+[data-platform='windows'] ::-webkit-scrollbar-thumb:active {
+  border-width: var(--scrollbar-gap);
   background-color: var(--scrollbar-hover);
 }

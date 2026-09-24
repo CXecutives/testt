@@ -35,6 +35,22 @@ export const text = {
     full: 'Volle Bewegung ist an.',
     item: 'Job',
     count: 'Passung',
+    micro: 'Berühren und drücken',
+    fetch: 'Abrufen',
+    open: 'Anzeige öffnen',
+    save: 'Vorlage speichern',
+    back: 'Zurück',
+    remove: 'Entfernen',
+    pin: 'Merken',
+    best: 'Beste Passung zuerst',
+    newest: 'Neueste zuerst',
+    link: 'App-Passwort erstellen',
+    more: 'Einer mehr',
+    less: 'Einer weniger',
+    again: 'Noch einmal',
+    passage: 'Controlling im Konzern',
+    password: 'App-Passwort',
+    shake: 'Falsches Passwort',
   },
   buttons: {
     fetch: 'Abrufen',
@@ -89,9 +105,18 @@ export const text = {
     addressHint: 'Die Gmail-Adresse, an die die Alert-Mails gehen.',
     password: 'App-Passwort',
     passwordError: 'Das App-Passwort hat 16 Zeichen.',
+    createPassword: 'App-Passwort erstellen',
     search: 'Jobs durchsuchen',
     disclosure: 'Mehr zu diesem Portal',
     disclosureText: 'Die App liest nur Links aus den eigenen Alert-Mails.',
+    chips: 'Werkzeuge und Methoden',
+    chipsHint: 'Enter fügt hinzu, eine Liste mit Kommas wird aufgeteilt.',
+    chipValues: ['SAP S/4HANA', 'LucaNet', 'Power BI'],
+    chipsEmpty: 'Branchen',
+    chipsPlaceholder: 'Maschinenbau',
+    chipsShown: 'Schwerpunkte',
+    chipsShownValues: ['Controlling', 'Konzernrechnungslegung nach IFRS'],
+    area: 'Antwort von Claude einfügen',
   },
   feedback: {
     rings: 'Passung',
@@ -100,6 +125,10 @@ export const text = {
     statHigh: 'Hohe Passung',
     statIssues: 'Offene Punkte',
     statHint: 'Seit dem letzten Abruf',
+    statPinned: 'Gemerkt',
+    statFilter: 'Ohne Details',
+    countMore: 'Einer mehr',
+    countLess: 'Einer weniger',
     notices: 'Hinweise',
     noticeHeading: 'Portal pausiert',
     noticeText: 'freelance.de meldet zu viele Anfragen und ist bis 14:30 pausiert.',
@@ -281,15 +310,45 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
     ],
   },
   {
-    title: 'Marke',
+    title: 'Koralle, handeln, neu und hier',
     tokens: [
       { name: 'accent', role: 'decor' },
       { name: 'accent-soft', role: 'surface' },
       { name: 'primary', role: 'fill', exception: true },
       { name: 'primary-hover', role: 'fill', exception: true },
       { name: 'primary-active', role: 'fill', exception: true },
+      { name: 'toggle-on', role: 'decor' },
+      { name: 'unread', role: 'decor' },
+      { name: 'surface-selected', role: 'surface' },
+      { name: 'surface-selected-hover', role: 'surface' },
+      { name: 'surface-selected-inactive', role: 'surface' },
+      { name: 'selection-bar', role: 'decor' },
+      { name: 'ring-track-selected', role: 'decor' },
+      { name: 'nav-active-fg', role: 'text' },
+      { name: 'nav-active-icon', role: 'decor' },
+      { name: 'count-soft-bg', role: 'surface' },
+      { name: 'count-soft-fg', role: 'text' },
+    ],
+  },
+  {
+    title: 'Navy, Daten und Struktur',
+    tokens: [
+      { name: 'count-bg', role: 'fill' },
+      { name: 'icon-accent', role: 'text' },
+      { name: 'active-surface', role: 'surface' },
+      { name: 'active-edge', role: 'decor' },
+      { name: 'active-text', role: 'text' },
+      { name: 'border-navy', role: 'decor' },
+      { name: 'text-label', role: 'text' },
+      { name: 'link', role: 'text' },
+      { name: 'link-hover', role: 'text' },
+      { name: 'meter-fill', role: 'decor' },
+      { name: 'meter-track', role: 'surface' },
+      { name: 'pressed', role: 'text' },
       { name: 'focus', role: 'decor' },
+      { name: 'caret', role: 'decor' },
       { name: 'selection', role: 'surface' },
+      { name: 'toast-bar', role: 'decor' },
     ],
   },
   {
@@ -307,6 +366,7 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'info', role: 'text' },
       { name: 'info-strong', role: 'text' },
       { name: 'info-soft', role: 'surface' },
+      { name: 'meter-warning', role: 'decor' },
     ],
   },
   {
@@ -323,6 +383,7 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'score-low-surface', role: 'surface' },
       { name: 'score-track', role: 'decor' },
       { name: 'score-excluded', role: 'text' },
+      { name: 'score-excluded-track', role: 'decor' },
     ],
   },
 ];
@@ -340,10 +401,18 @@ export const typeScale = [
 
 export const spacing = [2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64] as const;
 export const radii = ['xs', 'sm', 'md', 'lg', 'xl', 'full'] as const;
-export const shadows = ['sh-xs', 'sh-thumb', 'sh-pop', 'focus-halo', 'focus-ring'] as const;
+export const shadows = [
+  'sh-xs',
+  'sh-thumb',
+  'sh-pop',
+  'sh-hover',
+  'sh-primary',
+  'focus-halo',
+  'focus-ring',
+] as const;
 export const gradients = ['grad-shimmer'] as const;
-export const durations = ['instant', 'fast', 'base', 'slow', 'reveal'] as const;
-export const easings = ['standard', 'out', 'in'] as const;
+export const durations = ['instant', 'hover', 'fast', 'base', 'slow', 'reveal'] as const;
+export const easings = ['standard', 'out', 'in', 'emphasized'] as const;
 
 /* ------------------------------------------------------------------ contrast */
 

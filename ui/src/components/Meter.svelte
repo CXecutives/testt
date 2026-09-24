@@ -1,7 +1,8 @@
 <!--
   Progress bar. Determinate (value 0..1) fills by scaleX (180 ms, ease-out). Indeterminate
-  (value null) sweeps a short bar; under reduced motion it rests as a calm full track
-  instead of a paused bar outside the track.
+  (value null) sweeps a short bar (linear, so it never seems to stall); under reduced motion
+  it rests as a calm full track instead of a paused bar outside the track. Progress is navy
+  on a navy wash (brand); a quota near its limit is ochre (warning).
 -->
 <script lang="ts" module>
   export type MeterTone = 'brand' | 'neutral' | 'warning';
@@ -10,6 +11,7 @@
 
 <script lang="ts">
   import { cssVars } from '$lib/actions/cssVars';
+  import { settled } from '$lib/motion/settled.svelte';
 
   interface Props {
     value: number | null;
@@ -21,12 +23,14 @@
 
   let { value, tone = 'brand', size = 'md', label, testid = null }: Props = $props();
 
+  const motion = settled();
   const clamped = $derived(value === null ? null : Math.max(0, Math.min(1, value)));
 </script>
 
 <div
   class="meter {tone} {size}"
   class:indeterminate={clamped === null}
+  class:ready={motion.ready}
   role="progressbar"
   aria-label={label}
   aria-valuemin={0}
@@ -44,7 +48,7 @@
     height: var(--meter-height);
     overflow: hidden;
     border-radius: var(--radius-full);
-    background-color: var(--surface-muted);
+    background-color: var(--meter-track-colour);
   }
 
   .fill {
@@ -55,6 +59,10 @@
     background-color: var(--meter-color);
     transform: scaleX(var(--progress));
     transform-origin: left center;
+  }
+
+  /* It fills only once the bar has been drawn (a meter that mounts shows its value). */
+  .ready .fill {
     transition: transform var(--dur-slow) var(--ease-out);
   }
 
@@ -77,14 +85,17 @@
 
   .brand {
     --meter-color: var(--meter-fill);
+    --meter-track-colour: var(--meter-track);
   }
 
   .neutral {
     --meter-color: var(--text-subtle);
+    --meter-track-colour: var(--surface-muted);
   }
 
   .warning {
     --meter-color: var(--meter-warning);
+    --meter-track-colour: var(--surface-muted);
   }
 
   .sm {

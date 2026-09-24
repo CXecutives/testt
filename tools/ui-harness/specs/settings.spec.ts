@@ -36,9 +36,15 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'true');
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
 
-  await page.getByTestId('first-template').click();
-  await expect(page.getByTestId('toast')).toHaveText('Die Vorlage ist gespeichert.');
-  await page.getByTestId('first-pick-profile').click();
+  // The profile is made in the Profil view; back on the first-run page its step is done.
+  await page.getByTestId('first-profile').click();
+  await expect(page.getByTestId('view-profile')).toBeVisible();
+  await page.getByTestId('profile-empty').getByRole('button', { name: 'Profil anlegen' }).click();
+  await page.getByTestId('competence-add').click();
+  await page.getByTestId('competence-name').fill('Controlling');
+  await page.getByTestId('profile-save').click();
+  await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
+  await page.getByTestId('nav-jobs').click();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
 
@@ -137,10 +143,7 @@ test('first run: a profile that names nothing to score keeps step two open', asy
   await open(page, `${WIN}&scenario=first-run-empty-profile`);
   const step = page.getByTestId('step-profile');
   await expect(step).toHaveAttribute('data-done', 'false');
-  await expect(page.getByTestId('profile-hint')).toHaveText(
-    'Ohne Kompetenzen wird nichts bewertet.',
-  );
-  await expect(page.getByTestId('first-pick-profile')).toHaveClass(/primary/);
+  await expect(page.getByTestId('first-profile')).toHaveClass(/primary/);
   await expect(page.getByTestId('first-fetch')).not.toHaveClass(/primary/);
 });
 
