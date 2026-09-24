@@ -101,9 +101,8 @@
         variant="ghost"
         size="sm"
         iconOnly
-        icon="chevron-down"
+        icon={open ? 'chevron-up' : 'chevron-down'}
         label={open ? de.run.collapse : de.run.expand}
-        pressed={open}
         testid="run-toggle"
         onclick={toggle}
       />

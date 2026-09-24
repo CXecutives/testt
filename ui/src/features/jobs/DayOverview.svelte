@@ -40,8 +40,9 @@
       : [],
   );
   const pinned = $derived(all.filter((j) => j.pinned));
+  // While a run goes, the run card shows pauses and limits; they are not repeated here.
   const troubled = $derived(
-    (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
+    run.active ? [] : (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
   );
   const emptyAlerts = $derived(app.state?.lastRun?.emptyAlerts ?? []);
   const profileMissing = $derived(app.state !== null && app.state.profile === null);

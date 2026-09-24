@@ -10,6 +10,7 @@
   import Check from '@lucide/svelte/icons/check';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import ChevronUp from '@lucide/svelte/icons/chevron-up';
   import CircleDashed from '@lucide/svelte/icons/circle-dashed';
   import Clock from '@lucide/svelte/icons/clock';
   import Copy from '@lucide/svelte/icons/copy';
@@ -58,6 +59,7 @@
     'key-round': KeyRound,
     'chevron-down': ChevronDown,
     'chevron-left': ChevronLeft,
+    'chevron-up': ChevronUp,
     'external-link': ExternalLink,
     mail: Mail,
     'file-text': FileText,
