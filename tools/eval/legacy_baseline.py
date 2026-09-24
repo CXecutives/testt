@@ -115,7 +115,7 @@ def write_frozen(out: Path, data: dict, check: bool, force: bool) -> int:
     elif check:
         print(f"{out} does not exist")
         return 1
-    out.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    out.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
     print(f"wrote {out.relative_to(REPO)}")
     return 0
 
@@ -192,7 +192,7 @@ def main() -> int:
         return write_frozen(FIXTURES / "legacy_edge.json", data, args.check, args.force)
     if args.command == "lexicon":
         out = FIXTURES / "legacy_lexicon.json"
-        out.write_text(json.dumps(lexicon(), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        out.write_text(json.dumps(lexicon(), ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
         print(f"wrote {out.relative_to(REPO)}")
         return 0
     if args.command == "unicode":
@@ -204,7 +204,7 @@ def main() -> int:
     if not (args.corpus and args.profile and args.out):
         parser.error("run needs --corpus, --profile and --out")
     data = baseline(args.corpus, args.profile, command + f" --corpus {args.corpus}")
-    args.out.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    args.out.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
     print(f"wrote {args.out}")
     return 0
 
