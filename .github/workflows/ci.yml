@@ -47,7 +47,7 @@ jobs:
       # Universal bundle: Intel and Apple silicon. The runner is arm64, x86_64 is missing.
       - name: Add macOS targets
         if: runner.os == 'macOS'
-        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+        run: rustup target add aarch64-apple-darwin
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -208,10 +208,10 @@ jobs:
         working-directory: src-tauri
         run: |
           code=0
-          tauri build --target universal-apple-darwin --bundles app,dmg || code=$?
+          tauri build --target aarch64-apple-darwin --bundles app,dmg || code=$?
           if [ "$code" -ne 0 ]; then
             echo "::warning::dmg failed on the runner - building the .app only."
-            tauri build --target universal-apple-darwin --bundles app
+            tauri build --target aarch64-apple-darwin --bundles app
           fi
 
       # The release binary (the one inside the installer) starts and stays up.
@@ -243,7 +243,7 @@ jobs:
         shell: bash
         run: |
           set -u
-          bundle=target/universal-apple-darwin/release/bundle
+          bundle=target/aarch64-apple-darwin/release/bundle
           echo "macOS $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
           echo "WebKit $(defaults read /System/Library/Frameworks/WebKit.framework/Resources/Info.plist CFBundleVersion 2>/dev/null || echo unknown)"
           echo "Safari $(defaults read /Applications/Safari.app/Contents/Info.plist CFBundleShortVersionString 2>/dev/null || echo unknown)"
@@ -292,7 +292,7 @@ jobs:
             cp target/release/bundle/nsis/*-setup.exe artifacts/bundles/ 2>/dev/null \
               || echo "no setup.exe"
           else
-            bundle=target/universal-apple-darwin/release/bundle
+            bundle=target/aarch64-apple-darwin/release/bundle
             if [ -d "$bundle/macos/Job-Alert-Monitor.app" ]; then
               ditto -c -k --keepParent "$bundle/macos/Job-Alert-Monitor.app" \
                 artifacts/bundles/Job-Alert-Monitor.app.zip

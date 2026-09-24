@@ -152,7 +152,7 @@ Window frame (own caption buttons vs. traffic lights) · menu (none vs. minimal 
 macOS · keychain vs. credential manager (same code) · session storage API · reveal in folder (`explorer /select` vs.
 `open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
 `scrollbar-gutter`, `content-visibility`. Windows: NSIS currentUser, German installer, downloadBootstrapper.
-macOS: universal, ad-hoc signed, minimum 14.0.
+macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc signed, minimum 14.0; the icon targets the macOS 26 (Tahoe) Dock look.
 
 ## Phases (tick as you go)
 
