@@ -813,7 +813,7 @@ test('the reader marks a job: status, note, hide with undo, copy as a prompt', a
   }
   await page.getByTestId('prompt').click();
   await expect(page.getByTestId('toast').last()).toContainText(
-    'Prompt kopiert. In einen KI-Chat einfügen.',
+    'Prompt kopiert, bereit für einen KI-Chat.',
   );
   // Archivieren opens the next job; the toast takes it back.
   const title = await page.getByTestId('reader-title').innerText();

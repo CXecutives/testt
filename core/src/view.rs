@@ -892,6 +892,8 @@ pub struct SettingsView {
     pub workspace_is_default: bool,
     /// Number of the app's text files - exactly what "delete text files" removes.
     pub txt_files: usize,
+    /// The Excel file of the overview, where it is or will be written.
+    pub excel_path: PathBuf,
     pub excel_exists: bool,
 }
 
