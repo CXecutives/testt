@@ -85,7 +85,10 @@ criteria, ladder, relevance, semantic (feature), score, explain.
 - Synthetic corpus in CI (both OS): `sample_profile.json` (interim finance), `sample_profile_it.json` (SAP/IT PM),
   K01-K40 in TXT contract format, `corpus.json` with bands/status/codes fixed BEFORE building (reviewed by an
   independent agent), `legacy.json` frozen once by `tools/eval/legacy_baseline.py` (old matcher via `git show ca9a2cd^`).
-- Private gold set (ignored): real local ads + real runs, blind labels 0-3 by two agents with the skill rubric, third breaks ties.
+- Private gold set (ignored, never committed): real local ads + real ads fetched by normal app runs from the owner's
+  alert mails; three realistic composite profiles modelled on real consultant CVs (interim CFO/controlling, SAP FI/CO
+  consultant, IT project lead; no real person, user decision 2026-09-24); blind labels 0-3 by two Opus agents with the
+  skill rubric, a third breaks ties; old engine vs new engine vs labels.
 - CI gates: 35 old tests (one documented deviation: `1.200,50`) · `legacy_percent == legacy.json` · per job
   distance(new) <= distance(old), sum strictly smaller · decided exclusions 0 wrong / 0 missing · same golden digest on
   Windows and macOS · median <= 0.5 ms/job, 2000 jobs <= 3 s incl. SQLite.
