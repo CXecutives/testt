@@ -36,7 +36,8 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
 - `src-tauri/`: `main.rs` start, `platform.rs` (only place with per-OS code), `session.rs` (freelance.de webview),
   `commands/` (IPC), `smoke.rs` (debug-only smoke probe). Command names live in 4 places; `core/tests/contract.rs` checks.
 - `ui/`: Svelte 5 + Vite + TypeScript. `styles/`, `components/` (design system), `features/` (screens), `lib/`.
-- `tools/`: `ui-harness/` (Playwright, Chromium + WebKit), `eval/legacy_baseline.py`, `icon.py`, `third-party.mjs`.
+- `tools/`: `ui-harness/` (Playwright, Chromium + WebKit), `eval/legacy_baseline.py`, `icon.py`, `third-party.mjs`,
+  `job-matching-skill/` (optional stage-2 Claude skill for the top matches; `python tools/job-matching-skill/tests/test_matching.py`).
 
 ## Commands
 - `cargo fmt --all --check` · `cargo clippy --workspace --all-targets -- -D warnings` · `cargo test --workspace`
