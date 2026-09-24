@@ -5,6 +5,7 @@
 mod ai_prompt;
 mod job_txt;
 mod overview_html;
+pub mod personal;
 pub mod scale;
 pub mod texts;
 mod top_matches;

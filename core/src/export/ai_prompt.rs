@@ -2,14 +2,11 @@
 //! of the best current matches (the app sends nothing itself and needs no API key; for normal
 //! use they replace the optional job-matching skill). They address the assistant as "du"
 //! without naming a product and carry the one scoring rubric of the app and the skill
-//! (`ai_rubric.de.md`), the profile without the consultant's name and contact data, and the
-//! ads. Their German text is content for the assistant, not
-//! interface prose: external contract - do not translate.
+//! (`ai_rubric.de.md`), the profile without the consultant's name and contact data (the
+//! filter shared with the skill, [`super::personal`]), and the ads. Their German text is
+//! content for the assistant, not interface prose: external contract - do not translate.
 
-use std::sync::LazyLock;
-
-use regex::Regex;
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use super::TopMatch;
 use crate::model::Band;
@@ -26,79 +23,6 @@ pub const MAX_TOP_AD_CHARS: usize = 6_000;
 pub const TOP_LIMITS: std::ops::RangeInclusive<usize> = 3..=5;
 /// What marks a cut profile or ad.
 const CUT: &str = "[gekürzt]";
-
-/// Keys of personal data that never go into the prompt, at any depth of the profile: contact
-/// data, links, identity and bank details (the list of the skill's brief, plus links).
-const PERSONAL: &[&str] = &[
-    "email",
-    "e_mail",
-    "mail",
-    "telefon",
-    "tel",
-    "phone",
-    "mobil",
-    "mobile",
-    "handy",
-    "fax",
-    "adresse",
-    "address",
-    "anschrift",
-    "strasse",
-    "street",
-    "hausnummer",
-    "plz",
-    "zip",
-    "postleitzahl",
-    "wohnort",
-    "geburtsdatum",
-    "birthday",
-    "geburtsort",
-    "kontakt",
-    "kontaktdaten",
-    "contact",
-    "links",
-    "link",
-    "url",
-    "urls",
-    "social",
-    "linkedin",
-    "xing",
-    "github",
-    "website",
-    "webseite",
-    "homepage",
-    "foto",
-    "photo",
-    "bild",
-    "iban",
-    "bic",
-    "steuernummer",
-    "ust_id",
-    "ustid",
-    "nationalitaet",
-    "staatsangehoerigkeit",
-];
-/// Keys of the consultant's name: left out at the top of the profile only (a tool or a
-/// certificate further down is called `name` too).
-const NAMES: &[&str] = &["name", "vorname", "nachname", "full_name", "fullname"];
-/// Parts of keys of long testimonial or case-study prose and of references - other people's
-/// words and names, never needed for the analysis (left out like in the skill).
-const PROSE: &[&str] = &[
-    "referenz",
-    "reference",
-    "testimonial",
-    "kundenstimme",
-    "case_stud",
-    "fallstudie",
-    "zitat",
-    "quote",
-];
-
-/// Mail addresses and links inside free text of the profile.
-static MAIL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+").unwrap());
-static WEB: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\b(?:https?://|www\.)\S+").unwrap());
 
 /// The one scoring rubric of the app's AI check and the job-matching skill (the skill keeps an
 /// identical copy, `core/tests/rubric.rs`).
@@ -250,10 +174,7 @@ fn title_of(job: &JobView) -> &str {
 /// The profile as JSON without personal data, at most [`MAX_PROFILE_CHARS`] long (pretty
 /// when it fits, compact when that fits, else cut).
 fn profile_json(profile: &Value) -> String {
-    let clean = match profile {
-        Value::Object(map) => Value::Object(clean_map(map, true)),
-        other => clean_value(other),
-    };
+    let clean = super::personal::scrub_profile(profile);
     let pretty = serde_json::to_string_pretty(&clean).unwrap_or_default();
     if pretty.chars().count() <= MAX_PROFILE_CHARS {
         return pretty;
@@ -267,33 +188,6 @@ fn cut(text: &str, max: usize) -> String {
         text.to_owned()
     } else {
         format!("{} {CUT}", truncate_chars(text, max))
-    }
-}
-
-/// Is this key personal data (`top`: the top level of the profile, where the name lives)?
-fn personal(key: &str, top: bool) -> bool {
-    let key = key.trim().to_lowercase().replace(['-', ' '], "_");
-    PERSONAL.contains(&key.as_str())
-        || (top && NAMES.contains(&key.as_str()))
-        || PROSE.iter().any(|part| key.contains(part))
-}
-
-fn clean_map(map: &Map<String, Value>, top: bool) -> Map<String, Value> {
-    map.iter()
-        .filter(|(key, _)| !personal(key, top))
-        .map(|(key, value)| (key.clone(), clean_value(value)))
-        .collect()
-}
-
-fn clean_value(value: &Value) -> Value {
-    match value {
-        Value::Object(map) => Value::Object(clean_map(map, false)),
-        Value::Array(items) => Value::Array(items.iter().map(clean_value).collect()),
-        Value::String(text) => {
-            let text = MAIL.replace_all(text, "");
-            Value::String(WEB.replace_all(&text, "").trim().to_owned())
-        }
-        other => other.clone(),
     }
 }
 
@@ -392,8 +286,28 @@ mod tests {
             "alleinstellungsmerkmale": [
                 "Aufbau eines Konzernreportings, mehr unter www.max-mustermann.example.org oder max@example.org"
             ],
-            "harte_kriterien": { "min_tagessatz": 1100, "laender": ["DE", "AT"] }
+            "harte_kriterien": { "min_tagessatz": 1100, "laender": ["DE", "AT"] },
+            "schwerpunkte": ["Controlling"],
+            "wunschrollen": ["Interim CFO"],
+            "einsatzpraeferenzen": { "tagessatz_wunsch": 1300, "remote": "hybrid" }
         })
+    }
+
+    /// The assistant judges rate, remote and roles as the app does: the prompt carries the
+    /// hard criteria, the focus, the target roles and the wishes of the profile.
+    #[test]
+    fn the_prompt_carries_criteria_and_wishes() {
+        let view = job();
+        let prompt = ai_prompt(&profile(), item(&view, Some("Text"), None));
+        for part in [
+            "\"min_tagessatz\": 1100",
+            "\"schwerpunkte\"",
+            "\"wunschrollen\"",
+            "\"tagessatz_wunsch\": 1300",
+            "\"remote\": \"hybrid\"",
+        ] {
+            assert!(prompt.contains(part), "{part}");
+        }
     }
 
     const PRIVATE: [&str; 13] = [

@@ -116,6 +116,23 @@ class Brief(Base):
         self.assertNotIn("example.invalid", out)
         self.assertNotIn("+49", out)
 
+    def test_the_shared_contact_filter_cases_hold(self):
+        # The same file core/src/export/personal.rs checks: one filter for app and skill.
+        cases = json.loads((HERE / "personal_cases.json").read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(cases), 2)
+        for case in cases:
+            self.assertEqual(matching.scrub_profile(case["input"]), case["expected"], case["about"])
+
+    def test_a_tricky_profile_leaks_nothing_into_the_brief(self):
+        tricky = json.loads((HERE / "personal_cases.json").read_text(encoding="utf-8"))[0]["input"]
+        (self.work / "profil" / "beraterprofil.json").write_text(
+            json.dumps(tricky, ensure_ascii=False), encoding="utf-8"
+        )
+        out = matching.brief(self.work, 1)
+        for secret in ("Erika", "example.org", "171 1234567", "+49", "linkedin.com/in", "Musterweg", "1970"):
+            self.assertNotIn(secret, out)
+        self.assertIn("tagessatz_wunsch: 1200", out)
+
     def test_top_is_clamped_and_inner_lines_stay(self):
         out = matching.brief(self.work, 50)
         self.assertIn("JOB 6 ", out)
