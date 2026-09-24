@@ -6,6 +6,8 @@
   - iconOnly needs its label: it becomes aria-label and tooltip.
   - Disabled buttons stay hoverable (aria-disabled) so the tooltip can say why.
   - Loading keeps the width: the content stays in place, invisible, under the spinner.
+  - inField: a button inside a text field (show password, clear search), like the native
+    ones: not in the Tab order, and a click leaves the caret in the field.
 -->
 <script lang="ts" module>
   export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -39,6 +41,8 @@
     pressed?: boolean | null;
     /** Fill the width of the container. */
     wide?: boolean;
+    /** Sits inside a text field: skipped by Tab, a click keeps the focus in the field. */
+    inField?: boolean;
     testid?: string | null;
     onclick?: (event: MouseEvent) => void;
   }
@@ -55,6 +59,7 @@
     type = 'button',
     pressed = null,
     wide = false,
+    inField = false,
     testid = null,
     onclick,
   }: Props = $props();
@@ -84,6 +89,8 @@
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
   aria-pressed={pressed === null ? undefined : pressed}
+  tabindex={inField ? -1 : undefined}
+  data-keep-focus={inField ? '' : undefined}
   data-testid={testid ?? undefined}
   use:tooltip={hint}
   onclick={handle}
