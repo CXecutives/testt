@@ -163,6 +163,8 @@ pub(crate) const DOMAIN: Domain = Domain {
         ("leistungsbeurteilung", "leistungsmanagement"),
         // Compensation and payroll.
         ("compensation benefits", "vergutungsmanagement"),
+        ("job evaluation", "stellenbewertung"),
+        ("job grading", "stellenbewertung"),
         ("compensation management", "vergutungsmanagement"),
         ("c&b", "vergutungsmanagement"),
         ("total rewards", "vergutungsmanagement"),

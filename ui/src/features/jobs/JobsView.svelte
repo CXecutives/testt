@@ -2,7 +2,8 @@
   The Jobs view on the white sheet of the shell: left the list column (360-460 px) with its
   header (search, "Abrufen", filters), the run panel and the list; a hairline; right the
   reader, or with nothing selected its empty state, the day overview. Nothing floats: no
-  cards, no shadows. Both columns start at the same line. Below 900 px one column: the list,
+  cards, no shadows. Both columns start at the same line; the handle between them resizes
+  the list (the width is kept). Below 900 px one column: the list,
   or the reader with a back button. The run card rises in above the list and fades out when
   it is closed (the list moves up without animation).
 
@@ -18,6 +19,8 @@
   import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import DragBand from '$components/DragBand.svelte';
+  import Splitter from '$components/Splitter.svelte';
+  import { cssVars } from '$lib/actions/cssVars';
   import EmptyState from '$components/EmptyState.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import { de } from '$lib/i18n/de';
@@ -68,6 +71,8 @@
   const reading = $derived(stage.what !== OVERVIEW);
   /** The list is scrolled away from its top (the header shows its hairline). */
   let scrolled = $state(false);
+  /** The width of the list column (the splitter keeps it per user). */
+  let listWidth = $state<number | undefined>(undefined);
 
   function close(): void {
     jobs.clearSelection();
@@ -105,7 +110,7 @@
 
 <div class="jobs" class:reading data-testid="jobs">
   <div class="body">
-    <aside class="left">
+    <aside class="left" use:cssVars={listWidth ? { 'list-width': `${listWidth}px` } : {}}>
       <ListHeader {scrolled} />
       <div class="scroll" data-testid="list-scroll">
         <span class="top" use:inView={(place) => (scrolled = place === 'above')}></span>
@@ -117,6 +122,9 @@
         <JobList />
       </div>
     </aside>
+    <span class="split"
+      ><Splitter bind:size={listWidth} storageKey="jobs-list-width" testid="list-splitter" /></span
+    >
     <section class="right" data-testid="reader-pane">
       {#key stage.turn}
         <div class="stage" data-testid="stage" in:enter={stage.what !== OVERVIEW} out:leave>
@@ -181,13 +189,19 @@
     display: flex;
     flex: none;
     flex-direction: column;
-    width: clamp(var(--list-min), 40%, var(--list-max));
+    width: var(--list-width, clamp(var(--list-min), 40%, var(--list-max)));
     container-type: inline-size;
     min-height: 0;
     border-right: var(--border-width) solid var(--border);
   }
 
   .run {
+    flex: none;
+  }
+
+  /* The handle lies over the list's border and takes no room. */
+  .split {
+    display: flex;
     flex: none;
   }
 
@@ -256,7 +270,8 @@
       overflow: visible;
     }
 
-    .right {
+    .right,
+    .split {
       display: none;
     }
 

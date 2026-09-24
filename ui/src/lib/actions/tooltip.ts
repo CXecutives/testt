@@ -1,7 +1,8 @@
 // `use:tooltip={text}` - a styled tooltip after --delay-tooltip (400 ms) of hover.
 // Hides on leave and on press; moving on to the next anchor shows it at once.
 // `{ text, truncated: true }` shows it only while the text of the node is cut off (a long
-// row title): measured once when the pointer enters, never per frame.
+// row title, one line or clamped to two): measured once when the pointer enters, never per
+// frame.
 
 import type { Action } from 'svelte/action';
 import { tooltipDelay } from '../motion/motion';
@@ -47,7 +48,9 @@ export const tooltip: Action<HTMLElement, TooltipParam> = (node, param) => {
   const enter = (): void => {
     cancel();
     if (options === null) return;
-    if (options.truncated && node.scrollWidth <= node.clientWidth) return;
+    // Cut off across (one line) or down (a clamped second line).
+    const cut = node.scrollWidth > node.clientWidth || node.scrollHeight > node.clientHeight + 1;
+    if (options.truncated && !cut) return;
     if (tooltipState.warm) show();
     else timer = setTimeout(show, tooltipDelay());
   };

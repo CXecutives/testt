@@ -88,6 +88,9 @@ export const text = {
     badge: 'Hinweis',
     loading: 'Platzhalter und Fortschritt',
     meter: 'Fortschritt des Abrufs',
+    split: 'Liste und Anzeige',
+    list: 'Liste',
+    reader: 'Anzeige',
   },
   inputs: {
     heading: 'Eingaben',
@@ -99,6 +102,7 @@ export const text = {
     risk: 'Konto betroffen',
     facet: 'Ansicht',
     facets: ['Neu', 'Alle'],
+    views: ['Neu', 'Alle', 'Gemerkt', 'Bewerbungen'],
     sort: 'Sortierung',
     sorts: ['Beste Passung', 'Neueste', 'Portal'],
     address: 'Postfach',
@@ -261,10 +265,18 @@ export function sampleJobs(now: Date): JobView[] {
       detail: { kind: 'teaser' },
       match: scored(47, 'Projektcontrolling'),
     }),
-    sample(now, '1004', 'SAP FI Berater Migration', 'Datenwerk Süd', 'München', 52, {
-      workMode: 'onsite',
-      match: scored(28, 'SAP FI im Konzern'),
-    }),
+    sample(
+      now,
+      '1004',
+      'SAP FI Berater für die Migration der Konzernbuchhaltung auf S/4HANA mit weltweitem Rollout in vierzehn Ländern',
+      'Datenwerk Süd',
+      'München',
+      52,
+      {
+        workMode: 'onsite',
+        match: scored(28, 'SAP FI im Konzern'),
+      },
+    ),
     sample(now, '1005', 'Finance Manager Shared Service', 'Contoso Services', 'Leipzig', 300, {
       match: null,
       detail: { kind: 'failed', attempts: 3, retryAt: null },
