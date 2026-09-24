@@ -494,11 +494,13 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
     .click();
   const card = page.getByTestId('profile-paste');
   await expect(card).toBeVisible();
-  await expect(card).toContainText('In Claude einfügen und den Lebenslauf anhängen.');
+  await expect(card).toContainText('In eine KI einfügen und den Lebenslauf anhängen.');
+  // The same words as the rest of the app: KI and Prompt, never Claude or Anfrage.
+  await expect(card).not.toContainText('Claude');
+  await expect(card).not.toContainText('Anfrage');
   if (browserName === 'chromium') {
-    await expect(page.getByTestId('paste-copied')).toContainText(
-      'Die Anfrage für Claude ist kopiert.',
-    );
+    await expect(page.getByTestId('paste-copied')).toContainText('Der Prompt ist kopiert.');
+    await expect(page.getByTestId('paste-copy')).toHaveText('Erneut kopieren');
     const copied = await page.evaluate(() => navigator.clipboard.readText());
     expect(copied).toContain('Lebenslauf');
   }
@@ -518,6 +520,25 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
   await expect(page.getByTestId('profile-min-rate')).toHaveValue('');
   await save(page).click();
   expect((await lastSave(page)).after.name).toBe('Carla Exempel');
+});
+
+test('from a CV: when the prompt could not be copied, the step says so and copies', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: () => Promise.reject(new Error('denied')) },
+    });
+  });
+  await profile(page, 'no-profile');
+  await page
+    .getByTestId('profile-empty')
+    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .click();
+  await expect(page.getByTestId('paste-copied')).toContainText(
+    'Der Prompt ließ sich nicht kopieren.',
+  );
+  await expect(page.getByTestId('paste-copy')).toHaveText('Prompt kopieren');
 });
 
 test('a thin profile marks its empty sections', async ({ page }) => {
