@@ -12,7 +12,36 @@
   a done step. Ticking a step is a class change, so it moves only while the page is open:
   the marker cross-fades to its check, which draws itself, the line fills downwards, the
   next marker turns navy and the done text rises in. Nothing plays when the page appears.
+
+  Step 2 happens in the Profil view: "Profil anlegen" opens its form at once (no second
+  "Profil anlegen" there). Once a profile saved there during the setup can be used, the
+  setup comes back by itself (module script below): step 2 is ticked, "Abrufen" is next.
 -->
+<script lang="ts" module>
+  import { app } from '$lib/state/app.svelte';
+  import { navigation } from '$lib/state/navigation.svelte';
+  import { editor } from '$lib/state/profile.svelte';
+  import { shell } from '$lib/state/shell.svelte';
+
+  // For the life of the app: the first-run page itself is gone while the Profil view shows.
+  $effect.root(() => {
+    let usable = app.hasProfile;
+    $effect(() => {
+      const now = app.hasProfile;
+      const back = now && !usable && shell.firstRun && navigation.current === 'profile';
+      usable = now;
+      if (!back) return;
+      // After the Profil view has taken the saved profile into its form (its save goes on
+      // once the state is loaded), so nothing is left unsaved when it closes.
+      setTimeout(() => {
+        if (navigation.current === 'profile' && shell.firstRun && !editor.dirty) {
+          navigation.go('jobs');
+        }
+      });
+    });
+  });
+</script>
+
 <script lang="ts">
   import { untrack } from 'svelte';
   import BrandMark from '$components/BrandMark.svelte';
@@ -22,8 +51,6 @@
   import Notice from '$components/Notice.svelte';
   import { de } from '$lib/i18n/de';
   import { rise } from '$lib/motion/transitions';
-  import { app } from '$lib/state/app.svelte';
-  import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
 
@@ -43,15 +70,33 @@
   const current = $derived(!mailboxDone ? 1 : !profileDone ? 2 : 3);
   const reset = $derived(app.state?.resetReport ?? null);
 
+  /** Who the profile is about (the file name only when it names nobody). */
+  const profileName = $derived(
+    profile?.form?.name.trim() || profile?.form?.title.trim() || profile?.fileName || '',
+  );
+  let profileActions = $state<HTMLElement | null>(null);
+
   /** Steps ticked while this page is open: only their check draws (never at mount). */
   let ticked = $state({ mailbox: false, profile: false });
   let before = untrack(() => ({ mailbox: mailboxDone, profile: profileDone }));
   $effect(() => {
     const now = { mailbox: mailboxDone, profile: profileDone };
-    if (now.mailbox && !before.mailbox) ticked.mailbox = true;
+    if (now.mailbox && !before.mailbox) {
+      ticked.mailbox = true;
+      // The form that had the focus is gone: the next step's action takes it.
+      if (document.activeElement === document.body) {
+        queueMicrotask(() => profileActions?.querySelector('button')?.focus());
+      }
+    }
     if (now.profile && !before.profile) ticked.profile = true;
     before = now;
   });
+
+  /** A new profile opens as a form right away; an existing one opens as it is. */
+  function openProfile(): void {
+    if (profile === null && editor.origin === null) editor.create();
+    navigation.go('profile');
+  }
 </script>
 
 {#snippet marker(step: number, done: boolean, drawn: boolean)}
@@ -123,7 +168,7 @@
           <div class="body">
             <h2 class="name">{de.firstRun.profile}</h2>
             {#if profileDone}
-              <p class="done-text" in:rise>{profile?.fileName}</p>
+              <p class="done-text" in:rise>{profileName}</p>
             {:else}
               {#if profileProblem}
                 <Notice
@@ -135,13 +180,13 @@
               {:else}
                 <p class="hint">{de.firstRun.profileText}</p>
               {/if}
-              <div class="actions">
+              <div class="actions" bind:this={profileActions}>
                 <Button
                   variant={current === 2 ? 'primary' : 'secondary'}
                   icon="file-text"
                   label={profile ? de.list.openProfile : de.profile.create}
                   testid="first-profile"
-                  onclick={() => navigation.go('profile')}
+                  onclick={openProfile}
                 />
               </div>
             {/if}

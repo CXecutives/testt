@@ -49,17 +49,22 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('step-mailbox').locator('.marker')).toHaveClass(/drawn/);
   await expect(page.getByTestId('step-mailbox')).not.toHaveAttribute('aria-current', 'step');
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
+  // The connect form is gone; the focus waits on the next step's action.
+  await expect(page.getByTestId('first-profile')).toBeFocused();
 
-  // The profile is made in the Profil view; back on the first-run page its step is done.
+  // "Profil anlegen" opens the form at once (no second "Profil anlegen" in the Profil view).
   await page.getByTestId('first-profile').click();
   await expect(page.getByTestId('view-profile')).toBeVisible();
-  await page.getByTestId('profile-empty').getByRole('button', { name: 'Profil anlegen' }).click();
+  await expect(page.getByTestId('profile-empty')).toHaveCount(0);
+  await page.getByTestId('profile-name-field').fill('Katrin Berger');
   await page.getByTestId('competence-add').click();
   await page.getByTestId('competence-name').fill('Controlling');
   await page.getByTestId('profile-save').click();
-  await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
-  await page.getByTestId('nav-jobs').click();
+  // Saved and usable: the setup comes back by itself, step 2 done, "Abrufen" next.
+  await expect(page.getByTestId('first-run')).toBeVisible();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
+  await expect(page.getByTestId('step-profile')).toContainText('Katrin Berger');
+  await expect(fetch).toHaveClass(/primary/);
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
 
   await fetch.click();
