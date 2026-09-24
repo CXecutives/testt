@@ -291,7 +291,6 @@ export type CriterionState = 'met' | 'violated' | 'unknown' | 'unset';
 /** `JobMatch.note` / `MatchDetail.summary` codes. */
 const note = {
   hardCriterion: 'Ein Ausschlusskriterium greift.',
-  fewMust: 'Wenige Muss-Anforderungen erfüllt.',
   shortText: 'Zu wenig Text für eine Bewertung.',
   lowEvidence: LOW_TEXT,
   engineFailed: 'Diese Anzeige ließ sich nicht bewerten.',

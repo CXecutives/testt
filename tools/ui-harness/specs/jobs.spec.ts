@@ -153,6 +153,17 @@ test('excluded jobs sit grey behind the divider and explain themselves', async (
   await expect(page.getByTestId('criteria').getByText('ANÜ', { exact: true })).toHaveCount(1);
 });
 
+test('a job that cannot be scored says why, once', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await row(page, 'freelancermap-2806').click();
+  await expect(page.getByTestId('band')).toHaveText('Nicht bewertbar');
+  await expect(page.getByTestId('unscorable')).toHaveText('Zu wenig Text für eine Bewertung.');
+  // The short-text note of the ad does not say it a second time.
+  await expect(page.getByText('Die Anzeige ist sehr kurz.')).toHaveCount(0);
+  await expect(page.getByTestId('why')).toHaveCount(0);
+});
+
 test('the day overview tiles filter the list and match the counts', async ({ page }) => {
   await open(page, WIN);
   const overview = page.getByTestId('day-overview');
