@@ -1577,4 +1577,12 @@ async fn the_queue_follows_the_prescore_then_recency() {
     order(&mut jobs, &*neutral_prescore());
     let ids: Vec<&str> = jobs.iter().map(|j| j.key.id.as_str()).collect();
     assert_eq!(ids, ["10004", "10001", "10003", "10002"]);
+    // An engine panic on one title does not end the run: that job only comes last.
+    let panics = |title: &str, _: &str| {
+        assert!(!title.contains("Werkstudent"), "engine failure");
+        50
+    };
+    order(&mut jobs, &panics);
+    let ids: Vec<&str> = jobs.iter().map(|j| j.key.id.as_str()).collect();
+    assert_eq!(ids, ["10001", "10003", "10002", "10004"]);
 }

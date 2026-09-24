@@ -573,10 +573,23 @@ fn order(jobs: &mut [JobRow], prescore: &PrescoreFn) {
     jobs.sort_by_cached_key(|job| {
         (
             job.desc_status == DescStatus::Failed,
-            std::cmp::Reverse(prescore(&job.title, &job.location)),
+            std::cmp::Reverse(guarded_prescore(prescore, job)),
             std::cmp::Reverse(job.mail_date.unwrap_or(job.first_seen_at)),
         )
     });
+}
+
+/// The pre-score of one job. It runs the matching engine on the mail's title before any
+/// request: a panic there would end every fetch run while the job stays queued, so it gives
+/// the lowest pre-score instead and logs the job key only (never the title).
+fn guarded_prescore(prescore: &PrescoreFn, job: &JobRow) -> u16 {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        prescore(&job.title, &job.location)
+    }))
+    .unwrap_or_else(|_| {
+        log::error!("{}: the engine failed on the title; fetched last", job.key);
+        0
+    })
 }
 
 /// The registered portals in fetch order: guest portals first, portals with a session
