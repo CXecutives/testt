@@ -70,6 +70,7 @@ pub(crate) const DOMAIN: Domain = Domain {
         ("forecasting", "forecast"),
         ("hochrechnung", "forecast"),
         ("variance analysis", "abweichungsanalyse"),
+        ("accruals", "abgrenzung"),
         ("soll-ist-vergleich", "abweichungsanalyse"),
         ("cost accounting", "kostenrechnung"),
         ("cost center accounting", "kostenstellenrechnung"),

@@ -159,6 +159,7 @@ pub(crate) const CORE_CONCEPTS: &[(&str, &str)] = &[
     ("project lead", "projektleitung"),
     ("interim management", "interimmanagement"),
     ("interim manag", "interimmanagement"),
+    ("interim mandat", "interimmanagement"),
     ("projektleiter", "projektleitung"),
     ("projektleiterin", "projektleitung"),
     ("gesamtprojektleitung", "projektleitung"),

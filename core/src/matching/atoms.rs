@@ -350,6 +350,8 @@ mod tests {
             ("Finance Business Partner", "Finance Business Partnering"),
             ("German GAAP", "HGB"),
             ("Interim Manager", "Interim Management"),
+            ("Interim-Mandat", "Interim Management"),
+            ("Accruals", "Abgrenzungen"),
         ];
         for (a, b) in same {
             assert_eq!(all(a), all(b), "{a} / {b}");

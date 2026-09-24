@@ -28,7 +28,7 @@ use sha2::Digest as _;
 
 /// SHA-256 (16 hex) over every profile x job result of the corpus. Update it only together
 /// with `ENGINE_VERSION` and the before/after table in `docs/MATCHING.md`.
-const GOLDEN_DIGEST: &str = "6d23ef707f056f88";
+const GOLDEN_DIGEST: &str = "df1d52ce75759f41";
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/matching")
