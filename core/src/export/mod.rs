@@ -3,6 +3,7 @@
 //! atomically - an open Excel file or a crash never leaves half a file behind.
 
 mod job_txt;
+mod overview_html;
 pub mod texts;
 mod xlsx;
 
@@ -15,12 +16,15 @@ use crate::store::JobRow;
 use crate::text::split_company_location;
 
 pub use job_txt::{TXT_DIR, write_job_txt};
+pub use overview_html::write_overview_html;
 pub use texts::{COLUMNS, details_label};
 pub use xlsx::write_xlsx;
 
 /// File and folder names below are a contract with the user's workspace and the matching
 /// skill - do not translate.
 pub const XLSX_NAME: &str = "JobAlerts.xlsx";
+/// The HTML overview next to the Excel file.
+pub const HTML_NAME: &str = "JobAlerts.html";
 /// Overview of earlier versions; only kept so that "reset everything" takes it along.
 const LEGACY_CSV_NAME: &str = "JobAlerts.csv";
 /// Subfolder of the workspace for results (as before).
@@ -68,6 +72,11 @@ impl Line {
 /// Path of the overview file in the result folder.
 pub fn overview_path(result_dir: &Path) -> PathBuf {
     result_dir.join(XLSX_NAME)
+}
+
+/// Path of the HTML overview in the result folder.
+pub fn overview_html_path(result_dir: &Path) -> PathBuf {
+    result_dir.join(HTML_NAME)
 }
 
 /// Writes `bytes` atomically to `path`: first into a temporary file in the same folder, then
@@ -123,6 +132,7 @@ fn long_path(path: &Path) -> PathBuf {
 pub fn app_files(result_dir: &Path, txt_names: &[String]) -> Vec<PathBuf> {
     let mut files = files_in(result_dir, |name| {
         name.eq_ignore_ascii_case(XLSX_NAME)
+            || name.eq_ignore_ascii_case(HTML_NAME)
             || name.eq_ignore_ascii_case(LEGACY_CSV_NAME)
             || is_tmp(name)
     });

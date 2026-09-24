@@ -158,7 +158,10 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     let export = s.export.as_ref().unwrap();
     assert_eq!(export.txt_written, 4);
     assert!(export.overview_xlsx.as_ref().unwrap().exists());
-    assert_eq!(export.overview_html, None);
+    // The HTML overview: the new scored jobs of this run, the excluded one not.
+    let html = std::fs::read_to_string(export.overview_html.as_ref().unwrap()).unwrap();
+    assert!(html.contains("Interim CFO") && !html.contains("Projektleiter S/4HANA"));
+    assert!(!html.contains("Beispieltext"), "never the full text");
     assert_eq!(txt_files(dir.path()), 4);
     assert_eq!(finished(&events), 1);
     assert_small(&events);

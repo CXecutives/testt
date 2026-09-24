@@ -796,6 +796,8 @@ enum Target {
     Overview,
     /// Backing up a foreign overview.
     Backup,
+    /// The HTML overview.
+    OverviewHtml,
 }
 
 impl Target {
@@ -805,6 +807,7 @@ impl Target {
             Target::Txt => "txt",
             Target::Overview => "overview",
             Target::Backup => "backup",
+            Target::OverviewHtml => "overviewHtml",
         }
     }
 }
@@ -833,6 +836,15 @@ pub fn export_all(
         now,
         &mut summary,
     );
+    // The HTML overview is small and never locked by a browser: written on every export.
+    let path = export::overview_html_path(&result_dir);
+    let written = last_scan_run(store)
+        .and_then(|new_run| store.overview_jobs(new_run))
+        .and_then(|(jobs, pinned)| export::write_overview_html(&path, &jobs, pinned, now));
+    match written {
+        Ok(()) => summary.overview_html = Some(path),
+        Err(e) => note_error(&mut summary, &e, Target::OverviewHtml),
+    }
     summary
 }
 

@@ -71,8 +71,10 @@ pub async fn open_target(state: State<'_, AppState>, target: OpenTarget) -> CmdR
             export::overview_path(&state.workspace()?.join(RESULT_DIR)),
             "file",
         )?,
-        // The HTML overview comes with the matching (schema 3).
-        OpenTarget::Overview => return Err(not_found("file")),
+        OpenTarget::Overview => existing(
+            export::overview_html_path(&state.workspace()?.join(RESULT_DIR)),
+            "file",
+        )?,
         OpenTarget::LogDir => existing(state.data_dir.join(jobalert_core::LOG_DIR), "folder")?,
     };
     open::that_detached(&what).map_err(|e| {

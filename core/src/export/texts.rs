@@ -47,6 +47,17 @@ pub const PROGRAM_NAME: &str = "Job-Alert-Monitor";
 pub const SCOPE_NEW: &str = "Neu seit letztem Lauf";
 pub const SCOPE_ALL: &str = "Alle";
 
+/// Words of the HTML overview.
+pub const HTML_TITLE: &str = "Job-Alert-Monitor – Übersicht";
+pub const HTML_PINNED: &str = "Gemerkte Jobs";
+pub const HTML_NEW: &str = "Neue passende Jobs";
+pub const HTML_CREATED: &str = "Erstellt am";
+pub const HTML_EMPTY: &str = "Keine neuen passenden Jobs.";
+pub const HTML_MATCH: &str = "Passung";
+pub const HTML_MET: &str = "Erfüllt";
+pub const HTML_EXCLUDED: &str = "Ausgeschlossen";
+pub const HTML_UNSCORABLE: &str = "Nicht bewertbar";
+
 /// State of the job details in words.
 pub fn details_label(job: &JobRow) -> &'static str {
     match job.desc_status {

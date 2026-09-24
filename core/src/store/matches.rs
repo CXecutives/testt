@@ -215,6 +215,33 @@ impl Store {
         rows.map(|r| r?).collect()
     }
 
+    /// The jobs of the HTML overview: the pinned ones if there are any (`true`), else the
+    /// unread scored jobs of the mailbox run `run`; best first.
+    pub fn overview_jobs(&self, run: i64) -> Result<(Vec<JobRow>, bool)> {
+        let conn = self.conn();
+        let mut pinned = conn.prepare_cached(&format!(
+            "SELECT {JOB_COLUMNS} FROM job WHERE pinned_at IS NOT NULL
+             ORDER BY (match_status IS 'excluded'), match_score DESC, pinned_at DESC"
+        ))?;
+        let jobs: Vec<JobRow> = pinned
+            .query_map([], job_row)?
+            .map(|r| r?)
+            .collect::<Result<_>>()?;
+        if !jobs.is_empty() {
+            return Ok((jobs, true));
+        }
+        let mut new = conn.prepare_cached(&format!(
+            "SELECT {JOB_COLUMNS} FROM job
+             WHERE first_seen_run = ?1 AND read_at IS NULL AND match_status = 'scored'
+             ORDER BY match_score DESC, first_seen_at DESC, portal, job_id"
+        ))?;
+        let jobs = new
+            .query_map([run], job_row)?
+            .map(|r| r?)
+            .collect::<Result<_>>()?;
+        Ok((jobs, false))
+    }
+
     /// Revision a job was scored with (tests and checks).
     pub fn match_rev(&self, key: &JobKey) -> Result<Option<String>> {
         Ok(self
