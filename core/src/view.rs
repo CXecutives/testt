@@ -918,6 +918,12 @@ pub struct ProfileUnderstanding {
     pub sources: Vec<String>,
     pub criteria: Vec<Notice>,
     pub warnings: Vec<Notice>,
+    /// Domain packs the profile switched on (`finance`, `sap`, `itProject`, ...).
+    pub packs: Vec<String>,
+    /// Total years of professional experience, if the profile states them.
+    pub years: Option<u32>,
+    /// Degrees as written in the profile.
+    pub degrees: Vec<String>,
 }
 
 /// The stored consultant profile.
@@ -997,6 +1003,9 @@ pub fn understanding(summary: &ProfileSummary) -> ProfileUnderstanding {
                 params: local::flat_params(&w.params),
             })
             .collect(),
+        packs: summary.packs.clone(),
+        years: summary.years,
+        degrees: summary.degrees.clone(),
     }
 }
 

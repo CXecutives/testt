@@ -4,4 +4,16 @@ import type { Notice } from "./Notice";
 /**
  * "What the app understood" of the profile.
  */
-export type ProfileUnderstanding = { competenceCount: number, competences: Array<string>, sources: Array<string>, criteria: Array<Notice>, warnings: Array<Notice>, };
+export type ProfileUnderstanding = { competenceCount: number, competences: Array<string>, sources: Array<string>, criteria: Array<Notice>, warnings: Array<Notice>, 
+/**
+ * Domain packs the profile switched on (`finance`, `sap`, `itProject`, ...).
+ */
+packs: Array<string>, 
+/**
+ * Total years of professional experience, if the profile states them.
+ */
+years: number | null, 
+/**
+ * Degrees as written in the profile.
+ */
+degrees: Array<string>, };
