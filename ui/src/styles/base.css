@@ -25,6 +25,7 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   height: 100%;
+  overflow: hidden;
   background: var(--bg);
 }
 
@@ -127,11 +128,17 @@ ol {
   background-color: transparent;
 }
 
+/* The thumb shows only while the pointer is over its scroller (every ancestor of the
+   hovered element matches :hover), so resting screens carry no scrollbars at all. */
 ::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar);
+  background-color: transparent;
   background-clip: content-box;
   border: var(--scrollbar-gap) solid transparent;
   border-radius: var(--radius-full);
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar);
 }
 
 ::-webkit-scrollbar-thumb:hover {

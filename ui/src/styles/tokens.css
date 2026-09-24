@@ -30,9 +30,9 @@
   --p-warning: 45 76% 75%;
   --p-danger: 4 51% 56%;
   --p-coral-50: 20 62% 96%;
-  --p-coral-700: 13 64% 52%;
-  --p-coral-750: 13 62% 48%;
   --p-coral-800: 13 62% 45%;
+  --p-coral-850: 13 62% 41%;
+  --p-coral-900: 13 62% 37%;
   --p-slate-50: 212 30% 96%;
   --p-slate-100: 212 30% 92%;
   --p-slate-700: 212 38% 27%;
@@ -47,13 +47,15 @@
   --p-danger-soft: 4 51% 95%;
   --p-info: 212 45% 45%;
   --p-info-soft: 212 45% 95%;
-  /* Hover/press steps of the filled danger button (same hue, like coral-700/750). */
+  /* Hover/press steps of the filled danger button (same hue, like coral-850/900). */
   --p-danger-700: 4 55% 41%;
   --p-danger-750: 4 56% 37%;
   --p-on-accent: 0 0% 98%;
   --p-score-high: 150 32% 46%;
   --p-score-high-text: 152 50% 31%;
   --p-score-high-soft: 150 27% 93%;
+  /* A mid match is ochre, not coral: coral would read as a warning next to the accent. */
+  --p-score-mid: 38 55% 55%;
   --p-score-low: 30 5% 62%;
   --p-score-low-text: 30 4% 42%;
   --p-scrim: 30 8% 14%;
@@ -97,11 +99,15 @@
   --accent: hsl(var(--p-coral));
   --accent-soft: hsl(var(--p-accent-soft));
   --accent-text: hsl(var(--p-coral-800));
-  /* Primary button: brand-near coral. White label reaches 3.4:1 - documented contrast
-     exception (label weight 600), decided with the user. */
-  --primary: hsl(var(--p-coral-variant));
-  --primary-hover: hsl(var(--p-coral-700));
-  --primary-active: hsl(var(--p-coral-750));
+  /* Primary button: the deep coral, so the white label reaches 4.9:1. */
+  --primary: hsl(var(--p-coral-800));
+  --primary-hover: hsl(var(--p-coral-850));
+  --primary-active: hsl(var(--p-coral-900));
+  /* Switches are neutral: ink when on (coral is kept for the few accents). */
+  --toggle-on: hsl(var(--p-ink));
+  --toggle-on-hover: hsl(var(--p-ink) / 0.82);
+  /* The pinned star: ink, not coral. */
+  --pressed: hsl(var(--p-ink));
   --focus: hsl(var(--p-coral));
   --selection: hsl(var(--p-coral) / 0.22);
   --scrollbar: hsl(var(--p-ink) / 0.2);
@@ -137,9 +143,9 @@
   --score-high-ring: hsl(var(--p-score-high));
   --score-high-text: hsl(var(--p-score-high-text));
   --score-high-surface: hsl(var(--p-score-high-soft));
-  --score-mid-ring: hsl(var(--p-coral));
-  --score-mid-text: hsl(var(--p-coral-800));
-  --score-mid-surface: hsl(var(--p-accent-soft));
+  --score-mid-ring: hsl(var(--p-score-mid));
+  --score-mid-text: hsl(var(--p-warning-strong));
+  --score-mid-surface: hsl(var(--p-warning-soft));
   --score-low-ring: hsl(var(--p-score-low));
   --score-low-text: hsl(var(--p-score-low-text));
   --score-low-surface: hsl(var(--p-muted));
@@ -198,13 +204,20 @@
   --control-sm: 28px;
   --control-md: 36px;
   --control-lg: 40px;
+  /* The one button of the 40 px title strip (Abrufen / Abbrechen). */
+  --control-bar: 32px;
+  --icon-xs: 12px;
   --icon-sm: 16px;
   --icon-md: 20px;
   --icon-lg: 24px;
+  --icon-stroke-xs: 2;
   --icon-stroke-sm: 1.75;
   --icon-stroke-md: 2;
   --icon-stroke-lg: 2;
-  --row-height: 72px;
+  /* Mail-style rows of one fixed height: title, meta and reason line (12 + 62 + 12). */
+  --row-height: 86px;
+  /* The gutter of the unread dot, left of the ring. */
+  --dot-gutter: 12px;
   --titlebar-height: 40px;
   --toolbar-height: 56px;
   --list-min: 360px;
@@ -214,8 +227,12 @@
   /* The one inner padding of every content column: list header, list rows, reader, overview,
      and the left edge of the top strip, so their edges line up. */
   --pane-padding: var(--space-16);
+  /* The sides of the reader column (a document, a little more air than the list). */
+  --reader-padding: var(--space-24);
   --ring-sm: 40px;
   --ring-sm-stroke: 4px;
+  --ring-md: 56px;
+  --ring-md-stroke: 5px;
   --ring-lg: 96px;
   --ring-lg-stroke: 8px;
   --border-width: 1px;
@@ -225,18 +242,22 @@
   --traffic-light-inset: 80px;
   --brand-mark-sm: 24px;
   --brand-mark: 28px;
-  --brand-mark-lg: 56px;
+  --brand-mark-lg: 40px;
   --caption-glyph: 10px;
   --tile-sm: 32px;
   --tile-md: 40px;
   --tile-lg: 56px;
   --dot: 8px;
-  --scrollbar-size: 12px;
-  --scrollbar-gap: 3px;
+  --scrollbar-size: 8px;
+  --scrollbar-gap: 2px;
   --tooltip-max: 280px;
   --tooltip-gap: 8px;
   --viewport-gap: 8px;
-  --badge-height: 22px;
+  --badge-height: 18px;
+  /* Monogram tile of a portal in the run card: one width, so the names line up. */
+  --monogram-width: 20px;
+  /* Width of an intro sentence (first run). */
+  --measure-intro: 46ch;
   --meter-sm: 2px;
   --meter-md: 6px;
   --meter-lg: 8px;
@@ -253,8 +274,9 @@
   --toast-width: 360px;
   --blur-scrim: 4px;
   /* Score ring: r = 15.9155 in a 36-unit viewBox (circumference 100). Stroke widths are
-     scaled into viewBox units: 36/40 and 36/96. */
+     scaled into viewBox units: 36/40, 36/56 and 36/96. */
   --ring-sm-scale: 0.9;
+  --ring-md-scale: 0.643;
   --ring-lg-scale: 0.375;
 
   /* -------------------------------------------------------------- typography */

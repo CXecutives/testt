@@ -1,5 +1,6 @@
 <!--
-  White card on the cream background. plain | interactive | tinted.
+  A white card with a hairline, flat (it sits on the white sheet of the content: no shadow
+  at rest). plain | interactive | tinted.
   Interactive cards (with onclick) lift 1 px on hover: the hairline darkens and a warm
   shadow fades in on ::after. No colour: coral is kept for selection and the primary.
 -->
@@ -56,7 +57,6 @@
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);
     background-color: var(--surface);
-    box-shadow: var(--sh-sm);
     text-align: left;
     isolation: isolate;
   }

@@ -76,16 +76,26 @@ test('empty screens are never dead: an icon, one sentence, one way on, centred',
   await page.getByTestId('nav-profile').click();
   const empty = page.getByTestId('profile-empty');
   await expect(empty).toBeVisible();
-  // "Abrufen" in the sidebar is the window's primary; the empty state stays secondary.
-  await expect(empty.locator('.btn.primary')).toHaveCount(0);
+  // The next step is the one primary on screen: "Profil wählen"; "Abrufen" steps back.
+  await expect(empty.locator('.btn.primary')).toHaveCount(1);
+  await expect(page.getByTestId('fetch')).toHaveClass(/secondary/);
   await expect(empty.getByRole('button')).toHaveCount(2);
-  const offset = await empty.evaluate((node) => {
+  // Centred across, at about 38 % of the height (not dead centre).
+  const place = await empty.evaluate((node) => {
     const view = node.closest('.view')!.getBoundingClientRect();
     const box = node.getBoundingClientRect();
-    return Math.abs(box.left + box.width / 2 - (view.left + view.width / 2));
+    return {
+      across: Math.abs(box.left + box.width / 2 - (view.left + view.width / 2)),
+      down: (box.top + box.height / 2 - view.top) / view.height,
+    };
   });
-  expect(offset).toBeLessThanOrEqual(1);
+  expect(place.across).toBeLessThanOrEqual(1);
+  expect(place.down).toBeGreaterThan(0.3);
+  expect(place.down).toBeLessThan(0.46);
   expect(await page.locator('.btn.primary').count()).toBe(1);
+  // Back in the Jobs view "Abrufen" is the primary again.
+  await page.getByTestId('nav-jobs').click();
+  await expect(page.getByTestId('fetch')).toHaveClass(/primary/);
 });
 
 test('toasts: at most three, they stay while hovered and leave on their own', async ({ page }) => {
@@ -101,14 +111,18 @@ test('toasts: at most three, they stay while hovered and leave on their own', as
   await expect(toasts).toHaveCount(0, { timeout: 6000 });
 });
 
-for (const scenario of ['default', 'first-run', 'running']) {
-  for (const tab of ['nav-jobs', 'nav-profile', 'nav-settings']) {
+// The first-run page keeps the sidebar inert, so only its Jobs tab is reachable there;
+// Profil and Einstellungen without a profile come from the no-profile scenario.
+for (const scenario of ['default', 'first-run', 'running', 'no-profile']) {
+  for (const tab of scenario === 'first-run'
+    ? ['nav-jobs']
+    : ['nav-jobs', 'nav-profile', 'nav-settings']) {
     test(`nothing clipped or scrolling sideways at 780x560: ${scenario} ${tab}`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: 780, height: 560 });
       await open(page, `?platform=windows&scenario=${scenario}`);
-      await page.getByTestId(tab).click();
+      if (scenario !== 'first-run') await page.getByTestId(tab).click();
       await page.waitForTimeout(300);
       const wide = await page.evaluate(() =>
         [...document.querySelectorAll('.view, .view *')]

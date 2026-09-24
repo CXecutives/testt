@@ -1,8 +1,10 @@
 <!--
   Profil (centred 720): the file card (name, size, date, how well it reads; choose, save a
-  template, remove; the rescore it triggers) and "Das hat die App verstanden": competences,
-  background (years, degrees) and the domains it switched on, the hard criteria in plain
-  words and warnings. A file that no longer reads shows only the file card with the error.
+  template, remove; the rescore it triggers) and "Erkannt": competences, then label | value
+  rows for the background (years, degrees), the domains it switched on and every hard
+  criterion ("offen" when the profile leaves it open), warnings, and the keys it does not
+  evaluate as one quiet sentence. A file that no longer reads shows only the file card with
+  the error. Without a profile an empty state sits at about 38 % of the height.
 -->
 <script lang="ts">
   import Badge, { type BadgeTone } from '$components/Badge.svelte';
@@ -10,13 +12,12 @@
   import Card from '$components/Card.svelte';
   import Dialog from '$components/Dialog.svelte';
   import EmptyState from '$components/EmptyState.svelte';
-  import Icon from '$components/Icon.svelte';
   import IconTile from '$components/IconTile.svelte';
   import Notice from '$components/Notice.svelte';
   import Spinner from '$components/Spinner.svelte';
   import { de } from '$lib/i18n/de';
   import { formatBytes, formatDate, formatNumber } from '$lib/i18n/format';
-  import { errorText, profileCriterionText, warningText } from '$lib/i18n/texts';
+  import { errorText, profileCriterion, warningText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { ProfileQuality, ProfileUnderstanding } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
@@ -46,13 +47,21 @@
   const packs = $derived((understood?.packs ?? []).map((pack) => de.profile.pack[pack] ?? pack));
   const criteria = $derived(
     (understood?.criteria ?? []).flatMap((notice) => {
-      const text = profileCriterionText(notice);
-      return text === null ? [] : [{ text, set: notice.params.set !== false }];
+      const row = profileCriterion(notice);
+      return row === null ? [] : [row];
     }),
   );
+  // Keys the app does not evaluate are a plain fact, not a warning.
+  const IGNORED = 'ignoredKeys';
   const warnings = $derived(
     (understood?.warnings ?? []).flatMap((notice) => {
-      const text = warningText(notice);
+      const text = notice.code === IGNORED ? null : warningText(notice);
+      return text === null ? [] : [text];
+    }),
+  );
+  const ignored = $derived(
+    (understood?.warnings ?? []).flatMap((notice) => {
+      const text = notice.code === IGNORED ? warningText(notice) : null;
       return text === null ? [] : [text];
     }),
   );
@@ -112,11 +121,11 @@
     <div class="empty">
       <EmptyState
         icon="file-text"
+        tone="coral"
         heading={de.profile.none}
         text={de.profile.noneText}
         action={{ label: de.profile.pick, icon: 'file-up', onclick: pick }}
         secondary={{ label: de.profile.template, icon: 'download', onclick: template }}
-        quiet={app.hasMailbox}
         testid="profile-empty"
       />
       {#if note}
@@ -223,34 +232,34 @@
           </section>
 
           {#if background.length > 0 || packs.length > 0}
-            <section class="block pair">
-              {#if background.length > 0}
-                <div class="part">
-                  <h3 class="sub">{de.profile.background}</h3>
-                  <p class="line" data-testid="background">{background.join(' · ')}</p>
-                </div>
-              {/if}
-              {#if packs.length > 0}
-                <div class="part">
-                  <h3 class="sub">{de.profile.packs}</h3>
-                  <p class="line" data-testid="packs">{packs.join(' · ')}</p>
-                </div>
-              {/if}
+            <section class="block">
+              <dl class="rows">
+                {#if background.length > 0}
+                  <div class="row">
+                    <dt>{de.profile.background}</dt>
+                    <dd data-testid="background">{background.join(' · ')}</dd>
+                  </div>
+                {/if}
+                {#if packs.length > 0}
+                  <div class="row">
+                    <dt>{de.profile.packs}</dt>
+                    <dd data-testid="packs">{packs.join(' · ')}</dd>
+                  </div>
+                {/if}
+              </dl>
             </section>
           {/if}
-
           <section class="block">
             <h3 class="sub">{de.profile.criteria}</h3>
-            <ul class="criteria" data-testid="criteria-list">
+            <dl class="rows" data-testid="criteria-list">
               {#each criteria as item, index (index)}
-                <li class="criterion" class:unset={!item.set}>
-                  <Icon name={item.set ? 'check' : 'minus'} size="sm" />
-                  <span>{item.text}</span>
-                </li>
+                <div class="row">
+                  <dt>{item.field}</dt>
+                  <dd class:unset={item.value === null}>{item.value ?? de.profile.unset}</dd>
+                </div>
               {/each}
-            </ul>
+            </dl>
           </section>
-
           {#if warnings.length > 0}
             <section class="block">
               <h3 class="sub">{de.profile.warnings}</h3>
@@ -259,6 +268,9 @@
               {/each}
             </section>
           {/if}
+          {#each ignored as text, index (index)}
+            <p class="aside" data-testid="ignored-keys">{text}</p>
+          {/each}
         {/if}
       </Card>
     {/if}
@@ -287,13 +299,26 @@
     padding: var(--pane-padding) var(--pane-padding) var(--space-64);
   }
 
+  /* The empty state sits at about 38 % of the height (spacers 38 : 62), not dead centre. */
   .empty {
     display: flex;
     flex: 1;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: var(--space-16);
+  }
+
+  .empty::before,
+  .empty::after {
+    content: '';
+  }
+
+  .empty::before {
+    flex: 38;
+  }
+
+  .empty::after {
+    flex: 62;
   }
 
   .file {
@@ -325,22 +350,43 @@
     font-variant-numeric: var(--numeric);
   }
 
-  .quiet,
-  .line {
+  .quiet {
     color: var(--text-muted);
     font: var(--type-md);
   }
 
-  .block.pair {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(var(--stat-min), 1fr));
-    gap: var(--space-24);
-  }
-
-  .part {
+  /* Label | value rows: the name muted in a fixed column, the value in ink. */
+  .rows {
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: var(--stat-min) minmax(0, 1fr);
+    gap: var(--space-16);
+    font: var(--type-md);
+  }
+
+  dt {
+    color: var(--text-muted);
+  }
+
+  dd {
+    color: var(--text);
+    overflow-wrap: break-word;
+  }
+
+  dd.unset {
+    color: var(--text-subtle);
+  }
+
+  .aside {
+    padding-top: var(--space-16);
+    border-top: var(--border-width) solid var(--border);
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   .status {
@@ -401,31 +447,5 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-6);
-  }
-
-  .criteria {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-  }
-
-  .criterion {
-    display: flex;
-    align-items: center;
-    gap: var(--space-8);
-    color: var(--text);
-    font: var(--type-md);
-  }
-
-  .criterion :global(svg) {
-    color: var(--success-strong);
-  }
-
-  .criterion.unset {
-    color: var(--text-muted);
-  }
-
-  .criterion.unset :global(svg) {
-    color: var(--text-subtle);
   }
 </style>

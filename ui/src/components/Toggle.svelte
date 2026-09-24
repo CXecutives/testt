@@ -83,11 +83,11 @@
   }
 
   .toggle[aria-checked='true'] .track {
-    background-color: var(--primary);
+    background-color: var(--toggle-on);
   }
 
   .toggle[aria-checked='true']:not([aria-disabled='true']):hover .track {
-    background-color: var(--primary-hover);
+    background-color: var(--toggle-on-hover);
   }
 
   .toggle[aria-checked='true'] .thumb {

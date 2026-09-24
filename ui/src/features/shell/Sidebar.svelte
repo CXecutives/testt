@@ -1,9 +1,11 @@
 <!--
-  The calm sidebar (196 px, icons only below 1100 px): no surface of its own, only a hairline
-  to the content. On top the app mark and name (on macOS below the traffic lights), then the
-  views with icons and the unread count, and at the foot a quiet run status that opens the
-  run in the Jobs view (during a run the step and a slim meter). "Abrufen" lives in the top
-  strip of the content (TitleBar).
+  The calm sidebar (196 px, icons only below 1100 px) on the cream: no surface of its own,
+  the white sheet of the content is the divider. On Windows the app mark and name share the
+  height of the top strip; on macOS that band stays empty for the traffic lights (the Dock
+  names the app). The first view sits on the line of the list's search field, then the views
+  with icons and the unread count, and at the foot a quiet run status that opens the run in
+  the Jobs view. The status is said once: while the run card is on screen it steps aside.
+  "Abrufen" lives in the top strip of the content (TitleBar).
   Per-OS markup lives only in the shell (this file and TitleBar) and WindowControls.
 -->
 <script lang="ts">
@@ -17,6 +19,7 @@
   import { jobs } from '$lib/state/jobs.svelte';
   import { navigation, type ViewId } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { shell } from '$lib/state/shell.svelte';
   import { viewport } from '$lib/state/viewport.svelte';
 
   const os = platform();
@@ -42,6 +45,11 @@
     const finished = run.summary?.finishedAt ?? last?.finishedAt ?? null;
     return finished ? de.shell.last(finished) : de.run.never;
   });
+  const setup = $derived(navigation.current === 'jobs' && shell.firstRun);
+  // The run card says the same while it is on screen.
+  const statusShown = $derived(
+    !(navigation.current === 'jobs' && !shell.firstRun && shell.runCard),
+  );
 
   function openRun(): void {
     navigation.go('jobs');
@@ -50,33 +58,40 @@
 </script>
 
 <aside class="sidebar {os}" class:rail={viewport.rail} data-testid="sidebar" data-tauri-drag-region>
-  <div class="brand" data-testid="brand" data-tauri-drag-region>
-    <BrandMark size="sm" />
-    {#if !viewport.rail}<span class="name" in:fade>{de.app.name}</span>{/if}
-  </div>
+  {#if os === 'windows'}
+    <div class="brand" data-testid="brand" data-tauri-drag-region>
+      <BrandMark size="sm" />
+      {#if !viewport.rail}<span class="name" in:fade>{de.app.name}</span>{/if}
+    </div>
+  {/if}
 
-  <SideNav
-    {items}
-    active={navigation.current}
-    label={de.nav.label}
-    collapsed={viewport.rail}
-    onselect={(id) => navigation.go(id)}
-  />
-
-  <div class="status">
-    <StatusLine
-      text={status}
-      label={de.shell.showRun}
-      icon={failed ? 'triangle-alert' : 'clock'}
-      tone={failed ? 'danger' : 'neutral'}
-      busy={run.active}
-      progress={run.active && !viewport.rail ? run.fraction : undefined}
-      progressLabel={de.toolbar.progress}
+  <!-- Before the setup there is nowhere to go yet: the views wait (inert, faded). -->
+  <div class="nav" class:waiting={setup} inert={setup}>
+    <SideNav
+      {items}
+      active={navigation.current}
+      label={de.nav.label}
       collapsed={viewport.rail}
-      testid="run-status"
-      onclick={openRun}
+      onselect={(id) => navigation.go(id)}
     />
   </div>
+
+  {#if statusShown}
+    <div class="status" transition:fade>
+      <StatusLine
+        text={status}
+        label={de.shell.showRun}
+        icon={failed ? 'triangle-alert' : 'clock'}
+        tone={failed ? 'danger' : 'neutral'}
+        busy={run.active}
+        progress={run.active && !viewport.rail ? run.fraction : undefined}
+        progressLabel={de.toolbar.progress}
+        collapsed={viewport.rail}
+        testid="run-status"
+        onclick={openRun}
+      />
+    </div>
+  {/if}
 </aside>
 
 <style>
@@ -84,17 +99,14 @@
     display: flex;
     flex: none;
     flex-direction: column;
-    gap: var(--space-12);
     width: var(--sidebar-width);
     height: 100%;
     padding: 0 var(--space-12) var(--space-12);
-    border-right: var(--border-width) solid var(--border);
   }
 
   .rail {
     align-items: center;
     width: var(--rail-width);
-    padding: 0 var(--space-12) var(--space-12);
   }
 
   /* The brand row shares the height of the content's top strip, so both read as one band. */
@@ -112,10 +124,10 @@
     padding: 0;
   }
 
-  /* macOS: the traffic lights sit at the top left; the brand goes below them, and the rail
-     is as wide as the lights. */
-  .macos .brand {
-    margin-top: var(--titlebar-height);
+  /* macOS: the band of the top strip belongs to the traffic lights; the rail is as wide as
+     the lights. */
+  .macos {
+    padding-top: var(--titlebar-height);
   }
 
   .macos.rail {
@@ -133,6 +145,15 @@
     font-weight: var(--weight-semibold);
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* The first view starts on the line of the list header's search field. */
+  .nav {
+    margin-top: calc(var(--pane-padding) + var(--border-width));
+  }
+
+  .waiting {
+    opacity: var(--opacity-disabled);
   }
 
   .status {

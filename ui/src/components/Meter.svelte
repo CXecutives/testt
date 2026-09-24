@@ -85,7 +85,7 @@
   }
 
   .warning {
-    --meter-fill: var(--warning);
+    --meter-fill: var(--warning-strong);
   }
 
   .sm {

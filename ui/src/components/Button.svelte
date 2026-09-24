@@ -1,5 +1,7 @@
 <!--
-  The button of the app: primary | secondary | ghost | danger × sm | md | lg.
+  The button of the app: primary | secondary | ghost | danger × sm | md | lg, plus `bar`
+  (32 px) for the one button of the title strip.
+  - Trailing actions inside a row are sm, action bars are md.
   - At most one primary per view (checked by core/tests/ui_contract.rs).
   - iconOnly needs its label: it becomes aria-label and tooltip.
   - Disabled buttons stay hoverable (aria-disabled) so the tooltip can say why.
@@ -7,14 +9,14 @@
 -->
 <script lang="ts" module>
   export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
-  export type ButtonSize = 'sm' | 'md' | 'lg';
+  export type ButtonSize = 'sm' | 'bar' | 'md' | 'lg';
   export const BUTTON_VARIANTS: readonly ButtonVariant[] = [
     'primary',
     'secondary',
     'ghost',
     'danger',
   ];
-  export const BUTTON_SIZES: readonly ButtonSize[] = ['sm', 'md', 'lg'];
+  export const BUTTON_SIZES: readonly ButtonSize[] = ['sm', 'bar', 'md', 'lg'];
 </script>
 
 <script lang="ts">
@@ -57,8 +59,8 @@
     onclick,
   }: Props = $props();
 
-  const ICON_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', md: 'sm', lg: 'md' };
-  const ICON_ONLY_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', md: 'md', lg: 'lg' };
+  const ICON_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', bar: 'sm', md: 'sm', lg: 'md' };
+  const ICON_ONLY_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', bar: 'sm', md: 'md', lg: 'lg' };
 
   const inactive = $derived(disabled || loading);
   const hint = $derived(disabled && disabledReason ? disabledReason : iconOnly ? label : null);
@@ -228,6 +230,13 @@
     --btn-weight: var(--weight-medium);
   }
 
+  /* A secondary toggle that is on (a filter chip): the ink edge on a muted surface. */
+  .secondary[aria-pressed='true'] {
+    --btn-bg: var(--surface-muted);
+    --btn-border: var(--text);
+    --btn-border-hover: var(--text);
+  }
+
   .ghost {
     --btn-bg: transparent;
     --btn-bg-hover: var(--surface-hover);
@@ -243,8 +252,8 @@
   }
 
   .ghost[aria-pressed='true'] {
-    --btn-fg: var(--accent);
-    --btn-fg-hover: var(--accent-text);
+    --btn-fg: var(--pressed);
+    --btn-fg-hover: var(--pressed);
   }
 
   .danger {
@@ -264,6 +273,13 @@
   /* --------------------------------------------------------------- sizes */
   .sm {
     --btn-height: var(--control-sm);
+    --btn-pad: var(--space-12);
+    --btn-gap: var(--space-6);
+    --btn-type: var(--type-sm);
+  }
+
+  .bar {
+    --btn-height: var(--control-bar);
     --btn-pad: var(--space-12);
     --btn-gap: var(--space-6);
     --btn-type: var(--type-sm);

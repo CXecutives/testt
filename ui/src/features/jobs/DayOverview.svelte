@@ -1,16 +1,16 @@
 <!--
-  What the reader side shows while no job is selected. It never repeats the list: three
-  tiles that filter it (their numbers are the counts of those filters), the open points
-  (portal health, alert mails without jobs, missing profile, a failed fetch) only when there
-  are any, and the last fetch: when, what is new per portal, the overview and the folder.
+  The reader's empty state: what the sheet shows while no job is selected, unboxed like the
+  reader. It never repeats the list: three tiles that filter it (their numbers are the
+  counts of those filters), the open points (portal health, alert mails without jobs,
+  missing profile, a failed fetch) only when there are any, and the last fetch: what is new
+  per portal (each a filter of the list) with the overview and the folder as quiet icon
+  buttons. The time of the last fetch is said once, in the sidebar.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
-  import Card from '$components/Card.svelte';
   import Notice from '$components/Notice.svelte';
   import StatTile from '$components/StatTile.svelte';
   import { de } from '$lib/i18n/de';
-  import { formatMoment } from '$lib/i18n/format';
   import { errorText, healthText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget, Portal } from '$lib/ipc/types';
@@ -89,10 +89,8 @@
   </div>
 
   {#if hasIssues}
-    <Card padding="none" testid="issues">
-      <div class="card-head">
-        <h2 class="heading">{de.overview.issues}</h2>
-      </div>
+    <section class="block" data-testid="issues">
+      <h2 class="heading">{de.overview.issues}</h2>
       <div class="rows">
         {#if lastFailure}
           <Notice
@@ -137,32 +135,19 @@
           />
         {/each}
       </div>
-    </Card>
+    </section>
   {/if}
 
   <!-- While the run card is open it tells the same; the overview does not repeat it. -->
   {#if last && !run.active && run.panel === 'hidden'}
-    <Card padding="none" testid="last-run">
-      <div class="card-head">
+    <section class="block" data-testid="last-run">
+      <div class="block-head">
         <h2 class="heading">{de.overview.lastRun}</h2>
-        <span class="time">{formatMoment(last.finishedAt)}</span>
-      </div>
-      <div class="last">
-        {#if unread.length > 0}
-          <ul class="portals" data-testid="new-per-portal">
-            {#each unread as line (line.portal)}
-              <li class="chip">{de.overview.newOn(de.portal[line.portal], line.count)}</li>
-            {/each}
-          </ul>
-        {:else if jobs.overviewReady}
-          <p class="quiet">{de.overview.nothingNew}</p>
-        {:else}
-          <span></span>
-        {/if}
-        <div class="actions">
+        <span class="tools">
           <Button
-            variant="secondary"
+            variant="ghost"
             size="sm"
+            iconOnly
             icon="external-link"
             label={de.run.openOverview}
             testid="overview-open"
@@ -171,16 +156,36 @@
           <Button
             variant="ghost"
             size="sm"
+            iconOnly
             icon="folder-open"
             label={de.common.openFolder}
+            testid="overview-folder"
             onclick={() => open({ kind: 'workspace' })}
           />
-        </div>
+        </span>
       </div>
-      {#if actionError}
-        <div class="error"><Notice tone="danger" variant="inline" text={actionError} /></div>
+      {#if unread.length > 0}
+        <ul class="portals" data-testid="new-per-portal">
+          {#each unread as line (line.portal)}
+            <li>
+              <Button
+                variant="secondary"
+                size="sm"
+                label={de.overview.newOn(de.portal[line.portal], line.count)}
+                pressed={jobs.filter === line.portal}
+                testid="new-{line.portal}"
+                onclick={() => jobs.setFilter(jobs.filter === line.portal ? null : line.portal)}
+              />
+            </li>
+          {/each}
+        </ul>
+      {:else if jobs.overviewReady}
+        <p class="quiet">{de.overview.nothingNew}</p>
       {/if}
-    </Card>
+      {#if actionError}
+        <Notice tone="danger" variant="inline" text={actionError} />
+      {/if}
+    </section>
   {/if}
 </div>
 
@@ -188,7 +193,7 @@
   .overview {
     display: flex;
     flex-direction: column;
-    gap: var(--space-16);
+    gap: var(--space-20);
     container-type: inline-size;
   }
 
@@ -197,7 +202,7 @@
   .tiles {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-16);
+    gap: var(--space-12);
   }
 
   @container (width < 460px) {
@@ -206,11 +211,21 @@
     }
   }
 
-  .card-head {
+  /* Sections like the reader's: a hairline above, the heading, the content. */
+  .block {
     display: flex;
-    align-items: baseline;
+    flex-direction: column;
+    gap: var(--space-12);
+    padding-top: var(--space-20);
+    border-top: var(--border-width) solid var(--border);
+  }
+
+  .block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--space-8);
-    padding: var(--space-16) var(--space-20) 0;
+    min-height: var(--control-sm);
   }
 
   .heading {
@@ -218,16 +233,14 @@
     font: var(--type-lg);
   }
 
-  .time {
-    color: var(--text-muted);
-    font: var(--type-md);
-    font-variant-numeric: var(--numeric);
+  .tools {
+    display: flex;
+    gap: var(--space-4);
   }
 
   .rows {
     display: flex;
     flex-direction: column;
-    padding: var(--space-4) var(--space-20) var(--space-4);
   }
 
   .rows > :global(*) {
@@ -238,46 +251,14 @@
     border-top: var(--border-width) solid var(--border);
   }
 
-  .last {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-12) var(--space-16);
-    padding: var(--space-12) var(--space-20) var(--space-16);
-  }
-
   .portals {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-6);
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    height: var(--badge-height);
-    padding: 0 var(--space-8);
-    border-radius: var(--radius-full);
-    background-color: var(--surface-muted);
-    color: var(--text-muted);
-    font: var(--type-xs);
-    font-weight: var(--weight-medium);
-    font-variant-numeric: var(--numeric);
-    white-space: nowrap;
+    gap: var(--space-8);
   }
 
   .quiet {
     color: var(--text-muted);
-    font: var(--type-sm);
-  }
-
-  .actions {
-    display: flex;
-    gap: var(--space-8);
-  }
-
-  .error {
-    padding: 0 var(--space-20) var(--space-16);
+    font: var(--type-md);
   }
 </style>

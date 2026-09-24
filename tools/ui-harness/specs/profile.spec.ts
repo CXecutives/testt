@@ -14,24 +14,39 @@ test('the profile shows what the app understood, in plain words', async ({ page 
   await expect(page.getByTestId('profile-name')).toHaveText('profil-interim-finance.json');
   await expect(page.getByTestId('profile-file')).toContainText('18 KB · 21.09.2026');
   await expect(page.getByTestId('profile-file')).toContainText('Gut lesbar');
-  const criteria = page.getByTestId('criteria-list').locator('li');
-  await expect(criteria).toHaveText([
-    'Tagessatz ab 1.100 €',
-    'Einsatz nur in Deutschland, Österreich',
-    'Keine Arbeitnehmerüberlassung',
-    'Keine Verfügbarkeit angegeben',
-    'Kein Mindestgehalt für Festanstellungen',
-    'Keine Region für Festanstellungen',
-    'Stellen ab 15 Jahren Erfahrung',
+  // Label | value rows; what the profile leaves open says "offen", in the subtle tone.
+  const list = page.getByTestId('criteria-list');
+  await expect(list.locator('dt')).toHaveText([
+    'Tagessatz',
+    'Einsatzland',
+    'Arbeitnehmerüberlassung',
+    'Verfügbarkeit',
+    'Mindestgehalt',
+    'Region',
+    'Seniorität',
   ]);
+  await expect(list.locator('dd')).toHaveText([
+    'ab 1.100 €',
+    'Deutschland, Österreich',
+    'ausgeschlossen',
+    'offen',
+    'offen',
+    'offen',
+    'ab 15 Jahren Erfahrung',
+  ]);
+  await expect(list.locator('dd.unset')).toHaveCount(3);
+  await expect(list.locator('svg')).toHaveCount(0);
   await expect(page.getByTestId('background')).toHaveText(
     '28 Jahre Berufserfahrung · Diplom-Kauffrau',
   );
   await expect(page.getByTestId('packs')).toHaveText('Finanzen · SAP');
   await expect(page.getByTestId('competences')).toContainText('+30');
-  await expect(page.getByTestId('profile-understood')).toContainText(
-    'Nicht ausgewertet hobbys, referenzen.',
+  // Keys the app does not evaluate: named in words, one quiet sentence, not a warning.
+  await expect(page.getByTestId('profile-understood')).toContainText('Erkannt');
+  await expect(page.getByTestId('ignored-keys')).toHaveText(
+    'Hobbys und Referenzen bleiben unberücksichtigt.',
   );
+  await expect(page.getByTestId('profile-understood').getByRole('alert')).toHaveCount(0);
 });
 
 test('remove asks first; choosing a profile again rescores', async ({ page }) => {

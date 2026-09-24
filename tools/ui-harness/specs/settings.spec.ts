@@ -86,10 +86,12 @@ test('auto fetch and portal switches save at once', async ({ page }) => {
     'aria-checked',
     'false',
   );
-  const details = page.getByTestId('toggle-details-linkedin');
-  await expect(details).toHaveAttribute('aria-disabled', 'true');
-  await details.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst das Portal aktivieren.');
+  // "Aktiv" sits in the portal's header row; an inactive portal hides "Details holen".
+  await expect(
+    page.getByTestId('portal-linkedin').locator('.head').getByTestId('toggle-enabled-linkedin'),
+  ).toBeVisible();
+  await expect(page.getByTestId('toggle-details-linkedin')).toHaveCount(0);
+  await expect(page.getByTestId('toggle-details-freelancermap')).toBeVisible();
   const saved = (await calls(page, 'save_settings')).map(([, args]) => args);
   expect(saved).toEqual([
     { patch: { portals: [], autoFetchOnStart: false } },
@@ -163,12 +165,35 @@ test('reset asks with a danger dialog; the report shows after the restart', asyn
 });
 
 test('locked buttons explain themselves', async ({ page }) => {
-  await settings(page, `${WIN}&scenario=first-run`);
+  // A workspace without files yet has no Excel file to show.
+  await settings(page, `${WIN}&scenario=no-files`);
   const excel = page.getByTestId('excel-show');
   await excel.hover();
   await expect(page.getByRole('tooltip')).toHaveText('Die Excel-Datei entsteht beim ersten Abruf.');
+  // Without a mailbox reading the whole mailbox is locked.
+  await page.getByTestId('mailbox-remove').click();
+  await page
+    .getByTestId('dialog-remove-mailbox')
+    .getByRole('button', { name: 'Entfernen' })
+    .click();
+  await expect(page.getByTestId('mailbox-form')).toBeVisible();
   await page.getByTestId('full-mailbox').hover();
   await expect(page.getByRole('tooltip')).toHaveText('Erst ein Postfach verbinden.');
+});
+
+test('first run: the sidebar waits until the setup is done', async ({ page }) => {
+  await open(page, `${WIN}&scenario=first-run`);
+  const nav = page.getByTestId('nav-settings').locator('xpath=../..');
+  await expect(nav).toHaveAttribute('inert', '');
+  await page
+    .getByTestId('nav-settings')
+    .click({ force: true, timeout: 2000 })
+    .catch(() => {});
+  await expect(page.getByTestId('first-run')).toBeVisible();
+  // The helper line of the password carries the way to create one.
+  await expect(
+    page.getByTestId('mailbox-form').locator('.help').getByTestId('create-password'),
+  ).toBeVisible();
 });
 
 test('baseline: first run', async ({ page }) => {

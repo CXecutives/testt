@@ -1,13 +1,14 @@
 <!--
-  The header of the list column: the search over the full width, below it the two filter
-  groups, Neu | Alle on the left and (with a profile) Beste Passung | Neueste on the right.
-  In a narrow column the two groups stack and each takes the full width.
+  The header of the list column: the search over the full width, below it Neu | Alle on the
+  left and (with a profile) the sort as one quiet icon button on the right. Its tooltip says
+  the current order; a click switches between best match and newest first.
 -->
 <script lang="ts">
+  import Button from '$components/Button.svelte';
   import Segmented from '$components/Segmented.svelte';
   import TextField from '$components/TextField.svelte';
   import { de } from '$lib/i18n/de';
-  import type { JobFacet, JobSort } from '$lib/ipc/types';
+  import type { JobFacet } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
 
@@ -15,10 +16,6 @@
     { id: 'new' as JobFacet, label: de.toolbar.facetNew, count: jobs.counts.new },
     { id: 'all' as JobFacet, label: de.toolbar.facetAll, count: jobs.counts.all },
   ]);
-  const sorts: { id: JobSort; label: string }[] = [
-    { id: 'match', label: de.toolbar.sortMatch },
-    { id: 'newest', label: de.toolbar.sortNewest },
-  ];
 </script>
 
 <div class="header" data-testid="list-header">
@@ -30,7 +27,7 @@
     testid="search"
     oninput={(value) => jobs.setSearch(value)}
   />
-  <div class="filters" class:single={!app.hasProfile}>
+  <div class="filters">
     <Segmented
       options={facets}
       value={jobs.facet}
@@ -40,13 +37,14 @@
       onchange={(id) => jobs.setFacet(id)}
     />
     {#if app.hasProfile}
-      <Segmented
-        options={sorts}
-        value={jobs.sortChoice}
-        label={de.toolbar.sort}
+      <Button
+        variant="ghost"
         size="sm"
+        iconOnly
+        icon="arrow-up-down"
+        label={de.toolbar.sortedBy[jobs.sortChoice]}
         testid="sort"
-        onchange={(id) => jobs.setSort(id)}
+        onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
       />
     {/if}
   </div>
@@ -63,23 +61,9 @@
   }
 
   .filters {
-    display: grid;
-    grid-template-columns: auto auto;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
     gap: var(--space-8);
-  }
-
-  .filters.single {
-    grid-template-columns: auto;
-    justify-content: start;
-  }
-
-  /* Too narrow for both groups side by side: one group per line, each over the full width. */
-  @container (width < 392px) {
-    .filters,
-    .filters.single {
-      grid-template-columns: 1fr;
-      justify-content: stretch;
-    }
   }
 </style>

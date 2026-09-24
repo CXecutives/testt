@@ -100,7 +100,7 @@
       <div class="skeletons" data-testid="list-skeleton">
         {#each SKELETON_ROWS as index (index)}
           <div class="skeleton-row">
-            <Skeleton shape="circle" size="md" />
+            <Skeleton shape="circle" size="sm" />
             <span class="lines">
               <Skeleton width={70} />
               <Skeleton width={45} />
@@ -218,8 +218,8 @@
     margin: var(--pane-padding) var(--pane-padding) var(--space-4);
     padding-left: var(--space-12);
     border-radius: var(--radius-full);
-    background-color: var(--surface-selected);
-    color: var(--accent-text);
+    background-color: var(--surface-muted);
+    color: var(--text);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
   }
@@ -235,10 +235,8 @@
     gap: var(--space-12);
     padding: var(--space-24) var(--pane-padding) var(--space-8);
     color: var(--text-muted);
-    font: var(--type-xs);
+    font: var(--type-sm);
     font-weight: var(--weight-semibold);
-    letter-spacing: var(--tracking-caps);
-    text-transform: uppercase;
   }
 
   .divider::after {

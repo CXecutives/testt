@@ -304,9 +304,9 @@ const PROFILE: ProfileInfo = {
   quality: 'good',
   understood: {
     competenceCount: 42,
-    packs: ["finance", "sap"],
+    packs: ['finance', 'sap'],
     years: 28,
-    degrees: ["Diplom-Kauffrau (Univ.)"],
+    degrees: ['Diplom-Kauffrau (Univ.)'],
     competences: [
       'Interim-Management',
       'Konzernabschluss nach HGB',
@@ -469,6 +469,11 @@ function initial(): void {
       state.mailbox = { user: null, vault: 'windowsCredentialManager', error: null };
       state.profile = null;
       state.lastRun = null;
+      state.settings.excelExists = false;
+      state.settings.txtFiles = 0;
+      break;
+    case 'no-files':
+      // A connected mailbox, but nothing written to the workspace yet.
       state.settings.excelExists = false;
       state.settings.txtFiles = 0;
       break;

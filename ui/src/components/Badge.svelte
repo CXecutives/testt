@@ -28,7 +28,7 @@
 </script>
 
 <span class="badge {tone}" use:tooltip={hint}>
-  {#if icon}<Icon name={icon} size="sm" />{/if}
+  {#if icon}<Icon name={icon} size="xs" />{/if}
   <span class="label">{label}</span>
 </span>
 

@@ -88,10 +88,17 @@
     min-width: 0;
   }
 
+  /* One white sheet below the top strip for every view: the sidebar stays on the cream, the
+     sheet's hairline and rounded corner are the only divider between them. */
   .views {
     display: grid;
     flex: 1;
     min-height: 0;
+    overflow: hidden;
+    border-top: var(--border-width) solid var(--border);
+    border-left: var(--border-width) solid var(--border);
+    border-top-left-radius: var(--radius-card);
+    background-color: var(--surface);
   }
 
   .view {

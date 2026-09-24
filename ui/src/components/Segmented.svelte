@@ -112,10 +112,6 @@
     font-variant-numeric: var(--numeric);
   }
 
-  .option[aria-checked='true'] .count {
-    color: var(--accent-text);
-  }
-
   .sm {
     --seg-height: var(--control-sm);
     --seg-type: var(--type-sm);

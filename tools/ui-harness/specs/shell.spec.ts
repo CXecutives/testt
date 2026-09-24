@@ -53,13 +53,24 @@ test('Windows caption buttons call the window API', async ({ page }) => {
   expect(calls).toContain('window.toggleMaximize');
 });
 
-test('macOS: no caption buttons, the brand sits below the traffic lights', async ({ page }) => {
+test('macOS: no caption buttons and no brand row, the lights keep the top band', async ({
+  page,
+}) => {
   await open(page, '?platform=macos');
   await expect(page.locator('html')).toHaveAttribute('data-platform', 'macos');
   await expect(page.getByTestId('window-controls')).toHaveCount(0);
-  const top = await page.getByTestId('brand').evaluate((node) => node.getBoundingClientRect().top);
-  expect(top).toBeGreaterThanOrEqual(40);
+  await expect(page.getByTestId('brand')).toHaveCount(0);
 });
+
+for (const os of ['windows', 'macos']) {
+  test(`${os}: the first view sits on the line of the search field`, async ({ page }) => {
+    await open(page, `?platform=${os}`);
+    // The field's frame is the input's parent (the input sits inside its border).
+    const nav = (await page.getByTestId('nav-jobs').boundingBox())!.y;
+    const field = (await page.getByTestId('search').locator('xpath=..').boundingBox())!.y;
+    expect(nav).toBe(field);
+  });
+}
 
 test('the run status in the sidebar opens the last run', async ({ page }) => {
   await open(page, '?platform=windows');

@@ -1,6 +1,6 @@
 <!--
   The navigation of the sidebar: icon and label per view, an optional count (unread jobs).
-  Active item in accent-soft with ink text, hover surface-hover, the count in coral text.
+  Active item in accent-soft with ink text, hover surface-hover, the count in muted text.
   Collapsed (icon rail) the labels move into tooltips and a dot on the icon stands for the count.
 -->
 <script lang="ts" module>
@@ -121,11 +121,11 @@
     white-space: nowrap;
   }
 
-  /* The unread count: coral text only, no pill (the unread dot's colour). */
+  /* The unread count: muted text, no pill (coral stays for the accents). */
   .count {
-    color: var(--accent-text);
+    color: var(--text-muted);
     font: var(--type-xs);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
     font-variant-numeric: var(--numeric);
   }
 </style>

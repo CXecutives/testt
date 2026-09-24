@@ -50,7 +50,7 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await top.click();
   await expect(page.getByTestId('reader')).toBeVisible();
   await expect(page.getByTestId('band')).toHaveText('Hohe Passung');
-  await expect(page.getByTestId('must')).toHaveText('4 von 4 Muss-Anforderungen erfüllt');
+  await expect(page.getByTestId('must')).toHaveText('4 von 4 Muss erfüllt');
   await expect(page.getByTestId('contract')).toHaveText('Interim');
   await expect(
     page.getByTestId('criteria').locator('li:not([data-testid="contract"])'),
@@ -116,7 +116,11 @@ test('the sort switch reorders the list and keeps the selection', async ({ page 
   const before = await rows(page).evaluateAll((els) =>
     els.map((e) => e.getAttribute('data-testid')),
   );
-  await page.getByTestId('sort').getByRole('radio', { name: 'Neueste' }).click();
+  // One quiet icon button: its tooltip names the current order, a click switches it.
+  const sort = page.getByTestId('sort');
+  await expect(sort).toHaveAttribute('aria-label', 'Beste Passung zuerst');
+  await sort.click();
+  await expect(sort).toHaveAttribute('aria-label', 'Neueste zuerst');
   await expect
     .poll(() => rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid'))))
     .not.toEqual(before);
@@ -132,9 +136,13 @@ test('excluded jobs sit grey behind the divider and explain themselves', async (
   const excludedRow = excludedRows(page).first();
   await expect(excludedRow).toContainText('Arbeitnehmerüberlassung');
   await excludedRow.click();
-  await expect(page.getByTestId('exclusion')).toBeVisible();
+  // The reason is the subline of the band, said once (no notice, no repeated violation).
   await expect(page.getByTestId('band')).toHaveText('Ausgeschlossen');
+  const because = await page.getByTestId('exclusion').innerText();
+  await expect(page.getByTestId('reader').getByText(because, { exact: true })).toHaveCount(1);
   await expect(page.getByTestId('criteria').locator('[data-state="violated"]')).toHaveCount(1);
+  // ANÜ is one chip: the contract chip steps back behind the criterion of the same name.
+  await expect(page.getByTestId('criteria').getByText('ANÜ', { exact: true })).toHaveCount(1);
 });
 
 test('the day overview tiles filter the list and match the counts', async ({ page }) => {
@@ -182,9 +190,9 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
     if (numbers === null) continue;
     const [met, total] = [Number(numbers[1]), Number(numbers[2])];
     const listed = await page.getByTestId('why').evaluate((why) => {
-      const musts = [...why.querySelectorAll('li')].filter((li) =>
-        [...li.querySelectorAll('.badge')].some((badge) => badge.textContent?.trim() === 'Muss'),
-      );
+      // Muss is the default and carries no badge; only Kann does.
+      const musts = [...why.querySelectorAll('li[data-weight="must"]')];
+      if (musts.some((li) => li.querySelector('.badge') !== null)) return null;
       const kind = (li: Element): string =>
         li.querySelector('[role="img"]')?.getAttribute('aria-label') ?? '';
       return {
@@ -193,6 +201,7 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
         all: musts.length,
       };
     });
+    if (listed === null) throw new Error(`${key}: a must requirement carries a badge`);
     expect(listed.met, `${key}: ${text}`).toBe(met);
     expect(listed.all, `${key}: ${text}`).toBe(total);
     expect(text.includes('teilweise'), `${key}: ${text}`).toBe(listed.partial > 0);
@@ -201,17 +210,29 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
   expect(checked).toBeGreaterThanOrEqual(8);
 });
 
-test('titles take two lines in the list and lose their gender tags everywhere', async ({
-  page,
-}) => {
+test('rows are mail-style: one height, one title line, a fixed dot gutter', async ({ page }) => {
   await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   const first = row(page, 'freelancermap-2801');
   await expect(first).toContainText('Interim CFO für Familienunternehmen');
   await expect(first).not.toContainText('(m/w/d)');
-  const lines = await first
+  const title = await first.locator('.title').evaluate((node) => {
+    const style = getComputedStyle(node);
+    return [style.whiteSpace, style.textOverflow];
+  });
+  expect(title).toEqual(['nowrap', 'ellipsis']);
+  // Every row, with or without badge, has the same height.
+  const heights = await page
+    .getByTestId('job-list')
+    .locator('[data-testid^="job-row-"]')
+    .evaluateAll((els) => [...new Set(els.map((e) => e.getBoundingClientRect().height))]);
+  expect(heights).toEqual([86]);
+  // Read and unread titles start at the same x: the dot lives in its own gutter.
+  const lefts = await page
+    .getByTestId('job-list')
     .locator('.title')
-    .evaluate((node) => getComputedStyle(node).webkitLineClamp);
-  expect(lines).toBe('2');
+    .evaluateAll((els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().left)))]);
+  expect(lefts).toHaveLength(1);
   await first.click();
   await expect(page.getByTestId('reader-title')).toHaveText('Interim CFO für Familienunternehmen');
 });
