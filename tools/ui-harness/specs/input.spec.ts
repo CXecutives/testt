@@ -5,7 +5,7 @@
 // dialogs hold the focus; everything else is swallowed.
 
 import type { Page } from '@playwright/test';
-import { expect, open, test } from './fixtures';
+import { calls, expect, open, test } from './fixtures';
 
 test.beforeEach(async ({ page }) => {
   await open(page, '?platform=windows');
@@ -92,6 +92,52 @@ test('right click, middle click and drag: what the page lets through', async ({ 
     plainWheel: false,
     metaWheelAfterPlain: false,
   });
+});
+
+test('the right click: the OS menu in fields and on selected copyable text, nowhere else', async ({
+  page,
+}) => {
+  const menus = (): Promise<{ text: string; enabled: boolean; command: string | null }[][]> =>
+    page.evaluate(() => window.__harness.menus);
+  // On a control or empty space: nothing, and the control is not pressed.
+  await page.getByTestId('fetch').click({ button: 'right' });
+  await page.getByTestId('view-jobs').click({ button: 'right', position: { x: 600, y: 600 } });
+  expect(await menus()).toEqual([]);
+  expect(await calls(page, 'start_run')).toEqual([]);
+  // In a field: the four edit commands, enabled by the field's state; it takes the focus.
+  const search = page.getByTestId('search');
+  await search.fill('Controlling');
+  await search.evaluate((node: HTMLInputElement) => {
+    node.blur();
+    node.setSelectionRange(0, 0);
+  });
+  await search.click({ button: 'right' });
+  await expect(search).toBeFocused();
+  await search.evaluate((node: HTMLInputElement) => node.setSelectionRange(0, 7));
+  await search.click({ button: 'right' });
+  const state = (menu: { text: string; enabled: boolean }[]): string[] =>
+    menu.map((entry) => `${entry.text}${entry.enabled ? '' : ' (aus)'}`);
+  const [plain, selected] = await menus();
+  expect(state(plain!)).toEqual([
+    'Ausschneiden (aus)',
+    'Kopieren (aus)',
+    'Einfügen',
+    'Alles auswählen',
+  ]);
+  expect(state(selected!)).toEqual(['Ausschneiden', 'Kopieren', 'Einfügen', 'Alles auswählen']);
+  // An enabled entry is the OS's own edit command.
+  expect(selected!.map((entry) => entry.command)).toEqual(['Cut', 'Copy', 'Paste', 'SelectAll']);
+  // Selected copyable text: Kopieren; the same text unselected: nothing.
+  await page.locator('[data-testid^="job-row-"]').first().click();
+  const title = page.getByTestId('reader-title');
+  await page.evaluate(() => getSelection()?.removeAllRanges());
+  await title.click({ button: 'right' });
+  expect(await menus()).toHaveLength(2);
+  await title.evaluate((node) => getSelection()?.selectAllChildren(node));
+  await title.click({ button: 'right' });
+  const copy = (await menus())[2]!;
+  expect(state(copy)).toEqual(['Kopieren']);
+  expect(copy[0]!.command).toBe('Copy');
 });
 
 test('controls react to the left button only', async ({ page }) => {

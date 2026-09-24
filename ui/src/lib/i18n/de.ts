@@ -507,6 +507,13 @@ export const de = {
   splitter: {
     label: 'Breite der Liste',
   },
+  /** The native context menu of fields and selected text (the OS's words). */
+  edit: {
+    cut: 'Ausschneiden',
+    copy: 'Kopieren',
+    paste: 'Einfügen',
+    selectAll: 'Alles auswählen',
+  },
   field: {
     reveal: 'Passwort zeigen',
     conceal: 'Passwort verbergen',

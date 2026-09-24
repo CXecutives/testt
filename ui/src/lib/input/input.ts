@@ -4,7 +4,10 @@
 // listeners (eslint + core/tests/ui_contract.rs). Installed once in main.ts.
 //
 // - controls react to the left button only: the right button never presses, focuses or
-//   selects anything, and there is no context menu anywhere (fields included)
+//   selects anything. There is no browser context menu; the OS's own menu appears where
+//   a native app has one: in a text field (Ausschneiden, Kopieren, Einfügen, Alles
+//   auswählen, each enabled by the field's state) and on selected copyable text
+//   (Kopieren). Everywhere else a right click does nothing.
 // - the middle button scrolls: pressed over a scroll area it starts the autoscroll of the
 //   OS (WebView2 on Windows; macOS has none); anywhere else it does nothing; a middle
 //   click never activates anything (no auxclick), the back/forward buttons do nothing
@@ -27,6 +30,8 @@
 // - no hover flicker while a list scrolls (`:root[data-scrolling]`, see onScroll)
 
 import type { Action } from 'svelte/action';
+import { de } from '../i18n/de';
+import { popupEditMenu, type EditEntry } from '../ipc/api';
 import { keyConventions, type KeyConventions } from '../platform';
 import { tokenMs } from '../tokens';
 
@@ -313,6 +318,40 @@ function onKeyDown(event: KeyboardEvent): void {
 
 const prevent = (event: Event): void => event.preventDefault();
 
+/** The context menu of a text field, like the OS's own: what the field's state allows. */
+function fieldMenu(field: HTMLInputElement | HTMLTextAreaElement): EditEntry[] {
+  // A right click in a field that is not focused focuses it (the edit commands act on it).
+  if (document.activeElement !== field) field.focus();
+  const editable = !field.readOnly && !field.disabled;
+  const hidden = field instanceof HTMLInputElement && field.type === 'password';
+  const selected = (field.selectionStart ?? 0) !== (field.selectionEnd ?? 0);
+  return [
+    { command: 'Cut', text: de.edit.cut, enabled: editable && selected && !hidden },
+    { command: 'Copy', text: de.edit.copy, enabled: selected && !hidden },
+    { command: 'Paste', text: de.edit.paste, enabled: editable },
+    { command: 'SelectAll', text: de.edit.selectAll, enabled: field.value !== '' },
+  ];
+}
+
+/** Copyable text under the pointer that is part of the current selection. */
+function selectedCopy(target: EventTarget | null): boolean {
+  const copy = closest(target, COPY);
+  const selection = getSelection();
+  if (copy === null || selection === null || selection.isCollapsed) return false;
+  return selection.toString().trim() !== '' && selection.containsNode(copy, true);
+}
+
+/** The right click: the OS's menu in fields and on selected copyable text, else nothing. */
+function onContextMenu(event: MouseEvent): void {
+  event.preventDefault();
+  const field = closest(event.target, 'input, textarea');
+  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+    void popupEditMenu(fieldMenu(field));
+  } else if (selectedCopy(event.target)) {
+    void popupEditMenu([{ command: 'Copy', text: de.edit.copy, enabled: true }]);
+  }
+}
+
 /**
  * Ctrl/Cmd+wheel would zoom. A wheel listener that may cancel is not passive, and a
  * page-wide one makes every scroll wait for the main thread, so it is attached only
@@ -369,7 +408,7 @@ export function installInput(): void {
   installed = true;
   const capture = { capture: true } as const;
 
-  document.addEventListener('contextmenu', prevent, capture);
+  document.addEventListener('contextmenu', onContextMenu, capture);
   document.addEventListener(
     'mousedown',
     (event) => {

@@ -14,6 +14,7 @@
 
 import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import type { Commands, ErrorInfo, ErrorKind, RunEvent } from './types';
 
 export type CommandName = keyof Commands;
@@ -166,6 +167,42 @@ export function onWindowFocus(handler: (focused: boolean) => void): () => void {
  */
 export function onNavigate(handler: (view: string) => void): () => void {
   return subscribe(() => listen<string>('navigate', (event) => handler(event.payload)));
+}
+
+/** An edit command of the OS that a context menu entry runs. */
+export type EditCommand = 'Cut' | 'Copy' | 'Paste' | 'SelectAll';
+
+export interface EditEntry {
+  command: EditCommand;
+  text: string;
+  enabled: boolean;
+}
+
+/** The menu shown last; its native resources go when the next one opens. */
+let shownMenu: Menu | null = null;
+
+/**
+ * A native context menu at the pointer, the OS's own (Windows and macOS draw it). An
+ * enabled entry is the OS's predefined edit command, so the OS performs it on the focused
+ * field or selection exactly like its own menus do; a disabled one is only shown.
+ */
+export async function popupEditMenu(entries: readonly EditEntry[]): Promise<void> {
+  try {
+    const items = await Promise.all(
+      entries.map((entry) =>
+        entry.enabled
+          ? PredefinedMenuItem.new({ item: entry.command, text: entry.text })
+          : MenuItem.new({ text: entry.text, enabled: false }),
+      ),
+    );
+    const menu = await Menu.new({ items });
+    const previous = shownMenu;
+    shownMenu = menu;
+    void previous?.close();
+    await menu.popup();
+  } catch (error) {
+    reportUiError(`context menu: ${String(error)}`, null, null);
+  }
 }
 
 const REPORT_LIMIT = 10;

@@ -60,6 +60,8 @@ interface Harness {
   holdAfter: number | null;
   /** A copy of a job as the stub holds it (null if unknown). */
   job: (key: JobKey) => JobView | null;
+  /** The native context menus shown (entries: text, enabled, OS command or null). */
+  menus: { text: string; enabled: boolean; command: string | null }[][];
 }
 
 declare global {
@@ -1709,6 +1711,7 @@ const harness: Harness = {
   detailDelay: 0,
   failPages: 0,
   holdAfter: null,
+  menus: [],
   job(key) {
     const found = find(key);
     return found === undefined ? null : structuredClone(found);
@@ -1716,6 +1719,50 @@ const harness: Harness = {
 };
 window.__harness = harness;
 initial();
+
+/* ------------------------------------------------------------------- menus */
+
+// The native menu of @tauri-apps/api/menu as the page sees it: `popup` records the entries.
+
+interface StubItem {
+  text: string;
+  enabled: boolean;
+  command: string | null;
+}
+
+export class MenuItem {
+  constructor(readonly entry: StubItem) {}
+
+  static async new(options: { text: string; enabled?: boolean }): Promise<MenuItem> {
+    return new MenuItem({ text: options.text, enabled: options.enabled ?? true, command: null });
+  }
+}
+
+export class PredefinedMenuItem {
+  constructor(readonly entry: StubItem) {}
+
+  static async new(options: { item: string; text?: string }): Promise<PredefinedMenuItem> {
+    return new PredefinedMenuItem({
+      text: options.text ?? options.item,
+      enabled: true,
+      command: options.item,
+    });
+  }
+}
+
+export class Menu {
+  constructor(readonly items: (MenuItem | PredefinedMenuItem)[]) {}
+
+  static async new(options: { items: (MenuItem | PredefinedMenuItem)[] }): Promise<Menu> {
+    return new Menu(options.items);
+  }
+
+  async popup(): Promise<void> {
+    harness.menus.push(this.items.map((item) => item.entry));
+  }
+
+  async close(): Promise<void> {}
+}
 
 /* --------------------------------------------------------------------- core */
 
