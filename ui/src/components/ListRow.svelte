@@ -5,7 +5,10 @@
   scale. The selected row takes a very light warm wash (one step deeper under the pointer)
   and a coral bar on the left that fades in (150 ms) and out (100 ms); a row created as
   selected is simply there. While the window is inactive the selection
-  turns grey, as in Mail and Explorer. While the list scrolls rows take no hover.
+  turns grey, as in Mail and Explorer. While the list scrolls rows take no hover: the hover
+  rules wait for `:root:not([data-scrolling])` (input.ts), which restyles only the rows
+  themselves when it flips. A property that inherits (pointer-events) would restyle every
+  element of every row twice per scroll, a long task with a few hundred rows.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -64,7 +67,7 @@
       opacity var(--dur-base) var(--ease-standard);
   }
 
-  .row:hover {
+  :global(:where(:root:not([data-scrolling]))) .row:hover {
     background-color: var(--surface-hover);
     transition-duration: var(--dur-hover);
   }
@@ -82,7 +85,7 @@
     --ring-track: var(--ring-track-selected);
   }
 
-  .selected:hover {
+  :global(:where(:root:not([data-scrolling]))) .selected:hover {
     background-color: var(--surface-selected-hover);
   }
 
@@ -127,13 +130,8 @@
   }
 
   /* An excluded row brightens under the pointer: it invites reading, still grey. */
-  .muted:hover {
+  :global(:where(:root:not([data-scrolling]))) .muted:hover {
     opacity: var(--opacity-muted-hover);
-  }
-
-  /* No hover while the list scrolls (input.ts); the scroller keeps its own events. */
-  :global(:root[data-scrolling]) .row {
-    pointer-events: none;
   }
 
   .leading,

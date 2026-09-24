@@ -9,7 +9,8 @@
   sibling of the row button, so it never selects the row; the row keeps its hover while
   the pointer is on the star). An excluded row is muted as a whole, its dot and star too.
   When a job is read while its row is on screen the dot shrinks away. A cut-off title
-  shows in full in a tooltip. Hover and paint stay inside the row (containment).
+  shows in full in a tooltip. Hover and paint stay inside the row (containment); like the
+  row, its hover waits while the list scrolls (`:root:not([data-scrolling])`).
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
@@ -134,11 +135,11 @@
   }
 
   /* The row keeps its hover while the pointer is on its star (a sibling of the row). */
-  .job:hover :global(.row:not(.selected, :active)) {
+  :global(:where(:root:not([data-scrolling]))) .job:hover :global(.row:not(.selected, :active)) {
     background-color: var(--surface-hover);
   }
 
-  .job:hover :global(.row.selected) {
+  :global(:where(:root:not([data-scrolling]))) .job:hover :global(.row.selected) {
     background-color: var(--surface-selected-hover);
   }
 
@@ -223,7 +224,7 @@
     transition: color var(--dur-base) var(--ease-standard);
   }
 
-  .job:hover .date {
+  :global(:where(:root:not([data-scrolling]))) .job:hover .date {
     color: var(--text-muted);
     transition-duration: var(--dur-hover);
   }
@@ -271,20 +272,15 @@
     --btn-bg-hover: var(--surface-press);
   }
 
-  .job:hover .pin,
+  :global(:where(:root:not([data-scrolling]))) .job:hover .pin,
   .pin:focus-within,
   .pinned .pin {
     opacity: 1;
   }
 
-  .muted:hover .pin,
+  :global(:where(:root:not([data-scrolling]))) .muted:hover .pin,
   .muted .pin:focus-within,
   .muted.pinned .pin {
     opacity: var(--opacity-muted);
-  }
-
-  /* No hover while the list scrolls (input.ts). */
-  :global(:root[data-scrolling]) .pin {
-    pointer-events: none;
   }
 </style>
