@@ -3,6 +3,7 @@
   bundle small), size from the tokens, colour inherited from the text.
 -->
 <script lang="ts" module>
+  import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import Ban from '@lucide/svelte/icons/ban';
   import Briefcase from '@lucide/svelte/icons/briefcase';
@@ -14,6 +15,7 @@
   import ChevronUp from '@lucide/svelte/icons/chevron-up';
   import Circle from '@lucide/svelte/icons/circle';
   import CircleDashed from '@lucide/svelte/icons/circle-dashed';
+  import CircleDot from '@lucide/svelte/icons/circle-dot';
   import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
   import CircleStop from '@lucide/svelte/icons/circle-stop';
   import Clock from '@lucide/svelte/icons/clock';
@@ -100,6 +102,10 @@
     'circle-help': CircleQuestionMark,
     // A requirement met only in part: half a circle, next to the full check and the empty ring.
     'circle-half': Contrast,
+    // The current step of a run (the header spinner is the one moving indicator).
+    'circle-dot': CircleDot,
+    // A reason that jumps to its passage in the ad (shown on hover).
+    'arrow-down': ArrowDown,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

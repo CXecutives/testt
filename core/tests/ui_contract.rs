@@ -531,6 +531,73 @@ fn no_text_literals_in_markup() {
     fail(&problems, "UI text only from lib/i18n/de.ts");
 }
 
+/// The keyboard stays native (audit 2026-09-24): fields take every character the layout
+/// types, including AltGr (Windows) and Option (macOS, where @ is Option+L on a German
+/// keyboard), and the editing keys of the OS; the macOS menu keeps its Cmd shortcuts
+/// (Cmd+, too); Tab and Enter/Space work on controls; a modal dialog holds the focus; the
+/// zoom guard is a wheel listener that exists only while Ctrl/Cmd is held. The behaviour
+/// itself is tested in tools/ui-harness/specs/input.spec.ts on both engines.
+#[test]
+fn the_keyboard_stays_native() {
+    let all = scanned(MIN_FILES);
+    let file = |path: &str| -> &Source {
+        all.iter()
+            .find(|s| s.is(path))
+            .unwrap_or_else(|| panic!("{path} missing"))
+    };
+    let input = &file("lib/input/input.ts").code;
+    let platform = &file("lib/platform.ts").code;
+    let mut problems = Vec::new();
+    let mut need = |ok: bool, what: &str| {
+        if !ok {
+            problems.push(what.to_string());
+        }
+    };
+    need(
+        input.contains("getModifierState('AltGraph')") && input.contains("optionTypes"),
+        "input.ts: AltGr and Option characters must type in fields",
+    );
+    need(
+        platform.contains("optionTypes: mac"),
+        "platform.ts: Option types characters on macOS",
+    );
+    need(
+        input
+            .lines()
+            .any(|l| l.contains("MAC_MENU_KEYS = new Set(") && l.contains("','")),
+        "input.ts: Cmd+, (Settings) must reach the macOS menu",
+    );
+    need(
+        input.contains("EDITING_KEYS") && input.contains("redoWithY"),
+        "input.ts: the editing keys of native fields (word, line, redo)",
+    );
+    need(
+        input.contains("isFocusMove") && input.contains("pressesControl"),
+        "input.ts: Tab moves the focus and Enter/Space press controls everywhere",
+    );
+    need(
+        input.contains("[aria-modal=\"true\"]") && input.contains("cycleFocus"),
+        "input.ts: a modal dialog holds the focus",
+    );
+    need(
+        input.contains("removeEventListener('wheel'")
+            && !input.contains("addEventListener(\n    'wheel'")
+            && input.matches("addEventListener('wheel'").count() == 1,
+        "input.ts: the non-passive wheel listener is attached only while Ctrl/Cmd is held",
+    );
+    let dialog = &file("components/Dialog.svelte").code;
+    need(
+        dialog.contains("aria-modal=\"true\"") && dialog.contains("tabindex=\"-1\""),
+        "Dialog.svelte: modal and focusable (a click on its text keeps the focus inside)",
+    );
+    let field = &file("components/TextField.svelte").code;
+    need(
+        field.matches("inField").count() >= 2 && field.contains("use:formKeys"),
+        "TextField.svelte: in-field buttons keep the caret; a search clears on Esc",
+    );
+    fail(&problems, "the keyboard stays native");
+}
+
 #[test]
 fn per_os_code_only_in_platform_ts() {
     let all = scanned(MIN_FILES);
@@ -810,7 +877,13 @@ fn motion_stays_quick_and_calm() {
             .parse()
             .expect("milliseconds")
     };
-    for name in ["--dur-instant", "--dur-fast", "--dur-base", "--dur-slow"] {
+    for name in [
+        "--dur-instant",
+        "--dur-hover",
+        "--dur-fast",
+        "--dur-base",
+        "--dur-slow",
+    ] {
         assert!(ms(name) <= 180, "{name} is {} ms (at most 180)", ms(name));
     }
     assert!(ms("--dur-reveal") <= 400, "--dur-reveal above 400 ms");
@@ -843,7 +916,8 @@ fn motion_stays_quick_and_calm() {
     fail(&problems, "quick, calm and cheap motion");
 }
 
-/// Coral-only brand (user decision): no second hue in a gradient, no gradient text, no
+/// Two brand colours with two jobs (user decisions): coral acts, navy orients - and they
+/// never blend. No second hue in a gradient (no coral-to-navy), no gradient text, no
 /// "sparkles" cliché.
 #[test]
 fn the_brand_stays_coral() {
@@ -861,6 +935,7 @@ fn the_brand_stays_coral() {
         if in_gradient
             && [
                 "--p-slate",
+                "--p-navy",
                 "--p-success",
                 "--p-info",
                 "--p-warning",

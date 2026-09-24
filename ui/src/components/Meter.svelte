@@ -1,7 +1,8 @@
 <!--
   Progress bar. Determinate (value 0..1) fills by scaleX (180 ms, ease-out). Indeterminate
-  (value null) sweeps a short bar; under reduced motion it rests as a calm full track
-  instead of a paused bar outside the track.
+  (value null) sweeps a short bar (linear, so it never seems to stall); under reduced motion
+  it rests as a calm full track instead of a paused bar outside the track. Progress is navy
+  on a navy wash (brand); a quota near its limit is ochre (warning).
 -->
 <script lang="ts" module>
   export type MeterTone = 'brand' | 'neutral' | 'warning';
@@ -44,7 +45,7 @@
     height: var(--meter-height);
     overflow: hidden;
     border-radius: var(--radius-full);
-    background-color: var(--surface-muted);
+    background-color: var(--meter-track-colour);
   }
 
   .fill {
@@ -63,7 +64,7 @@
     width: 40%;
     transform: translateX(-100%);
     transition: none;
-    animation: sweep var(--dur-loop) var(--ease-standard) infinite;
+    animation: sweep var(--dur-loop) linear infinite;
     animation-play-state: var(--loop-state);
   }
 
@@ -77,14 +78,17 @@
 
   .brand {
     --meter-color: var(--meter-fill);
+    --meter-track-colour: var(--meter-track);
   }
 
   .neutral {
     --meter-color: var(--text-subtle);
+    --meter-track-colour: var(--surface-muted);
   }
 
   .warning {
-    --meter-color: var(--warning-strong);
+    --meter-color: var(--meter-warning);
+    --meter-track-colour: var(--surface-muted);
   }
 
   .sm {

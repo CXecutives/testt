@@ -34,11 +34,11 @@
 </script>
 
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { cssVars } from '$lib/actions/cssVars';
   import { de } from '$lib/i18n/de';
   import { formatPercent } from '$lib/i18n/format';
-  import { duration, isReducedMotion } from '$lib/motion/motion';
+  import { duration, isReducedMotion, play } from '$lib/motion/motion';
   import { countUp } from '$lib/motion/transitions';
   import Icon from './Icon.svelte';
   import Skeleton from './Skeleton.svelte';
@@ -53,13 +53,14 @@
 
   let { ring, size = 'sm', animate = null, testid = null }: Props = $props();
 
-  const number = countUp(0);
-  let shown = $state(0);
-  let counting = $state(false);
+  const score = $derived(ring.status === 'scored' ? Math.max(0, Math.min(100, ring.score)) : 0);
+
+  const number = countUp(untrack(() => score));
+  let shown = $state(untrack(() => score));
+  let counting = false;
   let mounted = false;
   let wasScored = false;
-
-  const score = $derived(ring.status === 'scored' ? Math.max(0, Math.min(100, ring.score)) : 0);
+  let arc = $state<SVGCircleElement | null>(null);
   const band = $derived(ring.status === 'scored' ? ring.band : null);
 
   const label = $derived.by(() => {
@@ -98,13 +99,23 @@
       }
       animating += 1;
       counting = true;
-      place(0);
-      // One frame at 0, then the stroke transition and the count run to the value.
-      requestAnimationFrame(() => {
-        number.target = value;
-        shown = value;
+      // The arc holds its final value in CSS; the fill is one Web Animation from empty, so
+      // it cannot depend on when the engine first computes the style of a new circle.
+      shown = value;
+      void number.set(0, { duration: 0 });
+      number.target = value;
+      let fill: Animation | null = null;
+      // After the flush: a circle that was just created is bound by then.
+      void tick().then(() => {
+        if (arc === null) return;
+        fill = play(arc, [{ strokeDashoffset: 100 }, { strokeDashoffset: 100 - value }], {
+          duration: 'reveal',
+          easing: 'out',
+        });
       });
       setTimeout(() => {
+        // The animation fills both ways: drop it, or a later score would stay masked.
+        fill?.cancel();
         animating -= 1;
         counting = false;
         place(score);
@@ -120,7 +131,6 @@
 {:else}
   <span
     class="ring {size} {ring.status} {band ?? ''}"
-    class:counting
     role="img"
     aria-label={label}
     data-testid={testid ?? undefined}
@@ -129,7 +139,14 @@
       <circle class="disc" cx="18" cy="18" r="15.9155" />
       <circle class="track" cx="18" cy="18" r="15.9155" />
       {#if ring.status === 'scored'}
-        <circle class="value" cx="18" cy="18" r="15.9155" use:cssVars={{ value: shown }} />
+        <circle
+          bind:this={arc}
+          class="value"
+          cx="18"
+          cy="18"
+          r="15.9155"
+          use:cssVars={{ value: shown }}
+        />
       {/if}
     </svg>
     <span class="center">
@@ -189,10 +206,6 @@
     stroke-linecap: round;
     transform: rotate(-90deg);
     transform-origin: center;
-  }
-
-  .counting .value {
-    transition: stroke-dashoffset var(--dur-reveal) var(--ease-out);
   }
 
   .center {
