@@ -27,6 +27,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Sizes | top strip 40, controls 28/32 (bar)/36/40, list rows 86 (fixed, one-line title, date top right), body text 15 |
 | Layout | variant C chosen by the user: calm sidebar (~196 px, no own surface, hairline divider, brand, nav with icons and unread count, quiet run status at the bottom; icons only below ~1100 px); "Abrufen" at the top left of the content strip, caption buttons at the top right; search and filters in the list column header |
 | Toasts | allowed for short confirmations whose result is not visible otherwise (saved, copied, files written, run finished): bottom right, at most 3, ~4 s, paused on hover; anything needing action stays inline |
+| UI round 2 (design critique) | one white sheet for all views (no floating cards), coral only for Abrufen, selection bar, unread dot, active nav (progress bars stay coral as Abrufen feedback); mid scores ochre; primary in deep coral (4.9:1); reader like an issue view (title, facts, match line, chips, actions); sort as icon toggle; switches ink when on |
 | Cleanup outside | `.notes` archived to `../_archive/TEST-notes`; user deletes `origin/ci-macos` and release `latest`; CI publishes nothing |
 | Self-decided | TXT header stays German and byte-identical · primary button brand-near (coral 56 %, label 600) · excluded jobs grey behind a divider, also under "Neu" but not counted · Excel for excluded: domain score, grey row · merge cross-portal duplicates · Smart App Control is off on the dev PC |
 
@@ -236,7 +237,6 @@ For each of Jobs, Reader, Day overview, Profil, Einstellungen, First run, dialog
 Job · Portal · Passung · Details · Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu (= unread) ·
 Zu prüfen · Merken. Checked for the UI catalog and the Rust export texts.
 
-| UI round 2 (design critique) | one white sheet for all views (no floating cards), coral only for Abrufen, selection bar, unread dot, active nav (progress bars stay coral as Abrufen feedback); mid scores ochre; primary in deep coral (4.9:1); reader like an issue view (title, facts, match line, chips, actions); sort as icon toggle; switches ink when on |
 
 ## Budget and models
 The user's usage limit is tight: work token-efficiently without lowering quality - targeted reads, focused test runs,
