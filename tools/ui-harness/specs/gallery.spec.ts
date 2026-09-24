@@ -36,9 +36,7 @@ test('the gallery renders every board and component section', async ({ page }) =
   await expect(page.getByTestId('swatch-text')).toContainText('AA');
 });
 
-test('score rings show their value; excluded and unscorable show no number', async ({
-  page,
-}) => {
+test('score rings show their value; excluded and unscorable show no number', async ({ page }) => {
   await open(page, '?gallery');
   const high = page.getByTestId('ring-high-lg');
   await high.scrollIntoViewIfNeeded();

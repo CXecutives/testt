@@ -29,8 +29,8 @@
 
   const MAX_ANIMATING = 10;
   let animating = 0;
-  /** Jobs whose ring has filled on opening already (it does not replay). */
-  const filled = new Set<string>();
+  /** Jobs whose ring has filled on opening already (it does not replay; not reactive). */
+  const filled: Record<string, true> = {};
 </script>
 
 <script lang="ts">
@@ -86,8 +86,8 @@
     const scored = ring.status === 'scored';
     const value = score;
     untrack(() => {
-      const first = !mounted && animate !== null && !filled.has(animate);
-      if (first && scored && animate !== null) filled.add(animate);
+      const first = !mounted && animate !== null && !(animate in filled);
+      if (first && scored && animate !== null) filled[animate] = true;
       const grow = scored && (first || (mounted && !wasScored));
       mounted = true;
       wasScored = scored;

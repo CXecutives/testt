@@ -499,13 +499,18 @@ mod macos {
     use tauri::menu::{
         AboutMetadata, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID,
     };
-    use tauri::{AppHandle, Manager as _, Runtime};
+    use tauri::{AppHandle, Emitter as _, Manager as _, Runtime};
 
     /// Id of the app's own quit item (see [`on_menu_event`]).
     const QUIT_ID: &str = "quit";
+    /// Id of the settings item: Cmd+, opens the Einstellungen view, like in every Mac app.
+    const SETTINGS_ID: &str = "settings";
+    /// The event that asks the page for a view (`ui/src/lib/ipc/api.ts`, `onNavigate`).
+    const NAVIGATE: &str = "navigate";
 
     // User-facing text, German by product decision.
     const ABOUT: &str = "Über Job-Alert-Monitor";
+    const SETTINGS: &str = "Einstellungen …";
     const HIDE: &str = "Job-Alert-Monitor ausblenden";
     const HIDE_OTHERS: &str = "Andere ausblenden";
     const QUIT: &str = "Job-Alert-Monitor beenden";
@@ -522,8 +527,9 @@ mod macos {
     // end of user-facing text
 
     /// Minimal app menu instead of Tauri's default (no View menu with reload or zoom, no
-    /// Help, no Services). It carries the system shortcuts the app keeps: Cmd+Q, Cmd+H,
-    /// Cmd+M, Cmd+W, and Cmd+C/V/X/A/Z, which `WKWebView` only receives through an Edit menu.
+    /// Help, no Services). It carries the system shortcuts the app keeps: Cmd+, (settings),
+    /// Cmd+Q, Cmd+H, Cmd+M, Cmd+W, and Cmd+C/V/X/A/Z, which `WKWebView` only receives
+    /// through an Edit menu.
     pub fn menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         let info = app.package_info();
         let about = AboutMetadata {
@@ -537,6 +543,8 @@ mod macos {
             true,
             &[
                 &PredefinedMenuItem::about(app, Some(ABOUT), Some(about))?,
+                &PredefinedMenuItem::separator(app)?,
+                &MenuItem::with_id(app, SETTINGS_ID, SETTINGS, true, Some("CmdOrCtrl+,"))?,
                 &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::hide(app, Some(HIDE))?,
                 &PredefinedMenuItem::hide_others(app, Some(HIDE_OTHERS))?,
@@ -582,6 +590,15 @@ mod macos {
         reason = "the signature of Tauri's menu event handler"
     )]
     pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
+        if event.id() == SETTINGS_ID {
+            if let Some(window) = app.get_webview_window(super::MAIN) {
+                let _ = window.set_focus();
+                if let Err(e) = window.emit(NAVIGATE, "settings") {
+                    log::warn!("settings item: page not reached ({e})");
+                }
+            }
+            return;
+        }
         if event.id() != QUIT_ID {
             return;
         }

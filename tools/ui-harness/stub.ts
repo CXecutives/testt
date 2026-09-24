@@ -6,6 +6,7 @@
 //   window.__harness.calls          [command, args][]
 //   window.__harness.emit(event)    send a RunEvent the way Rust does (the run's channel,
 //                                   else the page's channel from its last app_state)
+//   window.__harness.fire(name, p)  an app event, as Rust's `window.emit` sends it
 //   window.__harness.done           true once a started run has finished
 //
 // Scenarios (`?scenario=`): default · first-run · mailbox-only · no-profile · empty ·
@@ -32,6 +33,8 @@ import type {
 interface Harness {
   calls: [string, unknown][];
   emit: (event: RunEvent) => void;
+  /** An app event the way `window.emit` sends it (the native menu's `navigate`). */
+  fire: (name: string, payload: unknown) => void;
   done: boolean;
 }
 
@@ -1184,11 +1187,28 @@ const handlers: Handlers = {
   report_ui_error: () => null,
 };
 
+/** Listeners of app events (`listen` of @tauri-apps/api/event). */
+const listeners = new Map<string, Set<(event: { payload: unknown }) => void>>();
+
+export async function listen<T>(
+  name: string,
+  handler: (event: { payload: T }) => void,
+): Promise<() => void> {
+  const set = listeners.get(name) ?? new Set();
+  listeners.set(name, set);
+  const wrapped = handler as (event: { payload: unknown }) => void;
+  set.add(wrapped);
+  return () => set.delete(wrapped);
+}
+
 const harness: Harness = {
   calls: [],
   emit(event) {
     apply(event);
     emit(event);
+  },
+  fire(name, payload) {
+    for (const handler of listeners.get(name) ?? []) handler({ payload });
   },
   done: false,
 };

@@ -24,6 +24,7 @@
 
   run.install();
   jobs.install();
+  navigation.install();
   void app.load().then((state) => run.attach(state?.running ?? null));
 
   const firstRun = $derived(shell.firstRun);

@@ -13,6 +13,7 @@
 // Types: `Commands` is generated from the Rust command table (types/commands.ts).
 
 import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import type { Commands, ErrorInfo, ErrorKind, RunEvent } from './types';
 
 export type CommandName = keyof Commands;
@@ -113,6 +114,26 @@ export async function invoke<K extends CommandName>(
   } catch (error) {
     throw toIpcError(error);
   }
+}
+
+/**
+ * The native menu asks for a view (macOS: "Einstellungen …" with Cmd+, in the app menu,
+ * src-tauri/src/platform.rs). Returns an unsubscribe function.
+ */
+export function onNavigate(handler: (view: string) => void): () => void {
+  let stop: (() => void) | null = null;
+  let cancelled = false;
+  void listen<string>('navigate', (event) => handler(event.payload)).then(
+    (unlisten) => {
+      if (cancelled) unlisten();
+      else stop = unlisten;
+    },
+    () => undefined,
+  );
+  return () => {
+    cancelled = true;
+    stop?.();
+  };
 }
 
 const REPORT_LIMIT = 10;

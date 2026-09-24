@@ -53,6 +53,14 @@ for (const os of ['windows', 'macos']) {
   });
 }
 
+test('the native menu opens a view (macOS: Einstellungen with Cmd+,)', async ({ page }) => {
+  await open(page, '?platform=macos');
+  await page.evaluate(() => window.__harness.fire('navigate', 'settings'));
+  await expect(page.getByTestId('view-settings')).toBeVisible();
+  await page.evaluate(() => window.__harness.fire('navigate', 'nonsense'));
+  await expect(page.getByTestId('view-settings')).toBeVisible();
+});
+
 test('per-OS convention: the order of dialog buttons', async ({ page }) => {
   const order = async (os: string): Promise<string[]> => {
     await open(page, `?platform=${os}`);
@@ -79,6 +87,37 @@ test('the run status in the sidebar opens the last run', async ({ page }) => {
   await expect(page.getByTestId('last-new')).toHaveCount(0);
   await page.getByTestId('run-close').click();
   await expect(page.getByTestId('run-card')).toHaveCount(0);
+});
+
+test('every run status fits the sidebar without being cut off', async ({ page }) => {
+  await open(page, '?platform=windows');
+  await page.getByTestId('nav-settings').click();
+  const codes = [
+    'connectingMail',
+    'searchingMail',
+    'readingMails',
+    'fetchingDetails',
+    'signingIn',
+    'waiting',
+    'scoring',
+    'writingFiles',
+  ] as const;
+  await page.evaluate(() =>
+    window.__harness.emit({ type: 'progress', step: 'scan', portal: null, done: 0, total: 3 }),
+  );
+  for (const code of codes) {
+    await page.evaluate(
+      (c) => window.__harness.emit({ type: 'status', code: c, portal: 'freelance', until: null }),
+      code,
+    );
+    const status = page.getByTestId('run-status');
+    await expect(status).not.toContainText('Zuletzt');
+    const cut = await status.locator('.text').evaluate((node) => ({
+      text: node.textContent,
+      cut: node.scrollHeight > node.clientHeight + 1 || node.scrollWidth > node.clientWidth + 1,
+    }));
+    expect(cut.cut, `${code}: ${cut.text}`).toBe(false);
+  }
 });
 
 test('icon-only buttons show a styled tooltip after the delay', async ({ page }) => {
