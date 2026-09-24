@@ -104,8 +104,8 @@ fn comment_text<'a>(path: &str, line: &'a str) -> Option<&'a str> {
 }
 
 /// Common German function words, padded with spaces so they only match whole words (not
-/// substrings of English words like "consist" or "forward"), plus the umlauts/ß that never
-/// occur in English prose.
+/// substrings of English words like "consist" or "forward"), plus the German-only letters
+/// (umlauts and the sharp s) that never occur in English prose.
 const GERMAN_WORDS: &[&str] = &[
     " und ", " der ", " die ", " das ", " nicht ", " wird ", " ist ",
 ];
