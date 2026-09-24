@@ -20,7 +20,6 @@
   import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget, SettingsPatch } from '$lib/ipc/types';
-  import { platform } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -180,12 +179,12 @@
     );
   }
 
-  async function copyPath(path: string): Promise<void> {
+  async function copyPath(path: string, note: (f: Feedback) => void = setCare): Promise<void> {
     try {
       await navigator.clipboard.writeText(path);
       toasts.show(de.toast.copied);
     } catch (error) {
-      setCare({ tone: 'danger', text: errorText(error) });
+      note({ tone: 'danger', text: errorText(error) });
     }
   }
 </script>
@@ -328,17 +327,28 @@
             />
           </div>
         </SettingRow>
-        <SettingRow label={de.settings.excel}>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="folder-open"
-            label={de.settings.excelShow[platform()]}
-            disabled={!cfg.settings.excelExists}
-            disabledReason={de.settings.excelMissing}
-            testid="excel-show"
-            onclick={() => open({ kind: 'excel' }, setFiles)}
-          />
+        <!-- Where the Excel file is (or will be), to find it later or to tell someone. -->
+        <SettingRow label={de.settings.excel} hint={cfg.settings.excelPath} copy testid="excel">
+          <div class="buttons">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="copy"
+              label={de.settings.copyPath}
+              testid="excel-copy"
+              onclick={() => void copyPath(cfg.settings.excelPath, setFiles)}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="external-link"
+              label={de.common.open}
+              disabled={!cfg.settings.excelExists}
+              disabledReason={de.settings.excelMissing}
+              testid="excel-open"
+              onclick={() => open({ kind: 'excel' }, setFiles)}
+            />
+          </div>
         </SettingRow>
         <SettingRow label={de.settings.txt} hint={de.settings.txtCount(cfg.settings.txtFiles)}>
           <div class="buttons">

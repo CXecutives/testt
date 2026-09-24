@@ -762,6 +762,7 @@ function initial(): void {
       workspace: 'C:/Users/demo/Documents/Job-Alerts',
       workspaceIsDefault: true,
       txtFiles: 38,
+      excelPath: 'C:/Users/demo/Documents/Job-Alerts/auswertung/JobAlerts.xlsx',
       excelExists: true,
     },
     mailbox: { user: 'alerts.demo@gmail.com', vault: 'windowsCredentialManager', error: null },

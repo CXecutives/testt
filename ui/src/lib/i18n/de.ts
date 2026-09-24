@@ -33,7 +33,6 @@ import type {
   VaultKind,
   WorkMode,
 } from '../ipc/types';
-import type { Platform } from '../platform';
 import {
   formatCountdown,
   formatDate,
@@ -1016,6 +1015,14 @@ export const de = {
       grey: 'Gastzugang, kein Konto ist betroffen.',
       account: 'Angemeldet steht das eigene Konto auf dem Spiel.',
     } satisfies Record<Risk, string>,
+    /** What the risk word means (the badge's tooltip). */
+    riskInfo: {
+      low: 'Die App öffnet nur, was jeder im Browser sehen kann.',
+      grey: 'Das Portal erlaubt automatisches Lesen nicht ausdrücklich.',
+      account: 'Im schlimmsten Fall sperrt das Portal das eigene Konto.',
+    } satisfies Record<Risk, string>,
+    /** "Details holen" is off: what that changes. */
+    detailsOff: 'Ohne Details bekommen die Jobs dieses Portals keine Passung.',
     quota: (used: number, cap: number) => `Heute ${n(used)} von ${n(cap)} Seiten`,
     quotaHour: (used: number, cap: number) => `Diese Stunde ${n(used)} von ${n(cap)} Seiten`,
     signedIn: 'Angemeldet',
@@ -1027,11 +1034,6 @@ export const de = {
     workspace: 'Arbeitsordner',
     workspaceDefault: 'Standard',
     excel: 'Excel-Datei',
-    /** Where the OS shows a file: the Explorer on Windows, the Finder on macOS. */
-    excelShow: {
-      windows: 'Im Explorer zeigen',
-      macos: 'Im Finder zeigen',
-    } satisfies Record<Platform, string>,
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
     txt: 'Textdateien',
     txtCount: (value: number) => count(value, 'Datei', 'Dateien'),
