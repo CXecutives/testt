@@ -221,4 +221,4 @@ Job · Portal · Passung · Details · Abrufen · Profil · Postfach · Alert-Ma
 Zu prüfen · Merken. Checked for the UI catalog and the Rust export texts.
 
 ## Budget
-The user's usage limit is tight: work token-efficiently without lowering quality - targeted reads, focused test runs, no sub-agents inside tracks, cheaper models only for mechanical work (comment translation, labelling), screenshots only at milestones. Commit every finished step.
+The user's usage limit is tight: work token-efficiently without lowering quality - targeted reads, focused test runs, no sub-agents inside tracks, a cheaper model only for pure comment translation (checked by language.rs, build and tests); everything that affects the product or the measurement (incl. labelling) runs on the strongest model, screenshots only at milestones. Commit every finished step.
