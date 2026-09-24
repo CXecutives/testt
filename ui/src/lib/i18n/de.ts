@@ -498,9 +498,9 @@ export const de = {
     autoFetch: 'Beim Start abrufen',
     autoFetchHint: 'Wenn der letzte Abruf mehr als sechs Stunden her ist.',
     active: 'Aktiv',
-    activeHint: 'Liest die Alert-Mails dieses Portals.',
     details: 'Details holen',
-    detailsHint: 'Lädt die Anzeige von der Seite des Portals.',
+    needsActive: 'Erst das Portal aktivieren.',
+    needsDetails: 'Erst Details holen einschalten.',
     login: 'Mit Anmeldung',
     loginHint: 'Zeigt ganze Anzeigen statt eines Anrisses.',
     risk: {
@@ -527,6 +527,7 @@ export const de = {
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
     txt: 'Textdateien',
     txtCount: (value: number) => count(value, 'Datei', 'Dateien'),
+    txtNone: 'Es gibt noch keine Textdateien.',
     txtRewrite: 'Neu schreiben',
     txtClear: 'Löschen',
     txtWritten: (value: number) => `${count(value, 'Datei', 'Dateien')} geschrieben.`,
@@ -554,16 +555,14 @@ export const de = {
     dryRun: 'Probelauf, es werden keine Daten verändert.',
   },
   firstRun: {
-    heading: 'Willkommen',
     benefit: 'Die App liest die Job-Alerts aus Gmail und zeigt, welche Jobs zum Profil passen.',
     privacy: 'Alles bleibt auf diesem Rechner.',
     steps: 'Erste Schritte',
-    mailbox: 'Postfach verbinden',
-    profile: 'Profil wählen',
+    mailbox: 'Postfach',
+    profile: 'Profil',
     profileOr: 'Oder erst eine Vorlage speichern und ausfüllen.',
-    fetch: 'Abrufen',
-    fetchHint: 'Der erste Abruf dauert ein paar Minuten.',
-    done: 'Erledigt',
+    fetch: 'Erster Abruf',
+    fetchHint: 'Das dauert ein paar Minuten.',
   },
   shell: {
     loadFailed: 'Die App konnte ihre Daten nicht laden.',
@@ -572,15 +571,6 @@ export const de = {
     profile: {
       text: 'Hier liegt das Profil, gegen das jeder Job geprüft wird.',
       action: 'Profil wählen',
-    },
-    settings: {
-      text: 'Hier liegen Postfach, Abruf, Portale und Dateien.',
-      action: 'Zu den Jobs',
-    },
-    firstRun: {
-      heading: 'Willkommen',
-      text: 'Drei Schritte, dann läuft der erste Abruf.',
-      action: 'Loslegen',
     },
   },
   error: {

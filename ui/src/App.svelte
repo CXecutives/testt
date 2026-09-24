@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
   import EmptyState from '$components/EmptyState.svelte';
+  import Spinner from '$components/Spinner.svelte';
   import Tooltip from '$components/Tooltip.svelte';
   import { de } from '$lib/i18n/de';
   import { viewIn, viewOut } from '$lib/motion/transitions';
@@ -40,6 +41,11 @@
           text={de.shell.loadFailed}
           action={{ label: de.common.retry, icon: 'rotate-ccw', onclick: () => void app.load() }}
         />
+      </section>
+    {:else if app.state === null}
+      <!-- Until the state is known nothing is guessed (no jobs view flashing before the first run). -->
+      <section class="view center" data-testid="view-loading">
+        {#if app.slow}<Spinner size="lg" />{/if}
       </section>
     {:else if navigation.current === 'jobs'}
       {#if firstRun}

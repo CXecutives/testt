@@ -59,10 +59,7 @@ test('the brand name hides below 900 px, the tabs stay centered', async ({ page 
 
 test('placeholders are never dead: mark, one sentence, one action, centred', async ({ page }) => {
   await open(page, '?platform=windows');
-  for (const [tab, id] of [
-    ['tab-profile', 'placeholder-profile'],
-    ['tab-settings', 'placeholder-settings'],
-  ] as const) {
+  for (const [tab, id] of [['tab-profile', 'placeholder-profile']] as const) {
     await page.getByTestId(tab).click();
     const placeholder = page.getByTestId(id);
     await expect(placeholder).toBeVisible();
