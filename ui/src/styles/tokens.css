@@ -436,6 +436,9 @@
   --scale-pop: 1.18;
   --scale-nudge: 1.1;
   --scale-stretch: 1.15;
+  /* The selection bar grows from this height into place; the pin appears from 0.9. */
+  --scale-bar-rest: 0.4;
+  --scale-appear: 0.9;
   /* The refresh glyph of Abrufen on hover; half a turn is state (sort order, open
      chevron) and keeps its angle under reduced motion. */
   --turn-nudge: 45deg;

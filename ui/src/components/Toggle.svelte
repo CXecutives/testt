@@ -1,9 +1,12 @@
 <!--
-  On/off switch, coral when on. The thumb slides across in 150 ms (ease-out, no bounce);
-  disabled switches stay hoverable so the tooltip can say why (disabledReason).
+  On/off switch, coral when on (user decision). The thumb travels in 180 ms (emphasized, no
+  bounce) and the track changes colour in 100 ms; while the left button is down the thumb
+  stretches toward where it will go (60 ms). Disabled switches stay hoverable so the tooltip
+  can say why (disabledReason).
   It flips at once, like a native switch: when `onchange` returns a promise (the save),
   the switch shows the new state until it settles, then `checked` again - which is the old
   state if the save failed, so the thumb slides back.
+  `id` lets a SettingRow label it: a click on the row's text then toggles it natively.
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
@@ -15,6 +18,8 @@
     showLabel?: boolean;
     disabled?: boolean;
     disabledReason?: string | null;
+    /** For a <label for> around the text of its row (SettingRow `for`). */
+    id?: string | null;
     testid?: string | null;
     /** Return the save's promise: the switch shows the new state until it settles. */
     onchange: (checked: boolean) => unknown;
@@ -26,6 +31,7 @@
     showLabel = false,
     disabled = false,
     disabledReason = null,
+    id = null,
     testid = null,
     onchange,
   }: Props = $props();
@@ -52,6 +58,7 @@
   type="button"
   role="switch"
   class="toggle"
+  id={id ?? undefined}
   aria-checked={shown}
   aria-label={showLabel ? undefined : label}
   aria-disabled={disabled ? 'true' : undefined}
@@ -83,6 +90,7 @@
     transition: background-color var(--dur-fast) var(--ease-standard);
   }
 
+  /* Off: it grows from the left edge; on: from the right edge (toward where it goes). */
   .thumb {
     position: absolute;
     top: calc((var(--toggle-height) - var(--toggle-thumb)) / 2);
@@ -92,11 +100,13 @@
     border-radius: var(--radius-full);
     background-color: var(--surface);
     box-shadow: var(--sh-thumb);
-    transition: transform var(--dur-base) var(--ease-out);
+    transform-origin: left center;
+    transition: transform var(--dur-slow) var(--ease-emphasized);
   }
 
   .toggle:not([aria-disabled='true']):hover .track {
     background-color: var(--border-input);
+    transition-duration: var(--dur-hover);
   }
 
   .toggle[aria-checked='true'] .track {
@@ -109,6 +119,16 @@
 
   .toggle[aria-checked='true'] .thumb {
     transform: translateX(var(--toggle-travel));
+    transform-origin: right center;
+  }
+
+  .toggle:not([aria-disabled='true']):active .thumb {
+    transform: scaleX(var(--scale-stretch));
+    transition-duration: var(--dur-instant);
+  }
+
+  .toggle[aria-checked='true']:not([aria-disabled='true']):active .thumb {
+    transform: translateX(var(--toggle-travel)) scaleX(var(--scale-stretch));
   }
 
   .toggle:focus-visible .track {

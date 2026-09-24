@@ -1,9 +1,12 @@
 <!--
-  A heading that opens a section. The chevron turns 180° (150 ms) and the content is there
-  at once: no height animation, which would lay out the page in every frame.
+  A heading that opens a section. One chevron turns half a turn when open (180 ms,
+  emphasized; the angle stays under reduced motion). The content fades in (100 ms) when the
+  user opens it and is gone at once when closed: no height animation, which would lay out
+  the page in every frame. The head washes on hover and its chevron turns navy.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { fade } from '$lib/motion/transitions';
   import Icon from './Icon.svelte';
 
   interface Props {
@@ -28,8 +31,10 @@
     <span class="label">{label}</span>
     <span class="chevron"><Icon name="chevron-down" size="sm" /></span>
   </button>
-  <div class="panel" id="{id}-panel" role="region" inert={!open}>
-    <div class="inner">{@render children()}</div>
+  <div class="panel" id="{id}-panel" role="region">
+    {#if open}
+      <div class="inner" in:fade>{@render children()}</div>
+    {/if}
   </div>
 </div>
 
@@ -48,12 +53,20 @@
     color: var(--text-muted);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition:
+      background-color var(--dur-base) var(--ease-standard),
+      color var(--dur-base) var(--ease-standard);
   }
 
   .head:hover {
     background-color: var(--surface-hover);
     color: var(--text);
+    transition-duration: var(--dur-hover);
+  }
+
+  .head:active {
+    background-color: var(--surface-press);
+    transition-duration: var(--dur-instant);
   }
 
   .head:focus-visible {
@@ -63,22 +76,20 @@
   .chevron {
     display: inline-flex;
     color: var(--text-muted);
-    transition: transform var(--dur-base) var(--ease-out);
+    transition:
+      transform var(--dur-slow) var(--ease-emphasized),
+      color var(--dur-base) var(--ease-standard);
+  }
+
+  .head:hover .chevron {
+    color: var(--nav-active-icon);
   }
 
   .open .chevron {
-    transform: rotate(180deg);
+    transform: rotate(var(--turn-half));
   }
 
-  .panel {
-    display: none;
-  }
-
-  .open .panel {
-    display: block;
-  }
-
-  .open .inner {
+  .inner {
     padding-top: var(--space-8);
   }
 </style>
