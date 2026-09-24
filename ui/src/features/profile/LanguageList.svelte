@@ -29,7 +29,7 @@
 </script>
 
 <div class="list" bind:this={list} data-testid="languages">
-  {#each rows as row, index (row)}
+  {#each rows as row (row)}
     <div class="row" data-row data-testid="language-row">
       <span class="name">
         <TextField
