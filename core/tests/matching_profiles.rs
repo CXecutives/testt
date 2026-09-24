@@ -206,3 +206,38 @@ fn a_mandatory_licence_excludes_an_optional_one_caps() {
     assert!(has(&optional, ReasonCode::FormalOpen, ReasonKind::Check));
     assert!(optional.score <= 40, "capped, got {}", optional.score);
 }
+
+/// Ordinary German requirement lines that once panicked the splitter (overlapping ", " and
+/// " oder ", "z. B." after a closed bracket) - for every sample profile.
+#[test]
+fn separator_edge_lines_assess_for_every_sample_profile() {
+    let lines = [
+        "Studium der Wirtschaftswissenschaften, oder eine vergleichbare Qualifikation",
+        "Erfahrung mit einem ERP-System (SAP) z. B. S/4HANA",
+    ];
+    for name in [
+        "sample_profile.json",
+        "sample_profile_it.json",
+        "sample_profile_sap.json",
+        "sample_profile_senior.json",
+    ] {
+        let profile = fixture(name);
+        for line in lines {
+            let text = format!(
+                "Für ein Transformationsprojekt im Finanzbereich eines Konzerns suchen wir ab \
+                 sofort eine erfahrene Unterstützung.\n\nIhr Profil:\n- {line}\n\
+                 - Erfahrung im Controlling\n"
+            );
+            let a = run(&profile, "Interim Controller (m/w/d)", &text);
+            assert!(a.score <= 100, "{name}: {line}");
+            assert!(
+                a.reasons
+                    .iter()
+                    .filter_map(|r| r.label.as_deref())
+                    .any(|label| line.starts_with(label)),
+                "{name}: the line is read as a requirement: {:?}",
+                a.reasons
+            );
+        }
+    }
+}

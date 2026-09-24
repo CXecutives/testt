@@ -297,6 +297,11 @@ fn cut(text: &str, seps: &[Range<usize>]) -> Vec<Range<usize>> {
     let mut parts = Vec::new();
     let mut start = 0;
     for sep in seps {
+        // Overlapping separators (", " inside ", oder ") merge into one cut.
+        if sep.start < start {
+            start = start.max(sep.end);
+            continue;
+        }
         parts.push(start..sep.start);
         start = sep.end;
     }
@@ -325,6 +330,8 @@ fn example_marker(text: &str) -> Option<(usize, usize)> {
     EXAMPLES
         .iter()
         .filter_map(|m| lower.find(m).map(|at| (at, at + m.len())))
+        // Same total length does not mean same offsets ("İẞ" folds to "i̇ß").
+        .filter(|&(at, end)| text.is_char_boundary(at) && text.is_char_boundary(end))
         .min()
 }
 
@@ -350,14 +357,14 @@ pub(crate) fn split(phrase: &str) -> Vec<(Range<usize>, Vec<Range<usize>>)> {
             continue;
         }
         let mut alternatives = Vec::new();
+        let close = |open: usize| text[open..].find(')').map_or(text.len(), |c| open + c);
         let (head, examples) = match (text.find('('), marker) {
-            (Some(open), Some((start, after))) if start > open => {
-                let close = text[open..].find(')').map_or(text.len(), |c| open + c);
-                (
-                    part.start..part.start + open,
-                    Some(part.start + after..part.start + close),
-                )
-            }
+            // "(z. B. LucaNet)": only a marker inside the brackets opens them; "(SAP) z. B."
+            // is a marker after a closed bracket.
+            (Some(open), Some((start, after))) if start > open && close(open) >= after => (
+                part.start..part.start + open,
+                Some(part.start + after..part.start + close(open)),
+            ),
             (_, Some((start, after))) => (
                 part.start..part.start + start,
                 Some(part.start + after..part.end),
@@ -550,6 +557,32 @@ mod tests {
         );
         assert_eq!(got.len(), 2);
         assert!(got[0].1.contains(&"Power BI".to_owned()), "{got:?}");
+    }
+
+    #[test]
+    fn overlapping_separators_and_a_marker_after_brackets() {
+        // ", " and " oder " overlap: one cut, no inverted range.
+        let got =
+            items("Studium der Wirtschaftswissenschaften, oder eine vergleichbare Qualifikation");
+        assert_eq!(got.len(), 1, "{got:?}");
+        assert_eq!(
+            got[0].1,
+            [
+                "Studium der Wirtschaftswissenschaften",
+                "eine vergleichbare Qualifikation"
+            ]
+        );
+        // The bracket closes before "z. B.": the examples follow the marker.
+        let got = items("Erfahrung mit einem ERP-System (SAP) z. B. S/4HANA");
+        assert_eq!(got.len(), 1, "{got:?}");
+        assert_eq!(
+            got[0].1,
+            ["Erfahrung mit einem ERP-System (SAP)", "S/4HANA"],
+            "{got:?}"
+        );
+        // Folding that keeps the length but moves the offsets ("İ" grows, "ẞ" shrinks).
+        let got = items("İẞ Kenntnisse z. B. SAP");
+        assert!(!got.is_empty(), "{got:?}");
     }
 
     #[test]
