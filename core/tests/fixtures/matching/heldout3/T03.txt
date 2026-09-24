@@ -1,0 +1,42 @@
+Titel: SAP ABAP Entwickler (m/w/d) FI/CO – S/4HANA Finance, CDS, RAP
+Unternehmen: Talvera Consulting GmbH
+Ort: Frankfurt am Main
+Quelle: Freelance
+Link: https://www.freelance.de/projekte/projekt-1302417-SAP-ABAP-Entwickler-m-w-d-FI-CO-S-4HANA-Finance-CDS-RAP
+Abgerufen am: 18.09.2026 08:14
+
+Projekt-ID: 1302417
+Referenz: TC-4471
+Letztes Update: 17.09.2026
+
+Projektbeschreibung
+Für einen Kunden aus dem Finanzdienstleistungsumfeld (Leasing) suchen wir Unterstützung in der SAP-Entwicklung im Finanzbereich. Das Unternehmen hat vor zwei Jahren auf SAP S/4HANA 2022 (On-Premise) migriert und baut die Finanzprozesse jetzt schrittweise aus.
+
+Aufgaben:
+- Entwicklung und Erweiterung von Eigenentwicklungen im Umfeld FI/CO (Hauptbuch, Kreditoren, Debitoren, Anlagenbuchhaltung)
+- Übersetzung von Anforderungen aus Rechnungswesen und Controlling in technische Konzepte
+- Anpassungen im Zahlungsverkehr (Payment Medium Workbench, DMEE-Formatbäume, elektronischer Kontoauszug)
+- Entwicklung von CDS Views und analytischen Queries für das Konzernreporting und die Ergebnisrechnung (CO-PA)
+- Erweiterungen über BAdIs und Key-User-Extensibility, Umsetzung von Fiori-Apps mit RAP / Fiori Elements
+- Schnittstellen zu SAP Group Reporting und zu einem Leasing-Nebenbuch (IDoc, OData, RFC)
+- Code Reviews, ATC-Prüfungen, Performanceoptimierung
+- Dokumentation und Übergabe an den internen Support
+
+Anforderungen:
+- Mindestens 5 Jahre Erfahrung als SAP ABAP Entwickler (m/w/d)
+- Sehr gute Kenntnisse in ABAP OO, CDS, AMDP und RAP
+- Erfahrung mit Fiori Elements und OData-Services
+- Gutes fachliches Verständnis der Buchungslogik in FI/CO (Belegfluss, Hauptbuch, Nebenbücher, Periodenabschluss). Sie müssen kein Buchhalter sein, sollten aber mit dem Fachbereich Rechnungswesen auf Augenhöhe sprechen können
+- Erfahrung mit abapGit oder gCTS wünschenswert
+- Erfahrung im regulierten Umfeld (BaFin, MaRisk) von Vorteil
+- Deutsch fließend, Englisch gut
+
+Rahmendaten:
+Start: 02.11.2026
+Dauer: 8 Monate, Verlängerung wahrscheinlich
+Auslastung: 5 Tage/Woche
+Einsatzort: Frankfurt am Main, 80 % remote, vor Ort ca. eine Woche pro Monat
+Stundensatz: 95 €/Std. zzgl. MwSt.
+Vertragsart: Freiberuflich, ANÜ möglich
+
+Bei Interesse senden Sie uns bitte Ihr aktuelles Profil mit Stundensatz und frühestem Verfügbarkeitsdatum über freelance.de.

@@ -1,0 +1,85 @@
+{
+  "name": "Deniz Exemplar",
+  "titel": "Senior Data und BI Consultant",
+  "berufserfahrung_jahre": 11,
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Power BI",
+      "jahre": 7
+    },
+    {
+      "kompetenz": "SQL",
+      "jahre": 11
+    },
+    {
+      "kompetenz": "Datenmodellierung",
+      "jahre": 9
+    },
+    {
+      "kompetenz": "Data Warehouse",
+      "jahre": 9
+    },
+    {
+      "kompetenz": "ETL-Strecken"
+    },
+    {
+      "kompetenz": "Azure Data Factory",
+      "jahre": 4
+    },
+    {
+      "kompetenz": "Python",
+      "jahre": 5
+    },
+    {
+      "kompetenz": "Reporting und Dashboards"
+    }
+  ],
+  "methoden_tools": [
+    {
+      "name": "DAX"
+    },
+    {
+      "name": "Power Query"
+    },
+    {
+      "name": "Azure Synapse Analytics"
+    },
+    {
+      "name": "Databricks"
+    },
+    {
+      "name": "SQL Server"
+    },
+    {
+      "name": "SSIS"
+    },
+    {
+      "name": "dbt"
+    },
+    {
+      "name": "Git"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Türkisch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "fließend"
+    }
+  ],
+  "keywords": [
+    "Power BI",
+    "SQL",
+    "Azure",
+    "Python",
+    "Business Intelligence",
+    "Data Engineering"
+  ]
+}

@@ -89,6 +89,8 @@ pub struct Assessment {
     pub criteria: Vec<CriterionState>,
     /// Rate, start, duration, remote share and contract type as read from the ad.
     pub facts: KeyFacts,
+    /// Per-mille score before caps and rounding: the tie-breaker of equal scores.
+    pub rank: u16,
 }
 
 /// Kind of a reason.

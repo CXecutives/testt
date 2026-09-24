@@ -62,6 +62,8 @@ struct StoredNote {
     top: Vec<String>,
     #[serde(skip_serializing_if = "KeyFacts::is_empty", serialize_with = "compact")]
     facts: KeyFacts,
+    /// Per-mille score before caps (tie-breaker of the list order).
+    rank: u16,
 }
 
 /// The key facts without their `null` values (the note has 400 bytes).
@@ -92,6 +94,7 @@ pub(super) fn encode_note(record: &MatchRecord) -> String {
             .map(|t| truncate_chars(t, MAX_TOP_CHARS))
             .collect(),
         facts: record.facts.clone(),
+        rank: record.rank,
     };
     loop {
         let json = serde_json::to_string(&note).unwrap_or_default();
@@ -127,6 +130,7 @@ pub(super) fn decode_match(
         must_total: note.must_total,
         top: note.top,
         facts: note.facts,
+        rank: note.rank,
     })
 }
 
@@ -402,6 +406,7 @@ mod tests {
             must_total: 3,
             top: vec!["SAP FI".into(), "x".repeat(500), "dritter".into()],
             facts: crate::model::KeyFacts::default(),
+            rank: 0,
         }
     }
 
@@ -464,6 +469,16 @@ mod tests {
         );
         let back = decode_match(Some("scored"), Some(83), Some(&json)).unwrap();
         assert_eq!(back.facts, with_facts.facts);
+        // The rank (tie-breaker of equal scores) comes back.
+        let mut ranked = record(MatchStatus::Scored, 40);
+        ranked.rank = 437;
+        let json = encode_note(&ranked);
+        assert_eq!(
+            decode_match(Some("scored"), Some(40), Some(&json))
+                .unwrap()
+                .rank,
+            437
+        );
         // A new text or title makes the job pending again.
         store
             .record_text(&key, "Volltext", false, false, now())
