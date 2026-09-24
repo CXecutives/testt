@@ -6,8 +6,10 @@ use std::ops::Range;
 
 use serde_json::{Map, Value, json};
 
+use super::ad_facts::{self, AdFacts, Stated, currency_code, start_code};
+use super::contract::ContractKind;
 use super::engine::{EngineProfile, Evaluation};
-use super::facts::Availability;
+use super::facts::{Availability, Start};
 use super::job::{Class, Stage};
 use super::normalize::{char_len, strip};
 use super::params::{E_FULL, E_NONE, W_MUST};
@@ -191,6 +193,7 @@ pub(crate) fn assessment(
         reasons: b.reasons,
         highlights: b.highlights,
         criteria,
+        facts: evaluation.facts.key_facts(),
     }
 }
 
@@ -243,8 +246,23 @@ fn preferences(profile: &EngineProfile, b: &mut Builder<'_>, evaluation: &Evalua
         });
     }
     for wish in &evaluation.wishes {
+        let text = b.text;
         let reason = b.reason(wish.state.kind(), Weight::Info, wish.code);
         reason.params = object(&wish.params);
+        reason.evidence = profile
+            .wishes
+            .source(wish.code)
+            .map(|(value, path)| Evidence {
+                profile: value.to_owned(),
+                path: path.to_owned(),
+                via: Via::Exact,
+                quote: wish
+                    .spans
+                    .first()
+                    .and_then(|span| text.get(span.clone()))
+                    .map(quote)
+                    .unwrap_or_default(),
+            });
         for span in &wish.spans {
             b.highlight(span.clone());
         }
@@ -256,28 +274,8 @@ fn criterion_states(
     b: &mut Builder<'_>,
     evaluation: &Evaluation,
 ) -> Vec<CriterionState> {
-    let c = &profile.criteria;
-    let state = |key, set: bool| CriterionState {
-        key,
-        status: if set {
-            CriterionStatus::Ok
-        } else {
-            CriterionStatus::Inactive
-        },
-        reason: None,
-    };
-    let mut states = vec![
-        state(CriterionKey::MinDayRate, c.min_rate.is_some()),
-        state(CriterionKey::Countries, c.countries.is_some()),
-        state(CriterionKey::NoAnue, c.anue_excluded),
-        state(
-            CriterionKey::Availability,
-            c.available != Availability::Unset,
-        ),
-        state(CriterionKey::MinSalary, c.min_salary.is_some()),
-        state(CriterionKey::PermanentRegion, c.places.is_some()),
-        state(CriterionKey::TargetYears, c.target_years.is_some()),
-    ];
+    let text = b.text;
+    let mut states = evidence_states(profile, &evaluation.facts, text);
     for finding in &evaluation.findings {
         let weight = if finding.decided {
             Weight::Hard
@@ -297,7 +295,7 @@ fn criterion_states(
             let next = match finding.kind {
                 ReasonKind::Violation => CriterionStatus::Violated,
                 ReasonKind::Check => CriterionStatus::Check,
-                // A frame row (over-qualified) leaves the criterion met.
+                // A frame row (over-qualified) leaves the state as it is.
                 _ => state.status,
             };
             if state.status != CriterionStatus::Violated {
@@ -307,4 +305,158 @@ fn criterion_states(
         }
     }
     states
+}
+
+/// A criterion state with the ad's value and the passage (UTF-16) that states it.
+fn criterion(
+    key: CriterionKey,
+    status: CriterionStatus,
+    params: &Value,
+    span: Option<&Range<usize>>,
+    text: &str,
+) -> CriterionState {
+    CriterionState {
+        key,
+        status,
+        reason: None,
+        params: object(params),
+        range: span.map(|r| (utf16_offset(text, r.start), utf16_offset(text, r.end))),
+    }
+}
+
+/// `Ok` with evidence that meets the criterion, `NotMentioned` otherwise.
+fn told(ok: bool) -> CriterionStatus {
+    if ok {
+        CriterionStatus::Ok
+    } else {
+        CriterionStatus::NotMentioned
+    }
+}
+
+/// A stated number against the profile's minimum (`param` names it in the params).
+fn at_least<T: Copy + PartialOrd + Into<u64>>(
+    key: CriterionKey,
+    stated: Option<&Stated<T>>,
+    min: T,
+    param: &str,
+    text: &str,
+) -> CriterionState {
+    match stated {
+        Some(s) => {
+            let params = json!({ param: s.value.into() });
+            criterion(key, told(s.value >= min), &params, s.span.as_ref(), text)
+        }
+        None => criterion(key, CriterionStatus::NotMentioned, &json!({}), None, text),
+    }
+}
+
+/// The day rate: `Ok` for a stated EUR rate at the minimum, `NotMentioned` with `rateOpen`
+/// for a rate to be agreed.
+fn rate_state(min: i128, ad: &AdFacts, text: &str) -> CriterionState {
+    let key = CriterionKey::MinDayRate;
+    if let Some(rate) = &ad.rate {
+        let r = rate.value;
+        let mut params = json!({ "rate": r.upper, "hourly": r.hourly });
+        if let Some(currency) = r.currency {
+            params["currency"] = json!(currency_code(currency));
+        }
+        let ok = r.currency.is_none() && i128::from(r.per_day()) >= min;
+        return criterion(key, told(ok), &params, rate.span.as_ref(), text);
+    }
+    let (params, span) = match &ad.rate_open {
+        Some(open) => (json!({ "rateOpen": true }), open.span.as_ref()),
+        None => (json!({}), None),
+    };
+    criterion(key, CriterionStatus::NotMentioned, &params, span, text)
+}
+
+/// The start: `Ok` for a stated start (a gap is a finding), `NotMentioned` for none or a
+/// vague one.
+fn start_state(ad: &AdFacts, text: &str) -> CriterionState {
+    let key = CriterionKey::Availability;
+    match &ad.start {
+        Some(start) => {
+            let params = json!({ "start": start_code(start.value) });
+            let ok = start.value != Start::Vague;
+            criterion(key, told(ok), &params, start.span.as_ref(), text)
+        }
+        None => criterion(key, CriterionStatus::NotMentioned, &json!({}), None, text),
+    }
+}
+
+/// The state of every hard criterion from what the ad states, before the findings: `Ok`
+/// only with the ad's value as evidence, `NotMentioned` without one, `Inactive` when the
+/// profile does not set it or it does not apply to the contract type (a salary for a
+/// freelance role, a day rate for a permanent one). Findings then decide violations and
+/// checks.
+fn evidence_states(profile: &EngineProfile, ad: &AdFacts, text: &str) -> Vec<CriterionState> {
+    let c = &profile.criteria;
+    let permanent = ad.contract == ContractKind::Permanent;
+    let unset = |key| criterion(key, CriterionStatus::Inactive, &json!({}), None, text);
+    let remote_full =
+        ad_facts::location_remote(&ad.location) || ad.remote.is_some_and(|(from, _)| from >= 100);
+    let place = if remote_full {
+        json!({ "remote": true })
+    } else if ad.location.is_empty() {
+        json!({})
+    } else {
+        json!({ "location": ad.location })
+    };
+    let anue_ok = ad.contract_stated
+        && matches!(ad.contract, ContractKind::Interim | ContractKind::Permanent);
+    vec![
+        match c.min_rate {
+            Some(min) if !permanent => rate_state(min, ad, text),
+            _ => unset(CriterionKey::MinDayRate),
+        },
+        match &c.countries {
+            Some(allowed) => {
+                let ok = remote_full || ad_facts::location_allowed(&ad.location, allowed);
+                criterion(CriterionKey::Countries, told(ok), &place, None, text)
+            }
+            None => unset(CriterionKey::Countries),
+        },
+        if c.anue_excluded {
+            let params = if anue_ok {
+                json!({ "contract": ad.contract.name() })
+            } else {
+                json!({})
+            };
+            let span = ad.contract_span.as_ref().filter(|_| anue_ok);
+            criterion(CriterionKey::NoAnue, told(anue_ok), &params, span, text)
+        } else {
+            unset(CriterionKey::NoAnue)
+        },
+        if c.available == Availability::Unset {
+            unset(CriterionKey::Availability)
+        } else {
+            start_state(ad, text)
+        },
+        match c.min_salary {
+            Some(min) if permanent => at_least(
+                CriterionKey::MinSalary,
+                ad.salary.as_ref(),
+                min,
+                "salary",
+                text,
+            ),
+            _ => unset(CriterionKey::MinSalary),
+        },
+        if c.places.is_some() && permanent {
+            let ok = remote_full || !ad.location.is_empty();
+            criterion(CriterionKey::PermanentRegion, told(ok), &place, None, text)
+        } else {
+            unset(CriterionKey::PermanentRegion)
+        },
+        match c.target_years {
+            Some(target) => at_least(
+                CriterionKey::TargetYears,
+                ad.years.as_ref(),
+                target,
+                "years",
+                text,
+            ),
+            None => unset(CriterionKey::TargetYears),
+        },
+    ]
 }

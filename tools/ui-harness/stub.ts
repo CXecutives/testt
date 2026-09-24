@@ -6,14 +6,22 @@
 //   window.__harness.calls          [command, args][]
 //   window.__harness.emit(event)    send a RunEvent the way Rust does (the run's channel,
 //                                   else the page's channel from its last app_state)
+//   window.__harness.appRun(kind)   a run the app starts by itself (the auto fetch, a
+//                                   rescore after a profile change): on the page's channel
 //   window.__harness.fire(name, p)  an app event, as Rust's `window.emit` sends it
 //   window.__harness.done           true once a started run has finished
+//   window.__harness.detailDelay    ms `job_detail` takes (default 0)
+//   window.__harness.failPages      so many next `list_jobs` calls for a later page fail
+//   window.__harness.holdAfter      a scripted run pauses after so many events (null = on)
+//   window.__harness.job(key)       a copy of a job as the stub holds it
 //
 // Scenarios (`?scenario=`): default · first-run · mailbox-only · no-profile · empty ·
 // many (2000 jobs) · offline · paused · running · slow · list-error · reset · profile-broken ·
-// profile-thin.
-// `?tick=ms` sets the pace of a scripted run (default 40). Dates are fixed so screenshots
-// stay stable (the tests also fix the clock).
+// profile-thin · first-run-empty-profile.
+// `?tick=ms` sets the pace of a scripted run (default 40); `?export=locked` lets the export
+// of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail.
+// Dates are fixed so screenshots stay stable (the tests also fix the clock). The portals
+// come in the order of the backend (`Portal::ALL`).
 
 import type {
   AppState,
@@ -22,23 +30,36 @@ import type {
   Highlight,
   JobCounts,
   JobDetail,
+  JobKey,
   JobQuery,
   JobView,
+  Portal,
   PortalState,
   ProfileDraft,
   ProfileForm,
   ProfileInfo,
   Reason,
   RunEvent,
+  RunRequest,
   RunSummary,
 } from '../../ui/src/lib/ipc/types';
 
 interface Harness {
   calls: [string, unknown][];
   emit: (event: RunEvent) => void;
+  /** A run the app starts by itself, on the page's channel (no `start_run`). */
+  appRun: (kind: RunSummary['kind']) => void;
   /** An app event the way `window.emit` sends it (the native menu's `navigate`). */
   fire: (name: string, payload: unknown) => void;
   done: boolean;
+  /** Milliseconds `job_detail` takes. */
+  detailDelay: number;
+  /** So many next `list_jobs` calls for a later page (offset > 0) fail. */
+  failPages: number;
+  /** A scripted run pauses after so many of its events until this is null again. */
+  holdAfter: number | null;
+  /** A copy of a job as the stub holds it (null if unknown). */
+  job: (key: JobKey) => JobView | null;
 }
 
 declare global {
@@ -126,6 +147,10 @@ const params = new URLSearchParams(location.search);
 const scenario = params.get('scenario') ?? 'default';
 const TICK = Number(params.get('tick') ?? 40);
 const DELAY = scenario === 'slow' ? 900 : 0;
+const EXPORT_LOCKED = params.get('export') === 'locked';
+const MAIL_OFFLINE = scenario === 'offline' || params.get('mail') === 'offline';
+/** The order of the backend (`Portal::ALL`), on every screen. */
+const PORTALS: readonly Portal[] = ['linkedin', 'freelance', 'freelancermap'];
 
 const NOW = new Date('2026-09-24T09:30:00+02:00').getTime();
 const HOUR = 3_600_000;
@@ -136,6 +161,19 @@ const later = (minutes: number): string => new Date(NOW + minutes * 60_000).toIS
 
 type Match = NonNullable<JobView['match']>;
 
+/** A job whose ad states no key facts. */
+const NO_FACTS = {
+  rate: null,
+  hourly: null,
+  currency: null,
+  rateOpen: null,
+  start: null,
+  months: null,
+  remoteFrom: null,
+  remoteTo: null,
+  contract: null,
+};
+
 const scored = (score: number, top: string[], mustMet = 3, mustTotal = 4): Match => ({
   score,
   band: score >= 80 ? 'high' : score >= 40 ? 'mid' : 'low',
@@ -144,6 +182,7 @@ const scored = (score: number, top: string[], mustMet = 3, mustTotal = 4): Match
   mustMet,
   mustTotal,
   top,
+  facts: NO_FACTS,
 });
 
 /** Excluded by a hard criterion: the engine names the first violation's reason code. */
@@ -159,6 +198,7 @@ const excludedBy = (
   mustMet: 2,
   mustTotal: 4,
   top: [],
+  facts: NO_FACTS,
 });
 
 function job(
@@ -185,6 +225,8 @@ function job(
     short: false,
     match: null,
     alsoOn: [],
+    appStatus: null,
+    hidden: false,
     ...extra,
   };
 }
@@ -283,11 +325,26 @@ function sampleJobs(): JobView[] {
       27,
       {
         match: scored(58, ['Konzernberichtswesen'], 2, 4),
+        appStatus: 'interview',
       },
     ),
     job('freelancermap', '2804', 'Interim Treasury Manager', 'Rheinhafen Chemie GmbH', 'Köln', 30, {
       match: scored(47, ['Liquiditätsplanung'], 1, 3),
+      appStatus: 'applied',
     }),
+    // "Not interesting": in no list but the hidden one and in no count but its own.
+    job(
+      'linkedin',
+      '4100200306',
+      'Sachbearbeitung Kreditoren',
+      'Nordhafen Logistik GmbH',
+      'Bremen',
+      40,
+      {
+        match: scored(18, [], 0, 4),
+        hidden: true,
+      },
+    ),
     job(
       'linkedin',
       '4100200304',
@@ -329,6 +386,7 @@ function sampleJobs(): JobView[] {
         mustMet: 0,
         mustTotal: 0,
         top: [],
+        facts: NO_FACTS,
       },
     }),
   ];
@@ -350,7 +408,7 @@ const CITIES = ['Hamburg', 'Berlin', 'München', 'Köln', 'Leipzig'];
 
 function manyJobs(count: number): JobView[] {
   const out: JobView[] = [];
-  const portals = ['linkedin', 'freelancermap', 'freelance'] as const;
+  const portals = PORTALS;
   for (let i = 0; i < count; i += 1) {
     const score = (i * 37) % 100;
     out.push(
@@ -630,17 +688,6 @@ function lastRun(outcome: RunSummary['outcome'] = { kind: 'completed' }): RunSum
         stopped: null,
       },
       {
-        portal: 'freelancermap',
-        new: 3,
-        known: 3,
-        dup: 0,
-        fetched: 3,
-        failed: 0,
-        gone: 0,
-        skipped: 0,
-        stopped: null,
-      },
-      {
         portal: 'freelance',
         new: 2,
         known: 1,
@@ -651,7 +698,20 @@ function lastRun(outcome: RunSummary['outcome'] = { kind: 'completed' }): RunSum
         skipped: 0,
         stopped: null,
       },
+      {
+        portal: 'freelancermap',
+        new: 3,
+        known: 3,
+        dup: 0,
+        fetched: 3,
+        failed: 0,
+        gone: 0,
+        skipped: 0,
+        stopped: null,
+      },
     ],
+    // Seven new, one of them excluded; two of the others fit well.
+    newJobs: { count: 6, high: 2 },
     score: { scored: 10, excluded: 2, unscorable: 1, pending: 1, best: 91 },
     export: {
       overviewXlsx: 'C:/Users/demo/Jobs/Uebersicht.xlsx',
@@ -694,13 +754,12 @@ function initial(): void {
     profile: PROFILE,
     portals: [
       portal('linkedin'),
-      portal('freelancermap', { quota: { usedHour: 9, capHour: 40, usedDay: 86, capDay: 100 } }),
       portal('freelance'),
+      portal('freelancermap', { quota: { usedHour: 9, capHour: 40, usedDay: 86, capDay: 100 } }),
     ],
     autoFetchOnStart: true,
     lastRun: lastRun(),
-    counts: { new: 0, all: 0, excluded: 0, high: 0, noDetail: 0 },
-    topMatches: [],
+    counts: countsOf([]),
     matchPending: 0,
     dataDir: 'C:/Users/demo/AppData/Roaming/job-alert-monitor',
     logDir: 'C:/Users/demo/AppData/Roaming/job-alert-monitor/logs',
@@ -727,6 +786,13 @@ function initial(): void {
       state.profile = null;
       state.lastRun = null;
       break;
+    case 'first-run-empty-profile':
+      // A profile that names no competences: nothing can be scored with it.
+      jobs = [];
+      state.firstRun = true;
+      state.lastRun = null;
+      state.profile = { ...PROFILE, quality: 'empty' };
+      break;
     case 'no-profile':
       state.profile = null;
       for (const j of jobs) j.match = null;
@@ -736,6 +802,7 @@ function initial(): void {
       state.lastRun = {
         ...lastRun(),
         perPortal: lastRun().perPortal.map((p) => ({ ...p, new: 0 })),
+        newJobs: { count: 0, high: 0 },
         emptyAlerts: [],
       };
       break;
@@ -744,8 +811,9 @@ function initial(): void {
       break;
     case 'paused':
       state.portals[0]!.health = { kind: 'paused', until: later(95), reason: 'throttled' };
-      state.portals[1]!.quota = { usedHour: 38, capHour: 40, usedDay: 97, capDay: 100 };
-      state.portals[2]!.health = { kind: 'layoutSuspect', emptyMails: 2, pages: 0 };
+      state.portals[1]!.health = { kind: 'layoutSuspect', emptyMails: 2, pages: 0 };
+      // The hour binds: the bar and its words both speak of the hour.
+      state.portals[2]!.quota = { usedHour: 38, capHour: 40, usedDay: 61, capDay: 100 };
       break;
     case 'reset':
       state.resetReport = { removed: 12, failed: 1 };
@@ -805,36 +873,69 @@ function initial(): void {
   refresh();
 }
 
-function share(j: JobView): JobCounts {
-  const out = j.match?.status === 'excluded';
-  return {
-    all: 1,
-    new: j.unread && !out ? 1 : 0,
-    excluded: out ? 1 : 0,
-    high: j.match?.status === 'scored' && j.match.score >= 80 ? 1 : 0,
-    noDetail: j.detail.kind !== 'ok' ? 1 : 0,
-  };
-}
-
+/**
+ * The counts of store::job_page: "Neu" is unread and not excluded, per portal too; a hidden
+ * job is only in "hidden".
+ */
 function countsOf(list: JobView[]): JobCounts {
-  const c: JobCounts = { new: 0, all: 0, excluded: 0, high: 0, noDetail: 0 };
+  const c: JobCounts = {
+    new: 0,
+    all: 0,
+    excluded: 0,
+    high: 0,
+    noDetail: 0,
+    pinned: 0,
+    applications: 0,
+    hidden: 0,
+    newByPortal: PORTALS.map((portal) => ({ portal, new: 0 })),
+  };
   for (const j of list) {
-    const s = share(j);
-    c.all += s.all;
-    c.new += s.new;
-    c.excluded += s.excluded;
-    c.high += s.high;
-    c.noDetail += s.noDetail;
+    if (j.hidden) {
+      c.hidden += 1;
+      continue;
+    }
+    const out = j.match?.status === 'excluded';
+    const isNew = j.unread && !out;
+    c.all += 1;
+    c.new += isNew ? 1 : 0;
+    c.excluded += out ? 1 : 0;
+    c.high += j.match?.status === 'scored' && j.match.score >= 80 ? 1 : 0;
+    c.noDetail += j.detail.kind !== 'ok' ? 1 : 0;
+    c.pinned += j.pinned ? 1 : 0;
+    c.applications += j.appStatus !== null ? 1 : 0;
+    const line = c.newByPortal.find((p) => p.portal === j.portal);
+    if (line && isNew) line.new += 1;
   }
   return c;
 }
 
+/* ------------------------------------------------------------------- marks */
+
+/** When a job's status was set, its note and when it was hidden (store::marks). */
+const statusAt = new Map<string, string>([
+  ['linkedin:4100200303', at(5)],
+  ['freelancermap:2804', at(20)],
+]);
+const notes = new Map<string, string>([['linkedin:4100200303', 'Zweites Gespräch am Freitag.']]);
+const hiddenAt = new Map<string, string>([['linkedin:4100200306', at(30)]]);
+const markKey = (key: JobKey): string => `${key.portal}:${key.id}`;
+
+/** The list of a facet (store::ListFacet): a hidden job is in "hidden" only. */
+function inFacet(j: JobView, facet: JobQuery['facet']): boolean {
+  switch (facet) {
+    case 'new':
+      return !j.hidden && j.unread;
+    case 'all':
+      return !j.hidden;
+    case 'applications':
+      return !j.hidden && j.appStatus !== null;
+    case 'hidden':
+      return j.hidden;
+  }
+}
+
 function refresh(): void {
   state.counts = countsOf(jobs);
-  state.topMatches = jobs
-    .filter((j) => j.match?.status === 'scored')
-    .sort((a, b) => b.match!.score - a.match!.score)
-    .slice(0, 5);
 }
 
 const fold = (text: string): string =>
@@ -846,13 +947,29 @@ const fold = (text: string): string =>
 /** The same order and counts as store::job_page (one statement, list and counts agree). */
 function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
   if (scenario === 'list-error') throw fail('db');
+  if (query.offset > 0 && harness.failPages > 0) {
+    harness.failPages -= 1;
+    throw fail('db');
+  }
   const needle = query.search ? fold(query.search) : null;
   const base = needle
     ? jobs.filter((j) => fold(`${j.title} ${j.company} ${j.location}`).includes(needle))
     : jobs;
   // Neu lists every unread job, excluded ones too (grey behind the divider); only the count
-  // leaves them out (store::job_page).
-  const page = (query.facet === 'new' ? base.filter((j) => j.unread) : [...base]).sort((a, b) => {
+  // leaves them out (store::job_page). Applications follow their latest change, hidden jobs
+  // the moment they were hidden.
+  const latest = (times: Map<string, string>) => (a: JobView, b: JobView) =>
+    (times.get(markKey(b.key)) ?? '').localeCompare(times.get(markKey(a.key)) ?? '') ||
+    a.key.id.localeCompare(b.key.id);
+  const listed = base.filter((j) => inFacet(j, query.facet));
+  if (query.facet === 'applications' || query.facet === 'hidden') {
+    listed.sort(latest(query.facet === 'hidden' ? hiddenAt : statusAt));
+    return {
+      jobs: listed.slice(query.offset, query.offset + Math.min(query.limit, 500)),
+      counts: countsOf(base),
+    };
+  }
+  const page = listed.sort((a, b) => {
     const ex = Number(a.match?.status === 'excluded') - Number(b.match?.status === 'excluded');
     if (ex !== 0) return ex;
     if (query.sort === 'match') {
@@ -1007,12 +1124,37 @@ function detailOf(j: JobView): JobDetail {
             highlights: ok ? highlights : [],
             criteria,
           },
+    note: notes.get(markKey(j.key)) ?? null,
+    appStatusAt: j.appStatus === null ? null : (statusAt.get(markKey(j.key)) ?? at(0)),
   };
+}
+
+/** A prompt like core's export::claude_prompt: the rubric in short, the profile, the ad. */
+function promptOf(j: JobView): string {
+  const d = detailOf(j);
+  return [
+    'Bitte prüfe gründlich, wie gut diese Stellenanzeige zu meinem Beraterprofil passt.',
+    '',
+    'Mein Profil (JSON, ohne Name und Kontaktdaten)',
+    '```json',
+    JSON.stringify({ kernkompetenzen: PROFILE.understood?.competences ?? [] }, null, 2),
+    '```',
+    '',
+    'Die Anzeige',
+    `Titel: ${j.title}`,
+    `Unternehmen: ${j.company}`,
+    `Ort: ${j.location}`,
+    `Link: ${d.url}`,
+    '',
+    d.text ?? 'Den vollständigen Anzeigentext hat die App noch nicht.',
+  ].join('\n');
 }
 
 /* --------------------------------------------------------------------- runs */
 
 let running = false;
+/** The kind of the run in progress (its end names it). */
+let runningKind: RunSummary['kind'] = 'fetch';
 
 function fail(kind: ErrorInfo['kind'], params: ErrorInfo['params'] = {}): ErrorInfo {
   return { kind, params };
@@ -1022,6 +1164,8 @@ function fail(kind: ErrorInfo['kind'], params: ErrorInfo['params'] = {}): ErrorI
 function emit(event: RunEvent): void {
   (runSender ?? pageSender)?.send(event);
 }
+
+const isFetch = (kind: RunSummary['kind']): boolean => kind === 'fetch' || kind === 'fullMailbox';
 
 /** `app_state`: the page's new channel replaces the old one and takes over a running run. */
 function attachPage(sender: Sender): void {
@@ -1070,8 +1214,23 @@ const NEW_JOBS: JobView[] = [
   ),
 ];
 
+/** What the export of a run reports (`?export=locked`: the Excel file is open elsewhere). */
+function exported(): RunSummary['export'] {
+  const written = lastRun().export!;
+  if (!EXPORT_LOCKED) return written;
+  return {
+    ...written,
+    overviewXlsx: null,
+    error: {
+      kind: 'fileLocked',
+      params: { path: 'C:/Users/demo/Jobs/JobAlerts.xlsx', target: 'overview' },
+    },
+  };
+}
+
 function script(kind: RunSummary['kind']): RunEvent[] {
   const events: RunEvent[] = [
+    { type: 'started', kind },
     { type: 'status', code: 'connectingMail', portal: null, until: null },
     { type: 'status', code: 'searchingMail', portal: null, until: null },
     { type: 'progress', step: 'scan', portal: null, done: 0, total: 3 },
@@ -1102,7 +1261,7 @@ function script(kind: RunSummary['kind']): RunEvent[] {
       gmailId: 'a3',
     },
     { type: 'progress', step: 'scan', portal: null, done: 3, total: 3 },
-    ...NEW_JOBS.map((j): RunEvent => ({ type: 'jobUpdated', job: j })),
+    ...NEW_JOBS.map((j): RunEvent => ({ type: 'jobUpdated', job: j, fresh: true })),
     { type: 'status', code: 'fetchingDetails', portal: 'linkedin', until: null },
     { type: 'progress', step: 'fetch', portal: null, done: 0, total: 2 },
     { type: 'progress', step: 'fetch', portal: null, done: 1, total: 2 },
@@ -1125,6 +1284,7 @@ function script(kind: RunSummary['kind']): RunEvent[] {
     events.push({
       type: 'jobUpdated',
       job: { ...j, detail: i === 2 ? j.detail : { kind: 'ok' }, match: results[i]! },
+      fresh: true,
     });
     events.push({ type: 'progress', step: 'score', portal: null, done: i + 1, total: 3 });
   });
@@ -1150,17 +1310,6 @@ function script(kind: RunSummary['kind']): RunEvent[] {
           stopped: null,
         },
         {
-          portal: 'freelancermap',
-          new: 1,
-          known: 0,
-          dup: 0,
-          fetched: 1,
-          failed: 0,
-          gone: 0,
-          skipped: 0,
-          stopped: null,
-        },
-        {
           portal: 'freelance',
           new: 1,
           known: 0,
@@ -1171,26 +1320,102 @@ function script(kind: RunSummary['kind']): RunEvent[] {
           skipped: 1,
           stopped: { kind: 'paused', until: later(15), reason: 'throttled' },
         },
+        {
+          portal: 'freelancermap',
+          new: 1,
+          known: 0,
+          dup: 0,
+          fetched: 1,
+          failed: 0,
+          gone: 0,
+          skipped: 0,
+          stopped: null,
+        },
       ],
+      // Three new jobs, the excluded one is none; the 88 fits well.
+      newJobs: { count: 2, high: 1 },
+      export: exported(),
       emptyAlerts: [],
     },
   });
   return events;
 }
 
-function startRun(kind: RunSummary['kind'], sender: Sender | null): void {
+/** "Details holen" for jobs: their pages, their scores, no mailbox and no new jobs. */
+function detailsScript(keys: JobKey[]): RunEvent[] {
+  const targets = keys.map(find).filter((j): j is JobView => j !== undefined);
+  const events: RunEvent[] = [
+    { type: 'started', kind: 'details' },
+    { type: 'status', code: 'fetchingDetails', portal: targets[0]?.portal ?? null, until: null },
+    { type: 'progress', step: 'fetch', portal: null, done: 0, total: targets.length },
+  ];
+  targets.forEach((j, i) => {
+    events.push({
+      type: 'jobUpdated',
+      job: { ...j, detail: { kind: 'ok' }, match: j.match ?? scored(62, ['Controlling'], 2, 3) },
+      fresh: false,
+    });
+    events.push({
+      type: 'progress',
+      step: 'fetch',
+      portal: null,
+      done: i + 1,
+      total: targets.length,
+    });
+  });
+  events.push({ type: 'status', code: 'writingFiles', portal: null, until: null });
+  events.push({
+    type: 'finished',
+    summary: {
+      ...lastRun(),
+      kind: 'details',
+      startedAt: at(0.01),
+      finishedAt: at(0),
+      scan: null,
+      newJobs: null,
+      perPortal: PORTALS.filter((p) => targets.some((j) => j.portal === p)).map((portal) => ({
+        portal,
+        new: 0,
+        known: 0,
+        dup: 0,
+        fetched: targets.filter((j) => j.portal === portal).length,
+        failed: 0,
+        gone: 0,
+        skipped: 0,
+        stopped: null,
+      })),
+      export: exported(),
+      emptyAlerts: [],
+    },
+  });
+  return events;
+}
+
+function startRun(request: RunRequest, sender: Sender | null): void {
+  const kind = request.kind;
   if (running) throw fail('busy');
   if (state.mailbox.user === null && kind !== 'rescore' && kind !== 'details') {
     throw fail('mailMissing');
   }
   running = true;
+  runningKind = kind;
   runSender = sender?.hold() ?? null;
   harness.done = false;
   const events =
-    scenario === 'offline' ? offlineScript() : kind === 'rescore' ? rescoreScript() : script(kind);
+    MAIL_OFFLINE && isFetch(kind)
+      ? offlineScript()
+      : request.kind === 'rescore'
+        ? rescoreScript()
+        : request.kind === 'details'
+          ? detailsScript(request.keys)
+          : script(request.kind);
   let index = 0;
   const step = (): void => {
     if (!running) return;
+    if (harness.holdAfter !== null && index >= harness.holdAfter) {
+      setTimeout(step, TICK);
+      return;
+    }
     const event = events[index++];
     if (event === undefined) return;
     apply(event);
@@ -1208,6 +1433,7 @@ function startRun(kind: RunSummary['kind'], sender: Sender | null): void {
 /** The rescore the app starts after a profile change: scoring only, nothing fetched. */
 function rescoreScript(): RunEvent[] {
   return [
+    { type: 'started', kind: 'rescore' },
     { type: 'status', code: 'scoring', portal: null, until: null },
     { type: 'progress', step: 'score', portal: null, done: 0, total: 1 },
     { type: 'progress', step: 'score', portal: null, done: 1, total: 1 },
@@ -1218,9 +1444,11 @@ function rescoreScript(): RunEvent[] {
         kind: 'rescore',
         startedAt: at(0.01),
         finishedAt: at(0),
+        scan: null,
+        newJobs: null,
         perPortal: [],
         emptyAlerts: [],
-        export: null,
+        export: exported(),
       },
     },
   ];
@@ -1228,12 +1456,14 @@ function rescoreScript(): RunEvent[] {
 
 function offlineScript(): RunEvent[] {
   return [
+    { type: 'started', kind: 'fetch' },
     { type: 'status', code: 'connectingMail', portal: null, until: null },
     {
       type: 'finished',
       summary: {
         ...lastRun({ kind: 'failed', error: fail('mailConnect') }),
         perPortal: [],
+        newJobs: { count: 0, high: 0 },
         emptyAlerts: [],
       },
     },
@@ -1251,7 +1481,8 @@ function apply(event: RunEvent): void {
     refresh();
   } else if (event.type === 'finished') {
     state.firstRun = false;
-    state.lastRun = event.summary;
+    // "The last fetch": a rescore or a details run never replaces it (pipeline::run).
+    if (isFetch(event.summary.kind)) state.lastRun = event.summary;
     state.running = null;
   }
 }
@@ -1259,7 +1490,12 @@ function apply(event: RunEvent): void {
 function cancelRun(): void {
   if (!running) return;
   running = false;
-  const summary: RunSummary = { ...lastRun({ kind: 'cancelled' }), perPortal: [], emptyAlerts: [] };
+  const summary: RunSummary = {
+    ...lastRun({ kind: 'cancelled' }),
+    kind: runningKind,
+    perPortal: [],
+    emptyAlerts: [],
+  };
   setTimeout(() => {
     const event: RunEvent = { type: 'finished', summary };
     apply(event);
@@ -1286,7 +1522,7 @@ const handlers: Handlers = {
     return structuredClone(state);
   },
   start_run: ({ request }) => {
-    startRun(request.kind, sender);
+    startRun(request, sender);
     return null;
   },
   cancel_run: () => {
@@ -1311,6 +1547,39 @@ const handlers: Handlers = {
     if (j === undefined || j.pinned === on) return false;
     j.pinned = on;
     return true;
+  },
+  set_app_status: ({ key, status }) => {
+    const j = find(key);
+    if (j === undefined || j.appStatus === status) return false;
+    j.appStatus = status;
+    if (status === null) statusAt.delete(markKey(key));
+    else statusAt.set(markKey(key), new Date(Date.now()).toISOString());
+    refresh();
+    return true;
+  },
+  set_note: ({ key, note }) => {
+    if ([...note].length > 2000) throw fail('invalid', { reason: 'noteTooLong', max: 2000 });
+    const j = find(key);
+    const next = note.trim() === '' ? null : note;
+    if (j === undefined || (notes.get(markKey(key)) ?? null) === next) return false;
+    if (next === null) notes.delete(markKey(key));
+    else notes.set(markKey(key), next);
+    return true;
+  },
+  set_hidden: ({ key, hidden }) => {
+    const j = find(key);
+    if (j === undefined || j.hidden === hidden) return false;
+    j.hidden = hidden;
+    if (hidden) hiddenAt.set(markKey(key), new Date(Date.now()).toISOString());
+    else hiddenAt.delete(markKey(key));
+    refresh();
+    return true;
+  },
+  claude_prompt: ({ key }) => {
+    const j = find(key);
+    if (j === undefined) throw fail('notFound', { what: 'job' });
+    if (state.profile === null) throw fail('notFound', { what: 'profile' });
+    return promptOf(j);
   },
   pick_profile: () => structuredClone(FILE_DRAFT),
   parse_profile: ({ text }) => answerDraft(text),
@@ -1430,10 +1699,20 @@ const harness: Harness = {
     apply(event);
     emit(event);
   },
+  appRun(kind) {
+    startRun(kind === 'details' ? { kind, keys: [] } : { kind }, null);
+  },
   fire(name, payload) {
     for (const handler of listeners.get(name) ?? []) handler({ payload });
   },
   done: false,
+  detailDelay: 0,
+  failPages: 0,
+  holdAfter: null,
+  job(key) {
+    const found = find(key);
+    return found === undefined ? null : structuredClone(found);
+  },
 };
 window.__harness = harness;
 initial();
@@ -1444,8 +1723,9 @@ export async function invoke<T>(command: string, args: Record<string, unknown> =
   harness.calls.push([command, args]);
   const handler = handlers[command as keyof Commands] as ((a: unknown) => unknown) | undefined;
   if (handler === undefined) throw fail('internal', { command });
-  if (DELAY > 0 && command !== 'report_ui_error') {
-    await new Promise((resolve) => setTimeout(resolve, DELAY));
+  const delay = command === 'job_detail' ? DELAY + harness.detailDelay : DELAY;
+  if (delay > 0 && command !== 'report_ui_error') {
+    await new Promise((resolve) => setTimeout(resolve, delay));
   }
   // Like Tauri: every call gets its own Rust-side channel, dropped when nothing holds it.
   sender = args.channel instanceof Channel ? new Sender(args.channel as Channel<RunEvent>) : null;

@@ -334,9 +334,9 @@ function guardZoom(on: boolean): void {
 
 /**
  * Hover stays still while a list scrolls: `:root[data-scrolling]` is set from the first
- * scroll event until --scroll-idle after the last one (rows and pins take no pointer
- * events meanwhile, the scroller keeps its own). A passive listener: it never delays a
- * scroll.
+ * scroll event until --scroll-idle after the last one, and the rows' hover rules wait for
+ * `:root:not([data-scrolling])` (a flip restyles only the rows, never their contents). A
+ * passive listener: it never delays a scroll.
  */
 let scrollIdle: ReturnType<typeof setTimeout> | undefined;
 

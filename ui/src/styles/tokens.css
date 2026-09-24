@@ -74,6 +74,19 @@
   /* A low arc that still stands apart from its track. */
   --p-score-low: 30 5% 56%;
   --p-score-low-text: 30 4% 42%;
+  /* The ring colour in ten steps by decile of the score (0-9 ... 90-100), red through
+     orange and yellow to green, clean and not neon (computed in OKLCH). The same table is
+     core/src/export/scale.rs (HTML overview, Excel); ui_contract checks they agree. */
+  --p-score-0: 4 62% 58%;
+  --p-score-1: 13 69% 58%;
+  --p-score-2: 19 75% 58%;
+  --p-score-3: 25 79% 58%;
+  --p-score-4: 33 80% 58%;
+  --p-score-5: 40 77% 59%;
+  --p-score-6: 51 58% 54%;
+  --p-score-7: 68 43% 49%;
+  --p-score-8: 96 35% 50%;
+  --p-score-9: 140 41% 45%;
   --p-scrim: 212 30% 14%;
   --p-shade-xs: 30 20% 30%;
   --p-shade-pop: 30 20% 20%;
@@ -195,6 +208,20 @@
   --info-soft: hsl(var(--p-navy-50));
 
   /* ------------------------------------------------------------------- score */
+  /* The ring of a scored job: its decile's step; the digits are ink (the ring carries the
+     colour). Excluded and unscored rings are not on the scale. The *-text tokens colour
+     the band words (Hohe, Mittlere, Geringe Passung). */
+  --score-ring-0: hsl(var(--p-score-0));
+  --score-ring-1: hsl(var(--p-score-1));
+  --score-ring-2: hsl(var(--p-score-2));
+  --score-ring-3: hsl(var(--p-score-3));
+  --score-ring-4: hsl(var(--p-score-4));
+  --score-ring-5: hsl(var(--p-score-5));
+  --score-ring-6: hsl(var(--p-score-6));
+  --score-ring-7: hsl(var(--p-score-7));
+  --score-ring-8: hsl(var(--p-score-8));
+  --score-ring-9: hsl(var(--p-score-9));
+  --score-digits: hsl(var(--p-ink));
   --score-high-ring: hsl(var(--p-score-high));
   --score-high-text: hsl(var(--p-score-high-text));
   --score-high-surface: hsl(var(--p-score-high-soft));
@@ -221,7 +248,8 @@
   --sh-xs: 0 1px 2px hsl(var(--p-shade-xs) / 0.06);
   --sh-thumb: 0 1px 2px hsl(var(--p-shade-xs) / 0.18);
   --sh-pop: 0 8px 24px -6px hsl(var(--p-shade-pop) / 0.2), 0 1px 3px hsl(var(--p-shade-pop) / 0.08);
-  --sh-tooltip: 0 4px 12px -4px hsl(var(--p-shade-pop) / 0.22), 0 1px 2px hsl(var(--p-shade-pop) / 0.1);
+  --sh-tooltip:
+    0 4px 12px -4px hsl(var(--p-shade-pop) / 0.22), 0 1px 2px hsl(var(--p-shade-pop) / 0.1);
   --sh-hover:
     0 4px 12px -4px hsl(var(--p-shade-navy) / 0.14), 0 1px 2px hsl(var(--p-shade-navy) / 0.06);
   --sh-primary: inset 0 1px 0 hsl(var(--p-white) / 0.16), 0 1px 2px hsl(var(--p-shade-xs) / 0.12);

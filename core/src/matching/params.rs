@@ -79,8 +79,13 @@ pub(crate) const WISH_RATE: i64 = 30;
 pub(crate) const WISH_REMOTE: i64 = 30;
 pub(crate) const WISH_REGION: i64 = 20;
 pub(crate) const WISH_INDUSTRY: i64 = 20;
+/// Tokens of the profile a domain pack needs among its triggers to switch on.
+pub(crate) const PACK_HITS: usize = 2;
 /// Bound of the summed wish effect (per-mille, both directions).
 pub(crate) const WISH_MAX: i64 = 100;
+/// While fewer than half of the musts are met, the target role and the wishes lift a score
+/// at most to this (per-mille, score 79): never into the high band (80) of the list.
+pub(crate) const LIFT_CAP: u64 = 790;
 /// A day rate of at least this share of the wish (per-mille) is near, below it missed.
 pub(crate) const WISH_RATE_NEAR: u64 = 950;
 /// Remote wishes as minimum remote shares (percent): `voll`, `ueberwiegend`, `teilweise`.

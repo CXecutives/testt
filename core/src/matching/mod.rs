@@ -4,6 +4,7 @@
 //! once per profile, then [`assess`] per job. [`legacy`] reproduces the old Python engine
 //! for parity tests. See `docs/MATCHING.md`.
 
+mod ad_facts;
 mod atoms;
 mod contract;
 mod criteria;
@@ -62,8 +63,10 @@ pub mod fact_key {
     pub const RATE: &str = "rate";
     /// Start as the page words it ("ab sofort", "01.11.2026").
     pub const START: &str = "start";
+    /// Duration as the page words it ("6 Monate").
+    pub const DURATION: &str = "duration";
     /// Every key the engine reads.
-    pub const ALL: &[&str] = &[CONTRACT, LOCATION, REMOTE_PERCENT, RATE, START];
+    pub const ALL: &[&str] = &[CONTRACT, LOCATION, REMOTE_PERCENT, RATE, START, DURATION];
 }
 
 /// Profiles with fewer competences than this are `Thin`.
@@ -172,9 +175,61 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
         slot.0 = slot.0.saturating_add(1);
         slot.1 &= !entry.explicit;
     }
+    let criteria = criteria_info(&engine.criteria);
+    let warnings = warnings(engine, data, quality, &criteria);
+    let wishes = wishes_info(engine);
+    let skills = &engine.skills;
+    let aliases = skills
+        .entries
+        .iter()
+        .filter_map(|e| {
+            Some(AliasInfo {
+                competence: e.alias_of.clone()?,
+                alias: e.text.clone(),
+                path: e.path.clone(),
+            })
+        })
+        .collect();
+    ProfileSummary {
+        aliases,
+        packs: skills
+            .vocab
+            .packs()
+            .iter()
+            .map(|p| (*p).to_owned())
+            .collect(),
+        years: skills.total_years,
+        degrees: skills.degrees.clone(),
+        competence_count: u16::try_from(core.len()).unwrap_or(u16::MAX),
+        competences: core
+            .iter()
+            .take(SUMMARY_COMPETENCES)
+            .map(|c| c.text.clone())
+            .collect(),
+        sources: sources
+            .into_iter()
+            .map(|(path, (count, guessed))| SourceInfo {
+                path,
+                count,
+                guessed,
+            })
+            .collect(),
+        criteria,
+        warnings,
+        wishes,
+    }
+}
+
+/// What the user should fix or know about the profile.
+fn warnings(
+    engine: &EngineProfile,
+    data: &Value,
+    quality: ProfileQuality,
+    criteria: &[CriterionInfo],
+) -> Vec<ProfileWarning> {
     let c = &engine.criteria;
+    let core = &engine.legacy.signals.core;
     let availability_raw = facts::availability_text(data);
-    let criteria = criteria_info(c);
     let warn = |code, params: Value| ProfileWarning {
         code,
         params: params.as_object().cloned().unwrap_or_default(),
@@ -227,47 +282,7 @@ fn summarize(engine: &EngineProfile, data: &Value, quality: ProfileQuality) -> P
             json!({ "count": engine.focus_count, "max": FOCUS_MAX }),
         ));
     }
-    let wishes = wishes_info(engine);
-    let skills = &engine.skills;
-    let aliases = skills
-        .entries
-        .iter()
-        .filter_map(|e| {
-            Some(AliasInfo {
-                competence: e.alias_of.clone()?,
-                alias: e.text.clone(),
-                path: e.path.clone(),
-            })
-        })
-        .collect();
-    ProfileSummary {
-        aliases,
-        packs: skills
-            .vocab
-            .packs()
-            .iter()
-            .map(|p| (*p).to_owned())
-            .collect(),
-        years: skills.total_years,
-        degrees: skills.degrees.clone(),
-        competence_count: u16::try_from(core.len()).unwrap_or(u16::MAX),
-        competences: core
-            .iter()
-            .take(SUMMARY_COMPETENCES)
-            .map(|c| c.text.clone())
-            .collect(),
-        sources: sources
-            .into_iter()
-            .map(|(path, (count, guessed))| SourceInfo {
-                path,
-                count,
-                guessed,
-            })
-            .collect(),
-        criteria,
-        warnings,
-        wishes,
-    }
+    warnings
 }
 
 /// Schwerpunkte, target roles and the wishes as understood.

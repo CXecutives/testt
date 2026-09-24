@@ -143,7 +143,7 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     assert!(
         events.iter().any(|e| matches!(
             e,
-            RunEvent::JobUpdated { job } if job.match_.as_ref().is_some_and(|m| m.score == 100)
+            RunEvent::JobUpdated { job, .. } if job.match_.as_ref().is_some_and(|m| m.score == 100)
         )),
         "the ring appears with the details"
     );
@@ -990,6 +990,7 @@ impl Matcher for Picky {
             must_met: 0,
             must_total: 0,
             top: Vec::new(),
+            facts: crate::model::KeyFacts::default(),
         })
     }
 }
@@ -1471,7 +1472,7 @@ async fn a_portal_switched_off_during_the_run_stops_at_once() {
         &CancellationToken::new(),
         &c,
         |event| {
-            if let RunEvent::JobUpdated { job } = &event
+            if let RunEvent::JobUpdated { job, .. } = &event
                 && job.key.portal == Portal::LinkedIn
                 && !switched
             {
@@ -1493,4 +1494,325 @@ async fn a_portal_switched_off_during_the_run_stops_at_once() {
         .find(|p| p.portal == Portal::LinkedIn)
         .unwrap();
     assert_eq!((li.new, li.fetched, li.skipped), (2, 1, 1));
+}
+
+/// Every run begins with exactly one `Started` naming its kind: the page also follows the
+/// runs it did not start itself (the auto fetch, a rescore after a profile change) as what
+/// they are.
+#[tokio::test(start_paused = true)]
+async fn every_run_starts_with_its_kind() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let key = crate::portal::job_link("https://www.linkedin.com/jobs/view/4999000002/")
+        .unwrap()
+        .key;
+    let kinds = [
+        (RunKind::Fetch, RunKindName::Fetch),
+        (RunKind::FullMailbox, RunKindName::FullMailbox),
+        (RunKind::Details { keys: vec![key] }, RunKindName::Details),
+        (RunKind::Rescore, RunKindName::Rescore),
+    ];
+    for (kind, name) in kinds {
+        let (s, events) = go(
+            &mut DemoBackends,
+            &store,
+            &RunRequest { kind },
+            &ctx(dir.path(), false),
+            &CancellationToken::new(),
+            &c,
+        )
+        .await;
+        assert_eq!(s.kind, name);
+        assert_eq!(events.first(), Some(&RunEvent::Started { kind: name }));
+        let started = events
+            .iter()
+            .filter(|e| matches!(e, RunEvent::Started { .. }))
+            .count();
+        assert_eq!((started, finished(&events)), (1, 1), "{name:?}");
+        assert_small(&events);
+    }
+    // A run that cannot even begin says what it was, too.
+    store.kv_set("run_seq", "broken").unwrap();
+    let (_, events) = go(
+        &mut DemoBackends,
+        &store,
+        &RunRequest {
+            kind: RunKind::Rescore,
+        },
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(
+        events.first(),
+        Some(&RunEvent::Started {
+            kind: RunKindName::Rescore
+        })
+    );
+    assert_eq!(finished(&events), 1);
+}
+
+/// "The last fetch" is the last mailbox run: a details run or a rescore never replaces it
+/// (the sidebar, the failed-fetch retry and the empty alert mails all read it); a fetch that
+/// fails before the mailbox (no portal) is still one.
+#[tokio::test(start_paused = true)]
+async fn the_last_run_is_the_last_fetch() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let (fetch, _) = go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &scan_only(dir.path()),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let last = || last_run(&store).unwrap().unwrap();
+    assert_eq!((last().run, last().kind), (fetch.run, RunKindName::Fetch));
+    let key = crate::portal::job_link("https://www.linkedin.com/jobs/view/4999000002/")
+        .unwrap()
+        .key;
+    for kind in [RunKind::Details { keys: vec![key] }, RunKind::Rescore] {
+        let (s, _) = go(
+            &mut DemoBackends,
+            &store,
+            &RunRequest { kind },
+            &ctx(dir.path(), false),
+            &CancellationToken::new(),
+            &c,
+        )
+        .await;
+        assert!(s.run > fetch.run && s.outcome == Outcome::Completed);
+        assert_eq!(last().run, fetch.run, "{:?} is no fetch", s.kind);
+    }
+    let mut none = ctx(dir.path(), false);
+    none.portals.clear();
+    let (failed, _) = go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &none,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert!(matches!(failed.outcome, Outcome::Failed { .. }));
+    assert_eq!(last().run, failed.run, "a failed fetch is the last fetch");
+    let (full, _) = go(
+        &mut DemoBackends,
+        &store,
+        &RunRequest {
+            kind: RunKind::FullMailbox,
+        },
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(
+        (last().run, last().kind),
+        (full.run, RunKindName::FullMailbox)
+    );
+}
+
+/// What the run card counts, from the run itself: its new jobs (first seen in it, a
+/// duplicate once, excluded ones left out) and how many of them fit well - not a capped top
+/// list, not the scan's count with the excluded ones. Rows of the run say whether a job is
+/// new in it.
+#[tokio::test(start_paused = true)]
+async fn a_fetch_counts_its_new_jobs() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let (s, events) = go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let mut expected = NewJobs::default();
+    let first_seen = store
+        .jobs(&JobFilter {
+            first_seen_run: Some(s.run),
+            search: None,
+        })
+        .unwrap();
+    for job in &first_seen {
+        let status = job.match_.as_ref().map(|m| (m.status, m.score));
+        if store.dup_of(&job.key).unwrap().is_some()
+            || matches!(status, Some((crate::model::MatchStatus::Excluded, _)))
+        {
+            continue;
+        }
+        expected.count += 1;
+        if matches!(status, Some((crate::model::MatchStatus::Scored, points))
+            if points >= crate::model::HIGH_FROM)
+        {
+            expected.high += 1;
+        }
+    }
+    assert_eq!(s.new_jobs, Some(expected));
+    let scan = s.scan.as_ref().unwrap();
+    assert!(expected.high >= 1, "the sample has a job that fits well");
+    assert!(
+        expected.count < scan.new,
+        "the excluded job is no new job of the card: {expected:?} vs {} new",
+        scan.new
+    );
+    let updated: Vec<bool> = events
+        .iter()
+        .filter_map(|e| match e {
+            RunEvent::JobUpdated { fresh, .. } => Some(*fresh),
+            _ => None,
+        })
+        .collect();
+    assert!(!updated.is_empty() && updated.iter().all(|fresh| *fresh));
+    // The stored "last fetch" has the numbers too (the run card after a restart).
+    assert_eq!(last_run(&store).unwrap().unwrap().new_jobs, Some(expected));
+
+    // Details of an older job: no mailbox, no new jobs, and its row is no new one.
+    let key = first_seen
+        .iter()
+        .find(|job| job.desc_status != DescStatus::Ok)
+        .map(|job| job.key.clone())
+        .expect("a job without details");
+    let (d, events) = go(
+        &mut DemoBackends,
+        &store,
+        &RunRequest {
+            kind: RunKind::Details { keys: vec![key] },
+        },
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(d.new_jobs, None);
+    assert!(
+        events
+            .iter()
+            .all(|e| !matches!(e, RunEvent::JobUpdated { fresh: true, .. }))
+    );
+    let (r, _) = go(
+        &mut DemoBackends,
+        &store,
+        &RunRequest {
+            kind: RunKind::Rescore,
+        },
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(r.new_jobs, None);
+}
+
+/// Summaries stored by an earlier version (without `newJobs`) are still read.
+#[test]
+fn an_older_stored_summary_still_reads() {
+    let store = Store::in_memory().unwrap();
+    let summary = RunSummary::new(RunKindName::Fetch, false, Timestamp::now());
+    let mut json = serde_json::to_value(&summary).unwrap();
+    json.as_object_mut().unwrap().remove("newJobs");
+    store.kv_set(LAST_RUN, &json.to_string()).unwrap();
+    assert_eq!(last_run(&store).unwrap(), Some(summary));
+}
+
+/// A failed export does not fail the run, but the summary names it as a code with its
+/// target - the page says it (the HTML overview cannot be written where a folder sits).
+#[tokio::test(start_paused = true)]
+async fn a_failed_export_is_reported_as_a_code() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let html = export::overview_html_path(&dir.path().join(RESULT_DIR));
+    std::fs::create_dir_all(html.join("blocked")).unwrap();
+    let (store, _) = store_with_texts();
+    let (s, events) = go(
+        &mut DemoBackends,
+        &store,
+        &RunRequest {
+            kind: RunKind::Rescore,
+        },
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(
+        s.outcome,
+        Outcome::Completed,
+        "the export never fails the run"
+    );
+    let error = s.export.as_ref().unwrap().error.as_ref().unwrap();
+    assert_eq!(error.params["target"], "overviewHtml");
+    assert!(
+        matches!(error.kind, ErrorKind::Io | ErrorKind::FileLocked),
+        "{error:?}"
+    );
+    let Some(RunEvent::Finished { summary }) = events.last() else {
+        panic!("the last event is the end");
+    };
+    assert_eq!(summary.export.as_ref().unwrap().error.as_ref(), Some(error));
+}
+
+/// The Excel overview open in Excel (Windows: no sharing): the run completes, the file stays
+/// as it was, and the summary says `fileLocked` for the overview.
+#[cfg(windows)]
+#[tokio::test(start_paused = true)]
+async fn an_open_excel_file_is_reported_as_locked() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let (store, _) = store_with_texts();
+    let rescore = RunRequest {
+        kind: RunKind::Rescore,
+    };
+    let (first, _) = go(
+        &mut DemoBackends,
+        &store,
+        &rescore,
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let xlsx = first
+        .export
+        .as_ref()
+        .unwrap()
+        .overview_xlsx
+        .clone()
+        .unwrap();
+    let before = std::fs::read(&xlsx).unwrap();
+    let lock = std::fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0)
+        .open(&xlsx)
+        .unwrap();
+    let (s, _) = go(
+        &mut DemoBackends,
+        &store,
+        &rescore,
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    drop(lock);
+    assert_eq!(s.outcome, Outcome::Completed);
+    let export = s.export.as_ref().unwrap();
+    let error = export.error.as_ref().unwrap();
+    assert_eq!(
+        (error.kind, &error.params["target"]),
+        (ErrorKind::FileLocked, &serde_json::json!("overview"))
+    );
+    assert_eq!(export.overview_xlsx, None);
+    assert_eq!(std::fs::read(&xlsx).unwrap(), before, "the open file stays");
 }

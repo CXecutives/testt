@@ -6,15 +6,17 @@
 //! met in full through a Schwerpunkt, else 1), `K = sum(f*e)/sum(f)` over nice-to-haves,
 //! `P = must ? (nice ? (3M+K)/4 : M) : K`, evidence `n = sum(w_must) + 500*n_nice`,
 //! `R' = min(1000, R + 100*demanded Schwerpunkte (at most 3))`, `P' = (n*P + k*R')/(n + k)`,
-//! permanent roles `P' * 0.9`, then `+ role + clamp(sum(wishes), -100, 100)` per-mille,
+//! permanent roles `P' * 0.9`, then `+ role + clamp(sum(wishes), -100, 100)` per-mille (a
+//! lift ends at 790 while fewer than half of the musts are met),
 //! `score = round_half_even(P'/10)`, the caps, the floor.
 
 use std::ops::Range;
 
 use serde_json::{Value, json};
 
+use super::ad_facts::{self, AdFacts};
 use super::atoms::{self, Fit, Vocab, fold};
-use super::contract::{self, ContractKind};
+use super::contract::{self, Contract, ContractKind};
 use super::facts::{self, Finding, HardCriteria, JobFacts, Segment};
 use super::fit::{self, ItemFit, Skills};
 use super::focus::{self, Focus};
@@ -23,10 +25,10 @@ use super::legacy::LegacyProfile;
 use super::lexicon::engine as lex;
 use super::normalize::{char_len, strip};
 use super::params::{
-    E_HALF, E_NONE, FOCUS_FACTOR, FOCUS_RELEVANCE, FOCUS_RELEVANCE_MAX, FORMAL_CAP, K_SHRINK,
-    LOW_EVIDENCE_ITEMS, LOW_PRIOR, LOW_PRIOR_WEIGHT, MIN_TEXT_CHARS, N_NICE, OFF_FIELD_CAP,
-    PERMANENT_FACTOR, ROLE_FULL, ROLE_HALF, SCORE_FLOOR, SEVERAL_OPEN_CAP, TITLE_OPEN_CAP, W_MUST,
-    W_SOFT, W_TERM, WISH_MAX,
+    E_FULL, E_HALF, E_NONE, FOCUS_FACTOR, FOCUS_RELEVANCE, FOCUS_RELEVANCE_MAX, FORMAL_CAP,
+    K_SHRINK, LIFT_CAP, LOW_EVIDENCE_ITEMS, LOW_PRIOR, LOW_PRIOR_WEIGHT, MIN_TEXT_CHARS, N_NICE,
+    OFF_FIELD_CAP, PERMANENT_FACTOR, ROLE_FULL, ROLE_HALF, SCORE_FLOOR, SEVERAL_OPEN_CAP,
+    TITLE_OPEN_CAP, W_MUST, W_SOFT, W_TERM, WISH_MAX,
 };
 use super::permanent;
 use super::relevance;
@@ -120,6 +122,8 @@ pub(crate) struct Evaluation {
     pub role: Option<(RoleFit, i64, String)>,
     /// The wishes with their points (per-mille).
     pub wishes: Vec<WishResult>,
+    /// What the ad states about rate, start, duration, remote share, place and contract.
+    pub facts: AdFacts,
 }
 
 fn weight(item: &Item) -> u64 {
@@ -257,7 +261,7 @@ fn criteria_findings(
     facts: &JobFacts<'_>,
     segments: &[Segment],
     folded: &str,
-) -> (Vec<Finding>, ContractKind) {
+) -> (Vec<Finding>, Contract) {
     let anue = facts::anue(facts, segments);
     let contract = contract::infer(facts, segments, &anue);
     let criteria = &profile.criteria;
@@ -266,7 +270,7 @@ fn criteria_findings(
     findings.extend(permanent::region(
         criteria, &contract, facts, segments, folded,
     ));
-    (findings, contract.kind)
+    (findings, contract)
 }
 
 /// Demanded Schwerpunkte in profile order; the first `FOCUS_RELEVANCE_MAX` add relevance.
@@ -331,8 +335,14 @@ fn preferences(
     (role, wishes::evaluate(&profile.wishes, &ad))
 }
 
-/// The shrunk fit plus the target role and the bounded wishes (per-mille, 0..=1000).
-fn adjust(shrunk: u64, role: Option<&(RoleFit, i64, String)>, wishes: &[WishResult]) -> u64 {
+/// The shrunk fit plus the target role and the bounded wishes (per-mille, 0..=1000). While
+/// fewer than half of the musts are met, a lift ends at `LIFT_CAP` (below the high band).
+fn adjust(
+    shrunk: u64,
+    role: Option<&(RoleFit, i64, String)>,
+    wishes: &[WishResult],
+    items: &[Scored],
+) -> u64 {
     let role_points = role.map_or(0, |(_, points, _)| *points);
     let wish_points = wishes
         .iter()
@@ -340,7 +350,26 @@ fn adjust(shrunk: u64, role: Option<&(RoleFit, i64, String)>, wishes: &[WishResu
         .sum::<i64>()
         .clamp(-WISH_MAX, WISH_MAX);
     let adjusted = i64::try_from(shrunk).unwrap_or(1000) + role_points + wish_points;
-    u64::try_from(adjusted.clamp(0, 1000)).unwrap_or(0)
+    let adjusted = u64::try_from(adjusted.clamp(0, 1000)).unwrap_or(0);
+    let (met, total) = musts_met(items);
+    if adjusted > shrunk && 2 * met < total {
+        adjusted.min(shrunk.max(LIFT_CAP))
+    } else {
+        adjusted
+    }
+}
+
+/// Musts met in full and all musts, counted like the summary of the assessment (a soft
+/// skill below the must weight is information, not a must).
+pub(crate) fn musts_met(items: &[Scored]) -> (usize, usize) {
+    let musts = items.iter().filter(|s| {
+        s.item.kind == ReqKind::Must
+            && s.weight > 0
+            && (s.weight == W_MUST || s.item.class != Class::Soft)
+    });
+    musts.fold((0, 0), |(met, total), s| {
+        (met + usize::from(s.fit.value == E_FULL), total + 1)
+    })
 }
 
 /// How much the text allowed to assess: a teaser, low (vocabulary terms, no weighted
@@ -378,22 +407,28 @@ fn scored(profile: &EngineProfile, items: Vec<Item>) -> Vec<Scored> {
         .collect()
 }
 
-/// Assesses one job.
-pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluation {
-    let text = job.text;
-    let vocab = &profile.skills.vocab;
-    let criteria = &profile.criteria;
-    let facts = JobFacts {
+/// The fields of a job the hard criteria read.
+fn job_facts<'a>(job: &JobInput<'a>) -> JobFacts<'a> {
+    JobFacts {
         title: job.title,
         text: job.text,
         location: job.location,
         portal: job.portal,
         facts: job.facts,
         posted: job.posted,
-    };
+    }
+}
+
+/// Assesses one job.
+pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluation {
+    let text = job.text;
+    let vocab = &profile.skills.vocab;
+    let criteria = &profile.criteria;
+    let facts = job_facts(job);
     let segments = facts::segments(job.text);
     let folded = fold(job.text);
-    let (mut findings, contract) = criteria_findings(profile, &facts, &segments, &folded);
+    let (mut findings, stated_contract) = criteria_findings(profile, &facts, &segments, &folded);
+    let contract = stated_contract.kind;
     let short = char_len(strip(text)) < MIN_TEXT_CHARS;
     let doc = if short {
         job::JobDoc::default()
@@ -407,6 +442,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
         &doc,
         vocab,
     ));
+    let ad_facts = ad_facts::read(&facts, &segments, &folded, &stated_contract, &doc);
     let items = scored(profile, doc.items);
     let (fit_score, must_weight, nice_count) = fit_score(&items);
     let evidence = evidence_level(job.kind, &items, must_weight);
@@ -455,7 +491,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
         };
         preferences(profile, &ad)
     };
-    let adjusted = adjust(shrunk, role.as_ref(), &wishes);
+    let adjusted = adjust(shrunk, role.as_ref(), &wishes, &items);
     let mut score = u8::try_from(div_round_half_even(adjusted, 10).min(100)).unwrap_or(100);
     if let Some(cap) = cap {
         score = score.min(cap);
@@ -479,5 +515,70 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
         focus,
         role,
         wishes,
+        facts: ad_facts,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::matching::types::Via;
+    use crate::matching::wishes::State;
+
+    fn must(value: u16) -> Scored {
+        Scored {
+            item: Item {
+                span: None,
+                text: "SAP FI".into(),
+                alternatives: Vec::new(),
+                kind: ReqKind::Must,
+                class: Class::Skill,
+                years: None,
+                stage: Stage::Section,
+            },
+            fit: ItemFit {
+                value,
+                entry: None,
+                via: Via::Exact,
+            },
+            weight: W_MUST,
+            focus: None,
+        }
+    }
+
+    fn lift(points: i64) -> Vec<WishResult> {
+        vec![WishResult {
+            code: ReasonCode::RemoteWish,
+            state: State::Met,
+            points,
+            params: json!({}),
+            spans: Vec::new(),
+        }]
+    }
+
+    #[test]
+    fn wishes_lift_below_the_high_band_while_most_musts_are_open() {
+        let role = (
+            RoleFit {
+                role: 0,
+                full: true,
+            },
+            ROLE_FULL,
+            "CFO".to_owned(),
+        );
+        // One of four musts met, three half: role and wishes stop at the cap.
+        let weak = [must(E_FULL), must(E_HALF), must(E_HALF), must(E_HALF)];
+        assert_eq!(adjust(760, Some(&role), &lift(WISH_MAX), &weak), LIFT_CAP);
+        // A score already above the cap is not lowered, a malus still applies.
+        assert_eq!(adjust(800, Some(&role), &lift(WISH_MAX), &weak), 800);
+        assert_eq!(adjust(760, None, &lift(-WISH_MAX), &weak), 660);
+        // Half of the musts met: the lift is free (bounded by the wish maximum).
+        let half = [must(E_FULL), must(E_FULL), must(E_HALF), must(E_NONE)];
+        assert_eq!(adjust(760, Some(&role), &lift(WISH_MAX), &half), 940);
+        // A soft skill below the must weight is no must.
+        let mut soft = must(E_NONE);
+        soft.item.class = Class::Soft;
+        soft.weight = W_SOFT;
+        assert_eq!(musts_met(&[must(E_FULL), soft]), (1, 1));
     }
 }

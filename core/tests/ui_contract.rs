@@ -932,6 +932,40 @@ fn motion_stays_quick_and_calm() {
     fail(&problems, "quick, calm and cheap motion");
 }
 
+/// The score ring's ten colour steps are one table: `--p-score-0` ... `--p-score-9` in
+/// tokens.css say exactly what `export::scale::SCORE_SCALE` says (HTML overview, Excel).
+#[test]
+fn the_score_scale_is_one_table() {
+    use jobalert_core::export::scale::SCORE_SCALE;
+    let tokens = std::fs::read_to_string(repo("ui/src/styles/tokens.css")).expect("tokens.css");
+    for (n, colour) in SCORE_SCALE.iter().enumerate() {
+        let name = format!("--p-score-{n}:");
+        let line = tokens
+            .lines()
+            .find(|l| l.trim_start().starts_with(&name))
+            .unwrap_or_else(|| panic!("{name} missing in tokens.css"));
+        let value = line
+            .split(':')
+            .nth(1)
+            .expect("value")
+            .trim()
+            .trim_end_matches(';');
+        let expected = format!(
+            "{} {}% {}%",
+            colour.hue, colour.saturation, colour.lightness
+        );
+        assert_eq!(value, expected, "{name} differs from export::scale");
+        assert_eq!(
+            palette_rgb(&tokens, &format!("score-{n}")),
+            {
+                let [_, red, green, blue] = colour.rgb().to_be_bytes();
+                [red, green, blue]
+            },
+            "{name} rgb"
+        );
+    }
+}
+
 /// Two brand colours with two jobs (user decisions): coral acts, navy orients - and they
 /// never blend. No second hue in a gradient (no coral-to-navy), no gradient text, no
 /// "sparkles" cliché.

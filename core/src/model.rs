@@ -161,6 +161,44 @@ impl MatchStatus {
     }
 }
 
+/// Where the user's application for a job stands (set by the user, never by a run).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum AppStatus {
+    /// Applied.
+    Applied,
+    /// In talks with the client.
+    Interview,
+    /// An offer came in.
+    Offer,
+    /// Turned down (by either side).
+    Rejected,
+}
+
+impl AppStatus {
+    pub const ALL: [AppStatus; 4] = [
+        AppStatus::Applied,
+        AppStatus::Interview,
+        AppStatus::Offer,
+        AppStatus::Rejected,
+    ];
+
+    /// The stored key (the same as the JSON value).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            AppStatus::Applied => "applied",
+            AppStatus::Interview => "interview",
+            AppStatus::Offer => "offer",
+            AppStatus::Rejected => "rejected",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|s| s.as_str() == text)
+    }
+}
+
 /// Score band of a match.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -199,6 +237,38 @@ pub struct MatchRecord {
     pub must_total: u16,
     /// At most two met requirements, quoted from the ad.
     pub top: Vec<String>,
+    /// Rate, start, duration, remote share and contract type as the engine read them.
+    pub facts: KeyFacts,
+}
+
+/// The key facts of an ad as the engine read them (the page facts first, then the text):
+/// numbers and codes for the list row and the reader, `null` when the ad says nothing.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct KeyFacts {
+    /// Highest rate amount stated, per day or per hour (`hourly`).
+    pub rate: Option<u32>,
+    pub hourly: Option<bool>,
+    /// Currency code of a rate not in EUR (`CHF`).
+    pub currency: Option<String>,
+    /// The ad names a rate to be agreed (`nach Absprache`) without an amount.
+    pub rate_open: Option<bool>,
+    /// Start: `now`, `vague` or an ISO date (`2026-11-01`).
+    pub start: Option<String>,
+    /// Duration in months.
+    pub months: Option<u16>,
+    /// Remote share in percent, from and to (equal when the ad states one share).
+    pub remote_from: Option<u8>,
+    pub remote_to: Option<u8>,
+    /// Contract type: `interim`, `permanent` or `anue` (`null` when unclear).
+    pub contract: Option<String>,
+}
+
+impl KeyFacts {
+    pub fn is_empty(&self) -> bool {
+        *self == KeyFacts::default()
+    }
 }
 
 /// A statement for the interface as a code with data - the core never sends prose.

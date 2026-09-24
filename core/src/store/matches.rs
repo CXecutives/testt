@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::jobs::{JOB_COLUMNS, JobRow, job_row};
 use super::{Store, bump};
 use crate::error::Result;
-use crate::model::{MatchRecord, MatchStatus, Notice};
+use crate::model::{HIGH_FROM, KeyFacts, MatchRecord, MatchStatus, Notice};
 use crate::portal::JobKey;
 use crate::text::truncate_chars;
 use crate::time::{from_db, to_db};
@@ -20,7 +20,8 @@ use crate::time::{from_db, to_db};
 ///
 /// - `match_score`: score 0-100.
 /// - `match_status`: `scored`, `excluded` or `unscorable`.
-/// - `match_note`: JSON `{code, params, mustMet, mustTotal, top[<=2]}`, at most 400 bytes.
+/// - `match_note`: JSON `{code, params, mustMet, mustTotal, top[<=2], facts}`, at most 400
+///   bytes.
 /// - `match_at`: when the job was scored.
 /// - `match_rev`: revision of engine, profile and model that produced the score; `NULL`
 ///   after a change of title or text (the job is scored again).
@@ -58,9 +59,21 @@ struct StoredNote {
     must_met: u16,
     must_total: u16,
     top: Vec<String>,
+    #[serde(skip_serializing_if = "KeyFacts::is_empty", serialize_with = "compact")]
+    facts: KeyFacts,
 }
 
-/// The note of a match as JSON of at most 400 bytes (quotes are cut, then dropped).
+/// The key facts without their `null` values (the note has 400 bytes).
+fn compact<S: serde::Serializer>(facts: &KeyFacts, serializer: S) -> Result<S::Ok, S::Error> {
+    let mut value = serde_json::to_value(facts).map_err(serde::ser::Error::custom)?;
+    if let Some(map) = value.as_object_mut() {
+        map.retain(|_, v| !v.is_null());
+    }
+    value.serialize(serializer)
+}
+
+/// The note of a match as JSON of at most 400 bytes (quotes are cut, then dropped; the key
+/// facts stay).
 pub(super) fn encode_note(record: &MatchRecord) -> String {
     let mut note = StoredNote {
         code: record.note.as_ref().map(|n| n.code.clone()),
@@ -77,6 +90,7 @@ pub(super) fn encode_note(record: &MatchRecord) -> String {
             .take(MAX_TOP)
             .map(|t| truncate_chars(t, MAX_TOP_CHARS))
             .collect(),
+        facts: record.facts.clone(),
     };
     loop {
         let json = serde_json::to_string(&note).unwrap_or_default();
@@ -111,6 +125,7 @@ pub(super) fn decode_match(
         must_met: note.must_met,
         must_total: note.must_total,
         top: note.top,
+        facts: note.facts,
     })
 }
 
@@ -278,24 +293,42 @@ impl Store {
     }
 
     /// The best scored (not excluded) jobs first seen in `run`; duplicates show as their
-    /// original.
+    /// original, hidden jobs ("not interesting") are left out.
     pub fn top_matches(&self, run: i64, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE first_seen_run = ?1 AND match_status = 'scored' AND dup_of IS NULL
+               AND hidden_at IS NULL
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id LIMIT ?2"
         ))?;
         let rows = stmt.query_map(params![run, limit], job_row)?;
         rows.map(|r| r?).collect()
     }
 
+    /// The jobs a mailbox run brought and how many of them are scored in the high band: first
+    /// seen in `run`, a job several portals announce once (as its original), excluded ones
+    /// left out - the numbers of the run card.
+    pub fn new_jobs(&self, run: i64) -> Result<(usize, usize)> {
+        let (count, high): (i64, i64) = self.conn().query_row(
+            "SELECT COUNT(*), COALESCE(SUM(match_status IS 'scored' AND match_score >= ?2), 0)
+             FROM job WHERE first_seen_run = ?1 AND dup_of IS NULL
+                        AND match_status IS NOT 'excluded'",
+            params![run, HIGH_FROM],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        Ok((
+            usize::try_from(count).unwrap_or(0),
+            usize::try_from(high).unwrap_or(0),
+        ))
+    }
+
     /// The jobs of the HTML overview: the pinned ones if there are any (`true`), else the
-    /// unread scored jobs of the mailbox run `run`; best first.
+    /// unread scored jobs of the mailbox run `run`; best first. Hidden jobs are in neither.
     pub fn overview_jobs(&self, run: i64) -> Result<(Vec<JobRow>, bool)> {
         let conn = self.conn();
         let mut pinned = conn.prepare_cached(&format!(
-            "SELECT {JOB_COLUMNS} FROM job WHERE pinned_at IS NOT NULL
+            "SELECT {JOB_COLUMNS} FROM job WHERE pinned_at IS NOT NULL AND hidden_at IS NULL
              ORDER BY (match_status IS 'excluded'), match_score DESC, pinned_at DESC"
         ))?;
         let jobs: Vec<JobRow> = pinned
@@ -308,7 +341,7 @@ impl Store {
         let mut new = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE first_seen_run = ?1 AND read_at IS NULL AND match_status = 'scored'
-               AND dup_of IS NULL
+               AND dup_of IS NULL AND hidden_at IS NULL
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id"
         ))?;
         let jobs = new
@@ -361,6 +394,7 @@ mod tests {
             must_met: 2,
             must_total: 3,
             top: vec!["SAP FI".into(), "x".repeat(500), "dritter".into()],
+            facts: crate::model::KeyFacts::default(),
         }
     }
 
@@ -403,6 +437,25 @@ mod tests {
             .params
             .insert("x".into(), "y".repeat(600).into());
         assert!(encode_note(&huge).len() <= MAX_NOTE_BYTES);
+        // The key facts come back; the note keeps them without null values.
+        let mut with_facts = record(MatchStatus::Scored, 83);
+        with_facts.facts = crate::model::KeyFacts {
+            rate: Some(1100),
+            hourly: Some(false),
+            start: Some("now".into()),
+            months: Some(6),
+            remote_from: Some(60),
+            remote_to: Some(60),
+            contract: Some("interim".into()),
+            ..crate::model::KeyFacts::default()
+        };
+        let json = encode_note(&with_facts);
+        assert!(
+            json.len() <= MAX_NOTE_BYTES && !json.contains("null"),
+            "{json}"
+        );
+        let back = decode_match(Some("scored"), Some(83), Some(&json)).unwrap();
+        assert_eq!(back.facts, with_facts.facts);
         // A new text or title makes the job pending again.
         store
             .record_text(&key, "Volltext", false, false, now())

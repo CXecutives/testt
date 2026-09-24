@@ -4,6 +4,7 @@
   import JobRow from '$components/JobRow.svelte';
   import ListRow from '$components/ListRow.svelte';
   import ReasonItem, { REASON_KINDS, REASON_WEIGHTS } from '$components/ReasonItem.svelte';
+  import type { JobView } from '$lib/ipc/types';
   import { flip, rowIn } from '$lib/motion/transitions';
   import Section from './Section.svelte';
   import { sampleJobs, text } from './gallery';
@@ -17,6 +18,11 @@
 
   function shuffle(): void {
     jobs = [...jobs.slice(1), jobs[0]!];
+  }
+
+  /** The row tools of the gallery: pin or archive a sample job. */
+  function toggle(job: JobView, field: 'pinned' | 'hidden'): void {
+    jobs = jobs.map((j) => (j.key.id === job.key.id ? { ...j, [field]: !j[field] } : j));
   }
 </script>
 
@@ -53,6 +59,8 @@
             {now}
             selected={selected === job.key.id}
             onselect={(j) => (selected = j.key.id)}
+            onpin={(j) => toggle(j, 'pinned')}
+            onarchive={(j) => toggle(j, 'hidden')}
           />
         </div>
       {/each}

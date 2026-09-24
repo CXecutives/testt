@@ -17,6 +17,11 @@ what the app found, and writes a short German report. It must stay cheap for the
 - The profile wins. Every threshold comes from the profile (`harte_kriterien` or its English
   aliases, `einsatzpraeferenzen`); a key the profile does not set switches that rule off. The
   rules below are defaults for everything the profile does not say.
+- Score by `rubric.de.md` next to this file (German): bands, caps, contract and ANÜ rules,
+  Schwerpunkte, target roles and wishes. The app's own Claude check reads the same text
+  (`core/src/export/ai_rubric.de.md`, kept identical by a test), so both give the same score.
+- Wishes (`tagessatz_wunsch`, `remote`, `regionen`, `branchen` in `einsatzpraeferenzen`) and
+  target roles (`wunschrollen`) never exclude; `tagessatz_wunsch` is no minimum.
 - An exclusion needs a verbatim quote from the ad that proves it. Without such a quote the point
   stays a row with status `partial` or `open`, never an exclusion.
 - Few messages: independent tool calls go in parallel in one message; no progress reports; ask
@@ -75,7 +80,7 @@ profile cannot meet excludes; otherwise it is an open `formal` row.
 | Key | Rule (thresholds from the profile) |
 |---|---|
 | `contract` | Interim (Tagessatz, Freelance, Freiberuflich, Contract, Werkvertrag, availability or workload asked) `met`. Permanent (Festanstellung, Jahresgehalt, benefits, "Why join us", work permit question) `partial`, second category. Staffing agency without details: contract `unclear`, check like a permanent role, note the ANÜ risk. ANÜ stated (also Überlassung, Payrolling, Equal Pay, iGZ or BAP) excludes when the profile excludes `anue`; ANÜ as one option among others is `partial` |
-| `pay` | Interim: day rate against `min_tagessatz` (or `einsatzpraeferenzen.tagessatz_ab`), a range counts by its upper end, an hourly rate times 8, another currency `partial`. Permanent: annual salary (upper end) against `min_jahresgehalt`. Stated and below excludes (salary only for a stated permanent role). Nothing stated: `partial`, "Nicht angegeben" plus a realistic estimate |
+| `pay` | Interim: day rate against `min_tagessatz` (or `einsatzpraeferenzen.tagessatz_ab`, never `tagessatz_wunsch`), a range counts by its upper end, an hourly rate times 8, another currency `partial`. Permanent: annual salary (upper end) against `min_jahresgehalt`. Stated and below excludes (salary only for a stated permanent role). Nothing stated: `partial`, "Nicht angegeben" plus a realistic estimate |
 | `seniority` | Against `zielprofil_min_jahre`: a closed range below it ("3 bis 5 Jahre", "6-8 years") or a minimum below it without a senior title (Senior, Lead, Principal, SME, Head, Director, Leiter, Leitung) excludes; an open minimum with a senior title ("7+" and Senior) is `partial` (overqualified); at or above is `met`; no number is `met` or `partial` by judgement. Manager, Consultant or Expert alone are no senior title |
 | `availability` | Start against `verfuegbar_ab`: a start before the availability is `partial`, never an exclusion |
 | `location` | Interim: `info`, only named; a country outside `laender` excludes unless fully remote and `remote_ausserhalb_erlaubt`. Permanent: a place of `festanstellung_orte` (also "Standort ... oder München") is `met`; outside with a stated remote share of at least `festanstellung_remote_min` percent or fully remote is `met`; outside otherwise excludes for a stated permanent role and is `open` for an unclear contract. Hybrid, flexibel, office days or "bis zu 3 Tage mobil" prove no remote share. Only a country named: `partial`, to be clarified |
@@ -90,13 +95,14 @@ the quote.
 
 ## 5. Score from 1 to 10
 
-9 to 10 core field, everything met · 7 to 8 core field, small gaps or overqualified · 5 to 6 one
-must open or a permanent role with open frame points · 3 to 4 several musts or a formal duty
-open · 2 off the field. A permanent role costs about one point unless the profile seeks only
-permanent roles; each missing `nice` at most half a point; distance never costs for interim.
-Caps the render step checks: open `formal` at most 4; at least two and at least half of the musts
-open at most 4; any open must or open counted frame row at most 6 (the location of an interim
-role does not count); no must met at most 3; nothing open at least 4; a shown job at least 2.
+Read `rubric.de.md` once and score by it. In short: 9 to 10 only in the core field with every
+must met and, when the profile names `schwerpunkte`, at least one of them met; a must met through
+a Schwerpunkt counts double; a matching target role adds at most one point; the wishes together
+move the score at most one point up or down and never lift a job to 8 or more while fewer than
+half of its musts are met. The render step checks the caps of the rubric: open `formal` at most
+4; at least two and at least half of the musts open at most 4; any open must or open counted
+frame row at most 6 (the location of an interim role does not count); no must met at most 3;
+nothing open at least 4; a shown job at least 2.
 
 ## 6. Data file and report
 

@@ -624,6 +624,48 @@ fn profiles_without_the_new_keys_score_as_before() {
     assert_eq!(hex, V3_ROWS_DIGEST, "old profiles changed:\n{canonical}");
 }
 
+/// The target role and the wishes never lift a job into the high band (80) while fewer
+/// than half of its musts are met: every corpus row against the same profile without them.
+#[test]
+fn wishes_never_lift_a_weak_job_into_the_high_band() {
+    let with = run();
+    let without = run_with(|_, mut profile| {
+        if let Some(map) = profile.as_object_mut() {
+            map.remove("wunschrollen");
+            if let Some(preferences) = map
+                .get_mut("einsatzpraeferenzen")
+                .and_then(Value::as_object_mut)
+            {
+                for key in V4_PREFERENCE_KEYS {
+                    preferences.remove(*key);
+                }
+            }
+        }
+        profile
+    });
+    let mut lifted = 0;
+    let mut failures = Vec::new();
+    for (row, base) in with.rows.iter().zip(&without.rows) {
+        assert_eq!((&row.profile, &row.job), (&base.profile, &base.job));
+        let (Some(new), Some(old)) = (&row.new, &base.new) else {
+            continue;
+        };
+        if new.verdict != Verdict::Scored || new.score <= old.score {
+            continue;
+        }
+        lifted += 1;
+        let s = &new.summary;
+        if new.score >= 80 && old.score < 80 && 2 * s.must_met < s.must_total {
+            failures.push(format!(
+                "{} {}: {} -> {} with {} of {} musts",
+                row.profile, row.job, old.score, new.score, s.must_met, s.must_total
+            ));
+        }
+    }
+    assert!(lifted > 0, "no row is lifted: the test checks nothing");
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
 fn code_of_kind(kind: ReasonKind) -> String {
     serde_json::to_value(kind)
         .expect("kind")

@@ -66,7 +66,8 @@
       </span>
       {#if !collapsed}
         <span class="label" in:fade>{item.label}</span>
-        {#if item.count}<span class="count" in:fade><Count value={item.count} tone="strong" /></span
+        {#if item.count}<span class="count" in:fade={{ on: motion.ready }}
+            ><Count value={item.count} tone="strong" /></span
           >{/if}
       {/if}
     </button>

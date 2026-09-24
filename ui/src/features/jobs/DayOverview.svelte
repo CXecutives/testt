@@ -1,90 +1,64 @@
 <!--
   The reader's empty state: what the sheet shows while no job is selected, unboxed like the
-  reader. It never repeats the list and never looks empty: tiles that filter the list (their
-  numbers count over every job, whatever the search), without a profile the tiles Neu and
-  Ohne Details and a calm card that leads to choosing one, the open points (one per portal
-  and problem, a failed fetch) only when there are any, and the new jobs per portal (each a
-  filter of the list) with the overview and the folder as quiet icon buttons. The time of
-  the last fetch is said once, in the sidebar.
+  reader. It answers "what now" in a short list, no counts (the list header counts): without
+  a usable profile a calm card that leads to one, "Beste Passung" (the three best scored new
+  jobs as list rows; a click opens the job), the open points (one per portal and problem, a
+  failed fetch, each with its action) only when there are any, and at the end the overview
+  file, the Excel file and the folder, their one place in the Jobs view. "Nothing new" is
+  said by the list and the run card, not here. The time of the last fetch is said once, in
+  the sidebar. The portals keep the one order of the app (the settings').
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import Card from '$components/Card.svelte';
+  import JobRow from '$components/JobRow.svelte';
   import Notice from '$components/Notice.svelte';
-  import StatTile from '$components/StatTile.svelte';
-  import { cssVars } from '$lib/actions/cssVars';
   import { de } from '$lib/i18n/de';
-  import { errorText, healthText } from '$lib/i18n/texts';
+  import { errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { EmptyAlert, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
+  import type { EmptyAlert, JobView, OpenTarget, Portal, PortalState } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
-  import { isExcluded, jobs, type JobFilter } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
 
-  const PORTALS: readonly Portal[] = ['linkedin', 'freelancermap', 'freelance'];
-
-  const counts = $derived(jobs.overviewCounts ?? app.state?.counts ?? null);
-  // "Neu" is unread and not excluded, exactly like the facet Neu (they add up to its count).
-  const unread = $derived(
-    jobs.overviewStatus === 'ready'
-      ? PORTALS.map((portal) => ({
-          portal,
-          count: jobs.overview.filter((j) => j.portal === portal && j.unread && !isExcluded(j))
-            .length,
-        })).filter((line) => line.count > 0)
-      : [],
-  );
-
-  interface Tile {
-    id: JobFilter | 'new';
-    label: string;
-    value: number;
-    icon: 'circle-check' | 'file-text' | 'ban' | 'star' | 'inbox';
-    tone?: 'success';
-  }
-  const tiles = $derived.by((): Tile[] => {
-    if (counts === null) return [];
-    const out: Tile[] = app.hasProfile
-      ? [
-          {
-            id: 'high',
-            label: de.overview.high,
-            value: counts.high,
-            icon: 'circle-check',
-            tone: 'success',
-          },
-          {
-            id: 'noDetail',
-            label: de.overview.noDetail,
-            value: counts.noDetail,
-            icon: 'file-text',
-          },
-          { id: 'excluded', label: de.overview.excluded, value: counts.excluded, icon: 'ban' },
-        ]
-      : [
-          { id: 'new', label: de.overview.new, value: counts.new, icon: 'inbox' },
-          {
-            id: 'noDetail',
-            label: de.overview.noDetail,
-            value: counts.noDetail,
-            icon: 'file-text',
-          },
-        ];
-    if (jobs.pinned > 0) {
-      out.push({ id: 'pinned', label: de.overview.pinned, value: jobs.pinned, icon: 'star' });
-    }
-    return out;
+  // The one order of the portals (the backend's, as in the settings).
+  const portals = $derived((app.state?.portals ?? []).map((p) => p.portal));
+  const BEST = 3;
+  /** The best scored new jobs (one small query; again whenever the counts move). */
+  let top = $state.raw<JobView[]>([]);
+  let topRequest = 0;
+  $effect(() => {
+    void jobs.overviewCounts;
+    const scoring = app.hasProfile;
+    untrack(() => {
+      const request = ++topRequest;
+      if (!scoring) {
+        top = [];
+        return;
+      }
+      invoke('list_jobs', {
+        query: { facet: 'new', sort: 'match', search: null, limit: BEST, offset: 0 },
+      })
+        .then((page) => {
+          if (request === topRequest) top = page.jobs;
+        })
+        .catch((error: unknown) => (actionError = errorText(error)));
+    });
   });
-
-  function toggle(tile: Tile): void {
-    if (tile.id === 'new') jobs.setFacet('new');
-    else jobs.setFilter(jobs.filter === tile.id ? null : tile.id);
-  }
+  // As the list knows them now (read, pinned); only scored ones are a match.
+  const best = $derived(
+    top
+      .map((job) => jobs.rows.find((row) => sameKey(row.key, job.key)) ?? job)
+      .filter((job) => job.match?.status === 'scored'),
+  );
 
   // While a run goes, the run card shows pauses and limits; they are not repeated here.
   const troubled = $derived(
-    run.active ? [] : (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
+    run.fetching
+      ? []
+      : (app.state?.portals ?? []).filter((p) => p.enabled && p.health.kind !== 'ok'),
   );
   const emptyAlerts = $derived(app.state?.lastRun?.emptyAlerts ?? []);
 
@@ -98,7 +72,7 @@
 
   /**
    * Each problem of a portal once: alert mails without jobs (the portal's "layout suspect"
-   * health and the empty alerts of the last fetch are one thing) with "In Gmail öffnen", and
+   * health and the empty alerts of the last fetch are one thing) with "Alert-Mail öffnen", and
    * a pause, a limit or a sign-in as its own line.
    */
   function issuesOf(portal: Portal, state: PortalState | undefined, alerts: EmptyAlert[]): Issue[] {
@@ -110,21 +84,20 @@
       out.push({
         id: `${portal}-mails`,
         portal,
-        text: de.overview.emptyAlerts(portal, mails),
+        text: de.overview.emptyAlerts(mails),
         mail: alerts.find((a) => a.gmailId !== null)?.gmailId ?? null,
       });
     } else if (suspect !== null) {
       out.push({ id: `${portal}-pages`, portal, text: de.health.layoutPages, mail: null });
     }
     if (health !== null && health.kind !== 'ok' && suspect === null) {
-      const said = healthText(health);
-      out.push({ id: `${portal}-health`, portal, text: said.text ?? said.label, mail: null });
+      out.push({ id: `${portal}-health`, portal, text: healthSentence(health) ?? '', mail: null });
     }
     return out;
   }
 
   const portalIssues = $derived(
-    PORTALS.flatMap((portal) =>
+    portals.flatMap((portal) =>
       issuesOf(
         portal,
         troubled.find((p) => p.portal === portal),
@@ -132,14 +105,34 @@
       ),
     ),
   );
-  // A failed fetch from before this session; a run of this session speaks in the run card.
+  // The last fetch failed; while the run card is up it speaks, not this.
   const lastFailure = $derived.by(() => {
-    const previous = app.state?.lastRun;
-    if (run.active || run.panel !== 'hidden' || previous?.outcome.kind !== 'failed') return null;
+    const previous = app.state?.lastRun ?? null;
+    if (run.fetching || run.panel !== 'hidden' || previous?.outcome.kind !== 'failed') {
+      return null;
+    }
     return previous.outcome.error;
   });
   const hasIssues = $derived(portalIssues.length > 0 || lastFailure !== null);
   const profileMissing = $derived(app.state !== null && !app.hasProfile);
+  // A profile that is there but cannot be used is named, and the card leads to it.
+  const profileCard = $derived.by(() => {
+    const profile = app.state?.profile ?? null;
+    if (profile === null) {
+      return {
+        heading: de.overview.noProfile,
+        text: de.overview.noProfileText,
+        label: de.list.createProfile,
+        icon: 'file-text' as const,
+      };
+    }
+    return {
+      heading: profile.parseError ? de.overview.profileUnreadable : de.overview.profileEmpty,
+      text: de.overview.profileBrokenText,
+      label: de.list.openProfile,
+      icon: 'user-round' as const,
+    };
+  });
   const fetchedOnce = $derived((run.summary ?? app.state?.lastRun ?? null) !== null);
   let actionError = $state<string | null>(null);
 
@@ -150,44 +143,33 @@
 </script>
 
 <div class="overview" data-testid="day-overview" aria-label={de.overview.label}>
-  {#if tiles.length > 0}
-    <div class="tiles" class:many={tiles.length > 3} use:cssVars={{ tiles: tiles.length }}>
-      {#each tiles as tile (tile.id)}
-        <StatTile
-          label={tile.label}
-          value={tile.value}
-          icon={tile.icon}
-          tone={tile.tone ?? 'neutral'}
-          active={tile.id !== 'new' && jobs.filter === tile.id}
-          testid="tile-{tile.id === 'noDetail' ? 'no-detail' : tile.id}"
-          onclick={() => toggle(tile)}
-        />
-      {/each}
-    </div>
-  {/if}
-
   {#if profileMissing}
     <Card variant="tinted" padding="md" testid="no-profile">
       <div class="profile">
         <div class="profile-copy">
-          <h2 class="card-heading">
-            {app.state?.profile == null
-              ? de.overview.noProfile
-              : app.state.profile.parseError
-                ? de.profile.parseError
-                : de.profile.qualityText.empty}
-          </h2>
-          <p class="card-text">{de.overview.noProfileText}</p>
+          <h2 class="card-heading">{profileCard.heading}</h2>
+          <p class="card-text">{profileCard.text}</p>
         </div>
         <Button
           variant="secondary"
-          icon="file-text"
-          label={app.state?.profile == null ? de.list.createProfile : de.list.openProfile}
+          icon={profileCard.icon}
+          label={profileCard.label}
           testid="choose-profile"
           onclick={() => navigation.go('profile')}
         />
       </div>
     </Card>
+  {/if}
+
+  {#if best.length > 0}
+    <section class="block" data-testid="best">
+      <h2 class="heading">{de.overview.best}</h2>
+      <div class="best">
+        {#each best as job (keyOf(job.key))}
+          <JobRow {job} onselect={(chosen) => void jobs.select(chosen, true)} />
+        {/each}
+      </div>
+    </section>
   {/if}
 
   {#if hasIssues}
@@ -198,9 +180,12 @@
           <Notice
             tone="danger"
             variant="row"
-            heading={de.run.failed}
+            heading={de.overview.lastRun}
             text={de.error.text(lastFailure.kind, lastFailure.params)}
-            action={{ label: de.common.retry, onclick: () => void run.start({ kind: 'fetch' }) }}
+            action={{
+              label: de.common.retry,
+              onclick: () => run.retry(app.state?.lastRun ?? null),
+            }}
             testid="run-failed"
           />
         {/if}
@@ -212,7 +197,7 @@
             text={issue.text}
             action={issue.mail
               ? {
-                  label: de.overview.openGmail,
+                  label: de.reader.mail,
                   onclick: () => open({ kind: 'alertMail', gmailId: issue.mail ?? '' }),
                 }
               : null}
@@ -223,50 +208,33 @@
     </section>
   {/if}
 
-  {#if fetchedOnce && jobs.overviewStatus === 'ready'}
-    <section class="block" data-testid="new-jobs">
-      <div class="block-head">
-        <h2 class="heading">{de.overview.newJobs}</h2>
-        <span class="tools">
-          <Button
-            variant="ghost"
-            size="sm"
-            iconOnly
-            icon="external-link"
-            label={de.run.openOverview}
-            testid="overview-open"
-            onclick={() => open({ kind: 'overview' })}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            iconOnly
-            icon="folder-open"
-            label={de.common.openFolder}
-            testid="overview-folder"
-            onclick={() => open({ kind: 'workspace' })}
-          />
-        </span>
-      </div>
-      {#if unread.length > 0}
-        <ul class="portals" data-testid="new-per-portal">
-          {#each unread as line (line.portal)}
-            <li>
-              <Button
-                variant="secondary"
-                size="sm"
-                label={de.overview.newOn(de.portal[line.portal], line.count)}
-                pressed={jobs.filter === line.portal}
-                testid="new-{line.portal}"
-                onclick={() => jobs.setFilter(jobs.filter === line.portal ? null : line.portal)}
-              />
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <p class="quiet">{de.overview.nothingNew}</p>
-      {/if}
-    </section>
+  {#if fetchedOnce}
+    <div class="files" data-testid="overview-files">
+      <Button
+        variant="ghost"
+        size="sm"
+        icon="external-link"
+        label={de.run.openOverview}
+        testid="overview-open"
+        onclick={() => open({ kind: 'overview' })}
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        icon="file-text"
+        label={de.overview.excel}
+        testid="overview-excel"
+        onclick={() => open({ kind: 'excel' })}
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        icon="folder-open"
+        label={de.common.openFolder}
+        testid="overview-folder"
+        onclick={() => open({ kind: 'workspace' })}
+      />
+    </div>
   {/if}
   {#if actionError}
     <Notice tone="danger" variant="inline" text={actionError} />
@@ -274,33 +242,21 @@
 </div>
 
 <style>
+  /* The first hairline lands on the line of the list header's bottom edge. */
   .overview {
     display: flex;
     flex-direction: column;
-    gap: var(--space-20);
+    gap: var(--space-16);
     container-type: inline-size;
   }
 
-  /* One row of tiles, as many columns as tiles; four tiles take two rows where one row
-     would cut their labels (the reader column is at most 720 px), and one column only when
-     two would. */
-  .tiles {
-    display: grid;
-    grid-template-columns: repeat(var(--tiles), minmax(0, 1fr));
-    gap: var(--space-12);
-  }
-
-  @container (width < 720px) {
-    .tiles.many {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @container (width < 460px) {
-    .tiles,
-    .tiles.many {
-      grid-template-columns: 1fr;
-    }
+  /* The rows of "Beste Passung" like the list's: their ring on the edge of the column; the
+     last row's own line gives way to the hairline of the next block. */
+  .best {
+    display: flex;
+    flex-direction: column;
+    margin: 0 calc(-1 * var(--pane-padding));
+    clip-path: inset(0 0 var(--border-width) 0);
   }
 
   .profile {
@@ -329,7 +285,13 @@
     font: var(--type-sm);
   }
 
-  /* Sections like the reader's: a hairline above, the heading, the content. */
+  /* Sections like the reader's: a hairline above, the heading, the content (the first one
+     starts the overview without a line). */
+  .overview > .block:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
   .block {
     display: flex;
     flex-direction: column;
@@ -338,24 +300,17 @@
     border-top: var(--border-width) solid var(--border);
   }
 
-  .block-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-8);
-    min-height: var(--control-sm);
-  }
-
   .heading {
     color: var(--text-heading);
     font: var(--type-lg);
   }
 
-  /* The ghost icons end on the edge of the column like the text above them. */
-  .tools {
+  /* Quiet file actions below everything; their icons start on the edge of the column. */
+  .files {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-4);
-    margin-right: calc(-1 * var(--space-6));
+    margin-left: calc(-1 * var(--space-12));
   }
 
   .rows {
@@ -369,16 +324,5 @@
 
   .rows > :global(* + *) {
     border-top: var(--border-width) solid var(--border);
-  }
-
-  .portals {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-8);
-  }
-
-  .quiet {
-    color: var(--text-muted);
-    font: var(--type-md);
   }
 </style>

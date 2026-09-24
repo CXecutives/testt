@@ -116,6 +116,7 @@ pub(crate) fn engine_facts(facts: &Facts) -> Option<Value> {
     );
     put(fact_key::RATE, facts.rate.clone().map(Value::from));
     put(fact_key::START, facts.start.clone().map(Value::from));
+    put(fact_key::DURATION, facts.duration.clone().map(Value::from));
     (!map.is_empty()).then_some(Value::Object(map))
 }
 
@@ -134,6 +135,7 @@ pub fn record(assessment: &Assessment) -> MatchRecord {
         must_met: assessment.summary.must_met,
         must_total: assessment.summary.must_total,
         top: top(assessment),
+        facts: assessment.facts.clone(),
     }
 }
 

@@ -295,14 +295,22 @@ pub(crate) const FRAME_WORDS: &[&str] = &[
 /// Formal requirements: degrees (prefix stems; a bare `Abschluss` is also a financial
 /// statement, so it does not count).
 pub(crate) const DEGREE_WORDS: &[&str] = &[
+    "b.sc",
     "bachelor",
+    "bsc",
     "degree",
     "diplom",
     "hochschulabschluss",
+    "m.sc",
     "master",
+    "msc",
+    "ph.d",
+    "phd",
     "studium",
     "university",
 ];
+/// Words after `master` that make it no degree (`Master Data Management`).
+pub(crate) const MASTER_NOT_DEGREE: &[&str] = &["data", "daten", "file", "plan", "record"];
 
 /// Degree fields: stems in a requirement or profile degree -> field id. A match inside a
 /// longer match (`informatik` in `wirtschaftsinformatik`) does not count.
@@ -337,10 +345,25 @@ pub(crate) const DEGREE_FIELDS: &[(&str, &str)] = &[
     ("mathematik", "science"),
     ("physik", "science"),
     ("naturwissenschaft", "science"),
+    ("natural science", "science"),
+    ("rer. nat", "science"),
+    ("rer.nat", "science"),
+    ("pharmaz", "life-science"),
+    ("pharmacy", "life-science"),
+    ("pharmaceutical science", "life-science"),
+    ("apothek", "life-science"),
+    ("chemie", "life-science"),
+    ("chemistry", "life-science"),
+    ("biolog", "life-science"),
+    ("biochem", "life-science"),
+    ("biotechnolog", "life-science"),
+    ("life science", "life-science"),
+    ("lebenswissenschaft", "life-science"),
 ];
 
 /// Neighbouring degree fields: a degree in one half-meets a requirement for the other.
 pub(crate) const DEGREE_RELATED: &[(&str, &str)] = &[
+    ("science", "life-science"),
     ("business", "business-it"),
     ("it", "business-it"),
     ("business", "business-engineering"),
@@ -605,6 +628,29 @@ pub(crate) const RATE_WORDS: &[&str] = &[
     "€/h",
 ];
 pub(crate) const SALARY_WORDS: &[&str] = &["gehalt", "salary"];
+/// A rate to be agreed, without an amount (with a rate word in the same sentence).
+pub(crate) const RATE_OPEN: &[&str] = &[
+    "nach absprache",
+    "nach vereinbarung",
+    "auf anfrage",
+    "verhandelbar",
+    "verhandlungssache",
+    "negotiable",
+    "on request",
+    "to be agreed",
+    "tbd",
+];
+/// Sentences that state a duration, and the units of one.
+pub(crate) const DURATION_WORDS: &[&str] = &[
+    "laufzeit",
+    "dauer",
+    "duration",
+    "zeitraum",
+    "einsatzzeitraum",
+    "length",
+];
+pub(crate) const MONTH_UNITS: &[&str] = &["monat", "month"];
+pub(crate) const WEEK_UNITS: &[&str] = &["woche", "week"];
 pub(crate) const HOURLY_WORDS: &[&str] = &["stunde", "std", "hour", "/h", "stundensatz"];
 pub(crate) const OTHER_CURRENCIES: &[&str] = &["chf", "usd", "gbp", "$", "£"];
 /// Sentences that state a start.

@@ -33,6 +33,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Native window frame on both OS (user, 2026-09-24 night) | Windows keeps its native title bar (icon, title, caption buttons, system menu on the icon, right click and Alt+Space, snap layouts), coloured like the app via DWM: caption = `--bg` cream (= `backgroundColor`), title = ink, dimmed to `--text-subtle` while inactive (Windows 11; Windows 10 keeps its light bar); macOS keeps its native title bar with the centred title (revised: the unified title bar, see "Title bars, final"). No title bar or caption buttons in the page; the sidebar has no brand row. Principle: two versions, as identical as possible inside the window; whatever differs by OS convention does differ (see Platforms) |
 | UI overhaul after the installed test (2026-09-24 night) | Abrufen next to the search in the list header (Abbrechen in its place during a run); light coral primary, coral switches; weights 400/500/600; motion 100/150/180 ms, ring fill 360 ms, ease-out, no stagger, no bounce, no glow/lift/shimmer, no backdrop blur (amended by "cxpertise navy": 80 ms hover-in, press scale, icon nudges, sliding indicators, the one-shot pop, draw and flash are allowed); rows and rings do not replay when a view comes back; one Tauri channel per streaming call (a shared one lost the second run); day overview without a profile: tiles Neu and Ohne Details plus a card to choose one; each portal problem once; a Gemerkt tile once something is pinned; excluded unread jobs under Neu behind the divider |
 | Title bars, final (user, 2026-09-24 late night) | Windows: the native title bar stays (the 36 px web-drawn bar and a snap-layouts overlay were tried and dropped); its colours are named constants in `platform.rs` (`TITLE_BAR_BACKGROUND`, `TITLE_BAR_TEXT`, `TITLE_BAR_TEXT_INACTIVE`, each checked against its token), so a later cxpertise blue is a one-line change there and in `tokens.css`. macOS: the unified title bar of Mail or Notes: `titleBarStyle` Overlay, hidden title, traffic lights at x 20 / y 28 (the CI smoke measured the 14 px buttons at centre y - 2, so y 28 centres them in the 52 px row; checked by the macOS CI screenshot and the smoke line `SMOKE {"lights":...}`), placed by the app itself (`platform.rs` `lights`, tao's geometry after show and on every resize, focus, theme and scale change) because tao applies the inset only while its covered content view draws; the sidebar runs to the top with the lights in its first row, search and Abrufen sit in that row, the sheet reaches the top edge, and every empty point of the row moves the window (`data-tauri-drag-region` on `DragBand` and the full-width list header row, macOS only, own capability `macos.json`; the harness probes the whole row in every view and width); a double click there zooms (native zoom through Tauri's drag script; the system setting "double-click a title bar to" is not read). Minimum window 480 x 360 so every Windows 11 snap layout fits (quarters of 1366 x 768 included); snap layouts are the native ones. Later option: WebView2 `CoreWebView2WindowControlsOverlay` once it is stable |
+| Score ring scale (user, 2026-09-25) | the ring colour follows the score in ten steps by decile (0-9 ... 90-100), red through orange and yellow to green, clean and not neon (OKLCH-derived: 4 62% 58%, 13 69% 58%, 19 75% 58%, 25 79% 58%, 33 80% 58%, 40 77% 59%, 51 58% 54%, 68 43% 49%, 96 35% 50%, 140 41% 45%); the digits are ink; excluded and unscored rings are not on the scale; the band words (Hohe, Mittlere, Geringe Passung) stay by band. One table: `core/src/export/scale.rs` (HTML overview rings, Excel score cells) = `--p-score-0..9` in tokens.css (`ui_contract::the_score_scale_is_one_table`) |
 | Warm selection (user, after the A/B preview, 2026-09-24) | supersedes the navy selection below: the selected row and the active nav are warm and very light (row wash 22 72% 96.5 %, hover 94.5 %, a coral bar at 0.75, the ring track 20 40% 88 %; the nav pill white with an ink label and a coral icon; soft count pills 95 % with coral-800 digits). Navy stays for the sidebar count pill, the pinned star, tooltips, progress, info, links, focus, the first-run current step and the chosen filter. Switch rows get no background at all ("kein grau, nur die Schalter"): only the switch reacts, also while the pointer is on its row's text, which still toggles it. No press ever deforms a control: buttons give uniformly (0.98), everything else only darkens; rows share one grid (a row's wash and divider are its own box, the container's inset is --row-inset) |
 | cxpertise navy for structure and state (user, 2026-09-24) | two brand colours with two jobs: coral (13 73% 63%) means act or new - the one primary per view, switches that are on, the unread dot; navy (212 34% 37%) and deep navy (212 30% 26%) mean where you are and what the data says - the selection bar and wash, the active nav (a sliding white pill with a navy label), the chosen filter, focus, caret and text selection, progress, counts (a deep navy pill in the sidebar, soft pills elsewhere), tooltips, info, sub-labels and links. Navy only as small dense marks and 93-96 % washes, never a large fill, never on headings, switches, scores or row-title hover; navy and coral never share an element and never blend. Motion "quiet at rest, rich on contact": hover-in 80 ms, hover-out 150 ms, press 60 ms with a small scale (0.97 / 0.94 icon / 0.985 tiles), release with --ease-emphasized; icons nudge 1-2 px, indicators slide 180 ms, counts roll, the star pops once (1, 1.18, 1), checks draw, a passage flashes; no lift, glow, stagger, bounce, blur or replay (nothing animates on mount; `intro: false`) |
 | Profile editor (user, 2026-09-24) | The Profil view is the profile as a form (no JSON writing): the keys the engine and the skill read, grouped as a consultant thinks (Person, Kompetenzen und Schwerpunkte, Erfahrung, Werkzeuge und Zertifikate, Sprachen, Wünsche, Ausschlusskriterien); chip fields for lists, toggle buttons for small fixed choices (no dropdown). Three ways in without a profile: Profil anlegen, Aus Lebenslauf erstellen (a German prompt for the user's own Claude, `core/src/profile/prompt.rs`, the answer is pasted back), Datei wählen; file and answer fill the form for review. Saving merges into the JSON: only changed fields are written, unknown keys, their values and the key order stay, atomic write, one backup `profil/beraterprofil.json.bak`. "Vorlage speichern" is gone. New profile inputs `schwerpunkte` (at most 5, stars on the competences), `wunschrollen`, wishes in `einsatzpraeferenzen` (`tagessatz_wunsch`, `remote` voll/ueberwiegend/teilweise/vor_ort, `regionen`, `branchen`); the engine side follows separately |
@@ -50,27 +51,41 @@ reset deletes `-wal`/`-shm`. No FTS5 (table is WITHOUT ROWID): search stays `LIK
 Reasons are not stored; `job_detail` recomputes them. Settings JSON: per portal `enabled`, `fetchDetails`,
 `loginEnabled` (freelance.de), plus `autoFetchOnStart`.
 
+### Schema 4 (the user's marks, one more step of the chain)
+New nullable `job` columns: `app_status TEXT` (applied|interview|offer|rejected), `app_status_at`, `note TEXT`
+(<= 2000 characters, no export shows it), `hidden_at` ("Nicht interessant"). Frozen fixture
+`core/tests/fixtures/schema_v3.sql`. A hidden job is in no list but "hidden" and in no count but its own; the HTML
+overview and `top_matches.json` leave it out. Excel gets a "Status" column (Beworben, Im Gespräch, Zusage, Absage); the
+TXT files stay byte-identical. `claude_prompt(key)` builds the German prompt for a deep analysis in the user's own
+Claude (`export/claude_prompt.rs`, external contract): the rubric intent of the skill in short, the profile without
+name, contact data, links and references, the ad (text <= 12,000 characters, profile <= 8,000).
+
 ### IPC v3 (types from Rust via ts-rs; camelCase; `null` instead of missing; backend never sends prose)
 Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | rescore | fullMailbox})` · `cancel_run` ·
-`list_jobs(JobQuery{facet: new|all, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{new, all, excluded, high, noDetail}}`
-(list and counts from ONE query) · `job_detail(key)` · `mark_read(key) -> bool` · `set_pinned(key, on)` · `pick_profile -> ProfileDraft?` ·
+`list_jobs(JobQuery{facet: new|all|applications|hidden, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{new, all, excluded, high, noDetail, pinned, applications, hidden, newByPortal[{portal, new}] in Portal::ALL order}}`
+(list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only; applications
+newest status change first, hidden latest hidden first) · `job_detail(key)` · `mark_read(key) -> bool` · `set_pinned(key, on)` ·
+`set_app_status(key, status|null) -> bool` · `set_note(key, note) -> bool` · `set_hidden(key, hidden) -> bool` ·
+`claude_prompt(key) -> string` · `pick_profile -> ProfileDraft?` ·
 `parse_profile(text) -> ProfileDraft` · `profile_prompt` · `save_profile(ProfileSave{before, after, source?}) -> ProfileInfo` ·
 `remove_profile` · `save_mailbox` · `remove_mailbox` · `portal_login` · `portal_logout` ·
 `pick_workspace` · `rewrite_txt` · `clear_txt` · `open_target({jobUrl|gmail|workspace|excel|overview|logDir})` ·
 `save_settings(SettingsPatch)` · `reset_all` · `report_ui_error` (truncated, <= 10/min).
 Rust triggers `rescore` itself (after pick/remove profile, at start, after an engine update, if pending > 0; pending = 0
 without a usable matcher) and the auto fetch (setting on, mailbox connected, last fetch > 6 h).
-Events on channel `run` (struct variants, each < 8 KB): `Progress{step: scan|fetch|score|export, portal?, done, total}` ·
-`Status{code, portal?, until?}` · `Alert{portal, subject, date, postings, gmailId}` · `JobUpdated{job}` ·
+Events on channel `run` (struct variants, each < 8 KB): `Started{kind}` (first event of every run, also of the runs Rust
+starts itself) · `Progress{step: scan|fetch|score|export, portal?, done, total}` ·
+`Status{code, portal?, until?}` · `Alert{portal, subject, date, postings, gmailId}` · `JobUpdated{job, fresh}` (fresh = first seen in this run) ·
 `PortalHealth{portal, health}` · `LoginNeeded{portal, waiting}` ·
-`Finished{summary{perPortal[{portal,new,known,dup,fetched,failed}], score{scored,excluded,unscorable,pending,best}, stops[], emptyAlerts[]}}`.
-Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[]}` ·
-`JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null}` ·
+`Finished{summary{kind, perPortal[{portal,new,known,dup,fetched,failed}], newJobs{count, high}?, score{scored,excluded,unscorable,pending,best}, export{..., error{kind, params.target}?}, stops[], emptyAlerts[]}}`
+(`newJobs` of a mailbox run: first seen, not a duplicate, not excluded; `high` of those; the export never fails a run but names what it could not write).
+Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[], appStatus|null, hidden}` ·
+`JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null, note|null, appStatusAt|null}` ·
 `Reason{id, kind: met|partial|open|violation|check, weight: must|nice|hard|info, code, label, evidence{profile, path, via, quote}|null, params, ranges[]}` ·
 `Highlight{id, start, end (UTF-16), kind, reason}` · `ProfileInfo{fileName, bytes, savedAt, quality: good|thin|empty, understood{competenceCount, competences[], sources[], criteria[], warnings[], packs[], years, degrees[], focus[], roles[], wishes}, scoredAt, pending, form}` ·
 `ProfileForm` (the editor's fields, `core/src/profile/form.rs`) · `ProfileDraft{form, source, quality}` ·
 `PortalHealth = ok | paused{until, reason} | quotaReached{until} | layoutSuspect{emptyMails, pages} | loginRequired` ·
-`AppState{platform, dryRun, firstRun, running, settings, mailbox, profile, portals[{portal, enabled, fetchDetails, login, loginEnabled, signedIn, risk: low|grey|account, health, quota?}], autoFetchOnStart, lastRun, counts, topMatches[<=5], matchPending, dataDir, logDir, resetReport?}` ·
+`AppState{platform, dryRun, firstRun, running, settings, mailbox, profile, portals[{portal, enabled, fetchDetails, login, loginEnabled, signedIn, risk: low|grey|account, health, quota?}] (Portal::ALL order), autoFetchOnStart, lastRun (the last fetch: fetch or fullMailbox, never a rescore or details run), counts, matchPending, dataDir, logDir, resetReport?}` ·
 `CommandError{kind, params}`. Traits: `pipeline::score::Matcher{rev, assess}` · `portal::PortalAdapter` · `matching::prescore`.
 
 ### Matching engine (`core/src/matching`, pure, synchronous, integer only)
@@ -146,7 +161,8 @@ cache, profile dir, marker, then verifies `signedIn=false`.
 - Tokens (`tokens.css`, `:root`, light only, `color-scheme: light`): palette from the brief (coral 13 73% 63%, navy
   212 34% 37% with deep navy 212 30% 26% and washes 96/93/90/84 %, cream 32 33% 96%, ink 45 7% 17%, ...) plus shades
   (coral-800 13 62% 45% for text, *-strong/*-soft for status; info is navy), semantic tokens only in components, score
-  colours (high 152 50% 31%, mid ochre 38 55% 55%, low 30 5% 56% with text 30 4% 42%), no decorative gradients or glow
+  colours (band words: high 152 50% 31%, mid ochre, low 30 4% 42%; the ring in ten steps by decile, see Decisions
+  "Score ring scale"), no decorative gradients or glow
   (one gradient: the light of a loading placeholder); brand mark = the real coral app icon (folder + check) as SVG;
   small shadows only for what floats (dialog, toast, tooltip) plus the static hover shadow on `::after`, none
   animated; radii 6/8/10/12/16, 4 px spacing, controls 28/36/40, type 12/13/14 (tabs)/15/15/17/20/26/34 (UI standard
@@ -232,6 +248,11 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [x] Integration: engine wired (LocalMatcher, rescore, job detail, profile summary, template, top_matches.json), scraping merged, prescore orders the fetch queue; engine v3 with the skill rubric, domain packs and aliases (in band 49/51/49/51 of 52 for the four profiles). A + B done (LocalMatcher, Rust-triggered
       rescore, reader recompute, profile summary, template, demo on the real engine, `auswertung/top_matches.json` for the
       skill as optional stage 2); D open (prescore hook not exposed by the fetch queue yet).
+- [x] Engine v4 (`docs/MATCHING.md`): Schwerpunkte, target roles and wishes (bounded, never an exclusion, no lift
+      into the high band while fewer than half of the musts are met); fixes of held-out sets 1 and 2, now regression
+      corpora with frozen floors (NDCG@10 0.822 to 0.930 and 0.632 to 0.805); criteria met only with the ad's value
+      as evidence, key facts on `JobMatch`; one German rubric for the Claude check and the skill
+      (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3, the new domain packs.
 
 ### Phase 3 - screens and core workflow (two UI agents)
 - [x] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)

@@ -487,7 +487,7 @@ fn countries_in(folded: &str) -> Vec<&'static str> {
     found
 }
 
-fn location_countries(location: &str) -> Vec<&'static str> {
+pub(crate) fn location_countries(location: &str) -> Vec<&'static str> {
     let folded = fold(location);
     let named = countries_in(&folded);
     if !named.is_empty() {
@@ -598,6 +598,7 @@ fn country(
 }
 
 /// A rate statement: highest amount, hourly or daily, EUR or not.
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct Rate {
     pub upper: u64,
     pub hourly: bool,

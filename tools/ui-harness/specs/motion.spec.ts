@@ -153,7 +153,18 @@ test('hover rests while a list scrolls', async ({ page }) => {
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   const scrolling = (): Promise<boolean> =>
     page.evaluate(() => document.documentElement.hasAttribute('data-scrolling'));
-  await page.getByTestId('list-scroll').evaluate((node) => node.scrollBy(0, 200));
-  await expect.poll(scrolling).toBe(true);
+  // Scroll and look right after the scroll event (the mark lasts --scroll-idle).
+  const during = await page.getByTestId('list-scroll').evaluate(
+    (node) =>
+      new Promise<boolean>((resolve) => {
+        node.addEventListener(
+          'scroll',
+          () => resolve(document.documentElement.hasAttribute('data-scrolling')),
+          { once: true },
+        );
+        node.scrollBy(0, 200);
+      }),
+  );
+  expect(during).toBe(true);
   await expect.poll(scrolling, { timeout: 1000 }).toBe(false);
 });

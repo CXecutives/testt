@@ -550,10 +550,24 @@ fn classify(text: &str, phrase_level: Option<u8>, vocab: &Vocab) -> Class {
     {
         return Class::Language((*language).to_owned(), level_in(text).or(phrase_level));
     }
-    if tokens.iter().any(|t| starts_with_any(t, lex::DEGREE_WORDS)) {
+    if names_degree(&tokens) {
         return Class::Degree;
     }
     Class::Skill
+}
+
+/// Do the tokens name a degree (`Master Data Management` does not)?
+pub(crate) fn names_degree(tokens: &[&str]) -> bool {
+    tokens.iter().enumerate().any(|(i, t)| {
+        starts_with_any(t, lex::DEGREE_WORDS)
+            && !(t.starts_with("master")
+                && (lex::MASTER_NOT_DEGREE
+                    .iter()
+                    .any(|w| t.len() > 6 && t[6..].trim_start_matches('-').starts_with(w))
+                    || tokens
+                        .get(i + 1)
+                        .is_some_and(|n| starts_with_any(n, lex::MASTER_NOT_DEGREE))))
+    })
 }
 
 /// Required years: `mindestens 10 Jahre`, `10+ years`, `zehn Jahre`.
@@ -591,6 +605,27 @@ pub(crate) fn heading_kind(line: &str) -> Option<HeadingKind> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn degrees_and_their_fields() {
+        let degree = |text: &str| {
+            let folded = fold(text);
+            names_degree(&atoms::raw_tokens(&folded).collect::<Vec<_>>())
+        };
+        assert!(degree("MSc or PhD in life sciences, pharmacy or chemistry"));
+        assert!(degree("Master in Business Administration"));
+        assert!(!degree("Erfahrung im Master Data Management"));
+        assert!(!degree("Masterdaten und Stammdatenpflege"));
+        let fields = |text: &str| super::super::fit::degree_fields_in(&fold(text));
+        assert_eq!(
+            fields("Naturwissenschaftliches Studium (Pharmazie, Chemie, Biologie)"),
+            ["life-science", "science"]
+        );
+        assert_eq!(
+            fields("Dr. rer. nat., approbierte Apothekerin"),
+            ["life-science", "science"]
+        );
+    }
 
     fn items(phrase: &str) -> Vec<(String, Vec<String>)> {
         split(phrase)

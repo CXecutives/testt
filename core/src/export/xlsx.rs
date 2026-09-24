@@ -6,7 +6,8 @@ use std::path::Path;
 use rust_xlsxwriter::{Color, Format, FormatBorder, Workbook, Worksheet, XlsxError};
 
 use super::Line;
-use super::texts::{COLUMNS, INFO_NOTE, INFO_NOTE_LABEL, INFO_SHEET, JOBS_SHEET};
+use super::scale::{SCORE_SCALE, score_step};
+use super::texts::{COLUMNS, INFO_NOTE, INFO_NOTE_LABEL, INFO_SHEET, JOBS_SHEET, app_status_label};
 use crate::error::Result;
 use crate::model::MatchStatus;
 use crate::store::JobRow;
@@ -20,8 +21,8 @@ const MAX_CELL_CHARS: usize = 32_767;
 /// reports "unreadable content" and removes all links when repairing).
 const MAX_LINKS: usize = 65_530;
 /// Column widths in characters (order as in `COLUMNS`).
-const WIDTHS: [f64; 12] = [
-    15.0, 16.0, 50.0, 32.0, 22.0, 45.0, 40.0, 20.0, 16.0, 22.0, 24.0, 10.0,
+const WIDTHS: [f64; 13] = [
+    15.0, 16.0, 50.0, 32.0, 22.0, 45.0, 40.0, 20.0, 16.0, 22.0, 24.0, 10.0, 14.0,
 ];
 /// Grey of the header row and of excluded jobs.
 const HEADER_GREY: u32 = 0x00E7_E6E6;
@@ -43,6 +44,8 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
         .set_background_color(Color::RGB(HEADER_GREY))
         .set_border_bottom(FormatBorder::Thin);
     let grey = Format::new().set_font_color(Color::RGB(EXCLUDED_GREY));
+    let steps =
+        SCORE_SCALE.map(|colour| Format::new().set_background_color(Color::RGB(colour.rgb())));
     let dates = [
         Format::new().set_num_format(DATE_FORMAT),
         grey.clone().set_num_format(DATE_FORMAT),
@@ -76,11 +79,21 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow]) -> Result<(), XlsxError> {
         sheet.write_datetime_with_format(row, 8, time::local(job.first_seen_at), date)?;
         text(sheet, row, 9, line.details)?;
         text(sheet, row, 10, &line.key)?;
-        // Unscorable jobs have no number: an empty cell sorts behind every score.
+        // Unscorable jobs have no number: an empty cell sorts behind every score. A scored
+        // job's cell takes the ring colour of the app (ten steps, `scale.rs`); an excluded
+        // one stays in the grey of its row.
         if let Some(m) = &job.match_
             && m.status != MatchStatus::Unscorable
         {
-            sheet.write_number(row, 11, f64::from(m.score))?;
+            if m.status == MatchStatus::Scored {
+                let step = &steps[score_step(m.score)];
+                sheet.write_number_with_format(row, 11, f64::from(m.score), step)?;
+            } else {
+                sheet.write_number(row, 11, f64::from(m.score))?;
+            }
+        }
+        if let Some(status) = job.app_status {
+            text(sheet, row, 12, app_status_label(status))?;
         }
     }
     let last_row = u32::try_from(jobs.len()).unwrap_or(u32::MAX);
@@ -170,6 +183,9 @@ mod tests {
             match_: None,
             match_rev: None,
             facts: None,
+            app_status: None,
+            app_status_at: None,
+            hidden_at: None,
         }
     }
 
@@ -196,9 +212,11 @@ mod tests {
             must_met: 0,
             must_total: 0,
             top: Vec::new(),
+            facts: crate::model::KeyFacts::default(),
         };
         jobs[0].match_ = Some(scored(MatchStatus::Scored, 83));
         jobs[1].match_ = Some(scored(MatchStatus::Excluded, 71));
+        jobs[0].app_status = Some(crate::model::AppStatus::Interview);
         let info = [(
             crate::export::texts::INFO_LAST_RUN.to_string(),
             "x".to_string(),
@@ -240,6 +258,9 @@ mod tests {
         // "Passung" last: a number, for excluded jobs the domain score.
         assert_eq!(first[11], &Data::Float(83.0));
         assert_eq!(range.get((2, 11)), Some(&Data::Float(71.0)));
+        // The application status in the words of the interface; none stays empty.
+        assert_eq!(first[12].to_string(), "Im Gespräch");
+        assert!(matches!(range.get((2, 12)), None | Some(Data::Empty)));
         assert_eq!(range.rows().count(), 3);
         let info = book.worksheet_range(INFO_SHEET).unwrap();
         assert_eq!(info.get((0, 1)).unwrap().to_string(), "x");

@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 use super::lexicon::domains::{DOMAINS, Domain};
 use super::lexicon::{self, engine as lex};
 use super::normalize::casefold;
+use super::params::PACK_HITS;
 
 /// Case-folded, umlauts folded (`Übersicht` -> `ubersicht`, `ß` -> `ss`).
 pub(crate) fn fold(text: &str) -> String {
@@ -57,15 +58,19 @@ impl Vocab {
         Self::with(&[])
     }
 
-    /// Core plus every pack a token of `texts` triggers.
+    /// Core plus every pack that at least `PACK_HITS` tokens of `texts` trigger (one stray
+    /// word such as `Budget` in an HR profile switches on no finance pack).
     pub(crate) fn for_texts<'a>(texts: impl IntoIterator<Item = &'a str>) -> Self {
         let folded: Vec<String> = texts.into_iter().map(fold).collect();
         let packs: Vec<&'static Domain> = DOMAINS
             .iter()
             .filter(|domain| {
-                folded.iter().any(|text| {
-                    raw_tokens(text).any(|t| domain.triggers.iter().any(|p| t.starts_with(p)))
-                })
+                let hits = folded
+                    .iter()
+                    .flat_map(|text| raw_tokens(text))
+                    .filter(|t| domain.triggers.iter().any(|p| t.starts_with(p)))
+                    .count();
+                hits >= PACK_HITS
             })
             .copied()
             .collect();
@@ -433,8 +438,11 @@ mod tests {
     fn packs_follow_the_profile() {
         let finance = Vocab::for_texts(["Controlling", "Konzernrechnungslegung nach IFRS"]);
         assert_eq!(finance.packs(), ["finance"]);
-        let sap = Vocab::for_texts(["SAP FI", "Datenmigration"]);
+        let sap = Vocab::for_texts(["SAP FI", "SAP S/4HANA", "Datenmigration", "Jira"]);
         assert_eq!(sap.packs(), ["sap", "itProject"]);
+        // One stray trigger switches on no pack.
+        let hr = Vocab::for_texts(["Recruiting", "Arbeitsrecht", "Budgetverantwortung"]);
+        assert!(hr.packs().is_empty(), "{:?}", hr.packs());
         let clinical = Vocab::for_texts(["Klinische Studien", "Clinical Trial Management"]);
         assert!(clinical.packs().is_empty());
         assert_ne!(

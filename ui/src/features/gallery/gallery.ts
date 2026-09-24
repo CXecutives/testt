@@ -189,9 +189,24 @@ function sample(
     short: false,
     match: null,
     alsoOn: [],
+    appStatus: null,
+    hidden: false,
     ...extra,
   };
 }
+
+/** A job whose ad states no key facts. */
+const NO_FACTS = {
+  rate: null,
+  hourly: null,
+  currency: null,
+  rateOpen: null,
+  start: null,
+  months: null,
+  remoteFrom: null,
+  remoteTo: null,
+  contract: null,
+};
 
 const scored = (score: number, top: string): JobView['match'] => ({
   score,
@@ -201,6 +216,7 @@ const scored = (score: number, top: string): JobView['match'] => ({
   mustMet: 3,
   mustTotal: 4,
   top: [top],
+  facts: NO_FACTS,
 });
 
 /** Jobs in every state a row can show. */
@@ -225,6 +241,7 @@ export function sampleJobs(now: Date): JobView[] {
       key: { portal: 'linkedin', id: '1002' },
       unread: true,
       workMode: 'remote',
+      appStatus: 'interview',
       match: scored(64, 'Controlling mit SAP S/4HANA'),
     }),
     sample(now, '1003', 'Kaufmännische Leitung Projektgeschäft', 'Werft 7 GmbH', 'Kiel', 30, {
@@ -237,7 +254,7 @@ export function sampleJobs(now: Date): JobView[] {
       workMode: 'onsite',
       match: scored(28, 'SAP FI im Konzern'),
     }),
-    sample(now, '1005', 'Finance Manager Shared Service', 'Contoso Services', 'Leipzig', 80, {
+    sample(now, '1005', 'Finance Manager Shared Service', 'Contoso Services', 'Leipzig', 300, {
       match: null,
       detail: { kind: 'failed', attempts: 3, retryAt: null },
     }),
@@ -250,6 +267,7 @@ export function sampleJobs(now: Date): JobView[] {
       200,
       {
         workMode: null,
+        unread: true,
         match: {
           score: 55,
           band: 'mid',
@@ -258,6 +276,7 @@ export function sampleJobs(now: Date): JobView[] {
           mustMet: 2,
           mustTotal: 4,
           top: ['Controlling im Konzern'],
+          facts: NO_FACTS,
         },
       },
     ),
@@ -370,6 +389,17 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
   {
     title: 'Passung',
     tokens: [
+      { name: 'score-ring-0', role: 'decor' },
+      { name: 'score-ring-1', role: 'decor' },
+      { name: 'score-ring-2', role: 'decor' },
+      { name: 'score-ring-3', role: 'decor' },
+      { name: 'score-ring-4', role: 'decor' },
+      { name: 'score-ring-5', role: 'decor' },
+      { name: 'score-ring-6', role: 'decor' },
+      { name: 'score-ring-7', role: 'decor' },
+      { name: 'score-ring-8', role: 'decor' },
+      { name: 'score-ring-9', role: 'decor' },
+      { name: 'score-digits', role: 'text' },
       { name: 'score-high-ring', role: 'decor' },
       { name: 'score-high-text', role: 'text' },
       { name: 'score-high-surface', role: 'surface' },
