@@ -144,10 +144,8 @@ pub fn parse_job_file(content: &str) -> Option<JobFile> {
 }
 
 /// The profile as the old engine used it.
-#[allow(dead_code)] // Read by the engine API.
 pub(crate) struct LegacyProfile {
     pub signals: Signals,
-    pub terms: Vec<Term>,
     /// Phrase terms in term order.
     pub phrases: Vec<Phrase>,
     /// Index into `signals.core` of the text each phrase came from.
@@ -173,7 +171,6 @@ impl LegacyProfile {
         Self {
             criteria: profile::criteria(data),
             signals,
-            terms,
             phrases,
             phrase_source,
         }
@@ -190,7 +187,6 @@ pub(crate) struct ItemResult<'a> {
 }
 
 /// Everything the old engine computed for one job.
-#[allow(dead_code)] // Read by the engine API.
 pub(crate) struct Evaluation<'a> {
     pub items: Vec<ItemResult<'a>>,
     pub vocab: Vec<(String, Vec<Hit>)>,

@@ -80,7 +80,6 @@ fn python_round(x: f64) -> u8 {
 }
 
 /// Half-to-even rounding of `numerator / denominator` for non-negative integers.
-#[allow(dead_code)] // Used by the engine API.
 pub(crate) fn div_round_half_even(numerator: u64, denominator: u64) -> u64 {
     if denominator == 0 {
         return 0;

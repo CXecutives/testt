@@ -126,7 +126,6 @@ fn push_folded(out: &mut String, c: char) {
 
 /// Case-folded text plus, for every byte of the result, the byte offset of the source
 /// character it came from (to map matches back for highlights).
-#[allow(dead_code)] // Used by the engine API.
 pub(crate) fn casefold_mapped(text: &str) -> (String, Vec<usize>) {
     let mut out = String::with_capacity(text.len());
     let mut origin = Vec::with_capacity(text.len());

@@ -34,7 +34,6 @@ pub(crate) enum Origin {
 
 /// One requirement phrase: a slice of the job text.
 #[derive(Debug, Clone, Copy)]
-#[allow(dead_code)] // `origin` is read by the engine API.
 pub(crate) struct Requirement<'a> {
     pub phrase: &'a str,
     pub kind: ReqKind,
