@@ -511,3 +511,26 @@ pub fn vault_kind() -> jobalert_core::view::VaultKind {
         jobalert_core::view::VaultKind::WindowsCredentialManager
     }
 }
+
+// ------------------------------------------------------------------ startup dialog
+
+/// The log folder the startup dialog names (it shows before there is an app handle): the
+/// app's local data folder of this OS, `logs` in it.
+pub const LOG_DIR_HINT: &str = if cfg!(target_os = "macos") {
+    "~/Library/Application Support/de.cxecutives.job-alert-monitor/logs"
+} else {
+    "%LOCALAPPDATA%\\de.cxecutives.job-alert-monitor\\logs"
+};
+
+// User-facing text, German by product decision.
+/// What helps when the window cannot open: on Windows the WebView2 runtime is usually
+/// missing; macOS brings its engine along.
+pub const WINDOW_HINT: Option<&str> = if cfg!(windows) {
+    Some(
+        "Fehlt die Microsoft-Edge-WebView2-Laufzeit, hilft deren Installation \
+         (https://developer.microsoft.com/microsoft-edge/webview2/).",
+    )
+} else {
+    None
+};
+// end of user-facing text
