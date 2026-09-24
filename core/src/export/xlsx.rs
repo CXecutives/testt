@@ -219,6 +219,7 @@ mod tests {
             must_total: 0,
             top: Vec::new(),
             facts: crate::model::KeyFacts::default(),
+            rank: 0,
         };
         jobs[0].match_ = Some(scored(MatchStatus::Scored, 83));
         jobs[1].match_ = Some(scored(MatchStatus::Excluded, 71));

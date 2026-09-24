@@ -126,6 +126,7 @@ fn run_set(name: &str) -> SetRun {
             let pair = Pair {
                 profile: index,
                 new_score: a.score,
+                new_rank: a.rank,
                 new_outcome: outcome,
                 old_score: old,
                 grade: label.grade,
@@ -159,21 +160,23 @@ struct Floor {
 
 const HELDOUT1: Floor = Floor {
     ndcg10: 0.92,
-    spearman: 0.69,
+    spearman: 0.72,
     exclusion_precision: 1.0,
     exclusion_recall: 1.0,
-    grade3_buried: 1,
+    grade3_buried: 0,
 };
 const HELDOUT3: Floor = Floor {
-    ndcg10: 0.0,
-    spearman: 0.0,
-    exclusion_precision: 0.0,
-    exclusion_recall: 0.0,
-    grade3_buried: 30,
+    ndcg10: 0.94,
+    spearman: 0.47,
+    exclusion_precision: 1.0,
+    exclusion_recall: 1.0,
+    grade3_buried: 0,
 };
+// Engine 6 traded 0.02 of NDCG@10 on this tuned set (ties among grade-2 and grade-3 jobs)
+// for +0.33 on the unseen set 3; Spearman rose from 0.56 to 0.63.
 const HELDOUT2: Floor = Floor {
-    ndcg10: 0.85,
-    spearman: 0.55,
+    ndcg10: 0.84,
+    spearman: 0.63,
     exclusion_precision: 1.0,
     exclusion_recall: 0.94,
     grade3_buried: 1,

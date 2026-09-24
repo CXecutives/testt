@@ -284,6 +284,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       corpora with frozen floors (NDCG@10 0.822 to 0.930 and 0.632 to 0.805); criteria met only with the ad's value
       as evidence, key facts on `JobMatch`; one German rubric for the Claude check and the skill
       (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3.
+- [x] Engine v6: the gaps of the unseen held-out set 3 fixed as general rules (rates next to a currency, reading
+      noise, English language names, texts without requirements, generic heads, a tie-breaker, student roles);
+      set 3 is a regression corpus (NDCG@10 0.618 to 0.950). Open: the unseen check on held-out set 4.
 - [x] Domain packs for every field: hr, procurement, data, pharma, operations, sales, legal, software (held-out 2
       NDCG@10 0.805 to 0.862). Open: synthetic corpus ads and profiles of the new fields.
 

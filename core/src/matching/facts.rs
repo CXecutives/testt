@@ -689,7 +689,8 @@ pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
         let percent = folded[i..].trim_start().starts_with('%');
         // Only an amount next to a currency or a rate word is a rate (`Start: 02/2027 ·
         // 78 €/h` is 78, a postcode or a year is none).
-        if !percent && !date && value >= 20 && rate_context(folded, start, i) {
+        // Next to a currency even a student's wage counts (`16,50 € pro Stunde`).
+        if !percent && !date && value >= MIN_RATE_AMOUNT && rate_context(folded, start, i) {
             amounts.push(value);
         }
     }
@@ -705,6 +706,9 @@ pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
         currency,
     })
 }
+
+/// Smallest amount read as a rate (a rate is always next to a currency or rate word).
+const MIN_RATE_AMOUNT: u64 = 5;
 
 /// Is the number at `start..end` part of a date (`02/2027`, `01.11.2026`)?
 fn date_part(bytes: &[u8], start: usize, end: usize) -> bool {
@@ -1000,6 +1004,7 @@ mod tests {
             Some((1100, false))
         );
         assert_eq!(rate("Honorar nach Absprache, Laufzeit bis 2027"), None);
+        assert_eq!(rate("16,50 € pro Stunde"), Some((16, true)));
     }
 
     #[test]

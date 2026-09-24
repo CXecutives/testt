@@ -17,9 +17,10 @@ use serde_json::{Value, json};
 
 use super::atoms::fold;
 use super::contract::{Contract, ContractKind};
-use super::facts::{Finding, HardCriteria, JobFacts, Segment, fact};
+use super::facts::{Finding, HardCriteria, JobFacts, Segment, fact, parse_rate};
 use super::job::contains_word;
 use super::lexicon::engine as lex;
+use super::params::HOURS_PER_YEAR;
 use super::types::{CriterionKey, ReasonCode};
 
 /// Does a rule for permanent roles apply, and may it decide?
@@ -132,16 +133,34 @@ pub(crate) fn parse_salary(folded: &str) -> Option<Salary> {
 pub(crate) fn salary(
     criteria: &HardCriteria,
     contract: &Contract,
+    title: &str,
     segments: &[Segment],
 ) -> Vec<Finding> {
     let (Some(min), Some(may_decide)) = (criteria.min_salary, scope(contract)) else {
         return Vec::new();
     };
     let key = Some(CriterionKey::MinSalary);
-    let Some((salary, span)) = segments
+    // An hourly wage of an employment counts per year (`16,50 € pro Stunde`).
+    let hourly = || {
+        segments.iter().find_map(|(range, f)| {
+            let rate = parse_rate(f).filter(|r| r.hourly)?;
+            let per_year = rate.upper.saturating_mul(HOURS_PER_YEAR);
+            let salary = Salary {
+                upper: Some(per_year),
+                lower: per_year,
+                monthly: false,
+                currency: rate.currency,
+            };
+            Some((salary, range.clone()))
+        })
+    };
+    let stated = segments
         .iter()
-        .find_map(|(range, f)| parse_salary(f).map(|s| (s, range.clone())))
-    else {
+        .find_map(|(range, f)| parse_salary(f).map(|s| (s, range.clone())));
+    // The stated wage of a student role decides like a stated salary.
+    let wage = stated.is_none() && super::contract::student_role(title);
+    let may_decide = may_decide || wage;
+    let Some((salary, span)) = stated.or_else(hourly) else {
         return vec![Finding::new(
             ReasonCode::SalaryUnknown,
             false,
@@ -331,7 +350,7 @@ mod tests {
         let contract = infer(&job, &segments, &anue(&job, &segments));
         region(&criteria, &contract, &job, &segments, &fold(text))
             .into_iter()
-            .chain(salary(&criteria, &contract, &segments))
+            .chain(salary(&criteria, &contract, job.title, &segments))
             .map(|f| (f.code, f.decided))
             .collect()
     }

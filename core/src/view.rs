@@ -1418,6 +1418,7 @@ mod tests {
             must_total: 2,
             top: Vec::new(),
             facts: crate::model::KeyFacts::default(),
+            rank: 0,
         }
     }
 

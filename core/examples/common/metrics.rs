@@ -35,6 +35,8 @@ pub struct Pair {
     /// Index of the profile (groups the per-profile rankings).
     pub profile: usize,
     pub new_score: u8,
+    /// The new engine's per-mille score before caps: breaks ties of equal scores.
+    pub new_rank: u16,
     pub new_outcome: Outcome,
     /// Old engine's percentage; 0 when it showed no row.
     pub old_score: u8,
@@ -48,9 +50,10 @@ impl Pair {
         if self.label_excluded { 0 } else { self.grade }
     }
 
-    /// Ranking key of the new engine: excluded last, unscorable just above them.
+    /// Ranking key of the new engine: excluded last, unscorable just above them; equal
+    /// scores follow the score before the caps, as in the app's list.
     pub fn new_key(&self) -> f64 {
-        let score = f64::from(self.new_score);
+        let score = f64::from(self.new_score) + f64::from(self.new_rank) / 10_000.0;
         match self.new_outcome {
             Outcome::Scored => score,
             Outcome::Unscorable => -1.0,
@@ -154,9 +157,13 @@ fn by_profile(pairs: &[Pair]) -> Vec<Vec<Pair>> {
     groups.into_values().collect()
 }
 
-/// Mean over the profiles of a per-profile metric.
-fn macro_mean(pairs: &[Pair], metric: impl Fn(&[Pair]) -> f64) -> f64 {
-    let groups = by_profile(pairs);
+/// Mean over the profiles that have at least one job with a gain: a profile without a
+/// relevant job has no ranking to judge (its NDCG would be 0 whatever the engine does).
+fn ranked_mean(pairs: &[Pair], metric: impl Fn(&[Pair]) -> f64) -> f64 {
+    let groups: Vec<Vec<Pair>> = by_profile(pairs)
+        .into_iter()
+        .filter(|g| g.iter().any(|p| p.gain() > 0))
+        .collect();
     if groups.is_empty() {
         return 0.0;
     }
@@ -186,8 +193,8 @@ pub fn ranking(pairs: &[Pair], key: fn(&Pair) -> f64, buried: fn(&Pair) -> bool)
     let gains = grades(pairs);
     let gains_f: Vec<f64> = gains.iter().map(|&g| f64::from(g)).collect();
     Ranking {
-        ndcg10: macro_mean(pairs, |g| ndcg(g, key, 10)),
-        ndcg20: macro_mean(pairs, |g| ndcg(g, key, 20)),
+        ndcg10: ranked_mean(pairs, |g| ndcg(g, key, 10)),
+        ndcg20: ranked_mean(pairs, |g| ndcg(g, key, 20)),
         p5: reachable_p5(pairs, key),
         spearman: if pairs.is_empty() {
             0.0
@@ -201,7 +208,7 @@ pub fn ranking(pairs: &[Pair], key: fn(&Pair) -> f64, buried: fn(&Pair) -> bool)
 
 /// NDCG@10 new - old of a resample, as a mean over the profiles in it.
 fn delta_ndcg10(pairs: &[Pair]) -> f64 {
-    macro_mean(pairs, |g| {
+    ranked_mean(pairs, |g| {
         ndcg(g, Pair::new_key, 10) - ndcg(g, Pair::old_key, 10)
     })
 }

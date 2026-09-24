@@ -194,6 +194,7 @@ pub(crate) fn assessment(
         highlights: b.highlights,
         criteria,
         facts: evaluation.facts.key_facts(),
+        rank: evaluation.rank,
     }
 }
 
