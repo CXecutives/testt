@@ -3,10 +3,11 @@
   "productName": "Job-Alert-Monitor",
   "identifier": "de.cxecutives.job-alert-monitor",
   "build": {
-    "frontendDist": "../ui"
+    "frontendDist": "../ui/dist",
+    "beforeBuildCommand": "npm run build"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "label": "main",
@@ -43,6 +44,11 @@
   },
   "bundle": {
     "active": false,
-    "icon": ["icons/icon.ico"]
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "resources/THIRD-PARTY.txt": "THIRD-PARTY.txt"
+    }
   }
 }
