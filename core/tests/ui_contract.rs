@@ -1110,6 +1110,41 @@ fn the_catalog_keeps_the_glossary() {
     fail(&problems, "glossary and length of the UI catalogs");
 }
 
+/// The keys of a table of a catalog that is typed open (`as Record<string, string>`): the
+/// lines `key: ...` between `<name>: {` and the closing brace.
+fn open_table_keys(catalog: &Source, name: &str) -> Vec<String> {
+    let start = format!("{name}: {{");
+    let mut keys = Vec::new();
+    let mut inside = false;
+    for (_, line) in catalog.lines() {
+        let line = line.trim();
+        if !inside {
+            inside = line == start;
+            continue;
+        }
+        if line.starts_with('}') {
+            break;
+        }
+        if let Some((key, _)) = line.split_once(':') {
+            keys.push(key.trim().to_owned());
+        }
+    }
+    keys
+}
+
+/// The tables the type cannot hold to the German keys (typed `Record<string, string>`: the
+/// domain packs and the countries) have the same keys in both catalogs.
+#[test]
+fn the_open_tables_have_the_same_keys() {
+    let all = scanned(MIN_FILES);
+    let (de, en) = (catalog(&all, CATALOGS[0]), catalog(&all, CATALOGS[1]));
+    for table in ["pack", "country"] {
+        let german = open_table_keys(de, table);
+        assert!(german.len() >= 3, "{table}: {german:?}");
+        assert_eq!(german, open_table_keys(en, table), "{table}");
+    }
+}
+
 /// The English catalog is English: no umlaut or sharp s and no German word in anything the
 /// user reads. Product and portal names (Job-Alert-Monitor, freelance.de) and the name of
 /// the German language (Deutsch) are no German words.
