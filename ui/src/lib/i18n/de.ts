@@ -14,7 +14,6 @@
 // `Record<Code, ...>`, so a new code without a text is a type error.
 
 import type {
-  AppStatus,
   Band,
   DetailState,
   ErrorKind,
@@ -127,7 +126,6 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   mailAddress: 'Die Adresse ist unvollständig.',
   appPassword: 'Ein App-Passwort hat 16 Buchstaben.',
   noSignIn: (p) => `Für ${portalOf(p.portal)} gibt es keine Anmeldung.`,
-  noteTooLong: (p) => `Die Notiz ist länger als ${n(num(p.max))} Zeichen.`,
 };
 
 const status: Record<StatusCode, string> = {
@@ -706,7 +704,6 @@ export const de = {
     emptyWhileRun: 'Die Jobs erscheinen, sobald der Abruf fertig ist.',
     createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
     readOlder: 'Ältere Mails lesen',
-    emptySent: 'Noch keine Bewerbung vermerkt.',
     emptyArchived: 'Das Archiv ist leer.',
     emptyNew: 'Keine neuen Jobs.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
@@ -801,10 +798,6 @@ export const de = {
       'Kopiert Anzeige und Profil als fertigen Prompt für ChatGPT, Claude oder eine andere KI.',
     /** Under the band of a score that comes from a teaser only. */
     preliminary: 'Vorläufig, aus einem Anriss bewertet',
-    appStatus: {
-      saved: 'Favorit',
-      sent: 'Beworben',
-    } satisfies Record<AppStatus, string>,
     mail: OPEN_MAIL,
     noMail: 'Zu diesem Job gibt es keine Alert-Mail.',
     /** The teaser note names the portal; the sign-in is set up in Einstellungen. */

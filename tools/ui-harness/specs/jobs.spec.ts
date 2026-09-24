@@ -225,7 +225,7 @@ test('one place for filters: Neu, Alle, Favoriten; the overview says what now', 
   await expect(rows(page)).toHaveCount(await segmentCount(page, 'Favoriten'));
   expect(await calls(page, 'list_jobs')).toContainEqual([
     'list_jobs',
-    expect.objectContaining({ query: expect.objectContaining({ facet: 'saved' }) }),
+    expect.objectContaining({ query: expect.objectContaining({ favourites: true }) }),
   ]);
   // No application marks: no "Beworben" anywhere.
   await expect(facet.getByRole('radio', { name: /Beworben/ })).toHaveCount(0);
@@ -879,7 +879,7 @@ test('the reader: one row of alike actions, archive in place with undo, a prompt
   await page.getByTestId('hide').dblclick();
   await expect(page.getByTestId('reader-title')).toHaveText(title);
   await expect(page.getByTestId('archived-note')).toBeVisible();
-  expect(await calls(page, 'set_archived')).toHaveLength(1);
+  expect(await calls(page, 'move_jobs')).toHaveLength(1);
   await expect(page.getByTestId('toast').last()).toContainText(`„${title}“ archiviert.`);
   await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(0);
   await page.getByTestId('toast').last().getByTestId('toast-action').click();

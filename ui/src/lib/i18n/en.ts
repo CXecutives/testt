@@ -11,7 +11,6 @@
 // Saved · Applications · Archive.
 
 import type {
-  AppStatus,
   Band,
   DetailState,
   ErrorKind,
@@ -124,7 +123,6 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   mailAddress: 'The address is incomplete.',
   appPassword: 'An app password has 16 letters.',
   noSignIn: (p) => `There is no sign-in for ${portalOf(p.portal)}.`,
-  noteTooLong: (p) => `The note is longer than ${n(num(p.max))} characters.`,
 };
 
 const status: Record<StatusCode, string> = {
@@ -653,7 +651,6 @@ export const en: Catalog = {
     emptyWhileRun: 'The jobs show up once the fetch is done.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
     readOlder: 'Read older mails',
-    emptySent: 'No application noted yet.',
     emptyArchived: 'The archive is empty.',
     emptyNew: 'No new jobs.',
     emptyAll: 'After the first fetch the jobs show up here.',
@@ -739,10 +736,6 @@ export const en: Catalog = {
     promptHint:
       'Copies the ad and the profile as a ready prompt for ChatGPT, Claude or another AI.',
     preliminary: 'Provisional, scored from a teaser',
-    appStatus: {
-      saved: 'Favourite',
-      sent: 'Applied',
-    } satisfies Record<AppStatus, string>,
     mail: OPEN_MAIL,
     noMail: 'There is no alert mail for this job.',
     teaserOf: (portal: string) => `Without a sign-in ${portal} shows only a teaser.`,

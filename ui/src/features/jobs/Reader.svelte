@@ -330,14 +330,14 @@
   async function deleteJob(): Promise<void> {
     deleting = true;
     deleteError = null;
-    const result = await jobs.deleteJobs([job.key]);
+    const error = await jobs.move([job.key], 'trash');
     deleting = false;
-    if ('error' in result) {
-      deleteError = result.error;
+    if (error !== null) {
+      deleteError = error;
       return;
     }
     confirmDelete = false;
-    toasts.show(t.toast.deleted(result.count));
+    toasts.show(t.toast.deleted(1));
     void jobs.loadOverview();
   }
 
@@ -492,8 +492,8 @@
           variant="ghost"
           size="sm"
           iconOnly
-          icon={job.archived ? 'archive-restore' : 'archive'}
-          label={job.archived ? t.reader.restore : t.reader.archive}
+          icon={job.place === 'archive' ? 'archive-restore' : 'archive'}
+          label={job.place === 'archive' ? t.reader.restore : t.reader.archive}
           testid="hide"
           onclick={() => void hide()}
         />
@@ -520,7 +520,7 @@
       </span>
     </p>
   </header>
-  {#if job.archived}
+  {#if job.place === 'archive'}
     <div class="archived" data-testid="archived-note">
       <Notice
         tone="info"

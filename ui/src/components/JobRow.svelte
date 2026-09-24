@@ -156,8 +156,8 @@
             variant="ghost"
             size="sm"
             iconOnly
-            icon={job.archived ? 'archive-restore' : 'archive'}
-            label={job.archived ? t.reader.restore : t.reader.archive}
+            icon={job.place === 'archive' ? 'archive-restore' : 'archive'}
+            label={job.place === 'archive' ? t.reader.restore : t.reader.archive}
             testid="archive-{job.key.portal}-{job.key.id}"
             onclick={() => onarchive?.(job)}
           />

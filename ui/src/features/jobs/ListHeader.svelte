@@ -19,19 +19,16 @@
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import Count from '$components/Count.svelte';
-  import Dialog from '$components/Dialog.svelte';
   import Segmented from '$components/Segmented.svelte';
   import TextField from '$components/TextField.svelte';
   import { t } from '$lib/i18n/t';
-  import type { JobFacet } from '$lib/ipc/types';
   import { fade, pop } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { popupChoiceMenu } from '$lib/ipc/api';
   import type { JobSort } from '$lib/ipc/types';
-  import { jobs } from '$lib/state/jobs.svelte';
+  import { jobs, type JobFacet } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
-  import { toasts } from '$lib/state/toasts.svelte';
 
   interface Props {
     /** The list below is scrolled away from its top. */
@@ -45,19 +42,19 @@
     {
       id: 'new' as JobFacet,
       label: t.toolbar.facetNew,
-      count: jobs.counts.new || null,
+      count: jobs.counts.unread || null,
       tone: 'soft' as const,
     },
     {
       id: 'all' as JobFacet,
       label: t.toolbar.facetAll,
-      count: jobs.counts.all || null,
+      count: jobs.counts.inbox || null,
       tone: 'plain' as const,
     },
     {
-      id: 'saved' as JobFacet,
+      id: 'favourites' as JobFacet,
       label: t.toolbar.facetSaved,
-      count: jobs.counts.saved || null,
+      count: jobs.counts.favourites || null,
       tone: 'plain' as const,
     },
   ]);
@@ -86,26 +83,8 @@
     );
   }
 
-  let confirmEmpty = $state(false);
-  let emptying = $state(false);
-  let emptyError = $state<string | null>(null);
-
   /** A filter the segments do not name (a portal, a tile). */
   const otherFilter = $derived(jobs.filter);
-
-  async function emptyArchive(): Promise<void> {
-    emptying = true;
-    emptyError = null;
-    const result = await jobs.emptyArchive();
-    emptying = false;
-    if ('error' in result) {
-      emptyError = result.error;
-      return;
-    }
-    confirmEmpty = false;
-    toasts.show(t.toast.deleted(result.count));
-    void jobs.loadOverview();
-  }
 </script>
 
 {#snippet fetchButton(live: boolean)}
@@ -160,7 +139,7 @@
     {#if jobs.facet === 'archived'}
       <span class="filter" data-testid="filter" in:pop out:fade>
         <span class="filter-label">{t.list.archive}</span>
-        <Count value={jobs.counts.archived} tone="plain" />
+        <Count value={jobs.counts.archive} tone="plain" />
         <Button
           variant="ghost"
           size="sm"
@@ -197,7 +176,7 @@
     {/if}
   </div>
   <!-- Nothing to order in an empty list (the row comes back with a search or a job). -->
-  {#if jobs.counts.all > 0 || jobs.counts.archived > 0 || jobs.search.trim() !== ''}
+  {#if jobs.counts.inbox > 0 || jobs.counts.archive > 0 || jobs.search.trim() !== ''}
     <span class="order">
       <span class="sort">
         <Button
@@ -212,24 +191,13 @@
         />
       </span>
       <span class="order-tools">
-        {#if jobs.facet === 'archived'}
-          {#if jobs.counts.archived > 0}
-            <Button
-              variant="ghost"
-              size="sm"
-              icon="trash-2"
-              label={t.list.emptyArchive}
-              testid="empty-archive"
-              onclick={() => (confirmEmpty = true)}
-            />
-          {/if}
-        {:else if jobs.counts.archived > 0}
+        {#if jobs.facet !== 'archived' && jobs.counts.archive > 0}
           <!-- The archive, reachable from every list; its count follows the search. -->
           <Button
             variant="ghost"
             size="sm"
             icon="archive"
-            label={t.list.archiveLink(jobs.counts.archived)}
+            label={t.list.archiveLink(jobs.counts.archive)}
             testid="show-archive"
             onclick={() => jobs.setFacet('archived')}
           />
@@ -238,18 +206,6 @@
     </span>
   {/if}
 </div>
-
-<Dialog
-  bind:open={confirmEmpty}
-  variant="danger"
-  heading={t.list.emptyArchiveHeading}
-  text={t.list.emptyArchiveText}
-  confirmLabel={t.list.emptyArchive}
-  busy={emptying}
-  error={emptyError}
-  testid="dialog-empty-archive"
-  onconfirm={() => void emptyArchive()}
-/>
 
 <style>
   .header {

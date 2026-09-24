@@ -5,8 +5,8 @@
 //! holds the lock across an `await`).
 //!
 //! `schema` creates and migrates the tables, `jobs` holds the job, alert mail, job detail
-//! and text file methods, `matches` the match, read and pin columns of schema 3, `marks`
-//! the user's application status, note and "archived" of schema 4.
+//! and text file methods, `matches` the match and read columns of schema 3, `marks` the
+//! user's marks: the favourite, the place (inbox, archive, trash) and "fits anyway".
 
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
@@ -26,8 +26,8 @@ mod pages;
 mod schema;
 
 pub use jobs::{
-    AlertMailRow, JobFilter, JobRow, ListFacet, MailRef, NEW_DAYS, PageCounts, PageQuery,
-    PortalCount, Seen, new_since,
+    AlertMailRow, JobFilter, JobRow, MailRef, NEW_DAYS, PageCounts, PageQuery, PortalCount, Seen,
+    new_since,
 };
 
 pub struct Store {

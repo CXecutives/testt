@@ -140,8 +140,24 @@ test('old jobs archive themselves unless switched off', async ({ page }) => {
   await archive.click();
   await expect(archive).toHaveAttribute('aria-checked', 'true');
   expect((await calls(page, 'save_settings')).map(([, args]) => args)).toEqual([
-    { patch: { portals: [], autoFetchOnStart: null, autoArchiveDays: 0, language: null } },
-    { patch: { portals: [], autoFetchOnStart: null, autoArchiveDays: 30, language: null } },
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: null,
+        autoArchiveDays: 0,
+        autoEmptyTrashDays: null,
+        language: null,
+      },
+    },
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: null,
+        autoArchiveDays: 30,
+        autoEmptyTrashDays: null,
+        language: null,
+      },
+    },
   ]);
 });
 
@@ -176,12 +192,21 @@ test('auto fetch and portal switches save at once', async ({ page }) => {
   await expect(page.getByTestId('toast')).toHaveCount(0);
   const saved = (await calls(page, 'save_settings')).map(([, args]) => args);
   expect(saved).toEqual([
-    { patch: { portals: [], autoFetchOnStart: false, autoArchiveDays: null, language: null } },
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: false,
+        autoArchiveDays: null,
+        autoEmptyTrashDays: null,
+        language: null,
+      },
+    },
     {
       patch: {
         portals: [{ portal: 'linkedin', enabled: false, fetchDetails: null, loginEnabled: null }],
         autoFetchOnStart: null,
         autoArchiveDays: null,
+        autoEmptyTrashDays: null,
         language: null,
       },
     },

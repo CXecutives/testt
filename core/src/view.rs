@@ -18,7 +18,7 @@ use crate::fetch::policy::{Policy, limits};
 use crate::fetch::{PortalHealth, RETRY_AFTER};
 use crate::matching::{self, Assessment, ProfileSummary};
 use crate::model::{
-    AppStatus, Band, DescStatus, KeyFacts, MatchRecord, MatchStatus, Notice, band, gmail_url,
+    Band, DescStatus, KeyFacts, MatchRecord, MatchStatus, Notice, Place, band, gmail_url,
     is_usable_title,
 };
 use crate::pipeline::{LocalMatcher, Matcher, RunSnapshot, RunSummary, local};
@@ -28,7 +28,7 @@ pub use crate::profile::{
     ProfileLanguage, ProfileWishes, RemoteWish,
 };
 use crate::settings::{Language, PortalSwitches, Settings};
-use crate::store::{AlertMailRow, JobRow, ListFacet, PageQuery, Store};
+use crate::store::{AlertMailRow, JobRow, PageQuery, Store};
 use crate::text::split_company_location;
 
 #[cfg(test)]
@@ -163,12 +163,8 @@ pub struct JobView {
     pub match_: Option<JobMatch>,
     /// The same job was also announced by these portals.
     pub also_on: Vec<Portal>,
-    /// The user's mark (`null` = none; `saved` is the star, `sent` "Beworben").
-    pub app_status: Option<AppStatus>,
-    /// When the mark was set.
-    pub status_at: Option<Timestamp>,
-    /// The job is archived (by the user or by age).
-    pub archived: bool,
+    /// Where the job is: inbox, archive or trash.
+    pub place: Place,
     /// The user marked the job as fitting although the engine excludes it ("Trotzdem
     /// passend"): it counts as scored with its fit score, its note is `userOverride`.
     pub overridden: bool,
@@ -187,7 +183,7 @@ impl From<&JobRow> for JobView {
             mail_date: job.mail_date,
             first_seen_at: job.first_seen_at,
             unread: job.read_at.is_none(),
-            pinned: job.app_status == Some(AppStatus::Saved),
+            pinned: job.pinned_at.is_some(),
             detail: DetailState::of(job),
             short: job.desc_status == DescStatus::Ok && job.desc_short,
             match_: job.match_.as_ref().map(|record| {
@@ -202,9 +198,7 @@ impl From<&JobRow> for JobView {
                 shown
             }),
             also_on: Vec::new(),
-            app_status: job.app_status,
-            status_at: job.app_status_at,
-            archived: job.archived_at.is_some(),
+            place: job.place(),
             overridden: job.override_include,
         }
     }
@@ -418,8 +412,6 @@ pub struct JobDetail {
     #[serde(rename = "match")]
     #[cfg_attr(test, ts(rename = "match"))]
     pub match_: Option<MatchDetail>,
-    /// The user's note (`null` = none).
-    pub note: Option<String>,
 }
 
 /// Most reasons in the reader.
@@ -485,7 +477,6 @@ pub fn job_detail(
         }
     };
     Ok(Some(JobDetail {
-        note: store.note(key)?,
         text,
         url: job.url.to_string(),
         fetched_at: job.desc_fetched_at,
@@ -709,33 +700,25 @@ pub fn job_views(store: &Store, rows: &[JobRow]) -> crate::Result<Vec<JobView>> 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
-pub enum JobFacet {
-    /// Unread of the last 14 days (the excluded ones last, uncounted).
-    New,
-    All,
-    /// Saved (the star), the latest saved first.
-    Saved,
-    /// "Beworben", the latest first.
-    Sent,
-    /// Archived, the latest archived first; in no other list or count.
-    Archived,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum JobSort {
     /// Best match first (excluded jobs behind the others).
     Match,
+    /// By date: the alert mail's, in the trash the day the job went there.
     Newest,
 }
 
-/// Which jobs the list shows.
+/// Which jobs the list shows: the jobs of one place, optionally only the unread ones.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub struct JobQuery {
-    pub facet: JobFacet,
+    pub place: Place,
+    /// Only the unread jobs (the excluded ones last, uncounted).
+    pub unread: bool,
+    /// The favourites of the inbox and the archive instead of the place (each row keeps its
+    /// place).
+    pub favourites: bool,
+    /// By match, or by date: the alert mail's, in the trash the day the job went there.
     pub sort: JobSort,
     pub search: Option<String>,
     /// At most [`MAX_PAGE`]; 0 = counts only.
@@ -743,31 +726,33 @@ pub struct JobQuery {
     pub offset: u32,
 }
 
-/// Counts of the list (with the search applied, whatever the facet). Every number of the
-/// page comes from here: the facets, the tiles, the sidebar and the new jobs per portal.
+/// Counts of the list (with the search applied, whatever the place and the filter), from
+/// the same statement as the page. Every number of the page comes from here: the places, the
+/// tiles, the sidebar and the unread jobs per portal.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub struct JobCounts {
-    /// Unread and not excluded ("Neu").
-    pub new: u32,
-    pub all: u32,
+    /// In the inbox ("Eingang").
+    pub inbox: u32,
+    /// Unread in the inbox, not excluded.
+    pub unread: u32,
+    /// Favourites (the star), in the inbox or the archive.
+    pub favourites: u32,
+    pub archive: u32,
+    /// In the trash ("Papierkorb").
+    pub trash: u32,
+    /// Excluded, in the inbox.
     pub excluded: u32,
-    /// Scored in the high band.
+    /// Scored in the high band, in the inbox.
     pub high: u32,
-    /// Without a full text.
+    /// Without a full text, in the inbox.
     pub no_detail: u32,
-    /// Saved ("Gemerkt", the star).
-    pub saved: u32,
-    /// "Beworben".
-    pub sent: u32,
-    /// Archived - the only count an archived job is in.
-    pub archived: u32,
-    /// `new` per portal: every portal, in the order of `Portal::ALL`.
+    /// `unread` per portal: every portal, in the order of `Portal::ALL`.
     pub new_by_portal: Vec<PortalNew>,
 }
 
-/// The new jobs ("Neu") of one portal.
+/// The unread jobs of one portal (in the inbox, not excluded).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -785,18 +770,13 @@ pub struct JobPage {
     pub counts: JobCounts,
 }
 
-/// List and counts from one store query. "New" lists the unread jobs, the excluded ones last;
-/// its count leaves the excluded ones out. An archived job is only in "Archived".
+/// List and counts from one store query. The unread filter lists the excluded jobs last;
+/// its count leaves them out. A job is in exactly one place.
 pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
     let (rows, counts) = store.job_page(&PageQuery {
-        facet: match query.facet {
-            JobFacet::New => ListFacet::New,
-            JobFacet::All => ListFacet::All,
-            JobFacet::Saved => ListFacet::Saved,
-            JobFacet::Sent => ListFacet::Sent,
-            JobFacet::Archived => ListFacet::Archived,
-        },
-        new_since: crate::store::new_since(Timestamp::now()),
+        place: query.place,
+        unread: query.unread,
+        favourites: query.favourites,
         by_match: query.sort == JobSort::Match,
         search: query.search.clone(),
         limit: query.limit.min(MAX_PAGE),
@@ -805,14 +785,14 @@ pub fn job_page(store: &Store, query: &JobQuery) -> crate::Result<JobPage> {
     Ok(JobPage {
         jobs: job_views(store, &rows)?,
         counts: JobCounts {
-            new: counts.new,
-            all: counts.all,
+            inbox: counts.inbox,
+            unread: counts.unread,
+            favourites: counts.favourites,
+            archive: counts.archive,
+            trash: counts.trash,
             excluded: counts.excluded,
             high: counts.high,
             no_detail: counts.no_detail,
-            saved: counts.saved,
-            sent: counts.sent,
-            archived: counts.archived,
             new_by_portal: counts
                 .new_by_portal
                 .into_iter()
@@ -902,6 +882,8 @@ pub struct SettingsPatch {
     pub auto_fetch_on_start: Option<bool>,
     /// Days after which old jobs archive themselves; 0 = never (`null` = unchanged).
     pub auto_archive_days: Option<u32>,
+    /// Days after which the trash empties itself; 0 = never (`null` = unchanged).
+    pub auto_empty_trash_days: Option<u32>,
     /// The language the user chose (from then on the OS language no longer counts).
     pub language: Option<Language>,
 }
@@ -935,6 +917,9 @@ impl SettingsPatch {
         }
         if let Some(days) = self.auto_archive_days {
             settings.auto_archive_days = days;
+        }
+        if let Some(days) = self.auto_empty_trash_days {
+            settings.auto_empty_trash_days = days;
         }
         if let Some(language) = self.language {
             settings.language = Some(language);
@@ -1256,8 +1241,10 @@ pub struct AppState {
     pub profile: Option<ProfileInfo>,
     pub portals: Vec<PortalState>,
     pub auto_fetch_on_start: bool,
-    /// Days after which old jobs without a stage archive themselves; 0 = never.
+    /// Days after which old inbox jobs that are no favourite archive themselves; 0 = never.
     pub auto_archive_days: u32,
+    /// Days after which the trash empties itself; 0 = never.
+    pub auto_empty_trash_days: u32,
     /// The language of the interface and the exports: the chosen one, else the OS language.
     pub language: Language,
     /// The last fetch (fetch or whole mailbox) - a rescore or a details run is none.
@@ -1473,25 +1460,30 @@ mod tests {
         page.jobs.iter().map(|j| j.title.as_str()).collect()
     }
 
-    #[test]
-    fn a_page_and_its_counts_come_together() {
-        let store = four_jobs();
-        let query = |facet, sort, limit, offset| JobQuery {
-            facet,
+    fn query(place: Place, unread: bool, sort: JobSort, limit: u32, offset: u32) -> JobQuery {
+        JobQuery {
+            place,
+            unread,
+            favourites: false,
             sort,
             search: None,
             limit,
             offset,
-        };
+        }
+    }
+
+    #[test]
+    fn a_page_and_its_counts_come_together() {
+        let store = four_jobs();
         let expected = JobCounts {
-            new: 2,
-            all: 4,
+            inbox: 4,
+            unread: 2,
+            favourites: 0,
+            archive: 0,
+            trash: 0,
             excluded: 1,
             high: 1,
             no_detail: 3,
-            saved: 0,
-            sent: 0,
-            archived: 0,
             new_by_portal: vec![
                 PortalNew {
                     portal: Portal::LinkedIn,
@@ -1507,42 +1499,46 @@ mod tests {
                 },
             ],
         };
-        // New lists every unread job: the excluded one behind the others (grey in the list),
-        // unscored after scored. Its count leaves the excluded one out.
-        let new = job_page(&store, &query(JobFacet::New, JobSort::Match, 50, 0)).unwrap();
+        let page = |unread, sort, limit, offset| {
+            job_page(&store, &query(Place::Inbox, unread, sort, limit, offset)).unwrap()
+        };
+        // Unread lists every unread job: the excluded one behind the others (grey in the
+        // list), unscored after scored. Its count leaves the excluded one out.
+        let new = page(true, JobSort::Match, 50, 0);
         assert_eq!(titles(&new), ["B", "D", "C"]);
         assert_eq!(&new.counts, &expected);
         assert!(new.jobs[0].unread && new.jobs[0].match_.is_some());
         let excluded = new.jobs[2].match_.as_ref().unwrap();
         assert!(new.jobs[2].unread && excluded.status == MatchStatus::Excluded);
-        let newest = job_page(&store, &query(JobFacet::New, JobSort::Newest, 50, 0)).unwrap();
-        assert_eq!(titles(&newest), ["D", "B", "C"]);
-        let by_match = job_page(&store, &query(JobFacet::All, JobSort::Match, 50, 0)).unwrap();
-        assert_eq!(titles(&by_match), ["B", "A", "D", "C"]);
-        let newest = job_page(&store, &query(JobFacet::All, JobSort::Newest, 50, 0)).unwrap();
+        assert_eq!(titles(&page(true, JobSort::Newest, 50, 0)), ["D", "B", "C"]);
+        assert_eq!(
+            titles(&page(false, JobSort::Match, 50, 0)),
+            ["B", "A", "D", "C"]
+        );
+        let newest = page(false, JobSort::Newest, 50, 0);
         assert_eq!(titles(&newest), ["D", "B", "A", "C"]);
         assert!(!newest.jobs[2].unread);
         // Past the end or counts only: no rows, the same counts.
-        let past = job_page(&store, &query(JobFacet::All, JobSort::Match, 50, 10)).unwrap();
+        let past = page(false, JobSort::Match, 50, 10);
         assert!(past.jobs.is_empty());
         assert_eq!(&past.counts, &expected);
-        let counts_only = job_page(&store, &query(JobFacet::All, JobSort::Match, 0, 0)).unwrap();
+        let counts_only = page(false, JobSort::Match, 0, 0);
         assert_eq!(
             (counts_only.jobs.len(), &counts_only.counts),
             (0, &expected)
         );
         // The search narrows list and counts alike.
-        let mut search = query(JobFacet::All, JobSort::Match, 50, 0);
+        let mut search = query(Place::Inbox, false, JobSort::Match, 50, 0);
         search.search = Some("volltext".into());
         let found = job_page(&store, &search).unwrap();
-        assert_eq!((found.jobs.len(), found.counts.all), (1, 1));
+        assert_eq!((found.jobs.len(), found.counts.inbox), (1, 1));
     }
 
-    /// Sent and archived jobs: an archived job leaves "New" and "All" and every count but
-    /// "archived"; "sent" lists the jobs applied for, the latest first. List
-    /// and counts still agree for every facet.
+    /// A job is in one place: inbox, archive or trash, each with its list and count; the
+    /// favourite is a flag of its own (counted until the trash). List and counts agree for
+    /// every place.
     #[test]
-    fn sent_and_archived_jobs_have_their_own_lists() {
+    fn every_place_has_its_list_and_its_count() {
         let store = four_jobs();
         let key = |i: u8| {
             job_link(&format!("https://www.linkedin.com/jobs/view/400000000{i}/"))
@@ -1551,81 +1547,68 @@ mod tests {
         };
         let at = Timestamp::now();
         let later = at + jiff::SignedDuration::from_mins(5);
-        // B (high, unread) sent, D (unscored, unread) sent later, C (excluded) archived.
-        store
-            .set_app_status(&key(2), Some(AppStatus::Sent), at)
-            .unwrap();
-        store
-            .set_app_status(&key(4), Some(AppStatus::Sent), later)
-            .unwrap();
+        // C (excluded) archived and a favourite, D (unscored, unread) in the trash later,
+        // A a favourite in the inbox.
         store.set_pinned(&key(3), true, at).unwrap();
-        store.set_archived(&key(3), true, at).unwrap();
-        let page = |facet| {
-            job_page(
-                &store,
-                &JobQuery {
-                    facet,
-                    sort: JobSort::Match,
-                    search: None,
-                    limit: 50,
-                    offset: 0,
-                },
-            )
-            .unwrap()
-        };
-        let all = page(JobFacet::All);
-        assert_eq!(titles(&all), ["B", "A", "D"], "the archived job is gone");
-        let counts = &all.counts;
+        store.move_jobs(&[key(3)], Place::Archive, at).unwrap();
+        store.move_jobs(&[key(4)], Place::Trash, later).unwrap();
+        store.set_pinned(&key(1), true, at).unwrap();
+        let page = |place| job_page(&store, &query(place, false, JobSort::Match, 50, 0)).unwrap();
+        let inbox = page(Place::Inbox);
+        assert_eq!(titles(&inbox), ["B", "A"]);
+        let counts = &inbox.counts;
         assert_eq!(
-            (counts.all, counts.new, counts.excluded, counts.saved),
-            (3, 2, 0, 0),
-            "archived in no count but its own"
+            (
+                counts.inbox,
+                counts.unread,
+                counts.excluded,
+                counts.favourites
+            ),
+            (2, 1, 0, 2),
+            "archive and trash in no inbox count"
         );
-        assert_eq!((counts.sent, counts.archived), (2, 1));
-        assert_eq!(titles(&page(JobFacet::New)), ["B", "D"]);
-        let sent = page(JobFacet::Sent);
-        assert_eq!(titles(&sent), ["D", "B"], "latest sent first");
-        assert_eq!(sent.jobs[0].app_status, Some(AppStatus::Sent));
-        assert_eq!(sent.counts, all.counts, "the counts ignore the facet");
-        let archived = page(JobFacet::Archived);
-        assert_eq!(titles(&archived), ["C"]);
-        assert!(archived.jobs[0].archived);
-        // The facet lists exactly as many jobs as its count says.
-        assert_eq!(u32::try_from(all.jobs.len()).unwrap(), counts.all);
-        assert_eq!(u32::try_from(sent.jobs.len()).unwrap(), counts.sent);
-        assert_eq!(u32::try_from(archived.jobs.len()).unwrap(), counts.archived);
-        // An archived sent job is in "archived" only.
-        store.set_archived(&key(2), true, later).unwrap();
-        let after = page(JobFacet::Sent);
-        assert_eq!(titles(&after), ["D"]);
-        assert_eq!((after.counts.sent, after.counts.archived), (1, 2));
+        assert_eq!((counts.archive, counts.trash), (1, 1));
+        let archive = page(Place::Archive);
+        assert_eq!(titles(&archive), ["C"]);
+        assert_eq!(archive.jobs[0].place, Place::Archive);
+        assert!(archive.jobs[0].pinned);
+        let trash = page(Place::Trash);
+        assert_eq!(titles(&trash), ["D"]);
+        assert_eq!(trash.counts, inbox.counts, "the counts ignore the place");
         assert_eq!(
-            titles(&page(JobFacet::Archived)),
+            titles(&job_page(&store, &query(Place::Trash, true, JobSort::Match, 50, 0)).unwrap()),
+            ["D"],
+            "the unread filter works in every place"
+        );
+        // Every place lists exactly as many jobs as its count says.
+        assert_eq!(u32::try_from(inbox.jobs.len()).unwrap(), counts.inbox);
+        assert_eq!(u32::try_from(archive.jobs.len()).unwrap(), counts.archive);
+        assert_eq!(u32::try_from(trash.jobs.len()).unwrap(), counts.trash);
+        // A favourite in the trash no longer counts; by date the latest trashed first.
+        store.move_jobs(&[key(1)], Place::Trash, at).unwrap();
+        let after = job_page(&store, &query(Place::Trash, false, JobSort::Newest, 50, 0)).unwrap();
+        assert_eq!(titles(&after), ["D", "A"]);
+        assert_eq!(
+            titles(&page(Place::Trash)),
+            ["A", "D"],
+            "by match the scored first"
+        );
+        assert_eq!((after.counts.favourites, after.counts.trash), (1, 2));
+        let json = serde_json::to_value(&after.jobs[1]).unwrap();
+        assert_eq!(json["place"], "trash");
+        assert_eq!(json["pinned"], true);
+        // The favourites view: starred jobs of the inbox and the archive, each in its place.
+        store.set_pinned(&key(2), true, at).unwrap();
+        let mut favourites = query(Place::Inbox, false, JobSort::Match, 50, 0);
+        favourites.favourites = true;
+        let starred = job_page(&store, &favourites).unwrap();
+        assert_eq!(
+            titles(&starred),
             ["B", "C"],
-            "latest archived first"
+            "the excluded one last, no trash"
         );
-    }
-
-    /// The reader has the note and the time of the status.
-    #[test]
-    fn the_reader_has_the_note_and_the_status_time() {
-        let store = four_jobs();
-        let key = job_link("https://www.linkedin.com/jobs/view/4000000002/")
-            .unwrap()
-            .key;
-        // Whole seconds, as the store keeps them.
-        let at = Timestamp::from_second(Timestamp::now().as_second()).unwrap();
-        store
-            .set_app_status(&key, Some(AppStatus::Sent), at)
-            .unwrap();
-        store.set_note(&key, "Profil an die Agentur").unwrap();
-        let detail = job_detail(&store, &key, None, false, at).unwrap().unwrap();
-        assert_eq!(detail.note.as_deref(), Some("Profil an die Agentur"));
-        assert_eq!(detail.job.status_at, Some(at));
-        assert_eq!(detail.job.app_status, Some(AppStatus::Sent));
-        let json = serde_json::to_value(&detail).unwrap();
-        assert_eq!(json["job"]["appStatus"], "sent");
-        assert_eq!(json["job"]["archived"], false);
+        assert_eq!(starred.jobs[1].place, Place::Archive);
+        assert_eq!(starred.counts.favourites, 2);
     }
 
     /// The new jobs per portal and the pinned ones come with every page, from the same
@@ -1675,7 +1658,9 @@ mod tests {
             job_page(
                 &store,
                 &JobQuery {
-                    facet: JobFacet::New,
+                    place: Place::Inbox,
+                    unread: true,
+                    favourites: false,
                     sort: JobSort::Match,
                     search: search.map(str::to_owned),
                     limit: 0,
@@ -1703,9 +1688,9 @@ mod tests {
         );
         assert_eq!(
             all.new_by_portal.iter().map(|p| p.new).sum::<u32>(),
-            all.new
+            all.unread
         );
-        assert_eq!(all.saved, 2);
+        assert_eq!(all.favourites, 2);
         let found = counts(Some("interim"));
         assert_eq!(
             per_portal(&found),
@@ -1715,7 +1700,7 @@ mod tests {
                 (Portal::Freelancermap, 0)
             ]
         );
-        assert_eq!(found.saved, 0);
+        assert_eq!(found.favourites, 0);
     }
 
     #[test]

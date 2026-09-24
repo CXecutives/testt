@@ -40,7 +40,7 @@ async function undo(keys: JobKey[]): Promise<void> {
 export async function archive(job: JobView): Promise<string | null> {
   const key = job.key;
   if (doubled(key)) return null;
-  const restoring = job.archived;
+  const restoring = job.place === 'archive';
   const error = await jobs.archive(key, !restoring);
   if (error !== null) return error;
   void jobs.loadOverview();
