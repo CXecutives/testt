@@ -24,7 +24,8 @@
     partial: 'circle-half',
     open: 'circle-dashed',
     violation: 'ban',
-    check: 'info',
+    // To check: the question mark of the criteria chip, in info navy everywhere.
+    check: 'circle-help',
   };
 
   // Muss and Kann are plain facts, never alarms: both neutral. Only a decided exclusion is red.
