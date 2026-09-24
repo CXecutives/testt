@@ -202,4 +202,37 @@ mod tests {
         );
         assert_eq!((both.kind, both.stated_permanent), (Unclear, true));
     }
+
+    #[test]
+    fn stated_denied_optional_and_field_permanent_roles() {
+        use ContractKind::{Interim, Permanent};
+        let li = Portal::LinkedIn;
+        let fm = Portal::FreelanceDe;
+        let kind = |title, text, portal| infer_text(title, text, portal).kind;
+        assert_eq!(
+            kind("Group Accountant", "A permanent full-time position.", li),
+            Permanent
+        );
+        let denied = infer_text(
+            "Interim Controller",
+            "Daily rate: EUR 1,100. This is not a permanent position.",
+            li,
+        );
+        assert_eq!((denied.kind, denied.stated_permanent), (Interim, false));
+        let option = infer_text(
+            "Interim Controller",
+            "Tagessatz 1.000 €. Perspektivisch ist eine Übernahme in eine Festanstellung denkbar.",
+            fm,
+        );
+        assert_eq!((option.kind, option.stated_permanent), (Interim, false));
+        // The contract field decides over a rate label and interim wording elsewhere.
+        assert_eq!(
+            kind(
+                "Leitung Controlling",
+                "Vertragsart: Festanstellung\nHonorar: nach Vereinbarung\nAuch ein Interim Manager ist denkbar.",
+                fm
+            ),
+            Permanent
+        );
+    }
 }

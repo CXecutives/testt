@@ -736,6 +736,40 @@ fn availability(
 mod tests {
     use super::*;
 
+    fn anue_codes(text: &str) -> Vec<(ReasonCode, bool)> {
+        let job = JobFacts {
+            title: "Controller",
+            text,
+            location: "",
+            portal: Portal::LinkedIn,
+            facts: None,
+            posted: None,
+        };
+        anue(&job, &segments(text))
+            .into_iter()
+            .map(|f| (f.code, f.decided))
+            .collect()
+    }
+
+    #[test]
+    fn anue_decided_only_without_an_option_or_a_distinction() {
+        assert_eq!(
+            anue_codes("Die Besetzung erfolgt im Rahmen der Arbeitnehmerüberlassung."),
+            [(ReasonCode::Anue, true)]
+        );
+        assert!(
+            anue_codes("Wir achten auf eine saubere Abgrenzung zur Arbeitnehmerüberlassung.")
+                .is_empty()
+        );
+        assert_eq!(
+            anue_codes(
+                "Vertragsart: Freiberuflich oder Arbeitnehmerüberlassung.\n\
+                 Bei ANÜ gilt ein entsprechender Stundenlohn."
+            ),
+            [(ReasonCode::AnueOptional, false)]
+        );
+    }
+
     #[test]
     fn rates() {
         let r = parse_rate(&fold("Honorar: 900 - 1.100 € pro Tag")).unwrap();
