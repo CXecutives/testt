@@ -228,6 +228,54 @@ function cycleFocus(modal: HTMLElement, back: boolean): void {
   items[next]?.focus();
 }
 
+export interface ChipKeyHandlers {
+  /** Enter: turn the typed text into chips; `true` if there was text. */
+  commit: () => boolean;
+  /** Backspace in an empty field: remove the last chip; `true` if one went. */
+  removeLast: () => boolean;
+  /** Esc: drop the typed text; `true` if there was some. */
+  clear: () => boolean;
+}
+
+const CHIPS = '[data-chip-keys]';
+const chipFields = new WeakMap<Element, ChipKeyHandlers>();
+
+/**
+ * The keys of a chip field (components/ChipInput.svelte): Enter adds, Backspace in the empty
+ * field removes the last chip, Esc drops the typed text. What a chip field does not use
+ * goes on to the form (Enter on an empty chip field saves it).
+ */
+export const chipKeys: Action<HTMLElement, ChipKeyHandlers> = (node, handlers) => {
+  chipFields.set(node, handlers);
+  node.dataset.chipKeys = '';
+  return {
+    update(next: ChipKeyHandlers) {
+      chipFields.set(node, next);
+    },
+    destroy() {
+      chipFields.delete(node);
+      delete node.dataset.chipKeys;
+    },
+  };
+};
+
+function dispatchChipKey(event: KeyboardEvent): boolean {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
+  const field = closest(event.target, CHIPS);
+  const handlers = field === null ? undefined : chipFields.get(field);
+  if (handlers === undefined) return false;
+  const handled =
+    event.key === 'Enter'
+      ? handlers.commit()
+      : event.key === 'Backspace'
+        ? handlers.removeLast()
+        : event.key === 'Escape'
+          ? handlers.clear()
+          : false;
+  if (handled) event.preventDefault();
+  return handled;
+}
+
 function onKeyDown(event: KeyboardEvent): void {
   if (event.ctrlKey || event.metaKey) guardZoom(true);
   if (isWindowShortcut(event)) return;
@@ -252,6 +300,7 @@ function onKeyDown(event: KeyboardEvent): void {
       event.preventDefault();
       return;
     }
+    if (dispatchChipKey(event)) return;
     dispatchFormKey(event);
     return;
   }
