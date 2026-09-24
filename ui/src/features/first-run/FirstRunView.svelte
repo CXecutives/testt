@@ -24,6 +24,7 @@
   import { rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
+  import { editor } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
 
@@ -123,7 +124,9 @@
           <div class="body">
             <h2 class="name">{de.firstRun.profile}</h2>
             {#if profileDone}
-              <p class="done-text" in:rise>{profile?.fileName}</p>
+              <p class="done-text" in:rise>
+                {profile?.form?.name || profile?.form?.title || profile?.fileName}
+              </p>
             {:else}
               {#if profileProblem}
                 <Notice
@@ -141,7 +144,11 @@
                   icon="file-text"
                   label={profile ? de.list.openProfile : de.profile.create}
                   testid="first-profile"
-                  onclick={() => navigation.go('profile')}
+                  onclick={() => {
+                    // No profile yet: straight into the empty form, one click.
+                    if (!profile) editor.create();
+                    navigation.go('profile');
+                  }}
                 />
               </div>
             {/if}

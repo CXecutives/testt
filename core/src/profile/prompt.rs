@@ -41,7 +41,7 @@ Job-Alert-Monitor. Die App vergleicht damit Stellenanzeigen mit meinem Profil.
 Regeln
 - Übernimm nur, was im Lebenslauf steht. Erfinde nichts und schätze nichts.
 - Was der Lebenslauf nicht hergibt, bleibt leer, bei Zahlen null.
-- titel ist meine berufliche Rolle in wenigen Worten, etwa Interim CFO.
+- titel ist meine berufliche Rolle in wenigen Worten, etwa Projektleitung.
 - berufserfahrung_jahre sind die Jahre Berufserfahrung insgesamt.
 - kernkompetenzen sind meine fachlichen Schwerpunkte, einzeln und kurz benannt, mit den Jahren \
 Erfahrung, wenn der Lebenslauf sie belegt. Unter auch stehen andere übliche Begriffe für \

@@ -50,16 +50,19 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('step-mailbox')).not.toHaveAttribute('aria-current', 'step');
   await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
 
-  // The profile is made in the Profil view; back on the first-run page its step is done.
+  // "Profil anlegen" opens the empty form in one click; after saving, a button leads on to
+  // the first fetch and the step is done with the person's name.
   await page.getByTestId('first-profile').click();
-  await expect(page.getByTestId('view-profile')).toBeVisible();
-  await page.getByTestId('profile-empty').getByRole('button', { name: 'Profil anlegen' }).click();
+  await expect(page.getByTestId('profile-form')).toBeVisible();
+  await expect(page.getByTestId('profile-name')).toHaveText('Neues Profil');
+  await page.getByTestId('profile-name-field').fill('Erika Beispiel');
   await page.getByTestId('competence-add').click();
   await page.getByTestId('competence-name').fill('Controlling');
   await page.getByTestId('profile-save').click();
   await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
-  await page.getByTestId('nav-jobs').click();
+  await page.getByTestId('profile-next').click();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
+  await expect(page.getByTestId('step-profile')).toContainText('Erika Beispiel');
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
 
   await fetch.click();

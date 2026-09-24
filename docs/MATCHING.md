@@ -105,7 +105,7 @@ Nothing person-specific is in code: every threshold comes from the profile.
 | Reading (V5, V16) | Must/nice/other headings incl. English (`Why join us`, `What we offer` end requirements), inline (`Anforderungen: ...`), frame sections; closing lines (`Interessiert? ...`) end a section; nice cues (`von Vorteil`) make a nice-to-have; requirement sentences only without a must section; vocabulary only when nothing else was found |
 | Items (V6) | AND at `,` `;` `und` `sowie` `&` `and` `inkl.`; OR alternatives at `oder` `bzw.` `or` ` / ` (an OR requirement is met when one branch is met); examples after `z. B.`/`e.g.` are alternatives of their head |
 | Kinds (V7) | skill, language (CEFR level), degree, licence (`Zulassung als Steuerberater`), soft (weight 250, unproven = half), frame (weight 0) |
-| Vocabulary | general core (languages, degrees, contract, remote and seniority words, general business pairs such as `project management` = `Projektmanagement`) plus domain packs (finance, sap, itProject) that switch on when a token of the profile's competences starts with a pack trigger; a pack never maps words for other profiles. `auch` / `aliases` terms of a competence count as that competence (the evidence path points to the alias) |
+| Vocabulary | general core (languages, degrees, contract, remote and seniority words, general business pairs such as `project management` = `Projektmanagement`) plus domain packs (finance, sap, itProject, hr, procurement, data, pharma, operations, sales, legal, software) that switch on when at least `PACK_HITS` tokens of the profile's competences start with a pack trigger; a pack never maps words for other profiles, only its broad companion words (`Personal`, `Lieferant`, `Kunde`, `Entwicklung`) are generic for every profile. `auch` / `aliases` terms of a competence count as that competence (the evidence path points to the alias) |
 | Ladder (V1-V4, V15) | umlauts folded, light stemming, concepts, compounds (light modifier or head = equal, other modifier = half, profile more specific = full), two thirds of a long entry = half; generic atoms (`SAP`, `Management`, `Finance`, `Einführung`, `ERP`, also in stemmed form) never alone and never reach a compound; atoms under five letters are no compound part; a USP sentence or a long free-text entry never proves a requirement; an ad that asks for more than the profile names (`Tableau im Reporting` against `Reporting`) is half |
 | Degrees | field (same = full, neighbouring such as business and business informatics = half, other = open), level (`Master` needs master level: `Diplom (Univ.)` counts as master, `Diplom (FH)` and a bachelor are half), `vergleichbar` accepts any field |
 | Levels, years (V8, V9) | language below the required level stays open; years per competence or the total (`berufserfahrung_jahre`); general experience without a topic uses the total, `5 Jahre Controlling` needs controlling |
@@ -391,8 +391,21 @@ Held-out sets (`cargo test -p jobalert-core --test matching_heldout -- --ignored
 | | exclusion precision / recall | | 0.825 / 0.810 | 1.000 / 0.948 |
 
 Left: the buried grade-3 jobs are teasers (held-out 1 senior D04, held-out 2 P1 X03); missed
-exclusions P1, P4 and senior on Y12 (a career rule the engine does not read); the HR profile P1
-(NDCG@10 0.387) waits for its domain pack.
+exclusions P1, P4 and senior on Y12 (a career rule the engine does not read).
+
+### Domain packs of the other fields
+
+Eight packs in `lexicon/domains/` (`hr`, `procurement`, `data`, `pharma`, `operations`, `sales`,
+`legal`, `software`): German and English terms and spellings, role titles with the female forms
+the stemmer does not fold (`Personalleiterin`, `Einkäuferin`), hyphenated keys for spellings whose
+second part the text drops (`GMP-Umfeld`), and false friends mapped apart (`Einkaufszentrum`,
+`DAX-Konzern`, `Purchase Price Allocation`, `Transfer Pricing`, `Revisionssicherheit`). Concept
+values are German compounds where a hyphenated value would hand its parts to other words
+(`strategischereinkauf`, not `strategisch-einkauf`, so `strategische Planung` stays apart). A key
+in two packs names the same concept (`negotiation`, the quality terms of pharma and operations);
+unit tests per pack check paraphrases and false friends. Held-out 2 with the packs: NDCG@10 0.805
+-> 0.862 (P1 0.387 -> 0.613, P2 0.757 -> 0.987), Spearman 0.554 -> 0.562; held-out 1 and the corpus
+unchanged.
 
 ## In the app
 

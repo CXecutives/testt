@@ -3,7 +3,8 @@
   Schwerpunkte, experience, tools and certificates, languages, wishes (they only nudge the
   score) and the hard criteria (they exclude). A thin profile marks its empty sections. The
   save bar stays at the bottom of the view: "Speichern" (the one primary, only with a
-  change) and "Verwerfen". Enter in a single-line field saves too.
+  change) and "Verwerfen", or Ctrl/Cmd+S. Enter never saves this long form: in the row
+  lists it goes to the next row.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -98,7 +99,7 @@
   );
 </script>
 
-<div class="editor" use:formKeys={{ save }} data-testid="profile-form">
+<div class="editor" use:formKeys={{ shortcut: save }} data-testid="profile-form">
   <ProfileSection heading={de.profile.section.person} testid="section-person">
     <div class="pair">
       <Field label={t.name} for="{id}-name">

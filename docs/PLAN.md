@@ -281,7 +281,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       into the high band while fewer than half of the musts are met); fixes of held-out sets 1 and 2, now regression
       corpora with frozen floors (NDCG@10 0.822 to 0.930 and 0.632 to 0.805); criteria met only with the ad's value
       as evidence, key facts on `JobMatch`; one German rubric for the Claude check and the skill
-      (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3, the new domain packs.
+      (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3.
+- [x] Domain packs for every field: hr, procurement, data, pharma, operations, sales, legal, software (held-out 2
+      NDCG@10 0.805 to 0.862). Open: synthetic corpus ads and profiles of the new fields.
 
 ### Phase 3 - screens and core workflow (two UI agents)
 - [x] Jobs (toolbar, run card, list with progressive rendering, reader with reasons and highlights, day overview)
