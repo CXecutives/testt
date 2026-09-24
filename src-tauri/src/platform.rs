@@ -493,3 +493,21 @@ mod macos {
         Menu::with_items(app, &[&app_menu, &edit, &window])
     }
 }
+
+/// Operating system of the interface (the page words its texts accordingly).
+pub fn platform() -> jobalert_core::view::Platform {
+    if cfg!(target_os = "macos") {
+        jobalert_core::view::Platform::Macos
+    } else {
+        jobalert_core::view::Platform::Windows
+    }
+}
+
+/// Where the mailbox password lives on this operating system.
+pub fn vault_kind() -> jobalert_core::view::VaultKind {
+    if cfg!(target_os = "macos") {
+        jobalert_core::view::VaultKind::MacosKeychain
+    } else {
+        jobalert_core::view::VaultKind::WindowsCredentialManager
+    }
+}

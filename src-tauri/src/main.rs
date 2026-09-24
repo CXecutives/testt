@@ -54,26 +54,7 @@ fn main() {
                 let _ = window.set_focus();
             }
         }))
-        .invoke_handler(tauri::generate_handler![
-            commands::app_state,
-            commands::save_settings,
-            commands::pick_workspace,
-            commands::save_gmail_credentials,
-            commands::delete_gmail_credentials,
-            commands::start_run,
-            commands::cancel_run,
-            commands::list_jobs,
-            commands::job_detail,
-            commands::pick_profile,
-            commands::remove_profile,
-            commands::rewrite_txt,
-            commands::clear_txt_files,
-            commands::open_target,
-            commands::reset_all,
-            commands::report_ui_error,
-            commands::portal_login,
-            commands::portal_logout,
-        ])
+        .invoke_handler(commands::invoke_handler())
         // A startup error (database, WebView2 ...) shows up as a dialog with cause and advice;
         // a GUI program without a console would otherwise end without a word.
         .setup(move |app| {

@@ -1,4 +1,4 @@
-//! Ein-Klick-Lauf mit den Trockenlauf-Attrappen; simulierte Zeit (Tempo kostet nichts).
+//! Runs with the dry-run dummies; simulated time (pace costs nothing).
 
 use std::path::Path;
 use std::sync::Mutex;
@@ -8,7 +8,9 @@ use tokio::time::Instant;
 
 use super::demo::{DemoBackends, DemoMail, DemoPages};
 use super::*;
+use crate::error::ErrorKind;
 use crate::export::TXT_DIR;
+use crate::fetch::policy::PauseReason;
 use crate::model::DescStatus;
 
 fn clock() -> impl Fn() -> Timestamp {
@@ -19,20 +21,24 @@ fn clock() -> impl Fn() -> Timestamp {
 
 fn request() -> RunRequest {
     RunRequest {
-        scan: true,
-        fetch: true,
-        export: true,
-        scope: Scope::New,
-        portals: Portal::ALL.to_vec(),
-        jobs: None,
+        kind: RunKind::Fetch,
     }
 }
 
 fn ctx(workspace: &Path, dry_run: bool) -> RunContext {
     RunContext {
         workspace: workspace.to_path_buf(),
-        account: "ich@gmail.com".into(),
         dry_run,
+        portals: Portal::ALL.to_vec(),
+        fetch_portals: Portal::ALL.to_vec(),
+    }
+}
+
+/// Mailbox only: no portal may fetch details.
+fn scan_only(workspace: &Path) -> RunContext {
+    RunContext {
+        fetch_portals: Vec::new(),
+        ..ctx(workspace, false)
     }
 }
 
@@ -64,7 +70,17 @@ fn finished(events: &[RunEvent]) -> usize {
         .count()
 }
 
+/// Every event stays below 8 KB (bigger ones the Tauri channel parks in a queue that any
+/// page could fetch).
+fn assert_small(events: &[RunEvent]) {
+    for event in events {
+        let size = serde_json::to_vec(event).unwrap().len();
+        assert!(size < 8 * 1024, "{size} bytes: {event:?}");
+    }
+}
+
 #[tokio::test(start_paused = true)]
+#[expect(clippy::too_many_lines, reason = "one run, checked from every side")]
 async fn one_click_run_writes_everything_and_finishes_once() {
     let c = clock();
     let dir = tempfile::tempdir().unwrap();
@@ -79,81 +95,134 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     )
     .await;
     assert_eq!(s.outcome, Outcome::Completed);
+    assert_eq!(s.kind, RunKindName::Fetch);
     let scan = s.scan.as_ref().unwrap();
     assert_eq!((scan.alert_mails, scan.new), (3, 5));
     let fetch = s.fetch.as_ref().unwrap();
     let ok: usize = fetch.per_portal.values().map(|p| p.ok).sum();
-    assert_eq!(ok, 4, "freelance.de zeigt im Trockenlauf einen Portalstopp");
+    assert_eq!(ok, 4, "freelance.de shows a portal stop in the dry run");
     let freelance = &fetch.per_portal[&Portal::FreelanceDe];
     assert_eq!(freelance.skipped, 1);
+    let paused = PortalHealth::Paused {
+        until: None,
+        reason: PauseReason::Throttled,
+    };
+    let health = freelance.stop.as_ref().unwrap().health();
     assert!(
-        freelance
-            .stop
-            .as_deref()
-            .is_some_and(|t| t.starts_with("freelance.de: pausiert bis"))
+        matches!(
+            health,
+            PortalHealth::Paused {
+                until: Some(_),
+                reason: PauseReason::Throttled
+            }
+        ),
+        "{health:?} vs {paused:?}"
     );
+    // The per-portal summary: scan and fetch counts side by side.
+    let of = |portal| s.per_portal.iter().find(|p| p.portal == portal).unwrap();
+    let li = of(Portal::LinkedIn);
+    assert_eq!((li.new, li.known, li.dup, li.fetched), (2, 0, 0, 2));
+    assert_eq!(li.stopped, None);
+    let fl = of(Portal::FreelanceDe);
+    assert_eq!((fl.new, fl.fetched, fl.skipped), (1, 0, 1));
+    assert_eq!(fl.stopped, Some(health));
+    assert!(s.empty_alerts.is_empty());
+    // The demo matcher: scored at the details (high, mid, low, excluded), the job without
+    // details in the catch-up.
+    assert_eq!(
+        s.score,
+        Some(ScoreSummary {
+            scored: 3,
+            excluded: 1,
+            unscorable: 1,
+            pending: 0,
+            best: Some(88)
+        })
+    );
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            RunEvent::JobUpdated { job } if job.match_.as_ref().is_some_and(|m| m.score == 88)
+        )),
+        "the ring appears with the details"
+    );
+    assert!(events.iter().any(|e| matches!(
+        e,
+        RunEvent::Progress {
+            step: Step::Score,
+            done: 1,
+            total: 1,
+            ..
+        }
+    )));
     let export = s.export.as_ref().unwrap();
     assert_eq!(export.txt_written, 4);
-    assert!(export.overview.as_ref().unwrap().exists());
+    assert!(export.overview_xlsx.as_ref().unwrap().exists());
+    // The HTML overview: the new scored jobs of this run, the excluded one not.
+    let html = std::fs::read_to_string(export.overview_html.as_ref().unwrap()).unwrap();
+    assert!(html.contains("Interim CFO") && !html.contains("Projektleiter S/4HANA"));
+    assert!(!html.contains("Beispieltext"), "never the full text");
     assert_eq!(txt_files(dir.path()), 4);
     assert_eq!(finished(&events), 1);
-    // Jedes Ereignis bleibt unter 8 KB (größere parkt der Tauri-Channel in einer
-    // Warteschlange, die jede Seite abrufen könnte).
-    for event in &events {
-        let size = serde_json::to_vec(event).unwrap().len();
-        assert!(size < 8 * 1024, "{size} Bytes: {event:?}");
-    }
-    assert!(store.kv_get(LAST_RUN).unwrap().is_some());
-    // Die Oberfläche sieht Wartezeiten (Countdown), jede Phase und den fertigen Stopptext.
-    let statuses: Vec<(&str, bool)> = events
+    assert_small(&events);
+    assert!(last_run(&store).unwrap().is_some_and(|l| l.run == s.run));
+    // The interface sees waits (countdown), every phase and the portal stop as codes.
+    let statuses: Vec<(StatusCode, Option<Portal>, bool)> = events
         .iter()
         .filter_map(|e| match e {
-            RunEvent::Status { text, until } => Some((text.as_str(), until.is_some())),
+            RunEvent::Status {
+                code,
+                portal,
+                until,
+            } => Some((*code, *portal, until.is_some())),
             _ => None,
         })
         .collect();
     for phase in [
-        "Gmail wird verbunden…",
-        "Postfach wird durchsucht…",
-        "Mails werden gelesen…",
-        "Jobdetails werden geholt (freelancermap.de)…",
-        "Jobdetails werden geholt (LinkedIn)…",
-        "Jobdetails werden geholt (freelance.de)…",
-        "Ergebnisdateien werden geschrieben…",
+        (StatusCode::ConnectingMail, None),
+        (StatusCode::SearchingMail, None),
+        (StatusCode::ReadingMails, None),
+        (StatusCode::FetchingDetails, Some(Portal::Freelancermap)),
+        (StatusCode::FetchingDetails, Some(Portal::LinkedIn)),
+        (StatusCode::FetchingDetails, Some(Portal::FreelanceDe)),
+        (StatusCode::WritingFiles, None),
     ] {
-        assert!(statuses.contains(&(phase, false)), "{phase}: {statuses:?}");
+        assert!(
+            statuses.contains(&(phase.0, phase.1, false)),
+            "{phase:?}: {statuses:?}"
+        );
     }
-    let waits: Vec<_> = statuses.iter().filter(|(_, until)| *until).collect();
+    let waits: Vec<_> = statuses.iter().filter(|(.., until)| *until).collect();
     assert!(!waits.is_empty());
     assert!(
         waits
             .iter()
-            .all(|(text, _)| text.starts_with("Pause vor dem nächsten Abruf ("))
+            .all(|(code, portal, _)| *code == StatusCode::Waiting && portal.is_some())
     );
-    // Nach einer Wartezeit folgt wieder eine Tätigkeit – dazwischen dürfen andere Portale
-    // ebenfalls warten, sie laufen ja nebeneinander. Die Statuszeile bleibt nie in der Pause
-    // stehen.
-    for (i, _) in statuses.iter().enumerate().filter(|(_, (_, wait))| *wait) {
-        let next = statuses[i + 1..].iter().find(|(_, wait)| !wait);
+    // After a wait an activity follows again - in between other portals may wait too, they
+    // run side by side. The status line never stays on the pause.
+    for (i, _) in statuses.iter().enumerate().filter(|(_, (.., wait))| *wait) {
+        let next = statuses[i + 1..].iter().find(|(.., wait)| !wait);
         assert!(
-            next.is_some_and(|(text, _)| text.starts_with("Jobdetails werden geholt")
-                || text.starts_with("Anmeldung bei")
-                || text.starts_with("Ergebnisdateien")),
+            next.is_some_and(|(code, ..)| matches!(
+                code,
+                StatusCode::FetchingDetails | StatusCode::SigningIn | StatusCode::WritingFiles
+            )),
             "{statuses:?}"
         );
     }
-    let status_json = serde_json::to_value(status("x")).unwrap();
-    assert!(
-        status_json.get("until").is_none(),
-        "ohne Wartezeit weggelassen"
+    // `null` instead of a missing field.
+    let status_json = serde_json::to_value(status(StatusCode::Scoring, None, None)).unwrap();
+    assert_eq!(
+        status_json,
+        serde_json::json!({"type": "status", "code": "scoring", "portal": null, "until": null})
     );
     assert!(events.iter().any(|e| matches!(
         e,
-        RunEvent::PortalStopped { portal: Portal::FreelanceDe, skipped: 1, text }
-            if text == freelance.stop.as_deref().unwrap()
+        RunEvent::PortalHealth { portal: Portal::FreelanceDe, health: h } if *h == health
     )));
 
-    // Zweiter Lauf: nichts neu, keine Textdatei doppelt; Übersicht neu (neuer Lauf).
+    // Second run: nothing new, no text file twice; overview anew (new run).
     let (s, _) = go(
         &mut DemoBackends,
         &store,
@@ -166,9 +235,9 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     assert_eq!(s.scan.as_ref().unwrap().new, 0);
     assert_eq!(s.export.as_ref().unwrap().txt_written, 0);
     assert_eq!(txt_files(dir.path()), 4);
-    // Ohne Änderung wird die Übersicht nicht angefasst (offene Excel-Datei stört dann nicht).
+    // Without a change the overview is not touched (an open Excel file is not disturbed).
     let again = export_all(&store, dir.path(), &[], s.run, c());
-    assert_eq!(again.overview, None);
+    assert_eq!(again.overview_xlsx, None);
 }
 
 #[tokio::test(start_paused = true)]
@@ -199,12 +268,12 @@ async fn cancel_during_fetch_keeps_work_and_still_exports() {
     assert_eq!(
         s.export.as_ref().unwrap().txt_written,
         1,
-        "Geholtes ist gespeichert und exportiert"
+        "what was fetched is stored and exported"
     );
     assert_eq!(finished(&events), 1);
 }
 
-/// Scheitert das Postfach, wird nicht abgerufen – exportiert wird trotzdem.
+/// If the mailbox fails, nothing is fetched - the export still runs.
 #[tokio::test(start_paused = true)]
 async fn mail_failure_skips_fetch_but_exports() {
     struct Failing;
@@ -232,10 +301,13 @@ async fn mail_failure_skips_fetch_but_exports() {
         &c,
     )
     .await;
-    assert!(matches!(&s.outcome, Outcome::Failed { error, .. } if error == "mailAuth"));
+    assert!(matches!(&s.outcome, Outcome::Failed { error } if error.kind == ErrorKind::MailAuth));
     assert!(s.fetch.is_none());
     assert!(s.export.is_some());
     assert_eq!(finished(&events), 1);
+    // The Gmail reply is for the log only, never in the summary.
+    let json = serde_json::to_string(&s).unwrap();
+    assert!(!json.contains("AUTHENTICATIONFAILED"), "{json}");
 }
 
 #[tokio::test(start_paused = true)]
@@ -259,37 +331,88 @@ async fn dry_run_writes_nothing() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_source_must_be_chosen() {
+async fn a_portal_must_be_enabled() {
     let c = clock();
     let dir = tempfile::tempdir().unwrap();
     let store = Store::in_memory().unwrap();
-    let mut req = request();
-    req.portals.clear();
+    let mut context = ctx(dir.path(), false);
+    context.portals.clear();
     let (s, _) = go(
         &mut DemoBackends,
         &store,
-        &req,
-        &ctx(dir.path(), false),
+        &request(),
+        &context,
         &CancellationToken::new(),
         &c,
     )
     .await;
-    assert!(matches!(&s.outcome, Outcome::Failed { error, .. } if error == "invalid"));
+    assert!(matches!(&s.outcome, Outcome::Failed { error }
+        if error.kind == ErrorKind::Invalid && error.params["reason"] == "noPortal"));
 }
 
-/// „Details holen“ für einzelne Jobs: nur diese, ohne Postfach.
+/// Details switched off for a portal: its alert mails are read, its pages never requested.
+#[tokio::test(start_paused = true)]
+async fn details_off_means_no_request_to_the_portal() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let mut context = ctx(dir.path(), false);
+    context.fetch_portals = vec![Portal::Freelancermap];
+    let (s, events) = go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &context,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.scan.as_ref().unwrap().new, 5, "all mails are read");
+    let requested: Vec<Portal> = events
+        .iter()
+        .filter_map(|e| match e {
+            RunEvent::Status {
+                code: StatusCode::FetchingDetails | StatusCode::Waiting,
+                portal,
+                ..
+            } => *portal,
+            _ => None,
+        })
+        .collect();
+    assert!(
+        requested.iter().all(|p| *p == Portal::Freelancermap),
+        "{requested:?}"
+    );
+    // A targeted fetch of a switched-off portal does not request it either.
+    let key = crate::portal::job_link("https://www.linkedin.com/jobs/view/4999000002/")
+        .unwrap()
+        .key;
+    let details = RunRequest {
+        kind: RunKind::Details { keys: vec![key] },
+    };
+    let (s, _) = go(
+        &mut DemoBackends,
+        &store,
+        &details,
+        &context,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.fetch.as_ref().unwrap().queued, 0);
+}
+
+/// "Fetch details" for single jobs: only these, without the mailbox.
 #[tokio::test(start_paused = true)]
 async fn targeted_fetch_only_touches_the_chosen_jobs() {
     let c = clock();
     let dir = tempfile::tempdir().unwrap();
     let store = Store::in_memory().unwrap();
-    let mut scan_only = request();
-    scan_only.fetch = false;
     go(
         &mut DemoBackends,
         &store,
-        &scan_only,
-        &ctx(dir.path(), false),
+        &request(),
+        &scan_only(dir.path()),
         &CancellationToken::new(),
         &c,
     )
@@ -298,9 +421,9 @@ async fn targeted_fetch_only_touches_the_chosen_jobs() {
         .unwrap()
         .key;
     let targeted = RunRequest {
-        scan: true,
-        jobs: Some(vec![key.clone()]),
-        ..request()
+        kind: RunKind::Details {
+            keys: vec![key.clone()],
+        },
     };
     let (s, _) = go(
         &mut DemoBackends,
@@ -311,7 +434,8 @@ async fn targeted_fetch_only_touches_the_chosen_jobs() {
         &c,
     )
     .await;
-    assert!(s.scan.is_none(), "gezielter Abruf ohne Postfach");
+    assert_eq!(s.kind, RunKindName::Details);
+    assert!(s.scan.is_none(), "a targeted fetch without the mailbox");
     assert_eq!(s.fetch.as_ref().unwrap().queued, 1);
     assert_eq!(
         store.job(&key).unwrap().unwrap().desc_status,
@@ -319,7 +443,30 @@ async fn targeted_fetch_only_touches_the_chosen_jobs() {
     );
 }
 
-/// Abbruch nach k von n Jobdetails ⇒ genau k gespeichert, genau ein `Finished`.
+/// Rescore: no mailbox, no fetch - only the export (the score step follows with a matcher).
+#[tokio::test(start_paused = true)]
+async fn rescore_only_exports() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let (store, _) = store_with_texts();
+    let rescore = RunRequest {
+        kind: RunKind::Rescore,
+    };
+    let (s, events) = go(
+        &mut DemoBackends,
+        &store,
+        &rescore,
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert!(s.scan.is_none() && s.fetch.is_none());
+    assert_eq!(s.export.as_ref().unwrap().txt_written, 2);
+    assert_eq!(finished(&events), 1);
+}
+
+/// Cancel after k of n job details => exactly k stored, exactly one `Finished`.
 #[tokio::test(start_paused = true)]
 async fn cancel_after_k_of_n_keeps_exactly_k() {
     for k in 0..=5 {
@@ -342,7 +489,14 @@ async fn cancel_after_k_of_n_keeps_exactly_k() {
                 if matches!(e, RunEvent::JobUpdated { .. }) {
                     updated += 1;
                 }
-                if updated >= k && matches!(e, RunEvent::JobUpdated { .. } | RunEvent::Log { .. }) {
+                if updated >= k
+                    && matches!(
+                        e,
+                        RunEvent::JobUpdated { .. }
+                            | RunEvent::Status { .. }
+                            | RunEvent::Progress { .. }
+                    )
+                {
                     cancel.cancel();
                 }
                 events.push(e);
@@ -360,13 +514,60 @@ async fn cancel_after_k_of_n_keeps_exactly_k() {
     }
 }
 
-/// Zwei Jobs mit Volltext (ohne Postfach), für Export-Tests.
+/// The biggest summary a run can send stays below 8 KB.
+#[test]
+fn the_largest_summary_is_a_small_event() {
+    let now = Timestamp::now();
+    let mut summary = RunSummary::new(RunKindName::FullMailbox, false, now);
+    summary.outcome = Outcome::Failed {
+        error: ErrorInfo::new(ErrorKind::Io).with("path", "x".repeat(400)),
+    };
+    summary.scan = Some(ScanCounts::default());
+    summary.per_portal = Portal::ALL
+        .into_iter()
+        .map(|portal| PortalSummary {
+            portal,
+            new: 9999,
+            known: 9999,
+            dup: 9999,
+            fetched: 9999,
+            failed: 9999,
+            gone: 9999,
+            skipped: 9999,
+            stopped: Some(PortalHealth::LayoutSuspect {
+                empty_mails: 9999,
+                pages: 99,
+            }),
+        })
+        .collect();
+    summary.score = Some(ScoreSummary::default());
+    summary.export = Some(ExportSummary {
+        overview_xlsx: Some(PathBuf::from("y".repeat(400))),
+        overview_html: Some(PathBuf::from("y".repeat(400))),
+        backup: Some(PathBuf::from("y".repeat(400))),
+        error: Some(ErrorInfo::new(ErrorKind::FileLocked).with("path", "z".repeat(400))),
+        ..ExportSummary::default()
+    });
+    summary.empty_alerts = (0..MAX_EMPTY_ALERTS)
+        .map(|_| EmptyAlert {
+            portal: Portal::FreelanceDe,
+            subject: "ü".repeat(MAX_SUBJECT_CHARS),
+            date: Some(now),
+            gmail_id: Some(format!("{:x}", u64::MAX)),
+        })
+        .collect();
+    assert_small(&[RunEvent::Finished {
+        summary: Box::new(summary),
+    }]);
+}
+
+/// Two jobs with a full text (without the mailbox), for export tests.
 fn store_with_texts() -> (Store, Vec<JobKey>) {
     fill_texts(Store::in_memory().unwrap())
 }
 
-/// Dieselben zwei Jobs in einer Datenbank auf der Platte – nur so lässt sich ein
-/// Datenbankfehler von außen erzeugen (zweite Verbindung).
+/// The same two jobs in a database on disk - only then can a database error be caused from
+/// outside (second connection).
 fn store_on_disk(dir: &Path) -> (Store, PathBuf) {
     let db = dir.join("jobs.db");
     let (store, _) = fill_texts(Store::open(&db).unwrap());
@@ -396,8 +597,8 @@ fn fill_texts(store: Store) -> (Store, Vec<JobKey>) {
     (store, keys)
 }
 
-/// Eine fremde Übersicht (etwa vom alten Programm) wird einmal gesichert – die eigene bei
-/// jedem weiteren Lauf nie.
+/// A foreign overview (e.g. from the old program) is backed up once - the app's own never
+/// on any further run.
 #[test]
 fn only_a_foreign_overview_is_backed_up_and_only_once() {
     let dir = tempfile::tempdir().unwrap();
@@ -408,21 +609,15 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
     let now = Timestamp::now();
 
     let first = export_all(&store, dir.path(), &[], 1, now);
-    let backup = first.backup.clone().expect("fremde Datei gesichert");
+    let backup = first.backup.clone().expect("foreign file backed up");
     assert_eq!(std::fs::read(&backup).unwrap(), b"fremd");
-    assert!(first.overview.is_some());
-    let mut events = Vec::new();
-    log_export(&first, &mut |e| events.push(e));
-    assert!(events.iter().any(|e| matches!(
-        e,
-        RunEvent::Log { level: Level::Warn, text, .. } if text.contains("gesichert")
-    )));
+    assert!(first.overview_xlsx.is_some());
 
-    // Weitere Läufe schreiben die eigene Datei fort, ohne sie noch einmal zu sichern.
+    // Further runs continue the app's own file without backing it up again.
     let second = export_all(&store, dir.path(), &[], 2, now);
     let back = export_all(&store, dir.path(), &[], 3, now);
     assert_eq!((second.backup, back.backup), (None, None));
-    assert!(back.overview.is_some(), "neuer Lauf: Blatt „Info“ neu");
+    assert!(back.overview_xlsx.is_some(), "new run: sheet \"Info\" anew");
     let backups = std::fs::read_dir(&result_dir)
         .unwrap()
         .filter(|e| {
@@ -434,33 +629,34 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
         })
         .count();
     assert_eq!(backups, 1);
-    // Ohne neuen Lauf und ohne neue Daten bleibt die Übersicht liegen.
+    // Without a new run and without new data the overview stays.
     let again = export_all(&store, dir.path(), &[], 3, now);
-    assert_eq!(again.overview, None);
+    assert_eq!(again.overview_xlsx, None);
 }
 
-/// Lässt sich der Exportstand nicht lesen, ist der Besitz der Datei unbekannt: Die
-/// vorhandene Übersicht bleibt liegen – kein Backup, kein Überschreiben.
+/// If the export stamp cannot be read, the ownership of the file is unknown: the existing
+/// overview stays - no backup, no overwrite.
 #[test]
 fn an_unreadable_export_stamp_leaves_the_overview_alone() {
     let dir = tempfile::tempdir().unwrap();
     let (store, db) = store_on_disk(dir.path());
     let now = Timestamp::now();
     let first = export_all(&store, dir.path(), &[], 1, now);
-    assert!(first.overview.is_some() && first.backup.is_none());
+    assert!(first.overview_xlsx.is_some() && first.backup.is_none());
     let path = dir.path().join(RESULT_DIR).join(export::XLSX_NAME);
     let before = std::fs::read(&path).unwrap();
 
-    // Die Tabelle mit dem Exportstand fehlt: jedes `kv_get` scheitert.
+    // The table with the export stamp is missing: every `kv_get` fails.
     rusqlite::Connection::open(&db)
         .unwrap()
         .execute("DROP TABLE kv", [])
         .unwrap();
     let again = export_all(&store, dir.path(), &[], 2, now);
-    assert_eq!(again.backup, None, "kein Backup bei unbekanntem Besitz");
-    assert_eq!(again.overview, None);
-    assert_eq!(std::fs::read(&path).unwrap(), before, "Datei unverändert");
-    assert!(again.error.is_some(), "{again:?}");
+    assert_eq!(again.backup, None, "no backup with unknown ownership");
+    assert_eq!(again.overview_xlsx, None);
+    assert_eq!(std::fs::read(&path).unwrap(), before, "file unchanged");
+    let error = again.error.expect("an error");
+    assert_eq!(error.params["target"], "overview");
     let backups = std::fs::read_dir(dir.path().join(RESULT_DIR))
         .unwrap()
         .filter_map(Result::ok)
@@ -469,51 +665,58 @@ fn an_unreadable_export_stamp_leaves_the_overview_alone() {
     assert_eq!(backups, 0);
 }
 
-/// Lässt sich eine geschriebene Textdatei nicht markieren, zählen auch die übrigen als
-/// offen – und die erste, ursachennächste Meldung bleibt stehen.
+/// If a written text file cannot be marked, the remaining ones count as open too - and the
+/// first message, closest to the cause, stays.
 #[test]
 fn a_failed_mark_counts_the_rest_and_keeps_the_first_error() {
     let dir = tempfile::tempdir().unwrap();
     let (store, db) = store_on_disk(dir.path());
-    // Keine Änderung an der Jobtabelle: Lesen geht, Markieren scheitert.
+    // No change of the job table: reading works, marking fails.
     rusqlite::Connection::open(&db)
         .unwrap()
         .execute(
-            "CREATE TRIGGER kein_markieren BEFORE UPDATE ON job
-             BEGIN SELECT RAISE(ABORT, 'gesperrt'); END",
+            "CREATE TRIGGER no_marking BEFORE UPDATE ON job
+             BEGIN SELECT RAISE(ABORT, 'locked'); END",
             [],
         )
         .unwrap();
     let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now());
     assert_eq!(
-        (summary.txt_written, summary.txt_failed_count),
+        (summary.txt_written, summary.txt_failed),
         (0, 2),
         "{summary:?}"
     );
-    // Zur Zahl gehört wenigstens ein Beispiel.
-    assert!(!summary.txt_failed.is_empty(), "{summary:?}");
-    assert!(summary.error.is_some(), "{summary:?}");
+    // The number comes with at least one example.
+    assert!(!summary.txt_failed_keys.is_empty(), "{summary:?}");
+    assert!(
+        summary
+            .error
+            .as_ref()
+            .is_some_and(|e| e.kind == ErrorKind::Db),
+        "{summary:?}"
+    );
 }
 
-/// Scheitern Textdateien und Übersicht am selben unbrauchbaren Ordner, meldet der Lauf die
-/// erste, ursachennächste Meldung – nicht den nackten Folgefehler der Übersicht.
+/// If text files and overview fail at the same unusable folder, the run reports the first
+/// message, closest to the cause - not the bare consequential error of the overview.
 #[test]
 fn the_first_error_survives_a_later_one() {
     let dir = tempfile::tempdir().unwrap();
     let (store, _) = store_with_texts();
-    // An der Stelle des Ergebnisordners steht eine Datei: nichts lässt sich dort schreiben.
-    std::fs::write(dir.path().join(RESULT_DIR), b"kein Ordner").unwrap();
+    // A file stands where the result folder should be: nothing can be written there.
+    std::fs::write(dir.path().join(RESULT_DIR), b"no folder").unwrap();
     let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now());
-    assert_eq!((summary.txt_written, summary.txt_failed_count), (0, 2));
-    assert_eq!(summary.overview, None);
-    let error = summary.error.as_deref().unwrap_or_default();
+    assert_eq!((summary.txt_written, summary.txt_failed), (0, 2));
+    assert_eq!(summary.overview_xlsx, None);
+    let error = summary.error.expect("an error");
+    assert_eq!(error.params["target"], "txtFolder");
     assert!(
-        error.contains(TXT_DIR) && error.contains("nicht erreichbar"),
-        "{error}"
+        error.params["path"].as_str().unwrap().contains(TXT_DIR),
+        "{error:?}"
     );
 }
 
-/// Ein gescheiterter Postfach-Abruf überschreibt die Zahlen des letzten guten nicht.
+/// A failed mailbox scan does not overwrite the numbers of the last good one.
 #[tokio::test(start_paused = true)]
 async fn the_info_sheet_keeps_the_last_good_scan() {
     struct Failing;
@@ -530,37 +733,35 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
     let c = clock();
     let dir = tempfile::tempdir().unwrap();
     let store = Store::in_memory().unwrap();
-    let mut good = request();
-    good.fetch = false;
     go(
         &mut DemoBackends,
         &store,
-        &good,
-        &ctx(dir.path(), false),
+        &request(),
+        &scan_only(dir.path()),
         &CancellationToken::new(),
         &c,
     )
     .await;
     let after_good = store.kv_get(LAST_SCAN_INFO).unwrap().unwrap();
-    assert!(after_good.contains("ich@gmail.com") && after_good.contains("\"5\""));
+    assert!(after_good.contains("\"5\""));
+    assert!(!after_good.contains('@'), "no mail address in the file");
     let (failed, _) = go(
         &mut Failing,
         &store,
-        &good,
-        &ctx(dir.path(), false),
+        &request(),
+        &scan_only(dir.path()),
         &CancellationToken::new(),
         &c,
     )
     .await;
     assert!(matches!(failed.outcome, Outcome::Failed { .. }));
-    let details_only = RunRequest {
-        scan: false,
-        ..request()
+    let rescore = RunRequest {
+        kind: RunKind::Rescore,
     };
     go(
         &mut DemoBackends,
         &store,
-        &details_only,
+        &rescore,
         &ctx(dir.path(), false),
         &CancellationToken::new(),
         &c,
@@ -568,15 +769,11 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
     .await;
     assert_eq!(store.kv_get(LAST_SCAN_INFO).unwrap().unwrap(), after_good);
     let rows = info_rows(&store, c());
-    assert!(
-        rows.iter()
-            .any(|(k, v)| k == "Neu (letzter Lauf)" && v == "5")
-    );
+    assert!(rows.iter().any(|(k, v)| k == texts::INFO_NEW && v == "5"));
 }
 
-/// Sicherheits-Invariante: Eine vom Nutzer gelöschte oder geleerte Textdatei legt der
-/// nächste Lauf nicht wieder an – die Marke bleibt verbraucht. Zurück holt sie nur
-/// „Textdateien neu schreiben“.
+/// Safety invariant: a text file the user deleted or emptied is not recreated by the next
+/// run - the mark stays used. Only "rewrite text files" brings it back.
 #[test]
 fn a_text_file_the_user_removed_is_never_recreated_by_itself() {
     let dir = tempfile::tempdir().unwrap();
@@ -590,19 +787,19 @@ fn a_text_file_the_user_removed_is_never_recreated_by_itself() {
     std::fs::write(&emptied, b"").unwrap();
 
     let next = export_all(&store, dir.path(), &[], 2, now);
-    assert_eq!((next.txt_written, next.txt_failed_count), (0, 0));
-    assert!(!deleted.exists(), "gelöschte Datei bleibt weg");
+    assert_eq!((next.txt_written, next.txt_failed), (0, 0));
+    assert!(!deleted.exists(), "a deleted file stays away");
     assert!(
         std::fs::read(&emptied).unwrap().is_empty(),
-        "leer bleibt leer"
+        "empty stays empty"
     );
-    // Erst der ausdrückliche Befehl holt sie zurück.
+    // Only the explicit command brings them back.
     assert_eq!(rewrite_txt(&store, dir.path(), now).txt_written, 2);
     assert!(deleted.exists() && !std::fs::read(&emptied).unwrap().is_empty());
 }
 
-/// „Textdateien neu schreiben“: Was sich nicht schreiben lässt, behält seine Marke – der
-/// nächste Lauf legt es also nicht von selbst neu an.
+/// "Rewrite text files": what cannot be written keeps its mark - so the next run does not
+/// recreate it by itself.
 #[test]
 fn a_failed_rewrite_keeps_the_marks() {
     let dir = tempfile::tempdir().unwrap();
@@ -612,63 +809,53 @@ fn a_failed_rewrite_keeps_the_marks() {
     assert_eq!(first.txt_written, 2);
     let txt_dir = dir.path().join(RESULT_DIR).join(TXT_DIR);
     let blocked = txt_dir.join(store.job(&keys[1]).unwrap().unwrap().txt_name.unwrap());
-    // An der Stelle der zweiten Datei steht ein Ordner: Schreiben scheitert.
+    // A folder stands where the second file should be: writing fails.
     std::fs::remove_file(&blocked).unwrap();
     std::fs::create_dir(&blocked).unwrap();
 
     let rewrite = rewrite_txt(&store, dir.path(), now);
-    assert_eq!((rewrite.txt_written, rewrite.txt_failed_count), (1, 1));
-    assert_eq!(rewrite.txt_failed, [keys[1].to_string()]);
-    // Keine Marke wurde gelöscht: Nichts gilt als „noch zu schreiben“.
+    assert_eq!((rewrite.txt_written, rewrite.txt_failed), (1, 1));
+    assert_eq!(rewrite.txt_failed_keys, [keys[1].to_string()]);
+    // No mark was removed: nothing counts as "still to write".
     assert!(store.txt_jobs(false).unwrap().is_empty());
     let next = export_all(&store, dir.path(), &[], 2, now);
     assert_eq!(
-        (next.txt_written, next.txt_failed_count),
+        (next.txt_written, next.txt_failed),
         (0, 0),
-        "nichts von selbst neu"
+        "nothing anew by itself"
     );
 }
 
-/// Ist der Ordner für die Textdateien unbrauchbar, gibt es eine klare Meldung statt eines
-/// Versuchs je Datei – und die echte Zahl.
+/// If the folder for the text files is unusable, there is one clear error instead of one
+/// attempt per file - and the real number.
 #[test]
 fn an_unusable_text_folder_is_one_clear_error() {
     let dir = tempfile::tempdir().unwrap();
     let (store, keys) = store_with_texts();
     let result_dir = dir.path().join(RESULT_DIR);
     std::fs::create_dir_all(&result_dir).unwrap();
-    std::fs::write(result_dir.join(TXT_DIR), b"eine Datei statt des Ordners").unwrap();
+    std::fs::write(result_dir.join(TXT_DIR), b"a file instead of the folder").unwrap();
     let summary = export_all(&store, dir.path(), &[], 1, Timestamp::now());
-    assert_eq!((summary.txt_written, summary.txt_failed_count), (0, 2));
-    // Auch hier nennt die Liste die betroffenen Jobs – sie bleibt nie leer neben einer Zahl.
-    let mut failed = summary.txt_failed.clone();
+    assert_eq!((summary.txt_written, summary.txt_failed), (0, 2));
+    // Here too the list names the affected jobs - it is never empty next to a number.
+    let mut failed = summary.txt_failed_keys.clone();
     failed.sort();
     let mut expected: Vec<String> = keys.iter().map(ToString::to_string).collect();
     expected.sort();
     assert_eq!(failed, expected);
-    assert!(
-        summary
-            .error
-            .as_deref()
-            .is_some_and(|e| e.contains(TXT_DIR)),
-        "{summary:?}"
-    );
-    let mut events = Vec::new();
-    log_export(&summary, &mut |e| events.push(e));
-    assert!(events.iter().any(|e| matches!(
-        e,
-        RunEvent::Log { text, .. } if text.starts_with("2 Textdateien")
-    )));
+    let error = summary.error.expect("an error");
+    assert_eq!(error.params["target"], "txtFolder");
+    assert!(error.params["path"].as_str().unwrap().contains(TXT_DIR));
 }
 
-/// Lässt sich kein Lauf anlegen (Datenbank gesperrt oder defekt), endet er als Fehler – ohne
-/// Postfach, ohne Abruf, mit genau einem `Finished`.
+/// If no run can be created (database locked or broken), it ends as an error - without
+/// mailbox, without fetch, with exactly one `Finished`.
 #[tokio::test(start_paused = true)]
 async fn a_run_that_cannot_begin_fails() {
     let c = clock();
     let dir = tempfile::tempdir().unwrap();
     let store = Store::in_memory().unwrap();
-    store.kv_set("run_seq", "kaputt").unwrap();
+    store.kv_set("run_seq", "broken").unwrap();
     let (s, events) = go(
         &mut DemoBackends,
         &store,
@@ -678,9 +865,214 @@ async fn a_run_that_cannot_begin_fails() {
         &c,
     )
     .await;
-    assert!(matches!(&s.outcome, Outcome::Failed { error, .. } if error == "corrupt"));
+    assert!(matches!(&s.outcome, Outcome::Failed { error } if error.kind == ErrorKind::Corrupt));
     assert!(s.scan.is_none() && s.fetch.is_none() && s.export.is_none());
     assert_eq!(s.run, 0);
     assert_eq!(finished(&events), 1);
     assert_eq!(store.job_count().unwrap(), 0);
+}
+
+/// The dry-run backends without a matcher.
+struct Unscored;
+
+impl Backends for Unscored {
+    type Mail = DemoMail;
+    type Pages = DemoPages;
+    async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
+        DemoBackends.connect_mail(cancel).await
+    }
+    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+        Ok(DemoPages)
+    }
+}
+
+/// A matcher that judges only LinkedIn jobs, with a changeable revision.
+struct Picky(&'static str);
+
+impl Matcher for Picky {
+    fn rev(&self) -> &str {
+        self.0
+    }
+    fn assess(&self, job: &JobRow, _text: Option<&str>) -> Option<crate::model::MatchRecord> {
+        (job.key.portal == Portal::LinkedIn).then(|| crate::model::MatchRecord {
+            status: crate::model::MatchStatus::Scored,
+            score: 50,
+            note: None,
+            must_met: 0,
+            must_total: 0,
+            top: Vec::new(),
+        })
+    }
+}
+
+struct WithPicky(&'static str);
+
+impl Backends for WithPicky {
+    type Mail = DemoMail;
+    type Pages = DemoPages;
+    async fn connect_mail(&mut self, cancel: &CancellationToken) -> Result<DemoMail, MailError> {
+        DemoBackends.connect_mail(cancel).await
+    }
+    fn pages(&mut self, _portal: Portal) -> Result<DemoPages, String> {
+        Ok(DemoPages)
+    }
+    fn matcher(&self) -> Option<Arc<dyn Matcher>> {
+        Some(Arc::new(Picky(self.0)))
+    }
+}
+
+/// Without a matcher nothing is scored and the summary has no score; jobs the matcher does
+/// not judge stay pending without stalling the catch-up; a new revision scores again.
+#[tokio::test(start_paused = true)]
+async fn scoring_follows_the_matcher() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let (s, _) = go(
+        &mut Unscored,
+        &store,
+        &request(),
+        &scan_only(dir.path()),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.score, None);
+    assert!(store.top_matches(s.run, 5).unwrap().is_empty());
+    let rescore = RunRequest {
+        kind: RunKind::Rescore,
+    };
+    let (s, _) = go(
+        &mut WithPicky("r1"),
+        &store,
+        &rescore,
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let first = s.score.unwrap();
+    assert_eq!((first.scored, first.pending), (2, 3), "{first:?}");
+    let (s, _) = go(
+        &mut WithPicky("r1"),
+        &store,
+        &rescore,
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.score.unwrap().scored, 0, "nothing stale");
+    let (s, _) = go(
+        &mut WithPicky("r2"),
+        &store,
+        &rescore,
+        &ctx(dir.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert_eq!(s.score.unwrap().scored, 2, "a new revision scores again");
+}
+
+/// The text files do not know the match: byte-identical with and without a matcher.
+#[tokio::test(start_paused = true)]
+async fn txt_is_blind_to_the_match() {
+    let c = clock();
+    let read_all = |root: &Path| {
+        let dir = root.join(RESULT_DIR).join(TXT_DIR);
+        let mut files: Vec<(String, Vec<u8>)> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| {
+                let e = e.unwrap();
+                (
+                    e.file_name().to_string_lossy().into_owned(),
+                    std::fs::read(e.path()).unwrap(),
+                )
+            })
+            .collect();
+        files.sort();
+        files
+    };
+    let (with, without) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let scored = Store::in_memory().unwrap();
+    let (s, _) = go(
+        &mut DemoBackends,
+        &scored,
+        &request(),
+        &ctx(with.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert!(s.score.is_some());
+    let plain = Store::in_memory().unwrap();
+    go(
+        &mut Unscored,
+        &plain,
+        &request(),
+        &ctx(without.path(), false),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let (a, b) = (read_all(with.path()), read_all(without.path()));
+    assert_eq!(a.len(), 4);
+    // The fetch time is part of the header; the simulated clocks of both runs differ, so
+    // compare everything but that line.
+    let strip = |files: &[(String, Vec<u8>)]| -> Vec<(String, String)> {
+        files
+            .iter()
+            .map(|(name, bytes)| {
+                let text = String::from_utf8(bytes.clone()).unwrap();
+                let kept: Vec<&str> = text
+                    .split_inclusive('\n')
+                    .filter(|l| !l.starts_with("Abgerufen am: "))
+                    .collect();
+                (name.clone(), kept.concat())
+            })
+            .collect()
+    };
+    assert_eq!(strip(&a), strip(&b));
+}
+
+/// The auto fetch at the start: switched on, with a mailbox, last fetch older than 6 hours.
+#[tokio::test(start_paused = true)]
+async fn the_auto_fetch_waits_six_hours() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let now = c();
+    assert!(auto_fetch_due(&store, true, true, now), "never fetched");
+    assert!(!auto_fetch_due(&store, false, true, now), "switched off");
+    assert!(!auto_fetch_due(&store, true, false, now), "no mailbox");
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &scan_only(dir.path()),
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let fetched = last_fetch_at(&store).unwrap();
+    let after = |hours| fetched + SignedDuration::from_hours(hours);
+    assert!(!auto_fetch_due(&store, true, true, after(5)));
+    assert!(auto_fetch_due(&store, true, true, after(7)));
+}
+
+/// The request JSON is flat, and every kind round-trips.
+#[test]
+fn run_requests_are_flat_json() {
+    let request: RunRequest = serde_json::from_str(
+        r#"{"kind":"details","keys":[{"portal":"linkedin","id":"4123456789"}]}"#,
+    )
+    .unwrap();
+    assert_eq!(request.kind.name(), RunKindName::Details);
+    for kind in ["fetch", "rescore", "fullMailbox"] {
+        let json = format!(r#"{{"kind":"{kind}"}}"#);
+        let request: RunRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(serde_json::to_string(&request).unwrap(), json);
+    }
+    assert!(serde_json::from_str::<RunRequest>(r#"{"kind":"scan"}"#).is_err());
 }
