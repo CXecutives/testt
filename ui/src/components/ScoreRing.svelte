@@ -6,7 +6,10 @@
   job is opened (`animate` names the job; once per job and session). A view that comes back
   shows its rings as they are. At most 10 rings fill at the same time, the others are placed
   at once.
-  One silhouette for every state, a solid track everywhere; the centre says the state:
+  A scored ring takes the colour of its decile (ten steps, red through orange and yellow
+  to green; `d0` ... `d9`) with ink digits; the tinted disc of the larger rings follows
+  the band. One silhouette for every state, a solid track everywhere; the centre says the
+  state:
   excluded: a pale red track and a ban icon. unscorable: the track and a dash. pending: the
   track and a quarter arc (turning only in the reader). none: the track alone. A score of
   100 sets its digits smaller in the list ring. A selected row passes a navy --ring-track.
@@ -63,6 +66,8 @@
   let wasScored = false;
   let arc = $state<SVGCircleElement | null>(null);
   const band = $derived(ring.status === 'scored' ? ring.band : null);
+  /** The colour step: the decile of the score, 100 in the last one. */
+  const step = $derived(ring.status === 'scored' ? `d${Math.min(9, Math.floor(score / 10))}` : '');
 
   const label = $derived.by(() => {
     switch (ring.status) {
@@ -126,7 +131,7 @@
 </script>
 
 <span
-  class="ring {size} {ring.status} {band ?? ''}"
+  class="ring {size} {ring.status} {band ?? ''} {step}"
   class:full={ring.status === 'scored' && score === 100}
   role="img"
   aria-label={label}
@@ -245,22 +250,62 @@
     letter-spacing: var(--tracking-tight);
   }
 
+  /* The disc of the larger rings follows the band; the digits are ink. */
+  .scored {
+    --ring-text: var(--score-digits);
+  }
+
   .high {
-    --ring-color: var(--score-high-ring);
-    --ring-text: var(--score-high-text);
     --ring-surface: var(--score-high-surface);
   }
 
   .mid {
-    --ring-color: var(--score-mid-ring);
-    --ring-text: var(--score-mid-text);
     --ring-surface: var(--score-mid-surface);
   }
 
   .low {
-    --ring-color: var(--score-low-ring);
-    --ring-text: var(--score-low-text);
     --ring-surface: var(--score-low-surface);
+  }
+
+  /* The ring colour: the decile of the score. */
+  .d0 {
+    --ring-color: var(--score-ring-0);
+  }
+
+  .d1 {
+    --ring-color: var(--score-ring-1);
+  }
+
+  .d2 {
+    --ring-color: var(--score-ring-2);
+  }
+
+  .d3 {
+    --ring-color: var(--score-ring-3);
+  }
+
+  .d4 {
+    --ring-color: var(--score-ring-4);
+  }
+
+  .d5 {
+    --ring-color: var(--score-ring-5);
+  }
+
+  .d6 {
+    --ring-color: var(--score-ring-6);
+  }
+
+  .d7 {
+    --ring-color: var(--score-ring-7);
+  }
+
+  .d8 {
+    --ring-color: var(--score-ring-8);
+  }
+
+  .d9 {
+    --ring-color: var(--score-ring-9);
   }
 
   .excluded {

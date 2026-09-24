@@ -9,9 +9,10 @@ use std::path::Path;
 
 use jiff::Timestamp;
 
+use super::scale::{SCORE_SCALE, score_step};
 use super::texts;
 use crate::error::Result;
-use crate::model::{Band, MatchStatus, band};
+use crate::model::MatchStatus;
 use crate::store::JobRow;
 use crate::text::split_company_location;
 use crate::time;
@@ -30,8 +31,7 @@ ol { list-style: none; margin: 0; padding: 0; }
 li { display: flex; gap: 16px; padding: 16px; margin: 0 0 8px; background: #fff;
   border: 1px solid var(--line); border-radius: 12px; }
 .score { flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid;
-  place-items: center; font-weight: 600; border: 3px solid currentColor; }
-.high { color: var(--high); } .mid { color: var(--coral-800); } .low { color: var(--low); }
+  place-items: center; font-weight: 600; border: 3px solid var(--line); color: var(--ink); }
 .none { color: var(--low); border-style: dashed; }
 .job a { color: var(--slate); font-weight: 600; text-decoration: none; }
 .job a:hover { text-decoration: underline; }
@@ -55,6 +55,18 @@ pub fn write_overview_html(
     super::write_atomic(path, render(jobs, pinned, now).as_bytes())
 }
 
+/// The class of each colour step of a score ring (`.s0` ... `.s9`).
+const STEP_CLASS: [&str; 10] = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"];
+
+/// The ring colour of each step, from the one table the app uses too.
+fn scale_style() -> String {
+    let mut css = String::new();
+    for (class, colour) in STEP_CLASS.iter().zip(SCORE_SCALE) {
+        let _ = writeln!(css, ".{class} {{ border-color: {}; }}", colour.css());
+    }
+    css
+}
+
 fn render(jobs: &[JobRow], pinned: bool, now: Timestamp) -> String {
     let heading = if pinned {
         texts::HTML_PINNED
@@ -66,9 +78,10 @@ fn render(jobs: &[JobRow], pinned: bool, now: Timestamp) -> String {
         out,
         "<!doctype html>\n<html lang=\"de\"><head><meta charset=\"utf-8\">\
          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
-         <title>{}</title><style>{STYLE}</style></head>\n<body><main>\
+         <title>{}</title><style>{STYLE}{}</style></head>\n<body><main>\
          <h1>{}</h1><p class=\"meta\">{} {}</p>\n",
         esc(texts::HTML_TITLE),
+        scale_style(),
         esc(heading),
         esc(texts::HTML_CREATED),
         esc(&time::display(now)),
@@ -91,12 +104,8 @@ fn item(out: &mut String, job: &JobRow) {
     // An excluded job keeps its score, but its ring shows no number (like in the app).
     let (class, score) = match &job.match_ {
         Some(m) if m.status == MatchStatus::Scored => {
-            let class = match band(m.score) {
-                Band::High => "high",
-                Band::Mid => "mid",
-                Band::Low => "low",
-            };
-            (class, m.score.to_string())
+            // The ring's colour step of the app (ten steps by decile, `scale.rs`).
+            (STEP_CLASS[score_step(m.score)], m.score.to_string())
         }
         Some(m) if m.status == MatchStatus::Excluded => ("none", String::new()),
         _ => ("none", "–".to_string()),
@@ -231,7 +240,11 @@ mod tests {
         assert!(!html.contains("<script>"), "{html}");
         assert!(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
         assert!(html.contains("Muster &lt;GmbH&gt;") && html.contains("SAP &lt;FI&gt;"));
-        assert!(html.contains("class=\"score high\"") && html.contains(">83<"));
+        assert!(html.contains("class=\"score s8\"") && html.contains(">83<"));
+        assert!(
+            html.contains(".s8 { border-color: hsl(96 35% 50%); }"),
+            "the shared scale"
+        );
         assert!(html.contains(texts::HTML_PINNED));
         assert!(!html.contains("Betreff"), "no mail data beyond the listing");
         assert!(

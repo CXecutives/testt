@@ -370,6 +370,17 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
   {
     title: 'Passung',
     tokens: [
+      { name: 'score-ring-0', role: 'decor' },
+      { name: 'score-ring-1', role: 'decor' },
+      { name: 'score-ring-2', role: 'decor' },
+      { name: 'score-ring-3', role: 'decor' },
+      { name: 'score-ring-4', role: 'decor' },
+      { name: 'score-ring-5', role: 'decor' },
+      { name: 'score-ring-6', role: 'decor' },
+      { name: 'score-ring-7', role: 'decor' },
+      { name: 'score-ring-8', role: 'decor' },
+      { name: 'score-ring-9', role: 'decor' },
+      { name: 'score-digits', role: 'text' },
       { name: 'score-high-ring', role: 'decor' },
       { name: 'score-high-text', role: 'text' },
       { name: 'score-high-surface', role: 'surface' },
