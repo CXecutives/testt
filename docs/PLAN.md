@@ -159,7 +159,7 @@ macOS: universal, ad-hoc signed, minimum 14.0.
       `prescore` signature; `PortalHealth`; split `store.rs` into `store/{mod,schema,jobs,matches}.rs`; schema-3 column
       list; prose out of core; split `commands.rs`; `contract.rs` reads `.ts`.
       Done when: types generated and `git diff` clean, `contract.rs` green.
-- [ ] 1b UI foundation: package.json, Vite, Svelte, TS; tokens/base/motion css, motion.ts, input.ts, api.ts, i18n;
+- [x] 1b UI foundation (merged 587dbec): package.json, Vite, Svelte, TS; tokens/base/motion css, motion.ts, input.ts, api.ts, i18n;
       shell (title bar, tabs, caption buttons); gallery with token boards; Playwright against `vite preview` with
       production CSP; lint setup; new `ui_contract.rs`; old `ui/*` removed.
       Done when: `npm run check` green; a planted hex value, px value and raw `<button>` each turn lint red.
@@ -168,19 +168,19 @@ macOS: universal, ad-hoc signed, minimum 14.0.
       `platform.rs`, smoke on `data-testid`, `rust-toolchain.toml`, English CI with `tauri build` on both OS,
       macOS dmg install probe with screenshot, no public release.
       Done when: release app starts on Windows and in macOS CI without CSP violation; CI ships setup.exe + dmg.
-- [ ] 1d Evaluation base + port: corpus to K40 + second profile, `corpus.json`, `legacy_baseline.py` -> `legacy.json`
+- [x] 1d Evaluation base + port (merged 9c8279f; 35/35 old tests, 80/80 legacy.json, 27/27 edge cases, 12/12 local real ads): corpus to K40 + second profile, `corpus.json`, `legacy_baseline.py` -> `legacy.json`
       FIRST; `eval.rs`; port "v3-equal" with `legacy_percent`; `matching_legacy.rs` (35 tests).
       Done when: fidelity 31/18/11/7/6/0 reproduced, 35 old tests green (1 documented deviation),
       `legacy_percent == legacy.json` for all K, clippy clean.
 
 ### Phase 2 - core work (parallel, disjoint files; contracts frozen)
-- [ ] 2A Matching better: V5, V6, V3, V2, V1, V4, V15, V7, V9, V8, V16, V10-V13, decided/check model, V17, V18, V19,
+- [x] 2A Matching better (merged 9c8279f; in band fin 17->38/40, it 30->39/40, band distance 491->3 and 188->1, ~0.25 ms/job): V5, V6, V3, V2, V1, V4, V15, V7, V9, V8, V16, V10-V13, decided/check model, V17, V18, V19,
       explain.rs, prescore - one commit each with corpus guard; calibrate, freeze.
 - [ ] 2B Store, runs, export (done with 1a except: wiring the real engine as LocalMatcher, profile quality/understood, topMatches, alsoOn, freelance.de guest teaser): schema 3 + chain + WAL; save_match(es), mark_read, set_pinned, job_page; settings
       (portal switches, autoFetchOnStart); LocalMatcher, scoring at JobUpdated + catch-up, Rust-triggered rescore and
       auto fetch; profile summary + template; Excel column + grey header, mail address out of info sheet; HTML
       overview; TXT byte tests; demo with high/mid/low/excluded.
-- [ ] 2C Components: all 23 with variants, states, motion; complete gallery; baselines.
+- [x] 2C Components (merged 587dbec; 78 harness tests, both engines): all 23 with variants, states, motion; complete gallery; baselines.
 - [ ] 2D Scraping and sign-in (session delete, macOS data store, no unasked sign-in window, keychain test already merged with 1c): S1-S11; switches honoured in the fetch path; optional sign-in with risk note; delete
       session per portal (macOS `data_store_identifier`); keychain test on macOS; dead code list.
       Done when: 26 fetch tests + new (4th test portal via registry only, health, teaser, Retry-After, requeue, slug
