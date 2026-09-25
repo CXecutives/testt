@@ -499,6 +499,103 @@ test('moving jobs out: the row folds away, one toast merges them, one undo bring
   await expect(rows.nth(4)).toHaveAttribute('data-testid', 'job-row-freelancermap-1005');
 });
 
+test('a toast that names a job: the title keeps to one line in its quotes, two lines at most', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const toast = page.getByTestId('toast');
+  const shape = (): Promise<{ lines: number; cut: boolean; quoted: string; width: number }> =>
+    toast.evaluate((node) => {
+      const text = node.querySelector<HTMLElement>('[data-testid="toast-text"]')!;
+      const name = text.querySelector<HTMLElement>('.name')!;
+      const style = getComputedStyle(text);
+      const inner = text.clientHeight - parseFloat(style.paddingTop) * 2;
+      return {
+        lines: Math.round(inner / parseFloat(style.lineHeight)),
+        cut: name.scrollWidth > name.clientWidth,
+        quoted: text.querySelector('.quoted')!.textContent ?? '',
+        width: (node as HTMLElement).offsetWidth,
+      };
+    });
+  // A title of usual length stands whole.
+  await page.getByTestId('archive-freelance-1003').click();
+  await expect(toast).toContainText('„Kaufmännische Leitung Projektgeschäft“ archiviert.');
+  const usual = await shape();
+  expect(usual.width).toBe(520);
+  expect(usual.cut).toBe(false);
+  expect(usual.lines).toBeLessThanOrEqual(2);
+  await toast.getByRole('button', { name: 'Ausblenden' }).click();
+  await expect(toast).toHaveCount(0);
+  // A very long one ends in an ellipsis inside its quotes; the verb follows on line two.
+  await page.getByTestId('archive-freelancermap-1004').click({ force: true });
+  await expect(toast).toContainText('archiviert.');
+  const long = await shape();
+  expect(long.cut).toBe(true);
+  expect(long.quoted.startsWith('„SAP FI Berater')).toBe(true);
+  expect(long.quoted.endsWith('“')).toBe(true);
+  expect(long.lines).toBe(2);
+  // The full title is in the tooltip of the cut one.
+  await toast.locator('.name').hover();
+  await expect(page.getByRole('tooltip')).toContainText('in vierzehn Ländern');
+});
+
+test('an English toast keeps the title in its own quotes too', async ({ page }) => {
+  await open(page, '?platform=windows&lang=en');
+  const row = page.getByTestId('job-list').locator('.job').first();
+  await row.hover();
+  await row.locator('[data-testid^="archive-"]').click();
+  const quoted = page.getByTestId('toast').locator('.quoted');
+  await expect(quoted).toHaveCount(1);
+  await expect(quoted).toHaveText(/^“.+”$/);
+  await expect(page.getByTestId('toast')).toContainText('archived.');
+});
+
+test('an undo toast stays 10 s; toasts wait while the window is in the back', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const toast = page.getByTestId('toast');
+  await page.getByTestId('archive-freelance-1003').click();
+  await expect(toast.locator('.life')).toHaveCSS('animation-duration', '10s');
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(5000);
+  await expect(toast).toHaveCount(1);
+  await toast.getByRole('button', { name: 'Ausblenden' }).click();
+  // A plain toast (4 s) outlives its time while the window is in the back.
+  await page.getByRole('button', { name: 'Toast zeigen' }).click();
+  await expect(toast).toHaveCount(1);
+  await expect(toast.locator('.life')).toHaveCSS('animation-duration', '4s');
+  await page.evaluate(() => window.__harness.fire('tauri://blur', null));
+  await page.waitForTimeout(4500);
+  await expect(toast).toHaveCount(1);
+  await expect(toast.locator('.life')).toHaveCSS('animation-play-state', 'paused');
+  await page.evaluate(() => window.__harness.fire('tauri://focus', null));
+  await expect(toast).toHaveCount(0, { timeout: 5000 });
+});
+
+test('a modal dialog dims the toasts, blocks their undo and keeps their time', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  await page.getByRole('button', { name: 'Toast zeigen' }).click();
+  const toast = page.getByTestId('toast');
+  await expect(toast).toHaveCount(1);
+  await page.getByTestId('open-danger').click();
+  await expect(page.getByTestId('dialog-danger')).toBeVisible();
+  // The scrim lies over the toast: a click there reaches the scrim, not the toast.
+  const box = (await toast.boundingBox())!;
+  const hit = await page.evaluate(
+    ({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid="toast"]') !== null,
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+  );
+  expect(hit).toBe(false);
+  await page.waitForTimeout(4500);
+  await expect(toast).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('dialog-danger')).toHaveCount(0);
+  await expect(toast).toHaveCount(0, { timeout: 5000 });
+});
+
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {
   await open(page, '?gallery');
   const toggle = page.getByTestId('gallery-row-toggle');

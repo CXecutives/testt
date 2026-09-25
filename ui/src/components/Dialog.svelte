@@ -10,7 +10,8 @@
   start (the focus ring, also when it was opened with the mouse) until the keyboard moves
   on. A click on its text keeps the focus inside; on close the focus goes back to where
   it was. A failure of the action shows inside the dialog
-  (`error`), never behind the scrim.
+  (`error`), never behind the scrim. The toasts lie below the scrim and wait while it is
+  open.
   Pressing inside and releasing on the scrim keeps it open; only the left button counts.
   The buttons follow the OS: the action first on Windows (then the third action, then
   cancel), last (right) on macOS with the third action on the far left.
@@ -20,6 +21,8 @@
   import { formKeys } from '$lib/input/input';
   import { primaryFirst } from '$lib/platform';
   import { dialogIn, dialogOut, scrim } from '$lib/motion/transitions';
+  import { toasts } from '$lib/state/toasts.svelte';
+  import { untrack } from 'svelte';
   import type { Action } from 'svelte/action';
   import Button from './Button.svelte';
   import Notice from './Notice.svelte';
@@ -86,6 +89,9 @@
     const target = node.querySelector<HTMLButtonElement>(`[data-testid="${role}"]`);
     queueMicrotask(() => target?.focus());
   };
+
+  // While the dialog is open the toasts behind its scrim wait (an undo keeps its time).
+  $effect(() => (open ? untrack(() => toasts.hold()) : undefined));
 
   $effect(() => {
     if (open || opener === null) return;
