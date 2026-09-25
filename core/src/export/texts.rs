@@ -24,7 +24,7 @@ pub const INFO_SHEET: &str = "Info";
 /// the text files nobody reads it by machine - so it says "Portal" like the interface, not
 /// "Quelle" like the skill contract; the first sighting of a job is "Zuerst gesehen" (a
 /// "saved" date would read like the favourite).
-pub const COLUMNS: [&str; 12] = [
+pub const COLUMNS: [&str; 18] = [
     "Portal",
     "Datum der Alert-Mail",
     "Titel",
@@ -37,6 +37,12 @@ pub const COLUMNS: [&str; 12] = [
     "Details",
     "Job-ID",
     "Passung",
+    "Ausschluss",
+    "Favorit",
+    "Tagessatz (€)",
+    "Start",
+    "Dauer (Monate)",
+    "Remote (%)",
 ];
 
 /// Label and warning of the last row of the info sheet. Not only a fetch writes the file: a
@@ -148,6 +154,12 @@ pub mod en {
         "Details",
         "Job ID",
         "Match",
+        "Exclusion",
+        "Favourite",
+        "Day rate (€)",
+        "Start",
+        "Duration (months)",
+        "Remote (%)",
     ];
 
     pub const INFO_NOTE_LABEL: &str = "Note";
@@ -289,6 +301,10 @@ pub struct Texts {
     pub moment: &'static str,
     /// The number format of the date cells in Excel.
     pub excel_moment: &'static str,
+    /// The Excel cells of a favourite and of an ad's start (`now`, `vague`).
+    pub cell_yes: &'static str,
+    pub start_now: &'static str,
+    pub start_open: &'static str,
     exclusion: fn(&str, &Map<String, Value>) -> Option<&'static str>,
     details: fn(DetailState, bool, bool) -> &'static str,
 }
@@ -323,6 +339,9 @@ pub const DE: Texts = Texts {
     html_none: HTML_NONE,
     moment: "%d.%m.%Y %H:%M",
     excel_moment: "dd.mm.yyyy hh:mm",
+    cell_yes: "Ja",
+    start_now: "ab sofort",
+    start_open: "offen",
     exclusion: exclusion_reason,
     details: details_label,
 };
@@ -357,6 +376,9 @@ pub const EN: Texts = Texts {
     html_none: en::HTML_NONE,
     moment: "%d/%m/%Y %H:%M",
     excel_moment: "dd/mm/yyyy hh:mm",
+    cell_yes: "Yes",
+    start_now: "now",
+    start_open: "open",
     exclusion: en::exclusion_reason,
     details: en::details_label,
 };
@@ -477,7 +499,7 @@ mod tests {
         assert_eq!(EN.from_german("Alle"), Some(en::SCOPE_ALL));
         for (de, en) in DE.columns.iter().zip(EN.columns) {
             // Product and loan words are the same in both.
-            if !["Portal", "Link", "Details"].contains(de) {
+            if !["Portal", "Link", "Details", "Start", "Remote (%)"].contains(de) {
                 assert_ne!(*de, en);
             }
         }

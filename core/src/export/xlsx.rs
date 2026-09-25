@@ -28,9 +28,11 @@ const MAX_LINKS: usize = 65_530;
 /// a few pixels to spare, measured in bold Calibri 11: "Datum der Alert-Mail" is 131 px and
 /// needs 22, "Alert email in Gmail" 121 px and 21, "Zuerst gesehen" 92 px and 17, "Passung"
 /// 49 px and 11. The longest value of the details column, "Keine Bewerbung mehr möglich",
-/// is 190 px and needs 28.
-const WIDTHS: [f64; 12] = [
-    15.0, 22.0, 50.0, 32.0, 22.0, 45.0, 40.0, 21.0, 17.0, 28.0, 24.0, 11.0,
+/// is 190 px and needs 28. The exclusion holds a sentence; "Duration (months)" is the widest
+/// of the key-fact headers.
+const WIDTHS: [f64; 18] = [
+    15.0, 22.0, 50.0, 32.0, 22.0, 45.0, 40.0, 21.0, 17.0, 28.0, 24.0, 11.0, 60.0, 13.0, 16.0, 12.0,
+    20.0, 13.0,
 ];
 /// Grey of the header row and of excluded jobs.
 const HEADER_GREY: u32 = 0x00E7_E6E6;
@@ -125,6 +127,52 @@ fn jobs_sheet(
                 sheet.write_number_with_format(row, 11, f64::from(m.score), step)?;
             } else {
                 sheet.write_number(row, 11, f64::from(m.score))?;
+            }
+        }
+        // Why an excluded job is out, the favourite, and the ad's key facts as the engine read
+        // them: a day rate in euros (an hourly rate x 8, a rate in another currency left
+        // out), the start, the duration and the remote share.
+        if excluded {
+            let why = job
+                .match_
+                .as_ref()
+                .and_then(|m| m.note.as_ref())
+                .and_then(|n| texts.exclusion_reason(&n.code, &n.params))
+                .unwrap_or(texts.html_excluded);
+            text(sheet, row, 12, why)?;
+        }
+        if job.pinned_at.is_some() {
+            text(sheet, row, 13, texts.cell_yes)?;
+        }
+        if let Some(facts) = job.match_.as_ref().map(|m| &m.facts) {
+            if let Some(rate) = facts.rate
+                && facts.currency.as_deref().is_none_or(|c| c == "EUR")
+            {
+                let day = if facts.hourly == Some(true) {
+                    rate.saturating_mul(8)
+                } else {
+                    rate
+                };
+                sheet.write_number(row, 14, f64::from(day))?;
+            }
+            if let Some(start) = facts.start.as_deref() {
+                let words = match start {
+                    "now" => texts.start_now,
+                    "vague" => texts.start_open,
+                    date => date,
+                };
+                text(sheet, row, 15, words)?;
+            }
+            if let Some(months) = facts.months {
+                sheet.write_number(row, 16, f64::from(months))?;
+            }
+            if let Some(from) = facts.remote_from {
+                let to = facts.remote_to.unwrap_or(from);
+                if from == to {
+                    sheet.write_number(row, 17, f64::from(from))?;
+                } else {
+                    text(sheet, row, 17, &format!("{from}–{to}"))?;
+                }
             }
         }
     }
@@ -234,6 +282,57 @@ mod tests {
             trashed_at: None,
             override_include: false,
         }
+    }
+
+    #[test]
+    fn the_sheet_says_why_and_carries_the_key_facts() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(super::super::XLSX_NAME);
+        let mut job = row(
+            "https://www.linkedin.com/jobs/view/4000000002/",
+            "Interim Controller",
+            DescStatus::Ok,
+        );
+        job.pinned_at = Some("2026-09-19T09:00:00Z".parse().unwrap());
+        job.match_ = Some(crate::model::MatchRecord {
+            status: MatchStatus::Excluded,
+            score: 64,
+            note: Some(crate::model::Notice {
+                code: "dayRate".into(),
+                params: serde_json::Map::new(),
+            }),
+            must_met: 0,
+            must_total: 0,
+            top: Vec::new(),
+            facts: crate::model::KeyFacts {
+                rate: Some(95),
+                hourly: Some(true),
+                start: Some("now".into()),
+                months: Some(6),
+                remote_from: Some(60),
+                remote_to: Some(100),
+                ..crate::model::KeyFacts::default()
+            },
+            rank: 0,
+        });
+        write_xlsx(&path, &[job], &[], Language::De).unwrap();
+        let mut book: Xlsx<_> = open_workbook(&path).unwrap();
+        let range = book.worksheet_range(JOBS_SHEET).unwrap();
+        let cells: Vec<String> = range.rows().nth(1).unwrap()[12..18]
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        assert_eq!(
+            cells,
+            [
+                "Der Tagessatz liegt unter dem Minimum im Profil.",
+                "Ja",
+                "760",
+                "ab sofort",
+                "6",
+                "60–100"
+            ]
+        );
     }
 
     #[test]
