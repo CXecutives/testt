@@ -539,8 +539,9 @@ test('a run in progress after a reload: steps, portals, countdown and pause', as
   // The status names the portal it is about.
   await expect(page.getByTestId('run-running')).toContainText('Wartet auf linkedin.com');
   await expect(page.getByTestId('countdown')).toHaveText('Weiter in 0:42');
+  // The same sentence as the day overview and Einstellungen say it.
   await expect(page.getByTestId('pause-freelance')).toContainText(
-    'Pause bis 09:42, das Portal bremst die Anfragen.',
+    'Das Portal bremst die Anfragen, der Abruf macht ab 09:42 von selbst weiter.',
   );
 });
 

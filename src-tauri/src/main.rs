@@ -188,6 +188,8 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), Failure> {
         );
     }));
     jobalert_core::install_crypto();
+    // Dates in the files follow the OS's zone, like the page's.
+    jobalert_core::time::follow_system_zone();
     // A requested reset runs before anything else - nothing holds a file open yet. The dry
     // run never deletes anything.
     let reset_report = (!dry_run)

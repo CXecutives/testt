@@ -8,16 +8,18 @@
 //! and text file methods, `matches` the match and read columns of schema 3, `marks` the
 //! user's marks: the favourite, the place (inbox, archive, trash) and "fits anyway".
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
 use jiff::Timestamp;
+use jiff::civil::Date;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 
 use crate::error::{Error, Result};
 use crate::portal::Portal;
 use crate::time::{from_db, to_db};
 
+mod backup;
 mod duplicates;
 mod jobs;
 pub mod marks;
@@ -25,16 +27,20 @@ pub mod matches;
 mod pages;
 mod schema;
 
+pub use backup::{BACKUP_DIR, backup_dir};
 pub use jobs::{
     AlertMailRow, JobFilter, JobRow, MailRef, NEW_DAYS, PageCounts, PageQuery, Seen, new_since,
 };
 
 pub struct Store {
     conn: Mutex<Connection>,
+    /// The database file (`None` in memory).
+    path: Option<PathBuf>,
 }
 
 impl Store {
-    /// Opens (or creates) the database and brings the schema up to date.
+    /// Opens (or creates) the database and brings the schema up to date; an older schema is
+    /// copied to `backups/` first ([`backup`]).
     pub fn open(path: &Path) -> Result<Store> {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir).map_err(|e| Error::io(dir, e))?;
@@ -44,20 +50,43 @@ impl Store {
         // NORMAL is durable in WAL mode except for the last commits on a power loss.
         conn.pragma_update_and_check(None, "journal_mode", "WAL", |_| Ok(()))?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
-        Self::init(conn)
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        if let Some(version) = schema::pending_migration(&conn)? {
+            // A migration that goes wrong must not cost the user's marks; a copy that
+            // cannot be written (a full disk, say) must not keep the app from starting.
+            match backup::before_migration(&conn, path, version) {
+                Ok(Some(copy)) => {
+                    log::info!("database copied before the migration: {}", copy.display());
+                }
+                Ok(None) => {}
+                Err(e) => log::warn!("database not copied before the migration: {e}"),
+            }
+        }
+        Self::init(conn, Some(path.to_path_buf()))
     }
 
     /// Database in memory only (dry run, tests).
     pub fn in_memory() -> Result<Store> {
-        Self::init(Connection::open_in_memory()?)
+        Self::init(Connection::open_in_memory()?, None)
     }
 
-    fn init(conn: Connection) -> Result<Store> {
+    fn init(conn: Connection, path: Option<PathBuf>) -> Result<Store> {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         schema::migrate(&conn)?;
         Ok(Store {
             conn: Mutex::new(conn),
+            path,
         })
+    }
+
+    /// The copy of the day `today` (local) in `backups/`, unless the day has one: at most one
+    /// a day, the newest three kept. Written through a connection of its own, so the app keeps
+    /// working meanwhile. `None` for a database in memory or when the day has its copy.
+    pub fn backup_daily(&self, today: Date) -> Result<Option<PathBuf>> {
+        match &self.path {
+            Some(path) => backup::daily(path, today),
+            None => Ok(None),
+        }
     }
 
     fn conn(&self) -> MutexGuard<'_, Connection> {

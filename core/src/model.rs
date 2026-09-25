@@ -75,16 +75,31 @@ pub struct AlertMail {
     pub postings: Vec<Posting>,
 }
 
-/// Direct link to a mail in Gmail (hexadecimal message id).
+/// Direct link to a mail in Gmail (hexadecimal message id) in the browser's first Google
+/// account (`u/0`), as the files carry it: they know no mailbox.
 pub fn gmail_url(gmail_id: u64) -> Option<Url> {
-    (gmail_id != 0)
-        .then(|| {
-            Url::parse(&format!(
-                "https://mail.google.com/mail/u/0/#all/{gmail_id:x}"
-            ))
-            .ok()
-        })
-        .flatten()
+    gmail_url_for(gmail_id, None)
+}
+
+/// Direct link to a mail in Gmail (hexadecimal message id) in the account of `mailbox`, the
+/// address the app reads: a browser signed in to several Google accounts opens the right
+/// one. Without an address the first account (`u/0`).
+pub fn gmail_url_for(gmail_id: u64, mailbox: Option<&str>) -> Option<Url> {
+    if gmail_id == 0 {
+        return None;
+    }
+    let account = mailbox
+        .map(str::trim)
+        .filter(|m| !m.is_empty())
+        .unwrap_or("0");
+    let mut url = Url::parse("https://mail.google.com/mail/u/").ok()?;
+    url.path_segments_mut()
+        .ok()?
+        .pop_if_empty()
+        .push(account)
+        .push("");
+    url.set_fragment(Some(&format!("all/{gmail_id:x}")));
+    Some(url)
 }
 
 /// State of the job details of a job.
@@ -270,6 +285,26 @@ mod tests {
             "https://mail.google.com/mail/u/0/#all/1a2b"
         );
         assert_eq!(gmail_url(0), None);
+    }
+
+    /// In the app a mail opens in the account of the mailbox the app reads, not in whatever
+    /// account the browser has first; without an address it stays `u/0`.
+    #[test]
+    fn gmail_link_names_the_mailbox() {
+        assert_eq!(
+            gmail_url_for(0x1A2B, Some("erika.muster+jobs@gmail.com"))
+                .unwrap()
+                .as_str(),
+            "https://mail.google.com/mail/u/erika.muster+jobs@gmail.com/#all/1a2b"
+        );
+        assert_eq!(gmail_url_for(0x1A2B, None), gmail_url(0x1A2B));
+        assert_eq!(gmail_url_for(0x1A2B, Some("  ")), gmail_url(0x1A2B));
+        assert_eq!(
+            gmail_url_for(0x1A2B, Some("a/b#c")).unwrap().as_str(),
+            "https://mail.google.com/mail/u/a%2Fb%23c/#all/1a2b",
+            "an address never leaves its path segment"
+        );
+        assert_eq!(gmail_url_for(0, Some("erika@gmail.com")), None);
     }
 
     #[test]

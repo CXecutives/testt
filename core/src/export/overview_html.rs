@@ -1,7 +1,8 @@
-//! `JobAlerts.html`: a small, self-contained overview to open in any browser - the
-//! favourites, or else the new matching jobs of the last mailbox run. Title, company,
-//! location, portal, link, the score's ring, up to two met requirements and the exclusion
-//! reason in words; never the full text.
+//! `JobAlerts.html`: a small, self-contained overview to open in any browser - the inbox
+//! favourites (a section only when there are some) and the app's "Neu und passend", the best
+//! unread matches whatever run brought them, with a line for those beyond the limit. Title,
+//! company, location, portal, link, the score's ring, up to two met requirements and the
+//! exclusion reason in words; never the full text.
 //! Everything from mails and portals is HTML-escaped; the page loads nothing from outside.
 
 use std::fmt::Write as _;
@@ -15,6 +16,7 @@ use crate::error::Result;
 use crate::model::{DescStatus, MatchStatus};
 use crate::settings::Language;
 use crate::store::JobRow;
+use crate::store::matches::OverviewJobs;
 use crate::text::split_company_location;
 
 /// Colours of the app (tokens of the interface): headings in ink, links in navy, an
@@ -28,7 +30,10 @@ body { margin: 0; padding: 32px 16px; background: var(--cream); color: var(--ink
   font: 15px/22px system-ui, -apple-system, 'Segoe UI', sans-serif; }
 main { max-width: 880px; margin: 0 auto; }
 h1 { font-size: 26px; line-height: 34px; margin: 0 0 4px; color: var(--ink); }
+h2 { font-size: 17px; line-height: 24px; font-weight: 600; margin: 0 0 12px; color: var(--ink); }
 p.meta { margin: 0 0 24px; color: var(--low); font-size: 13px; }
+section + section { margin-top: 32px; }
+p.more { margin: 12px 0 0; color: var(--low); font-size: 13px; }
 ol { list-style: none; margin: 0; padding: 0; }
 li { display: flex; gap: 16px; padding: 16px; margin: 0 0 8px; background: #fff;
   border: 1px solid var(--line); border-radius: 12px; }
@@ -64,19 +69,14 @@ const TRACK: &str = "<svg class=\"ring\" viewBox=\"0 0 36 36\" aria-hidden=\"tru
 const BAN: &str = "<svg class=\"ban\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">\
                    <circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M5.6 5.6 18.4 18.4\"/></svg>";
 
-/// Writes the overview in the app's language; `pinned`: the jobs are the favourites (else
-/// the new matches).
+/// Writes the overview in the app's language.
 pub fn write_overview_html(
     path: &Path,
-    jobs: &[JobRow],
-    pinned: bool,
+    jobs: &OverviewJobs,
     now: Timestamp,
     language: Language,
 ) -> Result<()> {
-    super::write_atomic(
-        path,
-        render(jobs, pinned, now, Texts::of(language)).as_bytes(),
-    )
+    super::write_atomic(path, render(jobs, now, Texts::of(language)).as_bytes())
 }
 
 /// The class of each colour step of a score ring (`.s0` ... `.s9`).
@@ -91,12 +91,9 @@ fn scale_style() -> String {
     css
 }
 
-fn render(jobs: &[JobRow], pinned: bool, now: Timestamp, texts: &Texts) -> String {
-    let heading = if pinned {
-        texts.html_pinned
-    } else {
-        texts.html_new
-    };
+/// The page: its title and when it was made, the favourites (only when there are some), then
+/// always the new matches, with their empty line or a line for those beyond the limit.
+fn render(jobs: &OverviewJobs, now: Timestamp, texts: &Texts) -> String {
     let mut out = String::new();
     let _ = write!(
         out,
@@ -107,21 +104,40 @@ fn render(jobs: &[JobRow], pinned: bool, now: Timestamp, texts: &Texts) -> Strin
         texts.language.code(),
         esc(texts.html_title),
         scale_style(),
-        esc(heading),
+        esc(texts.html_title),
         esc(texts.html_created),
         esc(&texts.moment(now)),
     );
-    if jobs.is_empty() {
+    if !jobs.favourites.is_empty() {
+        section(&mut out, texts.html_pinned, &jobs.favourites, texts);
+        out.push_str("</section>\n");
+    }
+    section(&mut out, texts.html_new, &jobs.new, texts);
+    if jobs.new.is_empty() {
         let _ = write!(out, "<p>{}</p>", esc(texts.html_empty));
-    } else {
+    }
+    let more = jobs.new_total.saturating_sub(jobs.new.len());
+    if more > 0 {
+        let _ = write!(
+            out,
+            "<p class=\"more\">{}</p>",
+            esc(&(texts.html_more)(more))
+        );
+    }
+    out.push_str("</section>\n</main></body></html>\n");
+    out
+}
+
+/// Opens a section with its heading and its list (none without jobs); the caller closes it.
+fn section(out: &mut String, heading: &str, jobs: &[JobRow], texts: &Texts) {
+    let _ = write!(out, "<section><h2>{}</h2>", esc(heading));
+    if !jobs.is_empty() {
         out.push_str("<ol>\n");
         for job in jobs {
-            item(&mut out, job, texts);
+            item(out, job, texts);
         }
         out.push_str("</ol>");
     }
-    out.push_str("</main></body></html>\n");
-    out
 }
 
 /// The ring of a job, drawn like the app's: a scored job's arc is its share of 100 in the
@@ -296,12 +312,28 @@ mod tests {
         }
     }
 
+    /// A page of favourites only (no new matches).
+    fn favourites(jobs: Vec<JobRow>) -> OverviewJobs {
+        OverviewJobs {
+            favourites: jobs,
+            ..OverviewJobs::default()
+        }
+    }
+
+    /// A page of new matches only, all of them listed.
+    fn new(jobs: Vec<JobRow>) -> OverviewJobs {
+        OverviewJobs {
+            new_total: jobs.len(),
+            new: jobs,
+            ..OverviewJobs::default()
+        }
+    }
+
     #[test]
     fn portal_data_is_escaped_and_no_full_text_appears() {
         let scored = record(MatchStatus::Scored, 83, None);
         let html = render(
-            &[job("<script>alert(1)</script>", Some(scored))],
-            true,
+            &favourites(vec![job("<script>alert(1)</script>", Some(scored))]),
             Timestamp::now(),
             &texts::DE,
         );
@@ -328,14 +360,13 @@ mod tests {
         let mut teaser = job("B", Some(record(MatchStatus::Scored, 42, None)));
         teaser.desc_status = DescStatus::Teaser;
         let html = render(
-            &[
+            &favourites(vec![
                 job("A", Some(record(MatchStatus::Scored, 83, None))),
                 job("C", Some(record(MatchStatus::Scored, 5, None))),
                 teaser,
                 job("D", Some(record(MatchStatus::Unscorable, 0, None))),
                 job("E", None),
-            ],
-            true,
+            ]),
             Timestamp::now(),
             &texts::DE,
         );
@@ -367,8 +398,7 @@ mod tests {
     #[test]
     fn links_open_beside_the_overview() {
         let html = render(
-            &[job("A", Some(record(MatchStatus::Scored, 83, None)))],
-            false,
+            &new(vec![job("A", Some(record(MatchStatus::Scored, 83, None)))]),
             Timestamp::now(),
             &texts::DE,
         );
@@ -390,8 +420,7 @@ mod tests {
     #[test]
     fn the_overview_speaks_plainly() {
         let html = render(
-            &[job("A", Some(record(MatchStatus::Scored, 83, None)))],
-            false,
+            &new(vec![job("A", Some(record(MatchStatus::Scored, 83, None)))]),
             Timestamp::now(),
             &texts::DE,
         );
@@ -408,8 +437,7 @@ mod tests {
     fn an_excluded_job_shows_its_reason_in_words() {
         let excluded = record(MatchStatus::Excluded, 86, Some("dayRate"));
         let html = render(
-            &[job("A", Some(excluded))],
-            true,
+            &favourites(vec![job("A", Some(excluded))]),
             Timestamp::now(),
             &texts::DE,
         );
@@ -434,26 +462,65 @@ mod tests {
         assert!(!html.contains("dayRate"), "{html}");
         let permanent = record(MatchStatus::Excluded, 80, Some("permanent"));
         let html = render(
-            &[job("A", Some(permanent))],
-            true,
+            &favourites(vec![job("A", Some(permanent))]),
             Timestamp::now(),
             &texts::DE,
         );
         assert!(html.contains("Die Stelle ist eine Festanstellung, das Profil schließt sie aus."));
         let unknown = record(MatchStatus::Excluded, 50, Some("somethingNew"));
         let html = render(
-            &[job("A", Some(unknown))],
-            true,
+            &favourites(vec![job("A", Some(unknown))]),
             Timestamp::now(),
             &texts::DE,
         );
         assert!(html.contains(texts::HTML_EXCLUDED) && !html.contains("somethingNew"));
     }
 
+    /// Without favourites and new matches the page has its title, no favourites section and
+    /// the new matches' empty line.
     #[test]
     fn an_empty_overview_says_so() {
-        let html = render(&[], false, Timestamp::now(), &texts::DE);
-        assert!(html.contains(texts::HTML_EMPTY) && html.contains(texts::HTML_NEW));
+        let html = render(&OverviewJobs::default(), Timestamp::now(), &texts::DE);
+        assert!(
+            html.contains(&format!("<h1>{}</h1>", texts::HTML_TITLE)),
+            "{html}"
+        );
+        assert!(html.contains(&format!(
+            "<section><h2>{}</h2><p>{}</p></section>",
+            texts::HTML_NEW,
+            texts::HTML_EMPTY
+        )));
+        assert!(!html.contains(texts::HTML_PINNED) && !html.contains("class=\"more\""));
+    }
+
+    /// Favourites never push the new matches out: both sections show, the favourites first,
+    /// and a cut list of new matches says how many more the app lists.
+    #[test]
+    fn favourites_and_new_matches_show_together() {
+        let jobs = OverviewJobs {
+            favourites: vec![job("Stern", Some(record(MatchStatus::Scored, 70, None)))],
+            new: vec![job("Neu", Some(record(MatchStatus::Scored, 90, None)))],
+            new_total: 21,
+        };
+        let html = render(&jobs, Timestamp::now(), &texts::DE);
+        let pinned = html
+            .find(&format!("<h2>{}</h2>", texts::HTML_PINNED))
+            .unwrap();
+        let new = html.find(&format!("<h2>{}</h2>", texts::HTML_NEW)).unwrap();
+        assert!(pinned < html.find("Stern").unwrap());
+        assert!(html.find("Stern").unwrap() < new && new < html.find(">Neu<").unwrap());
+        assert!(html.contains("<p class=\"more\">20 weitere Jobs in der App.</p>"));
+        assert!(!html.contains(texts::HTML_EMPTY));
+        assert_eq!(texts::html_more(1), "1 weiterer Job in der App.");
+        assert_eq!(texts::html_more(1234), "1.234 weitere Jobs in der App.");
+        assert_eq!(texts::en::html_more(1), "1 more job in the app.");
+        assert_eq!(texts::en::html_more(1234), "1,234 more jobs in the app.");
+        // All listed: no line.
+        let all = OverviewJobs {
+            new_total: 1,
+            ..jobs
+        };
+        assert!(!render(&all, Timestamp::now(), &texts::DE).contains("class=\"more\""));
     }
 
     /// In English every word of the page is English; the job's own data stays as it came.
@@ -462,11 +529,10 @@ mod tests {
         let excluded = record(MatchStatus::Excluded, 86, Some("dayRate"));
         let at: Timestamp = "2026-09-19T12:05:00Z".parse().unwrap();
         let html = render(
-            &[
+            &favourites(vec![
                 job("Interim CFO", Some(record(MatchStatus::Scored, 83, None))),
                 job("B", Some(excluded)),
-            ],
-            true,
+            ]),
             at,
             &texts::EN,
         );
@@ -485,7 +551,7 @@ mod tests {
         for german in [texts::HTML_MET, texts::HTML_PINNED, "Tagessatz", "Erstellt"] {
             assert!(!html.contains(german), "{german}: {html}");
         }
-        let html = render(&[], false, at, &texts::EN);
+        let html = render(&OverviewJobs::default(), at, &texts::EN);
         assert!(html.contains(texts::en::HTML_EMPTY) && html.contains(texts::en::HTML_NEW));
     }
 }

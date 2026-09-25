@@ -171,11 +171,11 @@
 
 {#snippet fetchButton(live: boolean)}
   <Button
-    variant={app.hasMailbox ? 'primary' : 'secondary'}
+    variant={app.hasMailbox && app.hasPortal ? 'primary' : 'secondary'}
     icon="refresh-cw"
     label={t.toolbar.fetch}
-    disabled={!app.hasMailbox || run.active}
-    disabledReason={run.active ? run.busyText : t.toolbar.needsMailbox}
+    disabled={run.fetchBlocked !== null}
+    disabledReason={run.fetchBlocked}
     wide
     testid={live ? 'fetch' : null}
     onclick={() => void run.start({ kind: 'fetch' })}

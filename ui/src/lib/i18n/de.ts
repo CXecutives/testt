@@ -167,7 +167,7 @@ const statusAt: Partial<Record<StatusCode, (portal: string) => string>> = {
   waiting: (portal) => `Wartet auf ${portal}`,
 };
 
-/** Why a portal pauses, as the second half of one sentence (`run.pausedWhy`). */
+/** Why a portal pauses, as the first half of one sentence (`health.advice.paused`). */
 const pause: Record<PauseReason, string> = {
   throttled: 'das Portal bremst die Anfragen',
   blocked: 'das Portal blockiert die Anfragen',
@@ -545,6 +545,11 @@ export const de = {
     undo: 'Rückgängig',
     openFolder: 'Ordner öffnen',
     openLog: 'Protokoll öffnen',
+    /** A file shown selected in its folder, named by the file manager of the OS. */
+    showInFolder: {
+      explorer: 'Im Explorer zeigen',
+      finder: 'Im Finder zeigen',
+    } satisfies Record<'explorer' | 'finder', string>,
   },
   portal: portalName,
   chips: {
@@ -744,6 +749,8 @@ export const de = {
     /** The order without a usable profile: there is no fit to sort by. */
     sortNoProfile: 'Ohne Profil nur nach Datum.',
     needsMailbox: 'Verbinde erst ein Postfach.',
+    /** Every portal is switched off in Einstellungen: nothing to fetch from. */
+    needsPortal: 'Schalte erst ein Portal ein.',
   },
   run: {
     never: 'Noch kein Abruf',
@@ -765,12 +772,6 @@ export const de = {
     newPill: (value: number) => `${n(value)} neu`,
     topPill: (value: number) => count(value, 'passt gut', 'passen gut'),
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
-    /** A paused portal in one sentence: until when, then why. */
-    pausedWhy: (reason: PauseReason, iso: string | null) =>
-      iso
-        ? `Pause bis ${formatMoment(iso)}, ${pause[reason]}.`
-        : `Pause bis zum nächsten Abruf, ${pause[reason]}.`,
-    quota: (iso: string) => `Das Limit ist erreicht, weiter ab ${formatMoment(iso)}.`,
     kind: {
       fetch: 'Abruf',
       details: 'Details holen',
@@ -817,6 +818,8 @@ export const de = {
     skipped: (value: number) => `${count(value, 'Job folgt', 'Jobs folgen')} beim nächsten Abruf.`,
     filesFailed: (value: number) =>
       count(value, 'Datei ließ', 'Dateien ließen') + ' sich nicht schreiben.',
+    /** The old program's Excel file, renamed before the app wrote its own (by its name). */
+    excelRenamed: (name: string) => `Die alte Excel-Datei heißt jetzt ${name}.`,
     openOverview: 'Übersicht öffnen',
     history: 'Verlauf',
     collapse: 'Einklappen',
@@ -1001,11 +1004,8 @@ export const de = {
     lastRun: 'Letzter Abruf',
   },
   health: {
-    layoutText: (mails: number) =>
-      `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, vielleicht hat sich das Mail-Format geändert.`,
-    layoutPages: 'Die Seiten des Portals sehen anders aus als erwartet.',
-    loginText: 'Die Anmeldung ist abgelaufen.',
-    /** A portal problem in the settings, in one sentence that says whether to act. */
+    /** A portal problem in one sentence that says whether to act, the same in the run card,
+     *  the day overview and the settings. */
     advice: {
       paused: (reason: PauseReason, iso: string | null) => {
         const why = pause[reason].charAt(0).toUpperCase() + pause[reason].slice(1);
@@ -1132,7 +1132,7 @@ export const de = {
       star: 'Als Schwerpunkt markieren',
       /** The star of a Schwerpunkt, and of a row without a competence yet. */
       unstar: 'Schwerpunkt entfernen',
-      starEmpty: 'Erst eine Kompetenz eintragen.',
+      starEmpty: 'Trag erst eine Kompetenz ein.',
       focusCount: (count: number, max: number) => `Schwerpunkte ${count} von ${max}`,
       focusHint: 'Kompetenzen mit Stern zählen doppelt, höchstens fünf.',
       focusFull: 'Höchstens fünf Schwerpunkte.',
@@ -1317,7 +1317,7 @@ export const de = {
       answer: 'Antwort der KI',
       take: 'Übernehmen',
       /** Why Übernehmen waits. */
-      takeEmpty: 'Erst die Antwort der KI einfügen.',
+      takeEmpty: 'Füge erst die Antwort der KI ein.',
     },
   },
   settings: {
@@ -1388,7 +1388,7 @@ export const de = {
     txtCount: (value: number) =>
       `${count(value, 'Anzeige', 'Anzeigen')} als Text für eine KI-Bewertung`,
     /** After a change of the work folder: only new text files are written there by themselves. */
-    txtLeftBehind: 'Die Textdateien liegen noch im alten Ordner, Neu schreiben legt sie hier an.',
+    txtLeftBehind: 'Die Textdateien liegen noch im alten Ordner, „Neu schreiben“ legt sie hier an.',
     txtNone: 'Es gibt keine Textdateien.',
     txtRewrite: 'Neu schreiben',
     txtClear: 'Löschen',

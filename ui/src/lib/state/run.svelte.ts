@@ -150,6 +150,16 @@ class RunStore {
     return this.kind === 'rescore' ? t.run.rescoring : t.settings.running;
   }
 
+  /** Why a run that reads the mailbox (Abrufen, the whole mailbox) cannot start now, in the
+   *  order she would fix it: a run holds the app, no mailbox, no portal switched on; null
+   *  when it can. The backend refuses the same. */
+  get fetchBlocked(): string | null {
+    if (this.active) return this.busyText;
+    if (!app.hasMailbox) return t.toolbar.needsMailbox;
+    if (!app.hasPortal) return t.toolbar.needsPortal;
+    return null;
+  }
+
   /** The steps of the run in progress. */
   get steps(): readonly Step[] {
     return KIND_STEPS[this.kind ?? 'fetch'];
@@ -428,6 +438,27 @@ export function failureAction(
 /** The export error of a finished run, if its files could not all be written. */
 export function exportError(summary: RunSummary): ErrorInfo | null {
   return summary.export?.error ?? null;
+}
+
+/** Why a result file stayed as it was, by what could not be written (`params.target`): one
+ *  sentence for the run card and for a delete for good in the list. */
+export function exportText(error: ErrorInfo | null): string | null {
+  if (error === null) return null;
+  const texts = t.run.exportFailed;
+  switch (error.params['target']) {
+    case 'overview':
+      return error.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
+    case 'overviewHtml':
+      return texts.overviewHtml;
+    case 'txtFolder':
+      return texts.txtFolder;
+    case 'backup':
+      return texts.backup;
+    case 'workspace':
+      return texts.workspace;
+    default:
+      return texts.txt;
+  }
 }
 
 /** The title of a finished run: done, cancelled or failed, in the words of its kind. */

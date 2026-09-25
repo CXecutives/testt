@@ -255,26 +255,10 @@ export function warningText(notice: Notice): string | null {
     : null;
 }
 
-/** One sentence for a portal's health (`ok` has none). */
-export function healthSentence(health: PortalHealth): string | null {
-  switch (health.kind) {
-    case 'ok':
-      return null;
-    case 'paused':
-      return t.run.pausedWhy(health.reason, health.until);
-    case 'quotaReached':
-      return t.run.quota(health.until);
-    case 'layoutSuspect':
-      // Empty alert mails point at the mail format; otherwise the pages looked odd.
-      return health.emptyMails > 0 ? t.health.layoutText(health.emptyMails) : t.health.layoutPages;
-    case 'loginRequired':
-      return t.health.loginText;
-  }
-}
-
 /**
- * A portal problem as the settings say it: one sentence that says what she has to do, or
- * that the app carries on by itself (which of the two is `PortalState.actionNeeded`).
+ * A portal problem in one sentence that says what she has to do, or that the app carries on
+ * by itself (which of the two is `PortalState.actionNeeded`); the same words in the run
+ * card, the day overview and the settings. `ok` has none.
  */
 export function healthAdvice(health: PortalHealth): string | null {
   switch (health.kind) {

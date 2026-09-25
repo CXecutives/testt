@@ -159,16 +159,16 @@ mod texts {
     // User-facing text, German.
     const DE: Dialogs = Dialogs {
         pick_workspace: "Arbeitsordner wählen",
-        pick_profile: "Beraterprofil (JSON) wählen",
-        profile_filter: "Beraterprofil",
+        pick_profile: "Profil wählen",
+        profile_filter: "Profil (JSON)",
     };
     // end of user-facing text
 
     // User-facing text, English.
     const EN: Dialogs = Dialogs {
         pick_workspace: "Choose the work folder",
-        pick_profile: "Choose a consultant profile (JSON)",
-        profile_filter: "Consultant profile",
+        pick_profile: "Choose a profile",
+        profile_filter: "Profile (JSON)",
     };
     // end of user-facing text
 }

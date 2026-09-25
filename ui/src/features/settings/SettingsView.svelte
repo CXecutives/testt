@@ -12,7 +12,8 @@
   password, instead of "Verbunden": a red badge like the sidebar's status, and a sentence
   under the row only where it adds the cause or the next step.
   Every path row works the same: the path is text to select and copy, the folder opens with
-  "Ordner öffnen", the Excel file with "Öffnen". Textdateien says what they are (the ads as
+  "Ordner öffnen", the Excel file with "Öffnen" (and shows in its folder with "Im Explorer
+  zeigen", "Im Finder zeigen"). Textdateien says what they are (the ads as
   text for an AI); after a change of the folder a note says that they are still in the old
   one until "Neu schreiben".
 -->
@@ -32,6 +33,7 @@
   import { invoke } from '$lib/ipc/api';
   import type { Language, OpenTarget, SettingsPatch } from '$lib/ipc/types';
   import { app } from '$lib/state/app.svelte';
+  import { fileManager } from '$lib/platform';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
   import { tick } from 'svelte';
@@ -463,18 +465,31 @@
             />
           </div>
         </SettingRow>
-        <!-- Where the Excel file is (or will be), to find it later or to tell someone. -->
+        <!-- Where the Excel file is (or will be), to find it later or to tell someone; it
+             opens, or shows itself selected in its folder (Explorer, Finder). -->
         <SettingRow label={t.settings.excel} hint={cfg.settings.excelPath} copy testid="excel">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="file-spreadsheet"
-            label={t.common.open}
-            disabled={!cfg.settings.excelExists}
-            disabledReason={t.settings.excelMissing}
-            testid="excel-open"
-            onclick={() => open({ kind: 'excel' }, setFiles)}
-          />
+          <div class="buttons">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="folder-open"
+              label={t.common.showInFolder[fileManager()]}
+              disabled={!cfg.settings.excelExists}
+              disabledReason={t.settings.excelMissing}
+              testid="excel-reveal"
+              onclick={() => open({ kind: 'excelInFolder' }, setFiles)}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="file-spreadsheet"
+              label={t.common.open}
+              disabled={!cfg.settings.excelExists}
+              disabledReason={t.settings.excelMissing}
+              testid="excel-open"
+              onclick={() => open({ kind: 'excel' }, setFiles)}
+            />
+          </div>
         </SettingRow>
         <SettingRow label={t.settings.txt} hint={t.settings.txtCount(cfg.settings.txtFiles)}>
           <div class="buttons">
@@ -531,8 +546,8 @@
             size="sm"
             icon="mail"
             label={t.settings.fullMailboxAction}
-            disabled={run.active || !cfg.mailbox.user}
-            disabledReason={run.active ? run.busyText : t.toolbar.needsMailbox}
+            disabled={run.fetchBlocked !== null}
+            disabledReason={run.fetchBlocked}
             testid="full-mailbox"
             onclick={() => (confirmFull = true)}
           />

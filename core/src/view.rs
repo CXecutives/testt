@@ -174,7 +174,7 @@ pub struct JobView {
     pub mail_date: Option<Timestamp>,
     pub first_seen_at: Timestamp,
     pub unread: bool,
-    /// Saved ("Gemerkt", the star): the stage `saved`.
+    /// The favourite (the star, stored as `app_status` 'saved').
     pub pinned: bool,
     pub detail: DetailState,
     /// The full text is short (verified, but under 100 characters).
@@ -1365,6 +1365,14 @@ pub enum OpenTarget {
     /// The folder of the profile file in the workspace (`profil`).
     ProfileDir,
     Excel,
+    /// The Excel file shown selected in its folder (Explorer, Finder); the workspace while
+    /// there is none yet.
+    ExcelInFolder,
+    /// The old program's Excel file the app renamed before its first write
+    /// (`ExportSummary::backup`), by its name in the result folder, shown selected there.
+    ExcelBackupInFolder {
+        name: String,
+    },
     Overview,
     LogDir,
 }

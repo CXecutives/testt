@@ -340,7 +340,7 @@
           icon="folder-open"
           label={t.common.openFolder}
           testid="overview-folder"
-          onclick={() => open({ kind: 'workspace' })}
+          onclick={() => open({ kind: 'excelInFolder' })}
         />
       </div>
     </section>

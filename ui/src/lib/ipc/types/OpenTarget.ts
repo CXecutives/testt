@@ -5,4 +5,4 @@ import type { Portal } from "./Portal";
 /**
  * What `open_target` may open - never an arbitrary path or link from the page.
  */
-export type OpenTarget = { "kind": "jobUrl", key: JobKey, } | { "kind": "gmail", key: JobKey, } | { "kind": "alertMail", gmailId: string, } | { "kind": "portalHome", portal: Portal, } | { "kind": "appPasswordPage" } | { "kind": "twoStepPage" } | { "kind": "dataDir" } | { "kind": "workspace" } | { "kind": "profileDir" } | { "kind": "excel" } | { "kind": "overview" } | { "kind": "logDir" };
+export type OpenTarget = { "kind": "jobUrl", key: JobKey, } | { "kind": "gmail", key: JobKey, } | { "kind": "alertMail", gmailId: string, } | { "kind": "portalHome", portal: Portal, } | { "kind": "appPasswordPage" } | { "kind": "twoStepPage" } | { "kind": "dataDir" } | { "kind": "workspace" } | { "kind": "profileDir" } | { "kind": "excel" } | { "kind": "excelInFolder" } | { "kind": "excelBackupInFolder", name: string, } | { "kind": "overview" } | { "kind": "logDir" };

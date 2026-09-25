@@ -676,6 +676,16 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
         backup.file_name().unwrap(),
         "JobAlerts.alt-20260924-093000.xlsx"
     );
+    // The name the app can show in its folder, and only such a name.
+    assert!(export::is_xlsx_backup("JobAlerts.alt-20260924-093000.xlsx"));
+    for other in [
+        "JobAlerts.xlsx",
+        "JobAlerts.alt-x.txt",
+        r"JobAlerts.alt-..\..\jobs.xlsx",
+        "JobAlerts.alt-/x.xlsx",
+    ] {
+        assert!(!export::is_xlsx_backup(other), "{other}");
+    }
     assert!(first.overview_xlsx.is_some());
 
     // Further runs continue the app's own file without backing it up again.
@@ -2329,6 +2339,10 @@ async fn a_mark_refreshes_the_overview_and_the_top_matches() {
     assert!(
         html().contains(texts::HTML_PINNED),
         "the new favourite shows"
+    );
+    assert!(
+        html().contains(texts::HTML_NEW) && html().contains("SAP FI/CO Berater"),
+        "and the other unread matches stay listed beside it"
     );
     let path = refresh_overview(&store, dir.path(), c(), Language::De).unwrap();
     assert_eq!(path, export::overview_html_path(&result_dir));

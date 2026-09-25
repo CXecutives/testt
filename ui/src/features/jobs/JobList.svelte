@@ -535,8 +535,8 @@
                 size="sm"
                 icon="mail"
                 label={t.list.readOlder}
-                disabled={run.active}
-                disabledReason={run.busyText}
+                disabled={run.fetchBlocked !== null}
+                disabledReason={run.fetchBlocked}
                 testid="read-older"
                 onclick={() => (confirmOlder = true)}
               />
