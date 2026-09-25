@@ -7,7 +7,7 @@ use std::time::Duration;
 use jiff::Timestamp;
 use jobalert_core::error::{ErrorInfo, ErrorKind};
 use jobalert_core::export::{self, RESULT_DIR};
-use jobalert_core::model::gmail_url;
+use jobalert_core::model::gmail_url_for;
 use jobalert_core::pipeline::{self, ExportSummary, Matcher};
 use jobalert_core::view::{ClearedTxt, OpenTarget};
 use tauri::{AppHandle, Manager, State};
@@ -105,20 +105,24 @@ pub async fn open_target(state: State<'_, AppState>, target: OpenTarget) -> CmdR
             .job(key)
             .map(|job| job.ok_or_else(|| not_found("job")))
     };
+    // A mail opens in the account of the mailbox the app reads (the address is cached after
+    // the first read; the dry run never touches the vault).
+    let mail = |id: Option<u64>| -> CmdResult<std::ffi::OsString> {
+        let mailbox = if state.dry_run {
+            None
+        } else {
+            state.gmail_user().0
+        };
+        Ok(id
+            .and_then(|id| gmail_url_for(id, mailbox.as_deref()))
+            .ok_or_else(|| not_found("mail"))?
+            .to_string()
+            .into())
+    };
     let what: std::ffi::OsString = match target {
         OpenTarget::JobUrl { key } => job(&key)??.url.to_string().into(),
-        OpenTarget::Gmail { key } => job(&key)??
-            .gmail_id
-            .and_then(gmail_url)
-            .ok_or_else(|| not_found("mail"))?
-            .to_string()
-            .into(),
-        OpenTarget::AlertMail { gmail_id } => u64::from_str_radix(&gmail_id, 16)
-            .ok()
-            .and_then(gmail_url)
-            .ok_or_else(|| not_found("mail"))?
-            .to_string()
-            .into(),
+        OpenTarget::Gmail { key } => mail(job(&key)??.gmail_id)?,
+        OpenTarget::AlertMail { gmail_id } => mail(u64::from_str_radix(&gmail_id, 16).ok())?,
         OpenTarget::PortalHome { portal } => portal.home_url().into(),
         OpenTarget::AppPasswordPage => APP_PASSWORD_URL.into(),
         OpenTarget::TwoStepPage => TWO_STEP_URL.into(),
