@@ -189,6 +189,11 @@ const detailSays = {
   onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
 } as const;
 
+/** Alert mails without jobs, and what to do about them (the overview's open points and the
+ *  settings say it alike): look whether the mail lists any. */
+const emptyMails = (mails: number): string =>
+  `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.`;
+
 /** A profile file the app cannot read (the list, the overview, the Profil view). */
 const PROFILE_UNREADABLE = 'Profil nicht lesbar';
 
@@ -966,11 +971,9 @@ export const de = {
     /** When the list beside shows the best new jobs on top already. */
     bestInList: 'Die besten neuen Jobs stehen oben in der Liste.',
     files: 'Dateien',
-    /** Under the portal's name, so the sentence does not name it again. */
-    emptyAlerts: (value: number) =>
-      value === 1
-        ? 'Eine Alert-Mail enthielt keine Jobs.'
-        : `${n(value)} Alert-Mails enthielten keine Jobs.`,
+    /** Under the portal's name, so the sentence does not name it again; next to the button
+     *  that opens the mail. */
+    emptyAlerts: emptyMails,
     lastRun: 'Letzter Abruf',
   },
   health: {
@@ -988,8 +991,7 @@ export const de = {
       },
       quota: (iso: string) =>
         `Das Limit ist erreicht, der Abruf macht ab ${formatMoment(iso)} von selbst weiter.`,
-      emptyMails: (mails: number) =>
-        `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.`,
+      emptyMails,
       pages:
         'Die Seiten des Portals sehen anders aus, der nächste Abruf versucht es von selbst wieder.',
       login: 'Die Anmeldung ist abgelaufen, bitte melde dich neu an.',

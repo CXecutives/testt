@@ -213,6 +213,12 @@ const detailSays = {
   onRequest: 'Older jobs get their details only on request.',
 } as const;
 
+/** Alert emails without jobs, and what to do about them (the overview and the settings). */
+const emptyMails = (mails: number): string =>
+  mails === 1
+    ? 'One alert email had no jobs, so please check it in Gmail.'
+    : `${n(mails)} alert emails had no jobs, so please check them in Gmail.`;
+
 /** A profile file the app cannot read (the list, the overview, the Profile view). */
 const PROFILE_UNREADABLE = 'Profile cannot be read';
 
@@ -897,8 +903,7 @@ export const en: Catalog = {
     promptTop: 'Copy prompt for AI comparison',
     bestInList: 'The best new jobs are at the top of the list.',
     files: 'Files',
-    emptyAlerts: (value: number) =>
-      value === 1 ? 'One alert email had no jobs.' : `${n(value)} alert emails had no jobs.`,
+    emptyAlerts: emptyMails,
     lastRun: 'Last fetch',
   },
   health: {
@@ -915,10 +920,7 @@ export const en: Catalog = {
       },
       quota: (iso: string) =>
         `The limit is reached, so fetching resumes by itself at ${formatMoment(iso)}.`,
-      emptyMails: (mails: number) =>
-        mails === 1
-          ? 'One alert email had no jobs, so please check it in Gmail.'
-          : `${n(mails)} alert emails had no jobs, so please check them in Gmail.`,
+      emptyMails,
       pages: 'The pages of the portal look different, so the next fetch tries again by itself.',
       login: 'The sign-in has expired, so please sign in again.',
     },
