@@ -92,7 +92,9 @@ test('the handle says what it does; a double click sets the first width back', a
   const hit = page.getByTestId('list-splitter').locator('.hit');
   const box = (await hit.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await expect(hit.locator('.line')).toHaveCSS('opacity', '1');
+  // Only the grip shows (no line along the border), 44 px long.
+  await expect(hit.locator('.line')).toHaveCount(0);
+  expect((await hit.locator('.grip').boundingBox())!.height).toBe(44);
   await expect(hit.locator('.grip')).toHaveCSS('opacity', '1');
   const tip = page.getByRole('tooltip');
   await expect(tip).toContainText('Breite ändern');

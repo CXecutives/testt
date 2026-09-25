@@ -34,7 +34,6 @@ fn main() {
             "restore_profile",
             "set_unsaved",
             "close_window",
-            "show_snap_layouts",
             "save_mailbox",
             "remove_mailbox",
             "portal_login",

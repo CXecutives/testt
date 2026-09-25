@@ -42,7 +42,7 @@ tokio-util = "0.7"
 # that Tauri does not pass through, and the colours of the native title bar (DWM), both in
 # src/platform.rs.
 webview2-com = "0.38"
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_UI_Input_KeyboardAndMouse"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
 windows-core = "0.61"
 
 [target.'cfg(target_os = "macos")'.dependencies]

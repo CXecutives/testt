@@ -328,10 +328,3 @@ pub(super) fn existing(path: PathBuf, what: &str) -> CmdResult<std::ffi::OsStrin
             .with("path", path.display().to_string()))
     }
 }
-
-/// Windows: the snap layouts for the page's own maximize button (see
-/// `platform::show_snap_layouts`); nothing on macOS.
-#[tauri::command]
-pub fn show_snap_layouts() {
-    crate::platform::show_snap_layouts();
-}

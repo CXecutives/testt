@@ -3,7 +3,7 @@
   import icon from '../assets/app-icon.svg';
 
   interface Props {
-    size?: 'xs' | 'sm' | 'md' | 'lg';
+    size?: 'sm' | 'md' | 'lg';
     /** Accessible name; omit when the app name stands next to the mark. */
     label?: string | null;
   }
@@ -25,10 +25,6 @@
     width: var(--mark-size);
     height: var(--mark-size);
     pointer-events: none;
-  }
-
-  .xs {
-    --mark-size: var(--brand-mark-xs);
   }
 
   .sm {

@@ -11,8 +11,6 @@
   import Icon, { ICON_NAMES } from '$components/Icon.svelte';
   import IconTile, { PORTAL_MONOGRAM, TILE_TONES } from '$components/IconTile.svelte';
   import SideNav, { type SideNavFold } from '$components/SideNav.svelte';
-  import SidebarEdge from '$components/SidebarEdge.svelte';
-  import WindowControls from '$components/WindowControls.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import Spinner from '$components/Spinner.svelte';
   import Toast from '$components/Toast.svelte';
@@ -57,7 +55,6 @@
   let placesOpen = $state<Record<string, boolean>>(
     Object.fromEntries(navDemos.map((demo) => [demo.key, demo.open])),
   );
-  let edgeFolded = $state(false);
   const foldOf = (key: string): SideNavFold => ({
     open: placesOpen[key] ?? true,
     hide: text.navigation.hidePlaces,
@@ -147,7 +144,7 @@
   <Section heading={text.sections.navigation} id="navigation">
     <div class="navs">
       {#each navDemos as demo (demo.key)}
-        {@const rail = demo.rail || (demo.key === 'full' && edgeFolded)}
+        {@const rail = demo.rail}
         <div class="side" class:rail data-testid="gnav-{demo.key}">
           <SideNav
             items={tabs}
@@ -173,11 +170,6 @@
                 onclick={noop}
               />
             {/if}
-            <SidebarEdge
-              collapsed={edgeFolded}
-              testid="gallery-edge"
-              ontoggle={() => (edgeFolded = !edgeFolded)}
-            />
           {/if}
         </div>
       {/each}
@@ -187,10 +179,6 @@
         label={text.navigation.toast}
         onclick={() => toasts.show(text.navigation.toastText)}
       />
-    </div>
-    <!-- The caption buttons of the Windows title bar (the whole bar is TitleBar in the shell). -->
-    <div class="captions">
-      <WindowControls testid="gallery-window-controls" />
     </div>
     <!-- The empty part of the macOS toolbar row (as high as --window-top: 0 here). -->
     <DragBand sheet />
@@ -346,11 +334,6 @@
     justify-content: center;
     padding: var(--space-32);
     border-radius: var(--radius-card);
-    background-color: var(--bg);
-  }
-  .captions {
-    display: flex;
-    justify-content: flex-end;
     background-color: var(--bg);
   }
 </style>

@@ -1,4 +1,4 @@
-import { calls, expect, expectShot, motionSettled, open, settle, test } from './fixtures';
+import { expect, expectShot, motionSettled, open, settle, test } from './fixtures';
 
 test('the preview server sends the production CSP', async ({ page }) => {
   const response = await page.goto('/');
@@ -108,75 +108,22 @@ test('the navigation switches the view', async ({ page }) => {
   await expect(page.getByTestId('view-jobs')).toBeVisible();
 });
 
-// Windows: the page's own 36 px title bar across the full width (icon, name in Inter, the
-// caption buttons at the right, the whole bar a drag region); macOS: no title bar in the
-// page, the traffic lights sit over the toolbar row.
-test('windows: the own title bar, 36 px, with icon, name and caption buttons', async ({ page }) => {
-  await open(page, '?platform=windows');
-  const bar = page.getByTestId('titlebar');
-  const box = (await bar.boundingBox())!;
-  expect(box.y).toBe(0);
-  expect(box.height).toBe(36);
-  expect(box.width).toBe(page.viewportSize()!.width);
-  await expect(bar).toHaveAttribute('data-tauri-drag-region', 'deep');
-  await expect(page.getByTestId('titlebar-brand')).toHaveText('Job-Alert-Monitor');
-  expect(
-    await page
-      .getByTestId('titlebar-brand')
-      .locator('.name')
-      .evaluate((n) => getComputedStyle(n).fontFamily),
-  ).toContain('Inter');
-  // Sidebar and sheet start right below the bar.
-  expect((await page.getByTestId('sidebar').boundingBox())!.y).toBe(36);
-  // Three caption buttons, 46 x 36, at the right edge, not in the tab order.
-  const buttons = page.getByTestId('window-controls').getByRole('button');
-  await expect(buttons).toHaveCount(3);
-  for (const button of await buttons.all()) {
-    const b = (await button.boundingBox())!;
-    expect([b.width, b.height]).toEqual([46, 36]);
-    await expect(button).toHaveAttribute('tabindex', '-1');
-  }
-  const close = (await page.getByTestId('window-close').boundingBox())!;
-  expect(close.x + close.width).toBe(page.viewportSize()!.width);
-});
+// The window frame is the native one of each OS (icon, title, caption buttons, system menu,
+// snap layouts): the page draws none of it and has no drag region of its own.
+for (const os of ['windows', 'macos']) {
+  test(`${os}: no title bar in the page, the content starts at the top`, async ({ page }) => {
+    await open(page, `?platform=${os}`);
+    await expect(page.locator('html')).toHaveAttribute('data-platform', os);
+    await expect(page.getByTestId('titlebar')).toHaveCount(0);
+    expect((await page.getByTestId('sidebar').boundingBox())!.y).toBe(0);
+  });
+}
 
-test('windows: the caption buttons act; close is red under the pointer; maximize offers the snap layouts', async ({
+test('windows: no drag region; the first view sits on the line of the search field', async ({
   page,
 }) => {
   await open(page, '?platform=windows');
-  const maximize = page.getByTestId('window-maximize');
-  await expect(maximize).toHaveAttribute('aria-label', 'Maximieren');
-  await maximize.click();
-  await expect(maximize).toHaveAttribute('aria-label', 'Verkleinern');
-  await page.getByTestId('window-minimize').click();
-  // A rest on maximize opens the snap layouts of Windows 11 (once).
-  await page.mouse.move(0, 400);
-  await maximize.hover();
-  await expect.poll(async () => (await calls(page, 'show_snap_layouts')).length).toBe(1);
-  // Close is red under the pointer, like on Windows.
-  const close = page.getByTestId('window-close');
-  await close.hover();
-  await expect(close).toHaveCSS('background-color', 'rgb(196, 42, 28)');
-  await close.click();
-  const names = (await calls(page)).map(([name]) => name);
-  expect(names).toEqual(
-    expect.arrayContaining(['window.toggleMaximize', 'window.minimize', 'window.close']),
-  );
-});
-
-test('macos: no title bar in the page, the content starts at the top', async ({ page }) => {
-  await open(page, '?platform=macos');
-  await expect(page.locator('html')).toHaveAttribute('data-platform', 'macos');
-  await expect(page.getByTestId('titlebar')).toHaveCount(0);
-  expect((await page.getByTestId('sidebar').boundingBox())!.y).toBe(0);
-});
-
-test('windows: the title bar is the only drag region; the first view sits on the line of the search field', async ({
-  page,
-}) => {
-  await open(page, '?platform=windows');
-  await expect(page.locator('[data-tauri-drag-region]')).toHaveCount(1);
-  await expect(page.getByTestId('titlebar')).toHaveAttribute('data-tauri-drag-region', 'deep');
+  await expect(page.locator('[data-tauri-drag-region]')).toHaveCount(0);
   // The field's frame is the input's parent (the input sits inside its border).
   const nav = (await page.getByTestId('nav-jobs').boundingBox())!.y;
   const field = (await page.getByTestId('search').locator('xpath=..').boundingBox())!.y;

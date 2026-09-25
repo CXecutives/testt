@@ -36,8 +36,6 @@
   --p-success: 150 27% 60%;
   --p-warning: 45 76% 75%;
   --p-danger: 4 51% 56%;
-  /* The red of the close button of Windows 11 under the pointer. */
-  --p-caption-close: 5 75% 44%;
   --p-coral-800: 13 62% 45%;
   /* Very light warm steps for selection (user: "schön leicht und angenehm"): the selected
      row, its hover, the soft count pill and its hover, the ring track on the wash. */
@@ -313,23 +311,8 @@
      in tauri.macos.conf.json) and 80 px wide in total. */
   --mac-toolbar: 52px;
   --traffic-lights-width: 80px;
-  /* Windows: the page's own title bar, 36 px like the Claude app's, with caption buttons drawn
-     like the native Windows 11 ones (Segoe Fluent Icons at 10 px, 46 px wide, the close
-     button red under the pointer); the snap layouts after a short rest on maximize. */
-  --titlebar-height: 36px;
-  --caption-width: 46px;
-  --caption-glyph: 10px;
-  --font-caption: 'Segoe Fluent Icons', 'Segoe MDL2 Assets', sans-serif;
-  --caption-glyph-rest: var(--text);
-  --caption-inactive: var(--text-subtle);
-  --caption-hover: hsl(var(--p-ink) / 0.06);
-  --caption-press: hsl(var(--p-ink) / 0.1);
-  --caption-close: hsl(var(--p-caption-close));
-  --caption-close-press: hsl(var(--p-caption-close) / 0.85);
-  --caption-close-glyph: hsl(var(--p-white));
-  --snap-delay: 500ms;
-  /* The top band the page keeps free for the title bar: 0 on Windows (the title bar is its
-     own row above the page), the toolbar row on macOS (empty parts of it move the window). */
+  /* The top band the page keeps free for the title bar: 0 on Windows, the toolbar row on
+     macOS (empty parts of it move the window). */
   --window-top: 0px;
   /* The first row of the list column (search and Abrufen): on Windows below the pane
      padding, on macOS centred in the toolbar row next to the traffic lights. */
@@ -351,9 +334,11 @@
   --splitter-hit: 8px;
   /* A native menu opens this far below its button. */
   --menu-gap: 4px;
-  --splitter-line: 2px;
-  --grip-width: 6px;
-  --grip-height: 28px;
+  --grip-width: 4px;
+  --grip-height: 44px;
+  /* The list handle's grip: grey at rest, a shade darker while dragged (no navy line). */
+  --grip-rest: var(--border-strong);
+  --grip-drag: var(--text-subtle);
   --form-width: 560px;
   /* Rows and their washes: a row's hover wash is the row's own box, and rows run edge to
      edge inside their container. A container that insets its content sets --row-inset to
@@ -375,7 +360,6 @@
   --border-width: 1px;
   --focus-width: 2px;
   --marker-height: 2px;
-  --brand-mark-xs: 16px;
   --brand-mark-sm: 24px;
   --brand-mark: 28px;
   --brand-mark-lg: 40px;
@@ -483,8 +467,6 @@
   --leading-display: 40px;
   --type-2xs: var(--weight-regular) var(--font-2xs) / var(--leading-2xs) var(--font-sans);
   --type-xs: var(--weight-regular) var(--font-xs) / var(--leading-xs) var(--font-sans);
-  /* The app's name in the Windows title bar: Inter 12 px, regular. */
-  --type-window: var(--weight-regular) var(--font-xs) / var(--leading-xs) var(--font-sans);
   --type-sm: var(--weight-regular) var(--font-sm) / var(--leading-sm) var(--font-sans);
   --type-md: var(--weight-regular) var(--font-md) / var(--leading-md) var(--font-sans);
   --type-title: var(--weight-medium) var(--font-md) / var(--leading-title) var(--font-sans);
@@ -563,7 +545,6 @@
   --z-base: 0;
   --z-raised: 1;
   --z-sticky: 10;
-  --z-titlebar: 20;
   /* Toasts lie below a dialog's scrim: dimmed, and no undo acts behind a modal. */
   --z-toast: 90;
   --z-overlay: 100;

@@ -1395,13 +1395,6 @@ export const de = {
     fetch: 'Erster Abruf',
     fetchHint: 'Das dauert ein paar Minuten.',
   },
-  /** The caption buttons of the Windows title bar (their accessible names). */
-  window: {
-    minimize: 'Minimieren',
-    maximize: 'Maximieren',
-    restore: 'Verkleinern',
-    close: 'Schließen',
-  },
   shell: {
     loadFailed: 'Die App konnte ihre Daten nicht laden.',
     last: (iso: string) => `Abgerufen ${formatMoment(iso)}`,
@@ -1409,10 +1402,6 @@ export const de = {
     runFailed: (iso: string) => `Fehlgeschlagen ${formatMoment(iso)}`,
     /** Closing while a fetch runs: the window waits until it has stopped. */
     closing: 'Der Abruf wird beendet, dann schließt die App.',
-    /** The sidebar's edge: what a click does, over the key that does the same (by OS). */
-    collapseSidebar: 'Seitenleiste einklappen',
-    expandSidebar: 'Seitenleiste ausklappen',
-    sidebarKey: { ctrl: 'Strg+B', cmd: '⌘B' } satisfies Record<'ctrl' | 'cmd', string>,
   },
   toast: {
     rescored: 'Die Jobs sind neu bewertet.',

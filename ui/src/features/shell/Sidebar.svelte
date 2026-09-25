@@ -19,7 +19,6 @@
 <script lang="ts">
   import DragBand from '$components/DragBand.svelte';
   import SideNav, { type SideNavFold, type SideNavItem } from '$components/SideNav.svelte';
-  import SidebarEdge from '$components/SidebarEdge.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import { t } from '$lib/i18n/t';
   import { onSidebarKey } from '$lib/input/input';
@@ -164,15 +163,6 @@
         onclick={openRun}
       />
     </div>
-  {/if}
-
-  {#if !viewport.forcedRail}
-    <SidebarEdge
-      collapsed={viewport.pinnedRail}
-      controls={SIDEBAR_ID}
-      testid="sidebar-edge"
-      ontoggle={() => viewport.toggleRail()}
-    />
   {/if}
 </aside>
 

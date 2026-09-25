@@ -58,19 +58,11 @@ export function platform(): Platform {
 
 /**
  * The page keeps the toolbar row free and marks its empty parts as drag regions (macOS: the
- * title bar is transparent over the page and WKWebView has no app-region). Windows has the
- * page's own title bar above the page (`ownTitleBar`).
+ * title bar is transparent over the page and WKWebView has no app-region). Windows has its
+ * native title bar above the page.
  */
 export function dragBands(): boolean {
   return platform() === 'macos';
-}
-
-/**
- * Windows: the page draws its own 36 px title bar with the caption buttons (the window has no
- * native frame, platform.rs). macOS keeps its traffic lights over the toolbar row.
- */
-export function ownTitleBar(): boolean {
-  return platform() === 'windows';
 }
 
 /** Dialog buttons: the primary action comes first on Windows, last (right) on macOS. */

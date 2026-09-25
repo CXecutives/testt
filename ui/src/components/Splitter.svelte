@@ -8,7 +8,8 @@
   (`storageKey`, in this browser profile; a store that cannot be read or written simply
   keeps the first width), and a kept width that does not fit is shown at the limit and comes
   back once there is room again. The col-resize cursor and, on hover or while dragging, a
-  2 px navy line with a small grip in its middle show that it moves; after the usual delay
+  calm grip in the middle (like the Claude app's: no line along the border) show that it
+  moves; after the usual delay
   the tooltip says so ("Breite ändern") over what a double click does. No keyboard: the
   columns are not a document to navigate.
 -->
@@ -172,7 +173,6 @@
     onpointercancel={end}
     onclick={reset}
   >
-    <span class="line"></span>
     <span class="grip"></span>
   </button>
 </div>
@@ -199,32 +199,26 @@
     touch-action: none;
   }
 
-  .line {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: var(--splitter-line);
-    background-color: var(--active-edge);
-    opacity: 0;
-    transition: opacity var(--dur-base) var(--ease-standard);
-  }
-
-  /* The grip: a small pill centred on the line. */
+  /* The grip: a calm pill centred on the border, darker while it is dragged. */
   .grip {
     flex: none;
     width: var(--grip-width);
     height: var(--grip-height);
     border-radius: var(--radius-full);
-    background-color: var(--active-edge);
+    background-color: var(--grip-rest);
     opacity: 0;
-    transition: opacity var(--dur-base) var(--ease-standard);
+    transition:
+      opacity var(--dur-base) var(--ease-standard),
+      background-color var(--dur-base) var(--ease-standard);
   }
 
-  .hit:hover .line,
   .hit:hover .grip,
-  .dragging .line,
   .dragging .grip {
     opacity: 1;
     transition-duration: var(--dur-hover);
+  }
+
+  .dragging .grip {
+    background-color: var(--grip-drag);
   }
 </style>

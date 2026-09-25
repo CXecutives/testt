@@ -428,15 +428,6 @@ test('the sidebar in the gallery: its places fold, its edge folds it to the rail
   await folded.getByTestId('gnav-fold-folded').click();
   await expect(folded.getByTestId('gnav-archive')).toBeVisible();
   await expect(page.getByTestId('gnav-rail-folded').getByTestId('gnav-archive')).toBeHidden();
-  // The edge of the first demo: its tooltip names the key, a click folds it to icons.
-  const edge = page.getByTestId('gallery-edge');
-  await edge.hover();
-  await expect(page.getByRole('tooltip')).toContainText('Seitenleiste einklappen');
-  await expect(page.getByRole('tooltip').locator('.hint')).toHaveText('Strg+B');
-  await edge.click();
-  await expect(page.getByTestId('gnav-full').locator('nav')).toHaveClass(/collapsed/);
-  await page.getByTestId('gallery-edge').click();
-  await expect(page.getByTestId('gnav-full').locator('nav')).not.toHaveClass(/collapsed/);
 });
 
 test('a menu button opens the OS menu of choices below it; a choice applies', async ({ page }) => {

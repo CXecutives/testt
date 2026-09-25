@@ -1273,22 +1273,12 @@ export const en: Catalog = {
     fetch: 'First fetch',
     fetchHint: 'This takes a few minutes.',
   },
-  /** The caption buttons of the Windows title bar (their accessible names). */
-  window: {
-    minimize: 'Minimize',
-    maximize: 'Maximize',
-    restore: 'Restore down',
-    close: 'Close',
-  },
   shell: {
     loadFailed: 'The app could not load its data.',
     last: (iso: string) => `Fetched ${formatMoment(iso)}`,
     showRun: 'Show fetch',
     runFailed: (iso: string) => `Failed ${formatMoment(iso)}`,
     closing: 'The fetch is stopping, and then the app closes.',
-    collapseSidebar: 'Collapse sidebar',
-    expandSidebar: 'Expand sidebar',
-    sidebarKey: { ctrl: 'Ctrl+B', cmd: '⌘B' },
   },
   toast: {
     rescored: 'The jobs have been scored again.',

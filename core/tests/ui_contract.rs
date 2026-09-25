@@ -673,67 +673,35 @@ fn config(name: &str) -> serde_json::Value {
         .unwrap_or_else(|e| panic!("{name}: {e}"))
 }
 
-/// Windows: the page draws its own 36 px title bar (`TitleBar`, `WindowControls`: caption buttons
-/// like the native Windows 11 ones, the snap layouts on a short rest over maximize) and the
-/// window has no native frame (`decorations(false)` in platform.rs, the native shadow and
-/// resize border stay). macOS: the unified toolbar row of a Mac app - the title bar
-/// transparent over the page, the title hidden, the traffic lights moved into the 52 px row;
-/// the page keeps that row free and marks its empty parts as drag regions. Drag regions only
-/// in the Windows title bar, `DragBand` and the list's first row; the window API only in api.ts;
-/// the caption font only in tokens.css.
+/// Both OS show their native window frame (title bar, caption buttons, system menu, snap
+/// layouts); the page draws no title bar and no caption buttons. Windows: the native bar
+/// above the page (coloured in platform.rs). macOS: the unified toolbar row of a Mac app -
+/// the title bar transparent over the page, the title hidden, the traffic lights moved into
+/// the 52 px row; the page keeps that row free and marks its empty parts as drag regions
+/// (only `DragBand` and the list's first row, through Tauri's drag script).
 #[test]
-fn the_window_frame_is_own_on_windows_and_unified_on_macos() {
+fn the_window_frame_is_native_on_both_os() {
     let all = scanned(MIN_FILES);
     fail(
         &find(&all, &["data-tauri-drag-region"], |s| {
-            s.is("components/DragBand.svelte")
-                || s.is("features/jobs/ListHeader.svelte")
-                || s.is("features/shell/TitleBar.svelte")
+            s.is("components/DragBand.svelte") || s.is("features/jobs/ListHeader.svelte")
         }),
-        "drag regions only in the Windows title bar, DragBand and the list's toolbar row",
+        "drag regions only in DragBand and the list's toolbar row",
     );
     fail(
         &find(
             &all,
             &[
+                "app-region",
                 "@tauri-apps/api/window",
                 "getCurrentWindow",
                 "startDragging",
+                "Segoe Fluent",
+                "Segoe MDL2",
             ],
-            |s| s.is("lib/ipc/api.ts"),
+            |_| false,
         ),
-        "the window API only in lib/ipc/api.ts",
-    );
-    fail(
-        &find(&all, &["Segoe Fluent", "Segoe MDL2"], |s| {
-            s.is("styles/tokens.css")
-        }),
-        "the caption glyph font is a token",
-    );
-    fail(
-        &find(&all, &["app-region"], |_| false),
-        "no CSS app-region: Tauri's drag regions move the window",
-    );
-    // The Windows title bar is the page's own; macOS has none in the page.
-    let title_bar = all
-        .iter()
-        .find(|s| s.is("features/shell/TitleBar.svelte"))
-        .expect("TitleBar.svelte");
-    assert!(
-        title_bar.code.contains("ownTitleBar()"),
-        "the title bar shows on Windows only"
-    );
-    let platform_rs =
-        std::fs::read_to_string(repo("src-tauri/src/platform.rs")).expect("platform.rs");
-    assert!(
-        platform_rs.contains(
-            "#[cfg(windows)]
-    let builder = builder.decorations(false).shadow(true);"
-        ) || platform_rs.contains(
-            "#[cfg(windows)]
-    let builder = builder.decorations(false).shadow(true);"
-        ),
-        "Windows: no native frame, the native shadow stays (platform.rs)"
+        "no title bar and no caption buttons in the page: the frame of the OS carries them",
     );
     // The list row sets the attribute only where dragBands() says so (macOS).
     let header = all
@@ -751,7 +719,7 @@ fn the_window_frame_is_own_on_windows_and_unified_on_macos() {
     let window = &shared["app"]["windows"][0];
     assert_eq!(
         window["decorations"], true,
-        "the config keeps the frame; Windows drops it in platform.rs, macOS keeps it"
+        "Windows keeps the native frame"
     );
     let windows = std::fs::read_to_string(repo("src-tauri/tauri.windows.conf.json"))
         .expect("tauri.windows.conf.json");

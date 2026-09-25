@@ -16,7 +16,6 @@ import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Commands, ErrorInfo, ErrorKind, RunEvent } from './types';
 
 export type CommandName = keyof Commands;
@@ -50,7 +49,6 @@ export const COMMAND_NAMES = [
   'restore_profile',
   'set_unsaved',
   'close_window',
-  'show_snap_layouts',
   'save_mailbox',
   'remove_mailbox',
   'portal_login',
@@ -304,30 +302,3 @@ export function installErrorReporting(): void {
     reportUiError(String(event.reason), null, null);
   });
 }
-
-/**
- * The window functions of the Windows title bar (TitleBar, WindowControls): the caption
- * buttons, the maximized state for the restore glyph and the snap layouts of Windows 11.
- * Closing goes the usual way (a close request: unsaved changes and a running fetch ask).
- */
-export const appWindow = {
-  minimize: (): Promise<void> => getCurrentWindow().minimize(),
-  toggleMaximize: (): Promise<void> => getCurrentWindow().toggleMaximize(),
-  close: (): Promise<void> => getCurrentWindow().close(),
-  isMaximized: (): Promise<boolean> => getCurrentWindow().isMaximized(),
-  showSnapLayouts: (): Promise<void> =>
-    invoke('show_snap_layouts', {}).then(
-      () => undefined,
-      () => undefined,
-    ),
-  /** Called with the new maximized state whenever the window is resized. */
-  onMaximizedChange(handler: (maximized: boolean) => void): () => void {
-    return subscribe(() =>
-      getCurrentWindow().onResized(() => {
-        void getCurrentWindow()
-          .isMaximized()
-          .then(handler, () => undefined);
-      }),
-    );
-  },
-};
