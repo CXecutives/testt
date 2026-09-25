@@ -317,7 +317,7 @@
         <Button
           variant="ghost"
           size="sm"
-          icon="file-text"
+          icon="globe"
           label={t.run.openOverview}
           disabled={noFiles && (dryRun || run.active)}
           disabledReason={dryRun ? dryRunReason : run.busyText}

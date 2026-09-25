@@ -1,5 +1,5 @@
 // Wave 2, the jobs group: the run card's time, the search between places, the choice of
-// rows in one column and in two (see docs/wave2/PLAN.md).
+// rows in one column and in two, one glyph per meaning (see docs/wave2/PLAN.md).
 
 import type { Page } from '@playwright/test';
 import { calls, expect, NOW, open, runFinished, test } from './fixtures';
@@ -84,4 +84,18 @@ test('one column: a single chosen row keeps the selection bar; two columns open 
     'data-testid',
     key ?? '',
   );
+});
+
+test('the day overview opens its HTML page under the globe, one glyph per file', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('fetch').click();
+  await runFinished(page);
+  const files = page.getByTestId('day-overview').getByTestId('overview-files');
+  const glyphs = await files
+    .locator('.glyph')
+    .evaluateAll((all) => all.map((glyph) => glyph.getAttribute('data-icon')));
+  // The page opens in the browser; "file-text" stays the profile's and the contract's.
+  expect(glyphs).toEqual(['globe', 'file-spreadsheet', 'folder-open']);
 });
