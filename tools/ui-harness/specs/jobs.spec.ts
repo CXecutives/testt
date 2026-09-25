@@ -889,7 +889,7 @@ test('the reader: one row of alike actions, archive opens the next job, undo, a 
       (row) => new Set([...row.children].map((child) => child.getBoundingClientRect().top)).size,
     );
   expect(await actionTops()).toBe(1);
-  await expect(page.getByTestId('prompt')).toHaveText('KI-Bewertung');
+  await expect(page.getByTestId('prompt')).toHaveText('Prompt kopieren');
   await page.setViewportSize({ width: 1600, height: 900 });
   await expect(page.getByTestId('prompt')).toHaveText('Prompt für KI-Bewertung kopieren');
   expect(await actionTops()).toBe(1);
@@ -989,7 +989,7 @@ test('archive from the row: toasts merge, the Archiv sends a job back to the inb
       .locator('xpath=..')
       .locator('.tools .btn')
       .evaluateAll((els) => els.map((el) => el.getAttribute('aria-label'))),
-  ).toEqual(['Archivieren', 'Löschen', 'Als Favorit markieren']);
+  ).toEqual(['Archivieren', 'In den Papierkorb', 'Als Favorit markieren']);
   for (const key of [one, two]) {
     await row(page, key).hover();
     await page.getByTestId(`archive-${key}`).click();
@@ -1009,7 +1009,7 @@ test('archive from the row: toasts merge, the Archiv sends a job back to the inb
   await row(page, one).hover();
   await page.getByTestId(`toInbox-${one}`).click();
   await expect(row(page, one)).toHaveCount(0);
-  await expect(page.getByTestId('toast').last()).toContainText('in den Eingang verschoben.');
+  await expect(page.getByTestId('toast').last()).toContainText('zurückgeholt.');
   // Jobs in the sidebar is the inbox again.
   await page.getByTestId('nav-jobs').click();
   await expect(page.getByTestId('facet')).toBeVisible();
@@ -1029,9 +1029,12 @@ test('the Papierkorb: delete, restore, delete for good and empty it, asking firs
     await page.getByTestId(`trash-${key}`).click();
     await expect(row(page, key)).toHaveCount(0);
   }
-  await expect(page.getByTestId('toast').last()).toContainText('2 Jobs gelöscht.');
+  await expect(page.getByTestId('toast').last()).toContainText('2 Jobs in den Papierkorb gelegt.');
   await page.getByTestId('nav-trash').click();
   await expect(page.getByTestId('place-count')).toHaveText('2 Jobs im Papierkorb');
+  // With nothing open the reader says what lies here, not the inbox's day overview.
+  await expect(page.getByTestId('place-reader')).toBeVisible();
+  await expect(page.getByTestId('day-overview')).toHaveCount(0);
   // In the trash: Wiederherstellen and Endgültig löschen, no star; the reader says where.
   await row(page, one).click();
   await expect(page.getByTestId('place-line')).toContainText('Im Papierkorb');

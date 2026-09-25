@@ -168,7 +168,7 @@
       return;
     }
     confirmEmpty = false;
-    toasts.show(t.toast.deleted(result.count));
+    toasts.show(t.toast.trashEmptied);
     void jobs.loadOverview();
   }
 </script>
@@ -240,7 +240,10 @@
           onchange={(id) => jobs.setFacet(id)}
         />
       {:else}
-        <span class="place-count" data-testid="place-count">{t.place.count[place](inPlace)}</span>
+        <!-- An empty place says so in the list; no "0 Jobs" above it. -->
+        {#if inPlace > 0}
+          <span class="place-count" data-testid="place-count">{t.place.count[place](inPlace)}</span>
+        {/if}
       {/if}
       <span class="tools">
         {#if inInbox && jobs.facet !== 'favourites' && jobs.counts.unread > 0}

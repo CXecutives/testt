@@ -383,8 +383,10 @@
     --ring-type: var(--type-2xl);
   }
 
-  /* The small ring stays calm: no tinted disc inside a 40 px row. */
-  .sm.scored {
+  /* The small ring stays calm: no tinted disc inside a 40 px row (a provisional one neither;
+     its dashed track says it). */
+  .sm.scored,
+  .sm.provisional {
     --ring-surface: transparent;
   }
 

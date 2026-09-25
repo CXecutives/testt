@@ -32,7 +32,7 @@
   import { dragBands } from '$lib/platform';
   import { tokenPx } from '$lib/tokens';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf, placeOf, sameKey } from '$lib/state/jobs.svelte';
   import { shell } from '$lib/state/shell.svelte';
   import { viewport } from '$lib/state/viewport.svelte';
   import DayOverview from './DayOverview.svelte';
@@ -73,6 +73,8 @@
     return { what: shown, turn: turns };
   });
   const reading = $derived(stage.what !== OVERVIEW);
+  const place = $derived(placeOf(jobs.facet));
+  const trashDays = $derived(app.state?.autoEmptyTrashDays ?? 0);
   /** The list is scrolled away from its top (the header shows its hairline). */
   let scrolled = $state(false);
   /** The width of the list column (the splitter keeps it per user). */
@@ -156,7 +158,19 @@
         <div class="stage" data-testid="stage" in:enter={stage.what !== OVERVIEW} out:leave>
           {#if dragBands()}<DragBand sheet />{/if}
           <div class="column">
-            {#if stage.what === OVERVIEW}
+            {#if stage.what === OVERVIEW && place !== 'inbox'}
+              <!-- The archive and the trash have no day overview: what lies here, quietly. -->
+              <div class="place-reader">
+                <EmptyState
+                  icon={place === 'trash' ? 'trash-2' : 'archive'}
+                  tone="neutral"
+                  text={place === 'trash' && trashDays > 0
+                    ? t.place.trashFor(trashDays)
+                    : t.place.reader[place]}
+                  testid="place-reader"
+                />
+              </div>
+            {:else if stage.what === OVERVIEW}
               <DayOverview />
             {:else}
               <div class="back">
@@ -275,6 +289,13 @@
   .back {
     display: none;
     margin-left: calc(-1 * var(--space-12));
+  }
+
+  /* The reader of the archive and the trash with nothing open: centred in the pane. */
+  .place-reader {
+    display: flex;
+    justify-content: center;
+    padding-top: var(--space-48);
   }
 
   .skeleton {

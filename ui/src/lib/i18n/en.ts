@@ -475,7 +475,7 @@ export const en: Catalog = {
     clear: 'Clear selection',
   },
   place: {
-    inbox: 'Inbox',
+    inbox: 'Jobs',
     archive: 'Archive',
     trash: 'Trash',
     search: {
@@ -484,12 +484,12 @@ export const en: Catalog = {
       trash: 'Search the trash',
     } satisfies Record<Place, string>,
     count: {
-      inbox: (value: number) => `${count(value, 'job', 'jobs')} in the inbox`,
+      inbox: (value: number) => `${count(value, 'job', 'jobs')} in Jobs`,
       archive: (value: number) => `${count(value, 'job', 'jobs')} in the archive`,
       trash: (value: number) => `${count(value, 'job', 'jobs')} in the trash`,
     } satisfies Record<Place, (value: number) => string>,
     alsoIn: {
-      inbox: (value: number) => `Also in the inbox (${n(value)})`,
+      inbox: (value: number) => `Also in Jobs (${n(value)})`,
       archive: (value: number) => `Also in the archive (${n(value)})`,
       trash: (value: number) => `Also in the trash (${n(value)})`,
     } satisfies Record<Place, (value: number) => string>,
@@ -501,11 +501,18 @@ export const en: Catalog = {
       archive: 'The archive is empty.',
       trash: 'The trash is empty.',
     } satisfies Record<Place, string>,
+    reader: {
+      inbox: 'Choose a job from the list.',
+      archive: 'Archived jobs stay here until you bring them back or delete them.',
+      trash: 'Deleted jobs stay here until you restore them or empty the trash.',
+    } satisfies Record<Place, string>,
+    trashFor: (days: number) =>
+      `Deleted jobs stay here for ${count(days, 'day', 'days')}, then they are gone for good.`,
   },
   actions: {
     archive: 'Archive',
-    toInbox: 'Move to inbox',
-    trash: 'Delete',
+    toInbox: 'Back to Jobs',
+    trash: 'Move to trash',
     restore: 'Restore',
     purge: 'Delete forever',
     purgeHeading: (value: number) =>
@@ -766,7 +773,7 @@ export const en: Catalog = {
     overrideUndo: 'Exclude again',
     overridden: 'You marked it as fitting.',
     prompt: 'Copy prompt for AI assessment',
-    promptShort: 'AI assessment',
+    promptShort: 'Copy prompt',
     promptHint:
       'Copies the ad and the profile as a ready prompt for ChatGPT, Claude or another AI.',
     preliminary: 'Provisional, scored from a teaser',
@@ -1133,16 +1140,17 @@ export const en: Catalog = {
     copied: 'Copied.',
     prompt: 'Prompt copied, ready for an AI chat.',
     archivedOne: (name: string) => `“${name}” archived.`,
-    trashedOne: (name: string) => `“${name}” deleted.`,
-    trashedMany: (value: number) => `${n(value)} jobs deleted.`,
-    inboxOne: (name: string) => `“${name}” moved to the inbox.`,
-    inboxMany: (value: number) => `${n(value)} jobs moved to the inbox.`,
+    trashedOne: (name: string) => `“${name}” moved to the trash.`,
+    trashedMany: (value: number) => `${n(value)} jobs moved to the trash.`,
+    inboxOne: (name: string) => `“${name}” is back in Jobs.`,
+    inboxMany: (value: number) => `${n(value)} jobs are back in Jobs.`,
     restoredMany: (value: number) => `${n(value)} jobs restored.`,
     allRead: 'All marked as read.',
     archivedMany: (value: number) => `${n(value)} jobs archived.`,
     restored: (name: string) => `“${name}” restored.`,
     deleted: (value: number) =>
-      value === 1 ? 'The job is deleted.' : `${n(value)} jobs are deleted.`,
+      value === 1 ? 'The job is deleted forever.' : `${n(value)} jobs are deleted forever.`,
+    trashEmptied: 'Trash emptied.',
     runDone: (value: number) =>
       value === 0
         ? 'Fetch done, nothing new.'
