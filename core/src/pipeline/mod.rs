@@ -768,7 +768,7 @@ pub fn empty_old_trash(
     match deleted {
         Ok((gone, names)) => {
             if let Some(workspace) = workspace.filter(|_| !gone.is_empty()) {
-                remove_deleted_txt(store, &workspace.join(RESULT_DIR), &names);
+                remove_deleted_txt(store, workspace, &names);
             }
             gone.len()
         }
@@ -1067,6 +1067,8 @@ fn per_portal(
 /// What failed in an export step (`params.target` of the error).
 #[derive(Clone, Copy)]
 enum Target {
+    /// The work folder itself (a network drive or stick that is gone): nothing is written.
+    Workspace,
     /// The folder of the text files.
     TxtFolder,
     /// One text file or its mark in the database.
@@ -1082,6 +1084,7 @@ enum Target {
 impl Target {
     const fn code(self) -> &'static str {
         match self {
+            Target::Workspace => "workspace",
             Target::TxtFolder => "txtFolder",
             Target::Txt => "txt",
             Target::Overview => "overview",
@@ -1104,6 +1107,9 @@ pub fn export_all(
 ) -> ExportSummary {
     let result_dir = workspace.join(RESULT_DIR);
     let mut summary = ExportSummary::default();
+    if !reachable(workspace, &mut summary) {
+        return summary;
+    }
     retry_txt_leftovers(store, &result_dir);
     match store.txt_jobs(false) {
         Ok(jobs) => write_txts(store, &result_dir, jobs, now, &mut summary),
@@ -1217,7 +1223,7 @@ pub fn delete_jobs(
     let Some(workspace) = workspace.filter(|_| !deleted.keys.is_empty()) else {
         return Ok(deleted);
     };
-    let left = remove_deleted_txt(store, &workspace.join(RESULT_DIR), &names);
+    let left = remove_deleted_txt(store, workspace, &names);
     deleted.txt_left = u32::try_from(left).unwrap_or(u32::MAX);
     let info = info_rows(store, now, Texts::of(language));
     let run = last_scan_run(store).unwrap_or(0);
@@ -1228,10 +1234,15 @@ pub fn delete_jobs(
 }
 
 /// Removes the text files of jobs deleted for good. A file that stays (open in another
-/// program) is remembered - its job's row is gone - so the next export, "Textdateien löschen"
-/// or a reset removes it ([`Store::txt_leftovers`]). Returns how many stayed.
-fn remove_deleted_txt(store: &Store, result_dir: &Path, names: &[String]) -> usize {
-    let (_, failed) = export::clear_txt_files(result_dir, names);
+/// program, or the work folder on a drive that is gone) is remembered - its job's row is
+/// gone - so the next export, "Textdateien löschen" or a reset removes it
+/// ([`Store::txt_leftovers`]). Returns how many stayed.
+fn remove_deleted_txt(store: &Store, workspace: &Path, names: &[String]) -> usize {
+    let failed = if workspace.is_dir() {
+        export::clear_txt_files(&workspace.join(RESULT_DIR), names).1
+    } else {
+        names.to_vec()
+    };
     if failed.is_empty() {
         return 0;
     }
@@ -1271,15 +1282,19 @@ fn retry_txt_leftovers(store: &Store, result_dir: &Path) {
 
 /// "Delete text files": removes the app's text files (with those of deleted jobs that stayed
 /// earlier) and returns how many went and the names of the files that stayed (open right
-/// now); of the deleted jobs' files only those stay remembered.
-pub fn clear_txt(store: &Store, result_dir: &Path) -> crate::Result<(usize, Vec<String>)> {
-    let (removed, failed) = export::clear_txt_files(result_dir, &store.txt_names()?);
-    let still: Vec<String> = store
-        .txt_leftovers()?
-        .into_iter()
-        .filter(|n| failed.contains(n))
-        .collect();
-    store.set_txt_leftovers(&still)?;
+/// now); of the deleted jobs' files only those stay remembered - all of them while the work
+/// folder is gone.
+pub fn clear_txt(store: &Store, workspace: &Path) -> crate::Result<(usize, Vec<String>)> {
+    let (removed, failed) =
+        export::clear_txt_files(&workspace.join(RESULT_DIR), &store.txt_names()?);
+    if workspace.is_dir() {
+        let still: Vec<String> = store
+            .txt_leftovers()?
+            .into_iter()
+            .filter(|n| failed.contains(n))
+            .collect();
+        store.set_txt_leftovers(&still)?;
+    }
     Ok((removed, failed))
 }
 
@@ -1288,11 +1303,28 @@ pub fn clear_txt(store: &Store, result_dir: &Path) -> crate::Result<(usize, Vec<
 /// recreate a file deleted on purpose by itself.
 pub fn rewrite_txt(store: &Store, workspace: &Path, now: Timestamp) -> ExportSummary {
     let mut summary = ExportSummary::default();
+    if !reachable(workspace, &mut summary) {
+        return summary;
+    }
     match store.txt_jobs(true) {
         Ok(jobs) => write_txts(store, &workspace.join(RESULT_DIR), jobs, now, &mut summary),
         Err(e) => note_error(&mut summary, &e, Target::Txt),
     }
     summary
+}
+
+/// Is the work folder there? A deleted local folder is simply made again; one on a drive
+/// that is gone (a network share, a stick) is one clear error naming the work folder - not
+/// a text folder, an Excel file and an overview that each could not be written - and the
+/// export is skipped: the files follow once the folder is back.
+fn reachable(workspace: &Path, summary: &mut ExportSummary) -> bool {
+    match export::ensure_dir(workspace) {
+        Ok(()) => true,
+        Err(e) => {
+            note_error(summary, &e, Target::Workspace);
+            false
+        }
+    }
 }
 
 /// The first error stays: it is closest to the cause (the folder is unreachable); later

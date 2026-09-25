@@ -1023,6 +1023,37 @@ fn a_failed_rewrite_keeps_the_marks() {
     );
 }
 
+/// A work folder that cannot be reached (a network drive or a stick that is gone) is one
+/// clear error that names it; nothing is written and the text files wait for the next
+/// export. A text file of a job deleted meanwhile is remembered until the folder is back.
+#[test]
+fn an_unreachable_work_folder_is_one_clear_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let (store, keys) = store_with_texts();
+    // A file stands where the drive's folder would be: the folder cannot be made.
+    let stick = dir.path().join("stick");
+    std::fs::write(&stick, b"").unwrap();
+    let gone = stick.join("Job-Alerts");
+    let now = Timestamp::now();
+    let s = export_all(&store, &gone, &[], 1, now, Language::De);
+    let target = |s: &ExportSummary| s.error.as_ref().unwrap().params["target"].clone();
+    assert_eq!(target(&s), "workspace");
+    assert_eq!((s.txt_written, s.txt_failed), (0, 0));
+    assert_eq!((s.overview_xlsx, s.overview_html), (None, None));
+    assert_eq!(store.txt_jobs(false).unwrap().len(), 2, "the files wait");
+    assert_eq!(target(&rewrite_txt(&store, &gone, now)), "workspace");
+    // Emptied from the trash meanwhile: the name waits for the folder.
+    store.mark_txt_written(&keys[0], "a.txt", now).unwrap();
+    let one = &keys[..1];
+    store.move_jobs(one, Place::Trash, now).unwrap();
+    let deleted = delete_jobs(&store, Some(&gone), None, one, (now, Language::De)).unwrap();
+    assert_eq!((deleted.count, deleted.txt_left), (1, 1));
+    assert_eq!(store.txt_leftovers().unwrap(), ["a.txt"]);
+    let (removed, _) = clear_txt(&store, &gone).unwrap();
+    assert_eq!(removed, 0);
+    assert_eq!(store.txt_leftovers().unwrap(), ["a.txt"], "still waiting");
+}
+
 /// If the folder for the text files is unusable, there is one clear error instead of one
 /// attempt per file - and the real number.
 #[test]
@@ -2387,7 +2418,7 @@ fn a_text_file_that_stayed_is_removed_later() {
     store
         .set_txt_leftovers(std::slice::from_ref(&stayed))
         .unwrap();
-    let (removed, failed) = clear_txt(&store, &result_dir).unwrap();
+    let (removed, failed) = clear_txt(&store, dir.path()).unwrap();
     assert!(failed.is_empty() && removed >= 1);
     assert!(!txt_dir.join(&stayed).exists());
     assert!(store.txt_leftovers().unwrap().is_empty());

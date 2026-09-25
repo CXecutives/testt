@@ -764,6 +764,8 @@ export const de = {
       txt: 'Nicht alle Textdateien ließen sich schreiben.',
       txtFolder: 'Der Ordner der Textdateien ist nicht erreichbar.',
       backup: 'Die alte Excel-Datei ließ sich nicht sichern, die neue wurde nicht geschrieben.',
+      /** The work folder itself (a drive that is gone): nothing was written. */
+      workspace: 'Der Arbeitsordner ist nicht erreichbar.',
     },
     skipped: (value: number) => `${count(value, 'Job folgt', 'Jobs folgen')} beim nächsten Abruf.`,
     filesFailed: (value: number) =>
