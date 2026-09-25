@@ -1,0 +1,401 @@
+{
+  "name": "Ralf Testlauf",
+  "email": "ralf.testlauf@example.invalid",
+  "telefon": "+49 170 0000000",
+  "titel": "Interim Head of Logistics und Supply Chain",
+  "berufserfahrung_jahre": 21,
+  "abschluss": "Diplom-Wirtschaftsingenieur (FH)",
+  "ausbildung": [
+    {
+      "abschluss": "Diplom-Wirtschaftsingenieur (FH)",
+      "fach": "Wirtschaftsingenieurwesen mit Schwerpunkt Logistik und Supply Chain Management",
+      "hochschule": "Beispielhochschule",
+      "jahr": 2005
+    },
+    {
+      "abschluss": "Kaufmann für Spedition und Logistikdienstleistung (IHK)",
+      "fach": "Spedition und Logistik",
+      "jahr": 2001
+    }
+  ],
+  "stationen": [
+    {
+      "zeitraum": "2018 - heute",
+      "rolle": "Interim Head of Logistics und Supply Chain Manager (selbstständig)",
+      "schwerpunkte": [
+        "Sieben Interim-Mandate als Logistikleiter, Head of Supply Chain oder Standortleiter Distribution",
+        "Stabilisierung eines Zentrallagers mit 60.000 Palettenstellplätzen nach einem gescheiterten WMS-Go-live",
+        "Planung, Ausschreibung und Inbetriebnahme eines automatischen Kleinteilelagers mit Shuttle-System und Ware-zur-Person-Kommissionierung",
+        "Ausschreibung und Neuvergabe von Transport- und Kontraktlogistikleistungen mit 18 Mio. Euro Jahresvolumen",
+        "Netzwerkplanung und Konsolidierung von fünf Lagerstandorten auf zwei Distributionszentren"
+      ]
+    },
+    {
+      "zeitraum": "2010 - 2018",
+      "rolle": "Leiter Distribution und Lager eines Großhandelsunternehmens für Elektrotechnik",
+      "schwerpunkte": [
+        "Verantwortung für drei Distributionszentren mit 450 Mitarbeitenden im Mehrschichtbetrieb",
+        "Einführung von SAP EWM und Pick-by-Voice",
+        "Senkung der Logistikkosten um 14 Prozent durch Prozessoptimierung, Schichtmodell und Tourenplanung",
+        "Aufbau eines KPI-Systems für Lager und Transport"
+      ]
+    },
+    {
+      "zeitraum": "2005 - 2010",
+      "rolle": "Projektleiter Kontraktlogistik bei einem Logistikdienstleister",
+      "schwerpunkte": [
+        "Implementierung neuer Kontraktlogistik-Kunden inklusive Lagerlayout und Prozessdesign",
+        "Kalkulation und Angebotserstellung für Lager- und Transportleistungen",
+        "Anlaufmanagement für Neukunden aus Handel und Automobilzulieferung"
+      ]
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Logistikleitung",
+      "jahre": 16,
+      "auch": [
+        "Head of Logistics",
+        "Leitung Logistik",
+        "Logistikleiter",
+        "Director Logistics",
+        "Logistics Manager"
+      ]
+    },
+    {
+      "kompetenz": "Lagerlogistik",
+      "jahre": 21,
+      "auch": [
+        "Warehouse Management",
+        "Warehousing",
+        "Lagerleitung",
+        "Lagerbetrieb",
+        "Intralogistik",
+        "Lagerverwaltung"
+      ]
+    },
+    {
+      "kompetenz": "Supply Chain Management",
+      "jahre": 14,
+      "auch": [
+        "SCM",
+        "Supply Chain",
+        "Lieferkettenmanagement",
+        "End-to-End Supply Chain"
+      ]
+    },
+    {
+      "kompetenz": "Lagerautomatisierung",
+      "jahre": 8,
+      "auch": [
+        "Automatisierung",
+        "Automatisches Kleinteilelager",
+        "AKL",
+        "Shuttle-System",
+        "Fördertechnik",
+        "Ware-zur-Person"
+      ]
+    },
+    {
+      "kompetenz": "Einführung von Lagerverwaltungssystemen",
+      "jahre": 10,
+      "auch": [
+        "WMS-Einführung",
+        "WMS",
+        "Lagerverwaltungssystem",
+        "LVS",
+        "SAP EWM"
+      ]
+    },
+    {
+      "kompetenz": "Distributionslogistik",
+      "jahre": 16,
+      "auch": [
+        "Distribution",
+        "Distributionszentrum",
+        "Distribution Center",
+        "Outbound-Logistik",
+        "Fulfillment"
+      ]
+    },
+    {
+      "kompetenz": "Transportmanagement",
+      "jahre": 15,
+      "auch": [
+        "Transport Management",
+        "Transportlogistik",
+        "Frachtmanagement",
+        "Carrier Management",
+        "Tourenplanung"
+      ]
+    },
+    {
+      "kompetenz": "Logistikausschreibungen",
+      "jahre": 12,
+      "auch": [
+        "Ausschreibung Logistik",
+        "Frachtausschreibung",
+        "Tender Management",
+        "Dienstleistersteuerung"
+      ]
+    },
+    {
+      "kompetenz": "Kontraktlogistik",
+      "jahre": 10,
+      "auch": [
+        "Contract Logistics",
+        "3PL",
+        "Logistikdienstleister",
+        "Outsourcing Logistik"
+      ]
+    },
+    {
+      "kompetenz": "Netzwerkplanung",
+      "jahre": 7,
+      "auch": [
+        "Standortplanung",
+        "Logistiknetzwerk",
+        "Network Design",
+        "Standortkonsolidierung"
+      ]
+    },
+    {
+      "kompetenz": "Lagerplanung und Materialfluss",
+      "jahre": 12,
+      "auch": [
+        "Lagerplanung",
+        "Layoutplanung",
+        "Materialflussplanung",
+        "Materialfluss",
+        "Greenfield-Lager"
+      ]
+    },
+    {
+      "kompetenz": "Inbetriebnahme von Logistikzentren",
+      "jahre": 6,
+      "auch": [
+        "Go-live",
+        "Anlaufmanagement",
+        "Standortanlauf",
+        "Ramp-up"
+      ]
+    },
+    {
+      "kompetenz": "Lean Logistics",
+      "jahre": 10,
+      "auch": [
+        "Lean Management",
+        "Prozessoptimierung Logistik",
+        "KVP",
+        "Shopfloor Management",
+        "Kaizen"
+      ]
+    },
+    {
+      "kompetenz": "Logistikcontrolling",
+      "jahre": 14,
+      "auch": [
+        "KPI-Steuerung",
+        "Logistikkosten",
+        "Kennzahlen",
+        "Logistics Controlling"
+      ]
+    },
+    {
+      "kompetenz": "Bestandsmanagement",
+      "jahre": 14,
+      "auch": [
+        "Inventory Management",
+        "Bestandsoptimierung",
+        "Inventur",
+        "Bestandsführung"
+      ]
+    },
+    {
+      "kompetenz": "E-Commerce-Fulfillment",
+      "jahre": 5,
+      "auch": [
+        "Omnichannel-Logistik",
+        "Retourenmanagement",
+        "Paketversand",
+        "B2C-Logistik"
+      ]
+    },
+    {
+      "kompetenz": "Zoll und Außenhandel",
+      "jahre": 5,
+      "auch": [
+        "Zollabwicklung",
+        "Außenhandel",
+        "AEO",
+        "Incoterms"
+      ]
+    },
+    {
+      "kompetenz": "Führung gewerblicher Teams im Schichtbetrieb",
+      "jahre": 16,
+      "auch": [
+        "Personalführung",
+        "Mitarbeiterführung",
+        "Schichtbetrieb",
+        "Führung Lagerpersonal",
+        "Zusammenarbeit mit Betriebsrat"
+      ]
+    },
+    {
+      "kompetenz": "Arbeitssicherheit in der Logistik",
+      "jahre": 16,
+      "auch": [
+        "Arbeitssicherheit",
+        "HSE",
+        "Flurförderzeuge",
+        "Gefährdungsbeurteilung"
+      ]
+    },
+    {
+      "kompetenz": "Interim Management",
+      "jahre": 8,
+      "auch": [
+        "Interim-Mandate",
+        "Interim Logistikleiter",
+        "Interim Head of Supply Chain"
+      ]
+    }
+  ],
+  "schwerpunkte": [
+    "Logistikleitung",
+    "Lagerlogistik",
+    "Supply Chain Management",
+    "Lagerautomatisierung",
+    "Einführung von Lagerverwaltungssystemen"
+  ],
+  "wunschrollen": [
+    "Interim Head of Logistics",
+    "Interim Logistikleiter",
+    "Head of Supply Chain",
+    "Standortleiter Logistikzentrum",
+    "Projektleiter Lagerautomatisierung"
+  ],
+  "methoden_tools": [
+    {
+      "name": "SAP EWM"
+    },
+    {
+      "name": "SAP WM"
+    },
+    {
+      "name": "SAP S/4HANA"
+    },
+    {
+      "name": "Manhattan WMS"
+    },
+    {
+      "name": "PSIwms"
+    },
+    {
+      "name": "Transporeon"
+    },
+    {
+      "name": "Pick-by-Voice"
+    },
+    {
+      "name": "Value Stream Mapping"
+    },
+    {
+      "name": "Qlik Sense"
+    },
+    {
+      "name": "Power BI"
+    },
+    {
+      "name": "Excel"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Lean Six Sigma Green Belt"
+    },
+    {
+      "name": "Gefahrgutbeauftragter (IHK)"
+    },
+    {
+      "name": "IPMA Level C (Certified Project Manager)"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Großhandel"
+    },
+    {
+      "branche": "Einzelhandel"
+    },
+    {
+      "branche": "E-Commerce"
+    },
+    {
+      "branche": "Elektrotechnik"
+    },
+    {
+      "branche": "Automobilzulieferer"
+    },
+    {
+      "branche": "Kontraktlogistik"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C1"
+    },
+    {
+      "sprache": "Niederländisch",
+      "niveau": "B1"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Hat zwei automatisierte Logistikzentren von der Planung bis zum stabilen Betrieb geführt",
+    "Stabilisiert Lagerbetriebe nach Systemumstellungen innerhalb weniger Wochen",
+    "Kommt aus der operativen Logistik und führt Schichtleitungen auf Augenhöhe"
+  ],
+  "keywords": [
+    "Logistik",
+    "Logistikleiter",
+    "Head of Logistics",
+    "Supply Chain",
+    "Lager",
+    "Warehouse",
+    "Intralogistik",
+    "SAP EWM",
+    "WMS",
+    "Automatisierung",
+    "Transport",
+    "Distribution",
+    "Kontraktlogistik",
+    "Fulfillment"
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 900,
+    "laender": [
+      "DE",
+      "AT",
+      "CH"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "anue"
+    ],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "sofort"
+  },
+  "einsatzpraeferenzen": {
+    "remote": "bis 20 %, sonst vor Ort am Standort",
+    "regionen": [
+      "Nordrhein-Westfalen",
+      "Niedersachsen",
+      "Hessen"
+    ]
+  }
+}

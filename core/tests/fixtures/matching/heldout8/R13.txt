@@ -1,0 +1,82 @@
+Titel: Interim Head of Data & Analytics (freelance) – fully remote
+Unternehmen: Grachtveld Mobility B.V.
+Ort: Amsterdam (Remote)
+Quelle: Freelancermap
+Link: https://www.freelancermap.com/project/interim-head-of-data-analytics-freelance-fully-remote-2918577
+Abgerufen am: 23.09.2026 08:14
+
+Project details
+Start
+11/2026
+Duration
+9 months
+From
+Grachtveld Mobility B.V.
+Posted
+22.09.2026
+Project ID
+2918577
+Industry
+Transport and logistics
+Contract type
+Freelance
+Workplace
+100 % remote
+
+Description
+Grachtveld Mobility operates shared e-bikes and e-mopeds in 38 cities in the Netherlands, Belgium and Germany. Every day more than 120,000 rides generate data on demand, battery levels, repairs and pricing, and our 22-person data team turns this data into decisions: where to place vehicles, when to swap batteries and what a ride should cost.
+
+Our Head of Data has left the company and we have started the search for a permanent successor. Until that person is on board, we are looking for an experienced interim leader for the data team.
+
+Your tasks
+- Lead the data team (data engineering, analytics engineering, BI and data science) through three team leads
+- Review and prioritise the data roadmap together with the COO, the CFO and the product teams
+- Keep our platform (Snowflake, dbt, Airflow, Looker) stable and cost-efficient, and decide on the planned move of the streaming pipeline
+- Set up data governance and data ownership, including GDPR-compliant handling of location data
+- Bring the dynamic pricing and fleet rebalancing models into production with the data science team
+- Support the hiring of the permanent Head of Data and hand over in a structured way
+
+Your profile
+- 12+ years in data and analytics, of which at least 5 years leading data teams of 15 people or more
+- Hands-on knowledge of a modern data stack, ideally Snowflake and dbt
+- Experience in a B2C, mobility or marketplace business is a plus
+- Strong stakeholder management up to C-level
+- Fluent English; Dutch or German is nice to have
+
+Conditions
+- Start: 1 November 2026, duration 9 months
+- Fully remote from anywhere in the EU; one team week per quarter in Amsterdam, travel costs paid by us
+- Day rate: EUR 1,250, excluding VAT
+- Freelance contract, invoicing monthly; we can only contract freelancers based in the EU
+
+Keywords
+Data & Analytics
+Head of Data
+Snowflake
+dbt
+Looker
+Data Governance
+Interim Management
+Remote
+
+Apply now
+Save project
+Share project
+
+Provider
+Grachtveld Mobility B.V.
+Shared mobility operator
+4 published projects
+Member since 2024
+View company profile
+
+Similar projects
+Senior Data Engineer (dbt, Snowflake) – remote
+Remote · ASAP · 6 months
+Analytics Engineer Looker (m/f/d)
+Rotterdam · 12/2026 · Freelance
+Head of BI – permanent position
+Utrecht · Permanent
+Show more projects
+
+Are you a freelancer in data and analytics? Register for free and receive matching projects by email.

@@ -1,0 +1,5792 @@
+{
+  "P1.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role in finance, not HR.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP finance consulting, not HR; '120 - 135 €/h' is below 1100 EUR per day.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP FI support role; ad states 'Vertragsart: Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent Head of Group Tax, not HR.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of internal audit, not HR.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury role 'Five days a week in our Amsterdam office', and NL is not an allowed country.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role, not HR.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "IT programme director, not HR; Warsaw role 'Fully remote from any EU country' is remote abroad, which she does not allow.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector PMO lead, not HR; 'Stundensatz bis 115 €' is below 1100 EUR per day.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job, 'Werkstudent' at '17 €/Std. - 19 €/Std.', far below her rate and level.",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim money laundering officer at a bank, not HR.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Technical project lead in machine building, not HR; 'Stundensatz: 90 bis 105 €' is below 1100 EUR per day.",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Salesforce programme lead, not HR; '120 - 135 €/h' is below 1100 EUR per day.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent head of group accounting, not HR.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim finance and controlling lead for a clinic group, not HR.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior commissioning engineer 'im Rahmen der Arbeitnehmerüberlassung' at 'Stundensatz 48 €'.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim HR director running a restructuring with Sozialplan and IG Metall, her core field.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "HR integration after an acquisition fits her topics but is a mid-level project job 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement category role, not HR; 'EUR 900 - 1,000 per day' is below 1100.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning role 'four days a week in our Amsterdam office', and NL is not an allowed country.",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role on site in Warsaw, 'Willingness to be on site five days a week', and PL is not allowed.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations director for production and logistics, not HR.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA leadership, unrelated to HR.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma head of QA, unrelated to HR.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director, not HR.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector OZG programme, not HR; '72 - 80 €/h' is below 1100 EUR per day.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Sales leadership is unrelated to HR; 'Amsterdam, North Holland, Netherlands (Remote)' with a 'Contract with Kraanvogel Automation B.V.' is a fully remote role seated abroad, which the profile does not allow (remote_ausserhalb_erlaubt false), as in the agreed exclusions for P13 and P14 and set 7's K12.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of marketing, not HR.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ESG and compliance leadership, not HR.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Entry-level nursing job, 'Berufseinsteigerinnen und Berufseinsteiger sind herzlich willkommen'.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job 'im Rahmen der Arbeitnehmerüberlassung' at 'Stundenlohn 21,50 €'.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Customer service job at entry level, 'Berufseinstieg'.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO in a restructuring, finance rather than HR.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP S/4HANA Finance consulting, not HR.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO in retail, not HR.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI/CO consulting 'ausschließlich im Wege der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim head of HR transformation with a business partner model, Sozialplan and SuccessFactors, her core field.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim head of HR for a plant closure with Interessenausgleich and Sozialplan, her core field.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role 'on site in Warsaw five days per week', and PL is not an allowed country.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT head at a utility, not HR.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of group tax, not HR.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance transformation lead 'on site at our Amsterdam head office four days per week', and NL is not allowed.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "HR-side SuccessFactors project lead with works council agreement is close to her HR-IT work at project level, but 'ausschließlich im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent head of IT, not HR.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data and analytics lead for an Amsterdam firm 'Fully remote from anywhere in the EU', remote abroad she does not allow.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP S/4HANA Finance architect, not HR.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent CFO role, not HR.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support with 'ein bis drei Jahren Berufserfahrung' at '58 €/Stunde'.",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role 'two days per week in our office in Amsterdam', and NL is not an allowed country.",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of warehouse logistics, not HR.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead, not HR; 'Stundensatz: 105 € pro Stunde' is below 1100 EUR per day.",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim hospital commercial director, not HR.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical coding job 'im Rahmen der Arbeitnehmerüberlassung' at 36 € per hour.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector OZG programme, not HR; 'Tagessatz: 950 €' is below 1100.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent head of marketing, not HR.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim sales director, not HR.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim chief compliance officer at a bank, not HR.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim compliance manager, not HR.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma quality leadership, unrelated to HR.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "S&OP planning role; '€420/day - €520/day' is below 1100.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior pharma QA job with 'ein bis drei Jahren Berufserfahrung'.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job at '15 €/Std.', far below her rate and level.",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; 'Stundensatz: 48 € netto' is far below 1100 EUR per day.",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job with 'Vertragsart: Arbeitnehmerüberlassung'.",
+      "quote": ""
+    }
+  },
+  "P2.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role in finance, unrelated to procurement or planning.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO data migration consulting, not procurement or supply chain.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP accounts payable support; '62 - 68 € pro Stunde' is below 850 EUR per day.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Tax leadership role on site, 'this role is based in Zurich', and CH is not an allowed country.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit leadership, unrelated to procurement.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury cash management role, not procurement or planning.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role, unrelated to procurement.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT ERP programme director, outside procurement and planning.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Public sector PMO role, unrelated to procurement or supply chain.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student controlling job; '17 €/Std. - 19 €/Std.' is far below 850 EUR per day.",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AML compliance role, unrelated to procurement.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead, not procurement; 'Stundensatz: 90 bis 105 €' is below 850 EUR per day.",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Salesforce CRM rollout lead, unrelated to procurement.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting leadership, unrelated to procurement.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Clinic finance role in '1090 Wien, Österreich' with 'Remote: 20 %', and AT is not an allowed country.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior engineering job; 'Stundensatz 48 €' is far below 850 EUR per day.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR director role, unrelated to procurement.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project, not procurement; 'Stundenlohn liegt bei 58 € brutto' is below 850 EUR per day.",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim indirect category manager with spend analysis, tenders and Coupa, exactly his profile.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "S&OP, demand planning and Kinaxis in consumer electronics match his core planning work.",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Automotive plant manager on site in Warsaw, 'Willingness to be on site five days a week', and PL is not allowed.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Operations leadership with transport contracts is only adjacent to procurement; 'Wien, fünf Tage pro Woche vor Ort' and AT is not allowed.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Pharma QA role 'On site in Zurich four days per week', and CH is not an allowed country.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA leadership, unrelated to procurement.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director, unrelated to procurement.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector OZG programme; '72 - 80 €/h' is below 850 EUR per day.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim sales leadership, unrelated to procurement.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consumer marketing role, unrelated to procurement.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Supply chain due diligence under LkSG touches supplier risk, but this is a compliance leadership role.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Intensive care nursing job, unrelated field.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; 'Stundenlohn 21,50 €' is far below 850 EUR per day.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Inbound customer service job, unrelated field.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role, unrelated to procurement.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting, not procurement or planning.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Interim CIO role with 'Presence in our Vienna head office on three days per week', and AT is not allowed.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO conversion consulting, not procurement.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR transformation role 'vier Tage pro Woche am Hauptsitz' in Zürich, and CH is not an allowed country.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR role, unrelated to procurement.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role 'on site in Warsaw five days per week', and PL is not an allowed country.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership role, unrelated to procurement.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Tax leadership, unrelated to procurement.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Finance transformation programme where only the purchase-to-pay harmonisation touches his field.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR-IT project lead, unrelated to procurement.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of IT at a freight company, unrelated to procurement.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Data and analytics leadership, unrelated to procurement.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architecture, unrelated to procurement.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent CFO role, unrelated to procurement.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP FI/CO support; '58 €/Stunde' is below 850 EUR per day.",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim indirect category manager with tenders, savings and Coupa in food, exactly his profile.",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Warehouse operations leadership is only adjacent to his procurement and planning focus.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead; 'Stundensatz: 105 € pro Stunde' is below 850 EUR per day.",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial management, unrelated to procurement.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical controlling job; 'Stundensatz von 36 €' is far below 850 EUR per day.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Public sector OZG programme management, unrelated to procurement.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership, unrelated to procurement.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership, unrelated to procurement.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Bank compliance role that 'cannot be performed from outside Switzerland', and CH is not an allowed country.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Corporate compliance role, unrelated to procurement.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Pharma QA role 'On site in the Basel region four days per week', and CH is not an allowed country.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "S&OP and Kinaxis planning lead is his core field, but '€420/day - €520/day' is below 850.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA job, unrelated to procurement.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job; '15 €/Std.' is far below 850 EUR per day.",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; 'Stundensatz: 48 € netto' is far below 850 EUR per day.",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job; 'ab 32 € brutto pro Stunde' is far below 850 EUR per day.",
+      "quote": ""
+    }
+  },
+  "P4.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role in finance, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO consulting, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP FI support role; ad states 'Vertragsart: Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Tax role, not pharma quality; 'A permanent position' 'based in Zurich' with 'one home-office day per week' breaks her permanent location and remote rules.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit in chemicals, not pharma GMP quality.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury role 'Five days a week in our Amsterdam office', and NL is not an allowed country.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "IT programme director, not pharma quality; Warsaw role 'Fully remote from any EU country' is remote abroad, which she does not allow.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector PMO role; 'Stundensatz bis 115 €' is below 1050 EUR per day.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job, 'Werkstudent' at '17 €/Std. - 19 €/Std.', far below her rate and level.",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Banking AML role, not pharma quality.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead, not pharma quality; 'Stundensatz: 90 bis 105 €' is below 1050 EUR per day.",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Salesforce CRM programme, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting is unrelated to pharma quality; 'drei Tage pro Woche mobil, zwei Tage im Büro in Unterföhring' is a stated 60 % remote share, which meets her 60 % outside her places, and 160,000 to 185,000 is above 135,000.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Clinic finance role in '1090 Wien, Österreich', and AT is not an allowed country.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior engineering job 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR director role, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR project job 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role, not pharma quality; 'EUR 900 - 1,000 per day' is below 1050.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning role 'four days a week in our Amsterdam office', and NL is not an allowed country.",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Automotive plant manager on site in Warsaw, 'Willingness to be on site five days a week', and PL is not allowed.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Food operations role; 'Wien, fünf Tage pro Woche vor Ort' and AT is not an allowed country.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim Head of QA at a sterile CDMO with Annex 1, Swissmedic and FDA remediation, her core field.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Head of QA and Qualified Person for sterile generics in Freiburg, with permanent terms inside her permanent criteria.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial management, not pharma quality.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector OZG programme; '72 - 80 €/h' is below 1050 EUR per day.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Sales leadership is unrelated to pharma quality; 'Amsterdam, North Holland, Netherlands (Remote)' with a 'Contract with Kraanvogel Automation B.V.' is a fully remote role seated abroad, which the profile does not allow (remote_ausserhalb_erlaubt false), as in the agreed exclusions for P13 and P14 and set 7's K12.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing role, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Corporate ESG compliance, not pharma quality.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Permanent nursing job at 'zwischen 3.900 und 4.800 €' per month, far below her minimum annual salary.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Entry-level customer service job, 'Berufseinstieg' at '2.450 €/Monat - 2.700 €/Monat'.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Interim CIO role with 'Presence in our Vienna head office on three days per week', and AT is not allowed.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI/CO consulting 'ausschließlich im Wege der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR transformation role, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR role, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role 'on site in Warsaw five days per week', and PL is not an allowed country.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership role, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Tax leadership, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance transformation lead 'on site at our Amsterdam head office four days per week', and NL is not allowed.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR-IT project role 'ausschließlich im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "IT role, 'Full-time · Permanent' in Hamburg, which is outside her permanent locations.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data and analytics lead for an Amsterdam firm 'Fully remote from anywhere in the EU', remote abroad she does not allow.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architecture, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "A CFO role is unrelated to pharma quality; 'Drei Tage mobiles Arbeiten pro Woche, zwei Tage Präsenz in Unterföhring' is a stated 60 % remote share, which meets her 60 % outside her places, and up to 190,000 is above 135,000.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support; '58 €/Stunde' is below 1050 EUR per day.",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role 'two days per week in our office in Amsterdam', and NL is not an allowed country.",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Warehouse logistics role, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead; 'Stundensatz: 105 € pro Stunde' is below 1050 EUR per day.",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial management, not pharma quality.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical controlling job 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector OZG programme; 'Tagessatz: 950 €' is below 1050.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Marketing role with an 'unbefristeten Arbeitsvertrag' in Hamburg and 'Zwei Tage mobiles Arbeiten', outside her permanent location and remote rules.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership, unrelated to pharma quality.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Banking compliance role, not pharma quality.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Building a compliance management system at an OTC pharma maker is only adjacent to her GMP quality work.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim Head of Quality and QP for a sterile CDMO with Annex 1 remediation, her core field.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning role; '€420/day - €520/day' is below 1050.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior QA job in her field but far below her level, 'ein bis drei Jahren Berufserfahrung'.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job at '15 €/Std.', far below her rate and level.",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; 'Stundensatz: 48 € netto' is far below 1050 EUR per day.",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job with 'Vertragsart: Arbeitnehmerüberlassung'.",
+      "quote": ""
+    }
+  },
+  "P5.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role in finance, not IT management; the S/4HANA finance programme is only one task.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Hands-on SAP FI/CO module consultant role only adjacent to ERP programme leadership; rate \"120 - 135 €/h\" is below 1200 per day.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP FI support role; \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of Group Tax is a tax role, not IT management.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit leadership is not IT management.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury role unrelated to IT; \"Amsterdam, North Holland, Netherlands (On-site)\" at \"€750/day - €900/day\".",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim CIO for a retail group in Rhine-Main with provider management, SAP S/4HANA, Azure and NIS2 is his core role.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim programme director for an S/4HANA ERP consolidation and Azure migration in logistics matches his core; fully remote from the EU.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "PMO lead in federal public-sector IT needs V-Modell XT, budget and procurement law he lacks; \"Stundensatz bis 115 € netto\" is below 1200 per day.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job; \"17 €/Std. - 19 €/Std.\".",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AML officer role at a bank is not IT management.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead in special machinery, unrelated; \"Stundensatz: 90 bis 105 €\" is below 1200 per day.",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "IT programme lead but it needs 15 years of hands-on Salesforce implementation he lacks; \"120 - 135 €/h\" is below 1200 per day.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting leadership is not IT management.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital finance and controlling role is not IT management.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior commissioning engineer; \"Junior Projektingenieur Inbetriebnahme (m/w/d) – ANÜ\".",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR director role is not IT management.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project role; \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Indirect procurement category role, not IT; \"EUR 900 - 1,000 per day\" is below 1200.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning role, not IT; \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role unrelated to IT; \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Operations director role, not IT; \"Tagessatz: 1.100 €\" is below 1200.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA leadership is not IT management.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA head and Qualified Person role is not IT.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director role is not IT management.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Programme management fits in general but proven OZG and public-sector experience is required; \"Der Stundensatz ist durch den Rahmenvertrag des Landes auf 80 € netto gedeckelt\".",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership role is not IT management.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership role is not IT.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ESG and compliance leadership is not IT management.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Intensive care nurse job is unrelated.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; \"Elektroniker für Betriebstechnik (m/w/d) Instandhaltung – ANÜ\".",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Entry-level customer service job is unrelated.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO restructuring role is not IT management.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Hands-on SAP FI/CO Central Finance consultant role only adjacent to ERP programme leadership; \"Tagessatz: 1.050 – 1.150 €\" is below 1200.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim CIO of a retailer in Vienna with S/4HANA Retail, Azure data centre exit, outsourcing and NIS2 is his core role.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Hands-on SAP FI/CO conversion consultant, only adjacent to his ERP programme work; \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR transformation leadership is not IT management.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR head for a plant closure is not IT.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role unrelated to IT; \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim IT head at a utility with provider steering, S/4HANA Utilities tender, NIS2 and ISMS matches his core and energy focus.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of Tax role is not IT management.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "ERP-driven finance transformation programme needs a CFO or finance background he lacks; \"This role cannot be performed remotely\" in Amsterdam.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "IT project lead but for an HR SuccessFactors rollout with HR process focus; \"im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Head of IT at a freight company with cloud platform move and acquisition integration fits his field, but it is a permanent role at a smaller scope.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Data and analytics leadership on a modern data stack is only adjacent to his IT management; fully remote from the EU is fine.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Finance template rollout touches his ERP rollout work, but it needs 20 years of SAP FI/CO architecture.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent CFO role is finance, not IT.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support role; \"Honorar: 58 €/Stunde\".",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement category role, not IT; \"Amsterdam, North Holland, Netherlands (Hybrid)\" at \"EUR 950\".",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Warehouse logistics leadership, not IT; \"Tagessatz: 1.000 – 1.100 €\" is below 1200.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead, unrelated; \"Stundensatz: 105 € pro Stunde\" is below 1200 per day.",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director role is not IT management.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical controlling job; \"in Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Programme and PMO leadership fits in general but proven OZG and public-sector experience is required; \"Tagessatz: 950 € (Obergrenze gemäß Rahmenvertrag)\".",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership role is not IT.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership role is not IT management.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Chief compliance officer role at a bank is not IT.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance management role is not IT.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma quality head and QP role is not IT.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning role, not IT; \"€420/day - €520/day\".",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA role is unrelated.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job; \"15 €/Std.\".",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; \"Stundensatz: 48 € netto\".",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nurse job; \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    }
+  },
+  "P6.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO finance role, unrelated to plant and production management.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting is unrelated to manufacturing operations.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP accounting support, unrelated; rate \"62 - 68 € pro Stunde\" is far below 950 per day.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Tax leadership role unrelated to operations; place of work \"Zürich, Zurich, Switzerland (On-site)\".",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit leadership is unrelated to plant management.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury role unrelated to operations; \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role is unrelated to plant management.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT programme leadership is unrelated to plant management.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public-sector PMO role unrelated to operations; \"Stundensatz bis 115 € netto\" is below 950 per day.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job; \"17 €/Std. - 19 €/Std.\".",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AML officer role is unrelated to plant management.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Technical project lead in machine building is adjacent to her operations background but not plant leadership; \"Stundensatz: 90 bis 105 €\" is below 950 per day.",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CRM programme role unrelated to plant management.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting leadership is unrelated to operations.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Hospital finance role unrelated to operations; place of work \"1090 Wien, Österreich\" with 20 % remote.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior commissioning engineer, wrong level; \"Stundensatz 48 €\" is far below 950 per day.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR director role in a foundry is not operations leadership.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project role unrelated; \"der Stundenlohn liegt bei 58 € brutto\".",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Indirect procurement category management is not plant or production management.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S&OP planning lead is adjacent to her production planning experience; \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim plant manager at an automotive Tier-1 plant in Poland with OEE, lean, 8D and IATF 16949 is exactly her core.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Operations director over production and logistics with lean fits her, but warehouse and EWM stabilisation in food is a gap; \"Einsatzort: Wien, fünf Tage pro Woche vor Ort\".",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Quality management is one of her Schwerpunkte, but sterile pharma GMP QA with the FvP duty is another regulated specialty, like the agreed 1s for pharma QA heads in set 7 (L10, L14, L15); 'On site in Zurich four days per week' is outside DE, PL, CZ.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Quality leadership, audits and CAPA carry over from her Qualitätsmanagement Schwerpunkt, but the pharma QA head needs a Sachkundige Person under § 15 AMG and GMP experience, like the pharma QA 1s of set 7; she has no permanent criteria.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director role is unrelated to plant management.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public-sector digitalisation role unrelated; \"72 - 80 €/h\" is below 950 per day.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Sales leadership is unrelated to operations; 'Amsterdam, North Holland, Netherlands (Remote)' with a 'Contract with Kraanvogel Automation B.V.' is a fully remote role seated abroad, which the profile does not allow (remote_ausserhalb_erlaubt false), as in the agreed exclusions for P13 and P14 and set 7's K12.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership role is unrelated to operations.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ESG and compliance leadership is unrelated to plant management.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Intensive care nurse job is unrelated.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Shift electrician job, wrong level; \"Stundenlohn 21,50 €\" is far below 950 per day.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Entry-level customer service job is unrelated.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role at an automotive supplier is finance, not operations.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting is unrelated to operations.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Interim CIO role unrelated to operations; \"Vienna, Vienna, Austria (Hybrid)\" with three office days.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting is unrelated to operations.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR transformation role unrelated to operations; \"Einsatz überwiegend vor Ort in Zürich\".",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR head role is not operations leadership.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim plant manager turnaround at an automotive Tier-1 plant with OEE, SMED, TPM, 8D and IATF 16949 is exactly her core.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT head role unrelated to plant management.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of Tax role is unrelated to operations.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance transformation role unrelated; \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR-IT project role unrelated to operations.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of IT role unrelated to operations.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data leadership role unrelated; \"Amsterdam (Remote)\" is outside her countries and remote abroad is not allowed.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architecture is unrelated to operations.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent CFO role is unrelated to operations.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support role; \"Honorar: 58 €/Stunde\".",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement category role unrelated to plant management; \"two days per week in our office in Amsterdam-Sloterdijk\".",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Distribution centre leadership after a WMS change is adjacent to her operations work but needs warehouse and EWM experience she lacks.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Technical project lead for assembly lines is adjacent to her engineering background but not plant leadership; \"Stundensatz: 105 € pro Stunde\" is below 950 per day.",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director role is unrelated to plant management.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical controlling job unrelated; \"Stundensatz von 36 €\" is far below 950 per day.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Public-sector digitalisation programme is unrelated to operations.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership role is unrelated to operations.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership role is unrelated to plant management.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Bank compliance role unrelated; \"Zurich, Zurich, Switzerland (On-site)\".",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance management role is unrelated to plant management.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Quality leadership is her Schwerpunkt, but sterile pharma QA as Qualified Person is another regulated specialty, like Q07 and the pharma QA 1s of set 7; 'On site in the Basel region four days per week' is outside DE, PL, CZ.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S&OP lead across factories is adjacent to her production planning work; \"€420/day - €520/day\" is below 950.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA role, wrong level and field.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job; \"15 €/Std.\".",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; \"Stundensatz: 48 € netto\".",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nurse job; \"ab 32 € brutto pro Stunde\" is far below 950 per day.",
+      "quote": ""
+    }
+  },
+  "P7.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO finance role, not compliance or legal.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP finance consulting is unrelated to compliance; rate \"120 - 135 €/h\" is below 1100 per day.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP FI support, unrelated; \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Head of Tax needs a tax adviser qualification, not compliance; place of work \"Zürich, Zurich, Switzerland (On-site)\".",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Internal audit is adjacent to compliance and IKS, but it needs audit leadership and IIA experience she lacks.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury role unrelated to compliance; \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role is not compliance or legal.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "IT programme role unrelated to compliance; place of work \"Warsaw, Mazowieckie, Poland (Remote)\" is outside DE and AT.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public-sector PMO role unrelated to compliance; \"Stundensatz bis 115 € netto\" is below 1100 per day.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job; \"17 €/Std. - 19 €/Std.\".",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim money laundering officer at a Frankfurt private bank with GwG, KYC, BaFin and MaRisk is one of her target roles.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project role unrelated to compliance; \"Stundensatz: 90 bis 105 €\" is below 1100 per day.",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "CRM programme role unrelated to compliance; \"120 - 135 €/h\" is below 1100 per day.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting leadership is not compliance or legal.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital finance and controlling role is not compliance.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior engineering role; \"Junior Projektingenieur Inbetriebnahme (m/w/d) – ANÜ\".",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR restructuring and labour law are not her compliance field.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project role; \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role unrelated to compliance; \"EUR 900 - 1,000 per day\" is below 1100.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning unrelated to compliance; \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role unrelated to compliance; \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations director role unrelated to compliance.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Pharma QA role is not compliance or legal; \"On site in Zurich four days per week\".",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA head role is not compliance or legal.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director role is not compliance.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public-sector digitalisation role unrelated; \"72 - 80 €/h\" is below 1100 per day.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Sales leadership is unrelated to compliance; 'Amsterdam, North Holland, Netherlands (Remote)' with a 'Contract with Kraanvogel Automation B.V.' is a fully remote role seated abroad, which the profile does not allow (remote_ausserhalb_erlaubt false), as in the agreed exclusions for P13 and P14 and set 7's K12.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership role is not compliance.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Interim compliance lead with LkSG, CSDDD, whistleblowing and CMS fits, but CSRD reporting and the asked 20 years are gaps.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Intensive care nurse job is unrelated.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; \"Elektroniker für Betriebstechnik (m/w/d) Instandhaltung – ANÜ\".",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Entry-level customer service job is unrelated.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role is not compliance or legal.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting is unrelated to compliance.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role is not compliance or legal.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP finance consulting unrelated; \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR transformation and labour law are not her compliance field; \"Einsatz überwiegend vor Ort in Zürich\".",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR and social plan negotiations are not compliance.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role unrelated to compliance; \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT head role is not compliance or legal.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "The Tax CMS and the 'Vorbereitung der Prüfung nach IDW PS 980' touch her CMS Schwerpunkt (ISO 37301, IDW PS 980), as in set 7's J01, but the role needs a Steuerberater, Pillar Two and IAS 12.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance transformation role unrelated; \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR-IT project role unrelated; \"im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of IT role is not compliance.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data leadership role unrelated; \"Amsterdam (Remote)\" is outside DE and AT and remote abroad is not allowed.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architecture is unrelated to compliance.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent CFO role is not compliance.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support role; \"Honorar: 58 €/Stunde\".",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role unrelated; \"Amsterdam, North Holland, Netherlands (Hybrid)\".",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Warehouse logistics role unrelated to compliance.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project role unrelated; \"Stundensatz: 105 € pro Stunde\" is below 1100 per day.",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director role is not compliance.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical controlling job; \"in Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public-sector digitalisation programme unrelated; \"Tagessatz: 950 € (Obergrenze gemäß Rahmenvertrag)\" is below 1100.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership role is not compliance.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership role is not compliance.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Interim CCO at a bank with AML remediation is her field, but Swiss AMLA and FINMA knowledge is a must she lacks; \"the role cannot be performed from outside Switzerland\".",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Building an ISO 37301 CMS, whistleblowing channel and anti-corruption programme in pharma is exactly her core.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Pharma QA role is not compliance; \"On site in the Basel region four days per week\".",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning role unrelated; \"€420/day - €520/day\" is below 1100.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA role is unrelated.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job; \"15 €/Std.\".",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; \"Stundensatz: 48 € netto\".",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nurse job; \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    }
+  },
+  "P8.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO mandate in finance, unrelated to B2B sales and marketing.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting role, unrelated to sales and marketing; hourly range reaches 1080 per day.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP accounts payable support job; excluded by 'Honorar: 62 - 68 € pro Stunde', far below 1000 per day.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Head of group tax is unrelated to sales, and 'A permanent position' that 'is based in Zurich' (On-site) is outside his permanent places with no remote share.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit leadership, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury role unrelated to sales; excluded as on-site in 'Amsterdam, North Holland, Netherlands (On-site)' at '€750/day - €900/day'.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ERP programme director role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector PMO role unrelated to sales; excluded by 'bis 115 €/h', below 1000 per day.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job; excluded by '17 €/Std. - 19 €/Std.'.",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank AML officer role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Machine building project lead role; excluded by 'Stundensatz: 90 bis 105 €' (at most 840 per day).",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Salesforce Sales Cloud rollout for a machine tool maker fits his Salesforce CRM and B2B sales background, but it is an IT programme role asking 15 years of hands-on Salesforce.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting leadership, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Hospital finance role unrelated to sales; excluded as located in '1090 Wien, Österreich' with 'Remote: 20 %'.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior commissioning engineer job; excluded by 'Stundensatz 48 €'.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR director role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project job; excluded by 'der Stundenlohn liegt bei 58 € brutto'.",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Indirect procurement category role, unrelated to sales; rate reaches 1000 per day.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning role; excluded as on-site in 'Amsterdam, North Holland, Netherlands (On-site)'.",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Automotive plant manager role; excluded as on-site in 'Warsaw, Mazowieckie, Poland (On-site)'.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Operations director role; excluded as 'Wien, fünf Tage pro Woche vor Ort', outside DE and CH.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA leadership, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA head role, unrelated to sales; salary range reaches 155000.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector OZG programme role; excluded as the hourly rate is 'auf 80 € netto gedeckelt'.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim Head of Sales DACH in automation with OEM key accounts, go-to-market, pricing and Salesforce is his core role; fully remote from DACH.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Interim marketing lead, but for a B2C consumer food brand while his marketing experience is B2B.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ESG and compliance leadership, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job; excluded as 'Unbefristeter Arbeitsvertrag' at '3.900 €/Monat - 4.800 €/Monat', below 140000 per year.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; excluded by 'Stundenlohn 21,50 €'.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Entry-level call centre job; excluded as full-time employment at '2.450 €/Monat - 2.700 €/Monat', below 140000 per year.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO restructuring mandate, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Interim CIO role; excluded as 'Vienna, Vienna, Austria (Hybrid)' with three office days, outside DE and CH.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO consulting role, unrelated to sales; ANÜ is allowed for him and no rate is stated.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR transformation lead, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR manager for a plant closure, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager turnaround role; excluded as 'on site in Warsaw five days per week'.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT manager for a utility, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of tax, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance transformation role; excluded as 'This role cannot be performed remotely' in Amsterdam.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR-IT project lead, unrelated to sales; ANÜ is allowed for him and no rate is stated.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Head of IT is unrelated to sales, and the 'Permanent' role in 'Hamburg, Germany (Hybrid)' is outside his permanent places; hybrid proves no remote share.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Data and analytics leadership, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architect role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support job; excluded by 'Honorar: 58 €/Stunde'.",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role; excluded as hybrid in Amsterdam with 'two days per week in our office' at 'Day rate: EUR 950'.",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of logistics, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead role; excluded by 'Stundensatz: 105 € pro Stunde' (840 per day).",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical controlling job; excluded by 'Stundensatz von 36 €'.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector programme role; excluded by 'Tagessatz: 950 €', below 1000.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Head of marketing for a consumer food brand is only partly his B2B field; 'Einen unbefristeten Arbeitsvertrag' in Hamburg is outside his places and 'Zwei Tage mobiles Arbeiten pro Woche' is 40 %, below his 60 %.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim Sales Director DACH for motion systems with key accounts, pricing and Salesforce in Stuttgart is exactly his profile.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank compliance officer role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance management role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma quality head role, unrelated to sales and marketing.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning role; excluded by '€420/day - €520/day'.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA job, unrelated; no rate stated.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job; excluded by '15 €/Std.'.",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; excluded by 'Stundensatz: 48 € netto'.",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job; excluded by 'ab 32 € brutto pro Stunde'.",
+      "quote": ""
+    }
+  },
+  "P9.json": {
+    "N01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Interim CFO covers tax only as one area; refinancing, IFRS conversion and treasury are outside the tax and audit core.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI/CO migration consulting is not tax or audit work, and the rate is below the minimum: \"Hourly rate 120 - 135 €/h\".",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP FI support role via staffing: \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Head of Group Tax with Pillar Two, transfer pricing, IAS 12 and audit committee reporting is exactly her core; permanent role in Zurich is not excluded for her.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim head of group internal audit with risk-based audit plan, quality assessment, IKS and chemistry industry matches her core directly.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "An operational treasury manager covering a parental leave is outside her tax and audit field; even the senior profile with a Treasury Schwerpunkt gets only 1 for the level. 'Amsterdam, North Holland, Netherlands (On-site)' is outside DE, AT, CH and '€750/day - €900/day' is below 1,300.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role is IT management, unrelated to tax and audit; rate range reaches the minimum.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "IT programme director role is unrelated, and it is a remote role for a Polish employer: \"Warsaw, Mazowieckie, Poland (Remote)\".",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector PMO lead is unrelated, and the rate is below the minimum: \"Stundensatz bis 115 €/h\".",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Working student job, far below level: \"17 €/Std. - 19 €/Std.\" and \"Praktikum\".",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "AML officer at a bank touches her MaRisk audit and fraud experience but is a different specialism; rate range reaches the minimum.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Technical project lead in machine building is unrelated, and the rate is below minimum: \"Stundensatz: 90 bis 105 €\".",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Salesforce programme lead is unrelated, and the rate is below minimum: \"Hourly rate 120 - 135 €/h\".",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Head of group accounting is adjacent finance work (IFRS consolidation), not her tax and audit core; permanent role is not excluded for her.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Interim finance and controlling lead of a hospital group is only adjacent to tax and audit.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior engineering job via staffing: \"im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CHRO restructuring is HR, unrelated to tax and audit; rate up to 1,300 reaches the minimum.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project manager via staffing: \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Indirect procurement is unrelated, and the rate is below minimum: \"EUR 900 - 1,000 per day\".",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning is unrelated, and on site abroad: \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role is unrelated, and on site abroad: \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Operations director role is unrelated, and the rate is below minimum: \"Tagessatz: 1.100 €\".",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA leadership is unrelated to tax and audit.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA head with Qualified Person duties is unrelated to tax and audit.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director needs hospital management and DRG know-how, not tax and audit; rate range reaches the minimum.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "OZG programme management is unrelated, and the rate is capped far below minimum: \"Stundensatz 72 - 80 €/h\".",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "B2B sales leadership is unrelated, and the rate is below minimum: \"Day rate: EUR 1,100 to 1,250\".",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Marketing leadership is unrelated, and the rate is below minimum: \"Tagessatz 1.100 - 1.250 €\".",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "ESG and supply chain compliance is adjacent to her GRC work but not her core, and the rate is below minimum: \"Honorar: 1.100 - 1.250 € pro Tag\".",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Entry-level nursing job, clearly below her target seniority: \"Berufseinsteigerinnen und Berufseinsteiger sind herzlich willkommen\".",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job via staffing: \"im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Entry-level call centre job, clearly below her target seniority: \"Berufseinstieg\".",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Interim CFO restructuring role is general finance leadership, only adjacent to tax and audit.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP Central Finance consulting is not tax or audit, and the rate is below minimum: \"Tagessatz: 1.050 – 1.150 €\".",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role is unrelated to tax and audit.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI/CO conversion consulting via staffing: \"ausschließlich im Wege der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR transformation lead is unrelated to tax and audit.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR head for a plant closure is unrelated to tax and audit.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant turnaround is unrelated, and on site abroad: \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT head at a utility is unrelated; rate range reaches the minimum.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim head of group tax with Pillar Two, Tax CMS per IDW PS 980, tax audits and IAS 12 in Düsseldorf chemistry is her exact core.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Finance transformation programme is only adjacent to tax and audit, and on site abroad: \"This role cannot be performed remotely\" in Amsterdam.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR IT project lead via staffing: \"ausschließlich im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of IT at a freight company is unrelated to tax and audit.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data and analytics leadership is unrelated, and the rate is below minimum: \"Day rate: EUR 1,250\".",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP S/4HANA Finance architecture is not tax or audit.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Permanent CFO role includes tax but is general finance leadership, only adjacent; permanent is not excluded for her.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support job, far below level and rate: \"Honorar: 58 €/Stunde\".",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Indirect procurement is unrelated, and the role is partly on site abroad: \"Amsterdam, North Holland, Netherlands (Hybrid)\".",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Logistics leadership is unrelated, and the rate is below minimum: \"Tagessatz: 1.000 – 1.100 €\".",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Machine building project lead is unrelated, and the rate is below minimum: \"Stundensatz: 105 € pro Stunde\".",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director needs hospital management and DRG know-how, not tax and audit.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical coding controller via staffing: \"im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "OZG programme management is unrelated, and the rate is below minimum: \"Tagessatz: 950 €\".",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership is unrelated to tax and audit.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "B2B sales leadership is unrelated to tax and audit; rate range reaches the minimum.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Bank chief compliance officer with AML focus touches her GRC and MaRisk audit work but needs Swiss AML law expertise she lacks.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Building a compliance management system with IDW PS 980 experience fits her CMS and GRC background, though anti-corruption law and a law degree are gaps; rate range reaches the minimum.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma head of quality and QP is unrelated; CHF 1,250 is not clearly below her EUR minimum.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning is unrelated, and the rate is far below minimum: \"€420/day - €520/day\".",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior pharma QA job, clearly below her target seniority: \"mit ein bis drei Jahren Berufserfahrung\".",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job, far below level and rate: \"15 €/Std.\".",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job is unrelated, and the rate is far below minimum: \"Stundensatz: 48 € netto\".",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job via staffing: \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    }
+  },
+  "P10.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role is finance, unrelated to marketing.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance migration consulting is unrelated to marketing; rate range reaches the minimum.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Unrelated junior SAP support role and the rate is far below the minimum: \"Honorar: 62 - 68 € pro Stunde\".",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Group tax leadership is unrelated to marketing, and 'A permanent position' that 'is based in Zurich' (On-site) is outside her permanent places with no remote share.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit leadership is unrelated to marketing.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury is unrelated to marketing, and on site abroad: \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role is IT management, unrelated to marketing.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ERP programme direction is unrelated to marketing; remote abroad is allowed for her.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector PMO lead is unrelated, and the rate is below the minimum: \"Stundensatz bis 115 €/h\".",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Working student job, far below level and rate: \"17 €/Std. - 19 €/Std.\".",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AML officer role is unrelated to marketing.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Technical project lead in machine building is unrelated, and the rate is below minimum: \"Stundensatz: 90 bis 105 €\".",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Salesforce CRM rollout touches her marketing technology and lead management, but it is a B2B IT programme needing 15 years of Salesforce implementation.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting is unrelated to marketing; stated salary is above her minimum.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital finance and controlling is unrelated to marketing.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior engineering job, rate far below minimum: \"Stundensatz 48 €\".",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CHRO is HR, unrelated to marketing.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration role is unrelated, and pay is far below minimum: \"der Stundenlohn liegt bei 58 € brutto\".",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Indirect procurement is unrelated to marketing; rate range reaches her minimum.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning is unrelated, and on site abroad: \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role is unrelated, and on site abroad: \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production and logistics operations is unrelated to marketing.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA leadership is unrelated to marketing.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA head is unrelated to marketing; stated salary is above her minimum.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director is unrelated to marketing.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "OZG programme management is unrelated, and the rate is below minimum: \"Stundensatz 72 - 80 €/h\".",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Interim B2B sales head for automation technology is only adjacent to her B2C marketing leadership (go-to-market part).",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim head of marketing for a Hamburg D2C food brand with relaunch, performance and CRM is exactly her core.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ESG and compliance is unrelated to marketing.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job with permanent salary far below her minimum: \"3.900 €/Monat - 4.800 €/Monat\".",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job, pay far below minimum: \"Stundensatz 21,50 €\".",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Entry-level customer service job with permanent salary far below her minimum: \"2.450 €/Monat - 2.700 €/Monat\".",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role is unrelated to marketing.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting is unrelated to marketing.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role is unrelated to marketing.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO consulting is unrelated to marketing; staffing is allowed for her and no rate is stated.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR transformation lead is unrelated to marketing.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR head is unrelated to marketing.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant turnaround is unrelated, and on site abroad: \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT head is unrelated to marketing.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group tax leadership is unrelated to marketing.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance transformation is unrelated, and on site abroad: \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR IT project lead is unrelated to marketing; staffing is allowed for her and no pay figure is stated.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of IT is unrelated to marketing; salary range reaches her minimum.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of a data engineering and data science team is a different field from marketing; remote abroad is allowed for her.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architecture is unrelated to marketing.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role is unrelated to marketing; stated salary is above her minimum.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support job, rate far below minimum: \"Honorar: 58 €/Stunde\".",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Indirect procurement is unrelated, and the role is partly on site abroad: \"Amsterdam, North Holland, Netherlands (Hybrid)\".",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Logistics leadership is unrelated to marketing.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Machine building project lead is unrelated, and the rate is below minimum: \"Stundensatz: 105 € pro Stunde\".",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director is unrelated to marketing.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical coding controller, pay far below minimum: \"Stundensatz 36 €\".",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "OZG programme management is unrelated, and the rate is below minimum: \"Tagessatz: 950 €\".",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Head of marketing for a Hamburg food brand with repositioning, agency pitch, MMM and performance marketing is her core; permanent salary and place fit her criteria.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Interim B2B sales director for motion systems is only adjacent to her B2C marketing leadership.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank compliance leadership is unrelated to marketing.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance management is unrelated to marketing.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma head of quality is unrelated to marketing.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning is unrelated, and the rate is far below minimum: \"€420/day - €520/day\".",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA job is unrelated to marketing; no stated rate or other criterion of hers is violated.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job, rate far below minimum: \"15 €/Std.\".",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job is unrelated, and the rate is far below minimum: \"Stundensatz: 48 € netto\".",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job with pay far below minimum: \"ab 32 € brutto pro Stunde\".",
+      "quote": ""
+    }
+  },
+  "P11.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role is finance, unrelated to logistics.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance migration consulting is unrelated to logistics.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Unrelated SAP support role via staffing: \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group tax leadership is unrelated to logistics.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit leadership is unrelated to logistics.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury is unrelated to logistics, and on site abroad: \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role in retail IT is not logistics management.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "ERP and TMS consolidation at a logistics group is only partly relevant to a logistics head, and it is remote abroad: \"Warsaw, Mazowieckie, Poland (Remote)\".",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Public sector PMO lead is unrelated to logistics; 115 €/h x 8 still reaches the minimum.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Working student controlling job, rate far below minimum: \"17 €/Std. - 19 €/Std.\".",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AML officer role is unrelated to logistics.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Special machine building project lead is an engineering role, not logistics, and the rate is below minimum: \"Stundensatz: 90 bis 105 €\".",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Salesforce CRM programme is unrelated to logistics.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting is unrelated to logistics.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital finance and controlling is unrelated to logistics.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior commissioning engineer via staffing: \"im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CHRO is HR, unrelated to logistics.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration role via staffing: \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Procurement category role includes logistics service tenders, which is only a side part of his logistics profile.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S&OP and demand planning is adjacent to his supply chain and inventory work but not his logistics core, and on site abroad: \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Automotive plant management is only adjacent operations work for a logistics head, and on site abroad: \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Stabilising an automated freezer warehouse after SAP EWM go-live, transport contracts and shift operations is his core; production lines are the only gap.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA leadership is unrelated to logistics.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA head is unrelated to logistics.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director is unrelated to logistics.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "OZG programme management is unrelated, and the rate is below minimum: \"Stundensatz 72 - 80 €/h\".",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Sales leadership is unrelated to logistics; 'Amsterdam, North Holland, Netherlands (Remote)' with a 'Contract with Kraanvogel Automation B.V.' is a fully remote role seated abroad, which the profile does not allow (remote_ausserhalb_erlaubt false), as in the agreed exclusions for P13 and P14 and set 7's K12.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership is unrelated to logistics.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain due diligence compliance is a legal and ESG role, not logistics.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Nursing job is unrelated to logistics; no hard criterion of his covers it.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Maintenance electrician via staffing: \"im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Customer service job is unrelated to logistics; no hard criterion of his covers it.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO role is unrelated to logistics.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting is unrelated to logistics.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role in retail IT is not logistics management.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI/CO consulting via staffing: \"ausschließlich im Wege der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR transformation lead is unrelated to logistics.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR head is unrelated to logistics.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Automotive plant management is only adjacent operations work for a logistics head, and on site abroad: \"Warsaw, Mazowieckie, Poland (On-site)\".",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT head is unrelated to logistics.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group tax leadership is unrelated to logistics.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance transformation is unrelated, and on site abroad: \"Amsterdam, North Holland, Netherlands (On-site)\".",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR IT project lead via staffing: \"ausschließlich im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "IT head at a freight forwarder with a TMS move is only partly relevant to a logistics operations head.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data team leadership is unrelated, and it is remote for a Dutch employer: \"Amsterdam (Remote)\".",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architecture is unrelated to logistics.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role is unrelated to logistics.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support job, rate far below minimum: \"Honorar: 58 €/Stunde\".",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Procurement category role includes logistics and warehousing tenders, only a side part of his profile, and it is partly on site abroad: \"Amsterdam, North Holland, Netherlands (Hybrid)\".",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim head of a central warehouse with AKL shuttle system, SAP EWM stabilisation and e-commerce fulfilment matches his core and his own reference case.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Special machine building project lead is an engineering role, and the rate is below minimum: \"Stundensatz: 105 € pro Stunde\".",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director is unrelated to logistics.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical coding controller via staffing: \"im Rahmen der Arbeitnehmerüberlassung\".",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "OZG programme management is unrelated to logistics; rate reaches his minimum.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership is unrelated to logistics.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "B2B sales leadership is unrelated to logistics.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank compliance leadership is unrelated to logistics.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance management is unrelated to logistics.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma head of quality is unrelated to logistics.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S&OP planning lead is adjacent to his supply chain work, but the rate is far below minimum: \"€420/day - €520/day\".",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA job is unrelated to logistics; no hard criterion of his is violated.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job, rate far below minimum: \"15 €/Std.\".",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job is unrelated, and the rate is far below minimum: \"Stundensatz: 48 € netto\".",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job via staffing: \"Vertragsart: Arbeitnehmerüberlassung\".",
+      "quote": ""
+    }
+  },
+  "P12.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO in plastics manufacturing is a finance role unrelated to engineering project management.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP S/4HANA Finance consulting is unrelated to machine engineering.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI support is unrelated and '62 - 68 € pro Stunde' is far below 750 per day.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of Group Tax is a permanent tax role unrelated to engineering.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of internal audit is unrelated to engineering.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury management is unrelated and the role is 'Amsterdam, North Holland, Netherlands (On-site)'.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO in retail is unrelated to engineering project management.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ERP programme director in logistics is IT, not engineering; fully remote work abroad is allowed for him.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Public sector PMO for register modernisation is unrelated to engineering.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Working student job is the wrong field and level and '17 €/Std. - 19 €/Std.' is far below 750 per day.",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Money laundering officer at a bank is unrelated to engineering.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Freelance technical project lead for automated assembly lines with FAT, SAT, CE and SAP PS is exactly his profile, and 90 to 105 €/h reaches his minimum.",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Salesforce CRM programme lead is IT and sales work, not engineering, even though the client builds machine tools.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of group accounting in a media group is unrelated to engineering.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital finance and controlling lead is unrelated to engineering.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Commissioning packaging lines is his field but this is a junior role for 1 to 3 years and 'Stundensatz 48 €' is far below 750 per day.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR director for a restructuring is unrelated to engineering.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project is unrelated and 'der Stundenlohn liegt bei 58 € brutto' is far below 750 per day.",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Indirect procurement category management is unrelated to engineering project management.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "S&OP planning is unrelated and the role is 'Amsterdam, North Holland, Netherlands (On-site)'.",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Automotive plant management is adjacent manufacturing work rather than engineering projects, and the role is 'Warsaw, Mazowieckie, Poland (On-site)'.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Leading three food production lines and a new automated high-bay warehouse touches his food industry and intralogistics automation background, like the agreed 1s for the plant manager roles Q05 and R07; the operations leadership, WMS and lean musts are open. Vienna is in his countries and 1,100 meets his 750.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of pharma QA is unrelated to engineering.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma head of QA and Qualified Person is unrelated to engineering.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director is unrelated to engineering.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "OZG programme management is unrelated and '72 - 80 €/h' is at most 640 per day, below 750.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of sales is a sales role, not engineering; fully remote work abroad is allowed for him.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of marketing for a food brand is unrelated to engineering.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ESG and compliance leadership is unrelated to engineering.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ICU nursing job is unrelated to engineering.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Maintenance electrician is a trade job below his level and 'Stundenlohn 21,50 €' is far below 750 per day.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Entry-level customer service job is unrelated to engineering.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO in a restructuring is a finance role unrelated to engineering.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP Central Finance consulting is unrelated to engineering.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO in retail is unrelated to engineering.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO conversion consulting is unrelated to engineering; ANÜ is acceptable for him.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of HR transformation is unrelated to engineering.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim HR head for a plant closure is unrelated to engineering.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Automotive plant turnaround with launch readiness is adjacent to his manufacturing background but line management, and it requires work 'on site in Warsaw five days per week'.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT head of a utility is unrelated to engineering.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of tax is unrelated to engineering.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance transformation is unrelated and 'This role cannot be performed remotely', on site in Amsterdam.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR-IT SuccessFactors project is unrelated to engineering; ANÜ is acceptable for him.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent head of IT at a freight company is unrelated to engineering.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim head of data and analytics is unrelated to engineering; fully remote work abroad is allowed for him.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP S/4HANA Finance architecture is unrelated to engineering.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent CFO of a media group is unrelated to engineering.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support is unrelated and 'Honorar: 58 €/Stunde' is below 750 per day.",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Indirect procurement is unrelated and the role is 'Amsterdam, North Holland, Netherlands (Hybrid)' with two office days.",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of a distribution centre is logistics operations, not engineering project work.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Freelance technical project lead for automated assembly lines with FAT, SAT, CE and US commissioning is his core field, and 105 €/h is 840 per day.",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial director is unrelated to engineering.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical coding job is unrelated and 'Der angegebene Stundensatz von 36 €' is far below 750 per day.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "OZG programme management is unrelated to engineering.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent head of marketing is unrelated to engineering.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim sales director is sales work, not engineering, even though the customers are machine builders.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim chief compliance officer at a bank is unrelated to engineering.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Building a compliance management system is unrelated to engineering.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma head of quality and QP is unrelated to engineering.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "S&OP planning is unrelated and '€420/day - €520/day' is below 750.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA job is unrelated to engineering.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job is unrelated and '15 €/Std.' is far below 750 per day.",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Building electrician is a trade job, not engineering project management, and 'Stundensatz: 48 € netto' is below 750 per day.",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "ICU nursing is unrelated and 'ab 32 € brutto pro Stunde' is far below 750 per day.",
+      "quote": ""
+    }
+  },
+  "P13.json": {
+    "N01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Interim CFO of an industrial PE-owned group is finance leadership like hers but outside healthcare and focused on refinancing and IFRS.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP finance consulting is not hospital management and '120 - 135 €/h' is at most 1080 per day, below 1100.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP accounts payable support is unrelated and offered 'im Rahmen der Arbeitnehmerüberlassung', which she excludes.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Group tax role is unrelated and the job is in 'Zürich, Zurich, Switzerland (On-site)', outside Germany.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group internal audit in a chemicals company is a different field from hospital commercial management.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury role is unrelated, on site in 'Amsterdam, North Holland, Netherlands (On-site)' at '€750/day - €900/day'.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Retail CIO role is outside hospital commercial management.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "IT programme role is unrelated and based in 'Warsaw, Mazowieckie, Poland (Remote)', and she does not accept remote work abroad.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "PMO role is unrelated and 'bis 115 €/h' gives at most 920 per day, below 1100.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Working student controlling job is far below her level and '17 €/Std. - 19 €/Std.' is far below 1100 per day.",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank AML compliance is a different field from hospital management.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead is unrelated and 'Stundensatz: 90 bis 105 €' is at most 840 per day, below 1100.",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "CRM programme is unrelated and '120 - 135 €/h' is at most 1080 per day, below 1100.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent IFRS group accounting lead in a listed media group is a specialist accounting field she does not cover.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Interim finance and controlling lead for a hospital group is close to her field but under the Austrian LKF system and narrower than a commercial director; place of work '1090 Wien, Österreich'.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior engineering role is unrelated and offered 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR director role with social plan negotiations is a different field from hospital commercial management.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project is unrelated and offered 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role is unrelated and 'EUR 900 - 1,000 per day' is below 1100.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning is unrelated and the role is 'Amsterdam, North Holland, Netherlands (On-site)'.",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Automotive plant manager is unrelated and the role is 'Warsaw, Mazowieckie, Poland (On-site)'.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Operations role is unrelated and the place of work is '1110 Wien, Österreich', five days on site.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Pharma QA role is unrelated and requires being 'On site in Zurich four days per week'.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma quality assurance is a different field from hospital management.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim commercial director of a municipal hospital with restructuring, DRG, budget negotiations and KHVVG planning is exactly her profile.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "OZG programme is unrelated and '72 - 80 €/h' is far below 1100 per day.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Sales leadership is unrelated and the employer is 'Amsterdam, North Holland, Netherlands (Remote)', while she does not accept remote work abroad.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consumer marketing leadership is unrelated to hospital management.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain ESG compliance is a different field from hospital management.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Entry-level ICU nursing is clinical work far below and outside her hospital management role.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job is unrelated and offered 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Entry-level customer service job is unrelated to hospital management.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Restructuring CFO matches her turnaround and finance leadership but at an automotive supplier with bank and IFRS focus, not a hospital.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting is a different field, and the 1,050 to 1,150 range reaches her minimum.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Retail CIO role is unrelated and the place of work is 'Vienna, Vienna, Austria (Hybrid)' with three office days.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP consulting is unrelated and offered 'ausschließlich im Wege der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR role is unrelated and the place of work is '8001 Zürich', four days on site.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR restructuring role is a different field from hospital commercial management.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role is unrelated and requires work 'on site in Warsaw five days per week'.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Utility IT leadership is unrelated to hospital management.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group tax role is a different field from hospital management.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Corporate finance transformation programme is outside her field and 'This role cannot be performed remotely', on site in Amsterdam.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR-IT project is unrelated and offered 'ausschließlich im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of IT in logistics is unrelated to hospital management.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data leadership is unrelated and the role is 'Amsterdam (Remote)', while she does not accept remote work abroad.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architecture is unrelated to hospital management.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Permanent CFO role shares finance leadership but in a media group with IFRS, financing and M&A rather than hospitals.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support is unrelated and 'Honorar: 58 €/Stunde' is far below 1100 per day.",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role is unrelated, based in 'Amsterdam, North Holland, Netherlands (Hybrid)' at 'EUR 950' per day.",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Warehouse logistics leadership is unrelated to hospital management; the rate up to 1,100 reaches her minimum.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project is unrelated and 'Stundensatz: 105 € pro Stunde' is 840 per day, below 1100.",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim commercial director of a hospital group with restructuring, budget negotiations, MD claims and reform planning is exactly her profile.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Medizincontrolling is her field but this is a staff coding job far below her level, offered 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "OZG programme is unrelated and 'Tagessatz: 950 €' is below 1100.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consumer marketing is unrelated to hospital management.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "B2B sales leadership is unrelated to hospital management.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Bank compliance is unrelated and 'the role cannot be performed from outside Switzerland'.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Corporate compliance in consumer health is a different field from hospital commercial management.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Pharma quality role is unrelated and requires being 'On site in the Basel region four days per week'.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning is unrelated and '€420/day - €520/day' is far below 1100.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA job is unrelated and far below her level.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job is unrelated and '15 €/Std.' is far below 1100 per day.",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job is unrelated and 'Stundensatz: 48 € netto' is far below 1100 per day.",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "ICU nursing is clinical work, not management, and the contract is 'Arbeitnehmerüberlassung'.",
+      "quote": ""
+    }
+  },
+  "P14.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Industrial CFO role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO migration consulting is outside public sector programme management.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI support is unrelated and '62 - 68 € pro Stunde' is far below 850 per day.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Group tax role is unrelated and the job is in 'Zürich, Zurich, Switzerland (On-site)', outside Germany.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit leadership is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury role is unrelated and the role is 'Amsterdam, North Holland, Netherlands (On-site)'.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Line CIO role in a retail group is a different function and sector from public sector programme management.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Programme management fits but SAP ERP consolidation in logistics is another domain; the role is 'Warsaw, Mazowieckie, Poland (Remote)' and remote work abroad is not allowed.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "PMO lead for Registermodernisierung with V-Modell XT, EVB-IT and budget law is his core field at the right level.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Working student job is the wrong field and level and '17 €/Std. - 19 €/Std.' is far below 850 per day.",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank AML role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Machine engineering project is unrelated and 'Stundensatz: 90 bis 105 €' is at most 840 per day, below 850.",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Programme lead role uses his steering skills but demands 15 years of Salesforce in private manufacturing, which he lacks.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Hospital finance role is unrelated and the place of work is '1090 Wien, Österreich'.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior engineering role is unrelated and 'Stundensatz 48 €' is far below 850 per day.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR restructuring role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project is unrelated and 'der Stundenlohn liegt bei 58 € brutto' is far below 850 per day.",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement category management in food manufacturing is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning is unrelated and the role is 'Amsterdam, North Holland, Netherlands (On-site)'.",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role is unrelated and the role is 'Warsaw, Mazowieckie, Poland (On-site)'.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Operations role is unrelated and the place of work is '1110 Wien, Österreich'.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Pharma QA role is unrelated and requires being 'On site in Zurich four days per week'.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial management is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "OZG and EfA programme management for a state ministry is his core field, but the rate is 'auf 80 € netto gedeckelt', at most 640 per day and below 850.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Sales leadership is unrelated and the employer is 'Amsterdam, North Holland, Netherlands (Remote)', while he does not accept remote work abroad.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ESG compliance in retail is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Nursing job is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job is unrelated and 'Stundenlohn 21,50 €' is far below 850 per day.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Entry-level customer service job is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Industrial CFO role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance consulting is outside public sector programme management.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Retail CIO line role is a different field and the place of work is 'Vienna, Vienna, Austria (Hybrid)'.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO consulting is unrelated to public sector digitalisation; ANÜ is acceptable for him.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR role is unrelated and the place of work is '8001 Zürich', four days on site.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role is unrelated and requires work 'on site in Warsaw five days per week'.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Municipal utility IT head shares public procurement and IT-Grundschutz topics but is IT line management, not administrative digitalisation programmes.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group tax role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance transformation requires a finance career he lacks and 'This role cannot be performed remotely', on site in Amsterdam.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "IT project leadership with works council and change topics is partly relevant, but the SuccessFactors HR domain in insurance is not his.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent IT line role in freight is a different field and sector.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data leadership is unrelated and the role is 'Amsterdam (Remote)', while he does not accept remote work abroad.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architecture is outside public sector digitalisation.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Media CFO role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support is unrelated and 'Honorar: 58 €/Stunde' is below 850 per day.",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role is unrelated and the role is 'Amsterdam, North Holland, Netherlands (Hybrid)' with two office days.",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Logistics operations role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project is unrelated and 'Stundensatz: 105 € pro Stunde' is 840 per day, below 850.",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital commercial management is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical coding job is unrelated and 'Der angegebene Stundensatz von 36 €' is far below 850 per day.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "OZG and EfA programme lead with PMO, E-Akte and procurement for a state ministry is his core field at 950 per day.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing role is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Bank compliance is unrelated and 'the role cannot be performed from outside Switzerland'.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance management is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Pharma quality role is unrelated and requires being 'On site in the Basel region four days per week'.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning is unrelated and '€420/day - €520/day' is below 850.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior pharma QA job is unrelated to public sector digitalisation.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job is unrelated and '15 €/Std.' is far below 850 per day.",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job is unrelated and 'Stundensatz: 48 € netto' is below 850 per day.",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "ICU nursing is unrelated and 'ab 32 € brutto pro Stunde' is far below 850 per day.",
+      "quote": ""
+    }
+  },
+  "sample_profile_sap_wishes.json": {
+    "N01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Executive CFO mandate, far outside and above an SAP FI/CO consulting role.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "SAP S/4HANA Finance with Central Finance and data migration in Frankfurt is exactly the consultant's focus.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Same SAP FI field but a junior second-level support job; excluded as 'Vertragsart: Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Tax leadership role, not SAP FI/CO consulting.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit leadership, not SAP FI/CO consulting.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Treasury operations role, not SAP consulting; excluded as 'Five days a week in our Amsterdam office' at '€750/day - €900/day'.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S/4HANA programme leadership is only partly relevant to an FI/CO consultant; excluded as a Polish role 'Fully remote from any EU country' while remote work abroad is not allowed.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector PMO role unrelated to SAP finance; excluded by 'bis 115 €/h' (at most 920 per day).",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job; excluded as 'Werkstudent' is clearly below five years and paid '17 €/Std. - 19 €/Std.'.",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AML compliance role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead role; excluded by 'Stundensatz: 90 bis 105 €' (at most 840 per day).",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CRM programme role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Head of group accounting touches S/4HANA Group Reporting but is a leadership role beyond a consultant's profile.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital finance and controlling leadership, not SAP consulting.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior engineering job; excluded as 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR leadership role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR integration project, not SAP finance; excluded as 'Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement category role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning role; excluded as on-site in 'Amsterdam, North Holland, Netherlands (On-site)'.",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role; excluded as on-site in 'Warsaw, Mazowieckie, Poland (On-site)'.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production and logistics leadership, not SAP finance consulting.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA leadership, not SAP finance consulting.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA head role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital management role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector OZG programme role; excluded as the hourly rate is 'auf 80 € netto gedeckelt' (640 per day).",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Sales leadership is unrelated to SAP finance; 'Amsterdam, North Holland, Netherlands (Remote)' with a 'Contract with Kraanvogel Automation B.V.' is a fully remote role seated abroad, which the profile does not allow (remote_ausserhalb_erlaubt false), as in the agreed exclusions for P13 and P14 and set 7's K12.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consumer marketing role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ESG and compliance role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job; excluded as a permanent job at '3.900 €/Monat - 4.800 €/Monat', below 95000 per year.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; excluded as 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Entry-level call centre job; excluded as 'Berufseinstieg' at '2.450 €/Monat - 2.700 €/Monat'.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Restructuring CFO mandate, outside SAP FI/CO consulting.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "S/4HANA Finance with Central Finance and data migration in Wiesbaden for an insurer is a direct match.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "S/4HANA FI/CO conversion with GL, AA and CO is core work; excluded as 'ausschließlich im Wege der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR leadership role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR leadership role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role; excluded as 'on site in Warsaw five days per week'.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group tax role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Finance transformation lead with S/4HANA template work is only partly relevant; excluded as on-site in Amsterdam, 'This role cannot be performed remotely'.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SuccessFactors HR project lead, not SAP finance; excluded as 'ausschließlich im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data leadership role; excluded as a Dutch role 'Fully remote from anywhere in the EU' while remote work abroad is not allowed.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Lead architect S/4HANA Finance is his field, but it asks for 20 years of FI/CO against his 12 to 14.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO executive role, outside SAP FI/CO consulting.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP FI/CO support job, wrong level; excluded by 'Honorar: 58 €/Stunde' and 'ein bis drei Jahren Berufserfahrung'.",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role; excluded as hybrid with 'two days per week in our office in Amsterdam-Sloterdijk'.",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Warehouse logistics leadership, not SAP finance consulting.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead role; excluded by 'Stundensatz: 105 € pro Stunde' (840 per day).",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital management role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical controlling job; excluded as 'in Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Public sector programme role, unrelated to SAP finance; 950 per day meets the minimum.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consumer marketing role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank compliance role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma quality role, not SAP finance consulting.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning role; excluded by '€420/day - €520/day' and a Polish remote role.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior QA job; excluded as 'ein bis drei Jahren Berufserfahrung', below five years.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job; excluded as 'Studentische Hilfskraft' at '15 €/Std.'.",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; excluded by 'Stundensatz: 48 € netto'.",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job; excluded as 'Arbeitnehmerüberlassung'.",
+      "quote": ""
+    }
+  },
+  "sample_profile_senior_wishes.json": {
+    "N01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim CFO with refinancing, IFRS conversion and finance transformation in Bavaria matches her core profile.",
+      "quote": ""
+    },
+    "N02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "A hands-on SAP consultant role is the wrong field and level for an interim CFO; 'At least 8 years of experience as SAP FI/CO consultant' with a Consultant title is below her 10-year target.",
+      "quote": ""
+    },
+    "N03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support job unrelated to CFO work; excluded as 'Vertragsart: Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "N04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Group tax leadership is adjacent to finance but needs a tax adviser specialism she lacks; 'A permanent position' that 'is based in Zurich' (On-site) is outside her permanent places with no remote share.",
+      "quote": ""
+    },
+    "N05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Interim head of internal audit is finance-adjacent but not her CFO or transformation core.",
+      "quote": ""
+    },
+    "N06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Treasury is one of her fields but this is an operational manager cover; excluded as 'Five days a week in our Amsterdam office' at '€750/day - €900/day'.",
+      "quote": ""
+    },
+    "N07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role outside her finance field.",
+      "quote": ""
+    },
+    "N08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "IT-led ERP consolidation programme; her programme and finance transformation experience is only partly relevant.",
+      "quote": ""
+    },
+    "N09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector PMO role outside her field; excluded by 'bis 115 €/h', below 1000 per day.",
+      "quote": ""
+    },
+    "N10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student job; excluded as 'Werkstudent' is clearly below ten years and paid '17 €/Std. - 19 €/Std.'.",
+      "quote": ""
+    },
+    "N11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AML compliance leadership outside her finance field.",
+      "quote": ""
+    },
+    "N12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead role; excluded by 'Stundensatz: 90 bis 105 €' (at most 840 per day).",
+      "quote": ""
+    },
+    "N13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Salesforce CRM programme role outside finance.",
+      "quote": ""
+    },
+    "N14": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Leitung Konzernrechnungswesen with IFRS consolidation in Unterföhring is one of her target roles, 160000 to 185000 with 60 % remote.",
+      "quote": ""
+    },
+    "N15": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Interim head of finance and controlling fits her finance leadership, with a gap in hospital-specific revenue steering.",
+      "quote": ""
+    },
+    "N16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior engineering job; excluded as 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR restructuring leadership outside her finance field.",
+      "quote": ""
+    },
+    "Q02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Mid-level HR integration project; excluded as 'Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "A procurement category role is outside her finance field; '8+ years in strategic procurement' for an 'Interim Category Manager' (no senior title) is below her 10-year target.",
+      "quote": ""
+    },
+    "Q04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply chain planning role; excluded as on-site in 'Amsterdam, North Holland, Netherlands (On-site)'.",
+      "quote": ""
+    },
+    "Q05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role; excluded as on-site in 'Warsaw, Mazowieckie, Poland (On-site)'.",
+      "quote": ""
+    },
+    "Q06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations leadership outside her finance field.",
+      "quote": ""
+    },
+    "Q07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA leadership outside her finance field.",
+      "quote": ""
+    },
+    "Q08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma QA head role outside finance; salary range reaches 155000.",
+      "quote": ""
+    },
+    "Q09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Implementing a Sanierungskonzept as interim commercial director fits her restructuring Schwerpunkt and CFO leadership, but hospital management, KHG and KHEntgG, DRG and budget negotiations are open, like set 7's L12 and M11 and the agreed 2 for N15.",
+      "quote": ""
+    },
+    "Q10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector OZG programme role; excluded as the hourly rate is 'auf 80 € netto gedeckelt'.",
+      "quote": ""
+    },
+    "Q11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership role outside finance.",
+      "quote": ""
+    },
+    "Q12": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consumer marketing role outside finance.",
+      "quote": ""
+    },
+    "Q13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain compliance and ESG leadership outside her finance field.",
+      "quote": ""
+    },
+    "Q14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job; excluded as a permanent job at '3.900 €/Monat - 4.800 €/Monat', below 150000 per year.",
+      "quote": ""
+    },
+    "Q15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; excluded as 'im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "Q16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Entry-level call centre job; excluded as 'Berufseinstieg' at '2.450 €/Monat - 2.700 €/Monat'.",
+      "quote": ""
+    },
+    "R01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim CFO for restructuring and refinancing at a Bavarian automotive supplier matches her core profile.",
+      "quote": ""
+    },
+    "R02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hands-on SAP customizing consultant role, wrong field and level for an interim CFO.",
+      "quote": ""
+    },
+    "R03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CIO role outside her finance field.",
+      "quote": ""
+    },
+    "R04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Hands-on SAP consultant role; excluded as 'ausschließlich im Wege der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR restructuring leadership outside her finance field.",
+      "quote": ""
+    },
+    "R06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role for a plant closure outside her finance field.",
+      "quote": ""
+    },
+    "R07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Plant manager role; excluded as 'on site in Warsaw five days per week'.",
+      "quote": ""
+    },
+    "R08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership role outside her finance field.",
+      "quote": ""
+    },
+    "R09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Head of group tax is finance-adjacent but needs a Steuerberater and a tax specialism she lacks.",
+      "quote": ""
+    },
+    "R10": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Finance transformation lead with shared services, S/4HANA and IFRS is her core field; excluded as 'This role cannot be performed remotely' in the Netherlands.",
+      "quote": ""
+    },
+    "R11": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "HR-IT project role outside finance; excluded as 'ausschließlich im Rahmen der Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "R12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Head of IT role outside finance; excluded as 'Permanent' at '€125,000/yr - €145,000/yr', below 150000.",
+      "quote": ""
+    },
+    "R13": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Data leadership role outside finance.",
+      "quote": ""
+    },
+    "R14": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP architect role, wrong field and level for an interim CFO.",
+      "quote": ""
+    },
+    "R15": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Permanent CFO in Unterföhring with IFRS conversion, refinancing and M&A at 170000 to 190000 and 60 % remote fits her.",
+      "quote": ""
+    },
+    "R16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior SAP support job; excluded by 'Honorar: 58 €/Stunde' and 'ein bis drei Jahren Berufserfahrung'.",
+      "quote": ""
+    },
+    "S01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Procurement role; excluded as hybrid in Amsterdam with 'two days per week in our office' at 'Day rate: EUR 950'.",
+      "quote": ""
+    },
+    "S02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Logistics leadership outside her finance field.",
+      "quote": ""
+    },
+    "S03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Engineering project lead role; excluded by 'Stundensatz: 105 € pro Stunde' (840 per day).",
+      "quote": ""
+    },
+    "S04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Restructuring as interim commercial director and 'Sicherung der Liquidität und Abstimmung mit den finanzierenden Banken' fit her restructuring and treasury Schwerpunkte, but hospital finance (KHEntgG, KHBV, DRG) and budget negotiations are open, like Q09 and set 7's L12 and M11.",
+      "quote": ""
+    },
+    "S05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Medical controlling job; excluded as 'in Arbeitnehmerüberlassung'.",
+      "quote": ""
+    },
+    "S06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Public sector programme role; excluded by 'Tagessatz: 950 €', below 1000.",
+      "quote": ""
+    },
+    "S07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Consumer marketing is outside finance; 'Einen unbefristeten Arbeitsvertrag' in Hamburg is outside her places and 'Zwei Tage mobiles Arbeiten pro Woche' is 40 %, below her 60 %.",
+      "quote": ""
+    },
+    "S08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership role outside finance.",
+      "quote": ""
+    },
+    "S09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank compliance leadership outside her finance field.",
+      "quote": ""
+    },
+    "S10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance management outside her finance field.",
+      "quote": ""
+    },
+    "S11": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pharma quality leadership outside her finance field.",
+      "quote": ""
+    },
+    "S12": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Supply planning role; excluded by '€420/day - €520/day'.",
+      "quote": ""
+    },
+    "S13": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior QA job; excluded as 'ein bis drei Jahren Berufserfahrung', below ten years.",
+      "quote": ""
+    },
+    "S14": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Student assistant job; excluded as 'Studentische Hilfskraft' at '15 €/Std.'.",
+      "quote": ""
+    },
+    "S15": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Electrician job; excluded by 'Stundensatz: 48 € netto'.",
+      "quote": ""
+    },
+    "S16": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Nursing job; excluded as 'Arbeitnehmerüberlassung'.",
+      "quote": ""
+    }
+  }
+}

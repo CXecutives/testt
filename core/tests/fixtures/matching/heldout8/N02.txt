@@ -1,0 +1,81 @@
+Titel: SAP S/4HANA Finance Consultant (f/m/d) – Central Finance and Data Migration
+Unternehmen: Taunusblick IT Advisory GmbH
+Ort: Frankfurt am Main
+Quelle: Freelancermap
+Link: https://www.freelancermap.com/project/sap-s-4hana-finance-consultant-f-m-d-central-finance-and-data-migration-2915386
+Abgerufen am: 22.09.2026 07:18
+
+Project details
+Start
+01.11.2026
+Duration
+10 months
+From
+Taunusblick IT Advisory GmbH
+Posted
+21.09.2026
+Project ID
+2915386
+Industry
+Insurance
+Contract type
+Freelance
+Work type
+60 % remote
+Hourly rate
+120 - 135 €/h
+
+Description
+Our client, a German insurance group with 17 legal entities, is consolidating four SAP ECC systems into a single SAP S/4HANA Finance instance. Central Finance is used as the transition platform before the full cut-over in 2027. We are looking for an experienced SAP FI/CO consultant to take over the finance data migration workstream.
+
+Your tasks
+• Configure and stabilise the Central Finance replication (initial load, real-time replication, error handling in AIF)
+• Map charts of accounts, cost centre and profit centre hierarchies via SAP MDG
+• Plan and run the mock loads and the reconciliation of balances, open items and asset values
+• Customizing of FI-GL, FI-AA and CO-OM in the target system
+• Support the SAP Group Reporting team with the data model for the consolidation
+• Coordinate with accounting, controlling and the offshore delivery team in Pune
+
+Requirements
+• At least 8 years of experience as SAP FI/CO consultant, including two S/4HANA Finance implementations
+• Hands-on experience with Central Finance (CFIN) and the SAP Migration Cockpit
+• Solid knowledge of new asset accounting and the Universal Journal
+• Experience in insurance or banking is an advantage (FS-CD is not required)
+• Fluent German and English; workshops are held in German
+
+Conditions
+Location: Frankfurt am Main, two days per week on site, the rest remote
+Start: 01.11.2026, duration 10 months, extension likely
+Workload: full time
+Contract: freelance under a service contract with us. This is not a temporary staffing assignment; Arbeitnehmerüberlassung (ANÜ) is excluded.
+
+Keywords
+SAP FI
+SAP CO
+S/4HANA Finance
+Central Finance
+Data migration
+Migration Cockpit
+SAP MDG
+Group Reporting
+Insurance
+
+Apply now
+Save project
+Share project
+
+Provider
+Taunusblick IT Advisory GmbH
+SAP consulting and project staffing
+128 published projects
+Member since 2017
+View company profile
+
+Similar projects
+SAP FI-AA Consultant S/4HANA (f/m/d)
+Remote · 12/2026 · 6 months
+SAP Central Finance Architect (f/m/d)
+Munich · from now · freelance
+SAP Group Reporting Consultant (f/m/d)
+Cologne · 01/2027
+Show more projects
