@@ -402,7 +402,8 @@ test('the mailbox says when the last fetch could not reach Gmail', async ({ page
   const mailbox = page.getByTestId('settings-mailbox');
   await expect(mailbox).toContainText('Nicht erreichbar');
   await expect(mailbox).not.toContainText('Verbunden');
-  await expect(page.getByTestId('mailbox-failure')).toHaveText('Gmail ist nicht erreichbar.');
+  // The badge says it all; no sentence under it repeats it.
+  await expect(page.getByTestId('mailbox-failure')).toHaveCount(0);
 });
 
 test('the macOS demo shows the keychain and Mac paths', async ({ page }) => {

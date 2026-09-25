@@ -9,7 +9,8 @@
   and a run (a fetch, or the rescore after a profile change) holds the mailbox, the folder
   and the files, so what they cannot do is locked with the reason of that run instead of
   failing. The Postfach says when the last fetch could not reach Gmail or Gmail refused the
-  password, instead of "Verbunden".
+  password, instead of "Verbunden": a red badge like the sidebar's status, and a sentence
+  under the row only where it adds the cause or the next step.
   Every path row works the same: the path is text to select and copy, the folder opens with
   "Ordner öffnen", the Excel file with "Öffnen".
 -->
@@ -76,6 +77,15 @@
     if (mailboxSaved || outcome?.kind !== 'failed') return null;
     return MAIL_FAILURES.includes(outcome.error.kind) ? outcome.error : null;
   });
+  /** The sentence under the row: what to do when Gmail refused the password, else the cause
+   *  where it says more than the badge ("Gmail ist nicht erreichbar" is the badge itself). */
+  const mailFailureText = $derived(
+    mailFailure === null || mailFailure.kind === 'mailConnect'
+      ? null
+      : mailFailure.kind === 'mailAuth'
+        ? t.settings.mailRefused
+        : t.error.text(mailFailure.kind, mailFailure.params),
+  );
 
   async function act(
     name: string,
@@ -283,7 +293,7 @@
                   label={mailFailure.kind === 'mailAuth'
                     ? t.settings.refused
                     : t.settings.unreachable}
-                  tone="warning"
+                  tone="danger"
                   icon="triangle-alert"
                 />
               {:else}
@@ -326,15 +336,8 @@
             }}
           />
         {/if}
-        {#if mailFailure && !editing}
-          <Notice
-            tone="danger"
-            variant="inline"
-            text={mailFailure.kind === 'mailAuth'
-              ? t.settings.mailRefused
-              : t.error.text(mailFailure.kind, mailFailure.params)}
-            testid="mailbox-failure"
-          />
+        {#if mailFailureText && !editing}
+          <Notice tone="danger" variant="inline" text={mailFailureText} testid="mailbox-failure" />
         {/if}
         {#if cfg.mailbox.error}
           <Notice
