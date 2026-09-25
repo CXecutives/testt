@@ -50,6 +50,8 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   await expect(page.getByTestId('section-criteria')).toContainText(
     'In der Datei stand „viel“, das ist keine Zahl.',
   );
+  // ... with the red border and aria-invalid of every field with an error.
+  await expect(page.getByTestId('profile-remote-min')).toHaveAttribute('aria-invalid', 'true');
   for (const section of [
     'person',
     'competences',
@@ -138,6 +140,14 @@ test('edit and save: both forms go to the backend, the change is confirmed', asy
   await expect(save(page)).toHaveAttribute('aria-disabled', 'true');
   await expect(page.getByTestId('profile-saved-at')).toBeVisible();
   await expect(page.getByTestId('profile-date')).toHaveValue('01.11.2026');
+});
+
+test('the head and the first section keep the rhythm of all sections', async ({ page }) => {
+  await profile(page);
+  const head = (await page.getByTestId('profile-file').boundingBox())!;
+  const person = (await page.getByTestId('section-person').boundingBox())!;
+  const competences = (await page.getByTestId('section-competences').boundingBox())!;
+  expect(person.y - (head.y + head.height)).toBe(competences.y - (person.y + person.height));
 });
 
 test('the save bar says what is unsaved and what was saved, once', async ({ page }) => {
