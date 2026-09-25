@@ -10,7 +10,7 @@
 // - Rows are plain objects (`$state.raw`): a change replaces the row, so only that row
 //   renders again, and no proxy sits between the template and 2000 jobs.
 // - Every number comes from the backend (one truth): the counts of the list (with the
-//   search) and the counts over every job (sidebar, new jobs per portal, favourites).
+//   search) and the counts over every job (day overview, new jobs per portal, places).
 //   A change the page makes itself (read, a move) or a run update of a listed row moves
 //   them at once; during a run a counts-only query follows every update (throttled), so
 //   they stay exact for rows the page does not hold.
@@ -262,7 +262,7 @@ class JobsStore {
   detailSlow = $state(false);
   detailError = $state<string | null>(null);
 
-  /** The counts over every job, without the search (sidebar, new per portal). */
+  /** The counts over every job, without the search (day overview, the places' own counts). */
   overviewCounts = $state<JobCounts | null>(null);
   overviewStatus = $state<Status>('idle');
 
@@ -586,7 +586,7 @@ class JobsStore {
   }
 
   /**
-   * The counts over every job for the day overview and the sidebar: one counts-only query
+   * The counts over every job for the day overview and the list header: one counts-only query
    * (on an error the overview says nothing, not "nothing new").
    */
   async loadOverview(): Promise<void> {

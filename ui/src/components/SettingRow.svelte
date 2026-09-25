@@ -13,7 +13,7 @@
   interface Props {
     label: string;
     hint?: string | null;
-    /** Badges next to the label (e.g. the state of the mailbox). */
+    /** Badges next to the label (e.g. Verbunden). */
     badges?: Snippet | null;
     /** The hint is a value a user would copy (a folder path). */
     copy?: boolean;

@@ -180,7 +180,7 @@ export interface RollParams {
 }
 
 /**
- * A count that changes while it is visible (sidebar count, segment counts, tiles, run
+ * A count that changes while it is visible (segment counts, tiles, run
  * counters): `{#key value}<span class="roll" in:roll={{ up }}>{value}</span>{/key}` on an
  * inline-block span. The new number rises --move-md in the direction of the change and
  * fades in (150 ms, emphasized); the old one leaves at once (no out, so nothing stacks or

@@ -33,8 +33,6 @@
   import { shell } from '$lib/state/shell.svelte';
   import { viewport } from '$lib/state/viewport.svelte';
 
-  const SIDEBAR_ID = 'sidebar';
-
   /** The views, and under Jobs its places (the inbox is Jobs itself). */
   type NavId = ViewId | 'archive' | 'trash';
   const items = $derived<SideNavItem<NavId>[]>([
@@ -131,7 +129,7 @@
   }
 </script>
 
-<aside class="sidebar" class:rail={viewport.rail} id={SIDEBAR_ID} data-testid="sidebar">
+<aside class="sidebar" class:rail={viewport.rail} data-testid="sidebar">
   {#if dragBands()}<span class="lights"><DragBand /></span>{/if}
   <!-- Until the state is known nothing is guessed (like the views): the entries come with it,
        as they are, instead of changing their colours in front of the user. -->

@@ -104,7 +104,7 @@
   /** The width of the list column (the splitter keeps it per user). */
   let listWidth = $state<number | undefined>(undefined);
   /** The content beside the sidebar (and the sheet's hairline): the list's limits and its
-   *  first width follow it when the window resizes or the sidebar folds. */
+   *  first width follow it when the window resizes (the sidebar turns to its rail too). */
   const content = $derived(
     viewport.width -
       tokenPx(viewport.rail ? '--rail-width' : '--sidebar-width') -
