@@ -252,6 +252,49 @@ test('live-forms-13: a wrong day is said once, at its field', async ({ page }) =
   expect(await saves(page)).toBe(0);
 });
 
+test('live-forms-14: Enter in a field saves the form; lists and chips keep their Enter', async ({
+  page,
+}) => {
+  await profile(page);
+  // Nothing changed: nothing to save.
+  await page.getByTestId('profile-name-field').press('Enter');
+  expect(await saves(page)).toBe(0);
+  const cases: [string, string][] = [
+    ['profile-name-field', 'Carla Exempel'],
+    ['profile-title', 'Interim CFO'],
+    ['profile-min-rate', '1.300'],
+    ['profile-years', '21'],
+  ];
+  for (const [id, value] of cases) {
+    const before = await saves(page);
+    await page.getByTestId(id).fill(value);
+    await page.getByTestId(id).press('Enter');
+    await expect.poll(() => saves(page), id).toBe(before + 1);
+    await expect(page.getByTestId('profile-saved')).toBeVisible();
+  }
+  // The day: Enter saves once it reads, and judges it when it does not.
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
+  const date = page.getByTestId('profile-date');
+  await date.fill('31.02.2026');
+  await date.press('Enter');
+  await expect(page.getByTestId('profile-date-error')).toHaveText('Diesen Tag gibt es nicht.');
+  expect(await saves(page)).toBe(4);
+  await date.fill('01.12.2026');
+  await date.press('Enter');
+  await expect.poll(() => saves(page)).toBe(5);
+  // A chip field adds what was typed; a row goes to the next row.
+  const tools = page.getByTestId('profile-tools').locator('input');
+  await tools.fill('Miro');
+  await tools.press('Enter');
+  await expect(chips(page.getByTestId('profile-tools')).last()).toHaveText('Miro');
+  await page.getByTestId('competence-name').first().press('Enter');
+  await expect(page.getByTestId('competence-name').nth(1)).toBeFocused();
+  expect(await saves(page)).toBe(5);
+  // Ctrl+S (Cmd+S on macOS) stays the form's save from anywhere in it.
+  await page.getByTestId('competence-name').nth(1).press('Control+s');
+  await expect.poll(() => saves(page)).toBe(6);
+});
+
 test('live-forms-15: one choice is one Tab stop, and the arrows choose', async ({ page }) => {
   await profile(page);
   const row = page.getByTestId('language-row').first();

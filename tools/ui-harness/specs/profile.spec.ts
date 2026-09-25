@@ -489,9 +489,7 @@ test('chip field: Enter adds, a pasted list splits, x and Backspace remove, Esc 
   await input.fill('Miro');
   await page.getByTestId('profile-name-field').click();
   await expect(chips(field).last()).toHaveText('Miro');
-  // Enter never saves the long form; Ctrl+S (Cmd+S on macOS) does.
-  await input.press('Enter');
-  expect(await calls(page, 'save_profile')).toHaveLength(0);
+  // Ctrl+S (Cmd+S on macOS) saves from anywhere in the form.
   await input.press('Control+s');
   await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
   expect((await lastSave(page)).after.tools).toEqual([
@@ -544,7 +542,7 @@ test('Enter goes through the rows and never saves; on an empty last row it moves
 }) => {
   await profile(page);
   const names = page.getByTestId('competence-name');
-  // A field outside the rows: Enter does nothing.
+  // A field outside the rows: Enter saves, and with nothing changed nothing is saved.
   await page.getByTestId('profile-name-field').press('Enter');
   // In a row: Enter goes to the next row.
   await names.nth(0).press('Enter');

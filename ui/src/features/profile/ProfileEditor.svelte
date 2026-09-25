@@ -6,14 +6,16 @@
   competences are needed, which their sentence says once. Every field of a block has the
   height of a field (md), the toggle buttons too, and every number field one width with its
   unit beside it. The countries are a field that suggests the countries the engine knows
-  (by their German and English names), with DACH in one click; a country of a file the app
-  does not know stays as it is. The day of "Ab Datum" exists only while it is chosen and
-  gets the caret when it is. A thin profile marks its empty sections. A value of the file the app
-  could not read is said at its field with "Wert entfernen"; a value the backend refused is
-  said there too, and the field gets the caret. The save bar stays at the bottom of the view:
-  "Speichern" (the one primary, only with a change) and "Verwerfen", or Ctrl/Cmd+S; without a
-  change both say why they wait. Enter never saves this long form: in the row lists it goes
-  to the next row.
+  (by their German and English names and the other names people use), with DACH in one
+  click; a country of a file the app does not know stays as it is. The day of "Ab Datum"
+  exists only while it is chosen and gets the caret when it is; it is judged when the field
+  is left or on saving, never while it is typed. A thin profile marks its empty sections. A
+  value of the file the app could not read is said at its field with "Wert entfernen"; a
+  value the backend refused is said there too, and the field gets the caret (said once, at
+  the field). The save bar stays at the bottom of the view: "Speichern" (the one primary,
+  only with a change) and "Verwerfen"; without a change both say why they wait. Enter in a
+  field saves, as in every form (in the row lists it goes to the next row, in a chip field it
+  adds what was typed), and Ctrl/Cmd+S saves from anywhere in the form.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -318,7 +320,7 @@
 <div
   class="editor"
   bind:this={root}
-  use:formKeys={{ shortcut: save }}
+  use:formKeys={{ save, shortcut: save }}
   onfocusin={keepClear}
   data-testid="profile-form"
 >
