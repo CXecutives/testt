@@ -1,8 +1,9 @@
 <!--
   A quiet pill for a fact with a state (the reader's criteria strip): an icon for the state,
   then the words, usually the ad's own value ("1.100 €/Tag", "ab sofort").
-  - met: a green icon (only with the ad as evidence), unknown: an ochre icon, violated: red
-    on the danger wash, unset: muted with a dash (the ad does not say), plain: a neutral fact.
+  - met: a green icon (only with the ad as evidence), unknown: the navy question mark of a
+    point to check (info, the same colour as its reason and its passage), violated: red on
+    the danger wash, unset: muted with a dash (the ad does not say), plain: a neutral fact.
   - With onselect it is a button: it washes on hover (80 ms in, 150 ms out), lights its
     passage while hovered (onhover) and jumps to it on a click; pressed it darkens and never
     moves. Without it the pill is plain text with its tooltip.
@@ -115,8 +116,9 @@
     --chip-icon: var(--success-strong);
   }
 
+  /* To check is info everywhere: chip, reason icon and the passage's underline. */
   .unknown {
-    --chip-icon: var(--warning-strong);
+    --chip-icon: var(--info);
   }
 
   .violated,

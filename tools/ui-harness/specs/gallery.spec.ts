@@ -89,6 +89,20 @@ test('the evidence of a reason is part of it: its wash and its click cover the l
   await expect(reason).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 });
 
+test('to check has one colour: the chip and the reason show the same navy', async ({ page }) => {
+  await open(page, '?gallery');
+  const section = page.getByTestId('gallery-reasons');
+  await section.scrollIntoViewIfNeeded();
+  const chip = await section
+    .locator('.chip.unknown .chip-icon')
+    .evaluate((node) => getComputedStyle(node).color);
+  const reason = await section
+    .locator('.reason.check .icon')
+    .first()
+    .evaluate((node) => getComputedStyle(node).color);
+  expect(chip).toBe(reason);
+});
+
 test('under reduced motion the rings jump to their value', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '?gallery');
