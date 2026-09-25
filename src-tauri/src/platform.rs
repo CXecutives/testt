@@ -44,12 +44,12 @@ pub const TITLE_BAR_BACKGROUND: Rgb = [0xF8, 0xF5, 0xF1];
     allow(dead_code, reason = "only Windows colours its title bar")
 )]
 pub const TITLE_BAR_TEXT: Rgb = [0x2E, 0x2D, 0x28];
-/// Title text while the window is inactive: `--text-subtle` (`--p-fg-subtle`, hsl 30 4% 48%).
+/// Title text while the window is inactive: `--text-subtle` (`--p-fg-subtle`, hsl 30 4% 43%).
 #[cfg_attr(
     not(windows),
     allow(dead_code, reason = "only Windows colours its title bar")
 )]
-pub const TITLE_BAR_TEXT_INACTIVE: Rgb = [0x7F, 0x7A, 0x76];
+pub const TITLE_BAR_TEXT_INACTIVE: Rgb = [0x72, 0x6E, 0x69];
 
 /// A colour as red, green and blue bytes.
 pub type Rgb = [u8; 3];
