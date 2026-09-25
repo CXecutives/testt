@@ -518,7 +518,7 @@ export const en: Catalog = {
     reset: 'Double-click to reset',
   },
   selection: {
-    count: (n: number) => `${n} selected`,
+    count: (value: number) => `${n(value)} selected`,
     clear: 'Clear selection',
     chosen: (value: number) => `${count(value, 'job', 'jobs')} selected`,
     commandKey: { ctrl: 'Ctrl', cmd: 'Cmd' },

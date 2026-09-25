@@ -1310,6 +1310,34 @@ fn the_catalog_has_no_ai_punctuation() {
     fail(&problems, "plain punctuation in the UI catalogs");
 }
 
+/// Every number a catalog writes goes through its formatter `n` ("1.860 ausgewählt", not
+/// "1860"): a parameter named `n` would hide the formatter in its function, so none is.
+#[test]
+fn the_catalog_formats_every_number() {
+    let all = scanned(MIN_FILES);
+    let mut problems = Vec::new();
+    for path in CATALOGS {
+        let name = path.rsplit('/').next().unwrap_or(path);
+        let source = catalog(&all, path);
+        assert!(
+            source
+                .code
+                .contains("const n = (value: number): string => formatNumber(value);"),
+            "{name}: the number formatter `n` moved"
+        );
+        for (line, code) in source.lines() {
+            // A parameter `n`, typed or not, first, later or alone.
+            let declared = ["(n:", ", n:", "(n)", "(n,", ", n)", "(n =", " n =>"];
+            if declared.iter().any(|pattern| code.contains(pattern)) {
+                problems.push(format!(
+                    "{name}:{line}: a parameter hides the formatter `n`"
+                ));
+            }
+        }
+    }
+    fail(&problems, "numbers in the UI catalogs");
+}
+
 /// The release build must not ship the gallery (it is compiled out via `__GALLERY__`).
 #[test]
 fn the_release_build_has_no_gallery() {

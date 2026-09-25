@@ -525,7 +525,7 @@ export const de = {
   },
   /** The bar that replaces the list's second row while several jobs are selected. */
   selection: {
-    count: (n: number) => `${n} ausgewählt`,
+    count: (value: number) => `${n(value)} ausgewählt`,
     clear: 'Auswahl aufheben',
     /** The reader while several jobs are chosen. */
     chosen: (value: number) => `${count(value, 'Job', 'Jobs')} ausgewählt`,
