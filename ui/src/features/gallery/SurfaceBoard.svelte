@@ -4,7 +4,7 @@
   import Card from '$components/Card.svelte';
   import Meter from '$components/Meter.svelte';
   import Skeleton from '$components/Skeleton.svelte';
-  import Splitter from '$components/Splitter.svelte';
+  import Splitter, { splitLimits } from '$components/Splitter.svelte';
   import { cssVars } from '$lib/actions/cssVars';
   import Section from './Section.svelte';
   import { text } from './gallery';
@@ -12,6 +12,9 @@
   const t = text.surfaces;
   const noop = (): void => undefined;
   let width = $state<number | undefined>(undefined);
+  /** The demo's limits follow its own width, like the list's follow the window. */
+  let room = $state(0);
+  const limits = $derived(splitLimits(room));
 </script>
 
 <Section heading={t.cards} id="cards">
@@ -26,9 +29,21 @@
 
 <!-- Drag the handle (left button), double click to reset; the width is kept. -->
 <Section heading={t.split} id="split">
-  <div class="split" data-testid="split-demo" use:cssVars={{ 'split-width': `${width ?? 0}px` }}>
+  <div
+    class="split"
+    data-testid="split-demo"
+    bind:clientWidth={room}
+    use:cssVars={{ 'split-width': `${width ?? 0}px` }}
+  >
     <div class="pane list" data-testid="split-list">{t.list}</div>
-    <Splitter bind:size={width} storageKey="gallery-split" testid="splitter" />
+    <Splitter
+      bind:size={width}
+      initial={limits.initial}
+      min={limits.min}
+      max={limits.max}
+      storageKey="gallery-split"
+      testid="splitter"
+    />
     <div class="pane">{t.reader}</div>
   </div>
 </Section>

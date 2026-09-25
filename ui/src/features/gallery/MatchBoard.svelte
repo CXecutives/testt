@@ -161,9 +161,10 @@
     margin-top: var(--space-16);
   }
 
+  /* One column in the reader's width, like the reader lists them. */
   .reasons {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(var(--list-min), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(calc(var(--reader-width) / 2), 1fr));
     gap: var(--space-4) var(--space-24);
     max-width: var(--reader-width);
   }
@@ -174,12 +175,12 @@
   }
 
   .bar-slot {
-    max-width: var(--list-max);
+    max-width: var(--list-first-max);
     min-height: var(--control-sm);
   }
 
   .list {
-    max-width: var(--list-max);
+    max-width: var(--list-first-max);
     overflow: hidden;
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius-card);

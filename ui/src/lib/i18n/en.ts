@@ -504,6 +504,8 @@ export const en: Catalog = {
   },
   splitter: {
     label: 'Width of the list',
+    tip: 'Resize',
+    reset: 'Double-click to reset',
   },
   selection: {
     count: (n: number) => `${n} selected`,

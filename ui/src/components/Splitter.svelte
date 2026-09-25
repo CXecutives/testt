@@ -2,18 +2,50 @@
   The handle between two columns (the job list and the reader, nowhere else): it takes no
   room of its own, an 8 px strip over the columns' border catches the pointer. Drag it with
   the left button to resize the column before it between `min` and `max`; a double click
-  sets the width back. The width is kept per user (`storageKey`, in this browser profile;
-  a store that cannot be read or written simply keeps the default). The col-resize cursor
-  and, on hover or while dragging, a 2 px navy line show that it moves. No keyboard: the
+  sets the width back to the first width. The limits and the first width follow the window
+  and the sidebar (`splitLimits`): the list keeps at least 320 px, the reader at least
+  440 px, and the list takes at most 60 % of the content. The width is kept per user
+  (`storageKey`, in this browser profile; a store that cannot be read or written simply
+  keeps the first width), and a kept width that does not fit is shown at the limit and comes
+  back once there is room again. The col-resize cursor and, on hover or while dragging, a
+  2 px navy line with a small grip in its middle show that it moves; after the usual delay
+  the tooltip says so ("Breite ändern") over what a double click does. No keyboard: the
   columns are not a document to navigate.
 -->
-<script lang="ts">
-  import { untrack } from 'svelte';
-  import { t } from '$lib/i18n/t';
+<script lang="ts" module>
   import { tokenPx } from '$lib/tokens';
 
+  /** The limits of a list column beside a reader in a content of `width` px. */
+  export interface SplitLimits {
+    min: number;
+    max: number;
+    /** The first width (and the one a double click brings back). */
+    initial: number;
+  }
+
+  /** The first width takes this share of the content (at most --list-first-max). */
+  const FIRST_SHARE = 0.4;
+  /** The list never takes more than this share of the content. */
+  const MAX_SHARE = 0.6;
+
+  export function splitLimits(width: number): SplitLimits {
+    const min = tokenPx('--list-min');
+    const max = Math.max(
+      min,
+      Math.min(width - tokenPx('--reader-min'), Math.round(width * MAX_SHARE)),
+    );
+    const first = Math.min(Math.round(width * FIRST_SHARE), tokenPx('--list-first-max'));
+    return { min, max, initial: Math.max(min, Math.min(max, first)) };
+  }
+</script>
+
+<script lang="ts">
+  import { untrack } from 'svelte';
+  import { tooltip } from '$lib/actions/tooltip';
+  import { t } from '$lib/i18n/t';
+
   interface Props {
-    /** The width of the column before the handle, in px (unset: the kept or first width). */
+    /** The width of the column before the handle, in px (set by the handle). */
     size?: number | undefined;
     /** The width a double click restores (and the first width). */
     initial?: number;
@@ -30,7 +62,7 @@
     size = $bindable(),
     initial = tokenPx('--list-min'),
     min = tokenPx('--list-min'),
-    max = tokenPx('--list-max'),
+    max = tokenPx('--list-first-max'),
     storageKey = null,
     label,
     testid = null,
@@ -59,20 +91,27 @@
     }
   }
 
-  // The width to start from: the kept one, else the one given, else the first width.
-  size = untrack(() => clamp(stored() ?? size ?? initial));
+  /** The width the user chose (null: the first width); shown within the live limits. */
+  let chosen = $state<number | null>(untrack(() => stored() ?? size ?? null));
+
+  // The first frame already has the width; afterwards it follows the limits and the choice.
+  size = untrack(() => clamp(chosen ?? initial));
+  $effect.pre(() => {
+    const width = clamp(chosen ?? initial);
+    if (width !== untrack(() => size)) size = width;
+  });
 
   let dragging = $state(false);
   let from = { x: 0, width: 0 };
   let frame = 0;
-  let next = 0;
+  let next: number | null = null;
 
   function start(event: PointerEvent): void {
     if (event.button !== 0) return;
     event.preventDefault();
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    from = { x: event.clientX, width: size ?? initial };
-    next = 0;
+    from = { x: event.clientX, width: size ?? clamp(initial) };
+    next = null;
     dragging = true;
   }
 
@@ -83,7 +122,7 @@
     if (frame !== 0) return;
     frame = requestAnimationFrame(() => {
       frame = 0;
-      size = next;
+      if (next !== null) chosen = next;
     });
   }
 
@@ -94,15 +133,17 @@
     if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
     if (frame !== 0) cancelAnimationFrame(frame);
     frame = 0;
-    size = next === 0 ? size : next;
-    keep(size ?? null);
+    if (next === null) return;
+    chosen = next;
+    next = null;
+    keep(chosen);
   }
 
   /** The second click of a double click sets the width back. */
   function reset(event: MouseEvent): void {
     if (event.button !== 0 || event.detail !== 2) return;
-    size = clamp(initial);
-    next = 0;
+    chosen = null;
+    next = null;
     keep(null);
   }
 </script>
@@ -124,6 +165,7 @@
     class="hit"
     tabindex="-1"
     aria-hidden="true"
+    use:tooltip={{ text: t.splitter.tip, hint: t.splitter.reset, placement: 'right' }}
     onpointerdown={start}
     onpointermove={move}
     onpointerup={end}
@@ -131,6 +173,7 @@
     onclick={reset}
   >
     <span class="line"></span>
+    <span class="grip"></span>
   </button>
 </div>
 
@@ -149,6 +192,7 @@
     bottom: 0;
     left: calc(-1 * var(--splitter-hit) / 2);
     display: flex;
+    align-items: center;
     justify-content: center;
     width: var(--splitter-hit);
     cursor: col-resize;
@@ -156,15 +200,30 @@
   }
 
   .line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
     width: var(--splitter-line);
-    height: 100%;
+    background-color: var(--active-edge);
+    opacity: 0;
+    transition: opacity var(--dur-base) var(--ease-standard);
+  }
+
+  /* The grip: a small pill centred on the line. */
+  .grip {
+    flex: none;
+    width: var(--grip-width);
+    height: var(--grip-height);
+    border-radius: var(--radius-full);
     background-color: var(--active-edge);
     opacity: 0;
     transition: opacity var(--dur-base) var(--ease-standard);
   }
 
   .hit:hover .line,
-  .dragging .line {
+  .hit:hover .grip,
+  .dragging .line,
+  .dragging .grip {
     opacity: 1;
     transition-duration: var(--dur-hover);
   }

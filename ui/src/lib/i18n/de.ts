@@ -510,6 +510,9 @@ export const de = {
   },
   splitter: {
     label: 'Breite der Liste',
+    /** The tooltip of the handle, and its second line. */
+    tip: 'Breite ändern',
+    reset: 'Doppelklick setzt zurück',
   },
   /** The bar that replaces the list's second row while several jobs are selected. */
   selection: {

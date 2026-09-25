@@ -322,8 +322,12 @@
      macOS it runs up to the window edge. */
   --sheet-top-edge: var(--border-width);
   --sheet-corner: var(--radius-card);
-  --list-min: 360px;
-  --list-max: 460px;
+  /* The list column beside the reader: the handle keeps it at least this wide, and the
+     reader at least --reader-min (and the list at most 60 % of the content, JobsView). The
+     first width is 40 % of the content, at most --list-first-max. */
+  --list-min: 320px;
+  --list-first-max: 460px;
+  --reader-min: 440px;
   --reader-width: 720px;
   /* The column handle and the sidebar's edge: the strip that catches the pointer, the line
      it shows on hover and the small grip centred on that line. */

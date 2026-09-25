@@ -329,15 +329,23 @@ test('a long row title takes two lines, the row grows by one line, the rest is a
   await expect(page.getByRole('tooltip')).toContainText('vierzehn Ländern');
 });
 
-test('the column handle: left drag resizes within min and max, double click resets, it is kept', async ({
+test('the column handle: left drag resizes within its live limits, double click resets, it is kept', async ({
   page,
 }) => {
   await open(page, '?gallery&platform=windows');
   const list = page.getByTestId('split-list');
-  const handle = page.getByTestId('splitter').locator('.hit');
+  const splitter = page.getByTestId('splitter');
+  const handle = splitter.locator('.hit');
   await handle.scrollIntoViewIfNeeded();
   const width = async (): Promise<number> => Math.round((await list.boundingBox())!.width);
-  expect(await width()).toBe(360);
+  // The demo's limits follow its width like the list's follow the window: at least 320 px,
+  // the reader keeps 440 px, the list at most 60 %; first 40 %, at most 460 px.
+  const room = await page.getByTestId('split-demo').evaluate((node) => node.clientWidth);
+  const max = Math.max(320, Math.min(room - 440, Math.round(room * 0.6)));
+  const first = Math.max(320, Math.min(max, Math.round(room * 0.4), 460));
+  await expect(splitter).toHaveAttribute('aria-valuemin', '320');
+  await expect(splitter).toHaveAttribute('aria-valuemax', String(max));
+  await expect.poll(width).toBe(first);
   await expect(handle).toHaveCSS('cursor', 'col-resize');
   const drag = async (dx: number, button: 'left' | 'right' = 'left'): Promise<void> => {
     const box = (await handle.boundingBox())!;
@@ -349,26 +357,26 @@ test('the column handle: left drag resizes within min and max, double click rese
     await page.mouse.move(x + dx, y, { steps: 3 });
     await page.mouse.up({ button });
   };
-  await drag(60);
-  await expect.poll(width).toBe(420);
-  // Never past max (460) or min (360); the right button does nothing.
-  await drag(200);
-  await expect.poll(width).toBe(460);
+  await drag(-60);
+  await expect.poll(width).toBe(first - 60);
+  // Never past max or min; the right button does nothing.
+  await drag(2000);
+  await expect.poll(width).toBe(max);
   await drag(-40, 'right');
-  await expect.poll(width).toBe(460);
-  await drag(-400);
-  await expect.poll(width).toBe(360);
+  await expect.poll(width).toBe(max);
+  await drag(-2000);
+  await expect.poll(width).toBe(320);
   await drag(50);
-  await expect.poll(width).toBe(410);
+  await expect.poll(width).toBe(370);
   // Kept across a reload; a double click sets it back.
   await page.reload();
   await handle.scrollIntoViewIfNeeded();
-  await expect.poll(width).toBe(410);
+  await expect.poll(width).toBe(370);
   await handle.dblclick();
-  await expect.poll(width).toBe(360);
+  await expect.poll(width).toBe(first);
   await page.reload();
   await handle.scrollIntoViewIfNeeded();
-  await expect.poll(width).toBe(360);
+  await expect.poll(width).toBe(first);
 });
 
 test('nav sub-entries: quieter, indented, the one pill covers the active one (also in the rail)', async ({

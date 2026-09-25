@@ -1,9 +1,10 @@
 <!--
-  The Jobs view on the white sheet of the shell: left the list column (360-460 px) with its
-  header (search, "Abrufen", filters), the run panel and the list; a hairline; right the
-  reader, or with nothing selected its empty state, the day overview. Nothing floats: no
-  cards, no shadows. Both columns start at the same line; the handle between them resizes
-  the list (the width is kept). Below 900 px one column: the list,
+  The Jobs view on the white sheet of the shell: left the list column with its header
+  (search, "Abrufen", filters), the run panel and the list; a hairline; right the reader, or
+  with nothing selected its empty state, the day overview. Nothing floats: no cards, no
+  shadows. Both columns start at the same line; the handle between them resizes the list
+  (the width is kept) from 320 px up to 60 % of the content, as long as the reader keeps
+  440 px; the limits follow the window and the sidebar. Below 900 px one column: the list,
   or the reader with a back button. The run card rises in above the list and fades out when
   it is closed (the list moves up without animation).
 
@@ -21,7 +22,7 @@
   import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import DragBand from '$components/DragBand.svelte';
-  import Splitter from '$components/Splitter.svelte';
+  import Splitter, { splitLimits } from '$components/Splitter.svelte';
   import { cssVars } from '$lib/actions/cssVars';
   import EmptyState from '$components/EmptyState.svelte';
   import Skeleton from '$components/Skeleton.svelte';
@@ -83,10 +84,14 @@
   let scrolled = $state(false);
   /** The width of the list column (the splitter keeps it per user). */
   let listWidth = $state<number | undefined>(undefined);
-  /** The first width (and the one a double click on the handle restores): 40 % of the
-   *  window beside the sidebar, which the splitter keeps between 360 and 460 px. */
-  const LIST_SHARE = 0.4;
-  const firstWidth = Math.round((window.innerWidth - tokenPx('--sidebar-width')) * LIST_SHARE);
+  /** The content beside the sidebar (and the sheet's hairline): the list's limits and its
+   *  first width follow it when the window resizes or the sidebar folds. */
+  const content = $derived(
+    viewport.width -
+      tokenPx(viewport.rail ? '--rail-width' : '--sidebar-width') -
+      tokenPx('--border-width'),
+  );
+  const limits = $derived(splitLimits(content));
 
   function close(): void {
     jobs.clearSelection();
@@ -176,7 +181,9 @@
     <span class="split"
       ><Splitter
         bind:size={listWidth}
-        initial={firstWidth}
+        initial={limits.initial}
+        min={limits.min}
+        max={limits.max}
         storageKey="jobs-list-width"
         testid="list-splitter"
       /></span
@@ -259,7 +266,7 @@
     display: flex;
     flex: none;
     flex-direction: column;
-    width: var(--list-width, clamp(var(--list-min), 40%, var(--list-max)));
+    width: var(--list-width, clamp(var(--list-min), 40%, var(--list-first-max)));
     min-height: 0;
     border-right: var(--border-width) solid var(--border);
   }

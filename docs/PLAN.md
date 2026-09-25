@@ -199,6 +199,11 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   (Cmd+B on macOS, never in a field) and on macOS the View menu fold it to its icon rail and back; the width switches
   at once, the labels fade in as when the window grows past 1100 px; kept (`viewport.pinnedRail`; `rail` = forced below
   1100 px or chosen). Below 1100 px it is the rail anyway: no edge, and the key changes nothing.
+- The handle between the list and the reader: the list keeps 320 px (`--list-min`), the reader 440 px (`--reader-min`),
+  and the list takes at most 60 % of the content; the first width is 40 % of the content, at most 460 px
+  (`--list-first-max`). Limits and first width follow the window and the sidebar (`splitLimits`), a kept width that
+  does not fit shows at the limit and comes back once there is room. On hover a grip in the middle of the line and the
+  tooltip "Breite ändern" over "Doppelklick setzt zurück"; a double click sets the first width back.
 - Jobs: toolbar (Abrufen primary lg / Abbrechen · Neu n | Alle n · Beste Passung | Neueste · search) · left column
   run card + list (72 px rows: ring 40, title with unread dot, meta, reason line, date, status badge only on deviation;
   excluded grey behind divider; duplicates as one row) · reader card 720 px (ring 96 counting up, band word, n of m must,
@@ -382,6 +387,12 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       the first layout of a job in the reader (text shaping), the fold of a moved row and its return on undo (every row
       below it moves: paint properties and layers of the whole list), and a tab switch or a re-sort that tears down
       hundreds of rows at once (Svelte's teardown of their effects).
+- [x] Final round, sidebar and handle (tracks A and B, 2026-09-25; see UI "Sidebar", "Folding the sidebar", "The
+      handle"): the arrow for Archiv and Papierkorb (kept, forced open while one is open, grouped in the rail), the
+      sidebar folds at its edge, with Ctrl/Cmd+B and from the macOS View menu (kept, not below 1100 px), a click in
+      the sidebar waits for the Profil's question before it changes the place, the handle's wider limits that follow
+      the window and the sidebar, grip and two-line tooltips; harness `sidebar.spec.ts`, `splitter.spec.ts` in both
+      engines and both OS conventions
 - [ ] Performance: start time; contrast
 - [x] Consistency audit per screen (checklist below) and fixes; one adversarial review workflow over the whole diff
       (2026-09-25: two UI audits with 86 and 36 confirmed findings, a scraping review with 31 and a final review with
