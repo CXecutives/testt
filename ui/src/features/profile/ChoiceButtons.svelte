@@ -1,8 +1,9 @@
 <!--
   A small fixed choice as a row of toggle buttons (the design system's pressed secondary
   button, as the filter chips): one (`multiple` off, pressing the chosen one clears it) or
-  several. For the language level and the countries of the profile: no dropdowns. An option
-  may explain itself in a tooltip (what a language level means).
+  several. For the language level, the remote share and the availability of the profile: no
+  dropdowns. The buttons are as tall as the fields beside them (md). An option may explain
+  itself in a tooltip (what a language level means).
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -37,7 +38,7 @@
     >
       <Button
         variant="secondary"
-        size="sm"
+        size="md"
         label={option.label}
         pressed={selected.includes(option.id)}
         onclick={() => toggle(option.id)}

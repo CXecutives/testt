@@ -1,4 +1,4 @@
-// The Profil view against the stub: the profile as a form in its eight blocks, the three ways
+// The Profil view against the stub: the profile as a form in its nine blocks, the three ways
 // in, saving, discarding, leaving and closing the window with unsaved changes, an AI's answer,
 // the chip and number fields, values of the file that do not read, refused values, removing
 // with undo and what the app reads in the file.
@@ -65,7 +65,7 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   );
   // ... with the red border and aria-invalid of every field with an error.
   await expect(page.getByTestId('profile-remote-min')).toHaveAttribute('aria-invalid', 'true');
-  // The eight blocks, in the order a consultant thinks.
+  // The blocks, in the order a consultant thinks.
   const sections = await page
     .locator('[data-testid^="section-"]')
     .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-testid')));
@@ -73,6 +73,7 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
     'section-person',
     'section-competences',
     'section-experience',
+    'section-languages',
     'section-wishes',
     'section-criteria',
     'section-availability',
@@ -107,15 +108,10 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   await expect(
     page.getByTestId('profile-remote').getByRole('button', { name: 'Überwiegend remote' }),
   ).toHaveAttribute('aria-pressed', 'true');
-  const countries = page.getByTestId('profile-countries');
-  await expect(countries.getByRole('button', { name: 'Deutschland' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(countries.getByRole('button', { name: 'Schweiz' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
+  await expect(chips(page.getByTestId('profile-countries'))).toHaveText([
+    'Deutschland',
+    'Österreich',
+  ]);
   await expect(page.getByTestId('profile-no-anue')).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByTestId('profile-no-permanent')).toHaveAttribute('aria-checked', 'false');
   // Nothing changed: nothing to save, and "Speichern" is the only primary of the view.
@@ -134,13 +130,25 @@ test('one name per field: the labels, their hints and neutral examples', async (
     'Ohne Niveau rechnet die App mit B2.',
     'Remote-Anteil',
     'Den Mindest-Tagessatz legen die Ausschlusskriterien fest.',
-    'Mindest-Tagessatz (€)',
-    'Mindest-Erfahrung der Stelle (Jahre)',
-    'Mindest-Jahresgehalt (€)',
-    'Mindest-Remote-Anteil (%)',
+    'Mindest-Tagessatz',
+    'Mindest-Erfahrung der Stelle',
+    'Mindest-Jahresgehalt',
+    'Mindest-Remote-Anteil',
   ]) {
     await expect(form).toContainText(text);
   }
+  // The unit stands beside its number field, not in the label.
+  for (const [id, unit] of [
+    ['profile-years', 'Jahre'],
+    ['profile-wish-rate', '€'],
+    ['profile-min-rate', '€'],
+    ['profile-target-years', 'Jahre'],
+    ['profile-min-salary', '€'],
+    ['profile-remote-min', '%'],
+  ] as const) {
+    await expect(page.getByTestId(id)).toHaveAccessibleDescription(new RegExp(`${unit}$`));
+  }
+  await expect(form).not.toContainText('(€)');
   for (const gone of ['Auch genannt', 'Arbeitsort', 'Stellen ab so viel Erfahrung', 'Anderswo']) {
     await expect(form).not.toContainText(gone);
   }
@@ -154,7 +162,7 @@ test('one name per field: the labels, their hints and neutral examples', async (
   expect(await tooltipOf(page, levels.getByRole('button', { name: 'C1' }))).toBe('Fließend');
   await expect(page.getByTestId('profile-wish-industries').locator('input')).toHaveAttribute(
     'placeholder',
-    'Energie',
+    'z. B. Energie',
   );
 });
 
@@ -163,12 +171,18 @@ test('edit and discard: the form goes back to what is stored', async ({ page }) 
   const title = page.getByTestId('profile-title');
   await title.fill('Interim CFO');
   await expect(save(page)).not.toHaveAttribute('aria-disabled', 'true');
-  await page.getByTestId('profile-countries').getByRole('button', { name: 'Schweiz' }).click();
+  await page.getByTestId('profile-dach').click();
+  await expect(chips(page.getByTestId('profile-countries'))).toHaveText([
+    'Deutschland',
+    'Österreich',
+    'Schweiz',
+  ]);
   await discard(page).click();
   await expect(title).toHaveValue('Interim Managerin Finanzen');
-  await expect(
-    page.getByTestId('profile-countries').getByRole('button', { name: 'Schweiz' }),
-  ).toHaveAttribute('aria-pressed', 'false');
+  await expect(chips(page.getByTestId('profile-countries'))).toHaveText([
+    'Deutschland',
+    'Österreich',
+  ]);
   await expect(save(page)).toHaveAttribute('aria-disabled', 'true');
   expect(await calls(page, 'save_profile')).toHaveLength(0);
 });
@@ -287,7 +301,7 @@ test('narrow, a language row keeps its levels under the name', async ({ page }) 
   // The alias fields keep a word inside when the column header is gone.
   await expect(page.getByTestId('competence-aliases').first().locator('input')).toHaveAttribute(
     'placeholder',
-    'Andere Begriffe',
+    'Synonyme',
   );
 });
 
@@ -576,15 +590,19 @@ test('a new form starts with one row each; the add buttons are buttons', async (
   await expect(page.getByTestId('language-name')).toHaveCount(1);
   await expect(page.getByTestId('competence-name')).toHaveAttribute(
     'placeholder',
-    'Projektmanagement',
+    'z. B. Projektleitung',
   );
   await expect(page.getByTestId('competence-aliases').locator('input')).toHaveAttribute(
     'placeholder',
-    'Andere Begriffe',
+    'Synonyme',
   );
   await expect(page.getByTestId('profile-title')).toHaveAttribute(
     'placeholder',
-    'Senior Consultant',
+    'z. B. Interim Manager',
+  );
+  await expect(page.getByTestId('profile-name-field')).toHaveAttribute(
+    'placeholder',
+    'Vor- und Nachname',
   );
   for (const id of ['competence-add', 'language-add']) {
     await expect(page.getByTestId(id)).toHaveClass(/secondary/);
@@ -961,7 +979,7 @@ test('the remote switch sits under the countries and needs one', async ({ page }
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   // Without countries it has nothing to do: disabled, its tooltip says why.
   for (const name of ['Deutschland', 'Österreich']) {
-    await countries.getByRole('button', { name }).click();
+    await countries.getByRole('button', { name: `${name} entfernen` }).click();
   }
   await expect(toggle).toHaveAttribute('aria-disabled', 'true');
   await toggle.hover();

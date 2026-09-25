@@ -389,14 +389,14 @@ test('every path row works the same: the path as text, the folder or file opens'
   await expect(page.getByText('Pfad kopieren')).toHaveCount(0);
 });
 
-test('a portal that is off says so; its name switches it', async ({ page }) => {
+test('a portal that is off says so; its name names the switch', async ({ page }) => {
   await settings(page);
-  await page.getByTestId('portal-linkedin').locator('label.name').click();
-  await expect(page.getByTestId('toggle-enabled-linkedin')).toHaveAttribute(
-    'aria-checked',
-    'false',
-  );
+  const toggle = page.getByTestId('toggle-enabled-linkedin');
+  await expect(toggle).toHaveAccessibleName('linkedin.com');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await expect(page.getByTestId('portal-off-linkedin')).toHaveText('Wird beim Abruf übersprungen.');
+  await expect(toggle).toHaveAccessibleDescription('Wird beim Abruf übersprungen.');
 });
 
 test('a run holds the mailbox, the folder and the files', async ({ page }) => {
