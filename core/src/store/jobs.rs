@@ -698,15 +698,48 @@ impl Store {
         Ok(())
     }
 
-    /// Names of all text files the app has written (for "empty the results folder").
+    /// Names of all text files the app has written (for "empty the results folder"), with
+    /// the ones of deleted jobs that are still on disk ([`Store::txt_leftovers`]).
     pub fn txt_names(&self) -> Result<Vec<String>> {
-        let conn = self.conn();
-        let mut stmt =
-            conn.prepare_cached("SELECT txt_name FROM job WHERE txt_name IS NOT NULL")?;
-        let names = stmt.query_map([], |r| r.get(0))?;
-        Ok(names.collect::<rusqlite::Result<_>>()?)
+        let mut names: Vec<String> = {
+            let conn = self.conn();
+            let mut stmt =
+                conn.prepare_cached("SELECT txt_name FROM job WHERE txt_name IS NOT NULL")?;
+            let names = stmt.query_map([], |r| r.get(0))?;
+            names.collect::<rusqlite::Result<_>>()?
+        };
+        for name in self.txt_leftovers()? {
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+        Ok(names)
+    }
+
+    /// Text files of jobs deleted for good that could not be removed (open in another
+    /// program): their rows are gone, so their names live on here until a later export,
+    /// "Textdateien löschen" or a reset removes them.
+    pub fn txt_leftovers(&self) -> Result<Vec<String>> {
+        Ok(self
+            .kv_get(TXT_LEFTOVERS)?
+            .and_then(|json| serde_json::from_str(&json).ok())
+            .unwrap_or_default())
+    }
+
+    /// Replaces the list of [`Store::txt_leftovers`] (empty: forgets it).
+    pub fn set_txt_leftovers(&self, names: &[String]) -> Result<()> {
+        if names.is_empty() {
+            self.conn()
+                .execute("DELETE FROM kv WHERE key = ?1", [TXT_LEFTOVERS])?;
+            return Ok(());
+        }
+        let json = serde_json::to_string(names).expect("names are always serialisable");
+        self.kv_set(TXT_LEFTOVERS, &json)
     }
 }
+
+/// Key of [`Store::txt_leftovers`].
+const TXT_LEFTOVERS: &str = "txt_leftovers";
 
 // ---------------------------------------------------------------------- Helpers
 

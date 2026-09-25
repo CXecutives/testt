@@ -7,13 +7,20 @@ import type { JobKey } from "./JobKey";
  */
 export type Deleted = { 
 /**
- * Jobs deleted (with the duplicates that stood for them).
+ * Jobs deleted, as the list showed them: one per row (a duplicate that stood behind a
+ * row went with it but does not count).
  */
 count: number, 
 /**
- * Their keys: the page drops them from lists, the reader and pending undos.
+ * The keys of every row that went, duplicates included: the page drops them from lists,
+ * the reader and pending undos.
  */
 keys: Array<JobKey>, 
+/**
+ * Text files that stayed because they could not be removed (open in another program);
+ * the app removes them with a later export.
+ */
+txtLeft: number, 
 /**
  * The overview could not be written again (e.g. open in Excel); `params.target` names
  * what failed. The jobs are deleted anyway.

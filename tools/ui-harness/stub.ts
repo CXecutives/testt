@@ -35,6 +35,7 @@
 import type {
   AppState,
   Commands,
+  Deleted,
   ErrorInfo,
   Highlight,
   JobCounts,
@@ -1172,7 +1173,7 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
 }
 
 /** Deletes jobs of the trash for good: only a tombstone stays, no later run brings them back. */
-function purgeJobs(keys: JobKey[]): { count: number; keys: JobKey[]; exportError: null } {
+function purgeJobs(keys: JobKey[]): Deleted {
   const doomed = new Set(
     keys.filter((key) => find(key)?.place === 'trash').map((key) => markKey(key)),
   );
@@ -1180,7 +1181,7 @@ function purgeJobs(keys: JobKey[]): { count: number; keys: JobKey[]; exportError
   jobs = jobs.filter((j) => !doomed.has(markKey(j.key)));
   for (const key of doomed) tombstones.add(key);
   refresh();
-  return { count: gone.length, keys: gone, exportError: null };
+  return { count: gone.length, keys: gone, txtLeft: 0, exportError: null };
 }
 
 const fold = (text: string): string =>

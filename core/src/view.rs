@@ -1369,10 +1369,15 @@ pub enum OpenTarget {
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub struct Deleted {
-    /// Jobs deleted (with the duplicates that stood for them).
+    /// Jobs deleted, as the list showed them: one per row (a duplicate that stood behind a
+    /// row went with it but does not count).
     pub count: u32,
-    /// Their keys: the page drops them from lists, the reader and pending undos.
+    /// The keys of every row that went, duplicates included: the page drops them from lists,
+    /// the reader and pending undos.
     pub keys: Vec<JobKey>,
+    /// Text files that stayed because they could not be removed (open in another program);
+    /// the app removes them with a later export.
+    pub txt_left: u32,
     /// The overview could not be written again (e.g. open in Excel); `params.target` names
     /// what failed. The jobs are deleted anyway.
     pub export_error: Option<ErrorInfo>,

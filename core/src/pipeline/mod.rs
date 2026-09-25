@@ -758,7 +758,7 @@ pub fn empty_old_trash(
     match deleted {
         Ok((gone, names)) => {
             if let Some(workspace) = workspace.filter(|_| !gone.is_empty()) {
-                export::clear_txt_files(&workspace.join(RESULT_DIR), &names);
+                remove_deleted_txt(store, &workspace.join(RESULT_DIR), &names);
             }
             gone.len()
         }
@@ -1093,6 +1093,7 @@ pub fn export_all(
 ) -> ExportSummary {
     let result_dir = workspace.join(RESULT_DIR);
     let mut summary = ExportSummary::default();
+    retry_txt_leftovers(store, &result_dir);
     match store.txt_jobs(false) {
         Ok(jobs) => write_txts(store, &result_dir, jobs, now, &mut summary),
         Err(e) => note_error(&mut summary, &e, Target::Txt),
@@ -1150,18 +1151,20 @@ pub fn delete_jobs(
     // Only the trash is deleted for good.
     let keys = store.in_trash(keys)?;
     let (gone, names) = store.delete_jobs(&keys, now)?;
+    // The jobs as the list showed them: a duplicate that stood behind a row goes with it
+    // (its key is among `gone` for the page), but the user deleted that row once.
+    let rows = keys.iter().filter(|key| gone.contains(key)).count();
     let mut deleted = Deleted {
-        count: u32::try_from(gone.len()).unwrap_or(u32::MAX),
+        count: u32::try_from(rows).unwrap_or(u32::MAX),
         keys: gone,
+        txt_left: 0,
         export_error: None,
     };
-    let Some(workspace) = workspace.filter(|_| deleted.count > 0) else {
+    let Some(workspace) = workspace.filter(|_| !deleted.keys.is_empty()) else {
         return Ok(deleted);
     };
-    let (_, failed) = export::clear_txt_files(&workspace.join(RESULT_DIR), &names);
-    if !failed.is_empty() {
-        log::warn!("delete: {} text files not removed (open)", failed.len());
-    }
+    let left = remove_deleted_txt(store, &workspace.join(RESULT_DIR), &names);
+    deleted.txt_left = u32::try_from(left).unwrap_or(u32::MAX);
     let info = info_rows(
         store,
         last_fetch_at(store).unwrap_or(now),
@@ -1172,6 +1175,62 @@ pub fn delete_jobs(
     write_top_matches(store, workspace, matcher, now);
     deleted.export_error = exported.error;
     Ok(deleted)
+}
+
+/// Removes the text files of jobs deleted for good. A file that stays (open in another
+/// program) is remembered - its job's row is gone - so the next export, "Textdateien löschen"
+/// or a reset removes it ([`Store::txt_leftovers`]). Returns how many stayed.
+fn remove_deleted_txt(store: &Store, result_dir: &Path, names: &[String]) -> usize {
+    let (_, failed) = export::clear_txt_files(result_dir, names);
+    if failed.is_empty() {
+        return 0;
+    }
+    log::warn!(
+        "{} text files of deleted jobs not removed (open), removed later",
+        failed.len()
+    );
+    let mut left = store.txt_leftovers().unwrap_or_default();
+    for name in &failed {
+        if !left.contains(name) {
+            left.push(name.clone());
+        }
+    }
+    if let Err(e) = store.set_txt_leftovers(&left) {
+        log::warn!("text files not removed are not remembered: {e}");
+    }
+    failed.len()
+}
+
+/// Another try at the text files of deleted jobs that stayed earlier; the ones gone meanwhile
+/// (removed now or by the user) are forgotten.
+fn retry_txt_leftovers(store: &Store, result_dir: &Path) {
+    let left = match store.txt_leftovers() {
+        Ok(left) if !left.is_empty() => left,
+        Ok(_) => return,
+        Err(e) => {
+            log::warn!("text files not removed earlier are not readable: {e}");
+            return;
+        }
+    };
+    let (_, failed) = export::clear_txt_files(result_dir, &left);
+    let still: Vec<String> = left.into_iter().filter(|n| failed.contains(n)).collect();
+    if let Err(e) = store.set_txt_leftovers(&still) {
+        log::warn!("text files not removed are not remembered: {e}");
+    }
+}
+
+/// "Delete text files": removes the app's text files (with those of deleted jobs that stayed
+/// earlier) and returns how many went and the names of the files that stayed (open right
+/// now); of the deleted jobs' files only those stay remembered.
+pub fn clear_txt(store: &Store, result_dir: &Path) -> crate::Result<(usize, Vec<String>)> {
+    let (removed, failed) = export::clear_txt_files(result_dir, &store.txt_names()?);
+    let still: Vec<String> = store
+        .txt_leftovers()?
+        .into_iter()
+        .filter(|n| failed.contains(n))
+        .collect();
+    store.set_txt_leftovers(&still)?;
+    Ok((removed, failed))
 }
 
 /// "Rewrite text files" (e.g. after a change of folder): all jobs with a full text, the

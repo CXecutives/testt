@@ -35,7 +35,7 @@ pub async fn clear_txt(state: State<'_, AppState>) -> CmdResult<ClearedTxt> {
     state.ensure_idle()?;
     state.ensure_real()?;
     let result_dir = state.workspace()?.join(RESULT_DIR);
-    let (removed, failed) = export::clear_txt_files(&result_dir, &state.store.txt_names()?);
+    let (removed, failed) = pipeline::clear_txt(&state.store, &result_dir)?;
     log::info!(
         "text files deleted: {removed}, not deleted: {}",
         failed.len()

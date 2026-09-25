@@ -1933,8 +1933,8 @@ async fn a_deleted_job_leaves_its_files_and_stays_gone() {
     let rows = rows - 1;
     let deleted = delete_jobs(&store, Some(dir.path()), None, one, (c(), Language::De)).unwrap();
     assert_eq!(deleted.export_error, None);
-    let gone = i64::from(deleted.count);
-    assert!(gone >= 1);
+    assert_eq!(deleted.count, 1, "the one row the user deleted");
+    let gone = i64::try_from(deleted.keys.len()).unwrap();
     assert!(!file.exists());
     assert!(overview_rows(dir.path()) <= rows);
     assert_eq!(overview_rows(dir.path()), 1 + listed(&store));
@@ -2120,4 +2120,138 @@ async fn a_run_empties_an_old_trash() {
     assert!(store.is_deleted(&old.key).unwrap());
     assert!(!file.exists());
     assert_eq!(store.job(&young).unwrap().unwrap().place(), Place::Trash);
+}
+
+/// One job two portals announced, as the list shows it: the freelancermap row with the
+/// LinkedIn duplicate behind it. `(original, duplicate)`.
+fn job_on_two_portals(store: &Store) -> (JobKey, JobKey) {
+    const AD: &str = "Für unseren Kunden suchen wir einen erfahrenen SAP FI/CO Berater. \
+        Aufgaben: Einführung von S/4HANA Finance, Abstimmung mit den Fachbereichen.";
+    let run = store.begin_run().unwrap();
+    let add = |url: &str| {
+        let link = crate::portal::job_link(url).unwrap();
+        let posting = crate::model::Posting::new(
+            link.key.clone(),
+            link.url,
+            "SAP FI/CO Berater (m/w/d)",
+            "Ferrum Systems SE",
+            "Hamburg",
+        );
+        let mail = crate::store::MailRef {
+            subject: "Neue Jobs",
+            date: None,
+            gmail_id: None,
+        };
+        store
+            .upsert_posting(run, &posting, mail, Timestamp::now())
+            .unwrap();
+        store
+            .record_text(&link.key, AD, false, false, Timestamp::now())
+            .unwrap();
+        link.key
+    };
+    let original = add("https://www.freelancermap.de/nproj/12345.html");
+    let duplicate = add("https://www.linkedin.com/jobs/view/4000000002/");
+    assert_eq!(
+        store.link_duplicate(&duplicate).unwrap(),
+        Some(original.clone())
+    );
+    (original, duplicate)
+}
+
+/// "Endgültig löschen" counts the jobs the list showed: a duplicate that stood behind the
+/// row goes with it (its key comes back for the page) but is no job of its own.
+#[test]
+fn a_purge_counts_the_rows_it_deleted() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let (original, duplicate) = job_on_two_portals(&store);
+    let now = Timestamp::now();
+    let one = std::slice::from_ref(&original);
+    store.move_jobs(one, Place::Trash, now).unwrap();
+    let deleted = delete_jobs(&store, Some(dir.path()), None, one, (now, Language::De)).unwrap();
+    assert_eq!(deleted.count, 1, "one row");
+    assert_eq!(deleted.keys.len(), 2);
+    assert!(
+        deleted.keys.contains(&duplicate),
+        "the page drops both keys"
+    );
+    assert_eq!(deleted.txt_left, 0);
+    // Emptying the whole trash counts the same way.
+    let (store, keys) = store_with_texts();
+    store.move_jobs(&keys, Place::Trash, now).unwrap();
+    let all = store.trashed_keys(None).unwrap();
+    let deleted = delete_jobs(&store, Some(dir.path()), None, &all, (now, Language::De)).unwrap();
+    assert_eq!(deleted.count, 2);
+}
+
+/// The text file of a job deleted for good that could not be removed is not forgotten with
+/// its row: "Textdateien löschen" and a reset still find it, and the next export removes it.
+#[test]
+fn a_text_file_that_stayed_is_removed_later() {
+    let dir = tempfile::tempdir().unwrap();
+    let (store, _) = store_with_texts();
+    let now = Timestamp::now();
+    let result_dir = dir.path().join(RESULT_DIR);
+    let txt_dir = result_dir.join(TXT_DIR);
+    std::fs::create_dir_all(&txt_dir).unwrap();
+    let (stayed, gone) = (
+        "20260901_LinkedIn_Rolle_4000000007.txt".to_string(),
+        "20260901_LinkedIn_Rolle_4000000008.txt".to_string(),
+    );
+    std::fs::write(txt_dir.join(&stayed), b"alt").unwrap();
+    store
+        .set_txt_leftovers(&[stayed.clone(), gone.clone()])
+        .unwrap();
+    assert!(store.txt_names().unwrap().contains(&stayed), "still known");
+    assert_eq!(
+        export::txt_files(&result_dir, &store.txt_names().unwrap()).len(),
+        1
+    );
+    export_all(&store, dir.path(), &[], 1, now, Language::De);
+    assert!(
+        !txt_dir.join(&stayed).exists(),
+        "removed with the next export"
+    );
+    assert!(store.txt_leftovers().unwrap().is_empty(), "and forgotten");
+    // "Textdateien löschen" takes such a file along as well.
+    std::fs::write(txt_dir.join(&stayed), b"alt").unwrap();
+    store
+        .set_txt_leftovers(std::slice::from_ref(&stayed))
+        .unwrap();
+    let (removed, failed) = clear_txt(&store, &result_dir).unwrap();
+    assert!(failed.is_empty() && removed >= 1);
+    assert!(!txt_dir.join(&stayed).exists());
+    assert!(store.txt_leftovers().unwrap().is_empty());
+}
+
+/// A text file open in another program (Windows: without delete sharing, as Word holds it)
+/// stays when its job is deleted for good; the result says so, and the next export removes
+/// it.
+#[cfg(windows)]
+#[test]
+fn an_open_text_file_of_a_deleted_job_is_reported_and_removed_later() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let (store, keys) = store_with_texts();
+    let now = Timestamp::now();
+    export_all(&store, dir.path(), &[], 1, now, Language::De);
+    let name = store.job(&keys[0]).unwrap().unwrap().txt_name.unwrap();
+    let file = dir.path().join(RESULT_DIR).join(TXT_DIR).join(&name);
+    let one = std::slice::from_ref(&keys[0]);
+    store.move_jobs(one, Place::Trash, now).unwrap();
+    let lock = std::fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0)
+        .open(&file)
+        .unwrap();
+    let deleted = delete_jobs(&store, Some(dir.path()), None, one, (now, Language::De)).unwrap();
+    assert_eq!((deleted.count, deleted.txt_left), (1, 1));
+    assert!(file.exists());
+    assert_eq!(store.txt_leftovers().unwrap(), std::slice::from_ref(&name));
+    assert!(store.txt_names().unwrap().contains(&name));
+    drop(lock);
+    export_all(&store, dir.path(), &[], 2, now, Language::De);
+    assert!(!file.exists());
+    assert!(store.txt_leftovers().unwrap().is_empty());
 }
