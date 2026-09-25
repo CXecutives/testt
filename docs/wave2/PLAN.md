@@ -74,11 +74,22 @@ If the system packages cannot be installed, use `cargo test -p jobalert-core` an
 - Keep `docs/wave2/PROGRESS.md` (create it) up to date: one line per item, done / skipped (why) / open. Commit it with
   each push. If the budget runs low: push, update PROGRESS.md, open the pull request.
 
-## 5. Tasks, in this order
+## 5. Tasks, in this order (5.0 first)
 Inputs in this folder: `features.json` (the chosen features with full specs), `findings.json` (102 findings of an
 independent audit on commit a2b2353: id, lens, title, severity, files, evidence, repro, fix, verification, verifier
 notes; `betterFix` in the notes wins over `fix`), `docs-edits.json` (51 drafted doc edits). A repro path starting with
 `<local scratch>` pointed to the auditor's local probe: rebuild the repro from its description.
+
+### 5.0 Make CI green first
+CI of `bb08964` fails in the harness job (windows-latest), the Rust jobs pass:
+- [ ] `jobs.spec.ts:1412` (Chromium) "criteria show the ad value and jump to it": after a click on the rate chip the ad
+      scrolls to the passage, and a reason under the resting pointer takes the active mark ("Führung eines
+      Finanzteams" instead of "Tagessatz nach Absprache"). A real logic bug: a hover that only happens because the
+      content scrolled under a still pointer must not take the active mark (the list rows already follow this rule:
+      no hover while scrolling). Fix it in the reader's hover handling (react to real pointer movement only), keep the
+      test as it is, and add a test that scrolls content under a still pointer.
+- [ ] `gallery.spec.ts:244` (WebKit, flaky) "a row: the date ends the title line, the tools take its place on hover":
+      `expect(...).not.toBeFocused()` fails at times; make the test wait for the settled state or fix a real focus leak.
 
 ### 5.1 Features (the user chose them)
 - [ ] **features-01, the reader's terms strip**: the reader ("Rahmen" strip, `ui/src/features/jobs/Reader.svelte`)
