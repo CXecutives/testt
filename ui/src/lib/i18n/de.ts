@@ -258,9 +258,9 @@ const reasonCode = {
   anueRisk: 'Ein Personaldienstleister ohne Angaben zum Vertrag, Überlassung ist möglich.',
   dayRate: (p) => `Der Tagessatz von ${formatEuro(p.rate)} liegt unter ${formatEuro(p.min)}.`,
   availability: 'Die Verfügbarkeit passt nicht.',
-  country: (p) =>
+  country: (p): string =>
     p.allowed
-      ? `Der Einsatzort liegt außerhalb von ${str(p.allowed)}.`
+      ? `Der Einsatzort liegt außerhalb von ${countryNames(p.allowed)}.`
       : 'Der Einsatzort passt nicht.',
   anueOptional: 'Arbeitnehmerüberlassung ist möglich, aber nicht Pflicht.',
   anueHidden: 'Die Anzeige deutet auf Arbeitnehmerüberlassung hin.',
@@ -445,6 +445,15 @@ const keyList = (value: unknown): string[] =>
     .map(keyLabel);
 const joined = (items: string[]): string =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} und ${items.at(-1)}`;
+/** ISO codes as the engine sends them (`DE, AT`) in words: "Deutschland und Österreich". */
+const countryNames = (value: unknown): string =>
+  joined(
+    str(value)
+      .split(',')
+      .map((code) => code.trim())
+      .filter((code) => code !== '')
+      .map((code) => de.profile.country[code.toUpperCase()] ?? code),
+  );
 
 /** Profile warnings of the engine (`ProfileWarningCode`, core/src/matching/types.rs). */
 const warning = {
