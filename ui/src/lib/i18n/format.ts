@@ -52,7 +52,9 @@ function formats(): Formats {
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-const RELATIVE_DAYS = 7;
+/** Days back that still read as words ("gestern", "vorgestern"); earlier days show their
+ *  weekday and date, so a day of last week is found without counting back. */
+const RELATIVE_DAYS = 2;
 
 /** `1.234`, `1,234` */
 export function formatNumber(value: number): string {
@@ -70,10 +72,10 @@ function startOfDay(date: Date): number {
 }
 
 /**
- * `jetzt` · `vor 5 Minuten` · `vor 3 Stunden` · `gestern` · `vor 4 Tagen`, then `Sa 12.09.`
+ * `jetzt` · `vor 5 Minuten` · `vor 3 Stunden` · `gestern` · `vorgestern`, then `So 20.09.`
  * (with the year if it is not the current one); in English `now` · `5 minutes ago` ·
- * `yesterday` ... `12/09`. `short` abbreviates the units for dense lines (`vor 3 Std.`,
- * `3 hr ago`).
+ * `yesterday` · `2 days ago`, then `Sun 20/09`. `short` abbreviates the units for dense
+ * lines (`vor 3 Std.`, `3 hr ago`).
  */
 export function formatRelative(iso: string, now: Date = new Date(), short = false): string {
   const date = new Date(iso);

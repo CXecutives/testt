@@ -1,5 +1,5 @@
 // `t`: the UI catalog of the app's language, used like the catalogs themselves
-// (`t.nav.jobs`, `t.run.of(3, 7)`). Every read goes through `language.current`, reactive
+// (`t.nav.jobs`, `t.run.ofTotal(7)`). Every read goes through `language.current`, reactive
 // state: a template, `$derived` or `$effect` that reads `t` follows a switch of the language
 // at once. A value copied into a plain variable once (at the top of a script) does not,
 // so screens read `t` where they render, or through `$derived`.

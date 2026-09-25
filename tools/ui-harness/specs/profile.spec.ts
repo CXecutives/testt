@@ -296,13 +296,13 @@ test('a wrong date is said at the field and nothing is saved', async ({ page }) 
   await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('31.02.2026');
   await expect(page.getByTestId('profile-date-error')).toHaveText(
-    'Datum im Format 01.11.2026 eingeben.',
+    'Gib das Datum im Format 01.11.2026 ein.',
   );
   await save(page).click();
   expect(await calls(page, 'save_profile')).toHaveLength(0);
   // Saving says why in the bar and puts the caret into the day.
   await expect(page.getByTestId('profile-save-status')).toHaveText(
-    'Datum im Format 01.11.2026 eingeben.',
+    'Gib das Datum im Format 01.11.2026 ein.',
   );
   await expect(page.getByTestId('profile-date')).toBeFocused();
 });
@@ -654,7 +654,7 @@ test('a chosen file fills the form for review; discarding keeps what was there',
   await page.getByTestId('profile-pick').click();
   await expect(page.getByTestId('profile-name')).toHaveText('Profil aus einer Datei');
   await expect(page.getByTestId('profile-review')).toHaveText(
-    'Die Angaben prüfen, dann speichern.',
+    'Prüfe die Angaben und speichere sie.',
   );
   await expect(page.getByTestId('profile-name-field')).toHaveValue('Jonas Muster');
   // What does not read is said before saving, at its field.
@@ -723,7 +723,7 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
   await expect(page.getByTestId('paste-prompt')).toHaveCount(0);
   await page.getByTestId('paste-preview').getByRole('button', { name: 'Prompt ansehen' }).click();
   await expect(page.getByTestId('paste-prompt')).toContainText('Lebenslauf');
-  await expect(card).toContainText('In eine KI einfügen und den Lebenslauf anhängen.');
+  await expect(card).toContainText('Füge ihn in eine KI ein und hänge den Lebenslauf an.');
   // The same words as the rest of the app: KI and Prompt, never Claude or Anfrage.
   await expect(card).not.toContainText('Claude');
   await expect(card).not.toContainText('Anfrage');
@@ -962,7 +962,7 @@ test('the remote switch sits under the countries and needs one', async ({ page }
   }
   await expect(toggle).toHaveAttribute('aria-disabled', 'true');
   await toggle.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst Einsatzländer wählen.');
+  await expect(page.getByRole('tooltip')).toHaveText('Wähle erst die Einsatzländer.');
 });
 
 test('permanent roles can be excluded next to temporary agency work', async ({ page }) => {

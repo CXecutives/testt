@@ -228,7 +228,7 @@ test('one place for filters: Neu, Alle, Favoriten; the overview says what now', 
   // The files have a block of their own.
   await expect(page.getByTestId('files')).toContainText('Dateien');
   await expect(page.getByTestId('issue-freelance-mails')).toContainText(
-    'Eine Alert-Mail enthielt keine Jobs.',
+    'Eine Alert-Mail enthielt keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
   );
   await expect(overview.getByTestId('overview-excel')).toBeVisible();
   // The one filter place: the segments in the list header count their lists.
@@ -418,7 +418,7 @@ test('nothing else to say beside a list with jobs: one quiet line, like a mail a
   await page.getByTestId('fetch').click();
   await runFinished(page);
   await expect(page.getByTestId('issues')).toHaveCount(0);
-  await expect(page.getByTestId('overview-pick')).toHaveText('Links einen Job auswählen.');
+  await expect(page.getByTestId('overview-pick')).toHaveText('Wähle links einen Job aus.');
 });
 
 test('an empty list and a first fetch without news', async ({ page }) => {

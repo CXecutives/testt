@@ -5,10 +5,13 @@
 // Style rules (CLAUDE.md, checked by core/tests/ui_contract.rs): little text, plain and
 // human. Buttons are one verb phrase without a period; notes are one short sentence with a
 // period; headings and labels end without a colon; no dash or em dash as a separator, no
-// "X: Y", no exclamation marks, no text twice. Glossary: Job · Portal · Passung · Details ·
-// Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Excel-Datei · Ausgeschlossen · Neu ·
-// Zu prüfen · Favorit (Favoriten) · Bewerbung · Archiv. A profile field has one name: the
-// label of its form field (without the unit) in errors, warnings and the profile.
+// "X: Y", no exclamation marks, no text twice. A sentence speaks to the user as "du", and an
+// instruction in a sentence is a du imperative ("Verbinde erst ein Postfach."); a button
+// stays an infinitive ("Postfach verbinden"). A control a sentence names stands in quotes
+// („Details holen“). Glossary (docs/PLAN.md): Job · Portal · Passung · Details · Abrufen ·
+// Profil · Postfach · Alert-Mail · Übersicht · Excel-Datei · Ausgeschlossen · Neu · Zu prüfen ·
+// Favorit (Favoriten) · Archiv · Papierkorb. A profile field has one name: the label of its
+// form field (without the unit) in errors, warnings and the profile.
 //
 // Every code of the generated types has exactly one text here: the tables are typed as
 // `Record<Code, ...>`, so a new code without a text is a type error.
@@ -37,7 +40,14 @@ import type {
   VaultKind,
   WorkMode,
 } from '../ipc/types';
-import { formatCountdown, formatEuro, formatMoment, formatNumber, formatPercent } from './format';
+import {
+  NBSP,
+  formatCountdown,
+  formatEuro,
+  formatMoment,
+  formatNumber,
+  formatPercent,
+} from './format';
 
 type Params = Record<string, string | number | boolean | null>;
 type Text = string | ((params: Params) => string);
@@ -70,7 +80,14 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   newerSchema: 'Die Daten stammen von einer neueren Version der App.',
   invalid: 'Die Eingabe passt nicht.',
   busy: 'Gerade läuft schon ein Abruf.',
-  notFound: 'Das gibt es nicht mehr.',
+  // By what was looked for (`what`): a file or folder may never have been written (a new
+  // work folder), a job or a mail is gone.
+  notFound: (p) =>
+    p.what === 'file'
+      ? 'Die Datei ist nicht vorhanden.'
+      : p.what === 'folder'
+        ? 'Der Ordner ist nicht vorhanden.'
+        : 'Das gibt es nicht mehr.',
   dryRun: 'Im Probelauf geht das nicht.',
   mailMissing: 'Es ist kein Postfach verbunden.',
   mailConnect: 'Gmail ist nicht erreichbar.',
@@ -163,6 +180,27 @@ const pause: Record<PauseReason, string> = {
 
 /** Opening the alert mail of a job in Gmail, the same words wherever it is offered. */
 const OPEN_MAIL = 'Alert-Mail öffnen';
+
+/** What a detail state means, the same in a row's badge tooltip and in the reader (the
+ *  teaser's says what the glossary word "Anriss" is). */
+const detailSays = {
+  teaser: 'Ohne Anmeldung zeigt das Portal nur den Anfang der Anzeige.',
+  unfetchable: 'Die Anzeige ließ sich mehrmals nicht holen.',
+  gone: 'Die Anzeige ist nicht mehr online.',
+  onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
+} as const;
+
+/** Alert mails without jobs, and what to do about them (the overview's open points and the
+ *  settings say it alike): look whether the mail lists any. */
+const emptyMails = (mails: number): string =>
+  `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.`;
+
+/** A profile file the app cannot read (the list, the overview, the Profil view). */
+const PROFILE_UNREADABLE = 'Profil nicht lesbar';
+
+/** The run that reads every alert mail (`fullMailbox`): one name in the list, the run card
+ *  and the settings. */
+const FULL_MAILBOX = 'Ganzes Postfach lesen';
 
 const ANUE = 'Die Anzeige nennt Arbeitnehmerüberlassung.';
 const LOW_TEXT = 'Die Anzeige hat wenig Text.';
@@ -358,7 +396,7 @@ const criteria = {
   },
   countries: {
     label: 'Einsatzländer',
-    short: 'Einsatzort außerhalb',
+    short: 'Einsatzland passt nicht',
     exclusion: 'Der Einsatzort liegt außerhalb der Länder im Profil.',
   },
   noAnue: {
@@ -521,7 +559,7 @@ export const de = {
   },
   /** The bar that replaces the list's second row while several jobs are selected. */
   selection: {
-    count: (n: number) => `${n} ausgewählt`,
+    count: (value: number) => `${n(value)} ausgewählt`,
     clear: 'Auswahl aufheben',
     /** The reader while several jobs are chosen. */
     chosen: (value: number) => `${count(value, 'Job', 'Jobs')} ausgewählt`,
@@ -534,8 +572,6 @@ export const de = {
   },
   /** Where a job is, like a mail: the inbox ("Jobs" in the sidebar), the archive, the trash. */
   place: {
-    /** The inbox is "Jobs", like the sidebar says. */
-    inbox: 'Jobs',
     archive: 'Archiv',
     trash: 'Papierkorb',
     /** The field's placeholder names what it searches. */
@@ -568,17 +604,17 @@ export const de = {
     } satisfies Record<Place, string>,
     /** The reader of the archive and the trash while no job is open. */
     reader: {
-      inbox: 'Wähle einen Job aus der Liste.',
       archive: 'Archivierte Jobs bleiben hier, bis du sie zurückholst oder löschst.',
       trash: 'Gelöschte Jobs liegen hier, bis du sie wiederherstellst oder den Papierkorb leerst.',
-    } satisfies Record<Place, string>,
+    } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
       `Gelöschte Jobs liegen hier ${count(days, 'Tag', 'Tage')}, dann sind sie endgültig weg.`,
   },
   /** What a job can do where it is: one name and icon on a row, in the reader, in the bar. */
   actions: {
     archive: 'Archivieren',
-    toInbox: 'Zurück zu Jobs',
+    /** Back into the inbox (the toast says "zurückgeholt"): a verb, not a way back. */
+    toInbox: 'Zurückholen',
     trash: 'In den Papierkorb',
     restore: 'Wiederherstellen',
     purge: 'Endgültig löschen',
@@ -667,11 +703,11 @@ export const de = {
     /** What a detail badge means, in its tooltip. */
     detailHint: {
       pending: 'Die ganze Anzeige ist noch nicht geholt.',
-      teaser: 'Das Portal zeigt ohne Anmeldung nur einen Anriss.',
+      teaser: detailSays.teaser,
       failed: 'Die ganze Anzeige ließ sich nicht holen.',
-      unfetchable: 'Die Anzeige ließ sich mehrmals nicht lesen.',
-      gone: 'Die Anzeige ist nicht mehr online.',
-      onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
+      unfetchable: detailSays.unfetchable,
+      gone: detailSays.gone,
+      onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     /** The ad's page says it takes no applications any more (badge and its tooltip). */
     closed: 'Keine Bewerbung mehr möglich',
@@ -685,7 +721,8 @@ export const de = {
     fetch: 'Abrufen',
     cancel: 'Abbrechen',
     progress: 'Fortschritt des Abrufs',
-    facet: 'Auswahl',
+    /** The switch Neu, Alle, Favoriten ("Auswahl" is the multi-selection's word). */
+    facet: 'Ansicht',
     facetNew: 'Neu',
     facetAll: 'Alle',
     facetSaved: 'Favoriten',
@@ -696,7 +733,7 @@ export const de = {
     } satisfies Record<JobSort, string>,
     /** The order without a usable profile: there is no fit to sort by. */
     sortNoProfile: 'Ohne Profil nur nach Datum.',
-    needsMailbox: 'Erst ein Postfach verbinden.',
+    needsMailbox: 'Verbinde erst ein Postfach.',
   },
   run: {
     never: 'Noch kein Abruf',
@@ -706,13 +743,11 @@ export const de = {
       score: 'Bewertung',
       export: 'Dateien',
     } satisfies Record<Step, string>,
-    status,
     /** The status, naming the portal where the backend says which one. */
     statusOf: (code: StatusCode, portal: Portal | null): string => {
       const at = portal === null ? undefined : statusAt[code];
       return at !== undefined && portal !== null ? at(portalName[portal]) : status[code];
     },
-    of: (done: number, total: number) => `${n(done)} von ${n(total)}`,
     /** After the rolling number of a step counter: "von 7". */
     ofTotal: (total: number) => `von ${n(total)}`,
     newPill: (value: number) => `${n(value)} neu`,
@@ -728,7 +763,7 @@ export const de = {
       fetch: 'Abruf',
       details: 'Details holen',
       rescore: 'Neu bewerten',
-      fullMailbox: 'Ältere Mails lesen',
+      fullMailbox: FULL_MAILBOX,
     } satisfies Record<RunKindName, string>,
     done: 'Abruf fertig',
     rescored: 'Neu bewertet',
@@ -796,12 +831,19 @@ export const de = {
     label: 'Jobs',
     /** The divider (its count is a pill of its own, left out where the rows are a part). */
     excluded: 'Ausgeschlossen',
+    /** A row excluded by a formal requirement the ad makes mandatory (`formalOpen` with its
+     *  `class`), in the short words of the criteria. */
+    formalMissing: {
+      degree: 'Abschluss fehlt',
+      licence: 'Zulassung fehlt',
+    },
     /** The empty list says where jobs come from and how to get more. */
     emptySources: 'Ein Alert pro Portal bringt neue Jobs.',
-    /** FR-03: while the first fetch runs, the empty list only says what comes. */
-    emptyWhileRun: 'Die Jobs erscheinen, sobald der Abruf fertig ist.',
+    /** FR-03: while the first fetch runs, the empty list only says what comes (the rows
+     *  arrive during the fetch, each once its details are in). */
+    emptyWhileRun: 'Die Jobs erscheinen hier nach und nach.',
     createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
-    readOlder: 'Ältere Mails lesen',
+    readOlder: FULL_MAILBOX,
     emptyNew: 'Keine neuen Jobs.',
     emptyFavourites: 'Noch keine Favoriten.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
@@ -821,7 +863,7 @@ export const de = {
     noMailbox: 'Ohne Postfach kommen keine neuen Jobs dazu.',
     /** No usable profile: said once, at the top of the list. */
     noProfile: 'Ohne Profil gibt es keine Passung.',
-    profileUnreadable: 'Profil nicht lesbar',
+    profileUnreadable: PROFILE_UNREADABLE,
     profileEmpty: 'Profil ohne Kompetenzen',
     profileBrokenText: 'Die Jobs zeigen deshalb keine Passung.',
     connectMailbox: 'Postfach verbinden',
@@ -857,7 +899,6 @@ export const de = {
       `${n(met)} von ${n(total)} Pflichtanforderungen erfüllt` +
       (partial > 0 ? `, ${n(partial)} teilweise` : ''),
     noMust: 'Keine Pflichtanforderungen erkannt',
-    criteria: 'Ausschlusskriterien',
     /** The label of the strip of hard criteria next to the score. */
     frame: 'Rahmen',
     /** Why the temporary agency criterion needs a look. */
@@ -908,37 +949,34 @@ export const de = {
     ad: 'Anzeige',
     detail: {
       pending: 'Die Details folgen beim nächsten Abruf.',
-      teaser: 'Ohne Anmeldung zeigt das Portal nur einen Anriss.',
+      teaser: detailSays.teaser,
       failed: 'Die Details ließen sich nicht holen.',
-      unfetchable: 'Die Anzeige ließ sich mehrmals nicht lesen.',
-      gone: 'Die Anzeige ist nicht mehr online.',
-      onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
+      unfetchable: detailSays.unfetchable,
+      gone: detailSays.gone,
+      onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     closed: 'Die Anzeige nimmt keine Bewerbungen mehr an.',
-    detailsOff: 'Details holen ist für dieses Portal aus.',
+    detailsOff: '„Details holen“ ist für dieses Portal aus.',
     short: SHORT_TEXT,
     loadFailed: 'Der Job ließ sich nicht laden.',
   },
   overview: {
     noProfileText: 'Mit einem Profil zeigt jeder Job, wie gut er passt.',
-    profileUnreadable: 'Profil nicht lesbar',
+    profileUnreadable: PROFILE_UNREADABLE,
     label: 'Tagesüberblick',
     /** Shown in the empty reader when the overview has nothing else to say (like Mail's "no message selected"). */
-    pick: 'Links einen Job auswählen.',
+    pick: 'Wähle links einen Job aus.',
     issues: 'Offene Punkte',
     best: 'Neu und passend',
-    excel: 'Excel öffnen',
+    excel: 'Excel-Datei öffnen',
     /** The best matches as one prompt for any AI chat. */
     promptTop: 'Prompt für KI-Vergleich kopieren',
-    promptTopNone: 'Noch kein Job bewertet.',
     /** When the list beside shows the best new jobs on top already. */
     bestInList: 'Die besten neuen Jobs stehen oben in der Liste.',
     files: 'Dateien',
-    /** Under the portal's name, so the sentence does not name it again. */
-    emptyAlerts: (value: number) =>
-      value === 1
-        ? 'Eine Alert-Mail enthielt keine Jobs.'
-        : `${n(value)} Alert-Mails enthielten keine Jobs.`,
+    /** Under the portal's name, so the sentence does not name it again; next to the button
+     *  that opens the mail. */
+    emptyAlerts: emptyMails,
     lastRun: 'Letzter Abruf',
   },
   health: {
@@ -956,11 +994,10 @@ export const de = {
       },
       quota: (iso: string) =>
         `Das Limit ist erreicht, der Abruf macht ab ${formatMoment(iso)} von selbst weiter.`,
-      emptyMails: (mails: number) =>
-        `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte in Gmail nachsehen, ob dort welche stehen.`,
+      emptyMails,
       pages:
         'Die Seiten des Portals sehen anders aus, der nächste Abruf versucht es von selbst wieder.',
-      login: 'Die Anmeldung ist abgelaufen, bitte neu anmelden.',
+      login: 'Die Anmeldung ist abgelaufen, bitte melde dich neu an.',
     },
   },
   profile: {
@@ -1021,7 +1058,7 @@ export const de = {
       update: 'Profil mit dem Lebenslauf aktualisiert',
     },
     unsaved: 'Nicht gespeichert',
-    review: 'Die Angaben prüfen, dann speichern.',
+    review: 'Prüfe die Angaben und speichere sie.',
     save: 'Speichern',
     discard: 'Verwerfen',
     saved: 'Gespeichert.',
@@ -1104,14 +1141,14 @@ export const de = {
       remoteOutside: 'Remote-Stellen im Ausland zulassen',
       remoteOutsideHint:
         'Ausgeschaltet markiert die App ganz remote Stellen mit Sitz im Ausland zum Prüfen.',
-      remoteOutsideOff: 'Erst Einsatzländer wählen.',
+      remoteOutsideOff: 'Wähle erst die Einsatzländer.',
       noAnue: 'Arbeitnehmerüberlassung ausschließen',
       noPermanent: 'Festanstellung ausschließen',
       noPermanentHint: 'Nur bei klarem Wortlaut, sonst markiert die App den Job zum Prüfen.',
       available: 'Verfügbar ab',
       date: 'Datum',
       datePlaceholder: '01.11.2026',
-      dateInvalid: 'Datum im Format 01.11.2026 eingeben.',
+      dateInvalid: 'Gib das Datum im Format 01.11.2026 ein.',
       targetYears: 'Mindest-Erfahrung der Stelle (Jahre)',
       targetYearsHint: 'Stellen für deutlich weniger Erfahrung fallen weg.',
       minSalary: 'Mindest-Jahresgehalt (€)',
@@ -1217,7 +1254,7 @@ export const de = {
       copyFailed: 'Der Prompt ließ sich nicht kopieren.',
       copy: 'Prompt kopieren',
       copyAgain: 'Erneut kopieren',
-      step: 'In eine KI einfügen und den Lebenslauf anhängen.',
+      step: 'Füge ihn in eine KI ein und hänge den Lebenslauf an.',
       preview: 'Prompt ansehen',
       answer: 'Antwort der KI',
       take: 'Übernehmen',
@@ -1234,7 +1271,7 @@ export const de = {
     /** The last fetch could not reach Gmail, or Gmail refused the password. */
     unreachable: 'Nicht erreichbar',
     refused: 'Abgelehnt',
-    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, bitte über Ändern neu eintragen.',
+    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, bitte trag sie über „Ändern“ neu ein.',
     vault: {
       windowsCredentialManager:
         'Das App-Passwort liegt in der Windows-Anmeldeinformationsverwaltung.',
@@ -1259,7 +1296,7 @@ export const de = {
     autoEmptyTrashHint: 'Gelöschte Jobs sind danach endgültig weg.',
     active: 'Aktiv',
     details: 'Details holen',
-    needsDetails: 'Erst Details holen einschalten.',
+    needsDetails: 'Schalte erst „Details holen“ ein.',
     login: 'Mit Anmeldung',
     loginHint: 'Zeigt ganze Anzeigen statt eines Anrisses.',
     risk: {
@@ -1299,32 +1336,37 @@ export const de = {
     excel: 'Excel-Datei',
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
     txt: 'Textdateien',
-    txtCount: (value: number) => count(value, 'Datei', 'Dateien'),
-    txtNone: 'Es gibt noch keine Textdateien.',
+    /** What the text files are (one per ad) and what they are for, with their number. */
+    txtCount: (value: number) =>
+      `${count(value, 'Anzeige', 'Anzeigen')} als Text für eine KI-Bewertung`,
+    txtNone: 'Es gibt keine Textdateien.',
     txtRewrite: 'Neu schreiben',
     txtClear: 'Löschen',
     txtWritten: (value: number) => `${count(value, 'Datei', 'Dateien')} geschrieben.`,
     txtFailed: (value: number) => `${count(value, 'Datei ist', 'Dateien sind')} gerade geöffnet.`,
     txtCleared: (value: number) => `${count(value, 'Datei', 'Dateien')} gelöscht.`,
     txtClearHeading: 'Textdateien löschen?',
-    txtClearText: 'Beim nächsten Abruf entstehen sie neu.',
-    fullMailbox: 'Ganzes Postfach lesen',
+    /** A deleted text file is never written again by a fetch (core `mark_txt_written`). */
+    txtClearText: 'Nur „Neu schreiben“ holt sie zurück.',
+    fullMailbox: FULL_MAILBOX,
     fullMailboxHint: 'Liest alle Alert-Mails, nicht nur die neuen.',
     fullMailboxAction: 'Postfach lesen',
-    /** The dialog's confirm: the bare verb of its heading, like every dialog. */
-    fullMailboxConfirm: 'Lesen',
     fullMailboxHeading: 'Ganzes Postfach lesen?',
     fullMailboxText: 'Das dauert länger und ruft mehr Seiten der Portale ab.',
     logs: 'Protokolle',
     data: 'Daten der App',
     reset: 'Alles zurücksetzen',
-    resetHint: 'Löscht Jobs, Einstellungen, Profil und App-Passwort.',
+    /** Everything core's reset deletes: the database, the profile, the keychain entry, the
+     *  portal sign-ins; the dialog adds the app's files in the work folder. */
+    resetHint: 'Löscht Jobs, Einstellungen, Profil, App-Passwort und Anmeldungen.',
     resetAction: 'Zurücksetzen',
     resetHeading: 'Alles zurücksetzen?',
-    resetText: 'Die App startet neu und ist danach leer.',
+    resetText:
+      'Die App startet neu und löscht auch Excel-Datei, Übersicht und Textdateien im Arbeitsordner.',
     resetDone: 'Die App ist zurückgesetzt.',
+    /** What stayed can be a file, a folder, the app password or a sign-in: "Element". */
     resetPartly: (value: number) =>
-      `Die App ist zurückgesetzt, ${count(value, 'Datei ließ', 'Dateien ließen')} sich nicht löschen.`,
+      `Die App ist zurückgesetzt, ${count(value, 'Element ließ', 'Elemente ließen')} sich nicht löschen.`,
     running: 'Ein Abruf läuft gerade.',
     dryRun: 'Probelauf, es werden keine Daten verändert.',
     language: 'Sprache',
@@ -1342,7 +1384,8 @@ export const de = {
     privacy: 'Alles bleibt auf diesem Rechner.',
     steps: 'Erste Schritte',
     mailbox: 'Postfach',
-    mailboxText: 'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
+    /** Where the jobs come from: the portals by name, in the app's order (`Portal::ALL`). */
+    mailboxText: `Die Alert-Mails von ${joined(Object.values(portalName))} gehören${NBSP}hierher.`,
     profile: 'Profil',
     profileText: 'Das Profil entsteht in der App, auf Wunsch aus dem Lebenslauf.',
     fetch: 'Erster Abruf',
@@ -1361,7 +1404,6 @@ export const de = {
     sidebarKey: { ctrl: 'Strg+B', cmd: '⌘B' } satisfies Record<'ctrl' | 'cmd', string>,
   },
   toast: {
-    saved: 'Gespeichert.',
     mailboxSaved: 'Postfach verbunden.',
     rescored: 'Die Jobs sind neu bewertet.',
     copied: 'Kopiert.',

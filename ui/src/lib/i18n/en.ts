@@ -10,7 +10,10 @@
 // Profile · Mailbox · Alert email · Overview · Excel file · Excluded · New · To check ·
 // Favourites · Inbox (the place of the active jobs) · Archive · Trash · Skill · Preference.
 // Plain British English: "email", never "mail" for one message; "preferences", never
-// "wishes"; two main clauses are joined by a conjunction, never by a comma alone.
+// "wishes"; "forever" for endgültig, never "for good"; two main clauses are joined by a
+// conjunction, never by a comma alone; an introductory phrase takes its comma ("Without a
+// profile, …"); apostrophes and quotes are typographic (’ “ ”), a named control stands in
+// quotes (“Fetch details”).
 
 import type {
   Band,
@@ -37,7 +40,14 @@ import type {
   WorkMode,
 } from '../ipc/types';
 import { textOf, type Catalog, type ContractKind, type CriterionState } from './de';
-import { formatCountdown, formatEuro, formatMoment, formatNumber, formatPercent } from './format';
+import {
+  NBSP,
+  formatCountdown,
+  formatEuro,
+  formatMoment,
+  formatNumber,
+  formatPercent,
+} from './format';
 
 type Params = Record<string, string | number | boolean | null>;
 type Text = string | ((params: Params) => string);
@@ -92,11 +102,16 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   fileLocked: 'A file is open in another program right now.',
   io: 'A file could not be read or written.',
   xlsx: 'The Excel file could not be written.',
-  corrupt: "The app's data is damaged.",
+  corrupt: 'The app’s data is damaged.',
   newerSchema: 'The data comes from a newer version of the app.',
   invalid: 'The input is not valid.',
   busy: 'A fetch is running already.',
-  notFound: 'This no longer exists.',
+  notFound: (p) =>
+    p.what === 'file'
+      ? 'The file does not exist.'
+      : p.what === 'folder'
+        ? 'The folder does not exist.'
+        : 'This no longer exists.',
   dryRun: 'This does not work in the dry run.',
   mailMissing: 'No mailbox is connected.',
   mailConnect: 'Gmail cannot be reached.',
@@ -106,7 +121,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   mailNotGmail: 'This is not a Gmail mailbox.',
   mailServer: 'Gmail reports an error.',
   mailCancelled: 'Cancelled.',
-  secretStore: "The system's password store cannot be reached.",
+  secretStore: 'The system’s password store cannot be reached.',
   secretCorrupt: 'The stored app password cannot be read.',
   portalUnavailable: (p) => `No connection to ${portalOf(p.portal)}.`,
   portalPaused: (p) => `Fetching from ${portalOf(p.portal)} is paused right now.`,
@@ -190,6 +205,26 @@ const pause: Record<PauseReason, string> = {
 /** Opening the alert email of a job in Gmail, the same words wherever it is offered. */
 const OPEN_MAIL = 'Open alert email';
 
+/** The run that reads every alert email (`fullMailbox`), one name everywhere. */
+const FULL_MAILBOX = 'Read the whole mailbox';
+
+/** What a detail state means, the same in a row's badge tooltip and in the reader. */
+const detailSays = {
+  teaser: 'Without a sign-in, the portal shows only the start of the ad.',
+  unfetchable: 'The ad could not be fetched after several tries.',
+  gone: 'The ad is no longer online.',
+  onRequest: 'Older jobs get their details only on request.',
+} as const;
+
+/** Alert emails without jobs, and what to do about them (the overview and the settings). */
+const emptyMails = (mails: number): string =>
+  mails === 1
+    ? 'One alert email had no jobs, so please check it in Gmail.'
+    : `${n(mails)} alert emails had no jobs, so please check them in Gmail.`;
+
+/** A profile file the app cannot read (the list, the overview, the Profile view). */
+const PROFILE_UNREADABLE = 'Profile cannot be read';
+
 const ANUE = 'The ad mentions temporary agency work.';
 const LOW_TEXT = 'The ad has little text.';
 const SHORT_TEXT = 'The ad is very short.';
@@ -198,7 +233,7 @@ const SHORT_TEXT = 'The ad is very short.';
 const contract: Record<ContractKind, string> = {
   interim: 'Interim',
   permanent: 'Permanent',
-  anue: 'Agency work',
+  anue: 'Temporary agency work',
   unclear: 'Contract type unclear',
 };
 
@@ -216,11 +251,11 @@ function dayRateWish(p: Params): string {
   const wish = formatEuro(p.wish);
   switch (p.state) {
     case 'met':
-      return `The day rate of ${rate} meets your target of ${wish}.`;
+      return `The day rate of ${rate} meets your preferred rate of ${wish}.`;
     case 'near':
-      return `The day rate of ${rate} is just below your target of ${wish}.`;
+      return `The day rate of ${rate} is just below your preferred rate of ${wish}.`;
     case 'missed':
-      return `The day rate of ${rate} is below your target of ${wish}.`;
+      return `The day rate of ${rate} is below your preferred rate of ${wish}.`;
     default:
       return p.currency
         ? `The day rate is given in ${str(p.currency)}.`
@@ -378,8 +413,8 @@ const criteria = {
     exclusion: 'The location is outside the countries in the profile.',
   },
   noAnue: {
-    label: 'Agency work',
-    short: 'Agency work',
+    label: 'Temporary agency work',
+    short: 'Temporary agency work',
     exclusion: ANUE,
   },
   noPermanent: {
@@ -515,7 +550,7 @@ export const en: Catalog = {
     reset: 'Double-click to reset',
   },
   selection: {
-    count: (n: number) => `${n} selected`,
+    count: (value: number) => `${n(value)} selected`,
     clear: 'Clear selection',
     chosen: (value: number) => `${count(value, 'job', 'jobs')} selected`,
     commandKey: { ctrl: 'Ctrl', cmd: 'Cmd' },
@@ -523,7 +558,6 @@ export const en: Catalog = {
     tip: (key: string) => `Choose several jobs at once with ${key}+click.`,
   },
   place: {
-    inbox: 'Jobs',
     archive: 'Archive',
     trash: 'Trash',
     search: {
@@ -544,23 +578,22 @@ export const en: Catalog = {
     inArchive: 'In the archive',
     inTrash: 'In the trash',
     inTrashFor: (days: number) =>
-      `In the trash, deleted for good after ${count(days, 'day', 'days')}`,
+      `In the trash, deleted forever after ${count(days, 'day', 'days')}`,
     empty: {
       inbox: 'No jobs.',
       archive: 'The archive is empty.',
       trash: 'The trash is empty.',
     } satisfies Record<Place, string>,
     reader: {
-      inbox: 'Choose a job from the list.',
       archive: 'Archived jobs stay here until you bring them back or delete them.',
       trash: 'Deleted jobs stay here until you restore them or empty the trash.',
-    } satisfies Record<Place, string>,
+    } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
-      `Deleted jobs stay here for ${count(days, 'day', 'days')}, then they are gone for good.`,
+      `Deleted jobs stay here for ${count(days, 'day', 'days')} and are then gone forever.`,
   },
   actions: {
     archive: 'Archive',
-    toInbox: 'Back to Jobs',
+    toInbox: 'Move back to Jobs',
     trash: 'Move to trash',
     restore: 'Restore',
     purge: 'Delete forever',
@@ -571,8 +604,8 @@ export const en: Catalog = {
     emptyTrashHeading: 'Empty the trash?',
     emptyTrashText: (value: number) =>
       value === 1
-        ? 'The job is deleted for good and never comes back.'
-        : `The ${n(value)} jobs are deleted for good and never come back.`,
+        ? 'The job is deleted forever and never comes back.'
+        : `The ${n(value)} jobs are deleted forever and never come back.`,
     markAllRead: 'Mark all as read',
   },
   edit: {
@@ -641,11 +674,11 @@ export const en: Catalog = {
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     detailHint: {
       pending: 'The full ad has not been fetched yet.',
-      teaser: 'Without a sign-in the portal shows only a teaser.',
+      teaser: detailSays.teaser,
       failed: 'The full ad could not be fetched.',
-      unfetchable: 'The ad could not be read after several tries.',
-      gone: 'The ad is no longer online.',
-      onRequest: 'Older jobs get their details only on request.',
+      unfetchable: detailSays.unfetchable,
+      gone: detailSays.gone,
+      onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     closed: 'No longer taking applications',
     closedHint: 'The ad can still be read but no longer takes applications.',
@@ -677,12 +710,10 @@ export const en: Catalog = {
       score: 'Scoring',
       export: 'Files',
     } satisfies Record<Step, string>,
-    status,
     statusOf: (code: StatusCode, portal: Portal | null): string => {
       const at = portal === null ? undefined : statusAt[code];
       return at !== undefined && portal !== null ? at(portalName[portal]) : status[code];
     },
-    of: (done: number, total: number) => `${n(done)} of ${n(total)}`,
     ofTotal: (total: number) => `of ${n(total)}`,
     newPill: (value: number) => `${n(value)} new`,
     topPill: (value: number) => count(value, 'fits well', 'fit well'),
@@ -696,7 +727,7 @@ export const en: Catalog = {
       fetch: 'Fetch',
       details: 'Fetch details',
       rescore: 'Score again',
-      fullMailbox: 'Read older emails',
+      fullMailbox: FULL_MAILBOX,
     } satisfies Record<RunKindName, string>,
     done: 'Fetch done',
     rescored: 'Scored again',
@@ -751,13 +782,17 @@ export const en: Catalog = {
   list: {
     label: 'Jobs',
     excluded: 'Excluded',
+    formalMissing: {
+      degree: 'Degree missing',
+      licence: 'Licence missing',
+    },
     emptySources: 'One job alert per portal brings in new jobs.',
-    emptyWhileRun: 'The jobs show up once the fetch is done.',
+    emptyWhileRun: 'The jobs show up here as the fetch goes on.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
-    readOlder: 'Read older emails',
+    readOlder: FULL_MAILBOX,
     emptyNew: 'No new jobs.',
     emptyFavourites: 'No favourites yet.',
-    emptyAll: 'After the first fetch the jobs show up here.',
+    emptyAll: 'After the first fetch, the jobs show up here.',
     emptyAfterRun: 'The alert emails have had no jobs so far.',
     noHit: (query: string) => `No jobs for “${query}”.`,
     noHitIn: {
@@ -771,8 +806,8 @@ export const en: Catalog = {
     createProfile: 'Create profile',
     openProfile: 'Open profile',
     noMailbox: 'Without a mailbox, no new jobs come in.',
-    noProfile: 'Without a profile there is no match.',
-    profileUnreadable: 'Profile cannot be read',
+    noProfile: 'Without a profile, there is no match.',
+    profileUnreadable: PROFILE_UNREADABLE,
     profileEmpty: 'Profile without skills',
     profileBrokenText: 'That is why the jobs show no match.',
     connectMailbox: 'Connect mailbox',
@@ -801,10 +836,11 @@ export const en: Catalog = {
     notMentioned: (label: string) => `${label} not mentioned`,
   },
   reader: {
+    // The words of the English AI prompt ("3 of 4 must-have requirements met").
     mustMet: (met: number, total: number, partial = 0) =>
-      `${n(met)} of ${n(total)} requirements met` + (partial > 0 ? `, ${n(partial)} partly` : ''),
-    noMust: 'No requirements found',
-    criteria: 'Exclusion criteria',
+      `${n(met)} of ${n(total)} must-have requirements met` +
+      (partial > 0 ? `, ${n(partial)} partly` : ''),
+    noMust: 'No must-have requirements found',
     frame: 'Terms',
     anueCheck: 'It is not certain whether the role is temporary agency work.',
     contractLabel: 'Contract type',
@@ -832,9 +868,9 @@ export const en: Catalog = {
     preliminary: 'Provisional, scored from a teaser',
     mail: OPEN_MAIL,
     noMail: 'There is no alert email for this job.',
-    teaserOf: (portal: string) => `Without a sign-in ${portal} shows only a teaser.`,
+    teaserOf: (portal: string) => `Without a sign-in, ${portal} shows only a teaser.`,
     setUpSignIn: 'Set up sign-in',
-    promptNoProfile: 'Without a profile there is nothing to assess.',
+    promptNoProfile: 'Without a profile, there is nothing to assess.',
     promptNoText: 'The text of the ad is still missing.',
     mailAt: (moment: string) => `Alert email from ${moment}`,
     fetchDetails: 'Fetch details',
@@ -849,31 +885,29 @@ export const en: Catalog = {
     ad: 'Ad',
     detail: {
       pending: 'The details come with the next fetch.',
-      teaser: 'Without a sign-in the portal shows only a teaser.',
+      teaser: detailSays.teaser,
       failed: 'The details could not be fetched.',
-      unfetchable: 'The ad could not be read after several tries.',
-      gone: 'The ad is no longer online.',
-      onRequest: 'Older jobs get their details only on request.',
+      unfetchable: detailSays.unfetchable,
+      gone: detailSays.gone,
+      onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     closed: 'The ad no longer takes applications.',
-    detailsOff: 'Fetch details is off for this portal.',
+    detailsOff: '“Fetch details” is off for this portal.',
     short: SHORT_TEXT,
     loadFailed: 'The job could not be loaded.',
   },
   overview: {
-    noProfileText: 'With a profile every job shows how well it fits.',
-    profileUnreadable: 'Profile cannot be read',
+    noProfileText: 'With a profile, every job shows how well it fits.',
+    profileUnreadable: PROFILE_UNREADABLE,
     label: 'Today at a glance',
     pick: 'Select a job on the left.',
     issues: 'Needs attention',
     best: 'Best new matches',
     excel: 'Open Excel file',
     promptTop: 'Copy prompt for AI comparison',
-    promptTopNone: 'No job scored yet.',
     bestInList: 'The best new jobs are at the top of the list.',
     files: 'Files',
-    emptyAlerts: (value: number) =>
-      value === 1 ? 'One alert email had no jobs.' : `${n(value)} alert emails had no jobs.`,
+    emptyAlerts: emptyMails,
     lastRun: 'Last fetch',
   },
   health: {
@@ -890,10 +924,7 @@ export const en: Catalog = {
       },
       quota: (iso: string) =>
         `The limit is reached, so fetching resumes by itself at ${formatMoment(iso)}.`,
-      emptyMails: (mails: number) =>
-        mails === 1
-          ? 'One alert email had no jobs, so please check it in Gmail.'
-          : `${n(mails)} alert emails had no jobs, so please check them in Gmail.`,
+      emptyMails,
       pages: 'The pages of the portal look different, so the next fetch tries again by itself.',
       login: 'The sign-in has expired, so please sign in again.',
     },
@@ -950,7 +981,7 @@ export const en: Catalog = {
       update: 'Profile updated from the CV',
     },
     unsaved: 'Not saved',
-    review: 'Check the details, then save.',
+    review: 'Check the details and save them.',
     save: 'Save',
     discard: 'Discard',
     saved: 'Saved.',
@@ -1015,7 +1046,7 @@ export const en: Catalog = {
       language: 'Language',
       languagePlaceholder: 'German',
       level: 'Level',
-      levelHint: 'Without a level the app assumes B2.',
+      levelHint: 'Without a level, the app assumes B2.',
       addLanguage: 'Add language',
       removeLanguage: (name: string) => `Remove ${name || 'language'}`,
       wishRate: 'Preferred day rate (€)',
@@ -1045,7 +1076,7 @@ export const en: Catalog = {
       placesPlaceholder: 'Munich',
       remoteMin: 'Minimum remote share (%)',
       remoteMinHint:
-        'Outside these locations a permanent role counts only with at least this much remote work.',
+        'Outside these locations, a permanent role counts only with at least this much remote work.',
       rounded: 'Rounded down to whole euros.',
       unreadableNumber: (value: string) => `The file said “${value}”, which is not a number.`,
       unreadableDate: (value: string) => `The file said “${value}”, which is not a date.`,
@@ -1122,7 +1153,7 @@ export const en: Catalog = {
       copyAgain: 'Copy again',
       step: 'Paste it into an AI chat and attach your CV.',
       preview: 'Show prompt',
-      answer: "The AI's answer",
+      answer: 'The AI’s answer',
       take: 'Use answer',
     },
   },
@@ -1137,7 +1168,7 @@ export const en: Catalog = {
     /** The last fetch could not reach Gmail, or Gmail refused the password. */
     unreachable: 'Not reachable',
     refused: 'Refused',
-    mailRefused: 'Gmail rejected the address or app password, so enter them again with Change.',
+    mailRefused: 'Gmail rejected the address or app password, so enter them again with “Change”.',
     vault: {
       windowsCredentialManager: 'The app password is kept in the Windows Credential Manager.',
       macosKeychain: 'The app password is kept in the macOS keychain.',
@@ -1158,10 +1189,10 @@ export const en: Catalog = {
     autoArchive: 'Archive jobs after 30 days',
     autoArchiveHint: 'Favourites are never archived.',
     autoEmptyTrash: 'Empty the trash after 30 days',
-    autoEmptyTrashHint: 'Deleted jobs are then gone for good.',
+    autoEmptyTrashHint: 'Deleted jobs are then gone forever.',
     active: 'Active',
     details: 'Fetch details',
-    needsDetails: 'Turn on Fetch details first.',
+    needsDetails: 'Turn on “Fetch details” first.',
     login: 'With sign-in',
     loginHint: 'Shows full ads instead of a teaser.',
     risk: {
@@ -1177,7 +1208,7 @@ export const en: Catalog = {
     riskInfo: {
       low: 'The app opens only what anyone can see in a browser.',
       grey: 'The portal does not expressly allow automated reading.',
-      account: 'At worst the portal locks your own account.',
+      account: 'At worst, the portal locks your own account.',
     } satisfies Record<Risk, string>,
     detailsOff: 'Without details, jobs from this portal get no match.',
     quota: (used: number, cap: number) => `Today ${n(used)} of ${n(cap)} pages`,
@@ -1198,31 +1229,31 @@ export const en: Catalog = {
     excel: 'Excel file',
     excelMissing: 'The Excel file is created at the first fetch.',
     txt: 'Text files',
-    txtCount: (value: number) => count(value, 'file', 'files'),
-    txtNone: 'There are no text files yet.',
+    txtCount: (value: number) => `${count(value, 'ad', 'ads')} as text for an AI assessment`,
+    txtNone: 'There are no text files.',
     txtRewrite: 'Rewrite',
     txtClear: 'Delete',
     txtWritten: (value: number) => `${count(value, 'file', 'files')} written.`,
     txtFailed: (value: number) => `${count(value, 'file is', 'files are')} open right now.`,
     txtCleared: (value: number) => `${count(value, 'file', 'files')} deleted.`,
     txtClearHeading: 'Delete text files?',
-    txtClearText: 'The next fetch creates them again.',
-    fullMailbox: 'Read the whole mailbox',
+    txtClearText: 'Only “Rewrite” brings them back.',
+    fullMailbox: FULL_MAILBOX,
     fullMailboxHint: 'Reads all alert emails, not only the new ones.',
     fullMailboxAction: 'Read mailbox',
-    fullMailboxConfirm: 'Read',
     fullMailboxHeading: 'Read the whole mailbox?',
     fullMailboxText: 'This takes longer and fetches more pages from the portals.',
     logs: 'Logs',
     data: 'App data',
     reset: 'Reset everything',
-    resetHint: 'Deletes jobs, settings, profile and app password.',
+    resetHint: 'Deletes jobs, settings, profile, app password and sign-ins.',
     resetAction: 'Reset',
     resetHeading: 'Reset everything?',
-    resetText: 'The app restarts and is empty afterwards.',
+    resetText:
+      'The app restarts and also deletes the Excel file, the overview and the text files in the work folder.',
     resetDone: 'The app is reset.',
     resetPartly: (value: number) =>
-      `The app is reset, but ${count(value, 'file', 'files')} could not be deleted.`,
+      `The app is reset, but ${count(value, 'item', 'items')} could not be deleted.`,
     running: 'A fetch is running right now.',
     dryRun: 'Dry run, so no data is changed.',
     language: 'Language',
@@ -1234,11 +1265,12 @@ export const en: Catalog = {
     } satisfies Record<Language, string>,
   },
   firstRun: {
-    benefit: 'The app reads your job alert emails in Gmail and shows which jobs fit your profile.',
+    // "in Gmail" stays on one line: a line never ends with the preposition.
+    benefit: `The app reads your job alert emails in${NBSP}Gmail and shows which jobs fit your profile.`,
     privacy: 'Everything stays on this computer.',
     steps: 'First steps',
     mailbox: 'Mailbox',
-    mailboxText: 'Job alerts from the portals must go to this Gmail address.',
+    mailboxText: `The alert emails from ${joined(Object.values(portalName))} belong${NBSP}here.`,
     profile: 'Profile',
     profileText: 'You create the profile in the app, from your CV if you like.',
     fetch: 'First fetch',
@@ -1255,7 +1287,6 @@ export const en: Catalog = {
     sidebarKey: { ctrl: 'Ctrl+B', cmd: '⌘B' },
   },
   toast: {
-    saved: 'Saved.',
     mailboxSaved: 'Mailbox connected.',
     rescored: 'The jobs have been scored again.',
     copied: 'Copied.',

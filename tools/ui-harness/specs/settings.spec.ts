@@ -35,7 +35,7 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('mailbox-user')).toBeFocused();
   expect(await calls(page, 'save_mailbox')).toHaveLength(0);
   await expect(page.getByTestId('step-mailbox')).toContainText(
-    'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
+    'Die Alert-Mails von linkedin.com, freelance.de und freelancermap.de gehören hierher.',
   );
   await page.getByTestId('two-step').click();
   expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({
@@ -45,7 +45,7 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   const fetch = page.getByTestId('first-fetch');
   await expect(fetch).toHaveAttribute('aria-disabled', 'true');
   await fetch.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst ein Postfach verbinden.');
+  await expect(page.getByRole('tooltip')).toHaveText('Verbinde erst ein Postfach.');
 
   await page.getByTestId('mailbox-user').fill('alerts.demo');
   await page.getByTestId('mailbox-password').fill('abcdabcdabcdabcd');
@@ -340,7 +340,7 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   await expect(pause).toHaveClass(/info/);
   const mails = page.getByTestId('health-freelance');
   await expect(mails).toHaveText(
-    '2 Alert-Mails enthielten keine Jobs, bitte in Gmail nachsehen, ob dort welche stehen.',
+    '2 Alert-Mails enthielten keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
   );
   await expect(mails).toHaveClass(/warning/);
   // The hour binds: bar and words speak of the same window.
@@ -446,7 +446,9 @@ test('reset asks with a danger dialog; the report shows after the restart', asyn
   // After the restart the app is empty: the first-run page with the report.
   await open(page, `${WIN}&scenario=reset`);
   const report = page.getByTestId('first-reset-report');
-  await expect(report).toContainText('Die App ist zurückgesetzt, 1 Datei ließ sich nicht löschen.');
+  await expect(report).toContainText(
+    'Die App ist zurückgesetzt, 1 Element ließ sich nicht löschen.',
+  );
   // The file left behind can be found: the app's folder opens.
   await report.getByRole('button', { name: 'Ordner öffnen' }).click();
   expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({
@@ -511,7 +513,7 @@ test('locked buttons explain themselves', async ({ page }) => {
     .click();
   await expect(page.getByTestId('mailbox-form')).toBeVisible();
   await page.getByTestId('full-mailbox').hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst ein Postfach verbinden.');
+  await expect(page.getByRole('tooltip')).toHaveText('Verbinde erst ein Postfach.');
 });
 
 test('first run: the sidebar waits until the setup is done', async ({ page }) => {

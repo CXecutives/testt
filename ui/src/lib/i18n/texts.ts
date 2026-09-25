@@ -115,13 +115,23 @@ function noteCriterion(note: Notice | null): CriterionKey | null {
 export function rowReason(job: JobView): { kind: 'met' | 'violation'; text: string } | null {
   const match = job.match;
   if (match === null) return null;
-  if (match.status === 'excluded') {
-    const key = noteCriterion(match.note);
-    const text = key ? t.reader.criterion[key].short : noteText(match.note);
-    return { kind: 'violation', text: text ?? t.score.excluded };
-  }
+  if (match.status === 'excluded') return { kind: 'violation', text: exclusionWords(match.note) };
   const top = match.top[0];
   return top ? { kind: 'met', text: top } : null;
+}
+
+/**
+ * Why a job is excluded in the short words of a row, never a sentence (the reader has
+ * those): the criterion, a mandatory degree or licence the profile lacks, else only
+ * "Ausgeschlossen" (a code of a newer core).
+ */
+function exclusionWords(note: Notice | null): string {
+  const key = noteCriterion(note);
+  if (key) return t.reader.criterion[key].short;
+  if (note?.code === 'formalOpen') {
+    return t.list.formalMissing[note.params.class === 'licence' ? 'licence' : 'degree'];
+  }
+  return t.score.excluded;
 }
 
 /** The start of an ad in words (`now`, `vague` or an ISO date); `vague` only when asked. */
@@ -269,14 +279,4 @@ export function healthAdvice(health: PortalHealth): string | null {
     case 'loginRequired':
       return t.health.advice.login;
   }
-}
-
-/**
- * The old shape of `healthSentence`, kept only until DayOverview and RunCard switch to it.
- * The short labels it once returned never showed (every problem has its sentence), so
- * `label` is that sentence too.
- */
-export function healthText(health: PortalHealth): { label: string; text: string | null } {
-  const text = healthSentence(health);
-  return { label: text ?? '', text };
 }
