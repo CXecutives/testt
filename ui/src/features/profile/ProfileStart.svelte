@@ -1,7 +1,7 @@
 <!--
   No profile yet (or one that no longer reads): one sentence what the profile is for and
   the three ways in, side by side as siblings: "Profil anlegen" (the primary), "Aus
-  Lebenslauf erstellen" (with a prompt for an AI) and "Datei wählen" (an existing JSON
+  Lebenslauf anlegen" (with a prompt for an AI) and "Datei wählen" (an existing JSON
   file). A file that no longer reads also offers its folder, to fix it by hand. Sits at about
   38 % of the height.
 -->

@@ -1198,7 +1198,6 @@ export const de = {
       wishIndustries: 'Wunschbranchen',
       wishIndustriesPlaceholder: 'z. B. Energie',
       minDayRate: 'Mindest-Tagessatz',
-      minDayRateHint: 'Liegt der Satz einer Anzeige darunter, ist der Job ausgeschlossen.',
       countries: 'Einsatzländer',
       countriesPlaceholder: 'Land suchen',
       /** Typed text that names no country the app knows. */

@@ -616,7 +616,6 @@
         <Field
           label={words.minDayRate}
           for="{id}-min-rate"
-          hint={words.minDayRateHint}
           error={errorOf('minDayRate')}
           action={removeOf('minDayRate')}
         >

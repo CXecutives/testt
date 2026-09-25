@@ -583,7 +583,7 @@ impl Wording for German {
             },
             ReasonCode::SeniorityUnclear => {
                 if flag(p, "junior") {
-                    "Der Titel klingt nach einer Einstiegsstelle.".to_owned()
+                    "Der Titel klingt nach einem Job für Einsteiger.".to_owned()
                 } else {
                     "Das verlangte Erfahrungsniveau ist unklar.".to_owned()
                 }

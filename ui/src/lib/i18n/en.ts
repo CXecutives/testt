@@ -1115,7 +1115,6 @@ export const en: Catalog = {
       wishIndustries: 'Preferred industries',
       wishIndustriesPlaceholder: 'e.g. Energy',
       minDayRate: 'Minimum day rate',
-      minDayRateHint: 'A job whose rate is lower is excluded.',
       countries: 'Countries',
       countriesPlaceholder: 'Search for a country',
       countryNone: 'No country by this name.',
