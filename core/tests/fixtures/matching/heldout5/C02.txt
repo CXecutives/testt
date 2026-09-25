@@ -1,0 +1,56 @@
+Titel: SAP FI/CO Berater (m/w/d) S/4HANA Conversion
+Unternehmen: Kestner & Voigt IT-Consulting GmbH
+Ort: Stuttgart
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3127764.html
+Abgerufen am: 25.09.2026 07:30
+
+Projektinformationen
+Eingestellt: 24.09.2026
+Start: 15.10.2026
+Dauer: 8 Monate, Verlängerung wahrscheinlich
+Auslastung: 100 % (ca. 40 Std./Woche)
+Einsatzort: Stuttgart, 60 % remote
+Stundensatz: 95 - 110 €/h
+Vertragsart: Freiberuflich / ANÜ möglich
+Projekt-ID: 3127764
+Branche: Automotive
+
+Beschreibung
+Für unseren Endkunden, einen Automobilzulieferer mit Sitz im Großraum Stuttgart, suchen wir ab 15.10.2026 einen SAP FI/CO Berater (m/w/d) zur Unterstützung der S/4HANA Conversion (Brownfield). Das Projekt läuft bereits seit 03/2026, Go-live ist für den 01.07.2027 geplant.
+
+Aufgaben:
+* Analyse und Bereinigung des FI/CO-Customizings vor der Conversion (Simplification Items, Custom Code Check in Abstimmung mit der Entwicklung)
+* Migration Anlagenbuchhaltung (New Asset Accounting) und Umstellung auf Universal Journal (ACDOCA)
+* Durchführung von Mock-Conversions, Testkoordination (SIT/UAT) mit den Key Usern
+* Cutover-Planung und Hypercare
+
+Must have:
+* Mind. 2 S/4HANA-Conversion-Projekte in FI/CO, davon mind. eines als Lead
+* Tiefe Kenntnisse in FI-GL, FI-AA, CO-PA (kontenbasiert)
+* Deutsch fließend (Fachbereich arbeitet ausschließlich auf Deutsch)
+
+Nice to have:
+* Erfahrung mit SAP Group Reporting
+* Grundkenntnisse ABAP zum Debuggen
+* Automotive-Background
+
+Schlagworte
+SAP FI
+SAP CO
+S/4HANA
+Brownfield
+Conversion
+Anlagenbuchhaltung
+CO-PA
+ACDOCA
+Cutover
+Hypercare
+Automotive
+
+Ansprechpartner
+Die Kontaktdaten sind nur für angemeldete Mitglieder sichtbar.
+
+Projekt merken
+Ähnliche Projekte anzeigen
+Projekt melden

@@ -1,0 +1,35 @@
+Titel: Salesforce Sales Cloud Consultant (m/w/d) - Remote
+Unternehmen: von: Tessaro IT Solutions GmbH
+Ort: Kaiserallee 41, 76185 Karlsruhe
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3184452.html
+Abgerufen am: 23.09.2026 07:30
+
+Ort: Remote // Vertragsart: Freiberuflich // Start: 10/2026
+
+Projektbeschreibung
+Für unseren Kunden, einen Versicherungsmakler mit bundesweitem Vertriebsnetz, suchen wir einen erfahrenen Salesforce Consultant. Die bestehende Sales-Cloud-Instanz soll konsolidiert und der Prozess von Lead bis Abschluss neu abgebildet werden.
+
+Aufgaben:
+- Aufnahme und Dokumentation der Vertriebsprozesse gemeinsam mit den Fachbereichen
+- Konzeption und Customizing von Lead-, Opportunity- und Account-Management in der Sales Cloud
+- Aufbau von Dashboards und Reports für die Vertriebssteuerung
+- Bereinigung der Stammdaten und Begleitung der Datenmigration aus einem Altsystem
+- Schulung der Key User
+
+Anforderungen:
+- Mindestens 5 Jahre Erfahrung als Salesforce Consultant
+- Salesforce Certified Sales Cloud Consultant
+- Erfahrung mit Flows und Validierungsregeln, Grundkenntnisse in Apex
+- Projekterfahrung in der Versicherungs- oder Finanzbranche
+- Sehr gute Deutschkenntnisse (Projektsprache Deutsch)
+
+Wünschenswert:
+- Erfahrung mit Salesforce CPQ
+- Kenntnisse in Jira und agilen Vorgehensmodellen
+
+Rahmenbedingungen:
+Laufzeit: 6 Monate mit Option auf Verlängerung
+Auslastung: 40 Stunden pro Woche
+Stundensatz: max. 98 € all-in
+Einsatz zu 100 % remote, gelegentliche Workshops in Köln

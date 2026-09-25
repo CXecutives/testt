@@ -102,20 +102,26 @@ pub(crate) const GENERIC_ATOMS: &[&str] = &[
     "berater",
     "beratung",
     "business",
+    "chief",
     "consult",
     "consultant",
     "consulting",
     "digital",
+    "director",
+    "direktor",
+    "direktorin",
     "einfuhrung",
     "erp",
     "financ",
     "finance",
     "finanz",
+    "head",
     "it",
     "leitung",
     "manag",
     "management",
     "manager",
+    "offic",
     "partn",
     "partner",
     "process",
@@ -314,6 +320,8 @@ pub(crate) const SOFT_SKILLS: &[&str] = &[
     "neugier",
     "organisationstalent",
     "pragmatisch",
+    "prasentationsfahig",
+    "prasentationsstark",
     "proaktiv",
     "reliable",
     "selbststandig",
@@ -747,6 +755,7 @@ pub(crate) const DEGREE_WORDS: &[&str] = &[
     "promotion",
     "promoviert",
     "staatsexamen",
+    "staatsexamina",
     "studium",
     "university",
 ];
@@ -847,6 +856,7 @@ pub(crate) const DEGREE_LEVELS: &[(&str, u8)] = &[
     ("diplom", 2),
     ("magister", 2),
     ("staatsexamen", 2),
+    ("staatsexamina", 2),
     ("promotion", 3),
     ("phd", 3),
 ];
@@ -946,6 +956,15 @@ pub(crate) const KEYS_LEVEL: &[&str] = &[KEY_LEVEL, "level"];
 pub(crate) const KEYS_YEARS: &[&str] = &["jahre", "years", "erfahrung_jahre"];
 /// Free-text USPs (`alleinstellungsmerkmale`).
 pub(crate) const KEY_USP: &str = "alleinstellungsmerkmal";
+/// Career stations (`stationen`): their bullets are free text, weaker evidence like a USP.
+pub(crate) const KEY_STATIONS: &str = "stationen";
+/// Industries of the profile (`branchen`): the setting of a requirement, never its function.
+pub(crate) const KEY_INDUSTRY_LIST: &str = "branchen";
+/// Profile atoms that say nothing about the field in the relevance query: contract words
+/// written as one word and quantities (the number words count as well).
+pub(crate) const QUERY_NOISE: &[&str] = &["davon", "elf", "interimmanagement", "jeden", "rund"];
+/// Headings that are a portal's tag list, not the ad's requirements (whole heading).
+pub(crate) const TAG_HEADINGS: &[&str] = &["skills"];
 
 /// Extra must headings (normalised heading prefixes).
 pub(crate) const MUST_PREFIXES: &[&str] = &[
@@ -1031,6 +1050,13 @@ pub(crate) const OTHER_PREFIXES: &[&str] = &[
     "weitere informationen",
     "kategorien",
     "tags",
+    // Portal chrome after the ad (the provider, more projects).
+    "projektanbieter",
+    "weitere projekte",
+    "ahnliche projekte",
+    "similar projects",
+    "similar jobs",
+    "ahnliche jobs",
     // Portal footers and meta lines.
     "projekt-id",
     "projekt id",
@@ -1626,6 +1652,11 @@ pub(crate) const PERMANENT_STATED: &[&str] = &[
     "gross annual salary",
     "zielgehalt",
     "bruttojahresgehalt",
+    // LinkedIn's salary chip (`72.000 €/Jahr - 88.000 €/Jahr`).
+    "€/jahr",
+    "eur/jahr",
+    "€/yr",
+    "/yr",
 ];
 /// A student or trainee role in the title is employment, never interim work.
 pub(crate) const STUDENT_ROLES: &[&str] = &[
@@ -1731,6 +1762,10 @@ pub(crate) const AGENCY_CUES: &[&str] = &[
 
 /// Salary statements: cue words, units and bounds.
 pub(crate) const SALARY_CUES: &[&str] = &[
+    // LinkedIn's salary chip.
+    "€/jahr",
+    "eur/jahr",
+    "/yr",
     "gehalt",
     "salary",
     "vergutung",
@@ -1853,16 +1888,44 @@ pub(crate) const GERMAN_CITIES: &[&str] = &[
 /// Experience statements: words and bounds.
 pub(crate) const EXPERIENCE_WORDS: &[&str] = &["erfahrung", "experience", "praxis"];
 /// A minimum of years without the word experience (`Min. 5 years in ...`).
-pub(crate) const MIN_MARKERS: &[&str] = &["min.", "mind.", "mindestens", "at least", "minimum"];
-/// The years refer to the whole career, not one topic.
-pub(crate) const CAREER_WORDS: &[&str] = &[
-    "berufserfahrung",
-    "berufspraxis",
-    "professional",
-    "work experience",
-    "relevant",
-    "einschlagig",
+/// `5+ years` and `5+ Jahre` are minimums too.
+pub(crate) const MIN_MARKERS: &[&str] = &[
+    "min.",
+    "mind.",
+    "mindestens",
+    "at least",
+    "minimum",
+    "+ year",
+    "+ jahr",
 ];
+/// A must that asks for first professional experience: an entry-level role, like a junior
+/// title (whole words or phrases; `graduate` alone is no signal, `graduate degree` is a
+/// master's).
+pub(crate) const ENTRY_LEVEL_MUSTS: &[&str] = &[
+    "erste berufserfahrung",
+    "erste berufserfahrungen",
+    "ersten berufserfahrungen",
+    "erster berufserfahrung",
+    "first professional experience",
+    "first work experience",
+    "berufseinsteiger",
+    "berufseinsteigerin",
+    "berufseinsteigende",
+    "berufseinstieg",
+    "absolvent",
+    "absolventin",
+    "absolventen",
+    "hochschulabsolvent",
+    "hochschulabsolventin",
+    "hochschulabsolventen",
+    "recent graduate",
+    "recent graduates",
+    "graduate program",
+    "graduate programme",
+    "werkstudententatigkeit",
+];
+/// Words of a variable pay next to a salary (`plus bis zu 20 % Bonus`).
+pub(crate) const BONUS_WORDS: &[&str] = &["bonus", "variab", "tantieme"];
 /// Title words of a senior role (whole words, or word endings for `...leiter`).
 pub(crate) const SENIOR_TITLES: &[&str] = &[
     "senior",
@@ -1920,6 +1983,10 @@ pub(crate) const CLOSING_STARTS: &[&str] = &[
 pub(crate) const SOFT_PHRASES: &[&str] = &[
     "freude an",
     "spass an",
+    "interesse an",
+    "interest in",
+    "confident when presenting",
+    "presentation skills",
     "leadership style",
     "fuhrungsstil",
     "build teams",

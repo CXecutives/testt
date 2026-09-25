@@ -1,0 +1,31 @@
+Titel: Embedded Software Entwickler Motor-Controller (m/w/d)
+Unternehmen: Vektor Engineering Solutions GmbH
+Ort: Ingolstadt
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3017314.html
+Abgerufen am: 17.09.2026 07:25
+
+Projektbeschreibung
+Im Rahmen der Transformation zur E-Mobilität entwickelt unser Kunde, ein Tier-1-Zulieferer, eine neue Generation von Motor-Controllern (Inverter) für elektrische Antriebe. Zur Interim-Unterstützung des Softwareteams bis zum Abschluss der Serienfreigabe suchen wir einen erfahrenen Embedded-Entwickler.
+
+Aufgaben
+- Entwicklung und Integration von Software für den Motor-Controller in C nach AUTOSAR Classic
+- Implementierung und Optimierung von Regelungsalgorithmen (feldorientierte Regelung)
+- Konsolidierung der bestehenden Softwarearchitektur und Abbau technischer Schulden
+- Test auf HIL-Prüfständen und Analyse von Fehlern mit CANoe und Trace32
+- Pflege der Anforderungen in Polarion
+- Regelmäßiges Reporting des Entwicklungsstands an die Projektleitung
+
+Anforderungen
+- Abgeschlossenes Studium der Elektrotechnik, Informatik oder Mechatronik
+- Mindestens 5 Jahre Erfahrung in der Embedded-Entwicklung im Automotive-Umfeld
+- Sehr gute Kenntnisse in C, AUTOSAR Classic und Motorregelung
+- Erfahrung mit ASPICE und ISO 26262 (ASIL C/D)
+- Erfahrung im Projektmanagement agiler Teams von Vorteil
+
+Rahmendaten
+Start: 15.10.2026
+Dauer: 12 Monate
+Auslastung: Vollzeit, 60 % remote, 40 % vor Ort in Ingolstadt
+Stundensatz: 92 EUR zzgl. MwSt.
+ANÜ möglich, alternativ Dienstvertrag

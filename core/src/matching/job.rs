@@ -8,6 +8,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use super::atoms::{self, Vocab, fold};
+use super::facts::rate_in;
 use super::lexicon::{HeadingKind, engine as lex};
 use super::normalize::{splitlines, strip};
 use super::requirements::extract_job_skills;
@@ -70,7 +71,8 @@ fn heading(line: &str) -> Option<HeadingKind> {
         return None;
     }
     let starts = |list: &[&str]| list.iter().any(|p| norm.starts_with(p));
-    if starts(OTHER_PREFIXES) {
+    // A bare `Skills` heading is the portal's tag list, not the ad's requirements.
+    if starts(OTHER_PREFIXES) || lex::TAG_HEADINGS.contains(&norm.as_str()) {
         return Some(HeadingKind::Neutral);
     }
     if let Some(kind) = sections::section_kind(line) {
@@ -875,7 +877,8 @@ fn soft_token(folded: &str, tokens: &[&str], i: usize) -> bool {
 fn classify(text: &str, phrase_level: Option<u8>, vocab: &Vocab) -> Class {
     let folded = fold(text);
     let tokens: Vec<&str> = atoms::raw_tokens(&folded).collect();
-    if is_frame(&folded, &tokens) {
+    // A rate statement (`1.000 bis 1.200 € pro Tag`) is the frame, never a skill.
+    if is_frame(&folded, &tokens) || rate_in(&folded).is_some() {
         return Class::Frame;
     }
     if let Some(word) = lex::LICENCE_WORDS.iter().find(|w| folded.contains(**w))
@@ -1406,5 +1409,29 @@ mod tests {
             heading_kind("Rahmenbedingungen"),
             Some(HeadingKind::Neutral)
         );
+    }
+
+    /// A portal's tag list under a bare `Skills` heading, the provider's other projects and a
+    /// rate line are no requirements of the ad.
+    #[test]
+    fn portal_tags_other_projects_and_rates() {
+        let doc = read(
+            "Ihr Profil\n- SAP FI\n- Bis zu 1.200 € pro Tag\n\nSkills\nPower BI\nTableau\n\n\
+             Ähnliche Projekte\nSAP CO Berater (m/w/d)\n",
+            &Vocab::all(),
+        );
+        let items: Vec<(&str, &Class)> = doc
+            .items
+            .iter()
+            .map(|i| (i.text.as_str(), &i.class))
+            .collect();
+        assert_eq!(
+            items,
+            [
+                ("SAP FI", &Class::Skill),
+                ("Bis zu 1.200 € pro Tag", &Class::Frame)
+            ]
+        );
+        assert_eq!(heading_kind("Projektanbieter"), Some(HeadingKind::Neutral));
     }
 }

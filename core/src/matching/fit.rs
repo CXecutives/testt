@@ -422,16 +422,10 @@ fn skill_fit_in(skills: &Skills, text: &str, only: Option<&[usize]>) -> ItemFit 
             via: Via::Specific,
         };
     }
-    // Leadership asked for is met at least half by a leading role in the profile.
-    let leadership = |j: &String| {
-        lex::LEADERSHIP_ATOMS
-            .iter()
-            .any(|l| j == l || j.starts_with(l))
-    };
-    // Only an item about leadership alone (not `8 Jahre Controlling, davon 3 mit Führung`).
+    // Leadership asked for is met at least half by a leading role in the profile (only an
+    // item about leadership alone, not `8 Jahre Controlling, davon 3 mit Führung`).
     if best.value < E_HALF
-        && job.iter().any(leadership)
-        && job.iter().all(|j| leadership(j) || atoms::is_generic(j))
+        && leadership_only(&job)
         && let Some(index) = skills.entries.iter().position(|e| {
             let folded = fold(&e.text);
             atoms::raw_tokens(&folded).any(|t| lex::PROFILE_LEAD_WORDS.contains(&t))
@@ -450,10 +444,36 @@ fn skill_fit_in(skills: &Skills, text: &str, only: Option<&[usize]>) -> ItemFit 
             .iter()
             .any(|j| !atoms::is_generic(j) && !covered(skills, j))
     {
-        best.value = E_HALF;
-        best.via = Via::General;
+        // An industry is the setting of a requirement, never its function
+        // (`Vertriebserfahrung im Maschinenbau` is not half met by `Maschinenbau`).
+        let industry = best
+            .entry
+            .and_then(|e| skills.entries.get(e))
+            .is_some_and(|e| e.path.starts_with(lex::KEY_INDUSTRY_LIST));
+        if industry {
+            best = NONE;
+        } else {
+            best.value = E_HALF;
+            best.via = Via::General;
+        }
     }
     best
+}
+
+/// An atom of leadership (`fuhrung`, `personalverantwortung`).
+pub(crate) fn leadership_atom(atom: &str) -> bool {
+    lex::LEADERSHIP_ATOMS
+        .iter()
+        .any(|l| atom == *l || atom.starts_with(l))
+}
+
+/// Does a requirement ask for leadership alone (`Erste Führungserfahrung`)? Its atoms are
+/// leadership atoms and generic ones only.
+fn leadership_only(atoms: &[String]) -> bool {
+    atoms.iter().any(|a| leadership_atom(a))
+        && atoms
+            .iter()
+            .all(|a| leadership_atom(a) || atoms::is_generic(a))
 }
 
 fn language_fit(skills: &Skills, language: &str, level: Option<u8>) -> ItemFit {
@@ -683,5 +703,20 @@ mod tests {
         assert_eq!(licence_fit(&skills, "qualified person").value, E_FULL);
         assert_eq!(licence_fit(&skills, "sachkundige person").value, E_FULL);
         assert_eq!(licence_fit(&skills, "steuerberater").value, E_NONE);
+    }
+
+    /// An industry of the profile is the setting of a requirement, never its function:
+    /// `Vertrieb im Maschinenbau` is not met, even half, by the industry `Maschinenbau`.
+    #[test]
+    fn an_industry_is_the_setting_not_the_function() {
+        let data = json!({
+            "kernkompetenzen": [{"kompetenz": "Controlling"}],
+            "branchen": [{"branche": "Maschinenbau"}]
+        });
+        let skills = Skills::new(&LegacyProfile::new(&data), &data, &[]);
+        let fit = |text: &str| skill_fit_in(&skills, text, None).value;
+        assert_eq!(fit("Vertriebserfahrung im Maschinenbau"), E_NONE);
+        assert_eq!(fit("Controlling im Maschinenbau"), E_FULL);
+        assert_eq!(fit("Controlling in der Automobilindustrie"), E_HALF);
     }
 }

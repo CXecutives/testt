@@ -1,4 +1,4 @@
-//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout4`):
+//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout5`):
 //! invented ads with blind labels (grade 0-3, excluded) written by independent agents for
 //! profiles the engine was not tuned on at the time. Both sets were later used to find and
 //! fix systematic gaps, so they are regression gates now, not an unseen measurement.
@@ -165,24 +165,37 @@ const HELDOUT1: Floor = Floor {
     grade3_buried: 0,
 };
 const HELDOUT4: Floor = Floor {
-    ndcg10: 0.80,
-    spearman: 0.52,
+    ndcg10: 0.82,
+    spearman: 0.54,
     exclusion_precision: 1.0,
     exclusion_recall: 0.98,
-    grade3_buried: 1,
+    grade3_buried: 0,
 };
 const HELDOUT3: Floor = Floor {
-    ndcg10: 0.94,
-    spearman: 0.48,
+    ndcg10: 0.95,
+    spearman: 0.49,
     exclusion_precision: 1.0,
     exclusion_recall: 1.0,
     grade3_buried: 0,
 };
+/// Set 5 excludes C10 (a student job) for two profiles by its hourly wage per year, the
+/// rule of set 3 (T04); the set-5 labels read a student wage as no salary. The labels of the
+/// two sets disagree, the engine keeps the set-3 rule, so the precision floor is below 1.
+const HELDOUT5: Floor = Floor {
+    ndcg10: 0.81,
+    spearman: 0.48,
+    exclusion_precision: 0.98,
+    exclusion_recall: 1.0,
+    grade3_buried: 0,
+};
+/// Engine 9 moved set 2 from 0.864 to 0.856: a language met is a light fit now, so off-field
+/// ads whose only fitting musts are languages (grade 0 and 1 alike) fall below the cap they
+/// shared, and Y05 loses its German where `Projekt Management` (written apart) stays open.
 const HELDOUT2: Floor = Floor {
-    ndcg10: 0.86,
-    spearman: 0.63,
+    ndcg10: 0.85,
+    spearman: 0.64,
     exclusion_precision: 1.0,
-    exclusion_recall: 0.94,
+    exclusion_recall: 1.0,
     grade3_buried: 1,
 };
 
@@ -251,8 +264,13 @@ fn heldout4_holds_its_gates() {
     check("heldout4", &HELDOUT4);
 }
 
+#[test]
+fn heldout5_holds_its_gates() {
+    check("heldout5", &HELDOUT5);
+}
+
 /// Every held-out set.
-const SETS: [&str; 4] = ["heldout1", "heldout2", "heldout3", "heldout4"];
+const SETS: [&str; 5] = ["heldout1", "heldout2", "heldout3", "heldout4", "heldout5"];
 
 /// Prints both sets' tables and misses (`-- --ignored heldout_report --nocapture`).
 #[test]

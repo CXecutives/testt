@@ -1,0 +1,31 @@
+Titel: SAP S/4HANA FI/CO Berater (m/w/d) 100 % remote, auch aus dem Ausland
+Unternehmen: Adelhorst IT Services GmbH
+Ort: Remote
+Quelle: Freelance
+Link: https://www.freelance.de/projekte/projekt-1302391-SAP-S-4HANA-FI-CO-Berater-remote
+Abgerufen am: 24.09.2026 07:35
+
+Projekt-ID: 1302391
+Start: 02.11.2026
+Dauer: 6 Monate+
+Auslastung: 32 bis 40 Std./Woche
+Einsatzort: 100 % remote
+Stundensatz: 95 bis 105 EUR all-in zzgl. MwSt. (bei Sitz im EU-Ausland Reverse-Charge)
+
+Projektbeschreibung
+Für ein Brownfield-Projekt bei einem Logistikdienstleister suchen wir einen erfahrenen SAP FI/CO Berater. Das Projekt läuft vollständig remote. Die Arbeit aus dem EU-Ausland ist ausdrücklich möglich, sofern die Arbeitszeit mit der mitteleuropäischen Zeit (CET) übereinstimmt. Reisen sind nicht vorgesehen.
+
+Aufgaben
+- Customizing FI: Hauptbuch, Anlagenbuchhaltung, Debitoren und Kreditoren
+- Customizing CO: Kostenstellenrechnung, Innenaufträge, Ergebnisrechnung (CO-PA)
+- Datenmigration mit dem SAP Migration Cockpit
+- Erstellung von Testfällen und Begleitung der Integrationstests
+- Key-User-Schulungen und Hypercare nach dem Go-live
+
+Anforderungen
+- Mindestens 5 Jahre Erfahrung als SAP FI/CO Berater
+- Mindestens ein S/4HANA Projekt (Brownfield oder Greenfield) von der Konzeption bis zum Go-live
+- Gute Kenntnisse der Schnittstellen zu MM und SD
+- Deutsch fließend in Wort und Schrift
+
+Vertragsform: Werkvertrag bzw. Dienstvertrag, keine Arbeitnehmerüberlassung

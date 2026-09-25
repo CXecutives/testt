@@ -1,0 +1,34 @@
+Titel: Freelance Privacy & AI Governance Consultant (GDPR / EU AI Act)
+Unternehmen: Lumacore Software AG
+Ort: Berlin, Berlin, Germany (Remote)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4188102377/
+Abgerufen am: 24.09.2026 07:32
+
+About the job
+Lumacore builds document automation software for insurers and public administrations. More and more of our features rely on large language models, some hosted by third-party providers in the US. We need an experienced privacy professional to set up our AI governance before the high-risk obligations of the EU AI Act apply.
+
+What you will do
+Set up an AI governance framework and an inventory of all AI systems and models in use
+Classify our products and internal tools under the risk categories of the EU AI Act
+Run data protection impact assessments and, where required, fundamental rights impact assessments
+Perform vendor due diligence for LLM providers, including transfer impact assessments and the EU-US Data Privacy Framework
+Update the records of processing, data processing agreements and privacy notices
+Advise product managers and engineers in sprint reviews
+Train the teams on privacy by design and responsible AI
+
+What you bring
+5+ years in data protection, in-house or at a law firm or consultancy
+CIPP/E or CIPM certification
+Practical experience with AI Act readiness projects
+A solid understanding of how machine learning systems are built and operated
+ISO/IEC 42001 knowledge is a plus
+Fluent English; German is nice to have
+
+Engagement
+Contract for 6 months, 3 to 4 days per week
+Day rate: 900 to 1,050 EUR
+Start: 01.11.2026
+Fully remote within the EU, occasional workshops in Berlin
+
+Employment type: Contract

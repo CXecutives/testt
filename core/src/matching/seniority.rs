@@ -2,17 +2,17 @@
 //! for interim and permanent roles alike. Only the requirement lines count.
 //!
 //! Too junior (decided): a closed range whose upper bound is below the minimum
-//! (`3-5 Jahre`), or a minimum below it (`mindestens 5 Jahre`) without a senior title.
-//! An open minimum with a senior title (`7+ years`, Senior/Lead/Head) never excludes; it
-//! is only over-qualification (partial). Years of one topic (`3 Jahre Power BI`) that is
-//! not the role itself, or a junior title without numbers, are a check. Any statement at
-//! or above the minimum makes the target senior enough.
+//! (`3-5 Jahre`), or a minimum below it (`mindestens 5 Jahre`, `3 Jahre Power BI`) without
+//! a senior title: the ad's highest years are its target, whatever topic they name. An
+//! open minimum with a senior title (`7+ years`, Senior/Lead/Head) never excludes; it is
+//! only over-qualification (partial). A junior title without numbers is a check. Any
+//! statement at or above the minimum makes the target senior enough.
 
 use std::ops::Range;
 
 use serde_json::json;
 
-use super::atoms::{self, Vocab, fold};
+use super::atoms::{self, fold};
 use super::facts::Finding;
 use super::job::{JobDoc, contains_word};
 use super::lexicon::engine as lex;
@@ -21,7 +21,8 @@ use super::types::{CriterionKey, ReasonCode, ReasonKind};
 /// Years of experience in one requirement: lower bound and, for a closed range, the
 /// upper bound.
 pub(crate) fn experience_years(folded: &str) -> Option<(u32, Option<u32>)> {
-    // `Min. 5 years in Regulatory Affairs` states years without the word experience.
+    // `Min. 5 years in Regulatory Affairs` and `5+ years in internal audit` state years
+    // without the word experience.
     if !lex::EXPERIENCE_WORDS.iter().any(|w| folded.contains(w))
         && !lex::MIN_MARKERS.iter().any(|w| folded.contains(w))
     {
@@ -95,7 +96,6 @@ pub(crate) fn check(
     title: &str,
     text: &str,
     doc: &JobDoc,
-    vocab: &Vocab,
     page_levels: &[String],
 ) -> Vec<Finding> {
     let Some(target) = target else {
@@ -108,24 +108,12 @@ pub(crate) fn check(
             .find(|l| values.contains(&l.trim()))
             .cloned()
     };
-    let title_atoms: Vec<String> = atoms::atoms(title, vocab)
-        .into_iter()
-        .filter(|a| !atoms::is_generic(a))
-        .collect();
-    let statements: Vec<(u32, Option<u32>, bool, Range<usize>)> = doc
+    let statements: Vec<(u32, Option<u32>, Range<usize>)> = doc
         .requirement_lines
         .iter()
         .filter_map(|range| {
-            let line = text.get(range.clone())?;
-            let folded = fold(line);
-            let (min, max) = experience_years(&folded)?;
-            let career = lex::CAREER_WORDS.iter().any(|w| folded.contains(w))
-                || atoms::atoms(line, vocab).iter().any(|a| {
-                    title_atoms.iter().any(|t| {
-                        matches!(atoms::fit(a, t), atoms::Fit::Equal | atoms::Fit::Specific)
-                    })
-                });
-            Some((min, max, career, range.clone()))
+            let (min, max) = experience_years(&fold(text.get(range.clone())?))?;
+            Some((min, max, range.clone()))
         })
         .collect();
     if statements.iter().any(|(min, ..)| *min >= target) {
@@ -141,8 +129,7 @@ pub(crate) fn check(
             Vec::new(),
         )];
     }
-    let Some((min, max, career, range)) = statements.into_iter().max_by_key(|(min, ..)| *min)
-    else {
+    let Some((min, max, range)) = statements.into_iter().max_by_key(|(min, ..)| *min) else {
         if let Some(level) = level_is(lex::LOW_LEVEL_VALUES) {
             return vec![Finding::new(
                 ReasonCode::SeniorityUnclear,
@@ -174,16 +161,9 @@ pub(crate) fn check(
             params,
             vec![range],
         )],
-        _ if career => vec![Finding::new(
+        _ => vec![Finding::new(
             ReasonCode::TooJunior,
             true,
-            key,
-            params,
-            vec![range],
-        )],
-        _ => vec![Finding::new(
-            ReasonCode::SeniorityUnclear,
-            false,
             key,
             params,
             vec![range],
@@ -212,6 +192,8 @@ mod tests {
         assert_eq!(y("between 3 and 5 years of experience"), Some((3, Some(5))));
         assert_eq!(y("Laufzeit 2 Jahre"), None);
         assert_eq!(y("Min. 5 years in Regulatory Affairs CMC"), Some((5, None)));
+        assert_eq!(y("5+ years in internal audit"), Some((5, None)));
+        assert_eq!(y("8+ Jahre im Controlling"), Some((8, None)));
         assert!(senior_title("Interim Senior Finance Manager FP&A (m/w/d)"));
         assert!(senior_title("Leiter Konzerncontrolling (Interim)"));
         assert!(senior_title(

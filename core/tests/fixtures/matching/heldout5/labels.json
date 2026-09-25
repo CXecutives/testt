@@ -1,0 +1,2422 @@
+{
+  "P7.json": {
+    "A01": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "core DSB role \"benannter Datenschutzbeauftragter nach Art. 37 DSGVO\", VVT and DSFA; rate below min_tagessatz \"Stundensatz: bis 115 €/h\"",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "target role, AML Schwerpunkt \"Head of Compliance and Money Laundering Reporting Officer\", BaFin, rate 1,200 to 1,400 EUR",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "adjacent IKS \"Wirksamkeit des internen Kontrollsystems\", but internal audit role; rate below min_tagessatz \"Honorar: 850 - 950 € pro Tag\"",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "bank regulatory adjacent \"Abstimmung mit der Bankenaufsicht\", but credit risk CRR III specialist",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "privacy fit \"CIPP/E or CIPM certification\", DPIA; AI Act experience open; rate below min_tagessatz \"Day rate: 900 to 1,050 EUR\"",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "compliance fit \"Fundierte Kenntnisse in LkSG, CSDDD\" and HinSchG; CSRD and tools open",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "insurance audit \"risk-based audits\" Solvency II, audit not compliance; permanent",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "legal fit \"Volljurist\", contract law and data protection; IT law and EVB-IT open; rate below min_tagessatz \"Stundensatz: 110 - 130 €/h\"",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: max. 98 € all-in\"",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 115 bis 130 €\"",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 95 - 110 €/h\"",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 85 € pro Stunde\"",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 80 € pro Stunde\"",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Day rate €650–750\"",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 100 € pro Stunde\"",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Vergütung: 1.050 EUR pro Tag\"",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 130 EUR\"",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Rate: 850 EUR per day\"",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 48 EUR\"",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; country outside laender, on site \"Arbeitsort Zug, mindestens 4 Tage pro Woche vor Ort\"",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 95 bis 105 EUR\"",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 92 EUR\"",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Syndikus 16 yrs and Gesellschaftsrecht 9 yrs meet \"Zwei juristische Staatsexamina\" and the 3 to 6 years. Prädikat and M&A transactions are open, the role is permanent and she is overqualified. No hard key applies: P7 sets no zielprofil_min_jahre, min_jahresgehalt or festanstellung_orte.",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "GRC 10 yrs (Risikomanagement, IKS) meets \"10+ years in risk management, internal control\", with leadership, a law degree and languages met. Only \"COSO ERM, COSO Internal Control and ISO 31000\" is open. It is permanent but no hard key applies.",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Werkstudent\" job, far outside her field. The hourly pay excludes nothing: this is a part-time student job, not an interim day rate, and P7 sets no salary floor.",
+      "quote": ""
+    }
+  },
+  "P8.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: bis 115 €/h\"",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 850 - 950 € pro Tag\"",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; permanent below min_jahresgehalt \"Zielgehalt 105.000 bis 125.000 €\"; Düsseldorf outside festanstellung_orte \"2 Tage mobiles Arbeiten\"",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; permanent, Hanover outside festanstellung_orte \"(On-site)\"",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "core \"Interim Head of Sales DACH\", Maschinenbau, CRM Salesforce, pipeline; \"Tagessatz bis 1.350 €\"",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Pricing Schwerpunkt \"Preisstrategie\" fits, but permanent \"Jahreszielgehalt zwischen 105.000 € und 125.000 €\" below 140000; Bielefeld \"Bis zu 2 Tage mobiles Arbeiten\"",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Salesforce Sales Cloud fits CRM, but technical consultant role; rate below min_tagessatz \"Stundensatz: max. 98 € all-in\"",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "\"Interim Marketing Director B2B\", Demand Generation, software; thin ad",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "sales but individual BDM role; permanent \"Fixgehalt 78.000 € bis 92.000 €\" below min_jahresgehalt",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Pricing Schwerpunkt \"Value-Based Pricing\", SAP SD; pricing software open; 130 €/h = 1040",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "\"Interim-CCO mit Verantwortung für Vertrieb, Marketing und Pricing\", thin ad",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "HubSpot and Salesforce fit but ops role; permanent \"Salary between 88,000 EUR and 102,000 EUR\" below 140000",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Vertriebscontrolling fits, but Austria outside laender \"1020 Wien, Österreich\"",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 95 - 110 €/h\"",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 85 € pro Stunde\"",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; permanent \"72.000 €/Jahr - 88.000 €/Jahr\" below min_jahresgehalt; Frankfurt outside festanstellung_orte",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 80 € pro Stunde\"",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Day rate €650–750\"",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 100 € pro Stunde\"",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "student job \"15,50 € pro Stunde\"; Leipzig on site outside festanstellung_orte",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; permanent, Bielefeld outside festanstellung_orte \"Bis zu zwei Tage mobiles Arbeiten\"",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Rate: 850 EUR per day\"",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 48 EUR\"",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 95 bis 105 EUR\"",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 92 EUR\"",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Interim, 1120/day >= 1000. The Schwerpunkte Vertriebsleitung, KAM and Konditionenmanagement fit. \"Jahresgespräche mit nationalen Handelsketten\" is open, and LEH and Nielsen are only partial. One must is clearly open, which caps the score at about 5 to 6.",
+      "quote": ""
+    }
+  },
+  "P1.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: bis 115 €/h\"",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field; \"7+ years\" with Head title only partial",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 850 - 950 € pro Tag\"; years below zielprofil_min_jahre 10 \"Mindestens 6 Jahre Erfahrung\"",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; years below zielprofil_min_jahre 10 \"3 bis 6 Jahre Berufserfahrung\"",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Day rate: 900 to 1,050 EUR\"; years below zielprofil_min_jahre 10 \"5+ years in data protection\"",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; years below zielprofil_min_jahre 10 \"5+ years in internal audit\"",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 110 - 130 €/h\"; years below zielprofil_min_jahre 10 \"mindestens 4 Jahren Erfahrung\"",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field; \"Mindestens 8 Jahre\" with Leitung title only partial",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: max. 98 € all-in\"; years below zielprofil_min_jahre 10 \"Mindestens 5 Jahre Erfahrung\"",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; years below zielprofil_min_jahre 10 \"Mindestens 5 Jahre Erfahrung\"",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 115 bis 130 €\"",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field; \"6+ years\" with Senior title only partial",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 95 - 110 €/h\"",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 85 € pro Stunde\"",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 80 € pro Stunde\"; years below zielprofil_min_jahre 10 \"Mind. 5 Jahre Erfahrung\"",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Day rate €650–750\"; years below zielprofil_min_jahre 10 \"6+ years in finance transformation\"",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "payroll and SAP HCM, SuccessFactors fit, but specialist role; agency, rate unknown",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 100 € pro Stunde\"; years below zielprofil_min_jahre 10 \"5+ Jahre Beratungserfahrung\"",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Vergütung: 1.050 EUR pro Tag\"",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 130 EUR\"",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Rate: 850 EUR per day\"; years below zielprofil_min_jahre 10 \"3+ years of hands-on Power BI\"",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 48 EUR\"; years below zielprofil_min_jahre 10 \"1 bis 2 Jahre\"",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 95 bis 105 EUR\"; years below zielprofil_min_jahre 10 \"Mindestens 5 Jahre Erfahrung\"",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 92 EUR\"; years below zielprofil_min_jahre 10 \"Mindestens 5 Jahre Erfahrung\"",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "The job is \"Senior HR Business Partner\", in P1's core HR field (she has the HRBP model and was an HRBP before). The ad is thin, the role is permanent and she is clearly overqualified. P1 sets no salary floor and the ad gives no year number, so nothing excludes.",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Werkstudent\" job, outside her field. It is no interim day rate and P1 sets no salary floor. The ad gives no year number and the enrolled-student condition is an open formal row, not a mandatory exclusion.",
+      "quote": ""
+    }
+  },
+  "P2.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "audit of \"Purchase-to-Pay\" and SAP MM, procurement adjacent but audit role",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "supplier side \"strategischen Einkauf\" alternative, supplier risk; LkSG and German open",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: max. 98 € all-in\"",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; country outside laender, on site \"1020 Wien, Österreich\"",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field; \"ANÜ möglich\" only optional",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 85 € pro Stunde\"",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "core \"Category Strategy für Direct Materials\", savings, SAP MM, Coupa/Ariba; German \"verhandlungssicher\" open",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 80 € pro Stunde\"",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Day rate €650–750\"",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 48 EUR\"",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; country outside laender, on site \"Arbeitsort Zug, mindestens 4 Tage pro Woche vor Ort\"",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 95 bis 105 EUR\"",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 92 EUR\"",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "The Ariba roll-out and Source-to-Pay fit. Two musts are open: \"SAP MM (Customizing, nicht nur Anwendung)\" and \"Deutsch verhandlungssicher\" (P2 speaks only Dutch and English). \"100 € pro Stunde (ab 01.04.2027 105 €)\" = max 840/day < 850.",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Werkstudent\" job, outside his field. The hourly pay excludes nothing: it is student employment, not an interim day rate, and P2 sets no salary floor.",
+      "quote": ""
+    }
+  },
+  "P5.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: bis 115 €/h\"",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 850 - 950 € pro Tag\"",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Day rate: 900 to 1,050 EUR\"",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 110 - 130 €/h\"",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: max. 98 € all-in\"",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 115 bis 130 €\"",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 140 €/h\"",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "rollout programme lead, Handel, PRINCE2 \"Gesamtprojektleitung Rollout\"; rate below min_tagessatz \"Honorar: 85 € pro Stunde\"",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 80 € pro Stunde\"",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Day rate €650–750\"",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Honorar: 100 € pro Stunde\"",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Vergütung: 1.050 EUR pro Tag\"",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 130 EUR\"",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Rate: 850 EUR per day\"",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 48 EUR\"",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "outside field",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "outside field; rate below min_tagessatz \"Stundensatz: 92 EUR\"",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Hands-on FI/CO customizing and conversion lead is a different profession from interim CIO, and \"Tiefe Kenntnisse in FI-GL, FI-AA, CO-PA\" is open. \"Stundensatz: 95 - 110 €/h\" = 880/day < 1200.",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Werkstudent\" job, outside his field. The pay is not an interim day rate and P5 sets no salary floor, so nothing excludes.",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "FI/CO customizing consultant role (\"Customizing FI: Hauptbuch, Anlagenbuchhaltung\") is outside an interim CIO's field, and the S/4HANA overlap is only programme-level. \"Stundensatz: 95 bis 105 EUR\" = 840/day < 1200.",
+      "quote": ""
+    }
+  },
+  "P6.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Data protection officer, not operations; \"bis 115 €/h\" = 920/day < min_tagessatz 950",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of Compliance & AML, \"7+ years in compliance or AML\" not in profile; rate 1,400 ok",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit role, not operations; \"850 - 950 € pro Tag\" upper end meets 950",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "In-house lawyer, \"Zwei juristische Staatsexamina\" missing; permanent, no matching hard key set",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank credit risk \"CRR III\" outside operations; no rate stated",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Privacy/AI governance, \"CIPP/E or CIPM\" missing; 1,050 >= 950",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "LkSG/CSDDD supply chain compliance, not plant operations; \"Honorar: nach Vereinbarung\"",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Insurance internal audit \"Solvency II and DORA\", no fit; permanent, keys unset",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Volljurist\" IT law role, no fit; 130 €/h = 1,040 >= 950",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group risk/ICS head, \"COSO ERM\" not in profile; permanent, keys unset",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim Head of Sales, \"10 Jahre Vertriebserfahrung\" missing; 1,350 ok",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pricing lead permanent, \"8 Jahre ... im Pricing\" missing; keys unset",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Salesforce consultant; \"max. 98 € all-in\" = 784/day < 950",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim Marketing Director, thin ad, no rate; outside operations",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Medtech sales rep, \"Vertrieb von Medizinprodukten\" missing; keys unset",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pricing project in automotive, no pricing skills; 130 €/h = 1,040 ok",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CCO \"Vertrieb, Marketing und Pricing\", thin ad; no fit",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "KAM LEH sales lead, no fit; \"ca. 1.120 € pro Tag\" ok",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"HubSpot\" CRM marketing ops, no fit; keys unset",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Vertriebscontrolling; \"1020 Wien, Österreich\" outside laender DE/PL/CZ",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of Group Controlling, finance not operations; 1,250 ok",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI/CO consultant; \"95 - 110 €/h\" = 880/day < 950",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "POS rollout IT PM; \"85 € pro Stunde\" = 680/day < 950",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Senior HR Business Partner, no fit; keys unset",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "\"Kostensenkungsprogrammen\", Maschinenbau, Power BI met; \"Führungserfahrung im Einkauf\", SAP MM open",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Project controller; \"80 € pro Stunde\" = 640/day < 950",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "R2R finance transformation; \"Day rate €650–750\" < 950",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"SAP HCM PY\" payroll, no fit; remote, no rate",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP MM/Ariba consultant; \"100 € pro Stunde (ab 01.04.2027 105 €)\" = 840/day < 950",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting \"HGB/IFRS\" lead, not operations; thin ad",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior controlling \"Erste Berufserfahrung\", no fit; keys unset",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO carve-out, finance not operations; 1,050 ok",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Kaufmännische Leitung carve-out, no fit; 130 €/h = 1,040 ok",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Power BI developer; \"Rate: 850 EUR per day\" < 950",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior bookkeeping; \"48 EUR\" per hour = 384/day < 950",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Interim CFO; \"Zug (Schweiz)\" outside laender DE/PL/CZ, on-site",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP FI/CO consultant; \"95 bis 105 EUR\" = 840/day < 950",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Head of Finance\" SaaS, not operations; thin ad",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Embedded C developer; \"92 EUR\" per hour = 736/day < 950",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Werkstudent\" job, no fit. The contract is student employment, not interim, so min_tagessatz does not apply to \"15,50 € pro Stunde\". P6 sets no salary floor.",
+      "quote": ""
+    }
+  },
+  "sample_profile.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "DSB role outside finance; \"bis 115 €/h\" = 920/day < 1000",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AML/MLRO role, \"Previous experience as MLRO\" missing; rate and DE ok",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Audit of P2P/IKS only adjacent to controlling; \"850 - 950 € pro Tag\" < min 1000",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Syndikusrechtsanwalt outside finance, law degree open; permanent, no salary/region keys",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Credit risk/regulatory reporting at a Landesbank, not in profile; no rate stated",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "GDPR/AI Act role outside finance; 1,050 upper end meets 1000",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"LkSG, CSDDD und CSRD\" not in profile; no rate stated",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Internal audit at insurer, not controlling; permanent, no salary key",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Legal counsel IT contracts outside finance; 1,040/day ok",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Finance-adjacent (reports to CFO) but \"10+ years in risk management\" and COSO open",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership outside finance; rate 1,350 ok",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "\"Vertriebscontrolling\" and Power BI touch controlling, pricing core open; permanent",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Salesforce role; \"max. 98 €\" = 784/day < 1000",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Demand Generation\" marketing role outside finance; thin ad",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Field sales role outside finance; permanent, no salary key",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Value-Based Pricing\" and PROS/Vendavo missing; 1,040/day ok",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Commercial leadership outside finance; thin ad",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Jahresgesprächen mit nationalen Handelsketten\" missing; rate 1,120 ok",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing automation role outside finance",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "\"Reporting für Umsatz, Deckungsbeitrag\" and \"Budgetplanung 2027\" match controlling; thin ad, AT ok",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Konzerncontrolling, budget, forecast, \"SAP CO\", \"LucaNet\", Power BI all met; \"bis 1.250 €\"",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP conversion consultant, not finance lead; 880/day < 1000",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "IT rollout outside finance; 680/day < 1000",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role outside finance; no salary key",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement lead, no Einkauf experience; budget 1,000-1,200 ok",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Forecast, SAP CO, Power BI fit, SAP PS open; \"80 € pro Stunde\" < 1000/day",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Transformation and IFRS close fit, BlackLine open; \"€650–750\" < 1000",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Payroll specialist outside profile; no rate stated",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP MM consulting outside finance; 840/day < 1000",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "\"Interim-Leitung Konzernrechnungswesen (HGB/IFRS)\" core fit, Automotive; thin ad, rate unknown",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Controlling tasks match but junior permanent role",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Carve-out, PMI, HGB/IFRS, S/4, Liquidität met; \"Erfahrung als CFO\" partial; 1,050 ok",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "\"Carve-out oder PMI Erfahrung zwingend\" met, CFO experience partial; 1,040 ok",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Junior accountant; 48 €/h < 1000/day",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Finance lead fits partly, \"Swiss GAAP FER\" and CFO experience open; CH allowed, CHF rate partial",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP customizing, not finance lead; 840/day < 1000",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Finance lead, likely permanent, thin ad with no requirements",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Embedded software role; 736/day < 1000",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Student job, far below the profile. The hourly wage is no interim day rate and the profile sets no min_jahresgehalt, so no hard key is proven.",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Hands-on BI developer role (DAX, Fabric, SQL) with \"no accounting background required\" is outside the finance profile, which has Power BI only as a tool. \"Rate: 850 EUR per day\" < 1000.",
+      "quote": ""
+    }
+  },
+  "sample_profile_it.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "DSB role outside SAP PM; \"bis 115 €/h\" = 920/day < tagessatz_ab 950",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance/AML outside SAP project management; no hard criterion violated",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "\"SAP S/4HANA MM\" and P2P fit, but \"6 Jahre ... Internen Revision\" missing; 950 meets tagessatz_ab",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Legal role outside IT/SAP; no hard criterion violated",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Risk manager CRR III, no SAP PM fit; no hard criterion violated",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Data protection consultant, no SAP fit; rate ok",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Human rights due diligence role outside SAP; no exclusion",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Audit role outside SAP PM; no exclusion",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT contract law, not SAP project work; rate and DE ok",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ERM/ICS role outside SAP PM; no exclusion",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales role, CRM rollout only nice; no fit",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "\"SAP SD (Konditionstechnik)\" met by SAP SD 10y, pricing experience open; permanent",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Salesforce Certified\" not SAP; 784/day < tagessatz_ab 950",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing leadership, no SAP; thin ad",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Business development sales, no SAP fit; no exclusion",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "\"Sehr gute Kenntnisse in SAP SD\" and project lead met, pricing musts open",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CCO role, no SAP; thin ad",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales KAM role, no SAP PM fit; rate ok",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HubSpot/Salesforce ops, not SAP; permanent",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales controlling, no SAP PM fit; Wien in AT allowed",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Controlling lead outside SAP PM; rate ok",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S/4 migration and cutover fit, FI/CO depth open; \"95 - 110 €/h\" < 950/day",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Rollout, PMP, Handel, MS Project fit; \"85 € pro Stunde\" = 680/day < 950",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR role, no SAP; no exclusion",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "\"SAP MM\" and P2P met, procurement leadership and category strategy open",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Project controlling, not SAP PM; 640/day < 950",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Finance R2R, not SAP PM; 750 < 950",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP HCM payroll not in modules SD/MM/EWM; thin ad",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "SAP MM 8y, P2P, Stammdaten, migration fit, Ariba open; 840/day < 950",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting lead outside SAP PM; thin ad",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior controlling, no SAP PM fit",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Kaufmännische Leitung outside SAP PM; rate ok",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance lead role outside SAP PM",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "BI developer, not SAP PM; 850 < 950",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Bookkeeping role; 48 €/h < 950/day",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "CFO role; \"Zug (Schweiz)\" outside laender DE/AT",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S/4 project and migration adjacent, FI/CO open; 840/day < 950",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance head, no SAP PM fit",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"AUTOSAR Classic\" developer; 736/day < 950",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Student job, no fit. It is not interim, so tagessatz_ab does not apply, and the profile sets no salary floor.",
+      "quote": ""
+    }
+  },
+  "sample_profile_sap.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "DSB role, no SAP FI/CO; \"bis 115 €/h\" = 920/day < 950",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AML compliance, no SAP FI/CO; \"7+ years\" >= 5, rate 1,200-1,400 ok",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "\"SAP S/4HANA MM und FI\" partly met, \"Interne Revision\" years and IIA standards open; 950 ok",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Legal role; salary 125k >= 95k, \"3 bis 6 Jahre\" reaches 5, law degree formal open",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"CRR III\", \"SAS oder Python\" not in profile; no rate or years stated",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Privacy role; \"5+ years in data protection\" meets 5 min, rate ok, no fit",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance supply chain, no SAP FI/CO; \"Mehrjährige\" gives no number",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"5+ years in internal audit\" not in profile; years >= 5, no salary stated",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"mindestens 4 Jahren Erfahrung im IT-Recht\" below 5 without senior title",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Risk management head, no SAP FI/CO; \"10+ years\" >= 5, no salary stated",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Vertrieb role, no SAP FI/CO; \"Mindestens 10 Jahre\" >= 5",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pricing role; salary 125k >= 95k, 8 years ok, but no FI/CO fit",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Salesforce consultant; \"max. 98 € all-in\" < 950/day",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing role, no SAP FI/CO; no stated criteria",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pricing lead, SD not FI/CO; rate ok",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CCO role, no FI/CO; no stated criteria",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "KAM sales, no FI/CO; rate ok",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CRM role; salary to 102k >= 95k, 6+ years ok, no fit",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "\"SAP CO\" met, but \"10 Jahre ... Konzerncontrolling\" with leadership open",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "FI-GL, FI-AA, CO-PA, S/4 conversion excellent; but \"95 - 110 €/h\" = 880/day < 950",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "POS rollout, no FI/CO; 680/day < 950",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"72.000 €/Jahr - 88.000 €/Jahr\" < min_jahresgehalt 95k",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Einkaufsleitung, no FI/CO fit; rate ok",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"SAP CO (Innenaufträge\" met, SAP PS open; 640/day < 950",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Close/COA harmonisation near FI, BlackLine open; 750 < 950",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"SAP HCM PY\" not FI/CO; no rate or years stated",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Group accounting lead, SAP closing support only adjacent; thin ad",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior controlling, no SAP FI/CO; no number of years stated",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "850 < 950 and \"3+ years\" < 5 without senior title",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "48 €/h < 950/day; \"(1 bis 2 Jahre)\" below 5",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO role, no FI/CO consultant fit; CH allowed",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "FI/CO customizing, S/4 go-live, MM/SD fit; \"95 bis 105 EUR\" = 840/day < 950",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance head, not FI/CO consulting; thin ad",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Embedded role; 736/day < 950",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Clinic sales role, out of field. \"Fixgehalt 78.000 € bis 92.000 € plus bis zu 20 % Bonus\" can reach about 110k in total, so the quote does not prove pay below 95k. \"Mindestens 5 Jahre\" equals the minimum and München has no location rule.",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Interim in AT. \"Deckungsbeitrag und Kundenprofitabilität\" reporting is adjacent to CO-PA (8 yrs), but the ad names no SAP and is a business controlling role. The ad is thin with no musts listed.",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Same profession, other module: \"5+ Jahre Beratungserfahrung in SAP MM\" and Ariba are open, with only the MM integration and P2P partial. \"100 € pro Stunde (ab 01.04.2027 105 €)\" = max 840/day < 950.",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Student job, no fit. It is no stated permanent role (\"Übernahmechance nach dem Studium\"), so the min_jahresgehalt rule does not apply. It is also not interim and the ad gives no year number.",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Finance-adjacent: \"SAP S/4HANA Einführungen aus Sicht des Fachbereichs\" is met and HGB is partial. CFO or kaufm. Leitung and carve-out experience are open. 1050/day >= 950 and there is no ANÜ.",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "\"SAP S/4HANA Projekterfahrung\" is met. \"CFO / Kaufmännischer Leiter\" and carve-out are open, and experience is no formal duty, so \"zwingend\" does not exclude. 130 €/h = 1040/day >= 950.",
+      "quote": ""
+    }
+  },
+  "sample_profile_senior.json": {
+    "A01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "DSB role outside CFO field; \"bis 115 €/h\" = 920/day < 1000",
+      "quote": ""
+    },
+    "A02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "MLRO/GwG expertise missing; \"7+ years\" with Head title only overqualified, rate ok",
+      "quote": ""
+    },
+    "A03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "WP background meets \"Wirtschaftsprüfung\" but audit/SAP MM open; \"850 - 950 € pro Tag\" < 1000",
+      "quote": ""
+    },
+    "A04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Zielgehalt 105.000 bis 125.000 €\" < min_jahresgehalt 150k; Düsseldorf permanent outside region",
+      "quote": ""
+    },
+    "A05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Bank regulatory risk role outside CFO scope; thin ad, no exclusion",
+      "quote": ""
+    },
+    "A06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"5+ years in data protection\" below zielprofil_min_jahre 10 without senior title",
+      "quote": ""
+    },
+    "A07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "LkSG compliance outside finance; no hard criterion violated",
+      "quote": ""
+    },
+    "A08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"5+ years in internal audit\" below 10 for an \"Internal Audit Manager\" without senior title",
+      "quote": ""
+    },
+    "A09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"mindestens 4 Jahren\" below zielprofil_min_jahre 10",
+      "quote": ""
+    },
+    "A10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"Permanent position\" in \"Hanover ... (On-site)\" outside festanstellung_orte, no remote share",
+      "quote": ""
+    },
+    "B01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership outside CFO field; 10 years = min, rate ok",
+      "quote": ""
+    },
+    "B03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Salesforce role; \"max. 98 €\" = 784/day < 1000",
+      "quote": ""
+    },
+    "B04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Marketing director outside CFO field; thin ad",
+      "quote": ""
+    },
+    "B05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Fixgehalt 78.000 € bis 92.000 € plus bis zu 20 % Bonus\" < 150k; \"Mindestens 5 Jahre\" < 10",
+      "quote": ""
+    },
+    "B06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Pricing excellence outside finance core; rate 1,040 ok",
+      "quote": ""
+    },
+    "B07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CCO sales scope, not CFO; thin ad",
+      "quote": ""
+    },
+    "B08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales leadership LEH outside finance; rate ok",
+      "quote": ""
+    },
+    "B09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Salary between 88,000 EUR and 102,000 EUR\" < min_jahresgehalt 150k",
+      "quote": ""
+    },
+    "B10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Reporting and \"Budgetplanung 2027\" in controlling core, role junior for profile; thin ad",
+      "quote": ""
+    },
+    "C01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Controlling 28y, team lead, HGB/IFRS, LucaNet, Power BI; \"Mind. 10 Jahre\" met, 1,250 ok",
+      "quote": ""
+    },
+    "C02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP consultant role; 880/day < 1000",
+      "quote": ""
+    },
+    "C03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "IT rollout role; 680/day < 1000",
+      "quote": ""
+    },
+    "C04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"88.000 €/Jahr\" < 150k; Frankfurt hybrid outside region",
+      "quote": ""
+    },
+    "C05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement leadership outside CFO field; rate 1,200 ok",
+      "quote": ""
+    },
+    "C07": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Finance transformation 15y fits; \"€650–750\" < 1000 and \"6+ years\" < 10",
+      "quote": ""
+    },
+    "C08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Payroll role outside CFO field; thin ad",
+      "quote": ""
+    },
+    "C09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP MM role; 840/day < 1000",
+      "quote": ""
+    },
+    "D01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Konzernabschluss IFRS/HGB 22y, Automobilzulieferer; thin ad, no rate",
+      "quote": ""
+    },
+    "D02": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"unbefristeten Arbeitsvertrag\" in Bielefeld, \"Bis zu zwei Tage mobiles Arbeiten\" outside region",
+      "quote": ""
+    },
+    "D03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim CFO, carve-out, HGB/IFRS, treasury, PE all met; \"1.050 EUR pro Tag\", \"keine Arbeitnehmerüberlassung\"",
+      "quote": ""
+    },
+    "D04": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "CFO interim, carve-out, HGB/IFRS, treasury met; 1,040/day, \"keine ANÜ\"",
+      "quote": ""
+    },
+    "D06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "48 €/h < 1000/day; \"1 bis 2 Jahre\" below 10",
+      "quote": ""
+    },
+    "D07": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Interim CFO, treasury, financing met; \"Swiss GAAP FER\" open; CHF 1,650 partial",
+      "quote": ""
+    },
+    "D08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "SAP consultant role; 840/day < 1000",
+      "quote": ""
+    },
+    "D10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Embedded role; 736/day < 1000",
+      "quote": ""
+    },
+    "B02": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "The pricing lead role is only adjacent to a CFO profile: controlling fits, while pricing and SAP SD Konditionstechnik are open. It is a stated permanent role. \"Jahreszielgehalt zwischen 105.000 € und 125.000 €\" < 150k, and Bielefeld is outside the listed places with only \"Bis zu 2 Tage mobiles Arbeiten\".",
+      "quote": ""
+    },
+    "C06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Junior project controlling in SAP PS for a CFO profile: controlling and forecast fit, SAP PS is open. \"Honorar: 80 € pro Stunde\" = 640/day < 1000. \"Mind. 5 Jahre\" < 10 without a senior title.",
+      "quote": ""
+    },
+    "C10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Student job, no fit. It is not a stated permanent role, so the salary and Leipzig location rules do not exclude, and it is not interim. The ad gives no year number.",
+      "quote": ""
+    },
+    "D05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Developer role outside the CFO field. \"Rate: 850 EUR per day\" < 1000, and \"3+ years\" < 10 without a senior title.",
+      "quote": ""
+    },
+    "D09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "\"Finanzleitung\" is the core finance leadership field. The ad is thin and the contract unclear, so the Hamburg location is open rather than excluding. It likely sits below her level.",
+      "quote": ""
+    }
+  }
+}

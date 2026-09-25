@@ -1,0 +1,31 @@
+Titel: Power BI Developer Finance (m/w/d)
+Unternehmen: Kestrel Analytics AG
+Ort: Frankfurt am Main (Deutschland)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4125510392/
+Abgerufen am: 18.09.2026 07:40
+
+About the job
+Our client, a listed industrial group, is modernising its finance reporting landscape. The Group Controlling and Group Accounting teams need a hands-on developer who turns SAP S/4HANA and consolidation data into a reliable Power BI platform for the CFO office.
+
+Your mission
+Design and build semantic models in Power BI and Microsoft Fabric for group reporting, IFRS consolidation and month-end close KPIs
+Write performant DAX measures and Power Query transformations
+Build data pipelines from SAP S/4HANA (CDS views) and the consolidation tool into a Fabric lakehouse
+Implement row-level security for legal entities and cost centers
+Set up CI/CD for Power BI artefacts with Azure DevOps and Git integration
+Document data lineage and support the controlling team in self-service reporting
+
+What you bring
+3+ years of hands-on Power BI development (DAX, Power Query, data modelling)
+Solid SQL skills, Python is a plus
+Experience with Microsoft Fabric or Azure Synapse
+Basic understanding of finance data (general ledger, cost centers, consolidation) - no accounting background required
+Agile project experience (Scrum, Jira)
+Fluent English, German is a plus
+
+Engagement
+Freelance, 6 months with extension option
+Start: 1 November 2026
+Rate: 850 EUR per day
+Remote within Germany, 1 day per month on site in Frankfurt

@@ -10,7 +10,7 @@ use super::fit::Skills;
 use super::lexicon::engine::{self as lex, KEY_USP};
 use super::params::{
     BM25_B, BM25_K1, BM25_LENGTH, FIELD_REQUIREMENTS, FIELD_REST, FIELD_TITLE, GENERIC_WEIGHT,
-    RELEVANCE_HALF, SPECIFIC_WEIGHT,
+    RELEVANCE_HALF, SENTENCE_ATOMS, SPECIFIC_WEIGHT,
 };
 
 fn counts(text: &str, vocab: &Vocab) -> BTreeMap<String, u64> {
@@ -32,14 +32,29 @@ fn occurrences(counts: &BTreeMap<String, u64>, profile_atom: &str) -> u64 {
 }
 
 /// Distinct profile atoms with their static weight: specific 1000, generic 200; an atom
-/// only named in a USP sentence counts half (free text is weaker evidence).
+/// only named in free text counts half (a USP, a career station, an entry long enough to be
+/// a sentence). Languages are no field, and contract words and quantities say nothing about
+/// it: they stay out.
 pub(crate) fn query(skills: &Skills) -> Vec<(String, u64)> {
+    let noise = |a: &str| {
+        lex::TITLE_CONTRACT_WORDS
+            .iter()
+            .any(|w| *w == a || atoms::stem(w) == a)
+            || lex::NUMBER_WORDS.iter().any(|(w, _)| *w == a)
+            || lex::QUERY_NOISE.contains(&a)
+    };
     let mut atoms: Vec<(String, bool)> = skills
         .entries
         .iter()
+        .filter(|e| !e.path.starts_with(lex::KEY_LANGUAGES))
         .flat_map(|e| {
-            let usp = e.path.starts_with(KEY_USP);
-            e.atoms.iter().map(move |a| (a.clone(), usp))
+            let free_text = e.path.starts_with(KEY_USP)
+                || e.path.starts_with(lex::KEY_STATIONS)
+                || e.atoms.iter().filter(|a| !atoms::is_generic(a)).count() >= SENTENCE_ATOMS;
+            e.atoms
+                .iter()
+                .filter(move |a| !noise(a))
+                .map(move |a| (a.clone(), free_text))
         })
         .collect();
     // Competence occurrences (`false`) sort first and win the dedup.
@@ -63,6 +78,16 @@ pub(crate) fn query(skills: &Skills) -> Vec<(String, u64)> {
 /// Title fit in per-mille: share of the title's content atoms the profile covers, scaled
 /// by the static weight of the profile atom (specific 1000, USP-only 500).
 pub(crate) fn title_fit(query: &[(String, u64)], title: &str, vocab: &Vocab) -> u64 {
+    title_fit_with(query, title, vocab, false)
+}
+
+/// The title fit of a text judged by its title alone: its contract words (`Interim`,
+/// `Freelance`) leave the title, the field words decide.
+pub(crate) fn field_title_fit(query: &[(String, u64)], title: &str, vocab: &Vocab) -> u64 {
+    title_fit_with(query, title, vocab, true)
+}
+
+fn title_fit_with(query: &[(String, u64)], title: &str, vocab: &Vocab, drop_contract: bool) -> u64 {
     // Contract words (`Interim`, `Freelance`, `befristet`) say nothing about the field: they
     // count in the title but never match the profile (`Interim Management` in a profile
     // does not make every interim title fit).
@@ -71,9 +96,11 @@ pub(crate) fn title_fit(query: &[(String, u64)], title: &str, vocab: &Vocab) -> 
             .iter()
             .any(|w| *w == a || atoms::stem(w) == a)
     };
+    // A title judged alone drops them (and the generic atoms, as always).
+    let dropped = |a: &str| atoms::is_generic(a) || (drop_contract && contract(a));
     let title_atoms: Vec<String> = atoms::atoms(title, vocab)
         .into_iter()
-        .filter(|a| !atoms::is_generic(a))
+        .filter(|a| !dropped(a))
         .collect();
     if title_atoms.is_empty() {
         return 0;
@@ -228,5 +255,42 @@ mod tests {
         let with_role = title_query(&query, &["werksleit".to_owned()]);
         assert_eq!(title_fit(&query, "Werksleiter", &vocab), 0);
         assert!(title_fit(&with_role, "Werksleiter", &vocab) > 0);
+    }
+
+    /// The query holds the field: no languages, contract words or quantities, and free text
+    /// (an entry long enough to be a sentence) counts half.
+    #[test]
+    fn the_query_holds_the_field() {
+        let data = serde_json::json!({
+            "kernkompetenzen": [
+                {"kompetenz": "Controlling"},
+                {"kompetenz": "Interim Management"},
+                {"kompetenz": "Rund elf Jahre Treasury, Cash Management, Liquiditätsplanung und Factoring"}
+            ],
+            "sprachen": [{"sprache": "Englisch", "niveau": "C1"}]
+        });
+        let skills = Skills::new(&super::super::legacy::LegacyProfile::new(&data), &data, &[]);
+        let query = query(&skills);
+        let weight = |text: &str| {
+            let atom = atoms::atoms(text, &skills.vocab).remove(0);
+            query.iter().find(|(a, _)| *a == atom).map(|(_, w)| *w)
+        };
+        assert_eq!(weight("Controlling"), Some(SPECIFIC_WEIGHT));
+        assert_eq!(weight("Treasury"), Some(SPECIFIC_WEIGHT / 2));
+        assert_eq!(weight("Englisch"), None);
+        assert_eq!(weight("Interim Management"), None);
+        assert_eq!(weight("elf"), None);
+    }
+
+    /// A title judged alone loses its contract words: `Interim CFO` is a CFO title.
+    #[test]
+    fn a_title_alone_is_judged_by_its_field() {
+        let vocab = Vocab::all();
+        let query = vec![("cfo".to_owned(), SPECIFIC_WEIGHT)];
+        assert!(title_fit(&query, "Interim CFO", &vocab) < SPECIFIC_WEIGHT);
+        assert_eq!(
+            field_title_fit(&query, "Interim CFO", &vocab),
+            SPECIFIC_WEIGHT
+        );
     }
 }
