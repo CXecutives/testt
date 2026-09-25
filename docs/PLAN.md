@@ -37,6 +37,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Warm selection (user, after the A/B preview, 2026-09-24) | supersedes the navy selection below: the selected row and the active nav are warm and very light (row wash 22 72% 96.5 %, hover 94.5 %, a coral bar at 0.75, the ring track 20 40% 88 %; the nav pill white with an ink label and a coral icon; soft count pills 95 % with coral-800 digits). Navy stays for the sidebar count pill, the pinned star, tooltips, progress, info, links, focus, the first-run current step and the chosen filter. Switch rows get no background at all ("kein grau, nur die Schalter"): only the switch reacts, also while the pointer is on its row's text, which still toggles it. No press ever deforms a control: buttons give uniformly (0.98), everything else only darkens; rows share one grid (a row's wash and divider are its own box, the container's inset is --row-inset) |
 | cxpertise navy for structure and state (user, 2026-09-24) | two brand colours with two jobs: coral (13 73% 63%) means act or new - the one primary per view, switches that are on, the unread dot; navy (212 34% 37%) and deep navy (212 30% 26%) mean where you are and what the data says - the selection bar and wash, the active nav (a sliding white pill with a navy label), the chosen filter, focus, caret and text selection, progress, counts (a deep navy pill in the sidebar, soft pills elsewhere), tooltips, info, sub-labels and links. Navy only as small dense marks and 93-96 % washes, never a large fill, never on headings, switches, scores or row-title hover; navy and coral never share an element and never blend. Motion "quiet at rest, rich on contact": hover-in 80 ms, hover-out 150 ms, press 60 ms with a small scale (0.97 / 0.94 icon / 0.985 tiles), release with --ease-emphasized; icons nudge 1-2 px, indicators slide 180 ms, counts roll, the star pops once (1, 1.18, 1), checks draw, a passage flashes; no lift, glow, stagger, bounce, blur or replay (nothing animates on mount; `intro: false`) |
 | Profile editor (user, 2026-09-24) | The Profil view is the profile as a form (no JSON writing): the keys the engine and the skill read, grouped as a consultant thinks (Person, Kompetenzen und Schwerpunkte, Erfahrung, Werkzeuge und Zertifikate, Sprachen, Wünsche, Ausschlusskriterien); chip fields for lists, toggle buttons for small fixed choices (no dropdown). Three ways in without a profile: Profil anlegen, Aus Lebenslauf erstellen (a German prompt for the user's own Claude, `core/src/profile/prompt.rs`, the answer is pasted back), Datei wählen; file and answer fill the form for review. Saving merges into the JSON: only changed fields are written, unknown keys, their values and the key order stay, atomic write, one backup `profil/beraterprofil.json.bak`. "Vorlage speichern" is gone. New profile inputs `schwerpunkte` (at most 5, stars on the competences), `wunschrollen`, wishes in `einsatzpraeferenzen` (`tagessatz_wunsch`, `remote` voll/ueberwiegend/teilweise/vor_ort, `regionen`, `branchen`); the engine side follows separately |
+| Profile page, final round (plan 2026-09-25, track C) | Eight blocks: head (person, an honest quality badge that follows the form while it changes: "Vollständig" only with competences, else "Wenig Inhalt" or "Ohne Kompetenzen", "Etwas prüfen" with its reasons in the tooltip; terms, Schwerpunkte, specialist vocabulary; Andere Datei wählen, Aus Lebenslauf aktualisieren, Ordner öffnen, Entfernen), Person, Kompetenzen und Schwerpunkte, Erfahrung und Qualifikation, Wünsche, Ausschlusskriterien (only real exclusions; the remote-abroad switch under the countries, missing = allowed as the engine reads it; ANÜ and Festanstellung as excluded contract types, engine 11), Verfügbarkeit (only marks), "So liest die App dein Profil" (closed; terms, the parts of the file they come from, also the ones only the file holds, criteria). A value the engine cannot read is said at its field with "Wert entfernen" (`ProfileSave.clear`, `UnreadableField`); a value the backend refuses is said at its field (or row), which gets the caret (`profileValue.row`). English keys are read and written where they are. More than five Schwerpunkte: the first five, saving writes them. Money with cents counts whole euros and says so. Sentence lists split only at line breaks; a double click edits a chip. Drafts show their warnings before saving; an update from a CV fills the stored profile for review. Closing the window with unsaved changes asks (`set_unsaved`, event `close-requested`, `close_window`; a page that does not answer within 3 s does not keep the window open). Removing makes the file the backup, a 10 s toast offers "Rückgängig" (`restore_profile`); a reset still leaves neither |
 | Self-decided | TXT header stays German and byte-identical · primary button brand-near (coral 56 %, label 600) · excluded jobs grey behind a divider, also under "Neu" but not counted · Excel for excluded: domain score, grey row · merge cross-portal duplicates · Smart App Control is off on the dev PC |
 
 ## Contracts
@@ -102,9 +103,9 @@ Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | res
 `set_pinned(key, on)` · `move_jobs(to, keys) -> JobKey[]` · `set_override(key, include) -> bool` ·
 `purge_jobs(keys) -> Deleted{count, keys, exportError?}` · `empty_trash -> Deleted` ·
 `ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile -> ProfileDraft?` ·
-`parse_profile(text) -> ProfileDraft` · `profile_prompt` · `save_profile(ProfileSave{before, after, source?}) -> ProfileInfo` ·
-`remove_profile` · `save_mailbox` · `remove_mailbox` · `portal_login` · `portal_logout` ·
-`pick_workspace` · `rewrite_txt` · `clear_txt` · `open_target({jobUrl|gmail|workspace|excel|overview|logDir})` ·
+`parse_profile(text) -> ProfileDraft` · `profile_prompt` · `save_profile(ProfileSave{before, after, source?, clear[]}) -> ProfileInfo` ·
+`remove_profile` · `restore_profile` · `set_unsaved(on)` · `close_window` · `save_mailbox` · `remove_mailbox` · `portal_login` · `portal_logout` ·
+`pick_workspace` · `rewrite_txt` · `clear_txt` · `open_target({jobUrl|gmail|workspace|profileDir|excel|overview|logDir})` ·
 `save_settings(SettingsPatch)` · `reset_all` · `report_ui_error` (truncated, <= 10/min).
 Rust triggers `rescore` itself (after pick/remove profile, at start, after an engine update, if pending > 0; pending = 0
 without a usable matcher) and the auto fetch (setting on, mailbox connected, last fetch > 6 h).
@@ -118,7 +119,7 @@ Types: `JobView{key, portal, title, company, location, workMode, mailDate, first
 `JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null}` ·
 `Reason{id, kind: met|partial|open|violation|check, weight: must|nice|hard|info, code, label, evidence{profile, path, via, quote}|null, params, ranges[]}` ·
 `Highlight{id, start, end (UTF-16), kind, reason}` · `ProfileInfo{fileName, bytes, savedAt, quality: good|thin|empty, understood{competenceCount, competences[], sources[], criteria[], warnings[], packs[], years, degrees[], focus[], roles[], wishes}, scoredAt, pending, form}` ·
-`ProfileForm` (the editor's fields, `core/src/profile/form.rs`) · `ProfileDraft{form, source, quality}` ·
+`ProfileForm` (the editor's fields, `core/src/profile/form.rs`) · `ProfileDraft{form, source, quality, understood}` ·
 `PortalHealth = ok | paused{until, reason} | quotaReached{until} | layoutSuspect{emptyMails, pages} | loginRequired` ·
 `AppState{platform, dryRun, firstRun, running, settings, mailbox, profile, portals[{portal, enabled, fetchDetails, login, loginEnabled, signedIn, risk: low|grey|account, health, quota?}] (Portal::ALL order), autoFetchOnStart, lastRun (the last fetch: fetch or fullMailbox, never a rescore or details run), counts, matchPending, dataDir, logDir, resetReport?}` ·
 `CommandError{kind, params}`. Traits: `pipeline::score::Matcher{rev, assess}` · `portal::PortalAdapter` · `matching::prescore`.
@@ -186,9 +187,10 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   excluded grey behind divider; duplicates as one row) · reader card 720 px (ring 96 counting up, band word, n of m must,
   hard-criteria strip, reasons met/open/check/violations, hover = tooltip + highlight, click = scroll to passage) ·
   day overview when nothing is selected (3 stat tiles, unread per portal, best 3, pinned, open issues, "Übersicht öffnen").
-- Profil: the profile as a form (see Decisions "Profile editor"): head card (file, quality, one line of what the app
-  understood, what it could not use, rescore, Datei wählen / Entfernen), sections, sticky save bar (Speichern only with
-  a change, Verwerfen), a question before leaving with unsaved changes; empty state with the three ways in.
+- Profil: the profile as a form (see Decisions "Profile editor" and "Profile page, final round"): head card (person,
+  quality, one line of what the app reads, keys it does not read, rescore, the file actions), the seven blocks of the
+  form and the reading, sticky save bar (Speichern only with a change, Verwerfen, once "Weiter zum ersten Abruf" during
+  setup), a question before leaving or closing the window with unsaved changes; empty state with the three ways in.
 - Einstellungen: Postfach · Abruf (auto fetch) · Portale (switches with risk badges, health, quota only >= 80 %) ·
   Dateien · Wartung. First run: full page with three real, self-ticking steps.
 - All states per screen (first use, no profile, empty, loading, run, nothing new, no search hit, errors, offline,
@@ -321,6 +323,11 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [x] Shell, Profil, Einstellungen, first run; all states; texts only from `de.ts`; `mark_read` only on a real click
 - [x] Profile editor (form over the profile JSON, merge with one backup, Claude answer, chip fields, Schwerpunkte,
       wishes; 17 harness scenarios in both engines, baselines `profile`, `profile-empty`, `profile-paste`)
+- [x] Profile page, final round (track C, see Decisions): values that do not read at their field with "Wert entfernen",
+      English keys written where they are, the first five of more Schwerpunkte, money with cents, refused values at their field,
+      remote switch under the countries, availability as its own block, Festanstellung excluded (engine 11), close
+      guard, remove with undo, head actions, reading block, local quality, drafts with warnings, CV prompt with wishes,
+      criteria and stations, names for all 11 packs (`core/tests/pack_labels.rs`); harness `profile.spec.ts`
 - [x] >= 30 harness scenarios (200 in Chromium + WebKit after the polish round) in Chromium + WebKit; screenshot baselines; smoke probe of the real app
 - [x] German and English (see Decisions "UI language"): `en.ts`, reactive `t`, locale-aware `format.ts`, Sprache in
       Einstellungen, exports and prompts in both languages; `ui_contract.rs` checks both catalogs (punctuation,
