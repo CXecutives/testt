@@ -239,6 +239,31 @@ mod tests {
         }
     }
 
+    /// freelancermap's contract type code, in the page's words: a permanent position or
+    /// temporary agency work is seen although the description does not repeat it (the
+    /// portal alone used to make every project interim).
+    #[test]
+    fn freelancermap_contract_types_from_the_page() {
+        use ContractKind::{Anue, Interim, Permanent};
+        let kind = |value: &str| {
+            let facts = serde_json::json!({ "contract": value });
+            let job = JobFacts {
+                title: "Leitung Controlling (m/w/d)",
+                text: "Leitung des Controllings im Mittelstand.",
+                location: "",
+                portal: Portal::Freelancermap,
+                facts: Some(&facts),
+                posted: None,
+            };
+            let segments = segments(job.text);
+            let anue = anue(&job, &segments);
+            infer(&job, &segments, &anue).kind
+        };
+        assert_eq!(kind("Festanstellung"), Permanent);
+        assert_eq!(kind("Arbeitnehmerüberlassung"), Anue);
+        assert_eq!(kind("Freiberuflich"), Interim);
+    }
+
     #[test]
     fn stated_denied_optional_and_field_permanent_roles() {
         use ContractKind::{Interim, Permanent};
