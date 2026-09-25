@@ -520,12 +520,13 @@ class JobsStore {
   }
 
   /**
-   * "All read": every unread job of the current facet. Resolves with the keys for the undo
-   * (`markUnread`), or the error text.
+   * "All read": every unread job of the current place; with a search only its hits (what the
+   * list shows). Resolves with the keys for the undo (`markUnread`), or the error text.
    */
   async markAllRead(): Promise<{ keys: JobKey[] } | { error: string }> {
+    const search = this.search.trim() === '' ? null : this.search.trim();
     try {
-      const keys = await invoke('mark_all_read', { place: placeOf(this.facet) });
+      const keys = await invoke('mark_all_read', { place: placeOf(this.facet), search });
       for (const key of keys) this.patch(key, { unread: false });
       void this.refreshCounts();
       return { keys };
@@ -576,22 +577,22 @@ class JobsStore {
    * never brings them back). Resolves with what the backend did, or the error text.
    */
   async purge(keys: JobKey[]): Promise<Deleted | { error: string }> {
-    return this.forget(() => invoke('purge_jobs', { keys }), keys);
+    return this.forget(() => invoke('purge_jobs', { keys }));
   }
 
-  /** Empties the trash: every job in it is deleted for good. */
+  /**
+   * Empties the trash like Mail: every job in it is deleted for good, whatever the list
+   * shows; the result names how many and which.
+   */
   async emptyTrash(): Promise<Deleted | { error: string }> {
-    const trashed = this.rows.filter((job) => job.place === 'trash').map((job) => job.key);
-    return this.forget(() => invoke('empty_trash'), trashed);
+    return this.forget(() => invoke('empty_trash'));
   }
 
-  private async forget(
-    command: () => Promise<Deleted>,
-    keys: JobKey[],
-  ): Promise<Deleted | { error: string }> {
+  private async forget(command: () => Promise<Deleted>): Promise<Deleted | { error: string }> {
     try {
       const deleted = await command();
-      const gone = new Set(keys.map(keyOf));
+      // What the backend deleted: the rows, the open job (also one the list does not hold).
+      const gone = new Set(deleted.keys.map(keyOf));
       const rows = this.rows.filter((job) => !gone.has(keyOf(job.key)));
       this.total = Math.max(0, this.total - (this.rows.length - rows.length));
       this.rows = rows;
@@ -605,28 +606,31 @@ class JobsStore {
 
   /**
    * Moves jobs to the inbox, the archive or the trash. The rows leave a list they no longer
-   * belong to; on an error they come back and the list loads again. Resolves with the error
-   * text, or null.
+   * belong to at once. Resolves with the keys that really moved (toasts and undos only for
+   * those; a job already there or gone did not), or the error text; on an error, or when not
+   * every job moved, the list loads again.
    */
-  async move(keys: JobKey[], to: Place): Promise<string | null> {
+  async move(keys: JobKey[], to: Place): Promise<{ moved: JobKey[] } | { error: string }> {
     const before = keys.map((key) => this.held(key)).filter((job): job is JobView => job !== null);
     for (const job of before) {
       this.patch(job.key, { place: to });
       this.dropStray(job.key);
     }
     try {
-      await invoke('move_jobs', { keys, to });
-      return null;
+      const moved = await invoke('move_jobs', { keys, to });
+      if (moved.length < keys.length) void this.load(true);
+      return { moved };
     } catch (error) {
       for (const job of before) this.patch(job.key, { place: job.place });
       void this.load(true);
-      return errorText(error);
+      return { error: errorText(error) };
     }
   }
 
   /** Archives a job or brings it back to the inbox (the reader's and the row's tool). */
   async archive(key: JobKey, archived: boolean): Promise<string | null> {
-    return this.move([key], archived ? 'archive' : 'inbox');
+    const result = await this.move([key], archived ? 'archive' : 'inbox');
+    return 'error' in result ? result.error : null;
   }
 
   /** The prompt for a deep analysis of a job in any AI chat. */

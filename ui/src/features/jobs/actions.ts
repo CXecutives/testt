@@ -127,17 +127,19 @@ export async function move(list: readonly JobView[], action: MoveId): Promise<st
   const leaving = list.filter((job) => !inFacet({ ...job, place: to }, jobs.facet));
   const next = leaving.length > 0 ? nextAfter(leaving) : null;
   for (const job of leaving) moving.add(keyOf(job.key));
-  const error = await jobs.move(
+  const result = await jobs.move(
     list.map((job) => job.key),
     to,
   );
   setTimeout(() => {
     for (const job of leaving) moving.delete(keyOf(job.key));
   }, 400);
-  if (error !== null) return error;
+  if ('error' in result) return result.error;
   openNext(leaving, next);
   void jobs.loadOverview();
-  for (const job of list) {
+  // Toasts and undos only for the jobs that really moved.
+  const moved = new Set(result.moved.map(keyOf));
+  for (const job of list.filter((row) => moved.has(keyOf(row.key)))) {
     const from = job.place;
     toasts.undoable(`move-${action}`, said(action, job), t.common.undo, () => {
       void undo(job.key, from);

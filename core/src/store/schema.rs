@@ -284,7 +284,7 @@ mod tests {
                 .delete_jobs(std::slice::from_ref(&a.key), now())
                 .unwrap()
                 .0,
-            1
+            std::slice::from_ref(&a.key)
         );
         assert!(store.is_deleted(&a.key).unwrap());
     }
@@ -328,7 +328,7 @@ mod tests {
             store
                 .move_jobs(std::slice::from_ref(&key), trash, now())
                 .unwrap(),
-            1
+            std::slice::from_ref(&key)
         );
     }
 
