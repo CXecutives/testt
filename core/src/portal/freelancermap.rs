@@ -106,7 +106,16 @@ impl PortalAdapter for Freelancermap {
 
     fn guest_page(&self, html: &str, path: &str, link: &JobLink) -> PageOutcome {
         let expected = link.key.has_portal_id().then_some(link.key.id.as_str());
-        match parse(html, expected) {
+        let parsed = parse(html, expected);
+        // No project on the page: a security check served with 200 stops the portal at
+        // once (only real check elements count - the island's JSON names a site key on
+        // every real page).
+        if !matches!(&parsed, Ok(p) if p.text.is_some())
+            && super::has_challenge(&Html::parse_document(html), html)
+        {
+            return PageOutcome::Blocked(Cause::Captcha);
+        }
+        match parsed {
             // On a sign-in or check page, unrecognisable content is a block signal too.
             Err(_) if !is_project_path(path) => landing(path),
             Err(cause) => PageOutcome::Suspicious(cause),
@@ -125,7 +134,9 @@ impl PortalAdapter for Freelancermap {
 }
 
 /// Bump whenever the parser reads pages differently (requeues failed jobs).
-const PARSER_VERSION: u32 = 1;
+/// 2: start, duration, skills, contract type and country as the real island states them;
+/// a check page served with 200.
+const PARSER_VERSION: u32 = 2;
 
 /// `/nproj/<ID>[.html]` or `/projektboerse/projekte/<category>.../<ID>[-slug][.html]`
 /// (also `<slug>-<ID>`) - the forms of the old engine (`legacy-python`, `alerts.py`).
@@ -215,6 +226,9 @@ static BODY: Css = LazyLock::new(|| selector("div.project-body-description, div.
 #[derive(Deserialize)]
 struct Island {
     project: Project,
+    /// The page's own words for its codes (`contract_types_contracting`: "Freiberuflich").
+    #[serde(default)]
+    translations: serde_json::Map<String, Value>,
 }
 
 /// Only the fields needed - names of the contact person are never read.
@@ -225,6 +239,7 @@ struct Project {
     title: Option<String>,
     company: Option<String>,
     city: Option<String>,
+    country: Option<Country>,
     #[serde(default)]
     locations: Vec<Location>,
     description: Option<String>,
@@ -239,6 +254,13 @@ struct Project {
     /// possible names (an alias would refuse the island if two of them appeared).
     #[serde(flatten)]
     rest: serde_json::Map<String, Value>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Country {
+    iso2: Option<String>,
+    localized_name: Option<String>,
 }
 
 /// The first of `names` the island carries, as text.
@@ -262,26 +284,96 @@ fn value_text(value: &Value) -> Option<String> {
     }
 }
 
-/// Facts of the island. `remoteInPercent` is measured; the names of start, duration, rate
-/// and skills are assumed - to be checked against a real page.
-fn facts(project: &Project) -> Facts {
+/// A whole number of the island (`startYear`, `durationInMonths`).
+fn number(rest: &serde_json::Map<String, Value>, name: &str) -> Option<u64> {
+    rest.get(name).and_then(Value::as_u64)
+}
+
+/// Facts of the island, measured on a real page: the start as `startYear` and `startMonth`
+/// (`startText` null), the duration as `durationInMonths` (`durationText` null), the rate
+/// as `budget` (often null), skills as `{enabled: [...], disabled: [...]}`, the contract
+/// type as a code. The text forms stay first - a page may carry them.
+fn facts(project: &Project, translations: &serde_json::Map<String, Value>) -> Facts {
+    let rest = &project.rest;
+    let start = first_text(rest, &["start", "startText", "startDate"]).or_else(|| {
+        let (year, month) = (number(rest, "startYear")?, number(rest, "startMonth")?);
+        (1..=12)
+            .contains(&month)
+            .then(|| format!("{month:02}.{year}"))
+    });
+    // German page words (the unit the engine reads), do not translate.
+    let duration = first_text(rest, &["duration", "durationText"]).or_else(|| {
+        number(rest, "durationInMonths")
+            .filter(|n| *n > 0)
+            .map(|n| format!("{n} {}", if n == 1 { "Monat" } else { "Monate" }))
+    });
+    // A budget without a unit (a bare number) is no rate the engine can read: left out
+    // rather than given an invented unit.
+    let rate = first_text(rest, &["rate", "hourlyRate", "rateText"]).or_else(|| {
+        first_text(rest, &["budget"]).filter(|b| crate::matching::facts::readable_rate(b))
+    });
     let mut facts = Facts {
         remote_percent: project
             .contract_type
             .as_ref()
             .and_then(|c| c.remote_in_percent)
             .and_then(|p| u8::try_from(p.min(100)).ok()),
-        start: first_text(&project.rest, &["start", "startText", "startDate"]),
-        duration: first_text(&project.rest, &["duration", "durationText"]),
-        rate: first_text(&project.rest, &["rate", "hourlyRate", "rateText"]),
+        employment_type: project
+            .contract_type
+            .as_ref()
+            .and_then(|c| c.contract_type.as_deref())
+            .and_then(|code| contract_label(code, translations)),
+        industries: rest
+            .get("industry")
+            .and_then(|i| {
+                ["nameDe", "name", "localizedName"]
+                    .iter()
+                    .find_map(|k| i.get(*k))
+            })
+            .and_then(Value::as_str)
+            .and_then(Facts::value),
+        start,
+        duration,
+        rate,
         ..Facts::default()
     };
-    if let Some(Value::Array(skills)) = project.rest.get("skills") {
-        for skill in skills.iter().filter_map(value_text) {
-            facts.add_skill(&skill);
-        }
+    let skills = match rest.get("skills") {
+        Some(Value::Array(skills)) => skills.iter().collect(),
+        Some(Value::Object(groups)) => groups
+            .get("enabled")
+            .and_then(Value::as_array)
+            .map(|enabled| enabled.iter().collect())
+            .unwrap_or_default(),
+        _ => Vec::new(),
+    };
+    for skill in skills.into_iter().filter_map(value_text) {
+        facts.add_skill(&skill);
     }
     facts
+}
+
+/// The contract type in the page's own words: its translation of the code, else the fixed
+/// labels (the portal's German words, do not translate). The engine reads them:
+/// "Festanstellung" is permanent, "Arbeitnehmerüberlassung" is ANÜ, "Freiberuflich" interim.
+fn contract_label(code: &str, translations: &serde_json::Map<String, Value>) -> Option<String> {
+    let code = code.trim().to_ascii_lowercase();
+    let translated = [
+        format!("contract_types_{code}"),
+        format!("contract_type_{code}"),
+    ]
+    .iter()
+    .filter_map(|key| translations.get(key))
+    .find_map(Value::as_str)
+    .and_then(Facts::value);
+    translated.or_else(|| {
+        let fixed = match code.as_str() {
+            "contracting" | "freelance" => "Freiberuflich",
+            "permanent_position" | "permanent" | "onsite" => "Festanstellung",
+            "employee_leasing" | "leasing" => "Arbeitnehmerüberlassung",
+            _ => return None,
+        };
+        Some(fixed.to_string())
+    })
 }
 
 #[derive(Deserialize)]
@@ -293,6 +385,7 @@ struct Location {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ContractType {
+    contract_type: Option<String>,
     remote_in_percent: Option<u32>,
 }
 
@@ -308,7 +401,11 @@ pub(crate) fn parse(html: &str, expected_id: Option<&str>) -> Result<Parsed, Cau
         .select(&ISLAND)
         .next()
         .and_then(|e| serde_json::from_str::<Island>(&e.text().collect::<String>()).ok());
-    let Some(Island { project }) = island else {
+    let Some(Island {
+        project,
+        translations,
+    }) = island
+    else {
         // Without the JSON island the page can only be checked by its raw text: if the
         // expected id is nowhere, it is not this ad - better no text than a foreign one.
         if expected_id.is_some_and(|id| !html.contains(id)) {
@@ -333,18 +430,38 @@ pub(crate) fn parse(html: &str, expected_id: Option<&str>) -> Result<Parsed, Cau
         .filter_map(|l| l.localized_name.as_deref().map(one_line))
         .filter(|l| !l.is_empty())
         .collect();
-    let facts = facts(&project);
+    let facts = facts(&project, &translations);
     let remote = facts.remote_percent.is_some_and(|p| p >= 100);
-    let location = match project
+    let city = project
         .city
         .as_deref()
         .map(one_line)
-        .filter(|c| !c.is_empty())
-    {
+        .filter(|c| !c.is_empty());
+    // Several sites: all of them (the city names only one). Outside Germany the country
+    // goes with it - the engine's country criterion cannot know every small town.
+    let place = match city {
+        _ if places.len() > 1 => places.join(", "),
         Some(city) => city,
         None if !places.is_empty() => places.join(", "),
-        None if remote => "Remote".into(),
         None => String::new(),
+    };
+    let foreign = project
+        .country
+        .as_ref()
+        .filter(|c| {
+            c.iso2
+                .as_deref()
+                .is_some_and(|iso| !iso.eq_ignore_ascii_case("DE"))
+        })
+        .and_then(|c| c.localized_name.as_deref())
+        .map(one_line)
+        .filter(|name| !name.is_empty() && !place.contains(name.as_str()));
+    let location = match (place.is_empty(), foreign) {
+        (false, Some(country)) => format!("{place}, {country}"),
+        (true, Some(country)) => country,
+        (false, None) => place,
+        (true, None) if remote => "Remote".into(),
+        (true, None) => String::new(),
     };
     Ok(Parsed {
         text: project.description.as_deref().map(html_to_text),
@@ -362,23 +479,44 @@ pub(crate) fn parse(html: &str, expected_id: Option<&str>) -> Result<Parsed, Cau
 pub(crate) mod tests {
     use super::*;
 
-    pub(crate) fn page(id: u64, description: &str, archived: bool) -> String {
-        let island = serde_json::json!({
+    /// The island in the shape a real page has it (measured, invented values): start as
+    /// year and month, the duration in months, `budget` null, skills in `enabled`, the
+    /// contract type as a code, the country as an object, the page's translations.
+    pub(crate) fn island(id: u64, description: &str, archived: bool) -> Value {
+        serde_json::json!({
             "isHidden": false,
+            "reCaptchaSiteKey": "6Lc-invented-site-key",
             "project": {
                 "firstName": "Erika", "lastName": "Muster",
                 "id": id, "title": "SAP FI/CO Berater (m/w/d)", "company": "Ferrum Systems SE",
+                "country": {"country": "/api/countries/1", "id": 1, "iso2": "DE",
+                            "nameDe": "Deutschland", "nameEn": "Germany", "localizedName": "Deutschland"},
                 "city": null, "locations": [{"localizedName": "München"}, {"localizedName": "Remote"}],
                 "description": description, "isArchived": archived, "active": true, "disabled": false,
                 "contractType": {"contractType": "contracting", "remoteInPercent": 50},
-                "startText": "ab sofort", "durationText": "6 Monate", "hourlyRate": "95 €/h",
-                "skills": [{"name": "SAP FI"}, {"name": "SAP CO"}]
+                "startYear": 2026, "startMonth": 10, "startText": null,
+                "durationInMonths": 6, "durationText": null, "budget": null,
+                "industry": {"industry": "/api/industries/3", "nameDe": "Finanzwesen", "nameEn": "Finance"},
+                "skills": {"enabled": [{"localizedName": "SAP FI"}, {"localizedName": "SAP CO"}], "disabled": []}
+            },
+            "translations": {
+                "contract_types_contracting": "Freiberuflich",
+                "contract_types_permanent_position": "Festanstellung",
+                "contract_types_employee_leasing": "Arbeitnehmerüberlassung",
+                "budget": "Budget"
             }
-        });
+        })
+    }
+
+    fn html_of(island: &Value) -> String {
         format!(
             r#"<html><body><div class="project-body-description"><div class="ql-editor">sichtbar</div></div>
             <script type="application/json" class="js-react-on-rails-component" data-component-name="ProjectShow">{island}</script></body></html>"#
         )
+    }
+
+    pub(crate) fn page(id: u64, description: &str, archived: bool) -> String {
+        html_of(&island(id, description, archived))
     }
 
     #[test]
@@ -402,28 +540,117 @@ pub(crate) mod tests {
                 location: "München, Remote".into(),
             }
         );
-        // Facts that used to be read and dropped.
+        // The facts as the real island states them.
         assert_eq!(
             p.facts,
             Facts {
+                employment_type: Some("Freiberuflich".into()),
+                industries: Some("Finanzwesen".into()),
                 remote_percent: Some(50),
-                start: Some("ab sofort".into()),
+                start: Some("10.2026".into()),
                 duration: Some("6 Monate".into()),
-                rate: Some("95 €/h".into()),
                 skills: vec!["SAP FI".into(), "SAP CO".into()],
                 ..Facts::default()
             }
         );
-        // Plain names and plain strings are read too; two names for one fact do no harm.
-        let other = page(7, "x", false)
-            .replace(
-                r#""startText":"ab sofort""#,
-                r#""start":"01.11.2026","startDate":"2026-11-01""#,
-            )
-            .replace(r#"[{"name":"SAP FI"},{"name":"SAP CO"}]"#, r#"["ABAP"]"#);
-        let facts = parse(&other, Some("7")).unwrap().facts;
-        assert_eq!(facts.start.as_deref(), Some("01.11.2026"));
+        // Text forms stay first; plain names and plain strings are read too.
+        let mut other = island(7, "x", false);
+        other["project"]["startText"] = "ab sofort".into();
+        other["project"]["durationText"] = "3 bis 6 Monate".into();
+        other["project"]["skills"] = serde_json::json!(["ABAP"]);
+        other["project"]["hourlyRate"] = "95 €/h".into();
+        let facts = parse(&html_of(&other), Some("7")).unwrap().facts;
+        assert_eq!(facts.start.as_deref(), Some("ab sofort"));
+        assert_eq!(facts.duration.as_deref(), Some("3 bis 6 Monate"));
         assert_eq!(facts.skills, ["ABAP"]);
+        assert_eq!(facts.rate.as_deref(), Some("95 €/h"));
+    }
+
+    /// The start and duration read from the numbers reach the engine's readers.
+    #[test]
+    fn the_numbers_read_as_the_engine_reads_them() {
+        let facts = parse(&page(5, "x", false), Some("5")).unwrap().facts;
+        assert!(crate::matching::facts::parse_start(facts.start.as_deref().unwrap()).is_some());
+        let mut one = island(5, "x", false);
+        one["project"]["durationInMonths"] = 1.into();
+        one["project"]["startMonth"] = 13.into();
+        let facts = parse(&html_of(&one), Some("5")).unwrap().facts;
+        assert_eq!(facts.duration.as_deref(), Some("1 Monat"));
+        assert_eq!(facts.start, None, "no 13th month");
+    }
+
+    /// A budget is a rate only with a unit; a bare number is left out, not given one.
+    #[test]
+    fn a_budget_needs_a_unit() {
+        let rate = |budget: Value| {
+            let mut i = island(5, "x", false);
+            i["project"]["budget"] = budget;
+            parse(&html_of(&i), Some("5")).unwrap().facts.rate
+        };
+        assert_eq!(rate(Value::Null), None);
+        assert_eq!(rate(95.into()), None);
+        assert_eq!(rate("950".into()), None);
+        assert_eq!(
+            rate("950 € pro Tag".into()).as_deref(),
+            Some("950 € pro Tag")
+        );
+    }
+
+    /// Every contract code becomes the page's word for it, so the engine sees a permanent
+    /// position or temporary agency work although the description does not repeat it.
+    #[test]
+    fn contract_codes_in_the_pages_words() {
+        let label = |code: &str, translated: bool| {
+            let mut i = island(5, "x", false);
+            i["project"]["contractType"]["contractType"] = code.into();
+            if !translated {
+                i["translations"] = serde_json::json!({});
+            }
+            parse(&html_of(&i), Some("5"))
+                .unwrap()
+                .facts
+                .employment_type
+        };
+        for translated in [true, false] {
+            assert_eq!(
+                label("contracting", translated).as_deref(),
+                Some("Freiberuflich")
+            );
+            assert_eq!(
+                label("permanent_position", translated).as_deref(),
+                Some("Festanstellung")
+            );
+            assert_eq!(
+                label("employee_leasing", translated).as_deref(),
+                Some("Arbeitnehmerüberlassung")
+            );
+        }
+        assert_eq!(label("unknown_code", false), None);
+    }
+
+    /// A Swiss or Austrian town the country list does not know still names its country.
+    #[test]
+    fn a_foreign_country_goes_with_the_place() {
+        let mut ch = island(5, "x", false);
+        ch["project"]["city"] = "Zug".into();
+        ch["project"]["locations"] = serde_json::json!([{"localizedName": "Zug"}]);
+        ch["project"]["country"] = serde_json::json!({"iso2": "CH", "localizedName": "Schweiz"});
+        let p = parse(&html_of(&ch), Some("5")).unwrap();
+        assert_eq!(p.fields.location, "Zug, Schweiz");
+        // Germany stays the bare place; a city with several sites lists all of them.
+        let mut de = island(5, "x", false);
+        de["project"]["city"] = "Köln".into();
+        de["project"]["locations"] = serde_json::json!([{"localizedName": "Köln"}]);
+        assert_eq!(
+            parse(&html_of(&de), Some("5")).unwrap().fields.location,
+            "Köln"
+        );
+        de["project"]["locations"] =
+            serde_json::json!([{"localizedName": "Köln"}, {"localizedName": "Bonn"}]);
+        assert_eq!(
+            parse(&html_of(&de), Some("5")).unwrap().fields.location,
+            "Köln, Bonn"
+        );
     }
 
     #[test]
@@ -477,19 +704,60 @@ pub(crate) mod tests {
         ));
     }
 
+    /// A check page served with 200 on a project address is a block at once, not a
+    /// changed layout; the site key in a real page's island is no check.
     #[test]
+    fn a_check_page_on_a_project_address_blocks() {
+        let link =
+            crate::portal::job_link("https://www.freelancermap.de/nproj/2971857.html").unwrap();
+        let judge = |html: &str| Freelancermap.guest_page(html, "/nproj/2971857.html", &link);
+        for check in [
+            r#"<html><body><div class="g-recaptcha" data-sitekey="x"></div></body></html>"#,
+            r#"<html><body><form id="challenge-form" action="/?__cf_chl_f_tk=x"></form></body></html>"#,
+            r#"<html><head><script>window._cf_chl_opt={cvId:'3'};</script></head><body></body></html>"#,
+            r#"<html><body><iframe src="https://challenges.cloudflare.com/x"></iframe></body></html>"#,
+        ] {
+            assert_eq!(
+                judge(check),
+                PageOutcome::Blocked(Cause::Captcha),
+                "{check}"
+            );
+        }
+        assert!(matches!(
+            judge(&page(
+                2_971_857,
+                "<p>Aufgaben und Anforderungen.</p>",
+                false
+            )),
+            PageOutcome::Text { .. }
+        ));
+        assert_eq!(
+            judge("<html><body>anders</body></html>"),
+            PageOutcome::Suspicious(Cause::PageNotRecognised)
+        );
+    }
+
+    /// The private real page (not checked in). Ignored by default so that a missing file
+    /// shows as "ignored" instead of passing silently; run it with `--ignored` in the main
+    /// checkout.
+    #[test]
+    #[ignore = "needs core/tests/fixtures/private/pages/freelancermap-3049771.html"]
     fn real_page_when_available() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/private/pages/freelancermap-3049771.html");
-        let Ok(html) = std::fs::read_to_string(path) else {
-            eprintln!("skipped: private freelancermap page missing");
-            return;
-        };
+        let html = std::fs::read_to_string(path).expect("the private page");
         // No real names in the repository: the test checks that fields are filled at all.
         let p = parse(&html, Some("3049771")).unwrap();
         assert!(p.text.unwrap().chars().count() > 1_000);
         assert!(!p.fields.company.is_empty());
         assert!(!p.fields.location.is_empty());
         assert!(!p.closed);
+        assert!(p.facts.start.is_some() && p.facts.duration.is_some());
+        assert!(p.facts.employment_type.is_some());
+        assert!(!p.facts.skills.is_empty());
+        assert!(!super::super::has_challenge(
+            &Html::parse_document(&html),
+            &html
+        ));
     }
 }

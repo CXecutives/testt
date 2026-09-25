@@ -352,7 +352,10 @@ async fn matrix_text_short_closed_gone_suspicious() {
             .as_deref(),
         Some("Vollzeit")
     );
-    assert_eq!(store.parser_version(&closed).unwrap(), Some(1));
+    assert_eq!(
+        store.parser_version(&closed).unwrap(),
+        Some(FM.adapter().parser_version())
+    );
 }
 
 #[tokio::test(start_paused = true)]
