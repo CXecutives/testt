@@ -722,6 +722,8 @@ export const de = {
     closedHint: 'Die Anzeige ist noch lesbar, nimmt aber keine Bewerbungen mehr an.',
     unread: 'Neu',
     pinned: 'Favorit',
+    /** The moment a job went to the trash, in the tooltip of its date there. */
+    trashedAt: (moment: string) => `Gelöscht ${moment}`,
     alsoOn: (portals: string) => `auch auf ${portals}`,
     untitled: 'Job ohne Titel',
   },

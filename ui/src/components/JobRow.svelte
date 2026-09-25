@@ -2,22 +2,29 @@
   One job in the list, mail-style with fixed gutters: the unread dot (6 px, coral) centred
   in the pane padding on the axis of the ring (so a title never moves when the job is
   read), the ring, then three lines that use the full width: the title on up to two lines
-  with the relative date at the end of its first line, company and place, and one line
+  (an unread title is drawn heavier without getting wider, so reading a job never wraps
+  its title anew) with the relative date at the end of its first line (in the Papierkorb
+  the moment the job went there, the date the trash sorts by), company and place (the
+  company gives way first), and one line
   with the ad's key facts ("ab sofort · 6 Monate · 60 % remote · 1.100 €/Tag"; the best
   met requirement when the ad states none) and a badge right after it only when something
   deviates. Facts are whole: one that does not fit drops out, none is ever cut in the
   middle of its value. Without a usable profile the ring stays, empty (a dash), and the row
-  has no third line unless a badge needs one.
+  has no third line unless a badge needs one: it is only as high as the ring then.
   Like Mail and Gmail, the row's tools sit over the date: on hover (or when a tool has the
   keyboard focus) the date fades out and archive (or bring back) and the star fade in
   (100 ms); the title line keeps their room free. A pinned job shows a small star just
-  left of the date. The tools are siblings of the row button, so they never select the row;
+  left of the date (not in the Papierkorb, where no job is a favourite). The list is one
+  Tab stop (the row the list names with `tabbable`; the arrows move in it): the tools are
+  for the pointer and stay out of the Tab order, the reader offers the same actions.
+  The tools are siblings of the row button, so they never select the row;
   the row keeps its hover while the pointer is on them. They exist only while the pointer
   is on the row or the focus is in it (and for their fade-out after that): three buttons on
   every row of a long list were half of its elements, most of the work of a new row and of
   every hit test. An excluded row is muted as a whole, its dot and tools too. When a job is
   read while its row is on screen the dot shrinks away; an excluded row has no dot (no
-  count includes it). A date older than ten days sits on a quiet tint. A score from a
+  count includes it). A date older than ten days sits on a quiet tint; relative dates follow
+  the page's clock (they move on while the app stays open). A score from a
   teaser is a provisional ring. A cut-off title shows in full in a tooltip. Layout stays
   inside the row (containment); like the row, its hover rests while the list scrolls
   (`data-still`, see ListRow).
@@ -35,6 +42,9 @@
     id: string;
     icon: IconName;
     label: string;
+    /** Locked for now (a run holds the jobs), saying why. */
+    disabled?: boolean;
+    disabledReason?: string | null;
     onclick: () => void;
   }
 </script>
@@ -43,12 +53,13 @@
   import { presence } from '$lib/actions/presence';
   import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
-  import { displayTitle, formatRelative } from '$lib/i18n/format';
-  import { factWords, rowReason } from '$lib/i18n/texts';
+  import { displayTitle, formatMoment, formatRelative } from '$lib/i18n/format';
+  import { factWords, noteText, rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
   import { duration } from '$lib/motion/motion';
   import { dotOut, toolsIn } from '$lib/motion/transitions';
   import { keyConventions } from '$lib/platform';
+  import { clock } from '$lib/state/clock.svelte';
   import Badge, { type BadgeTone } from './Badge.svelte';
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
@@ -79,6 +90,8 @@
     aged?: boolean | null;
     /** The row's test id (another list of the same jobs needs its own). */
     testid?: string | null;
+    /** The list's one Tab stop is this row (the others are reached with the arrows). */
+    tabbable?: boolean;
   }
 
   let {
@@ -93,6 +106,7 @@
     tools = [],
     aged = null,
     testid = null,
+    tabbable = true,
   }: Props = $props();
 
   /** A date this old is marked (days). */
@@ -105,10 +119,11 @@
   }
 
   const excluded = $derived(job.match?.status === 'excluded');
-  const when = $derived(job.mailDate ?? job.firstSeenAt);
-  const old = $derived(
-    aged ?? (now ?? new Date()).getTime() - new Date(when).getTime() > AGED_DAYS * DAY_MS,
-  );
+  /** In the Papierkorb the moment the job went there (the date the trash sorts by). */
+  const trashed = $derived(job.place === 'trash' ? job.trashedAt : null);
+  const when = $derived(trashed ?? job.mailDate ?? job.firstSeenAt);
+  const current = $derived(now ?? clock.now);
+  const old = $derived(aged ?? current.getTime() - new Date(when).getTime() > AGED_DAYS * DAY_MS);
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
   /** How many tools the row has on hover (their room stays free on the title line). */
   const toolCount = $derived(tools.length + (onpin ? 1 : 0) + (onarchive ? 1 : 0));
@@ -123,6 +138,11 @@
     drop = undefined;
     if (here) tooled = true;
     else if (tooled) drop = setTimeout(() => (tooled = false), duration('fast'));
+  }
+
+  /** A tool is for the pointer: out of the Tab order (the list is one Tab stop). */
+  function untabbed(node: HTMLElement): void {
+    for (const button of node.querySelectorAll('button')) button.tabIndex = -1;
   }
 
   const reason = $derived(ring ? rowReason(job) : null);
@@ -144,7 +164,8 @@
       }
       if (job.closed) return { label: t.job.closed, tone: 'neutral', hint: t.job.closedHint };
       if (job.match?.status === 'unscorable') {
-        return { label: t.score.unscorable, tone: 'neutral', hint: null };
+        const hint = noteText(job.match.note) ?? t.reader.noReasons;
+        return { label: t.score.unscorable, tone: 'neutral', hint };
       }
       return null;
     },
@@ -162,6 +183,7 @@
   class="job"
   class:tooled={tooled && toolCount > 0}
   class:muted={excluded}
+  class:bare={!(ring || facts.length > 0 || reason || deviation)}
   data-rests=""
   use:presence={hold}
 >
@@ -169,6 +191,7 @@
     leading={ringCell}
     {selected}
     muted={excluded}
+    {tabbable}
     onclick={onselect ? (event) => onselect?.(job, how(event)) : null}
     testid={rowId}
   >
@@ -182,10 +205,17 @@
         class:two={toolCount === 2}
         class:three={toolCount >= 3}
       >
-        {#if job.pinned}<span class="mark" role="img" aria-label={t.job.pinned}
-            ><Icon name="star" size="sm" filled /></span
+        {#if job.pinned && job.place !== 'trash'}<span
+            class="mark"
+            role="img"
+            aria-label={t.job.pinned}><Icon name="star" size="sm" filled /></span
           >{/if}
-        <span class="date" class:old>{formatRelative(when, now, true)}</span>
+        <span
+          class="date"
+          class:old
+          use:tooltip={trashed ? t.job.trashedAt(formatMoment(trashed, current)) : null}
+          >{formatRelative(when, current, true)}</span
+        >
       </span>
     </span>
     <span class="meta">
@@ -212,20 +242,22 @@
   {#if tooled && toolCount > 0}
     <span class="tools" in:toolsIn>
       {#each tools as tool (tool.id)}
-        <span class="tool">
+        <span class="tool" use:untabbed>
           <Button
             variant="ghost"
             size="sm"
             iconOnly
             icon={tool.icon}
             label={tool.label}
+            disabled={tool.disabled ?? false}
+            disabledReason={tool.disabledReason ?? null}
             testid="{tool.id}-{job.key.portal}-{job.key.id}"
             onclick={tool.onclick}
           />
         </span>
       {/each}
       {#if onarchive}
-        <span class="tool">
+        <span class="tool" use:untabbed>
           <Button
             variant="ghost"
             size="sm"
@@ -238,7 +270,7 @@
         </span>
       {/if}
       {#if onpin}
-        <span class="tool">
+        <span class="tool" use:untabbed>
           <Button
             variant="ghost"
             size="sm"
@@ -308,8 +340,10 @@
     line-clamp: 2;
   }
 
+  /* Unread: heavier strokes on the same glyph advances (a heavier weight is wider, and a
+     title near the end of its line would wrap anew when the job is read). */
   .title.unread {
-    font-weight: var(--weight-semibold);
+    -webkit-text-stroke: calc(var(--border-width) * 0.4) currentcolor;
   }
 
   .meta {
@@ -334,7 +368,7 @@
   }
 
   /* The place is short and says more than the end of a long company name: the company
-     gives way first. */
+     gives way first, the place only past the larger part of the line. */
   .company {
     flex: 0 1 auto;
     min-width: 0;
@@ -342,7 +376,7 @@
 
   .place {
     flex: none;
-    max-width: 40%;
+    max-width: 60%;
   }
 
   .end {
@@ -465,13 +499,18 @@
   }
 
   .job:hover:where(:not([data-still])) .tool,
-  .tool:has(:global(:focus-visible)) {
+  .job:has(.tool :global(:focus-visible)) .tool {
     opacity: 1;
   }
 
   .muted:hover:where(:not([data-still])) .tool,
-  .muted .tool:has(:global(:focus-visible)) {
+  .muted:has(.tool :global(:focus-visible)) .tool {
     opacity: var(--opacity-muted);
+  }
+
+  /* Without a third line (no profile, no badge) the row is as high as its ring. */
+  .bare :global(.row) {
+    min-height: calc(var(--ring-sm) + 2 * var(--space-12));
   }
 
   .tooled:hover:where(:not([data-still])) .end,
