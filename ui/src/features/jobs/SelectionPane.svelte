@@ -29,6 +29,9 @@
         onclick={action.onclick}
       />
     {/each}
+  </div>
+  <!-- On its own line at every width, its icon on the edge of the column. -->
+  <span class="clear">
     <Button
       variant="ghost"
       icon="x"
@@ -36,7 +39,7 @@
       testid="pane-clear"
       onclick={() => selection.clear()}
     />
-  </div>
+  </span>
   <p class="hint">{t.selection.hint(t.selection.commandKey[commandKey()])}</p>
 </section>
 
@@ -56,6 +59,13 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-8);
+  }
+
+  /* A quiet button's text starts on the column edge (its padding hangs out). */
+  .clear {
+    display: flex;
+    align-self: flex-start;
+    margin: calc(-1 * var(--space-8)) 0 0 calc(-1 * var(--space-16));
   }
 
   .hint {
