@@ -508,6 +508,8 @@ export interface ChipKeyHandlers {
   clear: () => boolean;
   /** ArrowDown/ArrowUp: move the highlight of the field's suggestions; `true` if it moved. */
   step?: (by: -1 | 1) => boolean;
+  /** Ctrl/Cmd+S: turn the typed text into chips as leaving the field would. */
+  settle?: () => void;
 }
 
 const CHIPS = '[data-chip-keys]';
@@ -663,8 +665,11 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
   if (isSaveShortcut(event)) {
-    // Never the WebView's "save page"; a form that saves this way gets it.
+    // Never the WebView's "save page"; a form that saves this way gets it, with the text
+    // typed into a chip field taken in first (the caret stays where it is).
     event.preventDefault();
+    const field = closest(event.target, CHIPS);
+    if (field !== null) chipFields.get(field)?.settle?.();
     handlerFor(event.target, 'shortcut')?.();
     return;
   }

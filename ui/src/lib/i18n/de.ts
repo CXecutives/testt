@@ -1228,6 +1228,11 @@ export const de = {
         'Außerhalb dieser Orte zählt eine Festanstellung erst ab diesem Remote-Anteil.',
       /** A euro amount with cents: the app counts whole euros. */
       rounded: 'Auf ganze Euro abgerundet.',
+      /** Another number with a decimal part: the app counts whole ones. */
+      roundedWhole: 'Auf eine ganze Zahl abgerundet.',
+      /** A value the backend refused, said at its field: the limit where one is. */
+      refused: 'Dieser Wert passt nicht.',
+      atMost: (max: number) => `Höchstens ${n(max)}.`,
       /** A value in the file that the app could not read, shown at its field. */
       unreadableNumber: (value: string) => `In der Datei stand „${value}“, das ist keine Zahl.`,
       unreadableDate: (value: string) => `In der Datei stand „${value}“, das ist kein Datum.`,

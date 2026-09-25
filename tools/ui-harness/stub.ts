@@ -27,8 +27,8 @@
 // refuses with `dryRun` like `ensure_real`).
 // `save_mailbox` refuses the app password `falschfalschfals` with `mailAuth` (Gmail said no).
 // `?file=focus` lets `pick_profile` choose a file with seven Schwerpunkte (the form takes five).
-// `save_profile` refuses a minimum day rate above 100.000 and a competence with more than 70
-// years (with its row), like core's validation.
+// `save_profile` refuses a minimum day rate above 100.000, a minimum remote share above 100
+// and a competence with more than 70 years (with its row), like core's validation.
 // `?tick=ms` sets the pace of a scripted run (default 40); `?export=locked` lets the export
 // of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail;
 // `?folder=other` lets `pick_workspace` choose another, empty folder.
@@ -2071,13 +2071,15 @@ const handlers: Handlers = {
   profile_prompt: ({ update }) => (update && state.profile !== null ? PROMPT_UPDATE : PROMPT),
   save_profile: ({ save }) => {
     const after = save.after;
-    const refuse = (field: string, row: number | null = null): never => {
-      throw fail('invalid', { reason: 'profileValue', field, row });
+    const refuse = (field: string, max: number | null, row: number | null = null): never => {
+      throw fail('invalid', { reason: 'profileValue', field, row, max });
     };
-    if ((after.criteria.minDayRate ?? 0) > 100_000) refuse('minDayRate');
+    if ((after.criteria.minDayRate ?? 0) > 100_000) refuse('minDayRate', 100_000);
+    // Hidden or not, like core's validation.
+    if ((after.criteria.permanentRemoteMin ?? 0) > 100) refuse('permanentRemoteMin', 100);
     const tooLong = after.competences.findIndex((r) => (r.years ?? 0) > 70);
-    if (tooLong >= 0) refuse('competences', tooLong);
-    if (after.focus.length > 5) refuse('focus');
+    if (tooLong >= 0) refuse('competences', 70, tooLong);
+    if (after.focus.length > 5) refuse('focus', 5);
     const form = savedForm(after);
     const count = form.competences.length + form.tools.length + form.keywords.length;
     const quality = count === 0 ? 'empty' : count < 5 ? 'thin' : 'good';

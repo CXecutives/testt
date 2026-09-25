@@ -272,12 +272,13 @@ test('money with cents counts whole euros and says so, never a hundred times mor
   await profile(page);
   const rate = page.getByTestId('profile-min-rate');
   await rate.fill('950,50');
+  // Said once the field is left, not while typing.
+  await expect(page.getByTestId('profile-min-rate-rounded')).toHaveCount(0);
+  await page.getByTestId('profile-name-field').focus();
+  await expect(rate).toHaveValue('950');
   await expect(page.getByTestId('profile-min-rate-rounded')).toHaveText(
     'Auf ganze Euro abgerundet.',
   );
-  await page.getByTestId('profile-name-field').focus();
-  await expect(rate).toHaveValue('950');
-  await expect(page.getByTestId('profile-min-rate-rounded')).toBeVisible();
   // A point works the same; a group of three digits stays a thousands separator.
   const wish = page.getByTestId('profile-wish-rate');
   await wish.fill('1.180.75');
@@ -327,7 +328,7 @@ test('a value the backend refuses is said at its field, which gets the caret', a
   await rate.fill('250000');
   await save(page).click();
   const criteria = page.getByTestId('section-criteria');
-  await expect(criteria).toContainText('Der Wert bei „Mindest-Tagessatz“ passt nicht.');
+  await expect(criteria).toContainText('Höchstens 100.000.');
   await expect(rate).toHaveAttribute('aria-invalid', 'true');
   await expect(rate).toBeFocused();
   // The bar only says that nothing is saved; the reason is at the field.
@@ -342,9 +343,7 @@ test('a value the backend refuses is said at its field, which gets the caret', a
   await years.nth(3).fill('80');
   await save(page).click();
   expect((await lastSave(page)).after.competences[3]!.years).toBe(80);
-  await expect(page.getByTestId('competence-error')).toHaveText(
-    'Der Wert bei „Kompetenzen“ passt nicht.',
-  );
+  await expect(page.getByTestId('competence-error')).toHaveText('Höchstens 70.');
   const names = page.getByTestId('competence-name');
   await expect(names.nth(3)).toHaveAttribute('aria-invalid', 'true');
   await expect(names.nth(2)).not.toHaveAttribute('aria-invalid', 'true');

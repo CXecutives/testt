@@ -15,6 +15,8 @@
   first), leaving the field takes a single match. A chip shows its option's name; a value
   that is no option (from a file) stays and shows as it is. Text that matches nothing stays
   in the field and says so (`noMatch`).
+  Typed text that is no chip yet is a change of the form around the field (`typedText`), and
+  Ctrl/Cmd+S takes it in first, as leaving the field would.
 -->
 <script lang="ts" module>
   /** A value a field with options can take: its id, its name, other names to find it by. */
@@ -34,6 +36,7 @@
   import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import { chipEdit, chipKeys, FIELD_ATTRIBUTES, type ChipKeyHandlers } from '$lib/input/input';
+  import { typedText } from '$lib/state/typed.svelte';
   import Icon from './Icon.svelte';
 
   interface Props {
@@ -79,6 +82,14 @@
 
   let draft = $state('');
   let input = $state<HTMLInputElement | null>(null);
+
+  // The form around the field counts typed text as a change.
+  const typed = typedText();
+  $effect(() => {
+    const holds = draft.trim() !== '';
+    typed?.set(own, holds ? () => (draft = '') : null);
+  });
+  $effect(() => () => typed?.set(own, null));
   /** The focus is in the field (the list of options shows only then). */
   let focused = $state(false);
   /** The marked option of the list (Enter takes it). */
@@ -160,6 +171,11 @@
   /** The field is left: typed text becomes chips; with options only a single match. */
   function leave(): void {
     focused = false;
+    settle();
+  }
+
+  /** Typed text becomes chips as when leaving the field; with options only a single match. */
+  function settle(): void {
     if (options === null) {
       commit();
       return;
@@ -181,6 +197,7 @@
   /** The keys of input.ts; the arrows move the mark in the list of options. */
   const keys: ChipKeyHandlers & { step: (by: -1 | 1) => boolean } = {
     commit,
+    settle,
     removeLast: (): boolean => {
       if (draft !== '' || values.length === 0) return false;
       update(values.slice(0, -1));

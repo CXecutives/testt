@@ -495,10 +495,12 @@ fn clean(items: &[String]) -> Vec<String> {
 /// empty rows).
 pub(crate) fn validate(form: &ProfileForm) -> Result<ProfileForm, InvalidInput> {
     let form = form.normalized();
-    let fail = |field: &str, row: Option<usize>| InvalidInput::ProfileValue {
+    let at = |field: &str, row: Option<usize>, max: Option<u32>| InvalidInput::ProfileValue {
         field: field.to_owned(),
         row: row.and_then(|r| u32::try_from(r).ok()),
+        max,
     };
+    let fail = |field: &str, row: Option<usize>| at(field, row, None);
     let within = |value: Option<u32>, max: u32| value.is_none_or(|n| n <= max);
     let fits = |items: &[String]| {
         items.len() <= MAX_ITEMS && items.iter().all(|t| t.chars().count() <= MAX_TEXT)
@@ -514,10 +516,13 @@ pub(crate) fn validate(form: &ProfileForm) -> Result<ProfileForm, InvalidInput> 
         (form.wishes.day_rate, MAX_DAY_RATE, "wishDayRate"),
     ] {
         if !within(value, max) {
-            return Err(fail(field, None));
+            return Err(at(field, None, Some(max)));
         }
     }
-    if form.focus.len() > MAX_FOCUS || !fits(&form.focus) {
+    if form.focus.len() > MAX_FOCUS {
+        return Err(at("focus", None, u32::try_from(MAX_FOCUS).ok()));
+    }
+    if !fits(&form.focus) {
         return Err(fail("focus", None));
     }
     for (items, field) in [
@@ -539,7 +544,10 @@ pub(crate) fn validate(form: &ProfileForm) -> Result<ProfileForm, InvalidInput> 
         return Err(fail("competences", None));
     }
     for (i, row) in form.competences.iter().enumerate() {
-        if !one(&row.name) || !within(row.years, MAX_YEARS) || !fits(&row.aliases) {
+        if !within(row.years, MAX_YEARS) {
+            return Err(at("competences", Some(i), Some(MAX_YEARS)));
+        }
+        if !one(&row.name) || !fits(&row.aliases) {
             return Err(fail("competences", Some(i)));
         }
     }
@@ -1685,12 +1693,37 @@ mod tests {
         assert_eq!(profile, same);
     }
 
+    /// A number out of range, or too many Schwerpunkte, names the limit (the page says it).
+    #[test]
+    fn validation_names_the_limit() {
+        let max = |form: &ProfileForm| match validate(form) {
+            Err(InvalidInput::ProfileValue { field, max, .. }) => (field, max),
+            other => panic!("{other:?}"),
+        };
+        let mut form = ProfileForm::default();
+        form.criteria.permanent_remote_min = Some(150);
+        assert_eq!(max(&form), ("permanentRemoteMin".to_owned(), Some(100)));
+        form.criteria.permanent_remote_min = None;
+        form.competences = vec![ProfileCompetence {
+            name: "Controlling".into(),
+            years: Some(75),
+            aliases: Vec::new(),
+            origin: None,
+        }];
+        assert_eq!(max(&form), ("competences".to_owned(), Some(70)));
+        form.competences.clear();
+        form.focus = (1..=6).map(|n| format!("Thema {n}")).collect();
+        assert_eq!(max(&form), ("focus".to_owned(), Some(5)));
+        form.focus = vec!["x".repeat(2_000)];
+        assert_eq!(max(&form), ("focus".to_owned(), None));
+    }
+
     /// A value out of range names its field, and in a list of rows the row (counted without
     /// the empty rows the form drops).
     #[test]
     fn validation_names_the_field_and_the_row() {
         let error = |form: &ProfileForm| match validate(form) {
-            Err(InvalidInput::ProfileValue { field, row }) => (field, row),
+            Err(InvalidInput::ProfileValue { field, row, .. }) => (field, row),
             other => panic!("{other:?}"),
         };
         let row = |name: &str, years: Option<u32>| ProfileCompetence {

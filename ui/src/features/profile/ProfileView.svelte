@@ -181,12 +181,14 @@
     }
   }
 
-  /** The prompt goes to the clipboard first, so the steps show whether it got there. For the
+  /** The prompt goes to the clipboard first, so the steps show whether it got there; with an
+   *  answer pasted earlier the clipboard is left alone ("Erneut kopieren" copies). For the
    *  stored profile it is the update prompt, and the answer updates the profile. */
   async function fromCv(): Promise<void> {
     pasteError = null;
     updating = editor.origin === 'stored' && stored !== null;
-    await copyPrompt();
+    if (editor.answer.trim() === '') await copyPrompt();
+    else copied = true;
     editor.pasting = true;
   }
 
@@ -197,6 +199,7 @@
       const draft = await invoke('parse_profile', { text: answer, update: updating });
       if (updating && stored !== null) editor.update(draft, stored);
       else editor.take(draft, 'answer');
+      editor.answer = '';
     } catch (error) {
       pasteError = () => errorText(error);
     } finally {
@@ -204,16 +207,24 @@
     }
   }
 
-  let panel = $state<{ ready: () => boolean; focusField: (field: string) => Promise<void> } | null>(
-    null,
-  );
+  let panel = $state<{
+    ready: () => boolean;
+    focusField: (field: string) => Promise<boolean>;
+  } | null>(null);
 
-  /** A value out of range: the field (and row) it names. */
-  function refused(error: unknown): { field: string; row: number | null } | null {
+  /** A value out of range: the field (and row) it names, and the limit where one is. */
+  function refused(
+    error: unknown,
+  ): { field: string; row: number | null; max: number | null } | null {
     if (!(error instanceof IpcError) || error.params.reason !== 'profileValue') return null;
-    const field = error.params.field;
-    const row = error.params.row;
-    return typeof field === 'string' ? { field, row: typeof row === 'number' ? row : null } : null;
+    const { field, row, max } = error.params;
+    return typeof field === 'string'
+      ? {
+          field,
+          row: typeof row === 'number' ? row : null,
+          max: typeof max === 'number' ? max : null,
+        }
+      : null;
   }
 
   /** `true` when the profile is saved. */
@@ -236,8 +247,14 @@
       if (at === null) {
         saveNote = () => errorText(error);
       } else {
-        fieldError = { ...at, text: () => errorText(error) };
-        void panel?.focusField(at.field);
+        // Said at its field without its name again; the save bar says it where the field
+        // is not on the page.
+        fieldError = {
+          field: at.field,
+          row: at.row,
+          text: () => (at.max === null ? t.profile.field.refused : t.profile.field.atMost(at.max)),
+        };
+        if (!(await panel?.focusField(at.field))) saveNote = () => errorText(error);
       }
       return false;
     } finally {
@@ -396,6 +413,7 @@
       {copied}
       busy={busy === 'paste'}
       error={pasteError?.() ?? null}
+      bind:answer={editor.answer}
       oncopy={() => void copyPrompt()}
       ontake={(answer) => void takeAnswer(answer)}
       oncancel={() => (editor.pasting = false)}

@@ -536,7 +536,8 @@ mod tests {
             refused(Some("{}"), &rate),
             InvalidInput::ProfileValue {
                 field: "minDayRate".into(),
-                row: None
+                row: None,
+                max: Some(100_000)
             }
         );
         let mut date = empty.clone();
@@ -547,7 +548,8 @@ mod tests {
             refused(Some("{}"), &date),
             InvalidInput::ProfileValue {
                 field: "available".into(),
-                row: None
+                row: None,
+                max: None
             }
         );
         assert!(info(dir.path()).unwrap().is_none(), "nothing stored");

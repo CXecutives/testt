@@ -81,6 +81,9 @@
     ondiscard,
   }: Props = $props();
 
+  // Text typed into a chip field of the form counts as a change.
+  editor.typed.share();
+
   const words = $derived(t.profile.field);
   const id = $props.id();
   const form = $derived(editor.after);
@@ -218,8 +221,8 @@
   }
 
   /** The caret into the field a refused value belongs to (its marked control first), in
-   *  the middle of the view. */
-  export async function focusField(field: string): Promise<void> {
+   *  the middle of the view; `false` when the field is not on the page. */
+  export async function focusField(field: string): Promise<boolean> {
     await tick();
     const scope = root?.querySelector<HTMLElement>(`[data-field="${field}"]`);
     const target =
@@ -227,6 +230,7 @@
       scope?.querySelector<HTMLElement>('input, textarea, button');
     target?.focus();
     target?.scrollIntoView({ block: 'center' });
+    return target !== null && target !== undefined;
   }
 
   let bar = $state<HTMLElement | null>(null);
@@ -243,6 +247,17 @@
       }
     });
   }
+
+  /** The rules for permanent roles hide while those are excluded, unless a save refused one
+   *  of their values: then they stay until the form is saved or discarded, so it can be put
+   *  right. */
+  const PERMANENT: readonly string[] = ['minSalary', 'permanentRemoteMin', 'permanentPlaces'];
+  let permanentHeld = $state(false);
+  $effect(() => {
+    if (PERMANENT.includes(fieldError?.field ?? '')) permanentHeld = true;
+    else if (!editor.dirty || !c.noPermanent) permanentHeld = false;
+  });
+  const permanentShown = $derived(!c.noPermanent || permanentHeld);
 
   function save(): void {
     if (!editor.dirty || busy) return;
@@ -673,7 +688,7 @@
         {/each}
       </div>
     </div>
-    {#if !c.noPermanent}
+    {#if permanentShown}
       <div class="sub" data-testid="profile-permanent">
         <h3 class="sub-heading">{t.profile.section.permanent}</h3>
         <p class="sub-hint">{t.profile.sectionHint.permanent}</p>

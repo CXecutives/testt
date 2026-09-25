@@ -1140,6 +1140,9 @@ export const en: Catalog = {
       remoteMinHint:
         'Outside these locations, a permanent role counts only with at least this much remote work.',
       rounded: 'Rounded down to whole euros.',
+      roundedWhole: 'Rounded down to a whole number.',
+      refused: 'This value does not fit.',
+      atMost: (max: number) => `At most ${n(max)}.`,
       unreadableNumber: (value: string) => `The file said “${value}”, which is not a number.`,
       unreadableDate: (value: string) => `The file said “${value}”, which is not a date.`,
       unreadableValue: (value: string) => `The file said “${value}”, which the app cannot read.`,

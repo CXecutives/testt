@@ -22,6 +22,7 @@ import type {
   ProfileUnderstanding,
   UnreadableField,
 } from '../ipc/types';
+import { TypedText } from './typed.svelte';
 
 /** Where the form in the editor came from: the stored profile, a new one, a chosen file, an
  *  AI's answer for a new profile, or an answer that updates the stored profile. */
@@ -403,15 +404,20 @@ class ProfileEditor {
   cleared = $state<UnreadableField[]>([]);
   /** The steps to fill the profile from a CV with an AI are open. */
   pasting = $state(false);
+  /** The AI's answer as pasted: kept until it fills the form, also when the steps close or
+   *  the view changes. */
+  answer = $state('');
   /** The day of "Verfügbar ab" as typed (the form holds it as `YYYY-MM-DD`). */
   dateText = $state('');
+  /** Text typed into a chip field that is no chip yet: a change like any other. */
+  readonly typed = new TypedText();
 
   get dirty(): boolean {
     if (this.origin === null) return false;
     if (this.origin === 'file' || this.origin === 'answer' || this.origin === 'update') {
       return true;
     }
-    return this.cleared.length > 0 || !sameForm(this.before, this.after);
+    return this.cleared.length > 0 || this.typed.any || !sameForm(this.before, this.after);
   }
 
   #start(origin: DraftOrigin, before: ProfileForm, after: ProfileForm): void {
@@ -482,6 +488,7 @@ class ProfileEditor {
 
   /** Drops the changes: the stored profile as saved, or no draft at all. */
   discard(stored: ProfileForm | null): void {
+    this.typed.clear();
     if (stored !== null) this.edit(stored);
     else this.close();
   }
