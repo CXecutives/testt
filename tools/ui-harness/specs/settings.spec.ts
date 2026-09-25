@@ -267,7 +267,7 @@ test('a switch row toggles from its text like the system settings', async ({ pag
   await expect(auto).toHaveAttribute('aria-checked', 'false');
   await page
     .getByTestId('details-linkedin')
-    .getByText('Gastzugang, kein Konto ist betroffen.')
+    .getByText('Holt die ganze Anzeige, in ruhigem Takt und mit Tageslimit.')
     .click();
   await expect(page.getByTestId('toggle-details-linkedin')).toHaveAttribute(
     'aria-checked',

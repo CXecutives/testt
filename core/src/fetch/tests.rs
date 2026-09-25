@@ -677,7 +677,7 @@ async fn pace_is_kept_within_and_across_runs() {
 #[tokio::test(start_paused = true)]
 async fn hourly_cap_stops_with_the_next_possible_time() {
     let c = clock();
-    let jobs: Vec<(Portal, u64, i64)> = (1..=21).map(|i| (LI, 4_000_000_000 + i, 1)).collect();
+    let jobs: Vec<(Portal, u64, i64)> = (1..=31).map(|i| (LI, 4_000_000_000 + i, 1)).collect();
     let store = store_with(&jobs);
     let fake = Fake::default();
     let mut policy = Policy::in_memory();
@@ -689,7 +689,7 @@ async fn hourly_cap_stops_with_the_next_possible_time() {
         &c,
     )
     .await;
-    assert_eq!(fake.calls().len(), 20);
+    assert_eq!(fake.calls().len(), 30);
     assert_eq!(r.summary.per_portal[&LI].skipped, 1);
     assert!(
         matches!(&r.stops[..], [(LI, StopReason::Quota { next_at }, 1)] if *next_at > base() + SignedDuration::from_mins(59))
@@ -1027,7 +1027,7 @@ async fn the_login_page_counts_and_respects_the_cap() {
     let store = store_with(&[(FL, 1_255_067, 1)]);
     let mut policy = Policy::in_memory();
     // 14 of 15 requests of the hour are used; the page request is the 15th.
-    for minutes in 1..=14 {
+    for minutes in 1..=19 {
         policy.record_access(FL, base() - SignedDuration::from_mins(minutes));
     }
     let fake = Fake {
@@ -1048,7 +1048,7 @@ async fn the_login_page_counts_and_respects_the_cap() {
         r.stops.as_slice(),
         [(FL, StopReason::Quota { .. }, _)]
     ));
-    assert_eq!(policy.state(FL).accesses.len(), 15);
+    assert_eq!(policy.state(FL).accesses.len(), 20);
 }
 
 /// The redirect after the sign-in repeats the page as its own counted request - at most
@@ -1210,7 +1210,7 @@ async fn portals_run_side_by_side_but_never_overlap_within_one() {
 #[tokio::test(start_paused = true)]
 async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
     let c = clock();
-    let mut jobs: Vec<(Portal, u64, i64)> = (1..=21).map(|i| (LI, 4_000_000_000 + i, 1)).collect();
+    let mut jobs: Vec<(Portal, u64, i64)> = (1..=31).map(|i| (LI, 4_000_000_000 + i, 1)).collect();
     jobs.extend([(FM, 10_001, 1), (FM, 10_002, 1), (FM, 10_003, 1)]);
     jobs.extend([(FL, 1_255_001, 1), (FL, 1_255_002, 1)]);
     let store = store_with(&jobs);
@@ -1235,8 +1235,8 @@ async fn limits_pauses_and_the_breaker_hold_in_parallel_and_via_a_session() {
     assert!(of(LI).iter().all(|call| !call.session));
     assert!(of(FM).iter().all(|call| !call.session));
     assert!(of(FL).iter().all(|call| call.session));
-    // Hourly cap LinkedIn: 20 requests, the rest waits.
-    assert_eq!(of(LI).len(), 20);
+    // Hourly cap LinkedIn: 30 requests, the rest waits.
+    assert_eq!(of(LI).len(), 30);
     // Breaker freelancermap: stop after two pages without a description.
     assert_eq!(of(FM).len(), 2);
     assert!(matches!(

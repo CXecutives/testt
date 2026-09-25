@@ -381,6 +381,23 @@ fn line_parts(line: &str) -> Vec<&str> {
     parts
 }
 
+/// The ad without the other listings a portal shows under it ("Ähnliche Projekte (12)",
+/// "Similar jobs"): the text up to the first line that is such a heading. The hard criteria
+/// read only this part; the ad text itself stays whole.
+pub(crate) fn own_text(text: &str) -> &str {
+    let mut offset = 0;
+    for line in text.split_inclusive('\n') {
+        let folded = fold(line.trim());
+        let heading = folded.chars().count() <= 48
+            && lex::OTHER_LISTINGS.iter().any(|p| folded.starts_with(p));
+        if heading && offset > 0 {
+            return &text[..offset];
+        }
+        offset += line.len();
+    }
+    text
+}
+
 /// Sentences of the text (also split at ` // `, ` · `, ` | `, ` • `), as byte ranges with
 /// their folded text.
 pub(crate) fn segments(text: &str) -> Vec<Segment> {
@@ -1113,6 +1130,29 @@ mod tests {
             .into_iter()
             .map(|f| (f.code, f.decided))
             .collect()
+    }
+
+    #[test]
+    fn the_other_listings_under_an_ad_are_no_part_of_it() {
+        let text = "Vertragsart: Freiberuflich\nSAP FI/CO Berater, remote.\n\n\
+                    Ähnliche Projekte (12)\nSAP CO Berater (m/w/d), Arbeitnehmerüberlassung\n\
+                    Werkstudent Controlling";
+        let own = own_text(text);
+        assert_eq!(
+            own,
+            "Vertragsart: Freiberuflich\nSAP FI/CO Berater, remote.\n\n"
+        );
+        // The ANÜ of another listing excludes nothing.
+        assert!(anue_codes(own).is_empty());
+        assert_eq!(anue_codes(text), [(ReasonCode::Anue, true)]);
+        // A requirement that names similar projects is no heading; the text stays whole.
+        let whole = "Ähnliche Projekte im Mittelstand erfolgreich umgesetzt und begleitet, \
+                     idealerweise mehrere davon";
+        assert_eq!(own_text(whole), whole);
+        let english = "Contract: freelance\n\nSimilar jobs\nPayroll clerk (temporary agency work)";
+        assert_eq!(own_text(english), "Contract: freelance\n\n");
+        // A text that starts with such a heading keeps it (nothing before it).
+        assert_eq!(own_text("Weitere Projekte\nx"), "Weitere Projekte\nx");
     }
 
     #[test]

@@ -515,11 +515,11 @@ mod tests {
     #[test]
     fn hourly_and_daily_caps() {
         let mut p = Policy::in_memory();
-        for i in 0..20 {
+        for i in 0..30 {
             assert_eq!(p.allowance(Portal::LinkedIn, at(i)), Allowance::Go);
             p.record_access(Portal::LinkedIn, at(i));
         }
-        // 21st request in the same hour: free as soon as the first leaves the window.
+        // 31st request in the same hour: free as soon as the first leaves the window.
         assert_eq!(
             p.allowance(Portal::LinkedIn, at(30)),
             Allowance::Quota { next_at: at(60) }
@@ -527,8 +527,8 @@ mod tests {
         assert_eq!(p.allowance(Portal::LinkedIn, at(61)), Allowance::Go);
         // Other portals are independent.
         assert_eq!(p.allowance(Portal::Freelancermap, at(30)), Allowance::Go);
-        // Daily cap 40: after 40 requests over several hours only 24 h later.
-        for i in 0..20 {
+        // Daily cap 80: after 80 requests over several hours only 24 h later.
+        for i in 0..50 {
             p.record_access(Portal::LinkedIn, at(120 + i));
         }
         assert_eq!(

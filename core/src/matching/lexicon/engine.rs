@@ -1002,6 +1002,23 @@ pub(crate) const NICE_PREFIXES: &[&str] = &[
     "kann-kriteri",
     "kannkriteri",
 ];
+/// Headings (folded) of the other listings a portal shows under an ad: nothing below them
+/// belongs to the ad, so no hard criterion (ANÜ, country, rate, permanent role, seniority)
+/// is read from there.
+pub(crate) const OTHER_LISTINGS: &[&str] = &[
+    "ahnliche projekte",
+    "ahnliche jobs",
+    "ahnliche stellen",
+    "ahnliche stellenangebote",
+    "weitere projekte",
+    "weitere jobs",
+    "weitere stellen",
+    "andere projekte",
+    "similar projects",
+    "similar jobs",
+    "more jobs",
+    "people also viewed",
+];
 /// Headings that end requirement sections.
 pub(crate) const OTHER_PREFIXES: &[&str] = &[
     "rahmenbedingungen",

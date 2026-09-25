@@ -31,7 +31,7 @@ use sha2::Digest as _;
 /// excluded permanent employment, a key no corpus profile sets) changed only the version
 /// line: with `engine 10` in front the rows still give the version-10 value
 /// `6e4d9945276f410c`.
-const GOLDEN_DIGEST: &str = "0764840c4d33e6c1";
+const GOLDEN_DIGEST: &str = "359aa42ad77417fa";
 
 /// SHA-256 (16 hex) over the results of the four profiles without the version-4 keys
 /// (`schwerpunkte`, `wunschrollen`, the wishes in `einsatzpraeferenzen`; the IT profile's

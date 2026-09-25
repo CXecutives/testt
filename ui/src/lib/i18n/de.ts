@@ -1344,7 +1344,7 @@ export const de = {
       `${count(value, 'Anzeige', 'Anzeigen')} als Text für eine KI-Bewertung`,
     /** After a change of the work folder: only new text files are written there by themselves. */
     txtLeftBehind: 'Die Textdateien liegen noch im alten Ordner, Neu schreiben legt sie hier an.',
-    txtNone: 'Es gibt noch keine Textdateien.',
+    txtNone: 'Es gibt keine Textdateien.',
     txtRewrite: 'Neu schreiben',
     txtClear: 'Löschen',
     txtWritten: (value: number) => `${count(value, 'Datei', 'Dateien')} geschrieben.`,

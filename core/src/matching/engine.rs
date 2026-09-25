@@ -458,11 +458,11 @@ fn scored(profile: &EngineProfile, items: Vec<Item>) -> Vec<Scored> {
         .collect()
 }
 
-/// The fields of a job the hard criteria read.
+/// The fields of a job the hard criteria read (the ad without the other listings under it).
 fn job_facts<'a>(job: &JobInput<'a>) -> JobFacts<'a> {
     JobFacts {
         title: job.title,
-        text: job.text,
+        text: facts::own_text(job.text),
         location: job.location,
         portal: job.portal,
         facts: job.facts,
@@ -574,8 +574,10 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     let vocab = &profile.skills.vocab;
     let criteria = &profile.criteria;
     let facts = job_facts(job);
-    let segments = facts::segments(job.text);
-    let folded = fold(job.text);
+    // The hard criteria and the seniority read the ad only, not the other listings under it.
+    let own = facts::own_text(job.text);
+    let segments = facts::segments(own);
+    let folded = fold(own);
     let (mut findings, stated_contract) = criteria_findings(profile, &facts, &segments, &folded);
     let contract = stated_contract.kind;
     let short = char_len(strip(text)) < MIN_TEXT_CHARS;
@@ -592,7 +594,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     findings.extend(seniority::check(
         criteria.target_years,
         job.title,
-        text,
+        own,
         &doc,
         &page_levels(job),
     ));
