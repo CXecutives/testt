@@ -60,9 +60,9 @@ pub const SCOPE_NEW: &str = "Neu seit dem letzten Abruf";
 pub const SCOPE_ALL: &str = "Alle";
 
 /// Words of the HTML overview. "Übersicht" names this file only, like "Übersicht öffnen" in
-/// the interface.
+/// the interface; the favourites are "Favoriten" like its facet.
 pub const HTML_TITLE: &str = "Übersicht";
-pub const HTML_PINNED: &str = "Gemerkte Jobs";
+pub const HTML_PINNED: &str = "Favoriten";
 pub const HTML_NEW: &str = "Neue passende Jobs";
 pub const HTML_CREATED: &str = "Erstellt am";
 pub const HTML_EMPTY: &str = "Keine neuen passenden Jobs.";
@@ -153,7 +153,7 @@ pub mod en {
     pub const SCOPE_ALL: &str = "All";
 
     pub const HTML_TITLE: &str = "Overview";
-    pub const HTML_PINNED: &str = "Favourite jobs";
+    pub const HTML_PINNED: &str = "Favourites";
     pub const HTML_NEW: &str = "New matching jobs";
     pub const HTML_CREATED: &str = "Created on";
     pub const HTML_EMPTY: &str = "No new matching jobs.";
