@@ -1,6 +1,6 @@
-// What can be done with all chosen jobs at once: the list header's selection bar and the
-// reader's summary offer the same actions (those that fit every chosen job, then the star),
-// and share the one question before deleting for good (the dialog sits in the list header).
+// What can be done with all chosen jobs at once, in one place: the list header's selection
+// bar offers the actions that fit every chosen job, then the star (the reader only says how
+// many are chosen), and asks the one question before deleting for good.
 
 import type { SelectionAction } from '$components/SelectionBar.svelte';
 import { t } from '$lib/i18n/t';

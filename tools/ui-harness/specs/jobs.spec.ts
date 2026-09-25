@@ -1276,7 +1276,7 @@ test('the choice follows the list: rows that leave it leave the choice too', asy
   await expect(page.getByTestId('selection-bar')).toHaveCount(0);
 });
 
-test('two or more chosen: the reader shows what is chosen and acts on all of them', async ({
+test('two or more chosen: the reader says how many, the bar acts on all of them', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -1289,8 +1289,10 @@ test('two or more chosen: the reader shows what is chosen and acts on all of the
   await expect(pane).toContainText('2 Jobs ausgewählt');
   await expect(pane).toContainText('Strg+Klick');
   await expect(page.getByTestId('reader')).toHaveCount(0);
+  // The actions are said once, in the list header's bar.
+  await expect(pane.getByRole('button')).toHaveCount(0);
   const before = await rows(page).count();
-  await pane.getByTestId('pane-selection-archive').click();
+  await page.getByTestId('selection-bar').getByTestId('selection-archive').click();
   await expect(rows(page)).toHaveCount(before - 2);
   await expect(pane).toHaveCount(0);
 });
