@@ -143,16 +143,16 @@ impl Store {
         search: Option<&str>,
         now: Timestamp,
     ) -> Result<Vec<JobKey>> {
-        let pattern = super::jobs::like_pattern(search);
+        let words = super::jobs::search_words(search);
         self.write(|conn| {
             let keys = keys_where(
                 conn,
                 &format!(
-                    "dup_of IS NULL AND read_at IS NULL AND {}
-                     AND (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')",
-                    place_condition(place)
+                    "dup_of IS NULL AND read_at IS NULL AND {} AND {}",
+                    place_condition(place),
+                    super::jobs::matches_words("?1")
                 ),
-                [pattern],
+                [words],
             )?;
             let mut mark = conn
                 .prepare_cached("UPDATE job SET read_at = ?3 WHERE portal = ?1 AND job_id = ?2")?;

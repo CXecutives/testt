@@ -1231,6 +1231,24 @@ const fold = (text: string): string =>
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '');
 
+/** The portals' names as the store's search column holds them (`Portal::label`). */
+const PORTAL_LABEL: Record<Portal, string> = {
+  linkedin: 'linkedin.com',
+  freelance: 'freelance.de',
+  freelancermap: 'freelancermap.de',
+};
+
+/** Like store::search_words: every word of a search (at most 8) is in the portal's name, the
+ *  title, the company or the location, in any order; an empty search matches everything. */
+function matchesSearch(j: JobView, search: string | null | undefined): boolean {
+  const words = fold(search ?? '')
+    .split(/\s+/)
+    .filter((word) => word !== '')
+    .slice(0, 8);
+  const text = fold(`${PORTAL_LABEL[j.portal]}\n${j.title}\n${j.company}\n${j.location}`);
+  return words.every((word) => text.includes(word));
+}
+
 /** The same order and counts as store::job_page (one statement, list and counts agree). */
 function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
   if (scenario === 'list-error') throw fail('db');
@@ -1238,10 +1256,7 @@ function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
     harness.failPages -= 1;
     throw fail('db');
   }
-  const needle = query.search ? fold(query.search) : null;
-  const base = needle
-    ? jobs.filter((j) => fold(`${j.title} ${j.company} ${j.location}`).includes(needle))
-    : jobs;
+  const base = jobs.filter((j) => matchesSearch(j, query.search));
   // The unread filter lists every unread job, excluded ones too (grey behind the divider);
   // only the count leaves them out (store::job_page). By date: the mail's, in the trash
   // the day the job went there.
@@ -2007,13 +2022,7 @@ const handlers: Handlers = {
   move_jobs: ({ keys, to }) => moveJobs(keys, to),
   // With a search only its hits (store::mark_all_read).
   mark_all_read: ({ place, search }) => {
-    const needle = search ? fold(search) : null;
-    const marked = jobs.filter(
-      (j) =>
-        j.unread &&
-        j.place === place &&
-        (needle === null || fold(`${j.title} ${j.company} ${j.location}`).includes(needle)),
-    );
+    const marked = jobs.filter((j) => j.unread && j.place === place && matchesSearch(j, search));
     for (const j of marked) j.unread = false;
     refresh();
     return marked.map((j) => structuredClone(j.key));

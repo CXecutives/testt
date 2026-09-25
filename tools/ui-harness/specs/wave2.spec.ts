@@ -7,6 +7,7 @@ import { expect, open, test } from './fixtures';
 const WIN = '?platform=windows';
 const list = (page: Page) => page.getByTestId('job-list');
 const row = (page: Page, key: string) => list(page).getByTestId(`job-row-${key}`);
+const rows = (page: Page) => page.getByTestId('job-rows').locator('[data-testid^="job-row-"]');
 const stage = (page: Page) => page.getByTestId('stage');
 
 test('the reader shows the ad rate and start without a profile minimum', async ({ page }) => {
@@ -28,4 +29,22 @@ test('the reader shows the ad rate and start without a profile minimum', async (
   await expect(clean).toContainText('1.200 €/Tag');
   const text = async () => (await clean.textContent())?.replace(/\s/g, ' ') ?? '';
   await expect.poll(async () => (await text()).split('1.200 €/Tag').length).toBe(2);
+});
+
+test('the search matches every word in any field and the portal name', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const search = page.getByTestId('search');
+  // Two words that do not stand next to each other, in two fields.
+  await search.fill('bremen CONTROLLING');
+  await expect(rows(page)).toHaveCount(1);
+  await expect(row(page, 'linkedin-4100200301')).toBeVisible();
+  await search.fill('controlling berlin');
+  await expect(rows(page)).toHaveCount(0);
+  // The portal's name narrows to its jobs, and the count of the archive follows.
+  await search.fill('linkedin bremen');
+  await expect(page.getByTestId('also-archive')).toHaveText('Auch im Archiv (1)');
+  const keys = await rows(page).evaluateAll((all) => all.map((r) => r.dataset.testid ?? ''));
+  expect(keys.length).toBeGreaterThan(0);
+  expect(keys.every((key) => key.startsWith('job-row-linkedin-'))).toBe(true);
 });
