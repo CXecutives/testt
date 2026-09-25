@@ -108,6 +108,8 @@ class RunStore {
   #followed = false;
   /** The history of a rescore: shown only if the card takes it on. */
   #quiet: HistoryLine[] = [];
+  /** The rescore going now writes the files again that the card's run could not write. */
+  #rewriting = false;
 
   /** Subscribe once to the run channel (App.svelte). */
   install(): void {
@@ -207,6 +209,18 @@ class RunStore {
     const kind = summary?.kind ?? 'fetch';
     const same = this.#request !== null && this.#request.kind === kind ? this.#request : null;
     void this.start(same ?? (kind === 'details' ? { kind: 'fetch' } : { kind }));
+  }
+
+  /**
+   * Write the files again that a run could not write (an Excel file open elsewhere): a
+   * rescore, which reads no mail and asks no portal, scores what is due and writes every
+   * file. When it succeeds the card's run counts its files as written.
+   */
+  rewriteFiles(): void {
+    this.#rewriting = true;
+    void this.start({ kind: 'rescore' }).then((started) => {
+      if (!started) this.#rewriting = false;
+    });
   }
 
   /** Close the run card (and the note of a failed start with it). */
@@ -330,7 +344,13 @@ class RunStore {
     this.status = null;
     this.loginNeeded = null;
     this.tick(false);
-    if (kind === 'rescore') {
+    const rewrote = this.#rewriting && kind === 'rescore';
+    this.#rewriting = false;
+    if (rewrote && this.result !== null && summary.outcome.kind !== 'failed') {
+      // The files written again: the card keeps its run, with the files as they are now.
+      this.result = { ...this.result, export: summary.export };
+      this.#quiet = [];
+    } else if (kind === 'rescore') {
       // Quiet unless something needs attention: then the card says it.
       const trouble = summary.outcome.kind === 'failed' || exportError(summary) !== null;
       if (trouble) {
@@ -350,16 +370,58 @@ class RunStore {
     // speaks where it was started (the Profil view), not as a fetch.
     if (summary.outcome.kind === 'completed' && navigation.current !== 'jobs') {
       if (isFetch(kind)) {
-        toasts.show(
-          exportError(summary) === null
-            ? t.toast.runDone(summary.newJobs?.count ?? 0)
-            : t.toast.runDoneFilesOld,
-        );
+        // Files that could not be written are no success: a calm note, the card has the way.
+        if (exportError(summary) === null)
+          toasts.show(t.toast.runDone(summary.newJobs?.count ?? 0));
+        else toasts.show(t.toast.runDoneFilesOld, 'info');
       } else if (kind === 'rescore' && navigation.current !== 'profile') {
         toasts.show(t.toast.rescored);
       }
     }
     void app.load();
+  }
+}
+
+/**
+ * The user has to act on a portal's health (as the backend's `PortalHealth::action_needed`):
+ * a sign-in that is needed, or alert mails without jobs. A pause, a cap or pages without a
+ * description resolve themselves: a calm note, not a warning.
+ */
+export function needsAction(health: PortalHealth): boolean {
+  return (
+    health.kind === 'loginRequired' || (health.kind === 'layoutSuspect' && health.emptyMails > 0)
+  );
+}
+
+export interface FailureAction {
+  label: string;
+  onclick: () => void;
+}
+
+/**
+ * The one fitting action for a failed run, wherever it is said (the run card, the day
+ * overview): the mailbox settings for a mailbox problem, the log for an internal error, else
+ * a retry. A failed fetch gets none while "Abrufen" is there to do the same (with a
+ * mailbox), and no retry is offered while another run goes (it could not start).
+ */
+export function failureAction(
+  summary: RunSummary | null,
+  error: ErrorInfo,
+  openLog: () => void,
+): FailureAction | null {
+  switch (error.kind) {
+    case 'mailAuth':
+    case 'mailMissing':
+    case 'mailNotGmail':
+    case 'secretCorrupt':
+    case 'secretStore':
+      return { label: t.run.checkMailbox, onclick: () => navigation.go('settings') };
+    case 'internal':
+      return { label: t.common.openLog, onclick: openLog };
+    default:
+      if (run.active) return null;
+      if (summary !== null && isFetch(summary.kind) && app.hasMailbox) return null;
+      return { label: t.common.retry, onclick: () => run.retry(summary) };
   }
 }
 

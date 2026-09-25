@@ -33,9 +33,16 @@
   import type { OpenTarget, Portal, PortalHealth, Step } from '$lib/ipc/types';
   import { fade, roll } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
-  import { navigation } from '$lib/state/navigation.svelte';
-  import { exportError, isFetch, outcomeText, run } from '$lib/state/run.svelte';
+  import {
+    exportError,
+    failureAction,
+    isFetch,
+    needsAction,
+    outcomeText,
+    run,
+  } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
+  import { copyText } from './prompt';
 
   // The run the card followed, else the last fetch (after a restart).
   const summary = $derived(run.result ?? app.state?.lastRun ?? null);
@@ -86,12 +93,9 @@
     const lines = run.history.map(
       (line) => `${formatTime(new Date(line.at).toISOString())} ${line.text}`,
     );
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      toasts.show(t.toast.copied);
-    } catch (error) {
-      actionError = errorText(error);
-    }
+    actionError = null;
+    if (await copyText(lines.join('\n'))) toasts.show(t.toast.copied);
+    else actionError = t.run.historyNotCopied;
   }
 
   function toggle(): void {
@@ -115,25 +119,11 @@
     });
   });
 
-  /** A fitting action for a failed run. */
-  const failureAction = $derived.by(() => {
-    if (failure === null) return null;
-    switch (failure.kind) {
-      case 'mailAuth':
-      case 'mailMissing':
-      case 'mailNotGmail':
-      case 'secretCorrupt':
-      case 'secretStore':
-        return { label: t.run.checkMailbox, onclick: () => navigation.go('settings') };
-      case 'internal':
-        return { label: t.common.openLog, onclick: () => openTarget({ kind: 'logDir' }) };
-      default:
-        // A failed fetch: Abrufen right above does the same, no second button for it.
-        return fetchRun && app.hasMailbox && !run.active
-          ? null
-          : { label: t.common.retry, onclick: () => run.retry(summary) };
-    }
-  });
+  /** A fitting action for a failed run (a failed fetch: Abrufen right above does the same,
+   *  no second button for it). */
+  const failureFix = $derived(
+    failure === null ? null : failureAction(summary, failure, () => openTarget({ kind: 'logDir' })),
+  );
 </script>
 
 {#snippet head(text: string, extra: string | null)}
@@ -210,7 +200,7 @@
           </ol>
           {#each pauses as [portal, health] (portal)}
             <Notice
-              tone="warning"
+              tone={needsAction(health) ? 'warning' : 'info'}
               variant="inline"
               heading={t.portal[portal]}
               text={healthSentence(health) ?? ''}
@@ -253,7 +243,7 @@
               tone="danger"
               variant="inline"
               text={t.error.text(failure.kind, failure.params)}
-              action={failureAction}
+              action={failureFix}
               testid="run-failed"
             />
           {:else if fetchRun && summary.outcome.kind === 'completed' && newJobs === 0}
@@ -285,7 +275,7 @@
               text={filesText}
               action={failure || run.active
                 ? null
-                : { label: t.common.retry, onclick: () => run.retry(summary) }}
+                : { label: t.common.retry, onclick: () => run.rewriteFiles() }}
               testid="export-failed"
             />
           {/if}
@@ -302,7 +292,16 @@
                   </li>
                 {/each}
               </ol>
-              <Button variant="ghost" size="sm" icon="copy" label={t.common.copy} onclick={copy} />
+              <span class="copy">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="copy"
+                  label={t.common.copy}
+                  testid="history-copy"
+                  onclick={copy}
+                />
+              </span>
             </Disclosure>
           {/if}
         </div>
@@ -498,15 +497,24 @@
     margin-right: var(--space-2);
   }
 
+  /* At most 16 lines, then it scrolls. */
   .history {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-    max-height: var(--list-min);
+    max-height: calc(16 * (var(--leading-xs) + var(--space-4)));
     margin-bottom: var(--space-8);
     overflow: auto;
     color: var(--text-muted);
     font: var(--type-xs);
+  }
+
+  /* A quiet button: its icon starts on the edge of the card, like the lines above (its
+     padding and border hang out). */
+  .copy {
+    display: flex;
+    align-self: flex-start;
+    margin-left: calc(-1 * (var(--space-12) + var(--border-width)));
   }
 
   /* The space after the time is a real one, so a selection copies like "Kopieren". */

@@ -2069,9 +2069,10 @@ const handlers: Handlers = {
     state.settings.txtFiles = 0;
     return { removed, failed: [] };
   },
-  // Like `existing` (commands/app.rs): a result file nothing wrote yet is not found.
+  // Like `existing` (commands/app.rs): a result file nothing wrote yet is not found (the
+  // HTML overview is written before it opens, except in the dry run).
   open_target: ({ target }) => {
-    const file = target.kind === 'excel' || target.kind === 'overview';
+    const file = target.kind === 'excel' || (target.kind === 'overview' && state.dryRun);
     if (file && !state.settings.excelExists) {
       throw fail('notFound', { what: 'file', path: state.settings.excelPath });
     }

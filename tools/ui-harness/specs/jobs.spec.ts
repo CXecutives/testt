@@ -517,14 +517,16 @@ test('under reduced motion a run without progress still shows its bar', async ({
   await runFinished(page);
 });
 
-test('offline: the failed run says why and offers a retry', async ({ page }) => {
+test('offline: the failed run says why, and Abrufen tries again', async ({ page }) => {
   await open(page, `${WIN}&scenario=offline`);
   const failed = page.getByTestId('run-failed');
   await expect(failed).toContainText('Gmail ist nicht erreichbar.');
   // The sidebar says the fetch failed; the open point names it once and says why.
   await expect(failed).toContainText('Letzter Abruf');
   await expect(page.getByTestId('run-status')).toContainText('Fehlgeschlagen 08:30');
-  await failed.getByRole('button', { name: 'Erneut versuchen' }).click();
+  // Like the run card: no second button beside Abrufen that does the same.
+  await expect(failed.getByRole('button')).toHaveCount(0);
+  await page.getByTestId('fetch').click();
   await runFinished(page);
   expect(await calls(page, 'start_run')).toHaveLength(1);
 });
