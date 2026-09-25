@@ -1,7 +1,9 @@
 <!--
   Two to four options with an optional counter each, on one track. Each option is as wide as
-  its label and count; the chosen one sits on its own white pill, so the pill always covers
-  exactly its option whatever the labels, counts or window width (it cross-fades, 100 ms).
+  its label and count; one white thumb covers the chosen option and slides to the next one
+  like the sidebar's pill and the list's bar (180 ms, emphasized; user 2026-09-25), always
+  exactly the option's box whatever the labels, counts or window width (a change of size
+  follows at once; the first placement and reduced motion never slide).
   When the track has less room than the options want, the labels shorten with an ellipsis
   (the counts stay); nothing ever overlaps. The chosen label is ink and its count a soft
   warm pill, the others stay muted with a plain count (same box, so nothing moves); an option
@@ -20,7 +22,9 @@
 </script>
 
 <script lang="ts" generics="Id extends string">
+  import { cssVars, px } from '$lib/actions/cssVars';
   import { tooltip } from '$lib/actions/tooltip';
+  import { settled } from '$lib/motion/settled.svelte';
   import Count from './Count.svelte';
 
   interface Props {
@@ -36,6 +40,39 @@
 
   /** One Tab stop: the chosen option (the arrows move between them, lib/input/input.ts). */
   const stop = $derived(options.some((option) => option.id === value) ? value : options[0]?.id);
+
+  // The thumb's box: the chosen option's, measured in the track. A choice slides it; a
+  // resize or a count that changes a width moves it at once (`instant`).
+  const motion = settled();
+  let track: HTMLDivElement | undefined = $state();
+  let thumb = $state<{ x: number; width: number } | null>(null);
+  let instant = $state(true);
+  /** Until when a choice slides: a size change meanwhile follows without cutting it short. */
+  let slidingUntil = 0;
+
+  function measure(): void {
+    const chosen = track?.querySelector<HTMLElement>('[aria-checked="true"]');
+    thumb = chosen ? { x: chosen.offsetLeft, width: chosen.offsetWidth } : null;
+  }
+
+  $effect(() => {
+    void value;
+    void options;
+    instant = !motion.ready;
+    slidingUntil = performance.now() + 300;
+    measure();
+  });
+
+  $effect(() => {
+    if (!track) return;
+    const observer = new ResizeObserver(() => {
+      instant = performance.now() > slidingUntil;
+      measure();
+    });
+    observer.observe(track);
+    for (const option of track.children) observer.observe(option);
+    return () => observer.disconnect();
+  });
 </script>
 
 <div
@@ -43,7 +80,14 @@
   role="radiogroup"
   aria-label={label}
   data-testid={testid ?? undefined}
+  bind:this={track}
 >
+  {#if thumb}<span
+      class="thumb"
+      class:instant
+      aria-hidden="true"
+      use:cssVars={{ 'thumb-x': px(thumb.x), 'thumb-width': px(thumb.width) }}
+    ></span>{/if}
   {#each options as option (option.id)}
     {@const chosen = option.id === value}
     <button
@@ -73,8 +117,29 @@
     height: var(--seg-height);
     padding: var(--space-2);
     border-radius: var(--radius-control);
+    position: relative;
     background-color: var(--surface-track);
     isolation: isolate;
+  }
+
+  /* The one white thumb under the chosen option; it slides like the sidebar's pill. */
+  .thumb {
+    position: absolute;
+    z-index: var(--z-below);
+    top: var(--space-2);
+    bottom: var(--space-2);
+    left: 0;
+    width: var(--thumb-width);
+    border-radius: var(--radius-sm);
+    background-color: var(--surface);
+    box-shadow: var(--sh-thumb);
+    transform: translateX(var(--thumb-x));
+    /* Only the move animates (a width is layout); the width takes the option's at once. */
+    transition: transform var(--dur-slow) var(--ease-emphasized);
+  }
+
+  .thumb.instant {
+    transition: none;
   }
 
   /* As wide as its content; it gives way (the label shortens) when the track is short. */
@@ -95,8 +160,8 @@
     transition: color var(--dur-base) var(--ease-standard);
   }
 
-  /* The pill of the chosen option, and the hover wash of the others: one box each,
-     exactly the option's own. */
+  /* The hover wash of an unchosen option: exactly the option's own box (the chosen one
+     lies on the thumb). */
   .pill {
     position: absolute;
     z-index: var(--z-below);
@@ -107,12 +172,6 @@
     transition:
       opacity var(--dur-fast) var(--ease-standard),
       background-color var(--dur-fast) var(--ease-standard);
-  }
-
-  .option[aria-checked='true'] .pill {
-    background-color: var(--surface);
-    box-shadow: var(--sh-thumb);
-    opacity: 1;
   }
 
   .option[aria-checked='false']:hover {

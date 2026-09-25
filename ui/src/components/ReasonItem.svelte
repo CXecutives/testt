@@ -89,7 +89,7 @@
     class="icon"
     role="img"
     aria-label={t.reason.kind[kind]}
-    use:tooltip={{ text: t.reason.kind[kind], placement: 'left' }}
+    use:tooltip={{ text: t.reason.kind[kind], placement: 'right' }}
     ><Icon name={ICON[kind]} size="sm" /></span
   >
   {#if detail && !compact}

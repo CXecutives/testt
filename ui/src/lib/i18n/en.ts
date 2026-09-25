@@ -888,8 +888,7 @@ export const en: Catalog = {
   },
   reader: {
     mustMet: (met: number, total: number, partial = 0) =>
-      `${n(met)} of ${n(total)} must-haves met` +
-      (partial > 0 ? `, ${n(partial)} partly` : ''),
+      `${n(met)} of ${n(total)} must-haves met` + (partial > 0 ? `, ${n(partial)} partly` : ''),
     noMust: 'No must-have requirements found',
     frame: 'Conditions',
     anueCheck: 'It is not certain whether the job is temporary agency work.',

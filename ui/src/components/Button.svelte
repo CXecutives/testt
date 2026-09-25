@@ -246,13 +246,6 @@
     transition-duration: var(--dur-instant);
   }
 
-
-
-
-
-
-
-
   /* A state, not a nudge: half a turn in 180 ms (the angle stays under reduced motion). */
   .turned .glyph {
     transform: rotate(var(--turn-half));
