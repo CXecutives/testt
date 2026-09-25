@@ -352,7 +352,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       part in duplicates, archived or closed jobs are no original. Open: the WebKit status path wants the
       macos-latest probe, one guest page of freelance.de for a real-structure fixture at the next allowed live run.
 - [ ] Live canary per portal (one counted page via `admit`)
-- [ ] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios
+- [x] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios (2026-09-25:
+      NSIS build installed here and clicked through with the real mailbox data; macOS CI app screenshots and the dmg
+      install probe; every harness scenario in Chromium and WebKit)
 - [x] Long tasks at 2000 jobs (2026-09-25): the tab switch and the windows while scrolling stay below 50 ms on the
       reference machine (see "Performance" above; harness `timing.spec.ts`, 10 of 10 in Chromium and WebKit; the smoke
       probe of the real app shows none). Still above 50 ms at 4x CPU throttling with 300 rows mounted (50 to 100 ms):
@@ -360,7 +362,10 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       below it moves: paint properties and layers of the whole list), and a tab switch or a re-sort that tears down
       hundreds of rows at once (Svelte's teardown of their effects).
 - [ ] Performance: start time; contrast
-- [ ] Consistency audit per screen (checklist below) and fixes; one adversarial review workflow over the whole diff
+- [x] Consistency audit per screen (checklist below) and fixes; one adversarial review workflow over the whole diff
+      (2026-09-25: two UI audits with 86 and 36 confirmed findings, a scraping review with 31 and a final review with
+      42, all fixed; then the installed app walked through: place changes close the open job from any view, an empty
+      place has no blank header row, the overview hint only beside a list with jobs, date and time never break)
 
 ### Phase 6 - delivery
 - [x] Skill `job-matching` (stage 2): back up the original, drop the hard-coded foreign path (use the app's work folder, works on macOS), read the app's top-matches file instead of screening every ad, align the rubric wording with the engine, test, deliver as a folder with a short install guide (`tools/job-matching-skill/`: `SKILL.md`, `scripts/matching.py` brief + render with the rubric caps, README, test on the corpus; original backed up outside the repo)
@@ -368,14 +373,14 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 
 ## Consistency audit per screen
 For each of Jobs, Reader, Day overview, Profil, Einstellungen, First run, dialogs:
-- [ ] tokens only · 4 px grid, shared edges aligned · <= 1 primary, button variants by rule · icon sizes by context
-- [ ] hover/active/focus/disabled everywhere · all screen states present · glossary, no sentence twice · tabular numbers
-- [ ] motion only via tokens, reduced motion checked · AA contrast (documented exception: primary button)
-- [ ] Windows and macOS screenshots side by side: only the documented differences
+- [x] tokens only · 4 px grid, shared edges aligned · <= 1 primary, button variants by rule · icon sizes by context
+- [x] hover/active/focus/disabled everywhere · all screen states present · glossary, no sentence twice · tabular numbers
+- [x] motion only via tokens, reduced motion checked · AA contrast (documented exception: primary button)
+- [x] Windows and macOS screenshots side by side: only the documented differences
 
 ## Glossary (UI)
 Job · Portal · Passung · Details · Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu (= unread) ·
-Zu prüfen · Merken. Checked for the UI catalog (`ui_contract.rs`) and the Rust texts: exports, startup dialog, window titles, file dialogs, macOS menu (`rust_texts.rs`).
+Zu prüfen · Favorit · Archiv · Papierkorb. Checked for the UI catalog (`ui_contract.rs`) and the Rust texts: exports, startup dialog, window titles, file dialogs, macOS menu (`rust_texts.rs`).
 English (`en.ts`, the English exports and prompts): Job · Portal · Match · Details · Fetch · Profile · Mailbox · Alert email ·
 Overview · Excel file · Excluded · New · To check · Favourites · Inbox · Archive · Trash · Skill (Kompetenz) · Preference
 (Wunsch) · Location (Ort); plain British English, not German word for word (usability round 2: "email", never "mail"; no
