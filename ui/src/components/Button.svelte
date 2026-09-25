@@ -221,8 +221,9 @@
     transition-duration: var(--dur-hover), var(--dur-hover), var(--dur-hover), var(--dur-base);
   }
 
-  /* Pressed: only while the left button is down (input.ts keeps the others from pressing). */
-  .btn:not([aria-disabled='true'], .loading):active:hover {
+  /* Pressed: only while the left button is down (input.ts marks a press of the others). */
+  :global(:where(:root:not([data-aux-press])))
+    .btn:not([aria-disabled='true'], .loading):active:hover {
     border-color: var(--btn-border-active);
     background-color: var(--btn-bg-active);
     transform: scale(var(--btn-press));
@@ -391,7 +392,8 @@
     transition-duration: var(--dur-hover);
   }
 
-  .link:not([aria-disabled='true'], .loading):active:hover {
+  :global(:where(:root:not([data-aux-press])))
+    .link:not([aria-disabled='true'], .loading):active:hover {
     opacity: var(--opacity-press);
     transition-duration: var(--dur-instant);
   }

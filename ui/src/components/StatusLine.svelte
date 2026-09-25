@@ -88,7 +88,7 @@
     transition-duration: var(--dur-hover);
   }
 
-  .status:active:hover {
+  :global(:where(:root:not([data-aux-press]))) .status:active:hover {
     background-color: var(--surface-press);
     transition-duration: var(--dur-instant);
   }

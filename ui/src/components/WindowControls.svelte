@@ -137,7 +137,7 @@
     transition-duration: var(--dur-hover);
   }
 
-  .caption:active:hover {
+  :global(:where(:root:not([data-aux-press]))) .caption:active:hover {
     background-color: var(--caption-press);
   }
 
@@ -146,7 +146,7 @@
     color: var(--caption-close-glyph);
   }
 
-  .close:active:hover {
+  :global(:where(:root:not([data-aux-press]))) .close:active:hover {
     background-color: var(--caption-close-press);
     color: var(--caption-close-glyph);
   }

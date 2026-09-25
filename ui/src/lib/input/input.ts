@@ -4,7 +4,9 @@
 // listeners (eslint + core/tests/ui_contract.rs). Installed once in main.ts.
 //
 // - controls react to the left button only: the right button never presses, focuses or
-//   selects anything. There is no browser context menu; the OS's own menu appears where
+//   selects anything, and no control looks pressed under it (`data-aux-press`, see
+//   auxPress). A left press beside a focused field ends its focus, also on a drag region
+//   (`leaveField`). There is no browser context menu; the OS's own menu appears where
 //   a native app has one: in a text field (Windows: Undo | Cut, Copy, Paste, Delete |
 //   Select all; macOS: Cut, Copy, Paste | Select all; each enabled by the field's state)
 //   and on selected copyable text (Copy). Everywhere else a right click does nothing.
@@ -15,8 +17,8 @@
 // - no dragging of text, links or images
 // - text is selectable only in fields and where a user would copy it (`data-copy`: the ad
 //   text, job title and facts, profile values, paths); Ctrl/Cmd+C copies such a selection
-// - keys like in a native window: Tab and Shift+Tab move the focus, Enter and Space press
-//   the focused button, switch or radio. Inside a field every character the keyboard
+// - keys like in a native window: Tab and Shift+Tab move the focus, Space presses the
+//   focused button, switch or radio, Enter a button only. Inside a field every character the keyboard
 //   layout types (AltGr on Windows, Option on macOS: @ is Option+L on a German Mac) and
 //   the editing keys of the OS (word and line moves, delete word, Shift selection,
 //   Ctrl/Cmd+C/V/X/A/Z, redo) work. Enter saves and Esc cancels a form or dialog.
@@ -56,8 +58,11 @@ const DIALOG = 'dialog, [role="dialog"], [role="alertdialog"]';
 const MODAL = '[aria-modal="true"]';
 const FORM = '[data-form-keys]';
 const LIST = '[data-list-keys]';
-/** Controls that Enter and Space press. */
+/** Controls that Space presses. */
 const PRESSABLE = 'button, [role="button"], [role="switch"], [role="radio"]';
+/** Controls that Enter presses: buttons only. A switch or a radio toggles with Space, like the
+ *  native ones; Enter there goes on to the form (its default action). */
+const ENTER_PRESSES = 'button:not([role="switch"], [role="radio"]), [role="button"]';
 /** Buttons inside a field (show password, clear search): a press leaves the focus there. */
 const KEEP_FOCUS = '[data-keep-focus]';
 const FOCUSABLE = [
@@ -117,15 +122,25 @@ function isCopy(event: KeyboardEvent): boolean {
   return selection !== null && !selection.isCollapsed && selection.toString().trim() !== '';
 }
 
-/** An element between `target` and the page that scrolls (the middle button scrolls it). */
+/** An element between `target` and the page that scrolls (the middle button scrolls it). A
+ *  fixed layer (a dialog's backdrop, a toast, a tooltip) never scrolls with its DOM parent. */
 function inScrollArea(target: EventTarget | null): boolean {
   for (let node = target instanceof Element ? target : null; node; node = node.parentElement) {
     const style = getComputedStyle(node);
     const scrollsY = /auto|scroll/.test(style.overflowY) && node.scrollHeight > node.clientHeight;
     const scrollsX = /auto|scroll/.test(style.overflowX) && node.scrollWidth > node.clientWidth;
     if (scrollsY || scrollsX) return true;
+    if (style.position === 'fixed') return false;
   }
   return false;
+}
+
+/** The middle button scrolls here: over a scroll area, and while a modal dialog is open only
+ *  inside it (the page behind it stays where it is). */
+function middleScrolls(target: EventTarget | null): boolean {
+  const modal = topModal();
+  if (modal !== null && !(target instanceof Node && modal.contains(target))) return false;
+  return inScrollArea(target);
 }
 
 function isWindowShortcut(event: KeyboardEvent): boolean {
@@ -224,7 +239,7 @@ function dispatchFormKey(event: KeyboardEvent, target: EventTarget | null = even
     handler = handlerFor(target, 'cancel');
   } else if (event.key === 'Enter') {
     // Enter on a button presses that button; in a text area it starts a new line.
-    if (closest(target, 'textarea') !== null || closest(target, PRESSABLE) !== null) {
+    if (closest(target, 'textarea') !== null || pressedByEnter(target)) {
       return false;
     }
     handler = handlerFor(target, 'save');
@@ -329,11 +344,18 @@ function dispatchListKey(event: KeyboardEvent): boolean {
 
 const isFocusMove = (event: KeyboardEvent): boolean => event.key === 'Tab' && !hasModifier(event);
 
-/** Enter and Space press the focused button, switch or radio (the engine clicks it). */
+/** The focused control is a button that Enter presses (not a switch or a radio). */
+function pressedByEnter(target: EventTarget | null): boolean {
+  const control = closest(target, PRESSABLE);
+  return control !== null && control.matches(ENTER_PRESSES);
+}
+
+/** Space presses the focused button, switch or radio, Enter only a button (the engine
+ *  clicks it). */
 const pressesControl = (event: KeyboardEvent): boolean =>
-  (event.key === 'Enter' || event.key === ' ') &&
   !hasModifier(event) &&
-  closest(event.target, PRESSABLE) !== null;
+  ((event.key === ' ' && closest(event.target, PRESSABLE) !== null) ||
+    (event.key === 'Enter' && pressedByEnter(event.target)));
 
 /** The open modal dialog on top, if any. */
 function topModal(): HTMLElement | null {
@@ -746,17 +768,61 @@ function onPointerOut(event: PointerEvent): void {
 
 /**
  * The middle button keeps its default over a scroll area (the autoscroll needs it), but a
- * press must not focus the control under the pointer: after the default action the focus
- * goes back to where it was.
+ * press must not focus the control or the field under the pointer: after the default action
+ * the focus goes back to where it was.
  */
 function keepFocus(): void {
   const before = document.activeElement;
   setTimeout(() => {
     const now = document.activeElement;
-    if (now === before || !(now instanceof HTMLElement) || inField(now)) return;
+    if (now === before || !(now instanceof HTMLElement)) return;
     now.blur();
     if (before instanceof HTMLElement && before !== document.body) before.focus();
   }, 0);
+}
+
+/**
+ * The pressed look belongs to the left button. Both engines set `:active` (and Chromium
+ * `:hover`) for any button in the hit test of the press, before a listener could cancel it,
+ * and Chromium sets it again with the context menu after a right release. So while another
+ * button is down, and until the pointer moves after it, :root carries `data-aux-press` and
+ * every pressed rule waits for `:root:not([data-aux-press])` (core/tests/ui_contract.rs).
+ */
+function auxPress(on: boolean): void {
+  const root = document.documentElement;
+  if (on) root.dataset.auxPress = '';
+  else if (root.dataset.auxPress !== undefined) delete root.dataset.auxPress;
+}
+
+/** Buttons other than the left one (the `buttons` bit mask without bit 0). */
+const otherButtonsDown = (event: MouseEvent): boolean => (event.buttons & ~1) !== 0;
+
+/** A press on a scroller's own scrollbar (Windows): it never takes the focus from a field. */
+function onScrollbar(event: MouseEvent): boolean {
+  const node = event.target;
+  if (!(node instanceof HTMLElement) || node.clientWidth === 0) return false;
+  const scrolls = node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth;
+  // offsetX/Y count from the padding edge; the bar lies beyond the client box.
+  return scrolls && (event.offsetX >= node.clientWidth || event.offsetY >= node.clientHeight);
+}
+
+/**
+ * A left press beside the focused field ends its focus, like a click on the empty part of a
+ * native window. The engine does that by itself only where the press keeps its default: a
+ * drag region (the title bar, the toolbar row) cancels it. The field stays focused for a
+ * press inside it or its box (the chips, the clear button), on a button that keeps the caret
+ * (`data-keep-focus`), on its own label, and on a scrollbar.
+ */
+function leaveField(event: MouseEvent): void {
+  const field = document.activeElement;
+  if (!(field instanceof HTMLElement) || !inField(field) || inField(event.target)) return;
+  const target = event.target instanceof Element ? event.target : null;
+  if (target === null || closest(target, KEEP_FOCUS) !== null || onScrollbar(event)) return;
+  const box = field instanceof HTMLTextAreaElement ? field : (field.parentElement ?? field);
+  if (box.contains(target)) return;
+  const label = target.closest('label');
+  if (label !== null && label.control === field) return;
+  field.blur();
 }
 
 let installed = false;
@@ -771,13 +837,16 @@ export function installInput(): void {
     'mousedown',
     (event) => {
       if (event.button === LEFT) {
+        if (!otherButtonsDown(event)) auxPress(false);
         lastPane = scrollAreaOf(event.target);
         // A button inside a field (show password, clear) leaves the caret in the field.
         if (closest(event.target, KEEP_FOCUS) !== null) event.preventDefault();
+        else leaveField(event);
         return;
       }
+      auxPress(true);
       // The middle button starts the autoscroll over a scroll area; nothing else gets it.
-      if (event.button === MIDDLE && inScrollArea(event.target)) {
+      if (event.button === MIDDLE && middleScrolls(event.target)) {
         keepFocus();
         return;
       }
@@ -793,6 +862,16 @@ export function installInput(): void {
     },
     capture,
   );
+  // The pressed look comes back once no other button is down and the pointer moved (a right
+  // release in Chromium sets :active once more with the context menu, before any move).
+  document.addEventListener(
+    'pointermove',
+    (event) => {
+      if (!otherButtonsDown(event)) auxPress(false);
+    },
+    { capture: true, passive: true },
+  );
+  document.addEventListener('pointercancel', () => auxPress(false), capture);
   document.addEventListener(
     'auxclick',
     (event) => {
@@ -834,7 +913,10 @@ export function installInput(): void {
     },
     capture,
   );
-  window.addEventListener('blur', () => guardZoom(false));
+  window.addEventListener('blur', () => {
+    guardZoom(false);
+    auxPress(false);
+  });
   document.addEventListener('scroll', onScroll, { capture: true, passive: true });
   document.addEventListener('pointerover', onPointerOver, { capture: true, passive: true });
   document.addEventListener('pointerout', onPointerOut, { capture: true, passive: true });
