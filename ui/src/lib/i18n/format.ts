@@ -8,6 +8,8 @@ import { language } from './language.svelte';
 
 /** U+202F, the narrow no-break space between a number and its unit (`87 %`). */
 export const NARROW_NBSP = ' ';
+/** U+00A0, a space no line breaks at. */
+export const NBSP = ' ';
 
 interface Formats {
   integer: Intl.NumberFormat;
@@ -105,14 +107,17 @@ export function formatDate(iso: string): string {
   return Number.isNaN(date.getTime()) ? '' : formats().dayMonthYear.format(date);
 }
 
-/** `14:05` today, `25.09. 14:05` (`25/09 14:05`) on another day. */
+/**
+ * `14:05` today, `25.09. 14:05` (`25/09 14:05`) on another day; one unit a line never
+ * breaks (the sidebar's "Abgerufen" wraps before the date, not between date and time).
+ */
 export function formatMoment(iso: string, now: Date = new Date()): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
   const { clock, dayMonth } = formats();
   return startOfDay(date) === startOfDay(now)
     ? clock.format(date)
-    : `${dayMonth.format(date)} ${clock.format(date)}`;
+    : `${dayMonth.format(date)} ${clock.format(date)}`.replace(/ /g, NBSP);
 }
 
 /** `18 KB`, `1,2 MB` (`1.2 MB`) */
