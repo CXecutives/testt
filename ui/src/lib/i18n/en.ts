@@ -484,7 +484,7 @@ const criteria = {
 /** `JobMatch.note` / `MatchDetail.summary` codes. */
 const note = {
   hardCriterion: 'An exclusion criterion applies.',
-  shortText: 'Too little text for a score.',
+  shortText: 'Too little text to score.',
   lowEvidence: LOW_TEXT,
   engineFailed: 'This ad could not be scored.',
 } satisfies Catalog['reader']['note'];
@@ -695,7 +695,7 @@ export const en: Catalog = {
       check: 'To check',
     } satisfies Record<ReasonKind, string>,
     weight: {
-      must: 'Required',
+      must: 'Must-have',
       nice: 'Optional',
       hard: 'Exclusion',
       info: 'Note',
@@ -1053,7 +1053,7 @@ export const en: Catalog = {
       competences: 'Only this block is required, and the app scores every job by it.',
       experience: 'With these, the app checks what an ad asks for.',
       languages: 'The app compares them with the languages an ad asks for.',
-      wishes: 'Preferences nudge the score but never exclude a job.',
+      wishes: 'Preferences nudge the match but never exclude a job.',
       criteria: 'A job that does not fit here counts as excluded.',
       permanent: 'These rules apply to permanent jobs only.',
       availability: 'A job that starts earlier is marked to check, never excluded.',
@@ -1064,7 +1064,7 @@ export const en: Catalog = {
       title: 'Role',
       titlePlaceholder: 'e.g. Interim manager',
       roles: 'Target roles',
-      rolesHint: 'An ad whose title fits one scores a little higher.',
+      rolesHint: 'An ad whose title fits one gets a slightly higher match.',
       rolesPlaceholder: 'e.g. Interim management',
       competence: 'Skill',
       competencePlaceholder: 'e.g. Project management',
@@ -1209,7 +1209,7 @@ export const en: Catalog = {
         abschluss: 'Degrees',
         ausbildung: 'Degrees',
         schwerpunkte: 'Focus areas',
-        stationen: 'Career stages',
+        stationen: 'Career history',
         projekte: 'Projects',
       } as Record<string, string>,
     },

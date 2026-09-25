@@ -1137,7 +1137,7 @@ export const de = {
       competences: 'Nur dieser Block ist nötig, danach bewertet die App jeden Job.',
       experience: 'Damit prüft die App, was eine Anzeige verlangt.',
       languages: 'Die App vergleicht sie mit den Sprachen einer Anzeige.',
-      wishes: 'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.',
+      wishes: 'Wünsche verschieben die Passung leicht, sie schließen nichts aus.',
       criteria: 'Ein Job, der hier nicht passt, gilt als ausgeschlossen.',
       permanent: 'Diese Regeln gelten nur für Festanstellungen.',
       availability:
@@ -1149,7 +1149,7 @@ export const de = {
       title: 'Rolle',
       titlePlaceholder: 'z. B. Interim Manager',
       roles: 'Wunschrollen',
-      rolesHint: 'Passt der Titel einer Anzeige dazu, steigt die Bewertung leicht.',
+      rolesHint: 'Passt der Titel einer Anzeige dazu, steigt die Passung leicht.',
       rolesPlaceholder: 'z. B. Interim Management',
       competence: 'Kompetenz',
       competencePlaceholder: 'z. B. Projektleitung',

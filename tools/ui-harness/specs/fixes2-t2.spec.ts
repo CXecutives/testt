@@ -81,7 +81,7 @@ test('the profile in its logical order, each block with its sentence', async ({ 
     ['section-competences', 'Nur dieser Block ist nötig, danach bewertet die App jeden Job.'],
     ['section-experience', 'Damit prüft die App, was eine Anzeige verlangt.'],
     ['section-languages', 'Die App vergleicht sie mit den Sprachen einer Anzeige.'],
-    ['section-wishes', 'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.'],
+    ['section-wishes', 'Wünsche verschieben die Passung leicht, sie schließen nichts aus.'],
     ['section-criteria', 'Ein Job, der hier nicht passt, gilt als ausgeschlossen.'],
   ];
   for (const [id, sentence] of sentences) {
