@@ -26,6 +26,7 @@ export type { LanguageLevel } from "./LanguageLevel";
 export type { Mailbox } from "./Mailbox";
 export type { MatchDetail } from "./MatchDetail";
 export type { MatchStatus } from "./MatchStatus";
+export type { MoveBack } from "./MoveBack";
 export type { NewJobs } from "./NewJobs";
 export type { Notice } from "./Notice";
 export type { OpenTarget } from "./OpenTarget";

@@ -104,24 +104,53 @@ impl Store {
     /// trash (the archive time stays for the way back). A job keeps the time it first went to
     /// the archive. Returns the keys that really moved (a job already there or gone is not).
     pub fn move_jobs(&self, keys: &[JobKey], to: Place, now: Timestamp) -> Result<Vec<JobKey>> {
-        let (set, moved) = match to {
-            Place::Inbox => (
-                "archived_at = NULL, trashed_at = NULL, inbox_at = ?3",
-                "(archived_at IS NOT NULL OR trashed_at IS NOT NULL)",
-            ),
-            Place::Archive => (
-                "archived_at = COALESCE(archived_at, ?3), trashed_at = NULL",
-                "(archived_at IS NULL OR trashed_at IS NOT NULL)",
-            ),
-            Place::Trash => ("trashed_at = ?3", "trashed_at IS NULL"),
-        };
+        self.place_jobs(keys.iter().map(|key| (key, to, Some(now))))
+    }
+
+    /// Takes moves back (the undo of a toast): each job returns to the place it came from as
+    /// it was there. Into the trash with the time it first went there (`trashed_at`, never
+    /// later than `now`): its date and the days until the trash empties itself stay. Into the
+    /// inbox with its age: the time of the last move into it stays for the old jobs that
+    /// archive themselves. Returns the keys that really moved.
+    pub fn move_back(
+        &self,
+        back: &[(JobKey, Place, Option<Timestamp>)],
+        now: Timestamp,
+    ) -> Result<Vec<JobKey>> {
+        self.place_jobs(back.iter().map(|(key, to, trashed_at)| {
+            let at = match to {
+                Place::Inbox => None,
+                Place::Archive => Some(now),
+                Place::Trash => Some(trashed_at.filter(|at| *at <= now).unwrap_or(now)),
+            };
+            (key, *to, at)
+        }))
+    }
+
+    /// Moves each job to its place at its time (`None`: the inbox keeps the time of the last
+    /// move into it); returns the keys that really moved.
+    fn place_jobs<'a>(
+        &self,
+        jobs: impl Iterator<Item = (&'a JobKey, Place, Option<Timestamp>)>,
+    ) -> Result<Vec<JobKey>> {
         self.write(|conn| {
-            let mut stmt = conn.prepare(&format!(
-                "UPDATE job SET {set} WHERE portal = ?1 AND job_id = ?2 AND {moved}"
-            ))?;
             let mut moved = Vec::new();
-            for key in keys {
-                if stmt.execute(params![key.portal.key(), key.id, to_db(now)])? > 0
+            for (key, to, at) in jobs {
+                let (set, from) = match to {
+                    Place::Inbox => (
+                        "archived_at = NULL, trashed_at = NULL, inbox_at = COALESCE(?3, inbox_at)",
+                        "(archived_at IS NOT NULL OR trashed_at IS NOT NULL)",
+                    ),
+                    Place::Archive => (
+                        "archived_at = COALESCE(archived_at, ?3), trashed_at = NULL",
+                        "(archived_at IS NULL OR trashed_at IS NOT NULL)",
+                    ),
+                    Place::Trash => ("trashed_at = ?3", "trashed_at IS NULL"),
+                };
+                let mut stmt = conn.prepare_cached(&format!(
+                    "UPDATE job SET {set} WHERE portal = ?1 AND job_id = ?2 AND {from}"
+                ))?;
+                if stmt.execute(params![key.portal.key(), key.id, at.map(to_db)])? > 0
                     && !moved.contains(key)
                 {
                     moved.push(key.clone());
@@ -434,6 +463,45 @@ mod tests {
         assert_eq!(place(&store, &keys[0]), Place::Inbox);
         let job = store.job(&keys[0]).unwrap().unwrap();
         assert_eq!((job.archived_at, job.trashed_at), (None, None));
+    }
+
+    /// An undo puts a job back as it was: the trash keeps the time the job first went there,
+    /// the inbox the age of the job (the old jobs that archive themselves count from it).
+    #[test]
+    fn a_move_taken_back_keeps_the_earlier_times() {
+        let (store, keys) = store_with_jobs(3);
+        let at = now();
+        let later = at + jiff::SignedDuration::from_hours(72);
+        let one = std::slice::from_ref(&keys[0]);
+        // Wiederherstellen three days later, then its undo: back with the first trash time.
+        store.move_jobs(one, Place::Trash, at).unwrap();
+        store.move_jobs(one, Place::Inbox, later).unwrap();
+        let back = [(keys[0].clone(), Place::Trash, Some(at))];
+        assert_eq!(store.move_back(&back, later).unwrap(), one);
+        assert_eq!(store.job(&keys[0]).unwrap().unwrap().trashed_at, Some(at));
+        assert!(
+            store.move_back(&back, later).unwrap().is_empty(),
+            "there already"
+        );
+        // A time from the future is no time of the trash.
+        let ahead = later + jiff::SignedDuration::from_hours(1);
+        store
+            .move_back(&[(keys[1].clone(), Place::Trash, Some(ahead))], later)
+            .unwrap();
+        assert_eq!(
+            store.job(&keys[1]).unwrap().unwrap().trashed_at,
+            Some(later)
+        );
+        // Archived, then taken back: the job is as old as before, so it archives itself
+        // again with the others (a plain move into the inbox would make it young).
+        let three = std::slice::from_ref(&keys[2]);
+        store.move_jobs(three, Place::Archive, later).unwrap();
+        let back = [(keys[2].clone(), Place::Inbox, None)];
+        assert_eq!(store.move_back(&back, later).unwrap(), three);
+        assert_eq!(place(&store, &keys[2]), Place::Inbox);
+        let cutoff = at + jiff::SignedDuration::from_hours(1);
+        assert_eq!(store.auto_archive(cutoff, later).unwrap(), 1);
+        assert_eq!(place(&store, &keys[2]), Place::Archive);
     }
 
     /// "All read" marks exactly the unread jobs of the place and hands their keys back; the

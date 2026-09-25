@@ -47,6 +47,7 @@ import type {
   JobQuery,
   JobView,
   Language,
+  MoveBack,
   Notice,
   Place,
   Portal,
@@ -1210,6 +1211,22 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
   return moved;
 }
 
+/** Takes moves back (store::move_back): into the trash with the time the job first went
+ *  there, not the time of the undo. */
+function moveBack(back: MoveBack[]): JobKey[] {
+  const moved: JobKey[] = [];
+  for (const { key, to, trashedAt: at } of back) {
+    if (moveJobs([key], to).length === 0) continue;
+    const j = find(key);
+    if (to === 'trash' && at !== null && j !== undefined) {
+      trashedAt.set(markKey(key), at);
+      j.trashedAt = at;
+    }
+    moved.push(structuredClone(key));
+  }
+  return moved;
+}
+
 /** Deletes jobs of the trash for good: only a tombstone stays, no later run brings them back.
  *  Like the backend (a file command), never during a run. */
 function purgeJobs(keys: JobKey[]): Deleted {
@@ -2019,6 +2036,7 @@ const handlers: Handlers = {
     return true;
   },
   move_jobs: ({ keys, to }) => moveJobs(keys, to),
+  move_back: ({ jobs: back }) => moveBack(back),
   // With a search only its hits (store::mark_all_read).
   mark_all_read: ({ place, search }) => {
     const marked = jobs.filter((j) => j.unread && j.place === place && matchesSearch(j, search));

@@ -153,9 +153,9 @@ test.describe('toasts and their undo', () => {
     );
     // The job read before it stays listed too (Neu keeps the jobs read in this visit).
     await expect(row(page, 'freelancermap-2801')).toBeVisible();
-    // One call per move, back to where it came from.
-    const back = (await calls(page, 'move_jobs')).at(-1)?.[1] as { to: string };
-    expect(back.to).toBe('inbox');
+    // One call takes the move back, to where the job came from.
+    const back = (await calls(page, 'move_back')).at(-1)?.[1] as { jobs: { to: string }[] };
+    expect(back.jobs.map(({ to }) => to)).toEqual(['inbox']);
   });
 
   test('Ctrl+Z takes back the newest move, also when it joined an older toast', async ({
@@ -181,7 +181,7 @@ test.describe('toasts and their undo', () => {
     await open(page, WIN);
     await facet(page, 'Alle').click();
     await tool(page, 'archive', 'freelancermap-2803');
-    await failNext(page, 'move_jobs');
+    await failNext(page, 'move_back');
     await page.getByTestId('toast-action').click();
     await expect(page.getByTestId('header-error')).toHaveText('Die Datenbank meldet einen Fehler.');
     await facet(page, 'Neu').click();

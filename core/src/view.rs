@@ -1359,6 +1359,18 @@ pub enum OpenTarget {
     LogDir,
 }
 
+/// A job an undo takes back to the place it came from (`move_back`).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct MoveBack {
+    pub key: JobKey,
+    pub to: Place,
+    /// When the job went to the trash ([`JobView::trashed_at`]): back in the trash it keeps
+    /// its date and its days until the trash empties itself.
+    pub trashed_at: Option<Timestamp>,
+}
+
 /// Result of a permanent delete of jobs.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]

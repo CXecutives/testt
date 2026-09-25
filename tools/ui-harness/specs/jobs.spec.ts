@@ -1248,7 +1248,8 @@ test('Ctrl+Z takes back the last move while its toast is up; an undo toast stays
   await expect(page.getByTestId('toast')).toHaveCount(0);
   // Nothing left to undo: Ctrl+Z does nothing.
   await page.keyboard.press('Control+z');
-  expect(await calls(page, 'move_jobs')).toHaveLength(2);
+  expect(await calls(page, 'move_jobs')).toHaveLength(1);
+  expect(await calls(page, 'move_back')).toHaveLength(1);
 });
 
 test('a job of the day overview opens during a search', async ({ page }) => {

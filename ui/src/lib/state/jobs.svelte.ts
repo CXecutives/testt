@@ -829,22 +829,21 @@ class JobsStore {
   }
 
   /**
-   * Takes moves back (the undo of a toast): every job goes back to the place it came from
-   * (one call per place). A row the list lost comes back where it stood when the list is
-   * still the one it left (Neu keeps a read job, like before the move); in another list the
-   * list loads again when the job belongs there. Resolves with the keys that went back (a
-   * job already there did not), or the error text.
+   * Takes moves back (the undo of a toast): every job goes back to the place it came from as
+   * it was there (the trash keeps its date). A row the list lost comes back where it stood
+   * when the list is still the one it left (Neu keeps a read job, like before the move); in
+   * another list the list loads again when the job belongs there. Resolves with the keys that
+   * went back (a job already there did not), or the error text.
    */
   async moveBack(
     back: readonly Unmove[],
     generation: number,
   ): Promise<{ moved: JobKey[] } | { error: string }> {
-    const landed: JobKey[] = [];
+    let landed: JobKey[];
     try {
-      for (const place of new Set(back.map(({ job }) => job.place))) {
-        const keys = back.filter(({ job }) => job.place === place).map(({ job }) => job.key);
-        landed.push(...(await invoke('move_jobs', { keys, to: place })));
-      }
+      landed = await invoke('move_back', {
+        jobs: back.map(({ job }) => ({ key: job.key, to: job.place, trashedAt: job.trashedAt })),
+      });
     } catch (error) {
       void this.load(true);
       return { error: errorText(error) };
