@@ -27,10 +27,10 @@ export type Commands = {
   list_jobs: { args: { query: JobQuery }; result: JobPage };
   job_detail: { args: { key: JobKey }; result: JobDetail };
   mark_read: { args: { key: JobKey }; result: boolean };
-  mark_all_read: { args: { place: Place }; result: JobKey[] };
+  mark_all_read: { args: { place: Place; search: string | null }; result: JobKey[] };
   mark_unread: { args: { keys: JobKey[] }; result: number };
   set_pinned: { args: { key: JobKey; on: boolean }; result: boolean };
-  move_jobs: { args: { to: Place; keys: JobKey[] }; result: number };
+  move_jobs: { args: { to: Place; keys: JobKey[] }; result: JobKey[] };
   set_override: { args: { key: JobKey; include: boolean }; result: boolean };
   purge_jobs: { args: { keys: JobKey[] }; result: Deleted };
   empty_trash: { args: Record<string, never>; result: Deleted };

@@ -40,10 +40,13 @@ pub const SCHEMA_4_JOB_COLUMNS: &[(&str, &str)] = &[
 /// - `mail_version`: the mail parser that read title, company and location
 ///   (`mail::MAIL_PARSER_VERSION`); `NULL` = one before the versions.
 /// - `trashed_at`: when the job went to the trash; it wins over `archived_at`.
+/// - `inbox_at`: when the user last moved the job into the inbox; the age of an old job
+///   counts from then, so a job she took back is not archived again by the next run.
 pub const SCHEMA_5_JOB_COLUMNS: &[(&str, &str)] = &[
     ("override_include", "INTEGER"),
     ("mail_version", "INTEGER"),
     ("trashed_at", "INTEGER"),
+    ("inbox_at", "INTEGER"),
 ];
 
 /// What the migration to schema 5 does beyond the new columns: "hidden" is "archived" now,
@@ -96,13 +99,14 @@ impl Store {
         })
     }
 
-    /// Moves jobs to a place: the inbox (out of archive and trash), the archive (out of the
-    /// trash too) or the trash (the archive time stays for the way back). A job keeps the
-    /// time it first went to a place. Returns how many moved.
-    pub fn move_jobs(&self, keys: &[JobKey], to: Place, now: Timestamp) -> Result<usize> {
+    /// Moves jobs to a place: the inbox (out of archive and trash; the time of the move is
+    /// kept for the age that archives old jobs), the archive (out of the trash too) or the
+    /// trash (the archive time stays for the way back). A job keeps the time it first went to
+    /// the archive. Returns the keys that really moved (a job already there or gone is not).
+    pub fn move_jobs(&self, keys: &[JobKey], to: Place, now: Timestamp) -> Result<Vec<JobKey>> {
         let (set, moved) = match to {
             Place::Inbox => (
-                "archived_at = NULL, trashed_at = NULL",
+                "archived_at = NULL, trashed_at = NULL, inbox_at = ?3",
                 "(archived_at IS NOT NULL OR trashed_at IS NOT NULL)",
             ),
             Place::Archive => (
@@ -115,33 +119,40 @@ impl Store {
             let mut stmt = conn.prepare(&format!(
                 "UPDATE job SET {set} WHERE portal = ?1 AND job_id = ?2 AND {moved}"
             ))?;
-            let mut count = 0;
+            let mut moved = Vec::new();
             for key in keys {
-                // The inbox needs no time.
-                count += if to == Place::Inbox {
-                    stmt.execute(params![key.portal.key(), key.id])?
-                } else {
-                    stmt.execute(params![key.portal.key(), key.id, to_db(now)])?
-                };
+                if stmt.execute(params![key.portal.key(), key.id, to_db(now)])? > 0
+                    && !moved.contains(key)
+                {
+                    moved.push(key.clone());
+                }
             }
-            if count > 0 {
+            if !moved.is_empty() {
                 bump(conn)?;
             }
-            Ok(count)
+            Ok(moved)
         })
     }
 
-    /// Marks every unread job of a place as read and returns their keys - the page can undo
-    /// it with [`Store::mark_unread`]. Reading exports nothing: no change counter.
-    pub fn mark_all_read(&self, place: Place, now: Timestamp) -> Result<Vec<JobKey>> {
+    /// Marks every unread job of a place as read - with a search only its hits, as the list
+    /// shows them - and returns their keys: the page can undo it with [`Store::mark_unread`].
+    /// Reading exports nothing: no change counter.
+    pub fn mark_all_read(
+        &self,
+        place: Place,
+        search: Option<&str>,
+        now: Timestamp,
+    ) -> Result<Vec<JobKey>> {
+        let pattern = super::jobs::like_pattern(search);
         self.write(|conn| {
             let keys = keys_where(
                 conn,
                 &format!(
-                    "dup_of IS NULL AND read_at IS NULL AND {}",
+                    "dup_of IS NULL AND read_at IS NULL AND {}
+                     AND (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')",
                     place_condition(place)
                 ),
-                [],
+                [pattern],
             )?;
             let mut mark = conn
                 .prepare_cached("UPDATE job SET read_at = ?3 WHERE portal = ?1 AND job_id = ?2")?;
@@ -168,14 +179,17 @@ impl Store {
         })
     }
 
-    /// Moves the inbox jobs first seen before `before` that are no favourite to the archive -
-    /// "old jobs archive themselves" at the end of a run; returns how many.
+    /// Moves the inbox jobs that are no favourite to the archive when they are older than
+    /// `before` - counted from their first sighting, or from when the user last moved them
+    /// into the inbox (her choice stands) - "old jobs archive themselves" at the end of a run;
+    /// returns how many.
     pub fn auto_archive(&self, before: Timestamp, now: Timestamp) -> Result<usize> {
         self.write(|conn| {
             let archived = conn.execute(
                 &format!(
                     "UPDATE job SET archived_at = ?2
-                     WHERE {INBOX} AND app_status IS NULL AND first_seen_at < ?1"
+                     WHERE {INBOX} AND app_status IS NULL
+                       AND COALESCE(inbox_at, first_seen_at) < ?1"
                 ),
                 params![to_db(before), to_db(now)],
             )?;
@@ -218,9 +232,13 @@ impl Store {
 
     /// Deletes jobs for good (with the duplicates that stand for them): their rows go, only a
     /// tombstone of each key stays, so a scan never imports them again from an old alert
-    /// mail. Returns how many rows went and the names of their text files (the caller
-    /// removes the files). The commands delete only from the trash ([`Store::in_trash`]).
-    pub fn delete_jobs(&self, keys: &[JobKey], now: Timestamp) -> Result<(usize, Vec<String>)> {
+    /// mail. Returns the keys of the rows that went and the names of their text files (the
+    /// caller removes the files). The commands delete only from the trash ([`Store::in_trash`]).
+    pub fn delete_jobs(
+        &self,
+        keys: &[JobKey],
+        now: Timestamp,
+    ) -> Result<(Vec<JobKey>, Vec<String>)> {
         self.write(|conn| {
             let mut doomed: Vec<(String, String)> = Vec::new();
             {
@@ -262,7 +280,11 @@ impl Store {
             if !doomed.is_empty() {
                 bump(conn)?;
             }
-            Ok((doomed.len(), names))
+            let gone = doomed
+                .into_iter()
+                .filter_map(|(portal, id)| Portal::from_key(&portal).map(|portal| JobKey { portal, id }))
+                .collect();
+            Ok((gone, names))
         })
     }
 
@@ -386,14 +408,20 @@ mod tests {
         let at = now();
         let later = at + jiff::SignedDuration::from_hours(1);
         assert_eq!(place(&store, &keys[0]), Place::Inbox);
-        assert_eq!(store.move_jobs(&keys, Place::Archive, at).unwrap(), 2);
-        assert_eq!(store.move_jobs(&keys, Place::Archive, later).unwrap(), 0);
+        assert_eq!(store.move_jobs(&keys, Place::Archive, at).unwrap(), keys);
+        assert!(
+            store
+                .move_jobs(&keys, Place::Archive, later)
+                .unwrap()
+                .is_empty(),
+            "only real moves come back"
+        );
         assert_eq!(store.job(&keys[0]).unwrap().unwrap().archived_at, Some(at));
         assert_eq!(
             store
                 .move_jobs(std::slice::from_ref(&keys[0]), Place::Trash, later)
                 .unwrap(),
-            1
+            [keys[0].clone()]
         );
         assert_eq!(place(&store, &keys[0]), Place::Trash);
         assert_eq!(place(&store, &keys[1]), Place::Archive);
@@ -402,7 +430,7 @@ mod tests {
             .move_jobs(std::slice::from_ref(&keys[0]), Place::Archive, later)
             .unwrap();
         assert_eq!(place(&store, &keys[0]), Place::Archive);
-        assert_eq!(store.move_jobs(&keys, Place::Inbox, later).unwrap(), 2);
+        assert_eq!(store.move_jobs(&keys, Place::Inbox, later).unwrap(), keys);
         assert_eq!(place(&store, &keys[0]), Place::Inbox);
         let job = store.job(&keys[0]).unwrap().unwrap();
         assert_eq!((job.archived_at, job.trashed_at), (None, None));
@@ -418,11 +446,23 @@ mod tests {
             .move_jobs(std::slice::from_ref(&keys[1]), Place::Archive, now())
             .unwrap();
         let rev = store.data_rev().unwrap();
-        let marked = store.mark_all_read(Place::Inbox, now()).unwrap();
+        // With a search only its hits: "Job 3" is unread in the inbox, "Job 4" stays unread.
+        let hits = store
+            .mark_all_read(Place::Inbox, Some("job 3"), now())
+            .unwrap();
+        assert_eq!(hits, [keys[2].clone()]);
+        assert!(store.job(&keys[3]).unwrap().unwrap().read_at.is_none());
+        store.mark_unread(&hits).unwrap();
+        let marked = store.mark_all_read(Place::Inbox, None, now()).unwrap();
         assert_eq!(marked, [keys[2].clone(), keys[3].clone()]);
         assert_eq!(store.data_rev().unwrap(), rev, "reading exports nothing");
         assert!(store.job(&keys[1]).unwrap().unwrap().read_at.is_none());
-        assert!(store.mark_all_read(Place::Inbox, now()).unwrap().is_empty());
+        assert!(
+            store
+                .mark_all_read(Place::Inbox, None, now())
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(store.mark_unread(&marked).unwrap(), 2);
         for key in &marked {
             assert!(store.job(key).unwrap().unwrap().read_at.is_none());
@@ -539,10 +579,13 @@ mod tests {
         assert_eq!(store.trashed_keys(None).unwrap(), [keys[0].clone()]);
         assert_eq!(store.in_trash(&keys).unwrap(), [keys[0].clone()]);
         let rev = store.data_rev().unwrap();
-        let (count, names) = store
+        let (gone, names) = store
             .delete_jobs(&store.trashed_keys(None).unwrap(), now())
             .unwrap();
-        assert_eq!((count, names), (1, vec!["a.txt".to_owned()]));
+        assert_eq!(
+            (gone, names),
+            (vec![keys[0].clone()], vec!["a.txt".to_owned()])
+        );
         assert!(
             store.data_rev().unwrap() > rev,
             "the Excel file loses the row"
@@ -564,7 +607,7 @@ mod tests {
             store
                 .delete_jobs(std::slice::from_ref(&keys[0]), now())
                 .unwrap(),
-            (0, Vec::new())
+            (Vec::new(), Vec::new())
         );
     }
 
@@ -611,6 +654,18 @@ mod tests {
         assert_eq!(place(&store, &keys[0]), Place::Archive);
         assert_eq!(place(&store, &keys[2]), Place::Trash);
         assert_eq!(store.auto_archive(before, now()).unwrap(), 0);
+        // Taken back into the inbox (from the archive or the trash): her choice stands, the
+        // age counts from the move.
+        store
+            .move_jobs(&[keys[0].clone(), keys[2].clone()], Place::Inbox, now())
+            .unwrap();
+        assert_eq!(store.auto_archive(before, now()).unwrap(), 0);
+        assert_eq!(place(&store, &keys[0]), Place::Inbox);
+        let later = now() + jiff::SignedDuration::from_hours(24 * 31);
+        let later_before = later - jiff::SignedDuration::from_hours(24 * 30);
+        // A month after the move the two go, with job 4 (young then, old now); the favourite stays.
+        assert_eq!(store.auto_archive(later_before, later).unwrap(), 3);
+        assert_eq!(place(&store, &keys[1]), Place::Inbox);
     }
 
     /// "Fits anyway" turns an excluded job into a scored one with its fit score; a rescore
@@ -669,7 +724,12 @@ mod tests {
             .key;
         let one = std::slice::from_ref(&other);
         assert!(!store.set_pinned(&other, true, now()).unwrap());
-        assert_eq!(store.move_jobs(one, Place::Trash, now()).unwrap(), 0);
+        assert!(
+            store
+                .move_jobs(one, Place::Trash, now())
+                .unwrap()
+                .is_empty()
+        );
         assert!(!store.set_override(&other, true).unwrap());
         assert_eq!(store.mark_unread(one).unwrap(), 0);
         assert!(store.in_trash(one).unwrap().is_empty());
