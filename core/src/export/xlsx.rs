@@ -3,7 +3,10 @@
 
 use std::path::Path;
 
-use rust_xlsxwriter::{Color, Format, FormatBorder, Workbook, Worksheet, XlsxError};
+use jiff::Timestamp;
+use rust_xlsxwriter::{
+    Color, Format, FormatBorder, FormatUnderline, Url, Workbook, Worksheet, XlsxError,
+};
 
 use super::Line;
 use super::scale::{SCORE_SCALE, score_step};
@@ -20,37 +23,61 @@ const MAX_CELL_CHARS: usize = 32_767;
 /// ... and at most this many links per sheet; above that, URLs stay text (otherwise Excel
 /// reports "unreadable content" and removes all links when repairing).
 const MAX_LINKS: usize = 65_530;
-/// Column widths in characters (order as in `COLUMNS`).
+/// Column widths in characters (order as in `COLUMNS`; a width `w` is `7 w + 5` px at 100 %).
+/// Every header keeps clear of its filter button (about 20 px with the cell's padding), with
+/// a few pixels to spare, measured in bold Calibri 11: "Datum der Alert-Mail" is 131 px and
+/// needs 22, "Alert email in Gmail" 121 px and 21, "Zuerst gesehen" 92 px and 17, "Passung"
+/// 49 px and 11. The longest value of the details column, "Keine Bewerbung mehr möglich",
+/// is 190 px and needs 28.
 const WIDTHS: [f64; 12] = [
-    15.0, 16.0, 50.0, 32.0, 22.0, 45.0, 40.0, 20.0, 16.0, 22.0, 24.0, 10.0,
+    15.0, 22.0, 50.0, 32.0, 22.0, 45.0, 40.0, 21.0, 17.0, 28.0, 24.0, 11.0,
 ];
 /// Grey of the header row and of excluded jobs.
 const HEADER_GREY: u32 = 0x00E7_E6E6;
 const EXCLUDED_GREY: u32 = 0x0080_8080;
 
 /// Writes the Excel file in the app's language. `info` are label/value pairs for the sheet
-/// "Info" (already in that language).
+/// "Info" (already in that language). The details column says the state at the moment of
+/// writing.
 pub fn write_xlsx(
     path: &Path,
     jobs: &[JobRow],
     info: &[(String, String)],
     language: Language,
 ) -> Result<()> {
+    write_xlsx_at(path, jobs, info, language, Timestamp::now())
+}
+
+/// [`write_xlsx`] as of `now`.
+fn write_xlsx_at(
+    path: &Path,
+    jobs: &[JobRow],
+    info: &[(String, String)],
+    language: Language,
+    now: Timestamp,
+) -> Result<()> {
     let texts = Texts::of(language);
     let mut workbook = Workbook::new();
-    jobs_sheet(workbook.add_worksheet(), jobs, texts)?;
+    jobs_sheet(workbook.add_worksheet(), jobs, texts, now)?;
     info_sheet(workbook.add_worksheet(), info, texts)?;
     let bytes = workbook.save_to_buffer()?;
     super::write_atomic(path, &bytes)
 }
 
-fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow], texts: &Texts) -> Result<(), XlsxError> {
+fn jobs_sheet(
+    sheet: &mut Worksheet,
+    jobs: &[JobRow],
+    texts: &Texts,
+    now: Timestamp,
+) -> Result<(), XlsxError> {
     sheet.set_name(texts.jobs_sheet)?;
     let header = Format::new()
         .set_bold()
         .set_background_color(Color::RGB(HEADER_GREY))
         .set_border_bottom(FormatBorder::Thin);
     let grey = Format::new().set_font_color(Color::RGB(EXCLUDED_GREY));
+    // A link of an excluded job stays a link, in the grey of its row.
+    let grey_link = grey.clone().set_underline(FormatUnderline::Single);
     let steps =
         SCORE_SCALE.map(|colour| Format::new().set_background_color(Color::RGB(colour.rgb())));
     let dates = [
@@ -63,7 +90,7 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow], texts: &Texts) -> Result<(
     }
     let mut links = 0;
     for (row, job) in (1u32..).zip(jobs) {
-        let line = Line::of(job, texts);
+        let line = Line::of(job, texts, now);
         // Excluded jobs stay in the list, grey, with their domain score.
         let excluded = job
             .match_
@@ -73,6 +100,7 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow], texts: &Texts) -> Result<(
             sheet.set_row_format(row, &grey)?;
         }
         let date = &dates[usize::from(excluded)];
+        let link_format = excluded.then_some(&grey_link);
         text(sheet, row, 0, line.source)?;
         if let Some(ts) = job.mail_date {
             sheet.write_datetime_with_format(row, 1, time::local(ts), date)?;
@@ -80,9 +108,9 @@ fn jobs_sheet(sheet: &mut Worksheet, jobs: &[JobRow], texts: &Texts) -> Result<(
         text(sheet, row, 2, &line.title)?;
         text(sheet, row, 3, &line.company)?;
         text(sheet, row, 4, &line.location)?;
-        link(sheet, row, 5, &line.url, &mut links)?;
+        link(sheet, row, 5, &line.url, link_format, &mut links)?;
         text(sheet, row, 6, &line.subject)?;
-        link(sheet, row, 7, &line.gmail_url, &mut links)?;
+        link(sheet, row, 7, &line.gmail_url, link_format, &mut links)?;
         sheet.write_datetime_with_format(row, 8, time::local(job.first_seen_at), date)?;
         text(sheet, row, 9, line.details)?;
         text(sheet, row, 10, &line.key)?;
@@ -117,21 +145,29 @@ fn text(sheet: &mut Worksheet, row: u32, col: u16, value: &str) -> Result<(), Xl
     Ok(())
 }
 
-/// Link as a clickable cell; what Excel does not take as a link (length, form, number)
-/// stays as text - the export never fails because of it.
+/// Link as a clickable cell, in Excel's link style or in `format`; what Excel does not take
+/// as a link (length, form, number) stays as text - the export never fails because of it.
 fn link(
     sheet: &mut Worksheet,
     row: u32,
     col: u16,
     url: &str,
+    format: Option<&Format>,
     links: &mut usize,
 ) -> Result<(), XlsxError> {
     if url.is_empty() {
         return Ok(());
     }
-    if *links < MAX_LINKS && sheet.write_url_with_text(row, col, url, url).is_ok() {
-        *links += 1;
-        return Ok(());
+    if *links < MAX_LINKS {
+        let link = Url::new(url).set_text(url);
+        let written = match format {
+            Some(format) => sheet.write_url_with_format(row, col, link, format),
+            None => sheet.write_url(row, col, link),
+        };
+        if written.is_ok() {
+            *links += 1;
+            return Ok(());
+        }
     }
     text(sheet, row, col, url)
 }
@@ -302,6 +338,167 @@ mod tests {
         let info = book.worksheet_range(en::INFO_SHEET).unwrap();
         assert_eq!(info.get((0, 0)).unwrap().to_string(), en::INFO_LAST_RUN);
         assert_eq!(info.get((1, 0)).unwrap().to_string(), en::INFO_NOTE_LABEL);
+    }
+
+    /// The details column says what the list's badge says, as of the moment of writing: a
+    /// job whose mail is older than the automatic fetch reaches waits for a request, a closed
+    /// ad takes no applications.
+    #[test]
+    fn the_details_column_speaks_like_the_list() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(super::super::XLSX_NAME);
+        let now: Timestamp = "2026-10-01T08:00:00Z".parse().unwrap();
+        let mut old = row(
+            "https://www.linkedin.com/jobs/view/4000000002/",
+            "Leitung Controlling",
+            DescStatus::Missing,
+        );
+        old.mail_date = Some("2026-08-20T07:05:00Z".parse().unwrap());
+        let mut closed = row(
+            "https://www.linkedin.com/jobs/view/4000000003/",
+            "Interim CFO",
+            DescStatus::Ok,
+        );
+        closed.desc_closed = true;
+        let jobs = [
+            row(
+                "https://www.linkedin.com/jobs/view/4000000001/",
+                "SAP-Berater",
+                DescStatus::Missing,
+            ),
+            old,
+            closed,
+        ];
+        for (language, words) in [
+            (
+                Language::De,
+                [
+                    "Details folgen",
+                    "Details auf Anfrage",
+                    "Keine Bewerbung mehr möglich",
+                ],
+            ),
+            (
+                Language::En,
+                [
+                    "Details to come",
+                    "Details on request",
+                    "No longer taking applications",
+                ],
+            ),
+        ] {
+            write_xlsx_at(&path, &jobs, &[], language, now).unwrap();
+            let mut book: Xlsx<_> = open_workbook(&path).unwrap();
+            let range = book
+                .worksheet_range(Texts::of(language).jobs_sheet)
+                .unwrap();
+            let details: Vec<String> = (1..=3)
+                .map(|row| range.get((row, 9)).unwrap().to_string())
+                .collect();
+            assert_eq!(details, words);
+        }
+    }
+
+    /// One part of an xlsx file (a zip written as a stream: the deflate data of a part ends
+    /// by itself, so its local header is enough).
+    fn part(xlsx: &[u8], name: &str) -> String {
+        use std::io::Read as _;
+        let mut at = 0;
+        while let Some(found) = xlsx[at..].windows(4).position(|w| w == b"PK\x03\x04") {
+            let head = &xlsx[at + found..];
+            if head.len() < 30 {
+                break;
+            }
+            let number = |i: usize| usize::from(u16::from_le_bytes([head[i], head[i + 1]]));
+            let (method, name_len, extra_len) = (number(8), number(26), number(28));
+            if head.get(30..30 + name_len) == Some(name.as_bytes()) {
+                assert_eq!(method, 8, "{name} is deflated");
+                let mut xml = String::new();
+                flate2::read::DeflateDecoder::new(&head[30 + name_len + extra_len..])
+                    .read_to_string(&mut xml)
+                    .unwrap();
+                return xml;
+            }
+            at += found + 4;
+        }
+        panic!("{name} missing")
+    }
+
+    /// The value of `attribute` in the first tag of `xml` that starts with `tag`.
+    fn attribute<'a>(xml: &'a str, tag: &str, attribute: &str) -> &'a str {
+        let open = &xml[xml.find(tag).unwrap_or_else(|| panic!("{tag}"))..];
+        let open = &open[..open.find('>').unwrap()];
+        let value = open
+            .split(&format!(" {attribute}=\""))
+            .nth(1)
+            .unwrap_or_else(|| panic!("{attribute} in {open}"));
+        &value[..value.find('"').unwrap()]
+    }
+
+    /// The font of a cell of the first sheet.
+    fn font_of(xlsx: &[u8], cell: &str) -> String {
+        let sheet = part(xlsx, "xl/worksheets/sheet1.xml");
+        let styles = part(xlsx, "xl/styles.xml");
+        let style: usize = attribute(&sheet, &format!("<c r=\"{cell}\""), "s")
+            .parse()
+            .unwrap();
+        let formats = &styles[styles.find("<cellXfs").unwrap()..];
+        let format = formats.split("<xf ").nth(style + 1).unwrap();
+        let font: usize = attribute(&format!("<xf {format}"), "<xf ", "fontId")
+            .parse()
+            .unwrap();
+        let fonts = &styles[styles.find("<fonts").unwrap()..styles.find("</fonts>").unwrap()];
+        fonts.split("<font>").nth(font + 1).unwrap().to_owned()
+    }
+
+    /// An excluded job's row is grey to its links: they stay links, underlined, but not in
+    /// Excel's blue.
+    #[test]
+    fn an_excluded_row_is_grey_to_its_links() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(super::super::XLSX_NAME);
+        let mut jobs = [
+            row(
+                "https://www.linkedin.com/jobs/view/4000000001/",
+                "Interim CFO",
+                DescStatus::Ok,
+            ),
+            row(
+                "https://www.linkedin.com/jobs/view/4000000002/",
+                "Leitung Controlling",
+                DescStatus::Ok,
+            ),
+        ];
+        let record = |status| crate::model::MatchRecord {
+            status,
+            score: 90,
+            note: None,
+            must_met: 0,
+            must_total: 0,
+            top: Vec::new(),
+            facts: crate::model::KeyFacts::default(),
+            rank: 0,
+        };
+        jobs[0].match_ = Some(record(MatchStatus::Scored));
+        jobs[1].match_ = Some(record(MatchStatus::Excluded));
+        write_xlsx(&path, &jobs, &[], Language::De).unwrap();
+        let xlsx = std::fs::read(&path).unwrap();
+        let grey = format!("{EXCLUDED_GREY:06X}");
+        for cell in ["F3", "H3"] {
+            let font = font_of(&xlsx, cell);
+            assert!(
+                font.contains(&grey) && font.contains("<u/>"),
+                "{cell}: {font}"
+            );
+        }
+        for cell in ["F2", "H2"] {
+            let font = font_of(&xlsx, cell);
+            assert!(
+                !font.contains(&grey) && font.contains("<u/>"),
+                "{cell}: {font}"
+            );
+        }
+        assert!(font_of(&xlsx, "C3").contains(&grey), "the row stays grey");
     }
 
     #[test]
