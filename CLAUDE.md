@@ -57,6 +57,8 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
 - `cargo fmt --all --check` · `cargo clippy --workspace --all-targets -- -D warnings` · `cargo test --workspace`
 - `npm ci` · `npm run check` (svelte-check, eslint, stylelint, prettier) · `npm run harness` · `npm run build`
 - `npx tauri build` (release bundles) · debug smoke: `target/debug/job-alert-monitor --dry-run --smoke --smoke-run`
+- The user reviews the UI himself: keep `tools/ui-preview.cmd` working (the UI with the stub's demo data in the browser,
+  every screen and button clickable without mails); after a UI change tell him to double-click it.
 - Engine changes: `cargo test -p jobalert-core --test matching_corpus -- --ignored report --nocapture` ·
   `cargo test -p jobalert-core --test matching_heldout -- --ignored heldout_report --nocapture`; every new
   `ENGINE_VERSION` gets its section in `docs/MATCHING.md`.
