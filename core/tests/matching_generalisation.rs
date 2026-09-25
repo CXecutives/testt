@@ -1,4 +1,4 @@
-//! Rules found on the unseen held-out sets 3 to 5, checked on invented ads: they must hold
+//! Rules found on the unseen held-out sets 3 to 6, checked on invented ads: they must hold
 //! for any ad and any profile, not for the ads they were found on.
 
 use jobalert_core::matching::{
@@ -292,4 +292,24 @@ fn every_years_minimum_below_the_target_decides() {
     );
     let senior = run(&finance(), "Head of Controlling (m/w/d)", text);
     assert_ne!(senior.verdict, Verdict::Excluded, "{:#?}", senior.reasons);
+}
+
+/// A teaser is judged like a full ad where its title names the field: an open field word
+/// of the title caps it like an open must on the title's topic.
+#[test]
+fn an_open_title_word_caps_a_teaser() {
+    let text = "Die Muster AG sucht ab sofort Unterstützung im Treasury und Controlling mit \
+                Konzernrechnungslegung nach IFRS sowie Salesforce …";
+    let job = JobInput {
+        title: "Treasury Manager Salesforce (m/w/d)",
+        company: "Muster AG",
+        location: "Köln, Deutschland",
+        portal: Portal::LinkedIn,
+        text,
+        facts: None,
+        posted: None,
+        kind: TextKind::Teaser,
+    };
+    let a = assess(&compile_profile(&finance()), &job, None).expect("assessed");
+    assert!(a.score <= 60, "{} {:#?}", a.score, a.reasons);
 }

@@ -1,0 +1,2664 @@
+{
+  "P1.json": {
+    "E01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS group reporting, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "treasury, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance PMI (thin), outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105 - 120 €/h\" = 960/day < 1100; \"Mindestens fünf Jahre\" below 10 without senior title",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of treasury, permanent, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial lead/controlling (thin), outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"85 - 95 €/h\" = 760/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 € pro Stunde\" = 760/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance M&A integration, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105,00 €/h\" = 840/day < 1100; \"Mindestens 5 Jahre\" below 10",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"ausschließlich im Rahmen der Arbeitnehmerüberlassung nach AÜG\" (anue excluded); \"82 €\" = 656/day",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Lissabon (Portugal)\" outside DE/AT/CH, remote outside not allowed; \"EUR 95 to 115 per hour\" = 920/day < 1100",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"bis zu 98 €/h\" = 784/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head hospital (thin), outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Amsterdam (Niederlande)\", onsite \"two days every other week\"; NL outside DE/AT/CH",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Im Rahmen der Arbeitnehmerüberlassung\" (anue excluded); \"1 bis 3 Jahre\" below 10",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"€650 to €750 per day\" = 750/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"110 €/h\" = 880/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "\"Head of HR Transformation\": HR operating model, shared services, works councils fit; permanent role, \"At least 10 years\" met",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim head of procurement, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "plant manager, permanent, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Stundensatz: 75 - 85 €\" = 680/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "data protection coordinator (thin), outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Tagessatz: 1.050 € pro Tag\" < 1100",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "sales director, permanent, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "junior buyer, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "\"HR-Transformation und Aufbau HR Shared Service Center\", \"Betriebsratsverhandlungen\": core fit; thin ad, rate open",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "operations trainee, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO (thin), outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO lead (thin), outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of group controlling, permanent, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"115 - 130 €/h\" = 1040/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"920 - 1.040 € pro Tag\" = 1040/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial director social sector, permanent, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"8+ Jahre Erfahrung\" below 10 with title \"Manager\" (no senior title)",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 - 110 € pro Stunde\" = 880/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance carve-out lead, outside HR; no hard criterion violated",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO fintech, permanent, outside HR; no hard criterion violated",
+      "quote": ""
+    }
+  },
+  "P2.json": {
+    "E01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS group reporting, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "treasury, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance PMI (thin), outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO consultant, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of treasury, permanent, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial lead/controlling (thin), outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"85 - 95 €/h\" = 760/day below min_tagessatz 850",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 € pro Stunde\" = 760/day below min_tagessatz 850",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance M&A integration, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105,00 €/h\" = 840/day below min_tagessatz 850",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "data engineering lead, out of field; Portugal but \"Fully remote\" allowed, 920/day >= 850",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"bis zu 98 €/h\" = 784/day below min_tagessatz 850",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head hospital (thin), outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP finance architecture, out of field; NL and \"EUR 1,150\" fine; payrolling only an option",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "junior data engineer, out of field; ANUe not excluded by this profile, no salary floor",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"€650 to €750 per day\" = 750/day below min_tagessatz 850",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP PM subproject lead, out of field; 880/day >= 850",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of HR transformation, permanent, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "interim head of procurement: category strategy, supplier risk, negotiations, S/4HANA Source-to-Pay fit; \"Verhandlungssicheres Deutsch\" open; 1150/day ok",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "plant manager, permanent, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Stundensatz: 75 - 85 €\" = 680/day below min_tagessatz 850",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "data protection coordinator (thin), outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim compliance manager, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "sales director, permanent, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "procurement field but \"Berufseinstieg\" junior buyer, far below level; no hard criterion for P2",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR shared services project lead (thin), outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "operations trainee, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO (thin), outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO lead (thin), outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of group controlling, permanent, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim head of accounting, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim head of accounting, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial director social sector, permanent, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Projektort: Zürich\", \"mind. 3 Tage pro Woche vor Ort\": CH outside NL/BE/DE",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Java developer, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance carve-out lead, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO fintech, permanent, outside procurement/supply chain; no hard criterion violated",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP PM consultant, out of procurement/supply chain field; \"82 € entspricht dem Bruttostundenlohn\" is employment pay and P2 sets no min_jahresgehalt, anue not excluded, DE allowed",
+      "quote": ""
+    }
+  },
+  "P4.json": {
+    "E01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS group reporting, outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO, outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "treasury, outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance PMI (thin), outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105 - 120 €/h\" = 960/day < 1050; \"Mindestens fünf Jahre\" below 8 years",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "permanent \"Unbefristete Festanstellung\" in Mannheim, not a permanent location; \"Bis zu zwei Tage Homeoffice\" below 60 % remote",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial lead/controlling (thin), outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"85 - 95 €/h\" = 760/day below min_tagessatz 1050",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 € pro Stunde\" = 760/day below min_tagessatz 1050",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance M&A integration, outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105,00 €/h\" = 840/day < 1050; \"Mindestens 5 Jahre\" below 8",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head, outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"ausschließlich im Rahmen der Arbeitnehmerüberlassung nach AÜG\" (anue excluded); \"82 €\" = 656/day",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Lissabon (Portugal)\" outside DE/CH; \"EUR 95 to 115 per hour\" = 920/day < 1050",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"bis zu 98 €/h\" = 784/day below min_tagessatz 1050",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head hospital (thin), outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Amsterdam (Niederlande)\" hybrid with onsite; NL outside DE/CH",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "ANUe; \"Stundenlohn 34,50 €\" x 2080 = 71,760 < 135,000; \"1 bis 3 Jahre\" below 8",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"€650 to €750 per day\" = 750/day below min_tagessatz 1050",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"110 €/h\" = 880/day below min_tagessatz 1050",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"target salary of 110,000 to 130,000 EUR\" < 135,000; Düsseldorf permanent, \"Up to 3 days mobile work\" no remote share",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim head of procurement, outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Jahreszielgehalt ab 95.000 €\" < 135,000; Holzminden, \"Mobiles Arbeiten ist in dieser Funktion nicht möglich\"",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"Stundensatz: 75 - 85 €\" = 680/day < 1050; \"Mindestens 2 Jahre\" below 8; GMP domain fits but junior",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"78.000 €/Jahr - 92.000 €/Jahr\" < 135,000; Mannheim hybrid outside permanent locations",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim compliance manager, outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "permanent \"in Festanstellung\" in Region Ingolstadt, outside permanent locations, no stated remote share",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"46.000 €/Jahr - 52.000 €/Jahr\" < 135,000; Reutlingen \"Vor Ort\" permanent",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR shared services project lead (thin), outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Einstiegsgehalt von 48.000 €\" < 135,000; Stade \"Vor Ort\" permanent",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO (thin), outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO lead (thin), outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"permanent, full-time position based at our headquarters in Nuremberg\", \"Up to two days of mobile work\" below 60 %",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"115 - 130 €/h\" = 1040/day below min_tagessatz 1050",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"920 - 1.040 € pro Tag\" = 1040/day below min_tagessatz 1050",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Die Position ist unbefristet zu besetzen\" in Kassel, outside permanent locations, only \"an einzelnen Tagen mobil\"",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "group accounting, out of field; CH allowed, CHF rate and \"Payrolling\" option only partial",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 - 110 € pro Stunde\" = 880/day below min_tagessatz 1050",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance carve-out lead, outside pharma QA; no hard criterion violated",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Permanent, full-time role\" in Berlin, outside permanent locations, hybrid only",
+      "quote": ""
+    }
+  },
+  "P5.json": {
+    "E01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS group reporting, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "treasury, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance PMI (thin), outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of treasury, permanent, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial lead/controlling (thin), outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"85 - 95 €/h\" = 760/day below min_tagessatz 1200",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 € pro Stunde\" = 760/day below min_tagessatz 1200",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance M&A integration, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"105,00 €/h\" = 840/day below min_tagessatz 1200",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim IT-Leiter: \"Langjährige Erfahrung als IT-Leiter oder CIO\", ERP S/4HANA, NIS2, IT budget, provider steering all in profile",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"EUR 95 to 115 per hour\" = 920/day < 1200; hands-on lakehouse lead, weak fit",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "PMO lead SAP S/4HANA fits Programmmanagement/ERP, but \"bis zu 98 €/h\" = 784/day < 1200",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"Day rate EUR 1,150\" < 1200; NL onsite \"two days every other week\" outside DE/AT/CH",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"ausschließlich eine Festanstellung im Rahmen der ANÜ\" (anue excluded)",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "interim cloud migration to AWS fits, but \"€650 to €750 per day\" < 1200",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"110 €/h\" = 880/day below min_tagessatz 1200",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of HR transformation, permanent, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Tagessatz: 1.150 € pro Tag\" < 1200",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "plant manager, permanent, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Stundensatz: 75 - 85 €\" = 680/day below min_tagessatz 1200",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "data protection coordinator (thin), outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Tagessatz: 1.050 € pro Tag\" < 1200",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "sales director, permanent, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "junior buyer, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR shared services project lead (thin), outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "operations trainee, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO (thin), outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP S/4HANA FI/CO lead is a functional finance role, weak for IT leadership; thin ad",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of group controlling, permanent, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"115 - 130 €/h\" = 1040/day below min_tagessatz 1200",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"920 - 1.040 € pro Tag\" = 1040/day below min_tagessatz 1200",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial director social sector, permanent, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "group accounting, out of field; CH allowed, CHF rate and payrolling option only partial",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 - 110 € pro Stunde\" = 880/day below min_tagessatz 1200",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO fintech, permanent, outside IT leadership; no hard criterion violated",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105 - 120 €/h\" = 960/day below min_tagessatz 1200; hands-on FI/CO customizing consultant, outside interim CIO field",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"ausschließlich im Rahmen der Arbeitnehmerüberlassung nach AÜG\" and profile excludes anue; SAP PM consultant, out of field",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "\"Interim IT-Leitung\" matches Schwerpunkt Interim IT-Management and wunschrolle; team lead and \"Informationssicherheit nach B3S\" fit; thin teaser, rate on request, DE",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Programme lead with workstreams and S/4HANA overlaps Programmmanagement/ERP-Einführung, but finance musts (15+ years finance, CFO, TSA, IFRS) open; no hard criterion violated",
+      "quote": ""
+    }
+  },
+  "P6.json": {
+    "E01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS group reporting, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "treasury, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance PMI (thin), outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO consultant, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of treasury, permanent, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial lead/controlling (thin), outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"85 - 95 €/h\" = 760/day below min_tagessatz 950",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 € pro Stunde\" = 760/day below min_tagessatz 950",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance M&A integration, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105,00 €/h\" = 840/day below min_tagessatz 950",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Lissabon (Portugal)\" outside DE/PL/CZ; 920/day < 950",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"bis zu 98 €/h\" = 784/day below min_tagessatz 950",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head hospital (thin), outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Amsterdam (Niederlande)\" outside DE/PL/CZ, hybrid onsite",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "junior data engineer, out of field; ANUe allowed by profile, no salary floor",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"€650 to €750 per day\" = 750/day below min_tagessatz 950",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"110 €/h\" = 880/day below min_tagessatz 950",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of HR transformation, permanent, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim head of procurement, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Werkleiter with OEE, Lean, IATF 16949, Kunststoff fits; permanent \"unbefristeter Festanstellung\", Spritzgießtechnik to check",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Stundensatz: 75 - 85 €\" = 680/day below min_tagessatz 950",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "data protection coordinator (thin), outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim compliance manager, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "sales director, permanent, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "junior buyer, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR shared services project lead (thin), outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO (thin), outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO lead (thin), outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of group controlling, permanent, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim head of accounting, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim head of accounting, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial director social sector, permanent, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Projektort: Zürich\": CH outside DE/PL/CZ",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 - 110 € pro Stunde\" = 880/day below min_tagessatz 950",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance carve-out lead, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO fintech, permanent, outside plant operations; no hard criterion violated",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP PM maintenance consultant, not plant/production leadership; ANÜ allowed, 82 € is gross hourly wage (employment pay) and P6 sets no min_jahresgehalt",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Production/operations field but \"Traineeprogramm\" for graduates, massively overqualified and permanent; P6 sets no salary, region or target-years key",
+      "quote": ""
+    }
+  },
+  "P7.json": {
+    "E01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS group reporting, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "treasury, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance PMI (thin), outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105 - 120 €/h\" = 960/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of treasury, permanent, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial lead/controlling (thin), outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"85 - 95 €/h\" = 760/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 € pro Stunde\" = 760/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance M&A integration, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105,00 €/h\" = 840/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"ausschließlich im Rahmen der Arbeitnehmerüberlassung nach AÜG\" (anue excluded); \"82 €\" = 656/day",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Lissabon (Portugal)\" outside DE/AT; 920/day < 1100",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"bis zu 98 €/h\" = 784/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim IT head hospital (thin), outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Amsterdam (Niederlande)\" outside DE/AT, hybrid onsite",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"ausschließlich eine Festanstellung im Rahmen der ANÜ\" (anue excluded)",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"€650 to €750 per day\" = 750/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"110 €/h\" = 880/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of HR transformation, permanent, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim head of procurement, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "plant manager, permanent, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Stundensatz: 75 - 85 €\" = 680/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Datenschutz at an insurer touches a Schwerpunkt, but coordinator level and permanent (\"78.000 €/Jahr - 92.000 €/Jahr\"); thin ad",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "core fit (CMS nach IDW PS 980, HinSchG, DSGVO, BaFin, Rhein-Main) but \"Tagessatz: 1.050 € pro Tag\" < 1100",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "sales director, permanent, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "junior buyer, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR shared services project lead (thin), outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "operations trainee, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "interim CFO (thin), outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO lead (thin), outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "head of group controlling, permanent, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"115 - 130 €/h\" = 1040/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"920 - 1.040 € pro Tag\" = 1040/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "commercial director social sector, permanent, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Projektort: Zürich\": CH outside DE/AT",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 - 110 € pro Stunde\" = 880/day below min_tagessatz 1100",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "finance carve-out lead, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO fintech, permanent, outside compliance/legal; no hard criterion violated",
+      "quote": ""
+    }
+  },
+  "P8.json": {
+    "E01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Konzernabschluss IFRS, out of sales/marketing field; rate 'nach Vereinbarung'",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, out of field",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury, out of field; '1.000 - 1.250 € pro Tag' meets minimum",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "PMI finance, out of field",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'105 - 120 €/h' = 960/day below 1000",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Permanent in Mannheim, 'Bis zu zwei Tage Homeoffice' below 60 % remote",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Kaufmännische Leitung/controlling, out of field",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'85 - 95 €/h' = 760/day below 1000",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 € pro Stunde' = 760/day below 1000",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance integration lead, out of field",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'105,00 €/h' = 840/day below 1000",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT-Leiter, out of field",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Employment 'befristete Anstellung' in Ludwigshafen, 'Remote-Anteil 40 %' below 60",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'EUR 95 to 115 per hour' = 920/day below 1000",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'bis zu 98 €/h' = 784/day below 1000",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim IT-Leitung hospital, out of field",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'onsite in Amsterdam two days every other week', NL outside DE/CH",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundenlohn 34,50 €' x 2080 = 71,760 below 140k",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'€650 to €750 per day' below 1000",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 €/h' = 880/day below 1000",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110,000 to 130,000 EUR' below 140k",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement lead, out of field; '1.150 € pro Tag' ok",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95.000 €' below 140k; Holzminden, 'Mobiles Arbeiten ... nicht möglich'",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'75 - 85 €' = 680/day below 1000",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'78.000 €/Jahr - 92.000 €/Jahr' below 140k",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance, out of field; '1.050 € pro Tag' ok",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Vertriebsleitung, KAM, 'Preisstrategie', Salesforce, Maschinenbau; 150k upper >= 140k; Ingolstadt in region",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'46.000 €/Jahr - 52.000 €/Jahr' below 140k",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR project lead, out of field",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'48.000 € brutto im Jahr' below 140k",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, out of field",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO lead, out of field",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Permanent in Nürnberg, 'Up to two days of mobile work' below 60 %",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting lead, out of field; '115 - 130 €/h' = 1040/day ok",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting lead, out of field; '920 - 1.040 €' upper meets 1000",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Permanent 'unbefristet' in Kassel, only 'an einzelnen Tagen mobil'",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting, out of field; CH allowed, CHF rate partial",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 - 110 € pro Stunde' = 880/day below 1000",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance carve-out, out of field",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "Permanent in Berlin (Hybrid), no remote share",
+      "quote": ""
+    }
+  },
+  "sample_profile.json": {
+    "E01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Konzernabschluss ... nach IFRS', Konsolidierung, LucaNet, interim; freiberuflich, rate open",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Liquidity planning, working capital, budget fit; 'Erfahrung als CFO' not in profile",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Only Liquiditätsplanung fits; cash pooling, TMS, FX not in profile",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Post Merger Integration Finance' matches PMI 6y, interim; thin ad",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'105 - 120 €/h' = 960/day below 1000",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Permanent Head of Treasury; only Liquiditätsplanung fits; no salary/region keys",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Controlling, Restrukturierung, Automotive, interim; teaser only",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'95 € pro Stunde' = 760/day below 1000",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "PMI, carve-out, IFRS consolidation fit; 'OneStream or SAP Group Reporting' open",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'105,00 €/h' = 840/day below 1000",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership, out of field",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'ausschließlich im Rahmen der Arbeitnehmerüberlassung'",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'EUR 95 to 115 per hour' = 920/day below 1000",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'bis zu 98 €/h' = 784/day below 1000",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership, out of field",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'onsite in Amsterdam', NL outside DE/AT/CH, not fully remote",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Im Rahmen der Arbeitnehmerüberlassung'",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'€650 to €750 per day' below 1000",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 €/h' = 880/day below 1000",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant manager, out of field",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'75 - 85 €' = 680/day below 1000",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Data protection, out of field; no salary key",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance, out of field",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales director, out of field",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior buyer, out of field",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'HR Shared Service Center' matches SSC 5y, but HR domain",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Trainee, out of field",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Restrukturierung, '13-Wochen-Liquiditätsplanung', interim; CFO experience not in profile",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Only SAP FI/CO tool overlaps; teaser",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Controlling, planning, forecast, IFRS, S/4, automotive; permanent, SAC and 5y leadership open",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Jahres-/Monatsabschlüsse, HGB/IFRS, SAP FI, interim; 1040/day >= 1000",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "HGB/IFRS closing, SAP FI S/4, interim; upper 1040 >= 1000",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Permanent commercial lead in social sector; 'Interim ist nicht vorgesehen'",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "IFRS consolidation, LucaNet alternative fit; Swiss GAAP FER open; payrolling only an option",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 - 110 € pro Stunde' = 880/day below 1000",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Carve-out, PMI, IFRS consolidation fit; 'Erfahrung als CFO' missing",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Permanent CFO FinTech, 'Interim ... not an option'",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"85 - 95 €/h\" = 760/day below 1000; Power BI developer role, outside finance interim field",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Permanent HR transformation, outside finance field (only SSC and change management overlap); profile sets no salary or region keys",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim Head of Procurement: procurement leadership, category strategies, supplier negotiations, SAP MM not in finance profile; 1150/day passes",
+      "quote": ""
+    }
+  },
+  "sample_profile_it.json": {
+    "E01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group reporting lead, not SAP project management",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, out of field",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury manager, out of field",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance PMI, out of field",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "960/day meets 950; must 'fünf Jahre ... SAP FI/CO Berater' not met; start 'ab sofort' before availability",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury, out of field",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Commercial lead, out of field",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'85 - 95 €/h' = 760/day below 950",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 € pro Stunde' = 760/day below 950",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance integration, out of field",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'105,00 €/h' = 840/day below 950",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 ERP selection fits; 'Erfahrung als IT-Leiter oder CIO' missing; start 01.10 before availability",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'ausschließlich im Rahmen der Arbeitnehmerüberlassung'",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "920/day below 950; Lisbon, Portugal outside DE/AT",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "IT leadership in hospitals, only project side overlaps; teaser",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Amsterdam (NL) outside DE/AT",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Im Rahmen der Arbeitnehmerüberlassung'",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'€650 to €750 per day' below 950; Spain",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'110 €/h' = 880/day below 950; 'Mindestens 8 Jahre ... SAP PM' open",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR transformation, out of field",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'SAP MM' and Source-to-Pay fit; 'Führungserfahrung im Einkauf' missing",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant manager, out of field",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'75 - 85 €' = 680/day below 950",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Data protection, out of field",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance, out of field",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales director, out of field",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior buyer, out of field",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR transformation, out of field",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Trainee, out of field",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, out of field",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 rollout overlaps, but FI/CO functional lead",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group controlling, out of field",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting lead, out of field",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting lead, out of field",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Commercial lead, out of field",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Projektort: Zürich', CH outside DE/AT",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 - 110 € pro Stunde' = 880/day below 950",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance carve-out, out of field",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO, out of field",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "\"bis zu 98 €/h\" = 784/day below tagessatz_ab 950; SAP programme PMO fits Programmmanagement, SAP-Projektleitung, Jira, SAFe, but Power BI must open (cap 6)",
+      "quote": ""
+    }
+  },
+  "sample_profile_sap.json": {
+    "E01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Accounting lead role; only 'alternativ SAP BCS' touches SAP Group Reporting",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, not SAP FI/CO consulting",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury operations, 'SAP TRM' not in profile",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance PMI, not SAP consulting",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "FI/CO S/4 conversion, CO-PA, migration, 'Mindestens fünf Jahre' meets 5; 960/day >= 950",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury, out of field; '145.000 €' above 95k, 8 years >= 5",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Commercial lead, not SAP consulting",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'85 - 95 €/h' = 760/day below 950",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 € pro Stunde' = 760/day below 950",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Only SAP Group Reporting overlaps; finance lead role",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Core FI/CO S/4 fit but '105,00 €/h' = 840/day below 950",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership, out of field",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'ausschließlich im Rahmen der Arbeitnehmerüberlassung'; 'Mindestens 3 Jahre' below 5",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "920/day below 950; Portugal outside DE/AT/CH",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'bis zu 98 €/h' = 784/day below 950",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership, out of field",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Central Finance/Group Reporting fit, but 'onsite in Amsterdam', NL outside DE/AT/CH",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "ANÜ; '1 bis 3 Jahre' below 5; 71,760 below 95k",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'€650 to €750 per day' below 950",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 €/h' = 880/day below 950",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR, out of field; 130k above 95k, 10 years >= 5",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement lead, out of field",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant manager, out of field; 'ab 95.000 €' not below 95k",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "680/day below 950; 'Mindestens 2 Jahre' below 5",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'92.000 €/Jahr' below 95k",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance, out of field",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales director, out of field; 150k, 10 years ok",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'52.000 €/Jahr' below 95k",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR transformation, out of field",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'48.000 € brutto im Jahr' below 95k",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, out of field",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'FI/CO Lead für den Greenfield-Rollout von SAP S/4HANA' is core; teaser",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP CO knowledge only; leadership controlling role",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP FI and closing support fit; 'Führungserfahrung in der Finanzbuchhaltung' missing",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP FI S/4 fits; accounting team leadership missing",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Commercial lead, out of field; no salary stated",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP Group Reporting overlaps; accounting role; 8+ years >= 5",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 - 110 € pro Stunde' = 880/day below 950",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CFO, out of field",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance carve-out programme lead needing CFO, TSA, IFRS experience; only S/4HANA finance introduction overlaps; \"15+ Jahre\" meets 5",
+      "quote": ""
+    }
+  },
+  "sample_profile_senior.json": {
+    "E01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Leitung Konzernrechnungswesen', IFRS, Konsolidierung, LucaNet, interim, WP background wished",
+      "quote": ""
+    },
+    "E02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim CFO', PE, 13-week liquidity, WC, Maschinenbau; 'Tagessatz'",
+      "quote": ""
+    },
+    "E03": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Treasury, Cash Management, Liquiditätsplanung fit; TMS 'Kyriba ... SAP TRM' open",
+      "quote": ""
+    },
+    "E06": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "'125.000 bis 145.000 €' below 150k; Mannheim outside region",
+      "quote": ""
+    },
+    "E07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Restrukturierung', Liquiditätssteuerung, Sanierungscontrolling, Automobilzulieferer; teaser",
+      "quote": ""
+    },
+    "E08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'85 - 95 €/h' = 760/day below 1000",
+      "quote": ""
+    },
+    "E09": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'95 € pro Stunde' = 760/day below 1000",
+      "quote": ""
+    },
+    "E10": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'several M&A integrations or carve-outs', IFRS, 'At least ten years' meets 10; contract",
+      "quote": ""
+    },
+    "F02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership, out of field",
+      "quote": ""
+    },
+    "F03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'ausschließlich im Rahmen der Arbeitnehmerüberlassung'",
+      "quote": ""
+    },
+    "F04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'EUR 95 to 115 per hour' = 920/day below 1000",
+      "quote": ""
+    },
+    "F06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership, out of field",
+      "quote": ""
+    },
+    "F07": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "'onsite in Amsterdam', NL outside DE/AT/CH",
+      "quote": ""
+    },
+    "F08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Im Rahmen der Arbeitnehmerüberlassung'",
+      "quote": ""
+    },
+    "F09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'€650 to €750 per day' below 1000",
+      "quote": ""
+    },
+    "F10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 €/h' = 880/day below 1000",
+      "quote": ""
+    },
+    "G03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95.000 €' below 150k; Holzminden, no mobile work",
+      "quote": ""
+    },
+    "G04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'75 - 85 €' = 680/day below 1000",
+      "quote": ""
+    },
+    "G05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'92.000 €/Jahr' below 150k",
+      "quote": ""
+    },
+    "G06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Compliance, out of field",
+      "quote": ""
+    },
+    "G07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Sales director, out of field; 150k meets, Ingolstadt in region",
+      "quote": ""
+    },
+    "G08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'52.000 €/Jahr' below 150k",
+      "quote": ""
+    },
+    "G09": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SSC and programme management overlap; HR domain",
+      "quote": ""
+    },
+    "G10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'48.000 € brutto im Jahr' below 150k",
+      "quote": ""
+    },
+    "H01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim CFO mit Restrukturierungserfahrung', PE, Sondermaschinenbau, refinancing",
+      "quote": ""
+    },
+    "H04": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Jahresabschluss 2026 nach HGB', IFRS package, team lead, SAP FI; 1040/day ok",
+      "quote": ""
+    },
+    "H05": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Jahresabschluss 2026 nach HGB', IFRS, FiBu lead; upper 1040 >= 1000",
+      "quote": ""
+    },
+    "H06": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Permanent 'unbefristet' in Kassel, only 'an einzelnen Tagen mobil'",
+      "quote": ""
+    },
+    "H07": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "'8+ Jahre Erfahrung' below 10 without senior title (Manager)",
+      "quote": ""
+    },
+    "H08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 - 110 € pro Stunde' = 880/day below 1000",
+      "quote": ""
+    },
+    "H09": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Carve-out, CFO, IFRS, PE, '15+ Jahre' >= 10; freiberuflich",
+      "quote": ""
+    },
+    "H10": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "'Permanent' role in Berlin (Hybrid), outside region, no remote share",
+      "quote": ""
+    },
+    "E04": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "\"Interim Manager Post Merger Integration Finance\" is core: interim, PMI 12y, finance transformation; thin teaser only",
+      "quote": ""
+    },
+    "E05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105 - 120 €/h\" = 960/day below 1000; \"Mindestens fünf Jahre\" below 10 without senior title; SAP customizing consultant, outside CFO field",
+      "quote": ""
+    },
+    "F01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"105,00 €/h\" = 840/day below 1000; \"Mindestens 5 Jahre\" below 10 without senior title; SAP FI/CO consultant, out of field",
+      "quote": ""
+    },
+    "F05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"bis zu 98 €/h\" = 784/day below 1000; PMO for SAP programme only adjacent (Programmmanagement, budget, forecast, Power BI), SAP PMO and Jira open",
+      "quote": ""
+    },
+    "G01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"110,000 to 130,000 EUR\" below 150000; Düsseldorf outside festanstellung_orte and \"Up to 3 days mobile work\" proves no remote share; HR out of field",
+      "quote": ""
+    },
+    "G02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement leadership role outside finance field; only interim experience overlaps; 1150/day passes",
+      "quote": ""
+    },
+    "H02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP FI/CO consulting lead for Greenfield rollout, outside interim CFO field; thin teaser, no hard criterion quoted",
+      "quote": ""
+    },
+    "H03": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Strong controlling content, but \"permanent, full-time position based at our headquarters in Nuremberg\" outside festanstellung_orte, \"Up to two days of mobile work\" no remote share; permanent second category",
+      "quote": ""
+    }
+  }
+}

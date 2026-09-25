@@ -70,8 +70,10 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
     // A sentence that denies a contract form gives no contract signal.
     let denied = |f: &str| any(f, lex::CONTRACT_DENIED);
     let interim_at = |f: &str| !denied(f) && (any(f, lex::INTERIM_CUES) || rate_in(f).is_some());
-    // A denied or merely possible later permanent position is no statement of one.
+    // A denied or merely possible later permanent position is no statement of one; a comma
+    // between the words is none (`permanent, full-time`).
     let stated_at = |f: &str| {
+        let f = &f.replace(", ", " ");
         (any(f, lex::PERMANENT_WORDS) || any(f, lex::PERMANENT_STATED))
             && !any(f, lex::PERMANENT_NEGATED)
             && !any(f, lex::PERMANENT_OPTION)
@@ -122,9 +124,10 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
         return contract(ContractKind::Permanent, false, spans_of(&stated_at));
     }
     // A student or trainee role (`Werkstudent`, `Praktikum`) is employment, whatever the
-    // hourly wage suggests; inferred from the title, so region and salary are checks.
+    // hourly wage suggests; inferred from the title, so region and salary are checks, unless
+    // the ad states it (`Unbefristeter Vertrag`).
     if student {
-        return contract(ContractKind::Permanent, true, spans_of(&stated_at));
+        return contract(ContractKind::Permanent, !stated, spans_of(&stated_at));
     }
     match (stated, interim) {
         (true, true) => contract(ContractKind::Unclear, false, spans_of(&stated_at)),
@@ -300,6 +303,24 @@ mod tests {
             fm,
         );
         assert_eq!((option.kind, option.stated_permanent), (Interim, false));
+        // A comma between the words still states the role; denied interim wording is none.
+        let stated = infer_text(
+            "Head of Group Controlling",
+            "This is a permanent, full-time position. We do not consider freelance, interim or \
+             temporary agency arrangements for this role.",
+            li,
+        );
+        assert_eq!((stated.kind, stated.inferred), (Permanent, false));
+        // A trainee role is inferred employment unless the ad states it.
+        let trainee = |text| {
+            let c = infer_text("Trainee Operations Management (m/w/d)", text, li);
+            (c.kind, c.inferred)
+        };
+        assert_eq!(trainee("Ein spannendes Programm."), (Permanent, true));
+        assert_eq!(
+            trainee("Unbefristeter Vertrag ab dem ersten Tag."),
+            (Permanent, false)
+        );
         // The contract field decides over a rate label and interim wording elsewhere.
         assert_eq!(
             kind(

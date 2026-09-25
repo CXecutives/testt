@@ -59,8 +59,11 @@ use params::FOCUS_MAX;
 /// language is a light fit, the relevance query holds the field, portal tags and rate lines
 /// are no requirements, an industry is no function, leadership or generic words alone name
 /// no field, entry-level musts, leading titles, salary chips and bonus shares, every years
-/// minimum is the target).
-pub const ENGINE_VERSION: u32 = 9;
+/// minimum is the target). 10: bugs of the unseen held-out set 6 (the country of the on-site
+/// clause, particle words are no `Führung`, shared objects of split lines, stated permanent
+/// roles with a comma and denied interim wording, the linking `s` of compounds, teaser terms
+/// cap and count half through another field's compound).
+pub const ENGINE_VERSION: u32 = 10;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.

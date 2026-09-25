@@ -28,7 +28,7 @@ use sha2::Digest as _;
 
 /// SHA-256 (16 hex) over every profile x job result of the corpus. Update it only together
 /// with `ENGINE_VERSION` and the before/after table in `docs/MATCHING.md`.
-const GOLDEN_DIGEST: &str = "ce5a6acd2be2f2d9";
+const GOLDEN_DIGEST: &str = "6e4d9945276f410c";
 
 /// SHA-256 (16 hex) over the results of the four profiles without the version-4 keys
 /// (`schwerpunkte`, `wunschrollen`, the wishes in `einsatzpraeferenzen`; the IT profile's
@@ -37,7 +37,7 @@ const GOLDEN_DIGEST: &str = "ce5a6acd2be2f2d9";
 /// the line `engine 3` in front these rows gave its golden digest `df1d52ce75759f41`):
 /// without their keys the new inputs change nothing. The held-out fixes of version 4 move
 /// these rows on purpose; each such change updates this value (`docs/MATCHING.md`).
-const V3_ROWS_DIGEST: &str = "37eb61e788ede4b7";
+const V3_ROWS_DIGEST: &str = "e7318b06cb4932ed";
 
 /// The profiles of `V3_ROWS_DIGEST` and the jobs it covers.
 const V3_PROFILES: &[&str] = &["fin", "it", "senior", "sap"];

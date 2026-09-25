@@ -1,4 +1,4 @@
-//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout5`):
+//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout6`):
 //! invented ads with blind labels (grade 0-3, excluded) written by independent agents for
 //! profiles the engine was not tuned on at the time. Both sets were later used to find and
 //! fix systematic gaps, so they are regression gates now, not an unseen measurement.
@@ -178,6 +178,17 @@ const HELDOUT3: Floor = Floor {
     exclusion_recall: 1.0,
     grade3_buried: 0,
 };
+/// Open decision (the ANÜ wage policy): an hourly wage of temporary agency work
+/// (`82 € entspricht dem Bruttostundenlohn`) is read as a day rate x 8, so F03 is excluded
+/// for two profiles by the day rate; the labels read it as employment pay (no rate, and a
+/// salary per year only for F08). The engine keeps its reading until that is decided.
+const HELDOUT6: Floor = Floor {
+    ndcg10: 0.90,
+    spearman: 0.50,
+    exclusion_precision: 0.98,
+    exclusion_recall: 0.99,
+    grade3_buried: 0,
+};
 /// Set 5 excludes C10 (a student job) for two profiles by its hourly wage per year, the
 /// rule of set 3 (T04); the set-5 labels read a student wage as no salary. The labels of the
 /// two sets disagree, the engine keeps the set-3 rule, so the precision floor is below 1.
@@ -269,8 +280,15 @@ fn heldout5_holds_its_gates() {
     check("heldout5", &HELDOUT5);
 }
 
+#[test]
+fn heldout6_holds_its_gates() {
+    check("heldout6", &HELDOUT6);
+}
+
 /// Every held-out set.
-const SETS: [&str; 5] = ["heldout1", "heldout2", "heldout3", "heldout4", "heldout5"];
+const SETS: [&str; 6] = [
+    "heldout1", "heldout2", "heldout3", "heldout4", "heldout5", "heldout6",
+];
 
 /// Prints both sets' tables and misses (`-- --ignored heldout_report --nocapture`).
 #[test]

@@ -38,7 +38,17 @@ pub(crate) struct Vocab {
     concepts: Vec<(Vec<String>, String)>,
     /// Indices into `concepts` by the first stem of the key, in `concepts` order.
     by_first: HashMap<String, Vec<usize>>,
+    /// One-word keys by their form without a linking `s` (`werkleit` for `werksleit`).
+    by_linking_s: HashMap<String, Vec<usize>>,
     packs: Vec<&'static str>,
+}
+
+/// The forms of a compound stem without one linking `s`: an `s` after four letters or more
+/// and before three or more (`werksleit` -> `werkleit`).
+fn without_linking_s(word: &str) -> impl Iterator<Item = String> + '_ {
+    word.char_indices()
+        .filter(move |&(at, c)| c == 's' && at >= 4 && word.len() - at > 3)
+        .map(move |(at, _)| format!("{}{}", &word[..at], &word[at + 1..]))
 }
 
 impl Vocab {
@@ -55,9 +65,18 @@ impl Vocab {
                 by_first.entry(first.clone()).or_default().push(index);
             }
         }
+        let mut by_linking_s: HashMap<String, Vec<usize>> = HashMap::new();
+        for (index, (key, _)) in concepts.iter().enumerate() {
+            if let [only] = key.as_slice() {
+                for form in without_linking_s(only).filter(|f| !by_first.contains_key(f)) {
+                    by_linking_s.entry(form).or_default().push(index);
+                }
+            }
+        }
         Self {
             concepts,
             by_first,
+            by_linking_s,
             packs: packs.iter().map(|d| d.name).collect(),
         }
     }
@@ -98,13 +117,41 @@ impl Vocab {
         &self.packs
     }
 
-    /// The longest concept whose key starts at `at` (the first in `concepts` order).
+    /// The longest concept whose key starts at `at` (the first in `concepts` order); a
+    /// one-word key also with or without its linking `s` (`Werkleiter` for `Werksleiter`).
     fn concept_at(&self, stems: &[String], at: usize) -> Option<(usize, String)> {
-        let candidates = self.by_first.get(stems.get(at)?)?;
+        let stem = stems.get(at)?;
+        let Some(candidates) = self.by_first.get(stem) else {
+            return self.linking_s_concept(stem).map(|value| (1, value));
+        };
         candidates.iter().find_map(|&index| {
             let (key, value) = &self.concepts[index];
             let end = at + key.len();
             (end <= stems.len() && stems[at..end] == key[..]).then(|| (key.len(), value.clone()))
+        })
+    }
+
+    /// The value of a one-word key that differs from `stem` by a linking `s` (a compound
+    /// has eight letters or more).
+    fn linking_s_concept(&self, stem: &str) -> Option<String> {
+        if stem.len() < 8 {
+            return None;
+        }
+        let one_word = |index: &usize| {
+            let (key, value) = &self.concepts[*index];
+            (key.len() == 1).then(|| value.clone())
+        };
+        if let Some(found) = self
+            .by_linking_s
+            .get(stem)
+            .and_then(|c| c.iter().find_map(one_word))
+        {
+            return Some(found);
+        }
+        without_linking_s(stem).find_map(|form| {
+            self.by_first
+                .get(&form)
+                .and_then(|c| c.iter().find_map(one_word))
         })
     }
 }
@@ -405,6 +452,26 @@ pub(crate) fn fit(job: &str, profile: &str) -> Fit {
     Fit::None
 }
 
+/// The same compound with and without the linking `s` (`Werksleiter`, `Werkleiter`): one
+/// atom is the other with an `s` after a modifier of four letters or more and before a head
+/// of three or more (`Leistung` is no `Leitung`).
+fn linking_s(a: &str, b: &str) -> bool {
+    let (long, short) = match a.len().checked_sub(b.len()) {
+        Some(1) => (a, b),
+        _ if b.len().checked_sub(a.len()) == Some(1) => (b, a),
+        _ => return false,
+    };
+    let at = long
+        .bytes()
+        .zip(short.bytes())
+        .position(|(x, y)| x != y)
+        .unwrap_or(short.len());
+    at >= 4
+        && short.len() - at >= 3
+        && long.as_bytes().get(at) == Some(&b's')
+        && long.get(at + 1..) == short.get(at..)
+}
+
 fn fit_direct(job: &str, profile: &str) -> Fit {
     if job == profile {
         return Fit::Equal;
@@ -419,13 +486,26 @@ fn fit_direct(job: &str, profile: &str) -> Fit {
     // A compound needs a real modifier: `h` + `erstellung` is `Herstellung`, no compound.
     // `IT-Carve-out` narrows `Carve-out` (a hyphen marks the compound); `Einführung` is no
     // `Führung` (a verbal particle is no modifier).
-    let modifier_ok = |m: &str| {
+    // The modifier next to the head is the last part of a hyphenated one (`HRIS-Ein` of
+    // `HRIS-Einführung` is `ein`); a head that particles bind to (`Führung`) takes no
+    // modifier ending in a particle (`Markteinführung` is an `Einführung`).
+    let modifier_ok = |m: &str, head: &str| {
         let bare = m.trim_end_matches('-');
+        let last = bare.rsplit('-').next().unwrap_or(bare);
+        let particle_verb = lex::PARTICLE_HEADS.iter().any(|h| head.starts_with(h))
+            && lex::PARTICLE_MODIFIERS.iter().any(|p| last.ends_with(p));
         (m.ends_with('-') || bare.len() >= lex::MIN_COMPOUND_MODIFIER)
-            && !lex::PARTICLE_MODIFIERS.contains(&bare)
+            && !lex::PARTICLE_MODIFIERS.contains(&last)
+            && !particle_verb
     };
+    if linking_s(job, profile) {
+        return Fit::Equal;
+    }
     if profile.len() >= 5 {
-        if let Some(modifier) = job.strip_suffix(profile).filter(|m| modifier_ok(m)) {
+        if let Some(modifier) = job
+            .strip_suffix(profile)
+            .filter(|m| modifier_ok(m, profile))
+        {
             return if light(modifier, lex::LIGHT_MODIFIERS) {
                 Fit::Equal
             } else {
@@ -444,7 +524,7 @@ fn fit_direct(job: &str, profile: &str) -> Fit {
         // `cash` is not the head of `Order-to-Cash`: a short atom never ends a hyphenated
         // name.
         if let Some(modifier) = profile.strip_suffix(job)
-            && modifier_ok(modifier)
+            && modifier_ok(modifier, job)
             && !(modifier.ends_with('-') && job.len() < 5)
         {
             return Fit::Specific;
@@ -616,6 +696,17 @@ mod tests {
         assert_eq!(fit(&a("Führung"), &a("Einführung")), Fit::None);
         assert_eq!(fit(&a("Führung"), &a("Durchführung")), Fit::None);
         assert_eq!(fit(&a("Führung"), &a("Buchführung")), Fit::None);
+        // `Führung` is never met inside a word with a particle, also after a hyphen or a
+        // modifier (`HRIS-Einführung`, `Markteinführung`); a real modifier stays a compound.
+        assert_eq!(fit(&a("Führung"), &a("HRIS-Einführung")), Fit::None);
+        assert_eq!(fit(&a("Führung"), &a("Markteinführung")), Fit::None);
+        assert_eq!(fit(&a("Führung"), &a("Ausführung")), Fit::None);
+        assert_eq!(fit(&a("HRIS-Einführung"), &a("Führung")), Fit::None);
+        assert_eq!(fit(&a("Führung"), &a("Teamführung")), Fit::Specific);
+        // The linking `s` of a compound changes nothing (`Leistung` is no `Leitung`).
+        assert_eq!(fit(&a("Werksleiter"), &a("Werkleiter")), Fit::Equal);
+        assert_eq!(fit(&a("Werkleiter"), &a("Werksleiter")), Fit::Equal);
+        assert_eq!(fit(&a("Leistung"), &a("Leitung")), Fit::None);
         assert_eq!(all("Konzernrechnung"), all("Konzernrechnungslegung"));
         // `Unternehmen` and `Partner` are too broad to meet anything alone.
         assert!(is_generic(&a("Unternehmen")));

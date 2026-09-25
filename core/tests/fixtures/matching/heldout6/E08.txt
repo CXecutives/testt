@@ -1,0 +1,75 @@
+Titel: Power BI Developer Finance Reporting und Controlling Dashboards (m/w/d)
+Unternehmen: Nordquist Data Consulting GmbH
+Ort: Remote
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/projekt/power-bi-developer-finance-reporting-und-controlling-dashboards-m-w-d-2898154
+Abgerufen am: 24.09.2026 07:33
+
+Projektdetails
+Start
+10.2026
+Dauer
+4 Monate
+Von
+Nordquist Data Consulting GmbH
+Eingestellt
+23.09.2026
+Projekt-ID
+2898154
+Branche
+Handel
+Vertragsart
+Freiberuflich
+Einsatzart
+100 % Remote
+Stundensatz
+85 - 95 €/h
+
+Beschreibung
+Für einen Kunden aus dem Lebensmitteleinzelhandel bauen wir die Finanzberichterstattung von Excel auf Power BI um. Das Controlling soll künftig Monatsreporting, Forecast und Filialergebnisrechnung aus einem zentralen Datenmodell beziehen. Wir suchen dafür einen erfahrenen Power BI Entwickler (m/w/d).
+
+Deine Aufgaben
+- Entwicklung eines Datenmodells für GuV, Bilanz, Kostenstellen und Deckungsbeitragsrechnung auf Basis von SAP S/4HANA Daten
+- Umsetzung der Dashboards für das Management Reporting (Plan, Ist, Forecast, Vorjahr) inklusive Drill-down bis auf Filialebene
+- Anbindung der Datenquellen über Azure Data Factory und Databricks, Aufbau der Silver und Gold Layer
+- Performance-Optimierung von DAX Measures und Implementierung von Row Level Security
+- Enge Abstimmung mit den Fachbereichen Controlling und Rechnungswesen, Durchführung von Anwender-Schulungen
+
+Dein Profil
+- Mehrjährige Projekterfahrung mit Power BI (DAX, Power Query, Tabular Editor)
+- Sehr gute SQL Kenntnisse, Erfahrung mit Azure Data Platform
+- Erfahrung mit Finanzdaten und Kennzahlen (EBITDA, Deckungsbeitrag, Working Capital) von Vorteil
+- Kenntnisse der SAP FI/CO Datenstrukturen (ACDOCA) wünschenswert
+- Deutsch fließend
+
+Die Zusammenarbeit erfolgt vollständig remote, ein Kick-off in Hamburg ist geplant.
+
+Schlagworte
+Power BI
+DAX
+Power Query
+SQL
+Azure Data Factory
+Databricks
+Reporting
+Controlling
+Data Modeling
+
+Jetzt bewerben
+Projekt merken
+Projekt teilen
+
+Anbieter
+Nordquist Data Consulting GmbH
+Beratung für Data und Analytics
+41 veröffentlichte Projekte
+Firmenprofil ansehen
+
+Ähnliche Projekte
+Power BI Consultant Vertriebsreporting (m/w/d)
+Remote · ab sofort
+Data Engineer Databricks (m/w/d)
+Berlin · 6 Monate
+SAP Analytics Cloud Entwickler Planung (m/w/d)
+Remote · 11.2026
+Mehr Projekte anzeigen

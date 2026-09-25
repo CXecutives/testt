@@ -231,12 +231,16 @@ fn cap(
         matches!(atoms::fit(a, t), Fit::Equal | Fit::Specific)
             || matches!(atoms::fit(t, a), Fit::Equal | Fit::Specific)
     };
-    let core_open = skills.iter().any(|s| {
-        s.fit.value == E_NONE
-            && atoms::atoms(&s.item.text, vocab)
-                .iter()
-                .any(|a| !atoms::is_generic(a) && title_atoms.iter().any(|t| related(a, t)))
-    });
+    // A teaser's term from the title counts here like an explicit must.
+    let core_open = musts
+        .iter()
+        .filter(|s| s.item.class == Class::Skill)
+        .any(|s| {
+            s.fit.value == E_NONE
+                && atoms::atoms(&s.item.text, vocab)
+                    .iter()
+                    .any(|a| !atoms::is_generic(a) && title_atoms.iter().any(|t| related(a, t)))
+        });
     [
         formal_cap.then_some(FORMAL_CAP),
         several_open.then_some(SEVERAL_OPEN_CAP),

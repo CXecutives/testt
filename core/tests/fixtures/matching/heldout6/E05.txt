@@ -1,0 +1,77 @@
+Titel: SAP FI/CO Berater S/4HANA Conversion (m/w/d)
+Unternehmen: Brückner & Oswald IT Solutions GmbH
+Ort: Nürnberg, Remote
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/projekt/sap-fi-co-berater-s-4hana-conversion-m-w-d-2897730
+Abgerufen am: 24.09.2026 07:30
+
+Projektdetails
+Start
+ab sofort
+Dauer
+9 Monate
+Von
+Brückner & Oswald IT Solutions GmbH
+Eingestellt
+23.09.2026
+Projekt-ID
+2897730
+Branche
+Automotive
+Vertragsart
+Freiberuflich
+Einsatzart
+80 % Remote
+Stundensatz
+105 - 120 €/h
+
+Beschreibung
+Für ein S/4HANA Brownfield Conversion Projekt bei einem Automobilzulieferer mit Werken in Deutschland, Polen und Mexiko suchen wir einen erfahrenen SAP FI/CO Berater (m/w/d).
+
+Aufgaben
+• Customizing FI (Hauptbuch, Kreditoren, Debitoren, Anlagenbuchhaltung) und CO (Kostenstellenrechnung, Innenaufträge, Produktkostenrechnung)
+• Umstellung von CO-PA kalkulatorisch auf Margin Analysis und Anpassung des Universal Journal
+• Fit-Gap Workshops mit Controlling und Buchhaltung, Erstellung von Fachkonzepten und Customizing Dokumentation
+• Unterstützung der Datenmigration mit dem Migration Cockpit, Abstimmung der Salden
+• Testmanagement (Integrationstest, UAT), Defect Handling in SAP Solution Manager
+• Go-Live Begleitung und Hypercare, Go-Live geplant zum 01.04.2027
+
+Anforderungen
+• Mindestens fünf Jahre Erfahrung als SAP FI/CO Berater, davon mindestens zwei S/4HANA Projekte
+• Tiefe Customizing Kenntnisse in CO-PA und Material Ledger
+• ABAP Debugging Kenntnisse von Vorteil
+• Kenntnisse in SAP Group Reporting und Konzernreporting wünschenswert
+• Verständnis für Controlling Prozesse (Plankostenrechnung, Abweichungsanalyse, Monatsabschluss)
+• Fließend Deutsch, gutes Englisch
+
+Vor-Ort-Einsätze in Nürnberg ca. zwei Tage im Monat, Workshops in Polen nach Absprache.
+
+Schlagworte
+SAP FI
+SAP CO
+S/4HANA
+Customizing
+CO-PA
+Material Ledger
+Migration Cockpit
+Controlling
+SAP Group Reporting
+
+Jetzt bewerben
+Projekt merken
+Projekt teilen
+
+Anbieter
+Brückner & Oswald IT Solutions GmbH
+IT Dienstleister für SAP Beratung
+214 veröffentlichte Projekte
+Firmenprofil ansehen
+
+Ähnliche Projekte
+SAP S/4HANA FI Berater Asset Accounting (m/w/d)
+Remote · 6 Monate
+SAP CO-PA Spezialist Margin Analysis (m/w/d)
+Stuttgart · ab sofort
+SAP Group Reporting Berater (m/w/d)
+Remote · 01.2027
+Mehr Projekte anzeigen

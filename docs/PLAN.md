@@ -309,6 +309,10 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       field, portal leftovers, industries no function, entry-level musts, leading titles, salary chips and bonus,
       every years minimum is the target); set 5 is a regression corpus (NDCG@10 0.694 to 0.819, exclusions
       0.980 / 0.943 to 0.988 / 1.000). Open: the final unseen check on held-out set 6.
+- [x] Engine v10: general bugs of the unseen held-out set 6 (country of the on-site clause, particle words are no
+      Führung, shared objects of split lines, stated permanent roles with a comma and denied interim wording, the
+      linking s, teaser caps and other-field compounds); set 6 is a regression corpus (NDCG@10 0.843 to 0.909,
+      exclusions 0.929 / 0.939 to 0.989 / 0.994). Open decision: the wage of temporary agency work (day rate or pay).
 - [x] Domain packs for every field: hr, procurement, data, pharma, operations, sales, legal, software (held-out 2
       NDCG@10 0.805 to 0.862). Open: synthetic corpus ads and profiles of the new fields.
 

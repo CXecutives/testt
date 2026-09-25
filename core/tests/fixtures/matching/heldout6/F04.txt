@@ -1,0 +1,39 @@
+Titel: Freelance Cloud Data Platform Lead (Azure, Databricks)
+Unternehmen: Marenvik Analytics
+Ort: Lissabon (Portugal)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4131906274/
+Abgerufen am: 10.09.2026 09:05
+
+About the job
+Marenvik Analytics is a data consultancy with teams in Lisbon, Porto and Copenhagen. For a Scandinavian retail group we are looking for an experienced contractor to lead the build of a new lakehouse platform.
+
+What you will do
+Lead a team of six data engineers across two time zones
+Design and build a lakehouse on Azure Databricks with Unity Catalog and Delta Live Tables
+Migrate the existing on-premises Teradata warehouse, including roughly 1,800 reporting tables
+Set up CI/CD with Azure DevOps and infrastructure as code with Terraform
+Align with the client's architecture board and product owners on priorities and data contracts
+
+What we are looking for
+8+ years in data engineering, at least 3 of them in a lead role
+Hands-on experience with Databricks, Spark and dbt
+Solid Azure background (Data Factory, ADLS Gen2, networking basics)
+Experience with large warehouse migrations
+Fluent English; Danish or German is a plus but not required
+
+Contract details
+Start: November 2026, 6 months (until end of April 2027), extension likely
+Rate: EUR 95 to 115 per hour, excluding VAT, invoiced monthly
+Fully remote from anywhere in the EU or EEA, with core overlap 10:00 to 16:00 CET
+One onsite kick-off week in Copenhagen, travel costs covered by us
+Please note that we cannot engage contractors based outside the EU/EEA because of the client's data residency requirements.
+
+Seniority level
+Mid-Senior level
+Employment type
+Contract
+Job function
+Information Technology
+Industries
+IT Services and IT Consulting
