@@ -107,14 +107,15 @@
   function arrive(id: NavId, from: ViewId): void {
     // Before the first fetch Jobs is the setup page, whichever of its places was clicked.
     if (shell.firstRun) return;
+    // Another place starts without the search, like a folder of a mail app.
     if (id === 'archive' || id === 'trash') {
       const facet = id === 'archive' ? 'archived' : 'trash';
-      if (jobs.facet !== facet) jobs.setFacet(facet);
+      if (jobs.facet !== facet) jobs.setFacet(facet, true);
       return;
     }
     if (id !== 'jobs') return;
     // Jobs from the archive or the trash: back to the inbox, on its last tab.
-    if (jobs.facet === 'archived' || jobs.facet === 'trash') jobs.setFacet(jobs.inboxFacet);
+    if (jobs.facet === 'archived' || jobs.facet === 'trash') jobs.setFacet(jobs.inboxFacet, true);
     // Back from another view: Neu is entered again (the jobs read meanwhile leave it).
     else if (from !== 'jobs' && jobs.facet === 'new') void jobs.load(true);
   }

@@ -346,7 +346,9 @@ class JobsStore {
   /** The last tab of the inbox (Neu, Alle, Favoriten): Jobs in the sidebar goes back to it. */
   inboxFacet = $state<JobFacet>('new');
 
-  setFacet(facet: JobFacet): void {
+  /** Another place or tab. `dropSearch`: a place chosen in the sidebar opens without the
+   *  search, like a folder of a mail app (the "Auch im …" links keep it). */
+  setFacet(facet: JobFacet, dropSearch = false): void {
     // Another place: an open job of the one left behind closes, like a mail of another
     // folder (here, not in the list: the place also changes from Profil or Einstellungen).
     const selected = this.selected;
@@ -356,6 +358,10 @@ class JobsStore {
       null;
     if (open !== null && placeOf(facet) !== open.place && !inFacet(open, facet)) {
       this.clearSelection();
+    }
+    if (dropSearch && this.search !== '') {
+      if (this.#searchTimer !== null) clearTimeout(this.#searchTimer);
+      this.search = '';
     }
     this.facet = facet;
     if (facet === 'new' || facet === 'all' || facet === 'favourites') this.inboxFacet = facet;
