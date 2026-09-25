@@ -7,8 +7,9 @@
 // period; headings and labels end without a colon; no dash or em dash as a separator, no
 // "X: Y", no exclamation marks, no text twice. Glossary: Job · Portal · Passung · Details ·
 // Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Excel-Datei · Ausgeschlossen · Neu ·
-// Zu prüfen · Favorit (Favoriten) · Bewerbung · Archiv. A profile field has one name: the
-// label of its form field (without the unit) in errors, warnings and the profile.
+// Zu prüfen · Favorit (Favoriten) · Archiv · Papierkorb (docs/PLAN.md). A profile field has
+// one name: the label of its form field (without the unit) in errors, warnings and the
+// profile.
 //
 // Every code of the generated types has exactly one text here: the tables are typed as
 // `Record<Code, ...>`, so a new code without a text is a type error.
@@ -711,7 +712,8 @@ export const de = {
     fetch: 'Abrufen',
     cancel: 'Abbrechen',
     progress: 'Fortschritt des Abrufs',
-    facet: 'Auswahl',
+    /** The switch Neu, Alle, Favoriten ("Auswahl" is the multi-selection's word). */
+    facet: 'Ansicht',
     facetNew: 'Neu',
     facetAll: 'Alle',
     facetSaved: 'Favoriten',
@@ -955,7 +957,7 @@ export const de = {
     pick: 'Links einen Job auswählen.',
     issues: 'Offene Punkte',
     best: 'Neu und passend',
-    excel: 'Excel öffnen',
+    excel: 'Excel-Datei öffnen',
     /** The best matches as one prompt for any AI chat. */
     promptTop: 'Prompt für KI-Vergleich kopieren',
     /** When the list beside shows the best new jobs on top already. */

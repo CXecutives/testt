@@ -169,3 +169,11 @@ test('a result file nothing wrote yet is "not there", not "no longer there"', as
   await expect(overview).toContainText('Die Datei ist nicht vorhanden.');
   await expect(overview).not.toContainText('nicht mehr');
 });
+
+test('one word per thing: the view switch, the Excel file', async ({ page }) => {
+  await open(page, WIN);
+  // "Auswahl" is the word of the multi-selection ("3 ausgewählt", "Auswahl aufheben").
+  await expect(page.getByTestId('facet')).toHaveAttribute('aria-label', 'Ansicht');
+  // The glossary's Excel-Datei, as in Einstellungen ("Excel öffnen" read as "start Excel").
+  await expect(page.getByTestId('overview-excel')).toHaveText('Excel-Datei öffnen');
+});
