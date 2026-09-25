@@ -27,6 +27,7 @@
   import Icon from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
   import { t } from '$lib/i18n/t';
+  import { errorText } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import { rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
@@ -80,9 +81,13 @@
     navigation.go('profile');
   }
 
-  /** Where a file the reset could not delete is left. */
+  /** Where a file the reset could not delete is left; a folder that does not open says so. */
+  let folderError = $state<string | null>(null);
   function openDataDir(): void {
-    invoke('open_target', { target: { kind: 'dataDir' } }).catch(() => undefined);
+    folderError = null;
+    invoke('open_target', { target: { kind: 'dataDir' } }).catch(
+      (error: unknown) => (folderError = errorText(error)),
+    );
   }
 </script>
 
@@ -125,6 +130,9 @@
         action={reset.failed > 0 ? { label: t.common.openFolder, onclick: openDataDir } : null}
         testid="first-reset-report"
       />
+      {#if folderError}
+        <Notice tone="danger" variant="inline" text={folderError} testid="folder-error" />
+      {/if}
     {/if}
 
     <Card padding="md">

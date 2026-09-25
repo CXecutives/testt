@@ -17,6 +17,22 @@ async function tool(page: Page, id: string, key: string): Promise<void> {
   await page.getByTestId(`${id}-${key}`).click();
 }
 
+/** The next call of `command` fails with a database error. */
+async function failNext(page: Page, command: string): Promise<void> {
+  await page.evaluate((command) => {
+    const calls = window.__harness.calls;
+    const push = calls.push.bind(calls);
+    calls.push = (...items: [string, unknown][]) => {
+      if (items.some(([name]) => name === command)) {
+        calls.push = push;
+        push(...items);
+        throw { kind: 'db', params: {} };
+      }
+      return push(...items);
+    };
+  }, command);
+}
+
 /** A token's colour as the engine computes it (for a text or a background). */
 async function tokenColour(page: Page, token: string): Promise<string> {
   return page.evaluate((name) => {
@@ -136,6 +152,14 @@ test('deleting for good waits for a run in the reader too', async ({ page }) => 
   await page.evaluate(() => (window.__harness.holdAfter = null));
   await runFinished(page);
   await expect(purge).not.toHaveAttribute('aria-disabled', 'true');
+});
+
+test('a data folder that does not open says so in the first run', async ({ page }) => {
+  await open(page, `${WIN}&scenario=reset`);
+  await failNext(page, 'open_target');
+  await page.getByTestId('first-reset-report').getByRole('button').click();
+  await expect(page.getByTestId('folder-error')).toHaveText('Die Datenbank meldet einen Fehler.');
+  expect(await calls(page, 'open_target')).toHaveLength(1);
 });
 
 test('a row date stands on the baseline of its title', async ({ page }) => {
