@@ -749,6 +749,8 @@ export const de = {
     /** The order without a usable profile: there is no fit to sort by. */
     sortNoProfile: 'Ohne Profil nur nach Datum.',
     needsMailbox: 'Verbinde erst ein Postfach.',
+    /** Every portal is switched off in Einstellungen: nothing to fetch from. */
+    needsPortal: 'Schalte erst ein Portal ein.',
   },
   run: {
     never: 'Noch kein Abruf',

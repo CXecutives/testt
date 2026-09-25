@@ -194,8 +194,8 @@
                 variant={current === 3 ? 'primary' : 'secondary'}
                 icon="refresh-cw"
                 label={t.toolbar.fetch}
-                disabled={!mailboxDone}
-                disabledReason={t.toolbar.needsMailbox}
+                disabled={run.fetchBlocked !== null}
+                disabledReason={run.fetchBlocked}
                 testid="first-fetch"
                 onclick={() => void run.start({ kind: 'fetch' })}
               />

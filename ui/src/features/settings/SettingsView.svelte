@@ -546,8 +546,8 @@
             size="sm"
             icon="mail"
             label={t.settings.fullMailboxAction}
-            disabled={run.active || !cfg.mailbox.user}
-            disabledReason={run.active ? run.busyText : t.toolbar.needsMailbox}
+            disabled={run.fetchBlocked !== null}
+            disabledReason={run.fetchBlocked}
             testid="full-mailbox"
             onclick={() => (confirmFull = true)}
           />

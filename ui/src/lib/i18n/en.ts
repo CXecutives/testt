@@ -727,6 +727,7 @@ export const en: Catalog = {
     sortDeleted: 'By date deleted',
     sortNoProfile: 'Without a profile, jobs sort by date only.',
     needsMailbox: 'Connect a mailbox first.',
+    needsPortal: 'Switch on a portal first.',
   },
   run: {
     never: 'No fetch yet',

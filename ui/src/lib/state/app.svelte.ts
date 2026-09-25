@@ -53,6 +53,11 @@ class AppStore {
     return Boolean(this.state?.mailbox.user);
   }
 
+  /** At least one portal is switched on (a fetch without one is refused by the backend). */
+  get hasPortal(): boolean {
+    return this.state?.portals.some((p) => p.enabled) ?? false;
+  }
+
   get hasProfile(): boolean {
     const profile = this.state?.profile;
     return Boolean(profile && profile.parseError === null && profile.quality !== 'empty');
