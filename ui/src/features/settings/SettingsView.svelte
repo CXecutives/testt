@@ -323,7 +323,10 @@
                 disabled={run.active || dryRun}
                 disabledReason={lockedReason}
                 testid="mailbox-change"
-                onclick={() => (editing = true)}
+                onclick={() => {
+                  mailboxNote = null;
+                  editing = true;
+                }}
               />
               <Button
                 variant="ghost"
@@ -341,13 +344,15 @@
           {#if !cfg.mailbox.user}
             <p class="lead">{t.settings.notConnected}</p>
           {/if}
-          <!-- "Ändern" gives way to the form, which takes the caret; closing it gives it back. -->
+          <!-- "Ändern" gives way to the form, which takes the caret; closing it gives it back.
+               A saved change says so under the row, like every action on this page. -->
           <MailboxForm
             saveLabel={cfg.mailbox.user ? t.common.save : t.settings.connect}
             autofocus={editing}
             oncancel={cfg.mailbox.user ? () => void closeForm() : null}
             onsaved={() => {
               mailboxSaved = true;
+              mailboxNote = { tone: 'success', text: t.settings.mailboxSaved };
               void closeForm();
             }}
           />

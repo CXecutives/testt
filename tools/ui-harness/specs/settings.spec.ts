@@ -472,7 +472,7 @@ test('a refused app password says so in the form', async ({ page }) => {
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'false');
 });
 
-test('a changed mailbox: save and cancel at the trailing edge, a toast that says it', async ({
+test('a changed mailbox: save and cancel at the trailing edge, a note that says it', async ({
   page,
 }) => {
   await settings(page);
@@ -486,7 +486,9 @@ test('a changed mailbox: save and cancel at the trailing edge, a toast that says
   expect(edge).toBeLessThanOrEqual(1);
   await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
   await page.getByTestId('mailbox-save').click();
-  await expect(page.getByTestId('toast').last()).toHaveText('Postfach verbunden.');
+  // Like every action in Einstellungen, it answers where it happened (no toast).
+  await expect(page.getByTestId('mailbox-note')).toHaveText('Postfach verbunden.');
+  await expect(page.getByTestId('toast')).toHaveCount(0);
 });
 
 test('the dry run shows its mailbox and refuses what would write outside it', async ({ page }) => {

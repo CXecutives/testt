@@ -1150,6 +1150,7 @@ export const en: Catalog = {
     passwordMissing: 'The app password is missing.',
     twoStepAction: 'Turn on verification',
     connect: 'Connect',
+    mailboxSaved: 'Mailbox connected.',
     removeMailbox: 'Remove mailbox?',
     removeMailboxText: 'The app password will be deleted, but your jobs stay.',
     autoFetch: 'Fetch on startup',
@@ -1255,7 +1256,6 @@ export const en: Catalog = {
   },
   toast: {
     saved: 'Saved.',
-    mailboxSaved: 'Mailbox connected.',
     rescored: 'The jobs have been scored again.',
     copied: 'Copied.',
     prompt: 'Prompt copied, ready for an AI chat.',

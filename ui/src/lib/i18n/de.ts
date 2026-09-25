@@ -1247,6 +1247,8 @@ export const de = {
     passwordMissing: 'Das App-Passwort fehlt.',
     twoStepAction: 'Bestätigung einschalten',
     connect: 'Verbinden',
+    /** A changed mailbox is saved (said under its row). */
+    mailboxSaved: 'Postfach verbunden.',
     removeMailbox: 'Postfach entfernen?',
     removeMailboxText: 'Das App-Passwort wird gelöscht, die Jobs bleiben.',
     autoFetch: 'Beim Start abrufen',
@@ -1360,7 +1362,6 @@ export const de = {
   },
   toast: {
     saved: 'Gespeichert.',
-    mailboxSaved: 'Postfach verbunden.',
     rescored: 'Die Jobs sind neu bewertet.',
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */

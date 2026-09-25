@@ -101,6 +101,33 @@ test('Ändern puts the caret in the form; closing it gives the focus back', asyn
   await expect(change).toBeFocused();
 });
 
+test('the changed mailbox: save and cancel end on the edge like every control', async ({
+  page,
+}) => {
+  for (const query of [WIN, '?platform=macos']) {
+    await settings(page, query);
+    await page.getByTestId('mailbox-change').click();
+    const place = await page.evaluate(() => {
+      const box = (selector: string): DOMRect =>
+        document.querySelector(selector)!.getBoundingClientRect();
+      const buttons = [
+        ...document.querySelectorAll('[data-testid="mailbox-form"] .actions .btn'),
+      ].map((node) => node.getBoundingClientRect());
+      return {
+        end: buttons.at(-1)!.right,
+        gap: buttons[1]!.left - buttons[0]!.right,
+        // A switch of the next card ends on the content edge of the column.
+        edge: box('[data-testid="toggle-auto-fetch"]').right,
+        fields: box('[data-testid="mailbox-form"] .fields').width,
+      };
+    });
+    expect(Math.abs(place.end - place.edge)).toBeLessThanOrEqual(1);
+    expect(place.gap).toBe(12);
+    // The fields keep the measure of a form.
+    expect(place.fields).toBeLessThanOrEqual(560);
+  }
+});
+
 test('the first run opens at its top, the caret waiting in the address', async ({ page }) => {
   await page.setViewportSize({ width: 480, height: 360 });
   for (const query of [`${WIN}&scenario=reset&lang=en`, '?platform=macos&scenario=first-run']) {

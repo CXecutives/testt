@@ -5,9 +5,10 @@
   stands above the button. The password never leaves this form except to save_mailbox (it
   goes straight into the OS keychain). Under both fields one line says what an app password
   needs, with the two pages in the order she needs them: the 2-step verification, then the
-  app password. Save and cancel follow the OS like the dialogs (save first on Windows, last
-  on macOS) and sit at the trailing edge like every save/cancel pair; the single "Verbinden"
-  of the first run stays under the fields.
+  app password. The fields and that line keep the measure of a form; save and cancel follow
+  the OS like the dialogs (save first on Windows, last on macOS), 12 apart, and end on the
+  trailing edge of the card like every save/cancel pair; the single "Verbinden" of the first
+  run stays under the fields. A saved change says so where the mailbox is (Einstellungen).
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -20,7 +21,6 @@
   import { invoke, IpcError } from '$lib/ipc/api';
   import { primaryFirst } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
-  import { toasts } from '$lib/state/toasts.svelte';
   import { onMount } from 'svelte';
 
   interface Props {
@@ -86,7 +86,6 @@
       await invoke('save_mailbox', { user: user.trim(), password });
       password = '';
       await app.load();
-      if (oncancel) toasts.show(t.toast.mailboxSaved);
       onsaved?.();
     } catch (error) {
       const kind = error instanceof IpcError ? error.kind : null;
@@ -205,8 +204,13 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-16);
-    max-width: var(--form-width);
     container-type: inline-size;
+  }
+
+  /* A form's measure for the fields and what they need; the buttons use the whole width. */
+  .fields,
+  .help {
+    max-width: var(--form-width);
   }
 
   .help {
@@ -241,10 +245,11 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-8);
+    gap: var(--space-12);
   }
 
-  /* Save and cancel at the trailing edge, like the profile's save bar and every dialog. */
+  /* Save and cancel on the card's trailing edge, 12 apart, like the profile's save bar and
+     every dialog. */
   .pair {
     justify-content: flex-end;
   }
