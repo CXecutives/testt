@@ -45,6 +45,7 @@
   import { displayTitle, formatDate, formatRelative, formatTime } from '$lib/i18n/format';
   import { clock } from '$lib/state/clock.svelte';
   import {
+    DETAIL_WARNS,
     criterionKey,
     criterionState,
     criterionValue,
@@ -267,6 +268,8 @@
 
   const portalState = $derived(app.state?.portals.find((p) => p.portal === job.portal) ?? null);
   const detailKind = $derived(job.detail.kind);
+  /** The note on a missing text warns like the row's badge (texts.ts DETAIL_WARNS). */
+  const detailWarns = $derived(detailKind !== 'ok' && DETAIL_WARNS[detailKind]);
   const canFetch = $derived(
     (detailKind === 'pending' ||
       detailKind === 'onRequest' ||
@@ -823,7 +826,7 @@
     {#if detailKind !== 'ok'}
       <div class="missing">
         <Notice
-          tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
+          tone={detailWarns ? 'warning' : 'info'}
           variant="inline"
           text={portalState &&
           (!portalState.enabled || !portalState.fetchDetails) &&

@@ -265,3 +265,60 @@ test('the history head darkens its chevron while pressed, only under the pointer
   await page.mouse.move(on.x + 1, on.y + 1);
   await page.mouse.move(4, 4);
 });
+
+test('a detail state has one tone in the row, the reader and the run card', async ({ page }) => {
+  await open(page, WIN);
+  await facet(page, 'Alle').click();
+  const key = { portal: 'freelancermap', id: '2805' } as const;
+  const job = await page.evaluate((k) => window.__harness.job(k), key);
+  await page.evaluate(
+    (base) =>
+      window.__harness.emit({
+        type: 'jobUpdated',
+        job: { ...base, detail: { kind: 'unfetchable' } },
+        fresh: false,
+      }),
+    job!,
+  );
+  const badge = row(page, 'freelancermap-2805').locator('.badge');
+  await expect(badge).toHaveText('Nicht abrufbar');
+  await expect(badge).toHaveClass(/warning/);
+  await row(page, 'freelancermap-2805').click();
+  await expect(page.getByTestId('detail-note')).toHaveClass(/warning/);
+  // A details run that found an ad gone says it as a warning, like the row and the reader.
+  await page.evaluate(() => {
+    const at = new Date(Date.now()).toISOString();
+    window.__harness.emit({ type: 'started', kind: 'details' });
+    window.__harness.emit({
+      type: 'finished',
+      summary: {
+        run: 60,
+        kind: 'details',
+        outcome: { kind: 'completed' },
+        dryRun: false,
+        startedAt: at,
+        finishedAt: at,
+        scan: null,
+        perPortal: [
+          {
+            portal: 'freelancermap',
+            new: 0,
+            known: 0,
+            dup: 0,
+            fetched: 0,
+            failed: 1,
+            gone: 1,
+            skipped: 0,
+            stopped: null,
+          },
+        ],
+        newJobs: null,
+        score: null,
+        export: null,
+        emptyAlerts: [],
+      },
+    });
+  });
+  await expect(page.getByTestId('details-gone')).toHaveClass(/warning/);
+  await expect(page.getByTestId('details-failed')).toHaveClass(/warning/);
+});

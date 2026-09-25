@@ -7,7 +7,7 @@
 // never to a raw code.
 
 import { IpcError } from '../ipc/api';
-import type { JobView, KeyFacts, Notice, PortalHealth, Reason } from '../ipc/types';
+import type { DetailState, JobView, KeyFacts, Notice, PortalHealth, Reason } from '../ipc/types';
 import { formatDate } from './format';
 import {
   textOf,
@@ -109,6 +109,18 @@ function noteCriterion(note: Notice | null): CriterionKey | null {
     ? criterionKey(note.params.criterion)
     : criterionKey(note.code);
 }
+
+/** Whether a detail state warns (the ad could not be read, or is gone) or is a quiet fact
+ *  (it follows, it is a teaser, it comes on request): one tone for the row's badge, the
+ *  reader's note and the run card. */
+export const DETAIL_WARNS: Record<Exclude<DetailState['kind'], 'ok'>, boolean> = {
+  failed: true,
+  unfetchable: true,
+  gone: true,
+  pending: false,
+  teaser: false,
+  onRequest: false,
+};
 
 /** The reason line of a list row: why it is excluded in short words ("Tagessatz zu
  *  niedrig"), else the best met requirement. */

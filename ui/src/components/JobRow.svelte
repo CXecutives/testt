@@ -54,7 +54,7 @@
   import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
-  import { factWords, noteText, rowReason } from '$lib/i18n/texts';
+  import { DETAIL_WARNS, factWords, noteText, rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
   import { duration } from '$lib/motion/motion';
   import { dotOut, toolsIn } from '$lib/motion/transitions';
@@ -158,8 +158,7 @@
       // While a run brings the details, "Details folgen" is no deviation.
       if (detail === 'pending' && pending) return null;
       if (detail !== 'ok') {
-        const quiet = detail === 'teaser' || detail === 'pending' || detail === 'onRequest';
-        const tone: BadgeTone = quiet ? 'neutral' : 'warning';
+        const tone: BadgeTone = DETAIL_WARNS[detail] ? 'warning' : 'neutral';
         return { label: t.job.detail[detail], tone, hint: t.job.detailHint[detail] };
       }
       if (job.closed) return { label: t.job.closed, tone: 'neutral', hint: t.job.closedHint };
