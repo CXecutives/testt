@@ -26,7 +26,7 @@ use jobalert_core::view::{
     self, JobQuery, JobSort, Mailbox, ProfileInfo, ResetSummary, SettingsPatch, SettingsView,
 };
 use tauri::ipc::Channel;
-use tauri::{AppHandle, State, WebviewWindow};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
 
 use super::{Activity, AppState, CmdResult, lock, scoring, texts};
 
@@ -180,15 +180,21 @@ pub async fn app_state(
 }
 
 /// Once per app start, on the first page load: the auto fetch if it is due, else a rescore
-/// if jobs wait for a score (new profile, engine update). A fetch scores them too.
+/// if jobs wait for a score (new profile, engine update). A fetch scores them too. In the
+/// background: the auto fetch reads the keychain, which can wait for a prompt (macOS), and
+/// the first page load never waits for it - the page follows the run by its events.
 fn at_start(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) {
     static CHECKED: AtomicBool = AtomicBool::new(false);
     if CHECKED.swap(true, Ordering::SeqCst) || state.busy() {
         return;
     }
-    if !auto_fetch(app, state, channel) {
-        scoring::rescore_if_pending(app, state);
-    }
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        if !auto_fetch(&app, &state, channel) {
+            scoring::rescore_if_pending(&app, &state);
+        }
+    });
 }
 
 /// The auto fetch: switched on, mailbox connected, last fetch older than 6 hours. Never in
@@ -201,12 +207,7 @@ fn auto_fetch(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) -> 
         return false;
     };
     let connected = state.gmail_user().0.is_some();
-    let due = pipeline::auto_fetch_due(
-        &state.store,
-        settings.auto_fetch_on_start,
-        connected,
-        Timestamp::now(),
-    );
+    let due = pipeline::auto_fetch_due(&state.store, &settings, connected, Timestamp::now());
     if due {
         log::info!("auto fetch at the start");
         let request = pipeline::RunRequest {

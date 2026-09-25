@@ -10,7 +10,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Mutex};
 
-use commands::{Activity, AppState, CloseGuard, GmailUser, Scoring};
+use commands::{Activity, AppState, CloseGuard, GmailUser, Refresh, Scoring};
 use jobalert_core::error::ErrorKind;
 use jobalert_core::secrets::Vault;
 use jobalert_core::store::Store;
@@ -219,6 +219,7 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), Failure> {
         gmail_user: Mutex::new(GmailUser::Unread),
         activity: Mutex::new(Activity::Idle),
         scoring: Scoring::default(),
+        refresh: Refresh::default(),
         close_guard: CloseGuard::default(),
     });
     empty_old_trash(app, &store, dry_run);

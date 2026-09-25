@@ -78,7 +78,10 @@ and `Deleted{count, keys}` says how many and which. `move_jobs` returns the keys
 run inbox jobs that are no favourite archive themselves after `autoArchiveDays` (default 30, 0 = off; the age counts
 from the last time the user moved the job into the inbox, `inbox_at`, so her choice stands), and the trash empties itself after `autoEmptyTrashDays`
 (default 30, 0 = off; also at the start of the app). The Excel sheet, the HTML overview, `top_matches.json` and the
-best-matches prompt take only inbox jobs. `set_override(key, include)`: an excluded job counts as scored with its fit
+best-matches prompt take only inbox jobs; the HTML overview (the inbox favourites and the app's "Neu und passend", at
+most 20, whatever run brought them) and `top_matches.json` follow a mark (move, star, "fits anyway", read) 2 s after
+the last one without a run (never during one: it writes them at its end), the overview is written again right before
+"Übersicht öffnen", the Excel file waits for the next run (its Info sheet says so). `set_override(key, include)`: an excluded job counts as scored with its fit
 score (note and first reason `userOverride`), every rescore keeps it; taken back, the job is assessed again at once.
 A list is a place (or the favourites of inbox and archive) plus an `unread` filter ("Neu", no day window) and a sort
 (by match, or by date: the mail's, in the trash the day it went there); the counts per place (inbox, unread,
@@ -315,7 +318,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [x] 2D Scraping and sign-in (session delete, macOS data store, no unasked sign-in window, keychain test already merged with 1c): S1-S11; switches honoured in the fetch path; optional sign-in with risk note; delete
       session per portal (macOS `data_store_identifier`); keychain test on macOS; dead code list.
       Left for the integrator: `AppBackends::prescore` -> `matching::prescore` with the profile (neutral until then);
-      `commands/mod.rs` could use `sync::lock`; exports (Excel, TXT) still list duplicate rows (the list shows one).
+      `commands/mod.rs` could use `sync::lock`. Done since: exports list no duplicate rows (Excel sheet, one text file
+      per job); the automatic queue fetches only what the lists show as active (inbox and favourites, never the trash
+      or a duplicate), the rest says "Details auf Anfrage".
       Done when: 26 fetch tests + new (4th test portal via registry only, health, teaser, Retry-After, requeue, slug
       URL = same id, duplicate group, IMAP loads candidates only, details off => zero portal requests, sign-out
       verified on both OS).

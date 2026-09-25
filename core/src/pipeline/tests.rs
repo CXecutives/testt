@@ -162,7 +162,7 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     let export = s.export.as_ref().unwrap();
     assert_eq!(export.txt_written, 4);
     assert!(export.overview_xlsx.as_ref().unwrap().exists());
-    // The HTML overview: the new scored jobs of this run, the excluded one not.
+    // The HTML overview: the unread scored jobs, the excluded one not.
     let html = std::fs::read_to_string(export.overview_html.as_ref().unwrap()).unwrap();
     assert!(html.contains("Interim CFO") && !html.contains("Projektleiter S/4HANA"));
     assert!(!html.contains("Beispielanzeige"), "never the full text");
@@ -666,11 +666,16 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
     let result_dir = dir.path().join(RESULT_DIR);
     std::fs::create_dir_all(&result_dir).unwrap();
     std::fs::write(result_dir.join(export::XLSX_NAME), b"fremd").unwrap();
-    let now = Timestamp::now();
+    // 09:30 in Berlin (07:30 UTC): the name says the time the user's clock says.
+    let now: Timestamp = "2026-09-24T07:30:00Z".parse().unwrap();
 
     let first = export_all(&store, dir.path(), &[], 1, now, Language::De);
     let backup = first.backup.clone().expect("foreign file backed up");
     assert_eq!(std::fs::read(&backup).unwrap(), b"fremd");
+    assert_eq!(
+        backup.file_name().unwrap(),
+        "JobAlerts.alt-20260924-093000.xlsx"
+    );
     assert!(first.overview_xlsx.is_some());
 
     // Further runs continue the app's own file without backing it up again.
@@ -850,6 +855,74 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
     );
 }
 
+/// The Info sheet of the Excel file as `(label, value)` rows.
+fn info_sheet(workspace: &Path) -> Vec<(String, String)> {
+    use calamine::{Reader, Xlsx, open_workbook};
+    let path = export::overview_path(&workspace.join(RESULT_DIR));
+    let mut book: Xlsx<_> = open_workbook(&path).unwrap();
+    book.worksheet_range(texts::INFO_SHEET)
+        .unwrap()
+        .rows()
+        .map(|row| (row[0].to_string(), row[1].to_string()))
+        .collect()
+}
+
+/// The Info sheet says what the app says: "new" is the run card's number (one per job, the
+/// excluded one left out), the job count is the sheet's rows, and a rescore writes the
+/// moment the file was made - never a fetch time it did not have.
+#[tokio::test(start_paused = true)]
+async fn the_info_sheet_says_what_the_app_says() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let cancel = CancellationToken::new();
+    let fetch = ctx(dir.path(), false);
+    let (s, _) = go(&mut DemoBackends, &store, &request(), &fetch, &cancel, &c).await;
+    let card = s.new_jobs.unwrap().count;
+    assert!(card < s.scan.unwrap().new, "the excluded job is no new job");
+    let value = |rows: &[(String, String)], label: &str| -> String {
+        rows.iter()
+            .find(|(k, _)| k == label)
+            .map_or_else(|| panic!("{label}: {rows:?}"), |(_, v)| v.clone())
+    };
+    assert_eq!(
+        value(&info_sheet(dir.path()), texts::INFO_NEW),
+        card.to_string()
+    );
+    let listed = store.listed_count().unwrap();
+    let key = store.jobs(&JobFilter::default()).unwrap()[0].key.clone();
+    store
+        .move_jobs(std::slice::from_ref(&key), Place::Archive, c())
+        .unwrap();
+    // A rescore an hour later writes the file again.
+    let later = move || c() + SignedDuration::from_hours(1);
+    let rescore = RunRequest {
+        kind: RunKind::Rescore,
+    };
+    let (r, _) = go(&mut DemoBackends, &store, &rescore, &fetch, &cancel, &later).await;
+    let rows = info_sheet(dir.path());
+    assert_eq!(
+        value(&rows, texts::INFO_JOBS_TOTAL),
+        (listed - 1).to_string(),
+        "the sheet's rows"
+    );
+    assert_eq!(
+        value(&rows, texts::HTML_CREATED),
+        texts::DE.moment(r.finished_at)
+    );
+    assert_ne!(
+        value(&rows, texts::INFO_LAST_SCAN),
+        value(&rows, texts::HTML_CREATED),
+        "the fetch keeps its own time"
+    );
+    assert_eq!(
+        value(&rows, texts::INFO_NEW),
+        card.to_string(),
+        "still the fetch's"
+    );
+    assert!(rows.iter().all(|(k, _)| k != texts::INFO_LAST_RUN));
+}
+
 /// Rows stored by an earlier version (mail address, "Lauf" for a mailbox scan) come out in
 /// today's words and without the address.
 #[test]
@@ -884,7 +957,7 @@ fn info_rows_of_an_earlier_version_use_todays_words() {
             texts::INFO_NEW,
             texts::INFO_KNOWN,
             texts::INFO_DUP,
-            texts::INFO_LAST_RUN,
+            texts::HTML_CREATED,
             texts::INFO_JOBS_TOTAL,
             texts::INFO_PROGRAM
         ]
@@ -948,6 +1021,37 @@ fn a_failed_rewrite_keeps_the_marks() {
         (0, 0),
         "nothing anew by itself"
     );
+}
+
+/// A work folder that cannot be reached (a network drive or a stick that is gone) is one
+/// clear error that names it; nothing is written and the text files wait for the next
+/// export. A text file of a job deleted meanwhile is remembered until the folder is back.
+#[test]
+fn an_unreachable_work_folder_is_one_clear_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let (store, keys) = store_with_texts();
+    // A file stands where the drive's folder would be: the folder cannot be made.
+    let stick = dir.path().join("stick");
+    std::fs::write(&stick, b"").unwrap();
+    let gone = stick.join("Job-Alerts");
+    let now = Timestamp::now();
+    let s = export_all(&store, &gone, &[], 1, now, Language::De);
+    let target = |s: &ExportSummary| s.error.as_ref().unwrap().params["target"].clone();
+    assert_eq!(target(&s), "workspace");
+    assert_eq!((s.txt_written, s.txt_failed), (0, 0));
+    assert_eq!((s.overview_xlsx, s.overview_html), (None, None));
+    assert_eq!(store.txt_jobs(false).unwrap().len(), 2, "the files wait");
+    assert_eq!(target(&rewrite_txt(&store, &gone, now)), "workspace");
+    // Emptied from the trash meanwhile: the name waits for the folder.
+    store.mark_txt_written(&keys[0], "a.txt", now).unwrap();
+    let one = &keys[..1];
+    store.move_jobs(one, Place::Trash, now).unwrap();
+    let deleted = delete_jobs(&store, Some(&gone), None, one, (now, Language::De)).unwrap();
+    assert_eq!((deleted.count, deleted.txt_left), (1, 1));
+    assert_eq!(store.txt_leftovers().unwrap(), ["a.txt"]);
+    let (removed, _) = clear_txt(&store, &gone).unwrap();
+    assert_eq!(removed, 0);
+    assert_eq!(store.txt_leftovers().unwrap(), ["a.txt"], "still waiting");
 }
 
 /// If the folder for the text files is unusable, there is one clear error instead of one
@@ -1294,9 +1398,22 @@ async fn the_auto_fetch_waits_six_hours() {
     let dir = tempfile::tempdir().unwrap();
     let store = Store::in_memory().unwrap();
     let now = c();
-    assert!(auto_fetch_due(&store, true, true, now), "never fetched");
-    assert!(!auto_fetch_due(&store, false, true, now), "switched off");
-    assert!(!auto_fetch_due(&store, true, false, now), "no mailbox");
+    let on = crate::settings::Settings::default();
+    let off = crate::settings::Settings {
+        auto_fetch_on_start: false,
+        ..on.clone()
+    };
+    let mut no_portal = on.clone();
+    for switches in no_portal.portals.values_mut() {
+        switches.enabled = false;
+    }
+    assert!(auto_fetch_due(&store, &on, true, now), "never fetched");
+    assert!(!auto_fetch_due(&store, &off, true, now), "switched off");
+    assert!(!auto_fetch_due(&store, &on, false, now), "no mailbox");
+    assert!(
+        !auto_fetch_due(&store, &no_portal, true, now),
+        "no portal to read: no fetch that can only fail"
+    );
     go(
         &mut DemoBackends,
         &store,
@@ -1308,8 +1425,8 @@ async fn the_auto_fetch_waits_six_hours() {
     .await;
     let fetched = last_fetch_at(&store).unwrap();
     let after = |hours| fetched + SignedDuration::from_hours(hours);
-    assert!(!auto_fetch_due(&store, true, true, after(5)));
-    assert!(auto_fetch_due(&store, true, true, after(7)));
+    assert!(!auto_fetch_due(&store, &on, true, after(5)));
+    assert!(auto_fetch_due(&store, &on, true, after(7)));
 }
 
 /// The request JSON is flat, and every kind round-trips.
@@ -1933,8 +2050,8 @@ async fn a_deleted_job_leaves_its_files_and_stays_gone() {
     let rows = rows - 1;
     let deleted = delete_jobs(&store, Some(dir.path()), None, one, (c(), Language::De)).unwrap();
     assert_eq!(deleted.export_error, None);
-    let gone = i64::from(deleted.count);
-    assert!(gone >= 1);
+    assert_eq!(deleted.count, 1, "the one row the user deleted");
+    let gone = i64::try_from(deleted.keys.len()).unwrap();
     assert!(!file.exists());
     assert!(overview_rows(dir.path()) <= rows);
     assert_eq!(overview_rows(dir.path()), 1 + listed(&store));
@@ -2120,4 +2237,233 @@ async fn a_run_empties_an_old_trash() {
     assert!(store.is_deleted(&old.key).unwrap());
     assert!(!file.exists());
     assert_eq!(store.job(&young).unwrap().unwrap().place(), Place::Trash);
+}
+
+/// A fetch that brings nothing new keeps the unread matches in the HTML overview: it lists
+/// the app's "Neu und passend", whatever run brought them, until they are read.
+#[tokio::test(start_paused = true)]
+async fn the_overview_keeps_the_unread_matches_of_earlier_fetches() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let fetch = ctx(dir.path(), false);
+    let html_path = export::overview_html_path(&dir.path().join(RESULT_DIR));
+    let html = || std::fs::read_to_string(&html_path).unwrap();
+    let cancel = CancellationToken::new();
+    go(&mut DemoBackends, &store, &request(), &fetch, &cancel, &c).await;
+    assert!(html().contains("Interim CFO"));
+    let (s, _) = go(&mut DemoBackends, &store, &request(), &fetch, &cancel, &c).await;
+    assert_eq!(s.new_jobs.unwrap().count, 0, "nothing new");
+    assert!(
+        s.scan.unwrap().mails_checked > 0,
+        "the mails were read again"
+    );
+    assert!(html().contains("Interim CFO"), "still unread, still listed");
+    assert!(!html().contains(texts::HTML_EMPTY));
+    let cfo = store
+        .jobs(&JobFilter::default())
+        .unwrap()
+        .into_iter()
+        .find(|job| job.title.starts_with("Interim CFO"))
+        .unwrap();
+    store.mark_read(&cfo.key, c()).unwrap();
+    export_all(&store, dir.path(), &[], 3, c(), Language::De);
+    assert!(!html().contains("Interim CFO"), "read, it leaves");
+}
+
+/// A mark changes the small files without a run: a job moved to the trash leaves the HTML
+/// overview and the skill's `top_matches.json` at once, a new favourite shows; the Excel
+/// file waits for the next run.
+#[tokio::test(start_paused = true)]
+async fn a_mark_refreshes_the_overview_and_the_top_matches() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let cancel = CancellationToken::new();
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &ctx(dir.path(), false),
+        &cancel,
+        &c,
+    )
+    .await;
+    let result_dir = dir.path().join(RESULT_DIR);
+    let html = || std::fs::read_to_string(export::overview_html_path(&result_dir)).unwrap();
+    let top = || std::fs::read_to_string(result_dir.join(export::TOP_MATCHES_NAME)).unwrap();
+    let xlsx = || std::fs::read(export::overview_path(&result_dir)).unwrap();
+    let excel = xlsx();
+    let jobs = store.jobs(&JobFilter::default()).unwrap();
+    let cfo = jobs
+        .iter()
+        .find(|job| job.title.starts_with("Interim CFO"))
+        .unwrap();
+    assert!(html().contains("Interim CFO") && top().contains("Interim CFO"));
+    let matcher = demo::matcher();
+    let refresh = || {
+        refresh_exports(
+            &store,
+            dir.path(),
+            Some(&*matcher as &dyn Matcher),
+            c(),
+            Language::De,
+        );
+    };
+    store
+        .move_jobs(std::slice::from_ref(&cfo.key), Place::Trash, c())
+        .unwrap();
+    refresh();
+    assert!(
+        !html().contains("Interim CFO"),
+        "the trash leaves the overview"
+    );
+    assert!(!top().contains("Interim CFO"), "and the skill's list");
+    assert_eq!(xlsx(), excel, "the Excel file waits for the next run");
+    let controlling = jobs
+        .iter()
+        .find(|job| job.title.starts_with("Leiter Controlling"))
+        .unwrap();
+    store.set_pinned(&controlling.key, true, c()).unwrap();
+    refresh();
+    assert!(
+        html().contains(texts::HTML_PINNED),
+        "the new favourite shows"
+    );
+    let path = refresh_overview(&store, dir.path(), c(), Language::De).unwrap();
+    assert_eq!(path, export::overview_html_path(&result_dir));
+}
+
+/// One job two portals announced, as the list shows it: the freelancermap row with the
+/// LinkedIn duplicate behind it. `(original, duplicate)`.
+fn job_on_two_portals(store: &Store) -> (JobKey, JobKey) {
+    const AD: &str = "Für unseren Kunden suchen wir einen erfahrenen SAP FI/CO Berater. \
+        Aufgaben: Einführung von S/4HANA Finance, Abstimmung mit den Fachbereichen.";
+    let run = store.begin_run().unwrap();
+    let add = |url: &str| {
+        let link = crate::portal::job_link(url).unwrap();
+        let posting = crate::model::Posting::new(
+            link.key.clone(),
+            link.url,
+            "SAP FI/CO Berater (m/w/d)",
+            "Ferrum Systems SE",
+            "Hamburg",
+        );
+        let mail = crate::store::MailRef {
+            subject: "Neue Jobs",
+            date: None,
+            gmail_id: None,
+        };
+        store
+            .upsert_posting(run, &posting, mail, Timestamp::now())
+            .unwrap();
+        store
+            .record_text(&link.key, AD, false, false, Timestamp::now())
+            .unwrap();
+        link.key
+    };
+    let original = add("https://www.freelancermap.de/nproj/12345.html");
+    let duplicate = add("https://www.linkedin.com/jobs/view/4000000002/");
+    assert_eq!(
+        store.link_duplicate(&duplicate).unwrap(),
+        Some(original.clone())
+    );
+    (original, duplicate)
+}
+
+/// "Endgültig löschen" counts the jobs the list showed: a duplicate that stood behind the
+/// row goes with it (its key comes back for the page) but is no job of its own.
+#[test]
+fn a_purge_counts_the_rows_it_deleted() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let (original, duplicate) = job_on_two_portals(&store);
+    let now = Timestamp::now();
+    let one = std::slice::from_ref(&original);
+    store.move_jobs(one, Place::Trash, now).unwrap();
+    let deleted = delete_jobs(&store, Some(dir.path()), None, one, (now, Language::De)).unwrap();
+    assert_eq!(deleted.count, 1, "one row");
+    assert_eq!(deleted.keys.len(), 2);
+    assert!(
+        deleted.keys.contains(&duplicate),
+        "the page drops both keys"
+    );
+    assert_eq!(deleted.txt_left, 0);
+    // Emptying the whole trash counts the same way.
+    let (store, keys) = store_with_texts();
+    store.move_jobs(&keys, Place::Trash, now).unwrap();
+    let all = store.trashed_keys(None).unwrap();
+    let deleted = delete_jobs(&store, Some(dir.path()), None, &all, (now, Language::De)).unwrap();
+    assert_eq!(deleted.count, 2);
+}
+
+/// The text file of a job deleted for good that could not be removed is not forgotten with
+/// its row: "Textdateien löschen" and a reset still find it, and the next export removes it.
+#[test]
+fn a_text_file_that_stayed_is_removed_later() {
+    let dir = tempfile::tempdir().unwrap();
+    let (store, _) = store_with_texts();
+    let now = Timestamp::now();
+    let result_dir = dir.path().join(RESULT_DIR);
+    let txt_dir = result_dir.join(TXT_DIR);
+    std::fs::create_dir_all(&txt_dir).unwrap();
+    let (stayed, gone) = (
+        "20260901_LinkedIn_Rolle_4000000007.txt".to_string(),
+        "20260901_LinkedIn_Rolle_4000000008.txt".to_string(),
+    );
+    std::fs::write(txt_dir.join(&stayed), b"alt").unwrap();
+    store
+        .set_txt_leftovers(&[stayed.clone(), gone.clone()])
+        .unwrap();
+    assert!(store.txt_names().unwrap().contains(&stayed), "still known");
+    assert_eq!(
+        export::txt_files(&result_dir, &store.txt_names().unwrap()).len(),
+        1
+    );
+    export_all(&store, dir.path(), &[], 1, now, Language::De);
+    assert!(
+        !txt_dir.join(&stayed).exists(),
+        "removed with the next export"
+    );
+    assert!(store.txt_leftovers().unwrap().is_empty(), "and forgotten");
+    // "Textdateien löschen" takes such a file along as well.
+    std::fs::write(txt_dir.join(&stayed), b"alt").unwrap();
+    store
+        .set_txt_leftovers(std::slice::from_ref(&stayed))
+        .unwrap();
+    let (removed, failed) = clear_txt(&store, dir.path()).unwrap();
+    assert!(failed.is_empty() && removed >= 1);
+    assert!(!txt_dir.join(&stayed).exists());
+    assert!(store.txt_leftovers().unwrap().is_empty());
+}
+
+/// A text file open in another program (Windows: without delete sharing, as Word holds it)
+/// stays when its job is deleted for good; the result says so, and the next export removes
+/// it.
+#[cfg(windows)]
+#[test]
+fn an_open_text_file_of_a_deleted_job_is_reported_and_removed_later() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let (store, keys) = store_with_texts();
+    let now = Timestamp::now();
+    export_all(&store, dir.path(), &[], 1, now, Language::De);
+    let name = store.job(&keys[0]).unwrap().unwrap().txt_name.unwrap();
+    let file = dir.path().join(RESULT_DIR).join(TXT_DIR).join(&name);
+    let one = std::slice::from_ref(&keys[0]);
+    store.move_jobs(one, Place::Trash, now).unwrap();
+    let lock = std::fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0)
+        .open(&file)
+        .unwrap();
+    let deleted = delete_jobs(&store, Some(dir.path()), None, one, (now, Language::De)).unwrap();
+    assert_eq!((deleted.count, deleted.txt_left), (1, 1));
+    assert!(file.exists());
+    assert_eq!(store.txt_leftovers().unwrap(), std::slice::from_ref(&name));
+    assert!(store.txt_names().unwrap().contains(&name));
+    drop(lock);
+    export_all(&store, dir.path(), &[], 2, now, Language::De);
+    assert!(!file.exists());
+    assert!(store.txt_leftovers().unwrap().is_empty());
 }

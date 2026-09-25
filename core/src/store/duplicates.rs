@@ -28,7 +28,8 @@ impl Store {
     /// 300-character teaser is never within a few bits of the whole ad. A teaser row always
     /// points to the full-text row, never the reverse, so the row that is listed and scored
     /// carries the full text: a full text that arrives after its teaser becomes the original,
-    /// and the teaser (with anything that pointed to it) points to it.
+    /// and the teaser (with anything that pointed to it) points to it; the original keeps what
+    /// the user and the files already had of the job ([`inherit`]).
     ///
     /// A job the user marked (a favourite, moved out of the inbox, "fits anyway") is never
     /// linked: a duplicate leaves every list, and her marks must not leave with it. An
@@ -96,6 +97,7 @@ impl Store {
                         "UPDATE job SET dup_of = ?1 WHERE dup_of = ?2",
                         params![key.to_string(), other_key.to_string()],
                     )?;
+                    inherit(conn, key, &other_key)?;
                     return Ok(Some(key.clone()));
                 }
                 if own.marked {
@@ -234,6 +236,70 @@ fn link(conn: &rusqlite::Connection, key: &JobKey, original: &JobKey) -> Result<
         params![key.portal.key(), key.id, original.to_string()],
     )?;
     bump(conn)
+}
+
+/// What a row that becomes the original takes over from the row it replaces (a teaser or
+/// a slug row the user may have read): read stays read (the earlier time), the job counts
+/// from its first sighting - so "Neu", the run card's new jobs and the age that archives it
+/// treat it as the job the user already saw - and a text file the other row got stays the
+/// job's one file (the new original gets none of its own).
+fn inherit(conn: &rusqlite::Connection, original: &JobKey, replaced: &JobKey) -> Result<()> {
+    struct Kept {
+        read_at: Option<i64>,
+        first_seen_at: i64,
+        first_seen_run: i64,
+        txt_name: Option<String>,
+        txt_written_at: Option<i64>,
+    }
+    let kept = |key: &JobKey| {
+        conn.query_row(
+            "SELECT read_at, first_seen_at, first_seen_run, txt_name, txt_written_at
+             FROM job WHERE portal = ?1 AND job_id = ?2",
+            params![key.portal.key(), key.id],
+            |r| {
+                Ok(Kept {
+                    read_at: r.get(0)?,
+                    first_seen_at: r.get(1)?,
+                    first_seen_run: r.get(2)?,
+                    txt_name: r.get(3)?,
+                    txt_written_at: r.get(4)?,
+                })
+            },
+        )
+    };
+    let (new, old) = (kept(original)?, kept(replaced)?);
+    let read_at = match (new.read_at, old.read_at) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    };
+    let hand_over = new.txt_name.is_none() && old.txt_name.is_some();
+    let (txt_name, txt_written_at) = if hand_over {
+        (old.txt_name, old.txt_written_at)
+    } else {
+        (new.txt_name, new.txt_written_at)
+    };
+    conn.execute(
+        "UPDATE job SET read_at = ?3, first_seen_at = ?4, first_seen_run = ?5,
+                        txt_name = ?6, txt_written_at = ?7
+         WHERE portal = ?1 AND job_id = ?2",
+        params![
+            original.portal.key(),
+            original.id,
+            read_at,
+            new.first_seen_at.min(old.first_seen_at),
+            new.first_seen_run.min(old.first_seen_run),
+            txt_name,
+            txt_written_at,
+        ],
+    )?;
+    if hand_over {
+        conn.execute(
+            "UPDATE job SET txt_name = NULL, txt_written_at = NULL
+             WHERE portal = ?1 AND job_id = ?2",
+            params![replaced.portal.key(), replaced.id],
+        )?;
+    }
+    Ok(())
 }
 
 /// Normalised title and company: lower case, words only, without gender markers
@@ -409,9 +475,10 @@ mod tests {
                 .unwrap(),
         );
         assert_eq!(top, std::slice::from_ref(&first.key));
-        let (overview, pinned) = store.overview_jobs(run).unwrap();
-        assert!(!pinned);
-        assert_eq!(keys(overview), [first.key]);
+        let overview = store.overview_jobs(20).unwrap();
+        assert!(overview.favourites.is_empty());
+        assert_eq!(keys(overview.new), [first.key]);
+        assert_eq!(overview.new_total, 1);
     }
 
     /// A job the user marked stays a job of its own: linked as a duplicate it would leave
@@ -561,6 +628,51 @@ mod tests {
         );
     }
 
+    /// The full text that takes a read teaser's place is the job the user already saw: it
+    /// stays read, keeps its first sighting and is no new job of the run that brought it.
+    #[test]
+    fn the_new_original_keeps_what_the_user_saw() {
+        use crate::store::test_support::{mail, now, posting};
+        let store = Store::in_memory().unwrap();
+        let earlier = now() - jiff::SignedDuration::from_hours(48);
+        let add = |url: &str, run: i64, at| {
+            let p = posting(
+                url,
+                "SAP FI/CO Berater (m/w/d)",
+                "Ferrum Systems SE",
+                "Hamburg",
+            );
+            store.upsert_posting(run, &p, mail(), at).unwrap();
+            p.key
+        };
+        let first_run = store.begin_run().unwrap();
+        let teaser = add(
+            "https://www.freelance.de/project/index.php?id=1255068",
+            first_run,
+            earlier,
+        );
+        store
+            .record_teaser(&teaser, &teaser_of(TEXT), earlier)
+            .unwrap();
+        assert!(store.mark_read(&teaser, earlier).unwrap());
+        let run = store.begin_run().unwrap();
+        let full = add("https://www.linkedin.com/jobs/view/4000000009/", run, now());
+        store.record_text(&full, TEXT, false, false, now()).unwrap();
+        assert_eq!(store.link_duplicate(&full).unwrap(), Some(full.clone()));
+        let job = store.job(&full).unwrap().unwrap();
+        assert_eq!(job.read_at, Some(earlier), "read stays read");
+        assert_eq!(
+            (job.first_seen_at, job.first_seen_run),
+            (earlier, first_run),
+            "its first sighting"
+        );
+        assert_eq!(
+            store.new_jobs(run).unwrap(),
+            (0, 0),
+            "no new job of the run"
+        );
+    }
+
     /// freelancermap's `/projekt/<slug>` link carries no id, its alerts link `/nproj/<id>`:
     /// the same project under two keys is one row - the one with the portal's id - in
     /// either order; two different projects of the portal never merge.
@@ -594,11 +706,26 @@ mod tests {
                 (add("https://www.freelancermap.de/nproj/2971857.html"), slug)
             };
             assert!(!slug.has_portal_id());
+            // The slug row got its text file in an earlier run.
+            let name = "20260918_Freelancermap_SAP_FI_CO_Berater.txt";
+            if !id_first {
+                store.mark_txt_written(&slug, name, now()).unwrap();
+            }
             let later = if id_first { &slug } else { &id };
             assert_eq!(store.link_duplicate(later).unwrap(), Some(id.clone()));
             assert_eq!(store.dup_of(&slug).unwrap(), Some(id.clone()), "{id_first}");
             assert_eq!(store.dup_of(&id).unwrap(), None);
             assert!(store.also_on(&[&id]).unwrap().is_empty(), "no other portal");
+            if !id_first {
+                // That file stays the job's one file: the id row takes it over.
+                assert_eq!(
+                    store.job(&id).unwrap().unwrap().txt_name.as_deref(),
+                    Some(name)
+                );
+                assert_eq!(store.job(&slug).unwrap().unwrap().txt_name, None);
+                assert!(store.txt_jobs(false).unwrap().is_empty(), "no second file");
+                assert_eq!(store.txt_names().unwrap(), [name]);
+            }
         }
         // Two projects of the portal, both with an id: never merged, however alike.
         let store = Store::in_memory().unwrap();

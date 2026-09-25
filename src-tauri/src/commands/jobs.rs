@@ -8,9 +8,9 @@ use jobalert_core::portal::JobKey;
 use jobalert_core::profile;
 use jobalert_core::store::JobRow;
 use jobalert_core::view::{self, Deleted, JobDetail, JobPage, JobQuery, JobView};
-use tauri::State;
+use tauri::{AppHandle, State};
 
-use super::{AppState, CmdResult, not_found};
+use super::{AppState, CmdResult, files, not_found};
 
 /// One page of the list with its counts (one store query).
 #[tauri::command]
@@ -36,26 +36,45 @@ pub async fn job_detail(state: State<'_, AppState>, key: JobKey) -> CmdResult<Jo
 }
 
 /// Marks a job as read - only on a real click in the list; `false` = it was read already.
+/// The HTML overview and the skill's list follow (they hold unread jobs).
 #[tauri::command]
-pub async fn mark_read(state: State<'_, AppState>, key: JobKey) -> CmdResult<bool> {
-    Ok(state.store.mark_read(&key, Timestamp::now())?)
+pub async fn mark_read(app: AppHandle, state: State<'_, AppState>, key: JobKey) -> CmdResult<bool> {
+    let changed = state.store.mark_read(&key, Timestamp::now())?;
+    if changed {
+        files::marked(&app);
+    }
+    Ok(changed)
 }
 
 /// Sets or clears the favourite (the star); `false` = nothing changed.
 #[tauri::command]
-pub async fn set_pinned(state: State<'_, AppState>, key: JobKey, on: bool) -> CmdResult<bool> {
-    Ok(state.store.set_pinned(&key, on, Timestamp::now())?)
+pub async fn set_pinned(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    key: JobKey,
+    on: bool,
+) -> CmdResult<bool> {
+    let changed = state.store.set_pinned(&key, on, Timestamp::now())?;
+    if changed {
+        files::marked(&app);
+    }
+    Ok(changed)
 }
 
 /// Moves jobs to the inbox, the archive or the trash; returns the keys that really moved
 /// (the page toasts and undoes only those).
 #[tauri::command]
 pub async fn move_jobs(
+    app: AppHandle,
     state: State<'_, AppState>,
     keys: Vec<JobKey>,
     to: Place,
 ) -> CmdResult<Vec<JobKey>> {
-    Ok(state.store.move_jobs(&keys, to, Timestamp::now())?)
+    let moved = state.store.move_jobs(&keys, to, Timestamp::now())?;
+    if !moved.is_empty() {
+        files::marked(&app);
+    }
+    Ok(moved)
 }
 
 /// "Fits anyway": an excluded job counts as scored with its fit score (`include`), or the
@@ -63,6 +82,7 @@ pub async fn move_jobs(
 /// catch-up does it); `false` = nothing changed.
 #[tauri::command]
 pub async fn set_override(
+    app: AppHandle,
     state: State<'_, AppState>,
     key: JobKey,
     include: bool,
@@ -78,27 +98,38 @@ pub async fn set_override(
             Timestamp::now(),
         )?;
     }
+    if changed {
+        files::marked(&app);
+    }
     Ok(changed)
 }
 
 /// "Endgültig löschen": deletes these jobs for good - only those in the trash. Rows, text
 /// files and Excel rows go; only a tombstone of each key stays, so no later scan brings them
-/// back. Not while a run is active.
+/// back. Not while a run is active, and it holds the app while it deletes.
 #[tauri::command]
-pub async fn purge_jobs(state: State<'_, AppState>, keys: Vec<JobKey>) -> CmdResult<Deleted> {
-    forget(&state, &keys)
+pub async fn purge_jobs(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    keys: Vec<JobKey>,
+) -> CmdResult<Deleted> {
+    forget(&app, &state, Some(&keys))
 }
 
 /// Empties the trash like Mail does: every job in it is deleted for good, whatever the list
 /// shows (see [`purge_jobs`]); the result names how many and which.
 #[tauri::command]
-pub async fn empty_trash(state: State<'_, AppState>) -> CmdResult<Deleted> {
-    let keys = state.store.trashed_keys(None)?;
-    forget(&state, &keys)
+pub async fn empty_trash(app: AppHandle, state: State<'_, AppState>) -> CmdResult<Deleted> {
+    forget(&app, &state, None)
 }
 
-fn forget(state: &AppState, keys: &[JobKey]) -> CmdResult<Deleted> {
-    state.ensure_idle()?;
+/// Deletes these jobs for good (`None`: the whole trash, as it is once the app is held).
+fn forget(app: &AppHandle, state: &AppState, keys: Option<&[JobKey]>) -> CmdResult<Deleted> {
+    let _files = state.claim_files(app)?;
+    let keys = match keys {
+        Some(keys) => keys.to_vec(),
+        None => state.store.trashed_keys(None)?,
+    };
     let workspace = if state.dry_run {
         None
     } else {
@@ -110,7 +141,7 @@ fn forget(state: &AppState, keys: &[JobKey]) -> CmdResult<Deleted> {
         &state.store,
         workspace.as_deref(),
         matcher,
-        keys,
+        &keys,
         (Timestamp::now(), state.language()?),
     )?)
 }
@@ -194,18 +225,30 @@ pub async fn ai_prompt_top(state: State<'_, AppState>, limit: u32) -> CmdResult<
 /// back for the undo.
 #[tauri::command]
 pub async fn mark_all_read(
+    app: AppHandle,
     state: State<'_, AppState>,
     place: Place,
     search: Option<String>,
 ) -> CmdResult<Vec<JobKey>> {
-    Ok(state
+    let marked = state
         .store
-        .mark_all_read(place, search.as_deref(), Timestamp::now())?)
+        .mark_all_read(place, search.as_deref(), Timestamp::now())?;
+    if !marked.is_empty() {
+        files::marked(&app);
+    }
+    Ok(marked)
 }
 
 /// The undo of "all read": these jobs are unread again; returns how many.
 #[tauri::command]
-pub async fn mark_unread(state: State<'_, AppState>, keys: Vec<JobKey>) -> CmdResult<u32> {
+pub async fn mark_unread(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    keys: Vec<JobKey>,
+) -> CmdResult<u32> {
     let changed = state.store.mark_unread(&keys)?;
+    if changed > 0 {
+        files::marked(&app);
+    }
     Ok(u32::try_from(changed).unwrap_or(u32::MAX))
 }

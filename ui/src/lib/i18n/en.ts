@@ -723,6 +723,7 @@ export const en: Catalog = {
       txt: 'Not all text files could be written.',
       txtFolder: 'The folder of the text files cannot be reached.',
       backup: 'The old Excel file could not be backed up, so the new one was not written.',
+      workspace: 'The work folder cannot be reached.',
     },
     skipped: (value: number) => `${count(value, 'job is', 'jobs are')} left for the next fetch.`,
     filesFailed: (value: number) => `${count(value, 'file', 'files')} could not be written.`,

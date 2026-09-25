@@ -26,8 +26,7 @@ mod pages;
 mod schema;
 
 pub use jobs::{
-    AlertMailRow, JobFilter, JobRow, MailRef, NEW_DAYS, PageCounts, PageQuery, PortalCount, Seen,
-    new_since,
+    AlertMailRow, JobFilter, JobRow, MailRef, NEW_DAYS, PageCounts, PageQuery, Seen, new_since,
 };
 
 pub struct Store {

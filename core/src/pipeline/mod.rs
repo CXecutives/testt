@@ -559,17 +559,21 @@ pub async fn run<B: Backends>(
     log::info!("run {run}: {:?} started", summary.kind);
     let plan = Plan::of(&request.kind, ctx);
     let mut postings: BTreeMap<Portal, usize> = BTreeMap::new();
+    // The scan of this run succeeded: its facts are the Info sheet's.
+    let mut scanned_ok = false;
 
     if let Some(scope) = plan.scan {
         let before_scan = last_scan_run(store).unwrap_or(0);
         if ctx.portals.is_empty() {
             summary.outcome = failed(ErrorInfo::from(&InvalidInput::NoPortal));
         } else if let Err(e) = store.kv_set(LAST_SCAN_RUN, &run.to_string()) {
-            // "New in this run" shows the jobs of the last run with a mailbox scan.
+            // The alert mails of the last run with a mailbox scan tell the portals' health.
             summary.outcome = failed(ErrorInfo::from(&e));
         } else {
-            // Remember the state of the last real scan: whoever never reaches the mailbox
-            // (wrong app password, no network, instant cancel) must not empty it.
+            // Remember the state of the last scan that read mail: one that read none (wrong
+            // app password, no network, instant cancel, or no alert mail since the last
+            // fetch) says nothing new about the alert mails - "alert mails without jobs" stays
+            // until mails are read again.
             let mut scanned = ScanSummary::default();
             let result = scan_step(
                 backends,
@@ -585,6 +589,7 @@ pub async fn run<B: Backends>(
             summary.outcome = match result {
                 Ok(()) => {
                     remember_scan(store, scope, &scanned, started_at);
+                    scanned_ok = true;
                     Outcome::Completed
                 }
                 Err(ScanError::Mail(MailError::Cancelled)) => Outcome::Cancelled,
@@ -640,7 +645,12 @@ pub async fn run<B: Backends>(
 
     if summary.scan.is_some() {
         match store.new_jobs(run) {
-            Ok((count, high)) => summary.new_jobs = Some(NewJobs { count, high }),
+            Ok((count, high)) => {
+                summary.new_jobs = Some(NewJobs { count, high });
+                if scanned_ok {
+                    remember_new_jobs(store, count);
+                }
+            }
             Err(e) => log::warn!("run {run}: new jobs not counted: {e}"),
         }
     }
@@ -650,7 +660,7 @@ pub async fn run<B: Backends>(
     summary.finished_at = clock();
     if !ctx.dry_run {
         emit(status(StatusCode::WritingFiles, None, None));
-        let info = info_rows(store, started_at, Texts::of(ctx.language));
+        let info = info_rows(store, summary.finished_at, Texts::of(ctx.language));
         let exported = export_all(
             store,
             &ctx.workspace,
@@ -758,7 +768,7 @@ pub fn empty_old_trash(
     match deleted {
         Ok((gone, names)) => {
             if let Some(workspace) = workspace.filter(|_| !gone.is_empty()) {
-                export::clear_txt_files(&workspace.join(RESULT_DIR), &names);
+                remove_deleted_txt(store, workspace, &names);
             }
             gone.len()
         }
@@ -779,7 +789,8 @@ fn failed(error: ErrorInfo) -> Outcome {
     Outcome::Failed { error }
 }
 
-/// Number of the last run with a mailbox scan ("new in this run"); 0 = none yet.
+/// Number of the last run with a mailbox scan that read mail (its alert mails without jobs
+/// are the portals' health); 0 = none yet.
 pub fn last_scan_run(store: &Store) -> crate::Result<i64> {
     Ok(store
         .kv_get(LAST_SCAN_RUN)?
@@ -1056,6 +1067,8 @@ fn per_portal(
 /// What failed in an export step (`params.target` of the error).
 #[derive(Clone, Copy)]
 enum Target {
+    /// The work folder itself (a network drive or stick that is gone): nothing is written.
+    Workspace,
     /// The folder of the text files.
     TxtFolder,
     /// One text file or its mark in the database.
@@ -1071,6 +1084,7 @@ enum Target {
 impl Target {
     const fn code(self) -> &'static str {
         match self {
+            Target::Workspace => "workspace",
             Target::TxtFolder => "txtFolder",
             Target::Txt => "txt",
             Target::Overview => "overview",
@@ -1093,6 +1107,10 @@ pub fn export_all(
 ) -> ExportSummary {
     let result_dir = workspace.join(RESULT_DIR);
     let mut summary = ExportSummary::default();
+    if !reachable(workspace, &mut summary) {
+        return summary;
+    }
+    retry_txt_leftovers(store, &result_dir);
     match store.txt_jobs(false) {
         Ok(jobs) => write_txts(store, &result_dir, jobs, now, &mut summary),
         Err(e) => note_error(&mut summary, &e, Target::Txt),
@@ -1106,17 +1124,60 @@ pub fn export_all(
         &mut summary,
     );
     // The HTML overview is small and never locked by a browser: written on every export.
-    let path = export::overview_html_path(&result_dir);
-    let written = last_scan_run(store)
-        .and_then(|new_run| store.overview_jobs(new_run))
-        .and_then(|(jobs, pinned)| {
-            export::write_overview_html(&path, &jobs, pinned, now, language)
-        });
-    match written {
-        Ok(()) => summary.overview_html = Some(path),
+    match write_html_overview(store, &result_dir, now, language) {
+        Ok(path) => summary.overview_html = Some(path),
         Err(e) => note_error(&mut summary, &e, Target::OverviewHtml),
     }
     summary
+}
+
+/// Most new matches the HTML overview lists, best first (the app lists them all).
+pub const OVERVIEW_NEW_MAX: u32 = 20;
+
+/// Writes `JobAlerts.html` from the jobs as they are now (in `language`): the favourites of
+/// the inbox, else the best new matches. Returns its path.
+fn write_html_overview(
+    store: &Store,
+    result_dir: &Path,
+    now: Timestamp,
+    language: Language,
+) -> crate::Result<PathBuf> {
+    let path = export::overview_html_path(result_dir);
+    let overview = store.overview_jobs(OVERVIEW_NEW_MAX)?;
+    let (jobs, pinned) = if overview.favourites.is_empty() {
+        (overview.new, false)
+    } else {
+        (overview.favourites, true)
+    };
+    export::write_overview_html(&path, &jobs, pinned, now, language)?;
+    Ok(path)
+}
+
+/// The files a mark changes (a move, the star, "fits anyway", read or unread), written anew
+/// without a run: the HTML overview and `top_matches.json` - both small, so the skill never
+/// reads a job the user threw away. The Excel file waits for the next run (its Info sheet
+/// says it is written anew then). A failure only goes to the log.
+pub fn refresh_exports(
+    store: &Store,
+    workspace: &Path,
+    matcher: Option<&dyn Matcher>,
+    now: Timestamp,
+    language: Language,
+) {
+    if let Err(e) = refresh_overview(store, workspace, now, language) {
+        log::warn!("{} not written: {e}", export::HTML_NAME);
+    }
+    write_top_matches(store, workspace, matcher, now);
+}
+
+/// Writes the HTML overview as the jobs are now (before it is opened, say); returns its path.
+pub fn refresh_overview(
+    store: &Store,
+    workspace: &Path,
+    now: Timestamp,
+    language: Language,
+) -> crate::Result<PathBuf> {
+    write_html_overview(store, &workspace.join(RESULT_DIR), now, language)
 }
 
 /// `top_matches.json` for the matching skill; a failure only goes to the log (the file is an
@@ -1150,23 +1211,21 @@ pub fn delete_jobs(
     // Only the trash is deleted for good.
     let keys = store.in_trash(keys)?;
     let (gone, names) = store.delete_jobs(&keys, now)?;
+    // The jobs as the list showed them: a duplicate that stood behind a row goes with it
+    // (its key is among `gone` for the page), but the user deleted that row once.
+    let rows = keys.iter().filter(|key| gone.contains(key)).count();
     let mut deleted = Deleted {
-        count: u32::try_from(gone.len()).unwrap_or(u32::MAX),
+        count: u32::try_from(rows).unwrap_or(u32::MAX),
         keys: gone,
+        txt_left: 0,
         export_error: None,
     };
-    let Some(workspace) = workspace.filter(|_| deleted.count > 0) else {
+    let Some(workspace) = workspace.filter(|_| !deleted.keys.is_empty()) else {
         return Ok(deleted);
     };
-    let (_, failed) = export::clear_txt_files(&workspace.join(RESULT_DIR), &names);
-    if !failed.is_empty() {
-        log::warn!("delete: {} text files not removed (open)", failed.len());
-    }
-    let info = info_rows(
-        store,
-        last_fetch_at(store).unwrap_or(now),
-        Texts::of(language),
-    );
+    let left = remove_deleted_txt(store, workspace, &names);
+    deleted.txt_left = u32::try_from(left).unwrap_or(u32::MAX);
+    let info = info_rows(store, now, Texts::of(language));
     let run = last_scan_run(store).unwrap_or(0);
     let exported = export_all(store, workspace, &info, run, now, language);
     write_top_matches(store, workspace, matcher, now);
@@ -1174,16 +1233,98 @@ pub fn delete_jobs(
     Ok(deleted)
 }
 
+/// Removes the text files of jobs deleted for good. A file that stays (open in another
+/// program, or the work folder on a drive that is gone) is remembered - its job's row is
+/// gone - so the next export, "Textdateien löschen" or a reset removes it
+/// ([`Store::txt_leftovers`]). Returns how many stayed.
+fn remove_deleted_txt(store: &Store, workspace: &Path, names: &[String]) -> usize {
+    let failed = if workspace.is_dir() {
+        export::clear_txt_files(&workspace.join(RESULT_DIR), names).1
+    } else {
+        names.to_vec()
+    };
+    if failed.is_empty() {
+        return 0;
+    }
+    log::warn!(
+        "{} text files of deleted jobs not removed (open), removed later",
+        failed.len()
+    );
+    let mut left = store.txt_leftovers().unwrap_or_default();
+    for name in &failed {
+        if !left.contains(name) {
+            left.push(name.clone());
+        }
+    }
+    if let Err(e) = store.set_txt_leftovers(&left) {
+        log::warn!("text files not removed are not remembered: {e}");
+    }
+    failed.len()
+}
+
+/// Another try at the text files of deleted jobs that stayed earlier; the ones gone meanwhile
+/// (removed now or by the user) are forgotten.
+fn retry_txt_leftovers(store: &Store, result_dir: &Path) {
+    let left = match store.txt_leftovers() {
+        Ok(left) if !left.is_empty() => left,
+        Ok(_) => return,
+        Err(e) => {
+            log::warn!("text files not removed earlier are not readable: {e}");
+            return;
+        }
+    };
+    let (_, failed) = export::clear_txt_files(result_dir, &left);
+    let still: Vec<String> = left.into_iter().filter(|n| failed.contains(n)).collect();
+    if let Err(e) = store.set_txt_leftovers(&still) {
+        log::warn!("text files not removed are not remembered: {e}");
+    }
+}
+
+/// "Delete text files": removes the app's text files (with those of deleted jobs that stayed
+/// earlier) and returns how many went and the names of the files that stayed (open right
+/// now); of the deleted jobs' files only those stay remembered - all of them while the work
+/// folder is gone.
+pub fn clear_txt(store: &Store, workspace: &Path) -> crate::Result<(usize, Vec<String>)> {
+    let (removed, failed) =
+        export::clear_txt_files(&workspace.join(RESULT_DIR), &store.txt_names()?);
+    if workspace.is_dir() {
+        let still: Vec<String> = store
+            .txt_leftovers()?
+            .into_iter()
+            .filter(|n| failed.contains(n))
+            .collect();
+        store.set_txt_leftovers(&still)?;
+    }
+    Ok((removed, failed))
+}
+
 /// "Rewrite text files" (e.g. after a change of folder): all jobs with a full text, the
 /// names stay. What cannot be written keeps its mark - the next run therefore does not
 /// recreate a file deleted on purpose by itself.
 pub fn rewrite_txt(store: &Store, workspace: &Path, now: Timestamp) -> ExportSummary {
     let mut summary = ExportSummary::default();
+    if !reachable(workspace, &mut summary) {
+        return summary;
+    }
     match store.txt_jobs(true) {
         Ok(jobs) => write_txts(store, &workspace.join(RESULT_DIR), jobs, now, &mut summary),
         Err(e) => note_error(&mut summary, &e, Target::Txt),
     }
     summary
+}
+
+/// Is the work folder there? A deleted local folder is simply made again; one on a drive
+/// that is gone (a network share, a stick) is one clear error naming the work folder - not
+/// a text folder, an Excel file and an overview that each could not be written - and the
+/// export is skipped: the files follow once the folder is back.
+fn reachable(workspace: &Path, summary: &mut ExportSummary) -> bool {
+    match export::ensure_dir(workspace) {
+        Ok(()) => true,
+        Err(e) => {
+            note_error(summary, &e, Target::Workspace);
+            false
+        }
+    }
 }
 
 /// The first error stays: it is closest to the cause (the folder is unreachable); later
@@ -1283,11 +1424,12 @@ fn write_overview(
     }
     // An overview that does not come from this app (e.g. from the old program in the same
     // folder) is backed up before the first write - never replaced silently. The name is
-    // part of the user's workspace - do not translate.
+    // part of the user's workspace - do not translate - and says the local time, like the
+    // text files' names.
     if path.exists() && last.is_none() {
         let backup = path.with_file_name(format!(
             "JobAlerts.alt-{}.{}",
-            now.strftime("%Y%m%d-%H%M%S"),
+            time::local(now).strftime("%Y%m%d-%H%M%S"),
             path.extension().and_then(|e| e.to_str()).unwrap_or("xlsx")
         ));
         if let Err(e) = std::fs::rename(path, &backup) {
@@ -1323,9 +1465,14 @@ struct ScanFacts {
     /// Start of the scan (Unix seconds).
     at: i64,
     scope: Scope,
+    /// Listings in the alert mails, by what the scan knew of them.
     new: usize,
     known: usize,
     dup: usize,
+    /// The new jobs of the run, as its card counts them ([`NewJobs`]: a job several portals
+    /// announce once, excluded ones left out); `None` in the facts of earlier versions.
+    #[serde(default)]
+    jobs: Option<usize>,
 }
 
 /// Remembers the numbers of a successful mailbox scan for the sheet "Info" - only then: a
@@ -1338,8 +1485,38 @@ fn remember_scan(store: &Store, scope: Scope, scan: &ScanSummary, at: Timestamp)
         new: scan.new,
         known: scan.known_before,
         dup: scan.dup_in_run,
+        jobs: None,
     };
-    let saved = serde_json::to_string(&facts)
+    save_facts(store, &facts);
+    if let Err(e) = store.kv_set(LAST_FETCH_AT, &time::to_db(at).to_string()) {
+        log::warn!("time of the mailbox scan not stored: {e}");
+    }
+}
+
+/// The run card's number of new jobs goes with the facts of the scan that just succeeded:
+/// the Info sheet says the same number as the card.
+fn remember_new_jobs(store: &Store, count: usize) {
+    if let Some(facts) = scan_facts(store) {
+        save_facts(
+            store,
+            &ScanFacts {
+                jobs: Some(count),
+                ..facts
+            },
+        );
+    }
+}
+
+fn scan_facts(store: &Store) -> Option<ScanFacts> {
+    store
+        .kv_get(LAST_SCAN_FACTS)
+        .ok()
+        .flatten()
+        .and_then(|json| serde_json::from_str(&json).ok())
+}
+
+fn save_facts(store: &Store, facts: &ScanFacts) {
+    let saved = serde_json::to_string(facts)
         .map_err(|e| e.to_string())
         .and_then(|json| {
             store
@@ -1348,9 +1525,6 @@ fn remember_scan(store: &Store, scope: Scope, scan: &ScanSummary, at: Timestamp)
         });
     if let Err(e) = saved {
         log::warn!("mailbox scan details not stored: {e}");
-    }
-    if let Err(e) = store.kv_set(LAST_FETCH_AT, &time::to_db(at).to_string()) {
-        log::warn!("time of the mailbox scan not stored: {e}");
     }
 }
 
@@ -1364,28 +1538,29 @@ pub fn last_fetch_at(store: &Store) -> Option<Timestamp> {
         .and_then(time::from_db)
 }
 
-/// Should the app start a fetch run by itself? Only when switched on, with a mailbox, and
-/// when the last successful mailbox scan is older than [`AUTO_FETCH_AFTER`] (or never was).
+/// Should the app start a fetch run by itself? Only when switched on, with a portal to read
+/// and a mailbox, and when the last successful mailbox scan is older than
+/// [`AUTO_FETCH_AFTER`] (or never was). With every portal switched off (a state the user may
+/// choose, and broken settings leave) a fetch could only fail: it waits for a portal.
 pub fn auto_fetch_due(
     store: &Store,
-    switched_on: bool,
+    settings: &crate::settings::Settings,
     mailbox_connected: bool,
     now: Timestamp,
 ) -> bool {
-    switched_on
+    settings.auto_fetch_on_start
+        && !settings.enabled_portals().is_empty()
         && mailbox_connected
         && last_fetch_at(store).is_none_or(|at| now.duration_since(at) > AUTO_FETCH_AFTER)
 }
 
-/// Sheet "Info" of the Excel file (last scan, last run, counters, program). The numbers
-/// come from the last successful mailbox scan - after pure detail runs too.
-fn info_rows(store: &Store, started_at: Timestamp, words: &Texts) -> Vec<(String, String)> {
-    let facts = store
-        .kv_get(LAST_SCAN_FACTS)
-        .ok()
-        .flatten()
-        .and_then(|json| serde_json::from_str::<ScanFacts>(&json).ok());
-    let mut rows = match facts {
+/// Sheet "Info" of the Excel file (last mailbox fetch, when the file was written, counters,
+/// program). The numbers come from the last successful mailbox scan - after pure detail
+/// runs too; "new" is the run card's number of new jobs. Any run and a delete for good write
+/// the file (`written`: that moment), so it says when, not the time of a fetch: that is the
+/// first row's. The job count is the sheet's rows.
+fn info_rows(store: &Store, written: Timestamp, words: &Texts) -> Vec<(String, String)> {
+    let mut rows = match scan_facts(store) {
         Some(facts) => {
             let at = time::from_db(facts.at).map_or_else(String::new, |at| words.moment(at));
             let scope = match facts.scope {
@@ -1395,17 +1570,21 @@ fn info_rows(store: &Store, started_at: Timestamp, words: &Texts) -> Vec<(String
             vec![
                 (words.info_last_scan.to_owned(), at),
                 (words.info_scope.to_owned(), scope.to_owned()),
-                (words.info_new.to_owned(), facts.new.to_string()),
+                (
+                    words.info_new.to_owned(),
+                    facts.jobs.unwrap_or(facts.new).to_string(),
+                ),
                 (words.info_known.to_owned(), facts.known.to_string()),
                 (words.info_dup.to_owned(), facts.dup.to_string()),
             ]
         }
         None => legacy_info_rows(store, words),
     };
-    rows.push((words.info_last_run.into(), words.moment(started_at)));
+    // "Erstellt am" / "Created on", the HTML overview's word for the same thing.
+    rows.push((words.html_created.into(), words.moment(written)));
     rows.push((
         words.info_jobs_total.into(),
-        store.job_count().unwrap_or(0).to_string(),
+        store.listed_count().unwrap_or(0).to_string(),
     ));
     rows.push((words.info_program.into(), texts::PROGRAM_NAME.into()));
     rows

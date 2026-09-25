@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use jiff::Timestamp;
-use jobalert_core::error::{ErrorInfo, ErrorKind};
+use jobalert_core::error::{ErrorInfo, ErrorKind, InvalidInput};
 use jobalert_core::fetch::Fetchers;
 use jobalert_core::fetch::http::HttpFetcher;
 use jobalert_core::fetch::policy::Policy;
@@ -178,13 +178,18 @@ impl Backends for AppBackends {
 }
 
 /// Settings and Gmail access of a run. Only the mailbox step needs Gmail: fetching job
-/// details also works when the vault entry is unreadable right now.
+/// details also works when the vault entry is unreadable right now. A mailbox run needs a
+/// portal to read: with every portal switched off it is refused here ("at least one portal
+/// must be active"), never started only to be stored as a failed fetch.
 fn run_context(
     state: &AppState,
     request: &RunRequest,
 ) -> CmdResult<(RunContext, Option<Credentials>)> {
     let settings = state.settings()?;
     let scans = request.kind.name().reads_mail();
+    if scans && settings.enabled_portals().is_empty() {
+        return Err(ErrorInfo::from(&InvalidInput::NoPortal));
+    }
     let credentials = if state.dry_run || !scans {
         None
     } else {
@@ -224,12 +229,19 @@ pub(super) fn launch(
     request: RunRequest,
     channel: Channel<RunEvent>,
 ) -> CmdResult<()> {
-    // Check and claim under one lock (no `await` in between).
+    // A run that cannot start never asks the keychain.
+    if state.busy() {
+        return Err(ErrorInfo::new(ErrorKind::Busy));
+    }
+    // Settings and Gmail access outside the lock: reading the keychain can wait for a prompt
+    // (macOS), and the reader, the close button and every busy check wait for this lock.
+    let (ctx, credentials) = run_context(state, &request)?;
+    // Check and claim under one lock (no `await` in between); a run or sign-in that began
+    // meanwhile keeps the slot, and the credentials read for nothing are dropped.
     let mut activity = lock(&state.activity);
     if !matches!(*activity, Activity::Idle) {
         return Err(ErrorInfo::new(ErrorKind::Busy));
     }
-    let (ctx, credentials) = run_context(state, &request)?;
     let kind = request.kind.name();
     let handle = RunHandle {
         cancel: CancellationToken::new(),
