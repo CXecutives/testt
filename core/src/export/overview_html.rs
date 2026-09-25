@@ -44,7 +44,6 @@ li { display: flex; gap: 16px; padding: 16px; margin: 0 0 8px; background: #fff;
 .ring circle { fill: none; stroke-width: 3; }
 .track { stroke: var(--line); }
 .value { stroke-linecap: round; }
-.provisional .track, .none .track { stroke-dasharray: 2.5 2.5; }
 .none, .unscorable { color: var(--low); }
 .out { color: var(--danger); }
 .out .track { stroke: var(--danger-track); }
@@ -141,11 +140,12 @@ fn section(out: &mut String, heading: &str, jobs: &[JobRow], now: Timestamp, tex
     }
 }
 
-/// The ring of a job, drawn like the app's: a scored job's arc is its share of 100 in the
-/// colour of its step (ten steps by decile, `scale.rs`), on a dashed track while the score
-/// comes from a teaser only. An excluded job keeps its score, but its ring is a pale red
-/// track with the ban mark and no number; an unscorable job shows the track and a dash, one
-/// not scored yet (or unscorable while its details still come) a dashed track alone.
+/// The ring of a job, drawn like the app's: every ring has the same solid track, the centre
+/// and the arc say the state. A scored job's arc is its share of 100 in the colour of its
+/// step (ten steps by decile, `scale.rs`), a score from a teaser only too. An excluded job
+/// keeps its score, but its ring is a pale red track with the ban mark and no number; an
+/// unscorable job shows the track and a dash, one not scored yet (or unscorable while its
+/// details still come) the track alone.
 fn ring(out: &mut String, job: &JobRow, waits: bool, texts: &Texts) {
     // Class, tooltip, the arc (the score) and what the centre shows.
     let (class, title, arc, centre) = match &job.match_ {
@@ -368,8 +368,8 @@ mod tests {
     }
 
     /// The rings speak like the app's: the arc is the score's share of 100 (a 5 is no full
-    /// ring), a score from a teaser stands on a dashed track, an unscorable job shows a dash,
-    /// one not scored yet or waiting for its details the dashed track alone.
+    /// ring), a score from a teaser looks like any other, an unscorable job shows a dash, one
+    /// not scored yet or waiting for its details the track alone. No ring has a dashed track.
     #[test]
     fn a_ring_shows_the_share_of_its_score() {
         let mut teaser = job("B", Some(record(MatchStatus::Scored, 42, None)));
@@ -410,7 +410,10 @@ mod tests {
             html.matches("<p class=\"sub\">Nicht bewertbar</p>").count(),
             1
         );
-        assert!(STYLE.contains(".provisional .track, .none .track { stroke-dasharray"));
+        assert!(
+            !STYLE.contains("stroke-dasharray"),
+            "one solid track for every ring"
+        );
         // The line of an unscorable job sits like the others (no paragraph margins of its own).
         assert!(html.contains("<p class=\"sub\">Nicht bewertbar</p>"));
         assert!(STYLE.contains(".met, .excluded, p.sub { margin: 6px 0 0;"));
