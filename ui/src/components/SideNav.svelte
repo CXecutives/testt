@@ -1,14 +1,15 @@
 <!--
-  The navigation of the sidebar: icon and label per view, an optional count (unread jobs).
+  The navigation of the sidebar: icon and label per view, no counts (the list says how many
+  are new).
   The active entry sits on one white pill that slides to it (180 ms, emphasized; the
   sibling of the segmented thumb), its label ink and its icon coral. An idle entry washes
-  on hover and its icon turns coral. The count is the deep navy pill and rolls when it
-  changes. Collapsed (icon rail) the labels move into tooltips right of the icons (never
-  over the next entry) and a coral dot on the icon stands for the count. While the window is inactive the active label turns ink.
+  on hover and its icon turns coral. Collapsed (icon rail) the labels move into tooltips
+  right of the icons (never over the next entry). While the window is inactive the active
+  label turns ink.
   An entry may carry sub-entries (Archiv, Papierkorb under Jobs), a group of its own:
   quieter (13 px, muted), indented under the parent's label, as high as the main entries so
-  the one pill steps over them alike. Sub-entries carry no count and are simply there when
-  the nav mounts. With `fold` a small arrow at the end of the parent's row (after its count)
+  the one pill steps over them alike. Sub-entries are simply there when the nav mounts.
+  With `fold` a small arrow at the end of the parent's row
   folds them away and back: it turns a quarter (180 ms), the sub-entries fade out where
   they are and the entries below then take their place (no height animation); unfolded
   the entries below make room and they fade in. Folded they stay in the document, hidden.
@@ -24,7 +25,6 @@
     id: Id;
     label: string;
     icon: IconName;
-    count?: number | null;
     testid?: string;
     /** Quieter entries right under this one (the places of the Jobs view). */
     children?: readonly SideNavItem<Id>[];
@@ -50,8 +50,7 @@
   import { cssVars } from '$lib/actions/cssVars';
   import { play } from '$lib/motion/motion';
   import { settled } from '$lib/motion/settled.svelte';
-  import { fade, pop } from '$lib/motion/transitions';
-  import Count from './Count.svelte';
+  import { fade } from '$lib/motion/transitions';
   import Icon from './Icon.svelte';
 
   interface Props {
@@ -200,13 +199,9 @@
   >
     <span class="glyph">
       <Icon name={item.icon} size={sub ? 'sm' : 'md'} />
-      {#if collapsed && item.count}<span class="dot" aria-hidden="true" in:pop></span>{/if}
     </span>
     {#if !collapsed}
       <span class="label" in:fade>{item.label}</span>
-      {#if item.count}<span class="count" in:fade={{ on: motion.ready }}
-          ><Count value={item.count} tone="strong" /></span
-        >{/if}
     {/if}
   </button>
 {/snippet}
@@ -360,21 +355,9 @@
   }
 
   .glyph {
-    position: relative;
     display: inline-flex;
     color: var(--nav-glyph, currentcolor);
     transition: color var(--dur-base) var(--ease-standard);
-  }
-
-  .dot {
-    position: absolute;
-    top: calc(-1 * var(--space-2));
-    right: calc(-1 * var(--space-2));
-    width: var(--dot);
-    height: var(--dot);
-    border: var(--border-width) solid var(--bg);
-    border-radius: var(--radius-full);
-    background-color: var(--unread);
   }
 
   .label {
@@ -383,10 +366,6 @@
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .count {
-    display: inline-flex;
   }
 
   /* A sub-entry: quieter and indented under the parent's label (its icon where the
@@ -425,7 +404,7 @@
     content: '';
   }
 
-  /* The parent's row: its entry and, at the row's end after the count, the arrow. */
+  /* The parent's row: its entry and, at the row's end, the arrow. */
   .parent {
     position: relative;
     display: flex;

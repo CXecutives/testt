@@ -37,7 +37,6 @@
     id: String(index),
     label,
     icon: NAV_ICONS[index] ?? 'briefcase',
-    count: index === 0 ? 12 : null,
     testid: `gnav-${index}`,
     children: index === 0 ? places : [],
   }));

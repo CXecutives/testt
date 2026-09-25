@@ -163,10 +163,6 @@
   --count-soft-hover: hsl(var(--p-coral-70));
 
   /* ------------------------------------------ navy: the data and the quiet structure */
-  /* The dark count pill: the sidebar unread count (the cxpertise dark label), nowhere else
-     at rest. */
-  --count-bg: hsl(var(--p-navy-deep));
-  --count-fg: hsl(var(--p-white));
   /* An icon that answers the pointer or marks data (a hovered status, a focused search, a
      disclosure chevron, the icon of a neutral stat tile). */
   --icon-accent: hsl(var(--p-navy));
@@ -368,8 +364,8 @@
   --tile-sm: 32px;
   --tile-md: 40px;
   --tile-lg: 56px;
-  /* The rail badge; the unread dot of a list row is smaller and sits on the ring axis in
-     the pane padding. */
+  /* A status dot (the run card); the unread dot of a list row is smaller and sits on the
+     ring axis in the pane padding. */
   --dot: 8px;
   --dot-unread: 6px;
   --scrollbar-size: 8px;

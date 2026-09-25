@@ -3,18 +3,15 @@
   the white sheet of the content is the divider. App icon and name live in the native title
   bar of the OS, so the sidebar starts with the views (on macOS below the traffic lights,
   whose 52 px band moves the window): the first sits on the line of the list's search field
-  on Windows, each with its icon and the unread count; under Jobs (the inbox) the two other
-  places of the jobs, Archiv and Papierkorb, quieter and without counts (a click on Jobs from
-  there goes back to the inbox). An arrow at the end of the Jobs row hides and shows them
+  on Windows, each with its icon and no count (the list says how many are new); under
+  Jobs (the inbox) the two other places of the jobs, Archiv and Papierkorb, quieter (a
+  click on Jobs from there goes back to the inbox). An arrow at the end of the Jobs row hides and shows them
   (kept; while one of them is open they stay); in the rail it is a slim row under the Jobs
   icon. At the foot a quiet run status that opens the run in the Jobs view. It shows only
   while there is a run to open (before the first fetch the first-run page says it all), and
   it is said once: while the run card is on screen it steps aside. "Abrufen" lives in the
   list header.
-  From 1100 px on the sidebar folds to its icons and back (kept) with a click on its right
-  edge (a line and a grip on hover, the tooltip names Ctrl+B or Cmd+B), with that key and
-  on macOS from the menu; the width switches at once and the labels fade in. Below 1100 px
-  it is the rail anyway and there is no edge.
+  Below 1100 px it folds to its icons by the window width alone; there is no manual fold.
 -->
 <script lang="ts">
   import DragBand from '$components/DragBand.svelte';
@@ -34,8 +31,6 @@
 
   const SIDEBAR_ID = 'sidebar';
 
-  // New jobs over everything (the overview's unfiltered counts), whatever the list shows.
-  const unread = $derived(jobs.overviewCounts?.unread ?? app.state?.counts.unread ?? 0);
   /** The views, and under Jobs its places (the inbox is Jobs itself). */
   type NavId = ViewId | 'archive' | 'trash';
   const items = $derived<SideNavItem<NavId>[]>([
@@ -43,7 +38,6 @@
       id: 'jobs',
       label: t.nav.jobs,
       icon: 'briefcase',
-      count: unread,
       testid: 'nav-jobs',
       children: [
         { id: 'archive', label: t.place.archive, icon: 'archive', testid: 'nav-archive' },

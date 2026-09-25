@@ -1,7 +1,7 @@
 // The sidebar: the arrow on Jobs that hides and shows Archiv and Papierkorb (kept, forced open
-// while one of them is open), their grouping in the icon rail, the edge that folds the
-// sidebar to its icons (a click, Ctrl+B or Cmd+B, the macOS menu; kept; not below 1100 px),
-// and the order of a click on a place when an unsaved profile asks first.
+// while one of them is open), their grouping in the icon rail, no counts, that the sidebar
+// folds only by the window width, and the order of a click on a place when an unsaved
+// profile asks first.
 
 import type { Page } from '@playwright/test';
 import { calls, expect, open, settle, test } from './fixtures';
@@ -38,6 +38,19 @@ async function still(page: Page): Promise<void> {
     .toBe(0);
 }
 
+test('the sidebar shows no counts and no dots: the list says how many jobs are new', async ({
+  page,
+}) => {
+  for (const width of [1360, 900]) {
+    await page.setViewportSize({ width, height: 900 });
+    await open(page, WIN);
+    const sidebar = page.getByTestId('sidebar');
+    await expect(sidebar.getByTestId('nav-jobs')).toBeVisible();
+    await expect(sidebar.locator('nav .count, nav .dot')).toHaveCount(0);
+    await expect(sidebar.getByTestId('nav-jobs')).not.toContainText(/\d/);
+  }
+});
+
 test('the arrow hides and shows Archiv and Papierkorb; the choice is kept, at start nothing moves', async ({
   page,
 }) => {
@@ -50,11 +63,11 @@ test('the arrow hides and shows Archiv and Papierkorb; the choice is kept, at st
   const group = page.getByRole('group', { name: 'Jobs' });
   await expect(toggle).toHaveAttribute('aria-controls', (await group.getAttribute('id'))!);
   await expect(group.getByRole('button')).toHaveText(['Archiv', 'Papierkorb']);
-  // At the end of the Jobs row, after the count, and a button of its own.
+  // At the end of the Jobs row, a button of its own.
   const jobs = (await page.getByTestId('nav-jobs').boundingBox())!;
   const arrow = (await toggle.boundingBox())!;
-  const count = (await page.getByTestId('nav-jobs').locator('.count').first().boundingBox())!;
-  expect(arrow.x).toBeGreaterThan(count.x + count.width);
+  const label = (await page.getByTestId('nav-jobs').locator('.label').boundingBox())!;
+  expect(arrow.x).toBeGreaterThan(label.x);
   expect(arrow.x + arrow.width).toBeLessThanOrEqual(jobs.x + jobs.width);
   expect(Math.abs(arrow.y + arrow.height / 2 - (jobs.y + jobs.height / 2))).toBeLessThan(1);
   expect(await page.getByTestId('nav-jobs').locator('button').count()).toBe(0);

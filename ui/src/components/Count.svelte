@@ -3,15 +3,14 @@
   the same):
   - soft: a light warm pill (the chosen segment, the excluded divider, sub-labels such as
     "Erfüllt", the run countdown, "n neu"),
-  - strong: the deep navy pill (the sidebar unread count, nowhere else at rest),
   - plain: the same box without a pill (an unchosen segment), so a change of tone never
     moves anything.
   When the number changes while it is on screen it rolls 4 px in the direction of the
   change (150 ms); it never rolls when it first appears.
 -->
 <script lang="ts" module>
-  export type CountTone = 'soft' | 'strong' | 'plain';
-  export const COUNT_TONES: readonly CountTone[] = ['soft', 'strong', 'plain'];
+  export type CountTone = 'soft' | 'plain';
+  export const COUNT_TONES: readonly CountTone[] = ['soft', 'plain'];
 </script>
 
 <script lang="ts">
@@ -83,11 +82,6 @@
   .soft {
     --count-pill: var(--count-soft-bg);
     --count-text: var(--count-soft-fg);
-  }
-
-  .strong {
-    --count-pill: var(--count-bg);
-    --count-text: var(--count-fg);
   }
 
   .plain {

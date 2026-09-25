@@ -15,7 +15,7 @@ test('the shell renders sidebar and the jobs view', async ({ page }) => {
     await expect(page.getByTestId(item)).toBeVisible();
   }
   await expect(page.getByTestId('nav-jobs')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByTestId('nav-jobs')).toContainText('6');
+  await expect(page.getByTestId('nav-jobs')).toHaveText('Jobs');
   await expect(page.getByTestId('view-jobs')).toBeVisible();
   await expect(page.getByTestId('fetch')).toHaveClass(/primary/);
 });

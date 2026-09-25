@@ -387,7 +387,6 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
   {
     title: 'Navy, Daten und Struktur',
     tokens: [
-      { name: 'count-bg', role: 'fill' },
       { name: 'icon-accent', role: 'text' },
       { name: 'active-surface', role: 'surface' },
       { name: 'active-edge', role: 'decor' },
