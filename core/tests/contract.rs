@@ -123,7 +123,7 @@ fn command_names_agree_everywhere() {
     );
     assert!(capability.get("remote").is_none(), "never remote");
 
-    assert_eq!(names.len(), 34);
+    assert_eq!(names.len(), 35);
     assert_eq!(manifest, names, "build.rs <-> COMMANDS");
     assert_eq!(handler_names(), names, "generate_handler! <-> COMMANDS");
     assert_eq!(allowed, names, "capability <-> COMMANDS");

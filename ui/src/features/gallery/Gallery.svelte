@@ -12,6 +12,7 @@
   import IconTile, { PORTAL_MONOGRAM, TILE_TONES } from '$components/IconTile.svelte';
   import SideNav, { type SideNavFold } from '$components/SideNav.svelte';
   import SidebarEdge from '$components/SidebarEdge.svelte';
+  import WindowControls from '$components/WindowControls.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import Spinner from '$components/Spinner.svelte';
   import Toast from '$components/Toast.svelte';
@@ -187,6 +188,10 @@
         onclick={() => toasts.show(text.navigation.toastText)}
       />
     </div>
+    <!-- The caption buttons of the Windows title bar (the whole bar is TitleBar in the shell). -->
+    <div class="captions">
+      <WindowControls testid="gallery-window-controls" />
+    </div>
     <!-- The empty part of the macOS toolbar row (as high as --window-top: 0 here). -->
     <DragBand sheet />
   </Section>
@@ -341,6 +346,11 @@
     justify-content: center;
     padding: var(--space-32);
     border-radius: var(--radius-card);
+    background-color: var(--bg);
+  }
+  .captions {
+    display: flex;
+    justify-content: flex-end;
     background-color: var(--bg);
   }
 </style>

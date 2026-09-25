@@ -2017,6 +2017,7 @@ const handlers: Handlers = {
     harness.closed = true;
     return null;
   },
+  show_snap_layouts: () => null,
   save_mailbox: ({ user, password }) => {
     if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(user)) {
       throw fail('invalid', { reason: 'mailAddress' });
@@ -2162,6 +2163,47 @@ interface StubItem {
 }
 
 /** The window position of @tauri-apps/api/dpi. */
+/* ------------------------------------------------------------------- window */
+
+type ResizeHandler = () => void;
+
+/** The window of the Windows title bar: the caption buttons are recorded as calls; close is
+ *  a close request like the native one (unsaved changes ask first). */
+class FakeWindow {
+  #maximized = false;
+  #resized = new Set<ResizeHandler>();
+
+  async minimize(): Promise<void> {
+    harness.calls.push(['window.minimize', null]);
+  }
+
+  async toggleMaximize(): Promise<void> {
+    harness.calls.push(['window.toggleMaximize', null]);
+    this.#maximized = !this.#maximized;
+    for (const handler of this.#resized) handler();
+  }
+
+  async close(): Promise<void> {
+    harness.calls.push(['window.close', null]);
+    harness.requestClose();
+  }
+
+  async isMaximized(): Promise<boolean> {
+    return this.#maximized;
+  }
+
+  async onResized(handler: ResizeHandler): Promise<() => void> {
+    this.#resized.add(handler);
+    return () => this.#resized.delete(handler);
+  }
+}
+
+const fakeWindow = new FakeWindow();
+
+export function getCurrentWindow(): FakeWindow {
+  return fakeWindow;
+}
+
 export class LogicalPosition {
   constructor(
     readonly x: number,

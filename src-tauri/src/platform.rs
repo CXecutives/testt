@@ -205,7 +205,70 @@ pub fn harden<'a, R: Runtime, M: Manager<R>>(
     // link shows no preview.
     #[cfg(target_os = "macos")]
     let builder = builder.accept_first_mouse(true).allow_link_preview(false);
+    // Windows: the page draws the 36 px title bar (`TitleBar.svelte`, caption buttons like
+    // the native ones); the window keeps the native shadow, the rounded corners of Windows 11
+    // and its resize border.
+    #[cfg(windows)]
+    let builder = builder.decorations(false).shadow(true);
     builder
+}
+
+/// Windows 11 opens its snap layouts for the maximize button of a native title bar only (it
+/// cannot see a button the page draws): the page asks for them after a short hover over its
+/// own maximize button, and the flyout opens as with Win+Z, at the top of the window.
+/// Nothing on macOS (the green traffic light has its own menu).
+pub fn show_snap_layouts() {
+    #[cfg(windows)]
+    snap::open();
+}
+
+#[cfg(windows)]
+mod snap {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput,
+        VIRTUAL_KEY, VK_LWIN,
+    };
+
+    const VK_Z: VIRTUAL_KEY = VIRTUAL_KEY(0x5A);
+
+    fn key(vk: VIRTUAL_KEY, up: bool) -> INPUT {
+        INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 {
+                ki: KEYBDINPUT {
+                    wVk: vk,
+                    wScan: 0,
+                    dwFlags: if up {
+                        KEYEVENTF_KEYUP
+                    } else {
+                        KEYBD_EVENT_FLAGS(0)
+                    },
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+            },
+        }
+    }
+
+    #[expect(
+        unsafe_code,
+        reason = "SendInput has no safe wrapper; the snap layouts have no other entry point"
+    )]
+    pub fn open() {
+        let inputs = [
+            key(VK_LWIN, false),
+            key(VK_Z, false),
+            key(VK_Z, true),
+            key(VK_LWIN, true),
+        ];
+        let size = i32::try_from(size_of::<INPUT>()).unwrap_or(i32::MAX);
+        // SAFETY: `inputs` is a live array of fully initialised keyboard INPUTs and `size` is
+        // the size of one element, as SendInput requires.
+        let sent = unsafe { SendInput(&inputs, size) };
+        if usize::try_from(sent).unwrap_or(0) != inputs.len() {
+            log::warn!("snap layouts: {sent} of {} key events sent", inputs.len());
+        }
+    }
 }
 
 /// Settings that exist only on the built web view.

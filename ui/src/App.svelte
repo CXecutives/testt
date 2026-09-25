@@ -1,5 +1,6 @@
 <!--
-  The shell below the native title bar of the OS: the sidebar and the white sheet with the
+  The shell below the title bar (Windows: the page's own, TitleBar; macOS: the traffic lights
+  over the toolbar row): the sidebar and the white sheet with the
   three views. Every view switch is the same quick cross-fade (100 ms): the new view fades in
   on top while the old one fades out below it, so no frame shows an empty sheet. On start
   nothing animates and the app shows useful content at once: the first-run page while
@@ -26,6 +27,7 @@
   import ProfileView from './features/profile/ProfileView.svelte';
   import SettingsView from './features/settings/SettingsView.svelte';
   import Sidebar from './features/shell/Sidebar.svelte';
+  import TitleBar from './features/shell/TitleBar.svelte';
 
   run.install();
   jobs.install();
@@ -40,6 +42,7 @@
 </script>
 
 <div class="shell" data-testid="shell">
+  <TitleBar />
   <div class="body">
     <Sidebar />
     <main class="views">

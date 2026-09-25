@@ -37,7 +37,7 @@ pub use scoring::Scoring;
     dead_code,
     reason = "read by core/tests/contract.rs, which generates the TypeScript command map"
 )]
-pub const COMMANDS: [(&str, &str, &str); 34] = [
+pub const COMMANDS: [(&str, &str, &str); 35] = [
     ("app_state", "{ channel: Channel<RunEvent> }", "AppState"),
     (
         "start_run",
@@ -77,6 +77,7 @@ pub const COMMANDS: [(&str, &str, &str); 34] = [
     ("restore_profile", "Record<string, never>", "boolean"),
     ("set_unsaved", "{ on: boolean }", "null"),
     ("close_window", "Record<string, never>", "null"),
+    ("show_snap_layouts", "Record<string, never>", "null"),
     (
         "save_mailbox",
         "{ user: string; password: string }",
@@ -124,6 +125,7 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + '
         profile::restore_profile,
         profile::set_unsaved,
         profile::close_window,
+        app::show_snap_layouts,
         mailbox::save_mailbox,
         mailbox::remove_mailbox,
         portals::portal_login,

@@ -870,8 +870,7 @@ export const en: Catalog = {
     overridden: 'You marked this job as a match.',
     prompt: 'Copy prompt for AI assessment',
     promptShort: 'Copy prompt',
-    promptHint:
-      'Copies the ad and the profile as a ready prompt for an AI.',
+    promptHint: 'Copies the ad and the profile as a ready prompt for an AI.',
     preliminary: 'Provisional, scored from a teaser',
     mail: OPEN_MAIL,
     noMail: 'There is no alert email for this job.',
@@ -1273,6 +1272,13 @@ export const en: Catalog = {
     profileText: 'You create the profile in the app, from your CV if you like.',
     fetch: 'First fetch',
     fetchHint: 'This takes a few minutes.',
+  },
+  /** The caption buttons of the Windows title bar (their accessible names). */
+  window: {
+    minimize: 'Minimize',
+    maximize: 'Maximize',
+    restore: 'Restore down',
+    close: 'Close',
   },
   shell: {
     loadFailed: 'The app could not load its data.',

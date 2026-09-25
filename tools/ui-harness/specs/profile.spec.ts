@@ -582,7 +582,10 @@ test('a new form starts with one row each; the add buttons are buttons', async (
     'placeholder',
     'Andere Begriffe',
   );
-  await expect(page.getByTestId('profile-title')).toHaveAttribute('placeholder', 'Senior Consultant');
+  await expect(page.getByTestId('profile-title')).toHaveAttribute(
+    'placeholder',
+    'Senior Consultant',
+  );
   for (const id of ['competence-add', 'language-add']) {
     await expect(page.getByTestId(id)).toHaveClass(/secondary/);
     await expect(page.getByTestId(id).locator('svg')).toHaveCount(1);

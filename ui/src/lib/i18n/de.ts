@@ -932,8 +932,7 @@ export const de = {
     overridden: 'Von dir als passend markiert.',
     prompt: 'Prompt für KI-Bewertung kopieren',
     promptShort: 'Prompt kopieren',
-    promptHint:
-      'Kopiert Anzeige und Profil als fertigen Prompt für eine KI.',
+    promptHint: 'Kopiert Anzeige und Profil als fertigen Prompt für eine KI.',
     /** Under the band of a score that comes from a teaser only. */
     preliminary: 'Vorläufig, aus einem Anriss bewertet',
     mail: OPEN_MAIL,
@@ -1395,6 +1394,13 @@ export const de = {
     profileText: 'Das Profil entsteht in der App, auf Wunsch aus dem Lebenslauf.',
     fetch: 'Erster Abruf',
     fetchHint: 'Das dauert ein paar Minuten.',
+  },
+  /** The caption buttons of the Windows title bar (their accessible names). */
+  window: {
+    minimize: 'Minimieren',
+    maximize: 'Maximieren',
+    restore: 'Verkleinern',
+    close: 'Schließen',
   },
   shell: {
     loadFailed: 'Die App konnte ihre Daten nicht laden.',
