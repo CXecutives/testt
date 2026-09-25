@@ -409,7 +409,9 @@ test('nav sub-entries: quieter, indented, the one pill covers the active one (al
   await expect(full.getByTestId('gnav-archive')).toHaveCSS('font-size', '13px');
 });
 
-test('the sidebar in the gallery: its places fold and unfold', async ({ page }) => {
+test('the sidebar in the gallery: its places fold, its edge folds it to the rail', async ({
+  page,
+}) => {
   await open(page, '?gallery&platform=windows');
   const folded = page.getByTestId('gnav-folded');
   await folded.scrollIntoViewIfNeeded();
@@ -418,6 +420,15 @@ test('the sidebar in the gallery: its places fold and unfold', async ({ page }) 
   await folded.getByTestId('gnav-fold-folded').click();
   await expect(folded.getByTestId('gnav-archive')).toBeVisible();
   await expect(page.getByTestId('gnav-rail-folded').getByTestId('gnav-archive')).toBeHidden();
+  // The edge of the first demo: its tooltip names the key, a click folds it to icons.
+  const edge = page.getByTestId('gallery-edge');
+  await edge.hover();
+  await expect(page.getByRole('tooltip')).toContainText('Seitenleiste einklappen');
+  await expect(page.getByRole('tooltip').locator('.hint')).toHaveText('Strg+B');
+  await edge.click();
+  await expect(page.getByTestId('gnav-full').locator('nav')).toHaveClass(/collapsed/);
+  await page.getByTestId('gallery-edge').click();
+  await expect(page.getByTestId('gnav-full').locator('nav')).not.toHaveClass(/collapsed/);
 });
 
 test('a menu button opens the OS menu of choices below it; a choice applies', async ({ page }) => {

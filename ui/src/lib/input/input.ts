@@ -25,8 +25,12 @@
 //   open item (in the search field Esc first clears the search), and Ctrl+F (Cmd+F on
 //   macOS) goes to its search field from anywhere.
 //   Outside fields Ctrl+Z (Cmd+Z on macOS) takes back the last list action while it can
-//   still be undone (`onUndo`), and PageUp, PageDown, Space and Shift+Space scroll the pane
-//   that has the focus (or the one clicked last) by a page, like a native window.
+//   still be undone (`onUndo`), Ctrl+B (Cmd+B on macOS) folds the sidebar to its icons and
+//   back (`onSidebarKey`; in a field it does nothing), and PageUp, PageDown, Space and
+//   Shift+Space scroll the pane that has the focus (or the one clicked last) by a page,
+//   like a native window. The macOS menu names Cmd+B too ("Seitenleiste ein-/ausblenden"):
+//   the page takes the key first and prevents it, so WKWebView never hands it on to the
+//   menu and the sidebar folds exactly once.
 //   Everything else, including every WebView shortcut (reload, find, print, zoom,
 //   devtools, caret browsing, Alt+Arrow back/forward), is swallowed.
 // - a modal dialog holds the focus: Tab cycles inside it, Esc cancels it wherever the
@@ -450,6 +454,10 @@ function onKeyDown(event: KeyboardEvent): void {
     if (modal === null) [...undos].reverse().some((undo) => undo());
     return;
   }
+  if (isSidebarShortcut(event)) {
+    if (modal === null) sidebarKey?.();
+    return;
+  }
   if (modal === null && scrollsPage(event)) return;
   if (closest(event.target, `${FORM}, ${DIALOG}`) !== null && dispatchFormKey(event)) return;
   if (event.key === 'Escape' && !hasModifier(event) && escapes.length > 0) {
@@ -511,6 +519,29 @@ function isUndo(event: KeyboardEvent): boolean {
     !event.altKey &&
     !event.shiftKey &&
     event.key.toLowerCase() === 'z'
+  );
+}
+
+/** What Ctrl+B (Cmd+B on macOS) does outside fields and dialogs: fold the sidebar. */
+let sidebarKey: (() => void) | null = null;
+
+/** `onSidebarKey(handler)`: Ctrl+B (Cmd+B on macOS) outside fields and dialogs runs it (the
+ *  sidebar folds to its icons and back). Returns the unsubscribe function. */
+export function onSidebarKey(handler: () => void): () => void {
+  sidebarKey = handler;
+  return () => {
+    if (sidebarKey === handler) sidebarKey = null;
+  };
+}
+
+/** Ctrl+B or Cmd+B (the command key of the OS alone), without Alt or Shift. */
+function isSidebarShortcut(event: KeyboardEvent): boolean {
+  return (
+    event[keyConventions().command] &&
+    !(event.ctrlKey && event.metaKey) &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === 'b'
   );
 }
 

@@ -8,7 +8,9 @@
 //   - scrollbars: slim styled ones on Windows, the native overlay scrollbars on macOS
 //     (base.css keys them off `:root[data-platform]`, like the font smoothing),
 //   - words that name OS things (Explorer / Finder, the password store),
-//   - the editing keys of text fields (`keyConventions()`, applied by lib/input/input.ts).
+//   - the editing keys of text fields and the command key of the app's few shortcuts
+//     (`keyConventions()`, applied by lib/input/input.ts: Ctrl+F/Z/B on Windows, Cmd on
+//     macOS), and how a shortcut is written (Strg+B, ⌘B; `commandKey()`).
 // Components ask here (`dragBands()`, `primaryFirst()`, `keyConventions()`, `platform()`),
 // never compare OS names themselves. The window's focus state is the same on both:
 // `:root[data-window]` is 'inactive' while the window is in the background, and selections
@@ -77,9 +79,15 @@ export function fieldMenuUndoDelete(): boolean {
 }
 
 /** The name of the command key on the keyboard (Ctrl on Windows, Cmd on macOS), for texts
- *  that say which key to hold ("Strg+Klick"). */
+ *  that say which key to hold ("Strg+Klick") or name a shortcut (Strg+B, ⌘B). */
 export function commandKey(): 'ctrl' | 'cmd' {
   return platform() === 'macos' ? 'cmd' : 'ctrl';
+}
+
+/** A shortcut of the command key and `key` as assistive technology names it
+ *  (`aria-keyshortcuts`): Control+B on Windows, Meta+B on macOS. */
+export function ariaShortcut(key: string): string {
+  return `${platform() === 'macos' ? 'Meta' : 'Control'}+${key}`;
 }
 
 /** How the keyboard of the OS edits text in a field (lib/input/input.ts applies it). */

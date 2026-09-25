@@ -1165,6 +1165,9 @@ export const en: Catalog = {
     showRun: 'Show fetch',
     runFailed: (iso: string) => `Failed ${formatMoment(iso)}`,
     closing: 'The fetch is stopping, and then the app closes.',
+    collapseSidebar: 'Collapse sidebar',
+    expandSidebar: 'Expand sidebar',
+    sidebarKey: { ctrl: 'Ctrl+B', cmd: '⌘B' },
   },
   toast: {
     saved: 'Saved.',

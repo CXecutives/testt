@@ -1256,6 +1256,10 @@ export const de = {
     runFailed: (iso: string) => `Fehlgeschlagen ${formatMoment(iso)}`,
     /** Closing while a fetch runs: the window waits until it has stopped. */
     closing: 'Der Abruf wird beendet, dann schließt die App.',
+    /** The sidebar's edge: what a click does, over the key that does the same (by OS). */
+    collapseSidebar: 'Seitenleiste einklappen',
+    expandSidebar: 'Seitenleiste ausklappen',
+    sidebarKey: { ctrl: 'Strg+B', cmd: '⌘B' } satisfies Record<'ctrl' | 'cmd', string>,
   },
   toast: {
     saved: 'Gespeichert.',

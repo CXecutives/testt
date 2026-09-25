@@ -1,12 +1,16 @@
 // The sidebar: the arrow on Jobs that hides and shows Archiv and Papierkorb (kept, forced open
-// while one of them is open), their grouping in the icon rail, and the order of a click on a
-// place when an unsaved profile asks first.
+// while one of them is open), their grouping in the icon rail, the edge that folds the
+// sidebar to its icons (a click, Ctrl+B or Cmd+B, the macOS menu; kept; not below 1100 px),
+// and the order of a click on a place when an unsaved profile asks first.
 
 import type { Page } from '@playwright/test';
 import { calls, expect, open, settle, test } from './fixtures';
 
 const WIN = '?platform=windows';
 const MAC = '?platform=macos';
+
+const sidebarWidth = async (page: Page): Promise<number> =>
+  Math.round((await page.getByTestId('sidebar').boundingBox())!.width);
 
 /** The one pill lies exactly on the entry (full or rail, a main entry or a smaller sub). */
 async function pillOn(page: Page, id: string): Promise<void> {
@@ -215,8 +219,139 @@ for (const os of [WIN, MAC]) {
       if (next)
         expect(next.y, `${ids[at + 1]} below ${ids[at]}`).toBeGreaterThanOrEqual(b.y + b.height);
     }
+    await expect(page.getByTestId('sidebar-edge')).toHaveCount(0);
   });
 }
+
+test('the edge folds the sidebar to its icons and back; the choice is kept', async ({ page }) => {
+  await open(page, WIN);
+  const edge = page.getByTestId('sidebar-edge');
+  expect(await sidebarWidth(page)).toBe(196);
+  // On hover a line and a grip, and after the delay the tooltip with the key.
+  const at = (await edge.boundingBox())!;
+  await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
+  await expect(edge.locator('.line')).toHaveCSS('opacity', '1');
+  await expect(edge.locator('.grip')).toHaveCSS('opacity', '1');
+  const tip = page.getByRole('tooltip');
+  await expect(tip).toContainText('Seitenleiste einklappen');
+  await expect(tip.locator('.hint')).toHaveText('Strg+B');
+  await expect(tip.locator('.hint')).toHaveCSS('font-size', '11px');
+  // The line lies on the sheet's hairline; the strip covers nothing of the sheet but it.
+  const sheet = (await page.locator('main.views').boundingBox())!;
+  const line = (await edge.locator('.line').boundingBox())!;
+  expect(line.x).toBe(sheet.x);
+  expect(at.x + at.width).toBeLessThanOrEqual(sheet.x + 2);
+  await expect(edge).toHaveAttribute('aria-expanded', 'true');
+  await expect(edge).toHaveAttribute('aria-keyshortcuts', 'Control+B');
+
+  await edge.click();
+  expect(await sidebarWidth(page)).toBe(64);
+  await expect(page.getByTestId('nav-profile')).toHaveAttribute('aria-label', 'Profil');
+  await expect(edge).toHaveAttribute('aria-expanded', 'false');
+  await expect(edge).toHaveAttribute('aria-label', 'Seitenleiste ausklappen');
+  await page.reload();
+  await settle(page);
+  expect(await sidebarWidth(page)).toBe(64);
+  expect(
+    await page.evaluate(
+      () => document.getAnimations().filter((a) => a.playState === 'running').length,
+    ),
+  ).toBe(0);
+  await page.getByTestId('sidebar-edge').hover();
+  await expect(page.getByRole('tooltip')).toContainText('Seitenleiste ausklappen');
+  await page.getByTestId('sidebar-edge').click();
+  expect(await sidebarWidth(page)).toBe(196);
+  // The labels fade in like when the window grows past 1100 px.
+  await expect(page.getByTestId('nav-archive')).toContainText('Archiv');
+  await page.reload();
+  expect(await sidebarWidth(page)).toBe(196);
+});
+
+test('Ctrl+B folds and unfolds the sidebar; in a field it does nothing; the key never gets through', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.keyboard.press('Control+b');
+  expect(await sidebarWidth(page)).toBe(64);
+  await page.reload();
+  expect(await sidebarWidth(page)).toBe(64);
+  await page.keyboard.press('Control+b');
+  expect(await sidebarWidth(page)).toBe(196);
+  // In a field Ctrl+B is no shortcut: nothing folds and nothing is typed.
+  const search = page.getByTestId('search');
+  await search.focus();
+  await page.keyboard.press('Control+b');
+  expect(await sidebarWidth(page)).toBe(196);
+  await expect(search).toHaveValue('');
+  await expect(search).toBeFocused();
+  // Outside fields the page takes the key (no WebView shortcut behind it).
+  await page.getByTestId('nav-profile').focus();
+  const prevented = await page.evaluate(() => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'b',
+      code: 'KeyB',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.activeElement!.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(prevented).toBe(true);
+  expect(await sidebarWidth(page)).toBe(64);
+});
+
+test('macOS: Cmd+B folds the sidebar exactly once, the menu item too; Ctrl+B does not', async ({
+  page,
+}) => {
+  await open(page, MAC);
+  const railWidth = 80;
+  await page.keyboard.press('Control+b');
+  expect(await sidebarWidth(page)).toBe(196);
+  await page.keyboard.press('Meta+b');
+  expect(await sidebarWidth(page)).toBe(railWidth);
+  // The page takes Cmd+B first and prevents it, so WKWebView never hands it on to the menu
+  // item with the same key: one press, one fold.
+  const prevented = await page.evaluate(() => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'b',
+      code: 'KeyB',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.body.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(prevented).toBe(true);
+  expect(await sidebarWidth(page)).toBe(196);
+  // The item of the View menu ("Seitenleiste ein-/ausblenden").
+  await page.evaluate(() => window.__harness.fire('sidebar', null));
+  expect(await sidebarWidth(page)).toBe(railWidth);
+  await page.getByTestId('sidebar-edge').hover();
+  await expect(page.getByRole('tooltip').locator('.hint')).toHaveText('⌘B');
+  await expect(page.getByTestId('sidebar-edge')).toHaveAttribute('aria-keyshortcuts', 'Meta+B');
+  await page.evaluate(() => window.__harness.fire('sidebar', null));
+  expect(await sidebarWidth(page)).toBe(196);
+});
+
+test('below 1100 px there is no edge and the key changes nothing', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await open(page, WIN);
+  await expect(page.getByTestId('sidebar-edge')).toHaveCount(0);
+  expect(await sidebarWidth(page)).toBe(64);
+  await page.keyboard.press('Control+b');
+  await page.evaluate(() => window.__harness.fire('sidebar', null));
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await expect.poll(() => sidebarWidth(page)).toBe(196);
+  await expect(page.getByTestId('sidebar-edge')).toHaveCount(1);
+  // Folded by hand, it stays folded however the window changes.
+  await page.getByTestId('sidebar-edge').click();
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await expect(page.getByTestId('sidebar-edge')).toHaveCount(0);
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await expect.poll(() => sidebarWidth(page)).toBe(64);
+});
 
 test('an unsaved profile keeps the place until the question is answered', async ({ page }) => {
   await open(page, WIN);

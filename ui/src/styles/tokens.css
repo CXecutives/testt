@@ -325,11 +325,14 @@
   --list-min: 360px;
   --list-max: 460px;
   --reader-width: 720px;
-  /* The column handle: the strip that catches the pointer and the line it shows. */
+  /* The column handle and the sidebar's edge: the strip that catches the pointer, the line
+     it shows on hover and the small grip centred on that line. */
   --splitter-hit: 8px;
   /* A native menu opens this far below its button. */
   --menu-gap: 4px;
   --splitter-line: 2px;
+  --grip-width: 6px;
+  --grip-height: 28px;
   --form-width: 560px;
   /* Rows and their washes: a row's hover wash is the row's own box, and rows run edge to
      edge inside their container. A container that insets its content sets --row-inset to

@@ -11,6 +11,7 @@
   import Icon, { ICON_NAMES } from '$components/Icon.svelte';
   import IconTile, { PORTAL_MONOGRAM, TILE_TONES } from '$components/IconTile.svelte';
   import SideNav, { type SideNavFold } from '$components/SideNav.svelte';
+  import SidebarEdge from '$components/SidebarEdge.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import Spinner from '$components/Spinner.svelte';
   import Toast from '$components/Toast.svelte';
@@ -45,7 +46,7 @@
   const noop = (): void => undefined;
 
   /** The sidebar in its states: full and as the rail, its places shown and hidden (each
-   *  arrow folds its own). */
+   *  arrow folds its own); the first one folds to its rail at its edge. */
   const navDemos = [
     { key: 'full', rail: false, open: true },
     { key: 'folded', rail: false, open: false },
@@ -55,6 +56,7 @@
   let placesOpen = $state<Record<string, boolean>>(
     Object.fromEntries(navDemos.map((demo) => [demo.key, demo.open])),
   );
+  let edgeFolded = $state(false);
   const foldOf = (key: string): SideNavFold => ({
     open: placesOpen[key] ?? true,
     hide: text.navigation.hidePlaces,
@@ -144,7 +146,7 @@
   <Section heading={text.sections.navigation} id="navigation">
     <div class="navs">
       {#each navDemos as demo (demo.key)}
-        {@const rail = demo.rail}
+        {@const rail = demo.rail || (demo.key === 'full' && edgeFolded)}
         <div class="side" class:rail data-testid="gnav-{demo.key}">
           <SideNav
             items={tabs}
@@ -161,12 +163,19 @@
             onclick={noop}
           />
           {#if demo.key === 'full'}
-            <StatusLine
-              text={text.navigation.running}
-              label={text.navigation.running}
-              busy
-              progress={0.4}
-              onclick={noop}
+            {#if !rail}
+              <StatusLine
+                text={text.navigation.running}
+                label={text.navigation.running}
+                busy
+                progress={0.4}
+                onclick={noop}
+              />
+            {/if}
+            <SidebarEdge
+              collapsed={edgeFolded}
+              testid="gallery-edge"
+              ontoggle={() => (edgeFolded = !edgeFolded)}
             />
           {/if}
         </div>
@@ -306,6 +315,7 @@
   }
 
   .side {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: var(--space-12);

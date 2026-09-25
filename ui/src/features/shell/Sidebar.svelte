@@ -11,12 +11,19 @@
   while there is a run to open (before the first fetch the first-run page says it all), and
   it is said once: while the run card is on screen it steps aside. "Abrufen" lives in the
   list header.
+  From 1100 px on the sidebar folds to its icons and back (kept) with a click on its right
+  edge (a line and a grip on hover, the tooltip names Ctrl+B or Cmd+B), with that key and
+  on macOS from the menu; the width switches at once and the labels fade in. Below 1100 px
+  it is the rail anyway and there is no edge.
 -->
 <script lang="ts">
   import DragBand from '$components/DragBand.svelte';
   import SideNav, { type SideNavFold, type SideNavItem } from '$components/SideNav.svelte';
+  import SidebarEdge from '$components/SidebarEdge.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import { t } from '$lib/i18n/t';
+  import { onSidebarKey } from '$lib/input/input';
+  import { onSidebarMenu } from '$lib/ipc/api';
   import { settled } from '$lib/motion/settled.svelte';
   import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
@@ -26,6 +33,8 @@
   import { run } from '$lib/state/run.svelte';
   import { shell } from '$lib/state/shell.svelte';
   import { viewport } from '$lib/state/viewport.svelte';
+
+  const SIDEBAR_ID = 'sidebar';
 
   // New jobs over everything (the overview's unfiltered counts), whatever the list shows.
   const unread = $derived(jobs.overviewCounts?.unread ?? app.state?.counts.unread ?? 0);
@@ -115,9 +124,13 @@
     // In one column an open job hides the list and its run card: back to the list.
     if (viewport.narrow) jobs.clearSelection();
   }
+
+  // Ctrl+B (Cmd+B on macOS) and the macOS menu fold and unfold the sidebar.
+  $effect(() => onSidebarKey(() => viewport.toggleRail()));
+  $effect(() => onSidebarMenu(() => viewport.toggleRail()));
 </script>
 
-<aside class="sidebar" class:rail={viewport.rail} data-testid="sidebar">
+<aside class="sidebar" class:rail={viewport.rail} id={SIDEBAR_ID} data-testid="sidebar">
   {#if dragBands()}<span class="lights"><DragBand /></span>{/if}
   <!-- Until the state is known nothing is guessed (like the views): the entries come with it,
        as they are, instead of changing their colours in front of the user. Before the setup
@@ -152,10 +165,20 @@
       />
     </div>
   {/if}
+
+  {#if !viewport.forcedRail}
+    <SidebarEdge
+      collapsed={viewport.pinnedRail}
+      controls={SIDEBAR_ID}
+      testid="sidebar-edge"
+      ontoggle={() => viewport.toggleRail()}
+    />
+  {/if}
 </aside>
 
 <style>
   .sidebar {
+    position: relative;
     display: flex;
     flex: none;
     flex-direction: column;
