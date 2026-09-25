@@ -115,6 +115,8 @@
   let emptyError = $state<string | null>(null);
   /** Every job of the trash, whatever the search: emptying it deletes them all. */
   const inTrash = $derived(jobs.overviewCounts?.trash ?? jobs.counts.trash);
+  /** The jobs of this place without the search: an empty archive or trash has no second row. */
+  const placeHolds = $derived((jobs.overviewCounts ?? jobs.counts)[place]);
 
   async function emptyTrash(): Promise<void> {
     emptying = true;
@@ -180,70 +182,76 @@
       {/if}
     </span>
   </div>
-  <div class="second">
-    {#if bulk.active}
-      <SelectionBar
-        count={bulk.chosen.length}
-        actions={bulk.actions}
-        onclear={() => selection.clear()}
-        testid="selection-bar"
-      />
-    {:else}
-      {#if inInbox}
-        <Segmented
-          options={views}
-          value={jobs.facet}
-          label={t.toolbar.facet}
-          size="sm"
-          testid="facet"
-          onchange={(id) => jobs.setFacet(id)}
+  <!-- An empty archive or trash has nothing to show here: no blank band above its empty state
+       (a search without hits keeps the row, the list does not jump while typing). -->
+  {#if bulk.active || inInbox || placeHolds > 0}
+    <div class="second">
+      {#if bulk.active}
+        <SelectionBar
+          count={bulk.chosen.length}
+          actions={bulk.actions}
+          onclear={() => selection.clear()}
+          testid="selection-bar"
         />
       {:else}
-        <!-- An empty place says so in the list; no "0 Jobs" above it. -->
-        {#if inPlace > 0}
-          <span class="place-count" data-testid="place-count">{t.place.count[place](inPlace)}</span>
+        {#if inInbox}
+          <Segmented
+            options={views}
+            value={jobs.facet}
+            label={t.toolbar.facet}
+            size="sm"
+            testid="facet"
+            onchange={(id) => jobs.setFacet(id)}
+          />
+        {:else}
+          <!-- An empty place says so in the list; no "0 Jobs" above it. -->
+          {#if inPlace > 0}
+            <span class="place-count" data-testid="place-count"
+              >{t.place.count[place](inPlace)}</span
+            >
+          {/if}
         {/if}
+        <span class="tools">
+          {#if inInbox && jobs.facet !== 'favourites' && jobs.counts.unread > 0}
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
+              icon="check-check"
+              label={t.actions.markAllRead}
+              testid="mark-all-read"
+              onclick={() => void markAllRead()}
+            />
+          {/if}
+          {#if inPlace > 0}
+            <MenuButton
+              options={sorts}
+              value={app.hasProfile ? jobs.sortChoice : 'newest'}
+              disabled={!app.hasProfile}
+              disabledReason={t.toolbar.sortNoProfile}
+              testid="sort"
+              onchange={(sort) => jobs.setSort(sort)}
+            />
+          {/if}
+          {#if place === 'trash' && inTrash > 0}
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="trash-2"
+              label={t.actions.emptyTrash}
+              disabled={run.active}
+              disabledReason={run.busyText}
+              testid="empty-trash"
+              onclick={() => {
+                emptyError = null;
+                confirmEmpty = true;
+              }}
+            />
+          {/if}
+        </span>
       {/if}
-      <span class="tools">
-        {#if inInbox && jobs.facet !== 'favourites' && jobs.counts.unread > 0}
-          <Button
-            variant="ghost"
-            size="sm"
-            iconOnly
-            icon="check-check"
-            label={t.actions.markAllRead}
-            testid="mark-all-read"
-            onclick={() => void markAllRead()}
-          />
-        {/if}
-        {#if inPlace > 0}
-          <MenuButton
-            options={sorts}
-            value={app.hasProfile ? jobs.sortChoice : 'newest'}
-            disabled={!app.hasProfile}
-            disabledReason={t.toolbar.sortNoProfile}
-            testid="sort"
-            onchange={(sort) => jobs.setSort(sort)}
-          />
-        {/if}
-        {#if place === 'trash' && inTrash > 0}
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="trash-2"
-            label={t.actions.emptyTrash}
-            disabled={run.active}
-            disabledReason={run.busyText}
-            testid="empty-trash"
-            onclick={() => {
-              emptyError = null;
-              confirmEmpty = true;
-            }}
-          />
-        {/if}
-      </span>
-    {/if}
-  </div>
+    </div>
+  {/if}
   {#if error ?? bulk.error}
     <Notice tone="danger" variant="inline" text={error ?? bulk.error ?? ''} testid="header-error" />
   {/if}

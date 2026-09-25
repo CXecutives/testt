@@ -312,6 +312,16 @@ class JobsStore {
   inboxFacet = $state<JobFacet>('new');
 
   setFacet(facet: JobFacet): void {
+    // Another place: an open job of the one left behind closes, like a mail of another
+    // folder (here, not in the list: the place also changes from Profil or Einstellungen).
+    const selected = this.selected;
+    const open =
+      this.detail?.job ??
+      (selected ? this.rows.find((row) => sameKey(row.key, selected)) : undefined) ??
+      null;
+    if (open !== null && placeOf(facet) !== open.place && !inFacet(open, facet)) {
+      this.clearSelection();
+    }
     this.facet = facet;
     if (facet === 'new' || facet === 'all' || facet === 'favourites') this.inboxFacet = facet;
     this.filter = null;

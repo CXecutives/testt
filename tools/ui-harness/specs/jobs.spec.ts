@@ -1157,6 +1157,21 @@ test('Neu is entered again after another view: read jobs leave it, the open one 
   );
 });
 
+test('a place entered from another view closes the inbox job; an empty place has no second row', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await rows(page).first().click();
+  await expect(page.getByTestId('reader-title')).toBeVisible();
+  await page.getByTestId('nav-settings').click();
+  await page.getByTestId('nav-trash').click();
+  // Like a mail of another folder: the reader says where it is, not the job of the inbox.
+  await expect(page.getByTestId('place-reader')).toBeVisible();
+  await expect(page.getByTestId('reader-title')).toHaveCount(0);
+  // The empty trash: its empty state right under the search, no blank band above it.
+  await expect(page.getByTestId('list-header').locator('.second')).toHaveCount(0);
+});
+
 test('under a search all read marks the hits; the trash empties whole and says how many', async ({
   page,
 }) => {

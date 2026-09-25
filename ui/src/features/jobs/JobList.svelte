@@ -34,7 +34,7 @@
   import { play, staggerLimit } from '$lib/motion/motion';
   import { rowCollapse, rowEnter } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
-  import { inFacet, isExcluded, jobs, keyOf, placeOf, sameKey } from '$lib/state/jobs.svelte';
+  import { isExcluded, jobs, keyOf, placeOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { editor } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -140,21 +140,6 @@
     untrack(() => {
       selection.clear();
       disarm();
-    });
-  });
-
-  // Another place: an open job of the one left behind closes (like a mail of another
-  // folder). Only on a change of the list (a read job stays open under Neu).
-  let shownFacet = untrack(() => jobs.facet);
-  $effect(() => {
-    const facet = jobs.facet;
-    untrack(() => {
-      if (facet === shownFacet) return;
-      shownFacet = facet;
-      const open = jobs.detail?.job ?? null;
-      if (open !== null && placeOf(facet) !== open.place && !inFacet(open, facet)) {
-        jobs.clearSelection();
-      }
     });
   });
 
