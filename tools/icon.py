@@ -28,9 +28,9 @@ Geometry on the 1024 grid (Windows layout; macOS scales everything with its smal
   circular fillets. Lifted 20 above the old position: its mass centre sits at the optical
   centre of the plate (slightly above the middle).
 - Check: one stroke width (83), round caps and join, cut out of the folder (even-odd), so the
-  plate gradient shows through. Optically centred in the body: the box is centred and moved
+  plate shows through. Optically centred in the body: the box is centred and moved
   up by half the distance between box centre and mass centre (the heavy bottom vertex).
-- Gradient coral-glow hsl(13 73% 68%) top left -> coral-variant hsl(13 64% 56%) bottom right.
+- One flat colour: the app's coral hsl(13 73% 63%) (#E67A5C), no gradient.
 
 Small stages are hinted: straight edges on whole pixels (proportional positions, rounded
 symmetrically), check vertices on half pixels, the check bolder up to 40 px.
@@ -51,8 +51,12 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
-GLOW = (0xEB, 0x95, 0x7D)     # hsl(13 73% 70.5%) - lighter than the coral-glow token
-VARIANT = (0xD4, 0x5D, 0x3D)  # hsl(13 64% 53.5%) - deeper: a 5 % stronger gradient
+# One flat colour, the app's coral token --p-coral hsl(13 73% 63%): no gradient (user, 2026-09-25).
+CORAL = (0xE6, 0x7A, 0x5C)
+# The gradient code stays with both ends on the coral, so the plate is flat (written out:
+# core/tests/icon.rs reads VARIANT as a tuple).
+GLOW = (0xE6, 0x7A, 0x5C)
+VARIANT = (0xE6, 0x7A, 0x5C)
 WHITE = (255, 255, 255)
 SMOOTHING = 0.6
 # The plate has the macOS app-icon shape: straight sides and Apple's continuous corners

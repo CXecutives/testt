@@ -379,7 +379,7 @@ fn mac_icons_match_generator() {
 }
 
 /// The brand mark in the UI is the generator's vector: same plate crop, the check cut out of
-/// the folder, the coral gradient.
+/// the folder, one flat coral (the app's --p-coral).
 #[test]
 fn ui_brand_mark_is_the_generated_vector() {
     let svg = std::fs::read_to_string(repo("ui/src/assets/app-icon.svg")).unwrap();
@@ -392,8 +392,9 @@ fn ui_brand_mark_is_the_generated_vector() {
         svg.contains(r#"fill-rule="evenodd""#),
         "the check is a cut-out"
     );
-    for colour in ["#EB957D", "#D45D3D"] {
-        assert!(svg.contains(colour), "gradient colour {colour}");
+    assert!(svg.contains("#E67A5C"), "the flat coral");
+    for old in ["#EB957D", "#D45D3D"] {
+        assert!(!svg.contains(old), "a gradient colour {old} is back");
     }
     assert_eq!(
         svg.matches("<path").count(),

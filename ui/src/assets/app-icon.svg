@@ -3,8 +3,8 @@
        icon.ico, icon.icns and icon.png; the check is cut out of the folder (even-odd). -->
   <defs>
     <linearGradient id="plate" x1="16" y1="16" x2="1008" y2="1008" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#EB957D"/>
-      <stop offset="1" stop-color="#D45D3D"/>
+      <stop offset="0" stop-color="#E67A5C"/>
+      <stop offset="1" stop-color="#E67A5C"/>
     </linearGradient>
   </defs>
   <path fill="url(#plate)" d="M355.36 16L668.64 16C766.35 16 815.21 16 867.81 32.63C925.23 53.53 970.47 98.77 991.37 156.19C1008 208.79 1008 257.65 1008 355.36L1008 668.64C1008 766.35 1008 815.21 991.37 867.81C970.47 925.23 925.23 970.47 867.81 991.37C815.21 1008 766.35 1008 668.64 1008L355.36 1008C257.65 1008 208.79 1008 156.19 991.37C98.77 970.47 53.53 925.23 32.63 867.81C16 815.21 16 766.35 16 668.64L16 355.36C16 257.65 16 208.79 32.63 156.19C53.53 98.77 98.77 53.53 156.19 32.63C208.79 16 257.65 16 355.36 16Z"/>
