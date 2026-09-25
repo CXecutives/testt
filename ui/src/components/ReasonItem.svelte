@@ -83,7 +83,13 @@
 {/snippet}
 
 {#snippet body()}
-  <span class="icon" role="img" aria-label={t.reason.kind[kind]}
+  <!-- The mark says its state in words under the pointer (a half circle alone was not
+       understood). -->
+  <span
+    class="icon"
+    role="img"
+    aria-label={t.reason.kind[kind]}
+    use:tooltip={{ text: t.reason.kind[kind], placement: 'left' }}
     ><Icon name={ICON[kind]} size="sm" /></span
   >
   {#if detail && !compact}
