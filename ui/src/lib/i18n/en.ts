@@ -230,7 +230,7 @@ const SHORT_TEXT = 'The ad is very short.';
 const contract: Record<ContractKind, string> = {
   interim: 'Interim',
   permanent: 'Permanent',
-  anue: 'Agency work',
+  anue: 'Temporary agency work',
   unclear: 'Contract type unclear',
 };
 
@@ -248,11 +248,11 @@ function dayRateWish(p: Params): string {
   const wish = formatEuro(p.wish);
   switch (p.state) {
     case 'met':
-      return `The day rate of ${rate} meets your target of ${wish}.`;
+      return `The day rate of ${rate} meets your preferred rate of ${wish}.`;
     case 'near':
-      return `The day rate of ${rate} is just below your target of ${wish}.`;
+      return `The day rate of ${rate} is just below your preferred rate of ${wish}.`;
     case 'missed':
-      return `The day rate of ${rate} is below your target of ${wish}.`;
+      return `The day rate of ${rate} is below your preferred rate of ${wish}.`;
     default:
       return p.currency
         ? `The day rate is given in ${str(p.currency)}.`
@@ -410,8 +410,8 @@ const criteria = {
     exclusion: 'The location is outside the countries in the profile.',
   },
   noAnue: {
-    label: 'Agency work',
-    short: 'Agency work',
+    label: 'Temporary agency work',
+    short: 'Temporary agency work',
     exclusion: ANUE,
   },
   noPermanent: {

@@ -221,6 +221,20 @@ test('an ad that could not be fetched says so with the one verb for details', as
   );
 });
 
+test('English names agency work and the preferred rate one way everywhere', async ({ page }) => {
+  await open(page, `${WIN}&lang=en`);
+  await page.getByTestId('facet').getByRole('radio', { name: /All/ }).click();
+  // Short "Agency work" read like any work through an agency, common for freelancers.
+  await expect(
+    page.getByTestId('excluded-rows').getByTestId('job-row-freelance-900412').locator('.foot'),
+  ).toHaveText('Temporary agency work');
+  // The field is "Preferred day rate"; "target" is the word of the target roles.
+  await page.getByTestId('job-rows').getByTestId('job-row-freelancermap-2801').click();
+  await expect(page.getByTestId('reader')).toContainText(
+    'The day rate of €1,100 meets your preferred rate of €1,000.',
+  );
+});
+
 test('a sentence speaks to the user and quotes the control it names', async ({ page }) => {
   await settings(page);
   // "Erst Details holen einschalten." read as "first fetch details, then switch on".
