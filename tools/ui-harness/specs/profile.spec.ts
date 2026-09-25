@@ -906,7 +906,7 @@ test('remove asks first, says what happens and can be taken back', async ({ page
   await page.getByTestId('profile-remove').click();
   const dialog = page.getByTestId('dialog-remove-profile');
   await expect(dialog).toContainText(
-    'Die Jobs zeigen danach keine Passung mehr. Die Datei bleibt als Sicherung im Profilordner.',
+    'Die Jobs zeigen danach keine Passung, die Datei bleibt als Sicherung im Profilordner.',
   );
   await dialog.getByRole('button', { name: 'Entfernen' }).click();
   await expect(page.getByTestId('profile-empty')).toBeVisible();
@@ -1030,9 +1030,7 @@ test('availability is a block of its own that only marks', async ({ page }) => {
   await profile(page);
   const block = page.getByTestId('section-availability');
   await expect(block).toContainText('Verfügbarkeit');
-  await expect(block).toContainText(
-    'Beginnt ein Job früher, markiert die App ihn zum Prüfen, sie schließt ihn nicht aus.',
-  );
+  await expect(block).toContainText('Beginnt ein Job früher, markiert die App ihn zum Prüfen.');
   await expect(block.getByTestId('profile-available')).toBeVisible();
   await expect(page.getByTestId('section-criteria').getByTestId('profile-available')).toHaveCount(
     0,

@@ -227,7 +227,7 @@ test('one place for filters: Neu, Alle, Favoriten; the overview says what now', 
   // The files have a block of their own.
   await expect(page.getByTestId('files')).toContainText('Dateien');
   await expect(page.getByTestId('issue-freelance-mails')).toContainText(
-    'Eine Alert-Mail enthielt keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
+    'In einer Alert-Mail fand die App keine Jobs.',
   );
   await expect(overview.getByTestId('overview-excel')).toBeVisible();
   // The one filter place: the segments in the list header count their lists.
@@ -941,9 +941,7 @@ test('the reader: one row of alike actions, archive opens the next job, undo, a 
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   }
   await page.getByTestId('prompt').click();
-  await expect(page.getByTestId('toast').last()).toContainText(
-    'Prompt kopiert, bereit für einen KI-Chat.',
-  );
+  await expect(page.getByTestId('toast').last()).toContainText('Prompt kopiert.');
   // Archivieren folds the row away and opens the next job; a double click archives one.
   const title = await page.getByTestId('reader-title').innerText();
   const next = await rows(page).nth(1).locator('.title').innerText();
@@ -1402,9 +1400,7 @@ test('the best matches as one prompt: at the end of the overview heading', async
   await open(page, WIN);
   await expect(page.getByTestId('best').getByTestId('prompt-top')).toBeVisible();
   await page.getByTestId('prompt-top').click();
-  await expect(page.getByTestId('toast').last()).toContainText(
-    'Prompt kopiert, bereit für einen KI-Chat.',
-  );
+  await expect(page.getByTestId('toast').last()).toContainText('Prompt kopiert.');
   expect(await calls(page, 'ai_prompt_top')).toHaveLength(1);
   expect((await calls(page, 'ai_prompt_top'))[0]?.[1]).toEqual({ limit: 5 });
 });

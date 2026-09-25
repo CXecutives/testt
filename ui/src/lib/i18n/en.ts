@@ -255,11 +255,12 @@ const detailSays = {
   onRequest: 'The app fetches these details only on request.',
 } as const;
 
-/** Alert emails without jobs, and what to do about them (the overview and the settings). */
+/** Alert emails in which the app found no jobs (the overview and the settings, next to the
+ *  button that opens the email). */
 const emptyMails = (mails: number): string =>
   mails === 1
-    ? 'One alert email had no jobs, so please check it in Gmail.'
-    : `${n(mails)} alert emails had no jobs, so please check them in Gmail.`;
+    ? 'The app found no jobs in one alert email.'
+    : `The app found no jobs in ${n(mails)} alert emails.`;
 
 /** A profile file the app cannot read (the list, the overview, the Profile view). */
 const PROFILE_UNREADABLE = 'Profile cannot be read';
@@ -634,7 +635,7 @@ export const en: Catalog = {
       trash: 'The trash is empty.',
     } satisfies Record<Place, string>,
     reader: {
-      archive: 'Archived jobs stay here until you bring them back or move them to the trash.',
+      archive: 'Archived jobs stay here until you bring them back.',
       trash: 'Jobs in the trash stay here until you restore them or empty the trash.',
     } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
@@ -913,7 +914,7 @@ export const en: Catalog = {
     overridden: 'You included this job anyway.',
     prompt: 'Copy prompt for AI assessment',
     promptShort: 'Copy prompt',
-    promptHint: 'Copies the ad and the profile as a ready prompt for an AI.',
+    promptHint: 'Copies the ad and the profile as a prompt for an AI.',
     promptNotCopied: 'The prompt could not be copied.',
     preliminary: 'Provisional, scored from a teaser',
     mail: OPEN_MAIL,
@@ -974,7 +975,7 @@ export const en: Catalog = {
         `The limit is reached, so fetching resumes by itself at ${formatMoment(iso)}.`,
       emptyMails,
       pages: 'The pages of the portal look different, so the next fetch tries again by itself.',
-      login: 'The sign-in has expired, so please sign in again.',
+      login: 'The sign-in has expired, so sign in again.',
     },
   },
   profile: {
@@ -987,7 +988,8 @@ export const en: Catalog = {
     pickOther: 'Choose another file',
     remove: 'Remove',
     removeHeading: 'Remove profile?',
-    removeText: 'The jobs then show no match. The file stays as a backup in the profile folder.',
+    removeText:
+      'The jobs then show no match, and the file stays as a backup in the profile folder.',
     removed: 'Profile removed.',
     savedAt: (moment: string) => `Saved ${moment}`,
     unnamed: 'Profile without a name',
@@ -1056,7 +1058,7 @@ export const en: Catalog = {
       wishes: 'Preferences nudge the match but never exclude a job.',
       criteria: 'A job that does not fit here counts as excluded.',
       permanent: 'These rules apply to permanent jobs only.',
-      availability: 'A job that starts earlier is marked to check, never excluded.',
+      availability: 'A job that starts earlier is marked to check.',
     },
     field: {
       name: 'Name',
@@ -1345,7 +1347,7 @@ export const en: Catalog = {
   toast: {
     rescored: 'Jobs scored again.',
     copied: 'Copied.',
-    prompt: 'Prompt copied, ready for an AI chat.',
+    prompt: 'Prompt copied.',
     archivedOne: (name: string) => `“${name}” archived.`,
     trashedOne: (name: string) => `“${name}” moved to the trash.`,
     trashedMany: (value: number) => `${n(value)} jobs moved to the trash.`,

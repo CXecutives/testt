@@ -217,10 +217,10 @@ const detailSays = {
   onRequest: 'Diese Details holt die App nur auf Anfrage.',
 } as const;
 
-/** Alert mails without jobs, and what to do about them (the overview's open points and the
- *  settings say it alike): look whether the mail lists any. */
+/** Alert mails in which the app found no jobs (the overview's open points and the settings
+ *  say it alike, next to the button that opens the mail to look). */
 const emptyMails = (mails: number): string =>
-  `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.`;
+  `${mails === 1 ? 'In einer Alert-Mail' : `In ${n(mails)} Alert-Mails`} fand die App keine Jobs.`;
 
 /** A profile file the app cannot read (the list, the overview, the Profil view). */
 const PROFILE_UNREADABLE = 'Profil nicht lesbar';
@@ -645,8 +645,7 @@ export const de = {
     } satisfies Record<Place, string>,
     /** The reader of the archive and the trash while no job is open. */
     reader: {
-      archive:
-        'Archivierte Jobs bleiben hier, bis du sie zurückholst oder in den Papierkorb legst.',
+      archive: 'Archivierte Jobs bleiben hier, bis du sie zurückholst.',
       trash:
         'Jobs im Papierkorb bleiben hier, bis du sie wiederherstellst oder den Papierkorb leerst.',
     } satisfies Record<Exclude<Place, 'inbox'>, string>,
@@ -974,7 +973,7 @@ export const de = {
     overridden: 'Von dir trotzdem gewertet.',
     prompt: 'Prompt für KI-Bewertung kopieren',
     promptShort: 'Prompt kopieren',
-    promptHint: 'Kopiert Anzeige und Profil als fertigen Prompt für eine KI.',
+    promptHint: 'Kopiert Anzeige und Profil als Prompt für eine KI.',
     /** The clipboard refused the prompt. */
     promptNotCopied: 'Der Prompt ließ sich nicht kopieren.',
     /** Under the band of a score that comes from a teaser only. */
@@ -1049,7 +1048,7 @@ export const de = {
       emptyMails,
       pages:
         'Die Seiten des Portals sehen anders aus, der nächste Abruf versucht es von selbst wieder.',
-      login: 'Die Anmeldung ist abgelaufen, bitte melde dich neu an.',
+      login: 'Die Anmeldung ist abgelaufen, melde dich neu an.',
     },
   },
   profile: {
@@ -1065,7 +1064,7 @@ export const de = {
     remove: 'Entfernen',
     removeHeading: 'Profil entfernen?',
     removeText:
-      'Die Jobs zeigen danach keine Passung mehr. Die Datei bleibt als Sicherung im Profilordner.',
+      'Die Jobs zeigen danach keine Passung, die Datei bleibt als Sicherung im Profilordner.',
     removed: 'Profil entfernt.',
     /** The moment like every moment of the app (`21.09. 09:30`, the time alone today). */
     savedAt: (moment: string) => `Gespeichert ${moment}`,
@@ -1140,8 +1139,7 @@ export const de = {
       wishes: 'Wünsche verschieben die Passung leicht, sie schließen nichts aus.',
       criteria: 'Ein Job, der hier nicht passt, gilt als ausgeschlossen.',
       permanent: 'Diese Regeln gelten nur für Festanstellungen.',
-      availability:
-        'Beginnt ein Job früher, markiert die App ihn zum Prüfen, sie schließt ihn nicht aus.',
+      availability: 'Beginnt ein Job früher, markiert die App ihn zum Prüfen.',
     },
     field: {
       name: 'Name',
@@ -1370,7 +1368,7 @@ export const de = {
     /** The last fetch could not reach Gmail, or Gmail refused the password. */
     unreachable: 'Nicht erreichbar',
     refused: 'Abgelehnt',
-    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, bitte trag sie über „Ändern“ neu ein.',
+    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, trag sie über „Ändern“ neu ein.',
     vault: {
       windowsCredentialManager:
         'Das App-Passwort liegt in der Windows-Anmeldeinformationsverwaltung.',
@@ -1464,7 +1462,6 @@ export const de = {
     languageLabel: 'Sprache der App',
     /** Excel file and overview are written at the next fetch (the text files stay German). */
     languageHint: 'Excel-Datei und Übersicht folgen beim nächsten Abruf.',
-    /** Each language named in the language of the app (Deutsch/Englisch, German/English). */
     /** Each language in its own words, the same in both catalogs. */
     languageName: {
       de: 'Deutsch',
@@ -1497,7 +1494,7 @@ export const de = {
     rescored: 'Jobs neu bewertet.',
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
-    prompt: 'Prompt kopiert, bereit für einen KI-Chat.',
+    prompt: 'Prompt kopiert.',
     archivedOne: (name: string) => `„${name}“ archiviert.`,
     trashedOne: (name: string) => `„${name}“ in den Papierkorb gelegt.`,
     trashedMany: (value: number) => `${n(value)} Jobs in den Papierkorb gelegt.`,
