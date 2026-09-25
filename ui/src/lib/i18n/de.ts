@@ -1132,7 +1132,7 @@ export const de = {
       star: 'Als Schwerpunkt markieren',
       /** The star of a Schwerpunkt, and of a row without a competence yet. */
       unstar: 'Schwerpunkt entfernen',
-      starEmpty: 'Erst eine Kompetenz eintragen.',
+      starEmpty: 'Trag erst eine Kompetenz ein.',
       focusCount: (count: number, max: number) => `Schwerpunkte ${count} von ${max}`,
       focusHint: 'Kompetenzen mit Stern zählen doppelt, höchstens fünf.',
       focusFull: 'Höchstens fünf Schwerpunkte.',
@@ -1317,7 +1317,7 @@ export const de = {
       answer: 'Antwort der KI',
       take: 'Übernehmen',
       /** Why Übernehmen waits. */
-      takeEmpty: 'Erst die Antwort der KI einfügen.',
+      takeEmpty: 'Füge erst die Antwort der KI ein.',
     },
   },
   settings: {
@@ -1388,7 +1388,7 @@ export const de = {
     txtCount: (value: number) =>
       `${count(value, 'Anzeige', 'Anzeigen')} als Text für eine KI-Bewertung`,
     /** After a change of the work folder: only new text files are written there by themselves. */
-    txtLeftBehind: 'Die Textdateien liegen noch im alten Ordner, Neu schreiben legt sie hier an.',
+    txtLeftBehind: 'Die Textdateien liegen noch im alten Ordner, „Neu schreiben“ legt sie hier an.',
     txtNone: 'Es gibt keine Textdateien.',
     txtRewrite: 'Neu schreiben',
     txtClear: 'Löschen',

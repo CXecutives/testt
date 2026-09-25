@@ -202,7 +202,7 @@ test('text files: the row says what they are; another folder says where they are
   await page.getByTestId('workspace-change').click();
   await expect(files).toContainText('C:/Users/demo/Documents/Jobs');
   await expect(page.getByTestId('files-note')).toHaveText(
-    'Die Textdateien liegen noch im alten Ordner, Neu schreiben legt sie hier an.',
+    'Die Textdateien liegen noch im alten Ordner, „Neu schreiben“ legt sie hier an.',
   );
   await expect(page.getByTestId('files-note')).toHaveClass(/info/);
   await expect(files).toContainText('0 Anzeigen als Text für eine KI');
@@ -331,7 +331,7 @@ test('the Schwerpunkt star says what a click does; an empty row what comes first
   const empty = page.getByTestId('competence-row').last().getByTestId('competence-star');
   await expect(empty).toHaveAttribute('aria-disabled', 'true');
   await empty.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst eine Kompetenz eintragen.');
+  await expect(page.getByRole('tooltip')).toHaveText('Trag erst eine Kompetenz ein.');
 });
 
 test('Speichern, Verwerfen and Übernehmen say why they wait', async ({ page }) => {
@@ -351,5 +351,5 @@ test('Speichern, Verwerfen and Übernehmen say why they wait', async ({ page }) 
   const take = page.getByTestId('paste-take');
   await expect(take).toHaveAttribute('aria-disabled', 'true');
   await take.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst die Antwort der KI einfügen.');
+  await expect(page.getByRole('tooltip')).toHaveText('Füge erst die Antwort der KI ein.');
 });

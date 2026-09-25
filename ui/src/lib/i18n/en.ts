@@ -1256,7 +1256,7 @@ export const en: Catalog = {
     excelMissing: 'The Excel file is created at the first fetch.',
     txt: 'Text files',
     txtCount: (value: number) => `${count(value, 'ad', 'ads')} as text for an AI assessment`,
-    txtLeftBehind: 'The text files are still in the old folder, and Rewrite puts them here.',
+    txtLeftBehind: 'The text files are still in the old folder, and “Rewrite” puts them here.',
     txtNone: 'There are no text files.',
     txtRewrite: 'Rewrite',
     txtClear: 'Delete',
