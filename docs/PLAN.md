@@ -315,7 +315,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [x] 2D Scraping and sign-in (session delete, macOS data store, no unasked sign-in window, keychain test already merged with 1c): S1-S11; switches honoured in the fetch path; optional sign-in with risk note; delete
       session per portal (macOS `data_store_identifier`); keychain test on macOS; dead code list.
       Left for the integrator: `AppBackends::prescore` -> `matching::prescore` with the profile (neutral until then);
-      `commands/mod.rs` could use `sync::lock`; exports (Excel, TXT) still list duplicate rows (the list shows one).
+      `commands/mod.rs` could use `sync::lock`. Done since: exports list no duplicate rows (Excel sheet, one text file
+      per job); the automatic queue fetches only what the lists show as active (inbox and favourites, never the trash
+      or a duplicate), the rest says "Details auf Anfrage".
       Done when: 26 fetch tests + new (4th test portal via registry only, health, teaser, Retry-After, requeue, slug
       URL = same id, duplicate group, IMAP loads candidates only, details off => zero portal requests, sign-out
       verified on both OS).

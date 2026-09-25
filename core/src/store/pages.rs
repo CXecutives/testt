@@ -4,6 +4,7 @@
 use jiff::Timestamp;
 use rusqlite::{OptionalExtension, params};
 
+use super::jobs::FETCHABLE;
 use super::{Store, bump};
 use crate::error::Result;
 use crate::portal::{Facts, JobKey, Portal};
@@ -37,9 +38,9 @@ impl Store {
 
     /// After a parser update: the jobs of `portal` that an older parser judged as failed or
     /// unfetchable are open again, with fresh attempts - only those the automatic queue
-    /// fetches (mail since `since`), so the count is truthful and an older job keeps its
-    /// honest "not fetchable" instead of waiting for a fetch that never comes. Returns their
-    /// number.
+    /// fetches (mail since `since`, a job the lists show as active), so the count is truthful
+    /// and any other job keeps its honest "not fetchable" instead of waiting for a fetch that
+    /// never comes. Returns their number.
     pub fn requeue_older_parses(
         &self,
         portal: Portal,
@@ -48,11 +49,13 @@ impl Store {
     ) -> Result<usize> {
         self.write(|conn| {
             let changed = conn.execute(
-                "UPDATE job SET desc_status = 'missing', desc_attempts = 0, desc_error = NULL,
-                                desc_attempted_at = NULL
-                 WHERE portal = ?1 AND desc_status IN ('failed', 'unfetchable')
-                   AND COALESCE(parser_version, 0) < ?2
-                   AND COALESCE(mail_date, first_seen_at) >= ?3",
+                &format!(
+                    "UPDATE job SET desc_status = 'missing', desc_attempts = 0, desc_error = NULL,
+                                    desc_attempted_at = NULL
+                     WHERE portal = ?1 AND desc_status IN ('failed', 'unfetchable')
+                       AND COALESCE(parser_version, 0) < ?2
+                       AND COALESCE(mail_date, first_seen_at) >= ?3 AND {FETCHABLE}"
+                ),
                 params![portal.key(), parser_version, to_db(since)],
             )?;
             if changed > 0 {

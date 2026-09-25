@@ -96,8 +96,9 @@ pub enum DetailState {
     Gone,
     /// Given up after several failed attempts at this one ad.
     Unfetchable,
-    /// Not fetched, and its mail is older than the automatic fetch reaches (30 days): the
-    /// details come only on request ("Details holen").
+    /// Not fetched, and the automatic fetch does not reach it (its mail is older than 30
+    /// days, or it lies in the trash or, no favourite, in the archive): the details come only
+    /// on request ("Details holen").
     OnRequest,
 }
 
@@ -106,11 +107,18 @@ impl DetailState {
         DetailState::at(job, Timestamp::now())
     }
 
-    /// The state at `now`: a job whose mail is older than the automatic fetch reaches is
-    /// never promised for "the next fetch" - it waits for a request.
+    /// The state at `now`: a job the automatic fetch does not reach (its mail is older than
+    /// it looks back, or a place it leaves out, see `store::jobs::FETCHABLE`) is never
+    /// promised for "the next fetch" - it waits for a request.
     pub fn at(job: &JobRow, now: Timestamp) -> DetailState {
-        let automatic = job.mail_date.unwrap_or(job.first_seen_at)
-            >= now.saturating_sub(MAX_AGE).unwrap_or(Timestamp::MIN);
+        let listed = match job.place() {
+            Place::Inbox => true,
+            Place::Archive => job.pinned_at.is_some(),
+            Place::Trash => false,
+        };
+        let automatic = listed
+            && job.mail_date.unwrap_or(job.first_seen_at)
+                >= now.saturating_sub(MAX_AGE).unwrap_or(Timestamp::MIN);
         match job.desc_status {
             DescStatus::Ok => DetailState::Ok,
             DescStatus::Missing if automatic => DetailState::Pending { retry_at: None },
@@ -1492,6 +1500,35 @@ mod tests {
                 retry_at: None
             }
         );
+    }
+
+    /// The automatic fetch leaves the trash and the archive out (a favourite there stays):
+    /// their jobs wait for a request instead of a promise for the next fetch.
+    #[test]
+    fn a_job_the_queue_leaves_out_waits_for_a_request() {
+        let (store, key) = store_with(
+            "https://www.freelancermap.de/nproj/12345.html",
+            "Rolle",
+            "Muster GmbH",
+            "Köln",
+        );
+        let now = store.job(&key).unwrap().unwrap().first_seen_at;
+        let one = std::slice::from_ref(&key);
+        let state = || DetailState::at(&store.job(&key).unwrap().unwrap(), now);
+        let pending = DetailState::Pending { retry_at: None };
+        assert_eq!(state(), pending);
+        store.move_jobs(one, Place::Archive, now).unwrap();
+        assert_eq!(state(), DetailState::OnRequest);
+        store.set_pinned(&key, true, now).unwrap();
+        assert_eq!(
+            state(),
+            pending,
+            "a favourite in the archive is still fetched"
+        );
+        store.move_jobs(one, Place::Trash, now).unwrap();
+        assert_eq!(state(), DetailState::OnRequest);
+        store.move_jobs(one, Place::Inbox, now).unwrap();
+        assert_eq!(state(), pending);
     }
 
     #[test]

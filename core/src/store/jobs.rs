@@ -142,16 +142,6 @@ pub struct PageCounts {
     pub new_by_portal: Vec<(Portal, u32)>,
 }
 
-/// Jobs of one portal with a given job details state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PortalCount {
-    pub portal: Portal,
-    pub status: DescStatus,
-    pub count: i64,
-    /// Of these, the ones with a short text.
-    pub short: i64,
-}
-
 /// An alert mail without recognised entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AlertMailRow {
@@ -487,41 +477,12 @@ impl Store {
             .query_row("SELECT COUNT(*) FROM job", [], |r| r.get(0))?)
     }
 
-    /// Per portal and job details state: the count and how many of them are short (for the
-    /// portal view).
-    pub fn portal_counts(&self) -> Result<Vec<PortalCount>> {
-        let conn = self.conn();
-        let mut stmt = conn.prepare_cached(
-            "SELECT portal, desc_status, COUNT(*), SUM(desc_short) FROM job GROUP BY portal, desc_status",
-        )?;
-        let rows = stmt.query_map([], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, i64>(2)?,
-                r.get::<_, i64>(3)?,
-            ))
-        })?;
-        let mut out = Vec::new();
-        for row in rows {
-            let (portal, status, count, short) = row?;
-            out.push(PortalCount {
-                portal: Portal::from_key(&portal)
-                    .ok_or_else(|| Error::Corrupt(format!("unknown portal `{portal}`")))?,
-                status: DescStatus::parse(&status)
-                    .ok_or_else(|| Error::Corrupt(format!("unknown status `{status}`")))?,
-                count,
-                short,
-            });
-        }
-        Ok(out)
-    }
-
     // ------------------------------------------------------------------ Job details
 
     /// Jobs whose full text should be fetched automatically: open or failed (at the earliest
-    /// `retry_after` after the last attempt), mail at most `max_age` old. Order: open ones
-    /// before retries, then newest mail first.
+    /// `retry_after` after the last attempt), mail at most `max_age` old, and only what the
+    /// lists show as active ([`FETCHABLE`]). Order: open ones before retries, then newest mail
+    /// first.
     pub fn fetch_queue(
         &self,
         now: Timestamp,
@@ -530,35 +491,11 @@ impl Store {
     ) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
-            "SELECT {JOB_COLUMNS} FROM job WHERE {DUE}
+            "SELECT {JOB_COLUMNS} FROM job WHERE {FETCHABLE} AND {DUE}
              ORDER BY desc_status = 'failed', COALESCE(mail_date, first_seen_at) DESC, portal, job_id"
         ))?;
         let rows = stmt.query_map(due_params(now, max_age, retry_after), job_row)?;
         rows.map(|r| r?).collect()
-    }
-
-    /// Per portal, the number of jobs in the queue (like [`Store::fetch_queue`]).
-    pub fn due_counts(
-        &self,
-        now: Timestamp,
-        max_age: SignedDuration,
-        retry_after: SignedDuration,
-    ) -> Result<Vec<(Portal, usize)>> {
-        let conn = self.conn();
-        let mut stmt = conn.prepare_cached(&format!(
-            "SELECT portal, COUNT(*) FROM job WHERE {DUE} GROUP BY portal"
-        ))?;
-        let rows = stmt.query_map(due_params(now, max_age, retry_after), |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
-        })?;
-        let mut out = Vec::new();
-        for row in rows {
-            let (portal, count) = row?;
-            let portal = Portal::from_key(&portal)
-                .ok_or_else(|| Error::Corrupt(format!("unknown portal `{portal}`")))?;
-            out.push((portal, usize::try_from(count).unwrap_or(0)));
-        }
-        Ok(out)
     }
 
     /// Full text stored (also short, checked texts and closed ads).
@@ -732,12 +669,15 @@ impl Store {
 
     /// Jobs with a full text of an open ad (a closed one takes no application, so the
     /// matching skill never gets it), together with the text: only those whose text file
-    /// was never written - or, with `all`, every one ("rewrite text files").
+    /// was never written - or, with `all`, every one ("rewrite text files"). A job another
+    /// portal announced too has one file, its original's (the skill would rate it twice), and
+    /// a job in the trash none (one restored from it gets its file with the next export).
     pub fn txt_jobs(&self, all: bool) -> Result<Vec<(JobRow, String)>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS}, desc_text FROM job
              WHERE desc_status = 'ok' AND desc_text IS NOT NULL AND desc_closed = 0
+               AND dup_of IS NULL AND trashed_at IS NULL
                AND (?1 OR txt_written_at IS NULL)
              ORDER BY first_seen_at, portal, job_id"
         ))?;
@@ -778,8 +718,16 @@ pub(super) const JOB_COLUMNS: &str = "portal, job_id, url, title, company, locat
     archived_at, trashed_at, override_include";
 pub(super) const JOB_COLUMN_COUNT: usize = 30;
 
-/// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
-/// or a teaser (right away, after a failed attempt like a failure, at most
+/// The jobs whose details the app fetches by itself: what the lists show as active - the
+/// inbox and the favourites in the archive - never the trash and never a duplicate (its
+/// original's row stands for it; a merged guest teaser would cost a signed-in request). The
+/// portals' caps are small, so every request belongs to a job the user may still read.
+/// "Details holen" asks for chosen jobs wherever they lie.
+pub(super) const FETCHABLE: &str =
+    "dup_of IS NULL AND trashed_at IS NULL AND (archived_at IS NULL OR app_status IS NOT NULL)";
+
+/// Due for a fetch (of a [`FETCHABLE`] job): open or failed (at the earliest `?2` after the
+/// last attempt), or a teaser (right away, after a failed attempt like a failure, at most
 /// `MAX_FETCH_ATTEMPTS` = `?3` times) - mail not older than `?1`. Teasers are only fetched
 /// on a session path (`fetch::fetch_all`).
 const DUE: &str = "COALESCE(mail_date, first_seen_at) >= ?1
@@ -1058,6 +1006,7 @@ fn escape_like(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fetch::{MAX_AGE, RETRY_AFTER};
     use crate::portal::job_link;
     use crate::store::test_support::{mail, now, posting};
 
@@ -1516,6 +1465,152 @@ mod tests {
             Some("Volltext B")
         );
         assert_eq!(store.description(&a.key).unwrap(), None);
+    }
+
+    /// An ad text long enough to compare (duplicates need at least eight word triples).
+    const AD: &str = "Für unseren Kunden suchen wir einen erfahrenen SAP FI/CO Berater. \
+        Aufgaben: Einführung von S/4HANA Finance, Abstimmung mit den Fachbereichen, Konzeption \
+        der Hauptbuchhaltung und Anlagenbuchhaltung, Schulung der Key User. Profil: mehrjährige \
+        Projekterfahrung im Controlling, sehr gute Deutschkenntnisse, Reisebereitschaft.";
+
+    /// A freelancermap job with the full text and the same job as freelance.de's guest
+    /// teaser, merged into it: `(full, teaser)`.
+    fn full_text_and_its_teaser(store: &Store, run: i64) -> (JobKey, JobKey) {
+        let add = |url: &str| {
+            let p = posting(
+                url,
+                "SAP FI/CO Berater (m/w/d)",
+                "Ferrum Systems SE",
+                "Hamburg",
+            );
+            store.upsert_posting(run, &p, mail(), now()).unwrap();
+            p.key
+        };
+        let full = add("https://www.freelancermap.de/nproj/12345.html");
+        store.record_text(&full, AD, false, false, now()).unwrap();
+        let teaser = add("https://www.freelance.de/project/index.php?id=1255067");
+        let start: String = AD.chars().take(260).collect();
+        store.record_teaser(&teaser, &start, now()).unwrap();
+        assert_eq!(store.link_duplicate(&teaser).unwrap(), Some(full.clone()));
+        (full, teaser)
+    }
+
+    /// The portals' caps are small: the automatic queue spends them only on jobs the lists
+    /// show as active - never the trash, the archive (a favourite there stays) or a duplicate
+    /// merged into another portal's job (a guest teaser would cost a signed-in request).
+    #[test]
+    fn the_queue_leaves_out_what_the_lists_do_not_show() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let add = |id: &str| {
+            let url = format!("https://www.linkedin.com/jobs/view/{id}/");
+            let p = posting(&url, "Controller", "", "");
+            store.upsert_posting(run, &p, mail(), now()).unwrap();
+            p.key
+        };
+        let (inbox, trashed, archived, favourite) = (
+            add("4000000001"),
+            add("4000000002"),
+            add("4000000003"),
+            add("4000000004"),
+        );
+        let (_, teaser) = full_text_and_its_teaser(&store, run);
+        store
+            .move_jobs(std::slice::from_ref(&trashed), Place::Trash, now())
+            .unwrap();
+        store
+            .move_jobs(
+                &[archived.clone(), favourite.clone()],
+                Place::Archive,
+                now(),
+            )
+            .unwrap();
+        store.set_pinned(&favourite, true, now()).unwrap();
+        let queue = || -> Vec<JobKey> {
+            let mut keys: Vec<JobKey> = store
+                .fetch_queue(now(), MAX_AGE, RETRY_AFTER)
+                .unwrap()
+                .into_iter()
+                .map(|job| job.key)
+                .collect();
+            keys.sort();
+            keys
+        };
+        let mut expected = vec![inbox.clone(), favourite.clone()];
+        expected.sort();
+        assert_eq!(queue(), expected);
+        assert!(!queue().contains(&teaser));
+        // Back in the inbox, a job is due again.
+        store
+            .move_jobs(std::slice::from_ref(&trashed), Place::Inbox, now())
+            .unwrap();
+        assert!(queue().contains(&trashed));
+        assert!(!queue().contains(&archived));
+    }
+
+    /// After a parser update only the jobs the queue fetches open again: a failed job in the
+    /// trash keeps its honest state (the count of the log stays true).
+    #[test]
+    fn a_parser_update_leaves_the_trash_alone() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let add = |id: &str| {
+            let url = format!("https://www.linkedin.com/jobs/view/{id}/");
+            let p = posting(&url, "Controller", "", "");
+            store.upsert_posting(run, &p, mail(), now()).unwrap();
+            store.record_failed(&p.key, "leer", now()).unwrap();
+            store.record_parse(&p.key, 1, None).unwrap();
+            p.key
+        };
+        let inbox = add("4000000001");
+        let trashed = add("4000000002");
+        store
+            .move_jobs(std::slice::from_ref(&trashed), Place::Trash, now())
+            .unwrap();
+        let since = now().saturating_sub(MAX_AGE).unwrap();
+        assert_eq!(
+            store
+                .requeue_older_parses(Portal::LinkedIn, 2, since)
+                .unwrap(),
+            1
+        );
+        let status = |key: &JobKey| store.job(key).unwrap().unwrap().desc_status;
+        assert_eq!(status(&inbox), DescStatus::Missing);
+        assert_eq!(status(&trashed), DescStatus::Failed);
+    }
+
+    /// One text file per job: a duplicate of another portal's job has none (the skill would
+    /// rate the job twice), a job in the trash neither - until it comes back.
+    #[test]
+    fn duplicates_and_the_trash_get_no_text_file() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let (full, _) = full_text_and_its_teaser(&store, run);
+        // The same job with its full text on a third portal, linked to the first.
+        let p = posting(
+            "https://www.linkedin.com/jobs/view/4000000009/",
+            "SAP FI/CO Berater (m/w/d)",
+            "Ferrum Systems SE",
+            "Hamburg",
+        );
+        store.upsert_posting(run, &p, mail(), now()).unwrap();
+        store.record_text(&p.key, AD, false, false, now()).unwrap();
+        assert_eq!(store.link_duplicate(&p.key).unwrap(), Some(full.clone()));
+        let keys = |all: bool| -> Vec<JobKey> {
+            store
+                .txt_jobs(all)
+                .unwrap()
+                .into_iter()
+                .map(|(job, _)| job.key)
+                .collect()
+        };
+        assert_eq!(keys(false), std::slice::from_ref(&full));
+        assert_eq!(keys(true), std::slice::from_ref(&full), "rewriting too");
+        let one = std::slice::from_ref(&full);
+        store.move_jobs(one, Place::Trash, now()).unwrap();
+        assert!(keys(false).is_empty() && keys(true).is_empty());
+        store.move_jobs(one, Place::Inbox, now()).unwrap();
+        assert_eq!(keys(false), one, "back from the trash, its file follows");
     }
 
     /// A failure or "gone" after a successful fetch does not downgrade the job - the text
