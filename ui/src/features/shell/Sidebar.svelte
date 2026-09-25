@@ -13,8 +13,8 @@
   said once: while the run card is on screen it steps aside (in one column an open job hides
   the card, so the status stays). "Abrufen" lives in the list header.
   During the first run every view can be reached (Einstellungen with the language, Profil);
-  Jobs and its places lead to the setup page, which no entry marks as current, and leave
-  the place of the list as it is.
+  Jobs and its places lead to the setup page, which Jobs marks as current like any view, and
+  leave the place of the list as it is.
   Below 1100 px it folds to its icons by the window width alone; there is no manual fold.
 -->
 <script lang="ts">
@@ -136,10 +136,10 @@
        as they are, instead of changing their colours in front of the user. -->
   {#if app.state !== null}
     <div class="nav">
-      <!-- The setup page is no view of the list: nothing is marked current while it shows. -->
+      <!-- The setup page stands for Jobs: Jobs is marked current while it shows. -->
       <SideNav
         {items}
-        active={setup ? null : active}
+        active={setup ? 'jobs' : active}
         label={t.nav.label}
         collapsed={viewport.rail}
         {fold}

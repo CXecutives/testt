@@ -19,7 +19,7 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   expect(await visibleCount(page, '.btn.primary')).toBe(1);
   // The caret waits in the first field; the setup is no view, so no nav entry is current.
   await expect(page.getByTestId('mailbox-user')).toBeFocused();
-  await expect(page.getByTestId('nav-jobs')).not.toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('nav-jobs')).toHaveAttribute('aria-current', 'page');
 
   // Where the jobs come from, and what an app password needs, before anything is typed:
   // one line under both fields, the two pages in the order she needs them.

@@ -218,10 +218,11 @@ test('first run: Einstellungen and Profil open, Jobs and its places lead to the 
   await expect(page.getByTestId('nav-settings')).toContainText('Einstellungen');
   await page.getByTestId('nav-profile').click();
   await expect(page.getByTestId('view-profile')).toBeVisible();
-  // The trash leads to the setup page, which no entry marks as current.
+  // The trash leads to the setup page, which Jobs marks as current like any view.
   await page.getByTestId('nav-trash').click();
   await expect(page.getByTestId('view-first-run')).toBeVisible();
-  await expect(page.locator('[data-testid^="nav-"][aria-current="page"]')).toHaveCount(0);
+  await expect(page.locator('[data-testid^="nav-"][aria-current="page"]')).toHaveCount(1);
+  await expect(page.getByTestId('nav-jobs')).toHaveAttribute('aria-current', 'page');
 });
 
 test('first run: a place clicked before the first fetch leaves the list in the inbox', async ({
