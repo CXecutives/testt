@@ -37,7 +37,14 @@ import type {
   VaultKind,
   WorkMode,
 } from '../ipc/types';
-import { formatCountdown, formatEuro, formatMoment, formatNumber, formatPercent } from './format';
+import {
+  NBSP,
+  formatCountdown,
+  formatEuro,
+  formatMoment,
+  formatNumber,
+  formatPercent,
+} from './format';
 
 type Params = Record<string, string | number | boolean | null>;
 type Text = string | ((params: Params) => string);
@@ -1357,7 +1364,8 @@ export const de = {
     privacy: 'Alles bleibt auf diesem Rechner.',
     steps: 'Erste Schritte',
     mailbox: 'Postfach',
-    mailboxText: 'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
+    /** Where the jobs come from: the portals by name, in the app's order (`Portal::ALL`). */
+    mailboxText: `Die Alert-Mails von ${joined(Object.values(portalName))} gehören${NBSP}hierher.`,
     profile: 'Profil',
     profileText: 'Das Profil entsteht in der App, auf Wunsch aus dem Lebenslauf.',
     fetch: 'Erster Abruf',

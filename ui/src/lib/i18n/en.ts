@@ -37,7 +37,14 @@ import type {
   WorkMode,
 } from '../ipc/types';
 import { textOf, type Catalog, type ContractKind, type CriterionState } from './de';
-import { formatCountdown, formatEuro, formatMoment, formatNumber, formatPercent } from './format';
+import {
+  NBSP,
+  formatCountdown,
+  formatEuro,
+  formatMoment,
+  formatNumber,
+  formatPercent,
+} from './format';
 
 type Params = Record<string, string | number | boolean | null>;
 type Text = string | ((params: Params) => string);
@@ -1243,11 +1250,12 @@ export const en: Catalog = {
     } satisfies Record<Language, string>,
   },
   firstRun: {
-    benefit: 'The app reads your job alert emails in Gmail and shows which jobs fit your profile.',
+    // "in Gmail" stays on one line: a line never ends with the preposition.
+    benefit: `The app reads your job alert emails in${NBSP}Gmail and shows which jobs fit your profile.`,
     privacy: 'Everything stays on this computer.',
     steps: 'First steps',
     mailbox: 'Mailbox',
-    mailboxText: 'Job alerts from the portals must go to this Gmail address.',
+    mailboxText: `The alert emails from ${joined(Object.values(portalName))} belong${NBSP}here.`,
     profile: 'Profile',
     profileText: 'You create the profile in the app, from your CV if you like.',
     fetch: 'First fetch',

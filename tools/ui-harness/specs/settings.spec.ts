@@ -35,7 +35,7 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('mailbox-user')).toBeFocused();
   expect(await calls(page, 'save_mailbox')).toHaveLength(0);
   await expect(page.getByTestId('step-mailbox')).toContainText(
-    'An diese Gmail-Adresse müssen die Alert-Mails der Portale gehen.',
+    'Die Alert-Mails von linkedin.com, freelance.de und freelancermap.de gehören hierher.',
   );
   await page.getByTestId('two-step').click();
   expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({

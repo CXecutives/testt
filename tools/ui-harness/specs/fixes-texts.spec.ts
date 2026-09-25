@@ -133,3 +133,18 @@ test('the selection bar counts with a thousands separator, like the pane beside 
   await expect(page.getByTestId('selection-count')).toHaveText('1.001 ausgewählt');
   await expect(page.getByTestId('reader-pane')).toContainText('1.001 Jobs ausgewählt');
 });
+
+test('the first run names the portals whose alerts belong in the mailbox', async ({ page }) => {
+  await open(page, `${WIN}&scenario=first-run`);
+  // The portals in the app's one order (the settings'), by their web address.
+  await expect(page.getByTestId('step-mailbox')).toContainText(
+    'Die Alert-Mails von linkedin.com, freelance.de und freelancermap.de gehören hierher.',
+  );
+  await open(page, `${WIN}&scenario=first-run&lang=en`);
+  await expect(page.getByTestId('step-mailbox')).toContainText(
+    'The alert emails from linkedin.com, freelance.de and freelancermap.de belong here.',
+  );
+  // "in Gmail" never breaks apart: no line of the intro ends with the preposition.
+  const intro = await page.getByTestId('first-run').locator('.benefit').textContent();
+  expect(intro).toContain('in Gmail');
+});
