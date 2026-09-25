@@ -205,6 +205,17 @@ const OPEN_MAIL = 'Open alert email';
 /** The run that reads every alert email (`fullMailbox`), one name everywhere. */
 const FULL_MAILBOX = 'Read the whole mailbox';
 
+/** What a detail state means, the same in a row's badge tooltip and in the reader. */
+const detailSays = {
+  teaser: 'Without a sign-in, the portal shows only a teaser.',
+  unfetchable: 'The ad could not be read after several tries.',
+  gone: 'The ad is no longer online.',
+  onRequest: 'Older jobs get their details only on request.',
+} as const;
+
+/** A profile file the app cannot read (the list, the overview, the Profile view). */
+const PROFILE_UNREADABLE = 'Profile cannot be read';
+
 const ANUE = 'The ad mentions temporary agency work.';
 const LOW_TEXT = 'The ad has little text.';
 const SHORT_TEXT = 'The ad is very short.';
@@ -538,7 +549,6 @@ export const en: Catalog = {
     tip: (key: string) => `Choose several jobs at once with ${key}+click.`,
   },
   place: {
-    inbox: 'Jobs',
     archive: 'Archive',
     trash: 'Trash',
     search: {
@@ -566,10 +576,9 @@ export const en: Catalog = {
       trash: 'The trash is empty.',
     } satisfies Record<Place, string>,
     reader: {
-      inbox: 'Choose a job from the list.',
       archive: 'Archived jobs stay here until you bring them back or delete them.',
       trash: 'Deleted jobs stay here until you restore them or empty the trash.',
-    } satisfies Record<Place, string>,
+    } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
       `Deleted jobs stay here for ${count(days, 'day', 'days')} and are then gone forever.`,
   },
@@ -656,11 +665,11 @@ export const en: Catalog = {
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     detailHint: {
       pending: 'The full ad has not been fetched yet.',
-      teaser: 'Without a sign-in, the portal shows only a teaser.',
+      teaser: detailSays.teaser,
       failed: 'The full ad could not be fetched.',
-      unfetchable: 'The ad could not be read after several tries.',
-      gone: 'The ad is no longer online.',
-      onRequest: 'Older jobs get their details only on request.',
+      unfetchable: detailSays.unfetchable,
+      gone: detailSays.gone,
+      onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     closed: 'No longer taking applications',
     closedHint: 'The ad can still be read but no longer takes applications.',
@@ -692,12 +701,10 @@ export const en: Catalog = {
       score: 'Scoring',
       export: 'Files',
     } satisfies Record<Step, string>,
-    status,
     statusOf: (code: StatusCode, portal: Portal | null): string => {
       const at = portal === null ? undefined : statusAt[code];
       return at !== undefined && portal !== null ? at(portalName[portal]) : status[code];
     },
-    of: (done: number, total: number) => `${n(done)} of ${n(total)}`,
     ofTotal: (total: number) => `of ${n(total)}`,
     newPill: (value: number) => `${n(value)} new`,
     topPill: (value: number) => count(value, 'fits well', 'fit well'),
@@ -790,7 +797,7 @@ export const en: Catalog = {
     openProfile: 'Open profile',
     noMailbox: 'Without a mailbox, no new jobs come in.',
     noProfile: 'Without a profile, there is no match.',
-    profileUnreadable: 'Profile cannot be read',
+    profileUnreadable: PROFILE_UNREADABLE,
     profileEmpty: 'Profile without skills',
     profileBrokenText: 'That is why the jobs show no match.',
     connectMailbox: 'Connect mailbox',
@@ -824,7 +831,6 @@ export const en: Catalog = {
       `${n(met)} of ${n(total)} must-have requirements met` +
       (partial > 0 ? `, ${n(partial)} partly` : ''),
     noMust: 'No must-have requirements found',
-    criteria: 'Exclusion criteria',
     frame: 'Terms',
     anueCheck: 'It is not certain whether the role is temporary agency work.',
     contractLabel: 'Contract type',
@@ -869,11 +875,11 @@ export const en: Catalog = {
     ad: 'Ad',
     detail: {
       pending: 'The details come with the next fetch.',
-      teaser: 'Without a sign-in, the portal shows only a teaser.',
+      teaser: detailSays.teaser,
       failed: 'The details could not be fetched.',
-      unfetchable: 'The ad could not be read after several tries.',
-      gone: 'The ad is no longer online.',
-      onRequest: 'Older jobs get their details only on request.',
+      unfetchable: detailSays.unfetchable,
+      gone: detailSays.gone,
+      onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     closed: 'The ad no longer takes applications.',
     detailsOff: 'Fetch details is off for this portal.',
@@ -882,14 +888,13 @@ export const en: Catalog = {
   },
   overview: {
     noProfileText: 'With a profile, every job shows how well it fits.',
-    profileUnreadable: 'Profile cannot be read',
+    profileUnreadable: PROFILE_UNREADABLE,
     label: 'Today at a glance',
     pick: 'Select a job on the left.',
     issues: 'Needs attention',
     best: 'Best new matches',
     excel: 'Open Excel file',
     promptTop: 'Copy prompt for AI comparison',
-    promptTopNone: 'No job scored yet.',
     bestInList: 'The best new jobs are at the top of the list.',
     files: 'Files',
     emptyAlerts: (value: number) =>
@@ -1230,7 +1235,6 @@ export const en: Catalog = {
     fullMailbox: FULL_MAILBOX,
     fullMailboxHint: 'Reads all alert emails, not only the new ones.',
     fullMailboxAction: 'Read mailbox',
-    fullMailboxConfirm: 'Read',
     fullMailboxHeading: 'Read the whole mailbox?',
     fullMailboxText: 'This takes longer and fetches more pages from the portals.',
     logs: 'Logs',
@@ -1277,7 +1281,6 @@ export const en: Catalog = {
     sidebarKey: { ctrl: 'Ctrl+B', cmd: '⌘B' },
   },
   toast: {
-    saved: 'Saved.',
     mailboxSaved: 'Mailbox connected.',
     rescored: 'The jobs have been scored again.',
     copied: 'Copied.',

@@ -280,13 +280,3 @@ export function healthAdvice(health: PortalHealth): string | null {
       return t.health.advice.login;
   }
 }
-
-/**
- * The old shape of `healthSentence`, kept only until DayOverview and RunCard switch to it.
- * The short labels it once returned never showed (every problem has its sentence), so
- * `label` is that sentence too.
- */
-export function healthText(health: PortalHealth): { label: string; text: string | null } {
-  const text = healthSentence(health);
-  return { label: text ?? '', text };
-}

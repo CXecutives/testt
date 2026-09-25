@@ -178,6 +178,17 @@ const pause: Record<PauseReason, string> = {
 /** Opening the alert mail of a job in Gmail, the same words wherever it is offered. */
 const OPEN_MAIL = 'Alert-Mail öffnen';
 
+/** What a detail state means, the same in a row's badge tooltip and in the reader. */
+const detailSays = {
+  teaser: 'Ohne Anmeldung zeigt das Portal nur einen Anriss.',
+  unfetchable: 'Die Anzeige ließ sich mehrmals nicht lesen.',
+  gone: 'Die Anzeige ist nicht mehr online.',
+  onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
+} as const;
+
+/** A profile file the app cannot read (the list, the overview, the Profil view). */
+const PROFILE_UNREADABLE = 'Profil nicht lesbar';
+
 /** The run that reads every alert mail (`fullMailbox`): one name in the list, the run card
  *  and the settings. */
 const FULL_MAILBOX = 'Ganzes Postfach lesen';
@@ -552,8 +563,6 @@ export const de = {
   },
   /** Where a job is, like a mail: the inbox ("Jobs" in the sidebar), the archive, the trash. */
   place: {
-    /** The inbox is "Jobs", like the sidebar says. */
-    inbox: 'Jobs',
     archive: 'Archiv',
     trash: 'Papierkorb',
     /** The field's placeholder names what it searches. */
@@ -586,10 +595,9 @@ export const de = {
     } satisfies Record<Place, string>,
     /** The reader of the archive and the trash while no job is open. */
     reader: {
-      inbox: 'Wähle einen Job aus der Liste.',
       archive: 'Archivierte Jobs bleiben hier, bis du sie zurückholst oder löschst.',
       trash: 'Gelöschte Jobs liegen hier, bis du sie wiederherstellst oder den Papierkorb leerst.',
-    } satisfies Record<Place, string>,
+    } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
       `Gelöschte Jobs liegen hier ${count(days, 'Tag', 'Tage')}, dann sind sie endgültig weg.`,
   },
@@ -685,11 +693,11 @@ export const de = {
     /** What a detail badge means, in its tooltip. */
     detailHint: {
       pending: 'Die ganze Anzeige ist noch nicht geholt.',
-      teaser: 'Das Portal zeigt ohne Anmeldung nur einen Anriss.',
+      teaser: detailSays.teaser,
       failed: 'Die ganze Anzeige ließ sich nicht holen.',
-      unfetchable: 'Die Anzeige ließ sich mehrmals nicht lesen.',
-      gone: 'Die Anzeige ist nicht mehr online.',
-      onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
+      unfetchable: detailSays.unfetchable,
+      gone: detailSays.gone,
+      onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     /** The ad's page says it takes no applications any more (badge and its tooltip). */
     closed: 'Keine Bewerbung mehr möglich',
@@ -724,13 +732,11 @@ export const de = {
       score: 'Bewertung',
       export: 'Dateien',
     } satisfies Record<Step, string>,
-    status,
     /** The status, naming the portal where the backend says which one. */
     statusOf: (code: StatusCode, portal: Portal | null): string => {
       const at = portal === null ? undefined : statusAt[code];
       return at !== undefined && portal !== null ? at(portalName[portal]) : status[code];
     },
-    of: (done: number, total: number) => `${n(done)} von ${n(total)}`,
     /** After the rolling number of a step counter: "von 7". */
     ofTotal: (total: number) => `von ${n(total)}`,
     newPill: (value: number) => `${n(value)} neu`,
@@ -844,7 +850,7 @@ export const de = {
     noMailbox: 'Ohne Postfach kommen keine neuen Jobs dazu.',
     /** No usable profile: said once, at the top of the list. */
     noProfile: 'Ohne Profil gibt es keine Passung.',
-    profileUnreadable: 'Profil nicht lesbar',
+    profileUnreadable: PROFILE_UNREADABLE,
     profileEmpty: 'Profil ohne Kompetenzen',
     profileBrokenText: 'Die Jobs zeigen deshalb keine Passung.',
     connectMailbox: 'Postfach verbinden',
@@ -880,7 +886,6 @@ export const de = {
       `${n(met)} von ${n(total)} Pflichtanforderungen erfüllt` +
       (partial > 0 ? `, ${n(partial)} teilweise` : ''),
     noMust: 'Keine Pflichtanforderungen erkannt',
-    criteria: 'Ausschlusskriterien',
     /** The label of the strip of hard criteria next to the score. */
     frame: 'Rahmen',
     /** Why the temporary agency criterion needs a look. */
@@ -931,11 +936,11 @@ export const de = {
     ad: 'Anzeige',
     detail: {
       pending: 'Die Details folgen beim nächsten Abruf.',
-      teaser: 'Ohne Anmeldung zeigt das Portal nur einen Anriss.',
+      teaser: detailSays.teaser,
       failed: 'Die Details ließen sich nicht holen.',
-      unfetchable: 'Die Anzeige ließ sich mehrmals nicht lesen.',
-      gone: 'Die Anzeige ist nicht mehr online.',
-      onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
+      unfetchable: detailSays.unfetchable,
+      gone: detailSays.gone,
+      onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     closed: 'Die Anzeige nimmt keine Bewerbungen mehr an.',
     detailsOff: 'Details holen ist für dieses Portal aus.',
@@ -944,7 +949,7 @@ export const de = {
   },
   overview: {
     noProfileText: 'Mit einem Profil zeigt jeder Job, wie gut er passt.',
-    profileUnreadable: 'Profil nicht lesbar',
+    profileUnreadable: PROFILE_UNREADABLE,
     label: 'Tagesüberblick',
     /** Shown in the empty reader when the overview has nothing else to say (like Mail's "no message selected"). */
     pick: 'Links einen Job auswählen.',
@@ -953,7 +958,6 @@ export const de = {
     excel: 'Excel öffnen',
     /** The best matches as one prompt for any AI chat. */
     promptTop: 'Prompt für KI-Vergleich kopieren',
-    promptTopNone: 'Noch kein Job bewertet.',
     /** When the list beside shows the best new jobs on top already. */
     bestInList: 'Die besten neuen Jobs stehen oben in der Liste.',
     files: 'Dateien',
@@ -1337,8 +1341,6 @@ export const de = {
     fullMailbox: FULL_MAILBOX,
     fullMailboxHint: 'Liest alle Alert-Mails, nicht nur die neuen.',
     fullMailboxAction: 'Postfach lesen',
-    /** The dialog's confirm: the bare verb of its heading, like every dialog. */
-    fullMailboxConfirm: 'Lesen',
     fullMailboxHeading: 'Ganzes Postfach lesen?',
     fullMailboxText: 'Das dauert länger und ruft mehr Seiten der Portale ab.',
     logs: 'Protokolle',
@@ -1392,7 +1394,6 @@ export const de = {
     sidebarKey: { ctrl: 'Strg+B', cmd: '⌘B' } satisfies Record<'ctrl' | 'cmd', string>,
   },
   toast: {
-    saved: 'Gespeichert.',
     mailboxSaved: 'Postfach verbunden.',
     rescored: 'Die Jobs sind neu bewertet.',
     copied: 'Kopiert.',
