@@ -14,8 +14,10 @@
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import Ban from '@lucide/svelte/icons/ban';
+  import Banknote from '@lucide/svelte/icons/banknote';
   import Briefcase from '@lucide/svelte/icons/briefcase';
   import Building2 from '@lucide/svelte/icons/building-2';
+  import Calendar from '@lucide/svelte/icons/calendar';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import ClipboardPaste from '@lucide/svelte/icons/clipboard-paste';
   import Check from '@lucide/svelte/icons/check';
@@ -134,6 +136,9 @@
     'undo-2': Undo2,
     // The way on after a step ("Weiter zum ersten Abruf").
     'arrow-right': ArrowRight,
+    // The ad's rate and start in the reader's strip, where no criterion covers them.
+    banknote: Banknote,
+    calendar: Calendar,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

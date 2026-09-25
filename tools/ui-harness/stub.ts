@@ -21,6 +21,8 @@
 // is not read at all) · reset (the state after
 // "reset everything": first run, no mailbox, no profile, the report) · first-run-empty-profile
 // · session-left (freelance.de still signed in with the sign-in switched off)
+// · no-minimum (a profile without a minimum day rate and a start: the reader's strip shows
+// the ad's rate and start as plain facts)
 // · dry-run (the demo: a Probelauf mailbox, every command that writes outside the database
 // refuses with `dryRun` like `ensure_real`).
 // `save_mailbox` refuses the app password `falschfalschfals` with `mailAuth` (Gmail said no).
@@ -1022,6 +1024,12 @@ function initial(): void {
       state.lastRun = null;
       state.profile = { ...PROFILE, quality: 'empty' };
       break;
+    case 'no-minimum':
+      state.profile = {
+        ...PROFILE,
+        form: { ...PROFILE_FORM, criteria: { ...PROFILE_FORM.criteria, minDayRate: null } },
+      };
+      break;
     case 'no-profile':
       state.profile = null;
       for (const j of jobs) j.match = null;
@@ -1470,7 +1478,13 @@ function detailOf(j: JobView): JobDetail {
     ...(j.key.id === '4100200301'
       ? []
       : [criterion('c:targetYears', 'met', 'targetYears', { years: 10 })]),
-  ];
+  ].filter(
+    // Like the engine, a criterion the profile does not set is left out (the sample profile's
+    // start counts as set, except in no-minimum).
+    (c) =>
+      (c.code !== 'minDayRate' || state.profile?.form?.criteria.minDayRate !== null) &&
+      (c.code !== 'availability' || scenario !== 'no-minimum'),
+  );
   const ok = j.detail.kind === 'ok';
   return {
     job: j,

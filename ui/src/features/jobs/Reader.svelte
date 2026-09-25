@@ -55,6 +55,7 @@
     errorText,
     noteText,
     reasonEvidence,
+    termWords,
     workWords,
     reasonHint,
     reasonText,
@@ -178,6 +179,7 @@
   };
   interface StripChip {
     id: string;
+    testid: string;
     label: string;
     state: CriterionState | 'plain';
     icon: IconName;
@@ -198,6 +200,7 @@
       const unclear = contract.kind === 'check';
       out.push({
         id: contract.id,
+        testid: 'contract',
         label: reasonText(contract),
         state: unclear ? 'unknown' : 'plain',
         icon: unclear ? 'circle-help' : 'file-text',
@@ -205,6 +208,28 @@
         reason: contract.ranges.length > 0 ? contract : null,
       });
     }
+    // The ad's rate and start show whatever the profile asks: a plain chip where no criterion
+    // chip covers them, the rate first and the start after it.
+    const terms = termWords(job.match?.facts);
+    const covered = new Set((match?.criteria ?? []).map((reason) => criterionKey(reason.code)));
+    const term = (key: 'minDayRate' | 'availability'): StripChip[] => {
+      const label = terms[key];
+      if (label === null || covered.has(key)) return [];
+      const icon = key === 'minDayRate' ? 'banknote' : 'calendar';
+      return [
+        {
+          id: `fact:${key}`,
+          testid: `fact-${key}`,
+          label,
+          state: 'plain',
+          icon,
+          hint: null,
+          reason: null,
+        },
+      ];
+    };
+    out.push(...term('minDayRate'));
+    if (!covered.has('minDayRate')) out.push(...term('availability'));
     for (const reason of match?.criteria ?? []) {
       const key = criterionKey(reason.code);
       if (key === null) continue;
@@ -223,6 +248,7 @@
             : t.reader.criterionHint[state === 'unset' ? 'open' : state](name);
       out.push({
         id: reason.id,
+        testid: `criterion-${reason.id}`,
         // The ad's own value; what it does not mention says so, neutral.
         label: value ?? (state === 'unset' ? t.facts.notMentioned(name) : name),
         state,
@@ -235,6 +261,7 @@
                 (r) => chipOf(r) === key && passages.some((passage) => passage.reason === r.id),
               ) ?? null),
       });
+      if (key === 'minDayRate') out.push(...term('availability'));
     }
     return out;
   });
@@ -751,7 +778,7 @@
             <li class="strip-label">{t.reader.frame}</li>
             {#each chips as chip (chip.id)}
               {@const target = chip.reason}
-              <li data-testid={chip.id === contract?.id ? 'contract' : `criterion-${chip.id}`}>
+              <li data-testid={chip.testid}>
                 <Chip
                   label={chip.label}
                   state={chip.state}
