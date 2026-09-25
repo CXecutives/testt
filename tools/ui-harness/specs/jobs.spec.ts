@@ -64,7 +64,7 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await top.click();
   await expect(page.getByTestId('reader')).toBeVisible();
   await expect(page.getByTestId('band')).toHaveText('Hohe Passung');
-  await expect(page.getByTestId('must')).toHaveText('4 von 4 Pflichtanforderungen erfüllt');
+  await expect(page.getByTestId('must')).toHaveText('4 von 4 Pflichtpunkten erfüllt');
   // Its ad states every criterion of the profile, and meets it: one quiet line with the terms.
   await expect(page.getByTestId('criteria-clean')).toBeVisible();
   await expect(page.getByTestId('criteria-clean')).toContainText('Interim');
@@ -919,15 +919,15 @@ test('the reader: one row of alike actions, archive opens the next job, undo, a 
   await expect(actions.locator('.btn:not(.secondary)')).toHaveCount(0);
   await expect(page.getByTestId('applied')).toHaveCount(0);
   await expect(page.getByTestId('note')).toHaveCount(0);
-  // The action row stays one line: a narrow reader says only "KI-Bewertung", wide the whole.
+  // The action row stays one line; the short label fits the usual reader whole.
   const actionTops = async (): Promise<number> =>
     actions.evaluate(
       (row) => new Set([...row.children].map((child) => child.getBoundingClientRect().top)).size,
     );
   expect(await actionTops()).toBe(1);
-  await expect(page.getByTestId('prompt')).toHaveText('Prompt kopieren');
+  await expect(page.getByTestId('prompt')).toHaveText('KI-Prompt kopieren');
   await page.setViewportSize({ width: 1600, height: 900 });
-  await expect(page.getByTestId('prompt')).toHaveText('Prompt für KI-Bewertung kopieren');
+  await expect(page.getByTestId('prompt')).toHaveText('KI-Prompt kopieren');
   expect(await actionTops()).toBe(1);
   // A prompt for any AI chat.
   if (browserName === 'chromium') {

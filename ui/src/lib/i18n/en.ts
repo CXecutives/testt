@@ -887,9 +887,8 @@ export const en: Catalog = {
     notMentioned: (label: string) => `${label} not mentioned`,
   },
   reader: {
-    // The words of the English AI prompt ("3 of 4 must-have requirements met").
     mustMet: (met: number, total: number, partial = 0) =>
-      `${n(met)} of ${n(total)} must-have requirements met` +
+      `${n(met)} of ${n(total)} must-haves met` +
       (partial > 0 ? `, ${n(partial)} partly` : ''),
     noMust: 'No must-have requirements found',
     frame: 'Conditions',
@@ -911,9 +910,9 @@ export const en: Catalog = {
     archive: 'Archive',
     restore: 'Restore',
     override: 'Include anyway',
-    overrideUndo: 'Exclude again',
-    overridden: 'You included this job anyway.',
-    prompt: 'Copy prompt for AI assessment',
+    overrideUndo: 'Undo',
+    overridden: 'Included by you',
+    prompt: 'Copy AI prompt',
     promptShort: 'Copy prompt',
     promptHint: 'Copies the ad and the profile as a prompt for an AI.',
     promptNotCopied: 'The prompt could not be copied.',

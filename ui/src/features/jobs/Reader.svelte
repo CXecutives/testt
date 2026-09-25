@@ -10,7 +10,7 @@
   Actions by weight: at the end of the title line the star (Favorit), Archivieren and a quiet
   close back to the day overview (below 900 px the view's back button does); below the match
   line always the same three outlined buttons: "Anzeige öffnen", "Alert-Mail öffnen"
-  (disabled, saying why, without a mail) and "Prompt für KI-Bewertung kopieren" (the job as
+  (disabled, saying why, without a mail) and "KI-Prompt kopieren" (the job as
   a prompt for any AI chat; "Prompt kopieren" where the whole label does not fit, an icon
   button where that does not fit either, at the narrowest widths "Alert-Mail öffnen" too:
   the row never wraps). "Details holen" has one

@@ -943,7 +943,7 @@ export const de = {
   },
   reader: {
     mustMet: (met: number, total: number, partial = 0) =>
-      `${n(met)} von ${n(total)} Pflichtanforderungen erfüllt` +
+      `${n(met)} von ${n(total)} Pflichtpunkten erfüllt` +
       (partial > 0 ? `, ${n(partial)} teilweise` : ''),
     noMust: 'Keine Pflichtanforderungen erkannt',
     /** The label of the strip of hard criteria next to the score. */
@@ -970,10 +970,10 @@ export const de = {
     archive: 'Archivieren',
     restore: 'Wiederherstellen',
     /** An excluded job the user counts anyway, and back. */
-    override: 'Trotzdem werten',
-    overrideUndo: 'Wieder ausschließen',
-    overridden: 'Von dir trotzdem gewertet.',
-    prompt: 'Prompt für KI-Bewertung kopieren',
+    override: 'Trotzdem einbeziehen',
+    overrideUndo: 'Rückgängig',
+    overridden: 'Manuell einbezogen',
+    prompt: 'KI-Prompt kopieren',
     promptShort: 'Prompt kopieren',
     promptHint: 'Kopiert Anzeige und Profil als Prompt für eine KI.',
     /** The clipboard refused the prompt. */

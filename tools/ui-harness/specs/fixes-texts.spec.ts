@@ -52,7 +52,7 @@ test('the English reader counts the must-have requirements, as the German one do
   await open(page, `${WIN}&lang=en`);
   await page.getByTestId('job-rows').locator('[data-testid^="job-row-"]').first().click();
   // German counts Pflichtanforderungen; the English AI prompt says "must-have requirements".
-  await expect(page.getByTestId('must')).toHaveText(/^\d+ of \d+ must-have requirements met/);
+  await expect(page.getByTestId('must')).toHaveText(/^\d+ of \d+ must-haves met/);
 });
 
 test('an excluded row names a missing degree or licence in short words, never a sentence', async ({

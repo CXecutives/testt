@@ -12,7 +12,7 @@ test('the English reader says must-have in the badge and in the line above it', 
   await open(page, `${WIN}&lang=en`);
   await row(page, 'freelancermap-2802').click();
   const stage = page.getByTestId('stage');
-  await expect(stage.getByTestId('must')).toContainText('must-have requirements met');
+  await expect(stage.getByTestId('must')).toContainText('must-haves met');
   await expect(stage.getByText('Must-have', { exact: true })).toBeVisible();
   await expect(stage.getByText('Required', { exact: true })).toHaveCount(0);
 });
