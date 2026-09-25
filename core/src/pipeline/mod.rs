@@ -1423,7 +1423,8 @@ fn write_overview(
     // text files' names.
     if path.exists() && last.is_none() {
         let backup = path.with_file_name(format!(
-            "JobAlerts.alt-{}.{}",
+            "{}{}.{}",
+            export::XLSX_BACKUP_PREFIX,
             time::local(now).strftime("%Y%m%d-%H%M%S"),
             path.extension().and_then(|e| e.to_str()).unwrap_or("xlsx")
         ));

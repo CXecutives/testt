@@ -676,6 +676,16 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
         backup.file_name().unwrap(),
         "JobAlerts.alt-20260924-093000.xlsx"
     );
+    // The name the app can show in its folder, and only such a name.
+    assert!(export::is_xlsx_backup("JobAlerts.alt-20260924-093000.xlsx"));
+    for other in [
+        "JobAlerts.xlsx",
+        "JobAlerts.alt-x.txt",
+        r"JobAlerts.alt-..\..\jobs.xlsx",
+        "JobAlerts.alt-/x.xlsx",
+    ] {
+        assert!(!export::is_xlsx_backup(other), "{other}");
+    }
     assert!(first.overview_xlsx.is_some());
 
     // Further runs continue the app's own file without backing it up again.

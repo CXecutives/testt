@@ -84,6 +84,12 @@ export function commandKey(): 'ctrl' | 'cmd' {
   return platform() === 'macos' ? 'cmd' : 'ctrl';
 }
 
+/** The file manager of the OS, for the words that name it ("Im Explorer zeigen", "Im Finder
+ *  zeigen"); the backend shows the file the same way (`platform::show_in_folder`). */
+export function fileManager(): 'explorer' | 'finder' {
+  return platform() === 'macos' ? 'finder' : 'explorer';
+}
+
 /** A shortcut of the command key and `key` as assistive technology names it
  *  (`aria-keyshortcuts`): Control+B on Windows, Meta+B on macOS. */
 export function ariaShortcut(key: string): string {

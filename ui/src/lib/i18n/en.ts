@@ -552,6 +552,10 @@ export const en: Catalog = {
     undo: 'Undo',
     openFolder: 'Open folder',
     openLog: 'Open log',
+    showInFolder: {
+      explorer: 'Show in Explorer',
+      finder: 'Show in Finder',
+    },
   },
   portal: portalName,
   chips: {

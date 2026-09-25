@@ -39,6 +39,9 @@ pub use xlsx::write_xlsx;
 pub const XLSX_NAME: &str = "JobAlerts.xlsx";
 /// The HTML overview next to the Excel file.
 pub const HTML_NAME: &str = "JobAlerts.html";
+/// Name part of an Excel file of the old program the app renamed before its first write
+/// (`JobAlerts.alt-20260925-093000.xlsx`, next to its own).
+pub const XLSX_BACKUP_PREFIX: &str = "JobAlerts.alt-";
 /// Overview of earlier versions; only kept so that "reset everything" takes it along.
 const LEGACY_CSV_NAME: &str = "JobAlerts.csv";
 /// Subfolder of the workspace for results (as before).
@@ -215,6 +218,17 @@ pub fn clear_txt_files(result_dir: &Path, txt_names: &[String]) -> (usize, Vec<S
     // The subfolder only disappears if that made it empty.
     let _ = std::fs::remove_dir(result_dir.join(TXT_DIR));
     (removed, failed)
+}
+
+/// The name of an Excel file the app renamed ([`XLSX_BACKUP_PREFIX`]): a plain file name in
+/// the result folder, never a path.
+pub fn is_xlsx_backup(name: &str) -> bool {
+    name.starts_with(XLSX_BACKUP_PREFIX)
+        && !name.contains(['/', '\\', ':'])
+        && !name.contains("..")
+        && Path::new(name)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("xlsx"))
 }
 
 /// Only a file name, no path - protects "clear" against manipulated entries.

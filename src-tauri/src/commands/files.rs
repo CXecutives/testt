@@ -135,6 +135,23 @@ pub async fn open_target(state: State<'_, AppState>, target: OpenTarget) -> CmdR
             export::overview_path(&state.workspace()?.join(RESULT_DIR)),
             "file",
         )?,
+        OpenTarget::ExcelInFolder => {
+            let workspace = state.workspace()?;
+            let excel = export::overview_path(&workspace.join(RESULT_DIR));
+            if excel.is_file() {
+                return show_in_folder(&excel);
+            }
+            // No file yet (before the first fetch): the work folder it will be in.
+            existing(workspace, "folder")?
+        }
+        OpenTarget::ExcelBackupInFolder { name } => {
+            if !export::is_xlsx_backup(&name) {
+                return Err(not_found("file"));
+            }
+            let path = state.workspace()?.join(RESULT_DIR).join(name);
+            existing(path.clone(), "file")?;
+            return show_in_folder(&path);
+        }
         OpenTarget::Overview => {
             let workspace = state.workspace()?;
             // Opened as the jobs are now (a run writes it itself at its end).
@@ -159,6 +176,14 @@ pub async fn open_target(state: State<'_, AppState>, target: OpenTarget) -> CmdR
     };
     open::that_detached(&what).map_err(|e| {
         log::warn!("could not open a target: {e}");
+        ErrorInfo::new(ErrorKind::Io)
+    })
+}
+
+/// Shows a checked file selected in its folder (Explorer, Finder).
+fn show_in_folder(path: &std::path::Path) -> CmdResult<()> {
+    crate::platform::show_in_folder(path).map_err(|e| {
+        log::warn!("could not show a file in its folder: {e}");
         ErrorInfo::new(ErrorKind::Io)
     })
 }

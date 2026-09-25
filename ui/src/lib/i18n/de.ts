@@ -545,6 +545,11 @@ export const de = {
     undo: 'Rückgängig',
     openFolder: 'Ordner öffnen',
     openLog: 'Protokoll öffnen',
+    /** A file shown selected in its folder, named by the file manager of the OS. */
+    showInFolder: {
+      explorer: 'Im Explorer zeigen',
+      finder: 'Im Finder zeigen',
+    } satisfies Record<'explorer' | 'finder', string>,
   },
   portal: portalName,
   chips: {

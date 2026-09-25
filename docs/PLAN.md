@@ -113,7 +113,7 @@ Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | res
 `ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile -> ProfileDraft?` ·
 `parse_profile(text) -> ProfileDraft` · `profile_prompt` · `save_profile(ProfileSave{before, after, source?, clear[]}) -> ProfileInfo` ·
 `remove_profile` · `restore_profile` · `set_unsaved(on)` · `close_window` · `save_mailbox` · `remove_mailbox` · `portal_login` · `portal_logout` ·
-`pick_workspace` · `rewrite_txt` · `clear_txt` · `open_target({jobUrl|gmail|workspace|profileDir|excel|overview|logDir})` ·
+`pick_workspace` · `rewrite_txt` · `clear_txt` · `open_target({jobUrl|gmail|workspace|profileDir|excel|excelInFolder|excelBackupInFolder{name}|overview|logDir})` (a Gmail link names the mailbox's account; `excelInFolder` shows the Excel file selected in Explorer or the Finder, the work folder before there is one) ·
 `save_settings(SettingsPatch)` · `reset_all` · `report_ui_error` (truncated, <= 10/min).
 Rust triggers `rescore` itself (after pick/remove profile, at start, after an engine update, if pending > 0; pending = 0
 without a usable matcher) and the auto fetch (setting on, mailbox connected, last fetch > 6 h).
