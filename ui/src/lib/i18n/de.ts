@@ -184,7 +184,7 @@ const OPEN_MAIL = 'Alert-Mail öffnen';
 /** What a detail state means, the same in a row's badge tooltip and in the reader. */
 const detailSays = {
   teaser: 'Ohne Anmeldung zeigt das Portal nur einen Anriss.',
-  unfetchable: 'Die Anzeige ließ sich mehrmals nicht lesen.',
+  unfetchable: 'Die Anzeige ließ sich mehrmals nicht holen.',
   gone: 'Die Anzeige ist nicht mehr online.',
   onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
 } as const;

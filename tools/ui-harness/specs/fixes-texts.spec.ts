@@ -199,6 +199,28 @@ test('an archived job is brought back with a verb, not a way back to Jobs', asyn
   await expect(page.getByTestId(`toInbox-${key}`)).toHaveAttribute('aria-label', 'Zurückholen');
 });
 
+test('an ad that could not be fetched says so with the one verb for details', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const key = { portal: 'freelancermap', id: '2805' } as const;
+  const job = await page.evaluate((k) => window.__harness.job(k), key);
+  await page.evaluate((base) => {
+    window.__harness.emit({
+      type: 'jobUpdated',
+      job: { ...base, detail: { kind: 'unfetchable' } },
+      fresh: false,
+    });
+  }, job!);
+  const row = page.getByTestId('job-rows').getByTestId('job-row-freelancermap-2805');
+  // "Details holen" is the verb for details: the badge's tooltip and the reader agree.
+  await row.locator('.badge').hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Die Anzeige ließ sich mehrmals nicht holen.');
+  await row.click();
+  await expect(page.getByTestId('detail-note')).toHaveText(
+    'Die Anzeige ließ sich mehrmals nicht holen.',
+  );
+});
+
 test('a sentence speaks to the user and quotes the control it names', async ({ page }) => {
   await settings(page);
   // "Erst Details holen einschalten." read as "first fetch details, then switch on".

@@ -208,7 +208,7 @@ const FULL_MAILBOX = 'Read the whole mailbox';
 /** What a detail state means, the same in a row's badge tooltip and in the reader. */
 const detailSays = {
   teaser: 'Without a sign-in, the portal shows only a teaser.',
-  unfetchable: 'The ad could not be read after several tries.',
+  unfetchable: 'The ad could not be fetched after several tries.',
   gone: 'The ad is no longer online.',
   onRequest: 'Older jobs get their details only on request.',
 } as const;
