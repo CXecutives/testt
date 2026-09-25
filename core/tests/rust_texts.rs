@@ -56,7 +56,7 @@ const GERMAN_WORDS: [&str; 14] = [
 ];
 
 /// Old words and the glossary word the texts use instead.
-const GLOSSARY: [(&str, &str); 9] = [
+const GLOSSARY: [(&str, &str); 11] = [
     ("Quelle", "Portal"),
     ("Eintrag", "Job"),
     ("Volltext", "Details"),
@@ -66,6 +66,9 @@ const GLOSSARY: [(&str, &str); 9] = [
     ("Mailbox", "Postfach"),
     ("Lauf", "Abruf"),
     ("Kurzfassung", "Anriss"),
+    // The star is the favourite ("Gemerkte" too).
+    ("Gemerkt", "Favorit"),
+    ("Beraterprofil", "Profil"),
 ];
 
 /// One German string with where it stands.

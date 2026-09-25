@@ -740,7 +740,7 @@ mod macos {
     const PASTE: &str = "Einfügen";
     const SELECT_ALL: &str = "Alles auswählen";
     const WINDOW: &str = "Fenster";
-    const MINIMIZE: &str = "Minimieren";
+    const MINIMIZE: &str = "Im Dock ablegen";
     const CLOSE_WINDOW: &str = "Fenster schließen";
     // end of user-facing text
 
@@ -768,9 +768,9 @@ mod macos {
     /// Minimal app menu instead of Tauri's default (no reload or zoom, no Help, no
     /// Services). It carries the system shortcuts the app keeps: Cmd+, (settings), Cmd+Q,
     /// Cmd+H, Cmd+M, Cmd+W, and Cmd+C/V/X/A/Z, which `WKWebView` only receives through an
-    /// Edit menu; its View menu holds one item, the sidebar (Cmd+B). Like the menus of every
-    /// Mac app it speaks the language of the OS (it is built before the app's own setting is
-    /// read; the page follows that setting).
+    /// Edit menu. Like the menus of every Mac app it speaks the language of the OS and uses
+    /// its words (it is built before the app's own setting is read; the page follows that
+    /// setting).
     pub fn menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         let english = super::system_language() == super::Language::En;
         let w = |german: &'static str, english_word: &'static str| {

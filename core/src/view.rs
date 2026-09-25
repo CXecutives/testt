@@ -174,7 +174,7 @@ pub struct JobView {
     pub mail_date: Option<Timestamp>,
     pub first_seen_at: Timestamp,
     pub unread: bool,
-    /// Saved ("Gemerkt", the star): the stage `saved`.
+    /// The favourite (the star, stored as `app_status` 'saved').
     pub pinned: bool,
     pub detail: DetailState,
     /// The full text is short (verified, but under 100 characters).
