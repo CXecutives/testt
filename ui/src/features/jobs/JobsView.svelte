@@ -4,9 +4,11 @@
   with nothing selected its empty state, the day overview. Nothing floats: no cards, no
   shadows. Both columns start at the same line; the handle between them resizes the list
   (the width is kept) from 320 px up to 60 % of the content, as long as the reader keeps
-  440 px; the limits follow the window and the sidebar. Below 900 px one column: the list,
-  or the reader with a back button. The run card rises in above the list and fades out when
-  it is closed (the list moves up without animation).
+  440 px; the limits follow the window and the sidebar. Below 900 px one column: the list
+  under its pinned header (choosing rows keeps it, the header's bar acts on them), or the
+  reader with a back button. The run card rises in above the list and fades out when it is
+  closed (the list moves up without animation). Closing a job from inside the reader hands
+  the focus to its row.
 
   The right pane is a stage with its own scroll position. A job opens once its details are
   there: until then the pane keeps what it shows (the overview or the previous job), so it
@@ -77,11 +79,19 @@
     }
     return { what: shown, turn: turns };
   });
-  const reading = $derived(stage.what !== OVERVIEW);
+  // One column shows the list or the reader. Choosing rows is no reading: the list stays and
+  // its header's selection bar acts on the chosen rows.
+  const reading = $derived(stage.what !== OVERVIEW && !(stage.what === CHOSEN && viewport.narrow));
   const place = $derived(placeOf(jobs.facet));
   const trashDays = $derived(app.state?.autoEmptyTrashDays ?? 0);
+  /** The place holds nothing (no search): the list says it, the reader adds no second tile. */
+  const placeEmpty = $derived(
+    jobs.status === 'ready' && jobs.total === 0 && jobs.search.trim() === '',
+  );
   /** The list is scrolled away from its top (the header shows its hairline). */
   let scrolled = $state(false);
+  /** The same for the whole column, which scrolls in the one-column layout. */
+  let columnScrolled = $state(false);
   /** The width of the list column (the splitter keeps it per user). */
   let listWidth = $state<number | undefined>(undefined);
   /** The content beside the sidebar (and the sheet's hairline): the list's limits and its
@@ -93,8 +103,22 @@
   );
   const limits = $derived(splitLimits(content));
 
+  let right = $state<HTMLElement | null>(null);
+
+  /**
+   * Back to the day overview. A focus inside the reader (its close button, Esc on one of its
+   * buttons) goes to the row of the job that was open, like Mail: the list keeps its place
+   * and Tab goes on from there.
+   */
   function close(): void {
+    const open = jobs.selected;
+    const focused = document.activeElement;
+    const inReader = right !== null && focused !== null && right.contains(focused);
     jobs.clearSelection();
+    if (open === null || !inReader) return;
+    if (jobs.shown.some((job) => sameKey(job.key, open))) {
+      jobs.reveal = { key: keyOf(open), focus: true };
+    }
   }
 
   let header = $state<ListHeader | null>(null);
@@ -102,6 +126,7 @@
 
   // A search that no longer finds the open job closes it (the list shows what it found);
   // only a change of the search does, never a job opened from elsewhere (the overview).
+  // Only a list that holds every hit can tell: a hit beyond the loaded rows stays open.
   let searched = untrack(() => jobs.search.trim());
   let searchChanged = false;
   $effect(() => {
@@ -119,7 +144,8 @@
       if (!searchChanged || !ready) return;
       searchChanged = false;
       if (selected === null || searched === '') return;
-      if (!listed.some((row) => sameKey(row.key, selected))) close();
+      const complete = jobs.rows.length >= jobs.total;
+      if (complete && !listed.some((row) => sameKey(row.key, selected))) close();
     });
   });
 
@@ -167,7 +193,11 @@
 >
   <div class="body">
     <aside class="left" use:cssVars={listWidth ? { 'list-width': `${listWidth}px` } : {}}>
-      <div class="head"><ListHeader bind:this={header} {scrolled} /></div>
+      <!-- One column scrolls the whole column under its pinned header: watched from its top. -->
+      <span class="top" use:inView={(place) => (columnScrolled = place === 'above')}></span>
+      <div class="head">
+        <ListHeader bind:this={header} scrolled={scrolled || columnScrolled} />
+      </div>
       <div class="scroll" data-testid="list-scroll">
         <span class="top" use:inView={(place) => (scrolled = place === 'above')}></span>
         {#if shell.runCard}
@@ -188,7 +218,7 @@
         testid="list-splitter"
       /></span
     >
-    <section class="right" data-testid="reader-pane">
+    <section class="right" data-testid="reader-pane" bind:this={right}>
       {#key stage.turn}
         <div class="stage" data-testid="stage" in:enter={stage.what !== OVERVIEW} out:leave>
           {#if dragBands()}<DragBand sheet />{/if}
@@ -196,16 +226,23 @@
             {#if stage.what === CHOSEN}
               <SelectionPane />
             {:else if stage.what === OVERVIEW && place !== 'inbox'}
-              <!-- The archive and the trash have no day overview: what lies here, quietly. -->
+              <!-- The archive and the trash have no day overview: what lies here, quietly.
+                   Beside an empty list, which shows its own empty state, only the sentence. -->
+              {@const text =
+                place === 'trash' && trashDays > 0
+                  ? t.place.trashFor(trashDays)
+                  : t.place.reader[place]}
               <div class="place-reader">
-                <EmptyState
-                  icon={place === 'trash' ? 'trash-2' : 'archive'}
-                  tone="neutral"
-                  text={place === 'trash' && trashDays > 0
-                    ? t.place.trashFor(trashDays)
-                    : t.place.reader[place]}
-                  testid="place-reader"
-                />
+                {#if placeEmpty}
+                  <p class="place-note" data-testid="place-reader">{text}</p>
+                {:else}
+                  <EmptyState
+                    icon={place === 'trash' ? 'trash-2' : 'archive'}
+                    tone="neutral"
+                    {text}
+                    testid="place-reader"
+                  />
+                {/if}
               </div>
             {:else if stage.what === OVERVIEW}
               <DayOverview />
@@ -321,26 +358,38 @@
     background-color: var(--surface);
   }
 
+  /* Centred on a whole pixel (rounded down to the step of a hairline): an odd pane width
+     would put the text on a half one. */
   .column {
     display: flex;
     flex-direction: column;
     gap: var(--space-12);
     max-width: var(--reader-width);
-    margin: 0 auto;
+    margin: 0 auto 0
+      max(0%, round(down, calc((100% - var(--reader-width)) / 2), var(--border-width)));
     padding: var(--pane-padding) var(--reader-padding) var(--space-64);
   }
 
-  /* The chevron lines up with the title below it. */
+  /* The chevron's ink lines up with the title below it: the button's padding and border
+     hang out, and so does the glyph's own inset in its box. */
   .back {
     display: none;
-    margin-left: calc(-1 * var(--space-12));
+    margin-left: calc(-1 * (var(--space-12) + var(--border-width) + var(--space-6)));
   }
 
-  /* The reader of the archive and the trash with nothing open: centred in the pane. */
+  /* The reader of the archive and the trash with nothing open: centred across the pane,
+     near its top. */
   .place-reader {
     display: flex;
     justify-content: center;
     padding-top: var(--space-48);
+  }
+
+  .place-note {
+    max-width: var(--measure-intro);
+    color: var(--text-muted);
+    font: var(--type-body);
+    text-align: center;
   }
 
   .skeleton {
@@ -350,11 +399,24 @@
   }
 
   @media (width < 900px) {
-    /* One column scrolls as a whole, so the run card never squeezes the list. */
+    /* One column scrolls as a whole, so the run card never squeezes the list; the header
+       (search, Abrufen, on macOS the toolbar row that moves the window) stays on top, and a
+       row brought into view stops below it (the header at its tallest, two lines). */
     .left {
       width: 100%;
       overflow: auto;
       border-right: 0;
+      scroll-padding-top: calc(
+        var(--list-header-top) + var(--list-toolbar) + var(--space-12) + 2 * var(--control-sm) +
+          var(--space-8) + var(--pane-padding)
+      );
+    }
+
+    .head {
+      position: sticky;
+      top: 0;
+      z-index: var(--z-sticky);
+      background-color: var(--surface);
     }
 
     .scroll {

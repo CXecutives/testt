@@ -61,11 +61,13 @@
     gap: var(--space-8);
   }
 
-  /* A quiet button's text starts on the column edge (its padding hangs out). */
+  /* A quiet button: the ink of its X starts on the column edge (its padding, its border and
+     the glyph's inset in its box hang out). */
   .clear {
     display: flex;
     align-self: flex-start;
-    margin: calc(-1 * var(--space-8)) 0 0 calc(-1 * var(--space-16));
+    margin: calc(-1 * var(--space-8)) 0 0
+      calc(-1 * (var(--space-16) + var(--border-width) + var(--space-4)));
   }
 
   .hint {
