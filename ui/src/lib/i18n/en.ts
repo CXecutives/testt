@@ -162,7 +162,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   secretStore: 'The system’s password store cannot be reached.',
   secretCorrupt: 'The stored app password cannot be read.',
   portalUnavailable: (p) => `No connection to ${portalOf(p.portal)}.`,
-  portalPaused: (p) => `Fetching from ${portalOf(p.portal)} is paused right now.`,
+  portalPaused: (p) => `${portalOf(p.portal)} is paused right now.`,
   portalQuota: (p) => `The limit for ${portalOf(p.portal)} is reached.`,
   internal: INTERNAL,
   unknown: INTERNAL,

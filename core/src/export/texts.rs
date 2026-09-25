@@ -35,7 +35,7 @@ pub const COLUMNS: [&str; 12] = [
     "Alert-Mail in Gmail",
     "Zuerst gesehen",
     "Details",
-    "Schlüssel",
+    "Job-ID",
     "Passung",
 ];
 
@@ -45,12 +45,13 @@ pub const INFO_NOTE_LABEL: &str = "Hinweis";
 pub const INFO_NOTE: &str =
     "Die App schreibt diese Datei immer wieder neu, eigene Notizen gehen dabei verloren.";
 
-/// Labels of the info sheet (the mail address is deliberately not among them).
-pub const INFO_LAST_SCAN: &str = "Letzter Postfach-Abruf";
-pub const INFO_SCOPE: &str = "Umfang des letzten Postfach-Abrufs";
-pub const INFO_NEW: &str = "Neu beim letzten Postfach-Abruf";
-pub const INFO_KNOWN: &str = "Schon bekannt beim letzten Postfach-Abruf";
-pub const INFO_DUP: &str = "In mehreren Alert-Mails beim letzten Postfach-Abruf";
+/// Labels of the info sheet (the mail address is deliberately not among them). The mailbox
+/// is "gelesen" like "Ganzes Postfach lesen" in the interface; "Abruf" is the whole run.
+pub const INFO_LAST_SCAN: &str = "Postfach zuletzt gelesen";
+pub const INFO_SCOPE: &str = "Umfang beim letzten Lesen des Postfachs";
+pub const INFO_NEW: &str = "Neu beim letzten Lesen des Postfachs";
+pub const INFO_KNOWN: &str = "Schon bekannt beim letzten Lesen des Postfachs";
+pub const INFO_DUP: &str = "In mehreren Alert-Mails beim letzten Lesen des Postfachs";
 pub const INFO_LAST_RUN: &str = "Letzter Abruf";
 pub const INFO_JOBS_TOTAL: &str = "Jobs gesamt";
 pub const INFO_PROGRAM: &str = "Programm";
@@ -58,7 +59,7 @@ pub const PROGRAM_NAME: &str = "Job-Alert-Monitor";
 
 /// Scope of a mailbox scan in words.
 pub const SCOPE_NEW: &str = "Neu seit dem letzten Abruf";
-pub const SCOPE_ALL: &str = "Alle";
+pub const SCOPE_ALL: &str = "Ganzes Postfach";
 
 /// Words of the HTML overview. "Übersicht" names this file only, like "Übersicht öffnen" in
 /// the interface; the favourites are "Favoriten" like its facet, the new matches "Neu und
@@ -118,7 +119,7 @@ pub fn details_label(detail: DetailState, closed: bool, short: bool) -> &'static
         DetailState::Teaser => "Nur Anriss",
         DetailState::Failed { .. } => "Details fehlen",
         DetailState::Gone => "Nicht mehr online",
-        DetailState::Unfetchable => "Nicht abrufbar",
+        DetailState::Unfetchable => "Nicht erreichbar",
     }
 }
 // end of user-facing text
@@ -146,7 +147,7 @@ pub mod en {
         "Alert email in Gmail",
         "First seen",
         "Details",
-        "Key",
+        "Job ID",
         "Match",
     ];
 
@@ -154,17 +155,17 @@ pub mod en {
     pub const INFO_NOTE: &str =
         "The app rewrites this file from time to time, so notes added here are lost.";
 
-    pub const INFO_LAST_SCAN: &str = "Last mailbox fetch";
-    pub const INFO_SCOPE: &str = "Scope of the last mailbox fetch";
-    pub const INFO_NEW: &str = "New at the last mailbox fetch";
-    pub const INFO_KNOWN: &str = "Already known at the last mailbox fetch";
-    pub const INFO_DUP: &str = "In several alert emails at the last mailbox fetch";
+    pub const INFO_LAST_SCAN: &str = "Mailbox last read";
+    pub const INFO_SCOPE: &str = "Scope of the last mailbox read";
+    pub const INFO_NEW: &str = "New at the last mailbox read";
+    pub const INFO_KNOWN: &str = "Already known at the last mailbox read";
+    pub const INFO_DUP: &str = "In several alert emails at the last mailbox read";
     pub const INFO_LAST_RUN: &str = "Last fetch";
     pub const INFO_JOBS_TOTAL: &str = "Jobs in total";
     pub const INFO_PROGRAM: &str = "Program";
 
     pub const SCOPE_NEW: &str = "New since the last fetch";
-    pub const SCOPE_ALL: &str = "All";
+    pub const SCOPE_ALL: &str = "Whole mailbox";
 
     pub const HTML_TITLE: &str = "Overview";
     pub const HTML_PINNED: &str = "Favourites";
@@ -241,10 +242,21 @@ fn licence(params: &Map<String, Value>) -> bool {
 /// Words of the info sheet an earlier version stored with the last mailbox scan in a wording
 /// of this file that changed since, and the German word of that row today - do not
 /// translate.
-const FORMER_WORDS: [(&str, &str); 1] = [(
-    "Doppelt in mehreren Alert-Mails beim letzten Postfach-Abruf",
-    INFO_DUP,
-)];
+const FORMER_WORDS: [(&str, &str); 7] = [
+    (
+        "Doppelt in mehreren Alert-Mails beim letzten Postfach-Abruf",
+        INFO_DUP,
+    ),
+    ("Letzter Postfach-Abruf", INFO_LAST_SCAN),
+    ("Umfang des letzten Postfach-Abrufs", INFO_SCOPE),
+    ("Neu beim letzten Postfach-Abruf", INFO_NEW),
+    ("Schon bekannt beim letzten Postfach-Abruf", INFO_KNOWN),
+    (
+        "In mehreren Alert-Mails beim letzten Postfach-Abruf",
+        INFO_DUP,
+    ),
+    ("Alle", SCOPE_ALL),
+];
 
 /// The words of the files in one language.
 pub struct Texts {
@@ -458,9 +470,16 @@ mod tests {
         }
         assert_eq!(EN.from_german("3"), None);
         // A row stored in a wording this file used before reads as today's row.
-        let (former, today) = FORMER_WORDS[0];
-        assert_eq!(DE.from_german(former), Some(today));
-        assert_eq!(EN.from_german(former), Some(en::INFO_DUP));
+        for (former, today) in FORMER_WORDS {
+            assert_eq!(DE.from_german(former), Some(today));
+            let index = DE.stored_words().iter().position(|w| *w == today).unwrap();
+            assert_eq!(EN.from_german(former), Some(EN.stored_words()[index]));
+        }
+        assert_eq!(
+            EN.from_german("Letzter Postfach-Abruf"),
+            Some(en::INFO_LAST_SCAN)
+        );
+        assert_eq!(EN.from_german("Alle"), Some(en::SCOPE_ALL));
         for (de, en) in DE.columns.iter().zip(EN.columns) {
             // Product and loan words are the same in both.
             if !["Portal", "Link", "Details"].contains(de) {
