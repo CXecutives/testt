@@ -178,6 +178,18 @@ test('one word per thing: the view switch, the Excel file', async ({ page }) => 
   await expect(page.getByTestId('overview-excel')).toHaveText('Excel-Datei öffnen');
 });
 
+test('a job of last week shows its weekday and date, not "vor 4 Tagen"', async ({ page }) => {
+  // The clock stands on Thursday 24.09.2026, 09:30.
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const date = (key: string) =>
+    page.getByTestId('job-rows').getByTestId(`job-row-${key}`).locator('.date');
+  // Two days back still reads as a word, earlier days by weekday and date.
+  await expect(date('freelance-900413')).toHaveText('vorgestern');
+  await expect(date('freelancermap-2805')).toHaveText('Mo 21.09.');
+  await expect(date('freelancermap-2806')).toHaveText('So 20.09.');
+});
+
 test('a sentence speaks to the user and quotes the control it names', async ({ page }) => {
   await settings(page);
   // "Erst Details holen einschalten." read as "first fetch details, then switch on".
