@@ -56,8 +56,9 @@ Reasons are not stored; `job_detail` recomputes them. Settings JSON: per portal 
 New nullable `job` columns: `app_status TEXT` (applied|interview|offer|rejected), `app_status_at`, `note TEXT`
 (<= 2000 characters, no export shows it), `hidden_at` ("Nicht interessant"). Frozen fixture
 `core/tests/fixtures/schema_v3.sql`. A hidden job is in no list but "hidden" and in no count but its own; the HTML
-overview and `top_matches.json` leave it out. Excel gets a "Status" column (schema 5: "Beworben am" with the date); the
-TXT files stay byte-identical. The AI prompts (user decision: universal for any AI chat, they replace the skill for
+overview and `top_matches.json` leave it out. The Excel file has no mark column (schema 5: the favourite is the only
+mark and stays in the app); an excluded job keeps its domain score in a grey row, links included. The TXT files stay
+byte-identical. The AI prompts (user decision: universal for any AI chat, they replace the skill for
 normal use; `export/ai_prompt.rs`, external contract) address the assistant as "du" without naming a product and carry
 the rubric intent of the skill in short and the profile without name, contact data, links and references (<= 8,000
 characters): `ai_prompt(key)` for a deep analysis of one ad (text <= 12,000 characters), `ai_prompt_top(limit 3..5)`
