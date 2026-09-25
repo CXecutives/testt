@@ -32,7 +32,11 @@
     /** Only when changing an existing mailbox. */
     oncancel?: (() => void) | null;
     onsaved?: (() => void) | null;
-    /** The caret starts in the address (the first run, where this form is the first step). */
+    /**
+     * The caret starts in the first empty field once the form appears (the first run, where
+     * this form is the first step, and "Ändern", which keeps the address): the address, or
+     * the app password next to an address that is there.
+     */
     autofocus?: boolean;
   }
   let { saveLabel, oncancel = null, onsaved = null, autofocus = false }: Props = $props();
@@ -49,11 +53,21 @@
   let formError = $state<string | null>(null);
   let passwordField = $state<TextField | null>(null);
 
-  const focus = (field: 'user' | 'password'): void =>
-    document.getElementById(`${id}-${field}`)?.focus();
+  const focus = (field: 'user' | 'password', preventScroll = false): void =>
+    document.getElementById(`${id}-${field}`)?.focus({ preventScroll });
 
+  // Only while the focus has nowhere else to be (the page just opened, or "Ändern" gave way
+  // to this form). The page stays where it is (the intro and a reset's report stay in view
+  // at a small window); typing brings the field into view. Once the form is laid out: a
+  // field focused before that is scrolled to by WebKit anyway.
   onMount(() => {
-    if (autofocus && document.activeElement === document.body) focus('user');
+    if (!autofocus) return;
+    const frame = requestAnimationFrame(() => {
+      if (document.activeElement === document.body) {
+        focus(user.trim() === '' ? 'user' : 'password', true);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   });
 
   async function save(): Promise<void> {

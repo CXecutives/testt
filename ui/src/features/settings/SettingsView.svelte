@@ -32,6 +32,7 @@
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { tick } from 'svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
   import PortalCard from './PortalCard.svelte';
 
@@ -109,6 +110,19 @@
     invoke('open_target', { target }).catch((error: unknown) =>
       note({ tone: 'danger', text: errorText(error) }),
     );
+  }
+
+  /** Ändern and Entfernen of the connected mailbox. */
+  let mailboxButtons = $state<HTMLElement | null>(null);
+
+  /** The change form closes: the focus it held goes back to "Ändern", as a dialog's goes back
+   *  to its opener (only when it fell to the page, never taken from elsewhere). */
+  async function closeForm(): Promise<void> {
+    editing = false;
+    await tick();
+    if (document.activeElement === document.body) {
+      mailboxButtons?.querySelector<HTMLElement>('button')?.focus();
+    }
   }
 
   const setMailbox = (f: Feedback): void => void (mailboxNote = f);
@@ -300,7 +314,7 @@
                 <Badge label={t.settings.connected} tone="success" icon="check" />
               {/if}
             {/snippet}
-            <div class="buttons">
+            <div class="buttons" bind:this={mailboxButtons}>
               <Button
                 variant="secondary"
                 size="sm"
@@ -327,12 +341,14 @@
           {#if !cfg.mailbox.user}
             <p class="lead">{t.settings.notConnected}</p>
           {/if}
+          <!-- "Ändern" gives way to the form, which takes the caret; closing it gives it back. -->
           <MailboxForm
             saveLabel={cfg.mailbox.user ? t.common.save : t.settings.connect}
-            oncancel={cfg.mailbox.user ? () => (editing = false) : null}
+            autofocus={editing}
+            oncancel={cfg.mailbox.user ? () => void closeForm() : null}
             onsaved={() => {
-              editing = false;
               mailboxSaved = true;
+              void closeForm();
             }}
           />
         {/if}

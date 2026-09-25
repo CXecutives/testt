@@ -73,3 +73,53 @@ test('an unreachable Gmail is one red badge, said once', async ({ page }) => {
   await expect(mailbox).not.toContainText('Gmail ist nicht erreichbar.');
   await expect(page.getByTestId('mailbox-failure')).toHaveCount(0);
 });
+
+test('Ändern puts the caret in the form; closing it gives the focus back', async ({ page }) => {
+  await settings(page);
+  const change = page.getByTestId('mailbox-change');
+  const password = page.getByTestId('mailbox-password');
+  // The address stays, so the caret waits in the app password.
+  await change.focus();
+  await page.keyboard.press('Enter');
+  await expect(password).toBeFocused();
+  await expect(page.getByTestId('mailbox-user')).toHaveValue('alerts.demo@gmail.com');
+  // Esc closes the form, and the focus is back on Ändern, like a dialog's on its opener.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('mailbox-form')).toHaveCount(0);
+  await expect(change).toBeFocused();
+  // Abbrechen does the same, and so does a save.
+  await page.keyboard.press('Enter');
+  await expect(password).toBeFocused();
+  await page.getByTestId('mailbox-cancel').focus();
+  await page.keyboard.press('Enter');
+  await expect(change).toBeFocused();
+  await change.click();
+  await expect(password).toBeFocused();
+  await password.fill('abcd efgh ijkl mnop');
+  await password.press('Enter');
+  await expect(page.getByTestId('mailbox-form')).toHaveCount(0);
+  await expect(change).toBeFocused();
+});
+
+test('the first run opens at its top, the caret waiting in the address', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 360 });
+  for (const query of [`${WIN}&scenario=reset&lang=en`, '?platform=macos&scenario=first-run']) {
+    await open(page, query);
+    const user = page.getByTestId('mailbox-user');
+    await expect(user).toBeFocused();
+    // The mark and the title are in view, and after a reset its report (WebKit scrolled to a
+    // field focused too early a moment later: wait for that moment).
+    await page.waitForTimeout(200);
+    const top = await page
+      .getByTestId('first-run')
+      .evaluate((node) => node.closest('.view')?.scrollTop ?? -1);
+    expect(top).toBe(0);
+    if (query.includes('reset')) {
+      await expect(page.getByTestId('first-reset-report')).toBeInViewport({ ratio: 1 });
+    }
+    // Typing brings the field into view.
+    await page.keyboard.type('alerts');
+    await expect(user).toHaveValue('alerts');
+    await expect(user).toBeInViewport();
+  }
+});
