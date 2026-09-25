@@ -216,13 +216,13 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   scale, move and turn token has a neutral reduced-motion value (a half turn keeps its angle). The one height
   animation: a job moved out of the list folds its row away (`rowCollapse`, 150 ms, one contained row; not for
   filtering; instant under reduced motion). Results of the same kind within 2 s merge into one toast with one undo.
-- Performance (2026-09-25, the list at 2000 jobs): no task over 50 ms on the reference machine (four times slower than
-  the development one; harness project `timing`, alone after the others). A row builds only what shows at rest (its
-  tools exist under the pointer or the focus; icons are copies of one drawing per glyph); nothing on :root or a large
-  container changes with scrolling or hover (hover rests per row, `data-still`); no style or layout read in the middle
-  of a script (transitions and sentinels read nothing, glides read every box before they move one); a reload keeps the
-  rows that did not change and builds at most a chunk of new rows per frame; another list is a new generation of rows.
-  The harness stub answers IPC in a task of its own, like Tauri.
+- Performance (2026-09-25, the list at 2000 jobs): no task over 50 ms on the reference machine (the development machine
+  at 4x CPU throttling; the harness slows every machine to it; project `timing`, alone after the others). A row builds
+  only what shows at rest (its tools exist under the pointer or the focus; icons are copies of one drawing per glyph);
+  nothing on :root or a large container changes with scrolling or hover (hover rests per row, `data-still`); no style
+  or layout read in the middle of a script (transitions and sentinels read nothing, glides read every box before they
+  move one); a reload keeps the rows that did not change and builds at most a chunk of new rows per frame; another list
+  is a new generation of rows. The harness stub answers IPC in a task of its own, like Tauri.
 - Consistency: stylelint (no hex/named colours, no colour functions/units outside tokens, strict values, allowed
   transition properties, keyframes only in motion.css) · ESLint (no inline styles, raw elements only in components,
   restricted imports, no title attribute, no empty catch, listeners only in input.ts) · Rust architecture tests ·
