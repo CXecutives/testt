@@ -122,6 +122,8 @@
   --text-label: hsl(var(--p-navy));
   --text-on-accent: hsl(var(--p-on-accent));
   --text-inverse: hsl(var(--p-white));
+  /* The second line of a tooltip (a key, a hint): quieter white on the navy bubble. */
+  --text-inverse-muted: hsl(var(--p-white) / 0.72);
   --link: hsl(var(--p-navy));
   --link-hover: hsl(var(--p-navy-deep));
 
@@ -415,6 +417,9 @@
   --weight-medium: 500;
   --weight-semibold: 600;
   --numeric: tabular-nums;
+  /* Only the second line of a tooltip (a key or a hint under its title). */
+  --font-2xs: 11px;
+  --leading-2xs: 14px;
   --font-xs: 12px;
   --leading-xs: 16px;
   --font-sm: 13px;
@@ -436,6 +441,7 @@
   --leading-2xl: 32px;
   --font-display: 34px;
   --leading-display: 40px;
+  --type-2xs: var(--weight-regular) var(--font-2xs) / var(--leading-2xs) var(--font-sans);
   --type-xs: var(--weight-regular) var(--font-xs) / var(--leading-xs) var(--font-sans);
   --type-sm: var(--weight-regular) var(--font-sm) / var(--leading-sm) var(--font-sans);
   --type-md: var(--weight-regular) var(--font-md) / var(--leading-md) var(--font-sans);
