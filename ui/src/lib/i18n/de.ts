@@ -362,7 +362,7 @@ const criteria = {
   },
   countries: {
     label: 'Einsatzländer',
-    short: 'Einsatzort außerhalb',
+    short: 'Einsatzland passt nicht',
     exclusion: 'Der Einsatzort liegt außerhalb der Länder im Profil.',
   },
   noAnue: {

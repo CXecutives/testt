@@ -60,8 +60,13 @@ test('an excluded row names a missing degree or licence in short words, never a 
 }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const excluded = page.getByTestId('excluded-rows');
+  // A country outside the profile says what does not fit, like its neighbours.
+  await expect(excluded.getByTestId('job-row-linkedin-4100200305').locator('.foot')).toHaveText(
+    'Einsatzland passt nicht',
+  );
   const key = { portal: 'freelance', id: '900412' } as const;
-  const row = page.getByTestId('excluded-rows').getByTestId('job-row-freelance-900412');
+  const row = excluded.getByTestId('job-row-freelance-900412');
   await expect(row.locator('.foot')).toHaveText('Arbeitnehmerüberlassung');
   const job = await page.evaluate((k) => window.__harness.job(k), key);
   // The engine excludes on a degree or licence the ad makes mandatory (`formalOpen`).
