@@ -22,8 +22,8 @@ use crate::store::JobRow;
 use crate::text::split_company_location;
 
 pub use ai_prompt::{
-    MAX_AD_CHARS, MAX_PROFILE_CHARS, MAX_TOP_AD_CHARS, PromptJob, TOP_LIMITS, ai_prompt,
-    ai_prompt_top,
+    MAX_AD_CHARS, MAX_PROFILE_CHARS, MAX_TOP_AD_CHARS, PromptJob, PromptSource, TOP_LIMITS,
+    ai_prompt, ai_prompt_top,
 };
 pub use job_txt::{TXT_DIR, write_job_txt};
 pub use overview_html::write_overview_html;
