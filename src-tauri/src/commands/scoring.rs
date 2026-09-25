@@ -150,6 +150,13 @@ impl Host for AppHost<'_> {
         self.state.match_pending()
     }
 
+    fn scored(&self) -> bool {
+        self.state.store.has_matches().unwrap_or_else(|e| {
+            log::warn!("stored scores not read: {e}");
+            false
+        })
+    }
+
     fn has_jobs(&self) -> bool {
         self.state.store.job_count().unwrap_or(0) > 0
     }

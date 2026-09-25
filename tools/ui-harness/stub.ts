@@ -1049,6 +1049,8 @@ function initial(): void {
         parseError: { kind: 'invalid', params: { reason: 'profileNotJson', line: 12, column: 3 } },
         form: null,
       };
+      // Like the backend at the start: the scores of a profile that no longer reads go.
+      for (const job of jobs) job.match = null;
       break;
     case 'profile-thin':
       state.profile = {

@@ -255,6 +255,17 @@ impl Store {
         )?)
     }
 
+    /// Does any job still carry a score (of whatever profile; what
+    /// [`Store::clear_matches`] would forget)?
+    pub fn has_matches(&self) -> Result<bool> {
+        Ok(self.conn().query_row(
+            "SELECT EXISTS (SELECT 1 FROM job
+                            WHERE match_status IS NOT NULL OR match_rev IS NOT NULL)",
+            [],
+            |r| r.get(0),
+        )?)
+    }
+
     /// Forgets every match (the profile is gone); the number of jobs that had one.
     pub fn clear_matches(&self) -> Result<usize> {
         self.write(|conn| {
@@ -591,6 +602,7 @@ mod tests {
         let (store, key) = store_with_job();
         assert_eq!(store.scored_at("r1").unwrap(), None);
         assert_eq!(store.match_at(&key).unwrap(), None);
+        assert!(!store.has_matches().unwrap());
         store
             .save_matches(
                 &[(key.clone(), record(MatchStatus::Scored, 70))],
@@ -602,8 +614,10 @@ mod tests {
         assert_eq!(at.as_second(), now().as_second());
         assert_eq!(store.scored_at("r1").unwrap(), Some(at));
         assert_eq!(store.scored_at("r2").unwrap(), None);
+        assert!(store.has_matches().unwrap());
         let rev = store.data_rev().unwrap();
         assert_eq!(store.clear_matches().unwrap(), 1);
+        assert!(!store.has_matches().unwrap());
         assert!(store.data_rev().unwrap() > rev, "the export changes");
         let job = store.job(&key).unwrap().unwrap();
         assert!(job.match_.is_none() && job.match_rev.is_none());

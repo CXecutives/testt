@@ -14,6 +14,8 @@ pub trait Host {
     fn usable(&self) -> bool;
     /// Jobs not scored with the current profile yet.
     fn pending(&self) -> u32;
+    /// Some job still carries a score (of whatever profile).
+    fn scored(&self) -> bool;
     fn has_jobs(&self) -> bool;
     /// Forgets every stored score.
     fn clear_matches(&self);
@@ -44,8 +46,19 @@ impl Rescore {
         }
     }
 
-    /// The first page load: jobs that wait for a score are scored in the background.
+    /// The first page load: jobs that wait for a score are scored in the background. A
+    /// profile that became unusable while the app was closed (broken by hand, emptied, gone)
+    /// is a profile change like any other: its old scores go and the files are written
+    /// without them - the list, the counts and the exports never keep the verdicts of a
+    /// profile that no longer reads.
     pub fn at_start(&self, host: &impl Host) {
+        if !host.usable() {
+            if host.scored() {
+                log::info!("scores of a profile that no longer reads: removed at the start");
+                self.rescore(host);
+            }
+            return;
+        }
         let pending = host.pending();
         if pending > 0 {
             log::info!("{pending} jobs wait for a score: rescore at the start");
@@ -103,6 +116,7 @@ mod tests {
         running: Cell<bool>,
         usable: bool,
         pending: u32,
+        scored: bool,
         jobs: bool,
         busy: Cell<bool>,
         log: RefCell<Vec<&'static str>>,
@@ -117,6 +131,9 @@ mod tests {
         }
         fn pending(&self) -> u32 {
             self.pending
+        }
+        fn scored(&self) -> bool {
+            self.scored
         }
         fn has_jobs(&self) -> bool {
             self.jobs
@@ -201,6 +218,9 @@ mod tests {
         fn pending(&self) -> u32 {
             self.fake.pending()
         }
+        fn scored(&self) -> bool {
+            self.fake.scored()
+        }
         fn has_jobs(&self) -> bool {
             self.fake.has_jobs()
         }
@@ -249,6 +269,28 @@ mod tests {
         };
         Rescore::default().at_start(&waiting);
         assert_eq!(log(&waiting), ["run"]);
+    }
+
+    /// A profile broken (or emptied) while the app was closed: at the start its old scores
+    /// go and a run writes the files without them - once; with nothing scored, nothing runs.
+    #[test]
+    fn an_unusable_profile_at_the_start_clears_the_old_scores() {
+        let stale = Fake {
+            scored: true,
+            pending: 0,
+            ..fake(false, true)
+        };
+        Rescore::default().at_start(&stale);
+        assert_eq!(log(&stale), ["clear", "run"]);
+        let clean = fake(false, true);
+        Rescore::default().at_start(&clean);
+        assert!(log(&clean).is_empty(), "no scores, nothing to do");
+        let usable = Fake {
+            scored: true,
+            ..fake(true, true)
+        };
+        Rescore::default().at_start(&usable);
+        assert!(log(&usable).is_empty(), "a usable profile keeps its scores");
     }
 
     #[test]
