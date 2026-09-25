@@ -148,9 +148,14 @@ function inRow(): boolean {
 /**
  * When the open job left the list, the next one opens, not yet read (see `seen`): its row
  * comes into view, and takes the focus when the focus was on the row (or its tool) that left.
+ * `open` is the job that was open before the action (deleting it for good already closed it).
  */
-function openNext(gone: readonly JobView[], next: JobView | null, focus: boolean): void {
-  const open = jobs.selected;
+function openNext(
+  gone: readonly JobView[],
+  next: JobView | null,
+  focus: boolean,
+  open: JobKey | null,
+): void {
   if (open === null || !gone.some((job) => sameKey(job.key, open))) return;
   clearInterval(dwell);
   if (!next) {
@@ -272,7 +277,7 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
   }, 400);
   if ('error' in result) return result.error;
   if (leaving.length > 0) arm();
-  openNext(leaving, next, focus);
+  openNext(leaving, next, focus, open);
   // Moved into the listed place without being listed (opened from elsewhere): list it.
   if (
     list.some(
@@ -307,13 +312,14 @@ export async function purge(list: readonly JobView[]): Promise<string | null> {
   const focus = inRow();
   const folding = list.length <= staggerLimit() ? list : [];
   for (const job of folding) moving.add(keyOf(job.key));
+  const open = jobs.selected;
   const result = await jobs.purge(list.map((job) => job.key));
   setTimeout(() => {
     for (const job of folding) moving.delete(keyOf(job.key));
   }, 400);
   if ('error' in result) return result.error;
   arm();
-  openNext(list, next, focus);
+  openNext(list, next, focus, open);
   deletedFor(result);
   // Like a move: one job by its title, more by their number.
   const gone = list.filter((job) => result.keys.some((key) => sameKey(key, job.key)));

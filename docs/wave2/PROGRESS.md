@@ -50,3 +50,17 @@ One line per item: done, skipped (why) or open.
 - names-07, live-forms-09 done: the section is "Automatisch" / "Automatic".
 - names-09 done: en reader.frame "Conditions".
 - backend-02 done: "Diese Details holt die App nur auf Anfrage."
+- ui-forms-04 done: "Weiter zum ersten Abruf" only for a profile that counts.
+- ui-forms-05 done: an unreadable country is said at its field (red edge, "Wert entfernen").
+- ui-forms-06 done: below 520 px DACH sits under the countries field.
+- ui-core-02 done: a country that is chosen already is no "Kein Land"; Enter or leaving clears the text.
+- ui-jobs-02 done: deleting the open job for good opens the next one.
+- ui-jobs-04, ui-jobs-05 done: one column, back shows and focuses the open row; Ctrl/Cmd+F closes the job first.
+- ui-jobs-07, live-jobs-04 done: the day overview's blocks stand in DOM order (no stray hairline); the comparison
+  is a block of its own.
+- ui-jobs-08 done: a moment after the clock's last step reads "jetzt".
+- live-forms-07 done: "Deutsch / English" in both languages.
+- live-forms-10 done: the caret goes to Name after "Profil anlegen", to the answer after "Aus Lebenslauf erstellen".
+- live-jobs-02 done: every fact of the reader's line is one box (WebKit broke inside one).
+- live-jobs-05 done: a tip never pushes out an undo toast.
+- ui-jobs-09, backend-03, live-jobs-03, live-jobs-06, live-forms-08, ui-core-01, live-jobs-01 skipped: fixed before.

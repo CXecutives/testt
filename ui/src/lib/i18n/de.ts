@@ -1464,9 +1464,10 @@ export const de = {
     /** Excel file and overview are written at the next fetch (the text files stay German). */
     languageHint: 'Excel-Datei und Übersicht folgen beim nächsten Abruf.',
     /** Each language named in the language of the app (Deutsch/Englisch, German/English). */
+    /** Each language in its own words, the same in both catalogs. */
     languageName: {
       de: 'Deutsch',
-      en: 'Englisch',
+      en: 'English',
     } satisfies Record<Language, string>,
   },
   firstRun: {

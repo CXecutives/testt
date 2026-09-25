@@ -265,11 +265,6 @@
     </section>
   {/if}
 
-  <!-- Nothing new to show: the comparison of the best jobs stays within reach. -->
-  {#if canCompare && best.length === 0 && !topError}
-    <div class="compare" data-testid="compare">{@render comparePrompt()}</div>
-  {/if}
-
   {#if hasIssues}
     <section class="block" data-testid="issues">
       <h2 class="heading">{t.overview.issues}</h2>
@@ -306,6 +301,13 @@
 
   {#if pick}
     <p class="pick" data-testid="overview-pick">{t.overview.pick}</p>
+  {/if}
+
+  <!-- Nothing new to show: the comparison of the best jobs stays within reach. -->
+  {#if canCompare && best.length === 0 && !topError}
+    <div class="block" data-testid="compare">
+      <span class="compare">{@render comparePrompt()}</span>
+    </div>
   {/if}
 
   {#if fetchedOnce}
@@ -408,10 +410,10 @@
     display: inline-flex;
   }
 
-  /* The comparison on its own, above the files; its icon on the edge of the column. */
+  /* The comparison on its own, above the files (a block of its own, not an open point);
+     its icon on the edge of the column. */
   .compare {
     display: flex;
-    order: 2;
     margin-left: calc(-1 * var(--ghost-inset));
   }
 
@@ -422,15 +424,10 @@
 
   /* Nothing else to say: a quiet line like a mail app's empty reader, the file actions below. */
   .pick {
-    order: 1;
     margin-block: var(--space-48);
     color: var(--text-subtle);
     font: var(--type-md);
     text-align: center;
-  }
-
-  .overview > [data-testid='files'] {
-    order: 2;
   }
 
   /* Quiet file actions below everything; their icons start on the edge of the column (the

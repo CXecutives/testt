@@ -122,7 +122,21 @@
       .map((entry) => entry.option);
   });
   const listed = $derived(focused && matches.length > 0);
-  const nothing = $derived(options !== null && folded(draft) !== '' && matches.length === 0);
+  /** The typed text names an option that is a chip already: taking it only clears the text. */
+  const chosen = $derived(
+    options !== null &&
+      folded(draft) !== '' &&
+      options.some(
+        (option) =>
+          values.includes(option.id) &&
+          [option.label, option.id, ...(option.terms ?? [])].some(
+            (name) => folded(name) === folded(draft),
+          ),
+      ),
+  );
+  const nothing = $derived(
+    options !== null && folded(draft) !== '' && matches.length === 0 && !chosen,
+  );
 
   $effect(() => {
     void draft;
@@ -161,6 +175,7 @@
       if (draft.trim() === '') return false;
       const option = matches[active] ?? matches[0];
       if (option) choose(option);
+      else if (chosen) draft = '';
       return true;
     }
     const added = add(draft);
@@ -187,6 +202,7 @@
     );
     const only = exact.length === 1 ? exact[0] : matches.length === 1 ? matches[0] : undefined;
     if (only) choose(only);
+    else if (chosen) draft = '';
   }
 
   function remove(index: number): void {

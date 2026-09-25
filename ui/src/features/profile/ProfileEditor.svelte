@@ -603,7 +603,8 @@
       <Field
         label={words.countries}
         for="{id}-countries"
-        error={fieldError?.field === 'countries' ? fieldError.text() : null}
+        error={errorOf('countries')}
+        action={removeOf('countries')}
       >
         <div class="countries">
           <ChipInput
@@ -612,7 +613,7 @@
             options={COUNTRIES}
             noMatch={words.countryNone}
             placeholder={words.countriesPlaceholder}
-            invalid={fieldError?.field === 'countries'}
+            invalid={errorOf('countries') !== null}
             describedby="{id}-countries-message"
             testid="profile-countries"
           />
@@ -627,13 +628,6 @@
           {/if}
         </div>
       </Field>
-      {#each problemsOf('countries') as problem (problem.value)}
-        <ValueNote
-          text={unreadText(problem)}
-          testid="countries-unread"
-          onremove={() => drop(problem)}
-        />
-      {/each}
     </div>
     <div class="toggles">
       <div data-field="remoteOutside">
@@ -894,14 +888,23 @@
     width: calc(var(--stat-min) - var(--space-48));
   }
 
+  /* Narrow, DACH sits under the field, which keeps the full width of its neighbours. */
   .countries {
     display: flex;
+    flex-direction: column;
     align-items: flex-start;
     gap: var(--space-12);
   }
 
+  @container (width >= 520px) {
+    .countries {
+      flex-direction: row;
+    }
+  }
+
   .countries > :global(:first-child) {
     flex: 1;
+    align-self: stretch;
     min-width: 0;
   }
 

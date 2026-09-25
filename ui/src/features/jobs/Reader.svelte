@@ -1081,7 +1081,10 @@
     margin-left: calc(-1 * var(--space-20));
   }
 
+  /* One box per value: a line never breaks inside one (WebKit breaks a nowrap span that
+     holds an inline block). */
   .fact {
+    display: inline-block;
     white-space: nowrap;
   }
 

@@ -182,3 +182,96 @@ test('the arrow keys follow the order on screen after an exclusion changes in pl
   await page.keyboard.press('ArrowUp');
   await expect.poll(openKey).toBe(order[at - 1]);
 });
+
+test('deleting the open job for good opens the next one', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  for (const key of ['freelancermap-2803', 'linkedin-4100200302']) {
+    await row(page, key).hover();
+    await page.getByTestId(`trash-${key}`).click();
+    await page.waitForTimeout(550);
+  }
+  await page.getByTestId('nav-trash').click();
+  const first = rows(page).first();
+  const firstKey = await first.getAttribute('data-testid');
+  const other =
+    firstKey === 'job-row-freelancermap-2803' ? 'linkedin:4100200302' : 'freelancermap:2803';
+  await first.click();
+  await stage(page).getByTestId('reader-purge').click();
+  await page.getByTestId('dialog-purge').getByTestId('dialog-confirm').click();
+  await expect(list(page).locator(`[data-open][data-key="${other}"]`)).toHaveCount(1);
+});
+
+test('the day overview starts without a hairline when only open points are left', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&scenario=offline`);
+  await page
+    .getByTestId('mark-all-read')
+    .click()
+    .catch(() => undefined);
+  const firstBlock = page.getByTestId('day-overview').locator(':scope > .block').first();
+  await expect(firstBlock).toBeVisible();
+  const border = await firstBlock.evaluate((el) => getComputedStyle(el).borderTopWidth);
+  expect(border).toBe('0px');
+});
+
+test('one column: back after the arrow keys shows the open row, and Ctrl+F reaches the search', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 800, height: 600 });
+  await open(page, WIN);
+  await rows(page).first().click();
+  for (let step = 0; step < 6; step += 1) await page.keyboard.press('ArrowDown');
+  const key = await list(page).locator('[data-open]').getAttribute('data-key');
+  await page.keyboard.press('Escape');
+  const item = list(page).locator(`[data-key="${key}"]`);
+  await expect(item).toBeInViewport();
+  await expect(item.locator('[data-testid^="job-row-"]')).toBeFocused();
+  await rows(page).first().click();
+  await page.keyboard.press('Control+f');
+  await expect(page.getByTestId('search')).toBeFocused();
+});
+
+test('a new form and the steps from a CV put the caret where the work starts', async ({ page }) => {
+  await open(page, `${WIN}&scenario=no-profile`);
+  await page.getByTestId('nav-profile').click();
+  const empty = page.getByTestId('profile-empty');
+  await empty.getByRole('button', { name: 'Aus Lebenslauf erstellen' }).click();
+  await expect(page.getByTestId('paste-answer')).toBeFocused();
+  await page.getByTestId('paste-cancel').click();
+  await empty.getByRole('button', { name: 'Profil anlegen' }).click();
+  await expect(page.getByTestId('profile-name-field')).toBeFocused();
+});
+
+test('typing a country that is chosen already says nothing and Enter clears it', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('nav-profile').click();
+  const input = page.getByTestId('profile-countries').locator('input');
+  await input.fill('Österreich');
+  await expect(page.getByTestId('profile-countries-none')).toHaveCount(0);
+  await input.press('Enter');
+  await expect(input).toHaveValue('');
+  await expect(page.getByTestId('profile-countries').locator('.chip')).toHaveCount(2);
+});
+
+test('at 480 px the countries field keeps its width, DACH sits under it', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 800 });
+  await open(page, WIN);
+  await page.getByTestId('nav-profile').click();
+  const field = await page.getByTestId('profile-countries').boundingBox();
+  const tools = await page.getByTestId('profile-tools').boundingBox();
+  const dach = await page.getByTestId('profile-dach').boundingBox();
+  expect(Math.abs(field!.width - tools!.width)).toBeLessThan(2);
+  expect(dach!.y).toBeGreaterThan(field!.y + field!.height - 1);
+});
+
+test('an unreadable country is said at its field like any other value', async ({ page }) => {
+  await open(page, `${WIN}&scenario=profile-unreadable`);
+  await page.getByTestId('nav-profile').click();
+  const scope = page.locator('[data-field="countries"]');
+  await expect(scope.locator('input')).toHaveAttribute('aria-invalid', 'true');
+  await expect(scope.getByTestId('value-remove')).toBeVisible();
+});

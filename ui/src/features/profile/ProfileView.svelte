@@ -26,7 +26,7 @@
   } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
-  import { onMount, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import ProfileEditor from './ProfileEditor.svelte';
   import ProfileHeader from './ProfileHeader.svelte';
   import ProfilePaste from './ProfilePaste.svelte';
@@ -72,7 +72,9 @@
         : t.profile.saved,
   );
   /** During setup, a saved profile leads on to the first fetch (once, in the save bar). */
-  const next = $derived(saved && app.state?.firstRun ? () => navigation.go('jobs') : null);
+  const next = $derived(
+    saved && app.state?.firstRun && app.hasProfile ? () => navigation.go('jobs') : null,
+  );
   let confirmRemove = $state(false);
   /** Where the user wanted to go with unsaved changes (a view, or closing the window). */
   let leaving = $state<ViewId | 'close' | null>(null);
@@ -190,6 +192,20 @@
     if (editor.answer.trim() === '') await copyPrompt();
     else copied = true;
     editor.pasting = true;
+    // The prompt is on the clipboard: the next step is pasting the answer.
+    await caretTo('paste-answer');
+  }
+
+  /** A new form: the caret goes into its first field. */
+  async function create(): Promise<void> {
+    editor.create();
+    await caretTo('profile-name-field');
+  }
+
+  /** The caret into a field that has just appeared. */
+  async function caretTo(testid: string): Promise<void> {
+    await tick();
+    document.querySelector<HTMLElement>(`[data-testid="${testid}"]`)?.focus();
   }
 
   async function takeAnswer(answer: string): Promise<void> {
@@ -428,7 +444,7 @@
         picking={busy === 'pick'}
         unreadable={profile?.parseError !== null && profile?.parseError !== undefined}
         note={note?.() ?? null}
-        oncreate={() => editor.create()}
+        oncreate={() => void create()}
         onfromcv={() => void fromCv()}
         onpick={() => void pick()}
         onopenfolder={openFolder}

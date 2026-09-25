@@ -23,7 +23,7 @@
   End scroll it; Ctrl+F (Cmd+F on macOS) goes to the search.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import DragBand from '$components/DragBand.svelte';
   import Splitter, { splitLimits } from '$components/Splitter.svelte';
@@ -123,8 +123,11 @@
     const open = jobs.selected;
     const focused = document.activeElement;
     const inReader = right !== null && focused !== null && right.contains(focused);
+    // In one column the list comes back: at the open job's row, which gets the focus unless
+    // the pointer was elsewhere (the keys stepped through jobs the list never showed).
+    const lost = focused === null || focused === document.body;
     jobs.clearSelection();
-    if (open === null || !inReader) return;
+    if (open === null || !(inReader || (viewport.narrow && lost))) return;
     if (jobs.shown.some((job) => sameKey(job.key, open))) {
       jobs.reveal = { key: keyOf(open), focus: true };
     }
@@ -198,7 +201,13 @@
     edge: (last) => list?.edge(last),
     extend: (to) => list?.extend(to),
     close,
-    find: () => header?.find(),
+    // In one column the search sits in the hidden list: the open job closes first.
+    find: () => {
+      if (viewport.narrow && jobs.selected !== null) {
+        close();
+        void tick().then(() => header?.find());
+      } else header?.find();
+    },
     // The stage on screen: the one on its way out has dropped its test ids.
     reader: () => right?.querySelector<HTMLElement>('[data-testid="stage"]') ?? null,
   }}

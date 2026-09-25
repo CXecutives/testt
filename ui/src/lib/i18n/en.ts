@@ -1317,7 +1317,7 @@ export const en: Catalog = {
     languageLabel: 'App language',
     languageHint: 'The Excel file and the overview switch at the next fetch.',
     languageName: {
-      de: 'German',
+      de: 'Deutsch',
       en: 'English',
     } satisfies Record<Language, string>,
   },
