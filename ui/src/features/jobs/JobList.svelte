@@ -6,10 +6,13 @@
   new rows are simply there. A search and live updates never move anything. Excluded jobs
   sit grey behind the divider "Ausgeschlossen" with a soft count (under Neu or a filter too,
   there without the count: the rows below are only a part of the excluded jobs). A page that
-  fails to load while scrolling says so at the end of the list, with a retry. At the end of
-  Alle a divider
-  leads to the archived jobs. An empty list says where jobs come from (an alert on each
-  portal, older mails). Every empty
+  fails to load while scrolling says so at the end of the list, with a retry. A search looks
+  in the list's place; under its hits a quiet link names each other place with hits ("Auch
+  im Archiv (2)"), which keeps the search. Each row's tools are the job's actions where it
+  is (Archivieren, Löschen, the star; in the Papierkorb Wiederherstellen, Endgültig
+  löschen); a row the user moves out folds away. Rows are chosen like in a mail app: a
+  click opens one, Ctrl+click (Cmd on macOS) takes one in or out, Shift+click a range. An
+  empty inbox says where jobs come from (an alert on each portal, older mails). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
   view's primary). Without a mailbox one slim note at the top says how to connect one;
   without a usable profile one says that there is no fit without it and leads to the Profil
@@ -20,21 +23,23 @@
   import Button from '$components/Button.svelte';
   import Count from '$components/Count.svelte';
   import EmptyState from '$components/EmptyState.svelte';
-  import JobRow from '$components/JobRow.svelte';
+  import Dialog from '$components/Dialog.svelte';
+  import JobRow, { type RowTool, type SelectHow } from '$components/JobRow.svelte';
   import Notice from '$components/Notice.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import { nearEnd } from '$lib/actions/nearEnd';
   import { t } from '$lib/i18n/t';
   import { invoke } from '$lib/ipc/api';
-  import type { JobView, Portal } from '$lib/ipc/types';
+  import type { JobView, Place, Portal } from '$lib/ipc/types';
   import { play } from '$lib/motion/motion';
-  import { rowIn } from '$lib/motion/transitions';
+  import { rowCollapse, rowIn } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
-  import { isExcluded, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+  import { inFacet, isExcluded, jobs, keyOf, placeOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { editor } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
-  import { archive } from './archive';
+  import { actionsOf, guarded, hasStar, move, moving, purge, toggleStar } from './actions';
+  import { selection } from './selection.svelte';
 
   const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
@@ -43,9 +48,7 @@
   const excluded = $derived(shown.filter(isExcluded));
   // The number only where the divider heads every excluded job of the list (its count, like
   // the facet's, follows the search).
-  const excludedCount = $derived(
-    jobs.filter === null && jobs.facet === 'all' ? jobs.counts.excluded : null,
-  );
+  const excludedCount = $derived(jobs.facet === 'all' ? jobs.counts.excluded : null);
   // "No jobs in the alert mails" only after a fetch that read the mailbox.
   const lastFetch = $derived(run.summary ?? app.state?.lastRun ?? null);
   const mailRead = $derived(lastFetch?.outcome.kind === 'completed' && lastFetch.scan !== null);
@@ -80,6 +83,7 @@
   function openAt(index: number): void {
     const job = order[index];
     if (job === undefined) return;
+    selection.only(job);
     if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
     const row = list?.querySelector<HTMLElement>(`[data-key="${CSS.escape(keyOf(job.key))}"] .row`);
     row?.focus({ preventScroll: true });
@@ -104,13 +108,62 @@
     openAt(last ? order.length - 1 : 0);
   }
 
-  /** A click opens the job (the open one stays open). */
-  function select(job: JobView): void {
-    if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
+  /** A click opens the job (the open one stays open); with Ctrl/Cmd or Shift it chooses. */
+  function select(job: JobView, how: SelectHow): void {
+    if (how.range) selection.range(job, order);
+    else if (how.toggle) selection.toggle(job);
+    else {
+      selection.only(job);
+      if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
+    }
   }
-  // A search also finds archived jobs: their count (the list's, with the search) under the
-  // live hits, a way into the archive with the same search.
-  const archivedHits = $derived(searching && jobs.facet !== 'archived' ? jobs.counts.archive : 0);
+
+  // Another list, another search or order: the choice starts anew.
+  $effect(() => {
+    void jobs.facet;
+    void jobs.search;
+    void jobs.sortChoice;
+    untrack(() => selection.clear());
+  });
+
+  // Another place: an open job of the one left behind closes (like a mail of another
+  // folder). Only on a change of the list (a read job stays open under Neu).
+  let shownFacet = untrack(() => jobs.facet);
+  $effect(() => {
+    const facet = jobs.facet;
+    untrack(() => {
+      if (facet === shownFacet) return;
+      shownFacet = facet;
+      const open = jobs.detail?.job ?? null;
+      if (open !== null && placeOf(facet) !== open.place && !inFacet(open, facet)) {
+        jobs.clearSelection();
+      }
+    });
+  });
+
+  // A search looks in the list's place; the other places with hits are named under them (the
+  // favourites are of the inbox and the archive, so only the trash is elsewhere).
+  const place = $derived(placeOf(jobs.facet));
+  const PLACES: readonly Place[] = ['inbox', 'archive', 'trash'];
+  const COUNT_OF: Record<Place, 'inbox' | 'archive' | 'trash'> = {
+    inbox: 'inbox',
+    archive: 'archive',
+    trash: 'trash',
+  };
+  const FACET_OF: Record<Place, 'all' | 'archived' | 'trash'> = {
+    inbox: 'all',
+    archive: 'archived',
+    trash: 'trash',
+  };
+  const elsewhere = $derived(
+    searching
+      ? PLACES.filter((other) =>
+          jobs.facet === 'favourites' ? other === 'trash' : other !== place,
+        )
+          .map((other) => ({ place: other, count: jobs.counts[COUNT_OF[other]] }))
+          .filter((hit) => hit.count > 0)
+      : [],
+  );
   const PORTALS = $derived((app.state?.portals ?? []).filter((p) => p.enabled));
   function openPortal(portal: Portal): void {
     invoke('open_target', { target: { kind: 'portalHome', portal } }).catch(() => undefined);
@@ -193,28 +246,52 @@
   });
 
   function pin(job: JobView): void {
-    void jobs.pin(job.key, !job.pinned);
+    if (!guarded()) toggleStar([job]);
   }
 
   let rowError = $state<string | null>(null);
-  async function toArchive(job: JobView): Promise<void> {
-    rowError = await archive(job);
+  /** Ends with "Endgültig löschen" of a row: the dialog asks first. */
+  let purging = $state<JobView | null>(null);
+  let purgeBusy = $state(false);
+  let purgeError = $state<string | null>(null);
+
+  /** The row's tools: the job's actions where it is. */
+  function toolsOf(job: JobView): RowTool[] {
+    return actionsOf(job.place).map((action) => ({
+      id: action.id,
+      icon: action.icon,
+      label: action.label,
+      onclick: () => {
+        if (action.id === 'purge') {
+          purgeError = null;
+          purging = job;
+        } else {
+          void move([job], action.id).then((error) => (rowError = error));
+        }
+      },
+    }));
+  }
+
+  async function purgeRow(): Promise<void> {
+    if (purging === null) return;
+    purgeBusy = true;
+    purgeError = await purge([purging]);
+    purgeBusy = false;
+    if (purgeError === null) purging = null;
   }
 </script>
 
-{#snippet archiveHits()}
-  <div class="divider" data-testid="archive-hits">
-    <span class="divider-label">{t.list.inArchive}</span>
-    <Count value={archivedHits} tone="plain" />
-    <span class="divider-link">
+{#snippet alsoIn()}
+  <div class="also" data-testid="also-in">
+    {#each elsewhere as hit (hit.place)}
       <Button
         variant="link"
         size="sm"
-        label={t.list.showArchive}
-        testid="show-archive-hits"
-        onclick={() => jobs.setFacet('archived')}
+        label={t.place.alsoIn[hit.place](hit.count)}
+        testid="also-{hit.place}"
+        onclick={() => jobs.setFacet(FACET_OF[hit.place])}
       />
-    </span>
+    {/each}
   </div>
 {/snippet}
 
@@ -291,30 +368,39 @@
     <div class="empty">
       {#if searching}
         <div class="stack">
-          <EmptyState
-            icon="search"
-            tone="neutral"
-            text={t.list.noHit(jobs.search.trim())}
-            secondary={{ label: t.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
-            testid="empty-search"
-          />
-          {#if archivedHits > 0}{@render archiveHits()}{/if}
+          <!-- Under Neu or Favoriten a search that Alle would find says so and goes there. -->
+          {#if (jobs.facet === 'new' || jobs.facet === 'favourites') && jobs.counts.inbox > 0}
+            <EmptyState
+              icon="search"
+              tone="neutral"
+              text={t.list.noHitIn[jobs.facet](jobs.search.trim())}
+              secondary={{ label: t.list.searchAll, onclick: () => jobs.setFacet('all') }}
+              testid="empty-search"
+            />
+          {:else}
+            <EmptyState
+              icon="search"
+              tone="neutral"
+              text={t.list.noHit(jobs.search.trim())}
+              secondary={{ label: t.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
+              testid="empty-search"
+            />
+          {/if}
+          {#if elsewhere.length > 0}{@render alsoIn()}{/if}
         </div>
-      {:else if jobs.filter !== null}
+      {:else if place !== 'inbox'}
         <EmptyState
-          icon="inbox"
+          icon={place === 'trash' ? 'trash-2' : 'archive'}
           tone="neutral"
-          text={t.list.emptyFilter}
-          secondary={{ label: t.list.clearFilter, onclick: () => jobs.setFilter(null) }}
-          testid="empty-filter"
+          text={t.place.empty[place]}
+          testid="empty-place-{place}"
         />
-      {:else if jobs.facet === 'archived'}
+      {:else if jobs.facet === 'favourites'}
         <EmptyState
-          icon="inbox"
+          icon="star"
           tone="neutral"
-          text={t.list.emptyArchived}
-          secondary={{ label: t.list.showAll, onclick: () => jobs.setFacet('all') }}
-          testid="empty-hidden"
+          text={t.list.emptyFavourites}
+          testid="empty-favourites"
         />
       {:else if jobs.facet === 'new' && jobs.counts.inbox > 0}
         <EmptyState
@@ -369,10 +455,10 @@
         {job}
         ring={!profileMissing}
         pending={pending && job.match === null}
-        selected={sameKey(jobs.selected, job.key)}
+        selected={sameKey(jobs.selected, job.key) || selection.has(job)}
         onselect={select}
-        onpin={pin}
-        onarchive={toArchive}
+        onpin={hasStar(job.place) ? pin : null}
+        tools={toolsOf(job)}
       />
     {/snippet}
     {#snippet group(items: JobView[], offset: number)}
@@ -382,6 +468,7 @@
           class="item"
           data-key={key}
           in:rowIn={{ index: offset + index, fresh: jobs.fresh.has(key) }}
+          out:rowCollapse={{ on: moving.has(key) }}
         >
           {@render row(job)}
         </div>
@@ -403,7 +490,7 @@
         {@render group(excluded, active.length)}
       </div>
     {/if}
-    {#if archivedHits > 0 && !jobs.more}{@render archiveHits()}{/if}
+    {#if elsewhere.length > 0 && !jobs.more}{@render alsoIn()}{/if}
     {#if jobs.pageError}
       <div class="page-error">
         <Notice
@@ -424,6 +511,19 @@
   {/if}
 </div>
 
+<Dialog
+  open={purging !== null}
+  variant="danger"
+  heading={t.actions.purgeHeading(1)}
+  text={t.actions.purgeText}
+  confirmLabel={t.actions.purge}
+  busy={purgeBusy}
+  error={purgeError}
+  testid="dialog-purge"
+  onconfirm={() => void purgeRow()}
+  oncancel={() => (purging = null)}
+/>
+
 <style>
   .list {
     display: flex;
@@ -436,6 +536,14 @@
   .note {
     padding: var(--space-12) var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
+  }
+
+  /* Search hits in the other places, quiet links under the hits of this one. */
+  .also {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-16);
+    padding: var(--space-12) var(--pane-padding);
   }
 
   .page-error {
@@ -471,11 +579,6 @@
     flex-direction: column;
     align-items: stretch;
     width: 100%;
-  }
-
-  .divider-link {
-    display: flex;
-    order: 2;
   }
 
   /* The empty list says where jobs come from: the portals' alerts, older mails. */

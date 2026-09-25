@@ -302,18 +302,15 @@ test('an archived job leaves the list and every count but the archive', async ({
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   const all = await segmentCount(page, 'Alle');
-  const link = page.getByTestId('show-archive');
-  const archived = Number((await link.innerText()).replace(/\D/g, ''));
   await row(page, 'linkedin-4100200301').click();
-  await page.getByTestId('hide').click();
+  await page.getByTestId('reader-archive').click();
   await expect(row(page, 'linkedin-4100200301')).toHaveCount(0);
   await expect.poll(() => segmentCount(page, 'Alle')).toBe(all - 1);
-  await expect(link).toContainText(String(archived + 1));
   expect((await calls(page, 'move_jobs')).map(([, args]) => args)).toEqual([
     { keys: [{ portal: 'linkedin', id: '4100200301' }], to: 'archive' },
   ]);
   expect((await jobOf(page, 'linkedin', '4100200301')).place).toBe('archive');
   // The archive lists it.
-  await link.click();
+  await page.getByTestId('nav-archive').click();
   await expect(row(page, 'linkedin-4100200301')).toHaveCount(1);
 });

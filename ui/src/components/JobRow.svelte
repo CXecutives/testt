@@ -20,10 +20,19 @@
   hover waits while the list scrolls (`:root:not([data-scrolling])`).
 -->
 <script lang="ts" module>
+  import type { IconName } from './Icon.svelte';
   /** How a click on a row selects: alone, toggled into a selection, or as a range. */
   export interface SelectHow {
     toggle: boolean;
     range: boolean;
+  }
+
+  /** A tool of the row (the job's actions where it is: archive, delete, restore ...). */
+  export interface RowTool {
+    id: string;
+    icon: IconName;
+    label: string;
+    onclick: () => void;
   }
 </script>
 
@@ -58,6 +67,9 @@
     onpin?: ((job: JobView) => void) | null;
     /** Archive (or bring back an archived job) from the row. */
     onarchive?: ((job: JobView) => void) | null;
+    /** The job's actions where it is, in their one order, before the star (in place of
+     *  `onarchive`). */
+    tools?: readonly RowTool[];
     /** The date is older than ten days (null: decide from the date and `now`). */
     aged?: boolean | null;
     /** The row's test id (another list of the same jobs needs its own). */
@@ -73,6 +85,7 @@
     onselect = null,
     onpin = null,
     onarchive = null,
+    tools = [],
     aged = null,
     testid = null,
   }: Props = $props();
@@ -93,7 +106,7 @@
   );
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
   /** How many tools the row has on hover (their room stays free on the title line). */
-  const tools = $derived((onpin ? 1 : 0) + (onarchive ? 1 : 0));
+  const toolCount = $derived(tools.length + (onpin ? 1 : 0) + (onarchive ? 1 : 0));
   const reason = $derived(ring ? rowReason(job) : null);
   const facts = $derived(ring ? factWords(job.match?.facts) : []);
   const heading = $derived(job.title ? displayTitle(job.title) : t.job.untitled);
@@ -125,7 +138,7 @@
   />
 {/snippet}
 
-<div class="job" class:tooled={tools > 0} class:muted={excluded}>
+<div class="job" class:tooled={toolCount > 0} class:muted={excluded}>
   <ListRow
     leading={ringCell}
     {selected}
@@ -137,7 +150,12 @@
       <span class="title" class:unread={job.unread} use:tooltip={{ text: heading, truncated: true }}
         >{heading}</span
       >
-      <span class="end" class:one={tools === 1} class:two={tools === 2}>
+      <span
+        class="end"
+        class:one={toolCount === 1}
+        class:two={toolCount === 2}
+        class:three={toolCount >= 3}
+      >
         {#if job.pinned}<span class="mark" role="img" aria-label={t.job.pinned}
             ><Icon name="star" size="sm" filled /></span
           >{/if}
@@ -165,8 +183,21 @@
   </ListRow>
   {#if job.unread && !excluded}<span class="dot" role="img" aria-label={t.job.unread} out:dotOut
     ></span>{/if}
-  {#if tools > 0}
+  {#if toolCount > 0}
     <span class="tools">
+      {#each tools as tool (tool.id)}
+        <span class="tool">
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            icon={tool.icon}
+            label={tool.label}
+            testid="{tool.id}-{job.key.portal}-{job.key.id}"
+            onclick={tool.onclick}
+          />
+        </span>
+      {/each}
       {#if onarchive}
         <span class="tool">
           <Button
@@ -304,6 +335,10 @@
 
   .end.two {
     min-width: calc(2 * var(--control-sm) + var(--space-2));
+  }
+
+  .end.three {
+    min-width: calc(3 * var(--control-sm) + 2 * var(--space-2));
   }
 
   /* A pinned job: a small star just left of the date. */
