@@ -161,7 +161,7 @@
       align-items: start;
     }
 
-    .row > :global([role='group']) {
+    .row > :global([role='radiogroup']) {
       grid-column: 1 / 2;
       grid-row: 2;
     }

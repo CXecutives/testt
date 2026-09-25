@@ -104,10 +104,10 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
     'Kompetenzen mit Stern zählen doppelt, höchstens fünf.',
   );
   const english = page.getByTestId('language-row').nth(1);
-  await expect(english.getByRole('button', { name: 'B2' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(english.getByRole('radio', { name: 'B2' })).toHaveAttribute('aria-checked', 'true');
   await expect(
-    page.getByTestId('profile-remote').getByRole('button', { name: 'Überwiegend remote' }),
-  ).toHaveAttribute('aria-pressed', 'true');
+    page.getByTestId('profile-remote').getByRole('radio', { name: 'Überwiegend remote' }),
+  ).toHaveAttribute('aria-checked', 'true');
   await expect(chips(page.getByTestId('profile-countries'))).toHaveText([
     'Deutschland',
     'Österreich',
@@ -159,7 +159,7 @@ test('one name per field: the labels, their hints and neutral examples', async (
   );
   // A level says what it means.
   const levels = page.getByTestId('language-row').first().getByTestId('language-level');
-  expect(await tooltipOf(page, levels.getByRole('button', { name: 'C1' }))).toBe('Fließend');
+  expect(await tooltipOf(page, levels.getByRole('radio', { name: 'C1' }))).toBe('Fließend');
   await expect(page.getByTestId('profile-wish-industries').locator('input')).toHaveAttribute(
     'placeholder',
     'z. B. Energie',
@@ -193,7 +193,7 @@ test('edit and save: both forms go to the backend, the change is confirmed', asy
   const keywords = page.getByTestId('profile-keywords').locator('input');
   await keywords.fill('Bilanzierung');
   await keywords.press('Enter');
-  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('1.11.2026');
   await save(page).click();
   await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
@@ -308,7 +308,7 @@ test('narrow, a language row keeps its levels under the name', async ({ page }) 
 
 test('a wrong date is said at the field and nothing is saved', async ({ page }) => {
   await profile(page);
-  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('31.02.2026');
   await expect(page.getByTestId('profile-date-error')).toHaveText(
     'Gib das Datum im Format 01.11.2026 ein.',
@@ -653,7 +653,7 @@ test('create from the empty form and save; the quality follows while typing', as
   await page.getByTestId('competence-add').click();
   await expect(page.getByTestId('competence-name').last()).toBeFocused();
   await page.getByTestId('language-name').last().fill('Englisch');
-  await page.getByTestId('language-row').last().getByRole('button', { name: 'C1' }).click();
+  await page.getByTestId('language-row').last().getByRole('radio', { name: 'C1' }).click();
   await save(page).click();
   const sent = await lastSave(page);
   expect(sent.source).toBe('{}');

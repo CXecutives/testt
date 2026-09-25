@@ -13,6 +13,9 @@
     disabled while focused keeps the focus).
   - Loading keeps the width: the content fades out under the spinner.
   - A ghost toggle (the pin star) pops once when it is switched on by a click.
+  - radio: an option of a group with one choice (profile/ChoiceButtons, a radiogroup): it
+    looks like a secondary toggle, is chosen while `checked`, and only the group's one Tab
+    stop (`stop`) is in the Tab order; the arrows move between the options (input.ts).
   - turned: the glyph stands half a turn; it turns in 180 ms.
   - link: navy text that underlines on hover (a way on, e.g. under a field).
   - inField: a button inside a text field (show password, clear search), like the native
@@ -55,6 +58,8 @@
     type?: 'button' | 'submit';
     /** Toggle buttons (e.g. the pin star). */
     pressed?: boolean | null;
+    /** An option of a radiogroup: whether it is chosen and whether it is the group's Tab stop. */
+    radio?: { checked: boolean; stop: boolean } | null;
     /** The glyph stands half a turn. */
     turned?: boolean;
     /** Opens something outside the app (a link shows the hand then). */
@@ -86,6 +91,7 @@
     disabledReason = null,
     type = 'button',
     pressed = null,
+    radio = null,
     turned = false,
     external = false,
     wide = false,
@@ -136,9 +142,11 @@
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
-  aria-pressed={pressed === null ? undefined : pressed}
+  role={radio ? 'radio' : undefined}
+  aria-checked={radio ? radio.checked : undefined}
+  aria-pressed={pressed === null || radio ? undefined : pressed}
   aria-haspopup={menu ? 'menu' : undefined}
-  tabindex={inField || disabled ? -1 : undefined}
+  tabindex={inField || disabled || (radio && !radio.stop) ? -1 : radio ? 0 : undefined}
   data-keep-focus={inField ? '' : undefined}
   data-testid={testid ?? undefined}
   use:tooltip={hint}
@@ -312,8 +320,10 @@
     --btn-shadow: var(--sh-xs);
   }
 
-  /* A secondary toggle that is on (a filter chip): the navy trio of a chosen filter. */
-  .secondary[aria-pressed='true'] {
+  /* A secondary toggle that is on (a filter chip) or a chosen option of a radiogroup: the
+     navy trio of a chosen filter. */
+  .secondary[aria-pressed='true'],
+  .secondary[aria-checked='true'] {
     --btn-bg: var(--active-surface);
     --btn-bg-hover: var(--active-surface);
     --btn-bg-active: var(--active-surface);

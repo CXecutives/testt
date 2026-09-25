@@ -96,7 +96,7 @@ test('the profile in its logical order, each block with its sentence', async ({ 
 
 test('every control of a block has the height of a field', async ({ page }) => {
   await profile(page);
-  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   const heights = await page.locator('[data-testid^="section-"]').evaluateAll((sections) =>
     Object.fromEntries(
       sections.map((section) => {
@@ -110,7 +110,7 @@ test('every control of a block has the height of a field', async ({ page }) => {
               : Math.round(box.getBoundingClientRect().height);
           },
         );
-        const choices = [...section.querySelectorAll<HTMLElement>('[role="group"] .btn')].map(
+        const choices = [...section.querySelectorAll<HTMLElement>('[role="radiogroup"] .btn')].map(
           (button) => Math.round(button.getBoundingClientRect().height),
         );
         return [section.getAttribute('data-testid'), [...new Set([...fields, ...choices])]];
@@ -123,7 +123,7 @@ test('every control of a block has the height of a field', async ({ page }) => {
   }
   // The choice buttons take the small type of chips and segments, not the larger button type.
   const types = await page
-    .locator('[data-testid^="section-"] [role="group"] .btn')
+    .locator('[data-testid^="section-"] [role="radiogroup"] .btn')
     .evaluateAll((buttons) => [...new Set(buttons.map((b) => getComputedStyle(b).fontSize))]);
   expect(types).toEqual(['13px']);
   // Every number field has one width; the day of "Ab Datum" too.
@@ -238,13 +238,13 @@ test('availability: the day exists only for "Ab Datum" and gets the caret', asyn
   await profile(page);
   const choices = page.getByTestId('profile-available');
   const date = page.getByTestId('profile-date');
-  await choices.getByRole('button', { name: 'Sofort' }).click();
+  await choices.getByRole('radio', { name: 'Sofort' }).click();
   await expect(date).toHaveCount(0);
-  await choices.getByRole('button', { name: 'Ab Datum' }).click();
+  await choices.getByRole('radio', { name: 'Ab Datum' }).click();
   await expect(date).toBeVisible();
   await expect(date).toBeFocused();
   await date.fill('1.11.2026');
-  await choices.getByRole('button', { name: 'Sofort' }).click();
+  await choices.getByRole('radio', { name: 'Sofort' }).click();
   await expect(date).toHaveCount(0);
   await page.getByTestId('profile-save').click();
   expect((await lastSave(page)).after.criteria.available).toEqual({ kind: 'now' });
