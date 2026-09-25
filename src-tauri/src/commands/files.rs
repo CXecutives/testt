@@ -1,6 +1,7 @@
 //! Result files: rewrite and delete text files, open checked targets, and the small files
 //! that follow the user's marks.
 
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
@@ -13,7 +14,7 @@ use jobalert_core::view::{ClearedTxt, OpenTarget};
 use tauri::{AppHandle, Manager, State};
 
 use super::app::existing;
-use super::{AppState, CmdResult, not_found};
+use super::{AppState, CmdResult, lock, not_found};
 
 /// Google page to create an app password.
 const APP_PASSWORD_URL: &str = "https://myaccount.google.com/apppasswords";
@@ -27,11 +28,33 @@ const IDLE_POLL: Duration = Duration::from_millis(500);
 /// The small files a mark changes - the HTML overview and the skill's `top_matches.json`
 /// (`pipeline::refresh_exports`) - follow the user's marks a moment after the last one:
 /// never while a run, a sign-in or a file command holds the app (a run writes them at its
-/// end, a refresh then follows), never in the dry run.
+/// end, a refresh then follows), never in the dry run. Marks of the last moments before the
+/// app ends are written when it ends ([`flush_marks`]).
 #[derive(Default)]
 pub struct Refresh {
     /// Counts the marks: only the wait of the last one writes.
     marks: AtomicU64,
+    /// The mark the files follow; held while they are written, so two writes never overlap.
+    written: Mutex<u64>,
+}
+
+impl Refresh {
+    /// Counts a mark and returns its number.
+    fn mark(&self) -> u64 {
+        self.marks.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    /// Runs `write` unless the files already follow the latest mark; says whether it ran.
+    fn follow(&self, write: impl FnOnce()) -> bool {
+        let mut written = lock(&self.written);
+        let mark = self.marks.load(Ordering::SeqCst);
+        if *written == mark {
+            return false;
+        }
+        write();
+        *written = mark;
+        true
+    }
 }
 
 /// A mark changed (moved, starred, "fits anyway", read or unread): the files follow shortly.
@@ -40,7 +63,7 @@ pub(super) fn marked(app: &AppHandle) {
     if state.dry_run {
         return;
     }
-    let mark = state.refresh.marks.fetch_add(1, Ordering::SeqCst) + 1;
+    let mark = state.refresh.mark();
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(SETTLE).await;
@@ -55,18 +78,30 @@ pub(super) fn marked(app: &AppHandle) {
             tokio::time::sleep(IDLE_POLL).await;
         }
         let state = app.state::<AppState>();
-        let Ok(settings) = state.settings() else {
-            return;
-        };
-        let matcher = state.matcher();
-        pipeline::refresh_exports(
-            &state.store,
-            &settings.workspace_or(&state.default_workspace),
-            matcher.as_deref().map(|m| m as &dyn Matcher),
-            Timestamp::now(),
-            settings.language_or(state.system_language),
-        );
+        state.refresh.follow(|| refresh(&state));
     });
+}
+
+/// The app ends: files that still wait for a mark (closed within [`SETTLE`]) are written now,
+/// which takes milliseconds, unless a run or a file command still holds the app.
+pub fn flush_marks(state: &AppState) {
+    if !state.dry_run && !state.busy() {
+        state.refresh.follow(|| refresh(state));
+    }
+}
+
+fn refresh(state: &AppState) {
+    let Ok(settings) = state.settings() else {
+        return;
+    };
+    let matcher = state.matcher();
+    pipeline::refresh_exports(
+        &state.store,
+        &settings.workspace_or(&state.default_workspace),
+        matcher.as_deref().map(|m| m as &dyn Matcher),
+        Timestamp::now(),
+        settings.language_or(state.system_language),
+    );
 }
 
 /// Rewrites all text files (e.g. after a change of folder). The names stay. It holds the app
@@ -186,4 +221,25 @@ fn show_in_folder(path: &std::path::Path) -> CmdResult<()> {
         log::warn!("could not show a file in its folder: {e}");
         ErrorInfo::new(ErrorKind::Io)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The files follow the latest mark once: the wait of a mark and the flush when the app
+    /// ends never write twice for the same mark, and a new mark writes again.
+    #[test]
+    fn the_files_follow_the_latest_mark_once() {
+        let refresh = Refresh::default();
+        let mut writes = 0;
+        assert!(!refresh.follow(|| writes += 1), "no mark, nothing to write");
+        refresh.mark();
+        refresh.mark();
+        assert!(refresh.follow(|| writes += 1));
+        assert!(!refresh.follow(|| writes += 1), "written already");
+        refresh.mark();
+        assert!(refresh.follow(|| writes += 1));
+        assert_eq!(writes, 2);
+    }
 }

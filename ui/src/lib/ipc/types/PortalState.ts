@@ -3,7 +3,6 @@ import type { Portal } from "./Portal";
 import type { PortalHealth } from "./PortalHealth";
 import type { PortalLogin } from "./PortalLogin";
 import type { Quota } from "./Quota";
-import type { Risk } from "./Risk";
 
 /**
  * A portal in the settings.
@@ -12,7 +11,7 @@ export type PortalState = { portal: Portal, enabled: boolean, fetchDetails: bool
 /**
  * `null` = unknown (or no sign-in), `false` = sign-in needed.
  */
-signedIn: boolean | null, risk: Risk, health: PortalHealth, 
+signedIn: boolean | null, health: PortalHealth, 
 /**
  * The user has to act on the health ([`PortalHealth::action_needed`]).
  */

@@ -17,11 +17,6 @@ count: number,
  */
 keys: Array<JobKey>, 
 /**
- * Text files that stayed because they could not be removed (open in another program);
- * the app removes them with a later export.
- */
-txtLeft: number, 
-/**
  * The overview could not be written again (e.g. open in Excel); `params.target` names
  * what failed. The jobs are deleted anyway.
  */

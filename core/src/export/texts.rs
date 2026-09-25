@@ -51,7 +51,6 @@ pub const INFO_SCOPE: &str = "Umfang des letzten Postfach-Abrufs";
 pub const INFO_NEW: &str = "Neu beim letzten Postfach-Abruf";
 pub const INFO_KNOWN: &str = "Schon bekannt beim letzten Postfach-Abruf";
 pub const INFO_DUP: &str = "In mehreren Alert-Mails beim letzten Postfach-Abruf";
-pub const INFO_LAST_RUN: &str = "Letzter Abruf";
 pub const INFO_JOBS_TOTAL: &str = "Jobs gesamt";
 pub const INFO_PROGRAM: &str = "Programm";
 pub const PROGRAM_NAME: &str = "Job-Alert-Monitor";
@@ -159,7 +158,6 @@ pub mod en {
     pub const INFO_NEW: &str = "New at the last mailbox fetch";
     pub const INFO_KNOWN: &str = "Already known at the last mailbox fetch";
     pub const INFO_DUP: &str = "In several alert emails at the last mailbox fetch";
-    pub const INFO_LAST_RUN: &str = "Last fetch";
     pub const INFO_JOBS_TOTAL: &str = "Jobs in total";
     pub const INFO_PROGRAM: &str = "Program";
 
@@ -259,7 +257,6 @@ pub struct Texts {
     pub info_new: &'static str,
     pub info_known: &'static str,
     pub info_dup: &'static str,
-    pub info_last_run: &'static str,
     pub info_jobs_total: &'static str,
     pub info_program: &'static str,
     pub scope_new: &'static str,
@@ -297,7 +294,6 @@ pub const DE: Texts = Texts {
     info_new: INFO_NEW,
     info_known: INFO_KNOWN,
     info_dup: INFO_DUP,
-    info_last_run: INFO_LAST_RUN,
     info_jobs_total: INFO_JOBS_TOTAL,
     info_program: INFO_PROGRAM,
     scope_new: SCOPE_NEW,
@@ -332,7 +328,6 @@ pub const EN: Texts = Texts {
     info_new: en::INFO_NEW,
     info_known: en::INFO_KNOWN,
     info_dup: en::INFO_DUP,
-    info_last_run: en::INFO_LAST_RUN,
     info_jobs_total: en::INFO_JOBS_TOTAL,
     info_program: en::INFO_PROGRAM,
     scope_new: en::SCOPE_NEW,

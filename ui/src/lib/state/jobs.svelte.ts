@@ -815,17 +815,26 @@ class JobsStore {
    * Moves jobs to the inbox, the archive or the trash. The rows leave a list they no longer
    * belong to at once. Resolves with the keys that really moved (toasts and undos only for
    * those; a job already there or gone did not), or the error text; on an error, or when not
-   * every job moved, the list loads again.
+   * every job moved, the list loads again. `restore` takes jobs out of the trash back to where
+   * each lay (the archive for one thrown away from there): they count as `to` until the
+   * counts come from the backend.
    */
-  async move(keys: JobKey[], to: Place): Promise<{ moved: JobKey[] } | { error: string }> {
+  async move(
+    keys: JobKey[],
+    to: Place,
+    restore = false,
+  ): Promise<{ moved: JobKey[] } | { error: string }> {
     const before = keys.map((key) => this.held(key)).filter((job): job is JobView => job !== null);
     for (const job of before) {
       this.patch(job.key, { place: to });
       this.dropStray(job.key);
     }
     try {
-      const moved = await invoke('move_jobs', { keys, to });
+      const moved = restore
+        ? await invoke('restore_jobs', { keys })
+        : await invoke('move_jobs', { keys, to });
       if (moved.length < keys.length) void this.load(true);
+      else if (restore) void this.refreshCounts();
       return { moved };
     } catch (error) {
       for (const job of before) this.patch(job.key, { place: job.place });
@@ -835,22 +844,21 @@ class JobsStore {
   }
 
   /**
-   * Takes moves back (the undo of a toast): every job goes back to the place it came from
-   * (one call per place). A row the list lost comes back where it stood when the list is
-   * still the one it left (Neu keeps a read job, like before the move); in another list the
-   * list loads again when the job belongs there. Resolves with the keys that went back (a
-   * job already there did not), or the error text.
+   * Takes moves back (the undo of a toast): every job goes back to the place it came from as
+   * it was there (the trash keeps its date). A row the list lost comes back where it stood
+   * when the list is still the one it left (Neu keeps a read job, like before the move); in
+   * another list the list loads again when the job belongs there. Resolves with the keys that
+   * went back (a job already there did not), or the error text.
    */
   async moveBack(
     back: readonly Unmove[],
     generation: number,
   ): Promise<{ moved: JobKey[] } | { error: string }> {
-    const landed: JobKey[] = [];
+    let landed: JobKey[];
     try {
-      for (const place of new Set(back.map(({ job }) => job.place))) {
-        const keys = back.filter(({ job }) => job.place === place).map(({ job }) => job.key);
-        landed.push(...(await invoke('move_jobs', { keys, to: place })));
-      }
+      landed = await invoke('move_back', {
+        jobs: back.map(({ job }) => ({ key: job.key, to: job.place, trashedAt: job.trashedAt })),
+      });
     } catch (error) {
       void this.load(true);
       return { error: errorText(error) };

@@ -198,7 +198,7 @@ mod tests {
 
     use super::*;
     use crate::export::texts::{
-        COLUMNS, INFO_LAST_RUN, INFO_NOTE_LABEL, INFO_SHEET, JOBS_SHEET, en,
+        COLUMNS, INFO_LAST_SCAN, INFO_NOTE_LABEL, INFO_SHEET, JOBS_SHEET, en,
     };
     use crate::model::DescStatus;
     use crate::portal::job_link;
@@ -264,7 +264,7 @@ mod tests {
         };
         jobs[0].match_ = Some(scored(MatchStatus::Scored, 83));
         jobs[1].match_ = Some(scored(MatchStatus::Excluded, 71));
-        let info = [(INFO_LAST_RUN.to_string(), "x".to_string())];
+        let info = [(INFO_LAST_SCAN.to_string(), "x".to_string())];
         write_xlsx(&path, &jobs, &info, Language::De).unwrap();
 
         let mut book: Xlsx<_> = open_workbook(&path).unwrap();
@@ -318,7 +318,7 @@ mod tests {
             "Interim CFO",
             DescStatus::Teaser,
         );
-        let info = [(en::INFO_LAST_RUN.to_string(), "x".to_string())];
+        let info = [(en::INFO_LAST_SCAN.to_string(), "x".to_string())];
         write_xlsx(&path, &[job], &info, Language::En).unwrap();
 
         let mut book: Xlsx<_> = open_workbook(&path).unwrap();
@@ -336,7 +336,7 @@ mod tests {
         assert_eq!(first[3].to_string(), "Muster GmbH");
         assert_eq!(first[9].to_string(), "Teaser only");
         let info = book.worksheet_range(en::INFO_SHEET).unwrap();
-        assert_eq!(info.get((0, 0)).unwrap().to_string(), en::INFO_LAST_RUN);
+        assert_eq!(info.get((0, 0)).unwrap().to_string(), en::INFO_LAST_SCAN);
         assert_eq!(info.get((1, 0)).unwrap().to_string(), en::INFO_NOTE_LABEL);
     }
 

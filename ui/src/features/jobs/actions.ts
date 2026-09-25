@@ -35,6 +35,8 @@ export interface JobAction {
   label: string;
 }
 
+/** Where a move goes. Wiederherstellen puts a job back where it lay (the backend knows: the
+ *  archive for one thrown away from there); the page takes the inbox until it hears back. */
 const TARGET: Record<MoveId, Place> = {
   archive: 'archive',
   toInbox: 'inbox',
@@ -282,6 +284,7 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
   const result = await jobs.move(
     list.map((job) => job.key),
     to,
+    action === 'restore',
   );
   setTimeout(() => {
     for (const job of folding) moving.delete(keyOf(job.key));

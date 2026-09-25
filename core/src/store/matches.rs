@@ -454,7 +454,7 @@ mod tests {
         let rev = store.data_rev().unwrap();
         assert!(store.mark_read(&key, now()).unwrap());
         assert!(!store.mark_read(&key, now()).unwrap(), "only once");
-        assert_eq!(store.data_rev().unwrap(), rev, "reading exports nothing");
+        assert_eq!(store.data_rev().unwrap(), rev, "no change counter");
         assert!(store.set_pinned(&key, true, now()).unwrap());
         assert!(!store.set_pinned(&key, true, now()).unwrap());
         assert!(store.data_rev().unwrap() > rev);

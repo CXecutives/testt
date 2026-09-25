@@ -9,6 +9,7 @@ import type { JobKey } from "./JobKey";
 import type { JobPage } from "./JobPage";
 import type { JobQuery } from "./JobQuery";
 import type { Mailbox } from "./Mailbox";
+import type { MoveBack } from "./MoveBack";
 import type { OpenTarget } from "./OpenTarget";
 import type { Place } from "./Place";
 import type { Portal } from "./Portal";
@@ -31,6 +32,8 @@ export type Commands = {
   mark_unread: { args: { keys: JobKey[] }; result: number };
   set_pinned: { args: { key: JobKey; on: boolean }; result: boolean };
   move_jobs: { args: { to: Place; keys: JobKey[] }; result: JobKey[] };
+  move_back: { args: { jobs: MoveBack[] }; result: JobKey[] };
+  restore_jobs: { args: { keys: JobKey[] }; result: JobKey[] };
   set_override: { args: { key: JobKey; include: boolean }; result: boolean };
   purge_jobs: { args: { keys: JobKey[] }; result: Deleted };
   empty_trash: { args: Record<string, never>; result: Deleted };

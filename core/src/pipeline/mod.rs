@@ -1212,14 +1212,12 @@ pub fn delete_jobs(
     let mut deleted = Deleted {
         count: u32::try_from(rows).unwrap_or(u32::MAX),
         keys: gone,
-        txt_left: 0,
         export_error: None,
     };
     let Some(workspace) = workspace.filter(|_| !deleted.keys.is_empty()) else {
         return Ok(deleted);
     };
-    let left = remove_deleted_txt(store, workspace, &names);
-    deleted.txt_left = u32::try_from(left).unwrap_or(u32::MAX);
+    remove_deleted_txt(store, workspace, &names);
     let info = info_rows(store, now, Texts::of(language));
     let run = last_scan_run(store).unwrap_or(0);
     let exported = export_all(store, workspace, &info, run, now, language);
@@ -1231,15 +1229,15 @@ pub fn delete_jobs(
 /// Removes the text files of jobs deleted for good. A file that stays (open in another
 /// program, or the work folder on a drive that is gone) is remembered - its job's row is
 /// gone - so the next export, "Textdateien löschen" or a reset removes it
-/// ([`Store::txt_leftovers`]). Returns how many stayed.
-fn remove_deleted_txt(store: &Store, workspace: &Path, names: &[String]) -> usize {
+/// ([`Store::txt_leftovers`]); the user needs no word about it.
+fn remove_deleted_txt(store: &Store, workspace: &Path, names: &[String]) {
     let failed = if workspace.is_dir() {
         export::clear_txt_files(&workspace.join(RESULT_DIR), names).1
     } else {
         names.to_vec()
     };
     if failed.is_empty() {
-        return 0;
+        return;
     }
     log::warn!(
         "{} text files of deleted jobs not removed (open), removed later",
@@ -1254,7 +1252,6 @@ fn remove_deleted_txt(store: &Store, workspace: &Path, names: &[String]) -> usiz
     if let Err(e) = store.set_txt_leftovers(&left) {
         log::warn!("text files not removed are not remembered: {e}");
     }
-    failed.len()
 }
 
 /// Another try at the text files of deleted jobs that stayed earlier; the ones gone meanwhile

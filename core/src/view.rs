@@ -758,7 +758,7 @@ pub struct JobQuery {
 
 /// Counts of the list (with the search applied, whatever the place and the filter), from
 /// the same statement as the page. Every number of the page comes from here: the places, the
-/// tiles, the sidebar and the unread jobs per portal.
+/// list's filter segments, the tiles and the unread jobs per portal.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -966,17 +966,6 @@ pub enum PortalLogin {
     Optional,
 }
 
-/// Risk of the portal switches: low (public pages), grey (guest access, no account
-/// affected), account (signed in - the user's account is at stake).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
-pub enum Risk {
-    Low,
-    Grey,
-    Account,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -1003,7 +992,6 @@ pub struct PortalState {
     pub login_enabled: bool,
     /// `null` = unknown (or no sign-in), `false` = sign-in needed.
     pub signed_in: Option<bool>,
-    pub risk: Risk,
     pub health: PortalHealth,
     /// The user has to act on the health ([`PortalHealth::action_needed`]).
     pub action_needed: bool,
@@ -1037,13 +1025,6 @@ pub fn portal_states(
                 (PortalLogin::Optional, false, Some(_)) => Some(true),
                 _ => None,
             };
-            let risk = match (portal, login) {
-                (Portal::Freelancermap, _) => Risk::Low,
-                (_, PortalLogin::Optional) if switches.login_enabled || signed_in == Some(true) => {
-                    Risk::Account
-                }
-                _ => Risk::Grey,
-            };
             let empty = empty_mails.iter().filter(|m| m.portal == portal).count();
             let health = PortalHealth::of(policy, portal, now, switches.login_enabled, empty);
             PortalState {
@@ -1053,7 +1034,6 @@ pub fn portal_states(
                 login,
                 login_enabled: switches.login_enabled,
                 signed_in,
-                risk,
                 action_needed: health.action_needed(),
                 health,
                 quota: Some(Quota {
@@ -1379,6 +1359,18 @@ pub enum OpenTarget {
     LogDir,
 }
 
+/// A job an undo takes back to the place it came from (`move_back`).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct MoveBack {
+    pub key: JobKey,
+    pub to: Place,
+    /// When the job went to the trash ([`JobView::trashed_at`]): back in the trash it keeps
+    /// its date and its days until the trash empties itself.
+    pub trashed_at: Option<Timestamp>,
+}
+
 /// Result of a permanent delete of jobs.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1390,9 +1382,6 @@ pub struct Deleted {
     /// The keys of every row that went, duplicates included: the page drops them from lists,
     /// the reader and pending undos.
     pub keys: Vec<JobKey>,
-    /// Text files that stayed because they could not be removed (open in another program);
-    /// the app removes them with a later export.
-    pub txt_left: u32,
     /// The overview could not be written again (e.g. open in Excel); `params.target` names
     /// what failed. The jobs are deleted anyway.
     pub export_error: Option<ErrorInfo>,
@@ -1892,7 +1881,7 @@ mod tests {
     }
 
     #[test]
-    fn portal_state_shows_pause_quota_risk_and_layout() {
+    fn portal_state_shows_pause_quota_and_layout() {
         let now = Timestamp::now();
         let mut policy = Policy::in_memory();
         policy.pause(Portal::LinkedIn, PauseKind::Blocked, "HTTP 999", now);
@@ -1921,16 +1910,12 @@ mod tests {
                 ..
             }
         ));
-        assert_eq!(
-            (li.login, li.risk, li.signed_in),
-            (PortalLogin::None, Risk::Grey, None)
-        );
+        assert_eq!((li.login, li.signed_in), (PortalLogin::None, None));
         let fm = of(Portal::Freelancermap);
         assert!(matches!(fm.health, PortalHealth::QuotaReached { .. }));
-        assert_eq!(fm.risk, Risk::Low);
         assert_eq!(fm.quota.unwrap().used_hour, 40);
         let fl = of(Portal::FreelanceDe);
-        assert_eq!((fl.login, fl.risk), (PortalLogin::Optional, Risk::Account));
+        assert_eq!(fl.login, PortalLogin::Optional);
         assert_eq!(
             fl.health,
             PortalHealth::LayoutSuspect {
@@ -1967,10 +1952,8 @@ mod tests {
                 .unwrap()
         };
         assert_eq!(state(&policy).signed_in, None);
-        assert_eq!(state(&policy).risk, Risk::Grey);
         policy.set_session(Portal::FreelanceDe, true, now);
         assert_eq!(state(&policy).signed_in, Some(true));
-        assert_eq!(state(&policy).risk, Risk::Account);
         policy.set_session(Portal::FreelanceDe, false, now);
         assert_eq!(state(&policy).signed_in, Some(false));
         // Sign-in switched off: the portal goes as a guest, nothing is wrong.

@@ -6,7 +6,7 @@ use jobalert_core::model::Place;
 use jobalert_core::pipeline::{self, Matcher, demo};
 use jobalert_core::portal::JobKey;
 use jobalert_core::profile;
-use jobalert_core::view::{self, Deleted, JobDetail, JobPage, JobQuery};
+use jobalert_core::view::{self, Deleted, JobDetail, JobPage, JobQuery, MoveBack};
 use tauri::{AppHandle, State};
 
 use super::{AppState, CmdResult, files, not_found};
@@ -70,6 +70,40 @@ pub async fn move_jobs(
     to: Place,
 ) -> CmdResult<Vec<JobKey>> {
     let moved = state.store.move_jobs(&keys, to, Timestamp::now())?;
+    if !moved.is_empty() {
+        files::marked(&app);
+    }
+    Ok(moved)
+}
+
+/// "Wiederherstellen": takes jobs out of the trash, back to where they lay (the archive for
+/// a job thrown away from there, the inbox otherwise); returns the keys that really left it.
+#[tauri::command]
+pub async fn restore_jobs(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    keys: Vec<JobKey>,
+) -> CmdResult<Vec<JobKey>> {
+    let restored = state.store.restore_jobs(&keys, Timestamp::now())?;
+    if !restored.is_empty() {
+        files::marked(&app);
+    }
+    Ok(restored)
+}
+
+/// Takes moves back (the undo of a toast): each job returns to the place it came from as it
+/// was there, into the trash with its earlier date; returns the keys that really moved.
+#[tauri::command]
+pub async fn move_back(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    jobs: Vec<MoveBack>,
+) -> CmdResult<Vec<JobKey>> {
+    let back: Vec<_> = jobs
+        .into_iter()
+        .map(|job| (job.key, job.to, job.trashed_at))
+        .collect();
+    let moved = state.store.move_back(&back, Timestamp::now())?;
     if !moved.is_empty() {
         files::marked(&app);
     }

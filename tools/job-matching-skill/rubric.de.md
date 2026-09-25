@@ -4,6 +4,9 @@ Diese Regel gilt für die Prüfung in einem KI-Chat aus der App und für den Ski
 Beide lesen genau diesen Text. Das Profil gewinnt: Jede Schwelle kommt aus dem Profil, ein Schlüssel,
 den das Profil nicht setzt, schaltet seine Regel ab.
 
+Die weiteren Anzeigen, die ein Portal unter einer Anzeige zeigt (etwa „Ähnliche Projekte“ oder
+„Similar jobs“), gehören nicht zu ihr. Keine Regel liest sie, und sie schließen nichts aus.
+
 ## Punkte von 1 bis 10
 
 - 9 bis 10 Kernfeld, alle Muss-Punkte erfüllt, mindestens ein Schwerpunkt erfüllt

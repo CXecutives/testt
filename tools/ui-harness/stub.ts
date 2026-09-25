@@ -47,6 +47,7 @@ import type {
   JobQuery,
   JobView,
   Language,
+  MoveBack,
   Notice,
   Place,
   Portal,
@@ -874,7 +875,6 @@ const portal = (name: PortalState['portal'], extra: Partial<PortalState> = {}): 
   login: name === 'freelance' ? 'optional' : 'none',
   loginEnabled: false,
   signedIn: name === 'freelance' ? false : null,
-  risk: name === 'freelancermap' ? 'low' : 'grey',
   health: { kind: 'ok' },
   actionNeeded: false,
   quota: null,
@@ -1177,9 +1177,10 @@ function countsOf(list: JobView[]): JobCounts {
 
 /* ------------------------------------------------------------------- marks */
 
-/** When a job went to the trash, deleted keys and the excluded verdicts the user overrode
- *  (store::marks). */
+/** When a job went to the trash and from where (the archive keeps its time there), deleted
+ *  keys and the excluded verdicts the user overrode (store::marks). */
 const trashedAt = new Map<string, string>();
+const trashedFrom = new Map<string, Place>();
 const tombstones = new Set<string>();
 const overridden = new Map<string, Match>();
 const markKey = (key: JobKey): string => `${key.portal}:${key.id}`;
@@ -1201,6 +1202,7 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
   for (const key of keys) {
     const j = find(key);
     if (j === undefined || j.place === to) continue;
+    if (to === 'trash') trashedFrom.set(markKey(key), j.place);
     j.place = to;
     if (to === 'trash') trashedAt.set(markKey(key), new Date(Date.now()).toISOString());
     else trashedAt.delete(markKey(key));
@@ -1208,6 +1210,29 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
     moved.push(structuredClone(j.key));
   }
   refresh();
+  return moved;
+}
+
+/** Wiederherstellen (store::restore_jobs): out of the trash back to where each job lay. */
+function restoreJobs(keys: JobKey[]): JobKey[] {
+  return keys.flatMap((key) =>
+    find(key)?.place === 'trash' ? moveJobs([key], trashedFrom.get(markKey(key)) ?? 'inbox') : [],
+  );
+}
+
+/** Takes moves back (store::move_back): into the trash with the time the job first went
+ *  there, not the time of the undo. */
+function moveBack(back: MoveBack[]): JobKey[] {
+  const moved: JobKey[] = [];
+  for (const { key, to, trashedAt: at } of back) {
+    if (moveJobs([key], to).length === 0) continue;
+    const j = find(key);
+    if (to === 'trash' && at !== null && j !== undefined) {
+      trashedAt.set(markKey(key), at);
+      j.trashedAt = at;
+    }
+    moved.push(structuredClone(key));
+  }
   return moved;
 }
 
@@ -1222,7 +1247,7 @@ function purgeJobs(keys: JobKey[]): Deleted {
   jobs = jobs.filter((j) => !doomed.has(markKey(j.key)));
   for (const key of doomed) tombstones.add(key);
   refresh();
-  return { count: gone.length, keys: gone, txtLeft: 0, exportError: null };
+  return { count: gone.length, keys: gone, exportError: null };
 }
 
 const fold = (text: string): string =>
@@ -2020,6 +2045,8 @@ const handlers: Handlers = {
     return true;
   },
   move_jobs: ({ keys, to }) => moveJobs(keys, to),
+  move_back: ({ jobs: back }) => moveBack(back),
+  restore_jobs: ({ keys }) => restoreJobs(keys),
   // With a search only its hits (store::mark_all_read).
   mark_all_read: ({ place, search }) => {
     const marked = jobs.filter((j) => j.unread && j.place === place && matchesSearch(j, search));
@@ -2196,10 +2223,7 @@ const handlers: Handlers = {
       if (p === undefined) continue;
       if (change.enabled !== null) p.enabled = change.enabled;
       if (change.fetchDetails !== null) p.fetchDetails = change.fetchDetails;
-      if (change.loginEnabled !== null) {
-        p.loginEnabled = change.loginEnabled;
-        p.risk = change.loginEnabled ? 'account' : 'grey';
-      }
+      if (change.loginEnabled !== null) p.loginEnabled = change.loginEnabled;
     }
     // Every portal may be off (the backend saves it); a fetch is then refused, see start_run.
     if (patch.autoFetchOnStart !== null) state.autoFetchOnStart = patch.autoFetchOnStart;

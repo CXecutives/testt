@@ -80,11 +80,13 @@ Schema 4 is on main, so this is its own step (`migrate_4_to_5`, frozen fixture `
 mark (an application status, the pin) becomes the favourite (`app_status = 'saved'`), the `note` column stays unused,
 and a `tombstone(portal, job_id, deleted_at)` table. Email model (user decision 2026-09-25): every job is in exactly
 one place, Jobs (the inbox; `inbox` in code), Archiv or Papierkorb (trash; `trashed_at` wins over `archived_at`); the favourite (the star,
-`set_pinned`) is a flag of its own; no stages, no follow-up, no note. `move_jobs(keys, to)` moves; `purge_jobs(keys)`
+`set_pinned`) is a flag of its own; no stages, no follow-up, no note. `move_jobs(keys, to)` moves; `restore_jobs(keys)`
+("Wiederherstellen") puts a job of the trash back where it lay, the archive or the inbox, like Mail; `purge_jobs(keys)`
 ("Endgültig löschen", only from the trash) and `empty_trash()` delete rows (with the duplicates that stand for them)
 and their TXT files, rewrite the overview and leave the tombstone, so a scan of an old alert mail never imports them
 again (the dry run deletes in its database only); `empty_trash` empties the whole trash like Mail, whatever the search,
-and `Deleted{count, keys}` says how many and which. `move_jobs` returns the keys that really moved. At the end of every
+and `Deleted{count, keys}` says how many and which. `move_jobs` returns the keys that really moved; `move_back(jobs)`
+(the undo of a toast) puts each job back with its earlier times (the trash keeps its date, the inbox its age). At the end of every
 run inbox jobs that are no favourite archive themselves after `autoArchiveDays` (default 30, 0 = off; the age counts
 from the last time the user moved the job into the inbox, `inbox_at`, so her choice stands), and the trash empties itself after `autoEmptyTrashDays`
 (default 30, 0 = off; also at the start of the app). The Excel sheet, the HTML overview, `top_matches.json` and the
@@ -117,7 +119,8 @@ Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | res
 `list_jobs(JobQuery{place: inbox|archive|trash, unread, favourites, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{inbox, unread, favourites, archive, trash, excluded, high, noDetail, newByPortal[{portal, new}] in Portal::ALL order}}`
 (list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only) ·
 `job_detail(key)` · `mark_read(key) -> bool` · `mark_all_read(place, search?) -> JobKey[]` · `mark_unread(keys) -> number` ·
-`set_pinned(key, on)` · `move_jobs(to, keys) -> JobKey[]` · `set_override(key, include) -> bool` ·
+`set_pinned(key, on)` · `move_jobs(to, keys) -> JobKey[]` · `move_back(jobs: MoveBack{key, to, trashedAt}[]) -> JobKey[]` · `restore_jobs(keys) -> JobKey[]` ·
+`set_override(key, include) -> bool` ·
 `purge_jobs(keys) -> Deleted{count, keys, exportError?}` · `empty_trash -> Deleted` ·
 `ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile -> ProfileDraft?` ·
 `parse_profile(text, update) -> ProfileDraft` · `profile_prompt(update)` · `save_profile(ProfileSave{before, after, source?, clear[]}) -> ProfileInfo` ·
@@ -189,7 +192,7 @@ score, explain, legacy, pyre.
 
 ### Scraping and sign-in
 Per portal: Active · Fetch details (off = zero requests to the portal) · Sign in (freelance.de only, default off).
-No risk badges (user, 2026-09-25): each switch says in one sentence what it does. Limits per hour / day: LinkedIn
+No risk grades (user, 2026-09-25): each switch says in one sentence what it does. Limits per hour / day: LinkedIn
 30 / 80 (pace 4-7 s), freelancermap 40 / 120 (3-5 s), freelance.de 20 / 60 (10-20 s plus 8-20 s dwell in the session
 window). Always on: only alert-mail links, `admit` for every request, Retry-After honoured, stop and
 pause on 429/999/403/captcha/login wall, never bypass captcha/2FA, never an unasked login window.

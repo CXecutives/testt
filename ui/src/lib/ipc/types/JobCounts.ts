@@ -4,7 +4,7 @@ import type { PortalNew } from "./PortalNew";
 /**
  * Counts of the list (with the search applied, whatever the place and the filter), from
  * the same statement as the page. Every number of the page comes from here: the places, the
- * tiles, the sidebar and the unread jobs per portal.
+ * list's filter segments, the tiles and the unread jobs per portal.
  */
 export type JobCounts = { 
 /**
