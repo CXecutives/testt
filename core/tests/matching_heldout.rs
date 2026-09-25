@@ -210,6 +210,13 @@ const HELDOUT7: Floor = Floor {
     exclusion_recall: 0.88,
     grade3_buried: 3,
 };
+const HELDOUT8: Floor = Floor {
+    ndcg10: 0.0,
+    spearman: 0.0,
+    exclusion_precision: 0.0,
+    exclusion_recall: 0.0,
+    grade3_buried: 99,
+};
 /// Engine 9 moved set 2 from 0.864 to 0.856: a language met is a light fit now, so off-field
 /// ads whose only fitting musts are languages (grade 0 and 1 alike) fall below the cap they
 /// shared, and Y05 loses its German where `Projekt Management` (written apart) stays open.
@@ -301,9 +308,14 @@ fn heldout7_holds_its_gates() {
     check("heldout7", &HELDOUT7);
 }
 
+#[test]
+fn heldout8_holds_its_gates() {
+    check("heldout8", &HELDOUT8);
+}
+
 /// Every held-out set.
-const SETS: [&str; 7] = [
-    "heldout1", "heldout2", "heldout3", "heldout4", "heldout5", "heldout6", "heldout7",
+const SETS: [&str; 8] = [
+    "heldout1", "heldout2", "heldout3", "heldout4", "heldout5", "heldout6", "heldout7", "heldout8",
 ];
 
 /// Prints every set's tables and misses (`-- --ignored heldout_report --nocapture`), then

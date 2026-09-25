@@ -1,0 +1,56 @@
+Titel: SAP FI/CO Berater (m/w/d) S/4HANA Conversion – Arbeitnehmerüberlassung
+Unternehmen: Neckarbogen Personaldienste GmbH
+Ort: D-74072 Heilbronn
+Quelle: Freelance
+Link: https://www.freelance.de/projekte/projekt-1338741-SAP-FI-CO-Berater-m-w-d-S-4HANA-Conversion-Arbeitnehmerueberlassung
+Abgerufen am: 23.09.2026 18:11
+
+Projekt-ID: 1338741
+Ort: Heilbronn
+Remote: 40 %
+Start: 01.11.2026
+Dauer: 12 Monate
+Vertragsart: Arbeitnehmerüberlassung
+Letztes Update: 23.09.2026
+
+Projektbeschreibung
+Für unseren Kunden, einen international tätigen Hersteller von Befestigungs- und Montagetechnik mit Sitz im Raum Heilbronn (ca. 6.000 Mitarbeitende weltweit), suchen wir im Rahmen der Arbeitnehmerüberlassung einen erfahrenen SAP FI/CO Berater (m/w/d) für die Brownfield-Conversion von SAP ECC auf SAP S/4HANA.
+
+Aufgaben:
+- Analyse und Bereinigung der Finanzdaten vor der Conversion (offene Posten, Anlagen, Kontenabstimmung)
+- Customizing im Hauptbuch, in der Anlagenbuchhaltung sowie in der Kreditoren- und Debitorenbuchhaltung
+- Umsetzung des Universal Journal, Business-Partner-Konversion und Anpassung der Controlling-Strukturen (CO-OM, CO-PC, Margenanalyse)
+- Durchführung und Dokumentation der Testzyklen, Fehlerbehebung in Abstimmung mit der internen IT
+- Key-User-Schulungen und Hypercare nach dem Go-live im Juni 2027
+
+Anforderungen:
+- Mindestens 5 Jahre Erfahrung als SAP FI/CO Berater, davon Projekterfahrung mit S/4HANA
+- Fundierte Kenntnisse in FI-GL, FI-AA, FI-AP/AR sowie CO-OM und CO-PC
+- Erfahrung mit der Integration zu SD und MM
+- Sehr gute Deutschkenntnisse, gute Englischkenntnisse
+- Reisebereitschaft zu den Werken in Baden-Württemberg und Sachsen
+
+Wichtiger Hinweis zur Vertragsform
+Der Einsatz erfolgt ausschließlich im Wege der Arbeitnehmerüberlassung nach dem AÜG. Sie werden für die Dauer des Einsatzes bei der Neckarbogen Personaldienste GmbH befristet angestellt und an unseren Kunden überlassen. Eine Beauftragung als Freiberufler oder über eine eigene GmbH ist bei diesem Kunden nicht möglich. Vergütung nach Vereinbarung, Equal Pay ab dem ersten Einsatztag, Übernahme von Reise- und Übernachtungskosten.
+
+Kategorien und Skills
+SAP FI
+SAP CO
+SAP S/4HANA
+Conversion
+Anlagenbuchhaltung
+Hauptbuch
+Arbeitnehmerüberlassung
+
+Projektanbieter
+Neckarbogen Personaldienste GmbH
+Die Kontaktdaten des Projektanbieters sind nur für angemeldete Freelancer sichtbar.
+Projekt merken
+Jetzt bewerben
+
+Ähnliche Projekte
+SAP FI/CO Inhouse Consultant (m/w/d)
+Stuttgart · 01.12.2026
+SAP S/4HANA Finance Berater Remote (m/w/d)
+Remote · 6 Monate
+Alle Projekte in SAP anzeigen

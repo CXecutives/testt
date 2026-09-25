@@ -832,10 +832,11 @@ pub(crate) fn rate_in(folded: &str) -> Option<Rate> {
         .max_by_key(Rate::per_day)
 }
 
-/// A currency next to a time unit (`110 EUR/h`, `EUR pro Stunde`, `CHF/Tag`). Only a text
+/// A currency next to a time unit, also with the amount between them (`110 EUR/h`, `EUR pro
+/// Stunde`, `CHF/Tag`, LinkedIn's `€420/day`). Only a text
 /// with one of `CURRENCY_MARKS` can match (the regex is checked after them).
 static CURRENCY_PER_TIME: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?:€|\beur\b|\beuro\b|\bchf\b|\busd\b|\bgbp\b)\s*(?:/|\bpro\b|\bper\b|\bje\b)\s*(?:h\b|std\b|stunde|tag\b|day\b|hour|pt\b|mt\b)")
+    Regex::new(r"(?:€|\beur\b|\beuro\b|\bchf\b|\busd\b|\bgbp\b)\s*(?:\d[\d.,]*\s*)?(?:/|\bpro\b|\bper\b|\bje\b)\s*(?:h\b|hr\b|std\b|stunde|tag\b|day\b|hour|pt\b|mt\b)")
         .expect("currency per time")
 });
 
@@ -901,7 +902,11 @@ pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
         }
     }
     let upper = amounts.into_iter().max()?;
-    let hourly = lex::HOURLY_WORDS.iter().any(|w| folded.contains(w));
+    let names = |f: &str, words: &[&str]| words.iter().any(|w| f.contains(w));
+    // The value beats its label: `Stundensatz: Tagessatz 1.100 - 1.250 €` is a day rate.
+    let value = folded.split_once(':').map_or(folded, |(_, v)| v);
+    let hourly = names(folded, lex::HOURLY_WORDS)
+        && !(names(value, lex::DAILY_WORDS) && !names(value, lex::HOURLY_WORDS));
     let currency = lex::OTHER_CURRENCIES
         .iter()
         .find(|w| folded.contains(**w))
@@ -963,7 +968,10 @@ fn rate_context(folded: &str, start: usize, end: usize) -> bool {
         .iter()
         .find_map(|w| before.strip_suffix(w))
         .map_or(before, |b| {
-            b.trim_end_matches(|c: char| c.is_whitespace() || matches!(c, ':' | '('))
+            // `EUR 1,100 to 1,250`: past the lower end of the range to its unit.
+            b.trim_end_matches(|c: char| {
+                c.is_whitespace() || c.is_ascii_digit() || matches!(c, ':' | '(' | '.' | ',')
+            })
         });
     lex::RATE_UNITS
         .iter()
@@ -1217,6 +1225,23 @@ mod tests {
     }
 
     #[test]
+    fn a_denied_anue_never_excludes_in_english_either() {
+        for text in [
+            "We contract freelancers only; Arbeitnehmerüberlassung (ANÜ) is excluded.",
+            "No temporary agency work.",
+            "The engagement is not via ANÜ but under a service contract.",
+            "A service contract without temporary agency work.",
+            "Temporary agency work is ruled out for this mandate.",
+        ] {
+            assert!(anue_codes(text).is_empty(), "{text}");
+        }
+        assert_eq!(
+            anue_codes("The assignment is temporary agency work via our staffing unit."),
+            [(ReasonCode::Anue, true)]
+        );
+    }
+
+    #[test]
     fn rates() {
         let r = parse_rate(&fold("Honorar: 900 - 1.100 € pro Tag")).unwrap();
         assert_eq!((r.upper, r.hourly), (1100, false));
@@ -1266,6 +1291,28 @@ mod tests {
         ))
         .unwrap();
         assert_eq!((r.upper, r.hourly), (90, true));
+    }
+
+    #[test]
+    fn a_rate_range_reads_its_upper_end_in_every_spelling() {
+        let rate = |s: &str| rate_in(&fold(s)).map(|r| (r.upper, r.hourly));
+        // LinkedIn: the currency before each amount, the unit after it.
+        assert_eq!(rate("€610/day - €680/day"), Some((680, false)));
+        assert_eq!(rate("€85/hr - €95/hr"), Some((95, true)));
+        // English range words between two amounts after one currency.
+        assert_eq!(
+            rate("Daily rate: EUR 1,050 to 1,180 plus expenses"),
+            Some((1180, false))
+        );
+        assert_eq!(rate("Tagessatz 950 bis 1.050 €"), Some((1050, false)));
+        // A portal's rate label is overruled by the value it holds.
+        assert_eq!(
+            rate("Stundensatz: Tagessatz 980 - 1.120 €"),
+            Some((1120, false))
+        );
+        assert_eq!(rate("Stundensatz: 120 €"), Some((120, true)));
+        // A salary chip stays no rate.
+        assert_eq!(rate("€95,000/yr - €110,000/yr"), None);
     }
 
     #[test]

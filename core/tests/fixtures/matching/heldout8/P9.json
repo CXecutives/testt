@@ -1,0 +1,448 @@
+{
+  "name": "Dr. Annette Stichprobe",
+  "email": "annette.stichprobe@example.invalid",
+  "telefon": "+49 151 0000000",
+  "titel": "Interim Head of Tax, Interne Revision und Risikomanagement",
+  "berufserfahrung_jahre": 23,
+  "abschluss": "Steuerberaterin, Dr. rer. pol., Diplom-Kauffrau (Univ.)",
+  "ausbildung": [
+    {
+      "abschluss": "Promotion (Dr. rer. pol.)",
+      "fach": "Betriebswirtschaftliche Steuerlehre, Dissertation zur Verrechnungspreisdokumentation im Konzern",
+      "hochschule": "Beispieluniversität",
+      "jahr": 2007
+    },
+    {
+      "abschluss": "Diplom-Kauffrau (Univ.)",
+      "fach": "Betriebswirtschaftslehre mit den Schwerpunkten Betriebswirtschaftliche Steuerlehre und Wirtschaftsprüfung",
+      "hochschule": "Beispieluniversität",
+      "jahr": 2003
+    },
+    {
+      "abschluss": "Steuerberaterexamen und Bestellung zur Steuerberaterin",
+      "fach": "Steuerrecht",
+      "jahr": 2009
+    }
+  ],
+  "stationen": [
+    {
+      "zeitraum": "2017 - heute",
+      "rolle": "Interim Head of Tax und Interim Leiterin Interne Revision (selbstständig)",
+      "schwerpunkte": [
+        "Neun Interim-Mandate als Head of Tax, Leiterin Konzernsteuern oder Leiterin Interne Revision in Industrie, Handel und Finanzdienstleistung",
+        "Aufbau von Tax Compliance Management Systemen und deren Prüfung nach IDW PS 980, Absicherung gegenüber § 153 AO",
+        "Umsetzung der globalen Mindeststeuer (Pillar Two, Mindeststeuergesetz) mit GloBE-Berechnung, Safe-Harbour-Analyse und Mindeststeuer-Bericht",
+        "Interim-Leitung der Konzernrevision mit risikoorientierter Prüfungsplanung, Prozess- und Sonderprüfungen sowie externem Quality Assessment",
+        "Neuaufstellung von IKS und Risikomanagement nach dem Three Lines Model inklusive Berichterstattung an den Prüfungsausschuss",
+        "Begleitung steuerlicher Betriebsprüfungen und Verrechnungspreisprüfungen bis zur Schlussbesprechung"
+      ]
+    },
+    {
+      "zeitraum": "2010 - 2017",
+      "rolle": "Leiterin Konzernsteuern eines börsennotierten Industriekonzerns",
+      "schwerpunkte": [
+        "Führung eines Steuerteams mit 14 Mitarbeitenden in Deutschland und Steuerverantwortung für 30 Ländergesellschaften",
+        "Steuerliche Strukturierung von Akquisitionen, Carve-outs und konzerninternen Umstrukturierungen",
+        "Verrechnungspreissystem mit Master File, Local Files und Country-by-Country Reporting",
+        "Steuerliche Konzernbilanzierung nach IAS 12 und Tax Reporting im Konsolidierungssystem",
+        "Einführung eines steuerlichen Kontrollsystems für Umsatzsteuer und Ertragsteuern in SAP"
+      ]
+    },
+    {
+      "zeitraum": "2003 - 2010",
+      "rolle": "Prüfungsassistentin, zuletzt Managerin Tax bei einer Big-Four-Wirtschaftsprüfungsgesellschaft",
+      "schwerpunkte": [
+        "Steuerliche Beratung und Deklaration für Konzerne und große Familienunternehmen",
+        "Tax Due Diligence und steuerliche Strukturierung bei Unternehmenstransaktionen",
+        "Prüfung der Steuerpositionen im Rahmen von Jahres- und Konzernabschlussprüfungen"
+      ]
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Konzernsteuern",
+      "jahre": 16,
+      "auch": [
+        "Group Tax",
+        "Corporate Tax",
+        "Head of Tax",
+        "Leitung Steuerabteilung",
+        "Leitung Steuern",
+        "Steuerabteilung"
+      ]
+    },
+    {
+      "kompetenz": "Tax Compliance Management System",
+      "jahre": 9,
+      "auch": [
+        "Tax CMS",
+        "Tax Compliance",
+        "Steuer-CMS",
+        "IDW PS 980",
+        "§ 153 AO",
+        "Innerbetriebliches Kontrollsystem für Steuern"
+      ]
+    },
+    {
+      "kompetenz": "Interne Revision",
+      "jahre": 9,
+      "auch": [
+        "Internal Audit",
+        "Konzernrevision",
+        "Revision",
+        "Head of Internal Audit",
+        "Leitung Interne Revision",
+        "Chief Audit Executive"
+      ]
+    },
+    {
+      "kompetenz": "Internes Kontrollsystem",
+      "jahre": 13,
+      "auch": [
+        "IKS",
+        "Internal Control System",
+        "ICS",
+        "Internal Controls over Financial Reporting",
+        "ICFR",
+        "Kontrolldesign",
+        "Kontrolltests"
+      ]
+    },
+    {
+      "kompetenz": "Risikomanagement",
+      "jahre": 12,
+      "auch": [
+        "Enterprise Risk Management",
+        "ERM",
+        "Risk Management",
+        "Risikofrüherkennungssystem",
+        "IDW PS 340",
+        "Risikoinventur"
+      ]
+    },
+    {
+      "kompetenz": "Verrechnungspreise",
+      "jahre": 14,
+      "auch": [
+        "Transfer Pricing",
+        "Master File",
+        "Local File",
+        "Country-by-Country Reporting",
+        "CbCR",
+        "Verrechnungspreisdokumentation"
+      ]
+    },
+    {
+      "kompetenz": "Globale Mindeststeuer (Pillar Two)",
+      "jahre": 3,
+      "auch": [
+        "Pillar Two",
+        "Pillar 2",
+        "Mindeststeuergesetz",
+        "MinStG",
+        "GloBE",
+        "BEPS"
+      ]
+    },
+    {
+      "kompetenz": "Steuerliche Betriebsprüfung",
+      "jahre": 20,
+      "auch": [
+        "Betriebsprüfung",
+        "Außenprüfung",
+        "Tax Audit",
+        "Verrechnungspreisprüfung"
+      ]
+    },
+    {
+      "kompetenz": "Umsatzsteuer und indirekte Steuern",
+      "jahre": 16,
+      "auch": [
+        "Umsatzsteuer",
+        "VAT",
+        "Indirect Tax",
+        "Indirekte Steuern",
+        "Zoll und Verbrauchsteuern"
+      ]
+    },
+    {
+      "kompetenz": "Steuerliche Konzernbilanzierung nach IAS 12",
+      "jahre": 16,
+      "auch": [
+        "Tax Reporting",
+        "Tax Accounting",
+        "Latente Steuern",
+        "Deferred Taxes",
+        "Steuerrückstellungen",
+        "Tax Provision"
+      ]
+    },
+    {
+      "kompetenz": "Ertragsteuern und Deklaration",
+      "jahre": 20,
+      "auch": [
+        "Körperschaftsteuer",
+        "Gewerbesteuer",
+        "Organschaft",
+        "Steuererklärungen",
+        "Deklarationsprozess"
+      ]
+    },
+    {
+      "kompetenz": "Steuerliche Due Diligence und Strukturierung",
+      "jahre": 12,
+      "auch": [
+        "Tax Due Diligence",
+        "M&A Tax",
+        "Steuerliche Strukturierung",
+        "Umwandlungssteuerrecht",
+        "Carve-out"
+      ]
+    },
+    {
+      "kompetenz": "Tax Technology und Transformation der Steuerfunktion",
+      "jahre": 6,
+      "auch": [
+        "Tax Technology",
+        "Tax Transformation",
+        "Steuer-IT",
+        "Tax Operating Model",
+        "Automatisierung Steuerprozesse"
+      ]
+    },
+    {
+      "kompetenz": "Risikoorientierte Prüfungsplanung und Prüfungsdurchführung",
+      "jahre": 9,
+      "auch": [
+        "Prüfungsplanung",
+        "Audit Planning",
+        "Prozessprüfungen",
+        "Sonderprüfungen",
+        "Prüfungsberichte",
+        "Maßnahmen-Follow-up"
+      ]
+    },
+    {
+      "kompetenz": "Quality Assessment der Internen Revision",
+      "jahre": 5,
+      "auch": [
+        "Quality Assessment",
+        "External Quality Assessment",
+        "DIIR Revisionsstandard Nr. 3",
+        "IIA Standards",
+        "Global Internal Audit Standards"
+      ]
+    },
+    {
+      "kompetenz": "Governance, Risk und Compliance",
+      "jahre": 10,
+      "auch": [
+        "GRC",
+        "Three Lines Model",
+        "Three Lines of Defense",
+        "Corporate Governance",
+        "COSO"
+      ]
+    },
+    {
+      "kompetenz": "Fraud-Prävention und Sonderuntersuchungen",
+      "jahre": 7,
+      "auch": [
+        "Fraud Prevention",
+        "Forensic Audit",
+        "Dolose Handlungen",
+        "Sonderuntersuchung",
+        "Anti-Fraud-Management"
+      ]
+    },
+    {
+      "kompetenz": "Revision nach MaRisk",
+      "jahre": 4,
+      "auch": [
+        "MaRisk",
+        "BT 2 MaRisk",
+        "Bankenaufsicht",
+        "BaFin",
+        "Revision in Kreditinstituten"
+      ]
+    },
+    {
+      "kompetenz": "Berichterstattung an Prüfungsausschuss und Aufsichtsrat",
+      "jahre": 9,
+      "auch": [
+        "Audit Committee",
+        "Prüfungsausschuss",
+        "Aufsichtsratsreporting",
+        "Vorstandsberichterstattung"
+      ]
+    },
+    {
+      "kompetenz": "Interim Management",
+      "jahre": 9,
+      "auch": [
+        "Interim-Mandate",
+        "Interim Head of Tax",
+        "Interim Head of Internal Audit",
+        "Interim Leitung Revision"
+      ]
+    },
+    {
+      "kompetenz": "Führung von Steuer- und Revisionsteams",
+      "jahre": 14,
+      "auch": [
+        "Teamführung",
+        "Personalverantwortung",
+        "disziplinarische Führung",
+        "Teamaufbau"
+      ]
+    }
+  ],
+  "schwerpunkte": [
+    "Konzernsteuern",
+    "Tax Compliance Management System",
+    "Interne Revision",
+    "Internes Kontrollsystem",
+    "Risikomanagement"
+  ],
+  "wunschrollen": [
+    "Interim Head of Tax",
+    "Leitung Konzernsteuern",
+    "Interim Head of Internal Audit",
+    "Leitung Interne Revision",
+    "Leitung Risikomanagement und IKS"
+  ],
+  "methoden_tools": [
+    {
+      "name": "SAP S/4HANA"
+    },
+    {
+      "name": "SAP GRC Process Control"
+    },
+    {
+      "name": "TeamMate+"
+    },
+    {
+      "name": "ACL Analytics"
+    },
+    {
+      "name": "IDEA (CaseWare)"
+    },
+    {
+      "name": "ONESOURCE Tax Provision"
+    },
+    {
+      "name": "DATEV"
+    },
+    {
+      "name": "Alteryx"
+    },
+    {
+      "name": "Power BI"
+    },
+    {
+      "name": "COSO Internal Control Framework"
+    },
+    {
+      "name": "COSO ERM"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Steuerberaterin"
+    },
+    {
+      "name": "Fachberaterin für Internationales Steuerrecht"
+    },
+    {
+      "name": "Certified Internal Auditor (CIA)"
+    },
+    {
+      "name": "Certification in Risk Management Assurance (CRMA)"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Maschinenbau"
+    },
+    {
+      "branche": "Chemie"
+    },
+    {
+      "branche": "Automobilzulieferer"
+    },
+    {
+      "branche": "Handel"
+    },
+    {
+      "branche": "Finanzdienstleistungen"
+    },
+    {
+      "branche": "Energieversorgung"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C2"
+    },
+    {
+      "sprache": "Französisch",
+      "niveau": "B1"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Verbindet Steuerfunktion, Interne Revision und IKS in einer Person",
+    "Hat vier Tax Compliance Management Systeme bis zur Prüfung nach IDW PS 980 geführt",
+    "Übernimmt Steuer- und Revisionsleitungen kurzfristig und bereitet laufende Betriebsprüfungen auf"
+  ],
+  "keywords": [
+    "Head of Tax",
+    "Konzernsteuern",
+    "Steuerberaterin",
+    "Tax CMS",
+    "Pillar Two",
+    "Verrechnungspreise",
+    "IAS 12",
+    "Interne Revision",
+    "Internal Audit",
+    "IKS",
+    "Risikomanagement",
+    "GRC",
+    "Betriebsprüfung",
+    "IDW PS 980"
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 1300,
+    "laender": [
+      "DE",
+      "AT",
+      "CH"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "anue"
+    ],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "sofort",
+    "zielprofil_min_jahre": 10
+  },
+  "einsatzpraeferenzen": {
+    "tagessatz_wunsch": 1500,
+    "remote": "teilweise",
+    "regionen": [
+      "Düsseldorf",
+      "Köln",
+      "Rhein-Ruhr",
+      "Frankfurt am Main",
+      "Zürich"
+    ],
+    "branchen": [
+      "Maschinenbau",
+      "Chemie",
+      "Finanzdienstleistungen"
+    ]
+  }
+}

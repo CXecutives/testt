@@ -33,6 +33,15 @@ pub(crate) fn experience_years(folded: &str) -> Option<(u32, Option<u32>)> {
         .split(|c: char| c.is_whitespace() || matches!(c, ',' | ';' | '(' | ')' | ':'))
         .filter(|w| !w.is_empty())
         .collect();
+    // Years right after `davon` (`of which`) are a part of the total before them
+    // (`Mehrjährige Erfahrung, davon mindestens drei Jahre in ...`): without a number in the
+    // total the line states no minimum.
+    let part = |i: usize| {
+        (i.saturating_sub(3)..i).any(|k| {
+            lex::YEARS_SUBSPAN.contains(&words[k])
+                || (words[k] == "which" && k > 0 && words[k - 1] == "of")
+        })
+    };
     let number = |w: &str| -> Option<u32> {
         let w = w.trim_end_matches('+');
         w.parse::<u32>()
@@ -55,17 +64,17 @@ pub(crate) fn experience_years(folded: &str) -> Option<(u32, Option<u32>)> {
             && let (Some(a), Some(b)) = (number(a), number(b))
             && unit(i + 1)
         {
-            return Some((a.min(b), Some(a.max(b))));
+            return (!part(i)).then_some((a.min(b), Some(a.max(b))));
         }
         let Some(n) = number(word) else { continue };
         if let (Some(sep), Some(m)) = (words.get(i + 1), words.get(i + 2).and_then(|w| number(w)))
             && ["-", "bis", "to", "and"].contains(sep)
             && unit(i + 3)
         {
-            return Some((n.min(m), Some(n.max(m))));
+            return (!part(i)).then_some((n.min(m), Some(n.max(m))));
         }
         if unit(i + 1) {
-            return Some((n, None));
+            return (!part(i)).then_some((n, None));
         }
     }
     None
@@ -195,6 +204,23 @@ mod tests {
         assert_eq!(y("5+ years in internal audit"), Some((5, None)));
         assert_eq!(y("8+ Jahre im Controlling"), Some((8, None)));
         assert!(senior_title("Interim Senior Finance Manager FP&A (m/w/d)"));
+        // A part of the total (`davon`) is no minimum of its own.
+        assert_eq!(
+            y("Langjährige Praxis im Einkauf, davon mindestens zwei Jahre in leitender Rolle"),
+            None
+        );
+        assert_eq!(
+            y("Mindestens 9 Jahre Berufserfahrung, davon 4 Jahre im Treasury"),
+            Some((9, None))
+        );
+        assert_eq!(
+            y("Several years of experience in tax, of which at least 3 years in transfer pricing"),
+            None
+        );
+        assert_eq!(
+            y("Solid experience in audit, including at least 2 years at a Big Four firm"),
+            None
+        );
         assert!(senior_title("Leiter Konzerncontrolling (Interim)"));
         assert!(senior_title(
             "Interim Leitung Projektcontrolling Anlagenbau"

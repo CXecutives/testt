@@ -1,0 +1,56 @@
+Titel: SAP FI Anwendungsbetreuer (m/w/d) Kreditorenbuchhaltung – Arbeitnehmerüberlassung
+Unternehmen: Neckarbogen Personaldienste GmbH
+Ort: D-68159 Mannheim
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1318842
+Abgerufen am: 22.09.2026 18:24
+
+Projekt-ID: 1318842
+Ort: Mannheim
+Remote: 20 %
+Start: 01.11.2026
+Dauer: 12 Monate
+Vertragsart: Arbeitnehmerüberlassung
+Honorar: 62 - 68 € pro Stunde
+Letztes Update: 22.09.2026
+
+Projektbeschreibung
+Für unseren Kunden, einen Energieversorger aus der Metropolregion Rhein-Neckar, suchen wir im Rahmen der Arbeitnehmerüberlassung einen SAP FI Anwendungsbetreuer (m/w/d) mit Schwerpunkt Kreditorenbuchhaltung.
+
+Aufgaben:
+- Betreuung der Fachbereiche Kreditorenbuchhaltung und Zahlungsverkehr in SAP S/4HANA (Second-Level-Support)
+- Bearbeitung von Tickets und kleineren Anpassungen im Customizing FI-AP (Zahlungsbedingungen, Mahnwesen, Zahlprogramm F110)
+- Unterstützung bei der Einführung der elektronischen Rechnungsverarbeitung (E-Rechnung, XRechnung, ZUGFeRD)
+- Mitarbeit an Tests und Dokumentation, Schulung von Key Usern
+- Unterstützung beim Monatsabschluss
+
+Anforderungen:
+- 2 bis 3 Jahre Erfahrung in der Betreuung von SAP FI, idealerweise FI-AP
+- Kenntnisse der Prozesse in der Kreditorenbuchhaltung
+- Sicherer Umgang mit MS Excel
+- Gute Deutschkenntnisse, Englisch von Vorteil
+
+Hinweis zur Vertragsform: Der Einsatz erfolgt ausschließlich im Rahmen der Arbeitnehmerüberlassung nach dem AÜG. Sie werden für die Dauer des Einsatzes bei der Neckarbogen Personaldienste GmbH angestellt, der genannte Stundensatz ist ein Bruttostundenlohn. Eine Übernahme durch den Kunden nach 12 Monaten ist möglich.
+
+Kategorien und Skills
+SAP FI
+SAP FI-AP
+Kreditorenbuchhaltung
+S/4HANA
+Zahlungsverkehr
+E-Rechnung
+
+Projektanbieter
+Neckarbogen Personaldienste GmbH
+Die Kontaktdaten des Projektanbieters sind nur für angemeldete Freelancer sichtbar.
+Projekt merken
+Jetzt bewerben
+
+Ähnliche Projekte
+SAP FI/CO Berater S/4HANA (m/w/d)
+Heidelberg · 01.12.2026
+Buchhalter Kreditoren (m/w/d) ANÜ
+Ludwigshafen · ab sofort
+SAP Inhouse Consultant Finance (m/w/d)
+Karlsruhe · 6 Monate
+Alle Projekte in SAP FI anzeigen
