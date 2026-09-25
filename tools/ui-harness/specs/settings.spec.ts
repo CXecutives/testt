@@ -155,7 +155,7 @@ test('the trash empties itself after 30 days unless switched off', async ({ page
   const trash = page.getByTestId('toggle-auto-empty-trash');
   const fetch = page.getByTestId('settings-fetch');
   await expect(fetch).toContainText('Papierkorb nach 30 Tagen leeren');
-  await expect(fetch).toContainText('Gelöschte Jobs sind danach endgültig weg.');
+  await expect(fetch).toContainText('Jobs im Papierkorb werden dann endgültig gelöscht.');
   const on = (await trash.getAttribute('aria-checked')) === 'true';
   await trash.click();
   await expect(trash).toHaveAttribute('aria-checked', on ? 'false' : 'true');
@@ -350,9 +350,7 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   );
   await expect(pause).toHaveClass(/info/);
   const mails = page.getByTestId('health-freelance');
-  await expect(mails.locator('.text')).toHaveText(
-    '2 Alert-Mails enthielten keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
-  );
+  await expect(mails.locator('.text')).toHaveText('In 2 Alert-Mails fand die App keine Jobs.');
   await expect(mails).toHaveClass(/warning/);
   // The hour binds: bar and words speak of the same window.
   const quota = page.getByTestId('quota-freelancermap');

@@ -102,13 +102,7 @@
 
   const SORTS: readonly JobSort[] = ['match', 'newest'];
   // In the Papierkorb the date is the day a job went there (what its row shows).
-  const sorts = $derived(
-    SORTS.map((sort) => ({
-      id: sort,
-      label:
-        sort === 'newest' && place === 'trash' ? t.toolbar.sortDeleted : t.toolbar.sortLabel[sort],
-    })),
-  );
+  const sorts = $derived(SORTS.map((sort) => ({ id: sort, label: t.toolbar.sortLabel[sort] })));
 
   /** "Alle als gelesen markieren" is on its way: a second click (a double click) waits. */
   let marking = false;

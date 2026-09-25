@@ -82,7 +82,11 @@ class Toasts {
   ): number {
     const id = this.#next++;
     this.items = [...this.items, { id, text, tone, action, round: 0 }];
-    while (this.items.length > MAX) this.dismiss(this.items[0]!.id);
+    // Too many: the oldest without an action goes first, so a tip never takes an undo away.
+    while (this.items.length > MAX) {
+      const plain = this.items.find((item) => item.action === null && item.id !== id);
+      this.dismiss((plain ?? this.items[0]!).id);
+    }
     this.#timers.set(id, { timer: null, left: lifetime(action), since: 0 });
     this.#latest.set(id, ++this.#results);
     if (keys.length > 0) this.#keys.set(id, new Set(keys));

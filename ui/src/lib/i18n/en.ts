@@ -162,7 +162,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   secretStore: 'The system’s password store cannot be reached.',
   secretCorrupt: 'The stored app password cannot be read.',
   portalUnavailable: (p) => `No connection to ${portalOf(p.portal)}.`,
-  portalPaused: (p) => `Fetching from ${portalOf(p.portal)} is paused right now.`,
+  portalPaused: (p) => `${portalOf(p.portal)} is paused right now.`,
   portalQuota: (p) => `The limit for ${portalOf(p.portal)} is reached.`,
   internal: INTERNAL,
   unknown: INTERNAL,
@@ -184,12 +184,12 @@ const profileField: Record<string, string> = {
   languages: 'Languages',
   minDayRate: 'Minimum day rate',
   countries: 'Countries',
-  contracts: 'Excluded contract types',
-  remoteOutside: 'Allow remote roles abroad',
+  contracts: 'Temporary agency work and permanent jobs',
+  remoteOutside: 'Allow remote jobs abroad',
   available: 'Available from',
-  targetYears: 'Minimum seniority of the role',
+  targetYears: 'Minimum experience of the job',
   minSalary: 'Minimum annual salary',
-  permanentPlaces: 'Locations for permanent roles',
+  permanentPlaces: 'Locations for permanent jobs',
   permanentRemoteMin: 'Minimum remote share',
   focus: 'Focus areas',
   roles: 'Target roles',
@@ -252,14 +252,15 @@ const detailSays = {
   teaser: 'Without a sign-in, the portal shows only the start of the ad.',
   unfetchable: 'The ad could not be fetched after several tries.',
   gone: 'The ad is no longer online.',
-  onRequest: 'Older jobs get their details only on request.',
+  onRequest: 'The app fetches these details only on request.',
 } as const;
 
-/** Alert emails without jobs, and what to do about them (the overview and the settings). */
+/** Alert emails in which the app found no jobs (the overview and the settings, next to the
+ *  button that opens the email). */
 const emptyMails = (mails: number): string =>
   mails === 1
-    ? 'One alert email had no jobs, so please check it in Gmail.'
-    : `${n(mails)} alert emails had no jobs, so please check them in Gmail.`;
+    ? 'The app found no jobs in one alert email.'
+    : `The app found no jobs in ${n(mails)} alert emails.`;
 
 /** A profile file the app cannot read (the list, the overview, the Profile view). */
 const PROFILE_UNREADABLE = 'Profile cannot be read';
@@ -316,12 +317,12 @@ function remoteWish(p: Params): string {
   const level = typeof p.level === 'string' ? REMOTE_LEVEL[p.level] : undefined;
   const wished = level ? `, and you prefer ${level}` : '';
   let ad: string;
-  if (p.share === 0) ad = 'The role is fully on site';
-  else if (p.share === 100) ad = 'The role is fully remote';
-  else if (typeof p.share === 'number') ad = `The role is ${formatPercent(p.share)} remote`;
+  if (p.share === 0) ad = 'The job is fully on site';
+  else if (p.share === 100) ad = 'The job is fully remote';
+  else if (typeof p.share === 'number') ad = `The job is ${formatPercent(p.share)} remote`;
   else if (typeof p.from === 'number' && typeof p.to === 'number')
-    ad = `The role is ${str(p.from)} to ${formatPercent(p.to)} remote`;
-  else ad = 'The role is partly remote';
+    ad = `The job is ${str(p.from)} to ${formatPercent(p.to)} remote`;
+  else ad = 'The job is partly remote';
   return `${ad}${wished}.`;
 }
 
@@ -329,10 +330,10 @@ function regionWish(p: Params): string {
   switch (p.state) {
     case 'met':
       return p.remote === true
-        ? 'The role is fully remote, so the region does not matter.'
+        ? 'The job is fully remote, so the region does not matter.'
         : `${str(p.location)} is in one of your preferred regions.`;
     case 'near':
-      return `${str(p.location)} is outside your preferred regions, but the role is mostly remote.`;
+      return `${str(p.location)} is outside your preferred regions, but the job is mostly remote.`;
     case 'missed':
       return `${str(p.location)} is outside your preferred regions.`;
     default:
@@ -374,19 +375,19 @@ const reasonCode = {
     `The start is ${count(num(p.days), 'day', 'days')} before you are available.`,
   startVague: 'The start date is unclear.',
   permanent: (p) => {
-    if (p.excluded !== true) return 'This sounds like a permanent role.';
+    if (p.excluded !== true) return 'This sounds like a permanent job.';
     return p.stated === true
-      ? 'This is a permanent role, which the profile excludes.'
-      : 'This sounds like a permanent role, which the profile excludes.';
+      ? 'This is a permanent job, which the profile excludes.'
+      : 'This sounds like a permanent job, which the profile excludes.';
   },
   permanentRegion: (p) =>
     p.location
-      ? `The permanent role in ${str(p.location)} is outside the region in the profile.`
-      : 'The permanent role is outside the region in the profile.',
+      ? `${str(p.location)} is outside your locations for permanent jobs.`
+      : 'The location is outside your locations for permanent jobs.',
   permanentRegionUnclear: (p) =>
     p.location
-      ? `It is unclear whether ${str(p.location)} is in the region.`
-      : 'The location of the permanent role is unclear.',
+      ? `It is unclear whether ${str(p.location)} is one of your locations for permanent jobs.`
+      : 'The location of the permanent job is unclear.',
   salary: (p) => {
     if (p.salary === undefined || p.salary === null || p.min === undefined) {
       return 'The salary is below the minimum in the profile.';
@@ -401,15 +402,13 @@ const reasonCode = {
   salaryUnknown: 'The ad names no salary.',
   tooJunior: (p) =>
     p.years !== undefined && p.years !== null
-      ? `The role asks for ${count(num(p.years), 'year', 'years')} of experience, while the profile targets ${count(num(p.target), 'year', 'years')}.`
-      : 'The role is meant for people with less experience.',
+      ? `The job asks for ${count(num(p.years), 'year', 'years')} of experience, while the profile targets ${count(num(p.target), 'year', 'years')}.`
+      : 'The job is meant for people with less experience.',
   seniorityUnclear: (p) =>
-    p.junior
-      ? 'The title sounds like a junior role.'
-      : 'The level of experience sought is unclear.',
+    p.junior ? 'The title sounds like a junior job.' : 'The level of experience sought is unclear.',
   overqualified: (p) =>
     p.years !== undefined && p.years !== null
-      ? `The role asks for ${count(num(p.years), 'year', 'years')} of experience, and the profile has much more.`
+      ? `The job asks for ${count(num(p.years), 'year', 'years')} of experience, and the profile has much more.`
       : 'The profile has much more experience than sought.',
   contractType: (p) => contractName(p),
   formalOpen: (p) => {
@@ -457,9 +456,9 @@ const criteria = {
     exclusion: ANUE,
   },
   noPermanent: {
-    label: 'Permanent role',
-    short: 'Permanent role',
-    exclusion: 'This is a permanent role, which the profile excludes.',
+    label: 'Permanent job',
+    short: 'Permanent job',
+    exclusion: 'This is a permanent job, which the profile excludes.',
   },
   availability: {
     label: 'Availability',
@@ -473,20 +472,20 @@ const criteria = {
   },
   permanentRegion: {
     label: 'Locations',
-    short: 'Location outside the region',
-    exclusion: 'The permanent role is outside the region in the profile.',
+    short: 'Location does not fit',
+    exclusion: 'The location is outside your locations for permanent jobs.',
   },
   targetYears: {
     label: 'Experience',
     short: 'Experience does not fit',
-    exclusion: 'The role asks for much less experience.',
+    exclusion: 'The job asks for much less experience.',
   },
 } satisfies Catalog['reader']['criterion'];
 
 /** `JobMatch.note` / `MatchDetail.summary` codes. */
 const note = {
   hardCriterion: 'An exclusion criterion applies.',
-  shortText: 'Too little text for a score.',
+  shortText: 'Too little text to score.',
   lowEvidence: LOW_TEXT,
   engineFailed: 'This ad could not be scored.',
 } satisfies Catalog['reader']['note'];
@@ -636,11 +635,11 @@ export const en: Catalog = {
       trash: 'The trash is empty.',
     } satisfies Record<Place, string>,
     reader: {
-      archive: 'Archived jobs stay here until you bring them back or delete them.',
-      trash: 'Deleted jobs stay here until you restore them or empty the trash.',
+      archive: 'Archived jobs stay here until you bring them back.',
+      trash: 'Jobs in the trash stay here until you restore them or empty the trash.',
     } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
-      `Deleted jobs stay here for ${count(days, 'day', 'days')} and are then gone forever.`,
+      `Jobs in the trash are deleted forever after ${count(days, 'day', 'days')}.`,
   },
   actions: {
     archive: 'Archive',
@@ -651,7 +650,7 @@ export const en: Catalog = {
     purgeConfirm: 'Delete',
     purgeHeading: (value: number) =>
       value === 1 ? 'Delete the job forever?' : `Delete ${n(value)} jobs forever?`,
-    purgeText: 'Deleted jobs never come back, not even from old alert emails.',
+    purgeText: 'Jobs deleted forever never come back, not even from old alert emails.',
     emptyTrash: 'Empty trash',
     emptyTrashConfirm: 'Empty',
     emptyTrashHeading: 'Empty the trash?',
@@ -697,7 +696,7 @@ export const en: Catalog = {
       check: 'To check',
     } satisfies Record<ReasonKind, string>,
     weight: {
-      must: 'Required',
+      must: 'Must-have',
       nice: 'Optional',
       hard: 'Exclusion',
       info: 'Note',
@@ -752,7 +751,6 @@ export const en: Catalog = {
       match: 'By match',
       newest: 'By date',
     } satisfies Record<JobSort, string>,
-    sortDeleted: 'By date deleted',
     sortNoProfile: 'Without a profile, jobs sort by date only.',
     needsMailbox: 'Connect a mailbox first.',
     needsPortal: 'Switch on a portal first.',
@@ -772,7 +770,7 @@ export const en: Catalog = {
     },
     ofTotal: (total: number) => `of ${n(total)}`,
     newPill: (value: number) => `${n(value)} new`,
-    topPill: (value: number) => count(value, 'fits well', 'fit well'),
+    topPill: (value: number) => `${n(value)} high match`,
     resumesIn: (ms: number) => `Resumes in ${formatCountdown(ms)}`,
     kind: {
       fetch: 'Fetch',
@@ -783,6 +781,7 @@ export const en: Catalog = {
     done: 'Fetch done',
     rescored: 'Scored again',
     nothingNew: 'Nothing new since the last fetch.',
+    showNew: 'Show new jobs',
     cancelled: 'Fetch cancelled',
     failed: 'Fetch failed',
     details: {
@@ -893,8 +892,8 @@ export const en: Catalog = {
       `${n(met)} of ${n(total)} must-have requirements met` +
       (partial > 0 ? `, ${n(partial)} partly` : ''),
     noMust: 'No must-have requirements found',
-    frame: 'Terms',
-    anueCheck: 'It is not certain whether the role is temporary agency work.',
+    frame: 'Conditions',
+    anueCheck: 'It is not certain whether the job is temporary agency work.',
     contractLabel: 'Contract type',
     criterion: criteria,
     criterionHint: {
@@ -913,10 +912,10 @@ export const en: Catalog = {
     restore: 'Restore',
     override: 'Include anyway',
     overrideUndo: 'Exclude again',
-    overridden: 'You marked this job as a match.',
+    overridden: 'You included this job anyway.',
     prompt: 'Copy prompt for AI assessment',
     promptShort: 'Copy prompt',
-    promptHint: 'Copies the ad and the profile as a ready prompt for an AI.',
+    promptHint: 'Copies the ad and the profile as a prompt for an AI.',
     promptNotCopied: 'The prompt could not be copied.',
     preliminary: 'Provisional, scored from a teaser',
     mail: OPEN_MAIL,
@@ -977,7 +976,7 @@ export const en: Catalog = {
         `The limit is reached, so fetching resumes by itself at ${formatMoment(iso)}.`,
       emptyMails,
       pages: 'The pages of the portal look different, so the next fetch tries again by itself.',
-      login: 'The sign-in has expired, so please sign in again.',
+      login: 'The sign-in has expired, so sign in again.',
     },
   },
   profile: {
@@ -990,7 +989,8 @@ export const en: Catalog = {
     pickOther: 'Choose another file',
     remove: 'Remove',
     removeHeading: 'Remove profile?',
-    removeText: 'The jobs then show no match. The file stays as a backup in the profile folder.',
+    removeText:
+      'The jobs then show no match, and the file stays as a backup in the profile folder.',
     removed: 'Profile removed.',
     savedAt: (moment: string) => `Saved ${moment}`,
     unnamed: 'Profile without a name',
@@ -1047,7 +1047,7 @@ export const en: Catalog = {
       languages: 'Languages',
       wishes: 'Preferences',
       criteria: 'Exclusion criteria',
-      permanent: 'Permanent roles',
+      permanent: 'Permanent jobs',
       availability: 'Availability',
       understood: 'How the app reads your profile',
     },
@@ -1056,10 +1056,10 @@ export const en: Catalog = {
       competences: 'Only this block is required, and the app scores every job by it.',
       experience: 'With these, the app checks what an ad asks for.',
       languages: 'The app compares them with the languages an ad asks for.',
-      wishes: 'Preferences nudge the score but never exclude a job.',
+      wishes: 'Preferences nudge the match but never exclude a job.',
       criteria: 'A job that does not fit here counts as excluded.',
-      permanent: 'These rules apply to permanent roles only.',
-      availability: 'A job that starts earlier is marked to check, never excluded.',
+      permanent: 'These rules apply to permanent jobs only.',
+      availability: 'A job that starts earlier is marked to check.',
     },
     field: {
       name: 'Name',
@@ -1067,7 +1067,7 @@ export const en: Catalog = {
       title: 'Role',
       titlePlaceholder: 'e.g. Interim manager',
       roles: 'Target roles',
-      rolesHint: 'An ad whose title fits one scores a little higher.',
+      rolesHint: 'An ad whose title fits one gets a slightly higher match.',
       rolesPlaceholder: 'e.g. Interim management',
       competence: 'Skill',
       competencePlaceholder: 'e.g. Project management',
@@ -1093,7 +1093,7 @@ export const en: Catalog = {
       keywordsPlaceholder: 'e.g. Transformation',
       keywordsHint: 'Terms that appear in matching ads.',
       totalYears: 'Professional experience',
-      totalYearsHint: 'From ten years on, junior roles score low.',
+      totalYearsHint: 'From ten years on, junior jobs score low.',
       degrees: 'Degrees',
       degreesPlaceholder: 'e.g. Master',
       industries: 'Industries',
@@ -1116,30 +1116,33 @@ export const en: Catalog = {
       wishIndustries: 'Preferred industries',
       wishIndustriesPlaceholder: 'e.g. Energy',
       minDayRate: 'Minimum day rate',
-      minDayRateHint: 'A job whose rate is lower is left out.',
       countries: 'Countries',
       countriesPlaceholder: 'Search for a country',
       countryNone: 'No country by this name.',
       dach: 'Add DACH',
-      remoteOutside: 'Allow remote roles abroad',
-      remoteOutsideHint: 'When off, the app marks fully remote roles based abroad to check.',
+      remoteOutside: 'Allow remote jobs abroad',
+      remoteOutsideHint: 'When off, the app marks fully remote jobs based abroad to check.',
       remoteOutsideOff: 'Choose the countries first.',
       noAnue: 'Exclude temporary agency work',
-      noPermanent: 'Exclude permanent roles',
+      noPermanent: 'Exclude permanent jobs',
       noPermanentHint: 'Only on clear wording, otherwise the app marks the job to check.',
       available: 'Available from',
       date: 'Date',
       datePlaceholder: '01/11/2026',
       dateInvalid: 'Enter the date as 01/11/2026.',
-      targetYears: 'Minimum seniority of the role',
-      targetYearsHint: 'Roles for far less experienced people are left out.',
+      dateImpossible: 'This day does not exist.',
+      targetYears: 'Minimum experience of the job',
+      targetYearsHint: 'Jobs for far less experienced people are excluded.',
       minSalary: 'Minimum annual salary',
-      places: 'Locations for permanent roles',
+      places: 'Locations for permanent jobs',
       placesPlaceholder: 'e.g. Munich',
       remoteMin: 'Minimum remote share',
       remoteMinHint:
-        'Outside these locations, a permanent role counts only with at least this much remote work.',
+        'Outside the locations for permanent jobs, a job needs at least this much remote work.',
       rounded: 'Rounded down to whole euros.',
+      roundedWhole: 'Rounded down to a whole number.',
+      refused: 'This value does not fit.',
+      atMost: (max: number) => `At most ${n(max)}.`,
       unreadableNumber: (value: string) => `The file said “${value}”, which is not a number.`,
       unreadableDate: (value: string) => `The file said “${value}”, which is not a date.`,
       unreadableValue: (value: string) => `The file said “${value}”, which the app cannot read.`,
@@ -1189,6 +1192,7 @@ export const en: Catalog = {
       fileOnly: (name: string) => `${name}, only in the file`,
       years: 'Professional experience',
       yearsValue: (value: number) => count(value, 'year', 'years'),
+      yearsFrom: (value: number) => `from ${count(value, 'year', 'years')}`,
       degrees: 'Degrees',
       packs: 'Specialist vocabulary',
       criteria: 'Exclusion criteria',
@@ -1208,7 +1212,7 @@ export const en: Catalog = {
         abschluss: 'Degrees',
         ausbildung: 'Degrees',
         schwerpunkte: 'Focus areas',
-        stationen: 'Career stages',
+        stationen: 'Career history',
         projekte: 'Projects',
       } as Record<string, string>,
     },
@@ -1227,7 +1231,7 @@ export const en: Catalog = {
   },
   settings: {
     mailbox: 'Mailbox',
-    fetch: 'Fetch',
+    automatic: 'Automatic',
     portals: 'Portals',
     files: 'Files',
     maintenance: 'Maintenance',
@@ -1257,7 +1261,7 @@ export const en: Catalog = {
     autoArchive: 'Archive jobs after 30 days',
     autoArchiveHint: 'Favourites are never archived.',
     autoEmptyTrash: 'Empty the trash after 30 days',
-    autoEmptyTrashHint: 'Deleted jobs are then gone forever.',
+    autoEmptyTrashHint: 'Jobs in the trash are then deleted forever.',
     active: 'Active',
     details: 'Fetch details',
     needsDetails: 'Turn on “Fetch details” first.',
@@ -1282,6 +1286,7 @@ export const en: Catalog = {
     workspaceDefault: 'Default',
     excel: 'Excel file',
     excelMissing: 'The Excel file is created at the first fetch.',
+    overview: 'Overview',
     txt: 'Text files',
     txtCount: (value: number) => `${count(value, 'ad', 'ads')} as text for an AI assessment`,
     txtLeftBehind: 'The text files are still in the old folder, and “Rewrite” puts them here.',
@@ -1316,7 +1321,7 @@ export const en: Catalog = {
     languageLabel: 'App language',
     languageHint: 'The Excel file and the overview switch at the next fetch.',
     languageName: {
-      de: 'German',
+      de: 'Deutsch',
       en: 'English',
     } satisfies Record<Language, string>,
   },
@@ -1343,7 +1348,7 @@ export const en: Catalog = {
   toast: {
     rescored: 'Jobs scored again.',
     copied: 'Copied.',
-    prompt: 'Prompt copied, ready for an AI chat.',
+    prompt: 'Prompt copied.',
     archivedOne: (name: string) => `“${name}” archived.`,
     trashedOne: (name: string) => `“${name}” moved to the trash.`,
     trashedMany: (value: number) => `${n(value)} jobs moved to the trash.`,

@@ -1,8 +1,10 @@
 # Matching
 
 How the app scores a job against the consultant profile, how the old engine worked, and how
-the new engine is measured against it. Code: `core/src/matching`. Tests:
-`core/tests/matching_legacy.rs`, `core/tests/matching_corpus.rs`, `core/tests/common/eval.rs`.
+the new engine is measured against it. Code: `core/src/matching`. Tests: `core/tests/matching_legacy.rs`,
+`matching_corpus.rs`, `matching_heldout.rs`, `matching_generalisation.rs`, `matching_criteria.rs`,
+`matching_profiles.rs`, `matching_wishes.rs`, `matching_page_facts.rs`, `matching_fuzz.rs`, `countries.rs`,
+`core/tests/common/eval.rs`, `core/examples/common/metrics.rs`.
 
 ## The old engine (v3, `ca9a2cd^:matcher.py`)
 
@@ -56,8 +58,8 @@ marks that job); the script refuses to change them.
 
 ## Corpus and gates
 
-`core/tests/fixtures/matching`: four invented profiles and 52 invented ads K01-K52 in the TXT
-contract format.
+`core/tests/fixtures/matching`: four invented profiles (plus `wish` and `wishSap`, see "Version 4
+against version 3") and 58 invented ads K01-K58 in the TXT contract format.
 
 | Key | Profile | Notes |
 |---|---|---|
@@ -79,7 +81,7 @@ committed before the engine change and are gated from `ENGINE_VERSION` 3 on (`pr
 --extend`, which refuses when any frozen entry would change.
 
 Gates (`matching_corpus.rs`, all on):
-- parity: `legacy_percent` == `legacy.json` (4 x 52), 35 old tests green;
+- parity: `legacy_percent` == `legacy.json` (6 x 58), 35 old tests green;
 - per job and profile: band distance of the new score <= that of the old score (absent or
   unscorable = 0), and the sum strictly smaller;
 - decided exclusions and status exactly as in `corpus.json`; expected checks raised; `mustOpen`
@@ -137,6 +139,7 @@ Nothing person-specific is in code: every threshold comes from the profile.
 | `harte_kriterien.festanstellung_remote_min` | `permanent_remote_min` | remote share (percent) that accepts a place outside the region; without places the rule stays off (warning `regionWithoutPlaces`) |
 | `harte_kriterien.zielprofil_min_jahre` | `target_min_years` | minimum years an ad's target profile must ask for |
 | `harte_kriterien.ausgeschlossene_vertragsarten` | `excluded_contract_types` | excluded contract types: `anue` (temporary agency work), `festanstellung` or `permanent` (permanent employment, version 11) |
+| `harte_kriterien.laender` | `hard_criteria.countries` | allowed countries: ISO codes or country names (`Deutschland`, `Österreich`, `UK` = `GB`), a list or one text; one unknown entry makes it no rule (`criterionNotUnderstood`), versions 13 and 15 |
 | `berufserfahrung_jahre` | `years_of_experience`, `total_years` | total years of experience |
 | `<list>[].auch` | `aliases` | alternative terms of a competence |
 
@@ -596,9 +599,31 @@ recall 0.85, at most 1 buried). The rest are judgement calls and the open decisi
 jobs (read as a day rate x 8, the labels read them as employment pay). The app scores every stored job again after the
 update (revision `e14.4:{fingerprint}`).
 
-### Rubric of the Claude check
+### Version 15: whole headings of the other listings
 
-`core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the
+Version 12 took any short line that starts with a heading of `lexicon::OTHER_LISTINGS` for one, with no word boundary.
+So an ordinary requirement line (`Ähnliche Projekterfahrung von Vorteil`, `Weitere Projekte sind bereits geplant.`)
+ended the ad for the hard criteria, and an ANÜ or a low day rate below it no longer excluded. A portal's list item
+reaches the engine as such a bare line.
+
+- `facts::is_listings_heading` takes a line for a heading only with the heading's words whole, followed by nothing, a
+  count (`(12)`), a colon or a known tail of `lexicon::LISTING_TAILS` (`anzeigen`, `dieses Anbieters`). `own_text`
+  and the requirement parser's headings (`job.rs`, for the entries shared with `OTHER_PREFIXES`) use it.
+- Tests: `the_other_listings_under_an_ad_are_no_part_of_it` (`facts.rs`) and
+  `a_requirement_that_starts_like_other_listings_keeps_the_ad_whole` (`matching_criteria.rs`).
+- Country names: `lexicon::COUNTRIES` knows every country the Profil view offers by its German and English name
+  (`Norwegen`, `Denmark`, `Czechia`, ...), so no name the app itself uses switches the country rule off
+  (`every_country_name_of_the_app_reads_back_to_its_code` in `core/tests/countries.rs`,
+  `country_names_in_a_profile_keep_the_country_rule` in `matching_criteria.rs`).
+- The floor of held-out set 7 is now the level engine 12 reached (NDCG@10 0.91, Spearman 0.44, exclusion precision
+  0.98, at most 2 buried), so undoing the other-listings rule fails it.
+
+The corpus rows and held-out sets 1 to 8 are unchanged; the golden digest changed only by its version line. The app
+scores every stored job again after the update.
+
+### Rubric of the AI prompts
+
+`core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's AI prompts and the
 `job-matching` skill (`tools/job-matching-skill/rubric.de.md`, identical): bands 1 to 10 (9 to
 10 only with a met Schwerpunkt when the profile names some), the caps of the render check,
 contract and ANÜ rules, wishes never exclude and move at most one point. `core/tests/rubric.rs`
@@ -741,7 +766,9 @@ sap K32 71 (teaser).
 | K51 | 55-85 | 50 | 68 excl | 15-45 | 0 | 25 | permanent, salaryUnknown, permanentRegion, tooJunior / permanent, salaryUnknown |
 | K52 | 25-45 | 60 | 40 | 10-40 | 20 | 31 | formalOpen / formalOpen |
 
-Private gold set (real ads, blind grades 0-3, NDCG@10, P@5, Spearman, high-band precision, bootstrap): pending (phase 5).
+Private gold set (real ads, blind grades 0-3, NDCG@10, P@5, Spearman, high-band precision, bootstrap): not built; the
+evaluation used eight blind held-out sets of invented ads instead ("All held-out sets and the corpus at version 13",
+"Version 14"). `export_gold`, `match_eval` and the gates are ready for real ads (`core/tests/gold_eval.rs`).
 
 ### Version 4 against version 3
 
@@ -811,9 +838,9 @@ scored and nothing is pending. Jobs without text are judged from title and locat
 | Output | Content |
 |---|---|
 | List (`JobMatch`, stored) | status, score, `mustMet`/`mustTotal`, `top` (<= 2 met musts, then nice), `note`: first violation code (excluded), `shortText` (unscorable), else first check code; params flattened to scalars (lists joined with `, `); `facts` (`KeyFacts`, null values left out in the store) |
-| Reader (`MatchDetail`, recomputed) | reasons `r{id}` (<= 40: violations, checks, musts, nice, info), highlights `h{id}` of kept reasons (<= 200, UTF-16), `summary` = `{code: "summary", params: mustMet, mustPartial, mustOpen, mustTotal, niceMet, niceTotal, evidence}`, criteria strip `c:{key}` for every criterion the profile sets that fits the contract type (kind met only with the ad's value as evidence, open = not mentioned, check, violation; profile values, the ad's value, `reason` id, the passages) |
+| Reader (`MatchDetail`, recomputed) | reasons `r{id}` (<= 40: violations, checks, musts, nice, info), highlights `h{id}` of kept reasons (<= 200, UTF-16), `summary` = `{code: "summary", params: mustMet, mustPartial, mustOpen, mustTotal, niceMet, niceTotal, evidence}`, criteria strip `c:{key}` for every criterion the profile sets that fits the contract type (kind met only with the ad's value as evidence, open = not mentioned, check, violation; profile values, the ad's value, `reason` id, the passages); the reader adds the ad's rate and start from its facts as plain chips where no criterion covers them |
 | Profile (`ProfileInfo`) | quality, understood (competences, source path patterns, criteria `{code, params.set, ...}`, warnings), `scoredAt`, `pending` |
-| `auswertung/top_matches.json` | for the matching skill (optional stage 2): `{schema, generatedAt, rev, jobs[<=10]{key, title, company, location, portal, url, score, band, mustMet, mustTotal, met, partial, open, checks, txtFile}}`, scored jobs of the last mailbox run, best first |
+| `auswertung/top_matches.json` | for the matching skill (optional stage 2), schema 2: `{schema, generatedAt, rev, jobs[<=10]{key, title, company, location, portal, url, score, band, mustMet, mustTotal, appStatus, firstSeenAt, met, partial, open, checks, txtFile}}`: the best scored inbox jobs (or counted anyway by the user) that are unread or a favourite (`appStatus` `saved`), the ad still open, from alert mails of the last 14 days, best first; written by every run and 2 s after the last mark |
 
 Rust starts a `rescore` run by itself (rules in `pipeline::rescore`): after choosing or removing the
 profile or another workspace with another profile (no usable profile: scores are cleared first), at the

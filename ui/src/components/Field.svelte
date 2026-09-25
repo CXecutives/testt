@@ -2,9 +2,12 @@
   Label, control, hint (or the error in its place) and the hint's way on, which stays while
   an error shows: it is what helps most then. The way on is a navy link (it underlines on
   hover; one that leaves the app shows the hand) whose text lines up with the edges of the
-  field, next to the hint or on a line of its own.
+  field, and it always ends the helper line: the message beside it shrinks and wraps, so it
+  stands in the same place in a half-width field as in a full-width one. The message's id is
+  shared with the control inside (its `aria-describedby`) only while a message shows.
 -->
 <script lang="ts">
+  import { describe } from '$lib/state/described';
   import type { Snippet } from 'svelte';
   import Button from './Button.svelte';
   import Icon, { type IconName } from './Icon.svelte';
@@ -21,13 +24,15 @@
   }
 
   let { label, for: control, hint = null, action = null, error = null, children }: Props = $props();
+
+  describe(() => (error || hint ? `${control}-message` : null));
 </script>
 
 <div class="field">
   <label class="label" for={control}>{label}</label>
   {@render children()}
   {#if error || hint || action}
-    <div class="help">
+    <div class="help" class:acts={action !== null}>
       {#if error}
         <p class="error" id="{control}-message" role="alert">
           <Icon name="triangle-alert" size="sm" />
@@ -84,13 +89,27 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-4) var(--space-12);
     min-height: var(--control-sm);
   }
 
+  /* With a way on, the message shrinks and the way on ends its first line. */
+  .acts {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .acts > .hint,
+  .acts > .error {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-block: calc((var(--control-sm) - var(--leading-sm)) / 2);
+  }
+
   .action {
     display: inline-flex;
+    flex: none;
+    margin-left: auto;
   }
 
   /* The icon sits on the first line when a message wraps. */

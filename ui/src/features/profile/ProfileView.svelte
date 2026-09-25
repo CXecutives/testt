@@ -26,7 +26,7 @@
   } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
-  import { onMount, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import ProfileEditor from './ProfileEditor.svelte';
   import ProfileHeader from './ProfileHeader.svelte';
   import ProfilePaste from './ProfilePaste.svelte';
@@ -72,7 +72,18 @@
         : t.profile.saved,
   );
   /** During setup, a saved profile leads on to the first fetch (once, in the save bar). */
-  const next = $derived(saved && app.state?.firstRun ? () => navigation.go('jobs') : null);
+  const next = $derived(
+    saved && app.state?.firstRun && app.hasProfile ? () => void onward() : null,
+  );
+
+  /** The button goes with the view: the setup page's next action takes the focus. */
+  async function onward(): Promise<void> {
+    navigation.go('jobs');
+    await tick();
+    document
+      .querySelector<HTMLElement>('[data-testid="first-run"] [aria-current="step"] button')
+      ?.focus();
+  }
   let confirmRemove = $state(false);
   /** Where the user wanted to go with unsaved changes (a view, or closing the window). */
   let leaving = $state<ViewId | 'close' | null>(null);
@@ -181,13 +192,29 @@
     }
   }
 
-  /** The prompt goes to the clipboard first, so the steps show whether it got there. For the
+  /** The prompt goes to the clipboard first, so the steps show whether it got there; with an
+   *  answer pasted earlier the clipboard is left alone ("Erneut kopieren" copies). For the
    *  stored profile it is the update prompt, and the answer updates the profile. */
   async function fromCv(): Promise<void> {
     pasteError = null;
     updating = editor.origin === 'stored' && stored !== null;
-    await copyPrompt();
+    if (editor.answer.trim() === '') await copyPrompt();
+    else copied = true;
     editor.pasting = true;
+    // The prompt is on the clipboard: the next step is pasting the answer.
+    await caretTo('paste-answer');
+  }
+
+  /** A new form: the caret goes into its first field. */
+  async function create(): Promise<void> {
+    editor.create();
+    await caretTo('profile-name-field');
+  }
+
+  /** The caret into a field that has just appeared. */
+  async function caretTo(testid: string): Promise<void> {
+    await tick();
+    document.querySelector<HTMLElement>(`[data-testid="${testid}"]`)?.focus();
   }
 
   async function takeAnswer(answer: string): Promise<void> {
@@ -197,6 +224,7 @@
       const draft = await invoke('parse_profile', { text: answer, update: updating });
       if (updating && stored !== null) editor.update(draft, stored);
       else editor.take(draft, 'answer');
+      editor.answer = '';
     } catch (error) {
       pasteError = () => errorText(error);
     } finally {
@@ -204,16 +232,24 @@
     }
   }
 
-  let panel = $state<{ ready: () => boolean; focusField: (field: string) => Promise<void> } | null>(
-    null,
-  );
+  let panel = $state<{
+    ready: () => boolean;
+    focusField: (field: string) => Promise<boolean>;
+  } | null>(null);
 
-  /** A value out of range: the field (and row) it names. */
-  function refused(error: unknown): { field: string; row: number | null } | null {
+  /** A value out of range: the field (and row) it names, and the limit where one is. */
+  function refused(
+    error: unknown,
+  ): { field: string; row: number | null; max: number | null } | null {
     if (!(error instanceof IpcError) || error.params.reason !== 'profileValue') return null;
-    const field = error.params.field;
-    const row = error.params.row;
-    return typeof field === 'string' ? { field, row: typeof row === 'number' ? row : null } : null;
+    const { field, row, max } = error.params;
+    return typeof field === 'string'
+      ? {
+          field,
+          row: typeof row === 'number' ? row : null,
+          max: typeof max === 'number' ? max : null,
+        }
+      : null;
   }
 
   /** `true` when the profile is saved. */
@@ -236,8 +272,14 @@
       if (at === null) {
         saveNote = () => errorText(error);
       } else {
-        fieldError = { ...at, text: () => errorText(error) };
-        void panel?.focusField(at.field);
+        // Said at its field without its name again; the save bar says it where the field
+        // is not on the page.
+        fieldError = {
+          field: at.field,
+          row: at.row,
+          text: () => (at.max === null ? t.profile.field.refused : t.profile.field.atMost(at.max)),
+        };
+        if (!(await panel?.focusField(at.field))) saveNote = () => errorText(error);
       }
       return false;
     } finally {
@@ -245,10 +287,13 @@
     }
   }
 
+  /** Back to the stored profile, or (a new form, a draft) to the ways in, whose first one
+   *  takes the focus of the gone form. */
   function discard(): void {
     saveNote = null;
     fieldError = null;
     editor.discard(stored);
+    if (editor.origin === null) void caretTo('profile-create');
   }
 
   async function remove(): Promise<void> {
@@ -396,6 +441,7 @@
       {copied}
       busy={busy === 'paste'}
       error={pasteError?.() ?? null}
+      bind:answer={editor.answer}
       oncopy={() => void copyPrompt()}
       ontake={(answer) => void takeAnswer(answer)}
       oncancel={() => (editor.pasting = false)}
@@ -410,7 +456,7 @@
         picking={busy === 'pick'}
         unreadable={profile?.parseError !== null && profile?.parseError !== undefined}
         note={note?.() ?? null}
-        oncreate={() => editor.create()}
+        oncreate={() => void create()}
         onfromcv={() => void fromCv()}
         onpick={() => void pick()}
         onopenfolder={openFolder}

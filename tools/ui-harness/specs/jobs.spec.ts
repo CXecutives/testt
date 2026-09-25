@@ -227,7 +227,7 @@ test('one place for filters: Neu, Alle, Favoriten; the overview says what now', 
   // The files have a block of their own.
   await expect(page.getByTestId('files')).toContainText('Dateien');
   await expect(page.getByTestId('issue-freelance-mails')).toContainText(
-    'Eine Alert-Mail enthielt keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
+    'In einer Alert-Mail fand die App keine Jobs.',
   );
   await expect(overview.getByTestId('overview-excel')).toBeVisible();
   // The one filter place: the segments in the list header count their lists.
@@ -941,9 +941,7 @@ test('the reader: one row of alike actions, archive opens the next job, undo, a 
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   }
   await page.getByTestId('prompt').click();
-  await expect(page.getByTestId('toast').last()).toContainText(
-    'Prompt kopiert, bereit für einen KI-Chat.',
-  );
+  await expect(page.getByTestId('toast').last()).toContainText('Prompt kopiert.');
   // Archivieren folds the row away and opens the next job; a double click archives one.
   const title = await page.getByTestId('reader-title').innerText();
   const next = await rows(page).nth(1).locator('.title').innerText();
@@ -1248,7 +1246,8 @@ test('Ctrl+Z takes back the last move while its toast is up; an undo toast stays
   await expect(page.getByTestId('toast')).toHaveCount(0);
   // Nothing left to undo: Ctrl+Z does nothing.
   await page.keyboard.press('Control+z');
-  expect(await calls(page, 'move_jobs')).toHaveLength(2);
+  expect(await calls(page, 'move_jobs')).toHaveLength(1);
+  expect(await calls(page, 'move_back')).toHaveLength(1);
 });
 
 test('a job of the day overview opens during a search', async ({ page }) => {
@@ -1276,7 +1275,7 @@ test('the choice follows the list: rows that leave it leave the choice too', asy
   await expect(page.getByTestId('selection-bar')).toHaveCount(0);
 });
 
-test('two or more chosen: the reader shows what is chosen and acts on all of them', async ({
+test('two or more chosen: the reader says how many, the bar acts on all of them', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -1289,8 +1288,10 @@ test('two or more chosen: the reader shows what is chosen and acts on all of the
   await expect(pane).toContainText('2 Jobs ausgewählt');
   await expect(pane).toContainText('Strg+Klick');
   await expect(page.getByTestId('reader')).toHaveCount(0);
+  // The actions are said once, in the list header's bar.
+  await expect(pane.getByRole('button')).toHaveCount(0);
   const before = await rows(page).count();
-  await pane.getByTestId('pane-selection-archive').click();
+  await page.getByTestId('selection-bar').getByTestId('selection-archive').click();
   await expect(rows(page)).toHaveCount(before - 2);
   await expect(pane).toHaveCount(0);
 });
@@ -1402,9 +1403,7 @@ test('the best matches as one prompt: at the end of the overview heading', async
   await open(page, WIN);
   await expect(page.getByTestId('best').getByTestId('prompt-top')).toBeVisible();
   await page.getByTestId('prompt-top').click();
-  await expect(page.getByTestId('toast').last()).toContainText(
-    'Prompt kopiert, bereit für einen KI-Chat.',
-  );
+  await expect(page.getByTestId('toast').last()).toContainText('Prompt kopiert.');
   expect(await calls(page, 'ai_prompt_top')).toHaveLength(1);
   expect((await calls(page, 'ai_prompt_top'))[0]?.[1]).toEqual({ limit: 5 });
 });

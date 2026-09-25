@@ -73,6 +73,7 @@ impl Store {
     fn init(conn: Connection, path: Option<PathBuf>) -> Result<Store> {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         schema::migrate(&conn)?;
+        jobs::refresh_all_searches(&conn)?;
         Ok(Store {
             conn: Mutex::new(conn),
             path,

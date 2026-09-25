@@ -79,7 +79,7 @@ export function fieldMenuUndoDelete(): boolean {
 }
 
 /** The name of the command key on the keyboard (Ctrl on Windows, Cmd on macOS), for texts
- *  that say which key to hold ("Strg+Klick") or name a shortcut (Strg+B, ⌘B). */
+ *  that say which key to hold ("Strg+Klick") or name a shortcut (Strg+F, ⌘F). */
 export function commandKey(): 'ctrl' | 'cmd' {
   return platform() === 'macos' ? 'cmd' : 'ctrl';
 }
@@ -88,12 +88,6 @@ export function commandKey(): 'ctrl' | 'cmd' {
  *  zeigen"); the backend shows the file the same way (`platform::show_in_folder`). */
 export function fileManager(): 'explorer' | 'finder' {
   return platform() === 'macos' ? 'finder' : 'explorer';
-}
-
-/** A shortcut of the command key and `key` as assistive technology names it
- *  (`aria-keyshortcuts`): Control+B on Windows, Meta+B on macOS. */
-export function ariaShortcut(key: string): string {
-  return `${platform() === 'macos' ? 'Meta' : 'Control'}+${key}`;
 }
 
 /** How the keyboard of the OS edits text in a field (lib/input/input.ts applies it). */

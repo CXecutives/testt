@@ -63,3 +63,44 @@ fn the_english_catalog_names_every_country_of_the_engine() {
         engine()
     );
 }
+
+/// The names both catalogs give a country, from the object literal that opens at `start`.
+fn names_after(text: &str, start: &str) -> Vec<(String, String)> {
+    let at = text
+        .find(start)
+        .unwrap_or_else(|| panic!("`{start}` not found"));
+    let block = &text[at + start.len()..];
+    let end = block.find('}').expect("closing brace");
+    block[..end]
+        .lines()
+        .filter_map(|line| {
+            let (key, name) = line.trim().split_once(": ")?;
+            let name = name.trim_end_matches(',').trim_matches('\'');
+            (key.len() == 2).then(|| (key.to_owned(), name.to_owned()))
+        })
+        .collect()
+}
+
+/// A profile may name its countries the way the app names them: every name of both
+/// catalogs reads back to its code, so no such name switches the country rule off.
+#[test]
+fn every_country_name_of_the_app_reads_back_to_its_code() {
+    let de = read("ui/src/lib/i18n/de.ts");
+    let en = read("ui/src/lib/i18n/en.ts");
+    let names = names_after(&de, "\n    country: {")
+        .into_iter()
+        .chain(names_after(
+            &en,
+            "const countryName: Record<string, string> = {",
+        ));
+    let mut seen = 0;
+    for (code, name) in names {
+        assert_eq!(
+            jobalert_core::profile::country_code(&name).as_deref(),
+            Some(code.as_str()),
+            "{name}"
+        );
+        seen += 1;
+    }
+    assert_eq!(seen, 2 * engine().len());
+}

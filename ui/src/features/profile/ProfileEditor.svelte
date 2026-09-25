@@ -6,14 +6,17 @@
   competences are needed, which their sentence says once. Every field of a block has the
   height of a field (md), the toggle buttons too, and every number field one width with its
   unit beside it. The countries are a field that suggests the countries the engine knows
-  (by their German and English names), with DACH in one click; a country of a file the app
-  does not know stays as it is. The day of "Ab Datum" exists only while it is chosen and
-  gets the caret when it is. A thin profile marks its empty sections. A value of the file the app
-  could not read is said at its field with "Wert entfernen"; a value the backend refused is
-  said there too, and the field gets the caret. The save bar stays at the bottom of the view:
-  "Speichern" (the one primary, only with a change) and "Verwerfen", or Ctrl/Cmd+S; without a
-  change both say why they wait. Enter never saves this long form: in the row lists it goes
-  to the next row.
+  (by their German and English names and the other names people use), with DACH in one
+  click; a country of a file the app does not know stays as it is. The day of "Ab Datum"
+  exists only while it is chosen and gets the caret when it is; it is judged when the field
+  is left or on saving, never while it is typed. A thin profile marks its empty sections. A
+  value of the file the app could not read is said at its field with "Wert entfernen"; a
+  value the backend refused is said there too, and the field gets the caret (said once, at
+  the field). The save bar stays at the bottom of the view: "Speichern" (the one primary,
+  only with a change) and "Verwerfen"; without a change both say why they wait. An untouched
+  new form goes back to the ways in with "Verwerfen" or Esc. Enter in a field saves, as in
+  every form (in the row lists it goes to the next row, in a chip field it adds what was
+  typed), and Ctrl/Cmd+S saves from anywhere in the form.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -35,7 +38,13 @@
     UnreadableField,
   } from '$lib/ipc/types';
   import { primaryFirst } from '$lib/platform';
-  import { editor, isoDate, type FieldError, type FieldProblem } from '$lib/state/profile.svelte';
+  import {
+    dayShaped,
+    editor,
+    isoDate,
+    type FieldError,
+    type FieldProblem,
+  } from '$lib/state/profile.svelte';
   import { tick } from 'svelte';
   import ChoiceButtons from './ChoiceButtons.svelte';
   import CompetenceList from './CompetenceList.svelte';
@@ -80,6 +89,9 @@
     onsave,
     ondiscard,
   }: Props = $props();
+
+  // Text typed into a chip field of the form counts as a change.
+  editor.typed.share();
 
   const words = $derived(t.profile.field);
   const id = $props.id();
@@ -154,19 +166,36 @@
   const thin = $derived(quality === 'thin' || quality === 'empty');
   const actionFirst = primaryFirst();
 
-  /** Every country the engine knows, named in the app's language and found by both names. */
+  /** Other names people type for a country (the engine reads most of them too,
+   *  core/src/matching/lexicon/engine.rs); the chip holds the code either way. */
+  const COUNTRY_TERMS: Readonly<Record<string, readonly string[]>> = {
+    CZ: ['Czech Republic', 'Tschechische Republik'],
+    GB: ['UK', 'England', 'Great Britain', 'Vereinigtes Königreich'],
+    NL: ['Holland'],
+    US: ['United States', 'Vereinigte Staaten', 'America', 'Amerika'],
+  };
+  /** Every country the engine knows, named in the app's language and found by every name. */
   const COUNTRIES = $derived(
     Object.keys(de.profile.country).map((code) => ({
       id: code,
       label: t.profile.country[code] ?? code,
-      terms: [de.profile.country[code] ?? code, en.profile.country[code] ?? code],
+      terms: [
+        de.profile.country[code] ?? code,
+        en.profile.country[code] ?? code,
+        ...(COUNTRY_TERMS[code] ?? []),
+      ],
     })),
   );
   /** Deutschland, Österreich and Schweiz in one click. */
   const DACH = ['DE', 'AT', 'CH'];
   const dachMissing = $derived(DACH.some((code) => !c.countries.includes(code)));
-  function addDach(): void {
+  /** The button goes once they are in: the focus it had moves into the countries field. */
+  async function addDach(event: MouseEvent): Promise<void> {
+    const focused = event.currentTarget === document.activeElement;
     c.countries = [...c.countries, ...DACH.filter((code) => !c.countries.includes(code))];
+    if (!focused) return;
+    await tick();
+    document.getElementById(`${id}-countries`)?.focus();
   }
 
   const REMOTE = $derived<{ id: RemoteWish; label: string }[]>(
@@ -183,7 +212,7 @@
   );
 
   /** Nothing chosen is no availability; pressing the chosen one again clears it. "Ab Datum"
-   *  puts the caret into its day. */
+   *  puts the caret into its day, which is judged anew when it is left. */
   async function setAvailable(chosen: string[]): Promise<void> {
     const kind = chosen[0];
     c.available =
@@ -192,6 +221,7 @@
         : kind === 'now'
           ? { kind }
           : { kind: 'unset' };
+    judged = false;
     if (kind !== 'from') return;
     await tick();
     root?.querySelector<HTMLInputElement>('[data-testid="profile-date"]')?.focus();
@@ -200,26 +230,34 @@
   function setDate(text: string): void {
     editor.dateText = text;
     c.available = { kind: 'from', date: isoDate(text) ?? text.trim() };
+    judged = false;
   }
 
-  let tried = $state(false);
+  /** The day is judged when its field is left with text in it or on saving; typing waits
+   *  for the next judgement, so nothing flashes while a valid day is typed. */
+  let judged = $state(false);
   const dateError = $derived(
-    editor.dateInvalid && (tried || editor.dateText.trim().length >= 8) ? words.dateInvalid : null,
+    judged && editor.dateInvalid
+      ? dayShaped(editor.dateText)
+        ? words.dateImpossible
+        : words.dateInvalid
+      : null,
   );
+  const dateSaid = $derived(dateError !== null || fieldError?.field === 'available');
 
   let root = $state<HTMLElement | null>(null);
 
   /** Ready to save: a day that does not read is said at its field, which gets the caret. */
   export function ready(): boolean {
-    tried = true;
+    judged = true;
     if (!editor.dateInvalid) return true;
     document.querySelector<HTMLInputElement>('[data-testid="profile-date"]')?.focus();
     return false;
   }
 
   /** The caret into the field a refused value belongs to (its marked control first), in
-   *  the middle of the view. */
-  export async function focusField(field: string): Promise<void> {
+   *  the middle of the view; `false` when the field is not on the page. */
+  export async function focusField(field: string): Promise<boolean> {
     await tick();
     const scope = root?.querySelector<HTMLElement>(`[data-field="${field}"]`);
     const target =
@@ -227,6 +265,7 @@
       scope?.querySelector<HTMLElement>('input, textarea, button');
     target?.focus();
     target?.scrollIntoView({ block: 'center' });
+    return target !== null && target !== undefined;
   }
 
   let bar = $state<HTMLElement | null>(null);
@@ -244,10 +283,24 @@
     });
   }
 
+  /** The rules for permanent roles hide while those are excluded, unless a save refused one
+   *  of their values: then they stay until the form is saved or discarded, so it can be put
+   *  right. */
+  const PERMANENT: readonly string[] = ['minSalary', 'permanentRemoteMin', 'permanentPlaces'];
+  let permanentHeld = $state(false);
+  $effect(() => {
+    if (PERMANENT.includes(fieldError?.field ?? '')) permanentHeld = true;
+    else if (!editor.dirty || !c.noPermanent) permanentHeld = false;
+  });
+  const permanentShown = $derived(!c.noPermanent || permanentHeld);
+
   function save(): void {
     if (!editor.dirty || busy) return;
     if (ready()) onsave();
   }
+
+  /** A new form nothing was typed into: "Verwerfen" and Esc go back to the ways in. */
+  const untouched = $derived(editor.origin === 'new' && !editor.dirty);
 
   const empty = (...values: unknown[]): boolean =>
     values.every(
@@ -258,18 +311,27 @@
       !c.noAnue &&
       !c.noPermanent,
   );
+
+  /** "Noch leer" follows one rule in every section: nothing in it while the profile is thin
+   *  or new, and never above a value of the file that does not read. */
+  const guide = $derived(thin || editor.origin === 'new');
+  const unreadIn = (...fields: string[]): boolean =>
+    problems.some((problem) => fields.includes(problem.field));
+  const noRows = (rows: { name?: string; language?: string }[]): boolean =>
+    rows.every((row) => (row.name ?? row.language ?? '').trim() === '');
 </script>
 
 <div
   class="editor"
   bind:this={root}
-  use:formKeys={{ shortcut: save }}
+  use:formKeys={untouched ? { save, shortcut: save, cancel: ondiscard } : { save, shortcut: save }}
   onfocusin={keepClear}
   data-testid="profile-form"
 >
   <ProfileSection
     heading={t.profile.section.person}
     hint={t.profile.sectionHint.person}
+    empty={guide && empty(form.name, form.title) && !unreadIn('name', 'title')}
     testid="section-person"
   >
     <div class="pair">
@@ -280,7 +342,6 @@
             bind:value={form.name}
             placeholder={words.namePlaceholder}
             invalid={fieldError?.field === 'name'}
-            describedby="{id}-name-message"
             testid="profile-name-field"
           />
         </Field>
@@ -292,7 +353,6 @@
             bind:value={form.title}
             placeholder={words.titlePlaceholder}
             invalid={fieldError?.field === 'title'}
-            describedby="{id}-title-message"
             testid="profile-title"
           />
         </Field>
@@ -305,7 +365,7 @@
     hint={quality && quality !== 'good'
       ? t.profile.qualityText[quality]
       : t.profile.sectionHint.competences}
-    empty={thin && form.competences.every((row) => row.name.trim() === '')}
+    empty={guide && noRows(form.competences) && !unreadIn('competences', 'focus')}
     testid="section-competences"
   >
     <CompetenceList
@@ -329,7 +389,6 @@
           split="lines"
           placeholder={words.strengthsPlaceholder}
           invalid={fieldError?.field === 'strengths'}
-          describedby="{id}-strengths-message"
           testid="profile-strengths"
         />
       </Field>
@@ -346,7 +405,6 @@
           bind:values={form.keywords}
           placeholder={words.keywordsPlaceholder}
           invalid={fieldError?.field === 'keywords'}
-          describedby="{id}-keywords-message"
           testid="profile-keywords"
         />
       </Field>
@@ -356,7 +414,9 @@
   <ProfileSection
     heading={t.profile.section.experience}
     hint={t.profile.sectionHint.experience}
-    empty={thin && empty(form.years, form.degrees, form.certificates, form.tools, form.industries)}
+    empty={guide &&
+      empty(form.years, form.degrees, form.certificates, form.tools, form.industries) &&
+      !unreadIn('years', 'degrees', 'certificates', 'tools', 'industries')}
     testid="section-experience"
   >
     <div data-field="years">
@@ -371,7 +431,6 @@
           unit={t.profile.unit.years}
           bind:value={form.years}
           invalid={fieldError?.field === 'years'}
-          describedby="{id}-years-message"
           testid="profile-years"
         />
       </Field>
@@ -384,7 +443,6 @@
           split="lines"
           placeholder={words.degreesPlaceholder}
           invalid={fieldError?.field === 'degrees'}
-          describedby="{id}-degrees-message"
           testid="profile-degrees"
         />
       </Field>
@@ -397,7 +455,6 @@
           split="lines"
           placeholder={words.certificatesPlaceholder}
           invalid={fieldError?.field === 'certificates'}
-          describedby="{id}-certificates-message"
           testid="profile-certificates"
         />
       </Field>
@@ -409,7 +466,6 @@
           bind:values={form.tools}
           placeholder={words.toolsPlaceholder}
           invalid={fieldError?.field === 'tools'}
-          describedby="{id}-tools-message"
           testid="profile-tools"
         />
       </Field>
@@ -421,7 +477,6 @@
           bind:values={form.industries}
           placeholder={words.industriesPlaceholder}
           invalid={fieldError?.field === 'industries'}
-          describedby="{id}-industries-message"
           testid="profile-industries"
         />
       </Field>
@@ -431,7 +486,7 @@
   <ProfileSection
     heading={t.profile.section.languages}
     hint={t.profile.sectionHint.languages}
-    empty={thin && form.languages.every((row) => row.language.trim() === '')}
+    empty={guide && noRows(form.languages) && !unreadIn('languages')}
     testid="section-languages"
   >
     <LanguageList bind:rows={form.languages} error={listError('languages')} />
@@ -440,6 +495,10 @@
   <ProfileSection
     heading={t.profile.section.wishes}
     hint={t.profile.sectionHint.wishes}
+    empty={guide &&
+      empty(form.roles, form.wishes.dayRate, form.wishes.regions, form.wishes.industries) &&
+      form.wishes.remote === null &&
+      !unreadIn('roles', 'wishDayRate', 'remote', 'regions', 'wishIndustries')}
     testid="section-wishes"
   >
     <div data-field="roles">
@@ -455,7 +514,6 @@
           bind:values={form.roles}
           placeholder={words.rolesPlaceholder}
           invalid={errorOf('roles') !== null}
-          describedby="{id}-roles-message"
           testid="profile-roles"
         />
       </Field>
@@ -481,7 +539,6 @@
           unit={t.profile.unit.euro}
           bind:value={form.wishes.dayRate}
           invalid={errorOf('wishDayRate') !== null}
-          describedby="{id}-wish-rate-message"
           testid="profile-wish-rate"
         />
       </Field>
@@ -515,7 +572,6 @@
           bind:values={form.wishes.regions}
           placeholder={words.regionsPlaceholder}
           invalid={errorOf('regions') !== null}
-          describedby="{id}-regions-message"
           testid="profile-regions"
         />
       </Field>
@@ -532,7 +588,6 @@
           bind:values={form.wishes.industries}
           placeholder={words.wishIndustriesPlaceholder}
           invalid={errorOf('wishIndustries') !== null}
-          describedby="{id}-wish-industries-message"
           testid="profile-wish-industries"
         />
       </Field>
@@ -542,7 +597,18 @@
   <ProfileSection
     heading={t.profile.section.criteria}
     hint={t.profile.sectionHint.criteria}
-    empty={noCriteria}
+    empty={guide &&
+      noCriteria &&
+      !unreadIn(
+        'minDayRate',
+        'countries',
+        'contracts',
+        'remoteOutside',
+        'targetYears',
+        'minSalary',
+        'permanentPlaces',
+        'permanentRemoteMin',
+      )}
     testid="section-criteria"
   >
     <div class="pair">
@@ -550,7 +616,6 @@
         <Field
           label={words.minDayRate}
           for="{id}-min-rate"
-          hint={words.minDayRateHint}
           error={errorOf('minDayRate')}
           action={removeOf('minDayRate')}
         >
@@ -560,7 +625,6 @@
             unit={t.profile.unit.euro}
             bind:value={c.minDayRate}
             invalid={errorOf('minDayRate') !== null}
-            describedby="{id}-min-rate-message"
             testid="profile-min-rate"
           />
         </Field>
@@ -578,7 +642,6 @@
             unit={t.profile.unit.years}
             bind:value={c.targetYears}
             invalid={errorOf('targetYears') !== null}
-            describedby="{id}-target-message"
             testid="profile-target-years"
           />
         </Field>
@@ -588,7 +651,8 @@
       <Field
         label={words.countries}
         for="{id}-countries"
-        error={fieldError?.field === 'countries' ? fieldError.text() : null}
+        error={errorOf('countries')}
+        action={removeOf('countries')}
       >
         <div class="countries">
           <ChipInput
@@ -597,8 +661,7 @@
             options={COUNTRIES}
             noMatch={words.countryNone}
             placeholder={words.countriesPlaceholder}
-            invalid={fieldError?.field === 'countries'}
-            describedby="{id}-countries-message"
+            invalid={errorOf('countries') !== null}
             testid="profile-countries"
           />
           {#if dachMissing}
@@ -607,18 +670,11 @@
               icon="plus"
               label={words.dach}
               testid="profile-dach"
-              onclick={addDach}
+              onclick={(event) => void addDach(event)}
             />
           {/if}
         </div>
       </Field>
-      {#each problemsOf('countries') as problem (problem.value)}
-        <ValueNote
-          text={unreadText(problem)}
-          testid="countries-unread"
-          onremove={() => drop(problem)}
-        />
-      {/each}
     </div>
     <div class="toggles">
       <div data-field="remoteOutside">
@@ -673,7 +729,7 @@
         {/each}
       </div>
     </div>
-    {#if !c.noPermanent}
+    {#if permanentShown}
       <div class="sub" data-testid="profile-permanent">
         <h3 class="sub-heading">{t.profile.section.permanent}</h3>
         <p class="sub-hint">{t.profile.sectionHint.permanent}</p>
@@ -692,7 +748,6 @@
               unit={t.profile.unit.euro}
               bind:value={c.minSalary}
               invalid={errorOf('minSalary') !== null}
-              describedby="{id}-salary-message"
               testid="profile-min-salary"
             />
           </Field>
@@ -711,7 +766,6 @@
               unit={t.profile.unit.percent}
               bind:value={c.permanentRemoteMin}
               invalid={errorOf('permanentRemoteMin') !== null || regionWithoutPlaces}
-              describedby="{id}-remote-min-message"
               testid="profile-remote-min"
             />
           </Field>
@@ -728,7 +782,6 @@
             id="{id}-places"
             bind:values={c.permanentPlaces}
             invalid={errorOf('permanentPlaces') !== null}
-            describedby="{id}-places-message"
             placeholder={words.placesPlaceholder}
             testid="profile-places"
           />
@@ -740,6 +793,7 @@
   <ProfileSection
     heading={t.profile.section.availability}
     hint={t.profile.sectionHint.availability}
+    empty={guide && c.available.kind === 'unset' && !unreadIn('available')}
     testid="section-availability"
   >
     <div class="block" data-field="available">
@@ -753,23 +807,31 @@
           onchange={setAvailable}
         />
         {#if c.available.kind === 'from'}
-          <span class="date">
+          <span
+            class="date"
+            role="presentation"
+            onfocusout={() => (judged = editor.dateText.trim() !== '')}
+          >
             <TextField
               value={editor.dateText}
               label={words.date}
               placeholder={words.datePlaceholder}
-              invalid={dateError !== null || fieldError?.field === 'available'}
-              describedby="{id}-date-message"
+              invalid={dateSaid}
+              describedby={dateSaid ? `${id}-date-message` : null}
               testid="profile-date"
               oninput={setDate}
             />
           </span>
         {/if}
       </div>
-      {#if dateError}
-        <Notice tone="danger" variant="inline" text={dateError} testid="profile-date-error" />
-      {:else if fieldError?.field === 'available'}
-        <Notice tone="danger" variant="inline" text={fieldError.text()} />
+      {#if dateSaid}
+        <div id="{id}-date-message">
+          {#if dateError}
+            <Notice tone="danger" variant="inline" text={dateError} testid="profile-date-error" />
+          {:else if fieldError?.field === 'available'}
+            <Notice tone="danger" variant="inline" text={fieldError.text()} />
+          {/if}
+        </div>
       {/if}
       {#each problemsOf('available') as problem (problem.value)}
         <ValueNote
@@ -790,8 +852,6 @@
   <div class="status" data-testid="profile-save-status">
     {#if note}
       <Notice tone="danger" variant="inline" text={note} testid="profile-save-error" />
-    {:else if tried && dateError}
-      <Notice tone="danger" variant="inline" text={dateError} />
     {:else if editor.dirty}
       <span class="quiet">{t.profile.unsaved}</span>
     {:else if result}
@@ -814,7 +874,7 @@
       <Button
         variant="secondary"
         label={t.profile.discard}
-        disabled={!editor.dirty || busy}
+        disabled={(!editor.dirty && !untouched) || busy}
         disabledReason={editor.dirty ? null : t.profile.noChanges}
         testid="profile-discard"
         onclick={ondiscard}
@@ -879,14 +939,23 @@
     width: calc(var(--stat-min) - var(--space-48));
   }
 
+  /* Narrow, DACH sits under the field, which keeps the full width of its neighbours. */
   .countries {
     display: flex;
+    flex-direction: column;
     align-items: flex-start;
     gap: var(--space-12);
   }
 
+  @container (width >= 520px) {
+    .countries {
+      flex-direction: row;
+    }
+  }
+
   .countries > :global(:first-child) {
     flex: 1;
+    align-self: stretch;
     min-width: 0;
   }
 

@@ -241,8 +241,9 @@ fn link(conn: &rusqlite::Connection, key: &JobKey, original: &JobKey) -> Result<
 /// What a row that becomes the original takes over from the row it replaces (a teaser or
 /// a slug row the user may have read): read stays read (the earlier time), the job counts
 /// from its first sighting - so "Neu", the run card's new jobs and the age that archives it
-/// treat it as the job the user already saw - and a text file the other row got stays the
-/// job's one file (the new original gets none of its own).
+/// treat it as the job the user already saw - a move back into the inbox keeps counting from
+/// then (the later one), and a text file the other row got stays the job's one file (the new
+/// original gets none of its own).
 fn inherit(conn: &rusqlite::Connection, original: &JobKey, replaced: &JobKey) -> Result<()> {
     struct Kept {
         read_at: Option<i64>,
@@ -250,10 +251,11 @@ fn inherit(conn: &rusqlite::Connection, original: &JobKey, replaced: &JobKey) ->
         first_seen_run: i64,
         txt_name: Option<String>,
         txt_written_at: Option<i64>,
+        inbox_at: Option<i64>,
     }
     let kept = |key: &JobKey| {
         conn.query_row(
-            "SELECT read_at, first_seen_at, first_seen_run, txt_name, txt_written_at
+            "SELECT read_at, first_seen_at, first_seen_run, txt_name, txt_written_at, inbox_at
              FROM job WHERE portal = ?1 AND job_id = ?2",
             params![key.portal.key(), key.id],
             |r| {
@@ -263,6 +265,7 @@ fn inherit(conn: &rusqlite::Connection, original: &JobKey, replaced: &JobKey) ->
                     first_seen_run: r.get(2)?,
                     txt_name: r.get(3)?,
                     txt_written_at: r.get(4)?,
+                    inbox_at: r.get(5)?,
                 })
             },
         )
@@ -270,6 +273,10 @@ fn inherit(conn: &rusqlite::Connection, original: &JobKey, replaced: &JobKey) ->
     let (new, old) = (kept(original)?, kept(replaced)?);
     let read_at = match (new.read_at, old.read_at) {
         (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    };
+    let inbox_at = match (new.inbox_at, old.inbox_at) {
+        (Some(a), Some(b)) => Some(a.max(b)),
         (a, b) => a.or(b),
     };
     let hand_over = new.txt_name.is_none() && old.txt_name.is_some();
@@ -280,7 +287,7 @@ fn inherit(conn: &rusqlite::Connection, original: &JobKey, replaced: &JobKey) ->
     };
     conn.execute(
         "UPDATE job SET read_at = ?3, first_seen_at = ?4, first_seen_run = ?5,
-                        txt_name = ?6, txt_written_at = ?7
+                        txt_name = ?6, txt_written_at = ?7, inbox_at = ?8
          WHERE portal = ?1 AND job_id = ?2",
         params![
             original.portal.key(),
@@ -290,6 +297,7 @@ fn inherit(conn: &rusqlite::Connection, original: &JobKey, replaced: &JobKey) ->
             new.first_seen_run.min(old.first_seen_run),
             txt_name,
             txt_written_at,
+            inbox_at,
         ],
     )?;
     if hand_over {
@@ -671,6 +679,44 @@ mod tests {
             (0, 0),
             "no new job of the run"
         );
+    }
+
+    /// A teaser the user brought back into the inbox keeps her choice when its full text
+    /// takes its place: the new original is not archived for the teaser's age.
+    #[test]
+    fn the_new_original_keeps_a_move_back_into_the_inbox() {
+        use crate::model::Place;
+        use crate::store::test_support::{mail, now, posting};
+        let store = Store::in_memory().unwrap();
+        let days = |n: i64| now() - jiff::SignedDuration::from_hours(24 * n);
+        let add = |url: &str, run: i64, at| {
+            let p = posting(
+                url,
+                "SAP FI/CO Berater (m/w/d)",
+                "Ferrum Systems SE",
+                "Hamburg",
+            );
+            store.upsert_posting(run, &p, mail(), at).unwrap();
+            p.key
+        };
+        let first_run = store.begin_run().unwrap();
+        let teaser = add(
+            "https://www.freelance.de/project/index.php?id=1255068",
+            first_run,
+            days(40),
+        );
+        store
+            .record_teaser(&teaser, &teaser_of(TEXT), days(40))
+            .unwrap();
+        let one = std::slice::from_ref(&teaser);
+        store.move_jobs(one, Place::Archive, days(10)).unwrap();
+        store.move_jobs(one, Place::Inbox, days(2)).unwrap();
+        let run = store.begin_run().unwrap();
+        let full = add("https://www.linkedin.com/jobs/view/4000000009/", run, now());
+        store.record_text(&full, TEXT, false, false, now()).unwrap();
+        assert_eq!(store.link_duplicate(&full).unwrap(), Some(full.clone()));
+        assert_eq!(store.auto_archive(days(30), now()).unwrap(), 0);
+        assert_eq!(store.job(&full).unwrap().unwrap().place(), Place::Inbox);
     }
 
     /// freelancermap's `/projekt/<slug>` link carries no id, its alerts link `/nproj/<id>`:

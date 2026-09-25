@@ -6,7 +6,9 @@
   read, its tooltip names them); one quiet line of what the app reads (terms, Schwerpunkte,
   its specialist vocabulary); keys the app does not read; the rescore a save starts; and the
   actions: another file, an update from a CV, the profile folder, remove. A new form offers
-  the other two ways in (from a CV, a file). Drafts say once that they are to be reviewed.
+  the other two ways in (from a CV, a file); while the stored file does not read, it says
+  that saving replaces that file and keeps its folder at hand. Drafts say once that they are
+  to be reviewed.
 -->
 <script lang="ts">
   import Badge, { type BadgeTone } from '$components/Badge.svelte';
@@ -71,6 +73,8 @@
   }: Props = $props();
 
   const stored = $derived(origin === 'stored' && profile !== null);
+  /** A new form for a stored file that does not read: saving replaces that file. */
+  const replaces = $derived(origin === 'new' && (profile?.parseError ?? null) !== null);
   /** The badge: honest about competences, "Etwas prüfen" in place of "Vollständig". */
   const badge = $derived.by((): { label: string; tone: BadgeTone; hint: string | null } | null => {
     if (quality === null) return null;
@@ -152,6 +156,9 @@
     {#if origin === 'file' || origin === 'answer' || origin === 'update'}
       <Notice tone="info" variant="inline" text={t.profile.review} testid="profile-review" />
     {/if}
+    {#if replaces}
+      <Notice tone="info" variant="inline" text={t.profile.replaces} testid="profile-replaces" />
+    {/if}
     {#if rescoring}
       <p class="status" data-testid="profile-rescoring">
         <Spinner size="sm" label={null} />{t.profile.rescoring(profile?.pending ?? 0)}
@@ -223,6 +230,16 @@
           testid="profile-pick"
           onclick={onpick}
         />
+        {#if replaces}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="folder-open"
+            label={t.common.openFolder}
+            testid="profile-folder"
+            onclick={onopenfolder}
+          />
+        {/if}
       </div>
     {/if}
     {#if note}

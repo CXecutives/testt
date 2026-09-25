@@ -19,7 +19,7 @@ import { displayTitle } from '$lib/i18n/format';
 import { t } from '$lib/i18n/t';
 import type { Deleted, JobKey, JobView, Place } from '$lib/ipc/types';
 import { staggerLimit } from '$lib/motion/motion';
-import { inFacet, isExcluded, jobs, keyOf, sameKey, type Unmove } from '$lib/state/jobs.svelte';
+import { inFacet, jobs, keyOf, sameKey, type Unmove } from '$lib/state/jobs.svelte';
 import { navigation } from '$lib/state/navigation.svelte';
 import { exportText } from '$lib/state/run.svelte';
 import { onUndo } from '$lib/input/input';
@@ -35,6 +35,8 @@ export interface JobAction {
   label: string;
 }
 
+/** Where a move goes. Wiederherstellen puts a job back where it lay (the backend knows: the
+ *  archive for one thrown away from there); the page takes the inbox until it hears back. */
 const TARGET: Record<MoveId, Place> = {
   archive: 'archive',
   toInbox: 'inbox',
@@ -104,16 +106,10 @@ function said(action: MoveId, job: JobView): (count: number) => string {
   }
 }
 
-/** The rows as the list shows them: the active ones, then the excluded ones. */
-function order(): JobView[] {
-  const shown = jobs.shown;
-  return [...shown.filter((job) => !isExcluded(job)), ...shown.filter(isExcluded)];
-}
-
 /** The job to open when `gone` leave the list: the next one below, else the one above; none
  *  when the list did not hold them (a job opened from the day overview). */
 function nextAfter(gone: readonly JobView[]): JobView | null {
-  const rows = order();
+  const rows = jobs.shown;
   const out = new Set(gone.map((job) => keyOf(job.key)));
   const last = Math.max(...gone.map((job) => rows.findIndex((row) => sameKey(row.key, job.key))));
   if (last < 0) return null;
@@ -154,9 +150,14 @@ function inRow(): boolean {
 /**
  * When the open job left the list, the next one opens, not yet read (see `seen`): its row
  * comes into view, and takes the focus when the focus was on the row (or its tool) that left.
+ * `open` is the job that was open before the action (deleting it for good already closed it).
  */
-function openNext(gone: readonly JobView[], next: JobView | null, focus: boolean): void {
-  const open = jobs.selected;
+function openNext(
+  gone: readonly JobView[],
+  next: JobView | null,
+  focus: boolean,
+  open: JobKey | null,
+): void {
   if (open === null || !gone.some((job) => sameKey(job.key, open))) return;
   clearInterval(dwell);
   if (!next) {
@@ -259,9 +260,20 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
   for (const job of folding) moving.add(keyOf(job.key));
   // What the undo brings back: each job as the list held it, and where its row stood.
   const generation = jobs.generation;
+  const taken = new Set(list.map((job) => keyOf(job.key)));
+  const neighbour = (rows: readonly JobView[]): string | null => {
+    const row = rows.find((other) => !taken.has(keyOf(other.key)));
+    return row ? keyOf(row.key) : null;
+  };
   const back: Unmove[] = list.map((job) => {
     const at = jobs.rows.findIndex((row) => sameKey(row.key, job.key));
-    return { job: jobs.rows[at] ?? job, to, at };
+    return {
+      job: jobs.rows[at] ?? job,
+      to,
+      at,
+      below: at < 0 ? null : neighbour(jobs.rows.slice(at + 1)),
+      above: at < 0 ? null : neighbour(jobs.rows.slice(0, at).reverse()),
+    };
   });
   const open = jobs.selected;
   const reopen =
@@ -272,13 +284,14 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
   const result = await jobs.move(
     list.map((job) => job.key),
     to,
+    action === 'restore',
   );
   setTimeout(() => {
     for (const job of folding) moving.delete(keyOf(job.key));
   }, 400);
   if ('error' in result) return result.error;
   if (leaving.length > 0) arm();
-  openNext(leaving, next, focus);
+  openNext(leaving, next, focus, open);
   // Moved into the listed place without being listed (opened from elsewhere): list it.
   if (
     list.some(
@@ -313,13 +326,14 @@ export async function purge(list: readonly JobView[]): Promise<string | null> {
   const focus = inRow();
   const folding = list.length <= staggerLimit() ? list : [];
   for (const job of folding) moving.add(keyOf(job.key));
+  const open = jobs.selected;
   const result = await jobs.purge(list.map((job) => job.key));
   setTimeout(() => {
     for (const job of folding) moving.delete(keyOf(job.key));
   }, 400);
   if ('error' in result) return result.error;
   arm();
-  openNext(list, next, focus);
+  openNext(list, next, focus, open);
   deletedFor(result);
   // Like a move: one job by its title, more by their number.
   const gone = list.filter((job) => result.keys.some((key) => sameKey(key, job.key)));

@@ -21,12 +21,14 @@
 // is not read at all) · reset (the state after
 // "reset everything": first run, no mailbox, no profile, the report) · first-run-empty-profile
 // · session-left (freelance.de still signed in with the sign-in switched off)
+// · no-minimum (a profile without a minimum day rate and a start: the reader's strip shows
+// the ad's rate and start as plain facts)
 // · dry-run (the demo: a Probelauf mailbox, every command that writes outside the database
 // refuses with `dryRun` like `ensure_real`).
 // `save_mailbox` refuses the app password `falschfalschfals` with `mailAuth` (Gmail said no).
 // `?file=focus` lets `pick_profile` choose a file with seven Schwerpunkte (the form takes five).
-// `save_profile` refuses a minimum day rate above 100.000 and a competence with more than 70
-// years (with its row), like core's validation.
+// `save_profile` refuses a minimum day rate above 100.000, a minimum remote share above 100
+// and a competence with more than 70 years (with its row), like core's validation.
 // `?tick=ms` sets the pace of a scripted run (default 40); `?export=locked` lets the export
 // of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail;
 // `?folder=other` lets `pick_workspace` choose another, empty folder.
@@ -45,6 +47,7 @@ import type {
   JobQuery,
   JobView,
   Language,
+  MoveBack,
   Notice,
   Place,
   Portal,
@@ -872,7 +875,6 @@ const portal = (name: PortalState['portal'], extra: Partial<PortalState> = {}): 
   login: name === 'freelance' ? 'optional' : 'none',
   loginEnabled: false,
   signedIn: name === 'freelance' ? false : null,
-  risk: name === 'freelancermap' ? 'low' : 'grey',
   health: { kind: 'ok' },
   actionNeeded: false,
   quota: null,
@@ -1022,6 +1024,12 @@ function initial(): void {
       state.lastRun = null;
       state.profile = { ...PROFILE, quality: 'empty' };
       break;
+    case 'no-minimum':
+      state.profile = {
+        ...PROFILE,
+        form: { ...PROFILE_FORM, criteria: { ...PROFILE_FORM.criteria, minDayRate: null } },
+      };
+      break;
     case 'no-profile':
       state.profile = null;
       for (const j of jobs) j.match = null;
@@ -1169,9 +1177,10 @@ function countsOf(list: JobView[]): JobCounts {
 
 /* ------------------------------------------------------------------- marks */
 
-/** When a job went to the trash, deleted keys and the excluded verdicts the user overrode
- *  (store::marks). */
+/** When a job went to the trash and from where (the archive keeps its time there), deleted
+ *  keys and the excluded verdicts the user overrode (store::marks). */
 const trashedAt = new Map<string, string>();
+const trashedFrom = new Map<string, Place>();
 const tombstones = new Set<string>();
 const overridden = new Map<string, Match>();
 const markKey = (key: JobKey): string => `${key.portal}:${key.id}`;
@@ -1193,6 +1202,7 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
   for (const key of keys) {
     const j = find(key);
     if (j === undefined || j.place === to) continue;
+    if (to === 'trash') trashedFrom.set(markKey(key), j.place);
     j.place = to;
     if (to === 'trash') trashedAt.set(markKey(key), new Date(Date.now()).toISOString());
     else trashedAt.delete(markKey(key));
@@ -1200,6 +1210,29 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
     moved.push(structuredClone(j.key));
   }
   refresh();
+  return moved;
+}
+
+/** Wiederherstellen (store::restore_jobs): out of the trash back to where each job lay. */
+function restoreJobs(keys: JobKey[]): JobKey[] {
+  return keys.flatMap((key) =>
+    find(key)?.place === 'trash' ? moveJobs([key], trashedFrom.get(markKey(key)) ?? 'inbox') : [],
+  );
+}
+
+/** Takes moves back (store::move_back): into the trash with the time the job first went
+ *  there, not the time of the undo. */
+function moveBack(back: MoveBack[]): JobKey[] {
+  const moved: JobKey[] = [];
+  for (const { key, to, trashedAt: at } of back) {
+    if (moveJobs([key], to).length === 0) continue;
+    const j = find(key);
+    if (to === 'trash' && at !== null && j !== undefined) {
+      trashedAt.set(markKey(key), at);
+      j.trashedAt = at;
+    }
+    moved.push(structuredClone(key));
+  }
   return moved;
 }
 
@@ -1214,7 +1247,7 @@ function purgeJobs(keys: JobKey[]): Deleted {
   jobs = jobs.filter((j) => !doomed.has(markKey(j.key)));
   for (const key of doomed) tombstones.add(key);
   refresh();
-  return { count: gone.length, keys: gone, txtLeft: 0, exportError: null };
+  return { count: gone.length, keys: gone, exportError: null };
 }
 
 const fold = (text: string): string =>
@@ -1223,6 +1256,24 @@ const fold = (text: string): string =>
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '');
 
+/** The portals' names as the store's search column holds them (`Portal::label`). */
+const PORTAL_LABEL: Record<Portal, string> = {
+  linkedin: 'linkedin.com',
+  freelance: 'freelance.de',
+  freelancermap: 'freelancermap.de',
+};
+
+/** Like store::search_words: every word of a search (at most 8) is in the portal's name, the
+ *  title, the company or the location, in any order; an empty search matches everything. */
+function matchesSearch(j: JobView, search: string | null | undefined): boolean {
+  const words = fold(search ?? '')
+    .split(/\s+/)
+    .filter((word) => word !== '')
+    .slice(0, 8);
+  const text = fold(`${PORTAL_LABEL[j.portal]}\n${j.title}\n${j.company}\n${j.location}`);
+  return words.every((word) => text.includes(word));
+}
+
 /** The same order and counts as store::job_page (one statement, list and counts agree). */
 function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
   if (scenario === 'list-error') throw fail('db');
@@ -1230,10 +1281,7 @@ function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
     harness.failPages -= 1;
     throw fail('db');
   }
-  const needle = query.search ? fold(query.search) : null;
-  const base = needle
-    ? jobs.filter((j) => fold(`${j.title} ${j.company} ${j.location}`).includes(needle))
-    : jobs;
+  const base = jobs.filter((j) => matchesSearch(j, query.search));
   // The unread filter lists every unread job, excluded ones too (grey behind the divider);
   // only the count leaves them out (store::job_page). By date: the mail's, in the trash
   // the day the job went there.
@@ -1470,7 +1518,13 @@ function detailOf(j: JobView): JobDetail {
     ...(j.key.id === '4100200301'
       ? []
       : [criterion('c:targetYears', 'met', 'targetYears', { years: 10 })]),
-  ];
+  ].filter(
+    // Like the engine, a criterion the profile does not set is left out (the sample profile's
+    // start counts as set, except in no-minimum).
+    (c) =>
+      (c.code !== 'minDayRate' || state.profile?.form?.criteria.minDayRate !== null) &&
+      (c.code !== 'availability' || scenario !== 'no-minimum'),
+  );
   const ok = j.detail.kind === 'ok';
   return {
     job: j,
@@ -1991,15 +2045,11 @@ const handlers: Handlers = {
     return true;
   },
   move_jobs: ({ keys, to }) => moveJobs(keys, to),
+  move_back: ({ jobs: back }) => moveBack(back),
+  restore_jobs: ({ keys }) => restoreJobs(keys),
   // With a search only its hits (store::mark_all_read).
   mark_all_read: ({ place, search }) => {
-    const needle = search ? fold(search) : null;
-    const marked = jobs.filter(
-      (j) =>
-        j.unread &&
-        j.place === place &&
-        (needle === null || fold(`${j.title} ${j.company} ${j.location}`).includes(needle)),
-    );
+    const marked = jobs.filter((j) => j.unread && j.place === place && matchesSearch(j, search));
     for (const j of marked) j.unread = false;
     refresh();
     return marked.map((j) => structuredClone(j.key));
@@ -2048,13 +2098,15 @@ const handlers: Handlers = {
   profile_prompt: ({ update }) => (update && state.profile !== null ? PROMPT_UPDATE : PROMPT),
   save_profile: ({ save }) => {
     const after = save.after;
-    const refuse = (field: string, row: number | null = null): never => {
-      throw fail('invalid', { reason: 'profileValue', field, row });
+    const refuse = (field: string, max: number | null, row: number | null = null): never => {
+      throw fail('invalid', { reason: 'profileValue', field, row, max });
     };
-    if ((after.criteria.minDayRate ?? 0) > 100_000) refuse('minDayRate');
+    if ((after.criteria.minDayRate ?? 0) > 100_000) refuse('minDayRate', 100_000);
+    // Hidden or not, like core's validation.
+    if ((after.criteria.permanentRemoteMin ?? 0) > 100) refuse('permanentRemoteMin', 100);
     const tooLong = after.competences.findIndex((r) => (r.years ?? 0) > 70);
-    if (tooLong >= 0) refuse('competences', tooLong);
-    if (after.focus.length > 5) refuse('focus');
+    if (tooLong >= 0) refuse('competences', 70, tooLong);
+    if (after.focus.length > 5) refuse('focus', 5);
     const form = savedForm(after);
     const count = form.competences.length + form.tools.length + form.keywords.length;
     const quality = count === 0 ? 'empty' : count < 5 ? 'thin' : 'good';
@@ -2171,10 +2223,7 @@ const handlers: Handlers = {
       if (p === undefined) continue;
       if (change.enabled !== null) p.enabled = change.enabled;
       if (change.fetchDetails !== null) p.fetchDetails = change.fetchDetails;
-      if (change.loginEnabled !== null) {
-        p.loginEnabled = change.loginEnabled;
-        p.risk = change.loginEnabled ? 'account' : 'grey';
-      }
+      if (change.loginEnabled !== null) p.loginEnabled = change.loginEnabled;
     }
     // Every portal may be off (the backend saves it); a fetch is then refused, see start_run.
     if (patch.autoFetchOnStart !== null) state.autoFetchOnStart = patch.autoFetchOnStart;

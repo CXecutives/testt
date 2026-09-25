@@ -177,17 +177,28 @@ function rateWords(
 export function factWords(facts: KeyFacts | null | undefined): string[] {
   if (!facts) return [];
   const out: string[] = [];
-  const start = startWords(facts.start, false);
-  if (start) out.push(start);
+  const terms = termWords(facts);
+  if (terms.availability) out.push(terms.availability);
   if (facts.months) out.push(t.facts.months(facts.months));
   const from = facts.remoteFrom ?? facts.remoteTo;
   const to = facts.remoteTo ?? facts.remoteFrom;
   if (from !== null && to !== null) out.push(t.facts.remote(from, to));
-  const rate =
-    rateWords(facts.rate, facts.hourly, facts.currency, true) ??
-    (facts.rateOpen ? t.facts.rateOpen : null);
-  if (rate) out.push(rate);
+  if (terms.minDayRate) out.push(terms.minDayRate);
   return out;
+}
+
+/** The rate and the start an ad states ("1.100 €/Tag", "ab sofort"), by the criterion they
+ *  stand for: the reader's strip shows them where the profile sets no such criterion. */
+export function termWords(
+  facts: KeyFacts | null | undefined,
+): Record<'minDayRate' | 'availability', string | null> {
+  if (!facts) return { minDayRate: null, availability: null };
+  return {
+    minDayRate:
+      rateWords(facts.rate, facts.hourly, facts.currency, true) ??
+      (facts.rateOpen ? t.facts.rateOpen : null),
+    availability: startWords(facts.start, false),
+  };
 }
 
 /** The duration and remote share of an ad (the reader's facts line, in place of the work

@@ -18,6 +18,8 @@
     "allow-mark-read",
     "allow-mark-unread",
     "allow-move-jobs",
+    "allow-move-back",
+    "allow-restore-jobs",
     "allow-open-target",
     "allow-parse-profile",
     "allow-pick-profile",

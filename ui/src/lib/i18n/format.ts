@@ -83,7 +83,9 @@ export function formatRelative(iso: string, now: Date = new Date(), short = fals
   if (Number.isNaN(time)) return '';
   const { relative, relativeShort, dayMonth, weekday, dayMonthYear } = formats();
   const format = short ? relativeShort : relative;
-  const diff = now.getTime() - time;
+  // The clock steps once a minute: a moment after its last step is still "now".
+  const ahead = now.getTime() - time;
+  const diff = ahead < 0 && ahead > -MINUTE ? 0 : ahead;
   const days = Math.round((startOfDay(now) - startOfDay(date)) / DAY);
   if (diff >= 0 && days === 0) {
     if (diff < MINUTE) return format.format(0, 'second');

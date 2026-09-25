@@ -23,10 +23,10 @@ use crate::settings::Language;
 use crate::view::{
     AppState, ClearedTxt, Deleted, DetailState, EmptyAlert, Evidence, Highlight, JobCounts,
     JobDetail, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel, Mailbox,
-    MatchDetail, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
+    MatchDetail, MoveBack, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
     ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileDraft, ProfileForm,
     ProfileInfo, ProfileLanguage, ProfileQuality, ProfileSave, ProfileSource, ProfileUnderstanding,
-    ProfileWishes, Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary, Risk,
+    ProfileWishes, Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary,
     SettingsPatch, SettingsView, TextRange, UnreadableField, VaultKind, WorkMode,
 };
 
@@ -167,7 +167,6 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<SettingsPatch>();
     f.add::<PortalPatch>();
     f.add::<PortalLogin>();
-    f.add::<Risk>();
     f.add::<Quota>();
     f.add::<PortalState>();
     f.add::<ProfileQuality>();
@@ -189,6 +188,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<AppState>();
     f.add::<OpenTarget>();
     f.add::<ClearedTxt>();
+    f.add::<MoveBack>();
     f.add::<Deleted>();
     f.add::<RunRequest>();
     f.add::<RunKind>();

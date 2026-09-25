@@ -5,12 +5,12 @@
 //   it shows); the list renders in windows of 60 rows that grow while scrolling, chunk by
 //   chunk, so 2000 jobs never block a frame. A reload of the same list (sort, undo, the end
 //   of a run) asks for as many rows as it holds, keeps the rows that did not change and
-//   builds at most a chunk of new ones at once. Another list (place, tab, search, filter) is
+//   builds at most a chunk of new ones at once. Another list (place, tab, search) is
 //   a new generation of rows: the old rows go as one piece instead of one by one.
 // - Rows are plain objects (`$state.raw`): a change replaces the row, so only that row
 //   renders again, and no proxy sits between the template and 2000 jobs.
 // - Every number comes from the backend (one truth): the counts of the list (with the
-//   search) and the counts over every job (tiles, sidebar, new jobs per portal, favourites).
+//   search) and the counts over every job (day overview, new jobs per portal, places).
 //   A change the page makes itself (read, a move) or a run update of a listed row moves
 //   them at once; during a run a counts-only query follows every update (throttled), so
 //   they stay exact for rows the page does not hold.
@@ -39,7 +39,6 @@ import type {
   JobSort,
   JobView,
   Place,
-  Portal,
   RunEvent,
 } from '../ipc/types';
 import { tokenMs } from '../tokens';
@@ -57,8 +56,6 @@ const HIGH = 80;
 /** At most one counts query per this many ms while a run updates jobs. */
 const COUNTS_EVERY = 400;
 
-/** A tile of the day overview, or a portal (its new jobs). */
-export type JobFilter = 'high' | 'noDetail' | 'excluded' | 'pinned' | Portal;
 type Status = 'idle' | 'loading' | 'ready' | 'error';
 /** What the list shows: the unread or all jobs of the inbox, the favourites, a place. */
 export type JobFacet = 'new' | 'all' | 'favourites' | 'archived' | 'trash';
@@ -105,26 +102,6 @@ export function inFacet(job: JobView, facet: JobFacet): boolean {
       return job.place === 'trash';
   }
 }
-const TILES: readonly string[] = ['high', 'noDetail', 'excluded', 'pinned'];
-const isPortal = (filter: JobFilter): filter is Portal => !TILES.includes(filter);
-
-function matches(job: JobView, filter: JobFilter | null): boolean {
-  switch (filter) {
-    case null:
-      return true;
-    case 'high':
-      return job.match?.status === 'scored' && job.match.score >= HIGH;
-    case 'noDetail':
-      return job.detail.kind !== 'ok';
-    case 'excluded':
-      return isExcluded(job);
-    case 'pinned':
-      return job.pinned;
-    default:
-      return job.portal === filter;
-  }
-}
-
 /**
  * What one job adds to the counts (the backend's definitions, store::job_page): the inbox
  * counts only inbox jobs, a favourite counts until it goes to the trash.
@@ -155,12 +132,16 @@ function moved(counts: JobCounts, before: JobView, after: JobView): JobCounts {
   return add(add(counts, before, -1), after, 1);
 }
 
-/** A job a move took away, to bring back (`moveBack`): as it was, where it went, and its
- *  index in the list then (-1: the list did not hold it). */
+/** A job a move took away, to bring back (`moveBack`): as it was, where it went, its
+ *  index in the list then (-1: the list did not hold it) and the rows that stood below and
+ *  above it (keyOf, not moved with it): an undo puts it back between them, also when other
+ *  moves were undone in another order. */
 export interface Unmove {
   job: JobView;
   to: Place;
   at: number;
+  below: string | null;
+  above: string | null;
 }
 
 /** The text of a row as it came from the backend, kept per object (each is read once). */
@@ -220,7 +201,6 @@ class JobsStore {
   facet = $state<JobFacet>('new');
   sortChoice = $state<JobSort>(keptSort());
   search = $state('');
-  filter = $state<JobFilter | null>(null);
 
   rows = $state.raw<JobView[]>([]);
   /** The counts of the list: with the search, whatever the facet. */
@@ -240,6 +220,8 @@ class JobsStore {
   #served = $state(0);
   /** Keys of the rows the page put in itself (see #served). */
   #own = new Set<string>();
+  /** Jobs opened and so read in this visit of Neu: a reload keeps them (see withRead). */
+  #readHere = new Set<string>();
   status = $state<Status>('idle');
   /** The list has taken --delay-placeholder to load: its placeholder rows show (at once). */
   slow = $state(false);
@@ -280,7 +262,7 @@ class JobsStore {
   detailSlow = $state(false);
   detailError = $state<string | null>(null);
 
-  /** The counts over every job, without the search (tiles, sidebar, new per portal). */
+  /** The counts over every job, without the search (day overview, the places' own counts). */
   overviewCounts = $state<JobCounts | null>(null);
   overviewStatus = $state<Status>('idle');
 
@@ -297,10 +279,17 @@ class JobsStore {
     return app.hasProfile ? this.sortChoice : 'newest';
   }
 
-  /** Rows of the list after the tile filter, excluded ones last (behind the divider). */
-  readonly visible = $derived(
-    this.filter === null ? this.rows : this.rows.filter((job) => matches(job, this.filter)),
-  );
+  /**
+   * Rows of the list in the order it draws them: the excluded ones last (behind the divider),
+   * also a row whose exclusion changed in place (an override, a run scoring a new job). The
+   * keys, the selection and the next job after a move all count in this order.
+   */
+  readonly visible = $derived.by((): JobView[] => {
+    const active = this.rows.filter((job) => !isExcluded(job));
+    return active.length === this.rows.length
+      ? this.rows
+      : [...active, ...this.rows.filter(isExcluded)];
+  });
 
   readonly shown = $derived(this.visible.slice(0, this.rendered));
 
@@ -357,7 +346,9 @@ class JobsStore {
   /** The last tab of the inbox (Neu, Alle, Favoriten): Jobs in the sidebar goes back to it. */
   inboxFacet = $state<JobFacet>('new');
 
-  setFacet(facet: JobFacet): void {
+  /** Another place or tab. `dropSearch`: a place chosen in the sidebar opens without the
+   *  search, like a folder of a mail app (the "Auch im …" links keep it). */
+  setFacet(facet: JobFacet, dropSearch = false): void {
     // Another place: an open job of the one left behind closes, like a mail of another
     // folder (here, not in the list: the place also changes from Profil or Einstellungen).
     const selected = this.selected;
@@ -368,9 +359,12 @@ class JobsStore {
     if (open !== null && placeOf(facet) !== open.place && !inFacet(open, facet)) {
       this.clearSelection();
     }
+    if (dropSearch && this.search !== '') {
+      if (this.#searchTimer !== null) clearTimeout(this.#searchTimer);
+      this.search = '';
+    }
     this.facet = facet;
     if (facet === 'new' || facet === 'all' || facet === 'favourites') this.inboxFacet = facet;
-    this.filter = null;
     this.quiet();
     void this.load();
   }
@@ -399,20 +393,13 @@ class JobsStore {
     );
   }
 
-  setFilter(filter: JobFilter | null): void {
-    this.filter = filter;
-    this.quiet();
-    // A tile counts over all jobs; a portal chip counts its new ones.
-    if (filter !== null) this.facet = isPortal(filter) ? 'new' : 'all';
-    void this.load();
-  }
-
   /**
-   * Load the first page (and with a tile filter every page, the filter is local).
+   * Load the first page.
    * `keep` = the same rows in a new order (sort, end of a run): the mounted rows stay and move,
    * and as many rows come back as the list holds (a list scrolled far down stays as long).
+   * `keepRead`: Neu keeps the jobs read in this visit (not when the list is entered again).
    */
-  async load(keep = false): Promise<void> {
+  async load(keep = false, keepRead = keep): Promise<void> {
     const request = ++this.#request;
     this.status = 'loading';
     this.error = null;
@@ -427,8 +414,9 @@ class JobsStore {
       if (request !== this.#request) return;
       const mounted = keep ? new Set(this.shown.map((job) => keyOf(job.key))) : null;
       this.#own.clear();
+      if (!keepRead) this.#readHere.clear();
       this.#served = page.jobs.length;
-      this.rows = this.withOpen(keep ? reused(this.rows, page.jobs) : page.jobs);
+      this.rows = this.withRead(keep ? reused(this.rows, page.jobs) : page.jobs, keepRead);
       this.counts = page.counts;
       this.total = page.jobs.length < limit ? page.jobs.length : this.countOf(page.counts);
       this.window = keep ? Math.max(WINDOW, this.window) : WINDOW;
@@ -436,7 +424,6 @@ class JobsStore {
       if (!keep) this.generation += 1;
       this.fresh.clear();
       this.status = 'ready';
-      if (this.filter !== null) await this.loadAll(request);
       this.pump();
     } catch (error) {
       if (request !== this.#request) return;
@@ -449,22 +436,49 @@ class JobsStore {
   }
 
   /**
-   * Neu keeps the open job listed after it was read, where it stood, until another job is
-   * opened (like Mail): a reload never pulls the job away from under the reader.
+   * Neu keeps the open job listed after it was read, until another job is opened (like
+   * Mail), and a reload of the same list (the end of a run, a sort) keeps every job read in
+   * this visit: a reload never pulls a job away from under the reader. A kept row stands
+   * where the list's order puts it among the rows that came.
    */
-  private withOpen(rows: JobView[]): JobView[] {
-    const open = this.detail?.job ?? null;
+  private withRead(rows: JobView[], keep: boolean): JobView[] {
     if (this.facet !== 'new' || this.search.trim() !== '') return rows;
-    if (open === null || !sameKey(open.key, this.selected)) return rows;
-    if (open.place !== 'inbox' || rows.some((job) => sameKey(job.key, open.key))) return rows;
-    const at = this.rows.findIndex((job) => sameKey(job.key, open.key));
-    // Among its kind: the excluded jobs stay behind the others.
-    const out = rows.findIndex(isExcluded);
-    const split = out < 0 ? rows.length : out;
-    const [low, high] = isExcluded(open) ? [split, rows.length] : [0, split];
-    const index = Math.max(low, Math.min(at < 0 ? low : at, high));
-    this.#own.add(keyOf(open.key));
-    return [...rows.slice(0, index), open, ...rows.slice(index)];
+    const open = this.detail?.job ?? null;
+    const isOpen = (job: JobView): boolean =>
+      open !== null && sameKey(job.key, open.key) && sameKey(open.key, this.selected);
+    const listed = new Set(rows.map((job) => keyOf(job.key)));
+    const kept = this.rows
+      .filter(
+        (job) =>
+          !listed.has(keyOf(job.key)) &&
+          ((keep && !job.unread && this.#readHere.has(keyOf(job.key))) || isOpen(job)),
+      )
+      .map((job) => (isOpen(job) && open !== null ? open : job))
+      .filter((job) => job.place === 'inbox');
+    if (open !== null && isOpen(open) && open.place === 'inbox' && !listed.has(keyOf(open.key))) {
+      if (!kept.some((job) => sameKey(job.key, open.key))) kept.push(open);
+    }
+    if (kept.length === 0) return rows;
+    const out = [...rows];
+    for (const job of kept) {
+      const index = out.findIndex((row) => this.#ahead(job, row));
+      out.splice(index < 0 ? out.length : index, 0, job);
+      this.#own.add(keyOf(job.key));
+    }
+    return out;
+  }
+
+  /** `job` stands before `row` in the list's order (the backend's, store::job_page). */
+  #ahead(job: JobView, row: JobView): boolean {
+    const out = Number(isExcluded(job)) - Number(isExcluded(row));
+    if (out !== 0) return out < 0;
+    if (this.sort === 'match') {
+      const none = Number(job.match === null) - Number(row.match === null);
+      if (none !== 0) return none < 0;
+      const score = (job.match?.score ?? 0) - (row.match?.score ?? 0);
+      if (score !== 0) return score > 0;
+    }
+    return (job.mailDate ?? job.firstSeenAt) > (row.mailDate ?? row.firstSeenAt);
   }
 
   /**
@@ -526,10 +540,6 @@ class JobsStore {
     return true;
   }
 
-  private async loadAll(request: number): Promise<void> {
-    while (request === this.#request && (await this.page(request)));
-  }
-
   /**
    * The row at `target` of the list (an index, the last row, or a job), loading the pages up
    * to it, and a window that reaches it: its row mounts within a few frames (chunk by chunk,
@@ -582,7 +592,7 @@ class JobsStore {
   }
 
   /**
-   * The counts over every job for the day overview and the sidebar: one counts-only query
+   * The counts over every job for the day overview and the list header: one counts-only query
    * (on an error the overview says nothing, not "nothing new").
    */
   async loadOverview(): Promise<void> {
@@ -661,6 +671,7 @@ class JobsStore {
 
   private async markRead(key: JobKey): Promise<void> {
     this.patch(key, { unread: false });
+    if (this.facet === 'new') this.#readHere.add(keyOf(key));
     try {
       await invoke('mark_read', { key });
     } catch {
@@ -804,17 +815,26 @@ class JobsStore {
    * Moves jobs to the inbox, the archive or the trash. The rows leave a list they no longer
    * belong to at once. Resolves with the keys that really moved (toasts and undos only for
    * those; a job already there or gone did not), or the error text; on an error, or when not
-   * every job moved, the list loads again.
+   * every job moved, the list loads again. `restore` takes jobs out of the trash back to where
+   * each lay (the archive for one thrown away from there): they count as `to` until the
+   * counts come from the backend.
    */
-  async move(keys: JobKey[], to: Place): Promise<{ moved: JobKey[] } | { error: string }> {
+  async move(
+    keys: JobKey[],
+    to: Place,
+    restore = false,
+  ): Promise<{ moved: JobKey[] } | { error: string }> {
     const before = keys.map((key) => this.held(key)).filter((job): job is JobView => job !== null);
     for (const job of before) {
       this.patch(job.key, { place: to });
       this.dropStray(job.key);
     }
     try {
-      const moved = await invoke('move_jobs', { keys, to });
+      const moved = restore
+        ? await invoke('restore_jobs', { keys })
+        : await invoke('move_jobs', { keys, to });
       if (moved.length < keys.length) void this.load(true);
+      else if (restore) void this.refreshCounts();
       return { moved };
     } catch (error) {
       for (const job of before) this.patch(job.key, { place: job.place });
@@ -824,22 +844,21 @@ class JobsStore {
   }
 
   /**
-   * Takes moves back (the undo of a toast): every job goes back to the place it came from
-   * (one call per place). A row the list lost comes back where it stood when the list is
-   * still the one it left (Neu keeps a read job, like before the move); in another list the
-   * list loads again when the job belongs there. Resolves with the keys that went back (a
-   * job already there did not), or the error text.
+   * Takes moves back (the undo of a toast): every job goes back to the place it came from as
+   * it was there (the trash keeps its date). A row the list lost comes back where it stood
+   * when the list is still the one it left (Neu keeps a read job, like before the move); in
+   * another list the list loads again when the job belongs there. Resolves with the keys that
+   * went back (a job already there did not), or the error text.
    */
   async moveBack(
     back: readonly Unmove[],
     generation: number,
   ): Promise<{ moved: JobKey[] } | { error: string }> {
-    const landed: JobKey[] = [];
+    let landed: JobKey[];
     try {
-      for (const place of new Set(back.map(({ job }) => job.place))) {
-        const keys = back.filter(({ job }) => job.place === place).map(({ job }) => job.key);
-        landed.push(...(await invoke('move_jobs', { keys, to: place })));
-      }
+      landed = await invoke('move_back', {
+        jobs: back.map(({ job }) => ({ key: job.key, to: job.place, trashedAt: job.trashedAt })),
+      });
     } catch (error) {
       void this.load(true);
       return { error: errorText(error) };
@@ -847,7 +866,7 @@ class JobsStore {
     const done = new Set(landed.map(keyOf));
     const same = generation === this.generation;
     let missing = false;
-    for (const { job, to, at } of [...back].sort((a, b) => a.at - b.at)) {
+    for (const { job, to, at, below, above } of [...back].sort((a, b) => a.at - b.at)) {
       if (!done.has(keyOf(job.key))) continue;
       if (this.rows.some((row) => sameKey(row.key, job.key)) || !same || at < 0) {
         this.patch(job.key, { place: job.place });
@@ -856,7 +875,11 @@ class JobsStore {
       }
       const gone = { ...job, place: to };
       const rows = [...this.rows];
-      rows.splice(Math.min(at, rows.length), 0, job);
+      const index = (key: string | null): number =>
+        key === null ? -1 : rows.findIndex((row) => keyOf(row.key) === key);
+      const after = index(above);
+      const place = index(below) >= 0 ? index(below) : after >= 0 ? after + 1 : at;
+      rows.splice(Math.min(place, rows.length), 0, job);
       this.rows = rows;
       this.counts = moved(this.counts, gone, job);
       if (this.overviewCounts !== null) this.overviewCounts = moved(this.overviewCounts, gone, job);

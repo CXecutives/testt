@@ -4,7 +4,7 @@
 // row title, one line or clamped to two): measured once when the pointer enters, never per
 // frame.
 // `{ text, hint }` adds a second, smaller line under the title, like the tooltips of native
-// apps name a key: "Seitenleiste einklappen" over "Strg+B". The hint rides on the anchor as
+// apps name a key: "Suchen" over "Strg+F". The hint rides on the anchor as
 // `data-tooltip-hint`, where the tooltip layer (components/Tooltip.svelte) reads it.
 
 import type { Action } from 'svelte/action';

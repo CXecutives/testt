@@ -12,6 +12,9 @@ pub trait Host {
     fn running(&self) -> bool;
     /// A usable profile exists (one that names competences).
     fn usable(&self) -> bool;
+    /// What `usable` says is certain: the work folder can be reached and the profile file is
+    /// either gone or was read (an unreachable drive or a read error may pass).
+    fn certain(&self) -> bool;
     /// Jobs not scored with the current profile yet.
     fn pending(&self) -> u32;
     /// Some job still carries a score (of whatever profile).
@@ -50,10 +53,11 @@ impl Rescore {
     /// profile that became unusable while the app was closed (broken by hand, emptied, gone)
     /// is a profile change like any other: its old scores go and the files are written
     /// without them - the list, the counts and the exports never keep the verdicts of a
-    /// profile that no longer reads.
+    /// profile that no longer reads. A profile that cannot be read just now (the work folder
+    /// on a drive not there yet) keeps the scores.
     pub fn at_start(&self, host: &impl Host) {
         if !host.usable() {
-            if host.scored() {
+            if host.scored() && host.certain() {
                 log::info!("scores of a profile that no longer reads: removed at the start");
                 self.rescore(host);
             }
@@ -112,9 +116,15 @@ mod tests {
 
     /// The app as far as the rules see it.
     #[derive(Default)]
+    #[expect(
+        clippy::struct_excessive_bools,
+        reason = "one flag per answer of the host"
+    )]
     struct Fake {
         running: Cell<bool>,
         usable: bool,
+        /// The profile's state is not known for sure (an unreachable folder).
+        unsure: bool,
         pending: u32,
         scored: bool,
         jobs: bool,
@@ -128,6 +138,9 @@ mod tests {
         }
         fn usable(&self) -> bool {
             self.usable
+        }
+        fn certain(&self) -> bool {
+            !self.unsure
         }
         fn pending(&self) -> u32 {
             self.pending
@@ -215,6 +228,9 @@ mod tests {
         fn usable(&self) -> bool {
             self.fake.usable()
         }
+        fn certain(&self) -> bool {
+            self.fake.certain()
+        }
         fn pending(&self) -> u32 {
             self.fake.pending()
         }
@@ -291,6 +307,16 @@ mod tests {
         };
         Rescore::default().at_start(&usable);
         assert!(log(&usable).is_empty(), "a usable profile keeps its scores");
+        let away = Fake {
+            scored: true,
+            unsure: true,
+            ..fake(false, true)
+        };
+        Rescore::default().at_start(&away);
+        assert!(
+            log(&away).is_empty(),
+            "a profile not reachable now keeps its scores"
+        );
     }
 
     #[test]

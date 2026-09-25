@@ -258,3 +258,64 @@ fn permanent_employment_can_be_excluded() {
     assert!(set.contains(&CriterionKey::NoPermanent), "{set:?}");
     assert!(!set.contains(&CriterionKey::NoAnue), "{set:?}");
 }
+
+/// A short requirement line that starts like a heading of the other listings ("Ähnliche
+/// Projekterfahrung von Vorteil") is part of the ad: the hard criteria below it still count,
+/// as a plain line and as a list item of a page. A real heading still ends the ad.
+#[test]
+fn a_requirement_that_starts_like_other_listings_keeps_the_ad_whole() {
+    let frame = "Rahmendaten:\n- Einsatz über Arbeitnehmerüberlassung\n- Tagessatz: 600 €";
+    for line in [
+        "Ähnliche Projekterfahrung von Vorteil",
+        "- Weitere Projekterfahrung wünschenswert",
+    ] {
+        let text = format!("Ihr Profil:\n- Erfahrung im Controlling\n{line}\n\n{frame}");
+        let a = run("Hamburg", &text);
+        assert_eq!(a.verdict, Verdict::Excluded, "{line}");
+        assert_eq!(
+            criterion(&a, CriterionKey::NoAnue).status,
+            CriterionStatus::Violated
+        );
+        assert_eq!(
+            criterion(&a, CriterionKey::MinDayRate).status,
+            CriterionStatus::Violated
+        );
+    }
+    let listings = format!(
+        "Ihr Profil:\n- Erfahrung im Controlling\n- Tagessatz: 950 €\n\nÄhnliche Projekte (12)\n{frame}"
+    );
+    let a = run("Hamburg", &listings);
+    assert_ne!(a.verdict, Verdict::Excluded);
+}
+
+/// A profile that names its countries (`["Deutschland", "Österreich"]`) keeps the country
+/// rule: a job in Hamburg passes, one in Paris is excluded.
+#[test]
+fn country_names_in_a_profile_keep_the_country_rule() {
+    let mut value = profile();
+    value["harte_kriterien"]["laender"] = json!(["Deutschland", "Österreich"]);
+    let named = compile_profile(&value);
+    let at = |location: &str| {
+        let job = JobInput {
+            title: "Interim Controller (m/w/d)",
+            company: "Muster AG",
+            location,
+            portal: Portal::LinkedIn,
+            text: STATED,
+            facts: None,
+            posted: None,
+            kind: TextKind::Full,
+        };
+        assess(&named, &job, None).expect("assessed")
+    };
+    assert_eq!(
+        criterion(&at("Hamburg"), CriterionKey::Countries).status,
+        CriterionStatus::Ok
+    );
+    let paris = at("Paris, Frankreich");
+    assert_eq!(paris.verdict, Verdict::Excluded);
+    assert_eq!(
+        criterion(&paris, CriterionKey::Countries).status,
+        CriterionStatus::Violated
+    );
+}

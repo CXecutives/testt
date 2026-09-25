@@ -1161,9 +1161,9 @@ fn the_comparison_of_the_best_matches() {
     in_order(
         &prompt,
         &[
-            "3 Jobs aus meiner App, zuerst mein gemerkter Job, dann die besten nach der Vorbewertung.",
+            "3 Jobs aus meiner App, zuerst mein Favorit, dann die besten nach der Vorbewertung.",
             "## Job 1 · Interim CFO\n",
-            "- Von mir gemerkt",
+            "- Mein Favorit",
             "## Job 2 · Head of Controlling\n",
             "Der Text ist nach 6.000 Zeichen gekürzt",
             "## Job 3 · Finance Business Partner\n",
@@ -1172,7 +1172,9 @@ fn the_comparison_of_the_best_matches() {
             "## Rangfolge",
         ],
     );
-    assert_eq!(prompt.matches("- Von mir gemerkt").count(), 1);
+    assert_eq!(prompt.matches("- Mein Favorit").count(), 1);
+    // The app's word for the star, as the list says it.
+    assert!(!prompt.to_lowercase().contains("gemerkt"));
     assert_eq!(
         prompt.matches("- Ergebnis: 68 von 100").count(),
         2,
@@ -1180,10 +1182,11 @@ fn the_comparison_of_the_best_matches() {
     );
     assert!(prompt.chars().count() < 3 * MAX_TOP_AD_CHARS + MAX_PROFILE_CHARS + 30_000);
     let en = ai_prompt_top(&profile(), &items, Language::En);
-    assert!(en.contains(
-        "3 jobs from my app, first the job I saved, then the best by the pre-assessment."
-    ));
-    assert!(en.contains("- Saved by me"));
+    assert!(
+        en.contains("3 jobs from my app, first my favourite, then the best by the pre-assessment.")
+    );
+    assert!(en.contains("- My favourite"));
+    assert!(!en.to_lowercase().contains("saved"));
 }
 
 #[test]
@@ -1208,6 +1211,19 @@ fn the_prompts_name_no_product_and_carry_the_rubric() {
     });
     assert!(de_words().rubric.starts_with("# Bewertungsregel"));
     assert!(en::English.words().rubric.starts_with("# Scoring rule"));
+}
+
+/// The other listings a portal shows under an ad are no part of it, as for the engine: the
+/// rubric of the prompt and the skill says so (an ANÜ in a footer excludes nothing).
+#[test]
+fn the_rubric_leaves_out_the_other_listings_under_an_ad() {
+    let flat = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(flat(de_words().rubric).contains(
+        "Die weiteren Anzeigen, die ein Portal unter einer Anzeige zeigt (etwa „Ähnliche Projekte“ oder „Similar jobs“), gehören nicht zu ihr. Keine Regel liest sie, und sie schließen nichts aus."
+    ));
+    assert!(flat(en::English.words().rubric).contains(
+        "The other listings a portal shows under an ad (such as “Similar jobs” or „Ähnliche Projekte“) are no part of it. No rule reads them, and they exclude nothing."
+    ));
 }
 
 // ------------------------------------------------------------------------- the real engine

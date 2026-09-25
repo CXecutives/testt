@@ -382,7 +382,7 @@
     </section>
 
     <section class="section" data-testid="settings-fetch">
-      <h2 class="heading">{t.settings.fetch}</h2>
+      <h2 class="heading">{t.settings.automatic}</h2>
       <Card padding="rows">
         <SettingRow
           label={t.settings.autoFetch}
@@ -488,6 +488,22 @@
               disabledReason={t.settings.excelMissing}
               testid="excel-open"
               onclick={() => open({ kind: 'excel' }, setFiles)}
+            />
+          </div>
+        </SettingRow>
+        <!-- The HTML overview next to it: opening writes it first, except in the dry run and
+             while a run holds the files (as in the day overview). -->
+        <SettingRow label={t.settings.overview} testid="overview">
+          <div class="buttons">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="file-text"
+              label={t.common.open}
+              disabled={!cfg.settings.excelExists && (dryRun || run.active)}
+              disabledReason={lockedReason}
+              testid="overview-open"
+              onclick={() => open({ kind: 'overview' }, setFiles)}
             />
           </div>
         </SettingRow>

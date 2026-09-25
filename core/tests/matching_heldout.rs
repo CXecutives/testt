@@ -200,15 +200,15 @@ const HELDOUT5: Floor = Floor {
     exclusion_recall: 1.0,
     grade3_buried: 0,
 };
-/// Set 7 at first contact (engine 10): the footer ANÜ of another listing excludes K03 for
-/// seven profiles, three grade-3 jobs are buried, and the student jobs the labelers exclude by
-/// their wage stay in for ten profiles.
+/// Set 7 at the level of engine 12 (the hard criteria read only the ad, not the other
+/// listings under it; first contact with engine 10 gave 0.900, 0.438, 0.973 and 3 buried):
+/// the student jobs the labelers exclude by their wage stay in for ten profiles.
 const HELDOUT7: Floor = Floor {
-    ndcg10: 0.89,
-    spearman: 0.43,
-    exclusion_precision: 0.97,
+    ndcg10: 0.91,
+    spearman: 0.44,
+    exclusion_precision: 0.98,
     exclusion_recall: 0.88,
-    grade3_buried: 3,
+    grade3_buried: 2,
 };
 const HELDOUT8: Floor = Floor {
     ndcg10: 0.93,

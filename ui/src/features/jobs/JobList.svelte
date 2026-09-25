@@ -86,8 +86,9 @@
   // Jobs without a match get one soon while a run goes or a rescore is pending.
   const pending = $derived(app.hasProfile && (run.active || (app.state?.matchPending ?? 0) > 0));
 
-  /** The rows in the order they stand: the active ones, then the excluded ones. */
-  const order = $derived([...active, ...excluded]);
+  /** The rows in the order they stand: the active ones, then the excluded ones (the store's
+   *  order). */
+  const order = $derived(shown);
   /** The rows the list shows (a row on the page that is not among them is leaving). */
   const listed = $derived(new Set(shown.map((job) => keyOf(job.key))));
   const openKey = $derived(jobs.selected ? keyOf(jobs.selected) : null);
@@ -213,6 +214,11 @@
     if (!sameKey(jobs.selected, only.key)) void jobs.select(only, click);
   }
 
+  // Two columns again: a single chosen row (one column's header bar acted on it) opens.
+  $effect(() => {
+    if (!viewport.narrow) untrack(() => settle(false));
+  });
+
   // Rows that leave the list (a move, a reload) leave the choice too.
   $effect(() => {
     const listed = new Set(jobs.rows.map((row) => keyOf(row.key)));
@@ -282,7 +288,6 @@
   let last = untrack(() => ({
     sort: jobs.sortChoice,
     facet: jobs.facet,
-    filter: jobs.filter,
     active: run.active,
   }));
 
@@ -332,25 +337,23 @@
     }
   }
 
-  // What changed the list: the user's sort, facet or filter (never while a run streams new
+  // What changed the list: the user's sort or facet (never while a run streams new
   // rows in), or the end of a run. A search and live updates arm nothing.
   $effect.pre(() => {
     const now = {
       sort: jobs.sortChoice,
       facet: jobs.facet,
-      filter: jobs.filter,
       active: run.active,
     };
     untrack(() => {
-      const chosen =
-        now.sort !== last.sort || now.facet !== last.facet || now.filter !== last.filter;
+      const chosen = now.sort !== last.sort || now.facet !== last.facet;
       if ((chosen && !now.active) || (last.active && !now.active)) armed = true;
       last = now;
     });
   });
 
   // Before the DOM changes: note where the rows stand. The glide stays armed until the
-  // change has loaded (a filter shows its rows at once and again once every page is in).
+  // change has loaded.
   $effect.pre(() => {
     void shown;
     untrack(() => {

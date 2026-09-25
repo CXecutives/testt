@@ -63,12 +63,23 @@
   const str = (value: unknown): string =>
     typeof value === 'string' || typeof value === 'number' ? String(value) : '';
 
+  /** The form's label of each criterion (the one word for it on this page); the contract
+   *  types keep their name, their value says "ausgeschlossen". */
+  const FIELD: Record<string, string> = $derived({
+    minDayRate: t.profile.field.minDayRate,
+    countries: t.profile.field.countries,
+    availability: t.profile.field.available,
+    minSalary: t.profile.field.minSalary,
+    permanentRegion: t.profile.field.places,
+    targetYears: t.profile.field.targetYears,
+  });
+
   /** A set criterion as the engine applies it: its name and its value. */
   function criterion(notice: Notice): { label: string; value: string } | null {
     const p = notice.params;
     if (p.set !== true) return null;
     const key = notice.code as keyof typeof t.reader.criterion;
-    const label = t.reader.criterion[key]?.label ?? notice.code;
+    const label = FIELD[notice.code] ?? t.reader.criterion[key]?.label ?? notice.code;
     switch (notice.code) {
       case 'minDayRate':
       case 'minSalary':
@@ -88,12 +99,12 @@
       case 'availability':
         return {
           label,
-          value: p.from === 'now' ? t.profile.availability.now : words.from(shownDate(str(p.from))),
+          value: p.from === 'now' ? t.profile.availability.now : shownDate(str(p.from)),
         };
       case 'permanentRegion':
         return { label, value: str(p.places) };
       case 'targetYears':
-        return { label, value: words.from(words.yearsValue(Number(p.min))) };
+        return { label, value: words.yearsFrom(Number(p.min)) };
       default:
         return { label, value: '' };
     }

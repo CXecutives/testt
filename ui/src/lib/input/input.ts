@@ -23,7 +23,8 @@
 //   field every character the keyboard layout types (AltGr on Windows, Option on macOS: @
 //   is Option+L on a German Mac) and the editing keys of the OS (word and line moves,
 //   delete word, Shift selection, Ctrl/Cmd+C/V/X/A/Z, redo) work. Enter saves and Esc
-//   cancels a form or dialog.
+//   cancels a form or dialog; Ctrl+S (Cmd+S on macOS) saves the long Profil form from
+//   anywhere in it.
 // - a list with a reader (the Jobs view, `listKeys`) moves like a mail app: outside a field
 //   ArrowUp/ArrowDown open the previous/next item, Home/End the first/last, Shift with them
 //   extends the choice of items like Explorer and Mail (`extend`), Esc closes the open item
@@ -207,8 +208,9 @@ export interface FormKeyHandlers {
   save?: () => void;
   /** Esc anywhere inside the form. */
   cancel?: () => void;
-  /** Ctrl+S (Cmd+S on macOS) anywhere inside the form: saves a long form whose Enter
-   *  already means something else (the next row of a list). */
+  /** Ctrl+S (Cmd+S on macOS) anywhere inside the form: saves a long form also where Enter
+   *  means something else (the next row of a list, a chip). A form key like Enter and Esc,
+   *  not an app shortcut (docs/PLAN.md, Decisions "Keys"). */
   shortcut?: () => void;
 }
 
@@ -508,6 +510,8 @@ export interface ChipKeyHandlers {
   clear: () => boolean;
   /** ArrowDown/ArrowUp: move the highlight of the field's suggestions; `true` if it moved. */
   step?: (by: -1 | 1) => boolean;
+  /** Ctrl/Cmd+S: turn the typed text into chips as leaving the field would. */
+  settle?: () => void;
 }
 
 const CHIPS = '[data-chip-keys]';
@@ -663,8 +667,11 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
   if (isSaveShortcut(event)) {
-    // Never the WebView's "save page"; a form that saves this way gets it.
+    // Never the WebView's "save page"; a form that saves this way gets it, with the text
+    // typed into a chip field taken in first (the caret stays where it is).
     event.preventDefault();
+    const field = closest(event.target, CHIPS);
+    if (field !== null) chipFields.get(field)?.settle?.();
     handlerFor(event.target, 'shortcut')?.();
     return;
   }
@@ -925,6 +932,15 @@ function rest(target: Element | null): void {
     }
     node = node.parentElement?.closest<HTMLElement>(RESTS) ?? null;
   }
+}
+
+/**
+ * True while a scroll goes on (until --scroll-idle after its last event): a hover that begins
+ * then is the content moving under a still pointer, not the pointer moving. For hovers kept in
+ * state rather than in CSS (the reader's marked passage).
+ */
+export function contentMoving(): boolean {
+  return scrolling;
 }
 
 function scrollOver(): void {
