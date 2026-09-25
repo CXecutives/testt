@@ -1,6 +1,7 @@
 <!--
   One portal in the settings, the same skeleton on every card: the header (the portal by its
-  web address, the portal in the browser, its switch Aktiv; the name is the switch's label),
+  web address, the portal in the browser, its switch Aktiv; the name names the switch but, like
+  every text next to a switch, does not switch it),
   then the switch rows, then the status under its own divider (the portal's problem in one
   sentence that says whether she has to act, with "Alert-Mail öffnen" when alert mails came
   without jobs, and the pages used today, the meter only from 80 % or while paused). What
@@ -157,9 +158,15 @@
   <div class="head">
     <IconTile tone="navy" monogram={PORTAL_MONOGRAM[portal.portal]} size="md" />
     <div class="title">
-      <label class="name" for="switch-enabled-{portal.portal}">{t.portal[portal.portal]}</label>
+      <span class="name" id="switch-enabled-{portal.portal}-label">{t.portal[portal.portal]}</span>
       {#if !portal.enabled}
-        <p class="off" data-testid="portal-off-{portal.portal}">{t.settings.portalOff}</p>
+        <p
+          class="off"
+          id="switch-enabled-{portal.portal}-hint"
+          data-testid="portal-off-{portal.portal}"
+        >
+          {t.settings.portalOff}
+        </p>
       {/if}
     </div>
     <div class="tools">
