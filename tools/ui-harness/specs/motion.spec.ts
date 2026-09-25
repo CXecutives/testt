@@ -71,22 +71,42 @@ test('nothing animates at start, and a view that comes back does not replay', as
 });
 
 test('the reader ring fills from empty the first time a job opens, once', async ({ page }) => {
+  // Every Web Animation of the reader ring's arc, noted as it starts: the fill lasts 360 ms,
+  // and a busy machine may look only after it is over.
+  await page.addInitScript(() => {
+    const fills: string[] = [];
+    (window as unknown as { __fills: string[] }).__fills = fills;
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (this: Element, keyframes, options) {
+      if (this.matches('[data-testid="reader-ring"] .value')) {
+        const first = Array.isArray(keyframes) ? keyframes[0] : undefined;
+        fills.push(String(first?.strokeDashoffset));
+      }
+      return animate.call(this, keyframes, options);
+    };
+  });
+  const fills = (): Promise<string[]> =>
+    page.evaluate(() => [...(window as unknown as { __fills: string[] }).__fills]);
   await open(page, '?platform=windows');
-  await page.locator('[data-testid^="job-row-"]').first().click();
+  const rows = page.locator('[data-testid^="job-row-"]');
+  await rows.first().click();
   const ring = page.getByTestId('reader-ring');
   await expect(ring).toBeVisible();
   // One Web Animation on the arc, starting from empty (stroke-dashoffset 100).
-  const fill = await ring.evaluate((node) =>
-    node
-      .querySelector('.value')!
-      .getAnimations()
-      .map((a) => String((a.effect as KeyframeEffect).getKeyframes()[0]?.strokeDashoffset)),
-  );
-  expect(fill).toEqual(['100']);
+  await expect.poll(fills).toEqual(['100']);
   // It is dropped when done.
-  await page.waitForTimeout(500);
-  const after = await ring.evaluate((node) => node.querySelector('.value')!.getAnimations().length);
-  expect(after).toBe(0);
+  await expect
+    .poll(() => ring.evaluate((node) => node.querySelector('.value')!.getAnimations().length))
+    .toBe(0);
+  // Once: another job fills its own ring, the first one back is simply there.
+  await rows.nth(1).click();
+  await expect.poll(fills).toEqual(['100', '100']);
+  await rows.first().click();
+  await expect(page.getByTestId('reader-title')).toHaveText(
+    await rows.first().locator('.title').innerText(),
+  );
+  await settle(page);
+  expect(await fills()).toEqual(['100', '100']);
 });
 
 test('a count rolls when it changes on screen, not when it first shows', async ({ page }) => {

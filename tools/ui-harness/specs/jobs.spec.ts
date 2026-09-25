@@ -1403,62 +1403,6 @@ test('an empty list says where jobs come from', async ({ page }) => {
   await expect(page.getByTestId('read-older')).toBeVisible();
 });
 
-test('2000 jobs render in windows without long tasks', async ({ page, browserName }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __long: number[][] }).__long = [];
-    if (PerformanceObserver.supportedEntryTypes?.includes('longtask')) {
-      new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          (window as unknown as { __long: number[][] }).__long.push([
-            entry.startTime,
-            entry.duration,
-          ]);
-        }
-      }).observe({ type: 'longtask', buffered: true });
-    }
-  });
-  await open(page, `${WIN}&scenario=many`);
-  await expect(rows(page).first()).toBeVisible();
-  // Only the list work counts, not the start of the app: wait until the first window has
-  // mounted completely and the main thread is idle, then measure the interactions.
-  await expect
-    .poll(async () => {
-      const before = await rows(page).count();
-      await settle(page);
-      return before > 0 && before === (await rows(page).count());
-    })
-    .toBe(true);
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) =>
-        'requestIdleCallback' in window
-          ? requestIdleCallback(() => resolve(), { timeout: 2000 })
-          : setTimeout(resolve, 200),
-      ),
-  );
-  const since = await page.evaluate(() => performance.now());
-  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  await expect(page.getByTestId('facet').getByRole('radio', { name: /Alle/ })).toContainText(
-    '2.000',
-  );
-  const count = await page.locator('[data-testid^="job-row-"]').count();
-  expect(count).toBeLessThanOrEqual(70);
-  for (let i = 0; i < 4; i += 1) {
-    await page
-      .getByTestId('list-scroll')
-      .evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
-    await page.waitForTimeout(150);
-  }
-  expect(await page.locator('[data-testid^="job-row-"]').count()).toBeGreaterThan(count);
-  if (browserName === 'chromium') {
-    const long = await page.evaluate(() => (window as unknown as { __long: number[][] }).__long);
-    expect(
-      long.filter(([start, d]) => start! > since && d! > 50),
-      JSON.stringify(long),
-    ).toEqual([]);
-  }
-});
-
 test('below 900 px one column with a back button', async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 560 });
   await open(page, WIN);

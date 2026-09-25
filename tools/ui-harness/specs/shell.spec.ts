@@ -1,4 +1,4 @@
-import { expect, expectShot, open, settle, test } from './fixtures';
+import { expect, expectShot, motionSettled, open, settle, test } from './fixtures';
 
 test('the preview server sends the production CSP', async ({ page }) => {
   const response = await page.goto('/');
@@ -251,6 +251,9 @@ test('macos: the whole toolbar row moves the window, in every view and width', a
     await open(page, '?platform=macos');
     await go(page);
     await settle(page);
+    // Probe once the new stage or view has risen into place: halfway, the band of the row
+    // stands a few pixels lower than the row.
+    await motionSettled(page);
     expect(await page.evaluate(DRAG_PROBE), name).toEqual([]);
   }
   await page.setViewportSize({ width: 1360, height: 900 });

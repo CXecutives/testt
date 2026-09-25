@@ -1061,7 +1061,12 @@ function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
         const d = (b.match?.score ?? 0) - (a.match?.score ?? 0);
         if (d !== 0) return d;
       }
-      return date(b).localeCompare(date(a)) || a.key.id.localeCompare(b.key.id);
+      // ISO dates order as plain strings (localeCompare on 2000 jobs took the page's main
+      // thread for milliseconds; the real backend sorts in SQLite, off it).
+      const da = date(a);
+      const db = date(b);
+      if (da !== db) return da < db ? 1 : -1;
+      return a.key.id.localeCompare(b.key.id);
     });
   return {
     jobs: page.slice(query.offset, query.offset + Math.min(query.limit, 500)),
