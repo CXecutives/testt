@@ -758,7 +758,7 @@ pub struct JobQuery {
 
 /// Counts of the list (with the search applied, whatever the place and the filter), from
 /// the same statement as the page. Every number of the page comes from here: the places, the
-/// tiles, the sidebar and the unread jobs per portal.
+/// list's filter segments, the tiles and the unread jobs per portal.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
