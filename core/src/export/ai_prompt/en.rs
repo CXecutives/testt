@@ -222,7 +222,7 @@ static WORDS: Words = Words {
         industries: "Industries",
         skills: "Skills",
         mail: "Date of the alert email",
-        pinned: "Saved by me",
+        pinned: "My favourite",
         status: "Status",
         link: "Link",
         closed: "The portal page takes no more applications.",
@@ -346,8 +346,8 @@ impl Wording for English {
         };
         let order = match pinned {
             0 => "the best by the pre-assessment".to_owned(),
-            1 => "first the job I saved, then the best by the pre-assessment".to_owned(),
-            n => format!("first the {n} jobs I saved, then the best by the pre-assessment"),
+            1 => "first my favourite, then the best by the pre-assessment".to_owned(),
+            n => format!("first my {n} favourites, then the best by the pre-assessment"),
         };
         format!(
             "{count} from my app, {order}. Each job's pre-assessment is a machine word match between the ad and the profile, not a verdict."

@@ -139,7 +139,7 @@ pub fn ai_prompt(profile: &Value, item: PromptJob<'_>, language: Language) -> St
     finish(&blocks)
 }
 
-/// One prompt that compares the best current matches (the saved ones first) in the app's
+/// One prompt that compares the best current matches (the favourites first) in the app's
 /// language: every job with its key facts, its text (at most [`MAX_TOP_AD_CHARS`]; the prompt
 /// says when a text was cut) and the app's pre-assessment, then one method, the rubric and an
 /// answer format with a ranking first.

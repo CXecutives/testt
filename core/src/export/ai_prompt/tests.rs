@@ -1161,9 +1161,9 @@ fn the_comparison_of_the_best_matches() {
     in_order(
         &prompt,
         &[
-            "3 Jobs aus meiner App, zuerst mein gemerkter Job, dann die besten nach der Vorbewertung.",
+            "3 Jobs aus meiner App, zuerst mein Favorit, dann die besten nach der Vorbewertung.",
             "## Job 1 · Interim CFO\n",
-            "- Von mir gemerkt",
+            "- Mein Favorit",
             "## Job 2 · Head of Controlling\n",
             "Der Text ist nach 6.000 Zeichen gekürzt",
             "## Job 3 · Finance Business Partner\n",
@@ -1172,7 +1172,9 @@ fn the_comparison_of_the_best_matches() {
             "## Rangfolge",
         ],
     );
-    assert_eq!(prompt.matches("- Von mir gemerkt").count(), 1);
+    assert_eq!(prompt.matches("- Mein Favorit").count(), 1);
+    // The app's word for the star, as the list says it.
+    assert!(!prompt.to_lowercase().contains("gemerkt"));
     assert_eq!(
         prompt.matches("- Ergebnis: 68 von 100").count(),
         2,
@@ -1180,10 +1182,11 @@ fn the_comparison_of_the_best_matches() {
     );
     assert!(prompt.chars().count() < 3 * MAX_TOP_AD_CHARS + MAX_PROFILE_CHARS + 30_000);
     let en = ai_prompt_top(&profile(), &items, Language::En);
-    assert!(en.contains(
-        "3 jobs from my app, first the job I saved, then the best by the pre-assessment."
-    ));
-    assert!(en.contains("- Saved by me"));
+    assert!(
+        en.contains("3 jobs from my app, first my favourite, then the best by the pre-assessment.")
+    );
+    assert!(en.contains("- My favourite"));
+    assert!(!en.to_lowercase().contains("saved"));
 }
 
 #[test]

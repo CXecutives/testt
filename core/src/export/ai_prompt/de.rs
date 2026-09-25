@@ -205,7 +205,7 @@ static WORDS: Words = Words {
         industries: "Branchen",
         skills: "Skills",
         mail: "Datum der Alert-Mail",
-        pinned: "Von mir gemerkt",
+        pinned: "Mein Favorit",
         status: "Status",
         link: "Link",
         closed: "Die Portalseite nimmt keine Bewerbungen mehr an.",
@@ -330,8 +330,8 @@ impl Wording for German {
         };
         let order = match pinned {
             0 => "die besten nach der Vorbewertung".to_owned(),
-            1 => "zuerst mein gemerkter Job, dann die besten nach der Vorbewertung".to_owned(),
-            n => format!("zuerst meine {n} gemerkten Jobs, dann die besten nach der Vorbewertung"),
+            1 => "zuerst mein Favorit, dann die besten nach der Vorbewertung".to_owned(),
+            n => format!("zuerst meine {n} Favoriten, dann die besten nach der Vorbewertung"),
         };
         format!(
             "{count} aus meiner App, {order}. Die Vorbewertung ist je Job ein maschineller Wortabgleich zwischen Anzeige und Profil, kein Urteil."
