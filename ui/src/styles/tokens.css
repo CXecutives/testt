@@ -154,6 +154,9 @@
   /* Where you are: the 3 px bar of the selected row and the ring track on its wash. */
   --selection-bar: hsl(var(--p-coral) / 0.75);
   --ring-track-selected: hsl(var(--p-coral-150));
+  /* The ring track on that wash while the window is in the back (the selection greys out):
+     translucent ink, as clear on the grey wash as the plain track is on white. */
+  --ring-track-inactive: hsl(var(--p-ink) / 0.1);
   /* The sliding white pill of the active sidebar entry (the sibling of the segmented
      thumb); its label ink, its icon coral. A nav icon turns coral on hover. */
   --nav-active-bg: hsl(var(--p-white));
@@ -397,6 +400,8 @@
   --toggle-thumb: 16px;
   --toggle-travel: 16px;
   --row-bar: 3px;
+  /* The selection bar keeps the row's top and bottom padding. */
+  --row-bar-inset: var(--space-12);
   --dialog-width: 440px;
   --stat-min: 180px;
   /* Sidebar (collapses to the icon rail below 1100 px) and the toast stack. */

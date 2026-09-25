@@ -25,7 +25,8 @@
   read while its row is on screen the dot shrinks away; an excluded row has no dot (no
   count includes it). A date older than ten days sits on a quiet tint; relative dates follow
   the page's clock (they move on while the app stays open). A score from a
-  teaser is a provisional ring. A cut-off title or reason shows in full in a tooltip. Layout stays
+  teaser rings like any other (its badge says that only a teaser was read). A cut-off
+  title or reason shows in full in a tooltip. Layout stays
   inside the row (containment); like the row, its hover rests while the list scrolls
   (`data-still`, see ListRow).
 -->
@@ -70,6 +71,8 @@
   interface Props {
     job: JobView;
     selected?: boolean;
+    /** A selected row draws its own bar (false: the list's one sliding bar marks it). */
+    bar?: boolean;
     /** Scoring is still running for this job. */
     pending?: boolean;
     /** A usable profile is there (without one the ring is an empty placeholder: no match). */
@@ -97,6 +100,7 @@
   let {
     job,
     selected = false,
+    bar = true,
     pending = false,
     ring = true,
     now,
@@ -189,6 +193,7 @@
   <ListRow
     leading={ringCell}
     {selected}
+    {bar}
     muted={excluded}
     {tabbable}
     onclick={onselect ? (event) => onselect?.(job, how(event)) : null}
