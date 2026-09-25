@@ -2,7 +2,7 @@
 // for one thing, numbers formatted like every other count, rows in short words.
 
 import type { Page } from '@playwright/test';
-import { expect, open, test } from './fixtures';
+import { expect, open, runFinished, test } from './fixtures';
 
 const WIN = '?platform=windows';
 
@@ -83,4 +83,23 @@ test('an excluded row names a missing degree or licence in short words, never a 
   // A code of a newer core: the plain word, not a raw code and not a cut sentence.
   await exclude('somethingNew', {});
   await expect(row.locator('.foot')).toHaveText('Ausgeschlossen');
+});
+
+test('reading the whole mailbox has one name: in the list, the settings and the run', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&scenario=empty`);
+  await expect(page.getByTestId('read-older')).toContainText('Ganzes Postfach lesen');
+  await page.getByTestId('nav-settings').click();
+  await expect(page.getByTestId('settings-care')).toContainText('Ganzes Postfach lesen');
+  // The run card names the run by its kind until the first status comes.
+  await page.evaluate(() => (window.__harness.holdAfter = 1));
+  await page.getByTestId('full-mailbox').click();
+  await page
+    .getByTestId('dialog-full-mailbox')
+    .getByRole('button', { name: 'Postfach lesen' })
+    .click();
+  await expect(page.getByTestId('run-running')).toContainText('Ganzes Postfach lesen');
+  await page.evaluate(() => (window.__harness.holdAfter = null));
+  await runFinished(page);
 });

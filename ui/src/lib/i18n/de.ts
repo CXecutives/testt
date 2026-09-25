@@ -164,6 +164,10 @@ const pause: Record<PauseReason, string> = {
 /** Opening the alert mail of a job in Gmail, the same words wherever it is offered. */
 const OPEN_MAIL = 'Alert-Mail öffnen';
 
+/** The run that reads every alert mail (`fullMailbox`): one name in the list, the run card
+ *  and the settings. */
+const FULL_MAILBOX = 'Ganzes Postfach lesen';
+
 const ANUE = 'Die Anzeige nennt Arbeitnehmerüberlassung.';
 const LOW_TEXT = 'Die Anzeige hat wenig Text.';
 const SHORT_TEXT = 'Die Anzeige ist sehr kurz.';
@@ -728,7 +732,7 @@ export const de = {
       fetch: 'Abruf',
       details: 'Details holen',
       rescore: 'Neu bewerten',
-      fullMailbox: 'Ältere Mails lesen',
+      fullMailbox: FULL_MAILBOX,
     } satisfies Record<RunKindName, string>,
     done: 'Abruf fertig',
     rescored: 'Neu bewertet',
@@ -805,7 +809,7 @@ export const de = {
     /** FR-03: while the first fetch runs, the empty list only says what comes. */
     emptyWhileRun: 'Die Jobs erscheinen, sobald der Abruf fertig ist.',
     createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
-    readOlder: 'Ältere Mails lesen',
+    readOlder: FULL_MAILBOX,
     emptyNew: 'Keine neuen Jobs.',
     emptyFavourites: 'Noch keine Favoriten.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
@@ -1315,7 +1319,7 @@ export const de = {
     txtClearHeading: 'Textdateien löschen?',
     /** A deleted text file is never written again by a fetch (core `mark_txt_written`). */
     txtClearText: 'Nur „Neu schreiben“ holt sie zurück.',
-    fullMailbox: 'Ganzes Postfach lesen',
+    fullMailbox: FULL_MAILBOX,
     fullMailboxHint: 'Liest alle Alert-Mails, nicht nur die neuen.',
     fullMailboxAction: 'Postfach lesen',
     /** The dialog's confirm: the bare verb of its heading, like every dialog. */

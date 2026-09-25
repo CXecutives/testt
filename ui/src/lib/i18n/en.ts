@@ -190,6 +190,9 @@ const pause: Record<PauseReason, string> = {
 /** Opening the alert email of a job in Gmail, the same words wherever it is offered. */
 const OPEN_MAIL = 'Open alert email';
 
+/** The run that reads every alert email (`fullMailbox`), one name everywhere. */
+const FULL_MAILBOX = 'Read the whole mailbox';
+
 const ANUE = 'The ad mentions temporary agency work.';
 const LOW_TEXT = 'The ad has little text.';
 const SHORT_TEXT = 'The ad is very short.';
@@ -696,7 +699,7 @@ export const en: Catalog = {
       fetch: 'Fetch',
       details: 'Fetch details',
       rescore: 'Score again',
-      fullMailbox: 'Read older emails',
+      fullMailbox: FULL_MAILBOX,
     } satisfies Record<RunKindName, string>,
     done: 'Fetch done',
     rescored: 'Scored again',
@@ -757,7 +760,7 @@ export const en: Catalog = {
     emptySources: 'One job alert per portal brings in new jobs.',
     emptyWhileRun: 'The jobs show up once the fetch is done.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
-    readOlder: 'Read older emails',
+    readOlder: FULL_MAILBOX,
     emptyNew: 'No new jobs.',
     emptyFavourites: 'No favourites yet.',
     emptyAll: 'After the first fetch the jobs show up here.',
@@ -1212,7 +1215,7 @@ export const en: Catalog = {
     txtCleared: (value: number) => `${count(value, 'file', 'files')} deleted.`,
     txtClearHeading: 'Delete text files?',
     txtClearText: 'Only “Rewrite” brings them back.',
-    fullMailbox: 'Read the whole mailbox',
+    fullMailbox: FULL_MAILBOX,
     fullMailboxHint: 'Reads all alert emails, not only the new ones.',
     fullMailboxAction: 'Read mailbox',
     fullMailboxConfirm: 'Read',
