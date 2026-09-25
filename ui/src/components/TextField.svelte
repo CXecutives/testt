@@ -11,6 +11,7 @@
   import { tick } from 'svelte';
   import { FIELD_ATTRIBUTES, formKeys } from '$lib/input/input';
   import { t } from '$lib/i18n/t';
+  import { describedBy } from '$lib/state/described';
   import { move, play } from '$lib/motion/motion';
   import { pop } from '$lib/motion/transitions';
   import Button from './Button.svelte';
@@ -25,6 +26,8 @@
     id?: string | null;
     invalid?: boolean;
     disabled?: boolean;
+    /** The ids of the texts that describe the field (default: the message of its Field,
+     *  while it shows one). */
     describedby?: string | null;
     testid?: string | null;
     oninput?: (value: string) => void;
@@ -43,6 +46,7 @@
     oninput,
   }: Props = $props();
 
+  const described = describedBy();
   let revealed = $state(false);
   let input = $state<HTMLInputElement | null>(null);
 
@@ -112,7 +116,7 @@
     id={id ?? undefined}
     aria-label={label ?? undefined}
     aria-invalid={invalid ? 'true' : undefined}
-    aria-describedby={describedby ?? undefined}
+    aria-describedby={describedby ?? described() ?? undefined}
     placeholder={placeholder ?? undefined}
     {disabled}
     data-testid={testid ?? undefined}

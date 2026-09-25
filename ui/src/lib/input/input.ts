@@ -23,7 +23,8 @@
 //   field every character the keyboard layout types (AltGr on Windows, Option on macOS: @
 //   is Option+L on a German Mac) and the editing keys of the OS (word and line moves,
 //   delete word, Shift selection, Ctrl/Cmd+C/V/X/A/Z, redo) work. Enter saves and Esc
-//   cancels a form or dialog.
+//   cancels a form or dialog; Ctrl+S (Cmd+S on macOS) saves the long Profil form from
+//   anywhere in it.
 // - a list with a reader (the Jobs view, `listKeys`) moves like a mail app: outside a field
 //   ArrowUp/ArrowDown open the previous/next item, Home/End the first/last, Shift with them
 //   extends the choice of items like Explorer and Mail (`extend`), Esc closes the open item
@@ -207,8 +208,9 @@ export interface FormKeyHandlers {
   save?: () => void;
   /** Esc anywhere inside the form. */
   cancel?: () => void;
-  /** Ctrl+S (Cmd+S on macOS) anywhere inside the form: saves a long form whose Enter
-   *  already means something else (the next row of a list). */
+  /** Ctrl+S (Cmd+S on macOS) anywhere inside the form: saves a long form also where Enter
+   *  means something else (the next row of a list, a chip). A form key like Enter and Esc,
+   *  not an app shortcut (docs/PLAN.md, Decisions "Keys"). */
   shortcut?: () => void;
 }
 

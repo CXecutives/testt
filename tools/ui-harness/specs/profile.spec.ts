@@ -104,10 +104,10 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
     'Kompetenzen mit Stern zählen doppelt, höchstens fünf.',
   );
   const english = page.getByTestId('language-row').nth(1);
-  await expect(english.getByRole('button', { name: 'B2' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(english.getByRole('radio', { name: 'B2' })).toHaveAttribute('aria-checked', 'true');
   await expect(
-    page.getByTestId('profile-remote').getByRole('button', { name: 'Überwiegend remote' }),
-  ).toHaveAttribute('aria-pressed', 'true');
+    page.getByTestId('profile-remote').getByRole('radio', { name: 'Überwiegend remote' }),
+  ).toHaveAttribute('aria-checked', 'true');
   await expect(chips(page.getByTestId('profile-countries'))).toHaveText([
     'Deutschland',
     'Österreich',
@@ -159,7 +159,7 @@ test('one name per field: the labels, their hints and neutral examples', async (
   );
   // A level says what it means.
   const levels = page.getByTestId('language-row').first().getByTestId('language-level');
-  expect(await tooltipOf(page, levels.getByRole('button', { name: 'C1' }))).toBe('Fließend');
+  expect(await tooltipOf(page, levels.getByRole('radio', { name: 'C1' }))).toBe('Fließend');
   await expect(page.getByTestId('profile-wish-industries').locator('input')).toHaveAttribute(
     'placeholder',
     'z. B. Energie',
@@ -193,7 +193,7 @@ test('edit and save: both forms go to the backend, the change is confirmed', asy
   const keywords = page.getByTestId('profile-keywords').locator('input');
   await keywords.fill('Bilanzierung');
   await keywords.press('Enter');
-  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('1.11.2026');
   await save(page).click();
   await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
@@ -308,17 +308,13 @@ test('narrow, a language row keeps its levels under the name', async ({ page }) 
 
 test('a wrong date is said at the field and nothing is saved', async ({ page }) => {
   await profile(page);
-  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('31.02.2026');
-  await expect(page.getByTestId('profile-date-error')).toHaveText(
-    'Gib das Datum im Format 01.11.2026 ein.',
-  );
   await save(page).click();
   expect(await calls(page, 'save_profile')).toHaveLength(0);
-  // Saving says why in the bar and puts the caret into the day.
-  await expect(page.getByTestId('profile-save-status')).toHaveText(
-    'Gib das Datum im Format 01.11.2026 ein.',
-  );
+  // Said once, at the day, which gets the caret; the day has the format but does not exist.
+  await expect(page.getByTestId('profile-date-error')).toHaveText('Diesen Tag gibt es nicht.');
+  await expect(page.getByTestId('profile-save-status')).toHaveText('Nicht gespeichert');
   await expect(page.getByTestId('profile-date')).toBeFocused();
 });
 
@@ -493,9 +489,7 @@ test('chip field: Enter adds, a pasted list splits, x and Backspace remove, Esc 
   await input.fill('Miro');
   await page.getByTestId('profile-name-field').click();
   await expect(chips(field).last()).toHaveText('Miro');
-  // Enter never saves the long form; Ctrl+S (Cmd+S on macOS) does.
-  await input.press('Enter');
-  expect(await calls(page, 'save_profile')).toHaveLength(0);
+  // Ctrl+S (Cmd+S on macOS) saves from anywhere in the form.
   await input.press('Control+s');
   await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
   expect((await lastSave(page)).after.tools).toEqual([
@@ -548,7 +542,7 @@ test('Enter goes through the rows and never saves; on an empty last row it moves
 }) => {
   await profile(page);
   const names = page.getByTestId('competence-name');
-  // A field outside the rows: Enter does nothing.
+  // A field outside the rows: Enter saves, and with nothing changed nothing is saved.
   await page.getByTestId('profile-name-field').press('Enter');
   // In a row: Enter goes to the next row.
   await names.nth(0).press('Enter');
@@ -653,7 +647,7 @@ test('create from the empty form and save; the quality follows while typing', as
   await page.getByTestId('competence-add').click();
   await expect(page.getByTestId('competence-name').last()).toBeFocused();
   await page.getByTestId('language-name').last().fill('Englisch');
-  await page.getByTestId('language-row').last().getByRole('button', { name: 'C1' }).click();
+  await page.getByTestId('language-row').last().getByRole('radio', { name: 'C1' }).click();
   await save(page).click();
   const sent = await lastSave(page);
   expect(sent.source).toBe('{}');

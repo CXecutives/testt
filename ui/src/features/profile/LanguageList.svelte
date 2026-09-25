@@ -13,7 +13,7 @@
   import type { LanguageLevel, ProfileLanguage } from '$lib/ipc/types';
   import { tick } from 'svelte';
   import ChoiceButtons from './ChoiceButtons.svelte';
-  import { enterRow, focusRow } from './rows';
+  import { enterRow, focusAfterRemove, focusRow } from './rows';
 
   interface Props {
     rows: ProfileLanguage[];
@@ -45,6 +45,14 @@
   const remove = (row: ProfileLanguage): void => {
     rows = rows.filter((other) => other !== row);
   };
+
+  /** The x of a row: the focus it had goes to the next row (rows.ts). */
+  function removeByButton(row: ProfileLanguage, event: MouseEvent): void {
+    const focused = event.currentTarget === document.activeElement;
+    const index = rows.indexOf(row);
+    remove(row);
+    if (focused) void focusAfterRemove(list, index, 'language-add');
+  }
 
   async function add(): Promise<void> {
     append();
@@ -91,7 +99,7 @@
           icon="x"
           label={words.removeLanguage(row.language.trim())}
           testid="language-remove"
-          onclick={() => remove(row)}
+          onclick={(event) => removeByButton(row, event)}
         />
       </span>
     </div>
@@ -161,7 +169,7 @@
       align-items: start;
     }
 
-    .row > :global([role='group']) {
+    .row > :global([role='radiogroup']) {
       grid-column: 1 / 2;
       grid-row: 2;
     }

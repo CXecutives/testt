@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import { FIELD_ATTRIBUTES } from '$lib/input/input';
+  import { describedBy } from '$lib/state/described';
 
   interface Props {
     value: string;
@@ -16,6 +17,7 @@
     rows?: number;
     invalid?: boolean;
     disabled?: boolean;
+    /** Default: the message of its Field, while it shows one. */
     describedby?: string | null;
     testid?: string | null;
     oninput?: (value: string) => void;
@@ -33,6 +35,8 @@
     testid = null,
     oninput,
   }: Props = $props();
+
+  const described = describedBy();
 </script>
 
 <textarea
@@ -44,7 +48,7 @@
   id={id ?? undefined}
   aria-label={label ?? undefined}
   aria-invalid={invalid ? 'true' : undefined}
-  aria-describedby={describedby ?? undefined}
+  aria-describedby={describedby ?? described() ?? undefined}
   placeholder={placeholder ?? undefined}
   data-testid={testid ?? undefined}
   spellcheck={FIELD_ATTRIBUTES.spellcheck}

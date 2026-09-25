@@ -91,7 +91,6 @@
         bind:value={answer}
         rows={10}
         invalid={error !== null}
-        describedby="{id}-answer-message"
         testid="paste-answer"
       />
     </Field>

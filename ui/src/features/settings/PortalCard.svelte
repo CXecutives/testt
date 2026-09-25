@@ -181,6 +181,7 @@
       />
       <Toggle
         id="switch-enabled-{portal.portal}"
+        describedby={portal.enabled ? null : `switch-enabled-${portal.portal}-hint`}
         checked={portal.enabled}
         label={t.settings.active}
         testid="toggle-enabled-{portal.portal}"

@@ -73,8 +73,17 @@
   );
   /** During setup, a saved profile leads on to the first fetch (once, in the save bar). */
   const next = $derived(
-    saved && app.state?.firstRun && app.hasProfile ? () => navigation.go('jobs') : null,
+    saved && app.state?.firstRun && app.hasProfile ? () => void onward() : null,
   );
+
+  /** The button goes with the view: the setup page's next action takes the focus. */
+  async function onward(): Promise<void> {
+    navigation.go('jobs');
+    await tick();
+    document
+      .querySelector<HTMLElement>('[data-testid="first-run"] [aria-current="step"] button')
+      ?.focus();
+  }
   let confirmRemove = $state(false);
   /** Where the user wanted to go with unsaved changes (a view, or closing the window). */
   let leaving = $state<ViewId | 'close' | null>(null);
@@ -278,10 +287,13 @@
     }
   }
 
+  /** Back to the stored profile, or (a new form, a draft) to the ways in, whose first one
+   *  takes the focus of the gone form. */
   function discard(): void {
     saveNote = null;
     fieldError = null;
     editor.discard(stored);
+    if (editor.origin === null) void caretTo('profile-create');
   }
 
   async function remove(): Promise<void> {
