@@ -17,6 +17,17 @@ the last commit of the wave.
 - `docs-edits.json`: 51 documentation edits drafted on `a2b2353`; apply the ones still true, skip the rest (MATCHING.md
   versions 12 to 14 and two plan boxes are done already).
 
+## Two passes after the list
+1. Review the shell track merge (`git log --merges --grep "shell track"`, its WIP commit `4a65b1a` was stopped
+   mid-work by a usage limit): read its diff against CLAUDE.md and what it aimed at (input, platform, shell, shared
+   components, the Windows scrollbar width, Shift+Arrow multi-select, arrow keys scrolling Einstellungen and Profil;
+   its tests are in `tools/ui-harness/specs/wave1-shell.spec.ts`), fix what is wrong or half done, with tests. The backend, rings+bar and CV prompt merges
+   deserve a quick read too.
+2. Text amount: read every string of `ui/src/lib/i18n/de.ts` (and its English mirror) in its place (the harness shows
+   each screen, `?lang=en` for English, all stub scenarios) and cut what is too long, redundant (says what is already
+   visible or repeats a heading), explains the obvious, or could go. Only what is needed, plain and human, one short
+   sentence per note, buttons one verb phrase. Keep one word per thing (docs/PLAN.md glossary).
+
 ## How to work (economical, full quality)
 - One item at a time, in this order: features-01, features-02, features-07; then findings by severity (high, medium,
   low), grouped by file so a file is opened once; then features-05; then the doc edits.
