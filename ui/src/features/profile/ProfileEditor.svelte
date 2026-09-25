@@ -273,6 +273,14 @@
       !c.noAnue &&
       !c.noPermanent,
   );
+
+  /** "Noch leer" follows one rule in every section: nothing in it while the profile is thin
+   *  or new, and never above a value of the file that does not read. */
+  const guide = $derived(thin || editor.origin === 'new');
+  const unreadIn = (...fields: string[]): boolean =>
+    problems.some((problem) => fields.includes(problem.field));
+  const noRows = (rows: { name?: string; language?: string }[]): boolean =>
+    rows.every((row) => (row.name ?? row.language ?? '').trim() === '');
 </script>
 
 <div
@@ -285,6 +293,7 @@
   <ProfileSection
     heading={t.profile.section.person}
     hint={t.profile.sectionHint.person}
+    empty={guide && empty(form.name, form.title) && !unreadIn('name', 'title')}
     testid="section-person"
   >
     <div class="pair">
@@ -320,7 +329,7 @@
     hint={quality && quality !== 'good'
       ? t.profile.qualityText[quality]
       : t.profile.sectionHint.competences}
-    empty={thin && form.competences.every((row) => row.name.trim() === '')}
+    empty={guide && noRows(form.competences) && !unreadIn('competences', 'focus')}
     testid="section-competences"
   >
     <CompetenceList
@@ -371,7 +380,9 @@
   <ProfileSection
     heading={t.profile.section.experience}
     hint={t.profile.sectionHint.experience}
-    empty={thin && empty(form.years, form.degrees, form.certificates, form.tools, form.industries)}
+    empty={guide &&
+      empty(form.years, form.degrees, form.certificates, form.tools, form.industries) &&
+      !unreadIn('years', 'degrees', 'certificates', 'tools', 'industries')}
     testid="section-experience"
   >
     <div data-field="years">
@@ -446,7 +457,7 @@
   <ProfileSection
     heading={t.profile.section.languages}
     hint={t.profile.sectionHint.languages}
-    empty={thin && form.languages.every((row) => row.language.trim() === '')}
+    empty={guide && noRows(form.languages) && !unreadIn('languages')}
     testid="section-languages"
   >
     <LanguageList bind:rows={form.languages} error={listError('languages')} />
@@ -455,6 +466,10 @@
   <ProfileSection
     heading={t.profile.section.wishes}
     hint={t.profile.sectionHint.wishes}
+    empty={guide &&
+      empty(form.roles, form.wishes.dayRate, form.wishes.regions, form.wishes.industries) &&
+      form.wishes.remote === null &&
+      !unreadIn('roles', 'wishDayRate', 'remote', 'regions', 'wishIndustries')}
     testid="section-wishes"
   >
     <div data-field="roles">
@@ -557,7 +572,18 @@
   <ProfileSection
     heading={t.profile.section.criteria}
     hint={t.profile.sectionHint.criteria}
-    empty={noCriteria}
+    empty={guide &&
+      noCriteria &&
+      !unreadIn(
+        'minDayRate',
+        'countries',
+        'contracts',
+        'remoteOutside',
+        'targetYears',
+        'minSalary',
+        'permanentPlaces',
+        'permanentRemoteMin',
+      )}
     testid="section-criteria"
   >
     <div class="pair">
@@ -749,6 +775,7 @@
   <ProfileSection
     heading={t.profile.section.availability}
     hint={t.profile.sectionHint.availability}
+    empty={guide && c.available.kind === 'unset' && !unreadIn('available')}
     testid="section-availability"
   >
     <div class="block" data-field="available">

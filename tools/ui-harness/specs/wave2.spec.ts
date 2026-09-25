@@ -317,3 +317,20 @@ test('the end of a run keeps the jobs read in Neu, the open one in its place', a
     third.replace('-', ':'),
   );
 });
+
+test('with the focus nowhere the arrows, Home and End scroll Profil too', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 600 });
+  await open(page, WIN);
+  await page.getByTestId('nav-profile').click();
+  const view = page.getByTestId('view-profile');
+  const top = (): Promise<number> => view.evaluate((node) => node.scrollTop);
+  await page.getByTestId('section-person').locator('h2').first().click();
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(top).toBe(40);
+  await page.keyboard.press('End');
+  await expect
+    .poll(() => view.evaluate((node) => node.scrollHeight - node.clientHeight - node.scrollTop))
+    .toBeLessThanOrEqual(1);
+  await page.keyboard.press('Home');
+  await expect.poll(top).toBe(0);
+});
