@@ -231,8 +231,8 @@ Abrufen and moves the window, no title text) · dialog buttons (Windows: action 
 right) · scrollbars (Windows: slim styled, shown over their scroller; macOS: native overlay scrollbars) · middle-button
 autoscroll (Windows; macOS has none) · words for OS things (Explorer / Finder, Anmeldeinformationsverwaltung /
 Schlüsselbund) · menu (none vs. minimal App/Edit/Window) · font smoothing on macOS · keychain vs. credential manager
-(same code) · a text field's menu (Windows: Rückgängig, Ausschneiden, Kopieren, Einfügen, Löschen, Alles auswählen in
-three groups; macOS without Rückgängig and Löschen) · session storage API · reveal in folder (`explorer /select` vs. `open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
+(same code) · a text field's menu (Windows: Undo | Cut, Copy, Paste, Delete | Select all;
+macOS without Undo and Delete) · session storage API · reveal in folder (`explorer /select` vs. `open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
 `scrollbar-gutter`, `content-visibility`. Windows: NSIS currentUser, German installer, downloadBootstrapper.
 macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc signed, minimum 14.0; the icon targets the macOS 26 (Tahoe) Dock look.
 
