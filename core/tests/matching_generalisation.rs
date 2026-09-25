@@ -182,6 +182,23 @@ fn a_single_open_skill_under_a_foreign_title_is_off_the_field() {
     assert!(b.score > a.score, "{} > {}", b.score, a.score);
 }
 
+/// A junior role is a level mismatch for a senior profile (ten years or more), even when
+/// every skill fits and the profile sets no target years.
+#[test]
+fn a_junior_role_caps_a_senior_profile() {
+    let text =
+        "Ihr Profil\n- Erfahrung im Controlling\n- Treasury\n- Konzernrechnungslegung nach IFRS\n";
+    let mut profile = finance();
+    profile["harte_kriterien"]
+        .as_object_mut()
+        .expect("criteria")
+        .remove("zielprofil_min_jahre");
+    let junior = run(&profile, "Junior Controller (m/w/d)", text);
+    let regular = run(&profile, "Controller (m/w/d)", text);
+    assert!(junior.score <= 40, "{}", junior.score);
+    assert!(regular.score > 40, "{}", regular.score);
+}
+
 /// Equal scores keep an order: the score before the caps.
 #[test]
 fn the_rank_orders_capped_scores() {

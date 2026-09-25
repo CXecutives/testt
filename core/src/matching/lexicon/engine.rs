@@ -1792,6 +1792,8 @@ pub(crate) const JUNIOR_TITLES: &[&str] = &[
     "graduate",
     "berufseinsteiger",
     "berufseinsteigerin",
+    "berufseinstieg",
+    "young professional",
     "entry level",
     "entry-level",
 ];

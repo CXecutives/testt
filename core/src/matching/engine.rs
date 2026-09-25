@@ -26,10 +26,10 @@ use super::lexicon::engine as lex;
 use super::normalize::{char_len, strip};
 use super::params::{
     E_FULL, E_HALF, E_NONE, FOCUS_FACTOR, FOCUS_RELEVANCE, FOCUS_RELEVANCE_MAX, FORMAL_CAP,
-    K_SHRINK, LIFT_CAP, LOW_EVIDENCE_ITEMS, LOW_PRIOR, LOW_PRIOR_WEIGHT, MIN_TEXT_CHARS, N_NICE,
-    NO_ITEMS_CAP, OFF_FIELD_CAP, OFF_FIELD_SINGLE_CAP, OFF_FIELD_TITLE_FIT, PERMANENT_FACTOR,
-    ROLE_FULL, ROLE_HALF, SCORE_FLOOR, SEVERAL_OPEN_CAP, TITLE_OPEN_CAP, W_MUST, W_SOFT, W_TERM,
-    WISH_MAX,
+    JUNIOR_CAP, K_SHRINK, LIFT_CAP, LOW_EVIDENCE_ITEMS, LOW_PRIOR, LOW_PRIOR_WEIGHT,
+    MIN_TEXT_CHARS, N_NICE, NO_ITEMS_CAP, OFF_FIELD_CAP, OFF_FIELD_SINGLE_CAP, OFF_FIELD_TITLE_FIT,
+    PERMANENT_FACTOR, ROLE_FULL, ROLE_HALF, SCORE_FLOOR, SENIOR_YEARS, SEVERAL_OPEN_CAP,
+    TITLE_OPEN_CAP, W_MUST, W_SOFT, W_TERM, WISH_MAX,
 };
 use super::permanent;
 use super::relevance;
@@ -451,6 +451,17 @@ fn job_facts<'a>(job: &JobInput<'a>) -> JobFacts<'a> {
     }
 }
 
+/// A junior role (`Junior`, `Werkstudent`, `Trainee`, `Berufseinstieg` in the title) for a
+/// profile with `SENIOR_YEARS` or more: a level mismatch whatever the skills, even without
+/// the profile's target years.
+fn junior_for_senior(profile: &EngineProfile, title: &str) -> bool {
+    seniority::junior_title(title)
+        && profile
+            .skills
+            .total_years
+            .is_some_and(|years| years >= SENIOR_YEARS)
+}
+
 /// The relevance `R'` of a job: lexical and title fit plus the demanded Schwerpunkte;
 /// without any requirement only the title speaks for the field (a teaser's few words name
 /// tools of every field).
@@ -530,6 +541,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     let cap = cap(&items, &title, vocab, formal_cap, title_fit)
         .into_iter()
         .chain(((!short || title_only) && items.is_empty()).then_some(NO_ITEMS_CAP))
+        .chain(junior_for_senior(profile, job.title).then_some(JUNIOR_CAP))
         .min();
     let decided = findings.iter().any(|f| f.decided);
 
