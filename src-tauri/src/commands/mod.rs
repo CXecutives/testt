@@ -27,6 +27,7 @@ use jobalert_core::settings::{Language, Settings};
 use jobalert_core::store::Store;
 use tokio_util::sync::CancellationToken;
 
+pub use files::Refresh;
 pub use run::RunHandle;
 pub use scoring::Scoring;
 
@@ -190,6 +191,8 @@ pub struct AppState {
     pub activity: Mutex<Activity>,
     /// The compiled profile and the rescore runs the app starts itself.
     pub scoring: Scoring,
+    /// The small files that follow the user's marks without a run.
+    pub refresh: Refresh,
     /// Unsaved changes of the page keep the window from closing until the page has asked.
     pub close_guard: CloseGuard,
 }

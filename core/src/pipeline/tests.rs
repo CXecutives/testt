@@ -2154,6 +2154,69 @@ async fn the_overview_keeps_the_unread_matches_of_earlier_fetches() {
     assert!(!html().contains("Interim CFO"), "read, it leaves");
 }
 
+/// A mark changes the small files without a run: a job moved to the trash leaves the HTML
+/// overview and the skill's `top_matches.json` at once, a new favourite shows; the Excel
+/// file waits for the next run.
+#[tokio::test(start_paused = true)]
+async fn a_mark_refreshes_the_overview_and_the_top_matches() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let cancel = CancellationToken::new();
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &ctx(dir.path(), false),
+        &cancel,
+        &c,
+    )
+    .await;
+    let result_dir = dir.path().join(RESULT_DIR);
+    let html = || std::fs::read_to_string(export::overview_html_path(&result_dir)).unwrap();
+    let top = || std::fs::read_to_string(result_dir.join(export::TOP_MATCHES_NAME)).unwrap();
+    let xlsx = || std::fs::read(export::overview_path(&result_dir)).unwrap();
+    let excel = xlsx();
+    let jobs = store.jobs(&JobFilter::default()).unwrap();
+    let cfo = jobs
+        .iter()
+        .find(|job| job.title.starts_with("Interim CFO"))
+        .unwrap();
+    assert!(html().contains("Interim CFO") && top().contains("Interim CFO"));
+    let matcher = demo::matcher();
+    let refresh = || {
+        refresh_exports(
+            &store,
+            dir.path(),
+            Some(&*matcher as &dyn Matcher),
+            c(),
+            Language::De,
+        );
+    };
+    store
+        .move_jobs(std::slice::from_ref(&cfo.key), Place::Trash, c())
+        .unwrap();
+    refresh();
+    assert!(
+        !html().contains("Interim CFO"),
+        "the trash leaves the overview"
+    );
+    assert!(!top().contains("Interim CFO"), "and the skill's list");
+    assert_eq!(xlsx(), excel, "the Excel file waits for the next run");
+    let controlling = jobs
+        .iter()
+        .find(|job| job.title.starts_with("Leiter Controlling"))
+        .unwrap();
+    store.set_pinned(&controlling.key, true, c()).unwrap();
+    refresh();
+    assert!(
+        html().contains(texts::HTML_PINNED),
+        "the new favourite shows"
+    );
+    let path = refresh_overview(&store, dir.path(), c(), Language::De).unwrap();
+    assert_eq!(path, export::overview_html_path(&result_dir));
+}
+
 /// One job two portals announced, as the list shows it: the freelancermap row with the
 /// LinkedIn duplicate behind it. `(original, duplicate)`.
 fn job_on_two_portals(store: &Store) -> (JobKey, JobKey) {

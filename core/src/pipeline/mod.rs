@@ -1139,6 +1139,33 @@ fn write_html_overview(
     Ok(path)
 }
 
+/// The files a mark changes (a move, the star, "fits anyway", read or unread), written anew
+/// without a run: the HTML overview and `top_matches.json` - both small, so the skill never
+/// reads a job the user threw away. The Excel file waits for the next run (its Info sheet
+/// says it is written anew then). A failure only goes to the log.
+pub fn refresh_exports(
+    store: &Store,
+    workspace: &Path,
+    matcher: Option<&dyn Matcher>,
+    now: Timestamp,
+    language: Language,
+) {
+    if let Err(e) = refresh_overview(store, workspace, now, language) {
+        log::warn!("{} not written: {e}", export::HTML_NAME);
+    }
+    write_top_matches(store, workspace, matcher, now);
+}
+
+/// Writes the HTML overview as the jobs are now (before it is opened, say); returns its path.
+pub fn refresh_overview(
+    store: &Store,
+    workspace: &Path,
+    now: Timestamp,
+    language: Language,
+) -> crate::Result<PathBuf> {
+    write_html_overview(store, &workspace.join(RESULT_DIR), now, language)
+}
+
 /// `top_matches.json` for the matching skill; a failure only goes to the log (the file is an
 /// extra for the skill, the run's own results are complete without it).
 pub fn write_top_matches(
