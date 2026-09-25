@@ -765,7 +765,7 @@ export const en: Catalog = {
       licence: 'Licence missing',
     },
     emptySources: 'One job alert per portal brings in new jobs.',
-    emptyWhileRun: 'The jobs show up once the fetch is done.',
+    emptyWhileRun: 'The jobs show up here as the fetch goes on.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
     readOlder: FULL_MAILBOX,
     emptyNew: 'No new jobs.',

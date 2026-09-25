@@ -148,3 +148,14 @@ test('the first run names the portals whose alerts belong in the mailbox', async
   const intro = await page.getByTestId('first-run').locator('.benefit').textContent();
   expect(intro).toContain('in Gmail');
 });
+
+test('an empty list during a fetch says the jobs come in as it goes, not at its end', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&scenario=empty`);
+  await page.evaluate(() => (window.__harness.holdAfter = 1));
+  await page.getByTestId('fetch').click();
+  await expect(page.getByTestId('empty-all')).toHaveText('Die Jobs erscheinen hier nach und nach.');
+  await page.evaluate(() => (window.__harness.holdAfter = null));
+  await runFinished(page);
+});

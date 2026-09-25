@@ -813,8 +813,9 @@ export const de = {
     },
     /** The empty list says where jobs come from and how to get more. */
     emptySources: 'Ein Alert pro Portal bringt neue Jobs.',
-    /** FR-03: while the first fetch runs, the empty list only says what comes. */
-    emptyWhileRun: 'Die Jobs erscheinen, sobald der Abruf fertig ist.',
+    /** FR-03: while the first fetch runs, the empty list only says what comes (the rows
+     *  arrive during the fetch, each once its details are in). */
+    emptyWhileRun: 'Die Jobs erscheinen hier nach und nach.',
     createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
     readOlder: FULL_MAILBOX,
     emptyNew: 'Keine neuen Jobs.',
