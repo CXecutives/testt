@@ -1,10 +1,18 @@
 //! Metric wiring of `match_eval`: one [`Pair`] per labelled (profile, job), the ranking
 //! metrics of `tests/common/eval.rs` for the new and the old engine, exclusion precision and
-//! recall, the paired bootstrap of NDCG@10 new - old, and the private gates of `docs/PLAN.md`.
+//! recall, the paired bootstrap of NDCG@10 new - old, and the private gates of `docs/PLAN.md`
+//! (with the Spearman gate replaced as `docs/MATCHING.md` "Corpus and gates" explains).
 //!
 //! Conventions: the gain of a job is `2^grade - 1` with grade 0 when the labelers excluded it
 //! (nobody applies to an excluded job); the new engine ranks excluded jobs last and
 //! unscorable ones just above them, as the app's list does; the old engine had no exclusion.
+//!
+//! Two measures look at the order below the top: the Spearman correlation over the relevant
+//! pairs only (gain > 0: list order against gain), and the concordance per grade pair (share
+//! of same-profile job pairs whose displayed scores order them like their label grades, ties
+//! half; the score of an excluded job is kept, so it measures the fit, not the exclusions).
+//! The pooled Spearman stays in the tables, but most pairs of a set have gain 0, so its
+//! ceiling is low (0.51 on set 7 even for a perfect order) and it gates nothing.
 #![allow(clippy::cast_precision_loss)] // Counts are tiny; these are report numbers.
 
 use std::collections::BTreeMap;
@@ -20,6 +28,15 @@ pub const BOOTSTRAP_ROUNDS: usize = 2000;
 pub const BOOTSTRAP_SEED: u64 = 20_260_924;
 /// Below this many labelled jobs the gates are reported but not enforced ("preliminary").
 pub const MIN_LABELLED_JOBS: usize = 60;
+/// The grade pairs of the concordance (lower grade, higher grade), in report order.
+pub const GRADE_PAIRS: [(u8, u8); 6] = [(0, 3), (0, 2), (0, 1), (1, 3), (1, 2), (2, 3)];
+/// Gates of the order below the top (`docs/MATCHING.md` "Corpus and gates"): the Spearman
+/// correlation over the relevant pairs, and the concordance of the grade pairs that decide
+/// what a user sees first. Grade 0 against grade 1 and grade 1 against grade 2 are reported
+/// only: the labelers themselves disagree most there.
+pub const MIN_SPEARMAN_RELEVANT: f64 = 0.50;
+pub const MIN_CONCORDANCE: [(u8, u8, f64); 4] =
+    [(0, 3, 0.95), (0, 2, 0.85), (1, 3, 0.80), (2, 3, 0.70)];
 
 /// The new engine's verdict.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +82,15 @@ impl Pair {
         f64::from(self.old_score)
     }
 
+    /// The score the new engine shows (kept for an excluded job, 0 when unscorable).
+    pub fn new_shown(&self) -> f64 {
+        f64::from(self.new_score)
+    }
+
+    pub fn old_shown(&self) -> f64 {
+        f64::from(self.old_score)
+    }
+
     /// The new engine hides the job: excluded, unscorable or below 40.
     pub fn new_buried(&self) -> bool {
         self.new_outcome != Outcome::Scored || self.new_score < LOW_BELOW
@@ -75,6 +101,14 @@ impl Pair {
     }
 }
 
+/// Share of same-profile job pairs of two grades that the scores order like the grades
+/// (ties count half), and the number of such pairs; `None` without pairs.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Concordance {
+    pub share: Option<f64>,
+    pub pairs: usize,
+}
+
 /// Ranking quality of one engine.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Ranking {
@@ -82,10 +116,25 @@ pub struct Ranking {
     pub ndcg20: f64,
     pub p5: f64,
     pub spearman: f64,
+    /// Spearman of list order and gain over the relevant pairs only (gain > 0); `None` with
+    /// fewer than two of them.
+    pub spearman_relevant: Option<f64>,
+    /// Concordance of label grade and shown score per pair of [`GRADE_PAIRS`].
+    pub concordance: [Concordance; 6],
     /// Share of relevant jobs among those scored 80 or more; `None` when there are none.
     pub high_band: Option<f64>,
     /// Grade-3 jobs the engine buries.
     pub grade3_low: usize,
+}
+
+impl Ranking {
+    /// The concordance of one grade pair (`lower`, `higher`).
+    pub fn concordance_of(&self, lower: u8, higher: u8) -> Concordance {
+        GRADE_PAIRS
+            .iter()
+            .position(|&pair| pair == (lower, higher))
+            .map_or_else(Concordance::default, |i| self.concordance[i])
+    }
 }
 
 /// Exclusions of the new engine against the labels.
@@ -185,10 +234,55 @@ fn reachable_p5(pairs: &[Pair], key: fn(&Pair) -> f64) -> f64 {
     }
 }
 
+/// Spearman of the list order and the gain over the pairs with a gain; `None` when their
+/// gains are all equal (no order to judge).
+fn spearman_relevant(pairs: &[Pair], key: fn(&Pair) -> f64) -> Option<f64> {
+    let relevant: Vec<Pair> = pairs.iter().filter(|p| p.gain() > 0).copied().collect();
+    let varied = relevant.windows(2).any(|w| w[0].gain() != w[1].gain());
+    varied.then(|| {
+        let gains: Vec<f64> = relevant.iter().map(|p| f64::from(p.gain())).collect();
+        eval::spearman(&keys(&relevant, key), &gains)
+    })
+}
+
+/// Concordance of the label grade (not the gain: the score of an excluded job is kept) and
+/// the shown score, per grade pair, over the job pairs of each profile.
+fn concordance(pairs: &[Pair], shown: fn(&Pair) -> f64) -> [Concordance; 6] {
+    let groups = by_profile(pairs);
+    GRADE_PAIRS.map(|(lower, higher)| {
+        let (mut count, mut agree) = (0usize, 0.0f64);
+        for group in &groups {
+            for high in group.iter().filter(|p| p.grade == higher) {
+                for low in group.iter().filter(|p| p.grade == lower) {
+                    count += 1;
+                    let (h, l) = (shown(high), shown(low));
+                    agree += if h > l {
+                        1.0
+                    } else if h < l {
+                        0.0
+                    } else {
+                        0.5
+                    };
+                }
+            }
+        }
+        Concordance {
+            share: (count > 0).then(|| agree / count as f64),
+            pairs: count,
+        }
+    })
+}
+
 /// Ranking metrics of one engine. NDCG and P@5 are means over the profiles (one ranking per
 /// profile; P@5 over the profiles with relevant jobs, against what each can reach);
-/// Spearman, the high band and the grade-3 count are pooled over all pairs.
-pub fn ranking(pairs: &[Pair], key: fn(&Pair) -> f64, buried: fn(&Pair) -> bool) -> Ranking {
+/// Spearman, the high band and the grade-3 count are pooled over all pairs, the concordance
+/// over the job pairs of each profile.
+pub fn ranking(
+    pairs: &[Pair],
+    key: fn(&Pair) -> f64,
+    shown: fn(&Pair) -> f64,
+    buried: fn(&Pair) -> bool,
+) -> Ranking {
     let scores = keys(pairs, key);
     let gains = grades(pairs);
     let gains_f: Vec<f64> = gains.iter().map(|&g| f64::from(g)).collect();
@@ -201,6 +295,8 @@ pub fn ranking(pairs: &[Pair], key: fn(&Pair) -> f64, buried: fn(&Pair) -> bool)
         } else {
             eval::spearman(&scores, &gains_f)
         },
+        spearman_relevant: spearman_relevant(pairs, key),
+        concordance: concordance(pairs, shown),
         high_band: eval::high_band_precision(&scores, &gains, RELEVANT),
         grade3_low: pairs.iter().filter(|p| p.gain() == 3 && buried(p)).count(),
     }
@@ -223,19 +319,20 @@ pub fn metrics(pairs: &[Pair]) -> Metrics {
     });
     Metrics {
         n: pairs.len(),
-        new: ranking(pairs, Pair::new_key, Pair::new_buried),
-        old: ranking(pairs, Pair::old_key, Pair::old_buried),
+        new: ranking(pairs, Pair::new_key, Pair::new_shown, Pair::new_buried),
+        old: ranking(pairs, Pair::old_key, Pair::old_shown, Pair::old_buried),
         exclusions: Exclusions::of(pairs),
         delta_ndcg10,
     }
 }
 
-/// One private gate of `docs/PLAN.md`, checked on the total.
+/// One private gate of `docs/PLAN.md` (or of `docs/MATCHING.md` "Corpus and gates"), checked on
+/// the total.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Gate {
-    pub name: &'static str,
+    pub name: String,
     pub value: String,
-    pub target: &'static str,
+    pub target: String,
     pub pass: bool,
 }
 
@@ -247,13 +344,23 @@ fn optional(value: Option<f64>) -> String {
 pub fn gates(total: &Metrics) -> Vec<Gate> {
     const EPS: f64 = 1e-9;
     let (new, old, e) = (&total.new, &total.old, &total.exclusions);
-    let gate = |name, value: String, target, pass| Gate {
-        name,
+    let gate = |name: &str, value: String, target: &str, pass| Gate {
+        name: name.to_owned(),
         value,
-        target,
+        target: target.to_owned(),
         pass,
     };
-    vec![
+    let concordance = MIN_CONCORDANCE.map(|(lower, higher, min)| {
+        let share = new.concordance_of(lower, higher).share;
+        Gate {
+            name: format!("Concordance grade {lower} v {higher}"),
+            value: optional(share),
+            target: format!(">= {min:.3}"),
+            pass: share.is_none_or(|s| s >= min - EPS),
+        }
+    });
+    let relevant = new.spearman_relevant;
+    let mut all = vec![
         gate(
             "Exclusion precision",
             optional(e.precision()),
@@ -303,18 +410,26 @@ pub fn gates(total: &Metrics) -> Vec<Gate> {
             new.high_band.is_none_or(|h| h >= 0.8 - EPS),
         ),
         gate(
-            "Spearman",
-            format!("{:.3}", new.spearman),
-            ">= 0.550",
-            new.spearman >= 0.55 - EPS,
+            "Spearman, relevant pairs",
+            optional(relevant),
+            &format!(">= {MIN_SPEARMAN_RELEVANT:.3}"),
+            relevant.is_none_or(|s| s >= MIN_SPEARMAN_RELEVANT - EPS),
         ),
         gate(
-            "Spearman new - old",
-            format!("{:+.3}", new.spearman - old.spearman),
+            "Spearman, relevant pairs, new - old",
+            match (relevant, old.spearman_relevant) {
+                (Some(n), Some(o)) => format!("{:+.3}", n - o),
+                _ => "n/a".to_owned(),
+            },
             "> 0",
-            new.spearman > old.spearman + EPS,
+            match (relevant, old.spearman_relevant) {
+                (Some(n), Some(o)) => n > o + EPS,
+                _ => true,
+            },
         ),
-    ]
+    ];
+    all.extend(concordance);
+    all
 }
 
 /// Overall result of an evaluation.
@@ -380,6 +495,40 @@ pub fn table(rows: &[(String, Metrics)], total: &Metrics) -> String {
             optional_pair(m.exclusions.precision(), m.exclusions.recall()),
             delta(m),
         );
+    };
+    for (name, m) in rows {
+        row(name, m);
+    }
+    row("**Total**", total);
+    out
+}
+
+/// The order below the top (Markdown): Spearman over the relevant pairs and the concordance
+/// of every grade pair, new / old with the number of job pairs, one row per profile and the
+/// total.
+pub fn order_table(rows: &[(String, Metrics)], total: &Metrics) -> String {
+    let mut out = String::from("| Profile | Spearman relevant new / old |");
+    for (lower, higher) in GRADE_PAIRS {
+        let _ = write!(out, " {lower}v{higher} new / old (n) |");
+    }
+    out.push_str("\n|---|---|");
+    out.push_str(&"---|".repeat(GRADE_PAIRS.len()));
+    out.push('\n');
+    let mut row = |name: &str, m: &Metrics| {
+        let _ = write!(
+            out,
+            "| {name} | {} |",
+            optional_pair(m.new.spearman_relevant, m.old.spearman_relevant)
+        );
+        for (new, old) in m.new.concordance.iter().zip(&m.old.concordance) {
+            let _ = write!(
+                out,
+                " {} ({}) |",
+                optional_pair(new.share, old.share),
+                new.pairs
+            );
+        }
+        out.push('\n');
     };
     for (name, m) in rows {
         row(name, m);
