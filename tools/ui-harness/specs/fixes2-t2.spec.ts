@@ -119,7 +119,7 @@ test('every control of a block has the height of a field', async ({ page }) => {
   );
   for (const [section, set] of Object.entries(heights)) {
     if (section === 'section-understood') continue;
-    expect(set, section).toEqual([36]);
+    expect(set, section).toEqual([32]);
   }
   // The choice buttons take the small type of chips and segments, not the larger button type.
   const types = await page

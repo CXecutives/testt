@@ -159,7 +159,7 @@
     display: flex;
     align-items: center;
     width: 100%;
-    height: var(--control-md);
+    height: var(--control-field);
     border: var(--border-width) solid var(--border-strong);
     border-radius: var(--radius-control);
     background-color: var(--surface);
@@ -194,7 +194,7 @@
     border: 0;
     background-color: transparent;
     color: var(--text);
-    font: var(--type-md);
+    font: var(--type-field);
     outline: none;
   }
 

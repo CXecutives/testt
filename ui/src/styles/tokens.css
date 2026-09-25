@@ -299,6 +299,10 @@
 
   /* ------------------------------------------------------------------- sizes */
   --control-sm: 28px;
+  /* Every text field, chip field and choice beside them, and the buttons of their row
+     (the list's Abrufen beside the search): calm, like the OS's own settings (user,
+     2026-09-25). */
+  --control-field: 32px;
   --control-md: 36px;
   --control-lg: 40px;
   --icon-xs: 12px;
@@ -468,6 +472,9 @@
   --leading-xs: 16px;
   --font-sm: 13px;
   --leading-sm: 18px;
+  /* The text in fields. */
+  --font-field: 14px;
+  --leading-field: 20px;
   --font-md: 15px;
   --leading-md: 22px;
   /* List titles: 15 px on a tighter 20 px line, so two lines stay one block. */
@@ -488,6 +495,7 @@
   --type-2xs: var(--weight-regular) var(--font-2xs) / var(--leading-2xs) var(--font-sans);
   --type-xs: var(--weight-regular) var(--font-xs) / var(--leading-xs) var(--font-sans);
   --type-sm: var(--weight-regular) var(--font-sm) / var(--leading-sm) var(--font-sans);
+  --type-field: var(--weight-regular) var(--font-field) / var(--leading-field) var(--font-sans);
   --type-md: var(--weight-regular) var(--font-md) / var(--leading-md) var(--font-sans);
   --type-title: var(--weight-medium) var(--font-md) / var(--leading-title) var(--font-sans);
   --type-tab: var(--weight-medium) var(--font-tab) / var(--leading-tab) var(--font-sans);

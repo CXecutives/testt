@@ -376,7 +376,7 @@
   }
 
   .entry {
-    min-height: var(--control-md);
+    min-height: var(--control-field);
     padding: var(--space-4);
     border: var(--border-width) solid var(--border-strong);
     border-radius: var(--radius-control);
@@ -446,7 +446,7 @@
     border: 0;
     background-color: transparent;
     color: var(--text);
-    font: var(--type-md);
+    font: var(--type-field);
     outline: none;
   }
 
@@ -499,7 +499,7 @@
     padding: 0 var(--space-8);
     border-radius: var(--radius-xs);
     color: var(--text);
-    font: var(--type-md);
+    font: var(--type-field);
     text-align: left;
     white-space: nowrap;
   }

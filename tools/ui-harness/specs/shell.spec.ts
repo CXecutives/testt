@@ -119,14 +119,16 @@ for (const os of ['windows', 'macos']) {
   });
 }
 
-test('windows: no drag region; the first view sits on the line of the search field', async ({
+test('windows: no drag region; the first view is centred on the line of the search field', async ({
   page,
 }) => {
   await open(page, '?platform=windows');
   await expect(page.locator('[data-tauri-drag-region]')).toHaveCount(0);
   // The field's frame is the input's parent (the input sits inside its border).
-  const nav = (await page.getByTestId('nav-jobs').boundingBox())!.y;
-  const field = (await page.getByTestId('search').locator('xpath=..').boundingBox())!.y;
+  // The entry (36 px) and the field (32 px) share their middle.
+  const middle = (box: { y: number; height: number } | null): number => box!.y + box!.height / 2;
+  const nav = middle(await page.getByTestId('nav-jobs').boundingBox());
+  const field = middle(await page.getByTestId('search').locator('xpath=..').boundingBox());
   expect(nav).toBe(field);
 });
 

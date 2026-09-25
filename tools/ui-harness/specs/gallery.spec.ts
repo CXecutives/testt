@@ -310,7 +310,7 @@ test('the facts of a row drop out whole, a value is never cut', async ({ page })
   expect(narrow.cut).toEqual([]);
 });
 
-test('a long row title takes two lines, the row grows by one line, the rest is a tooltip', async ({
+test('a long row title stays one line, every row one height, the rest is a tooltip', async ({
   page,
 }) => {
   await open(page, '?gallery&platform=windows');
@@ -321,10 +321,10 @@ test('a long row title takes two lines, the row grows by one line, the rest is a
   const lines = await title.evaluate(
     (node) => node.clientHeight / parseFloat(getComputedStyle(node).lineHeight),
   );
-  expect(Math.round(lines)).toBe(2);
+  expect(Math.round(lines)).toBe(1);
   expect((await short.boundingBox())!.height).toBe(86);
-  expect((await long.boundingBox())!.height).toBe(106);
-  // Still cut off after two lines: the full title shows in a tooltip.
+  expect((await long.boundingBox())!.height).toBe(86);
+  // Cut off on its one line: the full title shows in a tooltip.
   await title.hover();
   await expect(page.getByRole('tooltip')).toContainText('vierzehn Ländern');
 });

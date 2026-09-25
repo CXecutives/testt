@@ -4,8 +4,8 @@
   icon nudges toward what it does (external link up-right, download down, refresh a
   quarter turn, the star grows), a press lets the button give a little, uniformly (0.98,
   60 ms), and it settles back in 150 ms. Nothing stretches; no lift, no glow, no bounce.
-  - Trailing actions inside a row are sm, action bars are md; a choice beside fields is field
-    (as tall as a field, with the small type of chips and segments).
+  - Trailing actions inside a row are sm, action bars are md; a choice beside fields, and a
+    button in a row of fields, is field (as tall as a field, with the small type).
   - At most one primary per view (checked by core/tests/ui_contract.rs).
   - iconOnly needs its label: it becomes aria-label and tooltip.
   - Disabled buttons stay hoverable (aria-disabled) so the tooltip can say why; they do
@@ -436,7 +436,7 @@
   }
 
   .field {
-    --btn-height: var(--control-md);
+    --btn-height: var(--control-field);
     --btn-pad: var(--space-12);
     --btn-gap: var(--space-6);
     --btn-type: var(--type-sm);

@@ -165,6 +165,7 @@
 
 {#snippet fetchButton(live: boolean)}
   <Button
+    size="field"
     variant={app.hasMailbox && app.hasPortal ? 'primary' : 'secondary'}
     icon="refresh-cw"
     label={t.toolbar.fetch}
@@ -178,6 +179,7 @@
 
 {#snippet cancelButton(live: boolean)}
   <Button
+    size="field"
     variant="secondary"
     icon="circle-stop"
     label={t.toolbar.cancel}
