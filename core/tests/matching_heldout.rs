@@ -159,29 +159,27 @@ struct Floor {
 
 const HELDOUT1: Floor = Floor {
     ndcg10: 0.92,
-    spearman: 0.72,
+    spearman: 0.75,
     exclusion_precision: 1.0,
     exclusion_recall: 1.0,
     grade3_buried: 0,
 };
 const HELDOUT4: Floor = Floor {
-    ndcg10: 0.0,
-    spearman: 0.0,
-    exclusion_precision: 0.0,
-    exclusion_recall: 0.0,
-    grade3_buried: 40,
+    ndcg10: 0.80,
+    spearman: 0.52,
+    exclusion_precision: 1.0,
+    exclusion_recall: 0.98,
+    grade3_buried: 1,
 };
 const HELDOUT3: Floor = Floor {
     ndcg10: 0.94,
-    spearman: 0.47,
+    spearman: 0.48,
     exclusion_precision: 1.0,
     exclusion_recall: 1.0,
     grade3_buried: 0,
 };
-// Engine 6 traded 0.02 of NDCG@10 on this tuned set (ties among grade-2 and grade-3 jobs)
-// for +0.33 on the unseen set 3; Spearman rose from 0.56 to 0.63.
 const HELDOUT2: Floor = Floor {
-    ndcg10: 0.84,
+    ndcg10: 0.86,
     spearman: 0.63,
     exclusion_precision: 1.0,
     exclusion_recall: 0.94,
