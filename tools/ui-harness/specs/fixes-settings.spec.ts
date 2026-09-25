@@ -12,6 +12,12 @@ async function settings(page: Page, query = WIN): Promise<void> {
   await expect(page.getByTestId('settings')).toBeVisible();
 }
 
+async function profile(page: Page, query = WIN): Promise<void> {
+  await open(page, query);
+  await page.getByTestId('nav-profile').click();
+  await expect(page.getByTestId('profile-form')).toBeVisible();
+}
+
 test('a rescore locks the settings with its own reason, not a fetch', async ({ page }) => {
   await settings(page);
   // The sign-in row exists only with "Mit Anmeldung" on.
@@ -315,4 +321,44 @@ test('the first run opens at its top, the caret waiting in the address', async (
     await expect(user).toHaveValue('alerts');
     await expect(user).toBeInViewport();
   }
+});
+
+test('the Schwerpunkt star says what a click does; an empty row what comes first', async ({
+  page,
+}) => {
+  await profile(page);
+  const stars = page.getByTestId('competence-star');
+  // Like the favourite star of a job: its words follow its state.
+  const marked = stars.and(page.locator('[aria-pressed="true"]')).first();
+  await expect(marked).toHaveAttribute('aria-label', 'Schwerpunkt entfernen');
+  await marked.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Schwerpunkt entfernen');
+  const plain = stars.and(page.locator('[aria-pressed="false"]')).first();
+  await expect(plain).toHaveAttribute('aria-label', 'Als Schwerpunkt markieren');
+  // A row without a competence: its star waits, and says for what.
+  await page.getByTestId('competence-add').click();
+  const empty = page.getByTestId('competence-row').last().getByTestId('competence-star');
+  await expect(empty).toHaveAttribute('aria-disabled', 'true');
+  await empty.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Erst eine Kompetenz eintragen.');
+});
+
+test('Speichern, Verwerfen and Übernehmen say why they wait', async ({ page }) => {
+  await profile(page);
+  for (const id of ['profile-save', 'profile-discard']) {
+    const button = page.getByTestId(id);
+    await expect(button).toHaveAttribute('aria-disabled', 'true');
+    await button.hover();
+    await expect(page.getByRole('tooltip')).toHaveText('Noch nichts geändert.');
+  }
+  // With a change they work, and say nothing.
+  await page.getByTestId('profile-title').fill('Interim CFO');
+  await expect(page.getByTestId('profile-save')).not.toHaveAttribute('aria-disabled', 'true');
+  await page.getByTestId('profile-discard').click();
+  // The steps with an AI: Übernehmen waits for the answer.
+  await page.getByTestId('profile-update-cv').click();
+  const take = page.getByTestId('paste-take');
+  await expect(take).toHaveAttribute('aria-disabled', 'true');
+  await take.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Erst die Antwort der KI einfügen.');
 });

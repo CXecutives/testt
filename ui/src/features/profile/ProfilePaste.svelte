@@ -3,8 +3,8 @@
   where the CV goes, the prompt is on the clipboard (or can be copied again; when copying
   failed the step says so in the danger tone and the button copies) and can be read before it
   is sent, one line on what to do in the AI, then the field for its answer. "Übernehmen"
-  reads the answer (also inside a code block) with the same checks as a file and fills the
-  form for review; nothing is saved yet.
+  (waiting, and saying so, until there is an answer) reads the answer (also inside a code
+  block) with the same checks as a file and fills the form for review; nothing is saved yet.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -98,6 +98,7 @@
         label={words.take}
         loading={busy}
         disabled={answer.trim() === ''}
+        disabledReason={words.takeEmpty}
         testid="paste-take"
         onclick={take}
       />

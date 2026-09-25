@@ -1022,6 +1022,8 @@ export const de = {
     review: 'Die Angaben prüfen, dann speichern.',
     save: 'Speichern',
     discard: 'Verwerfen',
+    /** Why Speichern and Verwerfen wait. */
+    noChanges: 'Noch nichts geändert.',
     saved: 'Gespeichert.',
     leaveHeading: 'Änderungen speichern?',
     leaveText: 'Die Änderungen am Profil sind nicht gespeichert.',
@@ -1060,6 +1062,9 @@ export const de = {
       addCompetence: 'Kompetenz hinzufügen',
       removeCompetence: (name: string) => `${name || 'Kompetenz'} entfernen`,
       star: 'Als Schwerpunkt markieren',
+      /** The star of a Schwerpunkt, and of a row without a competence yet. */
+      unstar: 'Schwerpunkt entfernen',
+      starEmpty: 'Erst eine Kompetenz eintragen.',
       focusCount: (count: number, max: number) => `Schwerpunkte ${count} von ${max}`,
       focusHint: 'Kompetenzen mit Stern zählen doppelt, höchstens fünf.',
       focusFull: 'Höchstens fünf Schwerpunkte.',
@@ -1219,6 +1224,8 @@ export const de = {
       preview: 'Prompt ansehen',
       answer: 'Antwort der KI',
       take: 'Übernehmen',
+      /** Why Übernehmen waits. */
+      takeEmpty: 'Erst die Antwort der KI einfügen.',
     },
   },
   settings: {

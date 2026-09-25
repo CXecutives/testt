@@ -1,13 +1,14 @@
 <!--
   The core competences: one row each with the star (Schwerpunkt), the competence, its years
   and other terms for it (`auch`), then "Kompetenz hinzufügen" and the Schwerpunkte with one
-  sentence on what the star does. At most five stars: a sixth star is disabled and its
-  tooltip says why; the count stands at the Schwerpunkte. Renaming or removing a starred
-  competence takes its Schwerpunkt along. A file with more Schwerpunkte says that the first
-  five were taken; one that does not count (no competence of that name) or a value that does
-  not read is said there with "Wert entfernen". A value the backend refused marks its row.
-  Enter goes to the next row, adds one after the last and ends the list on an empty last row
-  (rows.ts); it never saves the profile.
+  sentence on what the star does. The star says what a click does (mark, or remove the
+  Schwerpunkt). At most five stars: a sixth star is disabled and its tooltip says why, as
+  does the star of a row without a competence; the count stands at the Schwerpunkte.
+  Renaming or removing a starred competence takes its Schwerpunkt along. A file with more
+  Schwerpunkte says that the first five were taken; one that does not count (no competence
+  of that name) or a value that does not read is said there with "Wert entfernen". A value
+  the backend refused marks its row. Enter goes to the next row, adds one after the last and
+  ends the list on an empty last row (rows.ts); it never saves the profile.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -124,16 +125,17 @@
       data-testid="competence-row"
       use:formKeys={{ save: () => enter(row) }}
     >
+      <!-- Its words follow its state, like the favourite star of a job. -->
       <span class="star">
         <Button
           variant="ghost"
           size="sm"
           iconOnly
           icon="star"
-          label={words.star}
+          label={starred(row.name) ? words.unstar : words.star}
           pressed={starred(row.name)}
           disabled={row.name.trim() === '' || (!starred(row.name) && focus.length >= MAX_FOCUS)}
-          disabledReason={row.name.trim() === '' ? null : words.focusFull}
+          disabledReason={row.name.trim() === '' ? words.starEmpty : words.focusFull}
           testid="competence-star"
           onclick={() => star(row)}
         />
