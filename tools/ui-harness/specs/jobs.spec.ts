@@ -6,6 +6,7 @@ import {
   calls,
   expect,
   expectShot,
+  motionSettled,
   open,
   runFinished,
   settle,
@@ -312,7 +313,9 @@ test('rows are mail-style: one height per title line, at most two, a fixed dot g
     .locator('.title')
     .evaluate((node) => getComputedStyle(node).getPropertyValue('-webkit-line-clamp'));
   expect(clamp).toBe('2');
-  // Every row, with or without badge, has the same height per title line (86, 106).
+  // Every row, with or without badge, has the same height per title line (86, 106), once
+  // the rows have glided into their places (a row on its way has a fractional box).
+  await motionSettled(page);
   const heights = await page
     .getByTestId('job-list')
     .locator('[data-testid^="job-row-"]')

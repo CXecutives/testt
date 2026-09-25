@@ -30,7 +30,6 @@ import {
   move,
   play,
   popScale,
-  staggerLimit,
   type Duration,
   type Easing,
   type Move,
@@ -118,20 +117,26 @@ export function flip(
   });
 }
 
-export interface RowParams {
-  index: number;
-  /** The row arrived while the list was on screen (a new job during a run). */
-  fresh: boolean;
-}
-
 /**
  * Entry of a list row. A list that loads, filters or comes back into view is simply there;
  * only a row that arrives while the list is on screen (a new job during a run) fades in,
- * rising 4 px in 150 ms, and only among the first --stagger-max rows.
+ * rising 4 px in 150 ms, and only among the first --stagger-max rows (the list decides).
+ * A Web Animation started by the list after the row is in place, not a transition on
+ * every row: the transition would run (and fire its events) for each of hundreds of rows
+ * that simply appear.
  */
-export function rowIn(node: Element, { index, fresh }: RowParams): TransitionConfig {
-  if (!fresh || index >= staggerLimit()) return {};
-  return rise(node, { distance: 'md', duration: 'base' });
+export function rowEnter(row: Element): void {
+  const reduced = isReducedMotion();
+  const from: Keyframe = reduced
+    ? { opacity: 0 }
+    : { opacity: 0, transform: `translateY(${move('md')}px)` };
+  const to: Keyframe = reduced ? { opacity: 1 } : { opacity: 1, transform: 'none' };
+  const motion = play(row, [from, to], {
+    duration: 'base',
+    easing: reduced ? 'standard' : 'out',
+    crossfade: true,
+  });
+  motion?.addEventListener('finish', () => motion.cancel());
 }
 
 function lifted(t: number, y: number, scale: number): string {

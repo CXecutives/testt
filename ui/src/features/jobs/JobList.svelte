@@ -31,8 +31,8 @@
   import { t } from '$lib/i18n/t';
   import { invoke } from '$lib/ipc/api';
   import type { JobView, Place, Portal } from '$lib/ipc/types';
-  import { play } from '$lib/motion/motion';
-  import { rowCollapse, rowIn } from '$lib/motion/transitions';
+  import { play, staggerLimit } from '$lib/motion/motion';
+  import { rowCollapse, rowEnter } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { inFacet, isExcluded, jobs, keyOf, placeOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
@@ -205,9 +205,12 @@
     return [...root.querySelectorAll<HTMLElement>('[data-key]')];
   }
 
-  /** Every row on screen glides from where it stood (150 ms); rows far away are simply there. */
+  /** Every row on screen glides from where it stood (150 ms); rows far away are simply there.
+   *  Every box is read before the first move starts: a read after a started animation lays
+   *  the whole list out again, once per row. */
   function glide(root: HTMLElement, from: Map<string, number>): void {
     const height = window.innerHeight;
+    const moves: [HTMLElement, number][] = [];
     for (const row of rowsOf(root)) {
       const was = from.get(row.dataset.key ?? '');
       if (was === undefined) continue;
@@ -215,11 +218,31 @@
       const shift = Math.round(was - box.top);
       const seen = (top: number): boolean => top < height && top + box.height > 0;
       if (shift === 0 || (!seen(was) && !seen(box.top))) continue;
-      const offset = Math.max(-height, Math.min(height, shift));
+      moves.push([row, Math.max(-height, Math.min(height, shift))]);
+    }
+    for (const [row, offset] of moves) {
       const motion = play(row, [{ transform: `translateY(${offset}px)` }, { transform: 'none' }], {
         duration: 'base',
       });
       motion?.addEventListener('finish', () => motion.cancel());
+    }
+  }
+
+  /** New jobs of a run that have entered already (each one fades in once; not reactive). */
+  let entered: Record<string, true> = {};
+
+  /** A job new in this run fades in where it lands, among the first --stagger-max rows. */
+  function enterFresh(root: HTMLElement): void {
+    if (jobs.fresh.size === 0) {
+      entered = {};
+      return;
+    }
+    for (const job of order.slice(0, staggerLimit())) {
+      const key = keyOf(job.key);
+      if (!jobs.fresh.has(key) || key in entered) continue;
+      entered[key] = true;
+      const row = root.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`);
+      if (row) rowEnter(row);
     }
   }
 
@@ -253,12 +276,18 @@
     });
   });
 
-  // After the DOM has the new rows: glide from the noted places.
+  // After the DOM has the new rows: glide from the noted places, at the start of the next
+  // frame (before it is drawn): the new rows are laid out once, there, and not a second time
+  // inside the task that built them. A new job of a run fades in.
   $effect(() => {
     void shown;
     untrack(() => {
-      if (list !== null && before !== null) glide(list, before);
+      const root = list;
+      const from = before;
       before = null;
+      if (root === null) return;
+      if (from !== null) requestAnimationFrame(() => glide(root, from));
+      enterFresh(root);
     });
   });
 
@@ -478,35 +507,33 @@
         tools={toolsOf(job)}
       />
     {/snippet}
-    {#snippet group(items: JobView[], offset: number)}
-      {#each items as job, index (keyOf(job.key))}
+    {#snippet group(items: JobView[])}
+      {#each items as job (keyOf(job.key))}
         {@const key = keyOf(job.key)}
-        <div
-          class="item"
-          data-key={key}
-          in:rowIn={{ index: offset + index, fresh: jobs.fresh.has(key) }}
-          out:rowCollapse={{ on: moving.has(key) }}
-        >
+        <div class="item" data-key={key} out:rowCollapse={{ on: moving.has(key) }}>
           {@render row(job)}
         </div>
       {/each}
     {/snippet}
-    <div class="rows" data-testid="job-rows">
-      {@render group(active, 0)}
-    </div>
-    {#if excluded.length > 0}
-      <div class="divider" data-testid="excluded-divider">
-        <span class="divider-label">{t.list.excluded}</span>
-        {#if excludedCount !== null}<Count
-            value={excludedCount}
-            tone="plain"
-            testid="excluded-count"
-          />{/if}
+    <!-- Another list is built anew: its old rows leave as one piece, not row by row. -->
+    {#key jobs.generation}
+      <div class="rows" data-testid="job-rows">
+        {@render group(active)}
       </div>
-      <div class="rows" data-testid="excluded-rows">
-        {@render group(excluded, active.length)}
-      </div>
-    {/if}
+      {#if excluded.length > 0}
+        <div class="divider" data-testid="excluded-divider">
+          <span class="divider-label">{t.list.excluded}</span>
+          {#if excludedCount !== null}<Count
+              value={excludedCount}
+              tone="plain"
+              testid="excluded-count"
+            />{/if}
+        </div>
+        <div class="rows" data-testid="excluded-rows">
+          {@render group(excluded)}
+        </div>
+      {/if}
+    {/key}
     {#if elsewhere.length > 0 && !jobs.more}{@render alsoIn()}{/if}
     {#if jobs.pageError}
       <div class="page-error">
@@ -567,9 +594,10 @@
     padding: var(--space-12) var(--pane-padding);
   }
 
+  /* Plain block flow: a flex column adds nothing here and costs a little more each time the
+     rows are laid out again. */
   .rows {
-    display: flex;
-    flex-direction: column;
+    display: block;
   }
 
   /* A navy sub-label with its soft count, then the hairline. */

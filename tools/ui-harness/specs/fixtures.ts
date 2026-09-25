@@ -74,6 +74,21 @@ export async function viewsSettled(page: Page): Promise<void> {
   await page.waitForFunction(() => document.querySelectorAll('main.views > section').length <= 1);
 }
 
+/**
+ * Wait until nothing short moves any more (a view, a stage or a row still on its way into
+ * place): on a busy machine that takes longer than the two frames of `settle`. Loops and long
+ * timelines (a toast's life) do not count.
+ */
+export async function motionSettled(page: Page): Promise<void> {
+  await page.waitForFunction(() =>
+    document.getAnimations().every((animation) => {
+      if (animation.playState !== 'running') return true;
+      const end = Number(animation.effect?.getComputedTiming().endTime ?? 0);
+      return !Number.isFinite(end) || end > 1000;
+    }),
+  );
+}
+
 export async function settle(page: Page): Promise<void> {
   await viewsSettled(page);
   await page.evaluate(async () => {
