@@ -88,7 +88,7 @@
     transition-duration: var(--dur-hover);
   }
 
-  .status:active {
+  .status:active:hover {
     background-color: var(--surface-press);
     transition-duration: var(--dur-instant);
   }

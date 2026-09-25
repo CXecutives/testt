@@ -76,13 +76,13 @@
     transition-duration: var(--dur-hover);
   }
 
-  .row:active {
+  .row:active:hover {
     background-color: var(--surface-press);
     transition-duration: var(--dur-instant);
   }
 
   .selected,
-  .selected:active {
+  .selected:active:hover {
     background-color: var(--surface-selected);
 
     /* The ring's track stays visible on the warm wash. */

@@ -33,7 +33,6 @@ import type {
   ReasonKind,
   ReasonWeight,
   RemoteWish,
-  Risk,
   RunKindName,
   StatusCode,
   Step,
@@ -934,7 +933,7 @@ export const de = {
     prompt: 'Prompt für KI-Bewertung kopieren',
     promptShort: 'Prompt kopieren',
     promptHint:
-      'Kopiert Anzeige und Profil als fertigen Prompt für ChatGPT, Claude oder eine andere KI.',
+      'Kopiert Anzeige und Profil als fertigen Prompt für eine KI.',
     /** Under the band of a score that comes from a teaser only. */
     preliminary: 'Vorläufig, aus einem Anriss bewertet',
     mail: OPEN_MAIL,
@@ -1097,10 +1096,10 @@ export const de = {
       name: 'Name',
       title: 'Rolle',
       titleHint: 'Die Rolle zählt für die Passung.',
-      titlePlaceholder: 'Projektleitung',
+      titlePlaceholder: 'Senior Consultant',
       roles: 'Wunschrollen',
       rolesHint: 'Passt der Titel einer Anzeige dazu, steigt die Bewertung leicht.',
-      rolesPlaceholder: 'Teamleitung',
+      rolesPlaceholder: 'Interim Management',
       competence: 'Kompetenz',
       competencePlaceholder: 'Projektmanagement',
       years: 'Jahre',
@@ -1121,18 +1120,18 @@ export const de = {
         `Die Datei nennt ${n(count)} Schwerpunkte, übernommen sind die ersten fünf.`,
       strengths: 'Besondere Stärken',
       strengthsHint: 'Sie stützen die Passung, belegen aber keine Anforderung.',
-      strengthsPlaceholder: 'Große Projekte im Zeitplan übergeben',
+      strengthsPlaceholder: 'Projekte sicher zum Ziel führen',
       keywords: 'Stichworte',
-      keywordsPlaceholder: 'Agil, Change Management',
+      keywordsPlaceholder: 'Transformation, Prozessoptimierung',
       keywordsHint: 'Begriffe, die in passenden Anzeigen stehen.',
       totalYears: 'Berufserfahrung (Jahre)',
       totalYearsHint: 'Ab zehn Jahren bewertet die App Einstiegsstellen niedrig.',
       degrees: 'Abschlüsse',
-      degreesPlaceholder: 'Master of Science',
+      degreesPlaceholder: 'Master',
       industries: 'Branchen',
-      industriesPlaceholder: 'Maschinenbau',
+      industriesPlaceholder: 'Industrie',
       tools: 'Werkzeuge und Methoden',
-      toolsPlaceholder: 'Microsoft Excel',
+      toolsPlaceholder: 'Microsoft Office',
       certificates: 'Zertifikate',
       certificatesPlaceholder: 'PMP',
       languages: 'Sprachen',
@@ -1148,7 +1147,7 @@ export const de = {
       regions: 'Wunschregionen',
       regionsPlaceholder: 'München',
       wishIndustries: 'Wunschbranchen',
-      wishIndustriesPlaceholder: 'Gesundheitswesen',
+      wishIndustriesPlaceholder: 'Energie',
       minDayRate: 'Mindest-Tagessatz (€)',
       minDayRateHint: 'Liegt der Satz einer Anzeige darunter, fällt der Job weg.',
       countries: 'Einsatzländer',
@@ -1317,22 +1316,8 @@ export const de = {
     needsDetails: 'Schalte erst „Details holen“ ein.',
     login: 'Mit Anmeldung',
     loginHint: 'Zeigt ganze Anzeigen statt eines Anrisses.',
-    risk: {
-      low: 'Geringes Risiko',
-      grey: 'Graubereich',
-      account: 'Kontorisiko',
-    } satisfies Record<Risk, string>,
-    riskText: {
-      low: 'Nur öffentliche Seiten aus den eigenen Alert-Mails.',
-      grey: 'Gastzugang, kein Konto ist betroffen.',
-      account: 'Angemeldet steht das eigene Konto auf dem Spiel.',
-    } satisfies Record<Risk, string>,
-    /** What the risk word means (the badge's tooltip). */
-    riskInfo: {
-      low: 'Die App öffnet nur, was jeder im Browser sehen kann.',
-      grey: 'Das Portal erlaubt automatisches Lesen nicht ausdrücklich.',
-      account: 'Im schlimmsten Fall sperrt das Portal das eigene Konto.',
-    } satisfies Record<Risk, string>,
+    /** Details holen is on: what it does. */
+    detailsOn: 'Holt die ganze Anzeige, in ruhigem Takt und mit Tageslimit.',
     /** "Details holen" is off: what that changes. */
     detailsOff: 'Ohne Details bekommen die Jobs dieses Portals keine Passung.',
     quota: (used: number, cap: number) => `Heute ${n(used)} von ${n(cap)} Seiten`,
@@ -1393,10 +1378,10 @@ export const de = {
     languageLabel: 'Sprache der App',
     /** Excel file and overview are written at the next fetch (the text files stay German). */
     languageHint: 'Excel-Datei und Übersicht folgen beim nächsten Abruf.',
-    /** Each language in its own words, in both catalogs. */
+    /** Each language named in the language of the app (Deutsch/Englisch, German/English). */
     languageName: {
       de: 'Deutsch',
-      en: 'English',
+      en: 'Englisch',
     } satisfies Record<Language, string>,
   },
   firstRun: {

@@ -124,12 +124,12 @@
   }
 
   /* Pressed: the track darkens a step, 60 ms. */
-  .toggle:not([aria-disabled='true']):active .track {
+  .toggle:not([aria-disabled='true']):active:hover .track {
     background-color: var(--border-input);
     transition-duration: var(--dur-instant);
   }
 
-  .toggle[aria-checked='true']:not([aria-disabled='true']):active .track {
+  .toggle[aria-checked='true']:not([aria-disabled='true']):active:hover .track {
     background-color: var(--primary-active);
   }
 

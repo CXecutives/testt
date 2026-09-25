@@ -154,7 +154,7 @@ test('one name per field: the labels, their hints and neutral examples', async (
   expect(await tooltipOf(page, levels.getByRole('button', { name: 'C1' }))).toBe('Fließend');
   await expect(page.getByTestId('profile-wish-industries').locator('input')).toHaveAttribute(
     'placeholder',
-    'Gesundheitswesen',
+    'Energie',
   );
 });
 
@@ -582,7 +582,7 @@ test('a new form starts with one row each; the add buttons are buttons', async (
     'placeholder',
     'Andere Begriffe',
   );
-  await expect(page.getByTestId('profile-title')).toHaveAttribute('placeholder', 'Projektleitung');
+  await expect(page.getByTestId('profile-title')).toHaveAttribute('placeholder', 'Senior Consultant');
   for (const id of ['competence-add', 'language-add']) {
     await expect(page.getByTestId(id)).toHaveClass(/secondary/);
     await expect(page.getByTestId(id).locator('svg')).toHaveCount(1);

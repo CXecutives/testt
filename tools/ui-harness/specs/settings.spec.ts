@@ -281,27 +281,21 @@ test('a switch row toggles from its text like the system settings', async ({ pag
   await expect(page.getByTestId('settings-files').locator('label')).toHaveCount(0);
 });
 
-test('each switch carries its risk once; freelance.de sign in and out', async ({ page }) => {
+test('each switch says what it does, no risk grades; freelance.de sign in and out', async ({
+  page,
+}) => {
   await settings(page);
-  const card = page.getByTestId('portal-freelance');
-  // Guest details are a grey area; signing in would risk the account (said on that switch).
-  await expect(page.getByTestId('details-freelance')).toContainText('Graubereich');
-  await expect(page.getByTestId('login-freelance')).toContainText('Kontorisiko');
-  await expect(page.getByTestId('details-freelancermap')).toContainText('Geringes Risiko');
-  // Each risk word explains itself on hover.
-  await page.getByTestId('details-freelance').getByText('Graubereich').hover();
-  await expect(page.getByRole('tooltip')).toHaveText(
-    'Das Portal erlaubt automatisches Lesen nicht ausdrücklich.',
+  await expect(page.getByTestId('details-freelance')).toContainText(
+    'Holt die ganze Anzeige, in ruhigem Takt und mit Tageslimit.',
   );
-  await page.getByTestId('login-freelance').getByText('Kontorisiko').hover();
-  await expect(page.getByRole('tooltip')).toHaveText(
-    'Im schlimmsten Fall sperrt das Portal das eigene Konto.',
+  await expect(page.getByTestId('login-freelance')).toContainText(
+    'Zeigt ganze Anzeigen statt eines Anrisses.',
   );
+  // No risk words and no shield badges on the switch rows.
+  for (const word of ['Graubereich', 'Kontorisiko', 'Geringes Risiko']) {
+    await expect(page.getByTestId('settings-portals')).not.toContainText(word);
+  }
   await page.getByTestId('toggle-login-freelance').click();
-  // Each switch keeps its own badge: nothing jumps between rows.
-  await expect(page.getByTestId('details-freelance')).toContainText('Graubereich');
-  await expect(page.getByTestId('login-freelance')).toContainText('Kontorisiko');
-  await expect(card.getByText('Kontorisiko')).toHaveCount(1);
   // The sign-in row is named for what it is; its state is the badge or the hint.
   const session = page.getByTestId('session-freelance');
   await expect(session).toContainText('Anmeldung');

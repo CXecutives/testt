@@ -32,7 +32,7 @@ test('Sprache switches the whole app to English and back at once', async ({ page
   );
   await expect(page.getByTestId('settings-language')).toContainText('Sprache der App');
 
-  await choice.getByRole('radio', { name: 'English' }).click();
+  await choice.getByRole('radio', { name: 'Englisch' }).click();
   // The page switches before anything reloads: the sidebar, the headings, the document.
   await expect(page.getByTestId('nav-settings')).toContainText('Settings');
   await expect(page.getByTestId('nav-profile')).toContainText('Profile');
@@ -65,7 +65,7 @@ test('Sprache switches the whole app to English and back at once', async ({ page
 
   // Back to German, the same way.
   await page.getByTestId('nav-settings').click();
-  await page.getByTestId('language').getByRole('radio', { name: 'Deutsch' }).click();
+  await page.getByTestId('language').getByRole('radio', { name: 'German' }).click();
   await expect(page.getByTestId('nav-settings')).toContainText('Einstellungen');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   // The job stays open; its reader speaks German again.

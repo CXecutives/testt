@@ -44,8 +44,8 @@ impl PortalAdapter for LinkedIn {
     fn limits(&self) -> Limits {
         Limits {
             pace_ms: 4_000..=7_000,
-            per_hour: 20,
-            per_day: 40,
+            per_hour: 30,
+            per_day: 80,
         }
     }
     /// Signed in, LinkedIn shows the same text as to a guest (measured) - a session window

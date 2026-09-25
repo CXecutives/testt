@@ -6,14 +6,13 @@
   without jobs, and the pages used today, the meter only from 80 % or while paused). What
   concerns only the pages (a pause, the limit, the sign-in) goes while details are off:
   then no page is fetched. A portal that is off says in one line that the fetch skips it.
-  Each switch carries its own risk and keeps it: Details holen the risk of the requests
-  (while it is on), Mit Anmeldung always Kontorisiko. Sign-in exists only while details and
+  Each switch says in one sentence what it does (no risk grades). Sign-in exists only while details and
   sign-in are both on; a stored sign-in the switches no longer show keeps its Abmelden.
   A switch moves at once (the state is patched before the save); a failure puts it back and
   says why here. The switch itself is the answer: no toast.
 -->
 <script lang="ts">
-  import Badge, { type BadgeTone } from '$components/Badge.svelte';
+  import Badge from '$components/Badge.svelte';
   import Button from '$components/Button.svelte';
   import Card from '$components/Card.svelte';
   import IconTile, { PORTAL_MONOGRAM } from '$components/IconTile.svelte';
@@ -24,7 +23,7 @@
   import { t } from '$lib/i18n/t';
   import { errorText, healthAdvice } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import type { PortalState, Risk } from '$lib/ipc/types';
+  import type { PortalState } from '$lib/ipc/types';
   import { fade, rise } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -37,8 +36,6 @@
   type Switches = Partial<Pick<PortalState, 'enabled' | 'fetchDetails' | 'loginEnabled'>>;
 
   const QUOTA_SHOWN = 0.8;
-  const RISK_TONE: Record<Risk, BadgeTone> = { low: 'success', grey: 'warning', account: 'danger' };
-
   /** Why the last action failed, said when it shows (so in the language of the moment). */
   let error = $state<(() => string) | null>(null);
   let busy = $state(false);
@@ -81,8 +78,6 @@
   const signIn = $derived(portal.fetchDetails && portal.loginEnabled);
   /** A stored sign-in the switches no longer show: its Abmelden stays until it is gone. */
   const leftover = $derived(portal.signedIn === true && !(portal.enabled && signIn));
-  /** The risk of the requests as a guest (the account risk belongs to Mit Anmeldung). */
-  const detailsRisk = $derived<Risk>(portal.risk === 'account' ? 'grey' : portal.risk);
   const status = $derived(portal.enabled && (health !== null || quota !== null));
   const dryRun = $derived(app.state?.dryRun ?? false);
   const dryRunReason = $derived(t.error.text('dryRun', {}));
@@ -193,20 +188,10 @@
         {#if portal.enabled}
           <SettingRow
             label={t.settings.details}
-            hint={portal.fetchDetails ? t.settings.riskText[detailsRisk] : t.settings.detailsOff}
+            hint={portal.fetchDetails ? t.settings.detailsOn : t.settings.detailsOff}
             for="switch-details-{portal.portal}"
             testid="details-{portal.portal}"
           >
-            {#snippet badges()}
-              {#if portal.fetchDetails}
-                <Badge
-                  label={t.settings.risk[detailsRisk]}
-                  tone={RISK_TONE[detailsRisk]}
-                  icon="shield"
-                  hint={t.settings.riskInfo[detailsRisk]}
-                />
-              {/if}
-            {/snippet}
             <Toggle
               id="switch-details-{portal.portal}"
               checked={portal.fetchDetails}
@@ -222,14 +207,6 @@
               for="switch-login-{portal.portal}"
               testid="login-{portal.portal}"
             >
-              {#snippet badges()}
-                <Badge
-                  label={t.settings.risk.account}
-                  tone="danger"
-                  icon="shield"
-                  hint={t.settings.riskInfo.account}
-                />
-              {/snippet}
               <Toggle
                 id="switch-login-{portal.portal}"
                 checked={signIn}

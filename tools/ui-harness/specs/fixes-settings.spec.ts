@@ -153,7 +153,7 @@ test('notes and errors in Einstellungen follow a switch of the language', async 
   const form = page.getByTestId('mailbox-form');
   await expect(form).toContainText('Die Gmail-Adresse fehlt.');
 
-  await page.getByTestId('language').getByRole('radio', { name: 'English' }).click();
+  await page.getByTestId('language').getByRole('radio', { name: 'Englisch' }).click();
   await expect(page.getByTestId('settings-files')).toContainText('Files');
   await expect(page.getByTestId('files-note')).toHaveText('38 files written.');
   await expect(refused).toHaveText('At least one portal must be active.');

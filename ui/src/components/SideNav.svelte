@@ -331,7 +331,7 @@
     --nav-glyph: var(--nav-active-icon);
   }
 
-  .item:not([aria-current='page']):active {
+  .item:not([aria-current='page']):active:hover {
     background-color: var(--surface-press);
     transition-duration: var(--dur-instant);
   }
@@ -457,7 +457,7 @@
     transition-duration: var(--dur-hover);
   }
 
-  .fold:not([aria-disabled='true']):active {
+  .fold:not([aria-disabled='true']):active:hover {
     background-color: var(--surface-press);
     transition-duration: var(--dur-instant);
   }

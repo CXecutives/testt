@@ -120,7 +120,7 @@
     transition-duration: var(--dur-hover);
   }
 
-  .option[aria-checked='false']:active .pill {
+  .option[aria-checked='false']:active:hover .pill {
     background-color: var(--surface-press);
   }
 

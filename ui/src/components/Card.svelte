@@ -92,12 +92,12 @@
     transition-duration: var(--dur-hover);
   }
 
-  .interactive:active {
+  .interactive:active:hover {
     border-color: var(--active-edge);
     transition-duration: var(--dur-instant);
   }
 
-  .interactive:active::after {
+  .interactive:active:hover::after {
     opacity: 0;
     transition-duration: var(--dur-instant);
   }

@@ -134,7 +134,7 @@
     transition-duration: var(--dur-hover);
   }
 
-  button.reason:active {
+  button.reason:active:hover {
     background-color: var(--surface-press);
     transition-duration: var(--dur-instant);
   }

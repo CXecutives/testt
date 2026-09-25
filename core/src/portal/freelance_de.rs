@@ -62,8 +62,8 @@ impl PortalAdapter for FreelanceDe {
     fn limits(&self) -> Limits {
         Limits {
             pace_ms: 10_000..=20_000,
-            per_hour: 15,
-            per_day: 30,
+            per_hour: 20,
+            per_day: 60,
         }
     }
     /// Without a sign-in a guest still gets the teaser.

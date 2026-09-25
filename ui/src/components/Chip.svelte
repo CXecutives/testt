@@ -93,7 +93,7 @@
     transition-duration: var(--dur-hover);
   }
 
-  button.chip:active {
+  button.chip:active:hover {
     background-color: var(--border-strong);
     transition-duration: var(--dur-instant);
   }

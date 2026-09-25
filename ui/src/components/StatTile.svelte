@@ -129,12 +129,12 @@
     transition-duration: var(--dur-hover);
   }
 
-  .clickable:active {
+  .clickable:active:hover {
     background-color: var(--surface-muted);
     transition-duration: var(--dur-instant);
   }
 
-  .clickable:active::after {
+  .clickable:active:hover::after {
     opacity: 0;
     transition-duration: var(--dur-instant);
   }
@@ -145,7 +145,7 @@
 
   .active,
   .active:hover,
-  .active:active {
+  .active:active:hover {
     border-color: var(--active-edge);
     background-color: var(--active-surface);
   }

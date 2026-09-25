@@ -18,15 +18,16 @@ without premultiplying - the Windows shell whenever it has no stage of the wante
 mixes plate colour into the edge instead of black: no dark fringe on any background.
 
 Geometry on the 1024 grid (Windows layout; macOS scales everything with its smaller plate):
-- Plate 48..976, corner radius 212 with 60 % corner smoothing (as iOS and Figma): the curve
+- Plate 16..1008 (nearly full bleed: the taskbar and desktop show it as large as the
+  other apps), corner radius 222 with 60 % corner smoothing (as iOS and Figma): the curve
   leaves the straight edge at 1.6 r with zero curvature, the circular middle keeps radius r.
   The 45 degree point therefore stays where the plain rounded square had it and the outline
   lies inside the plain one - softer, never boxier.
-- Folder 224..800 wide; tab 252..316 (45 degree slope 436 -> 500), body 316..732. One radius
-  (60) everywhere: the body and tab corners with the same smoothing, the slope with two
+- Folder 181..843 wide; tab 216..290 (45 degree slope 425 -> 499), body 290..768. One radius
+  (69) everywhere: the body and tab corners with the same smoothing, the slope with two
   circular fillets. Lifted 20 above the old position: its mass centre sits at the optical
   centre of the plate (slightly above the middle).
-- Check: one stroke width (72), round caps and join, cut out of the folder (even-odd), so the
+- Check: one stroke width (83), round caps and join, cut out of the folder (even-odd), so the
   plate gradient shows through. Optically centred in the body: the box is centred and moved
   up by half the distance between box centre and mass centre (the heavy bottom vertex).
 - Gradient coral-glow hsl(13 73% 68%) top left -> coral-variant hsl(13 64% 56%) bottom right.
@@ -59,13 +60,13 @@ SMOOTHING = 0.6
 PLATE_SMOOTHING = 0.6  # used by the folder corners only
 
 # 1024 grid, Windows layout.
-PLATE, PLATE_R = 48, round(0.2237 * (1024 - 2 * 48))
-FOLDER_X0, FOLDER_X1 = 224, 800
-TAB_Y, BODY_Y0, BODY_Y1 = 252, 316, 732
-SLOPE_X0, SLOPE_X1 = 436, 500
-FOLDER_R = 60
-CHECK_POINTS = [(381, 511), (473, 603), (643, 431)]
-CHECK_W = 72
+PLATE, PLATE_R = 16, round(0.2237 * (1024 - 2 * 16))
+FOLDER_X0, FOLDER_X1 = 181, 843
+TAB_Y, BODY_Y0, BODY_Y1 = 216, 290, 768
+SLOPE_X0, SLOPE_X1 = 425, 499
+FOLDER_R = 69
+CHECK_POINTS = [(361, 514), (467, 620), (663, 422)]
+CHECK_W = 83
 # macOS: plate 824 of 1024 (margin 100) with the corner of the old macOS plate (184 of 820,
 # close to Apple's template).
 MAC_PLATE = 100
@@ -317,7 +318,9 @@ def layout(s, mac=False):
     (check vertices on half pixels at small sizes)."""
     k = s / 1024
     inset = MAC_PLATE if mac else PLATE
-    margin = max(1, round(inset * k)) if s < 1024 else inset
+    # Windows: the plate runs to the edge of the small stages (like the other apps in the
+    # taskbar); macOS keeps Apple's margin.
+    margin = (max(1, round(inset * k)) if mac else round(inset * k)) if s < 1024 else inset
     plate = s - 2 * margin
     unit_ = plate / (1024 - 2 * PLATE)  # one grid unit of the Windows plate
 

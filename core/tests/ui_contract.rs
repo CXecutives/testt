@@ -377,6 +377,37 @@ fn forbidden_css_features() {
 }
 
 #[test]
+fn a_pressed_look_only_under_the_pointer() {
+    // A control shows its pressed state only while the pointer is on it: pressed, then moved
+    // off, it looks at rest again (like native buttons). So every `:active` style is
+    // `:active:hover`; the scrollbar thumb keeps its drag look, a `:not(:active)` guard and
+    // Svelte's `class:active` are no pressed styles.
+    let all = scanned(MIN_FILES);
+    let mut problems = Vec::new();
+    for source in &all {
+        for (n, line) in source.lines() {
+            let mut rest = line;
+            while let Some(i) = rest.find(":active") {
+                let before = &rest[..i];
+                let after = &rest[i + ":active".len()..];
+                let directive = before.ends_with("class");
+                let guard = before.trim_end().ends_with(',') || before.ends_with(":not(");
+                let thumb = before.ends_with("scrollbar-thumb");
+                let word = after.starts_with(|c: char| c.is_alphanumeric() || c == '-' || c == '_');
+                if !(directive || guard || thumb || word || after.starts_with(":hover")) {
+                    problems.push(format!("{}:{n}: {}", source.path, line.trim()));
+                }
+                rest = after;
+            }
+        }
+    }
+    fail(
+        &problems,
+        "pressed styles are `:active:hover` (moving off a held control releases its look)",
+    );
+}
+
+#[test]
 fn palette_only_in_tokens() {
     let all = scanned(MIN_FILES);
     fail(

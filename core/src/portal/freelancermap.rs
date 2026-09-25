@@ -48,8 +48,8 @@ impl PortalAdapter for Freelancermap {
     fn limits(&self) -> Limits {
         Limits {
             pace_ms: 3_000..=5_000,
-            per_hour: 25,
-            per_day: 60,
+            per_hour: 40,
+            per_day: 120,
         }
     }
     /// Signed in, freelancermap shows the same text as to a guest (measured).
