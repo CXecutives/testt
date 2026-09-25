@@ -157,3 +157,28 @@ test('a failed save from the leave dialog leaves the caret in the refused field'
   await expect(page.getByTestId('dialog-leave-profile')).toHaveCount(0);
   await expect(rate).toBeFocused();
 });
+
+test('the arrow keys follow the order on screen after an exclusion changes in place', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await row(page, 'linkedin-4100200305').click();
+  await stage(page).getByTestId('override').click();
+  const openKey = () =>
+    list(page).locator('[data-open]').getAttribute('data-key', { timeout: 2_000 });
+  const drawn = async () =>
+    list(page)
+      .locator('[data-key]')
+      .evaluateAll((all) => all.map((item) => (item as HTMLElement).dataset.key ?? ''));
+  // The counted row now stands above the divider; the keys walk the rows as drawn.
+  await expect.poll(async () => (await drawn()).indexOf('linkedin:4100200305')).toBeGreaterThan(0);
+  const order = await drawn();
+  const at = order.indexOf('linkedin:4100200305');
+  await row(page, 'linkedin-4100200305').focus();
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(openKey).toBe(order[at + 1]);
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(openKey).toBe(order[at - 1]);
+});

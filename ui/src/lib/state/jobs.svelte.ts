@@ -273,10 +273,17 @@ class JobsStore {
     return app.hasProfile ? this.sortChoice : 'newest';
   }
 
-  /** Rows of the list, excluded ones last (behind the divider). */
-  get visible(): JobView[] {
-    return this.rows;
-  }
+  /**
+   * Rows of the list in the order it draws them: the excluded ones last (behind the divider),
+   * also a row whose exclusion changed in place (an override, a run scoring a new job). The
+   * keys, the selection and the next job after a move all count in this order.
+   */
+  readonly visible = $derived.by((): JobView[] => {
+    const active = this.rows.filter((job) => !isExcluded(job));
+    return active.length === this.rows.length
+      ? this.rows
+      : [...active, ...this.rows.filter(isExcluded)];
+  });
 
   readonly shown = $derived(this.visible.slice(0, this.rendered));
 

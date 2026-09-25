@@ -19,7 +19,7 @@ import { displayTitle } from '$lib/i18n/format';
 import { t } from '$lib/i18n/t';
 import type { Deleted, JobKey, JobView, Place } from '$lib/ipc/types';
 import { staggerLimit } from '$lib/motion/motion';
-import { inFacet, isExcluded, jobs, keyOf, sameKey, type Unmove } from '$lib/state/jobs.svelte';
+import { inFacet, jobs, keyOf, sameKey, type Unmove } from '$lib/state/jobs.svelte';
 import { navigation } from '$lib/state/navigation.svelte';
 import { exportText } from '$lib/state/run.svelte';
 import { onUndo } from '$lib/input/input';
@@ -104,16 +104,10 @@ function said(action: MoveId, job: JobView): (count: number) => string {
   }
 }
 
-/** The rows as the list shows them: the active ones, then the excluded ones. */
-function order(): JobView[] {
-  const shown = jobs.shown;
-  return [...shown.filter((job) => !isExcluded(job)), ...shown.filter(isExcluded)];
-}
-
 /** The job to open when `gone` leave the list: the next one below, else the one above; none
  *  when the list did not hold them (a job opened from the day overview). */
 function nextAfter(gone: readonly JobView[]): JobView | null {
-  const rows = order();
+  const rows = jobs.shown;
   const out = new Set(gone.map((job) => keyOf(job.key)));
   const last = Math.max(...gone.map((job) => rows.findIndex((row) => sameKey(row.key, job.key))));
   if (last < 0) return null;

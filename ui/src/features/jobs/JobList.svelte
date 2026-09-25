@@ -86,8 +86,9 @@
   // Jobs without a match get one soon while a run goes or a rescore is pending.
   const pending = $derived(app.hasProfile && (run.active || (app.state?.matchPending ?? 0) > 0));
 
-  /** The rows in the order they stand: the active ones, then the excluded ones. */
-  const order = $derived([...active, ...excluded]);
+  /** The rows in the order they stand: the active ones, then the excluded ones (the store's
+   *  order). */
+  const order = $derived(shown);
   /** The rows the list shows (a row on the page that is not among them is leaving). */
   const listed = $derived(new Set(shown.map((job) => keyOf(job.key))));
   const openKey = $derived(jobs.selected ? keyOf(jobs.selected) : null);
