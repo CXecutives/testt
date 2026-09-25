@@ -294,6 +294,7 @@
               <Button
                 variant="secondary"
                 size="sm"
+                icon="pencil"
                 label={t.common.change}
                 disabled={run.active || dryRun}
                 disabledReason={lockedReason}
@@ -412,6 +413,7 @@
             <Button
               variant="secondary"
               size="sm"
+              icon="pencil"
               label={t.common.change}
               loading={busy === 'workspace'}
               disabled={run.active || dryRun}
@@ -434,7 +436,7 @@
           <Button
             variant="ghost"
             size="sm"
-            icon="file-text"
+            icon="file-spreadsheet"
             label={t.common.open}
             disabled={!cfg.settings.excelExists}
             disabledReason={t.settings.excelMissing}
@@ -545,6 +547,7 @@
           size="sm"
           icon="rotate-ccw"
           label={t.settings.resetAction}
+          warns
           disabled={run.active || dryRun}
           disabledReason={lockedReason}
           testid="reset"

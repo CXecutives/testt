@@ -36,3 +36,29 @@ test('a rescore locks the settings with its own reason, not a fetch', async ({ p
   }
   await page.evaluate(() => (window.__harness.holdAfter = null));
 });
+
+test('one glyph per file and per action: Excel, Ändern, and a reset that warns', async ({
+  page,
+}) => {
+  await settings(page);
+  const glyph = (id: string) => page.getByTestId(id).locator('[data-icon]');
+  // The Excel file has the spreadsheet glyph, as in the day overview ("Excel öffnen").
+  await expect(glyph('excel-open')).toHaveAttribute('data-icon', 'file-spreadsheet');
+  // A stored value changes with the pencil (the mailbox, the work folder).
+  await expect(glyph('mailbox-change')).toHaveAttribute('data-icon', 'pencil');
+  await expect(glyph('workspace-change')).toHaveAttribute('data-icon', 'pencil');
+  // "Zurücksetzen" warns on hover like every milder button that removes something.
+  const danger = await page.evaluate(() => {
+    const probe = document.body.appendChild(document.createElement('span'));
+    probe.style.color = 'var(--danger-strong)';
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  });
+  for (const id of ['mailbox-remove', 'reset']) {
+    const button = page.getByTestId(id);
+    await expect(button).not.toHaveCSS('color', danger);
+    await button.hover();
+    await expect(button).toHaveCSS('color', danger);
+  }
+});
