@@ -451,6 +451,25 @@ fn job_facts<'a>(job: &JobInput<'a>) -> JobFacts<'a> {
     }
 }
 
+/// Every cap of a job: the rubric's caps, a text without requirements (`NO_ITEMS_CAP`)
+/// and a junior role for a senior profile (`JUNIOR_CAP`).
+fn all_caps(
+    profile: &EngineProfile,
+    items: &[Scored],
+    title: &str,
+    raw_title: &str,
+    formal_cap: bool,
+    no_items: bool,
+) -> Option<u8> {
+    let vocab = &profile.skills.vocab;
+    let title_fit = relevance::title_fit(&profile.query, title, vocab);
+    cap(items, title, vocab, formal_cap, title_fit)
+        .into_iter()
+        .chain(no_items.then_some(NO_ITEMS_CAP))
+        .chain(junior_for_senior(profile, raw_title).then_some(JUNIOR_CAP))
+        .min()
+}
+
 /// A junior role (`Junior`, `Werkstudent`, `Trainee`, `Berufseinstieg` in the title) for a
 /// profile with `SENIOR_YEARS` or more: a level mismatch whatever the skills, even without
 /// the profile's target years.
@@ -537,12 +556,8 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     findings.extend(formal);
     // A text without any requirement (long enough to read, or a short teaser) is judged
     // from its title: low evidence, at most `NO_ITEMS_CAP`.
-    let title_fit = relevance::title_fit(&profile.query, &title, vocab);
-    let cap = cap(&items, &title, vocab, formal_cap, title_fit)
-        .into_iter()
-        .chain(((!short || title_only) && items.is_empty()).then_some(NO_ITEMS_CAP))
-        .chain(junior_for_senior(profile, job.title).then_some(JUNIOR_CAP))
-        .min();
+    let no_items = (!short || title_only) && items.is_empty();
+    let cap = all_caps(profile, &items, &title, job.title, formal_cap, no_items);
     let decided = findings.iter().any(|f| f.decided);
 
     let weight_of_evidence = must_weight + N_NICE * nice_count;
