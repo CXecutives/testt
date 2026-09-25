@@ -848,6 +848,7 @@ export const en: Catalog = {
     noProfileText: 'With a profile every job shows how well it fits.',
     profileUnreadable: 'Profile cannot be read',
     label: 'Today at a glance',
+    pick: 'Select a job on the left.',
     issues: 'Needs attention',
     best: 'Best new matches',
     excel: 'Open Excel file',

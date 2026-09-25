@@ -225,6 +225,10 @@
     </section>
   {/if}
 
+  {#if !topError && best.length === 0 && !hasIssues}
+    <p class="pick" data-testid="overview-pick">{t.overview.pick}</p>
+  {/if}
+
   {#if fetchedOnce}
     <section class="block" data-testid="files">
       <h2 class="heading">{t.overview.files}</h2>
@@ -313,6 +317,19 @@
   .quiet {
     color: var(--text-muted);
     font: var(--type-sm);
+  }
+
+  /* Nothing else to say: a quiet line like a mail app's empty reader, the file actions below. */
+  .pick {
+    order: 1;
+    margin-block: var(--space-48);
+    color: var(--text-subtle);
+    font: var(--type-md);
+    text-align: center;
+  }
+
+  .overview > [data-testid='files'] {
+    order: 2;
   }
 
   /* Quiet file actions below everything; their icons start on the edge of the column. */

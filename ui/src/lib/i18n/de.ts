@@ -906,6 +906,8 @@ export const de = {
     noProfileText: 'Mit einem Profil zeigt jeder Job, wie gut er passt.',
     profileUnreadable: 'Profil nicht lesbar',
     label: 'Tagesüberblick',
+    /** Shown in the empty reader when the overview has nothing else to say (like Mail's "no message selected"). */
+    pick: 'Links einen Job auswählen.',
     issues: 'Offene Punkte',
     best: 'Neu und passend',
     excel: 'Excel öffnen',
