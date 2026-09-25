@@ -1299,7 +1299,10 @@ export const de = {
     excel: 'Excel-Datei',
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
     txt: 'Textdateien',
-    txtCount: (value: number) => count(value, 'Datei', 'Dateien'),
+    /** What the text files are, and how many (one per job with its ad). */
+    txtCount: (value: number) => `${count(value, 'Anzeige', 'Anzeigen')} als Text für eine KI`,
+    /** After a change of the work folder: only new text files are written there by themselves. */
+    txtLeftBehind: 'Die Textdateien liegen noch im alten Ordner, Neu schreiben legt sie hier an.',
     txtNone: 'Es gibt noch keine Textdateien.',
     txtRewrite: 'Neu schreiben',
     txtClear: 'Löschen',

@@ -195,6 +195,22 @@ test('alert mails without jobs: the portal card opens one, like the day overview
   await expect(page.getByTestId('health-linkedin').getByRole('button')).toHaveCount(0);
 });
 
+test('text files: the row says what they are; another folder says where they are', async ({
+  page,
+}) => {
+  await settings(page, `${WIN}&folder=other`);
+  const files = page.getByTestId('settings-files');
+  await expect(files).toContainText('38 Anzeigen als Text für eine KI');
+  // Another work folder: only new text files come there by themselves.
+  await page.getByTestId('workspace-change').click();
+  await expect(files).toContainText('C:/Users/demo/Documents/Jobs');
+  await expect(page.getByTestId('files-note')).toHaveText(
+    'Die Textdateien liegen noch im alten Ordner, Neu schreiben legt sie hier an.',
+  );
+  await expect(page.getByTestId('files-note')).toHaveClass(/info/);
+  await expect(files).toContainText('0 Anzeigen als Text für eine KI');
+});
+
 test('the first run opens at its top, the caret waiting in the address', async ({ page }) => {
   await page.setViewportSize({ width: 480, height: 360 });
   for (const query of [`${WIN}&scenario=reset&lang=en`, '?platform=macos&scenario=first-run']) {

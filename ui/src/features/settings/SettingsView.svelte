@@ -12,7 +12,9 @@
   password, instead of "Verbunden": a red badge like the sidebar's status, and a sentence
   under the row only where it adds the cause or the next step.
   Every path row works the same: the path is text to select and copy, the folder opens with
-  "Ordner öffnen", the Excel file with "Öffnen".
+  "Ordner öffnen", the Excel file with "Öffnen". Textdateien says what they are (the ads as
+  text for an AI); after a change of the folder a note says that they are still in the old
+  one until "Neu schreiben".
 -->
 <script lang="ts">
   import Badge from '$components/Badge.svelte';
@@ -219,11 +221,17 @@
     });
   }
 
+  /** Another work folder: the text files there are only the new ones (the backend never
+   *  writes a text file twice by itself), so a note says where the others are. */
   function pickWorkspace(): void {
+    const folder = cfg?.settings.workspace ?? null;
+    const files = cfg?.settings.txtFiles ?? 0;
     void act('workspace', setFiles, async () => {
       const path = await invoke('pick_workspace');
-      if (path !== null) await app.load();
-      return null;
+      if (path === null) return null;
+      const next = await app.load();
+      const moved = next !== null && next.settings.workspace !== folder;
+      return moved && files > 0 ? { tone: 'info', text: () => t.settings.txtLeftBehind } : null;
     });
   }
 
