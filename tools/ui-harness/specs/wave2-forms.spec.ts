@@ -146,6 +146,48 @@ test('ui-core-04: every reference of a field or switch names a text that is ther
   expect(await dangling(page.getByTestId('view-settings'))).toEqual([]);
 });
 
+test('live-forms-11: a button that goes hands its focus on', async ({ page }) => {
+  await create(page);
+  // DACH: the countries field.
+  await page.getByTestId('profile-dach').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('profile-dach')).toHaveCount(0);
+  await expect(countryInput(page)).toBeFocused();
+  // A row's x: the row now in its place, else the one before, else the add button.
+  const names = page.getByTestId('competence-name');
+  await names.first().fill('Controlling');
+  await page.getByTestId('competence-add').click();
+  await names.nth(1).fill('Treasury');
+  await page.getByTestId('competence-add').click();
+  await names.nth(2).fill('Reporting');
+  const remove = page.getByTestId('competence-remove');
+  await remove.nth(1).focus();
+  await page.keyboard.press('Enter');
+  await expect(names).toHaveCount(2);
+  await expect(names.nth(1)).toBeFocused();
+  await expect(names.nth(1)).toHaveValue('Reporting');
+  await remove.nth(1).focus();
+  await page.keyboard.press('Space');
+  await expect(names.nth(0)).toBeFocused();
+  await remove.nth(0).focus();
+  await page.keyboard.press('Enter');
+  await expect(names).toHaveCount(0);
+  await expect(page.getByTestId('competence-add')).toBeFocused();
+  const languages = page.getByTestId('language-name');
+  await page.getByTestId('language-remove').focus();
+  await page.keyboard.press('Enter');
+  await expect(languages).toHaveCount(0);
+  await expect(page.getByTestId('language-add')).toBeFocused();
+  // "Weiter zum ersten Abruf": the setup page's next action.
+  await open(page, `${WIN}&scenario=mailbox-only`);
+  await page.getByTestId('first-profile').click();
+  await page.getByTestId('competence-name').fill('Controlling');
+  await page.getByTestId('profile-save').click();
+  await page.getByTestId('profile-next').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('first-fetch')).toBeFocused();
+});
+
 test('live-forms-12: the day is judged when it is left or saved, never while typed', async ({
   page,
 }) => {

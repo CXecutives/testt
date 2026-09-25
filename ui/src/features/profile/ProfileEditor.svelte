@@ -186,8 +186,13 @@
   /** Deutschland, Österreich and Schweiz in one click. */
   const DACH = ['DE', 'AT', 'CH'];
   const dachMissing = $derived(DACH.some((code) => !c.countries.includes(code)));
-  function addDach(): void {
+  /** The button goes once they are in: the focus it had moves into the countries field. */
+  async function addDach(event: MouseEvent): Promise<void> {
+    const focused = event.currentTarget === document.activeElement;
     c.countries = [...c.countries, ...DACH.filter((code) => !c.countries.includes(code))];
+    if (!focused) return;
+    await tick();
+    document.getElementById(`${id}-countries`)?.focus();
   }
 
   const REMOTE = $derived<{ id: RemoteWish; label: string }[]>(
@@ -660,7 +665,7 @@
               icon="plus"
               label={words.dach}
               testid="profile-dach"
-              onclick={addDach}
+              onclick={(event) => void addDach(event)}
             />
           {/if}
         </div>

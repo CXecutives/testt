@@ -8,7 +8,8 @@
   Schwerpunkte says that the first five were taken; one that does not count (no competence
   of that name) or a value that does not read is said there with "Wert entfernen". A value
   the backend refused marks its row. Enter goes to the next row, adds one after the last and
-  ends the list on an empty last row (rows.ts); it never saves the profile.
+  ends the list on an empty last row (rows.ts); it never saves the profile. A row's focused x
+  hands the focus to the next row (rows.ts). Narrow, the Schwerpunkte go under their label.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -21,7 +22,7 @@
   import { MAX_FOCUS, type FieldProblem } from '$lib/state/profile.svelte';
   import { tick } from 'svelte';
   import NumberField from './NumberField.svelte';
-  import { enterRow, focusRow } from './rows';
+  import { enterRow, focusAfterRemove, focusRow } from './rows';
   import ValueNote from './ValueNote.svelte';
 
   interface Props {
@@ -83,6 +84,14 @@
     const name = row.name;
     rows = rows.filter((other) => other !== row);
     if (starred(name)) focus = focus.filter((entry) => !same(entry, name));
+  }
+
+  /** The x of a row: the focus it had goes to the next row. */
+  function removeByButton(row: ProfileCompetence, event: MouseEvent): void {
+    const focused = event.currentTarget === document.activeElement;
+    const index = rows.indexOf(row);
+    remove(row);
+    if (focused) void focusAfterRemove(list, index, 'competence-add');
   }
 
   const append = (): void => {
@@ -176,7 +185,7 @@
           icon="x"
           label={words.removeCompetence(row.name.trim())}
           testid="competence-remove"
-          onclick={() => remove(row)}
+          onclick={(event) => removeByButton(row, event)}
         />
       </span>
     </div>
