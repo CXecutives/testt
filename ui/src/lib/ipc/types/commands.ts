@@ -41,6 +41,9 @@ export type Commands = {
   profile_prompt: { args: Record<string, never>; result: string };
   save_profile: { args: { save: ProfileSave }; result: ProfileInfo };
   remove_profile: { args: Record<string, never>; result: boolean };
+  restore_profile: { args: Record<string, never>; result: boolean };
+  set_unsaved: { args: { on: boolean }; result: null };
+  close_window: { args: Record<string, never>; result: null };
   save_mailbox: { args: { user: string; password: string }; result: Mailbox };
   remove_mailbox: { args: Record<string, never>; result: boolean };
   portal_login: { args: { portal: Portal }; result: boolean };

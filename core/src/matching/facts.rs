@@ -110,7 +110,7 @@ fn countries_of(value: &Value) -> Option<Vec<String>> {
 }
 
 /// Does a criteria value exclude temporary agency work (a list or a text naming ANÜ)?
-fn excludes_anue(value: &Value) -> Option<bool> {
+pub(crate) fn excludes_anue(value: &Value) -> Option<bool> {
     let texts: Vec<String> = match value {
         Value::Array(items) => items.iter().filter_map(Value::as_str).map(fold).collect(),
         Value::String(text) => vec![fold(text)],
@@ -128,7 +128,7 @@ fn excludes_anue(value: &Value) -> Option<bool> {
 const CONTRACT_PERMANENT: &[&str] = &["festanstellung", "permanent"];
 
 /// Does a criteria value exclude permanent employment (a list or a text naming it)?
-fn excludes_permanent(value: &Value) -> bool {
+pub(crate) fn excludes_permanent(value: &Value) -> bool {
     let texts: Vec<String> = match value {
         Value::Array(items) => items.iter().filter_map(Value::as_str).map(fold).collect(),
         Value::String(text) => vec![fold(text)],

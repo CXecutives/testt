@@ -49,19 +49,19 @@ tools: Array<string>,
  */
 certificates: Array<string>, 
 /**
- * `sprachen[]` with `sprache` and `niveau`.
+ * `sprachen[]` with `sprache` and `niveau` (`languages[]` with `language` and `level`).
  */
 languages: Array<ProfileLanguage>, 
 /**
- * `schwerpunkte[]`: the competences that matter most (at most five).
+ * `schwerpunkte[]` (`focus_areas`): the competences that matter most, the first five.
  */
 focus: Array<string>, 
 /**
- * `wunschrollen[]`: the roles the consultant is looking for.
+ * `wunschrollen[]` (`target_roles`): the roles the consultant is looking for.
  */
 roles: Array<string>, 
 /**
- * `einsatzpraeferenzen`: wishes, they only nudge the score.
+ * `einsatzpraeferenzen` (`preferences`): wishes, they only nudge the score.
  */
 wishes: ProfileWishes, 
 /**

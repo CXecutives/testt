@@ -70,6 +70,10 @@ pub async fn open_target(state: State<'_, AppState>, target: OpenTarget) -> CmdR
         OpenTarget::AppPasswordPage => APP_PASSWORD_URL.into(),
         OpenTarget::TwoStepPage => TWO_STEP_URL.into(),
         OpenTarget::Workspace => existing(state.workspace()?, "folder")?,
+        OpenTarget::ProfileDir => existing(
+            state.workspace()?.join(jobalert_core::profile::PROFILE_DIR),
+            "folder",
+        )?,
         OpenTarget::Excel => existing(
             export::overview_path(&state.workspace()?.join(RESULT_DIR)),
             "file",

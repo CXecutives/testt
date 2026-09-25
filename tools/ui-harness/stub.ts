@@ -39,12 +39,14 @@ import type {
   JobQuery,
   JobView,
   Language,
+  Notice,
   Place,
   Portal,
   PortalState,
   ProfileDraft,
   ProfileForm,
   ProfileInfo,
+  ProfileUnderstanding,
   Reason,
   RunEvent,
   RunRequest,
@@ -73,6 +75,13 @@ interface Harness {
   menuAt: { x: number; y: number } | null;
   /** Click an entry of the last menu shown (like the user in the native menu). */
   pick: (index: number) => void;
+  /** The page holds unsaved changes (its last `set_unsaved`). */
+  unsaved: boolean;
+  /** The window was closed (`close_window`, or a close request without unsaved changes). */
+  closed: boolean;
+  /** The user closes the window (X, Alt+F4, Cmd+Q/W): like main.rs, the page is asked
+   *  (`close-requested`) while it holds unsaved changes, else the window closes. */
+  requestClose: () => void;
 }
 
 declare global {
@@ -500,6 +509,7 @@ const PROFILE_FORM: ProfileForm = {
     minDayRate: 1100,
     countries: ['DE', 'AT'],
     noAnue: true,
+    noPermanent: false,
     available: { kind: 'unset' },
     remoteOutside: true,
     targetYears: 15,
@@ -509,23 +519,69 @@ const PROFILE_FORM: ProfileForm = {
   },
 };
 
-/** The IT sample of the fixtures (sample_profile_it.json) as a chosen file. */
-const FILE_DRAFT: ProfileDraft = {
-  form: {
-    ...structuredClone(PROFILE_FORM),
-    name: 'Jonas Muster',
-    title: '',
-    competences: [
-      row('SAP-Projektleitung', 12, [], 0),
-      row('SAP S/4HANA Migration', 6, [], 1),
-      row('Programmmanagement', 8, [], 2),
+/** What the engine understands of a form (a rough stand-in: the form's own terms). */
+function understoodOf(form: ProfileForm, warnings: Notice[]): ProfileUnderstanding {
+  const names = form.competences.map((r) => r.name);
+  const terms = [...names, ...form.tools, ...form.keywords];
+  const c = form.criteria;
+  return {
+    competenceCount: terms.length,
+    competences: terms,
+    sources: [
+      { path: 'kernkompetenzen[].kompetenz', count: names.length },
+      { path: 'methoden_tools[].name', count: form.tools.length },
+      { path: 'keywords[]', count: form.keywords.length },
+    ].filter((s) => s.count > 0),
+    criteria: [
+      { code: 'minDayRate', params: { set: c.minDayRate !== null, min: c.minDayRate } },
+      {
+        code: 'countries',
+        params: { set: c.countries.length > 0, countries: c.countries.join(', ') },
+      },
+      { code: 'noAnue', params: { set: c.noAnue } },
+      { code: 'noPermanent', params: { set: c.noPermanent } },
+      { code: 'availability', params: { set: c.available.kind !== 'unset', from: null } },
+      { code: 'minSalary', params: { set: c.minSalary !== null, min: c.minSalary } },
+      { code: 'permanentRegion', params: { set: c.permanentPlaces.length > 0, places: null } },
+      { code: 'targetYears', params: { set: c.targetYears !== null, min: c.targetYears } },
     ],
-    focus: [],
-    roles: [],
-    wishes: { dayRate: null, remote: 'partly', regions: [], industries: [] },
-  },
+    warnings,
+    packs: packsOf(form),
+    years: form.years,
+    degrees: form.degrees,
+    focus: form.focus,
+    roles: form.roles,
+    wishes: form.wishes,
+  };
+}
+
+/** The IT sample of the fixtures (sample_profile_it.json) as a chosen file: a value of it
+ *  does not read (the minimum day rate). */
+const FILE_FORM: ProfileForm = {
+  ...structuredClone(PROFILE_FORM),
+  name: 'Jonas Muster',
+  title: '',
+  competences: [
+    row('SAP-Projektleitung', 12, [], 0),
+    row('SAP S/4HANA Migration', 6, [], 1),
+    row('Programmmanagement', 8, [], 2),
+  ],
+  focus: [],
+  roles: [],
+  wishes: { dayRate: null, remote: 'partly', regions: [], industries: [] },
+  criteria: { ...structuredClone(PROFILE_FORM.criteria), minDayRate: null },
+};
+const FILE_DRAFT: ProfileDraft = {
+  form: FILE_FORM,
   source: '{"name": "Jonas Muster"}',
   quality: 'thin',
+  understood: understoodOf(FILE_FORM, [
+    { code: 'fewCompetences', params: { count: 3 } },
+    {
+      code: 'criterionNotUnderstood',
+      params: { key: 'min_tagessatz', value: '"ab 900"', field: 'minDayRate' },
+    },
+  ]),
 };
 
 const PROFILE: ProfileInfo = {
@@ -536,7 +592,7 @@ const PROFILE: ProfileInfo = {
   understood: {
     competenceCount: 42,
     packs: ['finance', 'sap'],
-    years: 28,
+    years: 20,
     degrees: ['Diplom-Kauffrau (Univ.)'],
     competences: [
       'Interim-Management',
@@ -552,11 +608,19 @@ const PROFILE: ProfileInfo = {
       'IFRS',
       'Führung von Finanzteams',
     ],
-    sources: ['kernkompetenzen[].kompetenz', 'projekte[].rolle'],
+    sources: [
+      { path: 'kernkompetenzen[].kompetenz', count: 6 },
+      { path: 'kernkompetenzen[].auch', count: 3 },
+      { path: 'keywords[]', count: 3 },
+      { path: 'methoden_tools[].name', count: 3 },
+      { path: 'stationen[].rolle', count: 12 },
+      { path: 'stationen[].schwerpunkte[]', count: 15 },
+    ],
     criteria: [
       { code: 'minDayRate', params: { set: true, min: '1100' } },
       { code: 'countries', params: { set: true, countries: 'DE, AT' } },
       { code: 'noAnue', params: { set: true } },
+      { code: 'noPermanent', params: { set: false } },
       { code: 'availability', params: { set: false, from: null } },
       { code: 'minSalary', params: { set: false, min: null } },
       { code: 'permanentRegion', params: { set: false, places: null, remoteMin: null } },
@@ -655,7 +719,12 @@ function answerDraft(answer: string): ProfileDraft {
   };
   if (form.competences.length === 0 && form.name === '')
     throw fail('invalid', { reason: 'profileAnswer' });
-  return { form, source: text, quality: form.competences.length >= 5 ? 'good' : 'thin' };
+  const quality = form.competences.length >= 5 ? 'good' : 'thin';
+  const warnings: Notice[] =
+    quality === 'thin'
+      ? [{ code: 'fewCompetences', params: { count: form.competences.length } }]
+      : [];
+  return { form, source: text, quality, understood: understoodOf(form, warnings) };
 }
 
 /** The domain packs the engine would switch on for a form (a rough stand-in: words of the
@@ -781,6 +850,8 @@ function lastRun(outcome: RunSummary['outcome'] = { kind: 'completed' }): RunSum
 
 let jobs: JobView[] = [];
 let state: AppState;
+/** The profile a `remove_profile` took (core keeps it as the backup until restored). */
+let removedProfile: ProfileInfo | null = null;
 
 function initial(): void {
   jobs = scenario === 'many' ? manyJobs(2000) : sampleJobs();
@@ -1829,8 +1900,25 @@ const handlers: Handlers = {
     return structuredClone(state.profile);
   },
   remove_profile: () => {
+    // Like core: the profile becomes the backup, which `restore_profile` brings back.
+    removedProfile = state.profile;
     state.profile = null;
+    return removedProfile !== null;
+  },
+  restore_profile: () => {
+    if (state.profile !== null || removedProfile === null) return false;
+    state.profile = removedProfile;
+    removedProfile = null;
     return true;
+  },
+  set_unsaved: ({ on }) => {
+    harness.unsaved = on;
+    return null;
+  },
+  close_window: () => {
+    harness.unsaved = false;
+    harness.closed = true;
+    return null;
   },
   save_mailbox: ({ user, password }) => {
     if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(user)) {
@@ -1928,6 +2016,15 @@ const harness: Harness = {
   menuAt: null,
   pick(index) {
     lastItems[index]?.choose();
+  },
+  unsaved: false,
+  closed: false,
+  requestClose() {
+    if (!harness.unsaved) {
+      harness.closed = true;
+      return;
+    }
+    for (const handler of listeners.get('close-requested') ?? []) handler({ payload: null });
   },
   job(key) {
     const found = find(key);
@@ -2046,6 +2143,7 @@ const WRONG_PASSWORD = 'falschfalschfals';
 const DRY_RUN_REFUSED: ReadonlySet<string> = new Set([
   'pick_profile',
   'remove_profile',
+  'restore_profile',
   'save_profile_template',
   'save_mailbox',
   'remove_mailbox',

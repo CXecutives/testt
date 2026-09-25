@@ -46,8 +46,10 @@ export function emptyForm(): ProfileForm {
       minDayRate: null,
       countries: [],
       noAnue: false,
+      noPermanent: false,
       available: { kind: 'unset' },
-      remoteOutside: false,
+      // Missing in the file means allowed, as the engine reads it.
+      remoteOutside: true,
       targetYears: null,
       minSalary: null,
       permanentPlaces: [],
@@ -140,6 +142,7 @@ export function normalized(form: ProfileForm): ProfileForm {
       minDayRate: positive(c.minDayRate),
       countries: cleanList(c.countries.map((code) => code.toUpperCase())),
       noAnue: c.noAnue,
+      noPermanent: c.noPermanent,
       available:
         c.available.kind === 'from' ? { kind: 'from', date: c.available.date.trim() } : c.available,
       remoteOutside: c.remoteOutside,
@@ -275,7 +278,12 @@ class ProfileEditor {
   /** Writes the form; the caller reloads the app state (and with it the stored form). */
   save(): Promise<ProfileInfo> {
     return invoke('save_profile', {
-      save: { before: this.before, after: normalized(copy(this.after)), source: this.source },
+      save: {
+        before: this.before,
+        after: normalized(copy(this.after)),
+        source: this.source,
+        clear: [],
+      },
     });
   }
 }

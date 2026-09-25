@@ -14,15 +14,19 @@ minDayRate: number | null,
  */
 countries: Array<string>, 
 /**
- * `ausgeschlossene_vertragsarten` contains `anue`.
+ * `ausgeschlossene_vertragsarten` names `anue`.
  */
 noAnue: boolean, 
+/**
+ * `ausgeschlossene_vertragsarten` names `festanstellung`.
+ */
+noPermanent: boolean, 
 /**
  * `verfuegbar_ab`.
  */
 available: ProfileAvailability, 
 /**
- * `remote_ausserhalb_erlaubt`.
+ * `remote_ausserhalb_erlaubt`; missing counts as allowed, as the engine reads it.
  */
 remoteOutside: boolean, 
 /**
