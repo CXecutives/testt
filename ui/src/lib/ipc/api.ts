@@ -187,15 +187,6 @@ export function onNavigate(handler: (view: string) => void): () => void {
   return subscribe(() => listen<string>('navigate', (event) => handler(event.payload)));
 }
 
-/**
- * The native menu folds the sidebar or unfolds it (macOS: "Seitenleiste ein-/ausblenden" in
- * the View menu, src-tauri/src/platform.rs). Its key, Cmd+B, never reaches the menu from the
- * page: lib/input/input.ts takes it first. Returns an unsubscribe function.
- */
-export function onSidebarMenu(handler: () => void): () => void {
-  return subscribe(() => listen('sidebar', () => handler()));
-}
-
 /** An edit command the OS has a menu item of its own for (it acts on the focused field). */
 export type EditCommand = 'Undo' | 'Cut' | 'Copy' | 'Paste' | 'SelectAll';
 

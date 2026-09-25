@@ -223,107 +223,19 @@ for (const os of [WIN, MAC]) {
   });
 }
 
-test('the sidebar has no fold edge; Ctrl+B folds it, the choice is kept and nothing moves at start', async ({
+test('the sidebar folds only by the window width: no edge, Ctrl+B and Cmd+B change nothing', async ({
   page,
 }) => {
   await open(page, WIN);
   await expect(page.getByTestId('sidebar-edge')).toHaveCount(0);
   expect(await sidebarWidth(page)).toBe(196);
   await page.keyboard.press('Control+b');
-  expect(await sidebarWidth(page)).toBe(64);
-  await expect(page.getByTestId('nav-profile')).toHaveAttribute('aria-label', 'Profil');
-  await page.reload();
-  await settle(page);
-  expect(await sidebarWidth(page)).toBe(64);
-  expect(
-    await page.evaluate(
-      () => document.getAnimations().filter((a) => a.playState === 'running').length,
-    ),
-  ).toBe(0);
-  await page.keyboard.press('Control+b');
-  expect(await sidebarWidth(page)).toBe(196);
-  // The labels fade in like when the window grows past 1100 px.
-  await expect(page.getByTestId('nav-archive')).toContainText('Archiv');
-});
-
-test('Ctrl+B folds and unfolds the sidebar; in a field it does nothing; the key never gets through', async ({
-  page,
-}) => {
-  await open(page, WIN);
-  await page.keyboard.press('Control+b');
-  expect(await sidebarWidth(page)).toBe(64);
-  await page.reload();
-  expect(await sidebarWidth(page)).toBe(64);
-  await page.keyboard.press('Control+b');
-  expect(await sidebarWidth(page)).toBe(196);
-  // In a field Ctrl+B is no shortcut: nothing folds and nothing is typed.
-  const search = page.getByTestId('search');
-  await search.focus();
-  await page.keyboard.press('Control+b');
-  expect(await sidebarWidth(page)).toBe(196);
-  await expect(search).toHaveValue('');
-  await expect(search).toBeFocused();
-  // Outside fields the page takes the key (no WebView shortcut behind it).
-  await page.getByTestId('nav-profile').focus();
-  const prevented = await page.evaluate(() => {
-    const event = new KeyboardEvent('keydown', {
-      key: 'b',
-      code: 'KeyB',
-      ctrlKey: true,
-      bubbles: true,
-      cancelable: true,
-    });
-    document.activeElement!.dispatchEvent(event);
-    return event.defaultPrevented;
-  });
-  expect(prevented).toBe(true);
-  expect(await sidebarWidth(page)).toBe(64);
-});
-
-test('macOS: Cmd+B folds the sidebar exactly once, the menu item too; Ctrl+B does not', async ({
-  page,
-}) => {
-  await open(page, MAC);
-  const railWidth = 80;
-  await page.keyboard.press('Control+b');
-  expect(await sidebarWidth(page)).toBe(196);
   await page.keyboard.press('Meta+b');
-  expect(await sidebarWidth(page)).toBe(railWidth);
-  // The page takes Cmd+B first and prevents it, so WKWebView never hands it on to the menu
-  // item with the same key: one press, one fold.
-  const prevented = await page.evaluate(() => {
-    const event = new KeyboardEvent('keydown', {
-      key: 'b',
-      code: 'KeyB',
-      metaKey: true,
-      bubbles: true,
-      cancelable: true,
-    });
-    document.body.dispatchEvent(event);
-    return event.defaultPrevented;
-  });
-  expect(prevented).toBe(true);
   expect(await sidebarWidth(page)).toBe(196);
-  // The item of the View menu ("Seitenleiste ein-/ausblenden").
-  await page.evaluate(() => window.__harness.fire('sidebar', null));
-  expect(await sidebarWidth(page)).toBe(railWidth);
-  await page.evaluate(() => window.__harness.fire('sidebar', null));
-  expect(await sidebarWidth(page)).toBe(196);
-});
-
-test('below 1100 px the key changes nothing; folded by hand it stays folded', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 700 });
-  await open(page, WIN);
-  expect(await sidebarWidth(page)).toBe(64);
-  await page.keyboard.press('Control+b');
-  await page.evaluate(() => window.__harness.fire('sidebar', null));
+  await expect.poll(() => sidebarWidth(page)).toBe(64);
   await page.setViewportSize({ width: 1360, height: 900 });
   await expect.poll(() => sidebarWidth(page)).toBe(196);
-  // Folded by hand, it stays folded however the window changes.
-  await page.keyboard.press('Control+b');
-  await page.setViewportSize({ width: 1000, height: 700 });
-  await page.setViewportSize({ width: 1360, height: 900 });
-  await expect.poll(() => sidebarWidth(page)).toBe(64);
 });
 
 test('an unsaved profile keeps the place until the question is answered', async ({ page }) => {

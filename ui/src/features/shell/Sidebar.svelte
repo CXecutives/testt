@@ -21,8 +21,6 @@
   import SideNav, { type SideNavFold, type SideNavItem } from '$components/SideNav.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import { t } from '$lib/i18n/t';
-  import { onSidebarKey } from '$lib/input/input';
-  import { onSidebarMenu } from '$lib/ipc/api';
   import { settled } from '$lib/motion/settled.svelte';
   import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
@@ -125,8 +123,6 @@
   }
 
   // Ctrl+B (Cmd+B on macOS) and the macOS menu fold and unfold the sidebar.
-  $effect(() => onSidebarKey(() => viewport.toggleRail()));
-  $effect(() => onSidebarMenu(() => viewport.toggleRail()));
 </script>
 
 <aside class="sidebar" class:rail={viewport.rail} id={SIDEBAR_ID} data-testid="sidebar">

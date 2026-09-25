@@ -725,14 +725,6 @@ mod macos {
     const SETTINGS_ID: &str = "settings";
     /// The event that asks the page for a view (`ui/src/lib/ipc/api.ts`, `onNavigate`).
     const NAVIGATE: &str = "navigate";
-    /// Id of the sidebar item in the View menu: it folds the page's sidebar to its icons and
-    /// back. Its key, Cmd+B, is shown here but taken by the page first (lib/input/input.ts
-    /// prevents it, so `WKWebView` never hands it on): a click on the item is what arrives.
-    /// The page decides whether the sidebar can fold (not below 1100 px), and its title
-    /// names both ways because only the page knows the state.
-    const SIDEBAR_ID: &str = "sidebar";
-    /// The event that asks the page to fold or unfold its sidebar (`api.ts`, `onSidebarMenu`).
-    const SIDEBAR: &str = "sidebar";
 
     // User-facing text, German by product decision.
     const ABOUT: &str = "Über Job-Alert-Monitor";
@@ -747,8 +739,6 @@ mod macos {
     const COPY: &str = "Kopieren";
     const PASTE: &str = "Einfügen";
     const SELECT_ALL: &str = "Alles auswählen";
-    const VIEW: &str = "Darstellung";
-    const TOGGLE_SIDEBAR: &str = "Seitenleiste ein-/ausblenden";
     const WINDOW: &str = "Fenster";
     const MINIMIZE: &str = "Minimieren";
     const CLOSE_WINDOW: &str = "Fenster schließen";
@@ -769,8 +759,6 @@ mod macos {
         pub(super) const COPY: &str = "Copy";
         pub(super) const PASTE: &str = "Paste";
         pub(super) const SELECT_ALL: &str = "Select All";
-        pub(super) const VIEW: &str = "View";
-        pub(super) const TOGGLE_SIDEBAR: &str = "Toggle Sidebar";
         pub(super) const WINDOW: &str = "Window";
         pub(super) const MINIMIZE: &str = "Minimize";
         pub(super) const CLOSE_WINDOW: &str = "Close Window";
@@ -829,18 +817,6 @@ mod macos {
                 &PredefinedMenuItem::select_all(app, Some(w(SELECT_ALL, en::SELECT_ALL)))?,
             ],
         )?;
-        let view = Submenu::with_items(
-            app,
-            w(VIEW, en::VIEW),
-            true,
-            &[&MenuItem::with_id(
-                app,
-                SIDEBAR_ID,
-                w(TOGGLE_SIDEBAR, en::TOGGLE_SIDEBAR),
-                true,
-                Some("CmdOrCtrl+B"),
-            )?],
-        )?;
         // The window-list id makes macOS treat it as the standard Window menu.
         let window = Submenu::with_id_and_items(
             app,
@@ -852,7 +828,7 @@ mod macos {
                 &PredefinedMenuItem::close_window(app, Some(w(CLOSE_WINDOW, en::CLOSE_WINDOW)))?,
             ],
         )?;
-        Menu::with_items(app, &[&app_menu, &edit, &view, &window])
+        Menu::with_items(app, &[&app_menu, &edit, &window])
     }
 
     /// Cmd+Q and the quit item close the main window like its close button: the standard
@@ -865,14 +841,6 @@ mod macos {
         reason = "the signature of Tauri's menu event handler"
     )]
     pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
-        if event.id() == SIDEBAR_ID {
-            if let Some(window) = app.get_webview_window(super::MAIN)
-                && let Err(e) = window.emit(SIDEBAR, ())
-            {
-                log::warn!("sidebar item: page not reached ({e})");
-            }
-            return;
-        }
         if event.id() == SETTINGS_ID {
             if let Some(window) = app.get_webview_window(super::MAIN) {
                 let _ = window.set_focus();

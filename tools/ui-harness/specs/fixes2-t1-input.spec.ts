@@ -129,27 +129,27 @@ test('a click beside a focused field ends its focus', async ({ page }) => {
   await expect(chips).toBeFocused();
 });
 
-test('a press on the title bar ends the focus of a field', async ({ page }) => {
+test('a press on a drag region (the macOS toolbar row) ends the focus of a field', async ({
+  page,
+}) => {
   // Tauri's drag script cancels the press on a drag region (the window moves instead):
   // stand in for it, after the input policy's own listener like in the app.
   await page.addInitScript(() => {
     document.addEventListener('mousedown', (event) => {
       const target = event.target instanceof Element ? event.target : null;
-      if (
-        event.button === 0 &&
-        target?.closest('[data-tauri-drag-region]') &&
-        !target.closest('button')
-      ) {
+      // Like Tauri's script: only a press on the region itself (not on a field or a
+      // button inside its row) moves the window.
+      if (event.button === 0 && target?.hasAttribute('data-tauri-drag-region')) {
         event.preventDefault();
         event.stopImmediatePropagation();
       }
     });
   });
-  await open(page, WIN);
+  await open(page, '?platform=macos');
   const search = page.getByTestId('search');
   await search.click();
   await expect(search).toBeFocused();
-  const bar = (await page.getByTestId('titlebar').boundingBox())!;
+  const bar = (await page.getByTestId('sidebar').getByTestId('drag-band').boundingBox())!;
   await page.mouse.click(bar.x + bar.width / 2, bar.y + bar.height / 2);
   await expect(search).not.toBeFocused();
 });

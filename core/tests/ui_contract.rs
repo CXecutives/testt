@@ -644,18 +644,6 @@ fn the_keyboard_stays_native() {
         input.contains("[aria-modal=\"true\"]") && input.contains("cycleFocus"),
         "input.ts: a modal dialog holds the focus",
     );
-    // Cmd+B folds the sidebar exactly once on macOS: the View menu names the key, the page
-    // takes it first (it is no key the page hands on to the menu).
-    let platform_rs =
-        std::fs::read_to_string(repo("src-tauri/src/platform.rs")).expect("platform.rs");
-    need(
-        input.contains("isSidebarShortcut")
-            && platform_rs.contains("Some(\"CmdOrCtrl+B\")")
-            && !input
-                .lines()
-                .any(|l| l.contains("MAC_MENU_KEYS = new Set(") && l.contains("'b'")),
-        "input.ts takes Ctrl/Cmd+B for the sidebar; the macOS menu only names it",
-    );
     need(
         input.contains("removeEventListener('wheel'")
             && !input.contains("addEventListener(\n    'wheel'")
