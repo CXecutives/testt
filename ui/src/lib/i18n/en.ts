@@ -184,7 +184,7 @@ const profileField: Record<string, string> = {
   languages: 'Languages',
   minDayRate: 'Minimum day rate',
   countries: 'Countries',
-  contracts: 'Excluded contract types',
+  contracts: 'Temporary agency work and permanent jobs',
   remoteOutside: 'Allow remote jobs abroad',
   available: 'Available from',
   targetYears: 'Minimum experience of the job',
@@ -1135,7 +1135,7 @@ export const en: Catalog = {
       placesPlaceholder: 'e.g. Munich',
       remoteMin: 'Minimum remote share',
       remoteMinHint:
-        'Outside these locations, a permanent job counts only with at least this much remote work.',
+        'Outside the locations for permanent jobs, a job needs at least this much remote work.',
       rounded: 'Rounded down to whole euros.',
       roundedWhole: 'Rounded down to a whole number.',
       refused: 'This value does not fit.',

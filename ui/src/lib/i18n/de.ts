@@ -148,7 +148,7 @@ const profileField: Record<string, string> = {
   languages: 'Sprachen',
   minDayRate: 'Mindest-Tagessatz',
   countries: 'Einsatzländer',
-  contracts: 'Ausgeschlossene Vertragsarten',
+  contracts: 'Arbeitnehmerüberlassung und Festanstellung',
   remoteOutside: 'Remote-Jobs im Ausland zulassen',
   available: 'Verfügbar ab',
   targetYears: 'Mindest-Erfahrung des Jobs',
@@ -1225,7 +1225,7 @@ export const de = {
       placesPlaceholder: 'z. B. München',
       remoteMin: 'Mindest-Remote-Anteil',
       remoteMinHint:
-        'Außerhalb dieser Orte zählt eine Festanstellung erst ab diesem Remote-Anteil.',
+        'Außerhalb der Orte für Festanstellung braucht ein Job mindestens diesen Remote-Anteil.',
       /** A euro amount with cents: the app counts whole euros. */
       rounded: 'Auf ganze Euro abgerundet.',
       /** Another number with a decimal part: the app counts whole ones. */

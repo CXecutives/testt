@@ -29,3 +29,15 @@ test('Einstellungen lists every file the app writes, the overview too', async ({
     target: { kind: 'overview' },
   });
 });
+
+test('the profile names the contract switches, not a field the form lacks', async ({ page }) => {
+  for (const [lang, name] of [
+    ['', '„Arbeitnehmerüberlassung und Festanstellung“ ist nicht lesbar.'],
+    ['&lang=en', '“Temporary agency work and permanent jobs” cannot be read.'],
+  ] as const) {
+    await open(page, `${WIN}&scenario=profile-unreadable${lang}`);
+    await page.getByTestId('nav-profile').click();
+    await page.getByTestId('profile-quality').locator('.badge').hover();
+    await expect(page.getByRole('tooltip')).toContainText(name);
+  }
+});
