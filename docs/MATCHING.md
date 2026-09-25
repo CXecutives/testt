@@ -238,6 +238,22 @@ Found by the domain-pack work; scores of the corpus unchanged, held-out 1 NDCG@1
   `Sachkundige Person` are one licence.
 - A lone adjective before an AND is no item (`Classic and agile project management`).
 
+### Version 6: a page's structured criteria
+
+LinkedIn states four criteria under every ad; the parser kept two and the engine read one.
+Corpus scores unchanged (the corpus ads carry no page facts; only the version line of the
+digest moved). `core/tests/matching_page_facts.rs` covers each value.
+
+- The page facts `level` (Karrierestufe) and `industries` (Branchen) reach the engine
+  (`fact_key::LEVEL`, `fact_key::INDUSTRIES`); `function` (Tätigkeitsbereich) is stored only.
+- Employment type by its exact value (`LIMITED_CONTRACT_VALUES`): `Befristet`, `Contract`,
+  `Temporary`, `Freiberuflich` make the ad interim; `Vollzeit` and `Teilzeit` say nothing.
+- With a target (`zielprofil_min_jahre`) and no requirement at or above it: a career level or
+  employment type of `ENTRY_LEVEL_VALUES` (`Praktikum`, `Internship`, `Berufseinstieg`,
+  `Entry level`, `Ehrenamtlich`, ...) is `tooJunior` (decided); `Associate`, `Assistent` or
+  `Junior` without years is `seniorityUnclear` (a check).
+- The industry wish reads the page's industries first, then title, company and context.
+
 ### Rubric of the Claude check
 
 `core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the

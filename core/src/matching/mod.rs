@@ -49,8 +49,9 @@ use params::FOCUS_MAX;
 /// Version of the scoring behaviour; part of the match revision (`match_rev`). 4: the
 /// Schwerpunkte, target roles and wishes of the profile. 5: frame and soft words as words
 /// (not prefixes of skills), real compound boundaries, codes with their number and short
-/// skills, multiword terms across dropped words, doctorate and QP.
-pub const ENGINE_VERSION: u32 = 5;
+/// skills, multiword terms across dropped words, doctorate and QP. 6: a page's structured
+/// criteria (a limited employment type, an internship or entry level, the industries).
+pub const ENGINE_VERSION: u32 = 6;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.
