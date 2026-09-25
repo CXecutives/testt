@@ -79,6 +79,7 @@ pub fn exclusion_reason(code: &str, params: &Map<String, Value>) -> Option<&'sta
         "dayRate" => "Der Tagessatz liegt unter dem Minimum im Profil.",
         "country" => "Der Einsatzort liegt außerhalb der Länder im Profil.",
         "anue" => "Die Anzeige nennt Arbeitnehmerüberlassung.",
+        "permanent" => "Die Stelle ist eine Festanstellung, das Profil schließt sie aus.",
         "availability" => "Der Start passt nicht zur Verfügbarkeit.",
         "salary" => "Das Gehalt liegt unter dem Minimum im Profil.",
         "permanentRegion" => "Die Festanstellung liegt außerhalb der Region im Profil.",
@@ -167,6 +168,7 @@ pub mod en {
             "dayRate" => "The day rate is below the minimum in the profile.",
             "country" => "The location is outside the countries in the profile.",
             "anue" => "The ad mentions temporary agency work.",
+            "permanent" => "This is a permanent role, which the profile excludes.",
             "availability" => "The start does not fit the availability.",
             "salary" => "The salary is below the minimum in the profile.",
             "permanentRegion" => "The permanent role is outside the region in the profile.",
@@ -382,6 +384,7 @@ mod tests {
         for texts in [&DE, &EN] {
             for code in [
                 ReasonCode::Anue,
+                ReasonCode::Permanent,
                 ReasonCode::DayRate,
                 ReasonCode::Availability,
                 ReasonCode::Country,

@@ -432,6 +432,14 @@ mod tests {
         assert!(html.contains(texts::HTML_EXCLUDED));
         assert!(html.contains("Der Tagessatz liegt unter dem Minimum im Profil."));
         assert!(!html.contains("dayRate"), "{html}");
+        let permanent = record(MatchStatus::Excluded, 80, Some("permanent"));
+        let html = render(
+            &[job("A", Some(permanent))],
+            true,
+            Timestamp::now(),
+            &texts::DE,
+        );
+        assert!(html.contains("Die Stelle ist eine Festanstellung, das Profil schließt sie aus."));
         let unknown = record(MatchStatus::Excluded, 50, Some("somethingNew"));
         let html = render(
             &[job("A", Some(unknown))],
