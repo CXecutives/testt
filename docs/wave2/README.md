@@ -1,5 +1,7 @@
 # Wave 2: the last findings and three features
 
+The complete brief for the cloud session is `PLAN.md` in this folder; this file is the short work list.
+
 A work list for one session. Read `CLAUDE.md` and `docs/PLAN.md` first; their rules are binding. Delete this folder in
 the last commit of the wave.
 
