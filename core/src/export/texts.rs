@@ -81,6 +81,8 @@ pub const HTML_MATCH: &str = "Passung";
 pub const HTML_MET: &str = "Erfüllt";
 pub const HTML_EXCLUDED: &str = "Ausgeschlossen";
 pub const HTML_UNSCORABLE: &str = "Nicht bewertbar";
+/// A job not scored yet (also one that waits for its details), like the app's ring.
+pub const HTML_NONE: &str = "Noch nicht bewertet";
 
 /// Why a job is excluded, by the code of its first violation (the list's `note`), in the
 /// words of the interface's criteria. `None` for a code without a text: the overview then
@@ -181,6 +183,7 @@ pub mod en {
     pub const HTML_MET: &str = "Met";
     pub const HTML_EXCLUDED: &str = "Excluded";
     pub const HTML_UNSCORABLE: &str = "Not scorable";
+    pub const HTML_NONE: &str = "Not scored yet";
 
     pub fn exclusion_reason(code: &str, params: &Map<String, Value>) -> Option<&'static str> {
         Some(match code {
@@ -272,6 +275,7 @@ pub struct Texts {
     pub html_met: &'static str,
     pub html_excluded: &'static str,
     pub html_unscorable: &'static str,
+    pub html_none: &'static str,
     /// A moment as text (`strftime`): `19.09.2026 14:05`, `19/09/2026 14:05`.
     pub moment: &'static str,
     /// The number format of the date cells in Excel.
@@ -308,6 +312,7 @@ pub const DE: Texts = Texts {
     html_met: HTML_MET,
     html_excluded: HTML_EXCLUDED,
     html_unscorable: HTML_UNSCORABLE,
+    html_none: HTML_NONE,
     moment: "%d.%m.%Y %H:%M",
     excel_moment: "dd.mm.yyyy hh:mm",
     exclusion: exclusion_reason,
@@ -342,6 +347,7 @@ pub const EN: Texts = Texts {
     html_met: en::HTML_MET,
     html_excluded: en::HTML_EXCLUDED,
     html_unscorable: en::HTML_UNSCORABLE,
+    html_none: en::HTML_NONE,
     moment: "%d/%m/%Y %H:%M",
     excel_moment: "dd/mm/yyyy hh:mm",
     exclusion: en::exclusion_reason,

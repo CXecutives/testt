@@ -18,6 +18,7 @@ use crate::settings::Language;
 use crate::store::JobRow;
 use crate::store::matches::OverviewJobs;
 use crate::text::split_company_location;
+use crate::view::DetailState;
 
 /// Colours of the app (tokens of the interface): headings in ink, links in navy, an
 /// exclusion in the danger red (coral means act or new, never an exclusion).
@@ -109,10 +110,10 @@ fn render(jobs: &OverviewJobs, now: Timestamp, texts: &Texts) -> String {
         esc(&texts.moment(now)),
     );
     if !jobs.favourites.is_empty() {
-        section(&mut out, texts.html_pinned, &jobs.favourites, texts);
+        section(&mut out, texts.html_pinned, &jobs.favourites, now, texts);
         out.push_str("</section>\n");
     }
-    section(&mut out, texts.html_new, &jobs.new, texts);
+    section(&mut out, texts.html_new, &jobs.new, now, texts);
     if jobs.new.is_empty() {
         let _ = write!(out, "<p>{}</p>", esc(texts.html_empty));
     }
@@ -129,12 +130,12 @@ fn render(jobs: &OverviewJobs, now: Timestamp, texts: &Texts) -> String {
 }
 
 /// Opens a section with its heading and its list (none without jobs); the caller closes it.
-fn section(out: &mut String, heading: &str, jobs: &[JobRow], texts: &Texts) {
+fn section(out: &mut String, heading: &str, jobs: &[JobRow], now: Timestamp, texts: &Texts) {
     let _ = write!(out, "<section><h2>{}</h2>", esc(heading));
     if !jobs.is_empty() {
         out.push_str("<ol>\n");
         for job in jobs {
-            item(out, job, texts);
+            item(out, job, waits(job, now), texts);
         }
         out.push_str("</ol>");
     }
@@ -144,10 +145,11 @@ fn section(out: &mut String, heading: &str, jobs: &[JobRow], texts: &Texts) {
 /// colour of its step (ten steps by decile, `scale.rs`), on a dashed track while the score
 /// comes from a teaser only. An excluded job keeps its score, but its ring is a pale red
 /// track with the ban mark and no number; an unscorable job shows the track and a dash, one
-/// not scored yet a dashed track and a dash.
-fn ring(out: &mut String, job: &JobRow, texts: &Texts) {
+/// not scored yet (or unscorable while its details still come) a dashed track alone.
+fn ring(out: &mut String, job: &JobRow, waits: bool, texts: &Texts) {
     // Class, tooltip, the arc (the score) and what the centre shows.
     let (class, title, arc, centre) = match &job.match_ {
+        _ if waits => ("none".to_owned(), texts.html_none, 0, String::new()),
         Some(m) if m.status == MatchStatus::Scored => {
             let step = STEP_CLASS[score_step(m.score)];
             let class = if job.desc_status == DescStatus::Teaser {
@@ -166,7 +168,7 @@ fn ring(out: &mut String, job: &JobRow, texts: &Texts) {
             0,
             "–".to_owned(),
         ),
-        None => ("none".to_owned(), texts.html_match, 0, "–".to_owned()),
+        None => ("none".to_owned(), texts.html_none, 0, String::new()),
     };
     let _ = write!(
         out,
@@ -184,21 +186,33 @@ fn ring(out: &mut String, job: &JobRow, texts: &Texts) {
     let _ = write!(out, "</svg>{centre}</div>");
 }
 
-fn item(out: &mut String, job: &JobRow, texts: &Texts) {
+/// A job whose ring waits like the app's (`ringState`): not scored yet, or unscorable while
+/// its details still come on their own.
+fn waits(job: &JobRow, now: Timestamp) -> bool {
+    match &job.match_ {
+        None => true,
+        Some(m) => {
+            m.status == MatchStatus::Unscorable
+                && matches!(DetailState::at(job, now), DetailState::Pending { .. })
+        }
+    }
+}
+
+fn item(out: &mut String, job: &JobRow, waits: bool, texts: &Texts) {
     let (company, location) = split_company_location(&job.company, &job.location);
     let sub: Vec<&str> = [company.as_str(), location.as_str(), job.key.portal.label()]
         .into_iter()
         .filter(|s| !s.is_empty())
         .collect();
     out.push_str("<li>");
-    ring(out, job, texts);
+    ring(out, job, waits, texts);
     // A title opens its ad in a new tab: the overview stays where it is.
     let _ = write!(
         out,
         "<div class=\"job\"><a href=\"{}\" target=\"_blank\" rel=\"noopener noreferrer\">{}</a>\
          <div class=\"sub\">{}</div>",
         esc(job.url.as_str()),
-        esc(&job.title),
+        esc(&crate::view::display_title(job)),
         esc(&sub.join(" · ")),
     );
     if let Some(m) = &job.match_ {
@@ -231,10 +245,10 @@ fn item(out: &mut String, job: &JobRow, texts: &Texts) {
                 }
                 out.push_str("</p>");
             }
-            MatchStatus::Unscorable => {
+            MatchStatus::Unscorable if !waits => {
                 let _ = write!(out, "<p class=\"sub\">{}</p>", esc(texts.html_unscorable));
             }
-            MatchStatus::Scored => {}
+            MatchStatus::Unscorable | MatchStatus::Scored => {}
         }
     }
     out.push_str("</div></li>\n");
@@ -354,11 +368,14 @@ mod tests {
     }
 
     /// The rings speak like the app's: the arc is the score's share of 100 (a 5 is no full
-    /// ring), a score from a teaser stands on a dashed track, an unscorable job shows a dash.
+    /// ring), a score from a teaser stands on a dashed track, an unscorable job shows a dash,
+    /// one not scored yet or waiting for its details the dashed track alone.
     #[test]
     fn a_ring_shows_the_share_of_its_score() {
         let mut teaser = job("B", Some(record(MatchStatus::Scored, 42, None)));
         teaser.desc_status = DescStatus::Teaser;
+        let mut coming = job("F", Some(record(MatchStatus::Unscorable, 0, None)));
+        coming.desc_status = DescStatus::Missing;
         let html = render(
             &favourites(vec![
                 job("A", Some(record(MatchStatus::Scored, 83, None))),
@@ -366,6 +383,7 @@ mod tests {
                 teaser,
                 job("D", Some(record(MatchStatus::Unscorable, 0, None))),
                 job("E", None),
+                coming,
             ]),
             Timestamp::now(),
             &texts::DE,
@@ -375,22 +393,40 @@ mod tests {
             .skip(1)
             .map(|ring| &ring[..ring.find("</div>").unwrap()])
             .collect();
-        assert_eq!(rings.len(), 5, "{html}");
+        assert_eq!(rings.len(), 6, "{html}");
         assert!(rings[0].starts_with("s8\"") && rings[0].contains("stroke-dasharray=\"83 100\""));
         assert!(rings[1].starts_with("s0\"") && rings[1].contains("stroke-dasharray=\"5 100\""));
         assert!(rings[2].starts_with("s4 provisional\"") && rings[2].ends_with(">42"));
         assert!(rings[3].starts_with("unscorable\" title=\"Nicht bewertbar\""));
-        assert!(rings[4].starts_with("none\""));
-        for ring in &rings[3..] {
+        assert!(rings[3].ends_with("</svg>–") && !rings[3].contains("class=\"value\""));
+        for ring in &rings[4..] {
             assert!(
-                ring.ends_with("</svg>–") && !ring.contains("class=\"value\""),
+                ring.starts_with("none\" title=\"Noch nicht bewertet\"")
+                    && ring.ends_with("</svg>"),
                 "{ring}"
             );
         }
+        assert_eq!(
+            html.matches("<p class=\"sub\">Nicht bewertbar</p>").count(),
+            1
+        );
         assert!(STYLE.contains(".provisional .track, .none .track { stroke-dasharray"));
         // The line of an unscorable job sits like the others (no paragraph margins of its own).
         assert!(html.contains("<p class=\"sub\">Nicht bewertbar</p>"));
         assert!(STYLE.contains(".met, .excluded, p.sub { margin: 6px 0 0;"));
+    }
+
+    /// The overview shows the title the app shows: without a portal's mark for an ended
+    /// project, also in a title stored before the parser dropped it.
+    #[test]
+    fn the_title_is_the_one_the_app_shows() {
+        let marked = job(
+            "Archiviertes Projekt - Senior Requirements Engineer",
+            Some(record(MatchStatus::Scored, 70, None)),
+        );
+        let html = render(&favourites(vec![marked]), Timestamp::now(), &texts::DE);
+        assert!(html.contains(">Senior Requirements Engineer</a>"), "{html}");
+        assert!(!html.contains("Archiviertes Projekt"));
     }
 
     /// A title opens the ad in a new tab and leaves the overview open; the heading is ink,

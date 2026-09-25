@@ -71,7 +71,7 @@ impl Line {
         let (company, location) = split_company_location(&job.company, &job.location);
         Line {
             source: job.key.portal.label(),
-            title: job.title.clone(),
+            title: crate::view::display_title(job),
             company,
             location,
             url: job.url.to_string(),
