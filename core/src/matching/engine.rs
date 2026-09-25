@@ -45,6 +45,8 @@ pub(crate) struct EngineProfile {
     pub skills: Skills,
     pub criteria: HardCriteria,
     pub query: Vec<(String, u64)>,
+    /// The query plus the topics of the target roles: what the title may name.
+    pub title_query: Vec<(String, u64)>,
     /// Schwerpunkte (at most `FOCUS_MAX`, those the profile entries carry).
     pub focus: Vec<Focus>,
     /// How many Schwerpunkte the profile names.
@@ -67,6 +69,7 @@ impl EngineProfile {
         unreadable.extend(declared.unreadable);
         let (roles, roles_unreadable) = roles::read(data, &skills.vocab);
         unreadable.extend(roles_unreadable);
+        let title_query = relevance::title_query(&query, &roles::topics(&roles));
         let (wishes, wishes_unreadable) = Wishes::new(data, &skills.vocab);
         unreadable.extend(wishes_unreadable);
         Self {
@@ -74,6 +77,7 @@ impl EngineProfile {
             skills,
             criteria,
             query,
+            title_query,
             focus,
             focus_count: declared.count,
             roles,
@@ -191,9 +195,10 @@ fn cap(items: &[Scored], title: &str, vocab: &Vocab, formal_cap: bool) -> Option
         .collect();
     let open = musts.iter().filter(|s| s.fit.value == E_NONE).count();
     let several_open = open >= 2 && 2 * open >= musts.len();
+    // Only explicit requirements, never a teaser's vocabulary terms.
     let skills: Vec<&&Scored> = musts
         .iter()
-        .filter(|s| s.item.class == Class::Skill)
+        .filter(|s| s.item.class == Class::Skill && s.item.stage != Stage::Vocabulary)
         .collect();
     let off_field = skills.len() >= 2 && skills.iter().all(|s| s.fit.value == E_NONE);
     let title_atoms: Vec<String> = atoms::atoms(title, vocab)
@@ -281,9 +286,15 @@ fn criteria_findings(
     (findings, contract)
 }
 
-/// Demanded Schwerpunkte in profile order; the first `FOCUS_RELEVANCE_MAX` add relevance.
-fn focus_hits(profile: &EngineProfile, items: &[Scored], title: &str) -> Vec<FocusHit> {
-    if profile.focus.is_empty() {
+/// Demanded Schwerpunkte in profile order; the first `FOCUS_RELEVANCE_MAX` add relevance
+/// (none for a text that cannot be read).
+fn focus_hits(
+    profile: &EngineProfile,
+    items: &[Scored],
+    title: &str,
+    readable: bool,
+) -> Vec<FocusHit> {
+    if profile.focus.is_empty() || !readable {
         return Vec::new();
     }
     let in_title = focus::in_title(&profile.skills, &profile.focus, title);
@@ -325,8 +336,8 @@ fn focus_hits(profile: &EngineProfile, items: &[Scored], title: &str) -> Vec<Foc
 fn preferences(
     profile: &EngineProfile,
     ad: &wishes::Ad<'_>,
+    title: &str,
 ) -> (Option<(RoleFit, i64, String)>, Vec<WishResult>) {
-    let title = ad.job.title;
     let role = roles::best(&profile.roles, title, ad.vocab, ad.contract).map(|fit| {
         let points = if fit.full { ROLE_FULL } else { ROLE_HALF };
         (fit, points, title.to_owned())
@@ -433,18 +444,21 @@ fn job_facts<'a>(job: &JobInput<'a>) -> JobFacts<'a> {
 fn relevance_of(
     profile: &EngineProfile,
     job: &JobInput<'_>,
+    title: &str,
     requirement_lines: &[Range<usize>],
     no_items: bool,
     focus_relevance: u64,
 ) -> u64 {
     let vocab = &profile.skills.vocab;
     if no_items {
-        return relevance::title_fit(&profile.query, job.title, vocab);
+        return relevance::title_fit(&profile.title_query, title, vocab);
     }
+    // With requirements the target role counts once, as its points (not in the title fit).
     (relevance::relevance(
         &profile.query,
+        &profile.query,
         vocab,
-        job.title,
+        title,
         job.text,
         requirement_lines,
     ) + focus_relevance)
@@ -473,6 +487,10 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     let (mut findings, stated_contract) = criteria_findings(profile, &facts, &segments, &folded);
     let contract = stated_contract.kind;
     let short = char_len(strip(text)) < MIN_TEXT_CHARS;
+    // The title without gender markers and marketing tails (what the role is).
+    let title = relevance::clean_title(job.title);
+    // A short teaser still has its title: the portal hides the ad, it is not empty.
+    let title_only = short && job.kind == TextKind::Teaser;
     let doc = if short {
         job::JobDoc::default()
     } else {
@@ -493,25 +511,22 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     let evidence = evidence_level(job.kind, &items, must_weight);
     let (formal, formal_cap) = formal(profile, &items);
     findings.extend(formal);
-    // A text long enough to read but without any requirement is judged from its title and
-    // words alone: low evidence, at most `NO_ITEMS_CAP`.
-    let cap = cap(&items, job.title, vocab, formal_cap)
+    // A text without any requirement (long enough to read, or a short teaser) is judged
+    // from its title: low evidence, at most `NO_ITEMS_CAP`.
+    let cap = cap(&items, &title, vocab, formal_cap)
         .into_iter()
-        .chain((!short && items.is_empty()).then_some(NO_ITEMS_CAP))
+        .chain(((!short || title_only) && items.is_empty()).then_some(NO_ITEMS_CAP))
         .min();
     let decided = findings.iter().any(|f| f.decided);
 
     let weight_of_evidence = must_weight + N_NICE * nice_count;
-    let unscorable = short;
-    let focus = if unscorable {
-        Vec::new()
-    } else {
-        focus_hits(profile, &items, job.title)
-    };
+    let readable = !short || title_only;
+    let focus = focus_hits(profile, &items, &title, readable);
     let focus_relevance: u64 = focus.iter().map(|h| h.relevance).sum();
     let relevance = relevance_of(
         profile,
         job,
+        &title,
         &requirement_lines,
         items.is_empty(),
         focus_relevance,
@@ -526,9 +541,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     if contract == ContractKind::Permanent {
         shrunk = shrunk * PERMANENT_FACTOR / 1000;
     }
-    let (role, wishes) = if unscorable {
-        (None, Vec::new())
-    } else {
+    let (role, wishes) = if readable {
         let ad = wishes::Ad {
             job: &facts,
             company: job.company,
@@ -538,7 +551,16 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
             context: &[],
             vocab,
         };
-        preferences(profile, &ad)
+        preferences(profile, &ad, &title)
+    } else {
+        (None, Vec::new())
+    };
+    // A short teaser whose title names neither the field nor a target role stays unscorable.
+    let unscorable = !readable || (short && relevance == 0 && role.is_none());
+    let (role, wishes) = if unscorable {
+        (None, Vec::new())
+    } else {
+        (role, wishes)
     };
     let adjusted = adjust(shrunk, role.as_ref(), &wishes, &items);
     let (score, rank) = final_score(adjusted, cap, unscorable);

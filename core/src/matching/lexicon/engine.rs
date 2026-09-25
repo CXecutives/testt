@@ -540,6 +540,18 @@ pub(crate) const ADJECTIVE_ENDINGS: &[&str] = &[
 /// Shortest modifier of a compound (`Bericht-erstellung`); `h` of `Herstellung` is none.
 pub(crate) const MIN_COMPOUND_MODIFIER: usize = 3;
 
+/// Gender markers in a title (`(all genders)`, `(gn)`), and the letters of `(m/w/d)`.
+pub(crate) const GENDER_MARKERS: &[&str] = &[
+    "all genders",
+    "alle geschlechter",
+    "gn",
+    "gn*",
+    "m/w/d",
+    "w/m/d",
+];
+pub(crate) const GENDER_LETTERS: &[&str] = &["d", "f", "i", "m", "w", "x", "div", "divers"];
+/// Separators of a title's marketing tail (`Interim CFO – Scale-up E-Mobility`).
+pub(crate) const TITLE_TAIL_SEPARATORS: &[&str] = &[" – ", " — ", " | ", " - "];
 /// Contract words in a title that say nothing about the field (title fit).
 pub(crate) const TITLE_CONTRACT_WORDS: &[&str] = &[
     "befristet",

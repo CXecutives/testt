@@ -129,6 +129,38 @@ fn a_student_role_is_employment_and_its_wage_decides() {
     );
 }
 
+/// A short teaser is judged from its title when the title names the field or a target
+/// role; a short full text (an empty ad) stays unscorable.
+#[test]
+fn a_short_teaser_is_judged_from_its_title() {
+    let mut profile = finance();
+    profile["wunschrollen"] = json!(["Interim CFO"]);
+    let teaser = |title: &str, kind| {
+        let job = JobInput {
+            title,
+            company: "Muster AG",
+            location: "Köln",
+            portal: Portal::FreelanceDe,
+            text: "Ort: Köln // Vertragsart: Freiberuflich // Start: sofort",
+            facts: None,
+            posted: None,
+            kind,
+        };
+        assess(&compile_profile(&profile), &job, None).expect("assessed")
+    };
+    let cfo = teaser("Interim CFO (m/w/d)", TextKind::Teaser);
+    assert_eq!(cfo.verdict, Verdict::Scored);
+    assert!(cfo.score <= 60 && cfo.score > 10, "{}", cfo.score);
+    assert_eq!(
+        teaser("Lagerlogistiker (m/w/d)", TextKind::Teaser).verdict,
+        Verdict::Unscorable
+    );
+    assert_eq!(
+        teaser("Interim CFO (m/w/d)", TextKind::Full).verdict,
+        Verdict::Unscorable
+    );
+}
+
 /// Equal scores keep an order: the score before the caps.
 #[test]
 fn the_rank_orders_capped_scores() {

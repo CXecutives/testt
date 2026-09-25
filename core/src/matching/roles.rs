@@ -183,6 +183,19 @@ fn role_fit(role: &Role, title: &Parts, junior: bool, interim: bool) -> Option<b
     Some(full)
 }
 
+/// The topic atoms of every target role (what a title may name).
+pub(crate) fn topics(roles: &[Role]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for role in roles {
+        for atom in &role.topic {
+            if !atoms::is_generic(atom) && !out.contains(atom) {
+                out.push(atom.clone());
+            }
+        }
+    }
+    out
+}
+
 /// The best target role for a job title (full before half, profile order on a tie).
 pub(crate) fn best(
     roles: &[Role],
