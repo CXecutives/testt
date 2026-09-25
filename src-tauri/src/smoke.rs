@@ -175,7 +175,8 @@ const PROBE: &str = r#"(() => { try {
     const q = (id) => document.querySelector(`[data-testid="${id}"]`);
     const shown = (el) => !!el && el.getBoundingClientRect().width > 0;
     return JSON.stringify({
-      ready: shown(q('shell')) && shown(q('sidebar')),
+      // The sidebar's entries come with the app state (nothing is guessed before it).
+      ready: shown(q('shell')) && shown(q('sidebar')) && q('nav-jobs') !== null,
       tabs: document.querySelectorAll('[data-testid^="nav-"]').length,
       named: ['nav-jobs', 'nav-archive', 'nav-trash', 'nav-profile', 'nav-settings'].every((id) => !!q(id)),
       tauri: '__TAURI_INTERNALS__' in window,

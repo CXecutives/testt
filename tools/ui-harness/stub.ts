@@ -2051,14 +2051,29 @@ const DRY_RUN_REFUSED: ReadonlySet<string> = new Set([
   'reset_all',
 ]);
 
+/** Resolves in the next task (a message, not a timer: no clamping, no fake clock). */
+function nextTask(): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+}
+
 export async function invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   harness.calls.push([command, args]);
   const handler = handlers[command as keyof Commands] as ((a: unknown) => unknown) | undefined;
   if (handler === undefined) throw fail('internal', { command });
   if (state.dryRun && DRY_RUN_REFUSED.has(command)) throw fail('dryRun');
   const delay = command === 'job_detail' ? DELAY + harness.detailDelay : DELAY;
-  if (delay > 0 && command !== 'report_ui_error') {
-    await new Promise((resolve) => setTimeout(resolve, delay));
+  if (command !== 'report_ui_error') {
+    // Like Tauri's IPC, the answer arrives in a task of its own: the page's work on it is
+    // never counted into the click or key that asked.
+    if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+    else await nextTask();
   }
   // Like Tauri: every call gets its own Rust-side channel, dropped when nothing holds it.
   sender = args.channel instanceof Channel ? new Sender(args.channel as Channel<RunEvent>) : null;

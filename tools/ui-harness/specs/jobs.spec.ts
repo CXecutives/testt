@@ -98,9 +98,11 @@ test('counts equal the list, with and without search', async ({ page }) => {
   await open(page, WIN);
   expect(await rows(page).count()).toBe(await segmentCount(page, 'Neu'));
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  await expect(page.getByTestId('excluded-divider')).toBeVisible();
-  const all = (await rows(page).count()) + (await excludedRows(page).count());
-  expect(all).toBe(await segmentCount(page, 'Alle'));
+  await expect(page.getByTestId('excluded-count')).toBeVisible();
+  // The list of Alle arrives from the backend and builds a few rows per frame.
+  const listed = async (): Promise<number> =>
+    (await rows(page).count()) + (await excludedRows(page).count());
+  await expect.poll(listed).toBe(await segmentCount(page, 'Alle'));
   await expect(page.getByTestId('excluded-divider')).toHaveText(
     `Ausgeschlossen ${await excludedRows(page).count()}`,
   );
@@ -117,10 +119,12 @@ test('counts equal the list, with and without search', async ({ page }) => {
 test('a hidden job is in no list and no count', async ({ page }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  await expect(page.getByTestId('excluded-divider')).toBeVisible();
+  await expect(page.getByTestId('excluded-count')).toBeVisible();
+  // The list of Alle arrives from the backend and builds a few rows per frame.
+  const listed = async (): Promise<number> =>
+    (await rows(page).count()) + (await excludedRows(page).count());
+  await expect.poll(listed).toBe(await segmentCount(page, 'Alle'));
   await expect(row(page, 'linkedin-4100200306')).toHaveCount(0);
-  const listed = (await rows(page).count()) + (await excludedRows(page).count());
-  expect(listed).toBe(await segmentCount(page, 'Alle'));
 });
 
 test('mark_read only on a real click, and only once', async ({ page }) => {
@@ -763,6 +767,10 @@ test('the list header: one slot for Abrufen and Abbrechen, a steady second row, 
   // The bottom line only once the list is scrolled.
   await expect(header).toHaveCSS('border-bottom-color', clear);
   const list = page.getByTestId('list-scroll');
+  // The window mounts a few rows per frame: scroll once the list can.
+  await expect
+    .poll(() => list.evaluate((node) => node.scrollHeight - node.clientHeight))
+    .toBeGreaterThan(300);
   await list.evaluate((node) => node.scrollTo({ top: 300 }));
   await expect(header).not.toHaveCSS('border-bottom-color', clear);
   await list.evaluate((node) => node.scrollTo({ top: 0 }));
@@ -1160,6 +1168,8 @@ test('under a search all read marks the hits; the trash empties whole and says h
     await settleMoves(page);
   }
   await page.getByTestId('nav-trash').click();
+  // The trash's own list (it arrives from the backend a moment after the click).
+  await expect(page.getByTestId('place-count')).toHaveText('2 Jobs im Papierkorb');
   const title = await rows(page).first().locator('.title').innerText();
   await page.getByTestId('search').fill(title);
   await expect(rows(page)).toHaveCount(1);

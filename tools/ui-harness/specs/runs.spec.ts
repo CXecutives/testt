@@ -269,9 +269,16 @@ test('the divider under Neu names no number; under Alle the one of every exclude
   await expect(page.getByTestId('excluded-divider')).toHaveText('Ausgeschlossen');
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   await expect(page.getByTestId('excluded-count')).toBeVisible();
-  await expect(page.getByTestId('excluded-divider')).toHaveText(
-    `Ausgeschlossen ${await page.getByTestId('excluded-rows').locator('[data-testid^="job-row-"]').count()}`,
-  );
+  // The list of Alle arrives from the backend and builds a few rows per frame: then the
+  // divider names every excluded row of it.
+  const divider = page.getByTestId('excluded-divider');
+  const excluded = page.getByTestId('excluded-rows').locator('[data-testid^="job-row-"]');
+  const named = async (): Promise<boolean> => {
+    const count = await excluded.count();
+    const text = (await divider.innerText()).replace(/\s+/g, ' ').trim();
+    return count > 0 && text === `Ausgeschlossen ${count}`;
+  };
+  await expect.poll(named).toBe(true);
 });
 
 test('the portals follow the one order of the app', async ({ page }) => {
@@ -323,7 +330,7 @@ test('all read under a search marks only the hits', async ({ page }) => {
   expect((await calls(page, 'mark_all_read')).map(([, args]) => args)).toEqual([
     { place: 'inbox', search: 'Interim' },
   ]);
-  // The unread job that is no hit stays unread.
+  // Once the backend has answered: the unread job that is no hit stays unread.
+  await expect.poll(async () => (await jobOf(page, 'freelancermap', '2801')).unread).toBe(false);
   expect((await jobOf(page, 'linkedin', '4100200301')).unread).toBe(true);
-  expect((await jobOf(page, 'freelancermap', '2801')).unread).toBe(false);
 });
