@@ -1,0 +1,350 @@
+{
+  "name": "Markus Vorlage",
+  "email": "markus.vorlage@example.invalid",
+  "telefon": "+49 151 0000000",
+  "titel": "Interim Vertriebs- und Marketingdirektor B2B",
+  "berufserfahrung_jahre": 20,
+  "abschluss": "Diplom-Wirtschaftsingenieur (FH)",
+  "ausbildung": [
+    {
+      "abschluss": "Executive MBA",
+      "fach": "General Management mit Schwerpunkt Marketing",
+      "hochschule": "Beispielhochschule",
+      "jahr": 2014
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Vertriebsleitung",
+      "jahre": 14,
+      "auch": [
+        "Leitung Vertrieb",
+        "Head of Sales",
+        "Sales Director",
+        "Vertriebsdirektor",
+        "Chief Sales Officer"
+      ]
+    },
+    {
+      "kompetenz": "Key Account Management",
+      "jahre": 18,
+      "auch": [
+        "KAM",
+        "Key Account",
+        "Großkundenbetreuung",
+        "Strategic Account Management"
+      ]
+    },
+    {
+      "kompetenz": "Go-to-Market-Strategie",
+      "jahre": 10,
+      "auch": [
+        "Go-to-Market",
+        "GTM",
+        "Markteintritt",
+        "Markteinführung",
+        "Produkteinführung"
+      ]
+    },
+    {
+      "kompetenz": "CRM-Einführung mit Salesforce",
+      "jahre": 9,
+      "auch": [
+        "CRM",
+        "Salesforce",
+        "CRM-Implementierung",
+        "CRM-Strategie"
+      ]
+    },
+    {
+      "kompetenz": "Pricing",
+      "jahre": 8,
+      "auch": [
+        "Preisstrategie",
+        "Preismanagement",
+        "Pricing Excellence",
+        "Konditionenmanagement"
+      ]
+    },
+    {
+      "kompetenz": "Performance Marketing",
+      "jahre": 7,
+      "auch": [
+        "Online Marketing",
+        "Digital Marketing",
+        "SEA",
+        "Paid Social",
+        "Lead Generation",
+        "Demand Generation"
+      ]
+    },
+    {
+      "kompetenz": "Marketingleitung",
+      "jahre": 9,
+      "auch": [
+        "Head of Marketing",
+        "Marketing Director",
+        "CMO",
+        "B2B-Marketing"
+      ]
+    },
+    {
+      "kompetenz": "Vertriebssteuerung",
+      "jahre": 15,
+      "auch": [
+        "Sales Operations",
+        "Sales Controlling",
+        "Pipeline Management",
+        "Forecasting",
+        "Vertriebscontrolling"
+      ]
+    },
+    {
+      "kompetenz": "Neukundengewinnung",
+      "jahre": 20,
+      "auch": [
+        "Business Development",
+        "New Business",
+        "Akquise"
+      ]
+    },
+    {
+      "kompetenz": "Channel Management",
+      "jahre": 8,
+      "auch": [
+        "Partnervertrieb",
+        "Händlermanagement",
+        "Distributorenmanagement",
+        "Indirekter Vertrieb"
+      ]
+    },
+    {
+      "kompetenz": "Sales Excellence",
+      "jahre": 8,
+      "auch": [
+        "Vertriebsexzellenz",
+        "Vertriebsoptimierung",
+        "Vertriebstransformation"
+      ]
+    },
+    {
+      "kompetenz": "Führung von Vertriebsteams",
+      "jahre": 14,
+      "auch": [
+        "Teamführung",
+        "Personalführung",
+        "Führung Außendienst",
+        "Führung Innendienst"
+      ]
+    },
+    {
+      "kompetenz": "Internationaler Vertrieb",
+      "jahre": 12,
+      "auch": [
+        "International Sales",
+        "Export",
+        "DACH-Vertrieb"
+      ]
+    },
+    {
+      "kompetenz": "Marketing Automation",
+      "jahre": 5,
+      "auch": [
+        "Account Based Marketing",
+        "ABM",
+        "Lead Nurturing",
+        "HubSpot"
+      ]
+    },
+    {
+      "kompetenz": "Turnaround im Vertrieb",
+      "jahre": 5,
+      "auch": [
+        "Vertriebsrestrukturierung",
+        "Restrukturierung",
+        "Umsatzsanierung"
+      ]
+    },
+    {
+      "kompetenz": "Interim Management",
+      "jahre": 6,
+      "auch": [
+        "Interim-Mandate",
+        "Interim Vertriebsleiter",
+        "Interim CSO"
+      ]
+    }
+  ],
+  "schwerpunkte": [
+    "Vertriebsleitung",
+    "Key Account Management",
+    "Go-to-Market-Strategie",
+    "Pricing",
+    "CRM-Einführung mit Salesforce"
+  ],
+  "wunschrollen": [
+    "Interim Vertriebsleiter",
+    "Interim Chief Sales Officer",
+    "Director Sales and Marketing",
+    "Head of Sales",
+    "Interim CMO",
+    "Vertriebsdirektor"
+  ],
+  "methoden_tools": [
+    {
+      "name": "Salesforce Sales Cloud"
+    },
+    {
+      "name": "Salesforce Account Engagement (Pardot)"
+    },
+    {
+      "name": "HubSpot"
+    },
+    {
+      "name": "Microsoft Dynamics 365 Sales"
+    },
+    {
+      "name": "SAP SD"
+    },
+    {
+      "name": "Google Ads"
+    },
+    {
+      "name": "LinkedIn Campaign Manager"
+    },
+    {
+      "name": "Power BI"
+    },
+    {
+      "name": "MEDDICC"
+    },
+    {
+      "name": "Miller Heiman Strategic Selling"
+    },
+    {
+      "name": "OKR"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Salesforce Certified Administrator"
+    },
+    {
+      "name": "Certified Pricing Professional (CPP)"
+    },
+    {
+      "name": "Google Ads Search Certification"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Maschinenbau"
+    },
+    {
+      "branche": "Automatisierungstechnik"
+    },
+    {
+      "branche": "Elektroindustrie"
+    },
+    {
+      "branche": "Software und SaaS"
+    },
+    {
+      "branche": "Industrielle Dienstleistungen"
+    },
+    {
+      "branche": "Medizintechnik"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C1"
+    },
+    {
+      "sprache": "Spanisch",
+      "niveau": "B1"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Umsatzwachstum im zweistelligen Prozentbereich in drei Interim-Mandaten",
+    "Einführung von Salesforce in Vertriebsorganisationen mit mehr als 100 Nutzern",
+    "Verbindet Vertrieb, Marketing und Pricing zu einem Go-to-Market-Modell"
+  ],
+  "keywords": [
+    "B2B",
+    "Vertrieb",
+    "Sales",
+    "Marketing",
+    "Key Account",
+    "Go-to-Market",
+    "Salesforce",
+    "CRM",
+    "Pricing",
+    "Performance Marketing",
+    "Lead Generation",
+    "Sales Director",
+    "Vertriebsleiter"
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 1000,
+    "laender": [
+      "DE",
+      "CH"
+    ],
+    "remote_ausserhalb_erlaubt": true,
+    "verfuegbar_ab": "sofort",
+    "min_jahresgehalt": 140000,
+    "festanstellung_orte": [
+      "München",
+      "Augsburg",
+      "Ingolstadt",
+      "Freising",
+      "Erding",
+      "Dachau",
+      "Fürstenfeldbruck",
+      "Starnberg",
+      "Garching",
+      "Unterschleißheim",
+      "Ismaning",
+      "Unterföhring",
+      "Ottobrunn",
+      "Germering",
+      "Stuttgart",
+      "Ludwigsburg",
+      "Böblingen",
+      "Sindelfingen",
+      "Esslingen am Neckar",
+      "Leonberg",
+      "Waiblingen",
+      "Fellbach",
+      "Filderstadt",
+      "Leinfelden-Echterdingen",
+      "Ditzingen",
+      "Kornwestheim",
+      "Göppingen",
+      "Reutlingen"
+    ],
+    "festanstellung_remote_min": 60
+  },
+  "einsatzpraeferenzen": {
+    "tagessatz_wunsch": 1200,
+    "remote": "ueberwiegend",
+    "regionen": [
+      "München",
+      "Stuttgart",
+      "Bayern",
+      "Baden-Württemberg",
+      "Zürich"
+    ],
+    "branchen": [
+      "Maschinenbau",
+      "Automatisierungstechnik",
+      "Software und SaaS"
+    ]
+  }
+}

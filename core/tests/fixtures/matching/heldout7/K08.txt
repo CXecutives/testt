@@ -1,0 +1,108 @@
+Titel: Head of IT Infrastructure & Operations (f/m/d)
+Unternehmen: Kahlenberg Versicherung AG
+Ort: Vienna, Vienna, Austria (Hybrid)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4323190562/
+Abgerufen am: 24.09.2026 07:41
+
+Kahlenberg Versicherung AG
+Vienna, Vienna, Austria (Hybrid)
+1 week ago · 64 applicants
+Full-time
+Apply
+Save
+
+About the job
+Kahlenberg Versicherung is a mid-sized composite insurer with around 2,300 employees and 1.4 million customers in Austria, Slovenia and Croatia. Our IT division with 310 colleagues develops and runs the core insurance systems, the customer and broker portals and the entire workplace and data centre infrastructure of the group.
+
+With our IT strategy 2030 we are moving large parts of our infrastructure to a sovereign cloud platform, preparing for the next stage of DORA and consolidating two data centres into one. To lead this change, we are looking for a
+
+Head of IT Infrastructure & Operations (f/m/d)
+Permanent position | full-time, 38.5 hours per week | Vienna
+
+Why this role matters
+Over the past three years we have replaced our life and non-life policy systems and moved our broker portal to a new platform. The next step is the foundation underneath: fewer data centres, automated operations and an infrastructure that meets the resilience expectations of our supervisors. You will shape this change for the next years and build a team that can run a modern platform.
+
+Your responsibilities
+- You lead the IT Infrastructure & Operations department with five teams (data centre and network, cloud platform, workplace services, IT service management, databases and middleware) and a total of 72 employees
+- You are responsible for the stable, secure and cost-efficient operation of all infrastructure services, including 24/7 availability of the core insurance systems
+- You drive the migration of around 1,100 virtual servers to our sovereign cloud platform and the exit from our second data centre by the end of 2028
+- Together with the CISO, you implement the requirements of the Digital Operational Resilience Act (DORA) in your area, including ICT risk management, incident reporting and resilience testing
+- You manage an operating budget of around EUR 29 million and steer our strategic infrastructure partners
+- You develop our ITSM processes further on the basis of ITIL 4 and ServiceNow
+- You report directly to the CIO and are a member of the IT management board
+
+Your profile
+- A degree in computer science, business informatics or a comparable qualification
+- At least 10 years of experience in IT infrastructure, including at least 5 years leading large teams across several management levels
+- Sound knowledge of data centre operations, networks, virtualisation (VMware), public and private cloud (Azure, OpenStack) and IT security
+- Experience with regulatory requirements in the financial sector (DORA, EIOPA guidelines, FMA minimum standards) is a clear advantage
+- Proven experience in transformation and outsourcing projects
+- Very good German and English; the working language in our IT division is German
+- A leadership style based on trust, clarity and personal responsibility
+
+What we offer
+- A permanent position in a stable company with a long-term strategy
+- Hybrid work: up to two days of home office per week, flexible working hours without core time
+- A modern office at our headquarters in Vienna-Döbling, easy to reach by public transport
+- Company pension scheme and attractive insurance conditions for employees and their families
+- Subsidised staff restaurant, an annual Vienna public transport pass and meal vouchers
+- Management development programme and individual coaching
+- Company doctor, flu vaccinations and a wide range of sports groups
+
+Salary
+The minimum annual gross salary for this position is EUR 78,400 (14 monthly salaries) under the collective agreement for insurance employees. Depending on your qualifications and experience, we offer a significantly higher salary in line with the market, plus a performance-related bonus.
+
+Contact
+Your application will be handled by Theresa Pichlmayr, Senior Recruiter. Please apply exclusively via our career portal; we cannot accept applications by e-mail. Please note that we do not consider interim, freelance or agency arrangements for this position, and we kindly ask recruitment agencies not to send unsolicited profiles.
+
+Our hiring process
+After you apply, we will get back to you within ten working days. The process consists of a video interview with Talent Acquisition, a conversation with the CIO and the Head of HR, a case study on our data centre consolidation that you present to the IT management board, and a final meeting with the Management Board member responsible for IT and operations. We aim to complete the process within five weeks and will agree a start date that fits your notice period.
+
+At Kahlenberg Versicherung, diversity is part of who we are. We welcome applications from people of all genders, ages, origins, religions and sexual orientations, and from people with disabilities.
+
+Show less
+
+Seniority level
+Director
+Employment type
+Full-time
+Job function
+Information Technology
+Industries
+Insurance
+
+Referrals increase your chances of interviewing at Kahlenberg Versicherung AG by 2x
+See who you know
+
+Get notified about new Head of Infrastructure jobs in Vienna, Vienna, Austria.
+Sign in to create job alert
+
+Similar jobs
+IT Operations Manager (m/w/d)
+Wiener Neudorf, Lower Austria, Austria
+3 days ago
+Head of Cloud Platform (f/m/d)
+Vienna, Vienna, Austria
+1 week ago
+Lead Network Engineer
+Vienna, Vienna, Austria
+2 weeks ago
+
+People also searched
+Head of IT
+IT Director
+Infrastructure Manager
+CIO
+
+LinkedIn © 2026
+About
+Accessibility
+User Agreement
+Privacy Policy
+Cookie Policy
+Copyright Policy
+Brand Policy
+Guest Controls
+Community Guidelines
+Language

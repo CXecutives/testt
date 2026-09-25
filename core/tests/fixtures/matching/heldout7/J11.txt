@@ -1,0 +1,56 @@
+Titel: Projektleitung Einführung E-Rechnung und digitaler Rechnungseingang (m/w/d) – Landesverwaltung
+Unternehmen: Maschsee Public Consulting GmbH
+Ort: D-30159 Hannover
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1308075
+Abgerufen am: 24.09.2026 18:14
+
+Projekt-ID: 1308075
+Ort: Hannover
+Remote: 50 %
+Start: 01.12.2026
+Dauer: 12 Monate, Option auf Verlängerung
+Vertragsart: Freiberuflich
+Honorar: 110 - 115 € pro Stunde
+Letztes Update: 24.09.2026
+
+Projektbeschreibung
+Im Auftrag einer Landesverwaltung in Norddeutschland suchen wir eine erfahrene Projektleitung für die Einführung des elektronischen Rechnungseingangs in rund 40 Dienststellen. Eingehende Rechnungen sollen künftig ausschließlich als XRechnung oder ZUGFeRD über die zentrale Rechnungseingangsplattform empfangen, automatisch in SAP S/4HANA (Haushaltsmanagement mit PSM, Kreditorenbuchhaltung) übernommen und im Workflow der E-Akte sachlich und rechnerisch festgestellt werden.
+
+Aufgaben:
+- Gesamtprojektleitung mit Planung, Steuerung und Berichterstattung an den Lenkungsausschuss
+- Aufnahme und Harmonisierung der Rechnungseingangsprozesse in den Dienststellen
+- Steuerung des SAP-Dienstleisters und des Anbieters der E-Akte, Abnahme der Leistungen
+- Begleitung der Ausschreibung eines Scan-Dienstleisters nach UVgO
+- Schulungen und Changemanagement für rund 600 Beschäftigte
+- Abstimmung mit Landesrechnungshof, Datenschutz und Personalvertretung
+
+Anforderungen:
+- Mehrjährige Erfahrung in der Leitung von Digitalisierungsprojekten in der öffentlichen Verwaltung
+- Kenntnisse der E-Rechnungsverordnung, XRechnung und Peppol
+- Grundkenntnisse in SAP FI-AP und SAP PSM oder einem vergleichbaren Haushaltsverfahren
+- Erfahrung mit öffentlichem Vergaberecht
+- Projektmanagement-Zertifizierung (PRINCE2, PMP oder IPMA) von Vorteil
+- Bereitschaft zur Sicherheitsüberprüfung (Ü1)
+
+Kategorien und Skills
+Projektleitung
+E-Rechnung
+XRechnung
+SAP PSM
+Öffentliche Verwaltung
+E-Akte
+Vergaberecht
+
+Projektanbieter
+Maschsee Public Consulting GmbH
+Die Kontaktdaten des Projektanbieters sind nur für angemeldete Freelancer sichtbar.
+Projekt merken
+Jetzt bewerben
+
+Ähnliche Projekte
+Teilprojektleitung OZG-Umsetzung (m/w/d)
+Hannover · 6 Monate
+SAP PSM Berater Haushaltsmanagement (m/w/d)
+Remote · ab sofort
+Alle Projekte in Öffentlicher Dienst anzeigen

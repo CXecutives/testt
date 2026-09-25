@@ -1,0 +1,58 @@
+Titel: SAP FI/CO Berater (m/w/d) S/4HANA – Arbeitnehmerüberlassung
+Unternehmen: Mainfeld Personaldienste GmbH
+Ort: D-65760 Eschborn
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1304870
+Abgerufen am: 24.09.2026 18:12
+
+Projekt-ID: 1304870
+Ort: Eschborn
+Remote: 60 %
+Start: 01.11.2026
+Dauer: 12 Monate
+Vertragsart: Arbeitnehmerüberlassung
+Stundensatz: auf Anfrage
+Letztes Update: 24.09.2026
+
+Projektbeschreibung
+Für unseren Kunden, eine Privatbank mit Sitz in Frankfurt am Main und Standorten in Eschborn und Luxemburg, suchen wir im Rahmen der Arbeitnehmerüberlassung einen erfahrenen SAP FI/CO Berater (m/w/d) für das Inhouse-Team Finanzsysteme. Die Bank führt SAP S/4HANA Finance im Greenfield-Ansatz ein und löst damit ein Altsystem für Hauptbuch und Kostenrechnung ab.
+
+Aufgaben:
+- Customizing in SAP FI-GL, FI-AP/AR, FI-AA und CO-OM
+- Abbildung der Parallelbewertung nach HGB und IFRS mit mehreren Ledgern
+- Schnittstellen zu den Bankanwendungen und zum Meldewesen, Abstimmung mit Controlling und Rechnungswesen
+- Testplanung und Testdurchführung, Fehleranalyse und Support im laufenden Betrieb (2nd Level)
+- Dokumentation nach den aufsichtsrechtlichen Vorgaben (DORA, MaRisk) und den Anforderungen der Internen Revision
+
+Anforderungen:
+- Mindestens 5 Jahre Erfahrung als SAP FI/CO Berater
+- Erfahrung mit S/4HANA Finance
+- Kenntnisse im Bankenumfeld oder in der Finanzdienstleistung von Vorteil
+- Sehr gute Deutschkenntnisse
+
+Hinweis zur Vertragsform:
+Der Einsatz erfolgt ausschließlich im Rahmen der Arbeitnehmerüberlassung nach AÜG. Sie werden für die Dauer des Einsatzes bei der Mainfeld Personaldienste GmbH angestellt und an unseren Kunden überlassen. Eine freiberufliche Beauftragung oder ein Werkvertrag sind bei diesem Kunden nicht möglich. Die Vergütung erfolgt nach Equal Pay ab dem ersten Einsatztag, dazu kommt ein Fahrtkostenzuschuss. Eine Übernahme durch den Kunden nach Ablauf der Überlassung ist ausdrücklich erwünscht.
+
+Kategorien und Skills
+SAP FI
+SAP CO
+SAP S/4HANA
+Banken
+HGB
+IFRS
+Arbeitnehmerüberlassung
+
+Projektanbieter
+Mainfeld Personaldienste GmbH
+Die Kontaktdaten des Projektanbieters sind nur für angemeldete Freelancer sichtbar.
+Projekt merken
+Jetzt bewerben
+
+Ähnliche Projekte
+SAP FI Berater (m/w/d) Remote
+Remote · ab sofort
+SAP CO Inhouse Berater (m/w/d) Festanstellung
+Wiesbaden · 01.01.2027
+SAP S/4HANA Finance Architekt (m/w/d)
+Frankfurt am Main · 9 Monate
+Alle Projekte in SAP anzeigen

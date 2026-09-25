@@ -1,0 +1,56 @@
+Titel: SAP S/4HANA Finance Lead FI/CO (m/w/d) – Brownfield-Conversion im Pharmaumfeld
+Unternehmen: Wendelstedt IT Solutions GmbH
+Ort: Darmstadt
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3192871.html
+Abgerufen am: 22.09.2026 07:54
+
+Ort: 64293 Darmstadt // Remote: 70 % // Vertragsart: Freiberuflich // Start: 10/2026 // Dauer: 9 Monate, Verlängerung möglich // Auslastung: 100 %
+
+Projektbeschreibung
+Für unseren Kunden, ein forschendes Pharmaunternehmen mit Hauptsitz im Rhein-Main-Gebiet und 24 Landesgesellschaften, suchen wir einen erfahrenen SAP S/4HANA Finance Lead (m/w/d). Der Kunde stellt sein SAP ECC 6.0 im Brownfield-Ansatz auf SAP S/4HANA um; der Go-live für Deutschland, Österreich und die Schweiz ist für Juli 2027 geplant. Im Finance-Stream arbeiten drei FI/CO-Berater des Implementierungspartners und vier Key User des Kunden.
+
+Aufgaben:
+- Fachliche Leitung des Finance-Streams und Steuerung der FI/CO-Berater des Implementierungspartners
+- Konzeption und Customizing in SAP FI (Hauptbuch mit Parallel Ledgers, Kreditoren, Debitoren, neue Anlagenbuchhaltung) und CO (Kostenstellenrechnung, Innenaufträge, Produktkostenrechnung, Umstellung von CO-PA auf die Margenanalyse)
+- Vorbereitung der Conversion: Simplification Items, Customer-Vendor-Integration (Business Partner), Bereinigung offener Posten und Anlagenstammdaten
+- Planung und Durchführung der Probemigrationen, Abstimmung der Salden und Nachweise für die Wirtschaftsprüfung
+- Integration mit MM, SD und PP sowie Anbindung an SAP Group Reporting
+- Erstellung der Validierungsdokumentation gemeinsam mit der Qualitätssicherung (GxP-relevante Prozesse)
+- Key-User-Schulungen, Cutover-Planung und Hypercare
+
+Anforderungen:
+- Mindestens 8 Jahre Erfahrung als SAP FI/CO Berater, davon mindestens zwei S/4HANA-Finance-Projekte, idealerweise Conversions
+- Erfahrung in einer Lead-Rolle im Finance-Stream
+- Sehr gute Kenntnisse in Hauptbuch, Anlagenbuchhaltung und Produktkostenrechnung
+- Erfahrung mit Datenmigration und Saldenabstimmung
+- Erfahrung in der Pharmaindustrie oder einem anderen regulierten Umfeld von Vorteil
+- Verhandlungssichere Deutsch- und gute Englischkenntnisse
+
+Konditionen:
+Tagessatz: 1.100 € (8 Stunden), Reisekosten nach Aufwand
+Remote-Anteil ca. 70 %, Workshops vor Ort in Darmstadt etwa einmal pro Woche
+Freiberufliche Beauftragung über die Wendelstedt IT Solutions GmbH
+
+Wir freuen uns auf Ihr aktuelles Profil mit Verfügbarkeit. Ihr Ansprechpartner: Dominik Fassbender, Senior Recruiter SAP.
+
+Skills
+SAP FI
+SAP CO
+SAP S/4HANA
+Brownfield-Conversion
+Anlagenbuchhaltung
+Produktkostenrechnung
+Datenmigration
+Group Reporting
+
+Projekt ansehen · Projekt merken
+
+Ähnliche Projekte
+SAP CO Berater (m/w/d) ANÜ
+Mannheim · ab sofort · 12 Monate
+SAP FI Inhouse-Berater (m/w/d) Remote
+Remote · 11/2026 · 6 Monate
+SAP S/4HANA Finance Architekt (m/w/d)
+Frankfurt am Main · 01/2027 · Freiberuflich
+Weitere Projekte von Wendelstedt IT Solutions GmbH

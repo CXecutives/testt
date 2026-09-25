@@ -1,4 +1,4 @@
-//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout6`):
+//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout7`):
 //! invented ads with blind labels (grade 0-3, excluded) written by independent agents for
 //! profiles the engine was not tuned on at the time. Every set was later used to find and
 //! fix systematic gaps, so they are regression gates now, not an unseen measurement.
@@ -200,6 +200,16 @@ const HELDOUT5: Floor = Floor {
     exclusion_recall: 1.0,
     grade3_buried: 0,
 };
+/// Set 7 at first contact (engine 10): the footer ANÜ of another listing excludes K03 for
+/// seven profiles, three grade-3 jobs are buried, and the student jobs the labelers exclude by
+/// their wage stay in for ten profiles.
+const HELDOUT7: Floor = Floor {
+    ndcg10: 0.89,
+    spearman: 0.43,
+    exclusion_precision: 0.97,
+    exclusion_recall: 0.88,
+    grade3_buried: 3,
+};
 /// Engine 9 moved set 2 from 0.864 to 0.856: a language met is a light fit now, so off-field
 /// ads whose only fitting musts are languages (grade 0 and 1 alike) fall below the cap they
 /// shared, and Y05 loses its German where `Projekt Management` (written apart) stays open.
@@ -286,9 +296,14 @@ fn heldout6_holds_its_gates() {
     check("heldout6", &HELDOUT6);
 }
 
+#[test]
+fn heldout7_holds_its_gates() {
+    check("heldout7", &HELDOUT7);
+}
+
 /// Every held-out set.
-const SETS: [&str; 6] = [
-    "heldout1", "heldout2", "heldout3", "heldout4", "heldout5", "heldout6",
+const SETS: [&str; 7] = [
+    "heldout1", "heldout2", "heldout3", "heldout4", "heldout5", "heldout6", "heldout7",
 ];
 
 /// Prints every set's tables and misses (`-- --ignored heldout_report --nocapture`), then

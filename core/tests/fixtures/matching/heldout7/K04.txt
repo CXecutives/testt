@@ -1,0 +1,76 @@
+Titel: Freelance Senior Data Platform Engineer (Python, Kafka, Kubernetes)
+Unternehmen: Grachtwerk Commerce B.V.
+Ort: Amsterdam, North Holland, Netherlands (Hybrid)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4322518079/
+Abgerufen am: 23.09.2026 08:02
+
+Grachtwerk Commerce B.V.
+Amsterdam, North Holland, Netherlands (Hybrid)
+3 days ago · Over 100 applicants
+€90/hr - €105/hr · Contract
+Apply
+Save
+
+About the job
+Grachtwerk runs online marketplaces for home, garden and DIY products in the Netherlands, Belgium and Germany. Around four million customers order from us every year, and our 420 colleagues in Amsterdam and Utrecht build almost all of our technology in-house.
+
+We are replacing our nightly batch jobs with an event-driven data platform. For the next two quarters we are looking for an experienced freelance engineer who has done this before and still enjoys writing a lot of code.
+
+What you will do
+- Design and build streaming pipelines on Kafka (Confluent Cloud) and Flink that feed our search, pricing and recommendation services
+- Write production-grade Python, and some Go, for ingestion services, schema management and data quality checks
+- Run the platform on Kubernetes (AKS) with Terraform, Argo CD and GitHub Actions
+- Move the finance and supply chain data marts from the legacy SQL Server warehouse to Snowflake and dbt, together with our analytics engineers
+- Help the BI team switch their Power BI datasets to the new models
+- Join the on-call rotation for the platform (one week in six, paid separately)
+
+What we are looking for
+- 7+ years of software or data engineering with a strong Python background
+- Hands-on experience running Kafka in production at scale (we process around 60,000 events per second at peak)
+- Solid Kubernetes and infrastructure-as-code skills
+- Experience with Snowflake and dbt is a plus
+- You like a code review culture and write tests without being asked
+- Fluent English; Dutch is not required
+
+Contract details
+- Start: as soon as possible, ideally before 1 November 2026
+- Duration: 6 months, extension likely
+- Rate: EUR 90 to 105 per hour, depending on experience
+- Hybrid: at least three days per week in our Amsterdam office (Houthavens). We do not offer fully remote contracts for this role.
+- You must be able to work in the Netherlands as a self-employed contractor (KvK registration) or through a payroll partner; we cannot sponsor visas
+
+Show less
+
+Seniority level
+Mid-Senior level
+Employment type
+Contract
+Job function
+Engineering and Information Technology
+Industries
+Retail, Technology, Information and Internet
+
+Referrals increase your chances of interviewing at Grachtwerk Commerce B.V. by 2x
+See who you know
+
+Get notified about new Data Engineer jobs in Amsterdam, North Holland, Netherlands.
+Sign in to create job alert
+
+Similar jobs
+Senior Data Engineer
+Havenlicht Payments
+Amsterdam, North Holland, Netherlands
+1 week ago
+Freelance Kafka Engineer
+Rotterdam, South Holland, Netherlands
+2 days ago
+Analytics Engineer (dbt)
+Utrecht, Utrecht, Netherlands
+5 days ago
+
+People also searched
+Data Engineer
+Python Developer
+Kafka
+Freelance

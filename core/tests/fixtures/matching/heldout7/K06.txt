@@ -1,0 +1,78 @@
+Titel: IT Programme Manager – ERP Consolidation (Contract, 12 months)
+Unternehmen: Limmatfeld Retail Holding AG
+Ort: Zurich, Zurich, Switzerland (Hybrid)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4322764415/
+Abgerufen am: 23.09.2026 08:05
+
+Limmatfeld Retail Holding AG
+Zurich, Zurich, Switzerland (Hybrid)
+2 days ago · 41 applicants
+CHF 1,450/day - CHF 1,600/day · Contract
+Apply
+Save
+
+About the job
+Limmatfeld Retail Holding is the parent company of four Swiss retail brands in consumer electronics, sports and home furnishings, with 190 stores, three online shops and around 7,800 employees in Switzerland and Austria.
+
+For many years each brand has run its own ERP system. We are now consolidating two SAP ECC and two Microsoft Dynamics AX instances into one SAP S/4HANA platform with a common retail template. The programme started in spring 2026 with the design phase; the first brand is scheduled to go live in autumn 2027.
+
+We are looking for an experienced IT Programme Manager on a contract basis to lead the programme on the IT side, together with the business programme lead.
+
+Your responsibilities
+- Lead the ERP consolidation programme across six workstreams (finance, merchandise management, supply chain, stores and POS, data migration, integration) with around 90 internal and external team members
+- Steer the system integrator and three smaller vendors, including scope, deliverables, change requests and commercial reporting
+- Own the integrated programme plan, the budget (CHF 58 million) and the risk and issue log
+- Prepare and run the monthly steering committee with the Group Executive Board
+- Coordinate the data migration and cutover strategy for the first brand and the rollout sequence for the remaining three
+- Align with the Group CIO on architecture, IT security and the future operating model for application management services
+
+Your profile
+- At least 15 years of experience in IT, including several large ERP programmes in a lead role; SAP S/4HANA experience is a must
+- Proven track record in managing system integrators and complex vendor contracts
+- Experience in retail or wholesale is a strong advantage
+- PMP, PRINCE2 or a comparable certification
+- Excellent German and English; French is a plus
+- Structured, calm under pressure and credible with senior management
+
+What we offer
+- A 12-month contract starting 1 November 2026, with the option to extend until the end of the rollout
+- Daily rate of CHF 1,450 to 1,600, depending on experience
+- Work at our head office in Zurich-Altstetten at least four days per week; occasional travel to Bern, Basel and Vienna
+- We contract self-employed consultants or their own limited companies; staff leasing is not an option for this role
+
+If you have any questions, please contact Nadine Wüthrich, Talent Acquisition Partner.
+
+Show less
+
+Seniority level
+Director
+Employment type
+Contract
+Job function
+Information Technology and Project Management
+Industries
+Retail
+
+Referrals increase your chances of interviewing at Limmatfeld Retail Holding AG by 2x
+See who you know
+
+Get notified about new Programme Manager jobs in Zurich, Zurich, Switzerland.
+Sign in to create job alert
+
+Similar jobs
+SAP S/4HANA Programme Director
+Winterthur, Zurich, Switzerland
+1 week ago
+IT Project Manager Retail (80-100%)
+Baar, Zug, Switzerland
+3 days ago
+Interim Head of IT Applications
+Basel, Basel City, Switzerland
+2 weeks ago
+
+People also searched
+Programme Manager
+SAP S/4HANA
+IT Project Manager
+Freelance
