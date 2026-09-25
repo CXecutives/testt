@@ -9,10 +9,16 @@
 // No replay by construction: Svelte plays a local transition only when its own block has
 // run before, so an entry never plays when a view, a list or the app mounts (main.ts also
 // mounts with `intro: false`). One-shots (pulseOnce) are started only from event handlers.
+//
+// fade and rise never read the element's style: svelte/transition's versions call
+// getComputedStyle for the element's own opacity and transform, which forces a style and
+// layout pass in the middle of the script (a new job in the reader lays out the whole page
+// twice in one task). The elements they move are opaque and untransformed, so the result is
+// the same.
 
 import { flip as svelteFlip } from 'svelte/animate';
 import { Tween } from 'svelte/motion';
-import { fade as svelteFade, fly as svelteFly, scale as svelteScale } from 'svelte/transition';
+import { scale as svelteScale } from 'svelte/transition';
 import type { AnimationConfig } from 'svelte/animate';
 import type { TransitionConfig } from 'svelte/transition';
 import {
@@ -43,31 +49,36 @@ export interface RiseParams extends MotionParams {
   distance?: Move;
 }
 
-function crossfade(node: Element, delay = 0): TransitionConfig {
-  return svelteFade(node, { duration: crossfadeDuration(), delay, easing: easing('standard') });
+/** Opacity from 0 to 1 (in) or back (out), without reading the element's style. */
+function opacity(ms: number, ease: (t: number) => number, delay = 0): TransitionConfig {
+  return { duration: ms, easing: ease, delay, css: (t) => `opacity: ${t}` };
+}
+
+function crossfade(_node: Element, delay = 0): TransitionConfig {
+  return opacity(crossfadeDuration(), easing('standard'), delay);
 }
 
 /** Opacity only. */
 export function fade(node: Element, params: MotionParams = {}): TransitionConfig {
   if (params.on === false) return {};
   if (isReducedMotion()) return crossfade(node);
-  return svelteFade(node, {
-    duration: duration(params.duration ?? 'fast'),
-    easing: easing(params.easing ?? 'standard'),
-    delay: params.delay ?? 0,
-  });
+  return opacity(
+    duration(params.duration ?? 'fast'),
+    easing(params.easing ?? 'standard'),
+    params.delay ?? 0,
+  );
 }
 
 /** Fade in while rising by a token distance (default 4 px). */
 export function rise(node: Element, params: RiseParams = {}): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
-  return svelteFly(node, {
-    y: move(params.distance ?? 'md'),
+  const y = move(params.distance ?? 'md');
+  return {
     duration: duration(params.duration ?? 'base'),
     easing: easing(params.easing ?? 'out'),
     delay: params.delay ?? 0,
-    opacity: 0,
-  });
+    css: (t, u) => `transform: translateY(${u * y}px); opacity: ${t}`,
+  };
 }
 
 /** Fade in from --scale-enter (popovers, dialogs, tooltips). */
@@ -152,10 +163,7 @@ export function scrim(
 ): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
   const out = options.direction === 'out';
-  return svelteFade(node, {
-    duration: out ? duration('fast') : duration('slow'),
-    easing: easing(out ? 'in' : 'out'),
-  });
+  return opacity(duration(out ? 'fast' : 'slow'), easing(out ? 'in' : 'out'));
 }
 
 export interface RollParams {
@@ -259,8 +267,8 @@ export function tooltipIn(node: Element, { placement }: TooltipParams): Transiti
   return { duration: duration('fast'), easing: easing('out'), css: (t) => lifted(t, y, scale) };
 }
 
-export function tooltipOut(node: Element): TransitionConfig {
-  return svelteFade(node, { duration: duration('instant'), easing: easing('in') });
+export function tooltipOut(_node: Element): TransitionConfig {
+  return opacity(duration('instant'), easing('in'));
 }
 
 /**
