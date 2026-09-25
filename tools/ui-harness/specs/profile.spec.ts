@@ -126,7 +126,7 @@ test('one name per field: the labels, their hints and neutral examples', async (
   for (const text of [
     'Die Rolle zählt für die Passung.',
     'Sie stützen die Passung, belegen aber keine Anforderung.',
-    'Ab zehn Jahren bewertet die App Einstiegsstellen niedrig.',
+    'Ab zehn Jahren bewertet die App Jobs für Einsteiger niedrig.',
     'Ohne Niveau rechnet die App mit B2.',
     'Remote-Anteil',
     'Den Mindest-Tagessatz legen die Ausschlusskriterien fest.',

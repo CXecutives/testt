@@ -370,7 +370,7 @@ const reasonCode = {
       : 'Der Job richtet sich an weniger Erfahrene.',
   seniorityUnclear: (p) =>
     p.junior
-      ? 'Der Titel klingt nach einer Einstiegsstelle.'
+      ? 'Der Titel klingt nach einem Job für Einsteiger.'
       : 'Das gesuchte Erfahrungslevel ist unklar.',
   overqualified: (p) =>
     p.years !== undefined && p.years !== null
@@ -1175,7 +1175,7 @@ export const de = {
       keywordsPlaceholder: 'z. B. Transformation',
       keywordsHint: 'Begriffe, die in passenden Anzeigen stehen.',
       totalYears: 'Berufserfahrung',
-      totalYearsHint: 'Ab zehn Jahren bewertet die App Einstiegsstellen niedrig.',
+      totalYearsHint: 'Ab zehn Jahren bewertet die App Jobs für Einsteiger niedrig.',
       degrees: 'Abschlüsse',
       degreesPlaceholder: 'z. B. Master',
       industries: 'Branchen',
