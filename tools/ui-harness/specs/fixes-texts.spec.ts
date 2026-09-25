@@ -45,3 +45,12 @@ test('reset names everything it deletes before it asks', async ({ page }) => {
   await open(page, `${WIN}&scenario=reset`);
   await expect(page.getByTestId('first-reset-report')).not.toContainText('Datei');
 });
+
+test('the English reader counts the must-have requirements, as the German one does', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&lang=en`);
+  await page.getByTestId('job-rows').locator('[data-testid^="job-row-"]').first().click();
+  // German counts Pflichtanforderungen; the English AI prompt says "must-have requirements".
+  await expect(page.getByTestId('must')).toHaveText(/^\d+ of \d+ must-have requirements met/);
+});

@@ -800,9 +800,11 @@ export const en: Catalog = {
     notMentioned: (label: string) => `${label} not mentioned`,
   },
   reader: {
+    // The words of the English AI prompt ("3 of 4 must-have requirements met").
     mustMet: (met: number, total: number, partial = 0) =>
-      `${n(met)} of ${n(total)} requirements met` + (partial > 0 ? `, ${n(partial)} partly` : ''),
-    noMust: 'No requirements found',
+      `${n(met)} of ${n(total)} must-have requirements met` +
+      (partial > 0 ? `, ${n(partial)} partly` : ''),
+    noMust: 'No must-have requirements found',
     criteria: 'Exclusion criteria',
     frame: 'Terms',
     anueCheck: 'It is not certain whether the role is temporary agency work.',
