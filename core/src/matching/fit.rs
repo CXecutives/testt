@@ -100,6 +100,21 @@ pub(crate) fn degree_level_in(folded: &str) -> u8 {
     }
 }
 
+/// Does the item ask for knowledge of the family and nothing else (`Sehr gute
+/// SAP-Kenntnisse`), no product of it (`Kenntnisse in SAP BW`) and no bare word of a teaser?
+fn family_only(text: &str, family: &str) -> bool {
+    let folded = fold(text);
+    let knowledge = lex::KNOWLEDGE_STEMS.iter().any(|k| folded.contains(k));
+    knowledge
+        && atoms::raw_tokens(&folded).all(|t| {
+            let t = t.split('-').next().unwrap_or(t);
+            t == family
+                || atoms::is_filler(t)
+                || lex::KNOWLEDGE_WORDS.contains(&t)
+                || lex::LEVEL_WORDS.iter().any(|(w, _)| *w == t)
+        })
+}
+
 /// Languages of the profile with their CEFR level (4 when the level is not readable).
 fn languages_of(data: &Value) -> Vec<(String, u8)> {
     let field = |item: &Value, keys: &[&str]| {
@@ -389,6 +404,45 @@ fn skill_fit_in(skills: &Skills, text: &str, only: Option<&[usize]>) -> ItemFit 
             };
         }
     }
+    // A generic family asked for alone (`SAP-Kenntnisse`) is met by an entry that names a
+    // product of it (`SAP S/4HANA`).
+    if best.value == E_NONE
+        && let [family] = job.as_slice()
+        && atoms::is_generic(family)
+        && family_only(text, family)
+        && let Some(index) = skills.entries.iter().position(|e| {
+            e.atoms.len() >= 2
+                && e.atoms.first() == Some(family)
+                && e.atoms.iter().any(|a| !atoms::is_generic(a))
+        })
+    {
+        best = ItemFit {
+            value: E_FULL,
+            entry: Some(index),
+            via: Via::Specific,
+        };
+    }
+    // Leadership asked for is met at least half by a leading role in the profile.
+    let leadership = |j: &String| {
+        lex::LEADERSHIP_ATOMS
+            .iter()
+            .any(|l| j == l || j.starts_with(l))
+    };
+    // Only an item about leadership alone (not `8 Jahre Controlling, davon 3 mit Führung`).
+    if best.value < E_HALF
+        && job.iter().any(leadership)
+        && job.iter().all(|j| leadership(j) || atoms::is_generic(j))
+        && let Some(index) = skills.entries.iter().position(|e| {
+            let folded = fold(&e.text);
+            atoms::raw_tokens(&folded).any(|t| lex::PROFILE_LEAD_WORDS.contains(&t))
+        })
+    {
+        best = ItemFit {
+            value: E_HALF,
+            entry: Some(index),
+            via: Via::General,
+        };
+    }
     // The ad asks for more than the profile names (`Tableau im Reporting` against
     // `Reporting`): the profile is more general, half.
     if best.value == E_FULL
@@ -588,6 +642,37 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// Knowledge of a product family (`SAP-Kenntnisse`) is met by an entry naming a product
+    /// of it; a product of the family asked for is not (`SAP BW`).
+    #[test]
+    fn a_family_is_met_by_its_products() {
+        let data = json!({"kernkompetenzen": [{"kompetenz": "SAP S/4HANA"}, {"kompetenz": "CFO"}]});
+        let skills = Skills::new(&LegacyProfile::new(&data), &data, &[]);
+        assert_eq!(
+            skill_fit_in(&skills, "Sehr gute SAP-Kenntnisse", None).value,
+            E_FULL
+        );
+        assert_eq!(
+            skill_fit_in(&skills, "Kenntnisse in SAP BW", None).value,
+            E_NONE
+        );
+        assert_eq!(skill_fit_in(&skills, "SAP", None).value, E_NONE);
+        // Leadership alone is met half by a leading role; inside another skill it is not.
+        assert_eq!(
+            skill_fit_in(&skills, "Führungserfahrung", None).value,
+            E_HALF
+        );
+        assert_eq!(
+            skill_fit_in(
+                &skills,
+                "8 Jahre Controlling, davon 3 mit Führungsverantwortung",
+                None
+            )
+            .value,
+            E_NONE
+        );
+    }
 
     /// A licence counts under any of its names (`Sachkundige Person` for a `Qualified
     /// Person`).

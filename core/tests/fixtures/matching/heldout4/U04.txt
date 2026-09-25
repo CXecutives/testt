@@ -1,0 +1,44 @@
+Titel: Head of Information Security Programmes (f/m/d)
+Unternehmen: Havelstrom Payments GmbH
+Ort: Berlin, Berlin, Germany
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4191055837/
+Abgerufen am: 21.09.2026 07:33
+
+About us
+Havelstrom Payments is a licensed payment institution processing card and account-to-account payments for more than 40,000 merchants across Europe. We are 520 people from 38 nations, headquartered in Berlin with hubs in Lisbon and Warsaw.
+
+The role
+As Head of Information Security Programmes you report directly to our CISO and own the delivery of our multi-year security roadmap. You turn regulatory requirements and threat insights into a prioritised portfolio of programmes and make sure they land on time and within budget.
+
+What you will do
+Lead the security programme portfolio (approx. EUR 12m per year), including the renewal of identity and access management, the transition of our SOC to a managed provider and the rollout of zero trust networking
+Translate DORA and PCI DSS 4.0 requirements into deliverable projects and keep the evidence ready for regulators and auditors
+Build and lead a team of five security project managers
+Report status, risks and KPIs to the executive board and the risk committee of the supervisory board
+Work closely with Engineering, Compliance and Internal Audit
+
+What you bring
+10+ years in IT or information security, at least 5 of them leading programmes or large projects
+Proven delivery of security programmes in a regulated environment (banking, payments or insurance)
+Solid understanding of ISO 27001, NIST CSF and cloud security on AWS
+A certification such as CISSP, CISM or PMP is a plus
+Excellent English; German is a plus but not required
+
+What we offer
+Permanent full-time contract
+Base salary EUR 125,000 to 145,000 plus annual bonus
+Hybrid work with 2 days per week in our Berlin office
+30 days of vacation and a personal learning budget of EUR 2,000
+
+Seniority level
+Director
+
+Employment type
+Full-time
+
+Job function
+Information Technology
+
+Industries
+Financial Services

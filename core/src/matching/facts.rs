@@ -4,9 +4,13 @@
 //! fully remote) · day rate (EUR, upper bound, hourly x 8, not for permanent roles) ·
 //! availability (never decided: a gap or a vague start is a check).
 
+use std::collections::HashMap;
 use std::ops::Range;
 
+use std::sync::LazyLock;
+
 use jiff::civil::Date;
+use regex::Regex;
 use serde_json::{Value, json};
 
 use super::atoms::fold;
@@ -485,13 +489,36 @@ pub(crate) fn anue(job: &JobFacts<'_>, segments: &[Segment]) -> Vec<Finding> {
 }
 
 /// Countries named in a folded text (names and cities).
+/// A country or city name with its country code.
+type Place = (&'static str, &'static str);
+
+/// Country and city names by their first word. A name stands in a text only where the
+/// text has that first word as a word of its own (the names start with a letter, and a
+/// match needs word boundaries), so a text is looked up word by word.
+static PLACES_BY_FIRST_WORD: LazyLock<HashMap<&'static str, Vec<Place>>> = LazyLock::new(|| {
+    let mut index: HashMap<&'static str, Vec<Place>> = HashMap::new();
+    for &(name, code) in lex::COUNTRIES.iter().chain(lex::CITIES) {
+        let first = name
+            .split(|c: char| !c.is_alphanumeric())
+            .next()
+            .unwrap_or(name);
+        index.entry(first).or_default().push((name, code));
+    }
+    index
+});
+
 fn countries_in(folded: &str) -> Vec<&'static str> {
-    let mut found: Vec<&'static str> = lex::COUNTRIES
-        .iter()
-        .chain(lex::CITIES)
-        .filter(|(name, _)| contains_word(folded, name))
-        .map(|&(_, code)| code)
-        .collect();
+    let mut found: Vec<&'static str> = Vec::new();
+    for word in folded.split(|c: char| !c.is_alphanumeric()) {
+        if let Some(names) = PLACES_BY_FIRST_WORD.get(word) {
+            found.extend(
+                names
+                    .iter()
+                    .filter(|(name, _)| contains_word(folded, name))
+                    .map(|&(_, code)| code),
+            );
+        }
+    }
     found.sort_unstable();
     found.dedup();
     found
@@ -547,7 +574,11 @@ fn country(
         if codes.is_empty() {
             continue;
         }
-        if lex::ONSITE_WORDS.iter().any(|w| f.contains(w)) {
+        // `Ort: 3199 Rotterdam, Niederlande` names the place of work like the job's location.
+        let place = lex::PLACE_LABELS
+            .iter()
+            .any(|l| f.trim_start().starts_with(l));
+        if place || lex::ONSITE_WORDS.iter().any(|w| f.contains(w)) {
             onsite.extend(codes.iter().map(|c| (*c, range.clone())));
         } else if lex::TRAVEL_WORDS.iter().any(|w| contains_word(f, w)) {
             travel.extend(codes.iter().map(|c| (*c, range.clone())));
@@ -639,9 +670,31 @@ pub(crate) fn stated_rate(
     from_facts.or_else(|| {
         segments
             .iter()
-            .find_map(|(range, f)| parse_rate(f).map(|r| (r, Some(range.clone()))))
+            .find_map(|(range, f)| rate_in(f).map(|r| (r, Some(range.clone()))))
     })
 }
+
+/// The rate of a sentence, clause by clause (`Freelance mit 90 € pro Stunde oder befristet
+/// (Gehaltsband 72-84 T€ p.a.)`: the salary clause does not hide the rate); the highest per
+/// day when clauses name several.
+pub(crate) fn rate_in(folded: &str) -> Option<Rate> {
+    folded
+        .split([';', '(', ')'])
+        .flat_map(|part| part.split(" oder "))
+        .flat_map(|part| part.split(" or "))
+        .filter_map(parse_rate)
+        .max_by_key(Rate::per_day)
+}
+
+/// A currency next to a time unit (`110 EUR/h`, `EUR pro Stunde`, `CHF/Tag`). Only a text
+/// with one of `CURRENCY_MARKS` can match (the regex is checked after them).
+static CURRENCY_PER_TIME: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:€|\beur\b|\beuro\b|\bchf\b|\busd\b|\bgbp\b)\s*(?:/|\bpro\b|\bper\b|\bje\b)\s*(?:h\b|std\b|stunde|tag\b|day\b|hour|pt\b|mt\b)")
+        .expect("currency per time")
+});
+
+/// Every currency of `CURRENCY_PER_TIME` contains one of these.
+const CURRENCY_MARKS: &[&str] = &["€", "eur", "chf", "usd", "gbp"];
 
 /// Can the engine read a rate from this text (a page's rate field)? A bare number is none:
 /// without a unit it is no day or hourly rate.
@@ -650,9 +703,10 @@ pub(crate) fn readable_rate(text: &str) -> bool {
 }
 
 pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
-    if !lex::RATE_WORDS.iter().any(|w| folded.contains(w))
-        || lex::SALARY_WORDS.iter().any(|w| folded.contains(w))
-    {
+    let rate_word = lex::RATE_WORDS.iter().any(|w| folded.contains(w));
+    let currency_per_time =
+        || CURRENCY_MARKS.iter().any(|m| folded.contains(m)) && CURRENCY_PER_TIME.is_match(folded);
+    if !(rate_word || currency_per_time()) || lex::SALARY_WORDS.iter().any(|w| folded.contains(w)) {
         return None;
     }
     let mut amounts = Vec::new();
@@ -1011,6 +1065,23 @@ mod tests {
         );
         assert_eq!(rate("Honorar nach Absprache, Laufzeit bis 2027"), None);
         assert_eq!(rate("16,50 € pro Stunde"), Some((16, true)));
+        // A currency with a time unit is a rate in every spelling, without a rate word.
+        assert_eq!(
+            rate("Start: 15.10.2026 | 110 EUR/h | Remote: 90 %"),
+            Some((110, true))
+        );
+        assert_eq!(
+            parse_rate(&fold("110 EUR/h")).map(|r| (r.upper, r.hourly)),
+            Some((110, true))
+        );
+        assert_eq!(parse_rate(&fold("950 CHF/Tag")).map(|r| r.upper), Some(950));
+        // The salary clause of an either-or does not hide the rate.
+        let r = rate_in(&fold(
+            "Freelance mit 80–90 € pro Stunde (ca. 32 Std./Woche) oder befristete Anstellung \
+             (Gehaltsband 72–84 T€ p.a. bei 40 h)",
+        ))
+        .unwrap();
+        assert_eq!((r.upper, r.hourly), (90, true));
     }
 
     #[test]

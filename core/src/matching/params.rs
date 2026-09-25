@@ -85,6 +85,15 @@ pub(crate) const PACK_HITS: usize = 2;
 pub(crate) const WISH_MAX: i64 = 100;
 /// Working hours of a year (40 per week): an hourly wage of an employment per year.
 pub(crate) const HOURS_PER_YEAR: u64 = 2080;
+/// A single open skill must caps the score as off-field only when the title fit (per-mille)
+/// stays below this: the title names little of the profile either.
+pub(crate) const OFF_FIELD_TITLE_FIT: u64 = 300;
+/// The cap of that single open skill must (the cap of two or more is `OFF_FIELD_CAP`).
+pub(crate) const OFF_FIELD_SINGLE_CAP: u8 = 30;
+/// A profile with this many years of experience or more is senior: a junior role caps it
+/// at `JUNIOR_CAP`.
+pub(crate) const SENIOR_YEARS: u32 = 10;
+pub(crate) const JUNIOR_CAP: u8 = 40;
 /// Highest score of a text without any requirement (judged from title and words alone).
 pub(crate) const NO_ITEMS_CAP: u8 = 60;
 /// While fewer than half of the musts are met, the target role and the wishes lift a score

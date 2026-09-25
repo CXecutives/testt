@@ -301,6 +301,50 @@ digest moved). `core/tests/matching_page_facts.rs` covers each value.
   `Junior` without years is `seniorityUnclear` (a check).
 - The industry wish reads the page's industries first, then title, company and context.
 
+### Version 8: rules from the unseen set 4
+
+Held-out set 4 (40 fresh ads x 10 profiles incl. a CIO and a plant manager, 9 teasers)
+scored NDCG@10 0.688 on first contact with engine 6 (exclusion recall 0.832). Its gaps were
+fixed as general rules (unit tests in `facts.rs`, `job.rs`, `atoms.rs`, `fit.rs`,
+`relevance.rs`, `matching_generalisation.rs`); set 4 joined the regression corpora
+(`heldout4/`). Engine 7 on main (page facts) and these rules make engine 8.
+
+- Hard facts in the fine print: a currency with a time unit is a rate in every spelling
+  (`110 EUR/h`, `CHF/Tag`) without a rate word; a sentence is read clause by clause, so a
+  salary clause (`Gehaltsband 72-84 T€ p.a.`) no longer hides the hourly rate next to it; a
+  frame line naming the place of work (`Ort:`, `Standort:`, `Location:`) is decided like the
+  job location; large cities of the neighbouring countries; contract words in a sentence that
+  denies them (`Interim Management oder Arbeitnehmerüberlassung ist nicht vorgesehen`).
+- Short teasers are judged from their title (a short full text stays unscorable); titles lose
+  gender markers of every kind and a marketing tail without a skill; the title fit of a text
+  without requirements also looks at the target roles; the off-field cap counts only explicit
+  requirements.
+- Reading noise: tag and notice lines (`Skills:`, `Hinweis`, `Datenschutz`), frame headings
+  (`Terms`, `Rahmen`, `Weitere Infos`), company lines (legal form, founding year, only places
+  and days) are no requirements; more soft words and phrases; one soft part among parts
+  without a known skill makes the line soft; the partners after `gegenüber` and `rund um`
+  and a second object declined like the first stay one item; English nice cues and qualifiers.
+- A single open skill must under a title that names little of the profile (title fit below
+  300) caps as off the field at 30 (two or more open: 25 as before), validated on sets 1-3.
+- A junior role (`Junior`, `Werkstudent`, `Trainee`, `Berufseinstieg`) caps a profile with ten
+  years or more at 40.
+- Knowledge of a product family (`SAP-Kenntnisse`) is met by an entry naming a product of it;
+  leadership asked for alone is met half by a leading role; a hyphen marks a compound however
+  short its modifier; verbal particles are no modifiers (`Einführung` is no `Führung`).
+
+Tried and dropped (they broke a decided corpus band or pack terms, or gained nothing): a malus
+for a years floor far below the profile, expanding truncated compounds.
+
+| Set | NDCG@10 v6 | NDCG@10 v8 | Spearman v6 / v8 | buried v6 / v8 | exclusions P-R v8 |
+|---|---|---|---|---|---|
+| held-out 1 | 0.921 | 0.922 | 0.725 / 0.759 | 0 / 0 | 1.0-1.0 |
+| held-out 2 | 0.842 | 0.864 | 0.634 / 0.634 | 1 / 1 | 1.0-0.948 |
+| held-out 3 | 0.950 | 0.945 | 0.479 / 0.481 | 0 / 0 | 1.0-1.0 |
+| held-out 4 | 0.688 | 0.808 | 0.426 / 0.521 | 3 / 1 | 1.0-0.988 |
+
+The two missed exclusions of set 4 are V02 for P2 and P3 (`Black Belt (zwingend)` is a formal
+duty, no profile criterion; a label disagreement).
+
 ### Rubric of the Claude check
 
 `core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the

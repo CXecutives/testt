@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use super::atoms::fold;
 use super::contract::{Contract, ContractKind};
-use super::facts::{Finding, HardCriteria, JobFacts, Segment, fact, parse_rate};
+use super::facts::{Finding, HardCriteria, JobFacts, Segment, fact, rate_in};
 use super::job::contains_word;
 use super::lexicon::engine as lex;
 use super::params::HOURS_PER_YEAR;
@@ -143,7 +143,7 @@ pub(crate) fn salary(
     // An hourly wage of an employment counts per year (`16,50 € pro Stunde`).
     let hourly = || {
         segments.iter().find_map(|(range, f)| {
-            let rate = parse_rate(f).filter(|r| r.hourly)?;
+            let rate = rate_in(f).filter(|r| r.hourly)?;
             let per_year = rate.upper.saturating_mul(HOURS_PER_YEAR);
             let salary = Salary {
                 upper: Some(per_year),

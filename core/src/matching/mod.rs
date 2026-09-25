@@ -53,8 +53,10 @@ use params::FOCUS_MAX;
 /// held-out set 3 (rates next to a currency, reading noise, English language names, texts
 /// without requirements, generic heads, a tie-breaker, student roles). 7: a page's
 /// structured criteria (a limited employment type, an internship or entry level, the
-/// industries).
-pub const ENGINE_VERSION: u32 = 7;
+/// industries). 8: rules from the unseen held-out set 4 (hard facts in the fine print,
+/// reading noise, teasers and titles, a single open skill under a foreign title, junior
+/// roles for senior profiles, vocabulary).
+pub const ENGINE_VERSION: u32 = 8;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.

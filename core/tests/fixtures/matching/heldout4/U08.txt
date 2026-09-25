@@ -1,0 +1,32 @@
+Titel: Programmleitung Informationssicherheit / NIS2-Umsetzung (m/w/d)
+Unternehmen: Alsterkontor Personalberatung GmbH
+Ort: Speicherkai 3, 20457 Hamburg
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3192761.html
+Abgerufen am: 24.09.2026 07:30
+
+Ort: 20457 Hamburg, Deutschland // Vertragsart: Arbeitnehmerüberlassung // Start: 01.11.2026
+
+Projektbeschreibung
+Für einen Hafen- und Logistikdienstleister, der als Betreiber kritischer Infrastruktur im Sektor Transport und Verkehr eingestuft ist, suchen wir eine erfahrene Programmleitung für die Umsetzung des NIS2-Umsetzungsgesetzes und den Aufbau eines zertifizierungsfähigen ISMS.
+
+Aufgaben:
+- Gesamtverantwortung für das Programm "SecureHarbour" mit 7 Teilprojekten
+- Gap-Analyse gegen NIS2 und ISO 27001:2022 und Ableitung einer Maßnahmen-Roadmap
+- Steuerung der Teilprojekte IAM, Netzwerksegmentierung IT/OT, SIEM/SOC und Business Continuity
+- Vorbereitung der Registrierung und der Meldeprozesse beim BSI
+- Reporting an Geschäftsführung und Aufsichtsrat
+
+Anforderungen:
+- Mehrjährige Erfahrung in der Leitung von Informationssicherheitsprogrammen
+- Fundierte Kenntnisse in ISO 27001, BSI IT-Grundschutz und NIS2
+- Erfahrung mit OT-Security (IEC 62443) von Vorteil
+- Zertifizierung CISM, CISSP oder ISO 27001 Lead Implementer
+- Sicherheitsüberprüfung Ü2 oder Bereitschaft dazu
+- Deutsch auf muttersprachlichem Niveau
+
+Rahmenbedingungen:
+Laufzeit: 10 Monate
+Auslastung: 100 %
+Einsatzort: Hamburg, 2 Tage remote pro Woche
+Stundensatz: 115 € (Arbeitnehmerüberlassung, Equal Pay wird berücksichtigt)

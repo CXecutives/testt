@@ -1,5 +1,4 @@
-//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1`, `heldout2`,
-//! `heldout3`):
+//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout4`):
 //! invented ads with blind labels (grade 0-3, excluded) written by independent agents for
 //! profiles the engine was not tuned on at the time. Both sets were later used to find and
 //! fix systematic gaps, so they are regression gates now, not an unseen measurement.
@@ -160,22 +159,27 @@ struct Floor {
 
 const HELDOUT1: Floor = Floor {
     ndcg10: 0.92,
-    spearman: 0.72,
+    spearman: 0.75,
     exclusion_precision: 1.0,
     exclusion_recall: 1.0,
     grade3_buried: 0,
+};
+const HELDOUT4: Floor = Floor {
+    ndcg10: 0.80,
+    spearman: 0.52,
+    exclusion_precision: 1.0,
+    exclusion_recall: 0.98,
+    grade3_buried: 1,
 };
 const HELDOUT3: Floor = Floor {
     ndcg10: 0.94,
-    spearman: 0.47,
+    spearman: 0.48,
     exclusion_precision: 1.0,
     exclusion_recall: 1.0,
     grade3_buried: 0,
 };
-// Engine 6 traded 0.02 of NDCG@10 on this tuned set (ties among grade-2 and grade-3 jobs)
-// for +0.33 on the unseen set 3; Spearman rose from 0.56 to 0.63.
 const HELDOUT2: Floor = Floor {
-    ndcg10: 0.84,
+    ndcg10: 0.86,
     spearman: 0.63,
     exclusion_precision: 1.0,
     exclusion_recall: 0.94,
@@ -242,8 +246,13 @@ fn heldout3_holds_its_gates() {
     check("heldout3", &HELDOUT3);
 }
 
+#[test]
+fn heldout4_holds_its_gates() {
+    check("heldout4", &HELDOUT4);
+}
+
 /// Every held-out set.
-const SETS: [&str; 3] = ["heldout1", "heldout2", "heldout3"];
+const SETS: [&str; 4] = ["heldout1", "heldout2", "heldout3", "heldout4"];
 
 /// Prints both sets' tables and misses (`-- --ignored heldout_report --nocapture`).
 #[test]

@@ -1,0 +1,31 @@
+Titel: Interim Programme Manager SAP S/4HANA Global Roll-out
+Unternehmen: Rheinmaas Specialty Chemicals B.V.
+Ort: Kanaalweg 40, 3199 Rotterdam
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3190218.html
+Abgerufen am: 22.09.2026 07:30
+
+Ort: 3199 Rotterdam, Niederlande // Vertragsart: Freiberuflich // Start: 01/2027
+
+Project description
+Rheinmaas Specialty Chemicals is rolling out its SAP S/4HANA template from the pilot sites in the Netherlands to 11 plants in Germany, Belgium, Poland, Brazil and the United States. The template covers Finance, Procurement, Supply Chain, Production (PP-PI), Quality Management and EHS. We are looking for an experienced interim programme manager who takes over the roll-out from wave 2 onwards.
+
+Tasks:
+- Overall responsibility for roll-out waves 2 to 4 (Germany/Belgium, Poland, Americas)
+- Steering of the system integrator and the local site teams
+- Template governance: fit-to-standard workshops, localisation, change requests
+- Cutover and hypercare planning per wave
+- Monthly reporting to the Global Programme Board
+
+Requirements:
+- At least two completed SAP S/4HANA roll-outs in a leading programme role
+- Experience in the process industry (chemicals, pharma) with SAP PP-PI, QM and EHS
+- Experience managing large system integrators on fixed-price contracts
+- Fluent English, German highly desirable (wave 2 runs in German)
+- Willingness to travel (approx. 40 %, including Brazil and the USA)
+
+Conditions:
+Duration: 18 months
+Workload: 100 %
+Location: Rotterdam and plant sites, max. 1 day remote per week
+Rate: EUR 1,300 to 1,500 per day plus travel expenses

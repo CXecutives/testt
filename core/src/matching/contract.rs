@@ -12,7 +12,7 @@ use std::ops::Range;
 use serde_json::Value;
 
 use super::atoms::fold;
-use super::facts::{Finding, JobFacts, Segment, fact, parse_rate};
+use super::facts::{Finding, JobFacts, Segment, fact, rate_in};
 use super::lexicon::engine as lex;
 use crate::portal::Portal;
 
@@ -67,7 +67,9 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
         .map(fold)
         .unwrap_or_default();
     let title = fold(job.title);
-    let interim_at = |f: &str| any(f, lex::INTERIM_CUES) || parse_rate(f).is_some();
+    // A sentence that denies a contract form gives no contract signal.
+    let denied = |f: &str| any(f, lex::CONTRACT_DENIED);
+    let interim_at = |f: &str| !denied(f) && (any(f, lex::INTERIM_CUES) || rate_in(f).is_some());
     // A denied or merely possible later permanent position is no statement of one.
     let stated_at = |f: &str| {
         (any(f, lex::PERMANENT_WORDS) || any(f, lex::PERMANENT_STATED))

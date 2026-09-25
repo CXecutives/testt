@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 use std::ops::Range;
 
-use super::atoms::{self, Fit, Vocab};
+use super::atoms::{self, Fit, Vocab, fold};
 use super::fit::Skills;
 use super::lexicon::engine::{self as lex, KEY_USP};
 use super::params::{
@@ -99,9 +99,56 @@ pub(crate) fn title_fit(query: &[(String, u64)], title: &str, vocab: &Vocab) -> 
     score / title_atoms.len() as u64
 }
 
-/// Relevance `R = min(1000, R_lex + T/2)` in per-mille.
+/// The title query: the profile's query plus the atoms of its target roles (a title that
+/// names a target role fits).
+pub(crate) fn title_query(query: &[(String, u64)], roles: &[String]) -> Vec<(String, u64)> {
+    let mut out = query.to_vec();
+    for atom in roles {
+        if !out.iter().any(|(a, _)| a == atom) {
+            out.push((atom.clone(), SPECIFIC_WEIGHT));
+        }
+    }
+    out
+}
+
+/// A title without gender markers (`(m/w/d)`, `(all genders)`, `(f/m/d)`) and without a
+/// marketing tail after a dash or bar that names no skill (`– remote`, `– Scale-up`).
+pub(crate) fn clean_title(title: &str) -> String {
+    let mut out = String::with_capacity(title.len());
+    let mut rest = title;
+    while let Some(open) = rest.find('(') {
+        let Some(close) = rest[open..].find(')').map(|c| open + c) else {
+            break;
+        };
+        let inner = fold(&rest[open + 1..close]);
+        let gender = lex::GENDER_MARKERS.iter().any(|m| inner.trim() == *m)
+            || (!inner.trim().is_empty()
+                && inner
+                    .split(['/', '|', ',', ' ', '-'])
+                    .filter(|p| !p.is_empty())
+                    .all(|p| lex::GENDER_LETTERS.contains(&p)));
+        out.push_str(&rest[..open]);
+        if !gender {
+            out.push_str(&rest[open..=close]);
+        }
+        rest = &rest[close + 1..];
+    }
+    out.push_str(rest);
+    for sep in lex::TITLE_TAIL_SEPARATORS {
+        if let Some((head, tail)) = out.split_once(sep)
+            && !head.trim().is_empty()
+            && !super::job::known_skill(tail)
+        {
+            out = head.to_owned();
+        }
+    }
+    out.trim().to_owned()
+}
+
+/// Relevance `R = min(1000, R_lex + T/2)` in per-mille (`T` over the title query).
 pub(crate) fn relevance(
     query: &[(String, u64)],
+    title_query: &[(String, u64)],
     vocab: &Vocab,
     title: &str,
     text: &str,
@@ -133,7 +180,7 @@ pub(crate) fn relevance(
         mass += weight * saturation / 1000;
     }
     let lexical = 1000 * mass / (mass + RELEVANCE_HALF);
-    let title = title_fit(query, title, vocab);
+    let title = title_fit(title_query, title, vocab);
     (lexical + title / 2).min(1000)
 }
 
@@ -150,5 +197,36 @@ mod tests {
         assert_eq!(title_fit(&query, "Interim Controller", &vocab), 500);
         assert_eq!(title_fit(&query, "Controller", &vocab), 1000);
         assert_eq!(title_fit(&query, "Freelance Interim", &vocab), 0);
+    }
+
+    /// Gender markers and a marketing tail without a skill leave the title; a tail naming a
+    /// skill stays.
+    #[test]
+    fn titles_without_markers_and_tails() {
+        assert_eq!(clean_title("Head of IT (all genders)"), "Head of IT");
+        assert_eq!(clean_title("Controller (f/m/d)"), "Controller");
+        assert_eq!(
+            clean_title("Leiter Controlling (m/w/d) – Festanstellung"),
+            "Leiter Controlling"
+        );
+        assert_eq!(
+            clean_title("Interim CFO – Scale-up E-Mobility"),
+            "Interim CFO"
+        );
+        assert_eq!(
+            clean_title("Senior Consultant – SAP FI/CO"),
+            "Senior Consultant – SAP FI/CO"
+        );
+        assert_eq!(clean_title("Controller (Konzern)"), "Controller (Konzern)");
+    }
+
+    /// A title that names a target role fits, even without the role's words in the query.
+    #[test]
+    fn target_roles_join_the_title_query() {
+        let vocab = Vocab::all();
+        let query = vec![("controll".to_owned(), 1000)];
+        let with_role = title_query(&query, &["werksleit".to_owned()]);
+        assert_eq!(title_fit(&query, "Werksleiter", &vocab), 0);
+        assert!(title_fit(&with_role, "Werksleiter", &vocab) > 0);
     }
 }

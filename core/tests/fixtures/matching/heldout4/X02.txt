@@ -1,0 +1,66 @@
+Titel: Teilprojektleitung Konzernabschluss & Group Reporting im S/4HANA-Transformationsprogramm (m/w/d)
+Unternehmen: von: Silberhorn Projektpartner GmbH
+Ort: Leopoldstraße 188, 80804 München
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3188095.html
+Abgerufen am: 22.09.2026 07:30
+
+Ort: 80804 München, Deutschland // Vertragsart: Freiberuflich // Start: 01.11.2026
+
+Projektbeschreibung
+Unser Kunde, ein international aufgestellter Automobilzulieferer mit rund 40 Gesellschaften in 14 Ländern und einem Konzernumsatz im mittleren einstelligen Milliardenbereich, stellt sein gesamtes Finanzwesen im Rahmen eines mehrjährigen Transformationsprogramms von SAP ECC 6.0 auf SAP S/4HANA um. Das Programm ist in mehrere Wellen gegliedert. Die erste Welle mit den deutschen Gesellschaften ist bereits produktiv, aktuell stehen der Rollout auf die europäischen und nordamerikanischen Gesellschaften sowie die Ablösung des bisherigen Konsolidierungssystems durch SAP S/4HANA Group Reporting an.
+
+Für das Teilprojekt „Record to Report / Konzernabschluss“ suchen wir eine erfahrene Teilprojektleitung, die die fachliche Brücke zwischen Konzernrechnungswesen, IT und dem externen Implementierungspartner schlägt. Sie berichten an die Programmleitung und arbeiten eng mit dem Head of Group Accounting des Kunden zusammen.
+
+Hintergrund
+Der Konzernabschluss wird derzeit mit einer Legacy-Konsolidierungslösung erstellt, die aus zahlreichen manuellen Excel-Nebenrechnungen gespeist wird. Die Fast-Close-Zielsetzung des Vorstands (Konzernabschluss an Arbeitstag 6 statt heute an Arbeitstag 11) ist mit der bestehenden Landschaft nicht erreichbar. Gleichzeitig steht die Einführung einer neuen Segmentberichterstattung nach IFRS 8 an, und die Prüfungsgesellschaft hat im letzten Management Letter Feststellungen zur Dokumentation der Konsolidierungsbuchungen getroffen.
+
+Systemlandschaft
+SAP S/4HANA 2023 (Universal Journal, Central Finance für die Nicht-SAP-Gesellschaften), SAP S/4HANA Group Reporting als Zielsystem für die Konsolidierung, SAP Analytics Cloud für Planung und Management-Reporting, ergänzend Power BI für operative Auswertungen der Werke. Die Datenanlieferung der Tochtergesellschaften erfolgt heute teilweise noch über Excel-Meldepakete.
+
+Ihre Aufgaben
+- Leitung des Teilprojekts Konzernabschluss / Group Reporting mit einem Team aus ca. 8 internen und externen Mitarbeitenden
+- Planung, Steuerung und Nachverfolgung von Meilensteinen, Budget, Risiken und offenen Punkten
+- Fachliche Konzeption der Konsolidierungsprozesse (Kapitalkonsolidierung, Schuldenkonsolidierung, Aufwands- und Ertragskonsolidierung, Zwischenergebniseliminierung)
+- Abstimmung des Konzernkontenplans und der Mapping-Logik zwischen lokalen Kontenplänen und Konzernkontenplan
+- Begleitung der Datenmigration historischer Konsolidierungsdaten inkl. Abstimmung der Eröffnungsbilanzwerte
+- Definition und Durchführung von Testfällen (Integrationstest, User Acceptance Test, zwei Parallelabschlüsse)
+- Koordination mit dem Wirtschaftsprüfer zu prüfungsrelevanten Themen wie IFRS 16, IFRS 15 und Hedge Accounting
+- Aufbau eines Management-Reportings für Vorstand und Aufsichtsrat auf Basis von SAP Analytics Cloud bzw. Power BI
+- Erstellung von Entscheidungsvorlagen für den Lenkungsausschuss
+- Vorbereitung und Durchführung von Schulungen für die Konzerngesellschaften
+- Hypercare-Begleitung nach dem Go-live und Übergabe in die Linienorganisation
+
+Anforderungen:
+- Mindestens 8 Jahre Berufserfahrung im Konzernrechnungswesen oder in der Wirtschaftsprüfung
+- Fundierte Kenntnisse in der Konzernrechnungslegung nach IFRS, idealerweise auch nach HGB
+- Nachweisbare Erfahrung als (Teil-)Projektleitung in mindestens zwei S/4HANA- oder Konsolidierungsprojekten
+- Sehr gute Kenntnisse in SAP S/4HANA Finance, idealerweise SAP Group Reporting oder SAP BPC
+- Erfahrung in der Zusammenarbeit mit Implementierungspartnern und Wirtschaftsprüfern
+- Sicheres Auftreten gegenüber Vorstand und Aufsichtsgremien
+- Verhandlungssichere Deutschkenntnisse und sehr gute Englischkenntnisse (Projektsprache in Teilen Englisch)
+
+Wünschenswert:
+- Erfahrung in der Automobil- oder Zulieferindustrie
+- Kenntnisse in Power BI oder SAP Analytics Cloud
+- Zertifizierung im Projektmanagement (PMP, PRINCE2 oder IPMA)
+- Erfahrung mit agilen Methoden in Finanzprojekten (SAFe, Scrum)
+
+Rahmenbedingungen:
+- Start: 01.11.2026
+- Laufzeit: zunächst 9 Monate, Verlängerung bis Ende 2027 wird angestrebt
+- Auslastung: 100 % (5 Tage pro Woche)
+- Einsatzort: München, ca. 40 % vor Ort, 60 % remote aus Deutschland
+- In der Go-live-Phase (voraussichtlich Mai 2027) ist eine erhöhte Präsenz vor Ort erforderlich
+- Reisen zu Tochtergesellschaften in Tschechien und Mexiko in Einzelfällen möglich
+- Tagessatz: 1.150 € pro Tag zzgl. MwSt., Reisekosten nach Aufwand
+- Vertragsform: Dienstvertrag, keine Arbeitnehmerüberlassung
+- Abrechnung monatlich auf Basis von Tätigkeitsnachweisen
+
+Über uns
+Die Silberhorn Projektpartner GmbH vermittelt seit über 15 Jahren erfahrene Interim Manager und Projektexperten in den Bereichen Finance, Controlling und Transformation. Wir arbeiten ausschließlich mit Direktkunden zusammen und begleiten Sie persönlich von der ersten Vorstellung bis zum Projektende.
+
+Bewerbung
+Bitte senden Sie uns Ihr aktuelles Projektprofil im Word-Format, Ihre Verfügbarkeit sowie Ihren Tagessatz über das Kontaktformular und geben Sie die Referenznummer SPP-2026-4471 an. Aus Gründen des Datenschutzes leiten wir Ihr Profil ausschließlich nach Rücksprache mit Ihnen an unseren Kunden weiter.
+
+Hinweis: Da unser Kunde parallel weitere Dienstleister angefragt hat, teilen Sie uns bitte mit, falls Sie für dieses Projekt bereits von anderer Seite vorgestellt wurden.

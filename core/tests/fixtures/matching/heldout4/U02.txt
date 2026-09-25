@@ -1,0 +1,34 @@
+Titel: PMO Lead SAP S/4HANA Transformation (m/w/d)
+Unternehmen: Taunusblick Consulting GmbH
+Ort: Am Taunusblick 12, 60327 Frankfurt am Main
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3187455.html
+Abgerufen am: 19.09.2026 07:31
+
+Ort: 60327 Frankfurt am Main, Deutschland // Vertragsart: Freiberuflich // Start: 03.11.2026
+
+Projektbeschreibung
+Für unseren Endkunden, einen Finanzdienstleister mit rund 6.000 Mitarbeitenden, suchen wir einen erfahrenen PMO Lead zur Steuerung des Programms "S/4 Finance Core".
+Das Programm umfasst die Ablösung von SAP ECC 6.0 durch SAP S/4HANA (Greenfield) für 14 Buchungskreise in Deutschland, Österreich und Luxemburg. Das Programm befindet sich in der Realisierungsphase, der Cutover ist für Juli 2027 geplant.
+
+Aufgaben:
+- Aufbau und Leitung des Programm-PMO (4 Mitarbeitende)
+- Integrierte Planung über 9 Workstreams, Abhängigkeits- und Meilensteinmanagement
+- Budget-Controlling und Forecasting (Programmbudget ca. 38 Mio. €)
+- Risiko-, Issue- und Change-Request-Management
+- Vorbereitung von Steering Committees und Vorstandsvorlagen
+- Koordination der Implementierungspartner und der internen Revision
+
+Anforderungen:
+- Mind. 8 Jahre Erfahrung im Programm- oder Projektmanagement, davon mind. 3 Jahre als PMO Lead
+- Erfahrung in mindestens einem SAP S/4HANA-Programm über den gesamten Lebenszyklus
+- Kenntnisse regulatorischer Anforderungen im Finanzsektor (MaRisk, DORA) von Vorteil
+- Sicherer Umgang mit Jira, Confluence und MS Project
+- Zertifizierung PMP, PRINCE2 oder vergleichbar wünschenswert
+- Deutsch verhandlungssicher, Englisch fließend
+
+Rahmenbedingungen:
+Laufzeit: 12 Monate + Option
+Auslastung: 100 %
+Einsatzort: 60 % vor Ort in Frankfurt, 40 % remote
+Stundensatz: bis 125 € (all-in)

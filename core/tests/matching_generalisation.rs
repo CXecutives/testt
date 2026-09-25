@@ -129,6 +129,76 @@ fn a_student_role_is_employment_and_its_wage_decides() {
     );
 }
 
+/// A short teaser is judged from its title when the title names the field or a target
+/// role; a short full text (an empty ad) stays unscorable.
+#[test]
+fn a_short_teaser_is_judged_from_its_title() {
+    let mut profile = finance();
+    profile["wunschrollen"] = json!(["Interim CFO"]);
+    let teaser = |title: &str, kind| {
+        let job = JobInput {
+            title,
+            company: "Muster AG",
+            location: "Köln",
+            portal: Portal::FreelanceDe,
+            text: "Ort: Köln // Vertragsart: Freiberuflich // Start: sofort",
+            facts: None,
+            posted: None,
+            kind,
+        };
+        assess(&compile_profile(&profile), &job, None).expect("assessed")
+    };
+    let cfo = teaser("Interim CFO (m/w/d)", TextKind::Teaser);
+    assert_eq!(cfo.verdict, Verdict::Scored);
+    assert!(cfo.score <= 60 && cfo.score > 10, "{}", cfo.score);
+    assert_eq!(
+        teaser("Lagerlogistiker (m/w/d)", TextKind::Teaser).verdict,
+        Verdict::Unscorable
+    );
+    assert_eq!(
+        teaser("Interim CFO (m/w/d)", TextKind::Full).verdict,
+        Verdict::Unscorable
+    );
+}
+
+/// A single explicit skill must that is open, under a title that names little of the
+/// profile, caps the score as off the field (a sales role for a finance profile).
+#[test]
+fn a_single_open_skill_under_a_foreign_title_is_off_the_field() {
+    let a = run(
+        &finance(),
+        "Senior Sales Executive (m/w/d)",
+        "Ihr Profil\n- Erfolge im Neukundengeschäft\n- Verhandlungssicheres Deutsch\n\
+         - Gutes Englisch\n- Sicheres Auftreten\n",
+    );
+    assert!(a.score <= 30, "{}", a.score);
+    // The same must under a title of the profile's field: no such cap.
+    let b = run(
+        &finance(),
+        "Controller (m/w/d)",
+        "Ihr Profil\n- Erfolge im Neukundengeschäft\n- Verhandlungssicheres Deutsch\n\
+         - Gutes Englisch\n- Sicheres Auftreten\n",
+    );
+    assert!(b.score > a.score, "{} > {}", b.score, a.score);
+}
+
+/// A junior role is a level mismatch for a senior profile (ten years or more), even when
+/// every skill fits and the profile sets no target years.
+#[test]
+fn a_junior_role_caps_a_senior_profile() {
+    let text =
+        "Ihr Profil\n- Erfahrung im Controlling\n- Treasury\n- Konzernrechnungslegung nach IFRS\n";
+    let mut profile = finance();
+    profile["harte_kriterien"]
+        .as_object_mut()
+        .expect("criteria")
+        .remove("zielprofil_min_jahre");
+    let junior = run(&profile, "Junior Controller (m/w/d)", text);
+    let regular = run(&profile, "Controller (m/w/d)", text);
+    assert!(junior.score <= 40, "{}", junior.score);
+    assert!(regular.score > 40, "{}", regular.score);
+}
+
 /// Equal scores keep an order: the score before the caps.
 #[test]
 fn the_rank_orders_capped_scores() {

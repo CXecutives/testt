@@ -1,0 +1,41 @@
+Titel: Cloud Migration Programme Lead (AWS), 12-Month Contract
+Unternehmen: Aarewald Versicherungen AG
+Ort: Bern, Bern, Switzerland
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4193380415/
+Abgerufen am: 24.09.2026 07:39
+
+About the job
+Aarewald Versicherungen is a Swiss property and life insurer with 2,300 employees. By the end of 2027 we are moving our core insurance platform and around 190 further workloads from two on-premises data centres to AWS (region Zurich). We are looking for an experienced programme lead to take the migration from the landing zone to the last decommissioned rack.
+
+Your responsibilities
+Lead the cloud migration programme across five migration waves and the landing zone team
+Own the programme plan, the budget of CHF 24m and the benefits tracking
+Coordinate the AWS partner, the internal platform engineering team and the application owners
+Ensure compliance with FINMA outsourcing requirements and Swiss data residency rules
+Drive the decommissioning of the legacy data centres and the exit from the related contracts
+
+Your profile
+Senior programme manager with at least two large cloud migrations delivered, AWS preferred
+Background in financial services, ideally insurance
+Strong stakeholder management up to C-level
+An AWS Solutions Architect certification is an advantage
+Fluent in English and German; French is a plus
+
+Terms
+Contract, freelance or via a staffing partner, 12 months with extension option
+Start in January 2027
+Bern, 3 days per week on site
+Rate CHF 1,350 to 1,550 per day
+
+Seniority level
+Mid-Senior level
+
+Employment type
+Contract
+
+Job function
+Project Management and Information Technology
+
+Industries
+Insurance
