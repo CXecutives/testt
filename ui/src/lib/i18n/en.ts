@@ -10,7 +10,10 @@
 // Profile · Mailbox · Alert email · Overview · Excel file · Excluded · New · To check ·
 // Favourites · Inbox (the place of the active jobs) · Archive · Trash · Skill · Preference.
 // Plain British English: "email", never "mail" for one message; "preferences", never
-// "wishes"; two main clauses are joined by a conjunction, never by a comma alone.
+// "wishes"; "forever" for endgültig, never "for good"; two main clauses are joined by a
+// conjunction, never by a comma alone; an introductory phrase takes its comma ("Without a
+// profile, …"); apostrophes and quotes are typographic (’ “ ”), a named control stands in
+// quotes (“Fetch details”).
 
 import type {
   Band,
