@@ -232,12 +232,37 @@ pub enum GmailUser {
     Known(Option<String>),
 }
 
-/// A run or signing in/out at a portal - never both at once.
+/// A run, signing in/out at a portal or a file command - never two at once.
 pub enum Activity {
     Idle,
     Run(RunHandle),
     /// The session window is in use for signing in or out (cancellable).
     Session(CancellationToken),
+    /// A file command writes or deletes the app's files (delete for good, empty the trash,
+    /// rewrite or delete the text files): nothing else writes them meanwhile - a run's text
+    /// files would lose their temporary files to "Textdateien löschen", two exports would
+    /// fight over the Excel file.
+    Files,
+}
+
+/// The app held for a file command ([`AppState::claim_files`]); dropped, the slot is free
+/// again and a profile change the command held up is scored.
+pub struct FilesGuard<'a> {
+    state: &'a AppState,
+    app: tauri::AppHandle,
+}
+
+impl Drop for FilesGuard<'_> {
+    fn drop(&mut self) {
+        {
+            let mut activity = lock(&self.state.activity);
+            if matches!(*activity, Activity::Files) {
+                *activity = Activity::Idle;
+            }
+        }
+        // A profile change during the command found the slot busy: its rescore starts now.
+        scoring::after_run(&self.app);
+    }
 }
 
 type CmdResult<T> = Result<T, ErrorInfo>;
@@ -288,6 +313,20 @@ impl AppState {
         Ok(())
     }
 
+    /// Holds the app for a file command - checked and claimed under one lock, like a run:
+    /// busy while a run, a sign-in or another file command holds it.
+    fn claim_files(&self, app: &tauri::AppHandle) -> CmdResult<FilesGuard<'_>> {
+        let mut activity = lock(&self.activity);
+        if !matches!(*activity, Activity::Idle) {
+            return Err(ErrorInfo::new(ErrorKind::Busy));
+        }
+        *activity = Activity::Files;
+        Ok(FilesGuard {
+            state: self,
+            app: app.clone(),
+        })
+    }
+
     /// The dry run changes nothing outside its in-memory database.
     fn ensure_real(&self) -> CmdResult<()> {
         if self.dry_run {
@@ -296,12 +335,13 @@ impl AppState {
         Ok(())
     }
 
-    /// Cancels a run or a sign-in/out in progress (idempotent).
+    /// Cancels a run or a sign-in/out in progress (idempotent). A file command ends by
+    /// itself in a moment.
     pub fn cancel_run(&self) {
         match &*lock(&self.activity) {
             Activity::Run(run) => run.cancel(),
             Activity::Session(cancel) => cancel.cancel(),
-            Activity::Idle => {}
+            Activity::Files | Activity::Idle => {}
         }
     }
 }

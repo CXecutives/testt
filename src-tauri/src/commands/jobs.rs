@@ -106,22 +106,30 @@ pub async fn set_override(
 
 /// "Endgültig löschen": deletes these jobs for good - only those in the trash. Rows, text
 /// files and Excel rows go; only a tombstone of each key stays, so no later scan brings them
-/// back. Not while a run is active.
+/// back. Not while a run is active, and it holds the app while it deletes.
 #[tauri::command]
-pub async fn purge_jobs(state: State<'_, AppState>, keys: Vec<JobKey>) -> CmdResult<Deleted> {
-    forget(&state, &keys)
+pub async fn purge_jobs(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    keys: Vec<JobKey>,
+) -> CmdResult<Deleted> {
+    forget(&app, &state, Some(&keys))
 }
 
 /// Empties the trash like Mail does: every job in it is deleted for good, whatever the list
 /// shows (see [`purge_jobs`]); the result names how many and which.
 #[tauri::command]
-pub async fn empty_trash(state: State<'_, AppState>) -> CmdResult<Deleted> {
-    let keys = state.store.trashed_keys(None)?;
-    forget(&state, &keys)
+pub async fn empty_trash(app: AppHandle, state: State<'_, AppState>) -> CmdResult<Deleted> {
+    forget(&app, &state, None)
 }
 
-fn forget(state: &AppState, keys: &[JobKey]) -> CmdResult<Deleted> {
-    state.ensure_idle()?;
+/// Deletes these jobs for good (`None`: the whole trash, as it is once the app is held).
+fn forget(app: &AppHandle, state: &AppState, keys: Option<&[JobKey]>) -> CmdResult<Deleted> {
+    let _files = state.claim_files(app)?;
+    let keys = match keys {
+        Some(keys) => keys.to_vec(),
+        None => state.store.trashed_keys(None)?,
+    };
     let workspace = if state.dry_run {
         None
     } else {
@@ -133,7 +141,7 @@ fn forget(state: &AppState, keys: &[JobKey]) -> CmdResult<Deleted> {
         &state.store,
         workspace.as_deref(),
         matcher,
-        keys,
+        &keys,
         (Timestamp::now(), state.language()?),
     )?)
 }

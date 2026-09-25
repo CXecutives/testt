@@ -69,11 +69,12 @@ pub(super) fn marked(app: &AppHandle) {
     });
 }
 
-/// Rewrites all text files (e.g. after a change of folder). The names stay.
+/// Rewrites all text files (e.g. after a change of folder). The names stay. It holds the app
+/// meanwhile: no run and no "Textdateien löschen" touch the folder.
 #[tauri::command]
-pub async fn rewrite_txt(state: State<'_, AppState>) -> CmdResult<ExportSummary> {
-    state.ensure_idle()?;
+pub async fn rewrite_txt(app: AppHandle, state: State<'_, AppState>) -> CmdResult<ExportSummary> {
     state.ensure_real()?;
+    let _files = state.claim_files(&app)?;
     Ok(pipeline::rewrite_txt(
         &state.store,
         &state.workspace()?,
@@ -82,11 +83,11 @@ pub async fn rewrite_txt(state: State<'_, AppState>) -> CmdResult<ExportSummary>
 }
 
 /// Deletes only the app's text files; the Excel overview and the database stay (no fetch
-/// again).
+/// again). It holds the app meanwhile: a run's text files never lose their temporary files.
 #[tauri::command]
-pub async fn clear_txt(state: State<'_, AppState>) -> CmdResult<ClearedTxt> {
-    state.ensure_idle()?;
+pub async fn clear_txt(app: AppHandle, state: State<'_, AppState>) -> CmdResult<ClearedTxt> {
     state.ensure_real()?;
+    let _files = state.claim_files(&app)?;
     let (removed, failed) = pipeline::clear_txt(&state.store, &state.workspace()?)?;
     log::info!(
         "text files deleted: {removed}, not deleted: {}",
