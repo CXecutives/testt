@@ -17,7 +17,7 @@
   import Notice from '$components/Notice.svelte';
   import Spinner from '$components/Spinner.svelte';
   import { t } from '$lib/i18n/t';
-  import { formatDate, formatTime } from '$lib/i18n/format';
+  import { formatDate, formatMoment, formatTime } from '$lib/i18n/format';
   import { warningText } from '$lib/i18n/texts';
   import type { Notice as NoticeData, ProfileInfo, ProfileQuality } from '$lib/ipc/types';
   import type { DraftOrigin } from '$lib/state/profile.svelte';
@@ -108,11 +108,14 @@
   );
   /** The person first: the name (the file name only as its tooltip), the role muted. */
   const person = $derived(profile?.form ?? null);
-  const savedAt = $derived(
-    profile?.savedAt
-      ? t.profile.savedAt(formatDate(profile.savedAt), formatTime(profile.savedAt))
-      : null,
-  );
+  /** When it was saved, in the format of every moment of the app (`21.09. 09:30`, the time
+   *  alone today); a save of another year keeps its year. */
+  function moment(iso: string): string {
+    return new Date(iso).getFullYear() === new Date().getFullYear()
+      ? formatMoment(iso)
+      : `${formatDate(iso)} ${formatTime(iso)}`;
+  }
+  const savedAt = $derived(profile?.savedAt ? t.profile.savedAt(moment(profile.savedAt)) : null);
 </script>
 
 <Card padding="md" testid="profile-file">

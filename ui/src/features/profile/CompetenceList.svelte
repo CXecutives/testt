@@ -164,7 +164,7 @@
         <ChipInput
           bind:values={row.aliases}
           label={words.aliases}
-          placeholder={words.aliases}
+          placeholder={words.aliasesPlaceholder}
           testid="competence-aliases"
         />
       </span>

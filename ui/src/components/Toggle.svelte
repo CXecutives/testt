@@ -6,9 +6,10 @@
   It flips at once, like a native switch: when `onchange` returns a promise (the save),
   the switch shows the new state until it settles, then `checked` again - which is the old
   state if the save failed, so the thumb slides back.
-  `id` lets a SettingRow label it: a click on the row's text then toggles it natively, and
-  the switch shows its hover while the pointer is anywhere on that row (the row itself never
-  changes).
+  Only the switch itself switches, like the switches of the Windows 11 and macOS settings
+  (user decision): its label and the text of its row are no click target and never show a
+  hover. `id` ties it to the text of its SettingRow (`for`): the row's label names it
+  (`{id}-label`) and the row's hint describes it (`{id}-hint`).
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
@@ -20,7 +21,7 @@
     showLabel?: boolean;
     disabled?: boolean;
     disabledReason?: string | null;
-    /** For a <label for> around the text of its row (SettingRow `for`). */
+    /** Ties the switch to the text of its SettingRow (`for`), which names and describes it. */
     id?: string | null;
     testid?: string | null;
     /** Return the save's promise: the switch shows the new state until it settles. */
@@ -40,6 +41,9 @@
 
   /** The state shown while a save is on its way (null: show `checked`). */
   let pending = $state<boolean | null>(null);
+  const own = $props.id();
+  /** The element that names the switch: the label beside it, else the text of its row. */
+  const labelledby = $derived(showLabel ? `${own}-label` : id ? `${id}-label` : null);
   let attempt = 0;
   const shown = $derived(pending ?? checked);
 
@@ -56,29 +60,52 @@
   }
 </script>
 
-<button
-  type="button"
-  role="switch"
-  class="toggle"
-  id={id ?? undefined}
-  aria-checked={shown}
-  aria-label={showLabel ? undefined : label}
-  aria-disabled={disabled ? 'true' : undefined}
-  data-testid={testid ?? undefined}
-  use:tooltip={disabled ? disabledReason : null}
-  onclick={() => void toggle()}
->
-  <span class="track"><span class="thumb"></span></span>
-  {#if showLabel}<span class="label">{label}</span>{/if}
-</button>
+{#snippet control()}
+  <button
+    type="button"
+    role="switch"
+    class="toggle"
+    id={id ?? undefined}
+    aria-checked={shown}
+    aria-label={label}
+    aria-labelledby={labelledby ?? undefined}
+    aria-describedby={id ? `${id}-hint` : undefined}
+    aria-disabled={disabled ? 'true' : undefined}
+    data-testid={testid ?? undefined}
+    use:tooltip={disabled ? disabledReason : null}
+    onclick={() => void toggle()}
+  >
+    <span class="track"><span class="thumb"></span></span>
+  </button>
+{/snippet}
+
+{#if showLabel}
+  <!-- The label beside the switch names it but does not switch it. -->
+  <span class="with-label" class:off={disabled}>
+    {@render control()}
+    <span class="label" id="{own}-label">{label}</span>
+  </span>
+{:else}
+  {@render control()}
+{/if}
 
 <style>
   .toggle {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+  }
+
+  .with-label {
     display: inline-flex;
     align-items: center;
     gap: var(--space-12);
     color: var(--text);
     font: var(--type-md);
+  }
+
+  .with-label.off .label {
+    opacity: var(--opacity-disabled);
   }
 
   .track {
@@ -104,8 +131,7 @@
     transition: transform var(--dur-slow) var(--ease-emphasized);
   }
 
-  .toggle:not([aria-disabled='true']):hover .track,
-  :global([data-toggle-row]:hover) .toggle:not([aria-disabled='true']) .track {
+  .toggle:not([aria-disabled='true']):hover .track {
     background-color: var(--border-input);
     transition-duration: var(--dur-hover);
   }
@@ -114,8 +140,7 @@
     background-color: var(--toggle-on);
   }
 
-  .toggle[aria-checked='true']:not([aria-disabled='true']):hover .track,
-  :global([data-toggle-row]:hover) .toggle[aria-checked='true']:not([aria-disabled='true']) .track {
+  .toggle[aria-checked='true']:not([aria-disabled='true']):hover .track {
     background-color: var(--toggle-on-hover);
   }
 

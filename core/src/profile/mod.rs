@@ -66,6 +66,23 @@ pub fn info(workspace: &Path) -> Result<Option<ProfileInfo>> {
     }))
 }
 
+/// The ISO codes of every country the engine tells apart in a job ad, by a country or a
+/// city name of its lexicon (a German city without a country is in Germany), sorted: the
+/// countries a profile can choose (`laender`). The UI catalogs name each of them
+/// (`profile.country`), which `core/tests/countries.rs` checks.
+pub fn country_codes() -> Vec<&'static str> {
+    use crate::matching::lexicon::engine as lex;
+    let mut codes: Vec<&'static str> = lex::COUNTRIES
+        .iter()
+        .chain(lex::CITIES)
+        .map(|&(_, code)| code)
+        .chain(["DE"])
+        .collect();
+    codes.sort_unstable();
+    codes.dedup();
+    codes
+}
+
 /// The stored profile as JSON; `None` if there is none or it is no valid JSON object (the
 /// profile info names the error).
 pub fn load(workspace: &Path) -> Result<Option<Value>> {

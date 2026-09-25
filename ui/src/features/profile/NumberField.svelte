@@ -4,7 +4,7 @@
   label); the grouping comes back when the field is left, so typing never moves the caret.
   Money typed with cents (`950,50` or `950.50`) counts whole euros and says so under the
   field; a group of three digits after a point or comma is a thousands separator (`1.100`,
-  `1,100`). Every number field has the same width.
+  `1,100`). Every number field has the same width (or its column's, if that is narrower).
 -->
 <script lang="ts">
   import TextField from '$components/TextField.svelte';
@@ -15,6 +15,8 @@
     value: number | null;
     /** Euros: grouped (`1.100`), cents cut off with a note. */
     money?: boolean;
+    /** The unit right of the field (`€`, `Jahre`, `%`). */
+    unit?: string | null;
     id?: string | null;
     label?: string | null;
     placeholder?: string | null;
@@ -26,6 +28,7 @@
   let {
     value = $bindable(),
     money = false,
+    unit = null,
     id = null,
     label = null,
     placeholder = null,
@@ -65,22 +68,27 @@
 </script>
 
 <span class="number" role="presentation" onfocusout={() => (text = shown(value))}>
-  <TextField
-    bind:value={text}
-    {id}
-    {label}
-    {placeholder}
-    {invalid}
-    describedby={rounded ? `${noteId}-rounded` : describedby}
-    {testid}
-    oninput={(next) => {
-      const clean = next.replace(money ? /[^\d.,]/g : /\D/g, '');
-      if (clean !== next) text = clean;
-      const typed = read(clean);
-      rounded = typed.cents;
-      value = typed.value;
-    }}
-  />
+  <span class="box">
+    <TextField
+      bind:value={text}
+      {id}
+      {label}
+      {placeholder}
+      {invalid}
+      describedby={[rounded ? `${noteId}-rounded` : describedby, unit ? `${noteId}-unit` : null]
+        .filter((part) => part !== null)
+        .join(' ') || null}
+      {testid}
+      oninput={(next) => {
+        const clean = next.replace(money ? /[^\d.,]/g : /\D/g, '');
+        if (clean !== next) text = clean;
+        const typed = read(clean);
+        rounded = typed.cents;
+        value = typed.value;
+      }}
+    />
+  </span>
+  {#if unit}<span class="unit" id="{noteId}-unit">{unit}</span>{/if}
 </span>
 {#if rounded}
   <p class="note" id="{noteId}-rounded" data-testid={testid ? `${testid}-rounded` : undefined}>
@@ -90,8 +98,22 @@
 
 <style>
   .number {
-    display: block;
-    max-width: var(--stat-min);
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    min-width: 0;
+  }
+
+  /* One width for every number field, the width of the day in Verfügbarkeit too. */
+  .box {
+    flex: none;
+    width: min(100%, calc(var(--stat-min) - var(--space-48)));
+  }
+
+  .unit {
+    flex: none;
+    color: var(--text-muted);
+    font: var(--type-md);
   }
 
   .note {

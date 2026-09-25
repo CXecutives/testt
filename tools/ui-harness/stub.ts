@@ -795,7 +795,8 @@ function answerDraft(answer: string): ProfileDraft {
     criteria: {
       ...PROFILE_FORM.criteria,
       minDayRate: null,
-      countries: [],
+      // Countries an answer names (one the app does not know stays as it is).
+      countries: texts((data.harte_kriterien as Json | undefined)?.laender),
       noAnue: false,
       targetYears: null,
     },

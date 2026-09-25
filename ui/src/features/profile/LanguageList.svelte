@@ -114,8 +114,6 @@
 
 <style>
   .list {
-    --language-name: minmax(var(--space-64), var(--stat-min));
-
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -123,9 +121,10 @@
     container-type: inline-size;
   }
 
+  /* The levels take the room they need on one line; the language takes the rest. */
   .row {
     display: grid;
-    grid-template-columns: var(--language-name) minmax(0, 1fr) var(--control-sm);
+    grid-template-columns: minmax(var(--space-64), 1fr) auto var(--control-sm);
     align-items: center;
     gap: var(--space-6) var(--space-12);
     width: 100%;
@@ -154,8 +153,9 @@
     font: var(--type-sm);
   }
 
-  /* Narrow: the levels go in one wrapping line under the language, the x stays beside it. */
-  @container (width < 520px) {
+  /* Narrow (the levels would wrap beside the language): the levels go in one wrapping line
+     under the language, the x stays beside it. */
+  @container (width < 640px) {
     .row {
       grid-template-columns: minmax(0, 1fr) var(--control-sm);
       align-items: start;

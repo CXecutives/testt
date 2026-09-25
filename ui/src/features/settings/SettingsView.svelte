@@ -308,7 +308,7 @@
       <h2 class="heading">{t.settings.mailbox}</h2>
       <Card padding={cfg.mailbox.user && !editing ? 'rows' : 'md'}>
         {#if cfg.mailbox.user && !editing}
-          <SettingRow label={cfg.mailbox.user} hint={t.settings.vault[cfg.mailbox.vault]}>
+          <SettingRow label={cfg.mailbox.user} copyLabel hint={t.settings.vault[cfg.mailbox.vault]}>
             {#snippet badges()}
               {#if mailFailure}
                 <Badge

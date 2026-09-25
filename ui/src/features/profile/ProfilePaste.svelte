@@ -42,7 +42,7 @@
   }
 </script>
 
-<Card padding="lg" testid="profile-paste">
+<Card padding="md" testid="profile-paste">
   <div class="paste" use:formKeys={{ cancel: oncancel }}>
     <div class="top">
       <h2 class="heading">{heading}</h2>
@@ -145,28 +145,30 @@
     font: var(--type-md);
   }
 
+  /* The step marks of the first run: 28 px, 13 px digits, done with a green edge. */
   .mark {
     display: inline-flex;
     flex: none;
     align-items: center;
     justify-content: center;
-    width: var(--icon-lg);
-    height: var(--icon-lg);
+    width: var(--control-sm);
+    height: var(--control-sm);
     border: var(--border-width) solid var(--border-strong);
     border-radius: var(--radius-full);
     color: var(--text-muted);
-    font: var(--type-xs);
+    font: var(--type-sm);
+    font-weight: var(--weight-semibold);
     font-variant-numeric: var(--numeric);
   }
 
   .mark.done {
-    border-color: var(--success-soft);
+    border-color: var(--success);
     background-color: var(--success-soft);
     color: var(--success-strong);
   }
 
   .mark.failed {
-    border-color: var(--danger-soft);
+    border-color: var(--danger-strong);
     background-color: var(--danger-soft);
     color: var(--danger-strong);
   }

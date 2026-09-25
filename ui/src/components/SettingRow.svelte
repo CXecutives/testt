@@ -1,12 +1,12 @@
 <!-- One setting: label and one-sentence hint on the left, badges and the control right. A
-     hint that is a value to copy (a path, the address) selects like text (`copy`).
+     hint that is a value to copy (a path) selects like text (`copy`), and so does a label
+     that is such a value (`copyLabel`, the address of the mailbox).
      The row runs edge to edge in its container and pads its content by the container's
      --row-inset, so its divider and its text share the container's grid.
      With `for` (the id of its switch) the row works like a row of the system settings of
-     Windows 11 and macOS: its label and hint are a native <label>, so a click on the text
-     toggles the switch, and the switch shows its hover while the pointer is anywhere on
-     the row. The row itself never gets a background (user decision: only the switch
-     reacts). A copyable hint stays outside the label and never toggles. -->
+     Windows 11 and macOS: only the switch switches (user decision). The label names the
+     switch and the hint describes it (`{for}-label`, `{for}-hint`, read by Toggle), but
+     neither is a click target, and the row never reacts to the pointer. -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
@@ -17,6 +17,8 @@
     badges?: Snippet | null;
     /** The hint is a value a user would copy (a folder path). */
     copy?: boolean;
+    /** The label is a value a user would copy (the address of the mailbox). */
+    copyLabel?: boolean;
     /** The id of the switch this row labels (Toggle `id`). */
     for?: string | null;
     testid?: string | null;
@@ -28,18 +30,12 @@
     hint = null,
     badges = null,
     copy = false,
+    copyLabel = false,
     for: control = null,
     testid = null,
     children,
   }: Props = $props();
 </script>
-
-{#snippet title()}
-  <span class="title">
-    <span class="label">{label}</span>
-    {#if badges}{@render badges()}{/if}
-  </span>
-{/snippet}
 
 <div
   class="row"
@@ -47,22 +43,25 @@
   data-toggle-row={control !== null ? '' : undefined}
   data-testid={testid ?? undefined}
 >
-  {#if control !== null}
-    <div class="text">
-      <label class="for" for={control}>
-        {@render title()}
-        {#if hint && !copy}<span class="hint">{hint}</span>{/if}
-      </label>
-      {#if hint && copy}<p class="hint path" data-copy>{hint}</p>{/if}
-    </div>
-  {:else}
-    <div class="text">
-      {@render title()}
-      {#if hint}<p class="hint" class:path={copy} data-copy={copy ? '' : undefined}>
-          {hint}
-        </p>{/if}
-    </div>
-  {/if}
+  <div class="text">
+    <span class="title">
+      <span
+        class="label"
+        class:path={copyLabel}
+        id={control !== null ? `${control}-label` : undefined}
+        data-copy={copyLabel ? '' : undefined}>{label}</span
+      >
+      {#if badges}{@render badges()}{/if}
+    </span>
+    {#if hint}<p
+        class="hint"
+        class:path={copy}
+        id={control !== null ? `${control}-hint` : undefined}
+        data-copy={copy ? '' : undefined}
+      >
+        {hint}
+      </p>{/if}
+  </div>
   <div class="control">{@render children()}</div>
 </div>
 
@@ -90,12 +89,6 @@
     flex-direction: column;
     gap: var(--space-2);
     min-width: 0;
-  }
-
-  .for {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
   }
 
   .title {

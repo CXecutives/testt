@@ -259,26 +259,41 @@ test('auto fetch and portal switches save at once', async ({ page }) => {
   ]);
 });
 
-test('a switch row toggles from its text like the system settings', async ({ page }) => {
+test('only the switch switches, like the system settings; its text names it', async ({ page }) => {
   await settings(page);
   const auto = page.getByTestId('toggle-auto-fetch');
   await expect(auto).toHaveAttribute('aria-checked', 'true');
+  // The label and the hint of the row are no click target.
   await page.getByTestId('settings-fetch').getByText('Beim Start abrufen').click();
-  await expect(auto).toHaveAttribute('aria-checked', 'false');
+  await page
+    .getByTestId('settings-fetch')
+    .getByText('Wenn der letzte Abruf mehr als sechs Stunden her ist.')
+    .click();
+  await expect(auto).toHaveAttribute('aria-checked', 'true');
+  const details = page.getByTestId('toggle-details-linkedin');
   await page
     .getByTestId('details-linkedin')
     .getByText('Holt die ganze Anzeige, in ruhigem Takt und mit Tageslimit.')
     .click();
-  await expect(page.getByTestId('toggle-details-linkedin')).toHaveAttribute(
-    'aria-checked',
-    'false',
+  await expect(details).toHaveAttribute('aria-checked', 'true');
+  // The portal's name does not switch the portal either.
+  await page.getByTestId('portal-linkedin').getByText('linkedin.com').click();
+  await expect(page.getByTestId('toggle-enabled-linkedin')).toHaveAttribute('aria-checked', 'true');
+  // The text still names and describes the switch.
+  await expect(page.getByRole('switch', { name: 'Beim Start abrufen' })).toHaveCount(1);
+  await expect(auto).toHaveAccessibleDescription(
+    'Wenn der letzte Abruf mehr als sechs Stunden her ist.',
   );
+  await expect(page.getByRole('switch', { name: 'linkedin.com' })).toHaveCount(1);
+  // The switch itself switches.
+  await details.click();
+  await expect(details).toHaveAttribute('aria-checked', 'false');
   // Off, the row says what that changes instead of the risk of the requests.
   await expect(page.getByTestId('details-linkedin')).toContainText(
     'Ohne Details bekommen die Jobs dieses Portals keine Passung.',
   );
-  // A copyable path is text to select, never a switch: the workspace row has no label.
-  await expect(page.getByTestId('settings-files').locator('label')).toHaveCount(0);
+  // No label element anywhere on the page: no text is a click target of a switch.
+  await expect(page.getByTestId('settings').locator('label')).toHaveCount(0);
 });
 
 test('each switch says what it does, no risk grades; freelance.de sign in and out', async ({
@@ -374,14 +389,14 @@ test('every path row works the same: the path as text, the folder or file opens'
   await expect(page.getByText('Pfad kopieren')).toHaveCount(0);
 });
 
-test('a portal that is off says so; its name switches it', async ({ page }) => {
+test('a portal that is off says so; its name names the switch', async ({ page }) => {
   await settings(page);
-  await page.getByTestId('portal-linkedin').locator('label.name').click();
-  await expect(page.getByTestId('toggle-enabled-linkedin')).toHaveAttribute(
-    'aria-checked',
-    'false',
-  );
+  const toggle = page.getByTestId('toggle-enabled-linkedin');
+  await expect(toggle).toHaveAccessibleName('linkedin.com');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await expect(page.getByTestId('portal-off-linkedin')).toHaveText('Wird beim Abruf übersprungen.');
+  await expect(toggle).toHaveAccessibleDescription('Wird beim Abruf übersprungen.');
 });
 
 test('a run holds the mailbox, the folder and the files', async ({ page }) => {

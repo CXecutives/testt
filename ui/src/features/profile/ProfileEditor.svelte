@@ -1,8 +1,14 @@
 <!--
   The profile as a form, in the order a consultant thinks: person, competences and
-  Schwerpunkte, experience and qualifications, wishes (they only nudge the score), the
-  exclusion criteria (they exclude), availability (it only marks) and at the end what the
-  app reads in the file. A thin profile marks its empty sections. A value of the file the app
+  Schwerpunkte, experience and qualifications, languages, wishes (they only nudge the score),
+  the exclusion criteria (they exclude), availability (it only marks) and at the end what the
+  app reads in the file. Each block says in one sentence what it is for; only the
+  competences are needed, which their sentence says once. Every field of a block has the
+  height of a field (md), the toggle buttons too, and every number field one width with its
+  unit beside it. The countries are a field that suggests the countries the engine knows
+  (by their German and English names), with DACH in one click; a country of a file the app
+  does not know stays as it is. The day of "Ab Datum" exists only while it is chosen and
+  gets the caret when it is. A thin profile marks its empty sections. A value of the file the app
   could not read is said at its field with "Wert entfernen"; a value the backend refused is
   said there too, and the field gets the caret. The save bar stays at the bottom of the view:
   "Speichern" (the one primary, only with a change) and "Verwerfen", or Ctrl/Cmd+S; without a
@@ -17,6 +23,8 @@
   import SettingRow from '$components/SettingRow.svelte';
   import TextField from '$components/TextField.svelte';
   import Toggle from '$components/Toggle.svelte';
+  import { de } from '$lib/i18n/de';
+  import { en } from '$lib/i18n/en';
   import { t } from '$lib/i18n/t';
   import { formKeys } from '$lib/input/input';
   import type {
@@ -146,13 +154,20 @@
   const thin = $derived(quality === 'thin' || quality === 'empty');
   const actionFirst = primaryFirst();
 
-  /** Known countries, then codes of the profile the app does not name. */
-  const countries = $derived([
-    ...Object.entries(t.profile.country).map(([code, label]) => ({ id: code, label })),
-    ...c.countries
-      .filter((code) => !(code in t.profile.country))
-      .map((code) => ({ id: code, label: code })),
-  ]);
+  /** Every country the engine knows, named in the app's language and found by both names. */
+  const COUNTRIES = $derived(
+    Object.keys(de.profile.country).map((code) => ({
+      id: code,
+      label: t.profile.country[code] ?? code,
+      terms: [de.profile.country[code] ?? code, en.profile.country[code] ?? code],
+    })),
+  );
+  /** Deutschland, Österreich and Schweiz in one click. */
+  const DACH = ['DE', 'AT', 'CH'];
+  const dachMissing = $derived(DACH.some((code) => !c.countries.includes(code)));
+  function addDach(): void {
+    c.countries = [...c.countries, ...DACH.filter((code) => !c.countries.includes(code))];
+  }
 
   const REMOTE = $derived<{ id: RemoteWish; label: string }[]>(
     (['full', 'mostly', 'partly', 'onSite'] as const).map((wish) => ({
@@ -167,8 +182,9 @@
     })),
   );
 
-  /** Nothing chosen is no availability; pressing the chosen one again clears it. */
-  function setAvailable(chosen: string[]): void {
+  /** Nothing chosen is no availability; pressing the chosen one again clears it. "Ab Datum"
+   *  puts the caret into its day. */
+  async function setAvailable(chosen: string[]): Promise<void> {
     const kind = chosen[0];
     c.available =
       kind === 'from'
@@ -176,6 +192,9 @@
         : kind === 'now'
           ? { kind }
           : { kind: 'unset' };
+    if (kind !== 'from') return;
+    await tick();
+    root?.querySelector<HTMLInputElement>('[data-testid="profile-date"]')?.focus();
   }
 
   function setDate(text: string): void {
@@ -248,20 +267,26 @@
   onfocusin={keepClear}
   data-testid="profile-form"
 >
-  <ProfileSection heading={t.profile.section.person} testid="section-person">
+  <ProfileSection
+    heading={t.profile.section.person}
+    hint={t.profile.sectionHint.person}
+    testid="section-person"
+  >
     <div class="pair">
       <div data-field="name">
         <Field label={words.name} for="{id}-name" error={errorOf('name')}>
           <TextField
             id="{id}-name"
             bind:value={form.name}
+            placeholder={words.namePlaceholder}
             invalid={fieldError?.field === 'name'}
+            describedby="{id}-name-message"
             testid="profile-name-field"
           />
         </Field>
       </div>
       <div data-field="title">
-        <Field label={words.title} for="{id}-title" hint={words.titleHint} error={errorOf('title')}>
+        <Field label={words.title} for="{id}-title" error={errorOf('title')}>
           <TextField
             id="{id}-title"
             bind:value={form.title}
@@ -277,7 +302,9 @@
 
   <ProfileSection
     heading={t.profile.section.competences}
-    hint={quality && quality !== 'good' ? t.profile.qualityText[quality] : null}
+    hint={quality && quality !== 'good'
+      ? t.profile.qualityText[quality]
+      : t.profile.sectionHint.competences}
     empty={thin && form.competences.every((row) => row.name.trim() === '')}
     testid="section-competences"
   >
@@ -328,9 +355,8 @@
 
   <ProfileSection
     heading={t.profile.section.experience}
-    empty={thin &&
-      empty(form.years, form.degrees, form.certificates, form.tools, form.industries) &&
-      form.languages.every((row) => row.language.trim() === '')}
+    hint={t.profile.sectionHint.experience}
+    empty={thin && empty(form.years, form.degrees, form.certificates, form.tools, form.industries)}
     testid="section-experience"
   >
     <div data-field="years">
@@ -342,6 +368,7 @@
       >
         <NumberField
           id="{id}-years"
+          unit={t.profile.unit.years}
           bind:value={form.years}
           invalid={fieldError?.field === 'years'}
           describedby="{id}-years-message"
@@ -399,10 +426,15 @@
         />
       </Field>
     </div>
-    <div class="block">
-      <span class="label">{words.languages}</span>
-      <LanguageList bind:rows={form.languages} error={listError('languages')} />
-    </div>
+  </ProfileSection>
+
+  <ProfileSection
+    heading={t.profile.section.languages}
+    hint={t.profile.sectionHint.languages}
+    empty={thin && form.languages.every((row) => row.language.trim() === '')}
+    testid="section-languages"
+  >
+    <LanguageList bind:rows={form.languages} error={listError('languages')} />
   </ProfileSection>
 
   <ProfileSection
@@ -446,6 +478,7 @@
         <NumberField
           id="{id}-wish-rate"
           money
+          unit={t.profile.unit.euro}
           bind:value={form.wishes.dayRate}
           invalid={errorOf('wishDayRate') !== null}
           describedby="{id}-wish-rate-message"
@@ -524,6 +557,7 @@
           <NumberField
             id="{id}-min-rate"
             money
+            unit={t.profile.unit.euro}
             bind:value={c.minDayRate}
             invalid={errorOf('minDayRate') !== null}
             describedby="{id}-min-rate-message"
@@ -541,6 +575,7 @@
         >
           <NumberField
             id="{id}-target"
+            unit={t.profile.unit.years}
             bind:value={c.targetYears}
             invalid={errorOf('targetYears') !== null}
             describedby="{id}-target-message"
@@ -549,16 +584,34 @@
         </Field>
       </div>
     </div>
-    <div class="block" data-field="countries">
-      <span class="label">{words.countries}</span>
-      <ChoiceButtons
-        options={countries}
-        selected={c.countries}
+    <div data-field="countries">
+      <Field
         label={words.countries}
-        multiple
-        testid="profile-countries"
-        onchange={(next) => (c.countries = next)}
-      />
+        for="{id}-countries"
+        error={fieldError?.field === 'countries' ? fieldError.text() : null}
+      >
+        <div class="countries">
+          <ChipInput
+            id="{id}-countries"
+            bind:values={c.countries}
+            options={COUNTRIES}
+            noMatch={words.countryNone}
+            placeholder={words.countriesPlaceholder}
+            invalid={fieldError?.field === 'countries'}
+            describedby="{id}-countries-message"
+            testid="profile-countries"
+          />
+          {#if dachMissing}
+            <Button
+              variant="secondary"
+              icon="plus"
+              label={words.dach}
+              testid="profile-dach"
+              onclick={addDach}
+            />
+          {/if}
+        </div>
+      </Field>
       {#each problemsOf('countries') as problem (problem.value)}
         <ValueNote
           text={unreadText(problem)}
@@ -566,9 +619,6 @@
           onremove={() => drop(problem)}
         />
       {/each}
-      {#if fieldError?.field === 'countries'}
-        <Notice tone="danger" variant="inline" text={fieldError.text()} />
-      {/if}
     </div>
     <div class="toggles">
       <div data-field="remoteOutside">
@@ -639,6 +689,7 @@
             <NumberField
               id="{id}-salary"
               money
+              unit={t.profile.unit.euro}
               bind:value={c.minSalary}
               invalid={errorOf('minSalary') !== null}
               describedby="{id}-salary-message"
@@ -657,6 +708,7 @@
           >
             <NumberField
               id="{id}-remote-min"
+              unit={t.profile.unit.percent}
               bind:value={c.permanentRemoteMin}
               invalid={errorOf('permanentRemoteMin') !== null || regionWithoutPlaces}
               describedby="{id}-remote-min-message"
@@ -822,8 +874,20 @@
     gap: var(--space-12);
   }
 
+  /* The day is as wide as every number field. */
   .date {
-    width: calc(var(--stat-min) - var(--space-40));
+    width: calc(var(--stat-min) - var(--space-48));
+  }
+
+  .countries {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-12);
+  }
+
+  .countries > :global(:first-child) {
+    flex: 1;
+    min-width: 0;
   }
 
   .toggles {
