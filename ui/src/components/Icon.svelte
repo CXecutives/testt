@@ -1,8 +1,13 @@
 <!--
   The only importer of @lucide/svelte. A closed set of names, one import per icon (keeps the
-  bundle small), size from the tokens, colour inherited from the text.
+  bundle small), size from the tokens, colour inherited from the text. Each glyph is drawn
+  once by its Lucide component; every Icon shows a copy of that drawing. A Lucide component
+  per icon (props, derived attributes, an element per path) made icons the most expensive
+  part of a list row and of the reader.
 -->
 <script lang="ts" module>
+  import { mount, unmount } from 'svelte';
+  import type { Action } from 'svelte/action';
   import Archive from '@lucide/svelte/icons/archive';
   import ArchiveRestore from '@lucide/svelte/icons/archive-restore';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
@@ -131,6 +136,38 @@
   export type IconName = keyof typeof ICONS;
   export type IconSize = 'xs' | 'sm' | 'md' | 'lg';
   export const ICON_NAMES = Object.keys(ICONS) as IconName[];
+
+  /** The drawing of each glyph used so far (the SVG its Lucide component renders). */
+  const drawn: Partial<Record<IconName, SVGSVGElement>> = {};
+
+  /** A copy of the glyph `name`, drawn by its Lucide component the first time. */
+  function glyph(name: IconName): SVGSVGElement {
+    let svg = drawn[name];
+    if (svg === undefined) {
+      const host = document.createElement('span');
+      const component = mount(ICONS[name], { target: host, props: { 'aria-hidden': 'true' } });
+      const rendered = host.querySelector('svg');
+      if (rendered === null) throw new Error(`icon ${name} drew no svg`);
+      svg = rendered.cloneNode(true) as SVGSVGElement;
+      void unmount(component);
+      drawn[name] = svg;
+    }
+    return svg.cloneNode(true) as SVGSVGElement;
+  }
+
+  /** `use:draw={name}`: the element shows the glyph `name` (drawn again only for another
+   *  name: Svelte also calls an action's update when a row renders again with the same one). */
+  const draw: Action<HTMLElement, IconName> = (node, name) => {
+    let current = name;
+    node.replaceChildren(glyph(name));
+    return {
+      update(next: IconName) {
+        if (next === current) return;
+        current = next;
+        node.replaceChildren(glyph(next));
+      },
+    };
+  };
 </script>
 
 <script lang="ts">
@@ -142,13 +179,9 @@
   }
 
   let { name, size = 'md', filled = false }: Props = $props();
-
-  const Glyph = $derived(ICONS[name]);
 </script>
 
-<span class="icon {size}" class:filled aria-hidden="true">
-  <Glyph aria-hidden="true" />
-</span>
+<span class="icon {size}" class:filled aria-hidden="true" use:draw={name}></span>
 
 <style>
   .icon {
