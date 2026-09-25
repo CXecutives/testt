@@ -5,8 +5,9 @@
   app reads in the file. A thin profile marks its empty sections. A value of the file the app
   could not read is said at its field with "Wert entfernen"; a value the backend refused is
   said there too, and the field gets the caret. The save bar stays at the bottom of the view:
-  "Speichern" (the one primary, only with a change) and "Verwerfen", or Ctrl/Cmd+S. Enter
-  never saves this long form: in the row lists it goes to the next row.
+  "Speichern" (the one primary, only with a change) and "Verwerfen", or Ctrl/Cmd+S; without a
+  change both say why they wait. Enter never saves this long form: in the row lists it goes
+  to the next row.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -111,7 +112,7 @@
   /** The error of a field: a value the backend refused, else the first value of the file
    *  that does not read (said by `Field` with "Wert entfernen" as its way on). */
   function errorOf(field: string): string | null {
-    if (fieldError?.field === field) return fieldError.text;
+    if (fieldError?.field === field) return fieldError.text();
     const first = problemsOf(field as UnreadableField).find((problem) => !problem.entry);
     return first ? unreadText(first) : null;
   }
@@ -129,7 +130,7 @@
   }
 
   const listError = (field: string): { row: number | null; text: string } | null =>
-    fieldError?.field === field ? { row: fieldError.row, text: fieldError.text } : null;
+    fieldError?.field === field ? { row: fieldError.row, text: fieldError.text() } : null;
 
   const trimmed = $derived.by((): number | null => {
     const notice = warnings.find((w) => w.code === 'focusTrimmed');
@@ -566,7 +567,7 @@
         />
       {/each}
       {#if fieldError?.field === 'countries'}
-        <Notice tone="danger" variant="inline" text={fieldError.text} />
+        <Notice tone="danger" variant="inline" text={fieldError.text()} />
       {/if}
     </div>
     <div class="toggles">
@@ -716,7 +717,7 @@
       {#if dateError}
         <Notice tone="danger" variant="inline" text={dateError} testid="profile-date-error" />
       {:else if fieldError?.field === 'available'}
-        <Notice tone="danger" variant="inline" text={fieldError.text} />
+        <Notice tone="danger" variant="inline" text={fieldError.text()} />
       {/if}
       {#each problemsOf('available') as problem (problem.value)}
         <ValueNote
@@ -762,6 +763,7 @@
         variant="secondary"
         label={t.profile.discard}
         disabled={!editor.dirty || busy}
+        disabledReason={editor.dirty ? null : t.profile.noChanges}
         testid="profile-discard"
         onclick={ondiscard}
       />
@@ -771,6 +773,7 @@
       variant="primary"
       label={t.profile.save}
       disabled={!editor.dirty}
+      disabledReason={t.profile.noChanges}
       loading={busy}
       testid="profile-save"
       onclick={save}

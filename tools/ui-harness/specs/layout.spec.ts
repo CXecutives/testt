@@ -109,16 +109,12 @@ test('empty screens are never dead: an icon, one sentence, one way on, centred',
 });
 
 test('toasts: at most three, they stay while hovered and leave on their own', async ({ page }) => {
-  await open(page, '?platform=windows');
-  await page.getByTestId('nav-settings').click();
-  // Switches and file actions answer in place; a changed mailbox still reports by toast.
+  // Plain toasts (4 s) from the gallery: Einstellungen answers every action in place.
+  await open(page, '?gallery&platform=windows');
   // The window in the back holds their time, so a slow machine still sees all of them.
   await page.evaluate(() => window.__harness.fire('tauri://blur', null));
   for (let i = 0; i < 4; i += 1) {
-    await page.getByTestId('mailbox-change').click();
-    await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
-    await page.getByTestId('mailbox-save').click();
-    await expect(page.getByTestId('mailbox-change')).toBeVisible();
+    await page.getByRole('button', { name: 'Toast zeigen' }).click();
   }
   const toasts = page.getByTestId('toast');
   await expect(toasts).toHaveCount(3);

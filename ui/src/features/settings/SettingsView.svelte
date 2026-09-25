@@ -6,11 +6,15 @@
   confirm, and a confirmed action that fails closes its dialog so the note beside the action
   can say why.
   Switches move at once and are their own answer (no toast). The dry run changes nothing,
-  and a running fetch holds the mailbox, the folder and the files, so what they cannot do is
-  locked with that reason instead of failing. The Postfach says when the last fetch could
-  not reach Gmail or Gmail refused the password, instead of "Verbunden".
+  and a run (a fetch, or the rescore after a profile change) holds the mailbox, the folder
+  and the files, so what they cannot do is locked with the reason of that run instead of
+  failing. The Postfach says when the last fetch could not reach Gmail or Gmail refused the
+  password, instead of "Verbunden": a red badge like the sidebar's status, and a sentence
+  under the row only where it adds the cause or the next step.
   Every path row works the same: the path is text to select and copy, the folder opens with
-  "Ordner öffnen", the Excel file with "Öffnen".
+  "Ordner öffnen", the Excel file with "Öffnen". Textdateien says what they are (the ads as
+  text for an AI); after a change of the folder a note says that they are still in the old
+  one until "Neu schreiben".
 -->
 <script lang="ts">
   import Badge from '$components/Badge.svelte';
@@ -30,10 +34,13 @@
   import { app } from '$lib/state/app.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { tick } from 'svelte';
   import MailboxForm from '../shared/MailboxForm.svelte';
   import PortalCard from './PortalCard.svelte';
 
-  type Feedback = { tone: NoticeTone; text: string } | null;
+  /** A note keeps what happened and says it when it shows, so it follows a switch of the
+   *  language (a sentence made at once would stay in the old one). */
+  type Feedback = { tone: NoticeTone; text: () => string } | null;
 
   /** The app's languages, each named in its own words. */
   const LANGUAGES: readonly Language[] = ['de', 'en'];
@@ -56,7 +63,8 @@
   /** What the dry run cannot do, and why (the backend would refuse it). */
   const dryRun = $derived(cfg?.dryRun ?? false);
   const dryRunReason = $derived(t.error.text('dryRun', {}));
-  const lockedReason = $derived(dryRun ? dryRunReason : t.settings.running);
+  /** Why a locked action waits: the dry run, or the run in progress (a fetch or a rescore). */
+  const lockedReason = $derived(dryRun ? dryRunReason : run.busyText);
 
   /** Fetch failures that are about the mailbox itself (not a cancel, not a missing one). */
   const MAIL_FAILURES: readonly string[] = [
@@ -74,6 +82,15 @@
     if (mailboxSaved || outcome?.kind !== 'failed') return null;
     return MAIL_FAILURES.includes(outcome.error.kind) ? outcome.error : null;
   });
+  /** The sentence under the row: what to do when Gmail refused the password, else the cause
+   *  where it says more than the badge ("Gmail ist nicht erreichbar" is the badge itself). */
+  const mailFailureText = $derived(
+    mailFailure === null || mailFailure.kind === 'mailConnect'
+      ? null
+      : mailFailure.kind === 'mailAuth'
+        ? t.settings.mailRefused
+        : t.error.text(mailFailure.kind, mailFailure.params),
+  );
 
   async function act(
     name: string,
@@ -86,7 +103,7 @@
     try {
       note(await work());
     } catch (error) {
-      note({ tone: 'danger', text: errorText(error) });
+      note({ tone: 'danger', text: () => errorText(error) });
     } finally {
       busy = null;
       close?.();
@@ -95,8 +112,21 @@
 
   function open(target: OpenTarget, note: (f: Feedback) => void): void {
     invoke('open_target', { target }).catch((error: unknown) =>
-      note({ tone: 'danger', text: errorText(error) }),
+      note({ tone: 'danger', text: () => errorText(error) }),
     );
+  }
+
+  /** Ändern and Entfernen of the connected mailbox. */
+  let mailboxButtons = $state<HTMLElement | null>(null);
+
+  /** The change form closes: the focus it held goes back to "Ändern", as a dialog's goes back
+   *  to its opener (only when it fell to the page, never taken from elsewhere). */
+  async function closeForm(): Promise<void> {
+    editing = false;
+    await tick();
+    if (document.activeElement === document.body) {
+      mailboxButtons?.querySelector<HTMLElement>('button')?.focus();
+    }
   }
 
   const setMailbox = (f: Feedback): void => void (mailboxNote = f);
@@ -191,23 +221,27 @@
     });
   }
 
+  /** Another work folder: the text files there are only the new ones (the backend never
+   *  writes a text file twice by itself), so a note says where the others are. */
   function pickWorkspace(): void {
+    const folder = cfg?.settings.workspace ?? null;
+    const files = cfg?.settings.txtFiles ?? 0;
     void act('workspace', setFiles, async () => {
       const path = await invoke('pick_workspace');
-      if (path !== null) await app.load();
-      return null;
+      if (path === null) return null;
+      const next = await app.load();
+      const moved = next !== null && next.settings.workspace !== folder;
+      return moved && files > 0 ? { tone: 'info', text: () => t.settings.txtLeftBehind } : null;
     });
   }
 
   function rewrite(): void {
     void act('rewrite', setFiles, async () => {
-      const result = await invoke('rewrite_txt');
+      const { error, txtFailed, txtWritten } = await invoke('rewrite_txt');
       await app.load();
-      if (result.error)
-        return { tone: 'danger', text: t.error.text(result.error.kind, result.error.params) };
-      if (result.txtFailed > 0)
-        return { tone: 'warning', text: t.settings.txtFailed(result.txtFailed) };
-      return { tone: 'success', text: t.settings.txtWritten(result.txtWritten) };
+      if (error) return { tone: 'danger', text: () => t.error.text(error.kind, error.params) };
+      if (txtFailed > 0) return { tone: 'warning', text: () => t.settings.txtFailed(txtFailed) };
+      return { tone: 'success', text: () => t.settings.txtWritten(txtWritten) };
     });
   }
 
@@ -216,12 +250,12 @@
       'clear',
       setFiles,
       async () => {
-        const result = await invoke('clear_txt');
+        const { failed, removed } = await invoke('clear_txt');
         await app.load();
-        if (result.failed.length > 0) {
-          return { tone: 'warning', text: t.settings.txtFailed(result.failed.length) };
+        if (failed.length > 0) {
+          return { tone: 'warning', text: () => t.settings.txtFailed(failed.length) };
         }
-        return { tone: 'success', text: t.settings.txtCleared(result.removed) };
+        return { tone: 'success', text: () => t.settings.txtCleared(removed) };
       },
       () => (confirmClear = false),
     );
@@ -231,7 +265,7 @@
     confirmFull = false;
     void run.start({ kind: 'fullMailbox' }).then((started) => {
       if (started) navigation.go('jobs');
-      else setCare({ tone: 'danger', text: run.startError ?? t.run.failed });
+      else setCare({ tone: 'danger', text: () => run.startError ?? t.run.failed });
     });
   }
 
@@ -252,7 +286,7 @@
 <!-- A note rises in where its action happened and fades when it goes (Notice, never at mount). -->
 {#snippet note(feedback: Feedback, testid: string)}
   {#if feedback}
-    <Notice tone={feedback.tone} variant="inline" text={feedback.text} {testid} />
+    <Notice tone={feedback.tone} variant="inline" text={feedback.text()} {testid} />
   {/if}
 {/snippet}
 
@@ -281,22 +315,26 @@
                   label={mailFailure.kind === 'mailAuth'
                     ? t.settings.refused
                     : t.settings.unreachable}
-                  tone="warning"
+                  tone="danger"
                   icon="triangle-alert"
                 />
               {:else}
                 <Badge label={t.settings.connected} tone="success" icon="check" />
               {/if}
             {/snippet}
-            <div class="buttons">
+            <div class="buttons" bind:this={mailboxButtons}>
               <Button
                 variant="secondary"
                 size="sm"
+                icon="pencil"
                 label={t.common.change}
                 disabled={run.active || dryRun}
                 disabledReason={lockedReason}
                 testid="mailbox-change"
-                onclick={() => (editing = true)}
+                onclick={() => {
+                  mailboxNote = null;
+                  editing = true;
+                }}
               />
               <Button
                 variant="ghost"
@@ -314,24 +352,21 @@
           {#if !cfg.mailbox.user}
             <p class="lead">{t.settings.notConnected}</p>
           {/if}
+          <!-- "Ändern" gives way to the form, which takes the caret; closing it gives it back.
+               A saved change says so under the row, like every action on this page. -->
           <MailboxForm
             saveLabel={cfg.mailbox.user ? t.common.save : t.settings.connect}
-            oncancel={cfg.mailbox.user ? () => (editing = false) : null}
+            autofocus={editing}
+            oncancel={cfg.mailbox.user ? () => void closeForm() : null}
             onsaved={() => {
-              editing = false;
               mailboxSaved = true;
+              mailboxNote = { tone: 'success', text: () => t.settings.mailboxSaved };
+              void closeForm();
             }}
           />
         {/if}
-        {#if mailFailure && !editing}
-          <Notice
-            tone="danger"
-            variant="inline"
-            text={mailFailure.kind === 'mailAuth'
-              ? t.settings.mailRefused
-              : t.error.text(mailFailure.kind, mailFailure.params)}
-            testid="mailbox-failure"
-          />
+        {#if mailFailureText && !editing}
+          <Notice tone="danger" variant="inline" text={mailFailureText} testid="mailbox-failure" />
         {/if}
         {#if cfg.mailbox.error}
           <Notice
@@ -410,6 +445,7 @@
             <Button
               variant="secondary"
               size="sm"
+              icon="pencil"
               label={t.common.change}
               loading={busy === 'workspace'}
               disabled={run.active || dryRun}
@@ -432,7 +468,7 @@
           <Button
             variant="ghost"
             size="sm"
-            icon="file-text"
+            icon="file-spreadsheet"
             label={t.common.open}
             disabled={!cfg.settings.excelExists}
             disabledReason={t.settings.excelMissing}
@@ -496,7 +532,7 @@
             icon="mail"
             label={t.settings.fullMailboxAction}
             disabled={run.active || !cfg.mailbox.user}
-            disabledReason={run.active ? t.settings.running : t.toolbar.needsMailbox}
+            disabledReason={run.active ? run.busyText : t.toolbar.needsMailbox}
             testid="full-mailbox"
             onclick={() => (confirmFull = true)}
           />
@@ -543,6 +579,7 @@
           size="sm"
           icon="rotate-ccw"
           label={t.settings.resetAction}
+          warns
           disabled={run.active || dryRun}
           disabledReason={lockedReason}
           testid="reset"

@@ -54,7 +54,9 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await page.getByTestId('mailbox-user').fill('alerts.demo@gmail.com');
   await page.getByTestId('mailbox-password').fill('kurz');
   await page.getByTestId('mailbox-password').press('Enter');
-  await expect(page.getByTestId('mailbox-form')).toContainText('16 Buchstaben');
+  await expect(page.getByTestId('mailbox-form')).toContainText(
+    'Ein App-Passwort hat 16 Buchstaben.',
+  );
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('aria-current', 'step');
   await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
   await page.getByTestId('mailbox-password').press('Enter');
@@ -339,7 +341,7 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   );
   await expect(pause).toHaveClass(/info/);
   const mails = page.getByTestId('health-freelance');
-  await expect(mails).toHaveText(
+  await expect(mails.locator('.text')).toHaveText(
     '2 Alert-Mails enthielten keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
   );
   await expect(mails).toHaveClass(/warning/);
@@ -402,7 +404,8 @@ test('the mailbox says when the last fetch could not reach Gmail', async ({ page
   const mailbox = page.getByTestId('settings-mailbox');
   await expect(mailbox).toContainText('Nicht erreichbar');
   await expect(mailbox).not.toContainText('Verbunden');
-  await expect(page.getByTestId('mailbox-failure')).toHaveText('Gmail ist nicht erreichbar.');
+  // The badge says it all; no sentence under it repeats it.
+  await expect(page.getByTestId('mailbox-failure')).toHaveCount(0);
 });
 
 test('the macOS demo shows the keychain and Mac paths', async ({ page }) => {
@@ -473,7 +476,7 @@ test('a refused app password says so in the form', async ({ page }) => {
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('data-done', 'false');
 });
 
-test('a changed mailbox: save and cancel at the trailing edge, a toast that says it', async ({
+test('a changed mailbox: save and cancel at the trailing edge, a note that says it', async ({
   page,
 }) => {
   await settings(page);
@@ -487,7 +490,9 @@ test('a changed mailbox: save and cancel at the trailing edge, a toast that says
   expect(edge).toBeLessThanOrEqual(1);
   await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
   await page.getByTestId('mailbox-save').click();
-  await expect(page.getByTestId('toast').last()).toHaveText('Postfach verbunden.');
+  // Like every action in Einstellungen, it answers where it happened (no toast).
+  await expect(page.getByTestId('mailbox-note')).toHaveText('Postfach verbunden.');
+  await expect(page.getByTestId('toast')).toHaveCount(0);
 });
 
 test('the dry run shows its mailbox and refuses what would write outside it', async ({ page }) => {

@@ -39,9 +39,11 @@
   let prompt = $state<string | null>(null);
   let copied = $state(false);
   let busy = $state<'pick' | 'save' | 'remove' | 'paste' | null>(null);
-  let note = $state<string | null>(null);
-  let saveNote = $state<string | null>(null);
-  let pasteError = $state<string | null>(null);
+  /** A failure is said when it shows, so it follows a switch of the language. */
+  type Words = () => string;
+  let note = $state<Words | null>(null);
+  let saveNote = $state<Words | null>(null);
+  let pasteError = $state<Words | null>(null);
   /** The steps with an AI update the stored profile (else they make a new one). */
   let updating = $state(false);
   let saved = $state(false);
@@ -97,7 +99,7 @@
   }
 
   function closeWindow(): void {
-    invoke('close_window').catch((error: unknown) => (note = errorText(error)));
+    invoke('close_window').catch((error: unknown) => (note = () => errorText(error)));
   }
 
   onMount(() => {
@@ -132,7 +134,7 @@
       const draft = await invoke('pick_profile');
       if (draft !== null) editor.take(draft, 'file');
     } catch (error) {
-      note = errorText(error);
+      note = () => errorText(error);
     } finally {
       busy = null;
     }
@@ -141,7 +143,7 @@
   function openFolder(): void {
     note = null;
     invoke('open_target', { target: { kind: 'profileDir' } }).catch(
-      (error: unknown) => (note = errorText(error)),
+      (error: unknown) => (note = () => errorText(error)),
     );
   }
 
@@ -173,7 +175,7 @@
       if (updating && stored !== null) editor.update(draft, stored);
       else editor.take(draft, 'answer');
     } catch (error) {
-      pasteError = errorText(error);
+      pasteError = () => errorText(error);
     } finally {
       busy = null;
     }
@@ -207,9 +209,9 @@
     } catch (error) {
       const at = refused(error);
       if (at === null) {
-        saveNote = errorText(error);
+        saveNote = () => errorText(error);
       } else {
-        fieldError = { ...at, text: errorText(error) };
+        fieldError = { ...at, text: () => errorText(error) };
         void panel?.focusField(at.field);
       }
       return false;
@@ -239,7 +241,7 @@
         });
       }
     } catch (error) {
-      note = errorText(error);
+      note = () => errorText(error);
     } finally {
       // The dialog closes either way; a failure shows next to the file.
       confirmRemove = false;
@@ -254,7 +256,7 @@
       await invoke('restore_profile');
       await reload();
     } catch (error) {
-      note = errorText(error);
+      note = () => errorText(error);
     }
   }
 
@@ -368,7 +370,7 @@
       {prompt}
       {copied}
       busy={busy === 'paste'}
-      error={pasteError}
+      error={pasteError?.() ?? null}
       oncopy={() => void copyPrompt()}
       ontake={(answer) => void takeAnswer(answer)}
       oncancel={() => (editor.pasting = false)}
@@ -382,7 +384,7 @@
           : t.overview.noProfileText}
         picking={busy === 'pick'}
         unreadable={profile?.parseError !== null && profile?.parseError !== undefined}
-        {note}
+        note={note?.() ?? null}
         oncreate={() => editor.create()}
         onfromcv={() => void fromCv()}
         onpick={() => void pick()}
@@ -403,7 +405,7 @@
       {rescoring}
       dirty={editor.dirty}
       picking={busy === 'pick'}
-      {note}
+      note={note?.() ?? null}
       onpick={() => void pick()}
       onremove={() => (confirmRemove = true)}
       onfromcv={() => void fromCv()}
@@ -417,7 +419,7 @@
       {understood}
       {fieldError}
       busy={busy === 'save'}
-      note={saveNote}
+      note={saveNote?.() ?? null}
       {result}
       onnext={next}
       onsave={() => void save()}

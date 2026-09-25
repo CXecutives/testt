@@ -28,7 +28,8 @@
 // `save_profile` refuses a minimum day rate above 100.000 and a competence with more than 70
 // years (with its row), like core's validation.
 // `?tick=ms` sets the pace of a scripted run (default 40); `?export=locked` lets the export
-// of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail.
+// of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail;
+// `?folder=other` lets `pick_workspace` choose another, empty folder.
 // Dates are fixed so screenshots stay stable (the tests also fix the clock). The portals
 // come in the order of the backend (`Portal::ALL`).
 
@@ -2041,7 +2042,19 @@ const handlers: Handlers = {
     if (p) p.signedIn = false;
     return true;
   },
-  pick_workspace: () => null,
+  pick_workspace: () => {
+    if (params.get('folder') !== 'other') return null;
+    // Nothing is written there yet: the text files stay in the old folder.
+    const folder = `${HOME}/Documents/Jobs`;
+    state.settings = {
+      workspace: folder,
+      workspaceIsDefault: false,
+      txtFiles: 0,
+      excelPath: `${folder}/auswertung/JobAlerts.xlsx`,
+      excelExists: false,
+    };
+    return folder;
+  },
   rewrite_txt: () => ({
     overviewXlsx: null,
     overviewHtml: null,

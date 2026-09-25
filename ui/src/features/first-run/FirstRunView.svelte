@@ -1,11 +1,13 @@
 <!--
-  First run (full page) on the white sheet: the app mark, one sentence of what the app
-  does, one about privacy, and three real steps that tick themselves: connect the mailbox,
-  a usable profile (made in the Profil view, whose editor also imports a file or a CV),
-  fetch. The next open step carries the one primary button; "Abrufen" stays locked
-  with its reason until a mailbox is connected. After "Alles zurücksetzen" the app starts
-  here again, so this is where the reset reports. Compact enough that the third step is in
-  view at 1280 x 720; the sidebar is inert here (the Profil view frees it again).
+  First run (full page) on the white sheet, in the column of every view: the app mark beside
+  its name, one sentence of what the app does, one about privacy, and three real steps that
+  tick themselves: connect the mailbox, a usable profile (made in the Profil view, whose
+  editor also imports a file or a CV), fetch. The next open step carries the one primary
+  button; "Abrufen" stays locked with its reason until a mailbox is connected. After "Alles
+  zurücksetzen" the app starts here again, so this is where the reset reports. Compact enough
+  that all three steps are in view at 1280 x 720 on both OS (after a reset its report stands
+  above them; the current step's action is in view then too); the sidebar is inert here (the
+  Profil view frees it again).
 
   A vertical stepper: 28 px markers (the current one deep navy, "you are here"; upcoming
   ones outlined; done ones green with a check) joined by a hairline that fills green below
@@ -49,9 +51,10 @@
   const current = $derived(!mailboxDone ? 1 : !profileDone ? 2 : 3);
   const reset = $derived(app.state?.resetReport ?? null);
 
-  /** Who the profile is about (the file name only when it names nobody). */
+  /** Who the profile is about: the name, else the role, else what the Profil view calls a
+   *  profile without a name. */
   const profileName = $derived(
-    profile?.form?.name.trim() || profile?.form?.title.trim() || profile?.fileName || '',
+    profile?.form?.name.trim() || profile?.form?.title.trim() || t.profile.unnamed,
   );
   let profileActions = $state<HTMLElement | null>(null);
 
@@ -106,8 +109,10 @@
 <div class="hero" data-testid="first-run">
   <div class="column">
     <header class="intro">
-      <BrandMark size="lg" />
-      <h1 class="title">{t.app.name}</h1>
+      <div class="brand">
+        <BrandMark size="lg" />
+        <h1 class="title">{t.app.name}</h1>
+      </div>
       <p class="benefit">{t.firstRun.benefit}</p>
       <p class="privacy"><Icon name="shield" size="sm" />{t.firstRun.privacy}</p>
     </header>
@@ -135,7 +140,8 @@
           <div class="body">
             <h2 class="name">{t.firstRun.mailbox}</h2>
             {#if mailboxDone}
-              <p class="done-text" in:rise>{app.state?.mailbox.user}</p>
+              <!-- The address the portals' alert mails must go to: text to copy. -->
+              <p class="done-text" data-copy in:rise>{app.state?.mailbox.user}</p>
             {:else}
               <p class="hint">{t.firstRun.mailboxText}</p>
               <MailboxForm saveLabel={t.settings.connect} autofocus />
@@ -157,19 +163,18 @@
               <p class="done-text" in:rise>{profileName}</p>
             {:else}
               {#if profileProblem}
-                <Notice
-                  tone="warning"
-                  variant="inline"
-                  text={profileProblem}
-                  testid="first-profile-problem"
-                />
+                <!-- In the place and size of the hint, with the glyph and tone of a warning. -->
+                <p class="hint problem" data-testid="first-profile-problem">
+                  <Icon name="triangle-alert" size="sm" /><span>{profileProblem}</span>
+                </p>
               {:else}
                 <p class="hint">{t.firstRun.profileText}</p>
               {/if}
               <div class="actions" bind:this={profileActions}>
+                <!-- A new profile is made (plus, as in the Profil view), an existing one opened. -->
                 <Button
                   variant={current === 2 ? 'primary' : 'secondary'}
-                  icon="file-text"
+                  icon={profile ? 'file-text' : 'plus'}
                   label={profile ? t.list.openProfile : t.profile.create}
                   testid="first-profile"
                   onclick={openProfile}
@@ -206,9 +211,11 @@
 </div>
 
 <style>
+  /* The one inner padding of every content column, so the card lines up with the Profil and
+     Einstellungen cards it leads to. */
   .hero {
     min-height: 100%;
-    padding: var(--space-16) var(--space-24) var(--space-24);
+    padding: var(--pane-padding) var(--pane-padding) var(--space-24);
   }
 
   .column {
@@ -225,6 +232,13 @@
     align-items: center;
     gap: var(--space-8);
     text-align: center;
+  }
+
+  /* The mark beside the name, like the app's lockup: one row, not two. */
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
   }
 
   .title {
@@ -366,6 +380,18 @@
   .done-text {
     color: var(--text-muted);
     font: var(--type-md);
+  }
+
+  /* The glyph sits on the first line when the sentence wraps. */
+  .problem {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-6);
+    color: var(--warning-strong);
+  }
+
+  .problem > :global(:first-child) {
+    margin-top: calc((var(--leading-md) - var(--icon-sm)) / 2);
   }
 
   .actions {

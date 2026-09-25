@@ -1070,6 +1070,8 @@ export const de = {
     review: 'Prüfe die Angaben und speichere sie.',
     save: 'Speichern',
     discard: 'Verwerfen',
+    /** Why Speichern and Verwerfen wait. */
+    noChanges: 'Noch nichts geändert.',
     saved: 'Gespeichert.',
     leaveHeading: 'Änderungen speichern?',
     leaveText: 'Die Änderungen am Profil sind nicht gespeichert.',
@@ -1108,6 +1110,9 @@ export const de = {
       addCompetence: 'Kompetenz hinzufügen',
       removeCompetence: (name: string) => `${name || 'Kompetenz'} entfernen`,
       star: 'Als Schwerpunkt markieren',
+      /** The star of a Schwerpunkt, and of a row without a competence yet. */
+      unstar: 'Schwerpunkt entfernen',
+      starEmpty: 'Erst eine Kompetenz eintragen.',
       focusCount: (count: number, max: number) => `Schwerpunkte ${count} von ${max}`,
       focusHint: 'Kompetenzen mit Stern zählen doppelt, höchstens fünf.',
       focusFull: 'Höchstens fünf Schwerpunkte.',
@@ -1267,6 +1272,8 @@ export const de = {
       preview: 'Prompt ansehen',
       answer: 'Antwort der KI',
       take: 'Übernehmen',
+      /** Why Übernehmen waits. */
+      takeEmpty: 'Erst die Antwort der KI einfügen.',
     },
   },
   settings: {
@@ -1288,13 +1295,15 @@ export const de = {
     } satisfies Record<VaultKind, string>,
     address: 'Gmail-Adresse',
     password: 'App-Passwort',
-    passwordHint: '16 Buchstaben, erstellt im Google-Konto.',
     createPassword: 'App-Passwort erstellen',
-    twoStep: 'Ein App-Passwort braucht die Bestätigung in zwei Schritten.',
+    /** Under both fields: what an app password is and needs (the pages follow). */
+    twoStep: 'Ein App-Passwort hat 16 Buchstaben und braucht die Bestätigung in zwei Schritten.',
     addressMissing: 'Die Gmail-Adresse fehlt.',
     passwordMissing: 'Das App-Passwort fehlt.',
     twoStepAction: 'Bestätigung einschalten',
     connect: 'Verbinden',
+    /** A changed mailbox is saved (said under its row). */
+    mailboxSaved: 'Postfach verbunden.',
     removeMailbox: 'Postfach entfernen?',
     removeMailboxText: 'Das App-Passwort wird gelöscht, die Jobs bleiben.',
     autoFetch: 'Beim Start abrufen',
@@ -1348,7 +1357,9 @@ export const de = {
     /** What the text files are (one per ad) and what they are for, with their number. */
     txtCount: (value: number) =>
       `${count(value, 'Anzeige', 'Anzeigen')} als Text für eine KI-Bewertung`,
-    txtNone: 'Es gibt keine Textdateien.',
+    /** After a change of the work folder: only new text files are written there by themselves. */
+    txtLeftBehind: 'Die Textdateien liegen noch im alten Ordner, Neu schreiben legt sie hier an.',
+    txtNone: 'Es gibt noch keine Textdateien.',
     txtRewrite: 'Neu schreiben',
     txtClear: 'Löschen',
     txtWritten: (value: number) => `${count(value, 'Datei', 'Dateien')} geschrieben.`,
@@ -1413,7 +1424,6 @@ export const de = {
     sidebarKey: { ctrl: 'Strg+B', cmd: '⌘B' } satisfies Record<'ctrl' | 'cmd', string>,
   },
   toast: {
-    mailboxSaved: 'Postfach verbunden.',
     rescored: 'Die Jobs sind neu bewertet.',
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
