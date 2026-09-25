@@ -58,7 +58,6 @@ export type { ReasonKind } from "./ReasonKind";
 export type { ReasonWeight } from "./ReasonWeight";
 export type { RemoteWish } from "./RemoteWish";
 export type { ResetSummary } from "./ResetSummary";
-export type { Risk } from "./Risk";
 export type { RunEvent } from "./RunEvent";
 export type { RunKind } from "./RunKind";
 export type { RunKindName } from "./RunKindName";

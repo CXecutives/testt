@@ -874,7 +874,6 @@ const portal = (name: PortalState['portal'], extra: Partial<PortalState> = {}): 
   login: name === 'freelance' ? 'optional' : 'none',
   loginEnabled: false,
   signedIn: name === 'freelance' ? false : null,
-  risk: name === 'freelancermap' ? 'low' : 'grey',
   health: { kind: 'ok' },
   actionNeeded: false,
   quota: null,
@@ -2196,10 +2195,7 @@ const handlers: Handlers = {
       if (p === undefined) continue;
       if (change.enabled !== null) p.enabled = change.enabled;
       if (change.fetchDetails !== null) p.fetchDetails = change.fetchDetails;
-      if (change.loginEnabled !== null) {
-        p.loginEnabled = change.loginEnabled;
-        p.risk = change.loginEnabled ? 'account' : 'grey';
-      }
+      if (change.loginEnabled !== null) p.loginEnabled = change.loginEnabled;
     }
     // Every portal may be off (the backend saves it); a fetch is then refused, see start_run.
     if (patch.autoFetchOnStart !== null) state.autoFetchOnStart = patch.autoFetchOnStart;

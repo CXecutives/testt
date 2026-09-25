@@ -105,7 +105,6 @@ export const text = {
     toggleHint: 'Ruft neue Alert-Mails ab, wenn der letzte Abruf über sechs Stunden her ist.',
     locked: 'Anmelden',
     lockedReason: 'Erst nach dem laufenden Abruf möglich.',
-    risk: 'Konto betroffen',
     facet: 'Ansicht',
     facets: ['Neu', 'Alle'],
     views: ['Neu', 'Alle', 'Gemerkt', 'Bewerbungen'],

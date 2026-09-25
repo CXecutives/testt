@@ -26,7 +26,7 @@ use crate::view::{
     MatchDetail, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
     ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileDraft, ProfileForm,
     ProfileInfo, ProfileLanguage, ProfileQuality, ProfileSave, ProfileSource, ProfileUnderstanding,
-    ProfileWishes, Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary, Risk,
+    ProfileWishes, Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary,
     SettingsPatch, SettingsView, TextRange, UnreadableField, VaultKind, WorkMode,
 };
 
@@ -167,7 +167,6 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<SettingsPatch>();
     f.add::<PortalPatch>();
     f.add::<PortalLogin>();
-    f.add::<Risk>();
     f.add::<Quota>();
     f.add::<PortalState>();
     f.add::<ProfileQuality>();
