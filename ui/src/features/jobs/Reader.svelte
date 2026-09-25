@@ -453,10 +453,10 @@
     if (!guarded()) toggleStar([job]);
   }
 
+  const DAY_MS = 86_400_000;
   /** Not in the inbox: where it lies, quietly under the title. The trash says in how many
    *  days it goes (counted from the day the job went there, following the clock; past that,
    *  soon: the next run or start empties it). */
-  const DAY_MS = 86_400_000;
   const placeLine = $derived.by((): string | null => {
     if (job.place === 'archive') return t.place.inArchive;
     if (job.place !== 'trash') return null;
