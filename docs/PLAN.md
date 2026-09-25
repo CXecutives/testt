@@ -415,7 +415,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       marked and never a TXT; jobs beyond the 30-day window say "Details auf Anfrage"; teasers and slug links take
       part in duplicates, archived or closed jobs are no original. Open: the WebKit status path wants the
       macos-latest probe, one guest page of freelance.de for a real-structure fixture at the next allowed live run.
-- [ ] Live canary per portal (one counted page via `admit`)
+- [x] Live canary per portal (one counted page via `admit`): the user's run of 2026-09-25 14:35 through the app read 18
+      mails and fetched every portal without a stop (LinkedIn 2 full ads, freelancermap 2 full, freelance.de 2 guest
+      teasers by design)
 - [x] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios (2026-09-25:
       NSIS build installed here and clicked through with the real mailbox data; macOS CI app screenshots and the dmg
       install probe; every harness scenario in Chromium and WebKit)
@@ -440,7 +442,8 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [x] Rings and the list's bar (user, 2026-09-25; see Decisions "One ring, one sliding bar"): every ring on one
       solid track, the open row's bar slides like the sidebar's pill (`features/jobs/RowBar.svelte`); harness
       `asks-rings-bar.spec.ts` in both engines
-- [ ] Performance: start time; contrast
+- [x] Performance: start time; contrast (2026-09-25: the installed release shows its first content about 0.45 s after
+      the process starts, warm, measured over CDP; contrast in the consistency audit below)
 - [x] Consistency audit per screen (checklist below) and fixes; one adversarial review workflow over the whole diff
       (2026-09-25: two UI audits with 86 and 36 confirmed findings, a scraping review with 31 and a final review with
       42, all fixed; then the installed app walked through: place changes close the open job from any view, an empty

@@ -1,4 +1,4 @@
-//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout7`):
+//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout8`):
 //! invented ads with blind labels (grade 0-3, excluded) written by independent agents for
 //! profiles the engine was not tuned on at the time. Every set was later used to find and
 //! fix systematic gaps, so they are regression gates now, not an unseen measurement.
@@ -211,11 +211,11 @@ const HELDOUT7: Floor = Floor {
     grade3_buried: 3,
 };
 const HELDOUT8: Floor = Floor {
-    ndcg10: 0.0,
-    spearman: 0.0,
-    exclusion_precision: 0.0,
-    exclusion_recall: 0.0,
-    grade3_buried: 99,
+    ndcg10: 0.93,
+    spearman: 0.39,
+    exclusion_precision: 0.97,
+    exclusion_recall: 0.85,
+    grade3_buried: 1,
 };
 /// Engine 9 moved set 2 from 0.864 to 0.856: a language met is a light fit now, so off-field
 /// ads whose only fitting musts are languages (grade 0 and 1 alike) fall below the cap they

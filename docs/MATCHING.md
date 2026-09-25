@@ -458,6 +458,144 @@ too, is a check. An interim role meets the criterion with the ad's contract type
 is unchanged, the golden digest changed only by its version line (with `engine 10` in front the
 rows give the version-10 value).
 
+### Held-out set 7
+
+Held-out set 7 (`heldout7/`, commit 085dbdf) has 64 fresh invented ads: J01-J16, K01-K16, L01-L16 and M01-M16. Of these, 18 are in English, 13 are teasers and 12 carry page facts. They are scored for 15 profiles: P1, P2 and P4 to P14 in the set's folder, plus `sample_profile_sap_wishes` and `sample_profile_senior_wishes`. That makes 960 labelled pairs, with blind labels by two labelers and an arbiter, as in set 6. It is the first set measured with the order metrics of "Corpus and gates". With 85 grade-2/3 pairs against 5,049 grade-0/1 pairs, a perfect order reaches only 0.51 of the pooled Spearman.
+
+First contact was engine 10. Engine 11 scores the set alike, because none of its profiles excludes permanent employment. The result:
+- NDCG@10 0.900, against 0.573 for the old engine;
+- three grade-3 jobs buried;
+- 12 exclusions the labels do not share. Seven of them are K03, whose freelancermap footer "Ähnliche Projekte" names Arbeitnehmerüberlassung.
+
+Set 7 joined the regression corpora at that level (`HELDOUT7` in `matching_heldout.rs`: NDCG@10 0.89, Spearman 0.43, exclusion precision 0.97, recall 0.88, at most 3 buried). The floors still stand at first contact.
+
+Left at version 13 (engine 12 fixed K03, see below):
+- Wrong exclusions: M04 (P1, P9, senior) and J02 (P4, senior) are `tooJunior`. The ad's highest years are below the profile's `zielprofil_min_jahre`, but the labels still fit them.
+- Missed exclusions (recall 0.889):
+  - the student jobs J15, K11 and L11 for ten profiles each; the labelers exclude them by their wage, the engine keeps them in with checks (`permanent`, `seniorityUnclear`);
+  - J12 for eight profiles, a fully remote role the labels exclude while the engine raises `countryUnclear`;
+  - single profiles of K04, K07, K12, K13, L03, L07, L08, M12, M14 and M16.
+- Buried: P5 K06 (a rate in another currency, `dayRateCurrency`) and senior J08 (a teaser with little evidence).
+
+### Version 12: the other listings under an ad
+
+Portals show other listings under an ad ("Ähnliche Projekte (12)", "Weitere Projekte von ...", "Similar jobs"). The requirement parser has stopped there since version 9; the hard criteria did not. On set 7 the footer ANÜ of another listing excluded K03 for seven profiles: 7 of its 12 wrong exclusions.
+
+- `facts::own_text` returns the ad up to the first line that is a heading of the other listings. A heading is a line, after at least one line of the ad, whose folded text (at most 48 characters) starts with a heading of `lexicon::OTHER_LISTINGS`: `Ähnliche Projekte`, `Ähnliche Jobs`, `Ähnliche Stellen`, `Ähnliche Stellenangebote`, `Weitere Projekte`, `Weitere Jobs`, `Weitere Stellen`, `Andere Projekte`, `Similar projects`, `Similar jobs`, `More jobs`, `People also viewed`.
+- The hard criteria (ANÜ, country, day rate, contract type, permanent role, salary and region) and the seniority read only that part. The rest of the engine reads the text as before, and the stored and shown ad stays whole.
+- A sentence that only mentions similar projects (`Ähnliche Projekte im Mittelstand erfolgreich umgesetzt ...`) is no heading, and a text that starts with such a heading keeps it (`the_other_listings_under_an_ad_are_no_part_of_it` in `facts.rs`).
+
+The corpus rows and held-out sets 1 to 6 are unchanged; the golden digest changed only by its version line. Set 7 (old = the old engine; v11 = first contact, the same as engine 10):
+
+| Metric | Old | v11 | v12 |
+|---|---|---|---|
+| NDCG@10 | 0.573 | 0.900 | 0.918 |
+| NDCG@20 | 0.627 | 0.916 | 0.935 |
+| P@5 (reachable) | 0.629 | 0.830 | 0.852 |
+| Spearman, all pairs | 0.292 | 0.438 | 0.448 |
+| Spearman, relevant pairs | 0.516 | 0.618 | 0.658 |
+| Concordance 0v3 / 0v2 / 1v3 | 0.840 / 0.654 / 0.752 | 0.980 / 0.888 / 0.849 | 0.981 / 0.889 / 0.849 |
+| Concordance 2v3 / 1v2 | 0.712 / 0.460 | 0.824 / 0.588 | 0.824 / 0.588 |
+| grade-3 jobs buried | 27 | 3 | 2 |
+| exclusion precision / recall | | 0.973 / 0.889 | 0.989 / 0.889 |
+
+### Version 13: country names in a profile
+
+`harte_kriterien.laender` (`countries`) was read only as two-letter codes. A profile that names its countries went the old reader's way, as a hand-written file or an AI answer may do (`["Deutschland", "Österreich"]`). The names became the "codes" `DEUTSCHLAND` and `ÖSTERREICH`, which no ad's country matches. So every ad that names a country was excluded by `country`.
+
+- Every entry becomes an ISO code. Two letters stay as written (`ch` = `CH`, `UK` = `GB`). A country name of `lexicon::COUNTRIES` becomes its code: 40 German and English names of 19 countries, folded (`Deutschland`, `Österreich`, `Germany`, `Switzerland`, ...). This holds for a list and for one text (`Germany, Switzerland`, split at `,` `;` `/`).
+- A list with one entry the engine does not know (`Atlantis`) is no rule. The criterion is reported as `criterionNotUnderstood {key, value}`, and the Profil view offers "Wert entfernen" at its field. Before, such an entry became a code that would exclude every job.
+- The Profil view writes codes. Einsatzländer suggests every country the engine tells apart (`profile::country_codes`, named in both UI catalogs, `core/tests/countries.rs`).
+
+Unit test: `country_names_in_a_profile_become_codes_and_unknown_ones_are_no_rule` (`facts.rs`). Every fixture profile writes codes, so the corpus rows and all seven held-out sets are unchanged; the golden digest changed only by its version line. As with every new `ENGINE_VERSION`, the app scores every stored job again after the update (revision `e13.4:{fingerprint}`).
+
+### All held-out sets and the corpus at version 13
+
+`cargo test -p jobalert-core --test matching_heldout -- --ignored heldout_report --nocapture`:
+
+| Set | NDCG@10 | P@5 | Spearman relevant | Concordance 2v3 | Concordance 1v2 | Buried | Exclusions P / R |
+|---|---|---|---|---|---|---|---|
+| heldout1 | 0.928 | 1.000 | 0.766 | 0.730 | 0.594 | 0 | 1.000 / 1.000 |
+| heldout2 | 0.856 | 0.875 | 0.657 | 0.567 | 0.714 | 1 | 1.000 / 1.000 |
+| heldout3 | 0.956 | 0.967 | 0.589 | 0.586 | 0.731 | 0 | 1.000 / 1.000 |
+| heldout4 | 0.821 | 0.843 | 0.563 | 0.472 | 0.806 | 0 | 1.000 / 0.988 |
+| heldout5 | 0.819 | 0.967 | 0.683 | 0.772 | 0.661 | 0 | 0.988 / 1.000 |
+| heldout6 | 0.909 | 0.950 | 0.804 | 0.831 | 0.814 | 0 | 0.989 / 0.994 |
+| heldout7 | 0.918 | 0.852 | 0.658 | 0.824 | 0.588 | 2 | 0.989 / 0.889 |
+
+The old engine per set:
+- NDCG@10: 0.546, 0.558, 0.541, 0.395, 0.352, 0.561, 0.573;
+- Spearman over the relevant pairs: 0.311, 0.256, -0.097, 0.179, 0.058, 0.249, 0.516;
+- concordance 2v3: 0.674, 0.798, 0.681, 0.670, 0.576, 0.615, 0.712.
+
+Against the gates of the gold set these results are reported only; the held-out tests gate their own floors.
+- Spearman over the relevant pairs passes on every set and beats the old engine everywhere.
+- Concordance 2v3 fails on sets 2, 3 and 4 (0.567, 0.586, 0.472 against the gate 0.70). There the engine orders a profile's best jobs against the merely good ones worse than the old engine.
+- Concordance 1v3 fails on sets 1, 3 and 4 (0.730, 0.702, 0.674 against 0.80).
+- Concordance 0v3 fails on set 4 (0.916 against 0.95).
+- Exclusion precision is below 1.000 on sets 5, 6 and 7: the student wage, the agency wage and `tooJunior`, all label disagreements.
+- Set 7 buries two grade-3 jobs.
+
+The pre-score that orders each portal's fetch queue (`matching::prescore`, title fit only) separates the relevant jobs (grade 2 or 3, not excluded by the labels) from the rest with an AUC of 0.906 over 2,824 held-out pairs (0.846 to 0.933 per set). That is above the 0.7 that `docs/PLAN.md` asks for. The sets were used for tuning, so it is no unseen number.
+
+Corpus at version 13 (58 ads; the rows are the same as at version 11; old = the frozen old engine):
+
+| Profile | Jobs | In band old | In band v4 | In band v13 | Distance old | Distance v4 | Distance v13 | Spearman old | Spearman v4 | Spearman v13 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| fin | 58 | 26 / 58 | 55 / 58 | 56 / 58 | 613 | 17 | 11 | 0.66 | 0.88 | 0.87 |
+| it | 58 | 45 / 58 | 57 / 58 | 56 / 58 | 241 | 5 | 11 | 0.66 | 0.87 | 0.85 |
+| sap | 58 | 40 / 58 | 57 / 58 | 56 / 58 | 229 | 6 | 6 | 0.73 | 0.89 | 0.85 |
+| senior | 58 | 22 / 58 | 53 / 58 | 55 / 58 | 611 | 19 | 13 | 0.69 | 0.79 | 0.74 |
+| wish | 58 | 20 / 58 | 55 / 58 | 56 / 58 | 609 | 14 | 11 | 0.55 | 0.85 | 0.85 |
+| wishSap | 58 | 39 / 58 | 57 / 58 | 57 / 58 | 275 | 9 | 7 | 0.74 | 0.90 | 0.87 |
+
+Off band at version 13, none further from its band than the old engine:
+- fin: K32 46, K50 60;
+- it: K12 13, K39 36;
+- sap: K32 69, K39 33;
+- senior: K02 55, K17 92, K32 46;
+- wish: K02 55, K17 96;
+- wishSap: K32 67.
+
+Several bands moved since version 4 (`corpus.json` version 5), so rows off band then and now are not all the same jobs.
+
+### Version 14: rules from the unseen set 8
+
+Held-out set 8 (`heldout8/`) has 64 fresh invented ads (N01-N16, Q01-Q16, R01-R16, S01-S16) for the same 15 profiles as
+set 7: 960 pairs, blind labels by two labelers and an arbiter (exact grade agreement 0.992, quadratic-weighted kappa
+0.991, exclusion agreement 0.997; 11 pairs decided). First contact with engine 13: NDCG@10 0.886 (old engine 0.722),
+P@5 0.899, Spearman over the relevant pairs 0.691 (old 0.632), 3 grade-3 jobs buried (old 33), exclusions 0.959 / 0.824.
+All gates of "Corpus and gates" passed at first contact. Only general bugs were fixed, each with a unit test on neutral
+wording:
+
+- Seniority: years after `davon`, `hiervon`, `darunter`, `thereof`, `including` or `of which` are a part of the total
+  before them (`Mehrjährige Erfahrung, davon mindestens drei Jahre in ...`): without a number in the total the line
+  states no minimum (`seniority.rs`).
+- ANÜ: English denials (`without`, `never`, `... is excluded`, `ruled out`) join the negations, so a denied ANÜ never
+  excludes (`a_denied_anue_never_excludes_in_english_either`, `facts.rs`).
+- Rates: a currency before each amount with the unit after it (LinkedIn's `€420/day - €520/day`, `€85/hr`), English range
+  words between two amounts (`EUR 1,050 to 1,180`), and a rate label overruled by the value it holds
+  (`Stundensatz: Tagessatz 980 - 1.120 €`); a salary per year stays no rate
+  (`a_rate_range_reads_its_upper_end_in_every_spelling`, `facts.rs`).
+
+The corpus rows and held-out sets 1 to 7 are unchanged: with `engine 13` in front the rows give the version-13 digest, so
+the golden digest changed only by its version line. Set 8 (old = the old engine; v13 = first contact):
+
+| Metric | Old | v13 | v14 |
+|---|---|---|---|
+| NDCG@10 | 0.722 | 0.886 | 0.938 |
+| NDCG@20 | 0.757 | 0.897 | 0.950 |
+| P@5 (reachable) | 0.776 | 0.899 | 0.943 |
+| Spearman, all pairs | 0.331 | 0.386 | 0.404 |
+| Spearman, relevant pairs | 0.632 | 0.691 | 0.776 |
+| grade-3 jobs buried | 33 | 3 | 1 |
+| exclusion precision / recall | | 0.959 / 0.824 | 0.980 / 0.859 |
+
+Set 8 joined the regression corpora at that level (`HELDOUT8`: NDCG@10 0.93, Spearman 0.39, exclusion precision 0.97,
+recall 0.85, at most 1 buried). The rest are judgement calls and the open decision on hourly wages of student and agency
+jobs (read as a day rate x 8, the labels read them as employment pay). The app scores every stored job again after the
+update (revision `e14.4:{fingerprint}`).
+
 ### Rubric of the Claude check
 
 `core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the
