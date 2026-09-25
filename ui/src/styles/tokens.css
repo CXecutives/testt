@@ -390,7 +390,9 @@
   /* Sidebar (collapses to the icon rail below 1100 px) and the toast stack. */
   --sidebar-width: 196px;
   --rail-width: 64px;
-  --toast-width: 360px;
+  /* Room for a usual job title (about 40 characters) on the first line of a toast with an
+     undo; a longer one ends in an ellipsis. */
+  --toast-width: 520px;
   /* One step of the sliding nav pill: an item plus the 2 px gap (full and rail). */
   --nav-step: calc(var(--control-md) + var(--space-2));
   /* A sub-entry's icon stands where the parent's label starts (12 + 20 + 12). */

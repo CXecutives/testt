@@ -499,6 +499,59 @@ test('moving jobs out: the row folds away, one toast merges them, one undo bring
   await expect(rows.nth(4)).toHaveAttribute('data-testid', 'job-row-freelancermap-1005');
 });
 
+test('a toast that names a job: the title keeps to one line in its quotes, two lines at most', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const toast = page.getByTestId('toast');
+  const shape = (): Promise<{ lines: number; cut: boolean; quoted: string; width: number }> =>
+    toast.evaluate((node) => {
+      const text = node.querySelector<HTMLElement>('[data-testid="toast-text"]')!;
+      const name = text.querySelector<HTMLElement>('.name')!;
+      const style = getComputedStyle(text);
+      const inner = text.clientHeight - parseFloat(style.paddingTop) * 2;
+      return {
+        lines: Math.round(inner / parseFloat(style.lineHeight)),
+        cut: name.scrollWidth > name.clientWidth,
+        quoted: text.querySelector('.quoted')!.textContent ?? '',
+        width: (node as HTMLElement).offsetWidth,
+      };
+    });
+  // A title of usual length stands whole.
+  await page.getByTestId('archive-freelance-1003').click();
+  await expect(toast).toContainText('„Kaufmännische Leitung Projektgeschäft“ archiviert.');
+  const usual = await shape();
+  expect(usual.width).toBe(520);
+  expect(usual.cut).toBe(false);
+  expect(usual.lines).toBeLessThanOrEqual(2);
+  await toast.getByRole('button', { name: 'Ausblenden' }).click();
+  await expect(toast).toHaveCount(0);
+  // A very long one ends in an ellipsis inside its quotes; the verb follows on line two.
+  await page.getByTestId('archive-freelancermap-1004').click({ force: true });
+  await expect(toast).toContainText('archiviert.');
+  const long = await shape();
+  expect(long.cut).toBe(true);
+  expect(long.quoted.startsWith('„SAP FI Berater')).toBe(true);
+  expect(long.quoted.endsWith('“')).toBe(true);
+  expect(long.lines).toBe(2);
+  // The full title is in the tooltip of the cut one.
+  await toast.locator('.name').hover();
+  await expect(page.getByRole('tooltip')).toContainText('in vierzehn Ländern');
+});
+
+test('an English toast keeps the title in its own quotes too', async ({ page }) => {
+  await open(page, '?platform=windows&lang=en');
+  const row = page.getByTestId('job-list').locator('.job').first();
+  await row.hover();
+  await row.locator('[data-testid^="archive-"]').click();
+  const quoted = page.getByTestId('toast').locator('.quoted');
+  await expect(quoted).toHaveCount(1);
+  await expect(quoted).toHaveText(/^“.+”$/);
+  await expect(page.getByTestId('toast')).toContainText('archived.');
+});
+
 test('an undo toast stays 10 s; toasts wait while the window is in the back', async ({ page }) => {
   await open(page, '?gallery&platform=windows');
   const list = page.getByTestId('job-list');

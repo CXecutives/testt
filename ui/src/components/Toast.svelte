@@ -6,11 +6,36 @@
   and every toast waits while the window is in the back or a modal dialog is open; under
   reduced motion there is no line. The stack lies below a dialog's scrim: dimmed, and its
   undo cannot act behind the dialog.
+  The sentence has room for a job's title (520 px) and wraps to at most two lines: the
+  title in the catalog's quotes („…“ or “…”) keeps to one line and ends in an ellipsis
+  (the full title in a tooltip), the rest of the sentence follows it.
   The check of a success draws itself once as the toast appears. Closable; an undo of what
   the user just did sits before the close button. A merged toast ("2 Jobs archiviert.")
   cross-fades its sentence (100 ms) and starts its line again.
 -->
+<script lang="ts" module>
+  /** A sentence around one quoted name: German „…“, English “…”. */
+  const QUOTED = /^(.*?)([„“])([^“”]+)([“”])(.*)$/su;
+
+  interface Quoted {
+    before: string;
+    open: string;
+    name: string;
+    close: string;
+    after: string;
+  }
+
+  /** The quoted name of a toast's sentence (a job's title), or null. */
+  export function quoted(text: string): Quoted | null {
+    const match = QUOTED.exec(text);
+    if (match === null) return null;
+    const [, before = '', open = '', name = '', close = '', after = ''] = match;
+    return { before, open, name, close, after };
+  }
+</script>
+
 <script lang="ts">
+  import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import { onWindowFocus } from '$lib/ipc/api';
   import { fade, flip, toastIn, toastOut } from '$lib/motion/transitions';
@@ -38,6 +63,15 @@
   });
 </script>
 
+{#snippet sentence(text: string)}
+  {@const split = quoted(text)}
+  {#if split}{split.before}<span class="quoted"
+      >{split.open}<span class="name" use:tooltip={{ text: split.name, truncated: true }}
+        >{split.name}</span
+      >{split.close}</span
+    >{split.after}{:else}{text}{/if}
+{/snippet}
+
 <div class="stack" class:held={toasts.held} role="status" aria-live="polite" data-testid="toasts">
   {#each toasts.items as toast (toast.id)}
     <div
@@ -61,7 +95,9 @@
       <span class="icon"
         ><Icon name={toast.tone === 'success' ? 'circle-check' : 'info'} size="sm" /></span
       >
-      {#key toast.text}<span class="text" data-testid="toast-text" in:fade>{toast.text}</span>{/key}
+      {#key toast.text}<span class="text" data-testid="toast-text" in:fade
+          >{@render sentence(toast.text)}</span
+        >{/key}
       {#if toast.action}
         {@const action = toast.action}
         <Button
@@ -139,9 +175,25 @@
     color: var(--info);
   }
 
+  /* One or two lines with room above and below (10 px to the edge with the padding). */
   .text {
     flex: 1;
     min-width: 0;
+    padding-block: var(--space-4);
+    text-wrap: pretty;
+  }
+
+  /* The quoted title keeps to one line; the rest of the sentence follows it. */
+  .quoted {
+    display: inline-flex;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* The lifetime line: it drains from the right over the toast's time, and stops while
