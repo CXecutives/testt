@@ -174,7 +174,6 @@ export function onNavigate(handler: (view: string) => void): () => void {
   return subscribe(() => listen<string>('navigate', (event) => handler(event.payload)));
 }
 
-/** An edit command of the OS that a context menu entry runs. */
 /** An edit command the OS has a menu item of its own for (it acts on the focused field). */
 export type EditCommand = 'Undo' | 'Cut' | 'Copy' | 'Paste' | 'SelectAll';
 

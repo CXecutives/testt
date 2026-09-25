@@ -499,6 +499,50 @@ test('moving jobs out: the row folds away, one toast merges them, one undo bring
   await expect(rows.nth(4)).toHaveAttribute('data-testid', 'job-row-freelancermap-1005');
 });
 
+test('an undo toast stays 10 s; toasts wait while the window is in the back', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const toast = page.getByTestId('toast');
+  await page.getByTestId('archive-freelance-1003').click();
+  await expect(toast.locator('.life')).toHaveCSS('animation-duration', '10s');
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(5000);
+  await expect(toast).toHaveCount(1);
+  await toast.getByRole('button', { name: 'Ausblenden' }).click();
+  // A plain toast (4 s) outlives its time while the window is in the back.
+  await page.getByRole('button', { name: 'Toast zeigen' }).click();
+  await expect(toast).toHaveCount(1);
+  await expect(toast.locator('.life')).toHaveCSS('animation-duration', '4s');
+  await page.evaluate(() => window.__harness.fire('tauri://blur', null));
+  await page.waitForTimeout(4500);
+  await expect(toast).toHaveCount(1);
+  await expect(toast.locator('.life')).toHaveCSS('animation-play-state', 'paused');
+  await page.evaluate(() => window.__harness.fire('tauri://focus', null));
+  await expect(toast).toHaveCount(0, { timeout: 5000 });
+});
+
+test('a modal dialog dims the toasts, blocks their undo and keeps their time', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  await page.getByRole('button', { name: 'Toast zeigen' }).click();
+  const toast = page.getByTestId('toast');
+  await expect(toast).toHaveCount(1);
+  await page.getByTestId('open-danger').click();
+  await expect(page.getByTestId('dialog-danger')).toBeVisible();
+  // The scrim lies over the toast: a click there reaches the scrim, not the toast.
+  const box = (await toast.boundingBox())!;
+  const hit = await page.evaluate(
+    ({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid="toast"]') !== null,
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+  );
+  expect(hit).toBe(false);
+  await page.waitForTimeout(4500);
+  await expect(toast).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('dialog-danger')).toHaveCount(0);
+  await expect(toast).toHaveCount(0, { timeout: 5000 });
+});
+
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {
   await open(page, '?gallery');
   const toggle = page.getByTestId('gallery-row-toggle');

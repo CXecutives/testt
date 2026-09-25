@@ -469,8 +469,10 @@
   --dur-loop: 1400ms;
   /* The slow breath of a list ring that waits for its score (opacity 1, --opacity-wait, 1). */
   --dur-breathe: 2000ms;
-  /* How long a toast stays (paused while hovered). */
+  /* How long a toast stays (paused while hovered, the window is in the back or a dialog is
+     open); one with an undo stays long enough to read it and reach the button. */
   --dur-toast: 4000ms;
+  --dur-toast-action: 10000ms;
   --dur-crossfade: 100ms;
   /* At most this many list rows animate at the same time; the others are simply there. */
   --stagger-max: 10;
@@ -509,6 +511,8 @@
   --z-base: 0;
   --z-raised: 1;
   --z-sticky: 10;
+  /* Toasts lie below a dialog's scrim: dimmed, and no undo acts behind a modal. */
+  --z-toast: 90;
   --z-overlay: 100;
   --z-dialog: 110;
   --z-tooltip: 120;
