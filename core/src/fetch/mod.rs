@@ -800,9 +800,18 @@ pub async fn fetch_all<F: PageFetcher>(
         completed &= run.completed;
         summary.per_portal.insert(run.portal, run.counts);
     }
-    // "Details holen" on a teaser without the sign-in: nothing was requested, and the user
-    // learns why - the portal wants a sign-in for the full text.
-    for (portal, teasers) in need_sign_in {
+    report_sign_in_needed(summary, need_sign_in, on_event);
+    Ok(completed)
+}
+
+/// "Details holen" on a teaser without the sign-in: nothing was requested, and the user
+/// learns why - the portal wants a sign-in for the full text.
+fn report_sign_in_needed(
+    summary: &mut FetchSummary,
+    teasers_by_portal: BTreeMap<Portal, usize>,
+    mut on_event: impl FnMut(FetchEvent),
+) {
+    for (portal, teasers) in teasers_by_portal {
         let counts = summary.per_portal.entry(portal).or_default();
         counts.skipped += teasers;
         if counts.stop.is_none() {
@@ -815,7 +824,6 @@ pub async fn fetch_all<F: PageFetcher>(
             });
         }
     }
-    Ok(completed)
 }
 
 /// One portal loop: strictly sequential, with all rules. An error stops the other portals

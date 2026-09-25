@@ -66,14 +66,13 @@ pub fn html_to_text(html: &str) -> String {
             _ if skip_depth > 0 => {}
             // A `<br>` is a line break, and two in a row are a blank line: LinkedIn (and
             // many hand-written ads) separate their paragraphs with `<br><br>`, not `<p>`.
-            // Counted on the opening edge only; never more than one blank line.
-            Node::Element(el) if el.name() == "br" => {
-                if opening {
-                    out.truncate(out.trim_end_matches([' ', '\t']).len());
-                    let present = out.chars().rev().take_while(|&c| c == '\n').count();
-                    if !out.is_empty() && present < 2 {
-                        out.push('\n');
-                    }
+            // Counted on the opening edge only (the closing one falls through to nothing);
+            // never more than one blank line.
+            Node::Element(el) if el.name() == "br" && opening => {
+                out.truncate(out.trim_end_matches([' ', '\t']).len());
+                let present = out.chars().rev().take_while(|&c| c == '\n').count();
+                if !out.is_empty() && present < 2 {
+                    out.push('\n');
                 }
             }
             Node::Element(el) if PARAGRAPH.contains(&el.name()) => break_lines(&mut out, 2),

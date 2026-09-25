@@ -714,7 +714,7 @@ pub(crate) mod tests {
         for check in [
             r#"<html><body><div class="g-recaptcha" data-sitekey="x"></div></body></html>"#,
             r#"<html><body><form id="challenge-form" action="/?__cf_chl_f_tk=x"></form></body></html>"#,
-            r#"<html><head><script>window._cf_chl_opt={cvId:'3'};</script></head><body></body></html>"#,
+            r"<html><head><script>window._cf_chl_opt={cvId:'3'};</script></head><body></body></html>",
             r#"<html><body><iframe src="https://challenges.cloudflare.com/x"></iframe></body></html>"#,
         ] {
             assert_eq!(

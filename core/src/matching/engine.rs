@@ -419,6 +419,15 @@ fn job_facts<'a>(job: &JobInput<'a>) -> JobFacts<'a> {
     }
 }
 
+/// The page's own career level and employment type (LinkedIn's criteria), folded.
+fn page_levels(job: &JobInput<'_>) -> Vec<String> {
+    [super::fact_key::LEVEL, super::fact_key::CONTRACT]
+        .iter()
+        .filter_map(|key| facts::fact(job.facts, key).and_then(Value::as_str))
+        .map(fold)
+        .collect()
+}
+
 /// Assesses one job.
 pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluation {
     let text = job.text;
@@ -435,19 +444,13 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     } else {
         job::read(text, vocab)
     };
-    // The page's own career level and employment type (LinkedIn's criteria).
-    let page_levels: Vec<String> = [super::fact_key::LEVEL, super::fact_key::CONTRACT]
-        .iter()
-        .filter_map(|key| facts::fact(job.facts, key).and_then(Value::as_str))
-        .map(fold)
-        .collect();
     findings.extend(seniority::check(
         criteria.target_years,
         job.title,
         text,
         &doc,
         vocab,
-        &page_levels,
+        &page_levels(job),
     ));
     let ad_facts = ad_facts::read(&facts, &segments, &folded, &stated_contract, &doc);
     let items = scored(profile, doc.items);

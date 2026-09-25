@@ -36,28 +36,7 @@ impl Store {
     /// behind it.
     pub fn link_duplicate(&self, key: &JobKey) -> Result<Option<JobKey>> {
         self.write(|conn| {
-            let Some(own) = conn
-                .query_row(
-                    "SELECT title, company, desc_text, desc_status = 'teaser', desc_closed,
-                            app_status IS NOT NULL OR note IS NOT NULL
-                              OR archived_at IS NOT NULL OR override_include IS NOT NULL
-                     FROM job
-                     WHERE portal = ?1 AND job_id = ?2 AND desc_status IN ('ok', 'teaser')
-                       AND dup_of IS NULL AND desc_text IS NOT NULL",
-                    params![key.portal.key(), key.id],
-                    |r| {
-                        Ok(Row {
-                            title: r.get(0)?,
-                            company: r.get(1)?,
-                            text: r.get(2)?,
-                            teaser: r.get(3)?,
-                            closed: r.get(4)?,
-                            marked: r.get(5)?,
-                        })
-                    },
-                )
-                .optional()?
-            else {
+            let Some(own) = row(conn, key.portal.key(), &key.id, true)? else {
                 return Ok(None);
             };
             let same = identity(&own.title, &own.company);
@@ -91,26 +70,9 @@ impl Store {
                 .map(|(portal, id, _, _)| (portal, id))
                 .collect();
             for (portal, id) in candidates {
-                let other: Option<Row> = conn
-                    .query_row(
-                        "SELECT title, company, desc_text, desc_status = 'teaser', desc_closed,
-                                app_status IS NOT NULL OR note IS NOT NULL
-                                  OR archived_at IS NOT NULL OR override_include IS NOT NULL
-                         FROM job WHERE portal = ?1 AND job_id = ?2 AND desc_text IS NOT NULL",
-                        params![portal, id],
-                        |r| {
-                            Ok(Row {
-                                title: r.get(0)?,
-                                company: r.get(1)?,
-                                text: r.get(2)?,
-                                teaser: r.get(3)?,
-                                closed: r.get(4)?,
-                                marked: r.get(5)?,
-                            })
-                        },
-                    )
-                    .optional()?;
-                let Some(other) = other else { continue };
+                let Some(other) = row(conn, &portal, &id, false)? else {
+                    continue;
+                };
                 if !same_ad(&own, &other) {
                     continue;
                 }
@@ -198,6 +160,32 @@ struct Row {
     closed: bool,
     /// The user marked it (a stage, a note, archived, "fits anyway").
     marked: bool,
+}
+
+/// A row with a text; `open`: only one that may still be linked (a full text or teaser,
+/// not yet a duplicate).
+fn row(conn: &rusqlite::Connection, portal: &str, id: &str, open: bool) -> Result<Option<Row>> {
+    Ok(conn
+        .query_row(
+            "SELECT title, company, desc_text, desc_status = 'teaser', desc_closed,
+                    app_status IS NOT NULL OR note IS NOT NULL
+                      OR archived_at IS NOT NULL OR override_include IS NOT NULL
+             FROM job
+             WHERE portal = ?1 AND job_id = ?2 AND desc_text IS NOT NULL
+               AND (NOT ?3 OR (desc_status IN ('ok', 'teaser') AND dup_of IS NULL))",
+            params![portal, id, open],
+            |r| {
+                Ok(Row {
+                    title: r.get(0)?,
+                    company: r.get(1)?,
+                    text: r.get(2)?,
+                    teaser: r.get(3)?,
+                    closed: r.get(4)?,
+                    marked: r.get(5)?,
+                })
+            },
+        )
+        .optional()?)
 }
 
 /// Share of a teaser's word triples (in percent) that the full text must contain.
