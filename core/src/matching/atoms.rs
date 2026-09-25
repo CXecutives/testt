@@ -93,13 +93,6 @@ impl Vocab {
         Self::with(DOMAINS)
     }
 
-    /// Every pack, built once: for decisions that must not depend on the profile's packs
-    /// (the seniority of an ad).
-    pub(crate) fn every_pack() -> &'static Self {
-        static EVERY: LazyLock<Vocab> = LazyLock::new(|| Vocab::with(DOMAINS));
-        &EVERY
-    }
-
     /// Names of the switched-on packs.
     pub(crate) fn packs(&self) -> &[&'static str] {
         &self.packs
@@ -600,6 +593,21 @@ mod tests {
     }
 
     /// A compound needs a real modifier: `Herstellung` is no `Erstellung`.
+    #[test]
+    fn leading_roles_are_one_concept() {
+        let has = |text: &str, atom: &str| all(text).iter().any(|a| a == atom);
+        assert!(has("Head of Finance", "cfo"));
+        assert!(has("VP Finance", "cfo"));
+        assert!(has("Leitung Finanzen", "cfo"));
+        assert!(has("Chief Commercial Officer", "vertriebsleitung"));
+        assert!(has("Commercial Director", "vertriebsleitung"));
+        assert!(has("Leiter IT", "it-leitung"));
+        // The rank words alone name no field.
+        for word in ["Head", "Chief", "Officer", "Director"] {
+            assert!(all(word).iter().all(|a| is_generic(a)), "{word}");
+        }
+    }
+
     #[test]
     fn compound_boundaries() {
         let a = |s: &str| all(s).remove(0);

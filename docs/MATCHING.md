@@ -104,7 +104,7 @@ Nothing person-specific is in code: every threshold comes from the profile.
 |---|---|
 | Reading (V5, V16) | Must/nice/other headings incl. English (`Why join us`, `What we offer` end requirements), inline (`Anforderungen: ...`), frame sections; closing lines (`Interessiert? ...`) end a section; nice cues (`von Vorteil`) make a nice-to-have; requirement sentences only without a must section; vocabulary only when nothing else was found |
 | Items (V6) | AND at `,` `;` `und` `sowie` `&` `and` `inkl.`; OR alternatives at `oder` `bzw.` `or` ` / ` (an OR requirement is met when one branch is met); examples after `z. B.`/`e.g.` are alternatives of their head |
-| Kinds (V7) | skill, language (CEFR level), degree, licence (`Zulassung als Steuerberater`), soft (weight 250, unproven = half), frame (weight 0) |
+| Kinds (V7) | skill, language (CEFR level; weight 250 in `M`, a hygiene factor, full weight in the evidence `n`), degree, licence (`Zulassung als Steuerberater`), soft (weight 250, unproven = half), frame (weight 0; a rate line too) |
 | Vocabulary | general core (languages, degrees, contract, remote and seniority words, general business pairs such as `project management` = `Projektmanagement`) plus domain packs (finance, sap, itProject, hr, procurement, data, pharma, operations, sales, legal, software) that switch on when at least `PACK_HITS` tokens of the profile's competences start with a pack trigger; a pack never maps words for other profiles, only its broad companion words (`Personal`, `Lieferant`, `Kunde`, `Entwicklung`) are generic for every profile. `auch` / `aliases` terms of a competence count as that competence (the evidence path points to the alias) |
 | Ladder (V1-V4, V15) | umlauts folded, light stemming, concepts, compounds (light modifier or head = equal, other modifier = half, profile more specific = full), two thirds of a long entry = half; generic atoms (`SAP`, `Management`, `Finance`, `Einführung`, `ERP`, also in stemmed form) never alone and never reach a compound; atoms under five letters are no compound part; a USP sentence or a long free-text entry never proves a requirement; an ad that asks for more than the profile names (`Tableau im Reporting` against `Reporting`) is half |
 | Degrees | field (same = full, neighbouring such as business and business informatics = half, other = open), level (`Master` needs master level: `Diplom (Univ.)` counts as master, `Diplom (FH)` and a bachelor are half), `vergleichbar` accepts any field |
@@ -112,9 +112,9 @@ Nothing person-specific is in code: every threshold comes from the profile.
 | Contract type | stated (`Festanstellung`, `Jahresgehalt`, `Werkvertrag`, `Tagessatz`, `Interim`) > hints (benefits, `Why join us`, work permit: permanent, inferred) > portal (freelance portals: interim); both stated = unclear; an agency without details = unclear with `anueRisk`; reason `contractType {type, inferred}` (interim met, permanent partial, unclear check); the `permanent` check as before |
 | Hard criteria (V10-V13) | ANÜ, country, day rate (not for permanent roles), availability as in v2 |
 | Permanent roles | minimum salary: upper bound, EUR per year; decided only for a stated permanent role (`salary`), else a check; no salary = `salaryUnknown`. Region: a place of `festanstellung_orte` in the location or a location line (`Standort: ... oder München`) is inside; a stated remote share of at least `festanstellung_remote_min` percent (or fully remote) accepts any place; hybrid wording and office days are no proof; outside = `permanentRegion` (decided when stated, a check when inferred), country only or an unclear contract = `permanentRegionUnclear` |
-| Seniority | `zielprofil_min_jahre` against the requirement lines: a closed range below it, or a minimum below it without a senior title (Senior, Lead, Principal, SME, Head, Director, Leiter/Leitung) = `tooJunior` (decided for career years or the role's own topic, else `seniorityUnclear`); an open minimum with a senior title = `overqualified` (partial, never an exclusion); any statement at or above the minimum is fine; a junior title without numbers = `seniorityUnclear` |
+| Seniority | `zielprofil_min_jahre` against the requirement lines: a closed range below it, or a minimum below it without a senior title (Senior, Lead, Principal, SME, Head, Director, Leiter/Leitung) = `tooJunior` (decided whatever topic the years name: the highest years are the ad's target; `5+ years` is a minimum); an open minimum with a senior title = `overqualified` (partial, never an exclusion); any statement at or above the minimum is fine; a junior title without numbers = `seniorityUnclear` |
 | Formal duties | a must degree of another field or a missing licence = `formalOpen` check with a cap of 40; decided only when worded as mandatory (`zwingend`, `unabdingbar`, `mandatory`); no degree in the profile = a check as before |
-| Relevance (V17, V18) | title fit and BM25F-like lexical score as in v2; an atom only named in a USP sentence weighs half |
+| Relevance (V17, V18) | title fit and BM25F-like lexical score as in v2; an atom only named in free text (a USP sentence, a career station, an entry long enough to be a sentence) weighs half; languages, contract words and quantities are no part of the query |
 | Score (V19) | `M`, `K`, `P` and the shrinkage as in v2; permanent roles x 0.9 (second category); rubric caps: open formal must 40, several musts open (at least two and at least half) 40, an open must on the title's topic 60, no skill must met (at least two) 25; a scored ad keeps at least 10 |
 
 ### Profile keys (German, English aliases; missing key = rule off)
@@ -344,6 +344,55 @@ for a years floor far below the profile, expanding truncated compounds.
 
 The two missed exclusions of set 4 are V02 for P2 and P3 (`Black Belt (zwingend)` is a formal
 duty, no profile criterion; a label disagreement).
+
+### Version 9: rules from the unseen set 5
+
+Held-out set 5 (40 fresh ads x 10 profiles incl. two new ones, 9 teasers) scored NDCG@10 0.694
+on first contact with engine 8 (exclusions 0.980 / 0.943); the first-contact trend of sets 2
+to 5 is 0.632, 0.618, 0.688, 0.694. An evaluator measured a fix bundle in a sandbox; its rules
+were ported as general rules (unit tests in `job.rs`, `fit.rs`, `relevance.rs`, `atoms.rs`,
+`seniority.rs`, `permanent.rs`, `matching_generalisation.rs`), and set 5 joined the regression
+corpora (`heldout5/`).
+
+- Off-field inflation: a language met is a hygiene factor (weight 250 in `M`, the evidence `n`
+  keeps the must weight); the relevance query leaves out languages, contract words and
+  quantities and weighs free text half (career stations, entries long enough to be a
+  sentence); an industry of the profile is the setting of a requirement, never its function
+  (`Vertriebserfahrung im Maschinenbau` is not half met by `Maschinenbau`); a must of generic
+  words and leadership alone (`SAP-Kenntnisse`, `Erste Führungserfahrung`) names no field for
+  the off-field cap.
+- Portal leftovers: a bare `Skills` heading (the portal's tags) and the provider's other
+  projects (`Projektanbieter`, `Ähnliche Projekte`, `Similar jobs`) are no requirements; a line
+  with a rate is a frame condition.
+- Entry level: a must that asks for first professional experience (`Erste Berufserfahrung`,
+  `Berufseinsteiger`, `Absolvent`, `Werkstudententätigkeit`) caps a profile with ten years or
+  more at 40, like a junior title.
+- Titles: leading roles are one concept (`Head of Finance`, `VP Finance`, `Leitung Finanzen` =
+  CFO; `Chief Commercial Officer`, `Commercial Director` = Vertriebsleitung; `Leiter IT` =
+  IT-Leitung); `Head`, `Chief`, `Officer`, `Director` alone are generic; a text judged by its
+  title alone loses the title's contract words.
+- Exclusions: LinkedIn's salary chip (`72.000 €/Jahr`) states a permanent role and its salary;
+  a bonus share in the salary clause raises the upper bound; `5+ years` is a minimum; the
+  highest years of an ad are its target whatever topic they name (the topic exception of the
+  seniority rule is gone: the labels of every set read it so).
+- Smaller: `Staatsexamina` is a degree; interest (`Interesse an`), presentation skills and
+  `Confident when presenting` are soft.
+
+Re-anchored: the set 2 floor (0.86 to 0.85: off-field ads whose only fitting musts are
+languages, grade 0 and 1 alike, fall below the cap they shared; Y05 loses its German where
+`Projekt Management` written apart stays open) and four corpus bands where a language is most
+of the fit (K12 sap and wishSap, K44 it and sap, five points down; `corpus.json` version 5).
+C10 of set 5 (a student job) stays excluded for two profiles by its hourly wage per year, the
+set-3 rule (T04); the set-5 labels read a student wage as no salary, so the two label sets
+disagree and the set-5 precision floor is 0.98.
+
+| Set | NDCG@10 v8 | NDCG@10 v9 | Spearman v8 / v9 | buried v8 / v9 | exclusions P-R v8 / v9 |
+|---|---|---|---|---|---|
+| held-out 1 | 0.922 | 0.928 | 0.759 / 0.757 | 0 / 0 | 1.0-1.0 / 1.0-1.0 |
+| held-out 2 | 0.864 | 0.856 | 0.634 / 0.642 | 1 / 1 | 1.0-0.948 / 1.0-1.0 |
+| held-out 3 | 0.945 | 0.956 | 0.481 / 0.492 | 0 / 0 | 1.0-1.0 / 1.0-1.0 |
+| held-out 4 | 0.808 | 0.821 | 0.521 / 0.542 | 1 / 0 | 1.0-0.988 / 1.0-0.988 |
+| held-out 5 | 0.694 | 0.819 | 0.442 / 0.485 | 1 / 0 | 0.980-0.943 / 0.988-1.0 |
 
 ### Rubric of the Claude check
 

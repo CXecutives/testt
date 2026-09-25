@@ -1,5 +1,5 @@
-//! Rules found on the unseen held-out set 3, checked on invented ads: they must hold for
-//! any ad and any profile, not for the ads they were found on.
+//! Rules found on the unseen held-out sets 3 to 5, checked on invented ads: they must hold
+//! for any ad and any profile, not for the ads they were found on.
 
 use jobalert_core::matching::{
     Assessment, JobInput, ReasonCode, ReasonKind, TextKind, Verdict, assess, compile_profile,
@@ -214,4 +214,82 @@ fn the_rank_orders_capped_scores() {
     );
     assert!(weak.rank > weaker.rank, "{} > {}", weak.rank, weaker.rank);
     assert!(u32::from(weak.rank) >= u32::from(weak.score) * 10 - 5);
+}
+
+/// A language met is a light fit: two musts met of three weigh less when one of them is a
+/// language than when both are skills.
+#[test]
+fn a_language_met_weighs_less_than_a_skill_met() {
+    let skills = run(
+        &finance(),
+        "Controller (m/w/d)",
+        "Ihr Profil\n- Erfahrung im Controlling\n- Treasury\n- Tableau\n",
+    );
+    let language = run(
+        &finance(),
+        "Controller (m/w/d)",
+        "Ihr Profil\n- Erfahrung im Controlling\n- Fluent English\n- Tableau\n",
+    );
+    assert!(
+        skills.score > language.score,
+        "{} > {}",
+        skills.score,
+        language.score
+    );
+}
+
+/// A must of leadership or generic words alone names no field: with every other skill must
+/// open the ad is off the field, even though a leading role meets the leadership half and
+/// nice-to-haves fit.
+#[test]
+fn leadership_alone_names_no_field() {
+    let a = run(
+        &finance(),
+        "Key Account Manager (m/w/d)",
+        "Ihr Profil\n- Führungserfahrung\n- Salesforce\n- HubSpot\n\
+         Wünschenswert\n- Controlling\n- Treasury\n",
+    );
+    assert!(a.score <= 25, "{}", a.score);
+}
+
+/// A must that asks for first professional experience makes an entry-level role: it caps a
+/// senior profile like a junior title.
+#[test]
+fn first_professional_experience_caps_a_senior_profile() {
+    let mut profile = finance();
+    profile["harte_kriterien"]
+        .as_object_mut()
+        .expect("criteria")
+        .remove("zielprofil_min_jahre");
+    let entry = run(
+        &profile,
+        "Referent Controlling (m/w/d)",
+        "Ihr Profil\n- Erste Berufserfahrung im Controlling\n- Treasury\n\
+         - Konzernrechnungslegung nach IFRS\n",
+    );
+    let regular = run(
+        &profile,
+        "Referent Controlling (m/w/d)",
+        "Ihr Profil\n- Mehrjährige Berufserfahrung im Controlling\n- Treasury\n\
+         - Konzernrechnungslegung nach IFRS\n",
+    );
+    assert!(entry.score <= 40, "{}", entry.score);
+    assert!(regular.score > 40, "{}", regular.score);
+}
+
+/// The highest years an ad asks for are its target, whatever topic they name: below the
+/// profile's target years they decide, unless a senior title makes them a floor.
+#[test]
+fn every_years_minimum_below_the_target_decides() {
+    let text = "Ihr Profil\n- Mindestens 3 Jahre Erfahrung mit Power BI\n- Controlling\n";
+    let regular = run(&finance(), "Controller (m/w/d)", text);
+    assert_eq!(regular.verdict, Verdict::Excluded, "{:#?}", regular.reasons);
+    assert!(
+        regular
+            .reasons
+            .iter()
+            .any(|r| r.code == ReasonCode::TooJunior)
+    );
+    let senior = run(&finance(), "Head of Controlling (m/w/d)", text);
+    assert_ne!(senior.verdict, Verdict::Excluded, "{:#?}", senior.reasons);
 }

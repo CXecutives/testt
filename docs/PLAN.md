@@ -298,6 +298,10 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [x] Engine v8: the gaps of the unseen held-out set 4 fixed as general rules (fine-print facts, teasers and
       titles, reading noise, one open skill under a foreign title, junior roles, vocabulary); set 4 is a regression
       corpus (NDCG@10 0.688 to 0.808, exclusion recall 0.832 to 0.988). Open: the unseen check on held-out set 5.
+- [x] Engine v9: the set-5 fix bundle ported as general rules (languages a light fit, the relevance query holds the
+      field, portal leftovers, industries no function, entry-level musts, leading titles, salary chips and bonus,
+      every years minimum is the target); set 5 is a regression corpus (NDCG@10 0.694 to 0.819, exclusions
+      0.980 / 0.943 to 0.988 / 1.000). Open: the final unseen check on held-out set 6.
 - [x] Domain packs for every field: hr, procurement, data, pharma, operations, sales, legal, software (held-out 2
       NDCG@10 0.805 to 0.862). Open: synthetic corpus ads and profiles of the new fields.
 

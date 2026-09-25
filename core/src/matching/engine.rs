@@ -20,7 +20,7 @@ use super::contract::{self, Contract, ContractKind};
 use super::facts::{self, Finding, HardCriteria, JobFacts, Segment};
 use super::fit::{self, ItemFit, Skills};
 use super::focus::{self, Focus};
-use super::job::{self, Class, Item, Stage};
+use super::job::{self, Class, Item, Stage, contains_word};
 use super::legacy::LegacyProfile;
 use super::lexicon::engine as lex;
 use super::normalize::{char_len, strip};
@@ -137,7 +137,8 @@ pub(crate) struct Evaluation {
 fn weight(item: &Item) -> u64 {
     match (&item.class, item.stage) {
         (Class::Frame, _) => 0,
-        (Class::Soft, _) => W_SOFT,
+        // A language is a hygiene factor: met, it says little about the field.
+        (Class::Soft | Class::Language(..), _) => W_SOFT,
         (_, Stage::Vocabulary) => W_TERM,
         _ => W_MUST,
     }
@@ -203,10 +204,19 @@ fn cap(
         .collect();
     let open = musts.iter().filter(|s| s.fit.value == E_NONE).count();
     let several_open = open >= 2 && 2 * open >= musts.len();
-    // Only explicit requirements, never a teaser's vocabulary terms.
+    // Only explicit requirements, never a teaser's vocabulary terms; a must of generic words
+    // and leadership alone (`SAP-Kenntnisse`, `Erste Führungserfahrung`) names no field.
+    let names_field = |s: &Scored| {
+        let atoms = atoms::atoms(&s.item.text, vocab);
+        atoms.is_empty()
+            || atoms
+                .iter()
+                .any(|a| !atoms::is_generic(a) && !fit::leadership_atom(a))
+    };
     let skills: Vec<&&Scored> = musts
         .iter()
         .filter(|s| s.item.class == Class::Skill && s.item.stage != Stage::Vocabulary)
+        .filter(|s| names_field(s))
         .collect();
     let all_open = !skills.is_empty() && skills.iter().all(|s| s.fit.value == E_NONE);
     let off_field = all_open && skills.len() >= 2;
@@ -241,7 +251,8 @@ fn cap(
 
 /// `P` with the must weight and the number of nice-to-haves. A requirement met in full
 /// through a Schwerpunkt weighs `FOCUS_FACTOR` times in `M` and `K`; the returned must
-/// weight and nice count (the evidence `n`) stay unweighted.
+/// weight and nice count (the evidence `n`) stay unweighted, and a language counts there
+/// with the full must weight (it is a requirement the ad states, only a light one in `M`).
 fn fit_score(items: &[Scored]) -> (u64, u64, u64) {
     let (mut must_weight, mut must_fit_weight, mut must_mass) = (0u64, 0u64, 0u64);
     let (mut nice_count, mut nice_fit_count, mut nice_mass) = (0u64, 0u64, 0u64);
@@ -253,7 +264,11 @@ fn fit_score(items: &[Scored]) -> (u64, u64, u64) {
         };
         match s.item.kind {
             ReqKind::Must => {
-                must_weight += s.weight;
+                must_weight += if matches!(s.item.class, Class::Language(..)) {
+                    W_MUST
+                } else {
+                    s.weight
+                };
                 must_fit_weight += s.weight * factor;
                 must_mass += s.weight * factor * u64::from(s.fit.value);
             }
@@ -466,7 +481,10 @@ fn all_caps(
     cap(items, title, vocab, formal_cap, title_fit)
         .into_iter()
         .chain(no_items.then_some(NO_ITEMS_CAP))
-        .chain(junior_for_senior(profile, raw_title).then_some(JUNIOR_CAP))
+        .chain(
+            (junior_for_senior(profile, raw_title) || entry_level_for_senior(profile, items))
+                .then_some(JUNIOR_CAP),
+        )
         .min()
 }
 
@@ -479,6 +497,24 @@ fn junior_for_senior(profile: &EngineProfile, title: &str) -> bool {
             .skills
             .total_years
             .is_some_and(|years| years >= SENIOR_YEARS)
+}
+
+/// A must that asks for first professional experience (`Erste Berufserfahrung`,
+/// `Berufseinsteiger`, `Absolvent`) makes an entry-level role, like a junior title, for a
+/// profile with ten years or more.
+fn entry_level_for_senior(profile: &EngineProfile, items: &[Scored]) -> bool {
+    profile
+        .skills
+        .total_years
+        .is_some_and(|years| years >= SENIOR_YEARS)
+        && items.iter().any(|s| {
+            s.item.kind == ReqKind::Must && {
+                let folded = fold(&s.item.text);
+                lex::ENTRY_LEVEL_MUSTS
+                    .iter()
+                    .any(|w| contains_word(&folded, w))
+            }
+        })
 }
 
 /// The page's own career level and employment type (LinkedIn's criteria), folded.
@@ -503,7 +539,7 @@ fn relevance_of(
 ) -> u64 {
     let vocab = &profile.skills.vocab;
     if no_items {
-        return relevance::title_fit(&profile.title_query, title, vocab);
+        return relevance::field_title_fit(&profile.title_query, title, vocab);
     }
     // With requirements the target role counts once, as its points (not in the title fit).
     (relevance::relevance(
@@ -554,7 +590,6 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
         job.title,
         text,
         &doc,
-        Vocab::every_pack(),
         &page_levels(job),
     ));
     let ad_facts = ad_facts::read(&facts, &segments, &folded, &stated_contract, &doc);

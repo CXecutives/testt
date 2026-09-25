@@ -1,0 +1,43 @@
+Titel: Berater (m/w/d) Einkaufsprozesse SAP MM / SAP Ariba
+Unternehmen: Isarwerk Digital Consulting GmbH
+Ort: D-81379 München
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1317688
+Abgerufen am: 25.09.2026 07:30
+
+Projekt-ID: 1317688
+Ort: München
+Remote: 70 %
+Start: KW 44 / 2026
+Dauer: 6 Monate
+Vertragsart: Freiberuflich
+Honorar: 100 € pro Stunde (ab 01.04.2027 105 €)
+
+Projektbeschreibung
+Für einen Kunden aus der Medizintechnik (Umsatz ca. 1,2 Mrd. €) begleiten wir die Harmonisierung der Procure-to-Pay-Prozesse an 9 Standorten. Die operative Beschaffung läuft über SAP MM (ECC 6.0 EHP8), Ausschreibungen sollen künftig über SAP Ariba Sourcing laufen. Go-live der ersten Welle ist für den 01.03.2027 geplant.
+
+Ihre Rolle:
+- Aufnahme und Harmonisierung der Soll-Prozesse Bedarfsanforderung, Bestellung, Wareneingang und Rechnungsprüfung
+- Fachliche Konzeption der Integration SAP MM zu SAP Ariba (Guided Buying, Contracts)
+- Erstellung von Fachkonzepten und User Stories, Abstimmung mit dem Implementierungspartner
+- Unterstützung beim Stammdatenkonzept (Material- und Lieferantenstamm) und bei der Datenmigration
+- Durchführung von Workshops mit dem Zentraleinkauf und den Werken
+
+Muss:
+- 5+ Jahre Beratungserfahrung in SAP MM (Customizing, nicht nur Anwendung)
+- Mind. ein Projekt mit SAP Ariba (Sourcing oder Buying)
+- Prozessverständnis Source-to-Pay
+- Deutsch verhandlungssicher, Englisch fließend (Implementierungspartner sitzt teilweise in Indien)
+
+Kann:
+- Erfahrung in regulierten Branchen (GxP, MDR)
+- S/4HANA Sourcing and Procurement
+
+Skills: SAP MM, SAP Ariba, P2P, Source-to-Pay, Stammdaten, Datenmigration, Guided Buying, Fachkonzept, Medizintechnik
+
+Hinweis: Bitte nur Bewerbungen von Freiberufler*innen, keine Weitervermittlung über Dritte.
+
+Projekt teilen
+Projekt merken
+Ähnliche Projekte
+Zuletzt aktualisiert: 24.09.2026

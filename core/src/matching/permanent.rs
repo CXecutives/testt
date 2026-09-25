@@ -169,8 +169,19 @@ pub(crate) fn salary(
             Vec::new(),
         )];
     };
-    let per_year = |v: u64| if salary.monthly { v * 12 } else { v };
-    let shown = per_year(salary.upper.unwrap_or(salary.lower));
+    // Absurd digit runs saturate.
+    let per_year = |v: u64| {
+        if salary.monthly {
+            v.saturating_mul(12)
+        } else {
+            v
+        }
+    };
+    let bonus = segments
+        .iter()
+        .find(|(r, _)| *r == span)
+        .map_or(0, |(_, f)| bonus_percent(f));
+    let shown = per_year(salary.upper.unwrap_or(salary.lower)).saturating_mul(100 + bonus) / 100;
     if shown >= min {
         return Vec::new();
     }
@@ -196,6 +207,17 @@ pub(crate) fn salary(
 }
 
 /// Percentages in a folded sentence.
+/// The share of a variable pay the salary sentence names (`plus bis zu 20 % Bonus`), read in
+/// the clause that names the bonus (`100 % remote` elsewhere in the sentence is none).
+fn bonus_percent(folded: &str) -> u64 {
+    folded
+        .split([',', ';', '(', ')'])
+        .filter(|clause| lex::BONUS_WORDS.iter().any(|w| clause.contains(w)))
+        .flat_map(percents)
+        .max()
+        .unwrap_or(0)
+}
+
 pub(crate) fn percents(folded: &str) -> Vec<u64> {
     let bytes = folded.as_bytes();
     let mut out = Vec::new();
@@ -385,6 +407,32 @@ mod tests {
         assert_eq!(region_of("München", &from), [(ReasonCode::Salary, false)]);
         let interim = "Interim-Mandat, Tagessatz 1.200 € pro Tag.";
         assert!(region_of("Hamburg", interim).is_empty());
+    }
+
+    /// LinkedIn's salary chip states a permanent role and its salary; a bonus share in the
+    /// salary clause raises the upper bound (`100 % remote` in another clause does not).
+    #[test]
+    fn salary_chips_and_bonus_shares() {
+        assert_eq!(
+            region_of("München", "120.000 €/Jahr - 140.000 €/Jahr"),
+            [(ReasonCode::Salary, true)]
+        );
+        let permanent = "Wir bieten eine unbefristete Festanstellung.";
+        let with = |extra: &str| format!("{permanent}\n{extra}");
+        assert!(
+            region_of(
+                "München",
+                &with("Jahresgehalt 120.000 bis 130.000 € plus bis zu 20 % Bonus.")
+            )
+            .is_empty()
+        );
+        assert_eq!(
+            region_of(
+                "München",
+                &with("Jahresgehalt 120.000 bis 130.000 € zzgl. Bonus, 100 % remote möglich.")
+            ),
+            [(ReasonCode::Salary, true)]
+        );
     }
 
     #[test]

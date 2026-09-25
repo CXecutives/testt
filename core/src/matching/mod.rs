@@ -55,8 +55,12 @@ use params::FOCUS_MAX;
 /// structured criteria (a limited employment type, an internship or entry level, the
 /// industries). 8: rules from the unseen held-out set 4 (hard facts in the fine print,
 /// reading noise, teasers and titles, a single open skill under a foreign title, junior
-/// roles for senior profiles, vocabulary).
-pub const ENGINE_VERSION: u32 = 8;
+/// roles for senior profiles, vocabulary). 9: rules from the unseen held-out set 5 (a
+/// language is a light fit, the relevance query holds the field, portal tags and rate lines
+/// are no requirements, an industry is no function, leadership or generic words alone name
+/// no field, entry-level musts, leading titles, salary chips and bonus shares, every years
+/// minimum is the target).
+pub const ENGINE_VERSION: u32 = 9;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.

@@ -27,6 +27,10 @@ pub(crate) const DOMAIN: Domain = Domain {
     ],
     generic: &[],
     concepts: &[
+        ("head it", "it-leitung"),
+        ("leiter it", "it-leitung"),
+        ("leitung it", "it-leitung"),
+        ("it-leiter", "it-leitung"),
         ("data migration", "datenmigration"),
         ("test management", "testmanagement"),
         ("master data", "stammdat"),
