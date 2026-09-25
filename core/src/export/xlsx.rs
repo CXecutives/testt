@@ -129,52 +129,7 @@ fn jobs_sheet(
                 sheet.write_number(row, 11, f64::from(m.score))?;
             }
         }
-        // Why an excluded job is out, the favourite, and the ad's key facts as the engine read
-        // them: a day rate in euros (an hourly rate x 8, a rate in another currency left
-        // out), the start, the duration and the remote share.
-        if excluded {
-            let why = job
-                .match_
-                .as_ref()
-                .and_then(|m| m.note.as_ref())
-                .and_then(|n| texts.exclusion_reason(&n.code, &n.params))
-                .unwrap_or(texts.html_excluded);
-            text(sheet, row, 12, why)?;
-        }
-        if job.pinned_at.is_some() {
-            text(sheet, row, 13, texts.cell_yes)?;
-        }
-        if let Some(facts) = job.match_.as_ref().map(|m| &m.facts) {
-            if let Some(rate) = facts.rate
-                && facts.currency.as_deref().is_none_or(|c| c == "EUR")
-            {
-                let day = if facts.hourly == Some(true) {
-                    rate.saturating_mul(8)
-                } else {
-                    rate
-                };
-                sheet.write_number(row, 14, f64::from(day))?;
-            }
-            if let Some(start) = facts.start.as_deref() {
-                let words = match start {
-                    "now" => texts.start_now,
-                    "vague" => texts.start_open,
-                    date => date,
-                };
-                text(sheet, row, 15, words)?;
-            }
-            if let Some(months) = facts.months {
-                sheet.write_number(row, 16, f64::from(months))?;
-            }
-            if let Some(from) = facts.remote_from {
-                let to = facts.remote_to.unwrap_or(from);
-                if from == to {
-                    sheet.write_number(row, 17, f64::from(from))?;
-                } else {
-                    text(sheet, row, 17, &format!("{from}–{to}"))?;
-                }
-            }
-        }
+        extra_cells(sheet, row, job, texts, excluded)?;
     }
     let last_row = u32::try_from(jobs.len()).unwrap_or(u32::MAX);
     sheet.autofilter(
@@ -184,6 +139,64 @@ fn jobs_sheet(
         u16::try_from(texts.columns.len() - 1).unwrap_or(0),
     )?;
     sheet.set_freeze_panes(1, 0)?;
+    Ok(())
+}
+
+/// The cells after the score: why an excluded job is out, the favourite, and the ad's key
+/// facts as the engine read them.
+fn extra_cells(
+    sheet: &mut Worksheet,
+    row: u32,
+    job: &JobRow,
+    texts: &Texts,
+    excluded: bool,
+) -> Result<(), XlsxError> {
+    // Why an excluded job is out, the favourite, and the ad's key facts as the engine read
+    // them: a day rate in euros (an hourly rate x 8, a rate in another currency left
+    // out), the start, the duration and the remote share.
+    if excluded {
+        let why = job
+            .match_
+            .as_ref()
+            .and_then(|m| m.note.as_ref())
+            .and_then(|n| texts.exclusion_reason(&n.code, &n.params))
+            .unwrap_or(texts.html_excluded);
+        text(sheet, row, 12, why)?;
+    }
+    if job.pinned_at.is_some() {
+        text(sheet, row, 13, texts.cell_yes)?;
+    }
+    if let Some(facts) = job.match_.as_ref().map(|m| &m.facts) {
+        if let Some(rate) = facts.rate
+            && facts.currency.as_deref().is_none_or(|c| c == "EUR")
+        {
+            let day = if facts.hourly == Some(true) {
+                rate.saturating_mul(8)
+            } else {
+                rate
+            };
+            sheet.write_number(row, 14, f64::from(day))?;
+        }
+        if let Some(start) = facts.start.as_deref() {
+            let words = match start {
+                "now" => texts.start_now,
+                "vague" => texts.start_open,
+                date => date,
+            };
+            text(sheet, row, 15, words)?;
+        }
+        if let Some(months) = facts.months {
+            sheet.write_number(row, 16, f64::from(months))?;
+        }
+        if let Some(from) = facts.remote_from {
+            let to = facts.remote_to.unwrap_or(from);
+            if from == to {
+                sheet.write_number(row, 17, f64::from(from))?;
+            } else {
+                text(sheet, row, 17, &format!("{from}–{to}"))?;
+            }
+        }
+    }
     Ok(())
 }
 
