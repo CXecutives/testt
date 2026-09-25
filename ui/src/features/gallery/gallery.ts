@@ -471,8 +471,8 @@ export const shadows = [
   'sh-pop',
   'sh-hover',
   'sh-primary',
-  'focus-halo',
   'focus-ring',
+  'focus-ring-inset',
 ] as const;
 export const gradients = ['grad-shimmer'] as const;
 export const durations = ['instant', 'hover', 'fast', 'base', 'slow', 'reveal'] as const;

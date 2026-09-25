@@ -76,8 +76,7 @@
   }
 
   .area:focus {
-    border-color: var(--focus);
-    box-shadow: var(--focus-halo);
+    border-color: var(--border-focus);
   }
 
   .area::placeholder {

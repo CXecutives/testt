@@ -259,10 +259,12 @@
   --sh-hover:
     0 4px 12px -4px hsl(var(--p-shade-navy) / 0.14), 0 1px 2px hsl(var(--p-shade-navy) / 0.06);
   --sh-primary: inset 0 1px 0 hsl(var(--p-white) / 0.16), 0 1px 2px hsl(var(--p-shade-xs) / 0.12);
-  /* Focus of a text field: the navy edge with a soft halo (on ::after, faded by opacity). */
-  --focus-halo: 0 0 0 3px hsl(var(--p-navy) / 0.16);
-  --focus-ring: 0 0 0 2px hsl(var(--p-white)), 0 0 0 4px hsl(var(--p-navy));
-  --focus-ring-inset: inset 0 0 0 2px hsl(var(--p-navy));
+  /* Keyboard focus (only :focus-visible, never after a click): one thin navy ring around
+     the control, or inside it where the control fills its row. A text field in focus shows
+     its edge in navy (--border-focus) and nothing around it: never two rings. */
+  --focus-ring: 0 0 0 var(--focus-width) hsl(var(--p-navy));
+  --focus-ring-inset: inset 0 0 0 var(--focus-width) hsl(var(--p-navy));
+  --border-focus: hsl(var(--p-navy));
 
   /* ------------------------------------------------------------------- radii */
   --radius-xs: 6px;
@@ -483,8 +485,8 @@
   --leading-display: 40px;
   --type-2xs: var(--weight-regular) var(--font-2xs) / var(--leading-2xs) var(--font-sans);
   --type-xs: var(--weight-regular) var(--font-xs) / var(--leading-xs) var(--font-sans);
-  /* The app's name in the Windows title bar: Inter 12 px, regular. */
-  --type-window: var(--weight-regular) var(--font-xs) / var(--leading-xs) var(--font-sans);
+  /* The app's name in the Windows title bar: Inter 12 px, medium. */
+  --type-window: var(--weight-medium) var(--font-xs) / var(--leading-xs) var(--font-sans);
   --type-sm: var(--weight-regular) var(--font-sm) / var(--leading-sm) var(--font-sans);
   --type-md: var(--weight-regular) var(--font-md) / var(--leading-md) var(--font-sans);
   --type-title: var(--weight-medium) var(--font-md) / var(--leading-title) var(--font-sans);

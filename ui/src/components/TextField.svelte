@@ -3,8 +3,8 @@
   autocorrect and autocapitalize are off. Use inside Field for label, hint and error.
   Like the native ones: the show and clear buttons are not in the Tab order and leave the
   caret in the field; a search clears on Esc, and a click on its magnifier lands in it.
-  Focus turns the edge navy (100 ms) and fades in a soft halo painted once on ::after; the
-  magnifier turns navy. The clear button pops in with the first character and leaves at
+  Focus turns the edge navy (100 ms), one calm edge and no ring around it; the magnifier
+  turns navy. The clear button pops in with the first character and leaves at
   once. `shake()` shakes the field once (a wrong password; never under reduced motion).
 -->
 <script lang="ts">
@@ -162,30 +162,14 @@
     transition: border-color var(--dur-base) var(--ease-standard);
   }
 
-  /* The focus halo: painted once, shown by opacity (a box-shadow never animates). */
-  .field::after {
-    position: absolute;
-    inset: calc(-1 * var(--border-width));
-    border-radius: inherit;
-    box-shadow: var(--focus-halo);
-    content: '';
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--dur-fast) var(--ease-standard);
-  }
-
   .field:hover {
     border-color: var(--border-input);
     transition-duration: var(--dur-hover);
   }
 
   .field:focus-within {
-    border-color: var(--focus);
+    border-color: var(--border-focus);
     transition-duration: var(--dur-fast);
-  }
-
-  .field:focus-within::after {
-    opacity: 1;
   }
 
   .invalid,

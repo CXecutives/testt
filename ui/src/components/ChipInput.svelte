@@ -200,7 +200,6 @@
 
   .entry:focus-within {
     border-color: var(--focus);
-    box-shadow: var(--focus-halo);
   }
 
   .invalid,
