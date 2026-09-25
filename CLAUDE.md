@@ -43,8 +43,10 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
 
 ## Architecture
 - `core/` (`jobalert-core`, `#![forbid(unsafe_code)]`, no UI prose): `mail/` IMAP scan · `portal/` adapters + registry ·
-  `fetch/` queue, HTTP, policy, health · `matching/` pure integer scoring engine · `store/` SQLite (schema chain) ·
-  `pipeline/` runs (scan → fetch → score → export) · `export/` xlsx, txt, overview html · `view.rs` IPC DTOs (ts-rs).
+  `fetch/` queue, HTTP, policy, health · `matching/` pure integer scoring engine · `profile/` profile form, JSON merge
+  with one backup, CV prompt, country codes · `store/` SQLite (schema chain) · `pipeline/` runs (scan → fetch → score →
+  export) · `export/` xlsx, txt, overview html, top_matches.json, AI prompts · `text/` HTML to text, file names, company
+  and location · `secrets.rs` keychain · `settings.rs` · `view.rs` IPC DTOs (ts-rs, `view/ts.rs`).
 - `src-tauri/`: `main.rs` start, `platform.rs` (only place with per-OS code), `session.rs` (freelance.de webview),
   `commands/` (IPC), `smoke.rs` (debug-only smoke probe). Command names live in 4 places; `core/tests/contract.rs` checks.
 - `ui/`: Svelte 5 + Vite + TypeScript. `styles/`, `components/` (design system), `features/` (screens), `lib/`.
@@ -55,6 +57,9 @@ Rebuild of `CXecutives/projektscraper` (read-only reference; old engine at git r
 - `cargo fmt --all --check` · `cargo clippy --workspace --all-targets -- -D warnings` · `cargo test --workspace`
 - `npm ci` · `npm run check` (svelte-check, eslint, stylelint, prettier) · `npm run harness` · `npm run build`
 - `npx tauri build` (release bundles) · debug smoke: `target/debug/job-alert-monitor --dry-run --smoke --smoke-run`
+- Engine changes: `cargo test -p jobalert-core --test matching_corpus -- --ignored report --nocapture` ·
+  `cargo test -p jobalert-core --test matching_heldout -- --ignored heldout_report --nocapture`; every new
+  `ENGINE_VERSION` gets its section in `docs/MATCHING.md`.
 
 ## Workflow
 - Small English commits, each green on its own. Tick `docs/PLAN.md`. Parallel tracks work in their own worktree with
