@@ -33,6 +33,7 @@
   import type { OpenTarget, Portal, PortalHealth, Step } from '$lib/ipc/types';
   import { fade, roll } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
+  import { clock } from '$lib/state/clock.svelte';
   import { fileManager } from '$lib/platform';
   import {
     exportError,
@@ -215,7 +216,8 @@
       {#if open}
         <div class="more" in:fade>
           <p class="facts">
-            <span class="time">{formatMoment(summary.finishedAt)}</span>
+            <!-- The shared clock: "08:30" gains its date after midnight, like the sidebar. -->
+            <span class="time">{formatMoment(summary.finishedAt, clock.now)}</span>
             {#if fetchRun && newJobs > 0}
               <span data-testid="last-new"
                 ><Badge label={t.run.newPill(newJobs)} tone="coral" /></span
