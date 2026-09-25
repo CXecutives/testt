@@ -485,6 +485,24 @@ mod tests {
             PageOutcome::Blocked(_)
         ));
 
+        // freelance.de too: an unfollowed redirect to a sign-in page is a wall, at once.
+        server.reset().await;
+        Mock::given(path("/project/index.php"))
+            .respond_with(
+                ResponseTemplate::new(302)
+                    .insert_header("location", "https://example.org/login.php"),
+            )
+            .mount(&server)
+            .await;
+        assert_eq!(
+            fetch(
+                &mut f,
+                "https://www.freelance.de/project/index.php?id=1255067"
+            )
+            .await,
+            PageOutcome::Blocked(Cause::LoginWall)
+        );
+
         // A followed redirect on the same host: no referer.
         server.reset().await;
         let long = "Projektbeschreibung mit allen Details. ".repeat(5);
