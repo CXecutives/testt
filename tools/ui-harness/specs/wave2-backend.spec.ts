@@ -1,4 +1,5 @@
-// Wave 2, backend group: an undo puts a job back as it was (see docs/wave2/PLAN.md).
+// Wave 2, backend group: an undo and Wiederherstellen put a job back as it was (see
+// docs/wave2/PLAN.md).
 
 import type { Page } from '@playwright/test';
 import { calls, expect, NOW, open, test } from './fixtures';
@@ -47,4 +48,48 @@ test('undoing Wiederherstellen keeps the trash date and its days', async ({ page
   await page.getByTestId('nav-trash').click();
   await row(page, key).click();
   await expect(line).toHaveText('Im Papierkorb, wird in 27 Tagen gelöscht');
+});
+
+/** Waits out the moment after a move in which a click does nothing (actions.ts GUARD_MS). */
+const settleMoves = (page: Page): Promise<void> => page.waitForTimeout(550);
+
+/** A row's tool: it exists while the pointer is on the row. */
+async function tool(page: Page, id: string, key: string): Promise<void> {
+  await settleMoves(page);
+  await row(page, key).hover();
+  await page.getByTestId(`${id}-${key}`).click();
+  await expect(row(page, key)).toHaveCount(0);
+}
+
+test('Wiederherstellen puts a job thrown away from the Archiv back there', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const key = 'linkedin-4100200301';
+  await tool(page, 'archive', key);
+  await page.getByTestId('nav-archive').click();
+  await tool(page, 'trash', key);
+  await page.getByTestId('nav-trash').click();
+  await tool(page, 'restore', key);
+  expect((await calls(page, 'restore_jobs')).map(([, args]) => args)).toEqual([
+    { keys: [{ portal: 'linkedin', id: '4100200301' }] },
+  ]);
+  // The undo puts it into the trash again, a second Wiederherstellen back into the Archiv.
+  const toast = page.getByTestId('toast').filter({ hasText: 'wiederhergestellt' });
+  await toast.getByTestId('toast-action').click();
+  await expect(row(page, key)).toHaveCount(1);
+  expect((await calls(page, 'move_back')).at(-1)?.[1]).toEqual(
+    expect.objectContaining({ jobs: [expect.objectContaining({ to: 'trash' })] }),
+  );
+  await tool(page, 'restore', key);
+  await page.getByTestId('nav-archive').click();
+  await expect(row(page, key)).toHaveCount(1);
+  await page.getByTestId('nav-jobs').click();
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await expect(
+    page
+      .getByTestId('job-list')
+      .getByTestId(/^job-row-/)
+      .first(),
+  ).toBeVisible();
+  await expect(row(page, key)).toHaveCount(0);
 });

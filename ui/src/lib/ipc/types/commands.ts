@@ -33,6 +33,7 @@ export type Commands = {
   set_pinned: { args: { key: JobKey; on: boolean }; result: boolean };
   move_jobs: { args: { to: Place; keys: JobKey[] }; result: JobKey[] };
   move_back: { args: { jobs: MoveBack[] }; result: JobKey[] };
+  restore_jobs: { args: { keys: JobKey[] }; result: JobKey[] };
   set_override: { args: { key: JobKey; include: boolean }; result: boolean };
   purge_jobs: { args: { keys: JobKey[] }; result: Deleted };
   empty_trash: { args: Record<string, never>; result: Deleted };

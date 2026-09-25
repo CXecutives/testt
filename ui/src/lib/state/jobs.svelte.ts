@@ -809,17 +809,26 @@ class JobsStore {
    * Moves jobs to the inbox, the archive or the trash. The rows leave a list they no longer
    * belong to at once. Resolves with the keys that really moved (toasts and undos only for
    * those; a job already there or gone did not), or the error text; on an error, or when not
-   * every job moved, the list loads again.
+   * every job moved, the list loads again. `restore` takes jobs out of the trash back to where
+   * each lay (the archive for one thrown away from there): they count as `to` until the
+   * counts come from the backend.
    */
-  async move(keys: JobKey[], to: Place): Promise<{ moved: JobKey[] } | { error: string }> {
+  async move(
+    keys: JobKey[],
+    to: Place,
+    restore = false,
+  ): Promise<{ moved: JobKey[] } | { error: string }> {
     const before = keys.map((key) => this.held(key)).filter((job): job is JobView => job !== null);
     for (const job of before) {
       this.patch(job.key, { place: to });
       this.dropStray(job.key);
     }
     try {
-      const moved = await invoke('move_jobs', { keys, to });
+      const moved = restore
+        ? await invoke('restore_jobs', { keys })
+        : await invoke('move_jobs', { keys, to });
       if (moved.length < keys.length) void this.load(true);
+      else if (restore) void this.refreshCounts();
       return { moved };
     } catch (error) {
       for (const job of before) this.patch(job.key, { place: job.place });

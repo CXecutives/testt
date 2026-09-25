@@ -127,6 +127,32 @@ impl Store {
         }))
     }
 
+    /// "Wiederherstellen": takes jobs out of the trash, back to where they lay, like Mail's
+    /// "put back": a job thrown away from the archive returns there (it kept its archive
+    /// time), any other into the inbox, where its age counts from now (the user took it
+    /// back). Returns the keys that really left the trash.
+    pub fn restore_jobs(&self, keys: &[JobKey], now: Timestamp) -> Result<Vec<JobKey>> {
+        self.write(|conn| {
+            let mut stmt = conn.prepare_cached(
+                "UPDATE job SET trashed_at = NULL,
+                                inbox_at = CASE WHEN archived_at IS NULL THEN ?3 ELSE inbox_at END
+                 WHERE portal = ?1 AND job_id = ?2 AND trashed_at IS NOT NULL",
+            )?;
+            let mut restored = Vec::new();
+            for key in keys {
+                if stmt.execute(params![key.portal.key(), key.id, to_db(now)])? > 0
+                    && !restored.contains(key)
+                {
+                    restored.push(key.clone());
+                }
+            }
+            if !restored.is_empty() {
+                bump(conn)?;
+            }
+            Ok(restored)
+        })
+    }
+
     /// Moves each job to its place at its time (`None`: the inbox keeps the time of the last
     /// move into it); returns the keys that really moved.
     fn place_jobs<'a>(
@@ -502,6 +528,38 @@ mod tests {
         let cutoff = at + jiff::SignedDuration::from_hours(1);
         assert_eq!(store.auto_archive(cutoff, later).unwrap(), 1);
         assert_eq!(place(&store, &keys[2]), Place::Archive);
+    }
+
+    /// Wiederherstellen puts a job back where it lay before the trash: one thrown away from
+    /// the archive into the archive, one from the inbox into the inbox, young again there.
+    #[test]
+    fn a_restored_job_goes_back_where_it_lay() {
+        let (store, keys) = store_with_jobs(3);
+        let at = now();
+        let later = at + jiff::SignedDuration::from_hours(72);
+        store
+            .move_jobs(std::slice::from_ref(&keys[0]), Place::Archive, at)
+            .unwrap();
+        store.move_jobs(&keys[..2], Place::Trash, at).unwrap();
+        let rev = store.data_rev().unwrap();
+        assert_eq!(store.restore_jobs(&keys, later).unwrap(), &keys[..2]);
+        assert_ne!(store.data_rev().unwrap(), rev);
+        let archived = store.job(&keys[0]).unwrap().unwrap();
+        assert_eq!(archived.place(), Place::Archive);
+        assert_eq!(archived.archived_at, Some(at), "it keeps its archive time");
+        assert_eq!(place(&store, &keys[1]), Place::Inbox);
+        assert!(
+            store.restore_jobs(&keys, later).unwrap().is_empty(),
+            "none in the trash"
+        );
+        // The restored inbox job counts its age from the restore: the next run keeps it.
+        let cutoff = at + jiff::SignedDuration::from_hours(1);
+        assert_eq!(
+            store.auto_archive(cutoff, later).unwrap(),
+            1,
+            "only the third"
+        );
+        assert_eq!(place(&store, &keys[1]), Place::Inbox);
     }
 
     /// "All read" marks exactly the unread jobs of the place and hands their keys back; the

@@ -76,6 +76,21 @@ pub async fn move_jobs(
     Ok(moved)
 }
 
+/// "Wiederherstellen": takes jobs out of the trash, back to where they lay (the archive for
+/// a job thrown away from there, the inbox otherwise); returns the keys that really left it.
+#[tauri::command]
+pub async fn restore_jobs(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    keys: Vec<JobKey>,
+) -> CmdResult<Vec<JobKey>> {
+    let restored = state.store.restore_jobs(&keys, Timestamp::now())?;
+    if !restored.is_empty() {
+        files::marked(&app);
+    }
+    Ok(restored)
+}
+
 /// Takes moves back (the undo of a toast): each job returns to the place it came from as it
 /// was there, into the trash with its earlier date; returns the keys that really moved.
 #[tauri::command]

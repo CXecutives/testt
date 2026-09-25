@@ -74,7 +74,8 @@ Schema 4 is on main, so this is its own step (`migrate_4_to_5`, frozen fixture `
 mark (an application status, the pin) becomes the favourite (`app_status = 'saved'`), the `note` column stays unused,
 and a `tombstone(portal, job_id, deleted_at)` table. Email model (user decision 2026-09-25): every job is in exactly
 one place, Eingang (inbox), Archiv or Papierkorb (trash; `trashed_at` wins over `archived_at`); the favourite (the star,
-`set_pinned`) is a flag of its own; no stages, no follow-up, no note. `move_jobs(keys, to)` moves; `purge_jobs(keys)`
+`set_pinned`) is a flag of its own; no stages, no follow-up, no note. `move_jobs(keys, to)` moves; `restore_jobs(keys)`
+("Wiederherstellen") puts a job of the trash back where it lay, the archive or the inbox, like Mail; `purge_jobs(keys)`
 ("Endgültig löschen", only from the trash) and `empty_trash()` delete rows (with the duplicates that stand for them)
 and their TXT files, rewrite the overview and leave the tombstone, so a scan of an old alert mail never imports them
 again (the dry run deletes in its database only); `empty_trash` empties the whole trash like Mail, whatever the search,
@@ -112,7 +113,7 @@ Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | res
 `list_jobs(JobQuery{place: inbox|archive|trash, unread, favourites, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{inbox, unread, favourites, archive, trash, excluded, high, noDetail, newByPortal[{portal, new}] in Portal::ALL order}}`
 (list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only) ·
 `job_detail(key)` · `mark_read(key) -> bool` · `mark_all_read(place, search?) -> JobKey[]` · `mark_unread(keys) -> number` ·
-`set_pinned(key, on)` · `move_jobs(to, keys) -> JobKey[]` · `move_back(jobs: MoveBack{key, to, trashedAt}[]) -> JobKey[]` ·
+`set_pinned(key, on)` · `move_jobs(to, keys) -> JobKey[]` · `move_back(jobs: MoveBack{key, to, trashedAt}[]) -> JobKey[]` · `restore_jobs(keys) -> JobKey[]` ·
 `set_override(key, include) -> bool` ·
 `purge_jobs(keys) -> Deleted{count, keys, exportError?}` · `empty_trash -> Deleted` ·
 `ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile -> ProfileDraft?` ·

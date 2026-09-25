@@ -22,6 +22,7 @@ fn main() {
             "set_pinned",
             "move_jobs",
             "move_back",
+            "restore_jobs",
             "set_override",
             "purge_jobs",
             "empty_trash",

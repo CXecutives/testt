@@ -1177,9 +1177,10 @@ function countsOf(list: JobView[]): JobCounts {
 
 /* ------------------------------------------------------------------- marks */
 
-/** When a job went to the trash, deleted keys and the excluded verdicts the user overrode
- *  (store::marks). */
+/** When a job went to the trash and from where (the archive keeps its time there), deleted
+ *  keys and the excluded verdicts the user overrode (store::marks). */
 const trashedAt = new Map<string, string>();
+const trashedFrom = new Map<string, Place>();
 const tombstones = new Set<string>();
 const overridden = new Map<string, Match>();
 const markKey = (key: JobKey): string => `${key.portal}:${key.id}`;
@@ -1201,6 +1202,7 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
   for (const key of keys) {
     const j = find(key);
     if (j === undefined || j.place === to) continue;
+    if (to === 'trash') trashedFrom.set(markKey(key), j.place);
     j.place = to;
     if (to === 'trash') trashedAt.set(markKey(key), new Date(Date.now()).toISOString());
     else trashedAt.delete(markKey(key));
@@ -1209,6 +1211,13 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
   }
   refresh();
   return moved;
+}
+
+/** Wiederherstellen (store::restore_jobs): out of the trash back to where each job lay. */
+function restoreJobs(keys: JobKey[]): JobKey[] {
+  return keys.flatMap((key) =>
+    find(key)?.place === 'trash' ? moveJobs([key], trashedFrom.get(markKey(key)) ?? 'inbox') : [],
+  );
 }
 
 /** Takes moves back (store::move_back): into the trash with the time the job first went
@@ -2037,6 +2046,7 @@ const handlers: Handlers = {
   },
   move_jobs: ({ keys, to }) => moveJobs(keys, to),
   move_back: ({ jobs: back }) => moveBack(back),
+  restore_jobs: ({ keys }) => restoreJobs(keys),
   // With a search only its hits (store::mark_all_read).
   mark_all_read: ({ place, search }) => {
     const marked = jobs.filter((j) => j.unread && j.place === place && matchesSearch(j, search));
