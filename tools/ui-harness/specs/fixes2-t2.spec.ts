@@ -81,7 +81,7 @@ test('the profile in its logical order, each block with its sentence', async ({ 
     ['section-competences', 'Nur dieser Block ist nötig, danach bewertet die App jeden Job.'],
     ['section-experience', 'Damit prüft die App, was eine Anzeige verlangt.'],
     ['section-languages', 'Die App vergleicht sie mit den Sprachen einer Anzeige.'],
-    ['section-wishes', 'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.'],
+    ['section-wishes', 'Wünsche verschieben die Passung leicht, sie schließen nichts aus.'],
     ['section-criteria', 'Ein Job, der hier nicht passt, gilt als ausgeschlossen.'],
   ];
   for (const [id, sentence] of sentences) {
@@ -220,7 +220,7 @@ test('a country of a file the app does not know stays and shows as it is', async
   await page.getByTestId('nav-profile').click();
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   const answer = JSON.stringify({
     name: 'Carla Exempel',

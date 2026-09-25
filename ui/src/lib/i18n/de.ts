@@ -126,7 +126,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   secretStore: 'Der Passwortspeicher des Systems ist nicht erreichbar.',
   secretCorrupt: 'Das gespeicherte App-Passwort ist nicht lesbar.',
   portalUnavailable: (p) => `Keine Verbindung zu ${portalOf(p.portal)}.`,
-  portalPaused: (p) => `Die Abrufe bei ${portalOf(p.portal)} pausieren gerade.`,
+  portalPaused: (p) => `${portalOf(p.portal)} pausiert gerade.`,
   portalQuota: (p) => `Das Limit für ${portalOf(p.portal)} ist erreicht.`,
   internal: INTERNAL,
   unknown: INTERNAL,
@@ -148,7 +148,7 @@ const profileField: Record<string, string> = {
   languages: 'Sprachen',
   minDayRate: 'Mindest-Tagessatz',
   countries: 'Einsatzländer',
-  contracts: 'Ausgeschlossene Vertragsarten',
+  contracts: 'Arbeitnehmerüberlassung und Festanstellung',
   remoteOutside: 'Remote-Jobs im Ausland zulassen',
   available: 'Verfügbar ab',
   targetYears: 'Mindest-Erfahrung des Jobs',
@@ -217,10 +217,10 @@ const detailSays = {
   onRequest: 'Diese Details holt die App nur auf Anfrage.',
 } as const;
 
-/** Alert mails without jobs, and what to do about them (the overview's open points and the
- *  settings say it alike): look whether the mail lists any. */
+/** Alert mails in which the app found no jobs (the overview's open points and the settings
+ *  say it alike, next to the button that opens the mail to look). */
 const emptyMails = (mails: number): string =>
-  `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.`;
+  `${mails === 1 ? 'In einer Alert-Mail' : `In ${n(mails)} Alert-Mails`} fand die App keine Jobs.`;
 
 /** A profile file the app cannot read (the list, the overview, the Profil view). */
 const PROFILE_UNREADABLE = 'Profil nicht lesbar';
@@ -370,7 +370,7 @@ const reasonCode = {
       : 'Der Job richtet sich an weniger Erfahrene.',
   seniorityUnclear: (p) =>
     p.junior
-      ? 'Der Titel klingt nach einer Einstiegsstelle.'
+      ? 'Der Titel klingt nach einem Job für Einsteiger.'
       : 'Das gesuchte Erfahrungslevel ist unklar.',
   overqualified: (p) =>
     p.years !== undefined && p.years !== null
@@ -645,8 +645,7 @@ export const de = {
     } satisfies Record<Place, string>,
     /** The reader of the archive and the trash while no job is open. */
     reader: {
-      archive:
-        'Archivierte Jobs bleiben hier, bis du sie zurückholst oder in den Papierkorb legst.',
+      archive: 'Archivierte Jobs bleiben hier, bis du sie zurückholst.',
       trash:
         'Jobs im Papierkorb bleiben hier, bis du sie wiederherstellst oder den Papierkorb leerst.',
     } satisfies Record<Exclude<Place, 'inbox'>, string>,
@@ -742,7 +741,7 @@ export const de = {
       pending: 'Details folgen',
       teaser: 'Nur Anriss',
       failed: 'Details fehlen',
-      unfetchable: 'Nicht abrufbar',
+      unfetchable: 'Nicht erreichbar',
       gone: 'Nicht mehr online',
       onRequest: 'Details auf Anfrage',
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
@@ -801,7 +800,7 @@ export const de = {
     /** After the rolling number of a step counter: "von 7". */
     ofTotal: (total: number) => `von ${n(total)}`,
     newPill: (value: number) => `${n(value)} neu`,
-    topPill: (value: number) => count(value, 'passt gut', 'passen gut'),
+    topPill: (value: number) => `${n(value)} mit hoher Passung`,
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
     kind: {
       fetch: 'Abruf',
@@ -974,7 +973,7 @@ export const de = {
     overridden: 'Von dir trotzdem gewertet.',
     prompt: 'Prompt für KI-Bewertung kopieren',
     promptShort: 'Prompt kopieren',
-    promptHint: 'Kopiert Anzeige und Profil als fertigen Prompt für eine KI.',
+    promptHint: 'Kopiert Anzeige und Profil als Prompt für eine KI.',
     /** The clipboard refused the prompt. */
     promptNotCopied: 'Der Prompt ließ sich nicht kopieren.',
     /** Under the band of a score that comes from a teaser only. */
@@ -1049,7 +1048,7 @@ export const de = {
       emptyMails,
       pages:
         'Die Seiten des Portals sehen anders aus, der nächste Abruf versucht es von selbst wieder.',
-      login: 'Die Anmeldung ist abgelaufen, bitte melde dich neu an.',
+      login: 'Die Anmeldung ist abgelaufen, melde dich neu an.',
     },
   },
   profile: {
@@ -1057,7 +1056,7 @@ export const de = {
     /** Under the error of a profile that no longer reads. */
     replaces: 'Ein neues Profil ersetzt die Datei.',
     create: 'Profil anlegen',
-    fromCv: 'Aus Lebenslauf erstellen',
+    fromCv: 'Aus Lebenslauf anlegen',
     /** The same way for a profile that exists: the answer fills the form for review. */
     updateFromCv: 'Aus Lebenslauf aktualisieren',
     pick: 'Datei wählen',
@@ -1065,7 +1064,7 @@ export const de = {
     remove: 'Entfernen',
     removeHeading: 'Profil entfernen?',
     removeText:
-      'Die Jobs zeigen danach keine Passung mehr. Die Datei bleibt als Sicherung im Profilordner.',
+      'Die Jobs zeigen danach keine Passung, die Datei bleibt als Sicherung im Profilordner.',
     removed: 'Profil entfernt.',
     /** The moment like every moment of the app (`21.09. 09:30`, the time alone today). */
     savedAt: (moment: string) => `Gespeichert ${moment}`,
@@ -1137,11 +1136,10 @@ export const de = {
       competences: 'Nur dieser Block ist nötig, danach bewertet die App jeden Job.',
       experience: 'Damit prüft die App, was eine Anzeige verlangt.',
       languages: 'Die App vergleicht sie mit den Sprachen einer Anzeige.',
-      wishes: 'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.',
+      wishes: 'Wünsche verschieben die Passung leicht, sie schließen nichts aus.',
       criteria: 'Ein Job, der hier nicht passt, gilt als ausgeschlossen.',
       permanent: 'Diese Regeln gelten nur für Festanstellungen.',
-      availability:
-        'Beginnt ein Job früher, markiert die App ihn zum Prüfen, sie schließt ihn nicht aus.',
+      availability: 'Beginnt ein Job früher, markiert die App ihn zum Prüfen.',
     },
     field: {
       name: 'Name',
@@ -1149,7 +1147,7 @@ export const de = {
       title: 'Rolle',
       titlePlaceholder: 'z. B. Interim Manager',
       roles: 'Wunschrollen',
-      rolesHint: 'Passt der Titel einer Anzeige dazu, steigt die Bewertung leicht.',
+      rolesHint: 'Passt der Titel einer Anzeige dazu, steigt die Passung leicht.',
       rolesPlaceholder: 'z. B. Interim Management',
       competence: 'Kompetenz',
       competencePlaceholder: 'z. B. Projektleitung',
@@ -1177,7 +1175,7 @@ export const de = {
       keywordsPlaceholder: 'z. B. Transformation',
       keywordsHint: 'Begriffe, die in passenden Anzeigen stehen.',
       totalYears: 'Berufserfahrung',
-      totalYearsHint: 'Ab zehn Jahren bewertet die App Einstiegsstellen niedrig.',
+      totalYearsHint: 'Ab zehn Jahren bewertet die App Jobs für Einsteiger niedrig.',
       degrees: 'Abschlüsse',
       degreesPlaceholder: 'z. B. Master',
       industries: 'Branchen',
@@ -1227,7 +1225,7 @@ export const de = {
       placesPlaceholder: 'z. B. München',
       remoteMin: 'Mindest-Remote-Anteil',
       remoteMinHint:
-        'Außerhalb dieser Orte zählt eine Festanstellung erst ab diesem Remote-Anteil.',
+        'Außerhalb der Orte für Festanstellung braucht ein Job mindestens diesen Remote-Anteil.',
       /** A euro amount with cents: the app counts whole euros. */
       rounded: 'Auf ganze Euro abgerundet.',
       /** Another number with a decimal part: the app counts whole ones. */
@@ -1372,7 +1370,7 @@ export const de = {
     /** The last fetch could not reach Gmail, or Gmail refused the password. */
     unreachable: 'Nicht erreichbar',
     refused: 'Abgelehnt',
-    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, bitte trag sie über „Ändern“ neu ein.',
+    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, trag sie über „Ändern“ neu ein.',
     vault: {
       windowsCredentialManager:
         'Das App-Passwort liegt in der Windows-Anmeldeinformationsverwaltung.',
@@ -1424,6 +1422,7 @@ export const de = {
     workspaceDefault: 'Standard',
     excel: 'Excel-Datei',
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
+    overview: 'Übersicht',
     txt: 'Textdateien',
     /** What the text files are (one per ad) and what they are for, with their number. */
     txtCount: (value: number) =>
@@ -1444,7 +1443,7 @@ export const de = {
     fullMailboxAction: 'Postfach lesen',
     fullMailboxConfirm: 'Lesen',
     fullMailboxHeading: 'Ganzes Postfach lesen?',
-    fullMailboxText: 'Das dauert länger und ruft mehr Seiten der Portale ab.',
+    fullMailboxText: 'Das dauert länger und holt mehr Seiten der Portale.',
     logs: 'Protokolle',
     data: 'Daten der App',
     reset: 'Alles zurücksetzen',
@@ -1465,7 +1464,6 @@ export const de = {
     languageLabel: 'Sprache der App',
     /** Excel file and overview are written at the next fetch (the text files stay German). */
     languageHint: 'Excel-Datei und Übersicht folgen beim nächsten Abruf.',
-    /** Each language named in the language of the app (Deutsch/Englisch, German/English). */
     /** Each language in its own words, the same in both catalogs. */
     languageName: {
       de: 'Deutsch',
@@ -1498,7 +1496,7 @@ export const de = {
     rescored: 'Jobs neu bewertet.',
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
-    prompt: 'Prompt kopiert, bereit für einen KI-Chat.',
+    prompt: 'Prompt kopiert.',
     archivedOne: (name: string) => `„${name}“ archiviert.`,
     trashedOne: (name: string) => `„${name}“ in den Papierkorb gelegt.`,
     trashedMany: (value: number) => `${n(value)} Jobs in den Papierkorb gelegt.`,

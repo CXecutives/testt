@@ -81,7 +81,7 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   ]);
   // Wishes say what they do: they nudge, they never exclude.
   await expect(page.getByTestId('section-wishes')).toContainText(
-    'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.',
+    'Wünsche verschieben die Passung leicht, sie schließen nichts aus.',
   );
   await expect(page.getByTestId('profile-name-field')).toHaveValue('Erika Beispiel');
   await expect(chips(page.getByTestId('profile-roles'))).toHaveText(['Interim CFO']);
@@ -126,7 +126,7 @@ test('one name per field: the labels, their hints and neutral examples', async (
   for (const text of [
     'Die Rolle zählt für die Passung.',
     'Sie stützen die Passung, belegen aber keine Anforderung.',
-    'Ab zehn Jahren bewertet die App Einstiegsstellen niedrig.',
+    'Ab zehn Jahren bewertet die App Jobs für Einsteiger niedrig.',
     'Ohne Niveau rechnet die App mit B2.',
     'Remote-Anteil',
     'Den Mindest-Tagessatz legen die Ausschlusskriterien fest.',
@@ -622,7 +622,7 @@ test('no profile: one sentence and the three ways in', async ({ page }) => {
   await expect(empty).toContainText('Mit einem Profil zeigt jeder Job, wie gut er passt.');
   await expect(empty.getByRole('button')).toHaveText([
     'Profil anlegen',
-    'Aus Lebenslauf erstellen',
+    'Aus Lebenslauf anlegen',
     'Datei wählen',
   ]);
   await expect(empty.locator('.btn.primary')).toHaveText('Profil anlegen');
@@ -727,7 +727,7 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
   await profile(page, 'no-profile');
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   const card = page.getByTestId('profile-paste');
   await expect(card).toBeVisible();
@@ -832,7 +832,7 @@ test('from a CV: when the prompt could not be copied, the step says so and copie
   await profile(page, 'no-profile');
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   await expect(page.getByTestId('paste-copied')).toContainText(
     'Der Prompt ließ sich nicht kopieren.',
@@ -900,7 +900,7 @@ test('remove asks first, says what happens and can be taken back', async ({ page
   await page.getByTestId('profile-remove').click();
   const dialog = page.getByTestId('dialog-remove-profile');
   await expect(dialog).toContainText(
-    'Die Jobs zeigen danach keine Passung mehr. Die Datei bleibt als Sicherung im Profilordner.',
+    'Die Jobs zeigen danach keine Passung, die Datei bleibt als Sicherung im Profilordner.',
   );
   await dialog.getByRole('button', { name: 'Entfernen' }).click();
   await expect(page.getByTestId('profile-empty')).toBeVisible();
@@ -1024,9 +1024,7 @@ test('availability is a block of its own that only marks', async ({ page }) => {
   await profile(page);
   const block = page.getByTestId('section-availability');
   await expect(block).toContainText('Verfügbarkeit');
-  await expect(block).toContainText(
-    'Beginnt ein Job früher, markiert die App ihn zum Prüfen, sie schließt ihn nicht aus.',
-  );
+  await expect(block).toContainText('Beginnt ein Job früher, markiert die App ihn zum Prüfen.');
   await expect(block.getByTestId('profile-available')).toBeVisible();
   await expect(page.getByTestId('section-criteria').getByTestId('profile-available')).toHaveCount(
     0,
@@ -1073,7 +1071,7 @@ test('baseline: from a CV', async ({ page, browserName }) => {
   await profile(page, 'no-profile');
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   await expect(page.getByTestId('profile-paste')).toBeVisible();
   await page.getByTestId('paste-answer').fill(ANSWER.slice(0, 120));

@@ -162,7 +162,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   secretStore: 'The system’s password store cannot be reached.',
   secretCorrupt: 'The stored app password cannot be read.',
   portalUnavailable: (p) => `No connection to ${portalOf(p.portal)}.`,
-  portalPaused: (p) => `Fetching from ${portalOf(p.portal)} is paused right now.`,
+  portalPaused: (p) => `${portalOf(p.portal)} is paused right now.`,
   portalQuota: (p) => `The limit for ${portalOf(p.portal)} is reached.`,
   internal: INTERNAL,
   unknown: INTERNAL,
@@ -184,7 +184,7 @@ const profileField: Record<string, string> = {
   languages: 'Languages',
   minDayRate: 'Minimum day rate',
   countries: 'Countries',
-  contracts: 'Excluded contract types',
+  contracts: 'Temporary agency work and permanent jobs',
   remoteOutside: 'Allow remote jobs abroad',
   available: 'Available from',
   targetYears: 'Minimum experience of the job',
@@ -255,11 +255,12 @@ const detailSays = {
   onRequest: 'The app fetches these details only on request.',
 } as const;
 
-/** Alert emails without jobs, and what to do about them (the overview and the settings). */
+/** Alert emails in which the app found no jobs (the overview and the settings, next to the
+ *  button that opens the email). */
 const emptyMails = (mails: number): string =>
   mails === 1
-    ? 'One alert email had no jobs, so please check it in Gmail.'
-    : `${n(mails)} alert emails had no jobs, so please check them in Gmail.`;
+    ? 'The app found no jobs in one alert email.'
+    : `The app found no jobs in ${n(mails)} alert emails.`;
 
 /** A profile file the app cannot read (the list, the overview, the Profile view). */
 const PROFILE_UNREADABLE = 'Profile cannot be read';
@@ -484,7 +485,7 @@ const criteria = {
 /** `JobMatch.note` / `MatchDetail.summary` codes. */
 const note = {
   hardCriterion: 'An exclusion criterion applies.',
-  shortText: 'Too little text for a score.',
+  shortText: 'Too little text to score.',
   lowEvidence: LOW_TEXT,
   engineFailed: 'This ad could not be scored.',
 } satisfies Catalog['reader']['note'];
@@ -634,7 +635,7 @@ export const en: Catalog = {
       trash: 'The trash is empty.',
     } satisfies Record<Place, string>,
     reader: {
-      archive: 'Archived jobs stay here until you bring them back or move them to the trash.',
+      archive: 'Archived jobs stay here until you bring them back.',
       trash: 'Jobs in the trash stay here until you restore them or empty the trash.',
     } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
@@ -695,7 +696,7 @@ export const en: Catalog = {
       check: 'To check',
     } satisfies Record<ReasonKind, string>,
     weight: {
-      must: 'Required',
+      must: 'Must-have',
       nice: 'Optional',
       hard: 'Exclusion',
       info: 'Note',
@@ -769,7 +770,7 @@ export const en: Catalog = {
     },
     ofTotal: (total: number) => `of ${n(total)}`,
     newPill: (value: number) => `${n(value)} new`,
-    topPill: (value: number) => count(value, 'fits well', 'fit well'),
+    topPill: (value: number) => `${n(value)} high match`,
     resumesIn: (ms: number) => `Resumes in ${formatCountdown(ms)}`,
     kind: {
       fetch: 'Fetch',
@@ -913,7 +914,7 @@ export const en: Catalog = {
     overridden: 'You included this job anyway.',
     prompt: 'Copy prompt for AI assessment',
     promptShort: 'Copy prompt',
-    promptHint: 'Copies the ad and the profile as a ready prompt for an AI.',
+    promptHint: 'Copies the ad and the profile as a prompt for an AI.',
     promptNotCopied: 'The prompt could not be copied.',
     preliminary: 'Provisional, scored from a teaser',
     mail: OPEN_MAIL,
@@ -974,7 +975,7 @@ export const en: Catalog = {
         `The limit is reached, so fetching resumes by itself at ${formatMoment(iso)}.`,
       emptyMails,
       pages: 'The pages of the portal look different, so the next fetch tries again by itself.',
-      login: 'The sign-in has expired, so please sign in again.',
+      login: 'The sign-in has expired, so sign in again.',
     },
   },
   profile: {
@@ -987,7 +988,8 @@ export const en: Catalog = {
     pickOther: 'Choose another file',
     remove: 'Remove',
     removeHeading: 'Remove profile?',
-    removeText: 'The jobs then show no match. The file stays as a backup in the profile folder.',
+    removeText:
+      'The jobs then show no match, and the file stays as a backup in the profile folder.',
     removed: 'Profile removed.',
     savedAt: (moment: string) => `Saved ${moment}`,
     unnamed: 'Profile without a name',
@@ -1053,10 +1055,10 @@ export const en: Catalog = {
       competences: 'Only this block is required, and the app scores every job by it.',
       experience: 'With these, the app checks what an ad asks for.',
       languages: 'The app compares them with the languages an ad asks for.',
-      wishes: 'Preferences nudge the score but never exclude a job.',
+      wishes: 'Preferences nudge the match but never exclude a job.',
       criteria: 'A job that does not fit here counts as excluded.',
       permanent: 'These rules apply to permanent jobs only.',
-      availability: 'A job that starts earlier is marked to check, never excluded.',
+      availability: 'A job that starts earlier is marked to check.',
     },
     field: {
       name: 'Name',
@@ -1064,7 +1066,7 @@ export const en: Catalog = {
       title: 'Role',
       titlePlaceholder: 'e.g. Interim manager',
       roles: 'Target roles',
-      rolesHint: 'An ad whose title fits one scores a little higher.',
+      rolesHint: 'An ad whose title fits one gets a slightly higher match.',
       rolesPlaceholder: 'e.g. Interim management',
       competence: 'Skill',
       competencePlaceholder: 'e.g. Project management',
@@ -1136,7 +1138,7 @@ export const en: Catalog = {
       placesPlaceholder: 'e.g. Munich',
       remoteMin: 'Minimum remote share',
       remoteMinHint:
-        'Outside these locations, a permanent job counts only with at least this much remote work.',
+        'Outside the locations for permanent jobs, a job needs at least this much remote work.',
       rounded: 'Rounded down to whole euros.',
       roundedWhole: 'Rounded down to a whole number.',
       refused: 'This value does not fit.',
@@ -1210,7 +1212,7 @@ export const en: Catalog = {
         abschluss: 'Degrees',
         ausbildung: 'Degrees',
         schwerpunkte: 'Focus areas',
-        stationen: 'Career stages',
+        stationen: 'Career history',
         projekte: 'Projects',
       } as Record<string, string>,
     },
@@ -1284,6 +1286,7 @@ export const en: Catalog = {
     workspaceDefault: 'Default',
     excel: 'Excel file',
     excelMissing: 'The Excel file is created at the first fetch.',
+    overview: 'Overview',
     txt: 'Text files',
     txtCount: (value: number) => `${count(value, 'ad', 'ads')} as text for an AI assessment`,
     txtLeftBehind: 'The text files are still in the old folder, and “Rewrite” puts them here.',
@@ -1345,7 +1348,7 @@ export const en: Catalog = {
   toast: {
     rescored: 'Jobs scored again.',
     copied: 'Copied.',
-    prompt: 'Prompt copied, ready for an AI chat.',
+    prompt: 'Prompt copied.',
     archivedOne: (name: string) => `“${name}” archived.`,
     trashedOne: (name: string) => `“${name}” moved to the trash.`,
     trashedMany: (value: number) => `${n(value)} jobs moved to the trash.`,

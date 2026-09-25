@@ -40,7 +40,7 @@ at once (the button is then Fetch).
 
 The Profil view edits the profile as a form. Saving writes only the changed fields into the
 file, keeps every other key as it is and leaves the previous version next to it
-(`profil/beraterprofil.json.bak`). "Aus Lebenslauf erstellen" copies a prompt for the AI
+(`profil/beraterprofil.json.bak`). "Aus Lebenslauf anlegen" copies a prompt for the AI
 chat you use; its answer, pasted back, fills the form for review.
 
 The consultant profile is a JSON file with German keys (English keys are read too and kept

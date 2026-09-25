@@ -350,9 +350,7 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   );
   await expect(pause).toHaveClass(/info/);
   const mails = page.getByTestId('health-freelance');
-  await expect(mails.locator('.text')).toHaveText(
-    '2 Alert-Mails enthielten keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
-  );
+  await expect(mails.locator('.text')).toHaveText('In 2 Alert-Mails fand die App keine Jobs.');
   await expect(mails).toHaveClass(/warning/);
   // The hour binds: bar and words speak of the same window.
   const quota = page.getByTestId('quota-freelancermap');

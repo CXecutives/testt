@@ -287,7 +287,7 @@ test('a detail state has one tone in the row, the reader and the run card', asyn
     job!,
   );
   const badge = row(page, 'freelancermap-2805').locator('.badge');
-  await expect(badge).toHaveText('Nicht abrufbar');
+  await expect(badge).toHaveText('Nicht erreichbar');
   await expect(badge).toHaveClass(/warning/);
   await row(page, 'freelancermap-2805').click();
   await expect(page.getByTestId('detail-note')).toHaveClass(/warning/);
