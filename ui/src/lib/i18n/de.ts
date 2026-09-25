@@ -1297,15 +1297,18 @@ export const de = {
     excel: 'Excel-Datei',
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
     txt: 'Textdateien',
-    txtCount: (value: number) => count(value, 'Datei', 'Dateien'),
-    txtNone: 'Es gibt noch keine Textdateien.',
+    /** What the text files are (one per ad) and what they are for, with their number. */
+    txtCount: (value: number) =>
+      `${count(value, 'Anzeige', 'Anzeigen')} als Text für eine KI-Bewertung`,
+    txtNone: 'Es gibt keine Textdateien.',
     txtRewrite: 'Neu schreiben',
     txtClear: 'Löschen',
     txtWritten: (value: number) => `${count(value, 'Datei', 'Dateien')} geschrieben.`,
     txtFailed: (value: number) => `${count(value, 'Datei ist', 'Dateien sind')} gerade geöffnet.`,
     txtCleared: (value: number) => `${count(value, 'Datei', 'Dateien')} gelöscht.`,
     txtClearHeading: 'Textdateien löschen?',
-    txtClearText: 'Beim nächsten Abruf entstehen sie neu.',
+    /** A deleted text file is never written again by a fetch (core `mark_txt_written`). */
+    txtClearText: 'Nur „Neu schreiben“ holt sie zurück.',
     fullMailbox: 'Ganzes Postfach lesen',
     fullMailboxHint: 'Liest alle Alert-Mails, nicht nur die neuen.',
     fullMailboxAction: 'Postfach lesen',
