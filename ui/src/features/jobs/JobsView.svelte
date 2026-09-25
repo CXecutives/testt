@@ -91,11 +91,35 @@
   let header = $state<ListHeader | null>(null);
   let list = $state<JobList | null>(null);
 
-  // A search that no longer finds the open job closes it (the list shows what it found).
+  // A search that no longer finds the open job closes it (the list shows what it found);
+  // only a change of the search does, never a job opened from elsewhere (the overview).
+  let searched = untrack(() => jobs.search.trim());
+  let searchChanged = false;
+  $effect(() => {
+    const search = jobs.search.trim();
+    untrack(() => {
+      if (search !== searched) searchChanged = true;
+      searched = search;
+    });
+  });
   $effect(() => {
     const selected = jobs.selected;
-    if (selected === null || jobs.search.trim() === '' || jobs.status !== 'ready') return;
-    if (!jobs.visible.some((row) => sameKey(row.key, selected))) untrack(close);
+    const ready = jobs.status === 'ready';
+    const listed = jobs.visible;
+    untrack(() => {
+      if (!searchChanged || !ready) return;
+      searchChanged = false;
+      if (selected === null || searched === '') return;
+      if (!listed.some((row) => sameKey(row.key, selected))) close();
+    });
+  });
+
+  // Back to the Jobs view: Neu is entered again, so the jobs read meanwhile leave it (like
+  // Mail); the open one stays until another opens.
+  $effect(() => {
+    untrack(() => {
+      if (jobs.status === 'ready' && jobs.facet === 'new') void jobs.load(true);
+    });
   });
 
   /** A job rises in (4 px, 150 ms); the overview and the placeholders only fade (100 ms). */

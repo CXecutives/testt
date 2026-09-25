@@ -80,9 +80,12 @@
       navigation.go('jobs');
       return;
     }
-    // Jobs from the archive or the trash: back to the inbox (its unread jobs, if any).
+    // Jobs from the archive or the trash: back to the inbox, on its last tab.
     if (id === 'jobs' && (jobs.facet === 'archived' || jobs.facet === 'trash')) {
-      jobs.setFacet(unread > 0 ? 'new' : 'all');
+      jobs.setFacet(jobs.inboxFacet);
+    } else if (id === 'jobs' && navigation.current !== 'jobs' && jobs.facet === 'new') {
+      // Back from another view: Neu is entered again (the jobs read meanwhile leave it).
+      void jobs.load(true);
     }
     navigation.go(id);
   }

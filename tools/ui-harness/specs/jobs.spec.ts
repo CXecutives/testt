@@ -20,6 +20,11 @@ const excludedRows = (page: Page) =>
 
 const row = (page: Page, key: string) => page.getByTestId('job-list').getByTestId(`job-row-${key}`);
 
+/** After a move the list ignores clicks for a moment (the row under the pointer changed). */
+async function settleMoves(page: Page): Promise<void> {
+  await page.waitForTimeout(550);
+}
+
 async function segmentCount(page: Page, label: string): Promise<number> {
   const text = await page
     .getByTestId('facet')
@@ -994,6 +999,7 @@ test('archive from the row: toasts merge, the Archiv sends a job back to the inb
     await row(page, key).hover();
     await page.getByTestId(`archive-${key}`).click();
     await expect(row(page, key)).toHaveCount(0);
+    await settleMoves(page);
   }
   // Two archives in a row are one toast that takes both back.
   await expect(page.getByTestId('toast')).toHaveCount(1);
@@ -1028,6 +1034,7 @@ test('the Papierkorb: delete, restore, delete for good and empty it, asking firs
     await row(page, key).hover();
     await page.getByTestId(`trash-${key}`).click();
     await expect(row(page, key)).toHaveCount(0);
+    await settleMoves(page);
   }
   await expect(page.getByTestId('toast').last()).toContainText('2 Jobs in den Papierkorb gelegt.');
   await page.getByTestId('nav-trash').click();
@@ -1066,6 +1073,121 @@ test('the Papierkorb: delete, restore, delete for good and empty it, asking firs
   await expect(page.getByTestId('empty-place-trash')).toBeVisible();
   await expect(page.getByTestId('empty-trash')).toHaveCount(0);
   expect(await calls(page, 'empty_trash')).toHaveLength(1);
+});
+
+test('after a move the list waits a moment: a double click on a row tool moves one job', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const first = rows(page).first();
+  const key = (await first.getAttribute('data-testid'))!.replace('job-row-', '');
+  await first.hover();
+  const tool = page.getByTestId(`archive-${key}`);
+  const box = (await tool.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { delay: 50 });
+  await expect(page.getByTestId('toast').last()).toContainText('archiviert.');
+  expect(await calls(page, 'move_jobs')).toHaveLength(1);
+});
+
+test('the job the app opens after a move is read only once it has been looked at', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await rows(page).first().click();
+  const next = rows(page).nth(1);
+  const nextKey = (await next.getAttribute('data-testid'))!.replace('job-row-', '');
+  const [portal, id] = nextKey.split(/-(.*)/s) as [string, string];
+  await page.getByTestId('reader-archive').click();
+  await expect(page.getByTestId('reader-title')).toBeVisible();
+  const marked = async (): Promise<boolean> =>
+    (await calls(page, 'mark_read')).some(
+      ([, args]) => JSON.stringify(args) === JSON.stringify({ key: { portal, id } }),
+    );
+  expect(await marked()).toBe(false);
+  // A click in the reader is a look.
+  await page.getByTestId('reader-title').click();
+  await expect.poll(marked).toBe(true);
+});
+
+test('Neu is entered again after another view: read jobs leave it, the open one stays', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  const before = await rows(page).count();
+  await rows(page).first().click();
+  const title = await page.getByTestId('reader-title').innerText();
+  await page.getByTestId('nav-settings').click();
+  await page.getByTestId('nav-jobs').click();
+  // The open job stays listed (read); the others are unchanged.
+  await expect(page.getByTestId('reader-title')).toHaveText(title);
+  await expect(rows(page)).toHaveCount(before);
+  // After Alle als gelesen markieren and a trip to Einstellungen, Neu is empty but the open job.
+  await page.getByTestId('mark-all-read').click();
+  await expect(page.getByTestId('mark-all-read')).toHaveCount(0);
+  await page.getByTestId('nav-settings').click();
+  await page.getByTestId('nav-jobs').click();
+  await expect(rows(page)).toHaveCount(1);
+  // The last tab is kept: Alle, then Archiv, then Jobs is Alle again.
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await page.getByTestId('nav-archive').click();
+  await page.getByTestId('nav-jobs').click();
+  await expect(page.getByTestId('facet').getByRole('radio', { name: /Alle/ })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+});
+
+test('actions that act on a whole place wait while a search shows a part of it', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await expect(page.getByTestId('mark-all-read')).toBeVisible();
+  await page.getByTestId('search').fill('Interim');
+  await expect(page.getByTestId('mark-all-read')).toHaveCount(0);
+  await page.getByTestId('search').fill('');
+  // The trash: two jobs, a search that finds one: no Papierkorb leeren; without it the
+  // dialog names both.
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  for (const key of ['freelancermap-2802', 'freelancermap-2803']) {
+    await row(page, key).hover();
+    await page.getByTestId(`trash-${key}`).click();
+    await settleMoves(page);
+  }
+  await page.getByTestId('nav-trash').click();
+  const title = await rows(page).first().locator('.title').innerText();
+  await page.getByTestId('search').fill(title);
+  await expect(rows(page)).toHaveCount(1);
+  await expect(page.getByTestId('empty-trash')).toHaveCount(0);
+  await page.getByTestId('search').fill('');
+  await page.getByTestId('empty-trash').click();
+  await expect(page.getByTestId('dialog-empty-trash')).toContainText('Die 2 Jobs werden');
+});
+
+test('a job of the day overview opens during a search', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await page.getByTestId('search').fill('Kaufm');
+  await expect(rows(page)).toHaveCount(1);
+  const best = page.getByTestId('best').locator('[data-testid^="best-"]').first();
+  const title = await best.locator('.title').innerText();
+  await best.click();
+  await expect(page.getByTestId('reader-title')).toHaveText(title);
+});
+
+test('the choice follows the list: rows that leave it leave the choice too', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const one = 'freelancermap-2802';
+  const two = 'freelancermap-2803';
+  await row(page, one).click();
+  await row(page, two).click({ modifiers: ['Control'] });
+  await expect(page.getByTestId('selection-bar')).toContainText('2 ausgewählt');
+  await settleMoves(page);
+  await row(page, two).hover();
+  await page.getByTestId(`archive-${two}`).click();
+  await expect(page.getByTestId('selection-bar')).toHaveCount(0);
 });
 
 test('choose like a mail app: Ctrl+click, Shift+click, the bar acts on all, Esc clears', async ({

@@ -520,7 +520,10 @@ export const en: Catalog = {
     purgeText: 'Deleted jobs do not come back, not even with old alert mails.',
     emptyTrash: 'Empty trash',
     emptyTrashHeading: 'Empty the trash?',
-    emptyTrashText: 'The jobs are deleted forever and do not come back.',
+    emptyTrashText: (value: number) =>
+      value === 1
+        ? 'The job is deleted forever and does not come back.'
+        : `The ${n(value)} jobs are deleted forever and do not come back.`,
     markAllRead: 'Mark all as read',
   },
   edit: {

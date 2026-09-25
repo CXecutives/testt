@@ -13,7 +13,10 @@
 //   rows update in place (rings fill live); a job further down the list stays where the
 //   next load puts it. The list re-sorts once, when the run finishes, and keeps the
 //   selection.
-// - `mark_read` only on a real click on a row (select(..., true)).
+// - `mark_read` when the user opens a job (a click, the keyboard); a job the app opens by
+//   itself (the next one after a move) only once it has been looked at (`markSeen`).
+// - Like Mail, Neu keeps the jobs read in this visit and the open one until the list is
+//   entered again (another tab, back from another view); the last inbox tab is kept.
 // - Like mail: every job is in one place (inbox, archive, trash); the favourite (the star)
 //   is a flag of its own, and "fits anyway" another. A move takes the row out of a list it
 //   no longer belongs to; deleting for good (only from the trash) removes it.
@@ -271,8 +274,12 @@ class JobsStore {
     await Promise.all([this.load(), this.loadOverview()]);
   }
 
+  /** The last tab of the inbox (Neu, Alle, Favoriten): Jobs in the sidebar goes back to it. */
+  inboxFacet = $state<JobFacet>('new');
+
   setFacet(facet: JobFacet): void {
     this.facet = facet;
+    if (facet === 'new' || facet === 'all' || facet === 'favourites') this.inboxFacet = facet;
     this.filter = null;
     void this.load();
   }
@@ -314,7 +321,7 @@ class JobsStore {
     try {
       const page = await invoke('list_jobs', { query: this.query(0) });
       if (request !== this.#request) return;
-      this.rows = page.jobs;
+      this.rows = this.withOpen(page.jobs);
       this.counts = page.counts;
       this.total = page.jobs.length < PAGE ? page.jobs.length : this.countOf(page.counts);
       this.window = keep ? Math.max(WINDOW, this.window) : WINDOW;
@@ -331,6 +338,20 @@ class JobsStore {
       clearTimeout(timer);
       if (request === this.#request) this.slow = false;
     }
+  }
+
+  /**
+   * Neu keeps the open job listed after it was read, where it stood, until another job is
+   * opened (like Mail): a reload never pulls the job away from under the reader.
+   */
+  private withOpen(rows: JobView[]): JobView[] {
+    const open = this.detail?.job ?? null;
+    if (this.facet !== 'new' || this.search.trim() !== '') return rows;
+    if (open === null || !sameKey(open.key, this.selected)) return rows;
+    if (open.place !== 'inbox' || rows.some((job) => sameKey(job.key, open.key))) return rows;
+    const at = this.rows.findIndex((job) => sameKey(job.key, open.key));
+    const index = at < 0 ? 0 : Math.min(at, rows.length);
+    return [...rows.slice(0, index), open, ...rows.slice(index)];
   }
 
   /** Rows the query has: under Neu the unread excluded jobs come on top of the count. */
@@ -468,6 +489,12 @@ class JobsStore {
     this.#detailRequest++;
   }
 
+  /** The open job has been looked at (a job the app opened by itself). */
+  markSeen(key: JobKey): void {
+    const job = this.held(key);
+    if (job?.unread) void this.markRead(key);
+  }
+
   private async markRead(key: JobKey): Promise<void> {
     this.patch(key, { unread: false });
     try {
@@ -582,6 +609,9 @@ class JobsStore {
   /** Empties the trash: every job in it is deleted for good. */
   async emptyTrash(): Promise<Deleted | { error: string }> {
     const trashed = this.rows.filter((job) => job.place === 'trash').map((job) => job.key);
+    // The open job may lie in the trash without being listed (opened from elsewhere).
+    const open = this.detail?.job ?? null;
+    if (open?.place === 'trash') trashed.push(open.key);
     return this.forget(() => invoke('empty_trash'), trashed);
   }
 

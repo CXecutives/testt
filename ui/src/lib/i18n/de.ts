@@ -555,7 +555,10 @@ export const de = {
     purgeText: 'Gelöschte Jobs kommen nicht wieder, auch nicht mit alten Alert-Mails.',
     emptyTrash: 'Papierkorb leeren',
     emptyTrashHeading: 'Papierkorb leeren?',
-    emptyTrashText: 'Die Jobs werden endgültig gelöscht und kommen nicht wieder.',
+    emptyTrashText: (value: number) =>
+      value === 1
+        ? 'Der Job wird endgültig gelöscht und kommt nicht wieder.'
+        : `Die ${n(value)} Jobs werden endgültig gelöscht und kommen nicht wieder.`,
     markAllRead: 'Alle als gelesen markieren',
   },
   /** The native context menu of fields and selected text (the OS's words). */

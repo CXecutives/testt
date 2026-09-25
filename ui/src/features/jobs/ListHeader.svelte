@@ -34,7 +34,7 @@
   import { isExcluded, jobs, placeOf, type JobFacet } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
-  import { actionsOf, hasStar, move, purge, toggleStar } from './actions';
+  import { actionsFor, hasStar, move, purge, toggleStar, trashEmptied } from './actions';
   import { selection } from './selection.svelte';
 
   interface Props {
@@ -115,13 +115,17 @@
   let purging = $state(false);
 
   const barActions = $derived.by((): SelectionAction[] => {
-    const out: SelectionAction[] = actionsOf(place).map((action) => ({
+    // What fits every chosen job (Favoriten may hold jobs of the inbox and the archive).
+    const out: SelectionAction[] = actionsFor(chosen).map((action) => ({
       icon: action.icon,
       label: action.label,
       testid: `selection-${action.id}`,
+      // Deleting for good waits for a run (the backend refuses meanwhile).
+      disabled: action.id === 'purge' && run.active,
+      disabledReason: run.busyText,
       onclick: () => {
         if (action.id === 'purge') {
-          error = null;
+          purgeError = null;
           confirmPurge = true;
           return;
         }
@@ -130,7 +134,7 @@
         void move(list, action.id).then((failed) => (error = failed));
       },
     }));
-    if (hasStar(place)) {
+    if (chosen.every((job) => hasStar(job.place))) {
       const on = chosen.some((job) => !job.pinned);
       out.push({
         icon: 'star',
@@ -142,12 +146,13 @@
     return out;
   });
 
+  let purgeError = $state<string | null>(null);
+
   async function purgeChosen(): Promise<void> {
     purging = true;
-    const list = chosen;
-    error = await purge(list);
+    purgeError = await purge(chosen);
     purging = false;
-    if (error === null) {
+    if (purgeError === null) {
       confirmPurge = false;
       selection.clear();
     }
@@ -157,17 +162,22 @@
 
   let confirmEmpty = $state(false);
   let emptying = $state(false);
+  let emptyError = $state<string | null>(null);
+  /** Every job of the trash, whatever the search: emptying it deletes them all. */
+  const inTrash = $derived(jobs.overviewCounts?.trash ?? jobs.counts.trash);
+  const searching = $derived(jobs.search.trim() !== '');
 
   async function emptyTrash(): Promise<void> {
     emptying = true;
-    error = null;
+    emptyError = null;
     const result = await jobs.emptyTrash();
     emptying = false;
     if ('error' in result) {
-      error = result.error;
+      emptyError = result.error;
       return;
     }
     confirmEmpty = false;
+    trashEmptied();
     toasts.show(t.toast.trashEmptied);
     void jobs.loadOverview();
   }
@@ -222,7 +232,7 @@
     </span>
   </div>
   <div class="second">
-    {#if selection.size >= 2}
+    {#if chosen.length >= 2}
       <SelectionBar
         count={chosen.length}
         actions={barActions}
@@ -246,7 +256,7 @@
         {/if}
       {/if}
       <span class="tools">
-        {#if inInbox && jobs.facet !== 'favourites' && jobs.counts.unread > 0}
+        {#if inInbox && jobs.facet !== 'favourites' && !searching && jobs.counts.unread > 0}
           <Button
             variant="ghost"
             size="sm"
@@ -267,14 +277,19 @@
             onchange={(sort) => jobs.setSort(sort)}
           />
         {/if}
-        {#if place === 'trash' && jobs.counts.trash > 0}
+        {#if place === 'trash' && !searching && inTrash > 0}
           <Button
             variant="ghost"
             size="sm"
             icon="trash-2"
             label={t.actions.emptyTrash}
+            disabled={run.active}
+            disabledReason={run.busyText}
             testid="empty-trash"
-            onclick={() => (confirmEmpty = true)}
+            onclick={() => {
+              emptyError = null;
+              confirmEmpty = true;
+            }}
           />
         {/if}
       </span>
@@ -289,9 +304,10 @@
   bind:open={confirmEmpty}
   variant="danger"
   heading={t.actions.emptyTrashHeading}
-  text={t.actions.emptyTrashText}
+  text={t.actions.emptyTrashText(inTrash)}
   confirmLabel={t.actions.emptyTrash}
   busy={emptying}
+  error={emptyError}
   testid="dialog-empty-trash"
   onconfirm={() => void emptyTrash()}
 />
@@ -303,6 +319,7 @@
   text={t.actions.purgeText}
   confirmLabel={t.actions.purge}
   busy={purging}
+  error={purgeError}
   testid="dialog-purge-chosen"
   onconfirm={() => void purgeChosen()}
 />
