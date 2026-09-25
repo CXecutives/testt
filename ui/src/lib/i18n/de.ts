@@ -794,6 +794,12 @@ export const de = {
     label: 'Jobs',
     /** The divider (its count is a pill of its own, left out where the rows are a part). */
     excluded: 'Ausgeschlossen',
+    /** A row excluded by a formal requirement the ad makes mandatory (`formalOpen` with its
+     *  `class`), in the short words of the criteria. */
+    formalMissing: {
+      degree: 'Abschluss fehlt',
+      licence: 'Zulassung fehlt',
+    },
     /** The empty list says where jobs come from and how to get more. */
     emptySources: 'Ein Alert pro Portal bringt neue Jobs.',
     /** FR-03: while the first fetch runs, the empty list only says what comes. */

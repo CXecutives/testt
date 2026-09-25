@@ -54,3 +54,33 @@ test('the English reader counts the must-have requirements, as the German one do
   // German counts Pflichtanforderungen; the English AI prompt says "must-have requirements".
   await expect(page.getByTestId('must')).toHaveText(/^\d+ of \d+ must-have requirements met/);
 });
+
+test('an excluded row names a missing degree or licence in short words, never a sentence', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const key = { portal: 'freelance', id: '900412' } as const;
+  const row = page.getByTestId('excluded-rows').getByTestId('job-row-freelance-900412');
+  await expect(row.locator('.foot')).toHaveText('Arbeitnehmerüberlassung');
+  const job = await page.evaluate((k) => window.__harness.job(k), key);
+  // The engine excludes on a degree or licence the ad makes mandatory (`formalOpen`).
+  const exclude = (code: string, params: Record<string, string | boolean>) =>
+    page.evaluate(
+      ([base, note]) => {
+        window.__harness.emit({
+          type: 'jobUpdated',
+          job: { ...base, match: { ...base.match!, note } },
+          fresh: false,
+        });
+      },
+      [job!, { code, params }] as const,
+    );
+  await exclude('formalOpen', { class: 'degree', mandatory: true });
+  await expect(row.locator('.foot')).toHaveText('Abschluss fehlt');
+  await exclude('formalOpen', { class: 'licence', mandatory: true });
+  await expect(row.locator('.foot')).toHaveText('Zulassung fehlt');
+  // A code of a newer core: the plain word, not a raw code and not a cut sentence.
+  await exclude('somethingNew', {});
+  await expect(row.locator('.foot')).toHaveText('Ausgeschlossen');
+});

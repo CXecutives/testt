@@ -750,6 +750,10 @@ export const en: Catalog = {
   list: {
     label: 'Jobs',
     excluded: 'Excluded',
+    formalMissing: {
+      degree: 'Degree missing',
+      licence: 'Licence missing',
+    },
     emptySources: 'One job alert per portal brings in new jobs.',
     emptyWhileRun: 'The jobs show up once the fetch is done.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
