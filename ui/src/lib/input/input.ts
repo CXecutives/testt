@@ -934,6 +934,15 @@ function rest(target: Element | null): void {
   }
 }
 
+/**
+ * True while a scroll goes on (until --scroll-idle after its last event): a hover that begins
+ * then is the content moving under a still pointer, not the pointer moving. For hovers kept in
+ * state rather than in CSS (the reader's marked passage).
+ */
+export function contentMoving(): boolean {
+  return scrolling;
+}
+
 function scrollOver(): void {
   scrolling = false;
   for (const node of resting) delete node.dataset.still;

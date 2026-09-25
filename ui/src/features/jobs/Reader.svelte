@@ -46,6 +46,7 @@
   import type { CriterionKey, CriterionState } from '$lib/i18n/de';
   import { t } from '$lib/i18n/t';
   import { displayTitle, formatDate, formatRelative, formatTime } from '$lib/i18n/format';
+  import { contentMoving } from '$lib/input/input';
   import { clock } from '$lib/state/clock.svelte';
   import {
     DETAIL_WARNS,
@@ -550,8 +551,11 @@
   }
 
   function hover(reason: Reason, on: boolean): void {
-    if (on) hovered = reason.id;
-    else if (hovered === reason.id) hovered = null;
+    // A reason the content scrolls under a still pointer takes no mark (a jump to a passage
+    // keeps its own); only a pointer that moves onto it does.
+    if (on) {
+      if (!contentMoving()) hovered = reason.id;
+    } else if (hovered === reason.id) hovered = null;
   }
 
   /** The compact bar is for the pointer, like a row's tools: its buttons stay out of the Tab
