@@ -666,11 +666,16 @@ fn only_a_foreign_overview_is_backed_up_and_only_once() {
     let result_dir = dir.path().join(RESULT_DIR);
     std::fs::create_dir_all(&result_dir).unwrap();
     std::fs::write(result_dir.join(export::XLSX_NAME), b"fremd").unwrap();
-    let now = Timestamp::now();
+    // 09:30 in Berlin (07:30 UTC): the name says the time the user's clock says.
+    let now: Timestamp = "2026-09-24T07:30:00Z".parse().unwrap();
 
     let first = export_all(&store, dir.path(), &[], 1, now, Language::De);
     let backup = first.backup.clone().expect("foreign file backed up");
     assert_eq!(std::fs::read(&backup).unwrap(), b"fremd");
+    assert_eq!(
+        backup.file_name().unwrap(),
+        "JobAlerts.alt-20260924-093000.xlsx"
+    );
     assert!(first.overview_xlsx.is_some());
 
     // Further runs continue the app's own file without backing it up again.

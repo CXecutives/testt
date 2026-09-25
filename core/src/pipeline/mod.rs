@@ -1392,11 +1392,12 @@ fn write_overview(
     }
     // An overview that does not come from this app (e.g. from the old program in the same
     // folder) is backed up before the first write - never replaced silently. The name is
-    // part of the user's workspace - do not translate.
+    // part of the user's workspace - do not translate - and says the local time, like the
+    // text files' names.
     if path.exists() && last.is_none() {
         let backup = path.with_file_name(format!(
             "JobAlerts.alt-{}.{}",
-            now.strftime("%Y%m%d-%H%M%S"),
+            time::local(now).strftime("%Y%m%d-%H%M%S"),
             path.extension().and_then(|e| e.to_str()).unwrap_or("xlsx")
         ));
         if let Err(e) = std::fs::rename(path, &backup) {
