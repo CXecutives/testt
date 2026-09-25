@@ -1,0 +1,33 @@
+Titel: Senior SAP ABAP Entwickler S/4HANA Finance, Konsolidierung und Reporting (m/w/d)
+Unternehmen: Kernwerk IT Services GmbH
+Ort: Mainz
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1303917
+Abgerufen am: 22.09.2026 07:30
+
+Projekt-ID: 1303917
+Start: 15.10.2026
+Dauer: 6 Monate+
+Einsatzort: 100 % remote
+Stundensatz: 110 €/h
+Vertragsart: Freiberuflich
+
+Projektbeschreibung
+Im Rahmen eines laufenden S/4HANA-Finance-Projekts bei einem Finanzdienstleister suchen wir Verstärkung für das Entwicklungsteam. Die fachliche Konzeption der Konsolidierung nach IFRS liegt beim Kunden und beim Projektmanagement, Ihre Aufgabe ist die technische Umsetzung.
+
+Ihre Aufgaben:
+- Entwicklung kundenspezifischer Erweiterungen in SAP S/4HANA Finance und SAP Group Reporting (BAdIs, Enhancements)
+- Implementierung von CDS Views und Analytical Queries für das Konzernreporting
+- Entwicklung von Schnittstellen (IDoc, RFC, OData) zu Vorsystemen und zum Data Warehouse
+- Bereitstellung von Datenextrakten für Power BI
+- Performance-Optimierung bestehender ABAP-Reports zum Monats- und Konzernabschluss
+- Code Reviews, technische Dokumentation, Unterstützung im Testmanagement
+
+Ihr Profil:
+- Mindestens 6 Jahre Erfahrung in der ABAP-Entwicklung (ABAP OO, ABAP 7.5+)
+- Sehr gute Kenntnisse in CDS Views, AMDP und RAP
+- Erfahrung mit SAP Fiori / SAPUI5 von Vorteil
+- Grundverständnis der Prozesse im Rechnungswesen (FI/CO, Konsolidierung, IFRS) wünschenswert
+- Erfahrung in agilen Entwicklungsteams (Scrum, Jira)
+
+Hinweis: Es handelt sich um eine reine Entwicklerrolle. Fachberatung im Finanzbereich ist nicht Bestandteil des Auftrags.

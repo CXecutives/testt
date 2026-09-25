@@ -1,0 +1,232 @@
+{
+  "name": "Sabine Werkmeister",
+  "email": "sabine.werkmeister@example.invalid",
+  "telefon": "+49 170 0000000",
+  "titel": "Interim Werksleiterin und Operations Managerin",
+  "wunschrollen": [
+    "Interim Werksleiter",
+    "Interim Plant Manager",
+    "Interim Produktionsleiter",
+    "Interim COO",
+    "Head of Operations",
+    "Operational Excellence Manager"
+  ],
+  "berufserfahrung_jahre": 18,
+  "abschluss": "Diplom-Ingenieurin Maschinenbau (FH)",
+  "ausbildung": [
+    {
+      "abschluss": "Executive MBA"
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Werksleitung",
+      "jahre": 9,
+      "auch": ["Plant Manager", "Standortleitung", "Werksleiter"]
+    },
+    {
+      "kompetenz": "Produktionsleitung",
+      "jahre": 14,
+      "auch": ["Head of Production", "Fertigungsleitung", "Produktionsleiter"]
+    },
+    {
+      "kompetenz": "Operations Management",
+      "jahre": 15,
+      "auch": ["Operational Excellence", "COO", "Operations"]
+    },
+    {
+      "kompetenz": "Lean Management",
+      "jahre": 13,
+      "auch": ["Lean Production", "Shopfloor Management", "KVP", "Kaizen"]
+    },
+    {
+      "kompetenz": "Six Sigma",
+      "jahre": 11,
+      "auch": ["Lean Six Sigma", "DMAIC", "Black Belt"]
+    },
+    {
+      "kompetenz": "Qualitätsmanagement",
+      "jahre": 12,
+      "auch": ["IATF 16949", "ISO 9001", "APQP", "PPAP"]
+    },
+    {
+      "kompetenz": "Restrukturierung",
+      "jahre": 7,
+      "auch": ["Turnaround", "Sanierung", "Werkssanierung"]
+    },
+    {
+      "kompetenz": "Produktionsverlagerung",
+      "jahre": 5,
+      "auch": ["Werksverlagerung", "Standortverlagerung", "Near-Shoring"]
+    },
+    {
+      "kompetenz": "Anlaufmanagement",
+      "jahre": 8,
+      "auch": ["Serienanlauf", "Produktionsanlauf", "SOP"]
+    },
+    {
+      "kompetenz": "Produktionsplanung",
+      "jahre": 10,
+      "auch": ["Supply Chain Management", "Materialwirtschaft", "Kapazitätsplanung"]
+    },
+    {
+      "kompetenz": "Kostensenkung",
+      "jahre": 12,
+      "auch": ["Kostenreduzierung", "Performance Improvement", "Produktivitätssteigerung"]
+    },
+    {
+      "kompetenz": "Instandhaltung",
+      "jahre": 8,
+      "auch": ["TPM", "Total Productive Maintenance"]
+    },
+    {
+      "kompetenz": "Mitarbeiterführung",
+      "jahre": 16,
+      "auch": ["Personalführung", "Führung"]
+    },
+    {
+      "kompetenz": "Arbeitssicherheit",
+      "jahre": 10,
+      "auch": ["EHS", "HSE"]
+    },
+    {
+      "kompetenz": "Werksaufbau",
+      "jahre": 4,
+      "auch": ["Greenfield", "Neubau Werk"]
+    }
+  ],
+  "schwerpunkte": [
+    "Werksleitung",
+    "Produktionsleitung",
+    "Lean Management",
+    "Six Sigma",
+    "Qualitätsmanagement"
+  ],
+  "methoden_tools": [
+    {
+      "name": "SAP PP"
+    },
+    {
+      "name": "SAP QM"
+    },
+    {
+      "name": "Value Stream Mapping"
+    },
+    {
+      "name": "5S"
+    },
+    {
+      "name": "SMED"
+    },
+    {
+      "name": "OEE"
+    },
+    {
+      "name": "FMEA"
+    },
+    {
+      "name": "8D-Report"
+    },
+    {
+      "name": "Hoshin Kanri"
+    },
+    {
+      "name": "Minitab"
+    },
+    {
+      "name": "MES"
+    },
+    {
+      "name": "Power BI"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Lean Six Sigma Black Belt"
+    },
+    {
+      "name": "IATF 16949 Auditor"
+    },
+    {
+      "name": "VDA 6.3 Prozessauditor"
+    },
+    {
+      "name": "REFA-Grundausbildung"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Automotive"
+    },
+    {
+      "branche": "Maschinenbau"
+    },
+    {
+      "branche": "Metallverarbeitung"
+    },
+    {
+      "branche": "Kunststofftechnik"
+    },
+    {
+      "branche": "Elektrotechnik"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C1"
+    },
+    {
+      "sprache": "Polnisch",
+      "niveau": "B2"
+    },
+    {
+      "sprache": "Tschechisch",
+      "niveau": "A2"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Hat Werke von Automobilzulieferern mit bis zu 900 Mitarbeitenden in Deutschland, Polen und Tschechien geführt",
+    "Hebt die OEE in unter einem Jahr um zweistellige Prozentpunkte",
+    "Reisebereit und kurzfristig an jedem Standort vor Ort"
+  ],
+  "keywords": [
+    "Werksleiter",
+    "Plant Manager",
+    "Produktion",
+    "Lean",
+    "Six Sigma",
+    "IATF 16949",
+    "Automobilzulieferer",
+    "Tier 1",
+    "Turnaround",
+    "Operational Excellence"
+  ],
+  "einsatzpraeferenzen": {
+    "tagessatz_wunsch": 1100,
+    "regionen": [
+      "bundesweit",
+      "Polen",
+      "Tschechien"
+    ],
+    "branchen": [
+      "Automotive",
+      "Maschinenbau"
+    ]
+  },
+  "harte_kriterien": {
+    "min_tagessatz": 950,
+    "laender": [
+      "DE",
+      "PL",
+      "CZ"
+    ],
+    "ausgeschlossene_vertragsarten": [],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "2026-11-01"
+  }
+}

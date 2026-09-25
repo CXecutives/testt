@@ -51,8 +51,10 @@ use params::FOCUS_MAX;
 /// (not prefixes of skills), real compound boundaries, codes with their number and short
 /// skills, multiword terms across dropped words, doctorate and QP. 6: rules from the unseen
 /// held-out set 3 (rates next to a currency, reading noise, English language names, texts
-/// without requirements, generic heads, a tie-breaker, student roles).
-pub const ENGINE_VERSION: u32 = 6;
+/// without requirements, generic heads, a tie-breaker, student roles). 7: rules from the
+/// unseen held-out set 4 (hard facts in the fine print, reading noise, teasers, vocabulary,
+/// level mismatch).
+pub const ENGINE_VERSION: u32 = 7;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.

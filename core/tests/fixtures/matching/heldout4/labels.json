@@ -1,0 +1,2422 @@
+{
+  "P1.json": {
+    "U01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership role \"Interim CIO\", outside HR",
+      "quote": ""
+    },
+    "U02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Stundensatz: bis 125 € (all-in)\" = 1000/day below 1100; SAP PMO outside HR",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Projektleitung Cloud-Migration\" outside HR",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Security programme head, outside HR; no salary/location keys in profile",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Rotterdam, Niederlande\" outside DE/AT/CH; SAP roll-out outside HR",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Leitung IT und Digitalisierung\" outside HR",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"110 bis 130 €/h\" = 1040/day below 1100; IT role",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Vertragsart: Arbeitnehmerüberlassung\", ANÜ excluded",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Cloud migration programme, outside HR; CH allowed, CHF rate partial",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT carve-out transition, not HR",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Interim Werksleiter\" production, not HR",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"95 bis 110 € pro Stunde\" = 880/day below 1100; \"Black Belt Zertifizierung (zwingend)\"",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Wrocław ... Polen\" outside DE/AT/CH",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain planning, not HR; rate 1200 ok",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Produktionsleiter (m/w/d) in Arbeitnehmerüberlassung\"",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Plzeň, Tschechien\" outside DE/AT/CH",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"im Rahmen der Arbeitnehmerüberlassung\"",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations head, not HR",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Ostrava ... Tschechien\" outside DE/AT/CH",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production head injection moulding, not HR",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Stundensatz: 90–105 €/h\" = 840/day below 1100",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group reporting finance, not HR",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "§ 613a, Betriebsrat, Interessenausgleich, SuccessFactors/Workday fit (HRBP below level), but \"bis 95 €/Std. all-in\" = 760/day below 1100",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Mind. 3 Jahre Berufserfahrung\" below 10 years, no senior title",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"110 EUR/h\" = 880/day below 1100",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Stundensatz: 55 €/h netto\" = 440/day below 1100; operational payroll clerk",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Interim CFO\" finance, not HR",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Min. 7 years in treasury\" below 10 years, no senior title",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation accounting, not HR; \"Arbeitnehmerüberlassung oder freiberuflich\" ANÜ only an option",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "Recruiting, Personio, § 99 BetrVG fit at lower level; \"80–90 € pro Stunde\" = 720/day below 1100",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Interim CFO\" finance, not HR",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group consolidation project, not HR; 1150/day ok",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation project, not HR; 145 €/h = 1160/day ok",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"110 €/h\" = 880/day below 1100",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Junior Accountant\", not HR; no salary key",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of group accounting, not HR; 10 years ok",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting, not HR; CH allowed, CHF rate",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Daily rate EUR 600 to 700\" below 1100; Portugal",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Stundensatz: 105 €/h\" = 840/day below 1100",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting, not HR; CH allowed",
+      "quote": ""
+    }
+  },
+  "P2.json": {
+    "U01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Interim CIO\" IT leadership, not procurement or supply chain",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Cloud migration project lead, not procurement",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Information security programmes, not procurement",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "NL allowed, rate ok; template covers Procurement/Supply Chain and chemicals, but role is SAP programme manager",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership, not procurement",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital IT leadership, not procurement; rate above 850",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Security programme, not procurement; profile does not exclude ANÜ, 920/day above 850",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Bern, Switzerland\" outside NL/BE/DE, \"3 days per week on site\"",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT carve-out, not procurement",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant management, not procurement",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Wrocław ... Polen\" outside NL/BE/DE, on site",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production head, not procurement; ANÜ not excluded by profile",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Plzeň, Tschechien\" outside NL/BE/DE",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Quality engineer, not procurement; no ANÜ or salary key",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Food production operations; food branch known but role is production; thin ad",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "S&OP, freight tender, SAP S/4HANA fit, but \"überwiegend vor Ort in Ostrava\" (CZ) outside NL/BE/DE",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production, not procurement",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"90–105 €/h\" = 840/day below 850; plant controlling",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance reporting, not procurement",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"bis 95 €/Std.\" = 760/day below 850; HR role",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Warengruppenstrategien, RFQ, Lieferantenentwicklung, Coupa P2P, SAP MM; but \"Festanstellung\" and junior level",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Source-to-Pay, SAP Ariba roll-out, chemicals, remote 90%; \"Deutsch C1\" not in profile; start 15.10 before availability",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "55 €/h = 440/day below 850",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, not procurement",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Basel, Schweiz\" outside NL/BE/DE, \"Onsite: 3 days per week\"",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Wien, Österreich\" outside NL/BE/DE, on site",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "720/day below 850",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, not procurement",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation, not procurement",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation, not procurement",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "ABAP developer, not procurement; 880/day above 850",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior accounting, not procurement",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, not procurement",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"4051 Basel, Schweiz\" outside NL/BE/DE, \"4 Tage pro Woche vor Ort\"",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"EUR 600 to 700\" below 850",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "105 €/h = 840/day below 850",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Basel, Basel-Stadt, Schweiz (Vor Ort)\" outside NL/BE/DE",
+      "quote": ""
+    },
+    "U02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Rate 'bis 125 €' = 1000 ok, but finance S/4 PMO is off field; 'mind. 3 Jahre als PMO Lead', Jira/MS Project and 'Deutsch verhandlungssicher' open",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Six Sigma Black Belt Zertifizierung (zwingend)', profile only Green Belt",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "S&OP, SAP MM/S4, inventory and supplier mgmt met; 'Erfahrung im Maschinen- und Anlagenbau' open caps at 6; start 15.10 before availability",
+      "quote": ""
+    }
+  },
+  "P3.json": {
+    "U01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CIO leadership role, not data or BI engineering",
+      "quote": ""
+    },
+    "U02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "PMO Lead for SAP finance programme, not BI",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Migration of \"280 Anwendungen\" to Azure, infrastructure PM not BI",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Security programme leadership, not BI",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP roll-out programme, not BI",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT head of utility, not BI",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital IT leadership, not BI",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Information security programme, not BI",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Cloud migration programme lead, not BI",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT carve-out, not BI",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant management, not BI",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Six Sigma Black Belt Zertifizierung (zwingend)\" not held; lean role outside BI",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant ramp-up, not BI",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain, not BI",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production head, not BI",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Automotive QM, not BI",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Quality engineer, not BI",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations, not BI",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain director, not BI",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production, not BI",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant controlling SAP CO, not BI",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS group reporting in LucaNet, accounting not BI",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "HR business partner, not BI",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement, not BI",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement SAP project, not BI",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Payroll accounting, not BI",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, not BI",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury consulting, not BI",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS consolidation, not BI",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Talent acquisition, not BI",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, not BI",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS consolidation lead; Power BI only a wish",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS consolidation, Power BI only nice to have",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"reine Entwicklerrolle\" ABAP/CDS/AMDP, none in profile",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior accountant, Power BI only support task",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, not BI",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting, not BI",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS consolidation, not BI",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Fast close IFRS project; Power BI only one task",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting, not BI",
+      "quote": ""
+    }
+  },
+  "P4.json": {
+    "U01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "\"Interim CIO\" outside pharma quality",
+      "quote": ""
+    },
+    "U02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"bis 125 € (all-in)\" = 1000/day below 1050; outside pharma QA",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT cloud migration outside pharma quality",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Permanent full-time contract\" in Berlin, outside permanent_locations, \"2 days per week in our Berlin office\" proves no remote share",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Rotterdam, Niederlande\" outside DE/CH; SAP programme role",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Unbefristete Festanstellung\" in Heilbronn, outside permanent_locations, \"bis zu 2 Tagen\" mobile = 40% below 60%",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"110 bis 130 €/h\" = 1040/day below 1050",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Arbeitnehmerüberlassung, Equal Pay\", ANÜ excluded",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Outside pharma quality; CH allowed",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT carve-out outside pharma",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Automotive plant leadership, not pharma QA",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day below 1050; \"Black Belt Zertifizierung (zwingend)\"",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Polen\" outside DE/CH",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain, not pharma QA",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"in Arbeitnehmerüberlassung\"",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Food operations, not pharma QA",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Tschechien\" outside DE/CH",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plastics production, not pharma QA",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "840/day below 1050",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance role; contract not stated as permanent, location open",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day below 1050",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Festanstellung\" with \"65.000 – 78.000 € brutto p.a.\" below 135000, Bielefeld outside region",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day below 1050",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "440/day below 1050",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, not pharma QA",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Min. 7 years in treasury\" below 8 years, no senior title",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"1100 Wien\" outside DE/CH",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "720/day below 1050",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, not pharma QA",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation, not pharma QA; 1150/day ok",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation, not pharma QA",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day below 1050",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Jahresgehalt zwischen 46.000 € und 52.000 €\" below 135000, permanent in Hamburg",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Festanstellung\" in Frankfurt outside region, \"bis zu 2 Tagen remote\" = 40% below 60%",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Life sciences client but accounting role; CH allowed",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "700/day below 1050; Portugal",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "840/day below 1050",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting role; CH allowed",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Plzeň, Tschechien' outside DE/CH; '850 bis 950 €' below 1050",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'im Rahmen der Arbeitnehmerüberlassung', profile excludes ANÜ; salary 78k below 135k",
+      "quote": ""
+    }
+  },
+  "P5.json": {
+    "U01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Target role \"Interim CIO\", \"ERP-Wechsel ... SAP S/4HANA\", NIS2, provider contracts, Maschinenbau, freelance DE",
+      "quote": ""
+    },
+    "U02": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Programme mgmt, S/4HANA, Jira/MS Project, PMP/PRINCE2 fit, but \"bis 125 € (all-in)\" = 1000/day below 1200",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Schwerpunkt Cloud-Migration: \"nach Microsoft Azure\", \"Stilllegung der Rechenzentren\"; thin ad behind login",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 3,
+      "excluded": true,
+      "reason": "Strong ERP roll-out fit, but \"Rotterdam, Niederlande\" outside DACH and \"max. 1 day remote per week\"",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Head of IT, IT-Strategie, S/4HANA migration, ISO 27001, Energie; but \"Unbefristete Festanstellung\"",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 2,
+      "excluded": true,
+      "reason": "Interim IT-Leitung fits, KIS/HL7/FHIR missing; \"110 bis 130 €/h\" = 1040/day below 1200",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "\"Arbeitnehmerüberlassung, Equal Pay wird berücksichtigt\" ANÜ excluded; also 115 €/h below 1200/day; CISM/CISSP missing",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Cloud migration to AWS, data centre exit, programme lead, insurance; CH allowed, \"CHF 1,350 to 1,550\" other currency",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "\"IT-Carve-out / TSA-Exit\" matches IT-Separation experience; thin ad",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant management, not IT",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day below 1200; \"Black Belt Zertifizierung (zwingend)\"",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"On site in Wrocław four days per week\" outside DACH",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain planning, not IT leadership",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"in Arbeitnehmerüberlassung\"",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"Einsatz vor Ort in Plzeň, Tschechien\" outside DACH",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"im Rahmen der Arbeitnehmerüberlassung\"",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations, not IT",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "\"vor Ort in Ostrava\" outside DACH",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production, not IT",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "840/day below 1200",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Finance reporting, not IT",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day below 1200",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Procurement role, not IT leadership; no permanent keys",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S/4HANA project lead partly fits, but \"110 EUR/h\" = 880/day below 1200",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "440/day below 1200",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, not IT",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Treasury, not IT; CH allowed, payrolling only an option",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, not IT; AT allowed, ANÜ only an option",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "720/day below 1200",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, not IT",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S/4HANA project lead partial, IFRS consolidation missing; \"Tagessatz: 1.150 €\" below 1200",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 1,
+      "excluded": true,
+      "reason": "S/4HANA project partial, IFRS missing; \"145 €/h\" = 1160/day below 1200",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day below 1200; developer role",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior accounting, not IT",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting leadership, not IT",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, not IT; CH allowed",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "700/day below 1200",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "840/day below 1200",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Accounting, not IT; CH allowed",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Programme lead, ISO 27001, AWS, financial services fit Schwerpunkte; 'Permanent full-time contract' costs a point, NIST CSF open; no salary/location rule in profile",
+      "quote": ""
+    }
+  },
+  "P6.json": {
+    "U01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership 'Erfahrung als CIO oder IT-Leiter', outside plant/operations field",
+      "quote": ""
+    },
+    "U02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP PMO lead, outside operations field; 'bis 125 €' = 1000/day ok",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Cloud-Migration Microsoft Azure', outside field, thin ad",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Information security programmes, outside field; no salary criterion",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Rotterdam, Niederlande', 'max. 1 day remote' - NL not in DE/PL/CZ",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Leitung IT und Digitalisierung', outside field",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital IT lead, outside field; 130 €/h = 1040/day ok",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: 115 €' = 920/day < 950",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Bern, Bern, Switzerland' outside DE/PL/CZ",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'IT-Carve-out / TSA-Exit', outside operations",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim Werksleiter', IATF 16949, VDA 6.3, Lean, Turnaround, automotive - core",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim Plant Manager greenfield PL, Werksaufbau, Anlauf, IATF/PPAP, plastics, Polish",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Produktionsplanung/Supply Chain 10y, SAP PP, Maschinenbau; S&OP open; 1.200 € ok",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Produktionsleiter' core; ANÜ not excluded by profile; thin ad, no rate",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "QM/IATF fits, but junior 'Mindestens 3 Jahre' engineer role via ANÜ (not excluded)",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Interim Head of Operations' is a target role; food industry, thin ad",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Standortverlagerung, Produktionsplanung, SAP, CZ/PL, 'bis 1.300 €'; supply chain lead not core",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: 90–105 €/h' = 840/day < 950",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group reporting, outside field",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'bis 95 €/Std. all-in' = 760/day < 950",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Strategischer Einkäufer', outside field; no salary criterion",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 EUR/h' = 880/day < 950",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: 55 €/h' = 440/day < 950",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, outside operations",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Basel, Schweiz' outside DE/PL/CZ",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Wien, Österreich' outside DE/PL/CZ",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Freelance mit 80–90 € pro Stunde' = 720/day < 950",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, outside operations",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group reporting project, outside field; 1.150 € ok",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation project, outside field",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: 110 €/h' = 880/day < 950",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior accountant, outside field; no salary criterion",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Head of group accounting, outside field",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Basel, Schweiz' outside DE/PL/CZ",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Daily rate EUR 600 to 700' < 950; Portugal",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Stundensatz: 105 €/h' = 840/day < 950",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Basel, Basel-Stadt, Schweiz (Vor Ort)' outside DE/PL/CZ",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 bis 110 € pro Stunde' x8 = 880 below min_tagessatz 950",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "IATF 16949, VDA 6.3, APQP/PPAP/FMEA, 8D, CZ allowed, upper rate 950 meets floor; CS1/CS2 partial, QM lead not a target role, 'ab sofort' before availability",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim Produktionsleiter Kunststoffspritzguss' = target role, Schwerpunkt and branch; thin ad, start 01.10 before availability partial",
+      "quote": ""
+    }
+  },
+  "sample_profile.json": {
+    "U01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'CIO oder IT-Leiter' required, finance profile has no IT leadership",
+      "quote": ""
+    },
+    "U02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Projektmanagement and budget controlling fit, 'PMO Lead' and S/4 programme lifecycle open",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Azure cloud migration, outside finance field",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'ISO 27001, NIST CSF' security role, outside field",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Rotterdam, Niederlande', not fully remote, NL outside DE/AT/CH",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT leadership permanent role, outside finance",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'IT-Leitung ... im Krankenhausumfeld', outside finance",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Vertragsart: Arbeitnehmerüberlassung', ANÜ excluded",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'at least two large cloud migrations delivered' outside field; CHF rate partial",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Carve-out 5y fits the deal side, but IT transition role; thin ad",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant manager, outside finance",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'95 bis 110 € pro Stunde' < 1000/day; Black Belt 'zwingend' missing",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Wrocław, Dolnośląskie, Polen' outside DE/AT/CH",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain S&OP role, outside finance",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'in Arbeitnehmerüberlassung', ANÜ excluded",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Plzeň, Tschechien' outside DE/AT/CH; 950 < 1000",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'im Rahmen der Arbeitnehmerüberlassung', ANÜ excluded",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations role, outside finance",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Ostrava ... Tschechien' outside DE/AT/CH",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production lead, outside finance",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'IFRS 15/16, Konsolidierung in LucaNet' fits; likely permanent 'Vollzeit', thin ad",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'bis 95 €/Std.' = 760/day < 1000; HR role",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Purchasing role, outside finance",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 EUR/h' = 880/day < 1000",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'55 €/h' = 440/day < 1000; payroll",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Interim finance lead, reporting, refinancing fit; CFO level, thin ad",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Liquiditätsplanung fits, 'SAP TRM / FSCM' and 7y treasury open; payrolling only an option",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "IFRS consolidation, LucaNet fit; 'Arbeitnehmerüberlassung oder freiberuflich' = ANÜ only an option",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'80–90 € pro Stunde' < 1000/day; recruiting role",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "Interim finance, Maschinenbau, CFO keyword; thin ad",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "IFRS 14y, Konsolidierung, Projektmanagement, S/4HANA, automotive; '1.150 € pro Tag'",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day < 1000; 'reine Entwicklerrolle'",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "IFRS 14y, Konsolidierung fit; 'in Festanstellung', 'Interim ... nicht vorgesehen'",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'Interim-Mandat in der Konzernrechnung' fits; thin ad, CHF rate",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'90–105 €/h' x8 = 840 below 1000",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "IFRS group accounting, consolidation and project lead met, 145 €/h = 1160; 'SAP Group Reporting oder SAP BPC' open caps at 6, English B2 partial",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Karrierestufe: Berufseinstieg', junior permanent role, far below profile level; no salary threshold so no exclusion",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim lead of IFRS group accounts is the core field, SAP met, CH allowed; leadership implicit, English B2 and CHF rate partial",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Daily rate EUR 600 to 700' below 1000",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'105 €/h' x8 = 840 below 1000",
+      "quote": ""
+    }
+  },
+  "sample_profile_it.json": {
+    "U01": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4HANA ERP steering fits, but 'Erfahrung als CIO oder IT-Leiter' open",
+      "quote": ""
+    },
+    "U02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Programmmanagement 8y, S/4HANA migration, Jira/Confluence/MS Project, PMP; 'bis 125 €' = 1000/day >= 950",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Project leadership fits, but 'Microsoft Azure' cloud migration not SAP; thin ad",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Programme lead, but 'security programmes in a regulated environment' open",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4HANA Utilities migration fits, IT line leadership and KRITIS open; 'Unbefristete Festanstellung'",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'KIS-Systeme sowie der Standards HL7 und FHIR' open, no hospital IT",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Vertragsart: Arbeitnehmerüberlassung', ANÜ excluded; 920/day",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'Aufbau der eigenständigen IT-Landschaft', rollout/migration adjacent; thin ad",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant manager, outside SAP projects",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day < 950; 'Six Sigma Black Belt Zertifizierung (zwingend)'",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Wrocław ... Polen' outside DE/AT",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP MM/S/4 fits, 'Supply Chain Manager' and S&OP experience open",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'in Arbeitnehmerüberlassung', ANÜ excluded",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Plzeň, Tschechien' outside DE/AT",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerüberlassung', ANÜ excluded",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations role, outside SAP projects",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Ostrava ... Tschechien' outside DE/AT",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production lead, outside SAP projects",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "840/day < 950; plant controlling outside field",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group reporting, outside SAP project field",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 950; HR role",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "SAP MM only overlap, buyer role 'Festanstellung'",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'55 €/h' = 440/day < 950",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, outside SAP projects",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Basel, Schweiz' outside DE/AT",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Consolidation accounting, outside field; ANÜ only an option",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'80–90 € pro Stunde' < 950/day",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, outside SAP projects",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 project lead fits, 'Konzernrechnungslegung nach IFRS' open",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 project lead fits, 'Konzernrechnungswesen nach IFRS' open",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 €/h' = 880/day < 950; ABAP developer",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Junior accountant, outside field",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Group accounting head, outside field",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'4051 Basel, Schweiz' outside DE/AT",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'EUR 600 to 700' < 950; Lisbon outside DE/AT",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'105 €/h' = 840/day < 950",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Basel ... Schweiz (Vor Ort)' outside DE/AT",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Rotterdam, Niederlande' outside DE/AT, remote outside not allowed",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Bern, Bern, Switzerland' with '3 days per week on site', CH outside DE/AT",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 EUR/h' x8 = 880 below tagessatz_ab 950",
+      "quote": ""
+    }
+  },
+  "sample_profile_sap.json": {
+    "U01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "CIO role, FI/CO consultant has no IT leadership",
+      "quote": ""
+    },
+    "U02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "S/4 finance programme context, but PMO lead role not in profile",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Azure cloud migration, outside FI/CO",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Security role outside FI/CO; salary 145k >= 95k, 10+ years >= 5",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT head role outside FI/CO; salary 'nach TV-V' not stated",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Hospital IT leadership, outside FI/CO",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Vertragsart: Arbeitnehmerüberlassung', ANÜ excluded",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "AWS cloud migration, outside FI/CO",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IT carve-out transition, not FI/CO",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Plant manager, outside FI/CO",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day < 950; 'Black Belt (zwingend)' missing",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Wrocław ... Polen' outside DE/AT/CH",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Module PP und MM', not FI/CO",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'in Arbeitnehmerüberlassung', ANÜ excluded",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Plzeň, Tschechien' outside DE/AT/CH",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerüberlassung'; 'Zielgehalt 68.000 bis 78.000 €' < 95k",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations role, outside FI/CO",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Ostrava ... Tschechien' outside DE/AT/CH",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production lead, outside FI/CO",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Group reporting adjacent, but LucaNet/IFRS not in profile",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 950; HR role",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'65.000 – 78.000 €' < 95k; 'Mind. 3 Jahre' < 5",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 EUR/h' = 880/day < 950",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'55 €/h' < 950/day; 'mind. 3 Jahre' < 5",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, outside FI/CO consulting",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP FI adjacent, 'SAP TRM / FSCM (IHC, BCM)' open",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "IFRS consolidation in LucaNet, not SAP FI/CO",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'80–90 € pro Stunde' < 950/day",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Interim CFO, outside FI/CO",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "SAP Group Reporting 4y, S/4 Finance, automotive; IFRS consolidation depth open",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "'SAP Group Reporting' 4y fits, IFRS group accounting open",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 €/h' = 880/day < 950; 'Fachberatung ... nicht Bestandteil'",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Jahresgehalt zwischen 46.000 € und 52.000 €' < 95k, 'Unbefristeter Arbeitsvertrag'",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "SAP fits, 'Konzernrechnungslegung nach IFRS' and leadership open",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Rotterdam, Niederlande' outside DE/AT/CH",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'90–105 €/h' x8 = 840 below 950",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Mindestens 10 Jahre Erfahrung in der Konzernrechnungslegung nach IFRS' and leadership open for SAP FI/CO consultant; salary 145k >= 95k",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Daily rate EUR 600 to 700' below 950",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'105 €/h' x8 = 840 below 950",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Thin ad, group accounting lead only adjacent to SAP FI/CO with Group Reporting and closing support; CHF rate partial",
+      "quote": ""
+    }
+  },
+  "sample_profile_senior.json": {
+    "U02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "'Mind. 8 Jahre' with Lead title = overqualified only; PMO/SAP tooling weak",
+      "quote": ""
+    },
+    "U03": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Azure cloud migration, outside finance field",
+      "quote": ""
+    },
+    "U04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Base salary EUR 125,000 to 145,000' < 150k for 'Permanent full-time contract'; Berlin hybrid outside region",
+      "quote": ""
+    },
+    "U05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Rotterdam, Niederlande', 'max. 1 day remote' - outside DE/AT/CH",
+      "quote": ""
+    },
+    "U06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Unbefristete Festanstellung' in Heilbronn, 'bis zu 2 Tagen' mobile < 60 %",
+      "quote": ""
+    },
+    "U07": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Interim Manager im Krankenhausumfeld', hospital IT outside field",
+      "quote": ""
+    },
+    "U08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerüberlassung, Equal Pay', ANÜ excluded",
+      "quote": ""
+    },
+    "U09": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Programme mgmt fits partly, 'cloud migrations' must open",
+      "quote": ""
+    },
+    "U10": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "Carve-out, automotive supplier, 'Finanzinvestor' fit, but IT transition role",
+      "quote": ""
+    },
+    "V01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Erfahrung als Werksleiter oder Produktionsleiter' open",
+      "quote": ""
+    },
+    "V02": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day < 1000; 'Mindestens 5 Jahre' < 10 without senior title",
+      "quote": ""
+    },
+    "V03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'On site in Wrocław four days per week', PL outside DE/AT/CH",
+      "quote": ""
+    },
+    "V04": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Supply chain role, outside CFO field",
+      "quote": ""
+    },
+    "V05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'in Arbeitnehmerüberlassung', ANÜ excluded",
+      "quote": ""
+    },
+    "V06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Plzeň, Tschechien' outside DE/AT/CH; 950 < 1000",
+      "quote": ""
+    },
+    "V07": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Arbeitnehmerüberlassung'; 78k < 150k",
+      "quote": ""
+    },
+    "V08": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Operations role, outside CFO field",
+      "quote": ""
+    },
+    "V09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Einsatz überwiegend vor Ort in Ostrava', CZ outside DE/AT/CH",
+      "quote": ""
+    },
+    "V10": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "Production lead, outside CFO field",
+      "quote": ""
+    },
+    "W02": {
+      "grade": 1,
+      "excluded": false,
+      "reason": "IFRS/LucaNet fit, overqualified; Frankfurt '(Hybrid)', contract not stated so location open",
+      "quote": ""
+    },
+    "W03": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "760/day < 1000; HR business partner",
+      "quote": ""
+    },
+    "W04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "78k < 150k; Bielefeld 'Festanstellung' outside region",
+      "quote": ""
+    },
+    "W05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'110 EUR/h' = 880/day < 1000",
+      "quote": ""
+    },
+    "W06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'55 €/h' = 440/day < 1000",
+      "quote": ""
+    },
+    "W07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim CFO' for 'PE-backed' company, board reporting - core; thin ad",
+      "quote": ""
+    },
+    "W09": {
+      "grade": 2,
+      "excluded": false,
+      "reason": "IFRS/HGB consolidation, LucaNet fit, overqualified; ANÜ only an option",
+      "quote": ""
+    },
+    "W10": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'80–90 € pro Stunde' < 1000/day",
+      "quote": ""
+    },
+    "X01": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim CFO' at 'Maschinenbauer' - core; thin ad",
+      "quote": ""
+    },
+    "X02": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "IFRS/HGB, Konsolidierung, BPC, automotive; 'Mindestens 8 Jahre' with 'Leitung' title = overqualified only",
+      "quote": ""
+    },
+    "X03": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "IFRS 22y, Konsolidierung, SAP BPC, automotive supplier; 1160/day",
+      "quote": ""
+    },
+    "X04": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "880/day < 1000; ABAP developer",
+      "quote": ""
+    },
+    "X05": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "52k < 150k; Hamburg permanent outside region",
+      "quote": ""
+    },
+    "X07": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "Interim head of group accounting, IFRS 22y, finance team lead; CHF 1'450",
+      "quote": ""
+    },
+    "U01": {
+      "grade": 0,
+      "excluded": false,
+      "reason": "'Mehrjährige Erfahrung als CIO oder IT-Leiter' required, CFO profile outside the field; only interim experience fits",
+      "quote": ""
+    },
+    "W01": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'90–105 €/h' x8 = 840 below 1000",
+      "quote": ""
+    },
+    "W08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Min. 7 years in treasury' below 10 and 'Treasury Consultant' is no senior title",
+      "quote": ""
+    },
+    "X06": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Jahreszielgehalt 125.000 € bis 145.000 €' below 150k; Frankfurt with 'bis zu 2 Tagen remote' outside region",
+      "quote": ""
+    },
+    "X08": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'Daily rate EUR 600 to 700' below 1000",
+      "quote": ""
+    },
+    "X09": {
+      "grade": 0,
+      "excluded": true,
+      "reason": "'105 €/h' x8 = 840 below 1000",
+      "quote": ""
+    },
+    "X10": {
+      "grade": 3,
+      "excluded": false,
+      "reason": "'Interim-Mandat in der Konzernrechnung' is core field (IFRS 22y, consolidation), slightly overqualified; thin ad, CHF 1400-1500 partial",
+      "quote": ""
+    }
+  }
+}

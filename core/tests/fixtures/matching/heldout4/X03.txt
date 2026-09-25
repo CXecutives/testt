@@ -1,0 +1,38 @@
+Titel: Teilprojektleiter Konzernkonsolidierung / Group Reporting (S/4HANA) (m/w/d)
+Unternehmen: Isarbrück Consulting GmbH
+Ort: München
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1304588
+Abgerufen am: 23.09.2026 07:30
+
+Projekt-ID: 1304588
+Start: 11/2026
+Dauer: 9 Monate (Option auf Verlängerung)
+Einsatzort: München (hybrid, ca. 60 % remote)
+Stundensatz: 145 €/h
+Vertragsart: Freiberuflich
+
+Projektbeschreibung
+Für einen internationalen Automobilzulieferer mit Sitz im Raum München suchen wir im Rahmen einer SAP S/4HANA-Transformation eine Teilprojektleitung für den Bereich Konzernabschluss und Group Reporting.
+
+Das bestehende Konsolidierungssystem wird durch SAP S/4HANA Group Reporting abgelöst. Ziel sind ein Fast Close des Konzernabschlusses sowie eine neue Segmentberichterstattung nach IFRS 8.
+
+Aufgaben:
+- Leitung des Teilprojekts Konzernabschluss (ca. 8 Personen)
+- Steuerung von Zeitplan, Budget und Risiken
+- Konzeption der Konsolidierungsprozesse und des Konzernkontenplans
+- Begleitung von Datenmigration, Tests und Parallelabschlüssen
+- Abstimmung mit Wirtschaftsprüfer und Implementierungspartner
+- Reporting an den Lenkungsausschuss
+
+Anforderungen:
+- Langjährige Erfahrung im Konzernrechnungswesen nach IFRS
+- Projektleitungserfahrung in S/4HANA- oder Konsolidierungsprojekten
+- SAP Group Reporting oder SAP BPC
+- Deutsch und Englisch verhandlungssicher
+
+Nice to have:
+- Automotive-Erfahrung
+- Power BI
+
+Wir freuen uns auf Ihr Profil mit Stundensatz und Verfügbarkeit.

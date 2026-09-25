@@ -1,0 +1,29 @@
+Titel: Treasury Consultant – Cash Management & Bank Connectivity (m/w/d)
+Unternehmen: Rheinknie Advisory AG
+Ort: 4051 Basel
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3194470.html
+Abgerufen am: 22.09.2026 07:36
+
+Basel, Schweiz | Start: asap, spätestens 02.11.2026 | Duration: 9 months | Rate: CHF 140–160/h | Workload: 80–100 % | Onsite: 3 days per week
+
+About the project
+Our client, a globally operating life sciences group headquartered in Basel, is harmonising its cash management landscape. The legacy TMS will be replaced by SAP S/4HANA Treasury (TRM); In-House Cash and SWIFT connectivity are to be set up for 60+ legal entities.
+
+Responsibilities
+• Design of cash pooling (physical and notional) and in-house bank processes
+• Bank account rationalisation (KYC, mandate management), currently 400+ accounts
+• Bank connectivity via SWIFT/EBICS, payment formats (ISO 20022 pain.001 / camt.053)
+• Support of the global liquidity planning roll-out (13-week rolling forecast)
+
+Requirements
+• Min. 7 years in treasury (corporate or consulting)
+• Hands-on experience with SAP TRM / FSCM (IHC, BCM)
+• Fluent English; German is a strong plus (Swiss German not required)
+• EU/EFTA citizenship or valid Swiss work permit (B/C/G)
+
+Please note: Contractors work either via their own AG/GmbH or via a Swiss payrolling company, which we can offer. Rates are all-inclusive (no expenses).
+
+Tags: Treasury, Cash Management, SAP TRM, In-House Cash, SWIFT, EBICS, Liquiditätsplanung, Banking, Zahlungsverkehr
+
+Rheinknie Advisory AG | Talent Solutions Finance & Risk | Basel · Zürich · Frankfurt
