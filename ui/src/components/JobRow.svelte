@@ -12,12 +12,15 @@
   keyboard focus) the date fades out and archive (or bring back) and the star fade in
   (100 ms); the title line keeps their room free. A pinned job shows a small star just
   left of the date. The tools are siblings of the row button, so they never select the row;
-  the row keeps its hover while the pointer is on them. An excluded row is muted as a
-  whole, its dot and tools too. When a job is read while its row is on screen the dot
-  shrinks away; an excluded row has no dot (no count includes it). A date older than ten
-  days sits on a quiet tint. A score from a teaser is a provisional ring. A cut-off title
-  shows in full in a tooltip. Layout stays inside the row (containment); like the row, its
-  hover waits while the list scrolls (`:root:not([data-scrolling])`).
+  the row keeps its hover while the pointer is on them. They exist only while the pointer
+  is on the row or the focus is in it (and for their fade-out after that): three buttons on
+  every row of a long list were half of its elements, most of the work of a new row and of
+  every hit test. An excluded row is muted as a whole, its dot and tools too. When a job is
+  read while its row is on screen the dot shrinks away; an excluded row has no dot (no
+  count includes it). A date older than ten days sits on a quiet tint. A score from a
+  teaser is a provisional ring. A cut-off title shows in full in a tooltip. Layout stays
+  inside the row (containment); like the row, its hover rests while the list scrolls
+  (`data-still`, see ListRow).
 -->
 <script lang="ts" module>
   import type { IconName } from './Icon.svelte';
@@ -37,12 +40,14 @@
 </script>
 
 <script lang="ts">
+  import { presence } from '$lib/actions/presence';
   import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import { displayTitle, formatRelative } from '$lib/i18n/format';
   import { factWords, rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
-  import { dotOut } from '$lib/motion/transitions';
+  import { duration } from '$lib/motion/motion';
+  import { dotOut, toolsIn } from '$lib/motion/transitions';
   import { keyConventions } from '$lib/platform';
   import Badge, { type BadgeTone } from './Badge.svelte';
   import Button from './Button.svelte';
@@ -107,6 +112,19 @@
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
   /** How many tools the row has on hover (their room stays free on the title line). */
   const toolCount = $derived(tools.length + (onpin ? 1 : 0) + (onarchive ? 1 : 0));
+
+  /** The tools exist while the pointer is on the row or the focus is in it, and for their
+   *  fade-out (--dur-fast) after both have left. */
+  let tooled = $state(false);
+  let drop: ReturnType<typeof setTimeout> | undefined;
+
+  function hold(here: boolean): void {
+    clearTimeout(drop);
+    drop = undefined;
+    if (here) tooled = true;
+    else if (tooled) drop = setTimeout(() => (tooled = false), duration('fast'));
+  }
+
   const reason = $derived(ring ? rowReason(job) : null);
   const facts = $derived(ring ? factWords(job.match?.facts) : []);
   const heading = $derived(job.title ? displayTitle(job.title) : t.job.untitled);
@@ -140,7 +158,13 @@
   />
 {/snippet}
 
-<div class="job" class:tooled={toolCount > 0} class:muted={excluded}>
+<div
+  class="job"
+  class:tooled={tooled && toolCount > 0}
+  class:muted={excluded}
+  data-rests=""
+  use:presence={hold}
+>
   <ListRow
     leading={ringCell}
     {selected}
@@ -185,8 +209,8 @@
   </ListRow>
   {#if job.unread && !excluded}<span class="dot" role="img" aria-label={t.job.unread} out:dotOut
     ></span>{/if}
-  {#if toolCount > 0}
-    <span class="tools">
+  {#if tooled && toolCount > 0}
+    <span class="tools" in:toolsIn>
       {#each tools as tool (tool.id)}
         <span class="tool">
           <Button
@@ -240,11 +264,11 @@
   }
 
   /* The row keeps its hover while the pointer is on its star (a sibling of the row). */
-  :global(:where(:root:not([data-scrolling]))) .job:hover :global(.row:not(.selected, :active)) {
+  .job:hover:where(:not([data-still])) :global(.row:not(.selected, :active)) {
     background-color: var(--surface-hover);
   }
 
-  :global(:where(:root:not([data-scrolling]))) .job:hover :global(.row.selected) {
+  .job:hover:where(:not([data-still])) :global(.row.selected) {
     background-color: var(--surface-selected-hover);
   }
 
@@ -360,7 +384,7 @@
     transition: color var(--dur-base) var(--ease-standard);
   }
 
-  :global(:where(:root:not([data-scrolling]))) .job:hover .date {
+  .job:hover:where(:not([data-still])) .date {
     color: var(--text-muted);
     transition-duration: var(--dur-hover);
   }
@@ -440,17 +464,17 @@
     --btn-bg-hover: var(--surface-press);
   }
 
-  :global(:where(:root:not([data-scrolling]))) .job:hover .tool,
+  .job:hover:where(:not([data-still])) .tool,
   .tool:has(:global(:focus-visible)) {
     opacity: 1;
   }
 
-  :global(:where(:root:not([data-scrolling]))) .muted:hover .tool,
+  .muted:hover:where(:not([data-still])) .tool,
   .muted .tool:has(:global(:focus-visible)) {
     opacity: var(--opacity-muted);
   }
 
-  :global(:where(:root:not([data-scrolling]))) .tooled:hover .end,
+  .tooled:hover:where(:not([data-still])) .end,
   .tooled:has(.tool :global(:focus-visible)) .end {
     opacity: 0;
     transition-duration: var(--dur-fast);

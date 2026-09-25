@@ -226,6 +226,16 @@ export function dotOut(node: Element): TransitionConfig {
   };
 }
 
+/**
+ * A row's tools come into being under the pointer, when their hover rule already holds: they
+ * fade in like their CSS transition would (--dur-fast, standard ease); under reduced motion
+ * they are simply there, as their CSS is then.
+ */
+export function toolsIn(_node: Element): TransitionConfig {
+  if (isReducedMotion()) return {};
+  return opacity(duration('fast'), easing('standard'));
+}
+
 /** The toast enters rising --move-lg from --scale-enter (150 ms, ease-out). */
 export function toastIn(node: Element): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);

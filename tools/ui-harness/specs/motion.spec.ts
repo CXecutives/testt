@@ -1,6 +1,6 @@
 // Reduced motion is enforced by lib/motion/motion.ts, not by the CSS media query.
 
-import { expect, open, test } from './fixtures';
+import { expect, open, settle, test } from './fixtures';
 
 test('full motion by default', async ({ page }) => {
   await open(page, '?platform=windows');
@@ -157,20 +157,41 @@ test('hover rests while a list scrolls', async ({ page }) => {
       page.getByTestId('list-scroll').evaluate((node) => node.scrollHeight - node.clientHeight),
     )
     .toBeGreaterThan(200);
-  const scrolling = (): Promise<boolean> =>
-    page.evaluate(() => document.documentElement.hasAttribute('data-scrolling'));
-  // Scroll and look right after the scroll event (the mark lasts --scroll-idle).
+  // The pointer rests on a row (once the rows stand still: the switch glides them).
+  await settle(page);
+  const row = page.getByTestId('job-list').locator('[data-testid^="job-row-"]').first();
+  await row.hover();
+  const still = (): Promise<string[]> =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('[data-still]')].map((node) => node.className),
+    );
+  expect(await still()).toEqual([]);
+  // Scroll and look right after the scroll event: the row under the pointer rests (its hover
+  // waits for `:not([data-still])`), the row button and the row around it; nothing else in
+  // the list changes. The mark lasts --scroll-idle.
   const during = await page.getByTestId('list-scroll').evaluate(
     (node) =>
-      new Promise<boolean>((resolve) => {
+      new Promise<{ rows: (string | undefined)[]; hovered: boolean }>((resolve) => {
         node.addEventListener(
           'scroll',
-          () => resolve(document.documentElement.hasAttribute('data-scrolling')),
+          () => {
+            const marked = [...document.querySelectorAll<HTMLElement>('[data-still]')];
+            resolve({
+              rows: marked.map(
+                (el) =>
+                  (el.querySelector<HTMLElement>('[data-testid^="job-row-"]') ?? el).dataset.testid,
+              ),
+              hovered: marked.every((el) => el.matches(':hover')),
+            });
+          },
           { once: true },
         );
         node.scrollBy(0, 200);
       }),
   );
-  expect(during).toBe(true);
-  await expect.poll(scrolling, { timeout: 1000 }).toBe(false);
+  expect(during.rows).toHaveLength(2);
+  expect(during.rows[0]).toMatch(/^job-row-/);
+  expect(during.rows[1]).toBe(during.rows[0]);
+  expect(during.hovered).toBe(true);
+  await expect.poll(still, { timeout: 1000 }).toEqual([]);
 });

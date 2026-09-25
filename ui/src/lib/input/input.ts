@@ -34,7 +34,7 @@
 // - OS window and menu functions stay: Alt+F4 and Cmd+Q/W/M/H/, (Settings), Cmd+Option+H.
 // - no Ctrl/Cmd+wheel zoom (the wheel is watched only while Ctrl or Cmd is held, so plain
 //   scrolling never waits for the page) and no pinch zoom
-// - no hover flicker while a list scrolls (`:root[data-scrolling]`, see onScroll)
+// - no hover flicker while a list scrolls (`data-rests` and `data-still`, see onScroll)
 // - Esc outside fields and dialogs clears what is selected (`escape`: the selection of
 //   several jobs), like in a mail app
 
@@ -623,22 +623,60 @@ function guardZoom(on: boolean): void {
 }
 
 /**
- * Hover stays still while a list scrolls: `:root[data-scrolling]` is set from the first
- * scroll event until --scroll-idle after the last one, and the rows' hover rules wait for
- * `:root:not([data-scrolling])` (a flip restyles only the rows, never their contents). A
- * passive listener: it never delays a scroll.
+ * Hover stays still while a list scrolls: from the first scroll event until --scroll-idle
+ * after the last one, an element marked `data-rests` (a list row) that is under the pointer,
+ * or that the pointer meets while the content moves under it, carries `data-still`, and its
+ * hover rules wait for `:not([data-still])`. Only the rows the pointer passes change: one
+ * mark on :root restyled every row of a long list at the start and at the end of each
+ * scroll (a long task with a few hundred rows). Passive listeners: they never delay a
+ * scroll.
  */
 let scrollIdle: ReturnType<typeof setTimeout> | undefined;
 /** --scroll-idle, read once: reading a token inside the handler would force a style
- *  recalculation on every scroll event (right after the attribute changed). */
+ *  recalculation on every scroll event. */
 let scrollIdleMs: number | null = null;
+let scrolling = false;
+/** The element under the pointer (the last `pointerover`); null once it left the window. */
+let underPointer: Element | null = null;
+/** The elements that rest until the scroll is over. */
+const resting = new Set<HTMLElement>();
+const RESTS = '[data-rests]';
+
+/** Every element that rests while a list scrolls, from `target` outwards. */
+function rest(target: Element | null): void {
+  let node = target?.closest<HTMLElement>(RESTS) ?? null;
+  while (node !== null) {
+    if (!resting.has(node)) {
+      node.dataset.still = '';
+      resting.add(node);
+    }
+    node = node.parentElement?.closest<HTMLElement>(RESTS) ?? null;
+  }
+}
+
+function scrollOver(): void {
+  scrolling = false;
+  for (const node of resting) delete node.dataset.still;
+  resting.clear();
+}
 
 function onScroll(): void {
-  const root = document.documentElement;
   scrollIdleMs ??= tokenMs('--scroll-idle');
-  if (root.dataset.scrolling === undefined) root.dataset.scrolling = '';
+  if (!scrolling) {
+    scrolling = true;
+    rest(underPointer);
+  }
   clearTimeout(scrollIdle);
-  scrollIdle = setTimeout(() => delete root.dataset.scrolling, scrollIdleMs);
+  scrollIdle = setTimeout(scrollOver, scrollIdleMs);
+}
+
+function onPointerOver(event: PointerEvent): void {
+  underPointer = event.target instanceof Element ? event.target : null;
+  if (scrolling) rest(underPointer);
+}
+
+function onPointerOut(event: PointerEvent): void {
+  if (event.relatedTarget === null) underPointer = null;
 }
 
 /**
@@ -733,6 +771,8 @@ export function installInput(): void {
   );
   window.addEventListener('blur', () => guardZoom(false));
   document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+  document.addEventListener('pointerover', onPointerOver, { capture: true, passive: true });
+  document.addEventListener('pointerout', onPointerOut, { capture: true, passive: true });
   // Safari/WKWebView pinch zoom.
   document.addEventListener('gesturestart', prevent, capture);
   document.addEventListener('gesturechange', prevent, capture);

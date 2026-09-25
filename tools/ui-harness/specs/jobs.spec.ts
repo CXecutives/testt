@@ -340,10 +340,11 @@ test('the star pins from the list without opening the job', async ({ page }) => 
   await open(page, WIN);
   const key = 'linkedin-4100200301';
   const pin = page.getByTestId(`pin-${key}`);
-  // The star shows on hover only (its wrapper fades in over the date).
+  // The star shows on hover only (its wrapper fades in over the date); at rest the row has
+  // no tools at all.
   const star = pin.locator('xpath=..');
   const job = page.locator('.job', { has: page.getByTestId(`job-row-${key}`) });
-  await expect(star).toHaveCSS('opacity', '0');
+  await expect(job.locator('.tools')).toHaveCount(0);
   await row(page, key).hover();
   await expect(star).toHaveCSS('opacity', '1');
   await expect(job.locator('.end')).toHaveCSS('opacity', '0');
@@ -353,9 +354,14 @@ test('the star pins from the list without opening the job', async ({ page }) => 
   expect((await calls(page, 'set_pinned')).map(([, args]) => args)).toEqual([
     { key: { portal: 'linkedin', id: '4100200301' }, on: true },
   ]);
-  // Away from the row, the date is back with the small pinned star before it.
+  // Away from the row the tools fade out (they stay built while the clicked star keeps the
+  // focus, else they go); the date is back with the small pinned star before it.
   await page.mouse.move(0, 0);
-  await expect(star).toHaveCSS('opacity', '0');
+  const toolShown = (): Promise<boolean> =>
+    job.evaluate((node) =>
+      [...node.querySelectorAll('.tool')].some((tool) => getComputedStyle(tool).opacity !== '0'),
+    );
+  await expect.poll(toolShown).toBe(false);
   await expect(job.locator('.end')).toHaveCSS('opacity', '1');
   await expect(job.locator('.mark')).toBeVisible();
 });
@@ -602,7 +608,8 @@ test('details and pins: teaser note, fetch details, pin star', async ({ page }) 
   await row(page, 'freelance-900411').click();
   await page.getByTestId('reader-pin').click();
   await expect(page.getByTestId('reader-pin')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('pin-freelance-900411')).toHaveAttribute('aria-pressed', 'true');
+  // The row shows the star at rest (its tools only exist under the pointer).
+  await expect(row(page, 'freelance-900411').getByRole('img', { name: 'Favorit' })).toBeVisible();
 });
 
 test('the close button in the reader leads back to the day overview', async ({ page }) => {
