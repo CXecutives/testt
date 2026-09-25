@@ -40,8 +40,11 @@
   import Reader from './Reader.svelte';
   import ListHeader from './ListHeader.svelte';
   import RunCard from './RunCard.svelte';
+  import SelectionPane from './SelectionPane.svelte';
+  import { bulk } from './bulk.svelte';
 
   const OVERVIEW = 'overview';
+  const CHOSEN = 'chosen';
   const ERROR = 'error';
   const WAITING = 'waiting';
 
@@ -62,7 +65,8 @@
   const stage = $derived.by((): { what: string; turn: number } => {
     const selected = jobs.selected !== null;
     let next = shown;
-    if (selected && jobs.detailStatus === 'error') next = ERROR;
+    if (bulk.active) next = CHOSEN;
+    else if (selected && jobs.detailStatus === 'error') next = ERROR;
     else if (jobs.detail !== null) next = keyOf(jobs.detail.job.key);
     else if (selected && jobs.detailSlow) next = WAITING;
     else if (!selected) next = OVERVIEW;
@@ -182,7 +186,9 @@
         <div class="stage" data-testid="stage" in:enter={stage.what !== OVERVIEW} out:leave>
           {#if dragBands()}<DragBand sheet />{/if}
           <div class="column">
-            {#if stage.what === OVERVIEW && place !== 'inbox'}
+            {#if stage.what === CHOSEN}
+              <SelectionPane />
+            {:else if stage.what === OVERVIEW && place !== 'inbox'}
               <!-- The archive and the trash have no day overview: what lies here, quietly. -->
               <div class="place-reader">
                 <EmptyState

@@ -1213,6 +1213,65 @@ test('the choice follows the list: rows that leave it leave the choice too', asy
   await expect(page.getByTestId('selection-bar')).toHaveCount(0);
 });
 
+test('two or more chosen: the reader shows what is chosen and acts on all of them', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await rows(page).nth(0).click();
+  await rows(page)
+    .nth(1)
+    .click({ modifiers: ['Control'] });
+  const pane = page.getByTestId('selection-pane');
+  await expect(pane).toContainText('2 Jobs ausgewählt');
+  await expect(pane).toContainText('Strg+Klick');
+  await expect(page.getByTestId('reader')).toHaveCount(0);
+  const before = await rows(page).count();
+  await pane.getByTestId('pane-selection-archive').click();
+  await expect(rows(page)).toHaveCount(before - 2);
+  await expect(pane).toHaveCount(0);
+});
+
+test('PageDown, Space and PageUp scroll the reader after a click in its text', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 600 });
+  await open(page, WIN);
+  await rows(page).first().click();
+  await expect(page.getByTestId('reader-ring')).toContainText('91');
+  const stage = page.getByTestId('stage');
+  const top = (): Promise<number> => stage.evaluate((node) => node.scrollTop);
+  await page.getByTestId('reader-title').click();
+  await page.keyboard.press('PageDown');
+  await expect.poll(top).toBeGreaterThan(200);
+  const after = await top();
+  await page.keyboard.press(' ');
+  await expect.poll(top).toBeGreaterThan(after);
+  await page.keyboard.press('PageUp');
+  await expect.poll(top).toBeLessThan(after + 10);
+});
+
+test('the list header keeps one height in every state of a narrow column', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await open(page, WIN);
+  const listTop = (): Promise<number> =>
+    page.getByTestId('list-scroll').evaluate((node) => node.getBoundingClientRect().top);
+  const neu = await listTop();
+  await page
+    .getByTestId('facet')
+    .getByRole('radio', { name: /Favoriten/ })
+    .click();
+  expect(await listTop()).toBe(neu);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await rows(page).nth(0).click();
+  await rows(page)
+    .nth(1)
+    .click({ modifiers: ['Control'] });
+  await expect(page.getByTestId('selection-bar')).toBeVisible();
+  expect(await listTop()).toBe(neu);
+  await page.keyboard.press('Escape');
+  await page.getByTestId('nav-archive').click();
+  expect(await listTop()).toBe(neu);
+});
+
 test('choose like a mail app: Ctrl+click, Shift+click, the bar acts on all, Esc clears', async ({
   page,
 }) => {

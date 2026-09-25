@@ -499,6 +499,14 @@ export const de = {
   selection: {
     count: (n: number) => `${n} ausgewählt`,
     clear: 'Auswahl aufheben',
+    /** The reader while several jobs are chosen. */
+    chosen: (value: number) => `${count(value, 'Job', 'Jobs')} ausgewählt`,
+    /** The key that takes a row in or out, by OS. */
+    commandKey: { ctrl: 'Strg', cmd: 'Cmd' } satisfies Record<'ctrl' | 'cmd', string>,
+    hint: (key: string) =>
+      `${key}+Klick nimmt einen Job dazu oder heraus, Umschalt+Klick einen ganzen Bereich.`,
+    /** Once, after a few single moves: several jobs can go at once. */
+    tip: (key: string) => `Mehrere Jobs auf einmal wählst du mit ${key}+Klick.`,
   },
   /** Where a job is, like a mail: the inbox ("Jobs" in the sidebar), the archive, the trash. */
   place: {

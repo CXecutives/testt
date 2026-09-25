@@ -473,6 +473,10 @@ export const en: Catalog = {
   selection: {
     count: (n: number) => `${n} selected`,
     clear: 'Clear selection',
+    chosen: (value: number) => `${count(value, 'job', 'jobs')} selected`,
+    commandKey: { ctrl: 'Ctrl', cmd: 'Cmd' },
+    hint: (key: string) => `${key}+click adds or removes a job, Shift+click a whole range.`,
+    tip: (key: string) => `Choose several jobs at once with ${key}+click.`,
   },
   place: {
     inbox: 'Jobs',

@@ -16,6 +16,7 @@ import { t } from '$lib/i18n/t';
 import type { JobKey, JobView, Place } from '$lib/ipc/types';
 import { inFacet, isExcluded, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
 import { onUndo } from '$lib/input/input';
+import { commandKey } from '$lib/platform';
 import { toasts } from '$lib/state/toasts.svelte';
 
 export type MoveId = 'archive' | 'toInbox' | 'trash' | 'restore';
@@ -167,6 +168,24 @@ function dropUndos(): void {
   for (const item of toasts.items) if (item.action) toasts.dismiss(item.id);
 }
 
+/** Single moves in this session; after the third one a tip says several go at once. */
+let singles = 0;
+const TIP_KEY = 'jobs-tip-choose';
+const TIP_AFTER = 3;
+
+function tipOnce(): void {
+  singles += 1;
+  if (singles !== TIP_AFTER) return;
+  try {
+    if (localStorage.getItem(TIP_KEY) !== null) return;
+    localStorage.setItem(TIP_KEY, '1');
+  } catch {
+    // Without a store the tip would come every session: better not at all.
+    return;
+  }
+  toasts.show(t.selection.tip(t.selection.commandKey[commandKey()]), 'info');
+}
+
 /** Moves jobs (the row's, the reader's or the selection's). Resolves with the error text. */
 export async function move(all: readonly JobView[], action: MoveId): Promise<string | null> {
   const to = TARGET[action];
@@ -198,6 +217,7 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
     void jobs.load(true);
   }
   void jobs.loadOverview();
+  if (list.length === 1) tipOnce();
   // Toasts and undos only for the jobs that really moved.
   const moved = new Set(result.moved.map(keyOf));
   for (const job of list.filter((row) => moved.has(keyOf(row.key)))) {
