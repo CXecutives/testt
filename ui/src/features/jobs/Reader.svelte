@@ -16,7 +16,7 @@
   the row never wraps). "Details holen" has one
   place: next to the note on the missing text, above the ad. Moving the job away from one of
   its buttons hands the focus to the same button of the next job.
-  After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
+  After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a plain count (like the list's divider); a reason
   that jumps to its passage makes the passage flash once when it has arrived. Once the
   action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
   it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.
@@ -584,7 +584,7 @@
 {/snippet}
 
 {#snippet sub(label: string, count: number)}
-  <h3 class="sub">{label}<Count value={count} /></h3>
+  <h3 class="sub">{label}<Count value={count} tone="plain" /></h3>
 {/snippet}
 
 {#snippet reasonList(items: Reason[], testid: string)}
@@ -1264,7 +1264,7 @@
     font: var(--type-lg);
   }
 
-  /* The groups of "Warum": navy sub-labels with a soft count. */
+  /* The groups of "Warum": navy sub-labels with a plain count (like the list's divider). */
   .sub {
     display: flex;
     align-items: center;
