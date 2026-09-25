@@ -105,3 +105,117 @@ test.describe('paging and the remembered tab', () => {
     await expect(row(page, 'freelancermap-2801')).toBeVisible();
   });
 });
+
+/** The rows the list highlights, by key. */
+function highlighted(page: Page): Promise<string[]> {
+  return page
+    .getByTestId('job-list')
+    .locator('[data-key]:has(.row.selected)')
+    .evaluateAll((items) => items.map((item) => (item as HTMLElement).dataset.key ?? ''));
+}
+
+/** After a move the list ignores clicks for a moment (the row under the pointer changed). */
+async function settleMoves(page: Page): Promise<void> {
+  await page.waitForTimeout(550);
+}
+
+test.describe('choosing several jobs', () => {
+  test('the highlight shows exactly the chosen rows; Ctrl+click takes a highlighted row out', async ({
+    page,
+  }) => {
+    await open(page, WIN);
+    await facet(page, 'Alle').click();
+    const bar = page.getByTestId('selection-bar');
+    // A range from the anchor replaces the choice: the open job is no longer part of it.
+    await row(page, 'freelancermap-2801').click();
+    await row(page, 'linkedin-4100200301').click({ modifiers: ['Control'] });
+    await row(page, 'freelancermap-2802').click({ modifiers: ['Shift'] });
+    await expect(bar).toContainText('3 ausgewählt');
+    expect(await highlighted(page)).toEqual([
+      'linkedin:4100200301',
+      'freelance:900411',
+      'freelancermap:2802',
+    ]);
+    // Ctrl+click on the open job, not highlighted: it joins and shows.
+    await row(page, 'freelancermap-2801').click({ modifiers: ['Control'] });
+    await expect(bar).toContainText('4 ausgewählt');
+    expect(await highlighted(page)).toHaveLength(4);
+    // Ctrl+click on a highlighted row always takes it out.
+    await row(page, 'freelance-900411').click({ modifiers: ['Control'] });
+    await expect(bar).toContainText('3 ausgewählt');
+    expect(await highlighted(page)).not.toContain('freelance:900411');
+    // Without a choice, a Ctrl+click on the open job closes it, like in a mail app.
+    await page.keyboard.press('Escape');
+    await row(page, 'freelancermap-2803').click();
+    await expect(page.getByTestId('reader')).toBeVisible();
+    await row(page, 'freelancermap-2803').click({ modifiers: ['Control'] });
+    await expect(page.getByTestId('reader')).toHaveCount(0);
+    expect(await highlighted(page)).toEqual([]);
+  });
+
+  test('a range starts from the job the app opened, not from a row clicked before', async ({
+    page,
+  }) => {
+    await open(page, WIN);
+    await facet(page, 'Alle').click();
+    // Archive the open job from the reader: the app opens the next one.
+    await row(page, 'freelancermap-2802').click();
+    await page.getByTestId('reader-archive').click();
+    await expect(page.getByTestId('reader-title')).toHaveText(/Kaufmännische Leitung/);
+    await settleMoves(page);
+    await row(page, 'linkedin-4100200304').click({ modifiers: ['Shift'] });
+    await expect(page.getByTestId('selection-bar')).toContainText('4 ausgewählt');
+    expect(await highlighted(page)).toEqual([
+      'freelancermap:2803',
+      'linkedin:4100200303',
+      'freelancermap:2804',
+      'linkedin:4100200304',
+    ]);
+    // A job opened from the day overview starts the range too, not the row clicked before.
+    await page.keyboard.press('Escape');
+    await row(page, 'freelancermap-2806').click();
+    await page.getByTestId('reader-close').click();
+    await page.getByTestId('best').locator('[data-testid^="best-"]').first().click();
+    await expect.poll(async () => (await highlighted(page)).length).toBe(1);
+    const opened = (await highlighted(page))[0] ?? '';
+    expect(opened).not.toBe('freelancermap:2806');
+    const keys = await listedKeys(page);
+    const at = keys.indexOf(opened);
+    await rows(page)
+      .nth(at + 1)
+      .click({ modifiers: ['Shift'] });
+    expect(await highlighted(page)).toEqual(keys.slice(at, at + 2));
+  });
+
+  test('one chosen row left by a move opens; the highlight and the reader agree', async ({
+    page,
+  }) => {
+    await open(page, WIN);
+    await facet(page, 'Alle').click();
+    await row(page, 'freelancermap-2801').click();
+    await row(page, 'freelance-900411').click({ modifiers: ['Control'] });
+    await row(page, 'freelancermap-2802').click({ modifiers: ['Shift'] });
+    await expect(page.getByTestId('selection-bar')).toContainText('2 ausgewählt');
+    await settleMoves(page);
+    await row(page, 'freelancermap-2802').hover();
+    await page.getByTestId('archive-freelancermap-2802').click();
+    await expect(page.getByTestId('selection-bar')).toHaveCount(0);
+    await expect(page.getByTestId('reader-title')).toHaveText('SAP S/4HANA Finance Projektleitung');
+    // (The archived row keeps its look while it folds away.)
+    await expect.poll(() => highlighted(page)).toEqual(['freelance:900411']);
+  });
+
+  test('in one column a Ctrl or Shift click chooses and keeps the list', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 640 });
+    await open(page, WIN);
+    await facet(page, 'Alle').click();
+    await row(page, 'freelancermap-2801').click({ modifiers: ['Control'] });
+    await expect(page.getByTestId('list-scroll')).toBeVisible();
+    await expect(page.getByTestId('reader')).toHaveCount(0);
+    expect(await highlighted(page)).toEqual(['freelancermap:2801']);
+    expect(await calls(page, 'job_detail')).toEqual([]);
+    await row(page, 'freelance-900411').click({ modifiers: ['Control'] });
+    await expect(page.getByTestId('selection-bar')).toContainText('2 ausgewählt');
+    expect(await calls(page, 'job_detail')).toEqual([]);
+  });
+});

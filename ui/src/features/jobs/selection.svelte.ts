@@ -1,7 +1,9 @@
 // The rows chosen like in a mail app: Ctrl+click (Cmd on macOS) takes a row in or out, Shift+
-// click takes the range from the last clicked row; a plain click chooses one row and opens it.
+// click takes the range from the anchor; a plain click chooses one row and opens it.
 // Two or more chosen rows show the selection bar in the list header; Esc clears them. The
-// open job belongs to a selection that starts from it.
+// open job belongs to a selection that starts from it: a Ctrl+click adds to it, and while
+// nothing else is chosen a range starts from it (also when the app opened it: the next job
+// after a move, a job of the day overview); otherwise from the anchor, the row clicked last.
 
 import type { JobView } from '$lib/ipc/types';
 import { jobs, keyOf } from '$lib/state/jobs.svelte';
@@ -9,7 +11,9 @@ import { jobs, keyOf } from '$lib/state/jobs.svelte';
 class Selection {
   /** The chosen rows (keyOf), in the order they were taken. */
   keys = $state<string[]>([]);
-  /** Where a Shift range starts (the last row clicked). */
+  /** The same keys to look up (each row asks whether it is chosen). */
+  readonly #chosen = $derived(new Set(this.keys));
+  /** Where a Shift range starts (the last row clicked, or the start of the last range). */
   #anchor: string | null = null;
 
   get size(): number {
@@ -17,7 +21,7 @@ class Selection {
   }
 
   has(job: JobView): boolean {
-    return this.keys.includes(keyOf(job.key));
+    return this.#chosen.has(keyOf(job.key));
   }
 
   clear(): void {
@@ -45,29 +49,34 @@ class Selection {
     this.#anchor = key;
   }
 
-  /** Shift+click: every row from the anchor to this one, in the order of the list. */
+  /** Shift+click: every row from the start of the range to this one, in the order of the
+   *  list. Without a start that is still listed the click takes this row in or out. */
   range(job: JobView, rows: readonly JobView[]): void {
     const order = rows.map((row) => keyOf(row.key));
-    const key = keyOf(job.key);
-    const from = order.indexOf(this.#anchor ?? (jobs.selected ? keyOf(jobs.selected) : key));
-    const to = order.indexOf(key);
-    if (from === -1 || to === -1) {
+    const open = jobs.selected ? keyOf(jobs.selected) : null;
+    const starts = this.keys.length === 0 ? [open, this.#anchor] : [this.#anchor, open];
+    const start = starts.find((key) => key !== null && order.includes(key));
+    const to = order.indexOf(keyOf(job.key));
+    if (start === undefined || start === null || to === -1) {
       this.toggle(job);
       return;
     }
+    const from = order.indexOf(start);
     this.keys = order.slice(Math.min(from, to), Math.max(from, to) + 1);
+    this.#anchor = start;
   }
 
-  /** Rows that left the list leave the choice too. */
-  prune(listed: ReadonlySet<string>): void {
-    if (this.keys.some((key) => !listed.has(key))) {
-      this.keys = this.keys.filter((key) => listed.has(key));
-    }
+  /** Rows that left the list leave the choice too; `true` if any did. */
+  prune(listed: ReadonlySet<string>): boolean {
+    if (this.keys.every((key) => listed.has(key))) return false;
+    this.keys = this.keys.filter((key) => listed.has(key));
+    return true;
   }
 
   /** The chosen jobs as the list holds them, in the order of the list. */
   jobs(rows: readonly JobView[]): JobView[] {
-    return rows.filter((row) => this.keys.includes(keyOf(row.key)));
+    const chosen = this.#chosen;
+    return rows.filter((row) => chosen.has(keyOf(row.key)));
   }
 }
 

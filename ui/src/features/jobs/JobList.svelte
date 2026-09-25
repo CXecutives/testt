@@ -11,7 +11,8 @@
   im Archiv (2)"), which keeps the search. Each row's tools are the job's actions where it
   is (Archivieren, Löschen, the star; in the Papierkorb Wiederherstellen, Endgültig
   löschen); a row the user moves out folds away. Rows are chosen like in a mail app: a
-  click opens one, Ctrl+click (Cmd on macOS) takes one in or out, Shift+click a range. An
+  click opens one, Ctrl+click (Cmd on macOS) takes one in or out, Shift+click a range; the
+  highlight shows what is chosen, and in one column choosing never opens a job. An
   empty inbox says where jobs come from (an alert on each portal, older mails). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
   view's primary). Without a mailbox one slim note at the top says how to connect one;
@@ -38,6 +39,7 @@
   import { navigation } from '$lib/state/navigation.svelte';
   import { editor } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { viewport } from '$lib/state/viewport.svelte';
   import { actionsOf, disarm, guarded, hasStar, move, moving, purge, toggleStar } from './actions';
   import { selection } from './selection.svelte';
 
@@ -110,25 +112,40 @@
 
   /** A click opens the job (the open one stays open); with Ctrl/Cmd or Shift it chooses. */
   function select(job: JobView, how: SelectHow): void {
-    if (how.range) selection.range(job, order);
-    else if (how.toggle) selection.toggle(job);
-    else {
+    if (!how.range && !how.toggle) {
       selection.only(job);
       if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
       return;
     }
-    // One chosen row is no selection: that job simply opens (like a mail app).
+    if (how.range) selection.range(job, order);
+    else selection.toggle(job);
+    settle(true);
+  }
+
+  /**
+   * One chosen row is no selection: that job simply opens (like a mail app), and a Ctrl+click
+   * that took the open job out of the choice closes it. In one column choosing never opens a
+   * job: the list stays, and its header's bar acts on the chosen rows. `click`: the user's
+   * click led here (the job then counts as read), not a row that left the list.
+   */
+  function settle(click: boolean): void {
+    if (viewport.narrow) return;
     const [only, ...more] = selection.jobs(order);
-    if (only && more.length === 0) {
-      selection.only(only);
-      if (!sameKey(jobs.selected, only.key)) void jobs.select(only, true);
+    if (more.length > 0) return;
+    if (only === undefined) {
+      if (click && selection.size === 0) jobs.clearSelection();
+      return;
     }
+    selection.only(only);
+    if (!sameKey(jobs.selected, only.key)) void jobs.select(only, click);
   }
 
   // Rows that leave the list (a move, a reload) leave the choice too.
   $effect(() => {
     const listed = new Set(jobs.rows.map((row) => keyOf(row.key)));
-    untrack(() => selection.prune(listed));
+    untrack(() => {
+      if (selection.prune(listed)) settle(false);
+    });
   });
 
   // Another list, another search or order: the choice starts anew, and a click right away
@@ -482,11 +499,13 @@
     </div>
   {:else}
     {#snippet row(job: JobView)}
+      <!-- While rows are chosen the highlight shows exactly them (what the bar counts and
+           a Ctrl+click takes out); else the open job. -->
       <JobRow
         {job}
         ring={!profileMissing}
         pending={pending && job.match === null}
-        selected={sameKey(jobs.selected, job.key) || selection.has(job)}
+        selected={selection.size > 0 ? selection.has(job) : sameKey(jobs.selected, job.key)}
         onselect={select}
         onpin={hasStar(job.place) ? pin : null}
         tools={toolsOf(job)}
