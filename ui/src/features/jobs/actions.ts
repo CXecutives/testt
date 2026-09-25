@@ -196,6 +196,9 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
   const leaving = list.filter((job) => !inFacet({ ...job, place: to }, jobs.facet));
   const next = leaving.length > 0 ? nextAfter(leaving) : null;
   for (const job of leaving) moving.add(keyOf(job.key));
+  // The list changes now, not when the backend answers: the second click of a double click
+  // may come first (it would take the job straight back from where it went).
+  if (leaving.length > 0) arm();
   const result = await jobs.move(
     list.map((job) => job.key),
     to,

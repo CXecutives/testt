@@ -45,10 +45,20 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], viewport, deviceScaleFactor: 1 },
+      testIgnore: /timing\.spec\.ts/,
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'], viewport, deviceScaleFactor: 1 },
+    },
+    // Timing checks (long tasks, timing.spec.ts) run in Chromium once everything else is
+    // done and alone: a browser beside them on the same CPU would lengthen their tasks.
+    // WebKit runs them in its project for what they check besides the timing.
+    {
+      name: 'timing',
+      use: { ...devices['Desktop Chrome'], viewport, deviceScaleFactor: 1 },
+      testMatch: /timing\.spec\.ts/,
+      dependencies: ['chromium', 'webkit'],
     },
   ],
   webServer: {

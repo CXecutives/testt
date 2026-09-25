@@ -11,7 +11,11 @@ export function px(value: number): string {
   return `${Math.round(value)}px`;
 }
 
-/** Set (or with null/undefined remove) custom properties; names are given without `--`. */
+/**
+ * Set (or with null/undefined remove) custom properties; names are given without `--`. A value
+ * that `previous` already set stays untouched: every write restyles the element, and a list
+ * that renders its rows again (a reload, the end of a run) would restyle each of them.
+ */
 export function setVars(
   node: HTMLElement | SVGElement,
   vars: CssVars,
@@ -21,6 +25,7 @@ export function setVars(
     if (!(name in vars)) node.style.removeProperty(`--${name}`);
   }
   for (const [name, value] of Object.entries(vars)) {
+    if (name in previous && previous[name] === value) continue;
     if (value === null || value === undefined) node.style.removeProperty(`--${name}`);
     else node.style.setProperty(`--${name}`, String(value));
   }

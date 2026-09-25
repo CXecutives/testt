@@ -9,10 +9,16 @@
 // No replay by construction: Svelte plays a local transition only when its own block has
 // run before, so an entry never plays when a view, a list or the app mounts (main.ts also
 // mounts with `intro: false`). One-shots (pulseOnce) are started only from event handlers.
+//
+// fade and rise never read the element's style: svelte/transition's versions call
+// getComputedStyle for the element's own opacity and transform, which forces a style and
+// layout pass in the middle of the script (a new job in the reader lays out the whole page
+// twice in one task). The elements they move are opaque and untransformed, so the result is
+// the same.
 
 import { flip as svelteFlip } from 'svelte/animate';
 import { Tween } from 'svelte/motion';
-import { fade as svelteFade, fly as svelteFly, scale as svelteScale } from 'svelte/transition';
+import { scale as svelteScale } from 'svelte/transition';
 import type { AnimationConfig } from 'svelte/animate';
 import type { TransitionConfig } from 'svelte/transition';
 import {
@@ -24,7 +30,6 @@ import {
   move,
   play,
   popScale,
-  staggerLimit,
   type Duration,
   type Easing,
   type Move,
@@ -43,31 +48,36 @@ export interface RiseParams extends MotionParams {
   distance?: Move;
 }
 
-function crossfade(node: Element, delay = 0): TransitionConfig {
-  return svelteFade(node, { duration: crossfadeDuration(), delay, easing: easing('standard') });
+/** Opacity from 0 to 1 (in) or back (out), without reading the element's style. */
+function opacity(ms: number, ease: (t: number) => number, delay = 0): TransitionConfig {
+  return { duration: ms, easing: ease, delay, css: (t) => `opacity: ${t}` };
+}
+
+function crossfade(_node: Element, delay = 0): TransitionConfig {
+  return opacity(crossfadeDuration(), easing('standard'), delay);
 }
 
 /** Opacity only. */
 export function fade(node: Element, params: MotionParams = {}): TransitionConfig {
   if (params.on === false) return {};
   if (isReducedMotion()) return crossfade(node);
-  return svelteFade(node, {
-    duration: duration(params.duration ?? 'fast'),
-    easing: easing(params.easing ?? 'standard'),
-    delay: params.delay ?? 0,
-  });
+  return opacity(
+    duration(params.duration ?? 'fast'),
+    easing(params.easing ?? 'standard'),
+    params.delay ?? 0,
+  );
 }
 
 /** Fade in while rising by a token distance (default 4 px). */
 export function rise(node: Element, params: RiseParams = {}): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
-  return svelteFly(node, {
-    y: move(params.distance ?? 'md'),
+  const y = move(params.distance ?? 'md');
+  return {
     duration: duration(params.duration ?? 'base'),
     easing: easing(params.easing ?? 'out'),
     delay: params.delay ?? 0,
-    opacity: 0,
-  });
+    css: (t, u) => `transform: translateY(${u * y}px); opacity: ${t}`,
+  };
 }
 
 /** Fade in from --scale-enter (popovers, dialogs, tooltips). */
@@ -107,20 +117,26 @@ export function flip(
   });
 }
 
-export interface RowParams {
-  index: number;
-  /** The row arrived while the list was on screen (a new job during a run). */
-  fresh: boolean;
-}
-
 /**
  * Entry of a list row. A list that loads, filters or comes back into view is simply there;
  * only a row that arrives while the list is on screen (a new job during a run) fades in,
- * rising 4 px in 150 ms, and only among the first --stagger-max rows.
+ * rising 4 px in 150 ms, and only among the first --stagger-max rows (the list decides).
+ * A Web Animation started by the list after the row is in place, not a transition on
+ * every row: the transition would run (and fire its events) for each of hundreds of rows
+ * that simply appear.
  */
-export function rowIn(node: Element, { index, fresh }: RowParams): TransitionConfig {
-  if (!fresh || index >= staggerLimit()) return {};
-  return rise(node, { distance: 'md', duration: 'base' });
+export function rowEnter(row: Element): void {
+  const reduced = isReducedMotion();
+  const from: Keyframe = reduced
+    ? { opacity: 0 }
+    : { opacity: 0, transform: `translateY(${move('md')}px)` };
+  const to: Keyframe = reduced ? { opacity: 1 } : { opacity: 1, transform: 'none' };
+  const motion = play(row, [from, to], {
+    duration: 'base',
+    easing: reduced ? 'standard' : 'out',
+    crossfade: true,
+  });
+  motion?.addEventListener('finish', () => motion.cancel());
 }
 
 function lifted(t: number, y: number, scale: number): string {
@@ -152,10 +168,7 @@ export function scrim(
 ): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
   const out = options.direction === 'out';
-  return svelteFade(node, {
-    duration: out ? duration('fast') : duration('slow'),
-    easing: easing(out ? 'in' : 'out'),
-  });
+  return opacity(duration(out ? 'fast' : 'slow'), easing(out ? 'in' : 'out'));
 }
 
 export interface RollParams {
@@ -218,6 +231,16 @@ export function dotOut(node: Element): TransitionConfig {
   };
 }
 
+/**
+ * A row's tools come into being under the pointer, when their hover rule already holds: they
+ * fade in like their CSS transition would (--dur-fast, standard ease); under reduced motion
+ * they are simply there, as their CSS is then.
+ */
+export function toolsIn(_node: Element): TransitionConfig {
+  if (isReducedMotion()) return {};
+  return opacity(duration('fast'), easing('standard'));
+}
+
 /** The toast enters rising --move-lg from --scale-enter (150 ms, ease-out). */
 export function toastIn(node: Element): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
@@ -259,8 +282,8 @@ export function tooltipIn(node: Element, { placement }: TooltipParams): Transiti
   return { duration: duration('fast'), easing: easing('out'), css: (t) => lifted(t, y, scale) };
 }
 
-export function tooltipOut(node: Element): TransitionConfig {
-  return svelteFade(node, { duration: duration('instant'), easing: easing('in') });
+export function tooltipOut(_node: Element): TransitionConfig {
+  return opacity(duration('instant'), easing('in'));
 }
 
 /**

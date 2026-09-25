@@ -222,7 +222,10 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   await list.scrollIntoViewIfNeeded();
   const job = (id: string) =>
     list.locator('.job', { has: page.locator(`[data-testid="job-row-${id}"]`) });
-  // The archive tool names its action (a click moves the job out, see the collapse test).
+  // A row at rest has no tools; under the pointer the archive tool names its action (a
+  // click moves the job out, see the collapse test).
+  await expect(job('freelancermap-1001').locator('.tools')).toHaveCount(0);
+  await page.getByTestId('job-row-freelancermap-1001').hover();
   await expect(page.getByTestId('archive-freelancermap-1001')).toHaveAttribute(
     'aria-label',
     'Archivieren',
@@ -474,6 +477,7 @@ test('moving jobs out: the row folds away, one toast merges them, one undo bring
   const rows = list.locator('[data-testid^="job-row-"]');
   await expect(rows).toHaveCount(6);
   // The row folds away: its wrapper animates its height while the rows below follow.
+  await page.getByTestId('job-row-freelancermap-1004').hover();
   const folding = await page.evaluate(async () => {
     const button = document.querySelector<HTMLElement>(
       '[data-testid="archive-freelancermap-1004"]',
@@ -488,6 +492,7 @@ test('moving jobs out: the row folds away, one toast merges them, one undo bring
   const toast = page.getByTestId('toast');
   await expect(toast).toContainText('„SAP FI Berater');
   // A second one within two seconds joins the same toast.
+  await page.getByTestId('job-row-freelancermap-1005').hover();
   await page.getByTestId('archive-freelancermap-1005').click({ force: true });
   await expect(toast).toHaveCount(1);
   await expect(toast).toContainText('2 Jobs archiviert.');
@@ -520,6 +525,7 @@ test('a toast that names a job: the title keeps to one line in its quotes, two l
       };
     });
   // A title of usual length stands whole.
+  await page.getByTestId('job-row-freelance-1003').hover();
   await page.getByTestId('archive-freelance-1003').click();
   await expect(toast).toContainText('„Kaufmännische Leitung Projektgeschäft“ archiviert.');
   const usual = await shape();
@@ -529,6 +535,7 @@ test('a toast that names a job: the title keeps to one line in its quotes, two l
   await toast.getByRole('button', { name: 'Ausblenden' }).click();
   await expect(toast).toHaveCount(0);
   // A very long one ends in an ellipsis inside its quotes; the verb follows on line two.
+  await page.getByTestId('job-row-freelancermap-1004').hover();
   await page.getByTestId('archive-freelancermap-1004').click({ force: true });
   await expect(toast).toContainText('archiviert.');
   const long = await shape();
@@ -557,6 +564,7 @@ test('an undo toast stays 10 s; toasts wait while the window is in the back', as
   const list = page.getByTestId('job-list');
   await list.scrollIntoViewIfNeeded();
   const toast = page.getByTestId('toast');
+  await page.getByTestId('job-row-freelance-1003').hover();
   await page.getByTestId('archive-freelance-1003').click();
   await expect(toast.locator('.life')).toHaveCSS('animation-duration', '10s');
   await page.mouse.move(5, 5);

@@ -216,6 +216,13 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   scale, move and turn token has a neutral reduced-motion value (a half turn keeps its angle). The one height
   animation: a job moved out of the list folds its row away (`rowCollapse`, 150 ms, one contained row; not for
   filtering; instant under reduced motion). Results of the same kind within 2 s merge into one toast with one undo.
+- Performance (2026-09-25, the list at 2000 jobs): no task over 50 ms on the reference machine (the development machine
+  at 4x CPU throttling; the harness slows every machine to it; project `timing`, alone after the others). A row builds
+  only what shows at rest (its tools exist under the pointer or the focus; icons are copies of one drawing per glyph);
+  nothing on :root or a large container changes with scrolling or hover (hover rests per row, `data-still`); no style
+  or layout read in the middle of a script (transitions and sentinels read nothing, glides read every box before they
+  move one); a reload keeps the rows that did not change and builds at most a chunk of new rows per frame; another list
+  is a new generation of rows. The harness stub answers IPC in a task of its own, like Tauri.
 - Consistency: stylelint (no hex/named colours, no colour functions/units outside tokens, strict values, allowed
   transition properties, keyframes only in motion.css) · ESLint (no inline styles, raw elements only in components,
   restricted imports, no title attribute, no empty catch, listeners only in input.ts) · Rust architecture tests ·
@@ -342,7 +349,13 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       macos-latest probe, one guest page of freelance.de for a real-structure fixture at the next allowed live run.
 - [ ] Live canary per portal (one counted page via `admit`)
 - [ ] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios
-- [ ] Performance (start time, long tasks at 2000 jobs), contrast
+- [x] Long tasks at 2000 jobs (2026-09-25): the tab switch and the windows while scrolling stay below 50 ms on the
+      reference machine (see "Performance" above; harness `timing.spec.ts`, 10 of 10 in Chromium and WebKit; the smoke
+      probe of the real app shows none). Still above 50 ms at 4x CPU throttling with 300 rows mounted (50 to 100 ms):
+      the first layout of a job in the reader (text shaping), the fold of a moved row and its return on undo (every row
+      below it moves: paint properties and layers of the whole list), and a tab switch or a re-sort that tears down
+      hundreds of rows at once (Svelte's teardown of their effects).
+- [ ] Performance: start time; contrast
 - [ ] Consistency audit per screen (checklist below) and fixes; one adversarial review workflow over the whole diff
 
 ### Phase 6 - delivery
