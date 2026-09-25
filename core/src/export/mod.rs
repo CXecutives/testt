@@ -15,6 +15,8 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use jiff::Timestamp;
+
 use crate::error::{Error, Result};
 use crate::store::JobRow;
 use crate::text::split_company_location;
@@ -61,7 +63,8 @@ pub(crate) struct Line {
 }
 
 impl Line {
-    pub fn of(job: &JobRow, texts: &Texts) -> Line {
+    /// The row of `job`, its details state as of `now`.
+    pub fn of(job: &JobRow, texts: &Texts, now: Timestamp) -> Line {
         let (company, location) = split_company_location(&job.company, &job.location);
         Line {
             source: job.key.portal.label(),
@@ -75,7 +78,7 @@ impl Line {
                 .and_then(crate::model::gmail_url)
                 .map(|u| u.to_string())
                 .unwrap_or_default(),
-            details: texts.details_label(job),
+            details: texts.details_label(job, now),
             key: job.key.to_string(),
         }
     }

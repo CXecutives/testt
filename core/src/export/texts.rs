@@ -6,11 +6,12 @@
 //! picks by the app's language. The text files per job are no part of this: they stay
 //! German (`job_txt.rs`, a contract with the matching skill).
 
+use jiff::Timestamp;
 use serde_json::{Map, Value};
 
-use crate::model::DescStatus;
 use crate::settings::Language;
 use crate::store::JobRow;
+use crate::view::DetailState;
 
 // User-facing text, German (the app's first language).
 
@@ -21,7 +22,8 @@ pub const INFO_SHEET: &str = "Info";
 
 /// Column headers of the Excel file (order as before, plus the job details state). Unlike
 /// the text files nobody reads it by machine - so it says "Portal" like the interface, not
-/// "Quelle" like the skill contract.
+/// "Quelle" like the skill contract; the first sighting of a job is "Zuerst gesehen" (a
+/// "saved" date would read like the favourite).
 pub const COLUMNS: [&str; 12] = [
     "Portal",
     "Datum der Alert-Mail",
@@ -31,7 +33,7 @@ pub const COLUMNS: [&str; 12] = [
     "Link",
     "Betreff der Alert-Mail",
     "Alert-Mail in Gmail",
-    "Gespeichert am",
+    "Zuerst gesehen",
     "Details",
     "Schlüssel",
     "Passung",
@@ -47,7 +49,7 @@ pub const INFO_LAST_SCAN: &str = "Letzter Postfach-Abruf";
 pub const INFO_SCOPE: &str = "Umfang des letzten Postfach-Abrufs";
 pub const INFO_NEW: &str = "Neu beim letzten Postfach-Abruf";
 pub const INFO_KNOWN: &str = "Schon bekannt beim letzten Postfach-Abruf";
-pub const INFO_DUP: &str = "Doppelt in mehreren Alert-Mails beim letzten Postfach-Abruf";
+pub const INFO_DUP: &str = "In mehreren Alert-Mails beim letzten Postfach-Abruf";
 pub const INFO_LAST_RUN: &str = "Letzter Abruf";
 pub const INFO_JOBS_TOTAL: &str = "Jobs gesamt";
 pub const INFO_PROGRAM: &str = "Programm";
@@ -90,17 +92,19 @@ pub fn exclusion_reason(code: &str, params: &Map<String, Value>) -> Option<&'sta
     })
 }
 
-/// State of the job details in the words of the interface's badges.
-pub fn details_label(job: &JobRow) -> &'static str {
-    match job.desc_status {
-        DescStatus::Ok if job.desc_closed => "Vorhanden (Anzeige geschlossen)",
-        DescStatus::Ok if job.desc_short => "Vorhanden (kurz)",
-        DescStatus::Ok => "Vorhanden",
-        DescStatus::Teaser => "Nur Anriss",
-        DescStatus::Missing => "Details folgen",
-        DescStatus::Failed => "Details fehlen",
-        DescStatus::Gone => "Nicht mehr online",
-        DescStatus::Unfetchable => "Nicht abrufbar",
+/// State of the job details (see [`DetailState`]) in the words of the interface's badges
+/// (`job.detail`, `job.closed`); a full text has no badge there and is "Vorhanden" here.
+pub fn details_label(detail: DetailState, closed: bool, short: bool) -> &'static str {
+    match detail {
+        DetailState::Ok if closed => "Keine Bewerbung mehr möglich",
+        DetailState::Ok if short => "Vorhanden (kurz)",
+        DetailState::Ok => "Vorhanden",
+        DetailState::Pending { .. } => "Details folgen",
+        DetailState::OnRequest => "Details auf Anfrage",
+        DetailState::Teaser => "Nur Anriss",
+        DetailState::Failed { .. } => "Details fehlen",
+        DetailState::Gone => "Nicht mehr online",
+        DetailState::Unfetchable => "Nicht abrufbar",
     }
 }
 // end of user-facing text
@@ -110,8 +114,7 @@ pub mod en {
     use serde_json::{Map, Value};
 
     use super::licence;
-    use crate::model::DescStatus;
-    use crate::store::JobRow;
+    use crate::view::DetailState;
 
     // User-facing text, English.
 
@@ -177,16 +180,17 @@ pub mod en {
         })
     }
 
-    pub fn details_label(job: &JobRow) -> &'static str {
-        match job.desc_status {
-            DescStatus::Ok if job.desc_closed => "Available (ad closed)",
-            DescStatus::Ok if job.desc_short => "Available (short)",
-            DescStatus::Ok => "Available",
-            DescStatus::Teaser => "Teaser only",
-            DescStatus::Missing => "Details to follow",
-            DescStatus::Failed => "Details missing",
-            DescStatus::Gone => "No longer online",
-            DescStatus::Unfetchable => "Not fetchable",
+    pub fn details_label(detail: DetailState, closed: bool, short: bool) -> &'static str {
+        match detail {
+            DetailState::Ok if closed => "No longer taking applications",
+            DetailState::Ok if short => "Available (short)",
+            DetailState::Ok => "Available",
+            DetailState::Pending { .. } => "Details to come",
+            DetailState::OnRequest => "Details on request",
+            DetailState::Teaser => "Teaser only",
+            DetailState::Failed { .. } => "Details missing",
+            DetailState::Gone => "No longer online",
+            DetailState::Unfetchable => "Not fetchable",
         }
     }
     // end of user-facing text
@@ -196,6 +200,14 @@ pub mod en {
 fn licence(params: &Map<String, Value>) -> bool {
     params.get("class").and_then(Value::as_str) == Some("licence")
 }
+
+/// Words of the info sheet an earlier version stored with the last mailbox scan in a wording
+/// of this file that changed since, and the German word of that row today - do not
+/// translate.
+const FORMER_WORDS: [(&str, &str); 1] = [(
+    "Doppelt in mehreren Alert-Mails beim letzten Postfach-Abruf",
+    INFO_DUP,
+)];
 
 /// The words of the files in one language.
 pub struct Texts {
@@ -229,7 +241,7 @@ pub struct Texts {
     /// The number format of the date cells in Excel.
     pub excel_moment: &'static str,
     exclusion: fn(&str, &Map<String, Value>) -> Option<&'static str>,
-    details: fn(&JobRow) -> &'static str,
+    details: fn(DetailState, bool, bool) -> &'static str,
 }
 
 /// The German words.
@@ -316,9 +328,10 @@ impl Texts {
         (self.exclusion)(code, params)
     }
 
-    /// See [`details_label`].
-    pub fn details_label(&self, job: &JobRow) -> &'static str {
-        (self.details)(job)
+    /// The state of a job's details at `now` (see [`details_label`]): like the list, a job
+    /// whose mail is older than the automatic fetch reaches waits for a request.
+    pub fn details_label(&self, job: &JobRow, now: Timestamp) -> &'static str {
+        (self.details)(DetailState::at(job, now), job.desc_closed, job.desc_short)
     }
 
     /// A moment in local time as the files show it.
@@ -327,8 +340,13 @@ impl Texts {
     }
 
     /// Rows of the info sheet that an earlier version stored in German: the same row in this
-    /// language (labels and the scope; numbers and dates stay).
+    /// language (labels and the scope; numbers and dates stay), also where this file words
+    /// them otherwise now.
     pub fn from_german(&self, word: &str) -> Option<&'static str> {
+        let word = FORMER_WORDS
+            .iter()
+            .find(|(former, _)| *former == word)
+            .map_or(word, |(_, today)| *today);
         let german = DE.stored_words();
         let index = german.iter().position(|w| *w == word)?;
         Some(self.stored_words()[index])
@@ -394,6 +412,10 @@ mod tests {
             assert_eq!(DE.from_german(de), Some(de));
         }
         assert_eq!(EN.from_german("3"), None);
+        // A row stored in a wording this file used before reads as today's row.
+        let (former, today) = FORMER_WORDS[0];
+        assert_eq!(DE.from_german(former), Some(today));
+        assert_eq!(EN.from_german(former), Some(en::INFO_DUP));
         for (de, en) in DE.columns.iter().zip(EN.columns) {
             // Product and loan words are the same in both.
             if !["Portal", "Link", "Details"].contains(de) {
