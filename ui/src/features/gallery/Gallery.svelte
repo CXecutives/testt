@@ -10,7 +10,7 @@
   import EmptyState from '$components/EmptyState.svelte';
   import Icon, { ICON_NAMES } from '$components/Icon.svelte';
   import IconTile, { PORTAL_MONOGRAM, TILE_TONES } from '$components/IconTile.svelte';
-  import SideNav from '$components/SideNav.svelte';
+  import SideNav, { type SideNavFold } from '$components/SideNav.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import Spinner from '$components/Spinner.svelte';
   import Toast from '$components/Toast.svelte';
@@ -43,6 +43,26 @@
   }));
   let activeTab = $state('0');
   const noop = (): void => undefined;
+
+  /** The sidebar in its states: full and as the rail, its places shown and hidden (each
+   *  arrow folds its own). */
+  const navDemos = [
+    { key: 'full', rail: false, open: true },
+    { key: 'folded', rail: false, open: false },
+    { key: 'rail', rail: true, open: true },
+    { key: 'rail-folded', rail: true, open: false },
+  ] as const;
+  let placesOpen = $state<Record<string, boolean>>(
+    Object.fromEntries(navDemos.map((demo) => [demo.key, demo.open])),
+  );
+  const foldOf = (key: string): SideNavFold => ({
+    open: placesOpen[key] ?? true,
+    hide: text.navigation.hidePlaces,
+    show: text.navigation.showPlaces,
+    locked: text.navigation.placesStay,
+    testid: `gnav-fold-${key}`,
+    ontoggle: () => (placesOpen[key] = !placesOpen[key]),
+  });
 </script>
 
 <div class="gallery" data-testid="gallery">
@@ -123,37 +143,34 @@
 
   <Section heading={text.sections.navigation} id="navigation">
     <div class="navs">
-      <div class="side">
-        <SideNav
-          items={tabs}
-          active={activeTab}
-          label={text.sections.navigation}
-          onselect={(id) => (activeTab = id)}
-        />
-        <StatusLine text={text.navigation.status} label={text.navigation.status} onclick={noop} />
-        <StatusLine
-          text={text.navigation.running}
-          label={text.navigation.running}
-          busy
-          progress={0.4}
-          onclick={noop}
-        />
-      </div>
-      <div class="side rail">
-        <SideNav
-          items={tabs}
-          active={activeTab}
-          label={text.sections.navigation}
-          collapsed
-          onselect={(id) => (activeTab = id)}
-        />
-        <StatusLine
-          text={text.navigation.status}
-          label={text.navigation.status}
-          collapsed
-          onclick={noop}
-        />
-      </div>
+      {#each navDemos as demo (demo.key)}
+        {@const rail = demo.rail}
+        <div class="side" class:rail data-testid="gnav-{demo.key}">
+          <SideNav
+            items={tabs}
+            active={activeTab}
+            label={text.sections.navigation}
+            collapsed={rail}
+            fold={foldOf(demo.key)}
+            onselect={(id) => (activeTab = id)}
+          />
+          <StatusLine
+            text={text.navigation.status}
+            label={text.navigation.status}
+            collapsed={rail}
+            onclick={noop}
+          />
+          {#if demo.key === 'full'}
+            <StatusLine
+              text={text.navigation.running}
+              label={text.navigation.running}
+              busy
+              progress={0.4}
+              onclick={noop}
+            />
+          {/if}
+        </div>
+      {/each}
     </div>
     <div class="bar">
       <Button
@@ -282,6 +299,8 @@
 
   .navs {
     display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: var(--space-16);
     margin-bottom: var(--space-16);
   }

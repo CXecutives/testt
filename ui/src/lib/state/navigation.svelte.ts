@@ -2,6 +2,7 @@
 // menu may ask for one too (macOS: Cmd+, opens the settings). A view with unsaved work (the
 // Profil editor) holds a guard: it may keep the switch and ask first, then switch itself;
 // what was to happen with the switch (the place a click in the sidebar chose) waits for it.
+// Also kept here: whether the sidebar shows the places under Jobs (Archiv, Papierkorb).
 
 import { onNavigate } from '../ipc/api';
 
@@ -14,8 +15,32 @@ const isView = (value: string): value is ViewId => (VIEW_IDS as readonly string[
 /** `true` lets the switch to `next` happen; `false` keeps the current view. */
 export type LeaveGuard = (next: ViewId) => boolean;
 
+/** Where the folded places are kept (this browser profile). */
+const PLACES_KEPT = 'sidebar-places';
+
+function placesKept(): boolean {
+  try {
+    return localStorage.getItem(PLACES_KEPT) !== 'hidden';
+  } catch {
+    return true;
+  }
+}
+
+function keepPlaces(shown: boolean): void {
+  try {
+    if (shown) localStorage.removeItem(PLACES_KEPT);
+    else localStorage.setItem(PLACES_KEPT, 'hidden');
+  } catch {
+    // Without a store the choice lasts for this session only.
+    return;
+  }
+}
+
 class Navigation {
   current = $state<ViewId>('jobs');
+  /** The sidebar shows Archiv and Papierkorb under Jobs (the default; kept). While one of
+   *  them is open they show anyway. */
+  placesShown = $state(placesKept());
   #installed = false;
   #guard: LeaveGuard | null = null;
   /** What waits for a switch the guard kept (it runs once that switch happens). */
@@ -44,6 +69,12 @@ class Navigation {
     return () => {
       if (this.#guard === guard) this.#guard = null;
     };
+  }
+
+  /** Show or hide the places under Jobs in the sidebar. */
+  togglePlaces(): void {
+    this.placesShown = !this.placesShown;
+    keepPlaces(this.placesShown);
   }
 
   /** Follow the native menu (App.svelte, once). */

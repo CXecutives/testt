@@ -476,6 +476,12 @@ export const en: Catalog = {
     jobs: 'Jobs',
     profile: 'Profile',
     settings: 'Settings',
+    hidePlaces: 'Hide Archive and Trash',
+    showPlaces: 'Show Archive and Trash',
+    placesStay: {
+      archive: 'Stays open while you are in the archive.',
+      trash: 'Stays open while you are in the trash.',
+    },
   },
   common: {
     loading: 'Loading',

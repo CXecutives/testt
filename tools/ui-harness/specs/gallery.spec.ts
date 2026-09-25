@@ -377,36 +377,47 @@ test('nav sub-entries: quieter, indented, the one pill covers the active one (al
   await open(page, '?gallery&platform=windows');
   const section = page.getByTestId('gallery-navigation');
   await section.scrollIntoViewIfNeeded();
-  for (const nav of [section.locator('nav').first(), section.locator('nav.collapsed')]) {
-    for (const id of ['gnav-trash', 'gnav-archive', 'gnav-0']) {
+  const full = page.getByTestId('gnav-full').locator('nav');
+  const rail = page.getByTestId('gnav-rail').locator('nav');
+  for (const nav of [full, rail]) {
+    for (const id of ['gnav-trash', 'gnav-archive', 'gnav-0', 'gnav-2']) {
       await nav.getByTestId(id).click();
       await expect(nav.getByTestId(id)).toHaveAttribute('aria-current', 'page');
-      // The pill has slid onto the entry (it is exactly as high and at the same top).
+      // The pill has slid onto the entry (in the rail it shrinks onto a smaller sub-entry).
       await expect
         .poll(async () => {
           const pill = (await nav.locator('.indicator').boundingBox())!;
           const entry = (await nav.getByTestId(id).boundingBox())!;
-          return [Math.round(pill.y - entry.y), Math.round(pill.height - entry.height)];
+          return [
+            pill.x - entry.x,
+            pill.y - entry.y,
+            pill.width - entry.width,
+            pill.height - entry.height,
+          ].map((value) => Math.round(value));
         })
-        .toEqual([0, 0]);
+        .toEqual([0, 0, 0, 0]);
     }
   }
-  // Collapsed, a sub-entry is an icon with its name as the accessible name (and tooltip).
-  await expect(section.locator('nav.collapsed').getByTestId('gnav-trash')).toHaveAttribute(
-    'aria-label',
-    'Papierkorb',
-  );
+  // Collapsed, a sub-entry is a smaller icon with its name as the accessible name (and tooltip).
+  await expect(rail.getByTestId('gnav-trash')).toHaveAttribute('aria-label', 'Papierkorb');
+  expect((await rail.getByTestId('gnav-trash').boundingBox())!.width).toBe(32);
   // Expanded, it is indented under the parent's label and quieter (13 px).
   const [parent, sub] = await Promise.all(
-    ['gnav-0', 'gnav-archive'].map((id) =>
-      section.locator('nav').first().getByTestId(id).locator('.glyph').boundingBox(),
-    ),
+    ['gnav-0', 'gnav-archive'].map((id) => full.getByTestId(id).locator('.glyph').boundingBox()),
   );
   expect(sub!.x - parent!.x).toBeGreaterThan(20);
-  await expect(section.locator('nav').first().getByTestId('gnav-archive')).toHaveCSS(
-    'font-size',
-    '13px',
-  );
+  await expect(full.getByTestId('gnav-archive')).toHaveCSS('font-size', '13px');
+});
+
+test('the sidebar in the gallery: its places fold and unfold', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const folded = page.getByTestId('gnav-folded');
+  await folded.scrollIntoViewIfNeeded();
+  // Hidden places: the arrow points right and brings them back.
+  await expect(folded.getByTestId('gnav-archive')).toBeHidden();
+  await folded.getByTestId('gnav-fold-folded').click();
+  await expect(folded.getByTestId('gnav-archive')).toBeVisible();
+  await expect(page.getByTestId('gnav-rail-folded').getByTestId('gnav-archive')).toBeHidden();
 });
 
 test('a menu button opens the OS menu of choices below it; a choice applies', async ({ page }) => {

@@ -400,6 +400,21 @@
   /* A sub-entry's icon stands where the parent's label starts (12 + 20 + 12). */
   --nav-sub-indent: calc(var(--space-12) + var(--icon-md) + var(--space-12));
   --nav-step-rail: calc(var(--control-lg) + var(--space-2));
+  /* The arrow that folds the sub-entries: a small square at the end of the parent's row,
+     in the rail a slim row right under the parent's icon. */
+  --nav-fold: 24px;
+  --nav-fold-rail: 16px;
+  /* In the rail the sub-entries are smaller squares under their parent's icon (centred in
+     its 40 px column); the pill shrinks onto them (32 / 40). */
+  --nav-sub-rail: 32px;
+  --nav-sub-step-rail: calc(var(--nav-sub-rail) + var(--space-2));
+  --nav-sub-inset-rail: calc((var(--control-lg) - var(--nav-sub-rail)) / 2);
+  --nav-sub-scale-rail: 0.8;
+  /* A hairline closes them in the rail, 4 px from the squares on either side (with the
+     2 px gaps of the list and the nav). */
+  --nav-group-end-rail: calc(
+    var(--space-2) + var(--border-width) + var(--space-2) + var(--space-2)
+  );
   /* The sticky compact bar of the reader once its action row scrolled away. */
   --compact-header: 48px;
   /* Dash length and start offset of a drawn check (the Lucide check path is under 24). */
@@ -509,9 +524,11 @@
   --scale-pop: 1.18;
   --scale-nudge: 1.1;
   /* The refresh glyph of Abrufen on hover; half a turn is state (sort order, open
-     chevron) and keeps its angle under reduced motion. */
+     chevron) and keeps its angle under reduced motion, like the quarter turn of a folded
+     arrow (the sidebar's places: pointing right while they are hidden). */
   --turn-nudge: 45deg;
   --turn-half: 180deg;
+  --turn-quarter: 90deg;
   --loop-state: running;
 
   /* ------------------------------------------------------------------ layers */

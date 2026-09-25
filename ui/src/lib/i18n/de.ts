@@ -481,6 +481,13 @@ export const de = {
     jobs: 'Jobs',
     profile: 'Profil',
     settings: 'Einstellungen',
+    /** The arrow at the end of the Jobs row (kept); while a place is open it stays open. */
+    hidePlaces: 'Archiv und Papierkorb ausblenden',
+    showPlaces: 'Archiv und Papierkorb einblenden',
+    placesStay: {
+      archive: 'Bleibt offen, solange du im Archiv bist.',
+      trash: 'Bleibt offen, solange du im Papierkorb bist.',
+    },
   },
   common: {
     loading: 'Wird geladen',

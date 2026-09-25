@@ -5,15 +5,16 @@
   whose 52 px band moves the window): the first sits on the line of the list's search field
   on Windows, each with its icon and the unread count; under Jobs (the inbox) the two other
   places of the jobs, Archiv and Papierkorb, quieter and without counts (a click on Jobs from
-  there goes back to the inbox); and
-  at the foot a quiet run status that opens the run in the Jobs view. It shows only while
-  there is a run to open (before the first fetch the first-run page says it all), and it is
-  said once: while the run card is on screen it steps aside. "Abrufen" lives in the list
-  header.
+  there goes back to the inbox). An arrow at the end of the Jobs row hides and shows them
+  (kept; while one of them is open they stay); in the rail it is a slim row under the Jobs
+  icon. At the foot a quiet run status that opens the run in the Jobs view. It shows only
+  while there is a run to open (before the first fetch the first-run page says it all), and
+  it is said once: while the run card is on screen it steps aside. "Abrufen" lives in the
+  list header.
 -->
 <script lang="ts">
   import DragBand from '$components/DragBand.svelte';
-  import SideNav, { type SideNavItem } from '$components/SideNav.svelte';
+  import SideNav, { type SideNavFold, type SideNavItem } from '$components/SideNav.svelte';
   import StatusLine from '$components/StatusLine.svelte';
   import { t } from '$lib/i18n/t';
   import { settled } from '$lib/motion/settled.svelte';
@@ -74,6 +75,16 @@
     return jobs.facet === 'trash' ? 'trash' : 'jobs';
   });
 
+  /** The arrow on Jobs: Archiv and Papierkorb hide and show (they stay while one is open). */
+  const fold = $derived<SideNavFold>({
+    open: navigation.placesShown,
+    hide: t.nav.hidePlaces,
+    show: t.nav.showPlaces,
+    locked: active === 'trash' ? t.nav.placesStay.trash : t.nav.placesStay.archive,
+    testid: 'places-toggle',
+    ontoggle: () => navigation.togglePlaces(),
+  });
+
   /**
    * The view first: an unsaved Profil may keep it and ask. The place changes only with the
    * switch (at once, or once the question is answered), and a click on the place that is
@@ -119,6 +130,7 @@
         active={setup ? null : active}
         label={t.nav.label}
         collapsed={viewport.rail}
+        {fold}
         onselect={choose}
       />
     </div>

@@ -181,6 +181,18 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   Every view switch is the same 100 ms cross-fade (new view on top, never an empty sheet); nothing animates at start;
   `:root[data-window]` is 'inactive' while the OS window is in the background (selections grey out against it).
   The sidebar run status shows only while there is a run to open.
+- Sidebar (final round, user decisions 2026-09-25): under Jobs (the inbox) its two other places, Archiv and Papierkorb,
+  as quieter sub-entries (13 px, indented, a `role="group"` of their own) that the one sliding pill steps over. An
+  arrow at the end of the Jobs row, after the count (`places-toggle`, a button of its own, never inside the nav button;
+  no `nav-` test id, the smoke probe counts five), hides and shows them: chevron down, a quarter turn to the right while
+  hidden (`--turn-quarter`, 180 ms), the entries fade out where they are and the ones below then take their place (no
+  height animation); unfolded they fade in. The choice is kept (default shown, so the first start and the smoke probe
+  see all five), and at start it is simply there. While Archiv or Papierkorb is open they stay: the arrow waits
+  (disabled, its tooltip "Bleibt offen, solange du im Archiv bist."). In the icon rail they are 32 px squares right
+  under the Jobs icon, the arrow a slim row between them and a hairline after them, so they read as children of Jobs;
+  the pill shrinks onto them; the height fits 480 x 360 on both OS (harness). A click in the sidebar switches the view
+  first: an unsaved Profil may ask, and the place changes only with the switch (Abbrechen keeps both; Verwerfen or
+  Speichern goes to the place asked for); a click on the place that is open reloads nothing.
 - Jobs: toolbar (Abrufen primary lg / Abbrechen · Neu n | Alle n · Beste Passung | Neueste · search) · left column
   run card + list (72 px rows: ring 40, title with unread dot, meta, reason line, date, status badge only on deviation;
   excluded grey behind divider; duplicates as one row) · reader card 720 px (ring 96 counting up, band word, n of m must,
@@ -201,12 +213,12 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   (one gradient: the light of a loading placeholder); brand mark = the real coral app icon (folder + check) as SVG;
   small shadows only for what floats (dialog, toast, tooltip) plus the static hover shadow on `::after`, none
   animated; radii 6/8/10/12/16, 4 px spacing, controls 28/36/40, type 12/13/14 (tabs)/15/15/17/20/26/34 (UI standard
-  15/22), weights 400/500/600, motion 60/80 (hover-in)/100/150/180 ms, ring fill 360 ms, loop 1400 ms, ease-out and
+  15/22; 11 only for the second line of a tooltip, a key or a hint), weights 400/500/600, motion 60/80 (hover-in)/100/150/180 ms, ring fill 360 ms, loop 1400 ms, ease-out and
   `--ease-emphasized`, no stagger, no bounce; window tokens `--mac-toolbar` 52 px and `--traffic-lights-width` 80 px
   (macOS row, checked against `tauri.macos.conf.json`).
 - 29 components (Button primary|secondary|ghost|danger|link x sm|md|lg, Count, Icon, IconTile, BrandMark, Card, Badge, Segmented,
-  Toggle, TextField+Field, SideNav, ScoreRing, Meter, Skeleton, Spinner, Notice, EmptyState, StatTile, StatusLine,
-  Dialog, Tooltip, Disclosure, SettingRow, ListRow/JobRow, ReasonItem, Toast, DragBand (macOS toolbar row)). Not:
+  Toggle, TextField+Field, SideNav, Splitter, ScoreRing, Meter, Skeleton, Spinner, Notice, EmptyState,
+  StatTile, StatusLine, Dialog, Tooltip, Disclosure, SettingRow, ListRow/JobRow, ReasonItem, Toast, DragBand (macOS toolbar row)). Not:
   select, checkbox, radio, context menu, window controls.
 - Motion: only transform/opacity (colour on hover); shadows/glow on `::after` via opacity; whole-pixel end values;
   <= 10 staggered, <= 10 rings animating, FLIP <= 100 rows else cross-fade; reduced motion via `motion.ts`.
