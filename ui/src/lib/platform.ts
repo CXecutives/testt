@@ -76,6 +76,12 @@ export function fieldMenuUndoDelete(): boolean {
   return platform() === 'windows';
 }
 
+/** The name of the command key on the keyboard (Ctrl on Windows, Cmd on macOS), for texts
+ *  that say which key to hold ("Strg+Klick"). */
+export function commandKey(): 'ctrl' | 'cmd' {
+  return platform() === 'macos' ? 'cmd' : 'ctrl';
+}
+
 /** How the keyboard of the OS edits text in a field (lib/input/input.ts applies it). */
 export interface KeyConventions {
   /** Option types characters (@ is Option+L on a German Mac) and moves by word, like

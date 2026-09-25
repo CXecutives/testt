@@ -15,8 +15,10 @@
   Papierkorb: how many jobs lie there, the order, and in the Papierkorb "Papierkorb leeren"
   (asks first). While two or more jobs are chosen, the selection bar takes this row: how
   many, the place's actions, "Auswahl aufheben" (Esc too). The row keeps one height in every
-  state; where the column is narrow its tools wrap under the segments. The bottom hairline
-  shows only once the list below is scrolled.
+  state: in a wide column it is one line (the segments shorten before anything wraps), in a
+  narrow one always two (the tools on their own line, in every place, also under the
+  selection bar), so the list never jumps. The bottom hairline shows only once the list below
+  is scrolled.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -24,17 +26,18 @@
   import MenuButton from '$components/MenuButton.svelte';
   import Notice from '$components/Notice.svelte';
   import Segmented from '$components/Segmented.svelte';
-  import SelectionBar, { type SelectionAction } from '$components/SelectionBar.svelte';
+  import SelectionBar from '$components/SelectionBar.svelte';
   import TextField from '$components/TextField.svelte';
   import { t } from '$lib/i18n/t';
   import type { JobSort } from '$lib/ipc/types';
   import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
-  import { isExcluded, jobs, placeOf, type JobFacet } from '$lib/state/jobs.svelte';
+  import { jobs, placeOf, type JobFacet } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
-  import { actionsOf, hasStar, move, purge, toggleStar } from './actions';
+  import { trashEmptied } from './actions';
+  import { bulk } from './bulk.svelte';
   import { selection } from './selection.svelte';
 
   interface Props {
@@ -87,7 +90,8 @@
 
   let error = $state<string | null>(null);
 
-  /** "Alle als gelesen markieren": every unread job of the inbox; the toast takes it back. */
+  /** "Alle als gelesen markieren": the unread jobs of the list (with a search its hits);
+   *  the toast takes it back. */
   async function markAllRead(): Promise<void> {
     error = null;
     const result = await jobs.markAllRead();
@@ -104,71 +108,26 @@
     });
   }
 
-  /* ------------------------------------------------------------------- selection */
-
-  const rows = $derived([
-    ...jobs.shown.filter((job) => !isExcluded(job)),
-    ...jobs.shown.filter(isExcluded),
-  ]);
-  const chosen = $derived(selection.jobs(rows));
-  let confirmPurge = $state(false);
-  let purging = $state(false);
-
-  const barActions = $derived.by((): SelectionAction[] => {
-    const out: SelectionAction[] = actionsOf(place).map((action) => ({
-      icon: action.icon,
-      label: action.label,
-      testid: `selection-${action.id}`,
-      onclick: () => {
-        if (action.id === 'purge') {
-          error = null;
-          confirmPurge = true;
-          return;
-        }
-        const list = chosen;
-        selection.clear();
-        void move(list, action.id).then((failed) => (error = failed));
-      },
-    }));
-    if (hasStar(place)) {
-      const on = chosen.some((job) => !job.pinned);
-      out.push({
-        icon: 'star',
-        label: on ? t.reader.pin : t.reader.unpin,
-        testid: 'selection-star',
-        onclick: () => toggleStar(chosen),
-      });
-    }
-    return out;
-  });
-
-  async function purgeChosen(): Promise<void> {
-    purging = true;
-    const list = chosen;
-    error = await purge(list);
-    purging = false;
-    if (error === null) {
-      confirmPurge = false;
-      selection.clear();
-    }
-  }
-
   /* ----------------------------------------------------------------------- trash */
 
   let confirmEmpty = $state(false);
   let emptying = $state(false);
+  let emptyError = $state<string | null>(null);
+  /** Every job of the trash, whatever the search: emptying it deletes them all. */
+  const inTrash = $derived(jobs.overviewCounts?.trash ?? jobs.counts.trash);
 
   async function emptyTrash(): Promise<void> {
     emptying = true;
-    error = null;
+    emptyError = null;
     const result = await jobs.emptyTrash();
     emptying = false;
     if ('error' in result) {
-      error = result.error;
+      emptyError = result.error;
       return;
     }
     confirmEmpty = false;
-    toasts.show(t.toast.deleted(result.count));
+    trashEmptied();
+    toasts.show(t.toast.trashEmptied);
     void jobs.loadOverview();
   }
 </script>
@@ -222,10 +181,10 @@
     </span>
   </div>
   <div class="second">
-    {#if selection.size >= 2}
+    {#if bulk.active}
       <SelectionBar
-        count={chosen.length}
-        actions={barActions}
+        count={bulk.chosen.length}
+        actions={bulk.actions}
         onclear={() => selection.clear()}
         testid="selection-bar"
       />
@@ -240,7 +199,10 @@
           onchange={(id) => jobs.setFacet(id)}
         />
       {:else}
-        <span class="place-count" data-testid="place-count">{t.place.count[place](inPlace)}</span>
+        <!-- An empty place says so in the list; no "0 Jobs" above it. -->
+        {#if inPlace > 0}
+          <span class="place-count" data-testid="place-count">{t.place.count[place](inPlace)}</span>
+        {/if}
       {/if}
       <span class="tools">
         {#if inInbox && jobs.facet !== 'favourites' && jobs.counts.unread > 0}
@@ -264,21 +226,26 @@
             onchange={(sort) => jobs.setSort(sort)}
           />
         {/if}
-        {#if place === 'trash' && jobs.counts.trash > 0}
+        {#if place === 'trash' && inTrash > 0}
           <Button
             variant="ghost"
             size="sm"
             icon="trash-2"
             label={t.actions.emptyTrash}
+            disabled={run.active}
+            disabledReason={run.busyText}
             testid="empty-trash"
-            onclick={() => (confirmEmpty = true)}
+            onclick={() => {
+              emptyError = null;
+              confirmEmpty = true;
+            }}
           />
         {/if}
       </span>
     {/if}
   </div>
-  {#if error}
-    <Notice tone="danger" variant="inline" text={error} testid="header-error" />
+  {#if error ?? bulk.error}
+    <Notice tone="danger" variant="inline" text={error ?? bulk.error ?? ''} testid="header-error" />
   {/if}
 </div>
 
@@ -286,22 +253,24 @@
   bind:open={confirmEmpty}
   variant="danger"
   heading={t.actions.emptyTrashHeading}
-  text={t.actions.emptyTrashText}
+  text={t.actions.emptyTrashText(inTrash)}
   confirmLabel={t.actions.emptyTrash}
   busy={emptying}
+  error={emptyError}
   testid="dialog-empty-trash"
   onconfirm={() => void emptyTrash()}
 />
 
 <Dialog
-  bind:open={confirmPurge}
+  bind:open={bulk.confirmPurge}
   variant="danger"
-  heading={t.actions.purgeHeading(chosen.length)}
+  heading={t.actions.purgeHeading(bulk.chosen.length)}
   text={t.actions.purgeText}
   confirmLabel={t.actions.purge}
-  busy={purging}
+  busy={bulk.purging}
+  error={bulk.purgeError}
   testid="dialog-purge-chosen"
-  onconfirm={() => void purgeChosen()}
+  onconfirm={() => void bulk.purgeChosen()}
 />
 
 <style>
@@ -356,11 +325,26 @@
      segments, at its end. */
   .second {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: var(--space-8);
     min-width: 0;
     min-height: var(--control-sm);
+  }
+
+  /* A narrow column: two lines in every state (the segments or the count, then the tools),
+     so the list below stands at one height whatever the row holds. */
+  @container (width < 440px) {
+    .second {
+      flex-wrap: wrap;
+      align-content: flex-start;
+      min-height: calc(2 * var(--control-sm) + var(--space-8));
+    }
+
+    .tools {
+      flex-basis: 100%;
+      justify-content: flex-end;
+    }
   }
 
   .place-count {

@@ -58,6 +58,13 @@ class Selection {
     this.keys = order.slice(Math.min(from, to), Math.max(from, to) + 1);
   }
 
+  /** Rows that left the list leave the choice too. */
+  prune(listed: ReadonlySet<string>): void {
+    if (this.keys.some((key) => !listed.has(key))) {
+      this.keys = this.keys.filter((key) => listed.has(key));
+    }
+  }
+
   /** The chosen jobs as the list holds them, in the order of the list. */
   jobs(rows: readonly JobView[]): JobView[] {
     return rows.filter((row) => this.keys.includes(keyOf(row.key)));

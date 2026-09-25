@@ -46,10 +46,14 @@ pub const COMMANDS: [(&str, &str, &str); 31] = [
     ("list_jobs", "{ query: JobQuery }", "JobPage"),
     ("job_detail", "{ key: JobKey }", "JobDetail"),
     ("mark_read", "{ key: JobKey }", "boolean"),
-    ("mark_all_read", "{ place: Place }", "JobKey[]"),
+    (
+        "mark_all_read",
+        "{ place: Place; search: string | null }",
+        "JobKey[]",
+    ),
     ("mark_unread", "{ keys: JobKey[] }", "number"),
     ("set_pinned", "{ key: JobKey; on: boolean }", "boolean"),
-    ("move_jobs", "{ to: Place; keys: JobKey[] }", "number"),
+    ("move_jobs", "{ to: Place; keys: JobKey[] }", "JobKey[]"),
     (
         "set_override",
         "{ key: JobKey; include: boolean }",

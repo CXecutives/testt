@@ -120,13 +120,13 @@ pub mod en {
 
     pub const COLUMNS: [&str; super::COLUMNS.len()] = [
         "Portal",
-        "Alert mail date",
+        "Alert email date",
         "Title",
         "Company",
         "Location",
         "Link",
-        "Alert mail subject",
-        "Alert mail in Gmail",
+        "Alert email subject",
+        "Alert email in Gmail",
         "First seen",
         "Details",
         "Key",
@@ -141,7 +141,7 @@ pub mod en {
     pub const INFO_SCOPE: &str = "Scope of the last mailbox fetch";
     pub const INFO_NEW: &str = "New at the last mailbox fetch";
     pub const INFO_KNOWN: &str = "Already known at the last mailbox fetch";
-    pub const INFO_DUP: &str = "In several alert mails at the last mailbox fetch";
+    pub const INFO_DUP: &str = "In several alert emails at the last mailbox fetch";
     pub const INFO_LAST_RUN: &str = "Last fetch";
     pub const INFO_JOBS_TOTAL: &str = "Jobs in total";
     pub const INFO_PROGRAM: &str = "Program";
@@ -150,7 +150,7 @@ pub mod en {
     pub const SCOPE_ALL: &str = "All";
 
     pub const HTML_TITLE: &str = "Overview";
-    pub const HTML_PINNED: &str = "Saved jobs";
+    pub const HTML_PINNED: &str = "Favourite jobs";
     pub const HTML_NEW: &str = "New matching jobs";
     pub const HTML_CREATED: &str = "Created on";
     pub const HTML_EMPTY: &str = "No new matching jobs.";

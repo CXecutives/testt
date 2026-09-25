@@ -151,6 +151,12 @@ test('under reduced motion nothing scales, pops or shakes', async ({ page }) => 
 test('hover rests while a list scrolls', async ({ page }) => {
   await open(page, '?platform=windows');
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  // The window mounts a few rows per frame: scroll once the list can.
+  await expect
+    .poll(() =>
+      page.getByTestId('list-scroll').evaluate((node) => node.scrollHeight - node.clientHeight),
+    )
+    .toBeGreaterThan(200);
   const scrolling = (): Promise<boolean> =>
     page.evaluate(() => document.documentElement.hasAttribute('data-scrolling'));
   // Scroll and look right after the scroll event (the mark lasts --scroll-idle).

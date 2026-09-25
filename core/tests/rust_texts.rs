@@ -34,14 +34,19 @@ const START_EN: &str = "User-facing text, English";
 const END: &str = "end of user-facing text";
 
 /// Old or foreign words and the English glossary word the texts use instead.
-const GLOSSARY_EN: [(&str, &str); 7] = [
+const GLOSSARY_EN: [(&str, &str); 11] = [
     ("Source", "Portal"),
     ("Entry", "Job"),
     ("Candidate", "Job"),
     ("Inbox", "Mailbox"),
     ("Hit", "Match"),
-    ("Pinned", "Saved"),
+    ("Pinned", "Favourite"),
+    ("Saved", "Favourite"),
     ("Run", "Fetch"),
+    // One message is an "email" in English ("mailbox" and "Gmail" are other words).
+    ("Mail", "Email"),
+    ("Wish", "Preference"),
+    ("Competence", "Skill"),
 ];
 
 /// Words that mark German inside an English text (whole words, any case).

@@ -64,13 +64,13 @@ CV. The app compares job ads with my profile.
 
 Rules
 - Take only what the CV says. Invent nothing and estimate nothing.
-- Whatever the CV does not give stays empty, numbers stay null.
-- titel is my professional role in a few words, such as Interim CFO.
-- berufserfahrung_jahre are my years of professional experience in total.
-- kernkompetenzen are my professional strengths, each named on its own and briefly, with the \
-years of experience where the CV proves them. Under auch go other common terms for the same \
-competence, for example in German.
-- schwerpunkte are three to five of the kernkompetenzen that carry the most weight in the CV, written exactly as there.
+- Whatever the CV does not say stays empty, and numbers stay null.
+- titel is my professional role in a few words, such as project manager.
+- berufserfahrung_jahre is the total number of years of my professional experience.
+- kernkompetenzen are my core skills, each named on its own and briefly, with the years of \
+experience where the CV proves them. Under auch go other common terms for the same skill, for \
+example in German.
+- schwerpunkte are three to five of the kernkompetenzen that carry the most weight in the CV, written exactly as they appear there.
 - methoden_tools are software, systems and methods, zertifizierungen my certificates.
 - niveau is A1, A2, B1, B2, C1, C2 or Muttersprache for a native language.
 - alleinstellungsmerkmale are up to five short sentences on what sets me apart.

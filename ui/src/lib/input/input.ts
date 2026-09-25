@@ -24,6 +24,9 @@
 //   ArrowUp/ArrowDown open the previous/next item, Home/End the first/last, Esc closes the
 //   open item (in the search field Esc first clears the search), and Ctrl+F (Cmd+F on
 //   macOS) goes to its search field from anywhere.
+//   Outside fields Ctrl+Z (Cmd+Z on macOS) takes back the last list action while it can
+//   still be undone (`onUndo`), and PageUp, PageDown, Space and Shift+Space scroll the pane
+//   that has the focus (or the one clicked last) by a page, like a native window.
 //   Everything else, including every WebView shortcut (reload, find, print, zoom,
 //   devtools, caret browsing, Alt+Arrow back/forward), is swallowed.
 // - a modal dialog holds the focus: Tab cycles inside it, Esc cancels it wherever the
@@ -443,12 +446,72 @@ function onKeyDown(event: KeyboardEvent): void {
   }
   if (isFocusMove(event) || pressesControl(event)) return;
   event.preventDefault();
+  if (isUndo(event)) {
+    if (modal === null) [...undos].reverse().some((undo) => undo());
+    return;
+  }
+  if (modal === null && scrollsPage(event)) return;
   if (closest(event.target, `${FORM}, ${DIALOG}`) !== null && dispatchFormKey(event)) return;
   if (event.key === 'Escape' && !hasModifier(event) && escapes.length > 0) {
     escapes.at(-1)?.();
     return;
   }
   if (modal === null) dispatchListKey(event);
+}
+
+/** The scroll area the user clicked in last (the page keys scroll it while the focus is
+ *  nowhere, e.g. after a click on the ad's text). */
+let lastPane: HTMLElement | null = null;
+/** A page is this much of the pane (a line of the last page stays in view). */
+const PAGE_SHARE = 0.9;
+
+function scrollAreaOf(target: EventTarget | null): HTMLElement | null {
+  for (let node = target instanceof Element ? target : null; node; node = node.parentElement) {
+    if (!(node instanceof HTMLElement)) continue;
+    const overflow = getComputedStyle(node).overflowY;
+    if (/auto|scroll/.test(overflow) && node.scrollHeight > node.clientHeight) return node;
+  }
+  return null;
+}
+
+/** PageUp, PageDown, Space, Shift+Space: the focused (or last clicked) pane scrolls a page. */
+function scrollsPage(event: KeyboardEvent): boolean {
+  if (event.ctrlKey || event.altKey || event.metaKey) return false;
+  const down = event.key === 'PageDown' || (event.key === ' ' && !event.shiftKey);
+  const up = event.key === 'PageUp' || (event.key === ' ' && event.shiftKey);
+  if (!down && !up) return false;
+  const nowhere = event.target === document.body || event.target === document.documentElement;
+  const pane = scrollAreaOf(event.target) ?? (nowhere && lastPane?.isConnected ? lastPane : null);
+  if (pane === null) return false;
+  const smooth = document.documentElement.dataset.motion !== 'reduce';
+  pane.scrollBy({
+    top: (down ? 1 : -1) * pane.clientHeight * PAGE_SHARE,
+    behavior: smooth ? 'smooth' : 'auto',
+  });
+  return true;
+}
+
+/** What Ctrl/Cmd+Z takes back outside fields (the last list action, like Mail). */
+const undos: (() => boolean)[] = [];
+
+/** `onUndo(handler)`: Ctrl+Z (Cmd+Z on macOS) outside fields and dialogs runs the newest
+ *  handler that has something to undo. Returns the unsubscribe function. */
+export function onUndo(handler: () => boolean): () => void {
+  undos.push(handler);
+  return () => {
+    const at = undos.indexOf(handler);
+    if (at !== -1) undos.splice(at, 1);
+  };
+}
+
+/** Ctrl+Z or Cmd+Z (the command key of the OS), without Alt or Shift. */
+function isUndo(event: KeyboardEvent): boolean {
+  return (
+    event[keyConventions().command] &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === 'z'
+  );
 }
 
 /** What Esc clears outside fields and dialogs; the newest first. */
@@ -605,6 +668,7 @@ export function installInput(): void {
     'mousedown',
     (event) => {
       if (event.button === LEFT) {
+        lastPane = scrollAreaOf(event.target);
         // A button inside a field (show password, clear) leaves the caret in the field.
         if (closest(event.target, KEEP_FOCUS) !== null) event.preventDefault();
         return;

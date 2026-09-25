@@ -13,7 +13,10 @@
 //   rows update in place (rings fill live); a job further down the list stays where the
 //   next load puts it. The list re-sorts once, when the run finishes, and keeps the
 //   selection.
-// - `mark_read` only on a real click on a row (select(..., true)).
+// - `mark_read` when the user opens a job (a click, the keyboard); a job the app opens by
+//   itself (the next one after a move) only once it has been looked at (`markSeen`).
+// - Like Mail, Neu keeps the jobs read in this visit and the open one until the list is
+//   entered again (another tab, back from another view); the last inbox tab is kept.
 // - Like mail: every job is in one place (inbox, archive, trash); the favourite (the star)
 //   is a flag of its own, and "fits anyway" another. A move takes the row out of a list it
 //   no longer belongs to; deleting for good (only from the trash) removes it.
@@ -271,8 +274,12 @@ class JobsStore {
     await Promise.all([this.load(), this.loadOverview()]);
   }
 
+  /** The last tab of the inbox (Neu, Alle, Favoriten): Jobs in the sidebar goes back to it. */
+  inboxFacet = $state<JobFacet>('new');
+
   setFacet(facet: JobFacet): void {
     this.facet = facet;
+    if (facet === 'new' || facet === 'all' || facet === 'favourites') this.inboxFacet = facet;
     this.filter = null;
     void this.load();
   }
@@ -314,7 +321,7 @@ class JobsStore {
     try {
       const page = await invoke('list_jobs', { query: this.query(0) });
       if (request !== this.#request) return;
-      this.rows = page.jobs;
+      this.rows = this.withOpen(page.jobs);
       this.counts = page.counts;
       this.total = page.jobs.length < PAGE ? page.jobs.length : this.countOf(page.counts);
       this.window = keep ? Math.max(WINDOW, this.window) : WINDOW;
@@ -331,6 +338,20 @@ class JobsStore {
       clearTimeout(timer);
       if (request === this.#request) this.slow = false;
     }
+  }
+
+  /**
+   * Neu keeps the open job listed after it was read, where it stood, until another job is
+   * opened (like Mail): a reload never pulls the job away from under the reader.
+   */
+  private withOpen(rows: JobView[]): JobView[] {
+    const open = this.detail?.job ?? null;
+    if (this.facet !== 'new' || this.search.trim() !== '') return rows;
+    if (open === null || !sameKey(open.key, this.selected)) return rows;
+    if (open.place !== 'inbox' || rows.some((job) => sameKey(job.key, open.key))) return rows;
+    const at = this.rows.findIndex((job) => sameKey(job.key, open.key));
+    const index = at < 0 ? 0 : Math.min(at, rows.length);
+    return [...rows.slice(0, index), open, ...rows.slice(index)];
   }
 
   /** Rows the query has: under Neu the unread excluded jobs come on top of the count. */
@@ -468,6 +489,12 @@ class JobsStore {
     this.#detailRequest++;
   }
 
+  /** The open job has been looked at (a job the app opened by itself). */
+  markSeen(key: JobKey): void {
+    const job = this.held(key);
+    if (job?.unread) void this.markRead(key);
+  }
+
   private async markRead(key: JobKey): Promise<void> {
     this.patch(key, { unread: false });
     try {
@@ -520,12 +547,13 @@ class JobsStore {
   }
 
   /**
-   * "All read": every unread job of the current facet. Resolves with the keys for the undo
-   * (`markUnread`), or the error text.
+   * "All read": every unread job of the current place; with a search only its hits (what the
+   * list shows). Resolves with the keys for the undo (`markUnread`), or the error text.
    */
   async markAllRead(): Promise<{ keys: JobKey[] } | { error: string }> {
+    const search = this.search.trim() === '' ? null : this.search.trim();
     try {
-      const keys = await invoke('mark_all_read', { place: placeOf(this.facet) });
+      const keys = await invoke('mark_all_read', { place: placeOf(this.facet), search });
       for (const key of keys) this.patch(key, { unread: false });
       void this.refreshCounts();
       return { keys };
@@ -576,22 +604,22 @@ class JobsStore {
    * never brings them back). Resolves with what the backend did, or the error text.
    */
   async purge(keys: JobKey[]): Promise<Deleted | { error: string }> {
-    return this.forget(() => invoke('purge_jobs', { keys }), keys);
+    return this.forget(() => invoke('purge_jobs', { keys }));
   }
 
-  /** Empties the trash: every job in it is deleted for good. */
+  /**
+   * Empties the trash like Mail: every job in it is deleted for good, whatever the list
+   * shows; the result names how many and which.
+   */
   async emptyTrash(): Promise<Deleted | { error: string }> {
-    const trashed = this.rows.filter((job) => job.place === 'trash').map((job) => job.key);
-    return this.forget(() => invoke('empty_trash'), trashed);
+    return this.forget(() => invoke('empty_trash'));
   }
 
-  private async forget(
-    command: () => Promise<Deleted>,
-    keys: JobKey[],
-  ): Promise<Deleted | { error: string }> {
+  private async forget(command: () => Promise<Deleted>): Promise<Deleted | { error: string }> {
     try {
       const deleted = await command();
-      const gone = new Set(keys.map(keyOf));
+      // What the backend deleted: the rows, the open job (also one the list does not hold).
+      const gone = new Set(deleted.keys.map(keyOf));
       const rows = this.rows.filter((job) => !gone.has(keyOf(job.key)));
       this.total = Math.max(0, this.total - (this.rows.length - rows.length));
       this.rows = rows;
@@ -605,28 +633,31 @@ class JobsStore {
 
   /**
    * Moves jobs to the inbox, the archive or the trash. The rows leave a list they no longer
-   * belong to; on an error they come back and the list loads again. Resolves with the error
-   * text, or null.
+   * belong to at once. Resolves with the keys that really moved (toasts and undos only for
+   * those; a job already there or gone did not), or the error text; on an error, or when not
+   * every job moved, the list loads again.
    */
-  async move(keys: JobKey[], to: Place): Promise<string | null> {
+  async move(keys: JobKey[], to: Place): Promise<{ moved: JobKey[] } | { error: string }> {
     const before = keys.map((key) => this.held(key)).filter((job): job is JobView => job !== null);
     for (const job of before) {
       this.patch(job.key, { place: to });
       this.dropStray(job.key);
     }
     try {
-      await invoke('move_jobs', { keys, to });
-      return null;
+      const moved = await invoke('move_jobs', { keys, to });
+      if (moved.length < keys.length) void this.load(true);
+      return { moved };
     } catch (error) {
       for (const job of before) this.patch(job.key, { place: job.place });
       void this.load(true);
-      return errorText(error);
+      return { error: errorText(error) };
     }
   }
 
   /** Archives a job or brings it back to the inbox (the reader's and the row's tool). */
   async archive(key: JobKey, archived: boolean): Promise<string | null> {
-    return this.move([key], archived ? 'archive' : 'inbox');
+    const result = await this.move([key], archived ? 'archive' : 'inbox');
+    return 'error' in result ? result.error : null;
   }
 
   /** The prompt for a deep analysis of a job in any AI chat. */
