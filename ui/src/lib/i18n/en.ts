@@ -103,7 +103,12 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   newerSchema: 'The data comes from a newer version of the app.',
   invalid: 'The input is not valid.',
   busy: 'A fetch is running already.',
-  notFound: 'This no longer exists.',
+  notFound: (p) =>
+    p.what === 'file'
+      ? 'The file does not exist.'
+      : p.what === 'folder'
+        ? 'The folder does not exist.'
+        : 'This no longer exists.',
   dryRun: 'This does not work in the dry run.',
   mailMissing: 'No mailbox is connected.',
   mailConnect: 'Gmail cannot be reached.',

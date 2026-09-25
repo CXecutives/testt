@@ -159,3 +159,13 @@ test('an empty list during a fetch says the jobs come in as it goes, not at its 
   await page.evaluate(() => (window.__harness.holdAfter = null));
   await runFinished(page);
 });
+
+test('a result file nothing wrote yet is "not there", not "no longer there"', async ({ page }) => {
+  // A workspace without files yet (a new work folder, the dry run): the overview offers
+  // its file, and the backend finds none (`notFound` with `what: 'file'`).
+  await open(page, `${WIN}&scenario=no-files`);
+  const overview = page.getByTestId('day-overview');
+  await overview.getByTestId('overview-open').click();
+  await expect(overview).toContainText('Die Datei ist nicht vorhanden.');
+  await expect(overview).not.toContainText('nicht mehr');
+});

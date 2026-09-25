@@ -77,7 +77,14 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   newerSchema: 'Die Daten stammen von einer neueren Version der App.',
   invalid: 'Die Eingabe passt nicht.',
   busy: 'Gerade läuft schon ein Abruf.',
-  notFound: 'Das gibt es nicht mehr.',
+  // By what was looked for (`what`): a file or folder may never have been written (a new
+  // work folder), a job or a mail is gone.
+  notFound: (p) =>
+    p.what === 'file'
+      ? 'Die Datei ist nicht vorhanden.'
+      : p.what === 'folder'
+        ? 'Der Ordner ist nicht vorhanden.'
+        : 'Das gibt es nicht mehr.',
   dryRun: 'Im Probelauf geht das nicht.',
   mailMissing: 'Es ist kein Postfach verbunden.',
   mailConnect: 'Gmail ist nicht erreichbar.',

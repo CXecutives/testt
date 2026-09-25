@@ -2048,7 +2048,14 @@ const handlers: Handlers = {
     state.settings.txtFiles = 0;
     return { removed, failed: [] };
   },
-  open_target: () => null,
+  // Like `existing` (commands/app.rs): a result file nothing wrote yet is not found.
+  open_target: ({ target }) => {
+    const file = target.kind === 'excel' || target.kind === 'overview';
+    if (file && !state.settings.excelExists) {
+      throw fail('notFound', { what: 'file', path: state.settings.excelPath });
+    }
+    return null;
+  },
   save_settings: ({ patch }) => {
     for (const change of patch.portals) {
       const p = state.portals.find((x) => x.portal === change.portal);
