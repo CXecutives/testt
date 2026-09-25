@@ -11,10 +11,9 @@
  * Two brand colours (user, 2026-09-24): coral means act, new and where you are - the one
  * primary per view, switches that are on, the unread dot, and (after the A/B preview) the
  * selection and the active nav in a very light, warm wash; the cxpertise navy carries the
- * data and the quiet structure - the sidebar count pill, the pinned star, tooltips,
- * progress, info, links, focus, the chosen filter, sub-labels. Navy appears as small dense
- * marks and soft washes, never as a large fill; headings stay ink. Green, ochre and grey
- * are the scores.
+ * data and the quiet structure - the pinned star, tooltips, progress, info, links, focus,
+ * the chosen filter, sub-labels. Navy appears as small dense marks and soft washes, never
+ * as a large fill; headings stay ink. Green, ochre and grey are the scores.
  */
 
 :root {
@@ -340,8 +339,8 @@
   --list-first-max: 460px;
   --reader-min: 440px;
   --reader-width: 720px;
-  /* The column handle and the sidebar's edge: the strip that catches the pointer, the line
-     it shows on hover and the small grip centred on that line. */
+  /* The column handle: the strip that catches the pointer, the line it shows on hover and
+     the small grip centred on that line. */
   --splitter-hit: 8px;
   /* How far ArrowUp/ArrowDown scroll a pane (a line of text and its gap, like the OS). */
   --scroll-line: 40px;
