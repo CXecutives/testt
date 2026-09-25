@@ -17,6 +17,7 @@ mod run;
 mod scoring;
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use jobalert_core::error::{ErrorInfo, ErrorKind};
@@ -35,7 +36,7 @@ pub use scoring::Scoring;
     dead_code,
     reason = "read by core/tests/contract.rs, which generates the TypeScript command map"
 )]
-pub const COMMANDS: [(&str, &str, &str); 31] = [
+pub const COMMANDS: [(&str, &str, &str); 34] = [
     ("app_state", "{ channel: Channel<RunEvent> }", "AppState"),
     (
         "start_run",
@@ -72,6 +73,9 @@ pub const COMMANDS: [(&str, &str, &str); 31] = [
     ("profile_prompt", "Record<string, never>", "string"),
     ("save_profile", "{ save: ProfileSave }", "ProfileInfo"),
     ("remove_profile", "Record<string, never>", "boolean"),
+    ("restore_profile", "Record<string, never>", "boolean"),
+    ("set_unsaved", "{ on: boolean }", "null"),
+    ("close_window", "Record<string, never>", "null"),
     (
         "save_mailbox",
         "{ user: string; password: string }",
@@ -116,6 +120,9 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + '
         profile::profile_prompt,
         profile::save_profile,
         profile::remove_profile,
+        profile::restore_profile,
+        profile::set_unsaved,
+        profile::close_window,
         mailbox::save_mailbox,
         mailbox::remove_mailbox,
         portals::portal_login,
@@ -183,6 +190,36 @@ pub struct AppState {
     pub activity: Mutex<Activity>,
     /// The compiled profile and the rescore runs the app starts itself.
     pub scoring: Scoring,
+    /// Unsaved changes of the page keep the window from closing until the page has asked.
+    pub close_guard: CloseGuard,
+}
+
+/// The page holds unsaved changes (the Profil view's form, `set_unsaved`): a close request
+/// of the window is held and the page asks the user (save, discard, cancel), then closes the
+/// window itself (`close_window`). Nothing unsaved: the window closes at once. Every word
+/// from the page counts as an answer; a page that says nothing to a request (gone or stuck)
+/// never keeps the window open (main.rs closes it after a moment).
+#[derive(Default)]
+pub struct CloseGuard {
+    unsaved: AtomicBool,
+    answers: AtomicU64,
+}
+
+impl CloseGuard {
+    /// What the page says: it holds unsaved changes or not.
+    pub fn set(&self, unsaved: bool) {
+        self.unsaved.store(unsaved, Ordering::SeqCst);
+        self.answers.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn unsaved(&self) -> bool {
+        self.unsaved.load(Ordering::SeqCst)
+    }
+
+    /// How often the page has spoken (compare before and after a close request).
+    pub fn answers(&self) -> u64 {
+        self.answers.load(Ordering::SeqCst)
+    }
 }
 
 /// Stored Gmail address in the cache.

@@ -25,7 +25,7 @@ use crate::pipeline::{LocalMatcher, Matcher, RunSnapshot, RunSummary, local};
 use crate::portal::{JobKey, Portal};
 pub use crate::profile::{
     LanguageLevel, ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileForm,
-    ProfileLanguage, ProfileWishes, RemoteWish,
+    ProfileLanguage, ProfileWishes, RemoteWish, UnreadableField,
 };
 use crate::settings::{Language, PortalSwitches, Settings};
 use crate::store::{AlertMailRow, JobRow, PageQuery, Store};
@@ -1074,6 +1074,17 @@ impl From<matching::ProfileQuality> for ProfileQuality {
     }
 }
 
+/// A part of the profile file the terms for the match come from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct ProfileSource {
+    /// JSON path pattern (`kernkompetenzen[].kompetenz`, `stationen[].rolle`).
+    pub path: String,
+    /// Terms read there.
+    pub count: u32,
+}
+
 /// "What the app understood" of the profile.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1081,7 +1092,8 @@ impl From<matching::ProfileQuality> for ProfileQuality {
 pub struct ProfileUnderstanding {
     pub competence_count: u32,
     pub competences: Vec<String>,
-    pub sources: Vec<String>,
+    /// Where the terms come from, also parts the form does not show (`stationen`).
+    pub sources: Vec<ProfileSource>,
     pub criteria: Vec<Notice>,
     pub warnings: Vec<Notice>,
     /// Domain packs the profile switched on (`finance`, `sap`, `itProject`, ...).
@@ -1167,7 +1179,14 @@ pub fn understanding(summary: &ProfileSummary) -> ProfileUnderstanding {
     ProfileUnderstanding {
         competence_count: u32::from(summary.competence_count),
         competences: summary.competences.clone(),
-        sources: summary.sources.iter().map(|s| s.path.clone()).collect(),
+        sources: summary
+            .sources
+            .iter()
+            .map(|s| ProfileSource {
+                path: s.path.clone(),
+                count: u32::from(s.count),
+            })
+            .collect(),
         criteria: summary
             .criteria
             .iter()
@@ -1180,14 +1199,7 @@ pub fn understanding(summary: &ProfileSummary) -> ProfileUnderstanding {
                 }
             })
             .collect(),
-        warnings: summary
-            .warnings
-            .iter()
-            .map(|w| Notice {
-                code: local::code_name(&w.code),
-                params: local::flat_params(&w.params),
-            })
-            .collect(),
+        warnings: summary.warnings.iter().map(profile_warning).collect(),
         packs: summary.packs.clone(),
         years: summary.years,
         degrees: summary.degrees.clone(),
@@ -1197,8 +1209,31 @@ pub fn understanding(summary: &ProfileSummary) -> ProfileUnderstanding {
     }
 }
 
+/// A warning of the engine about the profile; a value it could not read also names the
+/// form field that holds it (`field`, an [`UnreadableField`]), so the editor says it there.
+fn profile_warning(warning: &matching::ProfileWarning) -> Notice {
+    let mut params = local::flat_params(&warning.params);
+    let field = match warning.code {
+        matching::ProfileWarningCode::AvailabilityNotUnderstood => Some(UnreadableField::Available),
+        matching::ProfileWarningCode::CriterionNotUnderstood => warning
+            .params
+            .get("key")
+            .and_then(serde_json::Value::as_str)
+            .and_then(UnreadableField::of_key),
+        _ => None,
+    };
+    if let Some(field) = field {
+        params.insert("field".into(), local::code_name(&field).into());
+    }
+    Notice {
+        code: local::code_name(&warning.code),
+        params,
+    }
+}
+
 /// A profile read for the editor from a chosen file or a pasted answer: nothing is stored
-/// until the user saves it.
+/// until the user saves it. `understood` says what the engine reads in it (its warnings
+/// show before saving).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -1207,21 +1242,28 @@ pub struct ProfileDraft {
     /// The JSON the form came from; saving merges the form into it.
     pub source: String,
     pub quality: ProfileQuality,
+    pub understood: ProfileUnderstanding,
 }
 
 impl From<crate::profile::Draft> for ProfileDraft {
     fn from(draft: crate::profile::Draft) -> ProfileDraft {
+        let mut understood = understanding(&draft.summary);
+        understood.focus.clone_from(&draft.form.focus);
+        understood.roles.clone_from(&draft.form.roles);
+        understood.wishes = draft.form.wishes.clone();
         ProfileDraft {
             form: draft.form,
             source: draft.source,
             quality: draft.quality.into(),
+            understood,
         }
     }
 }
 
 /// Saving the editor: the form as it was handed out (`before`) and as the user left it;
 /// only what differs is written. `source` is the JSON of a draft (`{}` for a new profile),
-/// `null` for the stored profile.
+/// `null` for the stored profile. `clear` names the values the app could not read that the
+/// user removed ("Wert entfernen"): their keys go wherever they are.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -1229,6 +1271,8 @@ pub struct ProfileSave {
     pub before: ProfileForm,
     pub after: ProfileForm,
     pub source: Option<String>,
+    #[serde(default)]
+    pub clear: Vec<UnreadableField>,
 }
 
 /// Result of "reset everything" after the restart.
@@ -1305,6 +1349,8 @@ pub enum OpenTarget {
     /// The app's data folder (database, settings, sessions).
     DataDir,
     Workspace,
+    /// The folder of the profile file in the workspace (`profil`).
+    ProfileDir,
     Excel,
     Overview,
     LogDir,
@@ -2070,7 +2116,7 @@ Rahmenbedingungen:
             understood
                 .sources
                 .iter()
-                .any(|s| s == "kernkompetenzen[].kompetenz")
+                .any(|s| s.path == "kernkompetenzen[].kompetenz" && s.count > 0)
         );
         let criteria: Vec<(&str, bool)> = understood
             .criteria
@@ -2083,6 +2129,7 @@ Rahmenbedingungen:
                 ("minDayRate", true),
                 ("countries", true),
                 ("noAnue", true),
+                ("noPermanent", false),
                 ("availability", true),
                 ("minSalary", false),
                 ("permanentRegion", false),

@@ -25,9 +25,9 @@ use crate::view::{
     JobDetail, JobMail, JobMatch, JobPage, JobQuery, JobSort, JobView, LanguageLevel, Mailbox,
     MatchDetail, OpenTarget, Platform, PortalLogin, PortalNew, PortalPatch, PortalState,
     ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileDraft, ProfileForm,
-    ProfileInfo, ProfileLanguage, ProfileQuality, ProfileSave, ProfileUnderstanding, ProfileWishes,
-    Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary, Risk, SettingsPatch,
-    SettingsView, TextRange, VaultKind, WorkMode,
+    ProfileInfo, ProfileLanguage, ProfileQuality, ProfileSave, ProfileSource, ProfileUnderstanding,
+    ProfileWishes, Quota, Reason, ReasonKind, ReasonWeight, RemoteWish, ResetSummary, Risk,
+    SettingsPatch, SettingsView, TextRange, UnreadableField, VaultKind, WorkMode,
 };
 
 /// A portal key.
@@ -171,6 +171,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<Quota>();
     f.add::<PortalState>();
     f.add::<ProfileQuality>();
+    f.add::<ProfileSource>();
     f.add::<ProfileUnderstanding>();
     f.add::<ProfileInfo>();
     f.add::<LanguageLevel>();
@@ -180,6 +181,7 @@ fn contract() -> BTreeMap<String, String> {
     f.add::<ProfileCriteria>();
     f.add::<RemoteWish>();
     f.add::<ProfileWishes>();
+    f.add::<UnreadableField>();
     f.add::<ProfileForm>();
     f.add::<ProfileDraft>();
     f.add::<ProfileSave>();

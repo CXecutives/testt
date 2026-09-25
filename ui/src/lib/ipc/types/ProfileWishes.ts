@@ -7,7 +7,7 @@ import type { RemoteWish } from "./RemoteWish";
  */
 export type ProfileWishes = { 
 /**
- * `tagessatz_wunsch`, EUR per day.
+ * `tagessatz_wunsch` (`desired_day_rate`), EUR per day.
  */
 dayRate: number | null, 
 /**
@@ -15,10 +15,10 @@ dayRate: number | null,
  */
 remote: RemoteWish | null, 
 /**
- * `regionen[]`, preferred cities or regions.
+ * `regionen[]` (`regions`), preferred cities or regions.
  */
 regions: Array<string>, 
 /**
- * `branchen[]` inside `einsatzpraeferenzen`, preferred industries.
+ * `branchen[]` (`industries`) inside `einsatzpraeferenzen`, preferred industries.
  */
 industries: Array<string>, };

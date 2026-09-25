@@ -17,12 +17,16 @@
 //
 // Scenarios (`?scenario=`): default · first-run · mailbox-only · no-profile · empty ·
 // many (2000 jobs) · offline · paused · running · slow · list-error · profile-broken ·
-// profile-thin · reset (the state after
+// profile-thin · profile-unreadable (a value of every criterion and wish does not read, a key
+// is not read at all) · reset (the state after
 // "reset everything": first run, no mailbox, no profile, the report) · first-run-empty-profile
 // · session-left (freelance.de still signed in with the sign-in switched off)
 // · dry-run (the demo: a Probelauf mailbox, every command that writes outside the database
 // refuses with `dryRun` like `ensure_real`).
 // `save_mailbox` refuses the app password `falschfalschfals` with `mailAuth` (Gmail said no).
+// `?file=focus` lets `pick_profile` choose a file with seven Schwerpunkte (the form takes five).
+// `save_profile` refuses a minimum day rate above 100.000 and a competence with more than 70
+// years (with its row), like core's validation.
 // `?tick=ms` sets the pace of a scripted run (default 40); `?export=locked` lets the export
 // of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail.
 // Dates are fixed so screenshots stay stable (the tests also fix the clock). The portals
@@ -39,12 +43,14 @@ import type {
   JobQuery,
   JobView,
   Language,
+  Notice,
   Place,
   Portal,
   PortalState,
   ProfileDraft,
   ProfileForm,
   ProfileInfo,
+  ProfileUnderstanding,
   Reason,
   RunEvent,
   RunRequest,
@@ -73,6 +79,13 @@ interface Harness {
   menuAt: { x: number; y: number } | null;
   /** Click an entry of the last menu shown (like the user in the native menu). */
   pick: (index: number) => void;
+  /** The page holds unsaved changes (its last `set_unsaved`). */
+  unsaved: boolean;
+  /** The window was closed (`close_window`, or a close request without unsaved changes). */
+  closed: boolean;
+  /** The user closes the window (X, Alt+F4, Cmd+Q/W): like main.rs, the page is asked
+   *  (`close-requested`) while it holds unsaved changes, else the window closes. */
+  requestClose: () => void;
 }
 
 declare global {
@@ -500,6 +513,7 @@ const PROFILE_FORM: ProfileForm = {
     minDayRate: 1100,
     countries: ['DE', 'AT'],
     noAnue: true,
+    noPermanent: false,
     available: { kind: 'unset' },
     remoteOutside: true,
     targetYears: 15,
@@ -509,23 +523,76 @@ const PROFILE_FORM: ProfileForm = {
   },
 };
 
-/** The IT sample of the fixtures (sample_profile_it.json) as a chosen file. */
-const FILE_DRAFT: ProfileDraft = {
-  form: {
-    ...structuredClone(PROFILE_FORM),
-    name: 'Jonas Muster',
-    title: '',
-    competences: [
-      row('SAP-Projektleitung', 12, [], 0),
-      row('SAP S/4HANA Migration', 6, [], 1),
-      row('Programmmanagement', 8, [], 2),
+/** What the engine understands of a form (a rough stand-in: the form's own terms). */
+function understoodOf(form: ProfileForm, warnings: Notice[]): ProfileUnderstanding {
+  const names = form.competences.map((r) => r.name);
+  const terms = [...names, ...form.tools, ...form.keywords];
+  const c = form.criteria;
+  return {
+    competenceCount: terms.length,
+    competences: terms,
+    sources: [
+      { path: 'kernkompetenzen[].kompetenz', count: names.length },
+      { path: 'methoden_tools[].name', count: form.tools.length },
+      { path: 'keywords[]', count: form.keywords.length },
+    ].filter((s) => s.count > 0),
+    criteria: [
+      { code: 'minDayRate', params: { set: c.minDayRate !== null, min: c.minDayRate } },
+      {
+        code: 'countries',
+        params: { set: c.countries.length > 0, countries: c.countries.join(', ') },
+      },
+      { code: 'noAnue', params: { set: c.noAnue } },
+      { code: 'noPermanent', params: { set: c.noPermanent } },
+      { code: 'availability', params: { set: c.available.kind !== 'unset', from: null } },
+      { code: 'minSalary', params: { set: c.minSalary !== null, min: c.minSalary } },
+      { code: 'permanentRegion', params: { set: c.permanentPlaces.length > 0, places: null } },
+      { code: 'targetYears', params: { set: c.targetYears !== null, min: c.targetYears } },
     ],
-    focus: [],
-    roles: [],
-    wishes: { dayRate: null, remote: 'partly', regions: [], industries: [] },
-  },
+    warnings,
+    packs: packsOf(form),
+    years: form.years,
+    degrees: form.degrees,
+    focus: form.focus,
+    roles: form.roles,
+    wishes: form.wishes,
+  };
+}
+
+/** The IT sample of the fixtures (sample_profile_it.json) as a chosen file: a value of it
+ *  does not read (the minimum day rate). */
+const FILE_FORM: ProfileForm = {
+  ...structuredClone(PROFILE_FORM),
+  name: 'Jonas Muster',
+  title: '',
+  competences: [
+    row('SAP-Projektleitung', 12, [], 0),
+    row('SAP S/4HANA Migration', 6, [], 1),
+    row('Programmmanagement', 8, [], 2),
+  ],
+  strengths: [],
+  keywords: [],
+  degrees: [],
+  industries: [],
+  tools: [],
+  certificates: [],
+  languages: [],
+  focus: [],
+  roles: [],
+  wishes: { dayRate: null, remote: 'partly', regions: [], industries: [] },
+  criteria: { ...structuredClone(PROFILE_FORM.criteria), minDayRate: null },
+};
+const FILE_DRAFT: ProfileDraft = {
+  form: FILE_FORM,
   source: '{"name": "Jonas Muster"}',
   quality: 'thin',
+  understood: understoodOf(FILE_FORM, [
+    { code: 'fewCompetences', params: { count: 3 } },
+    {
+      code: 'criterionNotUnderstood',
+      params: { key: 'min_tagessatz', value: '"ab 900"', field: 'minDayRate' },
+    },
+  ]),
 };
 
 const PROFILE: ProfileInfo = {
@@ -536,7 +603,7 @@ const PROFILE: ProfileInfo = {
   understood: {
     competenceCount: 42,
     packs: ['finance', 'sap'],
-    years: 28,
+    years: 20,
     degrees: ['Diplom-Kauffrau (Univ.)'],
     competences: [
       'Interim-Management',
@@ -552,11 +619,18 @@ const PROFILE: ProfileInfo = {
       'IFRS',
       'Führung von Finanzteams',
     ],
-    sources: ['kernkompetenzen[].kompetenz', 'projekte[].rolle'],
+    sources: [
+      { path: 'kernkompetenzen[].kompetenz', count: 6 },
+      { path: 'keywords[]', count: 3 },
+      { path: 'methoden_tools[].name', count: 3 },
+      { path: 'branchen[].branche', count: 3 },
+      { path: 'stationen[].schwerpunkte[]', count: 27 },
+    ],
     criteria: [
       { code: 'minDayRate', params: { set: true, min: '1100' } },
       { code: 'countries', params: { set: true, countries: 'DE, AT' } },
       { code: 'noAnue', params: { set: true } },
+      { code: 'noPermanent', params: { set: false } },
       { code: 'availability', params: { set: false, from: null } },
       { code: 'minSalary', params: { set: false, min: null } },
       { code: 'permanentRegion', params: { set: false, places: null, remoteMin: null } },
@@ -565,7 +639,7 @@ const PROFILE: ProfileInfo = {
     warnings: [
       {
         code: 'criterionNotUnderstood',
-        params: { key: 'festanstellung_remote_min', value: '"viel"' },
+        params: { key: 'festanstellung_remote_min', value: '"viel"', field: 'permanentRemoteMin' },
       },
     ],
     focus: PROFILE_FORM.focus,
@@ -578,7 +652,77 @@ const PROFILE: ProfileInfo = {
   form: PROFILE_FORM,
 };
 
-/** The request for Claude (the real text lives in core/src/profile/prompt.rs). */
+/** A chosen file with seven Schwerpunkte: the form takes the first five (core's form::read),
+ *  the engine says how many the file named. */
+const FOCUS_FORM: ProfileForm = {
+  ...structuredClone(PROFILE_FORM),
+  name: 'Jonas Muster',
+  competences: ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((n, index) =>
+    row(`Kompetenz ${n}`, null, [], index),
+  ),
+  focus: ['A', 'B', 'C', 'D', 'E'].map((n) => `Kompetenz ${n}`),
+};
+const FOCUS_DRAFT: ProfileDraft = {
+  form: FOCUS_FORM,
+  source: '{"name": "Jonas Muster"}',
+  quality: 'good',
+  understood: understoodOf(FOCUS_FORM, [{ code: 'focusTrimmed', params: { count: 7, max: 5 } }]),
+};
+
+/** A value that does not read, as the engine reports it (the field it belongs to added by
+ *  core's view::profile_warning). */
+const unread = (key: string, value: string, field: string | null): Notice => ({
+  code: 'criterionNotUnderstood',
+  params: field === null ? { key, value } : { key, value, field },
+});
+
+/** A profile whose criteria and wishes do not read: each field says so, a Schwerpunkt that is
+ *  no competence and a target role without a field too, and a key of the criteria the app
+ *  does not read at all. */
+const UNREADABLE_PROFILE: ProfileInfo = {
+  ...PROFILE,
+  understood: {
+    ...PROFILE.understood!,
+    warnings: [
+      { code: 'availabilityNotUnderstood', params: { value: 'bald' } },
+      unread('min_tagessatz', '"teuer"', 'minDayRate'),
+      unread('laender', '"Deutschland"', 'countries'),
+      unread('ausgeschlossene_vertragsarten', '5', 'contracts'),
+      unread('remote_ausserhalb_erlaubt', '"vielleicht"', 'remoteOutside'),
+      unread('zielprofil_min_jahre', '"senior"', 'targetYears'),
+      unread('min_jahresgehalt', '"hoch"', 'minSalary'),
+      unread('festanstellung_orte', '[]', 'permanentPlaces'),
+      unread('festanstellung_remote_min', '"viel"', 'permanentRemoteMin'),
+      unread('schwerpunkte', 'Treasury', 'focus'),
+      unread('wunschrollen', 'Head of', 'roles'),
+      unread('tagessatz_wunsch', '"hoch"', 'wishDayRate'),
+      unread('remote', '"egal"', 'remote'),
+      unread('regionen', '5', 'regions'),
+      unread('branchen', '{}', 'wishIndustries'),
+      { code: 'ignoredKeys', params: { keys: 'tagessatz_max' } },
+    ],
+  },
+  form: {
+    ...structuredClone(PROFILE_FORM),
+    focus: ['Controlling', 'Treasury'],
+    roles: ['Interim CFO', 'Head of'],
+    wishes: { dayRate: null, remote: null, regions: [], industries: [] },
+    criteria: {
+      minDayRate: null,
+      countries: [],
+      noAnue: false,
+      noPermanent: false,
+      available: { kind: 'unset' },
+      remoteOutside: true,
+      targetYears: null,
+      minSalary: null,
+      permanentPlaces: [],
+      permanentRemoteMin: null,
+    },
+  },
+};
+
+/** The request for an AI (the real text lives in core/src/profile/prompt.rs). */
 const PROMPT = 'Erstelle aus meinem angehängten Lebenslauf ein Beraterprofil.';
 
 type Json = Record<string, unknown>;
@@ -655,7 +799,12 @@ function answerDraft(answer: string): ProfileDraft {
   };
   if (form.competences.length === 0 && form.name === '')
     throw fail('invalid', { reason: 'profileAnswer' });
-  return { form, source: text, quality: form.competences.length >= 5 ? 'good' : 'thin' };
+  const quality = form.competences.length >= 5 ? 'good' : 'thin';
+  const warnings: Notice[] =
+    quality === 'thin'
+      ? [{ code: 'fewCompetences', params: { count: form.competences.length } }]
+      : [];
+  return { form, source: text, quality, understood: understoodOf(form, warnings) };
 }
 
 /** The domain packs the engine would switch on for a form (a rough stand-in: words of the
@@ -781,6 +930,8 @@ function lastRun(outcome: RunSummary['outcome'] = { kind: 'completed' }): RunSum
 
 let jobs: JobView[] = [];
 let state: AppState;
+/** The profile a `remove_profile` took (core keeps it as the backup until restored). */
+let removedProfile: ProfileInfo | null = null;
 
 function initial(): void {
   jobs = scenario === 'many' ? manyJobs(2000) : sampleJobs();
@@ -917,12 +1068,18 @@ function initial(): void {
           focus: [],
           roles: [],
           keywords: ['IFRS'],
+          years: null,
+          degrees: [],
+          industries: [],
           tools: [],
           certificates: [],
           languages: [],
           wishes: { dayRate: null, remote: null, regions: [], industries: [] },
         },
       };
+      break;
+    case 'profile-unreadable':
+      state.profile = UNREADABLE_PROFILE;
       break;
     case 'running':
       state.running = {
@@ -1790,15 +1947,18 @@ const handlers: Handlers = {
     if (state.profile === null) throw fail('notFound', { what: 'profile' });
     return promptTopOf(limit);
   },
-  pick_profile: () => structuredClone(FILE_DRAFT),
+  pick_profile: () => structuredClone(params.get('file') === 'focus' ? FOCUS_DRAFT : FILE_DRAFT),
   parse_profile: ({ text }) => answerDraft(text),
   profile_prompt: () => PROMPT,
   save_profile: ({ save }) => {
     const after = save.after;
-    if (after.focus.length > 5) throw fail('invalid', { reason: 'profileValue', field: 'focus' });
-    if ((after.criteria.minDayRate ?? 0) > 100_000) {
-      throw fail('invalid', { reason: 'profileValue', field: 'minDayRate' });
-    }
+    const refuse = (field: string, row: number | null = null): never => {
+      throw fail('invalid', { reason: 'profileValue', field, row });
+    };
+    if ((after.criteria.minDayRate ?? 0) > 100_000) refuse('minDayRate');
+    const tooLong = after.competences.findIndex((r) => (r.years ?? 0) > 70);
+    if (tooLong >= 0) refuse('competences', tooLong);
+    if (after.focus.length > 5) refuse('focus');
     const form = savedForm(after);
     const count = form.competences.length + form.tools.length + form.keywords.length;
     const quality = count === 0 ? 'empty' : count < 5 ? 'thin' : 'good';
@@ -1829,8 +1989,25 @@ const handlers: Handlers = {
     return structuredClone(state.profile);
   },
   remove_profile: () => {
+    // Like core: the profile becomes the backup, which `restore_profile` brings back.
+    removedProfile = state.profile;
     state.profile = null;
+    return removedProfile !== null;
+  },
+  restore_profile: () => {
+    if (state.profile !== null || removedProfile === null) return false;
+    state.profile = removedProfile;
+    removedProfile = null;
     return true;
+  },
+  set_unsaved: ({ on }) => {
+    harness.unsaved = on;
+    return null;
+  },
+  close_window: () => {
+    harness.unsaved = false;
+    harness.closed = true;
+    return null;
   },
   save_mailbox: ({ user, password }) => {
     if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(user)) {
@@ -1928,6 +2105,15 @@ const harness: Harness = {
   menuAt: null,
   pick(index) {
     lastItems[index]?.choose();
+  },
+  unsaved: false,
+  closed: false,
+  requestClose() {
+    if (!harness.unsaved) {
+      harness.closed = true;
+      return;
+    }
+    for (const handler of listeners.get('close-requested') ?? []) handler({ payload: null });
   },
   job(key) {
     const found = find(key);
@@ -2046,6 +2232,7 @@ const WRONG_PASSWORD = 'falschfalschfals';
 const DRY_RUN_REFUSED: ReadonlySet<string> = new Set([
   'pick_profile',
   'remove_profile',
+  'restore_profile',
   'save_profile_template',
   'save_mailbox',
   'remove_mailbox',

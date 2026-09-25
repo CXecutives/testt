@@ -33,6 +33,7 @@ const ALIASES: Record<string, CriterionKey> = {
   dayRate: 'minDayRate',
   country: 'countries',
   anue: 'noAnue',
+  permanent: 'noPermanent',
   salary: 'minSalary',
   tooJunior: 'targetYears',
 };
@@ -196,6 +197,7 @@ export function criterionValue(reason: Reason): string | null {
       if (p.remote === true) return t.facts.fullRemote;
       return typeof p.location === 'string' && p.location !== '' ? p.location : null;
     case 'noAnue':
+    case 'noPermanent':
       return typeof p.contract === 'string' && has(t.facts.contract, p.contract)
         ? t.facts.contract[p.contract]
         : null;

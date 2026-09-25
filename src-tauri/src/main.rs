@@ -10,7 +10,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Mutex};
 
-use commands::{Activity, AppState, GmailUser, Scoring};
+use commands::{Activity, AppState, CloseGuard, GmailUser, Scoring};
 use jobalert_core::error::ErrorKind;
 use jobalert_core::secrets::Vault;
 use jobalert_core::store::Store;
@@ -219,6 +219,7 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), Failure> {
         gmail_user: Mutex::new(GmailUser::Unread),
         activity: Mutex::new(Activity::Idle),
         scoring: Scoring::default(),
+        close_guard: CloseGuard::default(),
     });
     empty_old_trash(app, &store, dry_run);
     // The web view version goes to the log only: the UI does not need it, and for debugging
@@ -314,12 +315,16 @@ mod geometry {
     }
 }
 
-/// Closing and quitting: the close button never asks. If something is running, the window
-/// stays briefly (the page shows a blocker on the `closing` event), the run is cancelled and
-/// gets at most ten seconds to finish writing its files - then the app ends in any case.
-/// Once the main window is gone the app ends too: no process stays behind the single-instance
-/// lock. An end without any window event (macOS: quit from the Dock, logout) still saves the
-/// placement and gives a running fetch the same grace (`exiting`).
+/// Closing and quitting (the close button, Alt+F4, Cmd+W and Cmd+Q, which the macOS menu turns
+/// into a close of the window): with unsaved changes in the Profil view the window stays and
+/// the page asks (`close-requested`: save, discard or cancel), then closes it itself; a page
+/// that does not answer within a moment does not keep it open. Otherwise the close button
+/// never asks. If something is running, the window stays briefly (the page shows a blocker on
+/// the `closing` event), the run is cancelled and gets at most ten seconds to finish writing
+/// its files - then the app ends in any case. Once the main window is gone the app ends too:
+/// no process stays behind the single-instance lock. An end without any window event (macOS:
+/// quit from the Dock, logout) still saves the placement and gives a running fetch the same
+/// grace (`exiting`).
 mod lifecycle {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -333,6 +338,11 @@ mod lifecycle {
     /// How long a cancelled run may still clean up.
     const GRACE: Duration = Duration::from_secs(10);
     const STEP: Duration = Duration::from_millis(100);
+    /// The event that asks the page about its unsaved changes (`ui/src/lib/ipc/api.ts`,
+    /// `onCloseRequested`).
+    const CLOSE_REQUESTED: &str = "close-requested";
+    /// How long a close request waits for the page's first word before the window closes.
+    const ANSWER: Duration = Duration::from_secs(3);
 
     /// The closing sequence runs exactly once: further clicks on the close button change
     /// nothing, and the end of the process does not wait a second time.
@@ -344,6 +354,21 @@ mod lifecycle {
             WindowEvent::CloseRequested { api, .. } => {
                 super::geometry::save(&win, &store);
                 let state = win.state::<AppState>();
+                if state.close_guard.unsaved() && !CLOSING.load(Ordering::SeqCst) {
+                    let asked = state.close_guard.answers();
+                    match win.emit(CLOSE_REQUESTED, ()) {
+                        Ok(()) => {
+                            api.prevent_close();
+                            // The question must be seen (closed from the taskbar while
+                            // minimized, say): the window comes to the front.
+                            let _ = win.unminimize();
+                            let _ = win.set_focus();
+                            wait_for_answer(&win, asked);
+                            return;
+                        }
+                        Err(e) => log::warn!("close request not sent to the page ({e})"),
+                    }
+                }
                 if !state.busy() {
                     return;
                 }
@@ -370,6 +395,23 @@ mod lifecycle {
                 win.app_handle().exit(0);
             }
             _ => {}
+        });
+    }
+
+    /// The page answers a close request at once (it shows its question); without a word
+    /// from it the window closes anyway.
+    fn wait_for_answer<R: Runtime>(win: &WebviewWindow<R>, asked: u64) {
+        let win = win.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(ANSWER).await;
+            let state = win.state::<AppState>();
+            if state.close_guard.answers() == asked {
+                log::warn!("the page did not answer the close request, closing");
+                state.close_guard.set(false);
+                if let Err(e) = win.close() {
+                    log::warn!("window not closed: {e}");
+                }
+            }
         });
     }
 

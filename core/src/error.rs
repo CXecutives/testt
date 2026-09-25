@@ -65,9 +65,11 @@ pub enum InvalidInput {
     /// `found`: `array`, `string`, `number`, `boolean` or `null`.
     #[error("the profile must be a JSON object, found {found}")]
     ProfileNotObject { found: String },
-    /// A value of the profile form is out of range; `field` names it (`minDayRate`, ...).
+    /// A value of the profile form is out of range; `field` names it (`minDayRate`, ...),
+    /// `row` the entry of a list of rows (`competences`, `languages`), counted from 0 without
+    /// the empty rows.
     #[error("the profile value {field} is out of range")]
-    ProfileValue { field: String },
+    ProfileValue { field: String, row: Option<u32> },
     /// A pasted answer holds no profile JSON with anything the form can show.
     #[error("the answer holds no profile")]
     ProfileAnswer,

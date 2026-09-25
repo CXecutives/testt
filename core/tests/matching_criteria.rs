@@ -3,8 +3,8 @@
 //! when it does not apply to the contract type. The key facts of the ad come with it.
 
 use jobalert_core::matching::{
-    Assessment, CriterionKey, CriterionState, CriterionStatus, JobInput, TextKind, assess,
-    compile_profile,
+    Assessment, CompiledProfile, CriterionKey, CriterionState, CriterionStatus, JobInput,
+    ReasonCode, ReasonKind, TextKind, Verdict, assess, compile_profile,
 };
 use jobalert_core::portal::Portal;
 use serde_json::{Value, json};
@@ -140,4 +140,121 @@ fn a_violation_keeps_the_ads_value() {
     assert_eq!(rate.status, CriterionStatus::Violated);
     assert_eq!(rate.params["rate"], 700);
     assert!(rate.reason.is_some());
+}
+
+const PERMANENT: &str = "Wir suchen einen Leiter Controlling (m/w/d) für unsere Holding.
+
+Ihre Aufgaben:
+- Aufbau des Konzernreportings nach IFRS
+- Budgetierung und Forecast
+
+Ihr Profil:
+- Erfahrung im Controlling
+- Konzernrechnungslegung nach IFRS
+
+Wir bieten eine unbefristete Festanstellung in Vollzeit.";
+
+/// The profile with these excluded contract types.
+fn excluding(kinds: &Value) -> CompiledProfile {
+    let mut value = profile();
+    value["harte_kriterien"]["ausgeschlossene_vertragsarten"] = kinds.clone();
+    compile_profile(&value)
+}
+
+fn assess_with(profile: &CompiledProfile, title: &str, text: &str) -> Assessment {
+    let job = JobInput {
+        title,
+        company: "Muster AG",
+        location: "Hamburg",
+        portal: Portal::LinkedIn,
+        text,
+        facts: None,
+        posted: None,
+        kind: TextKind::Full,
+    };
+    assess(profile, &job, None).expect("assessed")
+}
+
+/// Permanent employment as an excluded contract type (`festanstellung`, also `permanent`):
+/// a stated permanent role is excluded with the sentence that states it; one inferred from
+/// benefits or one that offers freelance work too is a check; an interim role meets the
+/// criterion with the ad's contract type. Without the value the permanent role is the
+/// check it always was.
+#[test]
+fn permanent_employment_can_be_excluded() {
+    for kinds in [
+        json!(["anue", "festanstellung"]),
+        json!(["Festanstellung"]),
+        json!("permanent"),
+    ] {
+        let profile = excluding(&kinds);
+        let a = assess_with(&profile, "Leiter Controlling (m/w/d)", PERMANENT);
+        assert_eq!(a.verdict, Verdict::Excluded, "{kinds}");
+        let state = criterion(&a, CriterionKey::NoPermanent);
+        assert_eq!(state.status, CriterionStatus::Violated, "{kinds}");
+        let reason = a
+            .reasons
+            .iter()
+            .find(|r| r.code == ReasonCode::Permanent)
+            .expect("the permanent reason");
+        assert_eq!(reason.kind, ReasonKind::Violation);
+        assert_eq!(reason.params["stated"], true);
+        assert!(
+            a.highlights.iter().any(|h| h.reason == reason.id),
+            "the stating sentence is marked"
+        );
+    }
+    let excluded = excluding(&json!(["festanstellung"]));
+    // Inferred from benefits, or offered next to freelance work: a check only.
+    let stated = "Wir bieten eine unbefristete Festanstellung in Vollzeit.";
+    let hinted = PERMANENT.replace(
+        stated,
+        "Why join us\n30 days of vacation and a company pension scheme",
+    );
+    let both = PERMANENT.replace(
+        stated,
+        "Festanstellung oder freiberuflich, Tagessatz nach Absprache.",
+    );
+    for text in [hinted.as_str(), both.as_str()] {
+        let a = assess_with(&excluded, "Leiter Controlling (m/w/d)", text);
+        assert_ne!(a.verdict, Verdict::Excluded, "{text}");
+        assert_eq!(
+            criterion(&a, CriterionKey::NoPermanent).status,
+            CriterionStatus::Check,
+            "{text}"
+        );
+    }
+    // An interim role meets it with the ad's contract type.
+    let a = assess_with(&excluded, "Interim Controller (m/w/d)", STATED);
+    let state = criterion(&a, CriterionKey::NoPermanent);
+    assert_eq!(state.status, CriterionStatus::Ok);
+    assert_eq!(state.params["contract"], "interim");
+    // Without the value: inactive, and the permanent role is the check it was.
+    let a = assess_with(
+        &compile_profile(&profile()),
+        "Leiter Controlling (m/w/d)",
+        PERMANENT,
+    );
+    assert_ne!(a.verdict, Verdict::Excluded);
+    assert_eq!(
+        criterion(&a, CriterionKey::NoPermanent).status,
+        CriterionStatus::Inactive
+    );
+    let check = a
+        .reasons
+        .iter()
+        .find(|r| r.code == ReasonCode::Permanent)
+        .expect("the permanent check");
+    assert_eq!(check.kind, ReasonKind::Check);
+    assert!(check.params.is_empty());
+    // The profile summary names the criterion, and ANÜ only where the profile says so.
+    let set: Vec<CriterionKey> = excluded
+        .summary()
+        .criteria
+        .iter()
+        .filter(|c| c.set)
+        .map(|c| c.key)
+        .collect();
+    assert!(set.contains(&CriterionKey::NoPermanent), "{set:?}");
+    assert!(!set.contains(&CriterionKey::NoAnue), "{set:?}");
 }

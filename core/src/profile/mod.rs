@@ -2,8 +2,9 @@
 //! that is where the matching skill reads it. The Profil view edits it through a form
 //! ([`form`]): saving merges the form into the file, so keys the form does not know, their
 //! values and the order of the keys stay; the previous file stays next to it as the one
-//! backup. A file or a pasted answer of Claude ([`prompt`]) fills the form first, the user
-//! reviews it and saves. No network: everything stays on the computer.
+//! backup. Removing the profile makes it that backup, so it can be restored. A file or a
+//! pasted answer of an AI ([`prompt`]) fills the form first, the user reviews it and saves.
+//! No network: everything stays on the computer.
 
 mod form;
 mod json;
@@ -16,11 +17,11 @@ use serde_json::Value;
 
 use crate::error::{Error, InvalidInput, Result};
 use crate::export::write_atomic;
-use crate::matching::{self, ProfileQuality};
+use crate::matching::{self, ProfileQuality, ProfileSummary};
 
 pub use form::{
     LanguageLevel, MAX_FOCUS, ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileForm,
-    ProfileLanguage, ProfileWishes, RemoteWish,
+    ProfileLanguage, ProfileWishes, RemoteWish, UnreadableField,
 };
 use json::Json;
 
@@ -80,34 +81,47 @@ pub fn backup_path(workspace: &Path) -> PathBuf {
     workspace.join(PROFILE_DIR).join(BACKUP_FILE)
 }
 
-/// Removes the profile and its backup (no error if there is none); the empty folder goes
-/// with them.
+/// Removes the profile: it becomes the one backup next to where it was (replacing an older
+/// one), so [`restore`] can bring it back. `false` if there was none.
 pub fn remove(workspace: &Path) -> Result<bool> {
     let path = profile_path(workspace);
-    let removed = match std::fs::remove_file(&path) {
-        Ok(()) => true,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
-        Err(e) => return Err(Error::io(&path, e)),
-    };
-    let _ = std::fs::remove_file(backup_path(workspace));
-    let _ = std::fs::remove_dir(workspace.join(PROFILE_DIR));
-    Ok(removed)
+    if !path.exists() {
+        return Ok(false);
+    }
+    let backup = backup_path(workspace);
+    std::fs::rename(&path, &backup).map_err(|e| Error::io(&path, e))?;
+    Ok(true)
+}
+
+/// Brings a removed profile back from the backup; `false` when there is a profile already
+/// or no backup.
+pub fn restore(workspace: &Path) -> Result<bool> {
+    let path = profile_path(workspace);
+    let backup = backup_path(workspace);
+    if path.exists() || !backup.exists() {
+        return Ok(false);
+    }
+    std::fs::rename(&backup, &path).map_err(|e| Error::io(&backup, e))?;
+    Ok(true)
 }
 
 /// A profile read for the editor: the form, the JSON text it came from (saving merges the
-/// form into it) and how much the engine understands of it.
+/// form into it) and what the engine understands of it (its warnings show before saving).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Draft {
     pub form: ProfileForm,
     pub source: String,
     pub quality: ProfileQuality,
+    pub summary: ProfileSummary,
 }
 
 fn draft(doc: &Json, source: &str) -> Draft {
+    let compiled = matching::compile_profile(&doc.to_value());
     Draft {
         form: form::read(doc),
         source: source.to_owned(),
-        quality: matching::compile_profile(&doc.to_value()).quality(),
+        quality: compiled.quality(),
+        summary: compiled.summary().clone(),
     }
 }
 
@@ -118,14 +132,55 @@ pub fn draft_from_file(path: &Path) -> Result<Draft> {
     Ok(draft(&parse_doc(text)?, text))
 }
 
-/// Claude's answer to the [`prompt`]: the profile JSON in it (bare, inside a code block or
-/// between a sentence before and after), for review in the editor.
+/// The AI's answer to the [`prompt`]: the profile JSON in it (bare, inside a code block or
+/// between a sentence before and after), for review in the editor. What the answer leaves
+/// empty (`null`, `""`, `[]`, `{}`, the unfilled parts of the skeleton) is dropped, so no
+/// empty value becomes a criterion the app cannot read.
 pub fn draft_from_answer(answer: &str) -> std::result::Result<Draft, InvalidInput> {
     answer_candidates(answer)
         .into_iter()
-        .filter_map(|text| Some(draft(&parse_doc(text).ok()?, text)))
+        .filter_map(|text| {
+            let mut doc = parse_doc(text).ok()?;
+            if !drop_empty(&mut doc) {
+                return Some(draft(&doc, text));
+            }
+            Some(draft(&doc, doc.to_pretty().trim_end()))
+        })
         .find(|found| found.form.has_content())
         .ok_or(InvalidInput::ProfileAnswer)
+}
+
+/// Removes empty values from objects and lists, deepest first (a list of empty objects goes
+/// as a whole); `true` if anything went.
+fn drop_empty(value: &mut Json) -> bool {
+    let empty = |value: &Json| match value {
+        Json::Null => true,
+        Json::String(text) => text.trim().is_empty(),
+        Json::Array(items) => items.is_empty(),
+        Json::Object(entries) => entries.is_empty(),
+        Json::Bool(_) | Json::Number(_) => false,
+    };
+    let mut dropped = false;
+    match value {
+        Json::Object(entries) => {
+            for (_, child) in entries.iter_mut() {
+                dropped |= drop_empty(child);
+            }
+            let before = entries.len();
+            entries.retain(|(_, child)| !empty(child));
+            dropped |= entries.len() != before;
+        }
+        Json::Array(items) => {
+            for child in items.iter_mut() {
+                dropped |= drop_empty(child);
+            }
+            let before = items.len();
+            items.retain(|child| !empty(child));
+            dropped |= items.len() != before;
+        }
+        _ => {}
+    }
+    dropped
 }
 
 /// Where a JSON object may stand in an answer: every fenced code block (without its
@@ -173,6 +228,7 @@ pub fn save_form(
     source: Option<&str>,
     before: &ProfileForm,
     after: &ProfileForm,
+    clear: &[UnreadableField],
 ) -> Result<ProfileInfo> {
     let after = form::validate(after)?;
     let path = profile_path(workspace);
@@ -187,7 +243,7 @@ pub fn save_form(
         (None, None) => Json::object(),
     };
     let unchanged = doc.clone();
-    form::merge(&mut doc, before, &after);
+    form::merge(&mut doc, before, &after, clear);
     // Nothing to write: the stored file stays exactly as it is (no reformatting).
     let keep = source.is_none() && previous.is_some() && doc == unchanged;
     if !keep {
@@ -328,7 +384,7 @@ mod tests {
         after.keywords.push("HGB".into());
         after.criteria.no_anue = true;
         after.criteria.min_salary = Some(160_000);
-        save_form(dir.path(), None, &before, &after).unwrap();
+        save_form(dir.path(), None, &before, &after, &[]).unwrap();
 
         let text = stored(dir.path());
         assert_eq!(
@@ -387,7 +443,7 @@ mod tests {
         let before = stored_form(dir.path()).unwrap();
         let mut first = before.clone();
         first.title = "Interim CFO".into();
-        save_form(dir.path(), None, &before, &first).unwrap();
+        save_form(dir.path(), None, &before, &first, &[]).unwrap();
         assert_eq!(
             std::fs::read_to_string(backup_path(dir.path())).unwrap(),
             HAND_MADE
@@ -395,7 +451,7 @@ mod tests {
         let saved_once = stored(dir.path());
         let mut second = first.clone();
         second.title = "CFO".into();
-        save_form(dir.path(), None, &first, &second).unwrap();
+        save_form(dir.path(), None, &first, &second, &[]).unwrap();
         assert_eq!(
             std::fs::read_to_string(backup_path(dir.path())).unwrap(),
             saved_once
@@ -407,9 +463,33 @@ mod tests {
         files.sort();
         assert_eq!(files, [PROFILE_FILE, BACKUP_FILE], "exactly one backup");
 
-        // Removing the profile takes the backup and the folder with it.
+        // Removing the profile makes it the backup; restoring brings it back as it was.
+        let last = stored(dir.path());
         assert!(remove(dir.path()).unwrap());
-        assert!(!dir.path().join(PROFILE_DIR).exists());
+        assert!(info(dir.path()).unwrap().is_none(), "no profile");
+        assert_eq!(
+            std::fs::read_to_string(backup_path(dir.path())).unwrap(),
+            last
+        );
+        assert!(!remove(dir.path()).unwrap(), "nothing left to remove");
+        assert!(restore(dir.path()).unwrap());
+        assert_eq!(stored(dir.path()), last);
+        assert!(!backup_path(dir.path()).exists());
+        assert!(!restore(dir.path()).unwrap(), "a profile is there already");
+
+        // "Reset everything" after a removal leaves neither the profile nor its backup.
+        assert!(remove(dir.path()).unwrap());
+        let data = dir.path().join("data");
+        std::fs::create_dir_all(&data).unwrap();
+        let plan = crate::reset::ResetPlan {
+            workspace: dir.path().to_path_buf(),
+            txt_names: Vec::new(),
+        };
+        crate::reset::request(&data, &plan).unwrap();
+        let vault = crate::secrets::Vault::for_tests("profile-remove-reset");
+        let report = crate::reset::perform_pending(&data, &vault).unwrap();
+        assert!(report.failed.is_empty(), "{report:?}");
+        assert!(!dir.path().join(PROFILE_DIR).exists(), "nothing left");
     }
 
     #[test]
@@ -418,7 +498,7 @@ mod tests {
         let compact = "{\"keywords\":[\"SAP\"],\"name\":\"X\"}";
         store(dir.path(), compact);
         let form = stored_form(dir.path()).unwrap();
-        save_form(dir.path(), None, &form, &form).unwrap();
+        save_form(dir.path(), None, &form, &form, &[]).unwrap();
         assert_eq!(stored(dir.path()), compact, "not even reformatted");
         assert!(!backup_path(dir.path()).exists());
     }
@@ -428,7 +508,7 @@ mod tests {
         let dir = workspace();
         let empty = ProfileForm::default();
         let refused = |source: Option<&str>, form: &ProfileForm| -> InvalidInput {
-            match save_form(dir.path(), source, &empty, form).unwrap_err() {
+            match save_form(dir.path(), source, &empty, form, &[]).unwrap_err() {
                 Error::Invalid(input) => input,
                 other => panic!("{other:?}"),
             }
@@ -451,7 +531,8 @@ mod tests {
         assert_eq!(
             refused(Some("{}"), &rate),
             InvalidInput::ProfileValue {
-                field: "minDayRate".into()
+                field: "minDayRate".into(),
+                row: None
             }
         );
         let mut date = empty.clone();
@@ -461,7 +542,8 @@ mod tests {
         assert_eq!(
             refused(Some("{}"), &date),
             InvalidInput::ProfileValue {
-                field: "available".into()
+                field: "available".into(),
+                row: None
             }
         );
         assert!(info(dir.path()).unwrap().is_none(), "nothing stored");
@@ -490,7 +572,14 @@ mod tests {
         assert_eq!(draft.form.name, "Erika Beispiel");
         assert_eq!(draft.quality, ProfileQuality::Thin);
         assert!(!draft.source.starts_with('\u{feff}'));
-        save_form(dir.path(), Some(&draft.source), &draft.form, &draft.form).unwrap();
+        save_form(
+            dir.path(),
+            Some(&draft.source),
+            &draft.form,
+            &draft.form,
+            &[],
+        )
+        .unwrap();
         let text = stored(dir.path());
         assert!(
             !text.contains("hobbys"),
@@ -578,6 +667,7 @@ mod tests {
                 min_day_rate: Some(900),
                 countries: texts(&["DE", "AT", "CH"]),
                 no_anue: true,
+                no_permanent: true,
                 available: ProfileAvailability::From {
                     date: "2026-11-01".into(),
                 },
@@ -596,7 +686,7 @@ mod tests {
     fn a_new_profile_from_the_empty_form() {
         let dir = workspace();
         let after = full_form();
-        save_form(dir.path(), Some("{}"), &ProfileForm::default(), &after).unwrap();
+        save_form(dir.path(), Some("{}"), &ProfileForm::default(), &after, &[]).unwrap();
         let text = stored(dir.path());
         assert_eq!(
             keys(&text),
@@ -654,6 +744,7 @@ mod tests {
                 CriterionKey::MinDayRate,
                 CriterionKey::Countries,
                 CriterionKey::NoAnue,
+                CriterionKey::NoPermanent,
                 CriterionKey::Availability,
                 CriterionKey::MinSalary,
                 CriterionKey::PermanentRegion,
@@ -691,12 +782,12 @@ mod tests {
             let text = fixture(name);
             let form = form_of(&text).unwrap();
             let mut fresh = Json::object();
-            form::merge(&mut fresh, &ProfileForm::default(), &form);
+            form::merge(&mut fresh, &ProfileForm::default(), &form, &[]);
             assert_eq!(plain(&form::read(&fresh)), plain(&form), "{name}");
 
             let mut same: Json = serde_json::from_str(&text).unwrap();
             let original = same.clone();
-            form::merge(&mut same, &form, &form);
+            form::merge(&mut same, &form, &form, &[]);
             assert_eq!(same, original, "{name}: an unchanged form writes nothing");
         }
     }
@@ -708,7 +799,7 @@ mod tests {
             let before = form::read(&doc);
             let mut after = before.clone();
             after.degrees = degrees.iter().map(|d| (*d).to_owned()).collect();
-            form::merge(&mut doc, &before, &after);
+            form::merge(&mut doc, &before, &after, &[]);
             doc.to_value()
         };
         assert_eq!(
@@ -745,7 +836,7 @@ mod tests {
         after.criteria.min_day_rate = None;
         after.criteria.min_salary = None;
         after.criteria.countries.clear();
-        form::merge(&mut doc, &before, &after);
+        form::merge(&mut doc, &before, &after, &[]);
         let value = doc.to_value();
         assert!(value["einsatzpraeferenzen"].get("tagessatz_ab").is_none());
         assert!(value["hard_criteria"].get("min_salary").is_none());
@@ -780,7 +871,7 @@ mod tests {
         assert_eq!(before.wishes.remote, Some(RemoteWish::Partly));
         let mut after = before.clone();
         after.wishes.remote = Some(RemoteWish::Full);
-        form::merge(&mut doc, &before, &after);
+        form::merge(&mut doc, &before, &after, &[]);
         assert_eq!(doc.to_value()["einsatzpraeferenzen"]["remote"], "voll");
     }
 
@@ -791,13 +882,13 @@ mod tests {
             focus: (1..=6).map(|n| format!("Kompetenz {n}")).collect(),
             ..ProfileForm::default()
         };
-        let error = save_form(dir.path(), Some("{}"), &ProfileForm::default(), &form);
+        let error = save_form(dir.path(), Some("{}"), &ProfileForm::default(), &form, &[]);
         assert!(
-            matches!(error, Err(Error::Invalid(InvalidInput::ProfileValue { ref field })) if field == "focus"),
+            matches!(error, Err(Error::Invalid(InvalidInput::ProfileValue { ref field, .. })) if field == "focus"),
             "{error:?}"
         );
         form.focus.pop();
-        save_form(dir.path(), Some("{}"), &ProfileForm::default(), &form).unwrap();
+        save_form(dir.path(), Some("{}"), &ProfileForm::default(), &form, &[]).unwrap();
         assert_eq!(stored_form(dir.path()).unwrap().focus.len(), MAX_FOCUS);
     }
 
