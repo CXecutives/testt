@@ -27,7 +27,7 @@ use jobalert_core::settings::{Language, Settings};
 use jobalert_core::store::Store;
 use tokio_util::sync::CancellationToken;
 
-pub use files::Refresh;
+pub use files::{Refresh, flush_marks};
 pub use run::RunHandle;
 pub use scoring::Scoring;
 
