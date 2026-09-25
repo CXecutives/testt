@@ -207,12 +207,7 @@ fn auto_fetch(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) -> 
         return false;
     };
     let connected = state.gmail_user().0.is_some();
-    let due = pipeline::auto_fetch_due(
-        &state.store,
-        settings.auto_fetch_on_start,
-        connected,
-        Timestamp::now(),
-    );
+    let due = pipeline::auto_fetch_due(&state.store, &settings, connected, Timestamp::now());
     if due {
         log::info!("auto fetch at the start");
         let request = pipeline::RunRequest {

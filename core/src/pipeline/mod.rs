@@ -1538,15 +1538,18 @@ pub fn last_fetch_at(store: &Store) -> Option<Timestamp> {
         .and_then(time::from_db)
 }
 
-/// Should the app start a fetch run by itself? Only when switched on, with a mailbox, and
-/// when the last successful mailbox scan is older than [`AUTO_FETCH_AFTER`] (or never was).
+/// Should the app start a fetch run by itself? Only when switched on, with a portal to read
+/// and a mailbox, and when the last successful mailbox scan is older than
+/// [`AUTO_FETCH_AFTER`] (or never was). With every portal switched off (a state the user may
+/// choose, and broken settings leave) a fetch could only fail: it waits for a portal.
 pub fn auto_fetch_due(
     store: &Store,
-    switched_on: bool,
+    settings: &crate::settings::Settings,
     mailbox_connected: bool,
     now: Timestamp,
 ) -> bool {
-    switched_on
+    settings.auto_fetch_on_start
+        && !settings.enabled_portals().is_empty()
         && mailbox_connected
         && last_fetch_at(store).is_none_or(|at| now.duration_since(at) > AUTO_FETCH_AFTER)
 }

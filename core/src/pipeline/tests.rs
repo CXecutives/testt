@@ -1398,9 +1398,22 @@ async fn the_auto_fetch_waits_six_hours() {
     let dir = tempfile::tempdir().unwrap();
     let store = Store::in_memory().unwrap();
     let now = c();
-    assert!(auto_fetch_due(&store, true, true, now), "never fetched");
-    assert!(!auto_fetch_due(&store, false, true, now), "switched off");
-    assert!(!auto_fetch_due(&store, true, false, now), "no mailbox");
+    let on = crate::settings::Settings::default();
+    let off = crate::settings::Settings {
+        auto_fetch_on_start: false,
+        ..on.clone()
+    };
+    let mut no_portal = on.clone();
+    for switches in no_portal.portals.values_mut() {
+        switches.enabled = false;
+    }
+    assert!(auto_fetch_due(&store, &on, true, now), "never fetched");
+    assert!(!auto_fetch_due(&store, &off, true, now), "switched off");
+    assert!(!auto_fetch_due(&store, &on, false, now), "no mailbox");
+    assert!(
+        !auto_fetch_due(&store, &no_portal, true, now),
+        "no portal to read: no fetch that can only fail"
+    );
     go(
         &mut DemoBackends,
         &store,
@@ -1412,8 +1425,8 @@ async fn the_auto_fetch_waits_six_hours() {
     .await;
     let fetched = last_fetch_at(&store).unwrap();
     let after = |hours| fetched + SignedDuration::from_hours(hours);
-    assert!(!auto_fetch_due(&store, true, true, after(5)));
-    assert!(auto_fetch_due(&store, true, true, after(7)));
+    assert!(!auto_fetch_due(&store, &on, true, after(5)));
+    assert!(auto_fetch_due(&store, &on, true, after(7)));
 }
 
 /// The request JSON is flat, and every kind round-trips.

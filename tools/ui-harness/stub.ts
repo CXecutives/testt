@@ -1741,6 +1741,10 @@ function detailsScript(keys: JobKey[]): RunEvent[] {
 function startRun(request: RunRequest, sender: Sender | null): void {
   const kind = request.kind;
   if (running) throw fail('busy');
+  // A mailbox run needs a portal to read (commands/run.rs run_context).
+  if (isFetch(kind) && state.portals.every((p) => !p.enabled)) {
+    throw fail('invalid', { reason: 'noPortal' });
+  }
   if (state.mailbox.user === null && kind !== 'rescore' && kind !== 'details') {
     throw fail('mailMissing');
   }
@@ -2063,7 +2067,7 @@ const handlers: Handlers = {
         p.risk = change.loginEnabled ? 'account' : 'grey';
       }
     }
-    if (state.portals.every((p) => !p.enabled)) throw fail('invalid', { reason: 'noPortal' });
+    // Every portal may be off (the backend saves it); a fetch is then refused, see start_run.
     if (patch.autoFetchOnStart !== null) state.autoFetchOnStart = patch.autoFetchOnStart;
     if (patch.autoArchiveDays !== null) state.autoArchiveDays = patch.autoArchiveDays;
     if (patch.autoEmptyTrashDays !== null) state.autoEmptyTrashDays = patch.autoEmptyTrashDays;
