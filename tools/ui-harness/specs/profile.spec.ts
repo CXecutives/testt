@@ -628,7 +628,7 @@ test('no profile: one sentence and the three ways in', async ({ page }) => {
   await expect(empty).toContainText('Mit einem Profil zeigt jeder Job, wie gut er passt.');
   await expect(empty.getByRole('button')).toHaveText([
     'Profil anlegen',
-    'Aus Lebenslauf erstellen',
+    'Aus Lebenslauf anlegen',
     'Datei wählen',
   ]);
   await expect(empty.locator('.btn.primary')).toHaveText('Profil anlegen');
@@ -733,7 +733,7 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
   await profile(page, 'no-profile');
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   const card = page.getByTestId('profile-paste');
   await expect(card).toBeVisible();
@@ -838,7 +838,7 @@ test('from a CV: when the prompt could not be copied, the step says so and copie
   await profile(page, 'no-profile');
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   await expect(page.getByTestId('paste-copied')).toContainText(
     'Der Prompt ließ sich nicht kopieren.',
@@ -1079,7 +1079,7 @@ test('baseline: from a CV', async ({ page, browserName }) => {
   await profile(page, 'no-profile');
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   await expect(page.getByTestId('profile-paste')).toBeVisible();
   await page.getByTestId('paste-answer').fill(ANSWER.slice(0, 120));

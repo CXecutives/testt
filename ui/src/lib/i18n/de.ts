@@ -1057,7 +1057,7 @@ export const de = {
     /** Under the error of a profile that no longer reads. */
     replaces: 'Ein neues Profil ersetzt die Datei.',
     create: 'Profil anlegen',
-    fromCv: 'Aus Lebenslauf erstellen',
+    fromCv: 'Aus Lebenslauf anlegen',
     /** The same way for a profile that exists: the answer fills the form for review. */
     updateFromCv: 'Aus Lebenslauf aktualisieren',
     pick: 'Datei wählen',

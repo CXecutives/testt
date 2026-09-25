@@ -220,7 +220,7 @@ test('a country of a file the app does not know stays and shows as it is', async
   await page.getByTestId('nav-profile').click();
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   const answer = JSON.stringify({
     name: 'Carla Exempel',

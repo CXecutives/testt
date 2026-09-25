@@ -129,7 +129,7 @@ test('from a CV: the pasted answer outlasts Esc and the view, the clipboard stay
   await open(page, `${WIN}&scenario=no-profile`);
   await page.getByTestId('nav-profile').click();
   const fromCv = page.getByTestId('profile-empty').getByRole('button', {
-    name: 'Aus Lebenslauf erstellen',
+    name: 'Aus Lebenslauf anlegen',
   });
   await fromCv.click();
   const answer = page.getByTestId('paste-answer');
@@ -237,7 +237,7 @@ test('a new form and the steps from a CV put the caret where the work starts', a
   await open(page, `${WIN}&scenario=no-profile`);
   await page.getByTestId('nav-profile').click();
   const empty = page.getByTestId('profile-empty');
-  await empty.getByRole('button', { name: 'Aus Lebenslauf erstellen' }).click();
+  await empty.getByRole('button', { name: 'Aus Lebenslauf anlegen' }).click();
   await expect(page.getByTestId('paste-answer')).toBeFocused();
   await page.getByTestId('paste-cancel').click();
   await empty.getByRole('button', { name: 'Profil anlegen' }).click();
