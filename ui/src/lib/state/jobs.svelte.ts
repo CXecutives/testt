@@ -241,6 +241,7 @@ class JobsStore {
   /** Keys of the rows the page put in itself (see #served). */
   #own = new Set<string>();
   status = $state<Status>('idle');
+  /** The list has taken --delay-placeholder to load: its placeholder rows show (at once). */
   slow = $state(false);
   error = $state<string | null>(null);
   /** The next page did not load (the list stays, the end of it offers a retry). */
@@ -274,6 +275,8 @@ class JobsStore {
   selected = $state<JobKey | null>(null);
   detail = $state.raw<JobDetail | null>(null);
   detailStatus = $state<Status>('idle');
+  /** The open job has taken --delay-placeholder to load: until then the reader keeps what it
+   *  showed, then its placeholder shows (at once). */
   detailSlow = $state(false);
   detailError = $state<string | null>(null);
 
@@ -417,7 +420,7 @@ class JobsStore {
     if (!keep) this.reveal = null;
     const timer = setTimeout(() => {
       if (request === this.#request) this.slow = true;
-    }, tokenMs('--dur-fast'));
+    }, tokenMs('--delay-placeholder'));
     try {
       const limit = keep ? Math.min(MAX_PAGE, Math.max(PAGE, this.rows.length)) : PAGE;
       const page = await invoke('list_jobs', { query: this.query(0, limit) });
@@ -672,7 +675,7 @@ class JobsStore {
     this.detailError = null;
     const timer = setTimeout(() => {
       if (request === this.#detailRequest) this.detailSlow = true;
-    }, tokenMs('--dur-fast'));
+    }, tokenMs('--delay-placeholder'));
     try {
       const detail = await invoke('job_detail', { key });
       if (request !== this.#detailRequest) return;

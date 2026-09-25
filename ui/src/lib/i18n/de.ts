@@ -603,8 +603,8 @@ export const de = {
     /** The quiet line under the title of a job that is not in the inbox. */
     inArchive: 'Im Archiv',
     inTrash: 'Im Papierkorb',
-    inTrashFor: (days: number) =>
-      `Im Papierkorb, wird nach ${count(days, 'Tag', 'Tagen')} gelöscht`,
+    inTrashLeft: (days: number) => `Im Papierkorb, wird in ${count(days, 'Tag', 'Tagen')} gelöscht`,
+    inTrashSoon: 'Im Papierkorb, wird bald gelöscht',
     empty: {
       inbox: 'Keine Jobs.',
       archive: 'Das Archiv ist leer.',

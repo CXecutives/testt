@@ -375,6 +375,7 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'unread', role: 'decor' },
       { name: 'surface-selected', role: 'surface' },
       { name: 'surface-selected-hover', role: 'surface' },
+      { name: 'surface-selected-press', role: 'surface' },
       { name: 'surface-selected-inactive', role: 'surface' },
       { name: 'selection-bar', role: 'decor' },
       { name: 'ring-track-selected', role: 'decor' },

@@ -99,10 +99,11 @@
   --surface-muted: hsl(var(--p-muted));
   --surface-hover: hsl(var(--p-ink) / 0.04);
   --surface-press: hsl(var(--p-ink) / 0.08);
-  /* The selected list row: a very light warm wash; one step deeper under the pointer; grey
-     while the window is inactive (like Mail, Explorer). */
+  /* The selected list row: a very light warm wash; one step deeper under the pointer and one
+     more while pressed; grey while the window is inactive (like Mail, Explorer). */
   --surface-selected: hsl(var(--p-coral-25));
   --surface-selected-hover: hsl(var(--p-coral-50));
+  --surface-selected-press: hsl(var(--p-coral-70));
   --surface-selected-inactive: hsl(var(--p-ink) / 0.06);
   /* Track of segmented controls: visible on white and on cream alike. */
   --surface-track: hsl(var(--p-ink) / 0.055);
@@ -116,8 +117,10 @@
   --text-subtle: hsl(var(--p-fg-subtle));
   /* Headings (h1, h2) in the warm dark ink (user decision A). Navy colours only the
      13/500 sub-labels that group a reader's list (Erfüllt, Offen, the Ausgeschlossen
-     divider) and links. A label of a field or of a column of fields is ink (--text, 13/500,
-     as in Field): navy text alone over a form reads as a link. */
+     divider), the reader's "Rahmen" (500, the size of the line it labels: 12 before its
+     chips, 13 before the values of the clean line) and links. A label of a field or of a
+     column of fields is ink (--text, 13/500, as in Field): navy text alone over a form reads
+     as a link. */
   --text-heading: hsl(var(--p-ink));
   --text-label: hsl(var(--p-navy));
   --text-on-accent: hsl(var(--p-on-accent));

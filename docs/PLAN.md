@@ -212,6 +212,12 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   excluded grey behind divider; duplicates as one row) · reader card 720 px (ring 96 counting up, band word, n of m must,
   hard-criteria strip, reasons met/open/check/violations, hover = tooltip + highlight, click = scroll to passage) ·
   day overview when nothing is selected (3 stat tiles, unread per portal, best 3, pinned, open issues, "Übersicht öffnen").
+  Wave 1 (2026-09-25): a placeholder waits once (the list or the job that takes
+  `--delay-placeholder` shows it, then at once; until then the pane keeps what it showed); the
+  selected row darkens one more warm step while pressed (`--surface-selected-press`, 93 %); a
+  detail state has one tone in the row, the reader and the run card (`DETAIL_WARNS` in
+  texts.ts); the reader's compact bar is for the pointer like a row's tools; the trash line
+  counts the days left.
 - Profil: the profile as a form (see Decisions "Profile editor" and "Profile page, final round"): head card (person,
   quality, one line of what the app reads, keys it does not read, rescore, the file actions), the seven blocks of the
   form and the reading, sticky save bar (Speichern only with a change, Verwerfen, once "Weiter zum ersten Abruf" during

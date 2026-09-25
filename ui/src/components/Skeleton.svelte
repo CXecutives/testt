@@ -1,7 +1,9 @@
 <!--
-  Loading placeholder: line | block | circle, with a shimmer sweeping on ::after. It stays
-  invisible for --delay-placeholder after it is placed and then fades in, so a load that
-  ends sooner never flashes a placeholder.
+  Loading placeholder: line | block | circle, with a shimmer sweeping on ::after. It fades in
+  (--dur-fast) as it is placed: the state that places it has waited --delay-placeholder
+  already (a list or a job that takes that long to load), so a quicker load never shows one,
+  and one that shows is visible at once. `late` waits that long itself, for a placeholder
+  that is placed at once (the end of a list that can load more).
 -->
 <script lang="ts">
   import { cssVars } from '$lib/actions/cssVars';
@@ -12,26 +14,33 @@
     width?: number;
     /** Circle diameter. */
     size?: 'sm' | 'md' | 'lg';
+    /** Placed at once: stays invisible for --delay-placeholder before it fades in. */
+    late?: boolean;
   }
 
-  let { shape = 'line', width = 100, size = 'sm' }: Props = $props();
+  let { shape = 'line', width = 100, size = 'sm', late = false }: Props = $props();
 </script>
 
 <span
   class="skeleton {shape} {size}"
+  class:late
   aria-hidden="true"
   use:cssVars={{ 'skeleton-width': `${Math.max(0, Math.min(100, width))}%` }}
 ></span>
 
 <style>
-  /* The late fade-in is timing, not movement: it is not paused under reduced motion. */
+  /* The fade-in and its delay are timing, not movement: they stay under reduced motion. */
   .skeleton {
     position: relative;
     display: block;
     overflow: hidden;
     background-color: var(--surface-muted);
     isolation: isolate;
-    animation: appear var(--dur-fast) var(--ease-standard) var(--delay-placeholder) both;
+    animation: appear var(--dur-fast) var(--ease-standard) both;
+  }
+
+  .late {
+    animation-delay: var(--delay-placeholder);
   }
 
   .skeleton::after {

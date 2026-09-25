@@ -28,7 +28,7 @@
   import Spinner from '$components/Spinner.svelte';
   import { t } from '$lib/i18n/t';
   import { formatMoment, formatNumber, formatTime } from '$lib/i18n/format';
-  import { errorText, healthSentence } from '$lib/i18n/texts';
+  import { DETAIL_WARNS, errorText, healthSentence } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget, Portal, PortalHealth, Step } from '$lib/ipc/types';
   import { fade, roll } from '$lib/motion/transitions';
@@ -249,9 +249,10 @@
           {:else if fetchRun && summary.outcome.kind === 'completed' && newJobs === 0}
             <Notice tone="info" variant="inline" text={t.run.nothingNew} testid="nothing-new" />
           {/if}
+          <!-- Ads that did not come warn like their rows (texts.ts DETAIL_WARNS). -->
           {#if summary.kind === 'details' && sum('failed') > 0}
             <Notice
-              tone="warning"
+              tone={DETAIL_WARNS.failed ? 'warning' : 'info'}
               variant="inline"
               text={t.run.details.failedAds(sum('failed'))}
               testid="details-failed"
@@ -259,7 +260,7 @@
           {/if}
           {#if summary.kind === 'details' && sum('gone') > 0}
             <Notice
-              tone="info"
+              tone={DETAIL_WARNS.gone ? 'warning' : 'info'}
               variant="inline"
               text={t.run.details.goneAds(sum('gone'))}
               testid="details-gone"

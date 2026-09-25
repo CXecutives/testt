@@ -1178,8 +1178,10 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
   return moved;
 }
 
-/** Deletes jobs of the trash for good: only a tombstone stays, no later run brings them back. */
+/** Deletes jobs of the trash for good: only a tombstone stays, no later run brings them back.
+ *  Like the backend (a file command), never during a run. */
 function purgeJobs(keys: JobKey[]): Deleted {
+  if (running) throw fail('busy');
   const doomed = new Set(
     keys.filter((key) => find(key)?.place === 'trash').map((key) => markKey(key)),
   );
