@@ -987,30 +987,31 @@ function refresh(): void {
 }
 
 /** Moves jobs to a place; returns how many moved. */
-function moveJobs(keys: JobKey[], to: Place): number {
-  let moved = 0;
+/** Moves jobs to a place; returns the keys that really moved (store::move_jobs). */
+function moveJobs(keys: JobKey[], to: Place): JobKey[] {
+  const moved: JobKey[] = [];
   for (const key of keys) {
     const j = find(key);
     if (j === undefined || j.place === to) continue;
     j.place = to;
     if (to === 'trash') trashedAt.set(markKey(key), new Date(Date.now()).toISOString());
     else trashedAt.delete(markKey(key));
-    moved += 1;
+    moved.push(structuredClone(j.key));
   }
   refresh();
   return moved;
 }
 
 /** Deletes jobs of the trash for good: only a tombstone stays, no later run brings them back. */
-function purgeJobs(keys: JobKey[]): { count: number; exportError: null } {
+function purgeJobs(keys: JobKey[]): { count: number; keys: JobKey[]; exportError: null } {
   const doomed = new Set(
     keys.filter((key) => find(key)?.place === 'trash').map((key) => markKey(key)),
   );
-  const before = jobs.length;
+  const gone = jobs.filter((j) => doomed.has(markKey(j.key))).map((j) => structuredClone(j.key));
   jobs = jobs.filter((j) => !doomed.has(markKey(j.key)));
   for (const key of doomed) tombstones.add(key);
   refresh();
-  return { count: before - jobs.length, exportError: null };
+  return { count: gone.length, keys: gone, exportError: null };
 }
 
 const fold = (text: string): string =>
@@ -1720,8 +1721,15 @@ const handlers: Handlers = {
     return true;
   },
   move_jobs: ({ keys, to }) => moveJobs(keys, to),
-  mark_all_read: ({ place }) => {
-    const marked = jobs.filter((j) => j.unread && j.place === place);
+  // With a search only its hits (store::mark_all_read).
+  mark_all_read: ({ place, search }) => {
+    const needle = search ? fold(search) : null;
+    const marked = jobs.filter(
+      (j) =>
+        j.unread &&
+        j.place === place &&
+        (needle === null || fold(`${j.title} ${j.company} ${j.location}`).includes(needle)),
+    );
     for (const j of marked) j.unread = false;
     refresh();
     return marked.map((j) => structuredClone(j.key));

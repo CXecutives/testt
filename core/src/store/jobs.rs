@@ -1043,7 +1043,7 @@ fn fold(text: &str) -> String {
 }
 
 /// `LIKE` pattern of a search term; an empty search matches everything (`None`).
-fn like_pattern(search: Option<&str>) -> Option<String> {
+pub(super) fn like_pattern(search: Option<&str>) -> Option<String> {
     search
         .map(|s| format!("%{}%", escape_like(&fold(s.trim()))))
         .filter(|p| p != "%%")

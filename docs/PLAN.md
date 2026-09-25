@@ -72,15 +72,18 @@ one place, Eingang (inbox), Archiv or Papierkorb (trash; `trashed_at` wins over 
 `set_pinned`) is a flag of its own; no stages, no follow-up, no note. `move_jobs(keys, to)` moves; `purge_jobs(keys)`
 ("Endgültig löschen", only from the trash) and `empty_trash()` delete rows (with the duplicates that stand for them)
 and their TXT files, rewrite the overview and leave the tombstone, so a scan of an old alert mail never imports them
-again (the dry run deletes in its database only). At the end of every run inbox jobs that are no favourite archive
-themselves after `autoArchiveDays` (default 30, 0 = off), and the trash empties itself after `autoEmptyTrashDays`
+again (the dry run deletes in its database only); `empty_trash` empties the whole trash like Mail, whatever the search,
+and `Deleted{count, keys}` says how many and which. `move_jobs` returns the keys that really moved. At the end of every
+run inbox jobs that are no favourite archive themselves after `autoArchiveDays` (default 30, 0 = off; the age counts
+from the last time the user moved the job into the inbox, `inbox_at`, so her choice stands), and the trash empties itself after `autoEmptyTrashDays`
 (default 30, 0 = off; also at the start of the app). The Excel sheet, the HTML overview, `top_matches.json` and the
 best-matches prompt take only inbox jobs. `set_override(key, include)`: an excluded job counts as scored with its fit
 score (note and first reason `userOverride`), every rescore keeps it; taken back, the job is assessed again at once.
 A list is a place (or the favourites of inbox and archive) plus an `unread` filter ("Neu", no day window) and a sort
 (by match, or by date: the mail's, in the trash the day it went there); the counts per place (inbox, unread,
 favourites, archive, trash) come from the same statement and follow the search, so the page can say "Auch im Archiv
-(n)". "Alle als gelesen markieren" is `mark_all_read(place)` with `mark_unread(keys)` as its undo.
+(n)". "Alle als gelesen markieren" is `mark_all_read(place, search)` (with a search only its hits) with
+`mark_unread(keys)` as its undo.
 `top_matches.json` is schema 2 (`appStatus` "saved" for a favourite, the first sighting per job; the unread or
 favourite inbox matches of the last 14 days). The first mailbox scan reads 30 days.
 Whether the user has to act comes from the backend: `actionNeeded` in `PortalState` and in the `PortalHealth` event
@@ -95,9 +98,9 @@ IMAP read-only).
 Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | rescore | fullMailbox})` · `cancel_run` ·
 `list_jobs(JobQuery{place: inbox|archive|trash, unread, favourites, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{inbox, unread, favourites, archive, trash, excluded, high, noDetail, newByPortal[{portal, new}] in Portal::ALL order}}`
 (list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only) ·
-`job_detail(key)` · `mark_read(key) -> bool` · `mark_all_read(place) -> JobKey[]` · `mark_unread(keys) -> number` ·
-`set_pinned(key, on)` · `move_jobs(to, keys) -> number` · `set_override(key, include) -> bool` ·
-`purge_jobs(keys) -> Deleted{count, exportError?}` · `empty_trash -> Deleted` ·
+`job_detail(key)` · `mark_read(key) -> bool` · `mark_all_read(place, search?) -> JobKey[]` · `mark_unread(keys) -> number` ·
+`set_pinned(key, on)` · `move_jobs(to, keys) -> JobKey[]` · `set_override(key, include) -> bool` ·
+`purge_jobs(keys) -> Deleted{count, keys, exportError?}` · `empty_trash -> Deleted` ·
 `ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile -> ProfileDraft?` ·
 `parse_profile(text) -> ProfileDraft` · `profile_prompt` · `save_profile(ProfileSave{before, after, source?}) -> ProfileInfo` ·
 `remove_profile` · `save_mailbox` · `remove_mailbox` · `portal_login` · `portal_logout` ·
