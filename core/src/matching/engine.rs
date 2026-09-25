@@ -27,8 +27,9 @@ use super::normalize::{char_len, strip};
 use super::params::{
     E_FULL, E_HALF, E_NONE, FOCUS_FACTOR, FOCUS_RELEVANCE, FOCUS_RELEVANCE_MAX, FORMAL_CAP,
     K_SHRINK, LIFT_CAP, LOW_EVIDENCE_ITEMS, LOW_PRIOR, LOW_PRIOR_WEIGHT, MIN_TEXT_CHARS, N_NICE,
-    NO_ITEMS_CAP, OFF_FIELD_CAP, PERMANENT_FACTOR, ROLE_FULL, ROLE_HALF, SCORE_FLOOR,
-    SEVERAL_OPEN_CAP, TITLE_OPEN_CAP, W_MUST, W_SOFT, W_TERM, WISH_MAX,
+    NO_ITEMS_CAP, OFF_FIELD_CAP, OFF_FIELD_SINGLE_CAP, OFF_FIELD_TITLE_FIT, PERMANENT_FACTOR,
+    ROLE_FULL, ROLE_HALF, SCORE_FLOOR, SEVERAL_OPEN_CAP, TITLE_OPEN_CAP, W_MUST, W_SOFT, W_TERM,
+    WISH_MAX,
 };
 use super::permanent;
 use super::relevance;
@@ -186,9 +187,16 @@ fn formal(profile: &EngineProfile, items: &[Scored]) -> (Vec<Finding>, bool) {
 }
 
 /// The rubric's caps: an open formal must; several musts open (at least two and at least
-/// half); no skill must met at all (outside the field); an open must on the topic of the
-/// title (the core of the role).
-fn cap(items: &[Scored], title: &str, vocab: &Vocab, formal_cap: bool) -> Option<u8> {
+/// half); no skill must met at all (outside the field: at least two, or the only one when
+/// the title names nothing of the profile either); an open must on the topic of the title
+/// (the core of the role).
+fn cap(
+    items: &[Scored],
+    title: &str,
+    vocab: &Vocab,
+    formal_cap: bool,
+    title_fit: u64,
+) -> Option<u8> {
     let musts: Vec<&Scored> = items
         .iter()
         .filter(|s| s.item.kind == ReqKind::Must && matches!(s.weight, W_MUST | W_TERM))
@@ -200,7 +208,11 @@ fn cap(items: &[Scored], title: &str, vocab: &Vocab, formal_cap: bool) -> Option
         .iter()
         .filter(|s| s.item.class == Class::Skill && s.item.stage != Stage::Vocabulary)
         .collect();
-    let off_field = skills.len() >= 2 && skills.iter().all(|s| s.fit.value == E_NONE);
+    let all_open = !skills.is_empty() && skills.iter().all(|s| s.fit.value == E_NONE);
+    let off_field = all_open && skills.len() >= 2;
+    // The only skill must open and a title that names little of the profile: off the field
+    // too, a little milder (one requirement is thin evidence).
+    let off_field_single = all_open && skills.len() == 1 && title_fit < OFF_FIELD_TITLE_FIT;
     let title_atoms: Vec<String> = atoms::atoms(title, vocab)
         .into_iter()
         .filter(|a| !atoms::is_generic(a))
@@ -219,6 +231,7 @@ fn cap(items: &[Scored], title: &str, vocab: &Vocab, formal_cap: bool) -> Option
         formal_cap.then_some(FORMAL_CAP),
         several_open.then_some(SEVERAL_OPEN_CAP),
         off_field.then_some(OFF_FIELD_CAP),
+        off_field_single.then_some(OFF_FIELD_SINGLE_CAP),
         core_open.then_some(TITLE_OPEN_CAP),
     ]
     .into_iter()
@@ -513,7 +526,8 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     findings.extend(formal);
     // A text without any requirement (long enough to read, or a short teaser) is judged
     // from its title: low evidence, at most `NO_ITEMS_CAP`.
-    let cap = cap(&items, &title, vocab, formal_cap)
+    let title_fit = relevance::title_fit(&profile.query, &title, vocab);
+    let cap = cap(&items, &title, vocab, formal_cap, title_fit)
         .into_iter()
         .chain(((!short || title_only) && items.is_empty()).then_some(NO_ITEMS_CAP))
         .min();

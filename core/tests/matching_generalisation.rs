@@ -161,6 +161,27 @@ fn a_short_teaser_is_judged_from_its_title() {
     );
 }
 
+/// A single explicit skill must that is open, under a title that names little of the
+/// profile, caps the score as off the field (a sales role for a finance profile).
+#[test]
+fn a_single_open_skill_under_a_foreign_title_is_off_the_field() {
+    let a = run(
+        &finance(),
+        "Senior Sales Executive (m/w/d)",
+        "Ihr Profil\n- Erfolge im Neukundengeschäft\n- Verhandlungssicheres Deutsch\n\
+         - Gutes Englisch\n- Sicheres Auftreten\n",
+    );
+    assert!(a.score <= 30, "{}", a.score);
+    // The same must under a title of the profile's field: no such cap.
+    let b = run(
+        &finance(),
+        "Controller (m/w/d)",
+        "Ihr Profil\n- Erfolge im Neukundengeschäft\n- Verhandlungssicheres Deutsch\n\
+         - Gutes Englisch\n- Sicheres Auftreten\n",
+    );
+    assert!(b.score > a.score, "{} > {}", b.score, a.score);
+}
+
 /// Equal scores keep an order: the score before the caps.
 #[test]
 fn the_rank_orders_capped_scores() {

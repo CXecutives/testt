@@ -107,6 +107,47 @@ fn nice_cue(line: &str) -> bool {
     NICE_CUES.iter().any(|c| folded.contains(c))
 }
 
+/// A line that ends requirements from its start on (`Skills: ...`, `Hinweis`, `Datenschutz`).
+fn closing_start(line: &str) -> bool {
+    let folded = fold(line);
+    lex::CLOSING_STARTS.iter().any(|w| folded.starts_with(w))
+}
+
+/// An item about the company or the frame, no requirement: a legal form (`Muster GmbH`), a
+/// founding year (`seit 1998`), or only places, days and contract words.
+fn noise_item(item: &str) -> bool {
+    let folded = fold(item);
+    let tokens: Vec<&str> = atoms::raw_tokens(&folded).collect();
+    let legal = lex::LEGAL_FORMS.iter().any(|f| {
+        if f.contains(' ') {
+            folded.contains(f)
+        } else {
+            tokens.contains(f)
+        }
+    }) && tokens.len() <= 12;
+    let founded = tokens
+        .windows(2)
+        .any(|w| w[0] == "seit" && w[1].len() == 4 && w[1].chars().all(|c| c.is_ascii_digit()));
+    let place = |t: &str| {
+        lex::GERMAN_CITIES.contains(&t)
+            || lex::CITIES.iter().any(|(c, _)| *c == t)
+            || lex::COUNTRIES.iter().any(|(c, _)| *c == t)
+    };
+    let frame_only = !tokens.is_empty()
+        && tokens.iter().all(|t| {
+            place(t)
+                || atoms::is_filler(t)
+                || t.chars().all(|c| c.is_ascii_digit() || c == '%')
+                || lex::FRAME_WORDS.contains(t)
+                || lex::DAY_WORDS_ONSITE.contains(t)
+                || lex::TITLE_CONTRACT_WORDS.contains(t)
+        })
+        && tokens
+            .iter()
+            .any(|t| place(t) || lex::DAY_WORDS_ONSITE.contains(t));
+    legal || founded || frame_only
+}
+
 /// An item that says something is not needed (`Keine SAP-Kenntnisse erforderlich`).
 fn not_needed(item: &str) -> bool {
     let folded = fold(item);
@@ -148,6 +189,10 @@ fn section_phrases(text: &str) -> (Vec<Phrase<'_>>, Vec<usize>) {
         }
         if let Some(kind) = heading_of(stripped, bullet) {
             current = Some(kind);
+            continue;
+        }
+        if closing_start(stripped) {
+            current = Some(HeadingKind::Neutral);
             continue;
         }
         // `Interessiert? Dann freuen wir uns auf Ihre Bewerbung.` closes the ad.
@@ -223,6 +268,7 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
             let (stripped, bullet) = line_of(line);
             if stripped.is_empty()
                 || heading_of(stripped, bullet).is_some()
+                || closing_start(stripped)
                 || in_nice.contains(&offset(text, stripped))
             {
                 continue;
@@ -267,14 +313,26 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
             lex::NICE_CLOSING.iter().any(|c| folded.contains(c))
         });
         let mut nice = kind == ReqKind::Nice || closing;
+        // One soft part among parts without a known skill makes all of them soft
+        // (`verbindlich, pragmatisch und mit Freude am Detail`).
+        let soft_line = parts
+            .iter()
+            .any(|(r, _)| classify(&phrase[r.clone()], level, vocab) == Class::Soft)
+            && parts.iter().all(|(r, _)| {
+                let part = &phrase[r.clone()];
+                classify(part, level, vocab) == Class::Soft || !known_skill(part)
+            });
         for (span, alternatives) in parts {
             let whole = &phrase[span.clone()];
-            if atoms::atoms(whole, vocab).is_empty() || not_needed(whole) {
+            if atoms::atoms(whole, vocab).is_empty() || not_needed(whole) || noise_item(whole) {
                 continue;
             }
             nice |= nice_cue(whole);
             let kind = if nice { ReqKind::Nice } else { kind };
-            let class = classify(whole, level, vocab);
+            let class = match classify(whole, level, vocab) {
+                Class::Skill if soft_line => Class::Soft,
+                class => class,
+            };
             doc.items.push(Item {
                 span: Some(start + span.start..start + span.end),
                 text: whole.to_owned(),
@@ -469,12 +527,45 @@ fn joined(phrase: &str, seps: &[Range<usize>]) -> Vec<Range<usize>> {
         }
         // Only a bare noun after the list word keeps the list together.
         listing = listing && after.split_whitespace().count() == 1 && !known_skill(after);
-        if inside || tail || listing {
+        // `Steuerung großer IT-Projekte und externer Dienstleister`: the second object of the
+        // same head, declined like the first.
+        let before_words: Vec<&str> = phrase
+            .get(before_start..sep.start)
+            .unwrap_or("")
+            .split_whitespace()
+            .collect();
+        let genitive = coordinated_object(&before_words, after);
+        if inside || tail || listing || genitive {
             continue;
         }
         kept.push(sep.clone());
     }
     kept
+}
+
+/// Is `after` a second object of the head noun that starts `before` (`Steuerung großer
+/// IT-Projekte` and `externer Dienstleister`): both a lower-case adjective with the same
+/// ending right after the head?
+fn coordinated_object(before: &[&str], after: &str) -> bool {
+    let mut words = after.split_whitespace();
+    let (Some(first), Some(_)) = (words.next(), words.next()) else {
+        return false;
+    };
+    let head_is_noun = before
+        .first()
+        .and_then(|w| w.chars().next())
+        .is_some_and(char::is_uppercase);
+    let adjective = |w: &str| {
+        w.chars().next().is_some_and(char::is_lowercase)
+            && lex::DECLINED_ENDINGS.iter().any(|e| w.ends_with(e))
+            && w.chars().count() > 4
+    };
+    head_is_noun
+        && before.get(1).is_some_and(|w| adjective(w))
+        && adjective(first)
+        && lex::DECLINED_ENDINGS
+            .iter()
+            .any(|e| first.ends_with(e) && before[1].ends_with(e))
 }
 
 /// Does a text name a known skill: a code or number (`SAP`, `S/4HANA`, `ISO 9001`), a
@@ -792,7 +883,11 @@ fn classify(text: &str, phrase_level: Option<u8>, vocab: &Vocab) -> Class {
     let content = atoms::atoms(text, vocab);
     let soft = (0..tokens.len())
         .filter(|&i| soft_token(&folded, &tokens, i))
-        .count();
+        .count()
+        + lex::SOFT_PHRASES
+            .iter()
+            .filter(|p| folded.contains(*p))
+            .count();
     if soft > 0 && 2 * soft >= content.len() {
         return Class::Soft;
     }
@@ -1034,6 +1129,54 @@ mod tests {
                 "Investorenkommunikation"
             ]
         );
+    }
+
+    /// Tag lines, notices and company lines are no requirements; soft phrases and soft
+    /// lines; coordinated objects and partners stay one item.
+    #[test]
+    fn reading_noise_of_ads() {
+        let texts = |section: &str| -> Vec<(String, Class)> {
+            read(&format!("Ihr Profil\n{section}\n"), &Vocab::all())
+                .items
+                .into_iter()
+                .map(|i| (i.text, i.class))
+                .collect()
+        };
+        let found =
+            texts("- SAP FI\nSkills: SAP, Excel, Power BI\n- Datenschutz liegt uns am Herzen\n");
+        assert_eq!(found, [("SAP FI".to_owned(), Class::Skill)]);
+        let found =
+            texts("- Muster GmbH, München, Hamburg, Köln\n- seit 1998 am Markt\n- SAP CO\n");
+        assert_eq!(found, [("SAP CO".to_owned(), Class::Skill)]);
+        assert_eq!(
+            texts("- Freude an komplexen Verhandlungen\n")[0].1,
+            Class::Soft
+        );
+        // One soft part and parts without a known skill: the whole line is soft.
+        assert!(
+            texts("- Verbindlich, pragmatisch und mit Leidenschaft für gute Lösungen\n")
+                .iter()
+                .all(|(_, c)| *c == Class::Soft)
+        );
+        let parts =
+            |phrase: &str| -> Vec<String> { items(phrase).into_iter().map(|(t, _)| t).collect() };
+        assert_eq!(
+            parts("Steuerung großer IT-Projekte und externer Dienstleister"),
+            ["Steuerung großer IT-Projekte und externer Dienstleister"]
+        );
+        assert_eq!(
+            parts("Kommunikation gegenüber Vorstand, Aufsichtsrat und Investoren"),
+            ["Kommunikation gegenüber Vorstand, Aufsichtsrat und Investoren"]
+        );
+        assert_eq!(
+            parts("Controlling und Reporting"),
+            ["Controlling", "Reporting"]
+        );
+        let doc = read(
+            "Requirements\n- Tableau is a plus\n- SAP S/4HANA preferred\n",
+            &Vocab::all(),
+        );
+        assert!(doc.items.iter().all(|i| i.kind == ReqKind::Nice));
     }
 
     /// Must and can headings of tenders, portal footers, English nice cues.

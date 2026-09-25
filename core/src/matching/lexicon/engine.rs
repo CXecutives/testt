@@ -24,6 +24,8 @@ pub(crate) const FILLERS: &[&str] = &[
     "besten",
     "comparable",
     "deep",
+    "delivered",
+    "demonstrated",
     "detaillierte",
     "eigene",
     "einem",
@@ -47,6 +49,7 @@ pub(crate) const FILLERS: &[&str] = &[
     "jahre",
     "jahren",
     "kenntnissen",
+    "large",
     "least",
     "level",
     "mind",
@@ -58,13 +61,16 @@ pub(crate) const FILLERS: &[&str] = &[
     "nice",
     "niveau",
     "plus",
+    "preferred",
     "proven",
     "record",
     "several",
     "sicher",
+    "solid",
     "sound",
     "starke",
     "strong",
+    "successful",
     "tatigkeit",
     "track",
     "umfeld",
@@ -284,13 +290,16 @@ pub(crate) const LEVEL_WORDS: &[(&str, u8)] = &[
 pub(crate) const SOFT_SKILLS: &[&str] = &[
     "analytical",
     "analytisch",
+    "auftreten",
     "belastbar",
     "communication",
     "durchsetzung",
+    "durchsetzungsstark",
     "eigeninitiative",
     "empathie",
     "engagement",
     "flexibilit",
+    "freude",
     "gelassen",
     "gespur",
     "hands-on-mental",
@@ -300,9 +309,11 @@ pub(crate) const SOFT_SKILLS: &[&str] = &[
     "kundenorientier",
     "losungsorientier",
     "mentalitat",
+    "mentality",
     "motivation",
     "neugier",
     "organisationstalent",
+    "pragmatisch",
     "proaktiv",
     "reliable",
     "selbststandig",
@@ -313,6 +324,7 @@ pub(crate) const SOFT_SKILLS: &[&str] = &[
     "teamfahig",
     "teamplayer",
     "uberzeugungskraft",
+    "verbindlich",
     "verhandlungsgeschick",
     "verhandlungsstark",
     "wertschatz",
@@ -537,6 +549,13 @@ pub(crate) const ADJECTIVE_ENDINGS: &[&str] = &[
     "al", "ale", "alen", "aler", "ales", "ic", "ical", "isch", "ische", "ischen", "ischer",
     "isches", "iv", "ive", "iven", "iver", "ives", "lich", "liche", "lichen", "licher", "liches",
 ];
+/// Endings of a declined adjective (`großer`, `externen`, `neues`).
+pub(crate) const DECLINED_ENDINGS: &[&str] = &["er", "en", "es", "em"];
+/// Words for days on site in a frame line (`2 Tage vor Ort`).
+pub(crate) const DAY_WORDS_ONSITE: &[&str] = &[
+    "tag", "tage", "tagen", "day", "days", "woche", "week", "vor", "ort", "on-site", "onsite",
+    "hybrid", "remote", "prasenz", "buro", "office",
+];
 /// Shortest modifier of a compound (`Bericht-erstellung`); `h` of `Herstellung` is none.
 pub(crate) const MIN_COMPOUND_MODIFIER: usize = 3;
 
@@ -617,6 +636,9 @@ pub(crate) const COMMA_TAILS: &[&str] = &[
 /// (`Zusammenarbeit mit Gesellschaftern, Investoren und Dienstleistern`); a list after
 /// `Erfahrung mit` names skills and splits.
 pub(crate) const LIST_OBJECT_WORDS: &[&str] = &[
+    "gegenüber",
+    "rund um",
+    "towards",
     "zusammenarbeit mit",
     "umgang mit",
     "abstimmung mit",
@@ -929,6 +951,12 @@ pub(crate) const OTHER_PREFIXES: &[&str] = &[
     "job function",
     "industries",
     "bitte beachten",
+    "terms",
+    "rahmen",
+    "weitere infos",
+    "weitere informationen",
+    "kategorien",
+    "tags",
     // Portal footers and meta lines.
     "projekt-id",
     "projekt id",
@@ -965,6 +993,9 @@ pub(crate) const NICE_CUES: &[&str] = &[
     "hilfreich",
     "grosses plus",
     "an asset",
+    "klarer vorteil",
+    "preferred",
+    "is a plus",
 ];
 /// Nice cues that close a line (`X und Y von Vorteil`): the whole line is nice.
 pub(crate) const NICE_CLOSING: &[&str] = &[
@@ -982,6 +1013,9 @@ pub(crate) const NICE_CLOSING: &[&str] = &[
     "hilfreich",
     "grosses plus",
     "an asset",
+    "klarer vorteil",
+    "preferred",
+    "is a plus",
 ];
 /// A requirement item that says something is not needed.
 pub(crate) const NOT_NEEDED: &[&str] = &[
@@ -1763,6 +1797,49 @@ pub(crate) const JUNIOR_TITLES: &[&str] = &[
 ];
 
 /// Closing lines of an ad: they end a requirement section.
+/// Lines that end requirements from their start on (portal tags, notices, application and
+/// privacy text); a requirement may name these words later in the line.
+pub(crate) const CLOSING_STARTS: &[&str] = &[
+    "skills:",
+    "tags:",
+    "kategorien:",
+    "kategorie:",
+    "keywords:",
+    "schlagworte:",
+    "hinweis",
+    "please note",
+    "bitte senden sie",
+    "wir melden uns",
+    "datenschutz",
+];
+/// Phrases that make an item soft (`Freude an Zahlen`, `Leadership style`, `build teams`).
+pub(crate) const SOFT_PHRASES: &[&str] = &[
+    "freude an",
+    "spass an",
+    "leadership style",
+    "fuhrungsstil",
+    "build teams",
+    "hands-on mentality",
+    "hands-on mentalitat",
+];
+/// Legal forms of a company: a line naming one is about the company, no requirement.
+pub(crate) const LEGAL_FORMS: &[&str] = &[
+    "gmbh",
+    "ag",
+    "se",
+    "kg",
+    "kgaa",
+    "ohg",
+    "ltd",
+    "inc",
+    "llc",
+    "plc",
+    "gmbh & co. kg",
+    "b.v.",
+    "s.a.",
+    "sarl",
+    "s.r.l.",
+];
 pub(crate) const CLOSING_WORDS: &[&str] = &[
     "interessiert?",
     "freuen wir uns auf",
