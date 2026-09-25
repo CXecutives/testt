@@ -308,13 +308,13 @@ fn portal_filter() {
 fn encoded_sender_and_subject() {
     let raw = mail(
         "=?utf-8?B?RXJpa2EgTcO8bGxlcg==?= <erika@example.com>",
-        "=?utf-8?q?K=C3=B6ln=3A_neue_Jobs?=",
+        "=?utf-8?q?WG=3A_K=C3=B6ln=3A_neue_Jobs?=",
         Some(LINKEDIN_HTML),
         None,
     );
     let a = alert(&raw, ALL);
     assert_eq!(a.sender, "Erika Müller");
-    assert_eq!(a.subject, "Köln: neue Jobs");
+    assert_eq!(a.subject, "WG: Köln: neue Jobs");
 }
 
 // --------------------------------------------------------------- ForwardedTests

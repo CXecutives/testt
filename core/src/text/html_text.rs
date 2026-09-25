@@ -42,18 +42,8 @@ const PARAGRAPH: &[&str] = &[
 
 /// Line elements: their own line, no blank line. Table cells and definition lists
 /// count too - otherwise key facts like "Berlin" and "Vollzeit" would stick together
-/// into `BerlinVollzeit`.
-const LINE: &[&str] = &[
-    "br",
-    "dd",
-    "div",
-    "dt",
-    "figcaption",
-    "li",
-    "td",
-    "th",
-    "tr",
-];
+/// into `BerlinVollzeit`. (`br` is counted instead, see `html_to_text`.)
+const LINE: &[&str] = &["dd", "div", "dt", "figcaption", "li", "td", "th", "tr"];
 
 /// Turns HTML (a whole page or a snippet) into normalised text.
 pub fn html_to_text(html: &str) -> String {
@@ -74,6 +64,17 @@ pub fn html_to_text(html: &str) -> String {
                 }
             }
             _ if skip_depth > 0 => {}
+            // A `<br>` is a line break, and two in a row are a blank line: LinkedIn (and
+            // many hand-written ads) separate their paragraphs with `<br><br>`, not `<p>`.
+            // Counted on the opening edge only (the closing one falls through to nothing);
+            // never more than one blank line.
+            Node::Element(el) if el.name() == "br" && opening => {
+                out.truncate(out.trim_end_matches([' ', '\t']).len());
+                let present = out.chars().rev().take_while(|&c| c == '\n').count();
+                if !out.is_empty() && present < 2 {
+                    out.push('\n');
+                }
+            }
             Node::Element(el) if PARAGRAPH.contains(&el.name()) => break_lines(&mut out, 2),
             Node::Element(el) if LINE.contains(&el.name()) => break_lines(&mut out, 1),
             // Source indentation doesn't count at the start of a line: otherwise
@@ -148,6 +149,31 @@ mod tests {
         let text =
             html_to_text("<style>p {color:red}</style><p>Inhalt</p><script>alert(1)</script>");
         assert_eq!(text, "Inhalt");
+    }
+
+    /// LinkedIn's paragraphs: `<br><br>` is a blank line, a single `<br>` a line break, and
+    /// more never make more than one blank line. Formerly every paragraph collapsed into
+    /// one block with the headings glued to it.
+    #[test]
+    fn two_line_breaks_are_a_paragraph() {
+        assert_eq!(html_to_text("A<br><br>B"), "A\n\nB");
+        assert_eq!(
+            html_to_text("Aufgaben<br><br>Erste Zeile<br>Zweite Zeile<br><br>Profil<br><br>Dritte"),
+            "Aufgaben\n\nErste Zeile\nZweite Zeile\n\nProfil\n\nDritte"
+        );
+        assert_eq!(html_to_text("A<br><br><br><br>B"), "A\n\nB");
+        assert_eq!(
+            html_to_text(
+                "<strong>Ihre Aufgaben<br><br></strong><ul><li>Eins</li><li>Zwei<br><br></li></ul>Danach"
+            ),
+            "Ihre Aufgaben\n\nEins\nZwei\n\nDanach"
+        );
+        assert_eq!(
+            html_to_text("<p>Absatz<br></p><p>Zweiter</p>"),
+            "Absatz\n\nZweiter"
+        );
+        assert_eq!(html_to_text("<div>A<br></div><div>B</div>"), "A\nB");
+        assert_eq!(html_to_text("<br><br>Anfang"), "Anfang");
     }
 
     #[test]

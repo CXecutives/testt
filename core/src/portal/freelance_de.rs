@@ -108,15 +108,21 @@ impl PortalAdapter for FreelanceDe {
         .ok()
     }
 
-    fn redirect_outcome(&self, _path: &str) -> PageOutcome {
-        PageOutcome::Suspicious(Cause::RedirectNotFollowed)
+    /// A redirect the guest client did not follow (another host, a third hop): to a sign-in
+    /// or registration page it is a wall, to a check page a check - both stop the portal at
+    /// once. Anything else stays suspicious.
+    fn redirect_outcome(&self, path: &str) -> PageOutcome {
+        wall_path(path).map_or(
+            PageOutcome::Suspicious(Cause::RedirectNotFollowed),
+            PageOutcome::Blocked,
+        )
     }
 
     /// The public project page: the teaser, rarely the full text. Measured anonymously: an
     /// expired project leads to a project list or category - for a guest that is "gone".
     fn guest_page(&self, html: &str, path: &str, link: &JobLink) -> PageOutcome {
-        if path.starts_with("/login") {
-            return PageOutcome::Blocked(Cause::LoginWall);
+        if let Some(cause) = wall_path(path) {
+            return PageOutcome::Blocked(cause);
         }
         if is_listing(path) {
             return PageOutcome::Gone;
@@ -136,8 +142,13 @@ impl PortalAdapter for FreelanceDe {
         let full = page.panel_html.as_deref().map(html_to_text);
         let text = full.as_deref().map(cut_at_end_markers);
         let fields = page_fields(&page.title, &page.company, &page.location);
-        if is_teaser(full.as_deref(), text.as_deref()) || (page.has_expert_marker && full.is_none())
-        {
+        // A guest's description with the registration call is the teaser, however long:
+        // only a sign-in brings the rest. Only the EXPERT notice in place of the
+        // description, on a project page (its head names the title), is an empty teaser;
+        // a page without the description field and without that notice is suspicious.
+        let register_call = full.as_deref().is_some_and(|t| t.contains(REGISTER_CALL));
+        let expert_only = page.has_expert_marker && full.is_none() && !page.title.is_empty();
+        if register_call || expert_only {
             return PageOutcome::Teaser {
                 text: text.unwrap_or_default(),
                 fields: Some(fields).filter(|f| *f != PageFields::default()),
@@ -166,56 +177,117 @@ impl PortalAdapter for FreelanceDe {
 }
 
 /// Bump whenever the guest page or the probe is read differently (requeues failed jobs).
-const PARSER_VERSION: u32 = 1;
+/// 2: end markers only as headings, the description heading exactly, the EXPERT notice only
+/// in place of the description, a guest's register call is a teaser at any length, the
+/// rate and more head labels, the status hint when the status is unknown.
+const PARSER_VERSION: u32 = 2;
 
 /// The facts of the project head (as the page words them).
 fn facts_of(page: &SessionPage) -> Facts {
     let mut facts = Facts {
         start: Facts::value(&page.start),
         duration: Facts::value(&page.duration),
+        rate: Facts::value(&page.rate),
         ..Facts::default()
     };
     facts.set_remote(&page.remote);
     facts
 }
 
+/// A sign-in, registration or check page by its address (lower case). German path
+/// words, do not translate.
+fn wall_path(path: &str) -> Option<Cause> {
+    let stems: Vec<String> = path
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.split('.').next().unwrap_or_default().replace('_', "-"))
+        .collect();
+    let any = |words: &[&str]| stems.iter().any(|s| words.contains(&s.as_str()));
+    if any(&["captcha", "challenge", "cdn-cgi", "checkpoint"]) {
+        Some(Cause::Captcha)
+    } else if any(&[
+        "login",
+        "signin",
+        "sign-in",
+        "anmelden",
+        "anmeldung",
+        "register",
+        "registrieren",
+        "registrierung",
+    ]) {
+        Some(Cause::LoginWall)
+    } else {
+        None
+    }
+}
+
 /// Probe script: synchronous, in `try/catch`, always returns JSON. No timers, no logic in
 /// the page's JS (a hidden web view throttles timers).
 ///
-/// The title sits measured in the `h1` of the project head. Where company and location
-/// stand is only **assumed**: the script looks for a labelled row in the project head - to
-/// be measured on a real signed-in page. German page words, do not translate.
+/// The title sits measured in the `h1` of the project head. Where company, location,
+/// start, duration, remote share and rate stand is only **assumed**: the script looks for a
+/// labelled row in the project head - a text label, or an icon whose tooltip names it - to
+/// be measured on a real signed-in page. The description is the panel under the heading
+/// that is exactly "Projektbeschreibung" (a project title may contain the word), outside
+/// the head; it ends at the first heading of an end section. `status` 0 means the web view
+/// knows no status (WebKit): then `statusHint` reads the page's title and first heading.
+/// German page words, do not translate.
 pub const PROBE_JS: &str = r#"(() => { try {
   const text = (el) => (el && el.textContent || '').replace(/\s+/g, ' ').trim();
-  const heading = [...document.querySelectorAll('h1, h2, h3')].find((h) => /Projektbeschreibung/i.test(text(h)));
+  const header = document.querySelector('.panel-body.project-header');
+  const inHeader = (el) => !!(header && header.contains(el));
+  const heading = [...document.querySelectorAll('h1, h2, h3')]
+    .find((h) => !inHeader(h) && /^Projektbeschreibung\s*:?$/i.test(text(h)));
   const box = heading && (heading.closest('.panel') || heading.parentElement);
   const body = box && (box.querySelector('.panel-body') || box);
-  const header = document.querySelector('.panel-body.project-header');
+  let panelHtml = null;
+  if (body) {
+    const copy = body.cloneNode(true);
+    const end = [...copy.querySelectorAll('h2, h3, h4, .panel-heading')]
+      .find((h) => /^(?:Kontaktdaten|Ähnliche Projekte|Kategorien und Skills|Sie suchen Freelancer\?)/i.test(text(h)));
+    if (end) {
+      let node = end;
+      while (node) { const next = node.nextSibling; node.remove(); node = next; }
+    }
+    panelHtml = copy.innerHTML;
+  }
   const labelled = (re) => {
     for (const el of (header ? header.querySelectorAll('*') : [])) {
       if (el.children.length) continue;
-      const label = text(el);
+      const own = text(el);
+      const tip = el.getAttribute('title') || el.getAttribute('data-original-title') || '';
+      const label = own || tip.trim();
       if (!re.test(label)) continue;
-      const value = text(el.nextElementSibling) || text(el.parentElement).slice(label.length).trim();
+      const value = text(el.nextElementSibling) || text(el.parentElement).slice(own.length).trim();
       if (value) return value;
     }
     return '';
   };
+  const expert = /für EXPERT-Mitglieder sichtbar/i;
+  const hasExpertMarker = (body && expert.test(text(body)))
+    || [...document.querySelectorAll('body *')].some((el) => !el.children.length && !inHeader(el) && expert.test(text(el)));
+  const headline = (document.title || '') + ' ' + text(document.querySelector('h1'));
+  const statusHint = /too many requests|zu viele anfragen|\b429\b/i.test(headline) ? 'throttled'
+    : /access denied|zugriff verweigert|forbidden|attention required|just a moment|\b403\b/i.test(headline) ? 'blocked'
+    : /seite nicht gefunden|page not found|nicht gefunden|\b404\b/i.test(headline) ? 'gone' : '';
   return JSON.stringify({
     ok: true,
     status: performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0,
+    statusHint,
     url: location.href,
     hasLogout: !!document.querySelector('a[href*="logout.php"]'),
-    hasExpertMarker: /für EXPERT-Mitglieder sichtbar/i.test(document.body ? document.body.innerText : ''),
+    hasExpertMarker,
     hasLoginForm: !!document.querySelector('#username') && !!document.querySelector('#password'),
-    hasCaptcha: !!document.querySelector('.g-recaptcha, .h-captcha, [data-sitekey], iframe[src*="captcha"], iframe[src*="challenges.cloudflare"]'),
+    hasCaptcha: !!document.querySelector('.g-recaptcha, .h-captcha, [data-sitekey], iframe[src*="captcha"], iframe[src*="challenges.cloudflare"], #challenge-form, #captcha-internal, form[action*="captcha"], #cf-challenge-running'),
     title: text(header && header.querySelector('h1')),
     company: labelled(/^(?:Firma|Unternehmen|Projektanbieter|Auftraggeber|Kunde)\s*:?$/i),
-    location: labelled(/^(?:Ort|Einsatzort|Standort|PLZ\s*\/?\s*Ort)\s*:?$/i),
-    start: labelled(/^(?:Start|Projektstart|Beginn)\s*:?$/i),
-    duration: labelled(/^(?:Dauer|Laufzeit|Projektdauer)\s*:?$/i),
+    location: labelled(/^(?:Ort|Einsatzort|Projektort|Standort|PLZ\s*\/?\s*Ort)\s*:?$/i),
+    start: labelled(/^(?:Start|Projektstart|Beginn|Geplanter Start)\s*:?$/i),
+    duration: labelled(/^(?:Dauer|Laufzeit|Projektdauer)\s*:?$/i)
+      || (labelled(/^(?:Voraussichtliches Ende|Projektende|Ende)\s*:?$/i).replace(/^(?=.)/, 'bis ')),
     remote: labelled(/^(?:Remote|Remoteanteil|Remote-Anteil|Homeoffice)\s*:?$/i),
-    panelHtml: body ? body.innerHTML : null,
+    rate: labelled(/^(?:Stundensatz|Tagessatz|Honorar|Vergütung)\s*:?$/i),
+    panelHtml,
   });
 } catch (e) { return JSON.stringify({ ok: false, err: String(e), url: String(location.href) }); } })()"#;
 
@@ -284,9 +356,22 @@ pub fn judge_page(page: &SessionPage, project_id: &str) -> PageOutcome {
     if let Some(outcome) = status_outcome(page.status) {
         return outcome;
     }
+    // The web view knows no status (WebKit): the page's title and first heading speak for
+    // a rate limit, a block or a missing page.
+    if page.status == 0
+        && let Some(outcome) = hint_outcome(&page.status_hint)
+    {
+        return outcome;
+    }
     let path = url.path().to_ascii_lowercase();
     if path.starts_with("/login") || (page.has_login_form && !page.has_logout) {
         return PageOutcome::LoginRequired(Cause::LoginPage);
+    }
+    // An unknown status, no sign-in form and no description: no sign-in is proven missing
+    // (an error page has no sign-out link either) - suspicious, so the breaker applies,
+    // never a sign-in window on a portal that may be limiting or blocking.
+    if page.status == 0 && page.panel_html.is_none() {
+        return PageOutcome::Suspicious(Cause::NoDescription);
     }
     if !page.has_logout {
         return PageOutcome::LoginRequired(Cause::NoLogoutLink);
@@ -327,6 +412,58 @@ fn is_project_page(url: &Url, project_id: &str) -> bool {
         .is_some_and(|link| link.key.id == project_id)
 }
 
+/// Is the heading the description's own: exactly "Projektbeschreibung" (a colon is fine)?
+/// A project title that contains the word (a technical writer for project descriptions)
+/// is none. German page word, do not translate.
+fn is_description_heading(text: &str) -> bool {
+    text.trim()
+        .trim_end_matches(':')
+        .trim()
+        .eq_ignore_ascii_case("projektbeschreibung")
+}
+
+/// The EXPERT notice that replaces what a non-member may not see. German page words, do
+/// not translate.
+fn is_expert_notice(text: &str) -> bool {
+    text.to_lowercase()
+        .contains("für expert-mitglieder sichtbar")
+}
+
+/// A value of the project head: a leaf with one of `labels` - its text, or the tooltip of an
+/// icon - and the value in the next element or after the label.
+fn labelled(header: ElementRef<'_>, labels: &[&str]) -> String {
+    static ANY: Css = LazyLock::new(|| selector("*"));
+    let text = |el: ElementRef<'_>| one_line(&el.text().collect::<String>());
+    for el in header.select(&ANY) {
+        if el.children().any(|c| c.value().is_element()) {
+            continue;
+        }
+        let own = text(el);
+        let tip = el
+            .value()
+            .attr("title")
+            .or_else(|| el.value().attr("data-original-title"))
+            .map(one_line)
+            .unwrap_or_default();
+        let label = if own.is_empty() { &tip } else { &own };
+        let bare = label.trim_end_matches(':').trim().to_lowercase();
+        if !labels.contains(&bare.as_str()) {
+            continue;
+        }
+        let next = el.next_siblings().find_map(ElementRef::wrap).map(text);
+        let value = next.filter(|v| !v.is_empty()).unwrap_or_else(|| {
+            el.parent()
+                .and_then(ElementRef::wrap)
+                .and_then(|p| text(p).get(own.len()..).map(|v| v.trim().to_string()))
+                .unwrap_or_default()
+        });
+        if !value.is_empty() {
+            return value;
+        }
+    }
+    String::new()
+}
+
 /// The findings of the probe script, read from the HTML of a guest page (same rules).
 fn guest_findings(html: &str) -> SessionPage {
     static HEADINGS: Css = LazyLock::new(|| selector("h1, h2, h3"));
@@ -334,16 +471,14 @@ fn guest_findings(html: &str) -> SessionPage {
     static HEADER: Css = LazyLock::new(|| selector(".panel-body.project-header"));
     static TITLE: Css = LazyLock::new(|| selector("h1"));
     static ANY: Css = LazyLock::new(|| selector("*"));
-    static CAPTCHA: Css = LazyLock::new(|| {
-        selector(
-            r#".g-recaptcha, .h-captcha, [data-sitekey], iframe[src*="captcha"], iframe[src*="challenges.cloudflare"]"#,
-        )
-    });
     let doc = Html::parse_document(html);
     let text = |el: ElementRef<'_>| one_line(&el.text().collect::<String>());
+    let header = doc.select(&HEADER).next();
+    let in_header =
+        |el: ElementRef<'_>| header.is_some_and(|h| el.ancestors().any(|a| a.id() == h.id()));
     let heading = doc
         .select(&HEADINGS)
-        .find(|h| text(*h).to_lowercase().contains("projektbeschreibung"));
+        .find(|h| !in_header(*h) && is_description_heading(&text(*h)));
     let panel = heading.map(|h| {
         let parent = h.parent().and_then(ElementRef::wrap).unwrap_or(h);
         let panel = h
@@ -353,46 +488,36 @@ fn guest_findings(html: &str) -> SessionPage {
             .unwrap_or(parent);
         panel.select(&PANEL_BODY).next().unwrap_or(panel)
     });
-    let header = doc.select(&HEADER).next();
-    // A leaf with the label, the value in the next element or after the label.
-    let labelled = |labels: &[&str]| -> String {
-        let Some(header) = header else {
-            return String::new();
-        };
-        for el in header.select(&ANY) {
-            if el.children().any(|c| c.value().is_element()) {
-                continue;
+    let labelled = |labels: &[&str]| header.map(|h| labelled(h, labels)).unwrap_or_default();
+    // The notice counts only where it stands for the description: in the description field,
+    // or anywhere outside the labelled rows of the project head (there it is the placeholder
+    // of company and location every non-member sees).
+    let has_expert_marker = panel.is_some_and(|p| is_expert_notice(&text(p)))
+        || doc.select(&ANY).any(|el| {
+            !el.children().any(|c| c.value().is_element())
+                && !in_header(el)
+                && is_expert_notice(&text(el))
+        });
+    // German page labels, do not translate.
+    let end = labelled(&["voraussichtliches ende", "projektende", "ende"]);
+    let duration = Some(labelled(&["dauer", "laufzeit", "projektdauer"]))
+        .filter(|d| !d.is_empty())
+        .unwrap_or_else(|| {
+            if end.is_empty() {
+                String::new()
+            } else {
+                format!("bis {end}")
             }
-            let label = text(el);
-            let bare = label.trim_end_matches(':').trim().to_lowercase();
-            if !labels.contains(&bare.as_str()) {
-                continue;
-            }
-            let next = el.next_siblings().find_map(ElementRef::wrap).map(text);
-            let value = next.filter(|v| !v.is_empty()).unwrap_or_else(|| {
-                el.parent()
-                    .and_then(ElementRef::wrap)
-                    .and_then(|p| text(p).get(label.len()..).map(|v| v.trim().to_string()))
-                    .unwrap_or_default()
-            });
-            if !value.is_empty() {
-                return value;
-            }
-        }
-        String::new()
-    };
+        });
     SessionPage {
         ok: true,
         status: 200,
-        has_expert_marker: text(doc.root_element())
-            .to_lowercase()
-            .contains("für expert-mitglieder sichtbar"),
-        has_captcha: doc.select(&CAPTCHA).next().is_some(),
+        has_expert_marker,
+        has_captcha: super::has_challenge(&doc, html),
         title: header
             .and_then(|h| h.select(&TITLE).next())
             .map(text)
             .unwrap_or_default(),
-        // German page labels, do not translate.
         company: labelled(&[
             "firma",
             "unternehmen",
@@ -400,13 +525,34 @@ fn guest_findings(html: &str) -> SessionPage {
             "auftraggeber",
             "kunde",
         ]),
-        location: labelled(&["ort", "einsatzort", "standort", "plz / ort", "plz/ort"]),
-        start: labelled(&["start", "projektstart", "beginn"]),
-        duration: labelled(&["dauer", "laufzeit", "projektdauer"]),
+        location: labelled(&[
+            "ort",
+            "einsatzort",
+            "projektort",
+            "standort",
+            "plz / ort",
+            "plz/ort",
+        ]),
+        start: labelled(&["start", "projektstart", "beginn", "geplanter start"]),
+        duration,
         remote: labelled(&["remote", "remoteanteil", "remote-anteil", "homeoffice"]),
+        rate: labelled(&["stundensatz", "tagessatz", "honorar", "vergütung"]),
         panel_html: panel.map(|p| p.inner_html()),
         ..SessionPage::default()
     }
+}
+
+/// The probe's reading of a page without a known status (`statusHint`).
+fn hint_outcome(hint: &str) -> Option<PageOutcome> {
+    Some(match hint {
+        "throttled" => PageOutcome::Throttled {
+            cause: Cause::Http(429),
+            retry_after: None,
+        },
+        "blocked" => PageOutcome::Blocked(Cause::Http(403)),
+        "gone" => PageOutcome::Gone,
+        _ => return None,
+    })
 }
 
 /// Status codes that decide without looking at the content.
@@ -453,13 +599,27 @@ fn is_listing(path: &str) -> bool {
         || (path.starts_with("/projekte/") && !path.contains("/projekt-"))
 }
 
+/// Longest line an end marker heads ("Ähnliche Projekte (12)" still is one; a sentence
+/// that mentions "Kontaktdaten" is none).
+const MAX_MARKER_LINE: usize = 40;
+
+/// The description up to the first end section: a line that is an end marker, or starts
+/// with one and is short enough for a heading - or a line that starts with the
+/// registration call. A marker word inside a sentence (a task about contact data in the
+/// CRM) never cuts.
 fn cut_at_end_markers(text: &str) -> String {
-    let end = END_MARKERS
-        .iter()
-        .filter_map(|m| text.find(m))
-        .min()
-        .unwrap_or(text.len());
-    text[..end].trim_end().to_string()
+    let mut at = 0;
+    for line in text.split_inclusive('\n') {
+        let bare = line.trim();
+        let heading = END_MARKERS.iter().any(|m| {
+            bare == *m || (bare.starts_with(m) && bare.chars().count() <= MAX_MARKER_LINE)
+        });
+        if heading || bare.starts_with(REGISTER_CALL) {
+            return text[..at].trim_end().to_string();
+        }
+        at += line.len();
+    }
+    text.trim_end().to_string()
 }
 
 #[cfg(test)]
@@ -522,15 +682,188 @@ pub(crate) mod tests {
             guest(&teaser, "/project/index.php"),
             PageOutcome::Teaser { .. }
         ));
-        // Only the EXPERT notice, no text field: an empty teaser - still the right page.
-        let expert = "<html><body><p>Details für EXPERT-Mitglieder sichtbar</p></body></html>";
+        // Only the EXPERT notice in place of the description field, on a project page: an
+        // empty teaser - still the right page.
+        let expert = guest_html("").replace(
+            r#"<div class="panel"><div class="panel-heading"><h2>Projektbeschreibung</h2></div><div class="panel-body"></div></div>"#,
+            r#"<div class="panel"><div class="panel-body"><p>Details für EXPERT-Mitglieder sichtbar</p></div></div>"#,
+        );
+        assert!(matches!(
+            guest(&expert, "/project/index.php"),
+            PageOutcome::Teaser { text, .. } if text.is_empty()
+        ));
+        // A notice page with the notice and nothing else is no project page.
+        let notice = "<html><body><p>Details für EXPERT-Mitglieder sichtbar</p></body></html>";
         assert_eq!(
-            guest(expert, "/project/index.php"),
-            PageOutcome::Teaser {
-                text: String::new(),
-                fields: None,
-                facts: Facts::default(),
+            guest(notice, "/project/index.php"),
+            PageOutcome::Suspicious(Cause::NoDescription)
+        );
+    }
+
+    /// The EXPERT placeholder of company and location in the project head is on every
+    /// guest page: it never turns a page whose description field is missing (a changed
+    /// layout) into an empty teaser that resets the breaker.
+    #[test]
+    fn the_head_placeholder_hides_no_layout_change() {
+        let renamed = guest_html(TEASER)
+            .replace("<h2>Projektbeschreibung</h2>", "<h2>Beschreibung</h2>")
+            .replace(
+                "<li><span>Ort:</span> <span>Hamburg</span></li>",
+                "<li><span>Firma:</span> <span>für EXPERT-Mitglieder sichtbar</span></li>",
+            );
+        assert_eq!(
+            guest(&renamed, "/projekte/projekt-1255067-x"),
+            PageOutcome::Suspicious(Cause::NoDescription)
+        );
+        let page = guest_findings(&renamed);
+        assert!(!page.has_expert_marker);
+    }
+
+    /// A project title that contains "Projektbeschreibung" is not the description's heading:
+    /// the head was stored as the full text.
+    #[test]
+    fn a_title_with_the_heading_word_is_no_description() {
+        let long = format!("<p>{}</p>", "Aufgaben und Anforderungen. ".repeat(6));
+        let html = guest_html(&long).replace(
+            "<h1>Interim Controller (m/w/d)</h1>",
+            "<h1>Technischer Redakteur für Projektbeschreibungen (m/w/d)</h1>",
+        );
+        match guest(&html, "/projekte/projekt-1255067-x") {
+            PageOutcome::Text { text, .. } => {
+                assert!(text.starts_with("Aufgaben und Anforderungen."), "{text}");
+                assert!(!text.contains("Hamburg"), "{text}");
             }
+            other => panic!("{other:?}"),
+        }
+        // Outside the head a colon after the heading is fine.
+        let colon = guest_html(&long).replace(
+            "<h2>Projektbeschreibung</h2>",
+            "<h2>Projektbeschreibung:</h2>",
+        );
+        assert!(matches!(
+            guest(&colon, "/projekte/projekt-1255067-x"),
+            PageOutcome::Text { .. }
+        ));
+    }
+
+    /// End markers cut only where they head a section: a sentence that mentions
+    /// "Kontaktdaten" or a requirement about "Ähnliche Projekte" stays in the text.
+    #[test]
+    fn end_markers_inside_sentences_do_not_cut() {
+        let prose = format!(
+            "<p>Bereinigung der Adressen und Kontaktdaten im CRM. {}</p>",
+            "Weitere Aufgaben im Projekt. ".repeat(14)
+        );
+        let bullet = "<ul><li>Mehrjährige Erfahrung als Interim Manager</li>\
+                      <li>Ähnliche Projekte im Mittelstand erfolgreich umgesetzt</li>\
+                      <li>Sicherer Umgang mit SAP</li></ul>"
+            .to_string();
+        for panel in [prose, bullet] {
+            match judge_page(&page(URL, true, Some(&panel)), ID) {
+                PageOutcome::Text { text, .. } => {
+                    assert!(
+                        text.contains("Kontaktdaten im CRM") || text.contains("Sicherer Umgang"),
+                        "{text}"
+                    );
+                }
+                other => panic!("{other:?}"),
+            }
+        }
+        // As a heading they still end the description.
+        assert_eq!(
+            cut_at_end_markers("Aufgaben\n\nÄhnliche Projekte (12)\n\nAnderes"),
+            "Aufgaben"
+        );
+        assert_eq!(
+            cut_at_end_markers("Aufgaben\nKostenlos registrieren und alle Details sehen"),
+            "Aufgaben"
+        );
+    }
+
+    /// A guest's description with the registration call is a teaser at any length: only a
+    /// sign-in brings the rest, and "ok" would never be fetched again.
+    #[test]
+    fn a_long_guest_teaser_is_a_teaser() {
+        let panel = format!(
+            "<p>{}</p><p>Kostenlos registrieren und alle Details sehen</p>",
+            "Derzeit suchen wir für unseren Kunden einen Controller. ".repeat(11)
+        );
+        assert!(html_to_text(&panel).chars().count() > 600);
+        match guest(&guest_html(&panel), "/projekte/projekt-1255067-x") {
+            PageOutcome::Teaser { text, .. } => assert!(!text.contains("registrieren")),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    /// The rate and more labels of the project head; a label may be an icon's tooltip.
+    #[test]
+    fn rate_and_more_head_labels() {
+        let html = guest_html(TEASER).replace(
+            "<ul><li><span>Ort:</span> <span>Hamburg</span></li><li><span>Start:</span> <span>01.11.2026</span></li>\n              <li><span>Dauer:</span> <span>6 Monate</span></li><li><span>Remote:</span> <span>100 %</span></li></ul>",
+            r#"<ul><li><i class="fa fa-map-marker" title="Projektort"></i> <span>Köln</span></li>
+               <li><span>Geplanter Start:</span> <span>01.12.2026</span></li>
+               <li><span>Voraussichtliches Ende:</span> <span>31.05.2027</span></li>
+               <li><span>Stundensatz:</span> <span>95 €/h</span></li></ul>"#,
+        );
+        let page = guest_findings(&html);
+        assert_eq!(page.location, "Köln");
+        assert_eq!(page.start, "01.12.2026");
+        assert_eq!(page.duration, "bis 31.05.2027");
+        let facts = FreelanceDe.parse_facts(&html);
+        assert_eq!(facts.rate.as_deref(), Some("95 €/h"));
+        assert_eq!(facts.start.as_deref(), Some("01.12.2026"));
+    }
+
+    /// Without a known status (`WebKit` has no `responseStatus`) the probe's hint from the
+    /// title decides; without a hint, a page without a description and without a sign-in
+    /// form is suspicious - never a sign-in window on a portal that may be limiting.
+    #[test]
+    fn an_unknown_status_reads_the_hint() {
+        let unknown = |hint: &str, logout: bool| SessionPage {
+            status: 0,
+            status_hint: hint.into(),
+            ..page(URL, logout, None)
+        };
+        assert!(matches!(
+            judge_page(&unknown("throttled", false), ID),
+            PageOutcome::Throttled { .. }
+        ));
+        assert!(matches!(
+            judge_page(&unknown("blocked", true), ID),
+            PageOutcome::Blocked(_)
+        ));
+        assert_eq!(judge_page(&unknown("gone", true), ID), PageOutcome::Gone);
+        assert_eq!(
+            judge_page(&unknown("", false), ID),
+            PageOutcome::Suspicious(Cause::NoDescription)
+        );
+        // A sign-in form still asks for the sign-in.
+        let mut form = unknown("", false);
+        form.has_login_form = true;
+        assert!(is_login(&judge_page(&form, ID)));
+    }
+
+    #[test]
+    fn a_redirect_to_a_sign_in_is_a_wall() {
+        for path in [
+            "/login.php",
+            "/anmelden",
+            "/registrierung/",
+            "/users/sign_in",
+        ] {
+            assert_eq!(
+                FreelanceDe.redirect_outcome(path),
+                PageOutcome::Blocked(Cause::LoginWall),
+                "{path}"
+            );
+        }
+        assert_eq!(
+            FreelanceDe.redirect_outcome("/cdn-cgi/challenge-platform/x"),
+            PageOutcome::Blocked(Cause::Captcha)
+        );
+        assert_eq!(
+            FreelanceDe.redirect_outcome("/projekte/projekt-1255067-x"),
+            PageOutcome::Suspicious(Cause::RedirectNotFollowed)
         );
     }
 

@@ -18,9 +18,9 @@ use crate::store::JobRow;
 const TOP: usize = 2;
 
 /// Version of what a stored job hands the engine besides its text (2: page facts and the
-/// teaser flag; 3: the company, for the industry wish). Part of the revision: a change
-/// scores every stored job again.
-const INPUTS: u32 = 3;
+/// teaser flag; 3: the company, for the industry wish; 4: career level, industries and a
+/// remote field in words). Part of the revision: a change scores every stored job again.
+const INPUTS: u32 = 4;
 
 /// The local engine with one profile.
 pub struct LocalMatcher {
@@ -112,12 +112,65 @@ pub(crate) fn engine_facts(facts: &Facts) -> Option<Value> {
     );
     put(
         fact_key::REMOTE_PERCENT,
-        facts.remote_percent.map(Value::from),
+        facts
+            .remote_percent
+            .or_else(|| facts.remote.as_deref().and_then(remote_share))
+            .map(Value::from),
     );
     put(fact_key::RATE, facts.rate.clone().map(Value::from));
     put(fact_key::START, facts.start.clone().map(Value::from));
     put(fact_key::DURATION, facts.duration.clone().map(Value::from));
+    put(fact_key::LEVEL, facts.level.clone().map(Value::from));
+    put(
+        fact_key::INDUSTRIES,
+        facts.industries.clone().map(Value::from),
+    );
     (!map.is_empty()).then_some(Value::Object(map))
+}
+
+/// The remote share a page's remote field states in words, when it gives no percentage:
+/// on site only is 0, fully remote 100; anything in between (partly, by arrangement) stays
+/// unknown. German and English page words, do not translate.
+fn remote_share(text: &str) -> Option<u8> {
+    let folded = text.to_lowercase();
+    let has = |words: &[&str]| words.iter().any(|w| folded.contains(w));
+    let partly = has(&[
+        "teil",
+        "hybrid",
+        "absprache",
+        "möglich",
+        "moglich",
+        "optional",
+        "partly",
+        "partial",
+    ]);
+    if partly {
+        return None;
+    }
+    if has(&[
+        "vor ort",
+        "on-site",
+        "onsite",
+        "on site",
+        "präsenz",
+        "kein remote",
+        "no remote",
+    ]) {
+        return Some(0);
+    }
+    if has(&[
+        "100% remote",
+        "100 % remote",
+        "voll remote",
+        "komplett remote",
+        "vollständig remote",
+        "nur remote",
+        "fully remote",
+        "full remote",
+    ]) {
+        return Some(100);
+    }
+    None
 }
 
 /// What the list keeps of an assessment: status, score, the one note, must counts and up to
@@ -422,6 +475,8 @@ Rahmenbedingungen:
         let all = Facts {
             employment_type: Some("Freiberuflich".into()),
             level: Some("Direktor".into()),
+            function: Some("Finanzen".into()),
+            industries: Some("Maschinenbau".into()),
             remote_percent: Some(60),
             remote: Some("teilweise".into()),
             start: Some("ab sofort".into()),
@@ -446,5 +501,24 @@ Rahmenbedingungen:
         assert_eq!(keys, expected);
         assert_eq!(fed[fact_key::REMOTE_PERCENT], 60);
         assert_eq!(engine_facts(&Facts::default()), None);
+    }
+
+    /// A remote field in words (freelance.de's head) reaches the engine as a share when it
+    /// is clear: on site only 0, fully remote 100, anything in between unknown.
+    #[test]
+    fn a_remote_field_in_words() {
+        let share = |text: &str| {
+            let facts = Facts {
+                remote: Some(text.into()),
+                ..Facts::default()
+            };
+            engine_facts(&facts).and_then(|f| f[fact_key::REMOTE_PERCENT].as_u64())
+        };
+        assert_eq!(share("vor Ort"), Some(0));
+        assert_eq!(share("Onsite"), Some(0));
+        assert_eq!(share("Komplett remote"), Some(100));
+        assert_eq!(share("teilweise remote"), None);
+        assert_eq!(share("Remote nach Absprache möglich"), None);
+        assert_eq!(share("Hybrid"), None);
     }
 }

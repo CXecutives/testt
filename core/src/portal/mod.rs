@@ -163,6 +163,12 @@ pub struct Facts {
     /// Career level ("Direktor", "Mid-Senior level").
     #[serde(skip_serializing_if = "Option::is_none")]
     pub level: Option<String>,
+    /// Job function ("Finanzen und Rechnungswesen").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function: Option<String>,
+    /// Industries as the page lists them ("Maschinenbau", "IT-Dienstleistungen").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub industries: Option<String>,
     /// Share of remote work in percent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_percent: Option<u8>,
@@ -457,6 +463,26 @@ pub(crate) fn selector(css: &str) -> Selector {
     Selector::parse(css).expect("valid selector")
 }
 
+/// The widgets and forms of a security check: reCAPTCHA, hCaptcha, a site key on an
+/// element, a captcha or Cloudflare challenge frame or form. Only elements - a site key
+/// inside a page's JSON data (freelancermap's `reCaptchaSiteKey`) is no check.
+static CAPTCHA: LazyLock<Selector> = LazyLock::new(|| {
+    selector(
+        r#".g-recaptcha, .h-captcha, [data-sitekey], iframe[src*="captcha"], iframe[src*="challenges.cloudflare"], #challenge-form, #captcha-internal, form[action*="captcha"], form[action*="/checkpoint/challenge"], #cf-challenge-running"#,
+    )
+});
+
+/// Does the page show a security check (captcha, Cloudflare challenge) instead of content?
+/// The app never solves one: such a page stops the portal at once. Cloudflare's challenge
+/// page carries its options (`_cf_chl_opt`) and its orchestration script
+/// (`challenge-platform/h/`); the detection script it puts on normal pages
+/// (`challenge-platform/scripts/`) is no challenge.
+pub(crate) fn has_challenge(doc: &scraper::Html, html: &str) -> bool {
+    doc.select(&CAPTCHA).next().is_some()
+        || html.contains("_cf_chl_opt")
+        || html.contains("/cdn-cgi/challenge-platform/h/")
+}
+
 /// A lazily built selector.
 pub(crate) type Css = LazyLock<Selector>;
 
@@ -506,6 +532,20 @@ mod tests {
             ),
             li("4456653430")
         );
+        // A job selected in a list (recommendation and "similar jobs" mails): the same
+        // job, the same canonical link.
+        for raw in [
+            "https://www.linkedin.com/comm/jobs/collections/recommended/?currentJobId=4123456789",
+            "https://www.linkedin.com/jobs/search/?currentJobId=4123456789",
+            "https://www.linkedin.com/comm/jobs/search/?currentJobId=4123456789&geoId=1",
+            "https://www.linkedin.com/comm/jobs/search/?geoId=1&CURRENTJOBID=4123456789",
+        ] {
+            assert_eq!(key(raw), li("4123456789"), "{raw}");
+            assert_eq!(
+                job_link(raw).unwrap().url.as_str(),
+                "https://www.linkedin.com/jobs/view/4123456789/"
+            );
+        }
     }
 
     #[test]

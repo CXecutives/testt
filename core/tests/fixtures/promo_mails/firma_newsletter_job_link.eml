@@ -1,0 +1,13 @@
+From: Firma News <news@firma.example>
+To: ich@example.org
+Subject: Newsletter KW 38 - wir stellen ein, Jobs bei uns
+Date: Thu, 24 Sep 2026 07:30:00 +0200
+Message-ID: <promo-newsletter_job_link@example.org>
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><body><h1>Neues aus der Firma</h1>
+<p>Wir wachsen weiter und suchen Verstärkung.</p>
+<p><a href="https://www.linkedin.com/jobs/view/4555555555/">Teamleiter Buchhaltung (m/w/d)</a></p>
+<p>Folgen Sie uns auf LinkedIn.</p></body></html>

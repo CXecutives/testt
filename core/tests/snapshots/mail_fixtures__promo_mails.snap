@@ -2,16 +2,20 @@
 source: core/tests/mail_fixtures.rs
 expression: out
 ---
+firma_newsletter_job_link: kein Alert
 freelance_rabatt_erinnerung: kein Alert
 freelance_registrierung_abschliessen: kein Alert
 freelance_registrierung_danke: kein Alert
 freelance_studie: kein Alert
 freelance_willkommen_rabatt: kein Alert
 freelancermap_aktivierung: kein Alert
+freelancermap_nachricht: kein Alert
 freelancermap_profil: kein Alert
 freelancermap_projektagent: kein Alert
 freelancermap_willkommen: kein Alert
+linkedin_bewerbung_gesendet: kein Alert
 linkedin_fuehrungskraft: kein Alert
+linkedin_inmail: kein Alert
 linkedin_may_know: kein Alert
 linkedin_pin: kein Alert
 linkedin_popular: kein Alert
