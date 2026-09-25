@@ -10,10 +10,11 @@
   Only the switch itself switches, like the switches of the Windows 11 and macOS settings
   (user decision): its label and the text of its row are no click target and never show a
   hover. `id` ties it to the text of its SettingRow (`for`): the row's label names it
-  (`{id}-label`) and the row's hint describes it (`{id}-hint`).
+  (`{id}-label`) and the row's hint, while it has one, describes it.
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
+  import { describedBy } from '$lib/state/described';
 
   interface Props {
     checked: boolean;
@@ -24,6 +25,8 @@
     disabledReason?: string | null;
     /** Ties the switch to the text of its SettingRow (`for`), which names and describes it. */
     id?: string | null;
+    /** The id of a text that describes the switch outside a SettingRow (only while shown). */
+    describedby?: string | null;
     testid?: string | null;
     /** Return the save's promise: the switch shows the new state until it settles. */
     onchange: (checked: boolean) => unknown;
@@ -36,9 +39,12 @@
     disabled = false,
     disabledReason = null,
     id = null,
+    describedby = null,
     testid = null,
     onchange,
   }: Props = $props();
+
+  const described = describedBy();
 
   /** The state shown while a save is on its way (null: show `checked`). */
   let pending = $state<boolean | null>(null);
@@ -70,7 +76,7 @@
     aria-checked={shown}
     aria-label={label}
     aria-labelledby={labelledby ?? undefined}
-    aria-describedby={id ? `${id}-hint` : undefined}
+    aria-describedby={describedby ?? described() ?? undefined}
     aria-disabled={disabled ? 'true' : undefined}
     tabindex={disabled ? -1 : undefined}
     data-testid={testid ?? undefined}

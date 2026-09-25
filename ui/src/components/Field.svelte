@@ -2,9 +2,11 @@
   Label, control, hint (or the error in its place) and the hint's way on, which stays while
   an error shows: it is what helps most then. The way on is a navy link (it underlines on
   hover; one that leaves the app shows the hand) whose text lines up with the edges of the
-  field, next to the hint or on a line of its own.
+  field, next to the hint or on a line of its own. The message's id is shared with the
+  control inside (its `aria-describedby`) only while a message shows.
 -->
 <script lang="ts">
+  import { describe } from '$lib/state/described';
   import type { Snippet } from 'svelte';
   import Button from './Button.svelte';
   import Icon, { type IconName } from './Icon.svelte';
@@ -21,6 +23,8 @@
   }
 
   let { label, for: control, hint = null, action = null, error = null, children }: Props = $props();
+
+  describe(() => (error || hint ? `${control}-message` : null));
 </script>
 
 <div class="field">

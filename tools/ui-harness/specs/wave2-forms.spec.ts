@@ -2,7 +2,7 @@
 // references of fields and switches, the focus after a button goes, the day, the keys, the
 // one-choice buttons, the narrow layout, a new form for a file that does not read).
 
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { calls, expect, open, test } from './fixtures';
 
 const WIN = '?platform=windows';
@@ -12,7 +12,81 @@ async function profile(page: Page, query = `${WIN}&scenario=default`): Promise<v
   await page.getByTestId('nav-profile').click();
 }
 
+/** A new form from the empty state. */
+async function create(page: Page, scenario = 'no-profile'): Promise<void> {
+  await profile(page, `${WIN}&scenario=${scenario}`);
+  await page.getByTestId('profile-create').click();
+  await expect(page.getByTestId('profile-form')).toBeVisible();
+}
+
 const saves = async (page: Page): Promise<number> => (await calls(page, 'save_profile')).length;
+
+/** Every id an aria-describedby, aria-labelledby or aria-controls inside `scope` names that
+ *  is not in the page. */
+async function dangling(scope: Locator): Promise<string[]> {
+  return scope.evaluate((root) => {
+    const missing: string[] = [];
+    const attributes = ['aria-describedby', 'aria-labelledby', 'aria-controls'];
+    for (const node of root.querySelectorAll(attributes.map((a) => `[${a}]`).join(', '))) {
+      for (const attribute of attributes) {
+        for (const id of (node.getAttribute(attribute) ?? '').split(/\s+/).filter(Boolean)) {
+          if (document.getElementById(id) === null) {
+            missing.push(`${node.getAttribute('data-testid') ?? node.tagName} ${attribute}=${id}`);
+          }
+        }
+      }
+    }
+    return missing;
+  });
+}
+
+test('ui-core-04: every reference of a field or switch names a text that is there', async ({
+  page,
+}) => {
+  await profile(page);
+  const view = page.getByTestId('profile');
+  expect(await dangling(view)).toEqual([]);
+  // A field with a hint is described by it, one without none; a switch only by a hint.
+  await expect(page.getByTestId('profile-name-field')).not.toHaveAttribute('aria-describedby', /./);
+  await expect(page.getByTestId('profile-strengths').locator('input')).toHaveAccessibleDescription(
+    'Sie stützen die Passung, belegen aber keine Anforderung.',
+  );
+  await expect(page.getByTestId('profile-no-anue')).not.toHaveAttribute('aria-describedby', /./);
+  await expect(page.getByTestId('profile-remote-outside')).toHaveAccessibleDescription(
+    'Ausgeschaltet markiert die App ganz remote Jobs mit Sitz im Ausland zum Prüfen.',
+  );
+  // An error takes the place of the missing hint, and is its description.
+  await page.getByTestId('profile-name-field').fill('x'.repeat(10));
+  await page.getByTestId('profile-min-rate').fill('250000');
+  await page.getByTestId('profile-save').click();
+  await expect(page.getByTestId('profile-min-rate')).toHaveAccessibleDescription(
+    /Höchstens 100\.000\./,
+  );
+  expect(await dangling(view)).toEqual([]);
+  // The day, a new form and the values the app could not read.
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-date').fill('1.13.2026');
+  await page.getByTestId('profile-name-field').focus();
+  await expect(page.getByTestId('profile-date')).toHaveAccessibleDescription(
+    'Diesen Tag gibt es nicht.',
+  );
+  expect(await dangling(view)).toEqual([]);
+  await create(page);
+  expect(await dangling(page.getByTestId('profile'))).toEqual([]);
+  await profile(page, `${WIN}&scenario=profile-unreadable`);
+  expect(await dangling(page.getByTestId('profile'))).toEqual([]);
+  // Einstellungen: a portal switch is described only while its "off" note shows.
+  await open(page, WIN);
+  await page.getByTestId('nav-settings').click();
+  const toggle = page.getByTestId('toggle-enabled-linkedin');
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await expect(toggle).not.toHaveAttribute('aria-describedby', /./);
+  expect(await dangling(page.getByTestId('view-settings'))).toEqual([]);
+  await toggle.click();
+  await expect(page.getByTestId('portal-off-linkedin')).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-describedby', 'switch-enabled-linkedin-hint');
+  expect(await dangling(page.getByTestId('view-settings'))).toEqual([]);
+});
 
 test('live-forms-12: the day is judged when it is left or saved, never while typed', async ({
   page,

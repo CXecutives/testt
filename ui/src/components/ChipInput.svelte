@@ -36,6 +36,7 @@
   import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import { chipEdit, chipKeys, FIELD_ATTRIBUTES, type ChipKeyHandlers } from '$lib/input/input';
+  import { describedBy } from '$lib/state/described';
   import { typedText } from '$lib/state/typed.svelte';
   import Icon from './Icon.svelte';
 
@@ -46,6 +47,7 @@
     placeholder?: string | null;
     /** id of the text input, for the label of a Field. */
     id?: string | null;
+    /** Default: the message of its Field, while it shows one. */
     describedby?: string | null;
     invalid?: boolean;
     /** The field takes typed values (off: it only shows and removes). */
@@ -79,6 +81,7 @@
   const SEPARATORS = { list: /[,;\n\r\t]+/, lines: /[\n\r]+/ } as const;
   const separators = $derived(SEPARATORS[split]);
   const own = $props.id();
+  const described = describedBy();
 
   let draft = $state('');
   let input = $state<HTMLInputElement | null>(null);
@@ -303,7 +306,7 @@
         aria-activedescendant={listed ? `${own}-option-${active}` : undefined}
         aria-label={label ?? undefined}
         aria-invalid={invalid ? 'true' : undefined}
-        aria-describedby={[describedby, nothing ? `${own}-none` : null]
+        aria-describedby={[describedby ?? described(), nothing ? `${own}-none` : null]
           .filter((part) => part !== null)
           .join(' ') || undefined}
         placeholder={values.length === 0 ? (placeholder ?? undefined) : undefined}

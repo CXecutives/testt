@@ -11,6 +11,7 @@
   import TextField from '$components/TextField.svelte';
   import { formatNumber } from '$lib/i18n/format';
   import { t } from '$lib/i18n/t';
+  import { describedBy } from '$lib/state/described';
 
   interface Props {
     value: number | null;
@@ -39,6 +40,7 @@
   }: Props = $props();
 
   const noteId = $props.id();
+  const described = describedBy();
 
   /** A typed text as a whole number and whether a decimal part was cut off (`,00` cuts
    *  nothing). */
@@ -86,7 +88,10 @@
       {label}
       {placeholder}
       {invalid}
-      describedby={[rounded ? `${noteId}-rounded` : describedby, unit ? `${noteId}-unit` : null]
+      describedby={[
+        rounded ? `${noteId}-rounded` : (describedby ?? described()),
+        unit ? `${noteId}-unit` : null,
+      ]
         .filter((part) => part !== null)
         .join(' ') || null}
       {testid}

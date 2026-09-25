@@ -319,7 +319,6 @@
             bind:value={form.name}
             placeholder={words.namePlaceholder}
             invalid={fieldError?.field === 'name'}
-            describedby="{id}-name-message"
             testid="profile-name-field"
           />
         </Field>
@@ -331,7 +330,6 @@
             bind:value={form.title}
             placeholder={words.titlePlaceholder}
             invalid={fieldError?.field === 'title'}
-            describedby="{id}-title-message"
             testid="profile-title"
           />
         </Field>
@@ -368,7 +366,6 @@
           split="lines"
           placeholder={words.strengthsPlaceholder}
           invalid={fieldError?.field === 'strengths'}
-          describedby="{id}-strengths-message"
           testid="profile-strengths"
         />
       </Field>
@@ -385,7 +382,6 @@
           bind:values={form.keywords}
           placeholder={words.keywordsPlaceholder}
           invalid={fieldError?.field === 'keywords'}
-          describedby="{id}-keywords-message"
           testid="profile-keywords"
         />
       </Field>
@@ -412,7 +408,6 @@
           unit={t.profile.unit.years}
           bind:value={form.years}
           invalid={fieldError?.field === 'years'}
-          describedby="{id}-years-message"
           testid="profile-years"
         />
       </Field>
@@ -425,7 +420,6 @@
           split="lines"
           placeholder={words.degreesPlaceholder}
           invalid={fieldError?.field === 'degrees'}
-          describedby="{id}-degrees-message"
           testid="profile-degrees"
         />
       </Field>
@@ -438,7 +432,6 @@
           split="lines"
           placeholder={words.certificatesPlaceholder}
           invalid={fieldError?.field === 'certificates'}
-          describedby="{id}-certificates-message"
           testid="profile-certificates"
         />
       </Field>
@@ -450,7 +443,6 @@
           bind:values={form.tools}
           placeholder={words.toolsPlaceholder}
           invalid={fieldError?.field === 'tools'}
-          describedby="{id}-tools-message"
           testid="profile-tools"
         />
       </Field>
@@ -462,7 +454,6 @@
           bind:values={form.industries}
           placeholder={words.industriesPlaceholder}
           invalid={fieldError?.field === 'industries'}
-          describedby="{id}-industries-message"
           testid="profile-industries"
         />
       </Field>
@@ -500,7 +491,6 @@
           bind:values={form.roles}
           placeholder={words.rolesPlaceholder}
           invalid={errorOf('roles') !== null}
-          describedby="{id}-roles-message"
           testid="profile-roles"
         />
       </Field>
@@ -526,7 +516,6 @@
           unit={t.profile.unit.euro}
           bind:value={form.wishes.dayRate}
           invalid={errorOf('wishDayRate') !== null}
-          describedby="{id}-wish-rate-message"
           testid="profile-wish-rate"
         />
       </Field>
@@ -560,7 +549,6 @@
           bind:values={form.wishes.regions}
           placeholder={words.regionsPlaceholder}
           invalid={errorOf('regions') !== null}
-          describedby="{id}-regions-message"
           testid="profile-regions"
         />
       </Field>
@@ -577,7 +565,6 @@
           bind:values={form.wishes.industries}
           placeholder={words.wishIndustriesPlaceholder}
           invalid={errorOf('wishIndustries') !== null}
-          describedby="{id}-wish-industries-message"
           testid="profile-wish-industries"
         />
       </Field>
@@ -616,7 +603,6 @@
             unit={t.profile.unit.euro}
             bind:value={c.minDayRate}
             invalid={errorOf('minDayRate') !== null}
-            describedby="{id}-min-rate-message"
             testid="profile-min-rate"
           />
         </Field>
@@ -634,7 +620,6 @@
             unit={t.profile.unit.years}
             bind:value={c.targetYears}
             invalid={errorOf('targetYears') !== null}
-            describedby="{id}-target-message"
             testid="profile-target-years"
           />
         </Field>
@@ -655,7 +640,6 @@
             noMatch={words.countryNone}
             placeholder={words.countriesPlaceholder}
             invalid={errorOf('countries') !== null}
-            describedby="{id}-countries-message"
             testid="profile-countries"
           />
           {#if dachMissing}
@@ -742,7 +726,6 @@
               unit={t.profile.unit.euro}
               bind:value={c.minSalary}
               invalid={errorOf('minSalary') !== null}
-              describedby="{id}-salary-message"
               testid="profile-min-salary"
             />
           </Field>
@@ -761,7 +744,6 @@
               unit={t.profile.unit.percent}
               bind:value={c.permanentRemoteMin}
               invalid={errorOf('permanentRemoteMin') !== null || regionWithoutPlaces}
-              describedby="{id}-remote-min-message"
               testid="profile-remote-min"
             />
           </Field>
@@ -778,7 +760,6 @@
             id="{id}-places"
             bind:values={c.permanentPlaces}
             invalid={errorOf('permanentPlaces') !== null}
-            describedby="{id}-places-message"
             placeholder={words.placesPlaceholder}
             testid="profile-places"
           />
