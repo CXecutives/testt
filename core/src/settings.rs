@@ -115,18 +115,37 @@ impl Default for Settings {
 
 impl Settings {
     /// Stored settings; unreadable ones are replaced by the defaults (they are convenience,
-    /// not data).
+    /// not data) - except the portal switches, which are safety: a switched-off portal
+    /// must never get requests again because the stored JSON broke. Those come back off
+    /// ([`Settings::safe_after_damage`]) until the user switches them on again.
     pub fn load(store: &Store) -> Result<Settings> {
         Ok(match store.kv_get(KEY)? {
             Some(json) => serde_json::from_str::<Settings>(&json).map_or_else(
                 |e| {
-                    log::warn!("settings unreadable ({e}), using the defaults");
-                    Settings::default()
+                    log::warn!(
+                        "settings unreadable ({e}): defaults, every portal switched off until \
+                         the user switches it on again"
+                    );
+                    Settings::safe_after_damage()
                 },
                 Settings::normalized,
             ),
             None => Settings::default(),
         })
+    }
+
+    /// The defaults with every portal switched off: no mail read, no page requested, no
+    /// sign-in.
+    fn safe_after_damage() -> Settings {
+        let off = PortalSwitches {
+            enabled: false,
+            fetch_details: false,
+            login_enabled: false,
+        };
+        Settings {
+            portals: Portal::ALL.into_iter().map(|p| (p, off)).collect(),
+            ..Settings::default()
+        }
     }
 
     pub fn save(&self, store: &Store) -> Result<()> {
@@ -265,7 +284,7 @@ mod tests {
             back.enabled_portals(),
             [Portal::FreelanceDe, Portal::Freelancermap]
         );
-        // Missing fields: default per field; broken JSON: all defaults.
+        // Missing fields: default per field.
         store
             .kv_set(KEY, r#"{"portals":{"freelance":{"loginEnabled":true}}}"#)
             .unwrap();
@@ -274,8 +293,34 @@ mod tests {
         assert!(partial.portal(Portal::FreelanceDe).fetch_details);
         assert!(partial.portal(Portal::LinkedIn).enabled);
         assert!(partial.auto_fetch_on_start);
-        store.kv_set(KEY, "{kaputt").unwrap();
-        assert_eq!(Settings::load(&store).unwrap(), Settings::default());
+    }
+
+    /// Broken JSON gives the defaults for convenience, but never switches a portal on:
+    /// portals the user switched off must get zero requests (the hard rule), so all of them
+    /// come back off until the user switches them on again.
+    #[test]
+    fn broken_settings_switch_no_portal_on() {
+        let store = Store::in_memory().unwrap();
+        let mut s = Settings::default();
+        for switches in s.portals.values_mut() {
+            switches.enabled = false;
+        }
+        s.save(&store).unwrap();
+        let paths = crate::pipeline::stored_paths(std::sync::Arc::new(Store::in_memory().unwrap()));
+        assert!(Portal::ALL.iter().all(|&p| paths(p).is_some()), "defaults");
+        let json = store.kv_get(KEY).unwrap().unwrap();
+        store.kv_set(KEY, &json[..json.len() - 1]).unwrap();
+        let back = Settings::load(&store).unwrap();
+        assert!(back.fetch_portals().is_empty());
+        assert!(back.enabled_portals().is_empty());
+        assert_eq!(
+            back.auto_archive_days, AUTO_ARCHIVE_DAYS,
+            "the rest: defaults"
+        );
+        let shared = std::sync::Arc::new(store);
+        shared.kv_set(KEY, "{kaputt").unwrap();
+        let paths = crate::pipeline::stored_paths(shared);
+        assert!(Portal::ALL.iter().all(|&p| paths(p).is_none()));
     }
 
     /// A file of an earlier version carries fields that no longer exist and the list form of
