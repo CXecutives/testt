@@ -452,10 +452,11 @@ class ProfileEditor {
     this.understood = draft.understood;
   }
 
-  /** An AI's answer that updates the stored profile: saving merges it into the stored file. */
+  /** An AI's answer that updates the stored profile: saving merges it into the stored file,
+   *  which the draft brings with the answer's career stations (they are no field of the form). */
   update(draft: ProfileDraft, stored: ProfileForm): void {
     this.#start('update', stored, updated(copy(stored), copy(draft.form)));
-    this.source = null;
+    this.source = draft.source;
     this.quality = null;
     this.understood = null;
   }

@@ -160,6 +160,48 @@ pub fn draft_from_answer(answer: &str) -> std::result::Result<Draft, InvalidInpu
     Ok(draft(&doc, &source))
 }
 
+/// The AI's answer to the update prompt: the answer's form (the editor merges it into the
+/// stored one, keeping the user's own settings) and, as the JSON the save goes into, the
+/// stored profile with the answer's career stations in place of its own (the CV is their
+/// source and the form does not show them). Without a readable stored profile it is the
+/// draft of a new one.
+pub fn update_from_answer(workspace: &Path, answer: &str) -> Result<Draft> {
+    let (found, source) = answer::read(answer)?;
+    let stored = std::fs::read(profile_path(workspace))
+        .ok()
+        .and_then(|bytes| {
+            let text = utf8(&bytes).ok()?.to_owned();
+            Some((parse_doc(&text).ok()?, text))
+        });
+    let Some((mut doc, text)) = stored else {
+        return Ok(draft(&found, &source));
+    };
+    let source = match found.get(STATIONS) {
+        Some(stations) => {
+            doc.insert_before(STATIONS, stations.clone(), SETTINGS);
+            doc.to_pretty().trim_end().to_owned()
+        }
+        None => text,
+    };
+    let compiled = matching::compile_profile(&doc.to_value());
+    Ok(Draft {
+        form: form::read(&found),
+        source,
+        quality: compiled.quality(),
+        summary: compiled.summary().clone(),
+    })
+}
+
+/// The career stations (the engine reads them, the form does not show them).
+const STATIONS: &str = matching::lexicon::engine::KEY_STATIONS;
+/// The sections of the user's settings, German and English: new keys go before them.
+const SETTINGS: &[&str] = &[
+    matching::lexicon::KEY_PREFERENCES,
+    "preferences",
+    matching::lexicon::KEY_CRITERIA,
+    "hard_criteria",
+];
+
 /// The request for an AI in the app's language (see [`prompt`]): for a new profile, or with a
 /// `workspace` whose stored profile holds something of a CV, for an update of it.
 pub fn cv_prompt(workspace: Option<&Path>, language: Language) -> String {
@@ -577,6 +619,73 @@ mod tests {
                 "{answer}"
             );
         }
+    }
+
+    /// An update from a CV: the form is the answer's (the editor merges it), the JSON to save
+    /// into is the stored profile with the answer's career stations in place of its own; the
+    /// save keeps the user's settings and every other key.
+    #[test]
+    fn an_update_takes_the_stations_of_the_answer_into_the_stored_profile() {
+        let dir = workspace();
+        store(dir.path(), HAND_MADE);
+        let answer = "Hier ist das Profil.\n```json\n{\n  \"name\": \"Erika Beispiel\",\n  \
+                      \"kernkompetenzen\": [{\"kompetenz\": \"Treasury\", \"jahre\": 9}],\n  \
+                      \"stationen\": [{\"zeitraum\": \"01/2021 bis heute\", \"rolle\": \"CFO\", \
+                      \"schwerpunkte\": [\"Treasury\"]}]\n}\n```";
+        let stations = serde_json::json!([
+            {"zeitraum": "01/2021 bis heute", "rolle": "CFO", "schwerpunkte": ["Treasury"]}
+        ]);
+        let draft = update_from_answer(dir.path(), answer).unwrap();
+        assert_eq!(draft.form.competences[0].name, "Treasury");
+        assert_eq!(draft.form.competences[0].years, Some(9));
+        assert_eq!(keys(&draft.source), keys(HAND_MADE), "the stored order");
+        let source: Value = serde_json::from_str(&draft.source).unwrap();
+        assert_eq!(source["stationen"], stations);
+        assert_eq!(source["zeta_notiz"], "bleibt");
+
+        // The editor's merge (years of a stored competence) saved into it.
+        let before = stored_form(dir.path()).unwrap();
+        let mut after = before.clone();
+        after.competences[1].years = Some(9);
+        save_form(dir.path(), Some(&draft.source), &before, &after, &[]).unwrap();
+        let saved = load(dir.path()).unwrap().unwrap();
+        let original: Value = serde_json::from_str(HAND_MADE).unwrap();
+        assert_eq!(saved["stationen"], stations);
+        assert_eq!(saved["kernkompetenzen"][1]["jahre"], 9);
+        for key in [
+            "harte_kriterien",
+            "hard_criteria",
+            "einsatzpraeferenzen",
+            "keywords",
+        ] {
+            assert_eq!(saved[key], original[key], "{key}");
+        }
+
+        // Without stations the stored text stays as it is.
+        let text = stored(dir.path());
+        let draft = update_from_answer(dir.path(), "{\"kernkompetenzen\": [\"Recht\"]}").unwrap();
+        assert_eq!(draft.source, text);
+        // A profile without stations gets them before the settings.
+        store(
+            dir.path(),
+            "{\"name\": \"A\", \"einsatzpraeferenzen\": {\"remote\": \"voll\"}}",
+        );
+        let draft = update_from_answer(dir.path(), answer).unwrap();
+        assert_eq!(
+            keys(&draft.source),
+            ["name", "stationen", "einsatzpraeferenzen"]
+        );
+        // Without a stored profile it is the draft of a new one.
+        assert!(remove(dir.path()).unwrap());
+        assert_eq!(
+            update_from_answer(dir.path(), answer).unwrap(),
+            draft_from_answer(answer).unwrap()
+        );
+        // An answer without a profile is refused as before.
+        assert!(matches!(
+            update_from_answer(dir.path(), "Nein."),
+            Err(Error::Invalid(InvalidInput::ProfileAnswer))
+        ));
     }
 
     /// The prompt updates only a stored profile that holds something of a CV.

@@ -37,19 +37,32 @@ pub async fn pick_profile(
     Ok(Some(profile::draft_from_file(file.path())?.into()))
 }
 
-/// Reads the AI's answer to the CV prompt (pasted) into the form for review.
+/// Reads the AI's answer to the CV prompt (pasted) into the form for review; for an update
+/// the draft saves into the stored profile with the answer's career stations.
 #[tauri::command]
-pub async fn parse_profile(text: String) -> CmdResult<ProfileDraft> {
-    Ok(profile::draft_from_answer(&text)
-        .map_err(jobalert_core::Error::from)?
-        .into())
+pub async fn parse_profile(
+    state: State<'_, AppState>,
+    text: String,
+    update: bool,
+) -> CmdResult<ProfileDraft> {
+    let draft = if update {
+        profile::update_from_answer(&state.workspace()?, &text)?
+    } else {
+        profile::draft_from_answer(&text).map_err(jobalert_core::Error::from)?
+    };
+    Ok(draft.into())
 }
 
 /// The prompt for an AI that turns a CV into a profile (copied by the page), in the app's
-/// language.
+/// language; with `update` for the stored profile (it carries the profile's CV part).
 #[tauri::command]
-pub async fn profile_prompt(state: State<'_, AppState>) -> CmdResult<String> {
-    Ok(profile::cv_prompt(None, state.language()?))
+pub async fn profile_prompt(state: State<'_, AppState>, update: bool) -> CmdResult<String> {
+    let workspace = if update {
+        Some(state.workspace()?)
+    } else {
+        None
+    };
+    Ok(profile::cv_prompt(workspace.as_deref(), state.language()?))
 }
 
 /// Saves the editor: merges the form into the profile (or the draft it came from), keeps

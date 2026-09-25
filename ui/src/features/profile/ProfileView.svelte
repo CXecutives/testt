@@ -36,7 +36,12 @@
   const stored = $derived(profile?.form ?? null);
   const rescoring = $derived((run.active && run.kind === 'rescore') || (profile?.pending ?? 0) > 0);
 
-  let prompt = $state<string | null>(null);
+  /** The prompts for a new profile and for an update of the stored one, loaded ahead so that
+   *  copying needs no wait. */
+  let prompts = $state<{ create: string | null; update: string | null }>({
+    create: null,
+    update: null,
+  });
   let copied = $state(false);
   let busy = $state<'pick' | 'save' | 'remove' | 'paste' | null>(null);
   /** A failure is said when it shows, so it follows a switch of the language. */
@@ -46,6 +51,7 @@
   let pasteError = $state<Words | null>(null);
   /** The steps with an AI update the stored profile (else they make a new one). */
   let updating = $state(false);
+  const prompt = $derived(updating ? prompts.update : prompts.create);
   let saved = $state(false);
   /** A value the backend refused on the last save, said at its field. */
   let fieldError = $state<FieldError | null>(null);
@@ -84,6 +90,20 @@
     });
   });
 
+  // The update prompt carries the stored profile: it is loaded again whenever that changes.
+  $effect(() => {
+    const form = stored;
+    untrack(() => {
+      prompts.update = null;
+      if (form === null) return;
+      invoke('profile_prompt', { update: true })
+        .then((text) => {
+          if (stored === form) prompts.update = text;
+        })
+        .catch(() => undefined);
+    });
+  });
+
   // The window asks before it closes while the form holds unsaved changes (main.rs).
   const dirty = $derived(editor.dirty);
   $effect(() => {
@@ -103,9 +123,9 @@
   }
 
   onMount(() => {
-    invoke('profile_prompt')
-      .then((text) => (prompt = text))
-      .catch(() => (prompt = null));
+    invoke('profile_prompt', { update: false })
+      .then((text) => (prompts.create = text))
+      .catch(() => undefined);
     const release = navigation.guard((next) => {
       if (!editor.dirty) return true;
       leaving = next;
@@ -150,9 +170,10 @@
   }
 
   async function copyPrompt(): Promise<void> {
+    const kind = updating ? 'update' : 'create';
     try {
-      const text = prompt ?? (await invoke('profile_prompt'));
-      prompt = text;
+      const text = prompts[kind] ?? (await invoke('profile_prompt', { update: updating }));
+      prompts[kind] = text;
       await navigator.clipboard.writeText(text);
       copied = true;
     } catch {
@@ -160,8 +181,8 @@
     }
   }
 
-  /** The request goes to the clipboard first, so the steps show whether it got there. For
-   *  the stored profile the answer updates it. */
+  /** The prompt goes to the clipboard first, so the steps show whether it got there. For the
+   *  stored profile it is the update prompt, and the answer updates the profile. */
   async function fromCv(): Promise<void> {
     pasteError = null;
     updating = editor.origin === 'stored' && stored !== null;
@@ -173,7 +194,7 @@
     busy = 'paste';
     pasteError = null;
     try {
-      const draft = await invoke('parse_profile', { text: answer });
+      const draft = await invoke('parse_profile', { text: answer, update: updating });
       if (updating && stored !== null) editor.update(draft, stored);
       else editor.take(draft, 'answer');
     } catch (error) {
