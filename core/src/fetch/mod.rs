@@ -696,11 +696,13 @@ pub async fn fetch_all<F: PageFetcher>(
     summary: &mut FetchSummary,
     mut on_event: impl FnMut(FetchEvent),
 ) -> crate::Result<bool> {
-    // After a parser update the portal's failed jobs get a fresh chance.
+    // After a parser update the portal's failed jobs get a fresh chance - those the queue
+    // below fetches (the mails of the last 30 days).
     if let Selection::Queue(portals) = selection {
+        let since = clock().saturating_sub(MAX_AGE).unwrap_or(Timestamp::MIN);
         for adapter in PORTALS.iter().filter(|a| portals.contains(&a.portal())) {
             let portal = adapter.portal();
-            let count = store.requeue_older_parses(portal, adapter.parser_version())?;
+            let count = store.requeue_older_parses(portal, adapter.parser_version(), since)?;
             if count > 0 {
                 on_event(FetchEvent::Requeued { portal, count });
             }

@@ -280,15 +280,16 @@ impl Store {
     }
 
     /// The jobs for the skill's `top_matches.json`: scored (not excluded), unread or saved,
-    /// not archived, not sent, no duplicate, the alert mail at most since `since`; best
-    /// first. A fetch without new jobs keeps the list (it does not depend on the last run).
+    /// not archived, not sent, no duplicate, the ad not closed, the alert mail at most since
+    /// `since`; best first. A fetch without new jobs keeps the list (it does not depend on
+    /// the last run).
     pub fn skill_matches(&self, since: Timestamp, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE match_status = 'scored' AND dup_of IS NULL AND archived_at IS NULL
                AND (read_at IS NULL OR app_status = 'saved')
-               AND app_status IS NOT 'sent'
+               AND app_status IS NOT 'sent' AND desc_closed = 0
                AND COALESCE(mail_date, first_seen_at) >= ?1
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id LIMIT ?2"
         ))?;
@@ -314,7 +315,7 @@ impl Store {
     }
 
     /// The best current matches for a comparison in an AI chat: scored (not excluded), not
-    /// archived, not a duplicate, the ad still online, saved or without a stage (an
+    /// archived, not a duplicate, the ad still online and open, saved or without a stage (an
     /// application is decided already); the saved ones first (like the HTML overview's
     /// choice), then the highest scores, the newest first among equals.
     pub fn best_matches(&self, limit: u32) -> Result<Vec<JobRow>> {
@@ -322,7 +323,8 @@ impl Store {
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE match_status = 'scored' AND dup_of IS NULL AND archived_at IS NULL
-               AND desc_status <> 'gone' AND (app_status IS NULL OR app_status = 'saved')
+               AND desc_status <> 'gone' AND desc_closed = 0
+               AND (app_status IS NULL OR app_status = 'saved')
              ORDER BY (app_status IS NOT 'saved'), match_score DESC, first_seen_at DESC,
                       portal, job_id
              LIMIT ?1"

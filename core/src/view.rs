@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ErrorInfo;
 use crate::fetch::policy::{Policy, limits};
-use crate::fetch::{PortalHealth, RETRY_AFTER};
+use crate::fetch::{MAX_AGE, PortalHealth, RETRY_AFTER};
 use crate::matching::{self, Assessment, ProfileSummary};
 use crate::model::{
     AppStatus, Band, DescStatus, KeyFacts, MatchRecord, MatchStatus, Notice, band, gmail_url,
@@ -94,20 +94,33 @@ pub enum DetailState {
     },
     /// The ad no longer exists.
     Gone,
-    /// Given up after several failed attempts.
+    /// Given up after several failed attempts at this one ad.
     Unfetchable,
+    /// Not fetched, and its mail is older than the automatic fetch reaches (30 days): the
+    /// details come only on request ("Details holen").
+    OnRequest,
 }
 
 impl DetailState {
     pub fn of(job: &JobRow) -> DetailState {
+        DetailState::at(job, Timestamp::now())
+    }
+
+    /// The state at `now`: a job whose mail is older than the automatic fetch reaches is
+    /// never promised for "the next fetch" - it waits for a request.
+    pub fn at(job: &JobRow, now: Timestamp) -> DetailState {
+        let automatic = job.mail_date.unwrap_or(job.first_seen_at)
+            >= now.saturating_sub(MAX_AGE).unwrap_or(Timestamp::MIN);
         match job.desc_status {
             DescStatus::Ok => DetailState::Ok,
-            DescStatus::Missing => DetailState::Pending { retry_at: None },
+            DescStatus::Missing if automatic => DetailState::Pending { retry_at: None },
+            DescStatus::Missing => DetailState::OnRequest,
             DescStatus::Failed => DetailState::Failed {
                 attempts: u32::try_from(job.desc_attempts).unwrap_or(0),
                 retry_at: job
                     .desc_attempted_at
-                    .and_then(|at| at.checked_add(RETRY_AFTER).ok()),
+                    .and_then(|at| at.checked_add(RETRY_AFTER).ok())
+                    .filter(|_| automatic),
             },
             DescStatus::Teaser => DetailState::Teaser,
             DescStatus::Gone => DetailState::Gone,
@@ -158,6 +171,8 @@ pub struct JobView {
     pub detail: DetailState,
     /// The full text is short (verified, but under 100 characters).
     pub short: bool,
+    /// The ad's page says it no longer accepts applications (the text stays readable).
+    pub closed: bool,
     #[serde(rename = "match")]
     #[cfg_attr(test, ts(rename = "match"))]
     pub match_: Option<JobMatch>,
@@ -190,6 +205,7 @@ impl From<&JobRow> for JobView {
             pinned: job.app_status == Some(AppStatus::Saved),
             detail: DetailState::of(job),
             short: job.desc_status == DescStatus::Ok && job.desc_short,
+            closed: job.desc_status == DescStatus::Ok && job.desc_closed,
             match_: job.match_.as_ref().map(|record| {
                 let mut shown = JobMatch::from(record);
                 if job.override_include {
@@ -1374,6 +1390,70 @@ mod tests {
         assert_eq!(
             detail.mail.gmail_url.as_deref(),
             Some("https://mail.google.com/mail/u/0/#all/1a2b")
+        );
+    }
+
+    /// A closed ad reaches the list (a quiet badge, below the open ones) and never becomes a
+    /// text file for the matching skill.
+    #[test]
+    fn a_closed_ad_is_marked_and_gets_no_text_file() {
+        let (store, key) = store_with(
+            "https://www.linkedin.com/jobs/view/4123456789/",
+            "Controller",
+            "Muster GmbH",
+            "Köln",
+        );
+        let text = "Aufgaben und Anforderungen des Projekts. ".repeat(5);
+        store
+            .record_text(&key, &text, false, true, Timestamp::now())
+            .unwrap();
+        let view = JobView::from(&store.job(&key).unwrap().unwrap());
+        assert!(view.closed);
+        assert_eq!(view.detail, DetailState::Ok);
+        assert_eq!(serde_json::to_value(&view).unwrap()["closed"], true);
+        assert!(store.txt_jobs(true).unwrap().is_empty(), "no text file");
+        store
+            .record_text(&key, &text, false, false, Timestamp::now())
+            .unwrap();
+        assert!(!JobView::from(&store.job(&key).unwrap().unwrap()).closed);
+        assert_eq!(store.txt_jobs(true).unwrap().len(), 1);
+    }
+
+    /// A job older than the automatic fetch reaches is never promised for "the next fetch":
+    /// it waits for a request, and a failed one shows no retry time.
+    #[test]
+    fn an_old_job_waits_for_a_request() {
+        let (store, key) = store_with(
+            "https://www.freelancermap.de/nproj/12345.html",
+            "Rolle",
+            "Muster GmbH",
+            "Köln",
+        );
+        let job = store.job(&key).unwrap().unwrap();
+        let now = job.first_seen_at;
+        let later = now
+            .checked_add(jiff::SignedDuration::from_hours(40 * 24))
+            .unwrap();
+        assert_eq!(
+            DetailState::at(&job, now),
+            DetailState::Pending { retry_at: None }
+        );
+        assert_eq!(DetailState::at(&job, later), DetailState::OnRequest);
+        store.record_failed(&key, "noDescription", now).unwrap();
+        let failed = store.job(&key).unwrap().unwrap();
+        assert!(matches!(
+            DetailState::at(&failed, now),
+            DetailState::Failed {
+                retry_at: Some(_),
+                ..
+            }
+        ));
+        assert_eq!(
+            DetailState::at(&failed, later),
+            DetailState::Failed {
+                attempts: 1,
+                retry_at: None
+            }
         );
     }
 

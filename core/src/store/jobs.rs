@@ -353,9 +353,10 @@ impl Store {
                 } else {
                     String::new()
                 };
+                // A closed ad (no applications any more) follows the open ones.
                 format!(
-                    "({p}match_status IS 'excluded'), {by_match}{p}first_seen_at DESC, \
-                     {p}portal, {p}job_id"
+                    "({p}match_status IS 'excluded'), ({p}desc_status = 'ok' AND {p}desc_closed = 1), \
+                     {by_match}{p}first_seen_at DESC, {p}portal, {p}job_id"
                 )
             }
         };
@@ -739,13 +740,14 @@ impl Store {
 
     // ------------------------------------------------------------------ Text files
 
-    /// Jobs with a full text, together with the text: only those whose text file was never
-    /// written - or, with `all`, every one ("rewrite text files").
+    /// Jobs with a full text of an open ad (a closed one takes no application, so the
+    /// matching skill never gets it), together with the text: only those whose text file
+    /// was never written - or, with `all`, every one ("rewrite text files").
     pub fn txt_jobs(&self, all: bool) -> Result<Vec<(JobRow, String)>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS}, desc_text FROM job
-             WHERE desc_status = 'ok' AND desc_text IS NOT NULL
+             WHERE desc_status = 'ok' AND desc_text IS NOT NULL AND desc_closed = 0
                AND (?1 OR txt_written_at IS NULL)
              ORDER BY first_seen_at, portal, job_id"
         ))?;

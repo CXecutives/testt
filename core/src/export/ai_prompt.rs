@@ -369,6 +369,7 @@ mod tests {
             pinned: false,
             detail: DetailState::Ok,
             short: false,
+            closed: false,
             match_: None,
             also_on: Vec::new(),
             app_status: None,

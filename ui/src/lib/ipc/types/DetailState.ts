@@ -3,4 +3,4 @@
 /**
  * State of the job details.
  */
-export type DetailState = { "kind": "ok" } | { "kind": "pending", retryAt: string | null, } | { "kind": "teaser" } | { "kind": "failed", attempts: number, retryAt: string | null, } | { "kind": "gone" } | { "kind": "unfetchable" };
+export type DetailState = { "kind": "ok" } | { "kind": "pending", retryAt: string | null, } | { "kind": "teaser" } | { "kind": "failed", attempts: number, retryAt: string | null, } | { "kind": "gone" } | { "kind": "unfetchable" } | { "kind": "onRequest" };

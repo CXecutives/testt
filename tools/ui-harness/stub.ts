@@ -234,6 +234,7 @@ function job(
     pinned: false,
     detail: { kind: 'ok' },
     short: false,
+    closed: false,
     match: null,
     alsoOn: [],
     appStatus: null,

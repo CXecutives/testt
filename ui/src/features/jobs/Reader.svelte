@@ -187,7 +187,10 @@
   const portalState = $derived(app.state?.portals.find((p) => p.portal === job.portal) ?? null);
   const detailKind = $derived(job.detail.kind);
   const canFetch = $derived(
-    (detailKind === 'pending' || detailKind === 'failed' || detailKind === 'teaser') &&
+    (detailKind === 'pending' ||
+      detailKind === 'onRequest' ||
+      detailKind === 'failed' ||
+      detailKind === 'teaser') &&
       portalState?.enabled === true &&
       portalState.fetchDetails,
   );
@@ -621,11 +624,15 @@
       <Notice
         tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
         variant="inline"
-        text={portalState && !portalState.fetchDetails && detailKind === 'pending'
+        text={portalState &&
+        !portalState.fetchDetails &&
+        (detailKind === 'pending' || detailKind === 'onRequest')
           ? t.reader.detailsOff
           : t.reader.detail[detailKind]}
         testid="detail-note"
       />
+    {:else if job.closed}
+      <Notice tone="info" variant="inline" text={t.reader.closed} testid="closed-note" />
     {:else if job.short && unscorable === null}
       <Notice tone="info" variant="inline" text={t.reader.short} />
     {/if}

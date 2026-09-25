@@ -90,9 +90,11 @@
     if (excluded) return null;
     const detail = job.detail.kind;
     if (detail !== 'ok') {
-      const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
+      const quiet = detail === 'teaser' || detail === 'pending' || detail === 'onRequest';
+      const tone: BadgeTone = quiet ? 'neutral' : 'warning';
       return { label: t.job.detail[detail], tone };
     }
+    if (job.closed) return { label: t.job.closed, tone: 'neutral' };
     if (job.match?.status === 'unscorable') return { label: t.score.unscorable, tone: 'neutral' };
     return null;
   });

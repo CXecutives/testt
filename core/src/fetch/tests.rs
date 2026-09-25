@@ -1522,6 +1522,33 @@ async fn a_parser_update_requeues_the_failed_jobs_of_its_portal() {
     );
 }
 
+/// A parser update reopens only the jobs the automatic queue fetches: an old given-up job
+/// keeps its honest "not fetchable" instead of a promise that never comes.
+#[tokio::test(start_paused = true)]
+async fn a_parser_update_requeues_only_what_the_queue_fetches() {
+    let c = clock();
+    let store = store_with(&[(FM, 10_001, 40)]);
+    let old = key(FM, 10_001);
+    for _ in 0..3 {
+        store.record_failed(&old, "noDescription", base()).unwrap();
+    }
+    store.record_parse(&old, 0, None).unwrap();
+    let fake = Fake::default();
+    run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Queue(&[FM]),
+        &c,
+    )
+    .await;
+    assert!(fake.calls().is_empty());
+    assert_eq!(
+        store.job(&old).unwrap().unwrap().desc_status,
+        DescStatus::Unfetchable
+    );
+}
+
 /// A series of suspicious pages (layout changed?) costs ONE attempt - the portal's fault
 /// must not use up the attempts of every job it touched.
 #[tokio::test(start_paused = true)]
