@@ -299,7 +299,7 @@ test('the reader summary agrees with the listed must requirements', async ({ pag
   expect(checked).toBeGreaterThanOrEqual(8);
 });
 
-test('rows are mail-style: one height per title line, at most two, a fixed dot gutter', async ({
+test('rows are mail-style: one height for every row, a one-line title, a fixed dot gutter', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -307,26 +307,19 @@ test('rows are mail-style: one height per title line, at most two, a fixed dot g
   const first = row(page, 'freelancermap-2801');
   await expect(first).toContainText('Interim CFO für Familienunternehmen');
   await expect(first).not.toContainText('(m/w/d)');
-  // A long title takes a second line and ends there (the rest is a tooltip).
-  const clamp = await first
-    .locator('.title')
-    .evaluate((node) => getComputedStyle(node).getPropertyValue('-webkit-line-clamp'));
-  expect(clamp).toBe('2');
-  // Every row, with or without badge, has the same height per title line (86, 106), once
-  // the rows have glided into their places (a row on its way has a fractional box).
+  // A long title stays on one line and ends in an ellipsis (the rest is a tooltip).
+  const title = await first.locator('.title').evaluate((node) => {
+    const style = getComputedStyle(node);
+    return [style.whiteSpace, style.textOverflow];
+  });
+  expect(title).toEqual(['nowrap', 'ellipsis']);
+  // Every row, with or without badge or facts, has one height, once the rows have glided
+  // into their places (a row on its way has a fractional box).
   await motionSettled(page);
   const heights = await page
     .getByTestId('job-list')
     .locator('[data-testid^="job-row-"]')
-    .evaluateAll((els) =>
-      els.map((row) => {
-        const title = row.querySelector('.title')!;
-        const lines = Math.round(
-          title.clientHeight / parseFloat(getComputedStyle(title).lineHeight),
-        );
-        return row.getBoundingClientRect().height - 20 * (lines - 1);
-      }),
-    );
+    .evaluateAll((els) => els.map((row) => row.getBoundingClientRect().height));
   expect([...new Set(heights)]).toEqual([86]);
   // Read and unread titles start at the same x: the dot lives in its own gutter.
   const lefts = await page

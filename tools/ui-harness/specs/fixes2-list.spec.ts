@@ -90,11 +90,11 @@ test.describe('rows keep their shape', () => {
     expect(cut).toBe(false);
   });
 
-  test('without a profile a row without a badge is only as high as its ring', async ({ page }) => {
+  test('without a profile a row without a badge has the height of every row', async ({ page }) => {
     await open(page, `${WIN}&scenario=no-profile`);
     const bare = list(page).locator('.job.bare .row').first();
     await expect(bare).toBeVisible();
-    expect((await bare.boundingBox())!.height).toBe(64);
+    expect((await bare.boundingBox())!.height).toBe(86);
   });
 
   test('the badge of a job that cannot be scored says why', async ({ page }) => {

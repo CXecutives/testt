@@ -333,11 +333,11 @@ async function easing(page: Page, name: string): Promise<string> {
   }, name);
 }
 
-test('the bar slides to the clicked row like the sidebar pill: 180 ms, emphasized, top and height together', async ({
+test('the bar slides to the clicked row like the sidebar pill: 180 ms, emphasized, one height on its way', async ({
   page,
 }) => {
   await allJobs(page);
-  // 86 px row, then the 106 px row (a title on two lines).
+  // Two rows of the one height (86 px).
   await rowOf(page, 'freelancermap-2802').click();
   const start = await resting(page);
   expect(start.height).toBe(86 - 2 * INSET);
@@ -347,7 +347,7 @@ test('the bar slides to the clicked row like the sidebar pill: 180 ms, emphasize
   const samples = await stopSampling(page);
   const end = samples.at(-1)!;
   expect(onRow(end)).toBe(true);
-  expect(end.height).toBe(106 - 2 * INSET);
+  expect(end.height).toBe(86 - 2 * INSET);
   // One move, the pill's: 180 ms with the emphasized easing (the nav pill's transition).
   const emphasized = await easing(page, '--ease-emphasized');
   const moves = new Set(samples.flatMap((sample) => sample.moves));
@@ -357,14 +357,13 @@ test('the bar slides to the clicked row like the sidebar pill: 180 ms, emphasize
     return `${style.transitionDuration} ${style.transitionTimingFunction}`;
   });
   expect(nav).toBe(`0.18s ${emphasized}`);
-  // On its way: between the rows, top and height moving together, never back, never past.
+  // On its way: between the rows, never back, never past, and with the one row height.
   const between = samples.filter(
     (sample) => sample.top > start.top + 1 && sample.top < end.top - 1,
   );
   expect(between.length, JSON.stringify(samples)).toBeGreaterThan(0);
   for (const sample of between) {
-    expect(sample.height).toBeGreaterThan(start.height);
-    expect(sample.height).toBeLessThan(end.height + 0.5);
+    expect(Math.abs(sample.height - start.height)).toBeLessThan(0.5);
   }
   for (let at = 1; at < samples.length; at += 1) {
     expect(samples[at]!.top).toBeGreaterThanOrEqual(samples[at - 1]!.top - 0.5);
@@ -570,7 +569,7 @@ test('archive, trash and undo: the bar ends on the job that opens, never at a st
   page,
 }) => {
   await allJobs(page);
-  // The job above a row of 106 px: archived, the taller row moves up into its place.
+  // The job above another row: archived, the next row moves up into its place.
   await rowOf(page, 'freelancermap-2802').click();
   const slot = await resting(page);
   await startSampling(page);
@@ -582,7 +581,7 @@ test('archive, trash and undo: the bar ends on the job that opens, never at a st
   expect(end.key).toBe('freelancermap:2803');
   expect(onRow(end)).toBe(true);
   expect(end.top).toBe(slot.top);
-  expect(end.height).toBe(106 - 2 * INSET);
+  expect(end.height).toBe(86 - 2 * INSET);
   // It never left the place: the rows moved up under it, and it only grew.
   for (const sample of samples) {
     expect(sample.top, JSON.stringify(sample)).toBe(slot.top);
@@ -601,13 +600,13 @@ test('archive, trash and undo: the bar ends on the job that opens, never at a st
   expect(end.top).toBe(slot.top);
   expect(end.height).toBe(slot.height);
   for (const sample of samples) expect(sample.top, JSON.stringify(sample)).toBe(slot.top);
-  // The trash: the same, with the next job of 106 px.
+  // The trash: the same with the next job.
   await page.waitForTimeout(600);
   await page.getByTestId('reader-trash').click();
   await expect(rowOf(page, 'freelancermap-2803')).toHaveAttribute('aria-current', 'true');
   const after = await resting(page);
   expect(after.top).toBe(slot.top);
-  expect(after.height).toBe(106 - 2 * INSET);
+  expect(after.height).toBe(86 - 2 * INSET);
 });
 
 test('the bar steps inside the keyboard focus ring and greys with the inactive window', async ({
@@ -631,18 +630,18 @@ test('the bar steps inside the keyboard focus ring and greys with the inactive w
   expect(subtle).not.toBe(active);
 });
 
-test('the bar follows its row when the row grows and in one column', async ({ page }) => {
+test('the bar keeps its row when the window narrows and in one column', async ({ page }) => {
   await allJobs(page);
   await rowOf(page, 'linkedin-4100200301').click();
   expect((await resting(page)).height).toBe(86 - 2 * INSET);
-  // A narrower window: the title takes a second line, the row grows, the bar with it.
+  // A narrower window: the title stays one line, the row and its bar keep their height.
   await page.setViewportSize({ width: 960, height: 900 });
   await expect
     .poll(() =>
       rowOf(page, 'linkedin-4100200301').evaluate((row) => (row as HTMLElement).offsetHeight),
     )
-    .toBe(106);
-  expect((await resting(page)).height).toBe(106 - 2 * INSET);
+    .toBe(86);
+  expect((await resting(page)).height).toBe(86 - 2 * INSET);
   // One column shows the reader; back in two columns the bar is simply on its row.
   await page.setViewportSize({ width: 780, height: 900 });
   await expect(page.getByTestId('reader')).toBeVisible();

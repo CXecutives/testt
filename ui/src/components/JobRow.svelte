@@ -1,8 +1,8 @@
 <!--
   One job in the list, mail-style with fixed gutters: the unread dot (6 px, coral) centred
   in the pane padding on the axis of the ring (so a title never moves when the job is
-  read), the ring, then three lines that use the full width: the title on up to two lines
-  (an unread title is drawn heavier without getting wider, so reading a job never wraps
+  read), the ring, then three lines that use the full width: the title on one line, every
+  row one height (an unread title is drawn heavier without getting wider, so reading a job never wraps
   its title anew) with the relative date at the end of its first line, on its baseline (in
   the Papierkorb the day the job went there, the date the trash sorts by), company and
   place (the company gives way first), and one line
@@ -326,19 +326,16 @@
     min-width: 0;
   }
 
-  /* A long title takes a second line (the row grows by one line); past that it ends in an
-     ellipsis and shows in full in a tooltip. */
+  /* One line for every title, so every row has one height (user, 2026-09-25): a long title
+     ends in an ellipsis and shows in full in a tooltip. */
   .title {
-    display: -webkit-box;
     flex: 1;
     min-width: 0;
     overflow: hidden;
     color: var(--text);
     font: var(--type-title);
-    overflow-wrap: anywhere;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* Unread: heavier strokes on the same glyph advances (a heavier weight is wider, and a
@@ -513,9 +510,9 @@
     opacity: var(--opacity-muted);
   }
 
-  /* Without a third line (no profile, no badge) the row is as high as its ring. */
+  /* Every row has one height, also one without a third line (no profile, no badge). */
   .bare :global(.row) {
-    min-height: calc(var(--ring-sm) + 2 * var(--space-12));
+    min-height: var(--row-height);
   }
 
   .tooled:hover:where(:not([data-still])) .end,
