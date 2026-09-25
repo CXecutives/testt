@@ -384,3 +384,34 @@ test('live-forms-16: narrow, a Schwerpunkt wraps at its words; a field action en
     expect(action.y, field).toBeLessThan(message.y + message.height / 2);
   }
 });
+
+test('live-forms-18: a new form for a file that does not read', async ({ page }) => {
+  await profile(page, `${WIN}&scenario=profile-broken`);
+  await page.getByTestId('profile-create').click();
+  // The head says that saving replaces the file, and its folder stays at hand.
+  await expect(page.getByTestId('profile-replaces')).toHaveText(
+    'Ein neues Profil ersetzt die Datei.',
+  );
+  await page.getByTestId('profile-folder').click();
+  expect(await calls(page, 'open_target')).toHaveLength(1);
+  // Untouched, "Verwerfen" goes back to the three ways in, whose first takes the focus.
+  const discard = page.getByTestId('profile-discard');
+  await expect(discard).not.toHaveAttribute('aria-disabled', 'true');
+  await discard.click();
+  await expect(page.getByTestId('profile-empty')).toBeVisible();
+  await expect(page.getByTestId('profile-create')).toBeFocused();
+  // Esc too; with a change it keeps the form.
+  await page.getByTestId('profile-create').click();
+  await expect(page.getByTestId('profile-name-field')).toBeFocused();
+  await page.getByTestId('profile-name-field').fill('Erika');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('profile-form')).toBeVisible();
+  await page.getByTestId('profile-name-field').fill('');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('profile-empty')).toBeVisible();
+  await expect(page.getByTestId('profile-create')).toBeFocused();
+  // A plain new form without a file says nothing of a file.
+  await create(page);
+  await expect(page.getByTestId('profile-replaces')).toHaveCount(0);
+  await expect(page.getByTestId('profile-folder')).toHaveCount(0);
+});

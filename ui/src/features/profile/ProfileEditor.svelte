@@ -13,9 +13,10 @@
   value of the file the app could not read is said at its field with "Wert entfernen"; a
   value the backend refused is said there too, and the field gets the caret (said once, at
   the field). The save bar stays at the bottom of the view: "Speichern" (the one primary,
-  only with a change) and "Verwerfen"; without a change both say why they wait. Enter in a
-  field saves, as in every form (in the row lists it goes to the next row, in a chip field it
-  adds what was typed), and Ctrl/Cmd+S saves from anywhere in the form.
+  only with a change) and "Verwerfen"; without a change both say why they wait. An untouched
+  new form goes back to the ways in with "Verwerfen" or Esc. Enter in a field saves, as in
+  every form (in the row lists it goes to the next row, in a chip field it adds what was
+  typed), and Ctrl/Cmd+S saves from anywhere in the form.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -298,6 +299,9 @@
     if (ready()) onsave();
   }
 
+  /** A new form nothing was typed into: "Verwerfen" and Esc go back to the ways in. */
+  const untouched = $derived(editor.origin === 'new' && !editor.dirty);
+
   const empty = (...values: unknown[]): boolean =>
     values.every(
       (value) => value === null || value === '' || (Array.isArray(value) && value.length === 0),
@@ -320,7 +324,7 @@
 <div
   class="editor"
   bind:this={root}
-  use:formKeys={{ save, shortcut: save }}
+  use:formKeys={untouched ? { save, shortcut: save, cancel: ondiscard } : { save, shortcut: save }}
   onfocusin={keepClear}
   data-testid="profile-form"
 >
@@ -871,7 +875,7 @@
       <Button
         variant="secondary"
         label={t.profile.discard}
-        disabled={!editor.dirty || busy}
+        disabled={(!editor.dirty && !untouched) || busy}
         disabledReason={editor.dirty ? null : t.profile.noChanges}
         testid="profile-discard"
         onclick={ondiscard}

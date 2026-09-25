@@ -287,10 +287,13 @@
     }
   }
 
+  /** Back to the stored profile, or (a new form, a draft) to the ways in, whose first one
+   *  takes the focus of the gone form. */
   function discard(): void {
     saveNote = null;
     fieldError = null;
     editor.discard(stored);
+    if (editor.origin === null) void caretTo('profile-create');
   }
 
   async function remove(): Promise<void> {
