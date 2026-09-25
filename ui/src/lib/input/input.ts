@@ -52,7 +52,12 @@
 import type { Action } from 'svelte/action';
 import { t } from '../i18n/t';
 import { popupEditMenu, type EditEntry } from '../ipc/api';
-import { fieldMenuUndoDelete, keyConventions, type KeyConventions } from '../platform';
+import {
+  fieldMenuUndoDelete,
+  keyConventions,
+  nativeEditMenu,
+  type KeyConventions,
+} from '../platform';
 import { tokenMs, tokenPx } from '../tokens';
 
 const FIELD = 'input, textarea, [contenteditable="true"], [contenteditable=""]';
@@ -874,6 +879,7 @@ function selectedCopy(target: EventTarget | null): boolean {
  *  puts the event, at the field or the selection, not at the pointer. */
 function onContextMenu(event: MouseEvent): void {
   event.preventDefault();
+  if (!nativeEditMenu()) return;
   const at = event.button === -1 ? { x: event.clientX, y: event.clientY } : null;
   const field = closest(event.target, 'input, textarea');
   if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {

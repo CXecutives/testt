@@ -108,6 +108,15 @@ export interface KeyConventions {
   contextMenuKey: boolean;
 }
 
+/**
+ * Whether a right click opens the OS's own edit menu. Off on both OS: the native popup can
+ * hang the window (Windows reported the app as not responding after it), and the app's own
+ * menu takes its place. The keys (Ctrl/Cmd+X, C, V, A, Z) keep working in every field.
+ */
+export function nativeEditMenu(): boolean {
+  return false;
+}
+
 export function keyConventions(): KeyConventions {
   const mac = platform() === 'macos';
   return {

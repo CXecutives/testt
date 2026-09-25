@@ -94,7 +94,8 @@ test('right click, middle click and drag: what the page lets through', async ({ 
   });
 });
 
-test('the right click: the OS menu in fields and on selected copyable text, nowhere else', async ({
+// The native menu is off (platform.ts nativeEditMenu); the app's own menu replaces it next.
+test.fixme('the right click: the OS menu in fields and on selected copyable text, nowhere else', async ({
   page,
 }) => {
   const menus = (): Promise<{ text: string; enabled: boolean; command: string | null }[][]> =>
@@ -171,7 +172,10 @@ test('the right click: the OS menu in fields and on selected copyable text, nowh
   await expect(search).toHaveValue('Controlling');
 });
 
-test("a field's menu on macOS: no undo and no delete, like the OS's own", async ({ page }) => {
+// The native menu is off (platform.ts nativeEditMenu); the app's own menu replaces it next.
+test.fixme("a field's menu on macOS: no undo and no delete, like the OS's own", async ({
+  page,
+}) => {
   await open(page, '?platform=macos');
   const search = page.getByTestId('search');
   await search.fill('Controlling');

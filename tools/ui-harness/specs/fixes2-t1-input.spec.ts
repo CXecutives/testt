@@ -247,7 +247,8 @@ test('Windows: Alt+Space and Shift+F10 reach the OS', async ({ page }) => {
   });
 });
 
-test('a field menu greys out Undo while there is nothing to undo', async ({ page }) => {
+// The native menu is off (platform.ts nativeEditMenu); the app's own menu replaces it next.
+test.fixme('a field menu greys out Undo while there is nothing to undo', async ({ page }) => {
   await open(page, WIN);
   const search = page.getByTestId('search');
   await search.click({ button: 'right' });
