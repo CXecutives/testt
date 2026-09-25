@@ -300,7 +300,7 @@
 
   /* The ghost button's text ends on the card's edge, like the badge above it. */
   .end {
-    margin-right: calc(-1 * var(--space-12));
+    margin-right: calc(-1 * var(--ghost-inset));
     margin-left: auto;
   }
 </style>

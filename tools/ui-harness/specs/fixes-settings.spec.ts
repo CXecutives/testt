@@ -72,7 +72,7 @@ test('one glyph per file and per action: Excel, Ändern, and a reset that warns'
 test('an unreachable Gmail is one red badge, said once', async ({ page }) => {
   await settings(page, `${WIN}&scenario=offline`);
   const mailbox = page.getByTestId('settings-mailbox');
-  // The same tone as the sidebar's "Fehlgeschlagen" and the overview's failed fetch.
+  // The same tone as the sidebar's "Fehler" and the overview's failed fetch.
   const badge = mailbox.locator('.badge').filter({ hasText: 'Nicht erreichbar' });
   await expect(badge).toHaveClass(/danger/);
   // "Gmail ist nicht erreichbar." would only repeat the badge.

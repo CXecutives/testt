@@ -111,7 +111,7 @@ export function formatDate(iso: string): string {
 
 /**
  * `14:05` today, `25.09. 14:05` (`25/09 14:05`) on another day; one unit a line never
- * breaks (the sidebar's "Abgerufen" wraps before the date, not between date and time).
+ * breaks (a sentence wraps before the date, not between date and time).
  */
 export function formatMoment(iso: string, now: Date = new Date()): string {
   const date = new Date(iso);
@@ -120,6 +120,17 @@ export function formatMoment(iso: string, now: Date = new Date()): string {
   return startOfDay(date) === startOfDay(now)
     ? clock.format(date)
     : `${dayMonth.format(date)} ${clock.format(date)}`.replace(/ /g, NBSP);
+}
+
+/**
+ * `08:30` today, `24.09.` (`24/09`) on another day: when something happened, in the fewest
+ * characters (the sidebar's run status keeps to one line; the run card has the time).
+ */
+export function formatStamp(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const { clock, dayMonth } = formats();
+  return startOfDay(date) === startOfDay(now) ? clock.format(date) : dayMonth.format(date);
 }
 
 /** `18 KB`, `1,2 MB` (`1.2 MB`) */
@@ -135,6 +146,16 @@ export function formatEuro(value: number | string | boolean | null | undefined):
   const number = typeof value === 'number' ? value : Number(value);
   const amount = Number.isFinite(number) ? formats().integer.format(number) : String(value ?? '');
   return language.current === 'de' ? `${amount}${NARROW_NBSP}€` : `€${amount}`;
+}
+
+/**
+ * An amount in its currency: euros as `formatEuro` does, any other currency with its code
+ * after the number, joined by the space a line never breaks at (`1.000 CHF`, `1,000 CHF`).
+ */
+export function formatMoney(value: number, currency: string | null | undefined): string {
+  if (!currency || currency === 'EUR') return formatEuro(value);
+  const space = language.current === 'de' ? NARROW_NBSP : NBSP;
+  return `${formats().integer.format(value)}${space}${currency}`;
 }
 
 /** Remaining time as `4:05` (minutes and seconds) or `1:04:05`. */

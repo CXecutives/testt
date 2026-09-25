@@ -127,7 +127,9 @@
       <Notice
         tone={reset.failed > 0 ? 'warning' : 'success'}
         text={reset.failed > 0 ? t.settings.resetPartly(reset.failed) : t.settings.resetDone}
-        action={reset.failed > 0 ? { label: t.common.openFolder, onclick: openDataDir } : null}
+        action={reset.failed > 0
+          ? { label: t.common.openFolder, icon: 'folder-open', onclick: openDataDir }
+          : null}
         testid="first-reset-report"
       />
       {#if folderError}

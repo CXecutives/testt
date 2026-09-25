@@ -6,6 +6,10 @@ import { app } from './app.svelte';
 import { run } from './run.svelte';
 
 class Shell {
+  /** The Jobs view shows one job in place of its list (one column): the run card above the
+   *  list is out of sight, so the sidebar's run status stands in for it. Set by JobsView. */
+  listHidden = $state(false);
+
   /** Until `start_run` answers the first-run page stays (a failed start never flashes). */
   get firstRun(): boolean {
     const state = app.state;
@@ -15,7 +19,8 @@ class Shell {
 
   /**
    * The run card above the list is up: while a fetch or details run goes, after it until it
-   * is hidden, and while a failed start has something to say.
+   * is hidden, and while a failed start has something to say. In one column an open job
+   * hides it with the list (`listHidden`).
    */
   get runCard(): boolean {
     return (

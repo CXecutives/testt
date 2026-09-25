@@ -98,8 +98,9 @@
   .selected {
     background-color: var(--surface-selected);
 
-    /* The ring's track stays visible on the warm wash. */
+    /* The ring's track and a neutral badge stay visible on the warm wash. */
     --ring-track: var(--ring-track-selected);
+    --badge-neutral-bg: var(--surface);
   }
 
   .selected:hover:where(:not([data-still])) {

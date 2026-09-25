@@ -919,7 +919,7 @@
   variant="danger"
   heading={t.actions.purgeHeading(1)}
   text={t.actions.purgeText}
-  confirmLabel={t.actions.purge}
+  confirmLabel={t.actions.purgeConfirm}
   busy={purging}
   error={purgeError}
   testid="dialog-purge"

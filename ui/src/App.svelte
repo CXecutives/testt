@@ -3,8 +3,9 @@
   three views. Every view switch is the same quick cross-fade (100 ms): the new view fades in
   on top while the old one fades out below it, so no frame shows an empty sheet. On start
   nothing animates and the app shows useful content at once: the first-run page while
-  nothing was ever fetched, otherwise the Jobs view with the last results. Closing while a
-  fetch runs keeps the window until the run has stopped; a calm note says so.
+  nothing was ever fetched, otherwise the Jobs view with the last results. Closing while the
+  app is busy keeps the window until that has stopped; a calm note says what it waits for
+  (a fetch, a rescore, a sign-in, the files).
 -->
 <script lang="ts">
   import DragBand from '$components/DragBand.svelte';
@@ -35,8 +36,9 @@
   const firstRun = $derived(shell.firstRun);
   /** macOS: the views keep the toolbar row free (the Jobs view uses it for its list row). */
   const band = dragBands();
-  let closing = $state(false);
-  $effect(() => onClosing(() => (closing = true)));
+  /** Closing while the app is busy: what the window waits for (null: not closing). */
+  let closing = $state<{ activity: string | null } | null>(null);
+  $effect(() => onClosing((activity) => (closing = { activity })));
 </script>
 
 <div class="shell" data-testid="shell">
@@ -49,7 +51,7 @@
             icon="triangle-alert"
             tone="danger"
             text={t.shell.loadFailed}
-            action={{ label: t.common.retry, icon: 'rotate-ccw', onclick: () => void app.load() }}
+            action={{ label: t.common.retry, icon: 'refresh-cw', onclick: () => void app.load() }}
           />
         </section>
       {:else if app.state === null}
@@ -84,7 +86,9 @@
     </main>
     {#if closing}
       <div class="closing" data-testid="closing" role="status" transition:fade>
-        <p class="closing-note"><Spinner size="sm" label={null} />{t.shell.closing}</p>
+        <p class="closing-note">
+          <Spinner size="sm" label={null} />{t.shell.closing(closing.activity)}
+        </p>
       </div>
     {/if}
   </div>
@@ -144,13 +148,15 @@
     background-color: var(--surface);
   }
 
-  /* All views share one cell; during a switch the new one lies on top and covers the old. */
+  /* All views share one cell; during a switch the new one lies on top and covers the old.
+     The keyboard focus stops below the macOS toolbar row (input.ts keepInView). */
   .view {
     grid-area: 1 / 1;
     min-width: 0;
     min-height: 0;
     overflow: auto;
     background-color: var(--surface);
+    scroll-padding-top: var(--window-top);
   }
 
   /* A view that scrolls always keeps its scrollbar's room (Windows: a transparent track,

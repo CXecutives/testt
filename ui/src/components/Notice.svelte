@@ -1,7 +1,8 @@
 <!--
   Feedback where the action happened: info | success | warning | danger, inline (icon and
   sentence in the tone), banner (tinted box) or row (a calm line inside a card: the icon in
-  the tone, the text in ink), with at most one action. Info is navy. A notice that appears in
+  the tone, the text in ink), with at most one action, a small secondary button with the
+  glyph the same action has everywhere else. Info is navy. A notice that appears in
   a view already on screen rises 2 px and fades in (150 ms) and fades out (100 ms); one that
   comes with its view is simply there.
 -->
@@ -20,7 +21,7 @@
     variant?: 'inline' | 'banner' | 'row';
     heading?: string | null;
     text: string;
-    action?: { label: string; onclick: () => void } | null;
+    action?: { label: string; icon?: IconName | null; onclick: () => void } | null;
     testid?: string | null;
   }
 
@@ -55,7 +56,13 @@
   </div>
   {#if action}
     <span class="action">
-      <Button variant="secondary" size="sm" label={action.label} onclick={action.onclick} />
+      <Button
+        variant="secondary"
+        size="sm"
+        label={action.label}
+        icon={action.icon ?? null}
+        onclick={action.onclick}
+      />
     </span>
   {/if}
 </div>
@@ -69,10 +76,12 @@
     font: var(--type-sm);
   }
 
+  /* A tinted box whose content starts where a card's does (20 px in); its edge is its own
+     tint in every tone, so no tone draws a line of its own. */
   .banner {
     align-items: center;
     gap: var(--space-12);
-    padding: var(--space-12) var(--space-16);
+    padding: var(--space-12) var(--space-20);
     border: var(--border-width) solid var(--notice-line);
     border-radius: var(--radius-card);
     background-color: var(--notice-bg);
@@ -130,7 +139,7 @@
   .warning {
     --notice-fg: var(--warning-strong);
     --notice-bg: var(--warning-soft);
-    --notice-line: var(--warning);
+    --notice-line: var(--warning-soft);
   }
 
   .danger {

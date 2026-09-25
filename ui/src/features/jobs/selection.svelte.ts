@@ -1,5 +1,7 @@
 // The rows chosen like in a mail app: Ctrl+click (Cmd on macOS) takes a row in or out, Shift+
-// click takes the range from the anchor; a plain click chooses one row and opens it.
+// click takes the range from the anchor, and so do Shift+ArrowUp/ArrowDown and Shift+Home/End
+// from the row reached last (its moving end, like Explorer and Mail); a plain click chooses
+// one row and opens it.
 // Two or more chosen rows show the selection bar in the list header; Esc clears them. The
 // open job belongs to a selection that starts from it: a Ctrl+click adds to it, and while
 // nothing else is chosen a range starts from it (also when the app opened it: the next job
@@ -15,6 +17,8 @@ class Selection {
   readonly #chosen = $derived(new Set(this.keys));
   /** Where a Shift range starts (the last row clicked, or the start of the last range). */
   #anchor: string | null = null;
+  /** The row a choice reached last (clicked with Ctrl or Shift, or by Shift+Arrow). */
+  #end: string | null = null;
 
   get size(): number {
     return this.keys.length;
@@ -27,6 +31,14 @@ class Selection {
   clear(): void {
     this.keys = [];
     this.#anchor = null;
+    this.#end = null;
+  }
+
+  /** Where Shift+Arrow moves on from: the row reached last while rows are chosen, else the
+   *  open job. */
+  get end(): string | null {
+    const open = jobs.selected ? keyOf(jobs.selected) : null;
+    return this.keys.length > 0 ? (this.#end ?? open) : open;
   }
 
   /** A plain click: this row alone (it opens). */
@@ -47,6 +59,7 @@ class Selection {
     const keys = this.#seed();
     this.keys = keys.includes(key) ? keys.filter((other) => other !== key) : [...keys, key];
     this.#anchor = key;
+    this.#end = key;
   }
 
   /** Shift+click: every row from the start of the range to this one, in the order of the
@@ -64,6 +77,7 @@ class Selection {
     const from = order.indexOf(start);
     this.keys = order.slice(Math.min(from, to), Math.max(from, to) + 1);
     this.#anchor = start;
+    this.#end = keyOf(job.key);
   }
 
   /** Rows that left the list leave the choice too; `true` if any did. */

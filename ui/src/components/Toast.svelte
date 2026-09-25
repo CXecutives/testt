@@ -8,12 +8,17 @@
   undo cannot act behind the dialog.
   The sentence has room for a job's title (520 px) and wraps to at most two lines: the
   title in the catalog's quotes („…“ or “…”) keeps to one line and ends in an ellipsis
-  (the full title in a tooltip), the rest of the sentence follows it.
+  that the closing quote follows directly (the full title in a tooltip; cut by measuring
+  the text, since CSS would leave the rest of the box blank before the quote), the rest
+  of the sentence follows it.
   The check of a success draws itself once as the toast appears. Closable; an undo of what
   the user just did sits before the close button. A merged toast ("2 Jobs archiviert.")
   cross-fades its sentence (100 ms) and starts its line again.
 -->
 <script lang="ts" module>
+  import type { Action } from 'svelte/action';
+  import { tooltip } from '$lib/actions/tooltip';
+
   /** A sentence around one quoted name: German „…“, English “…”. */
   const QUOTED = /^(.*?)([„“])([^“”]+)([“”])(.*)$/su;
 
@@ -32,10 +37,73 @@
     const [, before = '', open = '', name = '', close = '', after = ''] = match;
     return { before, open, name, close, after };
   }
+
+  const ELLIPSIS = '…';
+
+  /**
+   * The longest start of `name` that fits `room` together with the quotes and an ellipsis
+   * (`width` measures a string), or `name` itself when it fits whole.
+   */
+  export function fitted(
+    split: Pick<Quoted, 'open' | 'name' | 'close'>,
+    room: number,
+    width: (text: string) => number,
+  ): string {
+    const { open, name, close } = split;
+    if (width(`${open}${name}${close}`) <= room) return name;
+    const chars = [...name];
+    let low = 0;
+    let high = chars.length - 1;
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      const cut = `${chars.slice(0, mid).join('').trimEnd()}${ELLIPSIS}`;
+      if (width(`${open}${cut}${close}`) <= room) low = mid;
+      else high = mid - 1;
+    }
+    return `${chars.slice(0, low).join('').trimEnd()}${ELLIPSIS}`;
+  }
+
+  let pen: CanvasRenderingContext2D | null = null;
+
+  /** The width of `text` in the font of `node` (no layout: the canvas measures it). */
+  function textWidth(node: Element, text: string): number {
+    pen ??= document.createElement('canvas').getContext('2d');
+    if (pen === null) return 0;
+    const style = getComputedStyle(node);
+    pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    return pen.measureText(text).width;
+  }
+
+  /**
+   * The quoted title fits the line of the toast (the width of its sentence, watched): cut
+   * after the last character that fits with the ellipsis, so the closing quote follows it
+   * directly; only a cut title has the full one in a tooltip.
+   */
+  const fitName: Action<HTMLElement, Quoted> = (node, split) => {
+    const tip = tooltip(node, null);
+    const line = node.closest('.text');
+    const place = (room: number): void => {
+      // A pixel of room is kept: the canvas and the layout may round apart.
+      const shown = fitted(split, room - 1, (text) => textWidth(node, text));
+      node.textContent = shown;
+      tip?.update?.(shown === split.name ? null : split.name);
+    };
+    node.textContent = split.name;
+    if (line === null) return { destroy: () => tip?.destroy?.() };
+    const watch = new ResizeObserver(([entry]) => {
+      if (entry !== undefined) place(entry.contentRect.width);
+    });
+    watch.observe(line);
+    return {
+      destroy() {
+        watch.disconnect();
+        tip?.destroy?.();
+      },
+    };
+  };
 </script>
 
 <script lang="ts">
-  import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import { onWindowFocus } from '$lib/ipc/api';
   import { fade, flip, toastIn, toastOut } from '$lib/motion/transitions';
@@ -66,9 +134,7 @@
 {#snippet sentence(text: string)}
   {@const split = quoted(text)}
   {#if split}{split.before}<span class="quoted"
-      >{split.open}<span class="name" use:tooltip={{ text: split.name, truncated: true }}
-        >{split.name}</span
-      >{split.close}</span
+      >{split.open}<span class="name" use:fitName={split}></span>{split.close}</span
     >{split.after}{:else}{text}{/if}
 {/snippet}
 
@@ -183,7 +249,8 @@
     text-wrap: pretty;
   }
 
-  /* The quoted title keeps to one line; the rest of the sentence follows it. */
+  /* The quoted title keeps to one line, cut to fit by fitName; the rest of the sentence
+     follows it. */
   .quoted {
     display: inline-flex;
     max-width: 100%;

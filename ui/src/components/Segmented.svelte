@@ -7,7 +7,7 @@
   warm pill, the others stay muted with a plain count (same box, so nothing moves); an option
   may keep one tone whatever is chosen (the unread count stays warm). An
   unchosen option washes on hover and darkens while pressed. Counts roll when they change.
-  Like native radio buttons the group is one Tab stop and the arrows choose.
+  Like native radio buttons the group is one Tab stop and the arrows, Home and End choose.
 -->
 <script lang="ts" module>
   export interface SegmentedOption<Id extends string = string> {

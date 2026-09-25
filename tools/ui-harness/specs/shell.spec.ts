@@ -279,8 +279,8 @@ test('per-OS convention: the order of dialog buttons', async ({ page }) => {
     return dialog.getByRole('button').allInnerTexts();
   };
   // Windows: the action first; macOS: cancel, then the action on the right.
-  expect(await order('windows')).toEqual(['Postfach lesen', 'Abbrechen']);
-  expect(await order('macos')).toEqual(['Abbrechen', 'Postfach lesen']);
+  expect(await order('windows')).toEqual(['Lesen', 'Abbrechen']);
+  expect(await order('macos')).toEqual(['Abbrechen', 'Lesen']);
 });
 
 test('the run status in the sidebar opens the last run', async ({ page }) => {

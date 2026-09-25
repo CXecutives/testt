@@ -441,7 +441,7 @@ test('reading the whole mailbox asks first, then shows the run', async ({ page }
   await page.getByTestId('full-mailbox').click();
   await page
     .getByTestId('dialog-full-mailbox')
-    .getByRole('button', { name: 'Postfach lesen' })
+    .getByRole('button', { name: 'Lesen', exact: true })
     .click();
   await expect(page.getByTestId('view-jobs')).toBeVisible();
   const started = await calls(page, 'start_run');
@@ -530,14 +530,13 @@ test('locked buttons explain themselves', async ({ page }) => {
   await expect(page.getByRole('tooltip')).toHaveText('Verbinde erst ein Postfach.');
 });
 
-test('first run: the sidebar waits until the setup is done', async ({ page }) => {
+test('first run: Einstellungen opens from the sidebar, Jobs leads back to the setup', async ({
+  page,
+}) => {
   await open(page, `${WIN}&scenario=first-run`);
-  const nav = page.getByTestId('nav-settings').locator('xpath=../..');
-  await expect(nav).toHaveAttribute('inert', '');
-  await page
-    .getByTestId('nav-settings')
-    .click({ force: true, timeout: 2000 })
-    .catch(() => {});
+  await page.getByTestId('nav-settings').click();
+  await expect(page.getByTestId('view-settings')).toBeVisible();
+  await page.getByTestId('nav-jobs').click();
   await expect(page.getByTestId('first-run')).toBeVisible();
   // The helper line of the password carries the way to create one.
   await expect(

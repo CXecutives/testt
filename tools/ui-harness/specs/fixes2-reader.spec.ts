@@ -96,7 +96,8 @@ test('the date of a job names the day and the time of its alert mail', async ({ 
 test('the chips of the terms say criterion and state in one phrase', async ({ page }) => {
   await open(page, WIN);
   await facet(page, 'Alle').click();
-  await row(page, 'freelancermap-2801').click();
+  // An ad that leaves the rate open.
+  await row(page, 'freelancermap-2802').click();
   const tip = async (id: string): Promise<string> => {
     await page.getByTestId(`criterion-${id}`).hover();
     const text = (await page.getByRole('tooltip').textContent()) ?? '';

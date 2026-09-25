@@ -7,7 +7,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 ## Decisions (user answers, binding)
 | Topic | Decision |
 |---|---|
-| UI language | superseded (user, 2026-09-25): German and English. Einstellungen > Sprache (Deutsch / English) switches the whole app at once, no restart; the app starts German, English only when chosen (amended 2026-09-25: many German consultants run an English OS; only the macOS menu follows the OS, `sys-locale` in `platform.rs`); the choice is stored in the settings (`language`, `save_settings`). `de.ts` stays the source catalog, `en.ts` has its type (a missing or extra key is a type error), the screens read `t` (`lib/i18n/t.ts`); numbers and dates de-DE / en-GB. Excel file, HTML overview, the AI prompts (with `ai_rubric.en.md`), the CV prompt, file dialogs and the sign-in window follow the setting, the macOS menu the OS; the TXT files stay German and byte-identical |
+| UI language | superseded (user, 2026-09-25): German and English. Einstellungen > Sprache (Deutsch / Englisch, German / English) switches the whole app at once, no restart; the app starts German, English only when chosen (amended 2026-09-25: many German consultants run an English OS; only the macOS menu follows the OS, `sys-locale` in `platform.rs`); the choice is stored in the settings (`language`, `save_settings`). `de.ts` stays the source catalog, `en.ts` has its type (a missing or extra key is a type error), the screens read `t` (`lib/i18n/t.ts`); numbers and dates de-DE / en-GB. Excel file, HTML overview, the AI prompts (with `ai_rubric.en.md`), the CV prompt, file dialogs and the sign-in window follow the setting, the macOS menu the OS; the TXT files stay German and byte-identical |
 | Frontend | Svelte 5 + Vite + TypeScript, no SvelteKit, no animation library, Lucide icons only |
 | Keys | only inside fields/dialogs: Tab/Shift+Tab, Enter = save, Esc = cancel, Ctrl/Cmd+C/V/X/A/Z. Amended by the input audit (2026-09-24): fields take every character of the layout (AltGr on Windows, Option on macOS) and the OS editing keys (word/line moves, delete word, redo, Shift selection); Tab/Shift+Tab move the focus everywhere and Enter/Space press the focused control (no dead end after a field); a modal dialog holds the focus; Cmd+, reaches the macOS menu. No WebView shortcut. Amended (user, final round 2026-09-25): the app's own shortcuts are exactly three, with the command key of the OS (Ctrl on Windows, Cmd on macOS; `keyConventions()` in platform.ts, handled only in input.ts): Ctrl/Cmd+F (the list's search), Ctrl/Cmd+Z outside fields (the last list action) and Ctrl/Cmd+B outside fields (fold the sidebar; in a field it does nothing). Amended (user, 2026-09-25 evening): the fold is gone, so the shortcuts are two, Ctrl/Cmd+F and Ctrl/Cmd+Z |
 | OS window functions | keep Alt+F4, Cmd+Q/W/M/H, double-click on title bar; no own shortcuts besides the two under "Keys" |
@@ -19,7 +19,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | AI prompts (user, 2026-09-25) | The copied prompts (reader "Prompt für KI-Bewertung kopieren" = `ai_prompt`, overview "Prompt für KI-Vergleich kopieren" = `ai_prompt_top`) are at least as good as the skill, for any AI chat without files: role and goal; the profile without contact data and a glossary of the keys it holds; the ad with its key facts (contract, pay, start, duration, remote share, the page's own labels; each one the app did not find is said) and its text status (full, teaser, very short, none, closed); the app's pre-assessment, marked as a machine word match to check, not to copy (score and band, or the exclusion with its reason and the ad's words; every hard criterion with the profile's threshold, the ad's value and words; requirements met, partly, open with the profile entry and its years; points to check; Schwerpunkte, target role, wishes; all in words, no engine code); the skill's method (one row per requirement, weights, OR branches, degrees, the five frame rows with the profile's thresholds, no invention); the whole rubric; a fixed answer format (result with a recommendation, reasons, requirements table, hard criteria table, risks, open questions, pay and conditions, application points, a short message). The comparison gives each job the same and asks for a ranking first (score, then interim, then fewer open musts). German and English in full (`export/ai_prompt/de.rs` is the external contract, `en.rs` mirrors it); one golden prompt per language in `core/tests/fixtures/prompts/` |
 | Reuse | the app is generic: everything personal lives in the profile; competences may carry alternative terms (`auch`); lexicon = general core + domain packs that activate automatically from the profile; no pack editor in the UI; new portals via adapters |
 | Extra criteria | superseded: the engine adopts the skill rubric (contract type, permanent-role salary and region, seniority, formal requirements) via optional profile keys - exclusions only on clear wording, otherwise checks |
-| Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults, risk badge per switch |
+| Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults; each switch says in one sentence what it does (risk grades removed 2026-09-25) |
 | HTML overview | no full text: title, company, location, portal, link, match (excluded: ring without number), up to 2 met requirements (the list keeps no open ones), exclusion reason in words |
 | Extras | Pin (star) + auto fetch on start (> 6 h, switchable); no notifications, no "still open?" checks |
 | Logo | no CXpertise company logo; the coral app icon (folder + check) is the window icon of the native title bar and the mark of the first run and empty states |
@@ -192,7 +192,14 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   list column header. No menu (Windows), no gear icon. Closing during a run shows a short note until the run stops.
   Every view switch is the same 100 ms cross-fade (new view on top, never an empty sheet); nothing animates at start;
   `:root[data-window]` is 'inactive' while the OS window is in the background (selections grey out against it).
-  The sidebar run status shows only while there is a run to open.
+  The sidebar run status shows only while there is a run to open, on one line as high as a nav entry, its glyph on
+  the nav icons' axis: Abgerufen, Fehler or Abgebrochen with the time today and the date on another day (the run
+  card has the time); it steps aside while the run card is on screen (in one column an open job hides the card, so
+  the status stays, and a finished fetch brings its toast). During the first run every view can be reached
+  (Einstellungen with the language, Profil); Jobs, Archiv and Papierkorb lead to the setup page, which no entry
+  marks as current, and leave the place of the list as it is. Closing while the app is busy names what it waits
+  for (a fetch, the details, a rescore, a sign-in, the files; `closing {activity}`), and so does the busy error
+  (`Busy {activity}`).
 - Sidebar (final round, user decisions 2026-09-25): under Jobs (the inbox) its two other places, Archiv and Papierkorb,
   as quieter sub-entries (13 px, indented, a `role="group"` of their own) that the one sliding pill steps over. An
   arrow at the end of the Jobs row, after the count (`places-toggle`, a button of its own, never inside the nav button;
@@ -228,8 +235,8 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   quality, one line of what the app reads, keys it does not read, rescore, the file actions), the seven blocks of the
   form and the reading, sticky save bar (Speichern only with a change, Verwerfen, once "Weiter zum ersten Abruf" during
   setup), a question before leaving or closing the window with unsaved changes; empty state with the three ways in.
-- Einstellungen: Postfach · Abruf (auto fetch) · Portale (switches with risk badges, health, quota only >= 80 %) ·
-  Dateien · Wartung. First run: full page with three real, self-ticking steps.
+- Einstellungen: Postfach · Abruf (auto fetch) · Portale (switches, health, pages used today, the meter from 80 %) ·
+  Dateien · Sprache · Wartung · Zurücksetzen. First run: full page with three real, self-ticking steps.
 - All states per screen (first use, no profile, empty, loading, run, nothing new, no search hit, errors, offline,
   portal paused, no details, teaser, unscorable, excluded). Feedback where the action happened; no toasts.
 - Tokens (`tokens.css`, `:root`, light only, `color-scheme: light`): palette from the brief (coral 13 73% 63%, navy
@@ -272,13 +279,22 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   outside fields, keys outside fields (except Tab and Enter/Space on controls, see Decisions "Keys"), Ctrl/Cmd+wheel
   (a wheel listener only while Ctrl/Cmd is held), pinch. Native: WebView2 switches, macOS minimal menu,
   `accept_first_mouse`, no link preview, devtools off in release, navigation guard, window shown after first load.
+  Native keys beyond the shortcuts (OS conventions, not own shortcuts; 2026-09-25): Tab passes disabled
+  controls; in a radio group (the segments) Home and End choose too; Shift+ArrowUp/ArrowDown and
+  Shift+Home/End extend the choice of jobs from the open one like Explorer and Mail (no Ctrl/Cmd+A); with
+  the focus nowhere the arrows scroll the pane clicked last by a line (`--scroll-line`) and Home/End to its
+  top and end (Einstellungen, Profil), and after a click into the reader they scroll the reader instead of
+  switching jobs, like the message of a mail app (a click in the list gives them back); Space on the open
+  job's row pages through the reader.
 
 ### Platforms (documented differences only)
 Inside the window both OS show the same app; these differ by OS convention (UI: `ui/src/lib/platform.ts`, native:
 `src-tauri/src/platform.rs`): native window frame (Windows title bar in the app's colours via DWM, dimmed title while
 inactive; macOS unified title bar: traffic lights over the sidebar in a 52 px toolbar row that holds search and
 Abrufen and moves the window, no title text) · dialog buttons (Windows: action first; macOS: cancel left, action
-right) · scrollbars (Windows: slim styled, shown over their scroller; macOS: native overlay scrollbars) · middle-button
+right) · scrollbars (Windows: slim styled, their room kept by every view, the list, its header and the reader
+whether they scroll or not, so no edge and no column moves between a short and a long page; macOS: native overlay
+scrollbars, which take no room) · middle-button
 autoscroll (Windows; macOS has none) · words for OS things (Explorer / Finder, Anmeldeinformationsverwaltung /
 Schlüsselbund) · the command key of the app's shortcuts and how a shortcut is written (Strg vs. Cmd) · menu (none vs.
 minimal App/Edit/Window) · font smoothing on macOS · keychain vs. credential manager

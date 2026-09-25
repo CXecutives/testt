@@ -51,7 +51,7 @@ fn claim_slot<'a>(
     {
         let mut activity = lock(&state.activity);
         if !matches!(*activity, Activity::Idle) {
-            return Err(ErrorInfo::new(ErrorKind::Busy));
+            return Err(super::busy_error(&activity));
         }
         *activity = Activity::Session(cancel.clone());
     }

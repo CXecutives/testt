@@ -301,7 +301,7 @@
   variant="danger"
   heading={t.actions.emptyTrashHeading}
   text={t.actions.emptyTrashText(inTrash)}
-  confirmLabel={t.actions.emptyTrash}
+  confirmLabel={t.actions.emptyTrashConfirm}
   busy={emptying}
   error={emptyError}
   testid="dialog-empty-trash"
@@ -313,7 +313,7 @@
   variant="danger"
   heading={t.actions.purgeHeading(bulk.chosen.length)}
   text={t.actions.purgeText}
-  confirmLabel={t.actions.purge}
+  confirmLabel={t.actions.purgeConfirm}
   busy={bulk.purging}
   error={bulk.purgeError}
   testid="dialog-purge-chosen"
@@ -411,6 +411,6 @@
     align-items: center;
     gap: var(--space-2);
     margin-left: auto;
-    margin-right: calc(-1 * var(--space-12));
+    margin-right: calc(-1 * var(--ghost-inset));
   }
 </style>

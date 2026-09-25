@@ -56,6 +56,8 @@
   --p-fg-subtle: 30 4% 48%;
   --p-border-strong: 40 12% 78%;
   --p-border-input: 40 10% 66%;
+  /* A switch that is off, pressed: one step darker than its hover (--p-border-input). */
+  --p-border-press: 40 10% 58%;
   --p-success-strong: 150 35% 33%;
   --p-success-soft: 150 27% 94%;
   --p-warning-strong: 38 70% 34%;
@@ -146,9 +148,14 @@
   --primary: hsl(var(--p-coral));
   --primary-hover: hsl(var(--p-coral-variant));
   --primary-active: hsl(var(--p-coral-press));
-  /* Switches are coral when on (user decision). */
+  /* Switches are coral when on (user decision), a warm grey when off; each state darkens a
+     step under the pointer and one more while the left button is down. */
+  --toggle-off: hsl(var(--p-border-strong));
+  --toggle-off-hover: hsl(var(--p-border-input));
+  --toggle-off-press: hsl(var(--p-border-press));
   --toggle-on: hsl(var(--p-coral));
   --toggle-on-hover: hsl(var(--p-coral-variant));
+  --toggle-on-press: hsl(var(--p-coral-press));
   /* The unread dot of a list row and of the nav rail. */
   --unread: hsl(var(--p-coral));
   /* Where you are: the 3 px bar of the selected row and the ring track on its wash. */
@@ -336,6 +343,8 @@
   /* The column handle and the sidebar's edge: the strip that catches the pointer, the line
      it shows on hover and the small grip centred on that line. */
   --splitter-hit: 8px;
+  /* How far ArrowUp/ArrowDown scroll a pane (a line of text and its gap, like the OS). */
+  --scroll-line: 40px;
   /* A native menu opens this far below its button. */
   --menu-gap: 4px;
   --grip-width: 4px;
@@ -350,6 +359,9 @@
      and text share one grid (a card of setting rows: 20). Unset, rows sit at the content
      edge. */
   --row-inset: 0px;
+  /* How far a small ghost button hangs out of its column so its text or icon starts (or
+     ends) on the column's edge: its padding and its (transparent) border. */
+  --ghost-inset: calc(var(--space-12) + var(--border-width));
   /* The one inner padding of every content column: list header, list rows, reader, overview,
      and the left edge of the top strip, so their edges line up. */
   --pane-padding: var(--space-16);
@@ -362,6 +374,9 @@
   --ring-lg: 96px;
   --ring-lg-stroke: 8px;
   --border-width: 1px;
+  /* No length at all, as a length: a per-OS value that vanishes (base.css) stays one, so
+     calc() can still add it (a bare 0 would void the whole calc). */
+  --length-none: 0px;
   --focus-width: 2px;
   --marker-height: 2px;
   --brand-mark-sm: 24px;
