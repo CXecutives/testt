@@ -115,8 +115,18 @@ impl PortalAdapter for LinkedIn {
         }
     }
 
+    /// The guest view answered 200. Without the description container the page may be a
+    /// sign-in wall or a security check served with 200 (not only as a redirect): that stops
+    /// the portal at once, it is no changed layout. Real ads always have the container, and
+    /// their sign-in modal is never read as a wall.
     fn guest_page(&self, html: &str, _path: &str, _link: &JobLink) -> PageOutcome {
-        judge(parse(html))
+        let parsed = parse(html);
+        if parsed.text.is_none()
+            && let Some(cause) = wall(html)
+        {
+            return PageOutcome::Blocked(cause);
+        }
+        judge(parsed)
     }
 
     fn parser_version(&self) -> u32 {
@@ -129,13 +139,15 @@ impl PortalAdapter for LinkedIn {
 }
 
 /// Bump whenever the parser reads pages differently (requeues failed jobs).
-const PARSER_VERSION: u32 = 1;
+/// 2: all four criteria, `<br><br>` paragraphs, walls and checks served with 200.
+const PARSER_VERSION: u32 = 2;
 
 static CRITERIA: Css = LazyLock::new(|| selector("li.description__job-criteria-item"));
 static CRITERION: Css = LazyLock::new(|| selector("h3"));
 static CRITERION_VALUE: Css = LazyLock::new(|| selector("span"));
 
-/// The criteria list under the ad: employment type and career level.
+/// The criteria list under the ad: career level, employment type, job function and
+/// industries.
 fn facts(doc: &Html) -> Facts {
     let mut facts = Facts::default();
     let text = |e: scraper::ElementRef<'_>| one_line(&e.text().collect::<String>());
@@ -150,10 +162,52 @@ fn facts(doc: &Html) -> Facts {
                 facts.employment_type = Facts::value(&value);
             }
             "karrierestufe" | "seniority level" => facts.level = Facts::value(&value),
+            "tätigkeitsbereich" | "job function" => facts.function = Facts::value(&value),
+            "branchen" | "industries" => facts.industries = Facts::value(&value),
             _ => {}
         }
     }
     facts
+}
+
+static PAGE_TITLE: Css = LazyLock::new(|| selector("title"));
+
+/// A sign-in wall or a security check served with 200 instead of the ad: its page title,
+/// the sign-in wall's or the check's address in the page, a captcha. `None` for anything
+/// else (a page LinkedIn changed is "suspicious", not a wall). German and English page
+/// titles, do not translate.
+fn wall(html: &str) -> Option<Cause> {
+    let doc = Html::parse_document(html);
+    let title = doc
+        .select(&PAGE_TITLE)
+        .next()
+        .map(|t| one_line(&t.text().collect::<String>()).to_lowercase())
+        .unwrap_or_default();
+    let check = [
+        "security verification",
+        "sicherheitsüberprüfung",
+        "security check",
+    ];
+    if super::has_challenge(&doc, html)
+        || html.contains("/checkpoint/challenge")
+        || check.iter().any(|t| title.contains(t))
+    {
+        return Some(Cause::Captcha);
+    }
+    let sign_in = [
+        "sign in",
+        "sign up",
+        "log in",
+        "join linkedin",
+        "anmelden",
+        "einloggen",
+        "registrieren",
+        "mitglied werden",
+    ];
+    (sign_in.iter().any(|t| title.contains(t))
+        || html.contains("/authwall")
+        || html.contains("authwall?"))
+    .then_some(Cause::LoginWall)
 }
 
 static MARKUP: Css = LazyLock::new(|| selector("div.show-more-less-html__markup"));
@@ -212,77 +266,94 @@ fn without_closed_suffix(title: &str) -> String {
 pub(crate) mod tests {
     use super::*;
 
-    /// Layout like the real guest view (shortened, invented content).
+    /// The guest view with LinkedIn's exact element and class skeleton (anonymised: invented
+    /// text, company and place), open, closed and legitimately short.
+    pub(crate) const OPEN: &str =
+        include_str!("../../tests/fixtures/pages/linkedin_guest_open.html");
+    const CLOSED: &str = include_str!("../../tests/fixtures/pages/linkedin_guest_closed.html");
+    const SHORT: &str = include_str!("../../tests/fixtures/pages/linkedin_guest_short.html");
+
+    /// The checked-in page with `text` as the ad's markup.
     pub(crate) fn page(text: &str, closed: bool) -> String {
-        let closed = if closed {
-            r#"<figure class="closed-job closed-job__flavor topcard__flavor-row"><figcaption class="closed-job__flavor--closed">Es werden keine Bewerbungen mehr angenommen.</figcaption></figure>"#
-        } else {
-            ""
-        };
-        format!(
-            r#"<section class="top-card-layout"><a href="/jobs/view/1"><h2 class="top-card-layout__title topcard__title">Interim CFO (m/w/d){}</h2></a>
-            <h4><div class="topcard__flavor-row"><span class="topcard__flavor"><a class="topcard__org-name-link topcard__flavor--black-link" href="https://de.linkedin.com/company/x">
-              Nordlicht AG
-            </a></span><span class="topcard__flavor topcard__flavor--bullet">
-              Hamburg, Deutschland
-            </span></div><div class="topcard__flavor-row"><span class="posted-time-ago__text topcard__flavor--metadata">vor 2 Tagen</span>
-            <span class="num-applicants__caption topcard__flavor--metadata topcard__flavor--bullet">Über 200 Bewerber</span></div>{closed}</h4></section>
-            <section class="description"><div class="show-more-less-html__markup show-more-less-html__markup--clamp-after-5
-                relative overflow-hidden">{text}</div><button class="show-more-less-html__button">Mehr anzeigen</button></section>
-            <ul class="description__job-criteria-list"><li class="description__job-criteria-item"><h3 class="description__job-criteria-subheader">Karrierestufe</h3><span class="description__job-criteria-text description__job-criteria-text--criteria">
-              Direktor
-            </span></li><li class="description__job-criteria-item"><h3 class="description__job-criteria-subheader">Beschäftigungsverhältnis</h3><span class="description__job-criteria-text description__job-criteria-text--criteria">
-              Vollzeit
-            </span></li></ul>"#,
-            if closed.is_empty() {
-                ""
-            } else {
-                " (No longer accepting applications)"
-            }
-        )
+        let html = if closed { CLOSED } else { OPEN };
+        let open = "relative overflow-hidden\">";
+        let start = html.find(open).expect("markup container") + open.len();
+        let end = start + html[start..].find("</div>").expect("end of the markup");
+        format!("{}{text}{}", &html[..start], &html[end..])
     }
 
     #[test]
     fn open_posting() {
-        let p = parse(&page(
-            "<p><strong>Aufgaben</strong></p><ul><li>Finanzen</li><li>Controlling</li></ul>",
-            false,
-        ));
-        assert_eq!(p.text.as_deref(), Some("Aufgaben\n\nFinanzen\nControlling"));
+        let p = parse(OPEN);
         assert!(!p.closed);
         assert_eq!(
             p.fields,
             PageFields {
-                title: "Interim CFO (m/w/d)".into(),
-                company: "Nordlicht AG".into(),
-                location: "Hamburg, Deutschland".into(),
+                title: "Interim Leiter Controlling (m/w/d)".into(),
+                company: "Musterwerke GmbH".into(),
+                location: "Köln, Nordrhein-Westfalen, Deutschland".into(),
             }
         );
+        // All four criteria.
         assert_eq!(
             p.facts,
             Facts {
-                employment_type: Some("Vollzeit".into()),
+                employment_type: Some("Befristet".into()),
                 level: Some("Direktor".into()),
+                function: Some("Finanzen und Rechnungswesen".into()),
+                industries: Some("Maschinenbau und Metallverarbeitung".into()),
                 ..Facts::default()
             }
         );
-        assert_eq!(LinkedIn.parse_facts(&page("x", false)), p.facts);
+        assert_eq!(LinkedIn.parse_facts(OPEN), p.facts);
+        // The `<br><br>` paragraphs stay paragraphs, headings stand alone.
+        let text = p.text.unwrap();
+        assert!(
+            text.starts_with(
+                "Referenz 16-000001\n\nInterim-Mandat im Mittelstand!\n\nFür unseren Kunden"
+            ),
+            "{text}"
+        );
+        assert!(
+            text.contains("\n\nIhre Aufgaben\n\nLeitung des Controllings"),
+            "{text}"
+        );
+        assert!(text.contains("\n\nIhr Profil\n\n"), "{text}");
+        assert!(!text.contains("Mehr anzeigen"), "the buttons are no text");
+        assert!(!text.contains("Passwort"), "the sign-in modal is no text");
+        assert!(matches!(
+            LinkedIn.guest_page(OPEN, "/", &link()),
+            PageOutcome::Text {
+                short: false,
+                closed: false,
+                ..
+            }
+        ));
+    }
+
+    fn link() -> JobLink {
+        crate::portal::job_link("https://www.linkedin.com/jobs/view/4199000201/").unwrap()
     }
 
     #[test]
     fn closed_posting_keeps_text_and_the_title_without_the_suffix() {
-        let p = parse(&page("Text", true));
+        let p = parse(CLOSED);
         assert!(p.closed);
-        assert_eq!(p.text.as_deref(), Some("Text"));
-        assert_eq!(p.fields.title, "Interim CFO (m/w/d)");
-        assert_eq!(p.fields.company, "Nordlicht AG");
-        let german = page("Text", true).replace(
-            "(No longer accepting applications)",
+        assert!(p.text.unwrap().contains("Ihre Aufgaben"));
+        assert_eq!(p.fields.title, "Interim Leiter Controlling (m/w/d)");
+        assert_eq!(p.fields.company, "Musterwerke GmbH");
+        let german = CLOSED.replace(
+            "(No longer accepting applications as of 11/26)",
             "(Bewerbungen werden nicht mehr angenommen)",
         );
-        assert_eq!(parse(&german).fields.title, "Interim CFO (m/w/d)");
-        let unknown =
-            page("Text", true).replace("(No longer accepting applications)", "(geschlossen)");
+        assert_eq!(
+            parse(&german).fields.title,
+            "Interim Leiter Controlling (m/w/d)"
+        );
+        let unknown = CLOSED.replace(
+            "(No longer accepting applications as of 11/26)",
+            "(geschlossen)",
+        );
         assert_eq!(
             parse(&unknown).fields.title,
             "",
@@ -291,8 +362,62 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn a_short_ad_is_verified_short() {
+        assert!(matches!(
+            LinkedIn.guest_page(SHORT, "/", &link()),
+            PageOutcome::Text { short: true, .. }
+        ));
+        // The helper keeps the skeleton.
+        assert_eq!(parse(&page("Kurz.", false)).text.as_deref(), Some("Kurz."));
+    }
+
+    #[test]
     fn missing_container_is_no_text() {
         assert_eq!(parse("<html><body>Bitte anmelden</body></html>").text, None);
+    }
+
+    /// A sign-in wall or a security check served with 200 stops the portal at once (it
+    /// used to count as a changed layout: one more request into the wall, a one-hour pause
+    /// and a wrong message). A page without the container and without such signs stays
+    /// "suspicious"; a real ad with its sign-in modal is never a wall.
+    #[test]
+    fn walls_and_checks_served_with_200() {
+        let judge = |html: &str| LinkedIn.guest_page(html, "/", &link());
+        for wall in [
+            "<html><head><title>LinkedIn Login, Sign in | LinkedIn</title></head><body><form action=\"/uas/login-submit\"></form></body></html>",
+            "<html><head><title>Sign Up | LinkedIn</title></head><body></body></html>",
+            "<html><head><title>LinkedIn: Anmelden oder mitmachen</title></head><body></body></html>",
+            "<html><body><script>window.location.href = \"https://www.linkedin.com/authwall?trk=gf&sessionRedirect=x\";</script></body></html>",
+        ] {
+            assert_eq!(
+                judge(wall),
+                PageOutcome::Blocked(Cause::LoginWall),
+                "{wall}"
+            );
+        }
+        for check in [
+            "<html><head><title>Security Verification | LinkedIn</title></head><body></body></html>",
+            "<html><body><form id=\"captcha-internal\" action=\"/checkpoint/challenge/verify\"></form></body></html>",
+            "<html><body><div class=\"g-recaptcha\" data-sitekey=\"x\"></div></body></html>",
+            "<html><body><script>window._cf_chl_opt = {};</script></body></html>",
+        ] {
+            assert_eq!(
+                judge(check),
+                PageOutcome::Blocked(Cause::Captcha),
+                "{check}"
+            );
+        }
+        assert_eq!(
+            judge("<html>Bitte anmelden</html>"),
+            PageOutcome::Suspicious(Cause::NoDescription)
+        );
+        assert_eq!(judge(""), PageOutcome::Suspicious(Cause::NoDescription));
+        for real in [OPEN, CLOSED, SHORT] {
+            assert!(
+                matches!(judge(real), PageOutcome::Text { .. }),
+                "a real page with its sign-in modal"
+            );
+        }
     }
 
     #[test]
@@ -323,27 +448,33 @@ pub(crate) mod tests {
         }
     }
 
-    /// Real pages fetched by hand (private, not checked in): skipped when missing.
+    /// Real pages fetched by hand (private, not checked in). Ignored by default so a
+    /// missing folder shows as "ignored" instead of passing silently; run it with
+    /// `cargo test -- --ignored` in the main checkout.
     #[test]
+    #[ignore = "needs the private pages in core/tests/fixtures/private/pages"]
     fn real_pages_when_available() {
         let dir =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/private/pages");
-        let read = |name: &str| std::fs::read_to_string(dir.join(name)).ok();
-        let (Some(open), Some(short), Some(closed)) = (
+        let read = |name: &str| std::fs::read_to_string(dir.join(name)).expect(name);
+        let (open, short, closed) = (
             read("linkedin-open-4468654483.html"),
             read("linkedin-short-4445179167.html"),
             read("linkedin-closed-4091550784.html"),
-        ) else {
-            eprintln!("skipped: private LinkedIn pages missing");
-            return;
-        };
+        );
         // No real names in the repository: the test checks that the fields are filled.
+        for html in [&open, &short, &closed] {
+            assert!(wall(html).is_none(), "a real ad is no wall");
+        }
         let open = parse(&open);
-        assert!(open.text.as_ref().unwrap().chars().count() > 3_000);
+        let text = open.text.as_ref().unwrap();
+        assert!(text.chars().count() > 3_000);
+        assert!(text.matches("\n\n").count() > 10, "paragraphs kept");
         assert!(!open.closed);
         assert!(!open.fields.company.is_empty());
         assert!(!open.fields.location.is_empty());
         assert!(!open.fields.title.is_empty());
+        assert!(open.facts.function.is_some() && open.facts.industries.is_some());
         let short = parse(&short);
         let n = short.text.as_ref().unwrap().chars().count();
         assert!(

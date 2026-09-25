@@ -283,6 +283,21 @@ mod tests {
                 ResponseTemplate::new(200).set_body_string("<html>Bitte anmelden</html>"),
                 |o| matches!(o, PageOutcome::Suspicious(Cause::NoDescription)),
             ),
+            // A sign-in wall or a security check served with 200: a block, at once.
+            (
+                ResponseTemplate::new(200).set_body_string(
+                    "<html><head><title>Sign Up | LinkedIn</title></head><body>\
+                     <script>location.href='https://www.linkedin.com/authwall?trk=x'</script></body></html>",
+                ),
+                |o| matches!(o, PageOutcome::Blocked(Cause::LoginWall)),
+            ),
+            (
+                ResponseTemplate::new(200).set_body_string(
+                    "<html><head><title>Security Verification | LinkedIn</title></head>\
+                     <body><form id=\"captcha-internal\"></form></body></html>",
+                ),
+                |o| matches!(o, PageOutcome::Blocked(Cause::Captcha)),
+            ),
             (ResponseTemplate::new(404), |o| {
                 matches!(o, PageOutcome::Gone)
             }),

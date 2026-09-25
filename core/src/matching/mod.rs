@@ -67,8 +67,21 @@ pub mod fact_key {
     pub const START: &str = "start";
     /// Duration as the page words it ("6 Monate").
     pub const DURATION: &str = "duration";
+    /// Career level as the page words it (LinkedIn: "Praktikum", "Direktor").
+    pub const LEVEL: &str = "level";
+    /// Industries as the page lists them (LinkedIn: "Maschinenbau").
+    pub const INDUSTRIES: &str = "industries";
     /// Every key the engine reads.
-    pub const ALL: &[&str] = &[CONTRACT, LOCATION, REMOTE_PERCENT, RATE, START, DURATION];
+    pub const ALL: &[&str] = &[
+        CONTRACT,
+        LOCATION,
+        REMOTE_PERCENT,
+        RATE,
+        START,
+        DURATION,
+        LEVEL,
+        INDUSTRIES,
+    ];
 }
 
 /// Profiles with fewer competences than this are `Thin`.

@@ -117,6 +117,11 @@ pub(crate) fn engine_facts(facts: &Facts) -> Option<Value> {
     put(fact_key::RATE, facts.rate.clone().map(Value::from));
     put(fact_key::START, facts.start.clone().map(Value::from));
     put(fact_key::DURATION, facts.duration.clone().map(Value::from));
+    put(fact_key::LEVEL, facts.level.clone().map(Value::from));
+    put(
+        fact_key::INDUSTRIES,
+        facts.industries.clone().map(Value::from),
+    );
     (!map.is_empty()).then_some(Value::Object(map))
 }
 
@@ -421,6 +426,8 @@ Rahmenbedingungen:
         let all = Facts {
             employment_type: Some("Freiberuflich".into()),
             level: Some("Direktor".into()),
+            function: Some("Finanzen".into()),
+            industries: Some("Maschinenbau".into()),
             remote_percent: Some(60),
             remote: Some("teilweise".into()),
             start: Some("ab sofort".into()),
