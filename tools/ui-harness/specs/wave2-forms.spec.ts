@@ -19,6 +19,10 @@ async function create(page: Page, scenario = 'no-profile'): Promise<void> {
   await expect(page.getByTestId('profile-form')).toBeVisible();
 }
 
+const chips = (field: Locator): Locator => field.locator('.chip .text');
+const countries = (page: Page): Locator => page.getByTestId('profile-countries');
+const countryInput = (page: Page): Locator => countries(page).locator('input');
+const options = (page: Page): Locator => page.getByTestId('profile-countries-options');
 const saves = async (page: Page): Promise<number> => (await calls(page, 'save_profile')).length;
 
 /** Every id an aria-describedby, aria-labelledby or aria-controls inside `scope` names that
@@ -39,6 +43,60 @@ async function dangling(scope: Locator): Promise<string[]> {
     return missing;
   });
 }
+
+test('ui-core-03: the country list has one mark, and the pointer moves it', async ({ page }) => {
+  await profile(page);
+  await countryInput(page).fill('s');
+  const all = options(page).getByRole('option');
+  await expect(all.first()).toHaveAttribute('aria-selected', 'true');
+  const third = all.nth(2);
+  const name = (await third.textContent())!.trim();
+  const box = (await third.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  // The option under the pointer is the one mark, no second wash stays on the first.
+  await expect(third).toHaveAttribute('aria-selected', 'true');
+  await expect(options(page).locator('[aria-selected="true"]')).toHaveCount(1);
+  const washes = await all.evaluateAll((nodes) =>
+    nodes.map((node) => getComputedStyle(node).backgroundColor),
+  );
+  expect(new Set(washes.filter((_, index) => index !== 2)).size).toBe(1);
+  expect(washes[2]).not.toBe(washes[0]);
+  // Enter takes the marked one, which is the one under the pointer.
+  await countryInput(page).press('Enter');
+  await expect(chips(countries(page)).last()).toHaveText(name);
+});
+
+test('ui-forms-07: a chosen country says nothing; other names find their country', async ({
+  page,
+}) => {
+  await profile(page);
+  await expect(chips(countries(page))).toHaveText(['Deutschland', 'Österreich']);
+  const none = page.getByTestId('profile-countries-none');
+  for (const text of ['Deutsch', 'Deutschland', 'Germany', 'Öster']) {
+    await countryInput(page).fill(text);
+    await expect(none, text).toHaveCount(0);
+    await expect(options(page), text).toBeHidden();
+  }
+  for (const [text, name] of [
+    ['UK', 'Großbritannien'],
+    ['England', 'Großbritannien'],
+    ['Britain', 'Großbritannien'],
+    ['Holland', 'Niederlande'],
+    ['United States', 'USA'],
+    ['Vereinigte Staaten', 'USA'],
+    ['Amerika', 'USA'],
+    ['Czech Republic', 'Tschechien'],
+  ] as const) {
+    await countryInput(page).fill(text);
+    await expect(options(page).getByRole('option'), text).toHaveText([name]);
+    await expect(none, text).toHaveCount(0);
+  }
+  await countryInput(page).press('Enter');
+  await expect(chips(countries(page))).toHaveText(['Deutschland', 'Österreich', 'Tschechien']);
+  // A name that is no country still says so.
+  await countryInput(page).fill('Atlantis');
+  await expect(none).toHaveText('Kein Land mit diesem Namen.');
+});
 
 test('ui-core-04: every reference of a field or switch names a text that is there', async ({
   page,

@@ -163,12 +163,24 @@
   const thin = $derived(quality === 'thin' || quality === 'empty');
   const actionFirst = primaryFirst();
 
-  /** Every country the engine knows, named in the app's language and found by both names. */
+  /** Other names people type for a country (the engine reads most of them too,
+   *  core/src/matching/lexicon/engine.rs); the chip holds the code either way. */
+  const COUNTRY_TERMS: Readonly<Record<string, readonly string[]>> = {
+    CZ: ['Czech Republic', 'Tschechische Republik'],
+    GB: ['UK', 'England', 'Great Britain', 'Vereinigtes Königreich'],
+    NL: ['Holland'],
+    US: ['United States', 'Vereinigte Staaten', 'America', 'Amerika'],
+  };
+  /** Every country the engine knows, named in the app's language and found by every name. */
   const COUNTRIES = $derived(
     Object.keys(de.profile.country).map((code) => ({
       id: code,
       label: t.profile.country[code] ?? code,
-      terms: [de.profile.country[code] ?? code, en.profile.country[code] ?? code],
+      terms: [
+        de.profile.country[code] ?? code,
+        en.profile.country[code] ?? code,
+        ...(COUNTRY_TERMS[code] ?? []),
+      ],
     })),
   );
   /** Deutschland, Österreich and Schweiz in one click. */

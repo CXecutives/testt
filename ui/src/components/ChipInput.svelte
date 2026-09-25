@@ -12,9 +12,10 @@
   With `options` the field takes only those (the countries of the profile): typing shows the
   options whose name or other names start with it (any word of them, in any case, with or
   without accents) in a list under the field, Enter or a click takes the marked one (the
-  first), leaving the field takes a single match. A chip shows its option's name; a value
-  that is no option (from a file) stays and shows as it is. Text that matches nothing stays
-  in the field and says so (`noMatch`).
+  first), leaving the field takes a single match. The list has one mark, like a native
+  menu: the pointer moves it as the arrows do. A chip shows its option's name; a value that
+  is no option (from a file) stays and shows as it is. Text that matches no option stays in
+  the field and says so (`noMatch`); text that matches only chosen ones says nothing.
   Typed text that is no chip yet is a change of the form around the field (`typedText`), and
   Ctrl/Cmd+S takes it in first, as leaving the field would.
 -->
@@ -105,8 +106,8 @@
   const labelOf = (value: string): string =>
     options?.find((option) => option.id === value)?.label ?? value;
 
-  /** Options not chosen yet whose names start with the typed text (a whole name first). */
-  const matches = $derived.by((): ChipOption[] => {
+  /** Options whose names start with the typed text (a whole name first), chosen or not. */
+  const found = $derived.by((): ChipOption[] => {
     const query = folded(draft);
     if (options === null || query === '') return [];
     const rank = (option: ChipOption): number => {
@@ -118,12 +119,13 @@
       return 2;
     };
     return options
-      .filter((option) => !values.includes(option.id))
       .map((option) => ({ option, rank: rank(option) }))
       .filter((entry) => entry.rank < 2)
       .sort((a, b) => a.rank - b.rank || a.option.label.localeCompare(b.option.label))
       .map((entry) => entry.option);
   });
+  /** The options found that are not chosen yet: the list under the field. */
+  const matches = $derived(found.filter((option) => !values.includes(option.id)));
   const listed = $derived(focused && matches.length > 0);
   /** The typed text names an option that is a chip already: taking it only clears the text. */
   const chosen = $derived(
@@ -137,9 +139,8 @@
           ),
       ),
   );
-  const nothing = $derived(
-    options !== null && folded(draft) !== '' && matches.length === 0 && !chosen,
-  );
+  /** The typed text names no option at all (one that is chosen already is no news). */
+  const nothing = $derived(options !== null && folded(draft) !== '' && found.length === 0);
 
   $effect(() => {
     void draft;
@@ -340,6 +341,7 @@
           aria-selected={index === active}
           tabindex="-1"
           data-keep-focus
+          onpointermove={() => (active = index)}
           onclick={() => choose(option)}
         >
           {option.label}
@@ -501,11 +503,7 @@
     white-space: nowrap;
   }
 
-  .option:hover,
-  .option.active {
-    background-color: var(--surface-hover);
-  }
-
+  /* One mark: the pointer moves it (pointermove), never a second wash of its own. */
   .option.active {
     background-color: var(--active-surface);
     color: var(--active-text);
