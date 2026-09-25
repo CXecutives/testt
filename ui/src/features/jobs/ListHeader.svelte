@@ -1,40 +1,50 @@
 <!--
-  The header of the list column, every list control in one place.
-  Row 1: the search and next to it "Abrufen", the one primary of the Jobs view, which fills
-  this list ("Abbrechen" in its place while a fetch or details run goes; locked while the
-  app scores the jobs anew, and without a mailbox, saying why). The action slot is as wide as the wider of the two and both fill it, so the
-  search never jumps when a run starts; the one that comes fades in, the one that goes is
-  gone at once.
-  On macOS this row is the list's part of the toolbar row, centred on the traffic lights,
-  and its empty parts move the window.
-  Row 2: the one place for filters, Neu · Alle · Gemerkt · Bewerbungen with their counts
-  (always there, also while the reader is open); the archive (archived jobs), reached from the end of
-  Alle, show as a pill with its x instead.
-  Row 3: the order, a quiet button with its name and a chevron ("Nach Passung", "Nach
-  Datum") that opens the OS's own menu with both, the current one ticked; one choice for
-  every list, kept. Without a usable profile it says "Nach Datum" and cannot open (why, in
-  its tooltip). The row keeps one height in every state.
-  The bottom hairline shows only once the list below is scrolled.
+  The header of the list column, two rows.
+  Row 1: the search, whose placeholder names what it searches ("Jobs durchsuchen", "Archiv
+  durchsuchen", "Papierkorb durchsuchen"), and next to it "Abrufen", the one primary of the
+  Jobs view, which fills the inbox ("Abbrechen" in its place while a fetch or details run
+  goes; locked while the app scores the jobs anew, and without a mailbox, saying why). The
+  action slot is as wide as the wider of the two and both fill it, so the search never jumps
+  when a run starts; the one that comes fades in, the one that goes is gone at once. On
+  macOS this row is the list's part of the toolbar row, centred on the traffic lights, and
+  its empty parts move the window.
+  Row 2 in the inbox: Neu · Alle · Favoriten with their counts, and at its end "Alle als
+  gelesen markieren" (while there are unread jobs; the toast takes it back) and the order, a
+  quiet button that opens the OS's own menu (Nach Passung, Nach Datum; one choice for every
+  list, kept; without a usable profile by date, saying why). In the Archiv and the
+  Papierkorb: how many jobs lie there, the order, and in the Papierkorb "Papierkorb leeren"
+  (asks first). While two or more jobs are chosen, the selection bar takes this row: how
+  many, the place's actions, "Auswahl aufheben" (Esc too). The row keeps one height in every
+  state; where the column is narrow its tools wrap under the segments. The bottom hairline
+  shows only once the list below is scrolled.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
-  import Count from '$components/Count.svelte';
+  import Dialog from '$components/Dialog.svelte';
   import MenuButton from '$components/MenuButton.svelte';
+  import Notice from '$components/Notice.svelte';
   import Segmented from '$components/Segmented.svelte';
+  import SelectionBar, { type SelectionAction } from '$components/SelectionBar.svelte';
   import TextField from '$components/TextField.svelte';
   import { t } from '$lib/i18n/t';
-  import { fade, pop } from '$lib/motion/transitions';
+  import type { JobSort } from '$lib/ipc/types';
+  import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
-  import type { JobSort } from '$lib/ipc/types';
-  import { jobs, type JobFacet } from '$lib/state/jobs.svelte';
+  import { isExcluded, jobs, placeOf, type JobFacet } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { toasts } from '$lib/state/toasts.svelte';
+  import { actionsOf, hasStar, move, purge, toggleStar } from './actions';
+  import { selection } from './selection.svelte';
 
   interface Props {
     /** The list below is scrolled away from its top. */
     scrolled?: boolean;
   }
   let { scrolled = false }: Props = $props();
+
+  const place = $derived(placeOf(jobs.facet));
+  const inInbox = $derived(place === 'inbox');
 
   // Each segment counts its list (they follow the search): the unread ones always in the warm
   // pill, the others plain, whichever is chosen, so the control keeps its width; no zero.
@@ -58,6 +68,10 @@
       tone: 'plain' as const,
     },
   ]);
+  /** The jobs of this place (with the search), for the count and whether to order. */
+  const inPlace = $derived(
+    jobs.facet === 'favourites' ? jobs.counts.favourites : jobs.counts[place],
+  );
 
   let searchBox = $state<HTMLElement | null>(null);
 
@@ -71,8 +85,92 @@
   const SORTS: readonly JobSort[] = ['match', 'newest'];
   const sorts = $derived(SORTS.map((sort) => ({ id: sort, label: t.toolbar.sortLabel[sort] })));
 
-  /** A filter the segments do not name (a portal, a tile). */
-  const otherFilter = $derived(jobs.filter);
+  let error = $state<string | null>(null);
+
+  /** "Alle als gelesen markieren": every unread job of the inbox; the toast takes it back. */
+  async function markAllRead(): Promise<void> {
+    error = null;
+    const result = await jobs.markAllRead();
+    if ('error' in result) {
+      error = result.error;
+      return;
+    }
+    void jobs.loadOverview();
+    toasts.show(t.toast.allRead, 'success', {
+      label: t.common.undo,
+      onclick: () => {
+        void jobs.markUnread(result.keys).then(() => jobs.loadOverview());
+      },
+    });
+  }
+
+  /* ------------------------------------------------------------------- selection */
+
+  const rows = $derived([
+    ...jobs.shown.filter((job) => !isExcluded(job)),
+    ...jobs.shown.filter(isExcluded),
+  ]);
+  const chosen = $derived(selection.jobs(rows));
+  let confirmPurge = $state(false);
+  let purging = $state(false);
+
+  const barActions = $derived.by((): SelectionAction[] => {
+    const out: SelectionAction[] = actionsOf(place).map((action) => ({
+      icon: action.icon,
+      label: action.label,
+      testid: `selection-${action.id}`,
+      onclick: () => {
+        if (action.id === 'purge') {
+          error = null;
+          confirmPurge = true;
+          return;
+        }
+        const list = chosen;
+        selection.clear();
+        void move(list, action.id).then((failed) => (error = failed));
+      },
+    }));
+    if (hasStar(place)) {
+      const on = chosen.some((job) => !job.pinned);
+      out.push({
+        icon: 'star',
+        label: on ? t.reader.pin : t.reader.unpin,
+        testid: 'selection-star',
+        onclick: () => toggleStar(chosen),
+      });
+    }
+    return out;
+  });
+
+  async function purgeChosen(): Promise<void> {
+    purging = true;
+    const list = chosen;
+    error = await purge(list);
+    purging = false;
+    if (error === null) {
+      confirmPurge = false;
+      selection.clear();
+    }
+  }
+
+  /* ----------------------------------------------------------------------- trash */
+
+  let confirmEmpty = $state(false);
+  let emptying = $state(false);
+
+  async function emptyTrash(): Promise<void> {
+    emptying = true;
+    error = null;
+    const result = await jobs.emptyTrash();
+    emptying = false;
+    if ('error' in result) {
+      error = result.error;
+      return;
+    }
+    confirmEmpty = false;
+    toasts.show(t.toast.deleted(result.count));
+    void jobs.loadOverview();
+  }
 </script>
 
 {#snippet fetchButton(live: boolean)}
@@ -106,8 +204,8 @@
       <TextField
         kind="search"
         value={jobs.search}
-        label={t.toolbar.searchLabel}
-        placeholder={t.toolbar.search}
+        label={t.place.search[place]}
+        placeholder={t.place.search[place]}
         testid="search"
         oninput={(value) => jobs.setSearch(value)}
       />
@@ -123,75 +221,88 @@
       {/if}
     </span>
   </div>
-  <div class="filters">
-    {#if jobs.facet === 'archived'}
-      <span class="filter" data-testid="filter" in:pop out:fade>
-        <span class="filter-label">{t.list.archive}</span>
-        <Count value={jobs.counts.archive} tone="plain" />
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon="x"
-          label={t.list.clearFilter}
-          testid="clear-filter"
-          onclick={() => jobs.setFacet('all')}
-        />
-      </span>
-    {:else}
-      <Segmented
-        options={views}
-        value={jobs.facet}
-        label={t.toolbar.facet}
-        size="sm"
-        testid="facet"
-        onchange={(id) => jobs.setFacet(id)}
+  <div class="second">
+    {#if selection.size >= 2}
+      <SelectionBar
+        count={chosen.length}
+        actions={barActions}
+        onclear={() => selection.clear()}
+        testid="selection-bar"
       />
-    {/if}
-    {#if otherFilter !== null}
-      <span class="filter" data-testid="filter" in:pop out:fade>
-        <span class="filter-label">{t.list.filter[otherFilter]}</span>
-        <Button
-          variant="ghost"
+    {:else}
+      {#if inInbox}
+        <Segmented
+          options={views}
+          value={jobs.facet}
+          label={t.toolbar.facet}
           size="sm"
-          iconOnly
-          icon="x"
-          label={t.list.clearFilter}
-          testid="clear-filter"
-          onclick={() => jobs.setFilter(null)}
+          testid="facet"
+          onchange={(id) => jobs.setFacet(id)}
         />
-      </span>
-    {/if}
-  </div>
-  <!-- Nothing to order in an empty list (the row comes back with a search or a job). -->
-  {#if jobs.counts.inbox > 0 || jobs.counts.archive > 0 || jobs.search.trim() !== ''}
-    <span class="order">
-      <span class="sort">
-        <MenuButton
-          options={sorts}
-          value={app.hasProfile ? jobs.sortChoice : 'newest'}
-          disabled={!app.hasProfile}
-          disabledReason={t.toolbar.sortNoProfile}
-          testid="sort"
-          onchange={(sort) => jobs.setSort(sort)}
-        />
-      </span>
-      <span class="order-tools">
-        {#if jobs.facet !== 'archived' && jobs.counts.archive > 0}
-          <!-- The archive, reachable from every list; its count follows the search. -->
+      {:else}
+        <span class="place-count" data-testid="place-count">{t.place.count[place](inPlace)}</span>
+      {/if}
+      <span class="tools">
+        {#if inInbox && jobs.facet !== 'favourites' && jobs.counts.unread > 0}
           <Button
             variant="ghost"
             size="sm"
-            icon="archive"
-            label={t.list.archiveLink(jobs.counts.archive)}
-            testid="show-archive"
-            onclick={() => jobs.setFacet('archived')}
+            iconOnly
+            icon="check-check"
+            label={t.actions.markAllRead}
+            testid="mark-all-read"
+            onclick={() => void markAllRead()}
+          />
+        {/if}
+        {#if inPlace > 0}
+          <MenuButton
+            options={sorts}
+            value={app.hasProfile ? jobs.sortChoice : 'newest'}
+            disabled={!app.hasProfile}
+            disabledReason={t.toolbar.sortNoProfile}
+            testid="sort"
+            onchange={(sort) => jobs.setSort(sort)}
+          />
+        {/if}
+        {#if place === 'trash' && jobs.counts.trash > 0}
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="trash-2"
+            label={t.actions.emptyTrash}
+            testid="empty-trash"
+            onclick={() => (confirmEmpty = true)}
           />
         {/if}
       </span>
-    </span>
+    {/if}
+  </div>
+  {#if error}
+    <Notice tone="danger" variant="inline" text={error} testid="header-error" />
   {/if}
 </div>
+
+<Dialog
+  bind:open={confirmEmpty}
+  variant="danger"
+  heading={t.actions.emptyTrashHeading}
+  text={t.actions.emptyTrashText}
+  confirmLabel={t.actions.emptyTrash}
+  busy={emptying}
+  testid="dialog-empty-trash"
+  onconfirm={() => void emptyTrash()}
+/>
+
+<Dialog
+  bind:open={confirmPurge}
+  variant="danger"
+  heading={t.actions.purgeHeading(chosen.length)}
+  text={t.actions.purgeText}
+  confirmLabel={t.actions.purge}
+  busy={purging}
+  testid="dialog-purge-chosen"
+  onconfirm={() => void purgeChosen()}
+/>
 
 <style>
   .header {
@@ -241,48 +352,27 @@
     visibility: hidden;
   }
 
-  .filters {
+  /* The second row: one height in every state; the tools wrap under a narrow column's
+     segments, at its end. */
+  .second {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-8);
     min-width: 0;
+    min-height: var(--control-sm);
   }
 
-  /* The filter a tile or chip set: a soft navy pill with its x. */
-  .filter {
-    display: inline-flex;
+  .place-count {
+    color: var(--text-muted);
+    font: var(--type-sm);
+  }
+
+  .tools {
+    display: flex;
     align-items: center;
     gap: var(--space-2);
-    min-width: 0;
-    height: var(--control-sm);
-    padding-left: var(--space-12);
-    border-radius: var(--radius-full);
-    background-color: var(--active-surface);
-    color: var(--active-text);
-    font: var(--type-sm);
-    font-weight: var(--weight-medium);
-  }
-
-  .filter-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* The order in words; its glyph starts on the edge of the column. */
-  /* The order in words and, under Gemerkt, the pinned jobs as one prompt. */
-  /* One height in every state (a button that comes or goes never moves the list). */
-  .order {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-8);
-    min-height: var(--control-sm);
+    margin-left: auto;
     margin-right: calc(-1 * var(--space-12));
-  }
-
-  .sort {
-    display: flex;
-    margin-left: calc(-1 * var(--space-12));
   }
 </style>

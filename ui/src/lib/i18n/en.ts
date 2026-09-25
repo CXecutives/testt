@@ -8,7 +8,7 @@
 // separator, no "X: Y", no exclamation marks. No German except product and portal names and
 // the name of the German language. Glossary: Job · Portal · Match · Details · Fetch ·
 // Profile · Mailbox · Alert mail · Overview · Excel file · Excluded · New · To check ·
-// Saved · Applications · Archive.
+// Favourites · Inbox (the place of the active jobs) · Archive · Trash.
 
 import type {
   Band,
@@ -18,6 +18,7 @@ import type {
   JobSort,
   Language,
   PauseReason,
+  Place,
   Portal,
   PortalHealth,
   LanguageLevel,
@@ -473,6 +474,48 @@ export const en: Catalog = {
     count: (n: number) => `${n} selected`,
     clear: 'Clear selection',
   },
+  place: {
+    inbox: 'Inbox',
+    archive: 'Archive',
+    trash: 'Trash',
+    search: {
+      inbox: 'Search jobs',
+      archive: 'Search the archive',
+      trash: 'Search the trash',
+    } satisfies Record<Place, string>,
+    count: {
+      inbox: (value: number) => `${count(value, 'job', 'jobs')} in the inbox`,
+      archive: (value: number) => `${count(value, 'job', 'jobs')} in the archive`,
+      trash: (value: number) => `${count(value, 'job', 'jobs')} in the trash`,
+    } satisfies Record<Place, (value: number) => string>,
+    alsoIn: {
+      inbox: (value: number) => `Also in the inbox (${n(value)})`,
+      archive: (value: number) => `Also in the archive (${n(value)})`,
+      trash: (value: number) => `Also in the trash (${n(value)})`,
+    } satisfies Record<Place, (value: number) => string>,
+    inArchive: 'In the archive',
+    inTrash: 'In the trash',
+    inTrashFor: (days: number) => `In the trash, deleted after ${count(days, 'day', 'days')}`,
+    empty: {
+      inbox: 'No jobs.',
+      archive: 'The archive is empty.',
+      trash: 'The trash is empty.',
+    } satisfies Record<Place, string>,
+  },
+  actions: {
+    archive: 'Archive',
+    toInbox: 'Move to inbox',
+    trash: 'Delete',
+    restore: 'Restore',
+    purge: 'Delete forever',
+    purgeHeading: (value: number) =>
+      value === 1 ? 'Delete the job forever?' : `Delete ${n(value)} jobs forever?`,
+    purgeText: 'Deleted jobs do not come back, not even with old alert mails.',
+    emptyTrash: 'Empty trash',
+    emptyTrashHeading: 'Empty the trash?',
+    emptyTrashText: 'The jobs are deleted forever and do not come back.',
+    markAllRead: 'Mark all as read',
+  },
   edit: {
     undo: 'Undo',
     cut: 'Cut',
@@ -561,8 +604,6 @@ export const en: Catalog = {
       newest: 'By date',
     } satisfies Record<JobSort, string>,
     sortNoProfile: 'Without a profile only by date.',
-    search: 'Search',
-    searchLabel: 'Search jobs',
     needsMailbox: 'Connect a mailbox first.',
   },
   run: {
@@ -646,22 +687,14 @@ export const en: Catalog = {
   list: {
     label: 'Jobs',
     excluded: 'Excluded',
-    archive: 'Archive',
-    showArchive: 'Show',
-    archiveLink: (value: number) => `Archive ${n(value)}`,
-    inArchive: 'In the archive',
-    emptyArchive: 'Empty archive',
-    emptyArchiveHeading: 'Empty the archive?',
-    emptyArchiveText: 'The jobs are deleted and do not come back.',
     emptySources: 'One alert per portal brings new jobs.',
     emptyWhileRun: 'The jobs show up once the fetch is done.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
     readOlder: 'Read older mails',
-    emptyArchived: 'The archive is empty.',
     emptyNew: 'No new jobs.',
+    emptyFavourites: 'No favourites yet.',
     emptyAll: 'After the first fetch the jobs show up here.',
     emptyAfterRun: 'The alert mails held no jobs so far.',
-    emptyFilter: 'There are no jobs for this right now.',
     noHit: (query: string) => `No jobs for “${query}”.`,
     showAll: 'Show all',
     loadFailed: 'The list could not be loaded.',
@@ -674,16 +707,6 @@ export const en: Catalog = {
     profileEmpty: 'Profile without competences',
     profileBrokenText: 'So the jobs show no match.',
     connectMailbox: 'Connect mailbox',
-    filter: {
-      high: 'High match',
-      noDetail: 'No details',
-      excluded: 'Excluded',
-      pinned: 'Favourites',
-      linkedin: `New on ${portalName.linkedin}`,
-      freelancermap: `New on ${portalName.freelancermap}`,
-      freelance: `New on ${portalName.freelance}`,
-    },
-    clearFilter: 'Remove filter',
   },
   facts: {
     now: 'starts now',
@@ -730,10 +753,6 @@ export const en: Catalog = {
     unpin: 'Remove favourite',
     archive: 'Archive',
     restore: 'Restore',
-    archived: 'This job is archived.',
-    deleteForGood: 'Delete for good',
-    deleteHeading: 'Delete the job for good?',
-    deleteText: 'The job is deleted and does not come back, not even with old alert mails.',
     override: 'Count anyway',
     overrideUndo: 'Exclude again',
     overridden: 'You marked it as fitting.',
@@ -1097,6 +1116,12 @@ export const en: Catalog = {
     copied: 'Copied.',
     prompt: 'Prompt copied, ready for an AI chat.',
     archivedOne: (name: string) => `“${name}” archived.`,
+    trashedOne: (name: string) => `“${name}” deleted.`,
+    trashedMany: (value: number) => `${n(value)} jobs deleted.`,
+    inboxOne: (name: string) => `“${name}” moved to the inbox.`,
+    inboxMany: (value: number) => `${n(value)} jobs moved to the inbox.`,
+    restoredMany: (value: number) => `${n(value)} jobs restored.`,
+    allRead: 'All marked as read.',
     archivedMany: (value: number) => `${n(value)} jobs archived.`,
     restored: (name: string) => `“${name}” restored.`,
     deleted: (value: number) =>

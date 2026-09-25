@@ -17,10 +17,19 @@
   row, its hover waits while the list scrolls (`:root:not([data-scrolling])`).
 -->
 <script lang="ts" module>
+  import type { IconName } from './Icon.svelte';
   /** How a click on a row selects: alone, toggled into a selection, or as a range. */
   export interface SelectHow {
     toggle: boolean;
     range: boolean;
+  }
+
+  /** A tool of the row (the job's actions where it is: archive, delete, restore ...). */
+  export interface RowTool {
+    id: string;
+    icon: IconName;
+    label: string;
+    onclick: () => void;
   }
 </script>
 
@@ -55,6 +64,9 @@
     onpin?: ((job: JobView) => void) | null;
     /** Archive (or bring back an archived job) from the row. */
     onarchive?: ((job: JobView) => void) | null;
+    /** The job's actions where it is, in their one order, before the star (in place of
+     *  `onarchive`). */
+    tools?: readonly RowTool[];
     /** The date is older than ten days (null: decide from the date and `now`). */
     aged?: boolean | null;
     /** The row's test id (another list of the same jobs needs its own). */
@@ -70,6 +82,7 @@
     onselect = null,
     onpin = null,
     onarchive = null,
+    tools = [],
     aged = null,
     testid = null,
   }: Props = $props();
@@ -83,6 +96,8 @@
     return { toggle: event[keyConventions().command], range: event.shiftKey };
   }
 
+  /** The tools under the date: the job's actions, archive, the star. */
+  const toolCount = $derived(tools.length + (onarchive ? 1 : 0) + (onpin ? 1 : 0));
   const excluded = $derived(job.match?.status === 'excluded');
   const when = $derived(job.mailDate ?? job.firstSeenAt);
   const old = $derived(
@@ -122,8 +137,13 @@
 
 {#snippet endCell()}
   <span class="date" class:old>{formatRelative(when, now, true)}</span>
-  {#if onpin || onarchive}
-    <span class="tool-slot" class:two={onpin && onarchive} aria-hidden="true"></span>
+  {#if toolCount > 0}
+    <span
+      class="tool-slot"
+      class:two={toolCount === 2}
+      class:three={toolCount >= 3}
+      aria-hidden="true"
+    ></span>
   {:else if job.pinned}
     <span class="star" role="img" aria-label={t.job.pinned}
       ><Icon name="star" size="sm" filled /></span
@@ -164,8 +184,21 @@
   </ListRow>
   {#if job.unread && !excluded}<span class="dot" role="img" aria-label={t.job.unread} out:dotOut
     ></span>{/if}
-  {#if onpin || onarchive}
+  {#if toolCount > 0}
     <span class="tools">
+      {#each tools as tool (tool.id)}
+        <span class="tool">
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            icon={tool.icon}
+            label={tool.label}
+            testid="{tool.id}-{job.key.portal}-{job.key.id}"
+            onclick={tool.onclick}
+          />
+        </span>
+      {/each}
       {#if onarchive}
         <span class="tool">
           <Button
@@ -333,6 +366,10 @@
 
   .tool-slot.two {
     width: calc(2 * var(--control-sm) + var(--space-2));
+  }
+
+  .tool-slot.three {
+    width: calc(3 * var(--control-sm) + 2 * var(--space-2));
   }
 
   /* An old date sits on a quiet tint (older than ten days). */

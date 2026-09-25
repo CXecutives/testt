@@ -570,8 +570,8 @@ test('details and pins: teaser note, fetch details, pin star', async ({ page }) 
   });
   await runFinished(page);
   await row(page, 'freelance-900411').click();
-  await page.getByTestId('pin').click();
-  await expect(page.getByTestId('pin')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('reader-pin').click();
+  await expect(page.getByTestId('reader-pin')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('pin-freelance-900411')).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -727,7 +727,7 @@ test('only a re-sort moves rows: new jobs of a run land in place, the sort switc
   expect(await glides(page)).toBeGreaterThan(0);
 });
 
-test('the list header: one slot for Abrufen and Abbrechen, the filter, a line once scrolled', async ({
+test('the list header: one slot for Abrufen and Abbrechen, a steady second row, a line once scrolled', async ({
   page,
 }) => {
   await open(page, `${WIN}&tick=200`);
@@ -750,11 +750,13 @@ test('the list header: one slot for Abrufen and Abbrechen, the filter, a line on
   await expect(page.getByRole('button', { name: 'Abrufen' })).toHaveCount(0);
   await page.getByTestId('cancel-run').click();
   await runFinished(page);
-  // The archive is reached from every list; it shows as a pill with its x.
-  await page.getByTestId('show-archive').click();
-  await expect(header.getByTestId('filter')).toContainText('Archiv');
-  await header.getByTestId('clear-filter').click();
-  await expect(page.getByTestId('filter')).toHaveCount(0);
+  // The second row keeps its height whatever it holds (the segments, a place's count).
+  const second = header.locator('.second');
+  const height = (await second.boundingBox())!.height;
+  await page.getByTestId('nav-archive').click();
+  await expect(page.getByTestId('place-count')).toBeVisible();
+  expect((await second.boundingBox())!.height).toBe(height);
+  await expect(page.getByTestId('search')).toHaveAttribute('placeholder', 'Archiv durchsuchen');
 });
 
 test('the reader: a compact bar once the actions scroll away, a jump flashes its passage', async ({
@@ -771,9 +773,13 @@ test('the reader: a compact bar once the actions scroll away, a jump flashes its
   await expect(bar).toHaveCSS('opacity', '1');
   await expect(bar).not.toHaveAttribute('inert');
   await expect(bar).toContainText('Interim CFO für Familienunternehmen');
-  const pinned = await page.getByTestId('pin').getAttribute('aria-pressed');
+  // The same tools in the same order as the title line (open first).
+  expect(
+    await bar.locator('.btn').evaluateAll((els) => els.map((el) => el.getAttribute('data-testid'))),
+  ).toEqual(['compact-open', 'compact-archive', 'compact-trash', 'compact-pin', 'compact-close']);
+  const pinned = await page.getByTestId('reader-pin').getAttribute('aria-pressed');
   await bar.getByTestId('compact-pin').click();
-  await expect(page.getByTestId('pin')).not.toHaveAttribute('aria-pressed', pinned ?? '');
+  await expect(page.getByTestId('reader-pin')).not.toHaveAttribute('aria-pressed', pinned ?? '');
   await stage.evaluate((node) => node.scrollTo({ top: 0 }));
   await expect(bar).toHaveCSS('opacity', '0');
 
@@ -837,7 +843,7 @@ test('the day overview: its best jobs open the reader', async ({ page }) => {
   await expect(page.getByTestId('reader-title')).toHaveText(title);
 });
 
-test('the reader: one row of alike actions, archive in place with undo, a prompt', async ({
+test('the reader: one row of alike actions, archive opens the next job, undo, a prompt', async ({
   page,
   browserName,
 }) => {
@@ -874,11 +880,11 @@ test('the reader: one row of alike actions, archive in place with undo, a prompt
   await expect(page.getByTestId('toast').last()).toContainText(
     'Prompt kopiert, bereit für einen KI-Chat.',
   );
-  // Archivieren keeps the job in the pane, marked; a double click archives nothing else.
+  // Archivieren folds the row away and opens the next job; a double click archives one.
   const title = await page.getByTestId('reader-title').innerText();
-  await page.getByTestId('hide').dblclick();
-  await expect(page.getByTestId('reader-title')).toHaveText(title);
-  await expect(page.getByTestId('archived-note')).toBeVisible();
+  const next = await rows(page).nth(1).locator('.title').innerText();
+  await page.getByTestId('reader-archive').dblclick();
+  await expect(page.getByTestId('reader-title')).toHaveText(next);
   expect(await calls(page, 'move_jobs')).toHaveLength(1);
   await expect(page.getByTestId('toast').last()).toContainText(`„${title}“ archiviert.`);
   await expect(page.getByTestId('job-list').getByText(title, { exact: true })).toHaveCount(0);
@@ -948,13 +954,21 @@ test('Cmd+F is the find key on macOS, Ctrl+F is not', async ({ page }) => {
   await expect(search).toBeFocused();
 });
 
-test('archive from the row: toasts merge, the Archiv brings a job back and says so', async ({
+test('archive from the row: toasts merge, the Archiv sends a job back to the inbox', async ({
   page,
 }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   const one = 'freelancermap-2802';
   const two = 'freelancermap-2803';
+  // A row's tools: the job's actions where it is, then the star.
+  await row(page, one).hover();
+  expect(
+    await row(page, one)
+      .locator('xpath=..')
+      .locator('.tools .btn')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('aria-label'))),
+  ).toEqual(['Archivieren', 'Löschen', 'Als Favorit markieren']);
   for (const key of [one, two]) {
     await row(page, key).hover();
     await page.getByTestId(`archive-${key}`).click();
@@ -966,21 +980,113 @@ test('archive from the row: toasts merge, the Archiv brings a job back and says 
   await page.getByTestId('toast-action').click();
   await expect(row(page, one)).toHaveCount(1);
   await expect(row(page, two)).toHaveCount(1);
-  // Archived again, the job comes back from the Archiv, with a toast.
+  // Archived again, the job goes back to the inbox from the Archiv, with a toast.
   await row(page, one).hover();
   await page.getByTestId(`archive-${one}`).click();
-  await page.getByTestId('show-archive').click();
-  // (Past the guard against a double click on the same job.)
-  await page.waitForTimeout(700);
+  await page.getByTestId('nav-archive').click();
+  await expect(page.getByTestId('place-count')).toContainText('im Archiv');
   await row(page, one).hover();
-  await page.getByTestId(`archive-${one}`).click();
+  await page.getByTestId(`toInbox-${one}`).click();
   await expect(row(page, one)).toHaveCount(0);
-  await expect(page.getByTestId('toast').last()).toContainText('wiederhergestellt.');
-  await page.getByTestId('clear-filter').click();
+  await expect(page.getByTestId('toast').last()).toContainText('in den Eingang verschoben.');
+  // Jobs in the sidebar is the inbox again.
+  await page.getByTestId('nav-jobs').click();
+  await expect(page.getByTestId('facet')).toBeVisible();
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   await expect(row(page, one)).toHaveCount(1);
 });
 
-test('a search also finds archived jobs, and the Archiv count follows it', async ({ page }) => {
+test('the Papierkorb: delete, restore, delete for good and empty it, asking first', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const one = 'freelancermap-2802';
+  const two = 'freelancermap-2803';
+  for (const key of [one, two]) {
+    await row(page, key).hover();
+    await page.getByTestId(`trash-${key}`).click();
+    await expect(row(page, key)).toHaveCount(0);
+  }
+  await expect(page.getByTestId('toast').last()).toContainText('2 Jobs gelöscht.');
+  await page.getByTestId('nav-trash').click();
+  await expect(page.getByTestId('place-count')).toHaveText('2 Jobs im Papierkorb');
+  // In the trash: Wiederherstellen and Endgültig löschen, no star; the reader says where.
+  await row(page, one).click();
+  await expect(page.getByTestId('place-line')).toContainText('Im Papierkorb');
+  await expect(page.getByTestId('reader-pin')).toHaveCount(0);
+  await page.getByTestId('reader-restore').click();
+  await expect(row(page, one)).toHaveCount(0);
+  await expect(page.getByTestId('toast').last()).toContainText('wiederhergestellt.');
+  // Endgültig löschen asks first; Abbrechen keeps the job.
+  await row(page, two).hover();
+  await page.getByTestId(`purge-${two}`).click();
+  await expect(page.getByTestId('dialog-purge')).toBeVisible();
+  await page.getByTestId('dialog-purge').getByRole('button', { name: 'Endgültig löschen' }).click();
+  await expect(row(page, two)).toHaveCount(0);
+  expect((await calls(page, 'purge_jobs')).map(([, args]) => args)).toEqual([
+    { keys: [{ portal: 'freelancermap', id: '2803' }] },
+  ]);
+  await expect(page.getByTestId('empty-trash')).toHaveCount(0);
+  // Papierkorb leeren: again a job there, again the question.
+  await page.getByTestId('nav-jobs').click();
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await row(page, one).hover();
+  await page.getByTestId(`trash-${one}`).click();
+  await page.getByTestId('nav-trash').click();
+  await page.getByTestId('empty-trash').click();
+  await page
+    .getByTestId('dialog-empty-trash')
+    .getByRole('button', { name: 'Papierkorb leeren' })
+    .click();
+  await expect(page.getByTestId('empty-place-trash')).toBeVisible();
+  await expect(page.getByTestId('empty-trash')).toHaveCount(0);
+  expect(await calls(page, 'empty_trash')).toHaveLength(1);
+});
+
+test('choose like a mail app: Ctrl+click, Shift+click, the bar acts on all, Esc clears', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const all = rows(page);
+  await all.nth(0).click();
+  await all.nth(1).click({ modifiers: ['Control'] });
+  const bar = page.getByTestId('selection-bar');
+  await expect(bar).toContainText('2 ausgewählt');
+  await expect(page.getByTestId('facet')).toHaveCount(0);
+  // Esc clears the choice (the open job stays open).
+  await page.keyboard.press('Escape');
+  await expect(bar).toHaveCount(0);
+  await expect(page.getByTestId('reader')).toBeVisible();
+  // Shift+click takes the range; the bar archives them all in one move.
+  await all.nth(0).click();
+  await all.nth(2).click({ modifiers: ['Shift'] });
+  await expect(bar).toContainText('3 ausgewählt');
+  const before = await all.count();
+  await bar.getByTestId('selection-archive').click();
+  await expect(all).toHaveCount(before - 3);
+  expect((await calls(page, 'move_jobs')).at(-1)?.[1]).toEqual(
+    expect.objectContaining({ to: 'archive' }),
+  );
+  await expect(page.getByTestId('toast').last()).toContainText('3 Jobs archiviert.');
+});
+
+test('Alle als gelesen markieren: one click, the toast takes it back', async ({ page }) => {
+  await open(page, WIN);
+  const unread = await segmentCount(page, 'Neu');
+  expect(unread).toBeGreaterThan(0);
+  await page.getByTestId('mark-all-read').click();
+  await expect(page.getByTestId('mark-all-read')).toHaveCount(0);
+  await expect(page.getByTestId('toast').last()).toContainText('Alle als gelesen markiert.');
+  await page.getByTestId('toast').last().getByTestId('toast-action').click();
+  await expect.poll(() => segmentCount(page, 'Neu')).toBe(unread);
+  expect(await calls(page, 'mark_unread')).toHaveLength(1);
+});
+
+test('a search looks in its place and names the hits elsewhere, keeping the search', async ({
+  page,
+}) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   const key = 'freelancermap-2802';
@@ -988,9 +1094,10 @@ test('a search also finds archived jobs, and the Archiv count follows it', async
   await row(page, key).hover();
   await page.getByTestId(`archive-${key}`).click();
   await page.getByTestId('search').fill(title);
-  await expect(page.getByTestId('archive-hits')).toContainText('Im Archiv');
-  await expect(page.getByTestId('show-archive')).toHaveText('Archiv 1');
-  await page.getByTestId('show-archive-hits').click();
+  await expect(page.getByTestId('also-archive')).toHaveText('Auch im Archiv (1)');
+  await page.getByTestId('also-archive').click();
+  await expect(page.getByTestId('search')).toHaveValue(title);
+  await expect(page.getByTestId('search')).toHaveAttribute('placeholder', 'Archiv durchsuchen');
   await expect(row(page, key)).toHaveCount(1);
 });
 

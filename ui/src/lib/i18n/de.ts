@@ -21,6 +21,7 @@ import type {
   JobSort,
   Language,
   PauseReason,
+  Place,
   Portal,
   PortalHealth,
   LanguageLevel,
@@ -499,6 +500,55 @@ export const de = {
     count: (n: number) => `${n} ausgewählt`,
     clear: 'Auswahl aufheben',
   },
+  /** Where a job is, like a mail: the inbox ("Jobs" in the sidebar), the archive, the trash. */
+  place: {
+    inbox: 'Eingang',
+    archive: 'Archiv',
+    trash: 'Papierkorb',
+    /** The field's placeholder names what it searches. */
+    search: {
+      inbox: 'Jobs durchsuchen',
+      archive: 'Archiv durchsuchen',
+      trash: 'Papierkorb durchsuchen',
+    } satisfies Record<Place, string>,
+    /** The second header row of the archive and the trash. */
+    count: {
+      inbox: (value: number) => `${count(value, 'Job', 'Jobs')} im Eingang`,
+      archive: (value: number) => `${count(value, 'Job', 'Jobs')} im Archiv`,
+      trash: (value: number) => `${count(value, 'Job', 'Jobs')} im Papierkorb`,
+    } satisfies Record<Place, (value: number) => string>,
+    /** Search hits in another place, under the results. */
+    alsoIn: {
+      inbox: (value: number) => `Auch im Eingang (${n(value)})`,
+      archive: (value: number) => `Auch im Archiv (${n(value)})`,
+      trash: (value: number) => `Auch im Papierkorb (${n(value)})`,
+    } satisfies Record<Place, (value: number) => string>,
+    /** The quiet line under the title of a job that is not in the inbox. */
+    inArchive: 'Im Archiv',
+    inTrash: 'Im Papierkorb',
+    inTrashFor: (days: number) =>
+      `Im Papierkorb, wird nach ${count(days, 'Tag', 'Tagen')} gelöscht`,
+    empty: {
+      inbox: 'Keine Jobs.',
+      archive: 'Das Archiv ist leer.',
+      trash: 'Der Papierkorb ist leer.',
+    } satisfies Record<Place, string>,
+  },
+  /** What a job can do where it is: one name and icon on a row, in the reader, in the bar. */
+  actions: {
+    archive: 'Archivieren',
+    toInbox: 'In den Eingang',
+    trash: 'Löschen',
+    restore: 'Wiederherstellen',
+    purge: 'Endgültig löschen',
+    purgeHeading: (value: number) =>
+      value === 1 ? 'Job endgültig löschen?' : `${n(value)} Jobs endgültig löschen?`,
+    purgeText: 'Gelöschte Jobs kommen nicht wieder, auch nicht mit alten Alert-Mails.',
+    emptyTrash: 'Papierkorb leeren',
+    emptyTrashHeading: 'Papierkorb leeren?',
+    emptyTrashText: 'Die Jobs werden endgültig gelöscht und kommen nicht wieder.',
+    markAllRead: 'Alle als gelesen markieren',
+  },
   /** The native context menu of fields and selected text (the OS's words). */
   edit: {
     undo: 'Rückgängig',
@@ -597,8 +647,6 @@ export const de = {
     } satisfies Record<JobSort, string>,
     /** The order without a usable profile: there is no fit to sort by. */
     sortNoProfile: 'Ohne Profil nur nach Datum.',
-    search: 'Suchen',
-    searchLabel: 'Jobs durchsuchen',
     needsMailbox: 'Erst ein Postfach verbinden.',
   },
   run: {
@@ -697,25 +745,16 @@ export const de = {
     label: 'Jobs',
     /** The divider (its count is a pill of its own, left out where the rows are a part). */
     excluded: 'Ausgeschlossen',
-    archive: 'Archiv',
-    showArchive: 'Anzeigen',
-    archiveLink: (value: number) => `Archiv ${n(value)}`,
-    /** Search hits among the archived jobs, under the live ones. */
-    inArchive: 'Im Archiv',
-    emptyArchive: 'Archiv leeren',
-    emptyArchiveHeading: 'Archiv leeren?',
-    emptyArchiveText: 'Die Jobs werden gelöscht und kommen nicht wieder.',
     /** The empty list says where jobs come from and how to get more. */
     emptySources: 'Ein Alert pro Portal bringt neue Jobs.',
     /** FR-03: while the first fetch runs, the empty list only says what comes. */
     emptyWhileRun: 'Die Jobs erscheinen, sobald der Abruf fertig ist.',
     createAlert: (portal: string) => `Alert auf ${portal} anlegen`,
     readOlder: 'Ältere Mails lesen',
-    emptyArchived: 'Das Archiv ist leer.',
     emptyNew: 'Keine neuen Jobs.',
+    emptyFavourites: 'Noch keine Favoriten.',
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
     emptyAfterRun: 'Die Alert-Mails enthielten bisher keine Jobs.',
-    emptyFilter: 'Dazu gibt es gerade keine Jobs.',
     noHit: (query: string) => `Keine Jobs zu „${query}“.`,
     showAll: 'Alle zeigen',
     loadFailed: 'Die Liste ließ sich nicht laden.',
@@ -729,16 +768,6 @@ export const de = {
     profileEmpty: 'Profil ohne Kompetenzen',
     profileBrokenText: 'Die Jobs zeigen deshalb keine Passung.',
     connectMailbox: 'Postfach verbinden',
-    filter: {
-      high: 'Hohe Passung',
-      noDetail: 'Ohne Details',
-      excluded: 'Ausgeschlossen',
-      pinned: 'Favoriten',
-      linkedin: `Neu auf ${portalName.linkedin}`,
-      freelancermap: `Neu auf ${portalName.freelancermap}`,
-      freelance: `Neu auf ${portalName.freelance}`,
-    },
-    clearFilter: 'Filter entfernen',
   },
   /** The key facts of an ad in short words (list row, criteria chips). */
   facts: {
@@ -791,10 +820,6 @@ export const de = {
     unpin: 'Favorit entfernen',
     archive: 'Archivieren',
     restore: 'Wiederherstellen',
-    archived: 'Dieser Job ist archiviert.',
-    deleteForGood: 'Endgültig löschen',
-    deleteHeading: 'Job endgültig löschen?',
-    deleteText: 'Der Job wird gelöscht und kommt auch mit alten Alert-Mails nicht wieder.',
     /** An excluded job the user counts anyway, and back. */
     override: 'Trotzdem werten',
     overrideUndo: 'Wieder ausschließen',
@@ -1180,6 +1205,12 @@ export const de = {
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
     prompt: 'Prompt kopiert, bereit für einen KI-Chat.',
     archivedOne: (name: string) => `„${name}“ archiviert.`,
+    trashedOne: (name: string) => `„${name}“ gelöscht.`,
+    trashedMany: (value: number) => `${n(value)} Jobs gelöscht.`,
+    inboxOne: (name: string) => `„${name}“ in den Eingang verschoben.`,
+    inboxMany: (value: number) => `${n(value)} Jobs in den Eingang verschoben.`,
+    restoredMany: (value: number) => `${n(value)} Jobs wiederhergestellt.`,
+    allRead: 'Alle als gelesen markiert.',
     archivedMany: (value: number) => `${n(value)} Jobs archiviert.`,
     restored: (name: string) => `„${name}“ wiederhergestellt.`,
     deleted: (value: number) =>
