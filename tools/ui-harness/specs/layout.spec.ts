@@ -62,7 +62,14 @@ for (const [width, rail] of [
     if (rail) {
       await expect(label).toHaveAttribute('aria-label', 'Profil');
       await label.hover();
-      await expect(page.getByRole('tooltip')).toHaveText('Profil');
+      const tip = page.getByRole('tooltip');
+      await expect(tip).toHaveText('Profil');
+      // Right of the icon, centred on it, never over the next entry (like a native rail).
+      await expect(tip.locator('div')).toHaveCSS('opacity', '1');
+      const icon = (await label.boundingBox())!;
+      const bubble = (await tip.locator('div').boundingBox())!;
+      expect(bubble.x).toBeGreaterThan(icon.x + icon.width);
+      expect(Math.abs(bubble.y + bubble.height / 2 - (icon.y + icon.height / 2))).toBeLessThan(2);
     } else {
       await expect(label).toHaveText('Profil');
     }
@@ -104,8 +111,13 @@ test('empty screens are never dead: an icon, one sentence, one way on, centred',
 test('toasts: at most three, they stay while hovered and leave on their own', async ({ page }) => {
   await open(page, '?platform=windows');
   await page.getByTestId('nav-settings').click();
-  // Switches answer by themselves; rewriting the text files still reports by toast.
-  for (let i = 0; i < 4; i += 1) await page.getByTestId('txt-rewrite').click();
+  // Switches and file actions answer in place; a changed mailbox still reports by toast.
+  for (let i = 0; i < 4; i += 1) {
+    await page.getByTestId('mailbox-change').click();
+    await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
+    await page.getByTestId('mailbox-save').click();
+    await expect(page.getByTestId('mailbox-change')).toBeVisible();
+  }
   const toasts = page.getByTestId('toast');
   await expect(toasts).toHaveCount(3);
   await toasts.first().hover();

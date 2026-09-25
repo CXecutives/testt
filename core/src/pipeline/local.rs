@@ -189,6 +189,7 @@ pub fn record(assessment: &Assessment) -> MatchRecord {
         must_total: assessment.summary.must_total,
         top: top(assessment),
         facts: assessment.facts.clone(),
+        rank: assessment.rank,
     }
 }
 

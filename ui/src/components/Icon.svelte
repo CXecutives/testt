@@ -11,6 +11,7 @@
   import Briefcase from '@lucide/svelte/icons/briefcase';
   import Building2 from '@lucide/svelte/icons/building-2';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import ClipboardPaste from '@lucide/svelte/icons/clipboard-paste';
   import Check from '@lucide/svelte/icons/check';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
@@ -27,6 +28,9 @@
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Eye from '@lucide/svelte/icons/eye';
   import EyeOff from '@lucide/svelte/icons/eye-off';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
+  import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
+  import Undo2 from '@lucide/svelte/icons/undo-2';
   import FileText from '@lucide/svelte/icons/file-text';
   import FileUp from '@lucide/svelte/icons/file-up';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
@@ -40,6 +44,7 @@
   import MapPin from '@lucide/svelte/icons/map-pin';
   import Minus from '@lucide/svelte/icons/minus';
   import PauseCircle from '@lucide/svelte/icons/pause-circle';
+  import Pencil from '@lucide/svelte/icons/pencil';
   import Plus from '@lucide/svelte/icons/plus';
   import RefreshCw from '@lucide/svelte/icons/refresh-cw';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
@@ -62,6 +67,7 @@
     'folder-open': FolderOpen,
     'file-up': FileUp,
     copy: Copy,
+    'clipboard-paste': ClipboardPaste,
     'trash-2': Trash2,
     'rotate-ccw': RotateCcw,
     'log-in': LogIn,
@@ -113,6 +119,13 @@
     // Archive a job from its row, and bring an archived one back.
     archive: Archive,
     'archive-restore': ArchiveRestore,
+    // Change a stored value (the mailbox, the output folder).
+    pencil: Pencil,
+    // The Excel file in the day overview.
+    'file-spreadsheet': FileSpreadsheet,
+    // Mark all as read; bring a job back from the trash.
+    'check-check': CheckCheck,
+    'undo-2': Undo2,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

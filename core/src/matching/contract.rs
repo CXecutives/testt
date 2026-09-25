@@ -54,6 +54,12 @@ fn any(folded: &str, words: &[&str]) -> bool {
     words.iter().any(|w| folded.contains(w))
 }
 
+/// A student or trainee role (`Werkstudent`, `Praktikum` in the title): employment, inferred
+/// from the title; only its stated wage decides.
+pub(crate) fn student_role(title: &str) -> bool {
+    any(&format!("{} ", fold(title)), lex::STUDENT_ROLES)
+}
+
 /// Infers the contract type; `anue` holds the decided ANÜ findings of the ad.
 pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) -> Contract {
     let contract_fact = fact(job.facts, super::fact_key::CONTRACT)
@@ -98,6 +104,7 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
     let agency = segments.iter().any(|(_, f)| any(f, lex::AGENCY_CUES));
     let portal_interim = matches!(job.portal, Portal::Freelancermap | Portal::FreelanceDe);
     let decided_anue = anue.iter().any(|f| f.decided);
+    let student = student_role(job.title);
     let contract = |kind, inferred, spans| Contract {
         kind,
         inferred,
@@ -111,6 +118,11 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
     }
     if field {
         return contract(ContractKind::Permanent, false, spans_of(&stated_at));
+    }
+    // A student or trainee role (`Werkstudent`, `Praktikum`) is employment, whatever the
+    // hourly wage suggests; inferred from the title, so region and salary are checks.
+    if student {
+        return contract(ContractKind::Permanent, true, spans_of(&stated_at));
     }
     match (stated, interim) {
         (true, true) => contract(ContractKind::Unclear, false, spans_of(&stated_at)),

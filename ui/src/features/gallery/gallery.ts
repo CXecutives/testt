@@ -57,6 +57,8 @@ export const text = {
     cancel: 'Abbrechen',
     save: 'Speichern',
     remove: 'Entfernen',
+    change: 'Ändern',
+    reset: 'Zurücksetzen',
     pin: 'Merken',
     open: 'Öffnen',
     busy: 'Erst nach dem laufenden Abruf möglich.',
@@ -74,6 +76,7 @@ export const text = {
   },
   navigation: {
     tabs: ['Jobs', 'Profil', 'Einstellungen'],
+    places: ['Archiv', 'Papierkorb'],
     toast: 'Toast zeigen',
     toastText: 'Gespeichert.',
     status: 'Zuletzt 08:30',
@@ -103,6 +106,8 @@ export const text = {
     facet: 'Ansicht',
     facets: ['Neu', 'Alle'],
     views: ['Neu', 'Alle', 'Gemerkt', 'Bewerbungen'],
+    orders: ['Nach Passung', 'Nach Datum'],
+    orderOff: 'Ohne Profil nur nach Datum.',
     sort: 'Sortierung',
     sorts: ['Beste Passung', 'Neueste', 'Portal'],
     address: 'Postfach',
@@ -153,6 +158,11 @@ export const text = {
     rows: 'Jobliste',
     shuffle: 'Sortieren',
     replay: 'Neu einblenden',
+    archive: 'Archivieren',
+    delete: 'Löschen',
+    archived: (name: string) => `„${name}“ archiviert.`,
+    archivedMany: (n: number) => `${n} Jobs archiviert.`,
+    undo: 'Rückgängig',
     reasonLabels: {
       met: 'Controlling mit SAP S/4HANA',
       partial: 'Konzernabschluss nach IFRS',
@@ -161,6 +171,13 @@ export const text = {
       check: 'Start in sechs Wochen',
     },
     evidence: '„Controlling im Konzern“ passt zu „Konzerncontrolling“ im Profil.',
+    chipLabels: {
+      met: '1.100 €/Tag',
+      unknown: 'Vermutlich Interim',
+      violated: 'ANÜ',
+      unset: 'Start nicht genannt',
+      plain: 'Interim',
+    },
   },
 } as const;
 
@@ -194,9 +211,7 @@ function sample(
     closed: false,
     match: null,
     alsoOn: [],
-    appStatus: null,
-    statusAt: null,
-    archived: false,
+    place: 'inbox',
     overridden: false,
     ...extra,
   };
@@ -239,8 +254,11 @@ export function sampleJobs(now: Date): JobView[] {
       {
         unread: true,
         pinned: true,
-        appStatus: 'saved',
-        match: scored(91, 'Interim-Management im Mittelstand'),
+        match: {
+          ...scored(91, 'Interim-Management im Mittelstand')!,
+          // The key facts of the ad: the row shows them in place of the best requirement.
+          facts: { ...NO_FACTS, rate: 1100, start: 'now', months: 6, remoteFrom: 60, remoteTo: 60 },
+        },
         alsoOn: ['linkedin'],
       },
     ),
@@ -249,7 +267,6 @@ export function sampleJobs(now: Date): JobView[] {
       key: { portal: 'linkedin', id: '1002' },
       unread: true,
       workMode: 'remote',
-      appStatus: 'sent',
       match: scored(64, 'Controlling mit SAP S/4HANA'),
     }),
     sample(now, '1003', 'Kaufmännische Leitung Projektgeschäft', 'Werft 7 GmbH', 'Kiel', 30, {

@@ -2,7 +2,8 @@
   The Jobs view on the white sheet of the shell: left the list column (360-460 px) with its
   header (search, "Abrufen", filters), the run panel and the list; a hairline; right the
   reader, or with nothing selected its empty state, the day overview. Nothing floats: no
-  cards, no shadows. Both columns start at the same line. Below 900 px one column: the list,
+  cards, no shadows. Both columns start at the same line; the handle between them resizes
+  the list (the width is kept). Below 900 px one column: the list,
   or the reader with a back button. The run card rises in above the list and fades out when
   it is closed (the list moves up without animation).
 
@@ -11,19 +12,25 @@
   never goes blank. The new stage rises in over the old one, which keeps its own scroll
   position and fades: the new job starts at the top and the old text never jumps. The old
   stage is the real one on its way out (nothing is copied or laid out again); it answers no
-  pointer and drops its test ids. The close button in the reader head, a second click on the
-  selected row and a search that no longer finds the job go back to the day overview.
+  pointer and drops its test ids. The close button in the reader head, Esc and a search
+  that no longer finds the job go back to the day overview.
+  The keys of a mail app (lib/input/input.ts): ArrowUp/ArrowDown open the previous/next job,
+  Home/End the first/last, Ctrl+F (Cmd+F on macOS) goes to the search.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import DragBand from '$components/DragBand.svelte';
+  import Splitter from '$components/Splitter.svelte';
+  import { cssVars } from '$lib/actions/cssVars';
   import EmptyState from '$components/EmptyState.svelte';
   import Skeleton from '$components/Skeleton.svelte';
   import { t } from '$lib/i18n/t';
   import { fade, rise } from '$lib/motion/transitions';
   import { inView } from '$lib/actions/inView';
+  import { listKeys } from '$lib/input/input';
   import { dragBands } from '$lib/platform';
+  import { tokenPx } from '$lib/tokens';
   import { app } from '$lib/state/app.svelte';
   import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { shell } from '$lib/state/shell.svelte';
@@ -68,10 +75,19 @@
   const reading = $derived(stage.what !== OVERVIEW);
   /** The list is scrolled away from its top (the header shows its hairline). */
   let scrolled = $state(false);
+  /** The width of the list column (the splitter keeps it per user). */
+  let listWidth = $state<number | undefined>(undefined);
+  /** The first width (and the one a double click on the handle restores): 40 % of the
+   *  window beside the sidebar, which the splitter keeps between 360 and 460 px. */
+  const LIST_SHARE = 0.4;
+  const firstWidth = Math.round((window.innerWidth - tokenPx('--sidebar-width')) * LIST_SHARE);
 
   function close(): void {
     jobs.clearSelection();
   }
+
+  let header = $state<ListHeader | null>(null);
+  let list = $state<JobList | null>(null);
 
   // A search that no longer finds the open job closes it (the list shows what it found).
   $effect(() => {
@@ -103,10 +119,20 @@
   }
 </script>
 
-<div class="jobs" class:reading data-testid="jobs">
+<div
+  class="jobs"
+  class:reading
+  data-testid="jobs"
+  use:listKeys={{
+    step: (by) => list?.step(by),
+    edge: (last) => list?.edge(last),
+    close,
+    find: () => header?.find(),
+  }}
+>
   <div class="body">
-    <aside class="left">
-      <ListHeader {scrolled} />
+    <aside class="left" use:cssVars={listWidth ? { 'list-width': `${listWidth}px` } : {}}>
+      <ListHeader bind:this={header} {scrolled} />
       <div class="scroll" data-testid="list-scroll">
         <span class="top" use:inView={(place) => (scrolled = place === 'above')}></span>
         {#if shell.runCard}
@@ -114,9 +140,17 @@
             <RunCard />
           </div>
         {/if}
-        <JobList />
+        <JobList bind:this={list} />
       </div>
     </aside>
+    <span class="split"
+      ><Splitter
+        bind:size={listWidth}
+        initial={firstWidth}
+        storageKey="jobs-list-width"
+        testid="list-splitter"
+      /></span
+    >
     <section class="right" data-testid="reader-pane">
       {#key stage.turn}
         <div class="stage" data-testid="stage" in:enter={stage.what !== OVERVIEW} out:leave>
@@ -181,13 +215,19 @@
     display: flex;
     flex: none;
     flex-direction: column;
-    width: clamp(var(--list-min), 40%, var(--list-max));
+    width: var(--list-width, clamp(var(--list-min), 40%, var(--list-max)));
     container-type: inline-size;
     min-height: 0;
     border-right: var(--border-width) solid var(--border);
   }
 
   .run {
+    flex: none;
+  }
+
+  /* The handle lies over the list's border and takes no room. */
+  .split {
+    display: flex;
     flex: none;
   }
 
@@ -256,7 +296,8 @@
       overflow: visible;
     }
 
-    .right {
+    .right,
+    .split {
       display: none;
     }
 

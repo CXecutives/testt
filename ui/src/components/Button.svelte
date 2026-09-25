@@ -11,10 +11,13 @@
     not react otherwise.
   - Loading keeps the width: the content fades out under the spinner.
   - A ghost toggle (the pin star) pops once when it is switched on by a click.
-  - turned: the glyph stands half a turn (the sort order); it turns in 180 ms.
+  - turned: the glyph stands half a turn; it turns in 180 ms.
   - link: navy text that underlines on hover (a way on, e.g. under a field).
   - inField: a button inside a text field (show password, clear search), like the native
     ones: not in the Tab order, and a click leaves the caret in the field.
+  - isDefault: the default of a dialog, the one Enter presses; the dialog marks it.
+  - warns: a quiet (secondary or ghost) button that removes or resets something: its text
+    turns red on hover, before the dialog asks. A ghost with the trash icon always warns.
   The icon sits on its own HTML wrapper: transforms on SVG children run on the main thread.
 -->
 <script lang="ts" module>
@@ -49,7 +52,7 @@
     type?: 'button' | 'submit';
     /** Toggle buttons (e.g. the pin star). */
     pressed?: boolean | null;
-    /** The glyph stands half a turn (the sort toggle: newest first). */
+    /** The glyph stands half a turn. */
     turned?: boolean;
     /** Opens something outside the app (a link shows the hand then). */
     external?: boolean;
@@ -57,6 +60,14 @@
     wide?: boolean;
     /** Sits inside a text field: skipped by Tab, a click keeps the focus in the field. */
     inField?: boolean;
+    /** A glyph after the label (the chevron of a menu button). */
+    trailing?: IconName | null;
+    /** It opens a menu (announced as such). */
+    menu?: boolean;
+    /** The default of a dialog (Enter presses it); Dialog marks it with the focus ring. */
+    isDefault?: boolean;
+    /** Removes or resets something: red text on hover (secondary and ghost). */
+    warns?: boolean;
     testid?: string | null;
     onclick?: (event: MouseEvent) => void;
   }
@@ -76,6 +87,10 @@
     external = false,
     wide = false,
     inField = false,
+    trailing = null,
+    menu = false,
+    isDefault = false,
+    warns = false,
     testid = null,
     onclick,
   }: Props = $props();
@@ -108,11 +123,13 @@
   class:loading
   class:turned
   class:external
-  class:warns={variant === 'ghost' && icon === 'trash-2'}
+  class:default={isDefault}
+  class:warns={warns || (variant === 'ghost' && icon === 'trash-2')}
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
   aria-pressed={pressed === null ? undefined : pressed}
+  aria-haspopup={menu ? 'menu' : undefined}
   tabindex={inField ? -1 : undefined}
   data-keep-focus={inField ? '' : undefined}
   data-testid={testid ?? undefined}
@@ -131,6 +148,9 @@
     {/if}
     {#if !iconOnly}
       <span class="label">{label}</span>
+    {/if}
+    {#if trailing}
+      <span class="trailing" aria-hidden="true"><Icon name={trailing} size="sm" /></span>
     {/if}
   </span>
   {#if loading}
@@ -169,6 +189,11 @@
     align-items: center;
     gap: var(--btn-gap);
     transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+
+  .trailing {
+    display: inline-flex;
+    margin-right: calc(-1 * var(--space-4));
   }
 
   .glyph {
@@ -302,8 +327,9 @@
     --btn-shadow: none;
   }
 
-  /* Removing something: a quiet warning on hover, before the dialog asks. */
-  .ghost.warns {
+  /* Removing or resetting something: a quiet warning on hover, before the dialog asks. */
+  .ghost.warns,
+  .secondary.warns {
     --btn-fg-hover: var(--danger-strong);
   }
 

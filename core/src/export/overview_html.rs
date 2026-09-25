@@ -218,11 +218,9 @@ mod tests {
             match_: record,
             match_rev: None,
             facts: None,
-            app_status: None,
-            app_status_at: None,
-
-            note: None,
+            pinned_at: None,
             archived_at: None,
+            trashed_at: None,
             override_include: false,
         }
     }
@@ -239,6 +237,7 @@ mod tests {
             must_total: 2,
             top: vec!["SAP <FI>".into(), "Konzernabschluss".into()],
             facts: crate::model::KeyFacts::default(),
+            rank: 0,
         }
     }
 

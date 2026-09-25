@@ -1,6 +1,6 @@
 <!--
-  The head of the Profil view: the file (name, size and date, copyable) or the unsaved
-  draft, how well it reads (badge), one quiet line of what the app understood (competences,
+  The head of the Profil view: the person (name and role, copyable; the file name as the
+  tooltip) with the time of the last save, or the unsaved draft, how well it reads (badge), one quiet line of what the app understood (competences,
   Schwerpunkte, domains), what it could not use, the rescore a save starts, and the file
   actions (choose another file, remove). A new form offers the other two ways in (from a CV,
   a file). Drafts say once that they are to be reviewed. "Gut lesbar" only stands without a
@@ -9,13 +9,14 @@
 -->
 <script lang="ts">
   import Badge, { type BadgeTone } from '$components/Badge.svelte';
+  import { tooltip } from '$lib/actions/tooltip';
   import Button from '$components/Button.svelte';
   import Card from '$components/Card.svelte';
   import IconTile from '$components/IconTile.svelte';
   import Notice from '$components/Notice.svelte';
   import Spinner from '$components/Spinner.svelte';
   import { t } from '$lib/i18n/t';
-  import { formatBytes, formatDate } from '$lib/i18n/format';
+  import { formatDate, formatTime } from '$lib/i18n/format';
   import { warningText } from '$lib/i18n/texts';
   import type { ProfileInfo, ProfileQuality } from '$lib/ipc/types';
   import type { DraftOrigin } from '$lib/state/profile.svelte';
@@ -25,7 +26,6 @@
     profile: ProfileInfo | null;
     quality: ProfileQuality | null;
     rescoring: boolean;
-    rescored: boolean;
     /** Unsaved changes: another file would replace them. */
     dirty: boolean;
     picking: boolean;
@@ -42,7 +42,6 @@
     profile,
     quality,
     rescoring,
-    rescored,
     dirty,
     picking,
     note,
@@ -57,8 +56,17 @@
     thin: 'warning',
     empty: 'danger',
   };
-  /** Said where it helps: the quality at the competences, empty criteria at their section. */
-  const SHOWN_ELSEWHERE = new Set(['fewCompetences', 'noCompetences', 'noCriteria']);
+  /** Said where it helps: the quality at the competences, empty criteria at their section,
+   *  a value the app could not read at its field. */
+  const SHOWN_ELSEWHERE = new Set([
+    'fewCompetences',
+    'noCompetences',
+    'noCriteria',
+    'criterionNotUnderstood',
+    'availabilityNotUnderstood',
+  ]);
+  /** Warnings shown at a field still make the profile one to check. */
+  const AT_A_FIELD = new Set(['criterionNotUnderstood', 'availabilityNotUnderstood']);
 
   const stored = $derived(origin === 'stored' && profile !== null);
   const understood = $derived(stored ? (profile?.understood ?? null) : null);
@@ -81,6 +89,16 @@
       return text === null ? [] : [text];
     }),
   );
+  const check = $derived(
+    warnings.length > 0 || (understood?.warnings ?? []).some((w) => AT_A_FIELD.has(w.code)),
+  );
+  /** The person first: the name (the file name only as its tooltip), the role muted. */
+  const person = $derived(profile?.form ?? null);
+  const savedAt = $derived(
+    profile?.savedAt
+      ? t.profile.savedAt(formatDate(profile.savedAt), formatTime(profile.savedAt))
+      : null,
+  );
 </script>
 
 <Card padding="md" testid="profile-file">
@@ -89,13 +107,12 @@
       <IconTile tone="navy" icon="file-text" size="md" />
       <div class="facts">
         {#if stored && profile}
-          <h2 class="name" data-testid="profile-name" data-copy>{profile.fileName}</h2>
-          <p class="meta">
-            {t.profile.meta(
-              formatBytes(profile.bytes),
-              profile.savedAt ? formatDate(profile.savedAt) : '',
-            )}
-          </p>
+          <h2 class="name" data-copy use:tooltip={profile.fileName}>
+            <span data-testid="profile-name">{person?.name || t.profile.unnamed}</span>
+            {#if person?.title}<span class="role" data-testid="profile-role">{person.title}</span
+              >{/if}
+          </h2>
+          {#if savedAt}<p class="meta" data-testid="profile-saved-at">{savedAt}</p>{/if}
         {:else}
           <h2 class="name" data-testid="profile-name">
             {t.profile.draft[origin === 'stored' ? 'new' : origin]}
@@ -103,7 +120,7 @@
           <p class="meta">{t.profile.unsaved}</p>
         {/if}
       </div>
-      {#if quality === 'good' && warnings.length > 0}
+      {#if quality === 'good' && check}
         <Badge label={t.profile.check} tone="warning" />
       {:else if quality}
         <Badge label={t.profile.quality[quality]} tone={QUALITY_TONE[quality]} />
@@ -123,8 +140,6 @@
       <p class="status" data-testid="profile-rescoring">
         <Spinner size="sm" label={null} />{t.profile.rescoring(profile?.pending ?? 0)}
       </p>
-    {:else if rescored}
-      <Notice tone="success" variant="inline" text={t.profile.rescored} testid="profile-rescored" />
     {/if}
     {#if onnext}
       <span>
@@ -145,7 +160,7 @@
           variant="secondary"
           size="sm"
           icon="file-up"
-          label={t.profile.pick}
+          label={t.profile.pickOther}
           loading={picking}
           disabled={dirty}
           disabledReason={t.profile.leaveText}
@@ -168,6 +183,7 @@
         <Button
           variant="secondary"
           size="sm"
+          icon="clipboard-paste"
           label={t.profile.fromCv}
           disabled={dirty}
           disabledReason={t.profile.leaveText}
@@ -175,7 +191,7 @@
           onclick={onfromcv}
         />
         <Button
-          variant="ghost"
+          variant="secondary"
           size="sm"
           icon="file-up"
           label={t.profile.pick}
@@ -212,6 +228,12 @@
     flex-direction: column;
     gap: var(--space-2);
     min-width: 0;
+  }
+
+  .role {
+    margin-left: var(--space-8);
+    color: var(--text-muted);
+    font: var(--type-md);
   }
 
   .name {

@@ -128,7 +128,10 @@
       case 'internal':
         return { label: t.common.openLog, onclick: () => openTarget({ kind: 'logDir' }) };
       default:
-        return { label: t.common.retry, onclick: () => run.retry(summary) };
+        // A failed fetch: Abrufen right above does the same, no second button for it.
+        return fetchRun && app.hasMailbox && !run.active
+          ? null
+          : { label: t.common.retry, onclick: () => run.retry(summary) };
     }
   });
 </script>
@@ -138,16 +141,7 @@
     {#key text}<span class="title" in:fade>{text}</span>{/key}
     {#if extra}<span class="pill" data-testid="countdown">{extra}</span>{/if}
     <span class="tools">
-      <Button
-        variant="ghost"
-        size="sm"
-        iconOnly
-        icon="chevron-down"
-        turned={open}
-        label={open ? t.run.collapse : t.run.expand}
-        testid="run-toggle"
-        onclick={toggle}
-      />
+      <!-- The close button comes first, so the chevron keeps the right edge in both states. -->
       {#if !run.fetching}
         <Button
           variant="ghost"
@@ -159,6 +153,16 @@
           onclick={() => run.hide()}
         />
       {/if}
+      <Button
+        variant="ghost"
+        size="sm"
+        iconOnly
+        icon="chevron-down"
+        turned={open}
+        label={open ? t.run.collapse : t.run.expand}
+        testid="run-toggle"
+        onclick={toggle}
+      />
     </span>
   </div>
 {/snippet}
@@ -185,14 +189,11 @@
               <li class="step {state}" data-testid="step-{step}">
                 <span class="step-head">
                   <span class="mark" class:drawn={drawn[step]}>
-                    <Icon
-                      name={state === 'done'
-                        ? 'circle-check'
-                        : state === 'current'
-                          ? 'circle-dot'
-                          : 'circle'}
-                      size="sm"
-                    />
+                    {#if state === 'done'}
+                      <Icon name="circle-check" size="sm" />
+                    {:else}
+                      <span class="dot" aria-hidden="true"></span>
+                    {/if}
                   </span>
                   <span class="name">{t.run.step[step]}</span>
                 </span>
@@ -238,7 +239,7 @@
             <span class="time">{formatMoment(summary.finishedAt)}</span>
             {#if fetchRun && newJobs > 0}
               <span data-testid="last-new"
-                ><Badge label={t.run.newPill(newJobs)} tone="navy" /></span
+                ><Badge label={t.run.newPill(newJobs)} tone="coral" /></span
               >
               {#if app.hasProfile && topJobs > 0}
                 <span data-testid="last-top"
@@ -250,7 +251,7 @@
           {#if failure}
             <Notice
               tone="danger"
-              variant="row"
+              variant="inline"
               text={t.error.text(failure.kind, failure.params)}
               action={failureAction}
               testid="run-failed"
@@ -280,7 +281,7 @@
           {#if filesText}
             <Notice
               tone="warning"
-              variant="row"
+              variant="inline"
               text={filesText}
               action={failure || run.active
                 ? null
@@ -377,8 +378,8 @@
     height: var(--badge-height);
     padding: 0 var(--space-8);
     border-radius: var(--radius-full);
-    background-color: var(--count-soft-bg);
-    color: var(--count-soft-fg);
+    background-color: var(--active-surface);
+    color: var(--active-text);
     font: var(--type-xs);
     font-weight: var(--weight-medium);
     font-variant-numeric: var(--numeric);
@@ -430,11 +431,27 @@
     white-space: nowrap;
   }
 
-  /* 16 px markers: a check when done, the navy dot while current, an empty circle ahead. */
+  /* 16 px markers: a check when done, a filled navy dot while current, a small grey dot
+     ahead. No outlined circles: next to each other they read as radio buttons. */
   .mark {
     display: flex;
     flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
     color: var(--text-subtle);
+  }
+
+  .dot {
+    width: var(--dot);
+    height: var(--dot);
+    border-radius: var(--radius-full);
+    background-color: var(--border-strong);
+  }
+
+  .current .dot {
+    background-color: var(--meter-fill);
   }
 
   .done .mark {

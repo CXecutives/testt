@@ -213,6 +213,7 @@ fn run_profile(
         let pair = Pair {
             profile: index,
             new_score: assessment.score,
+            new_rank: assessment.rank,
             new_outcome: outcome,
             old_score: old.unwrap_or(0),
             grade: label.grade,

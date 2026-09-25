@@ -112,9 +112,12 @@ pub struct RunContext {
     /// Of those, the portals read in the session window (sign-in switched on); the others
     /// go as a guest. A run never opens a session window for any other portal.
     pub sign_in: Vec<Portal>,
-    /// Jobs without a stage archive themselves this many days after they were first seen,
-    /// at the end of the run; 0 = never (settings).
+    /// Inbox jobs that are no favourite archive themselves this many days after they were
+    /// first seen, at the end of the run; 0 = never (settings).
     pub auto_archive_days: u32,
+    /// The trash empties itself of jobs that lie there this long, at the end of the run;
+    /// 0 = never (settings).
+    pub auto_empty_trash_days: u32,
     /// Language of the Excel file and the HTML overview (the text files stay German).
     pub language: Language,
 }
@@ -642,6 +645,7 @@ pub async fn run<B: Backends>(
         }
     }
     auto_archive(store, run, ctx.auto_archive_days, clock());
+    auto_empty_trash(store, run, ctx, clock());
 
     summary.finished_at = clock();
     if !ctx.dry_run {
@@ -718,14 +722,57 @@ fn auto_archive(store: &Store, run: i64, days: u32, now: Timestamp) {
     if days == 0 {
         return;
     }
-    let before = now
-        .checked_sub(jiff::SignedDuration::from_hours(24 * i64::from(days)))
-        .unwrap_or(Timestamp::UNIX_EPOCH);
-    match store.auto_archive(before, now) {
+    match store.auto_archive(days_before(now, days), now) {
         Ok(0) => {}
         Ok(n) => log::info!("run {run}: {n} old jobs archived"),
         Err(e) => log::warn!("run {run}: old jobs not archived: {e}"),
     }
+}
+
+/// The trash empties itself at the end of a run (the export of the run follows).
+fn auto_empty_trash(store: &Store, run: i64, ctx: &RunContext, now: Timestamp) {
+    let workspace = (!ctx.dry_run).then_some(ctx.workspace.as_path());
+    let n = empty_old_trash(store, workspace, ctx.auto_empty_trash_days, now);
+    if n > 0 {
+        log::info!("run {run}: {n} jobs deleted from the trash");
+    }
+}
+
+/// The trash empties itself of the jobs that lie there `days` (0 = never): they are deleted
+/// for good with their text files (without a workspace, the dry run, only in the database);
+/// a tombstone stays. Runs at the end of every run and at the start of the app; the Excel
+/// file lists only the inbox, so it needs no new write. Returns how many went; a failure only
+/// goes to the log.
+pub fn empty_old_trash(
+    store: &Store,
+    workspace: Option<&Path>,
+    days: u32,
+    now: Timestamp,
+) -> usize {
+    if days == 0 {
+        return 0;
+    }
+    let deleted = store
+        .trashed_keys(Some(days_before(now, days)))
+        .and_then(|keys| store.delete_jobs(&keys, now));
+    match deleted {
+        Ok((count, names)) => {
+            if let Some(workspace) = workspace.filter(|_| count > 0) {
+                export::clear_txt_files(&workspace.join(RESULT_DIR), &names);
+            }
+            count
+        }
+        Err(e) => {
+            log::warn!("trash not emptied: {e}");
+            0
+        }
+    }
+}
+
+/// `days` before `now`.
+fn days_before(now: Timestamp, days: u32) -> Timestamp {
+    now.checked_sub(jiff::SignedDuration::from_hours(24 * i64::from(days)))
+        .unwrap_or(Timestamp::UNIX_EPOCH)
 }
 
 fn failed(error: ErrorInfo) -> Outcome {
@@ -1100,7 +1147,9 @@ pub fn delete_jobs(
     keys: &[JobKey],
     (now, language): (Timestamp, Language),
 ) -> crate::Result<Deleted> {
-    let (count, names) = store.delete_jobs(keys, now)?;
+    // Only the trash is deleted for good.
+    let keys = store.in_trash(keys)?;
+    let (count, names) = store.delete_jobs(&keys, now)?;
     let mut deleted = Deleted {
         count: u32::try_from(count).unwrap_or(u32::MAX),
         export_error: None,

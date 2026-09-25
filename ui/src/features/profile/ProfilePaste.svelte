@@ -1,6 +1,7 @@
 <!--
-  A profile from a CV with Claude: the request is on the clipboard (or can be copied again),
-  one line on what to do in Claude, then the field for Claude's answer. "Übernehmen" reads
+  A profile from a CV with an AI: the prompt is on the clipboard (or can be copied again;
+  when copying failed the step says so in the danger tone and the button copies), one line
+  on what to do in the AI, then the field for its answer. "Übernehmen" reads
   the answer (also inside a code block) with the same checks as a file and fills the form
   for review; nothing is saved yet.
 -->
@@ -41,7 +42,7 @@
     <h2 class="heading">{t.profile.fromCv}</h2>
     <ol class="steps">
       <li class="step" data-testid="paste-copied">
-        <span class="mark" class:done={copied}>
+        <span class="mark" class:done={copied} class:failed={!copied}>
           {#if copied}<Icon name="check" size="sm" />{:else}1{/if}
         </span>
         <span class="text">{copied ? words.copied : words.copyFailed}</span>
@@ -49,7 +50,7 @@
           variant="ghost"
           size="sm"
           icon="copy"
-          label={words.copyAgain}
+          label={copied ? words.copyAgain : words.copy}
           testid="paste-copy"
           onclick={oncopy}
         />
@@ -137,6 +138,12 @@
     border-color: var(--success-soft);
     background-color: var(--success-soft);
     color: var(--success-strong);
+  }
+
+  .mark.failed {
+    border-color: var(--danger-soft);
+    background-color: var(--danger-soft);
+    color: var(--danger-strong);
   }
 
   .actions {

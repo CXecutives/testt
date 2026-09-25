@@ -14,7 +14,8 @@
 
 import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
+import { LogicalPosition } from '@tauri-apps/api/dpi';
+import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import type { Commands, ErrorInfo, ErrorKind, RunEvent } from './types';
 
 export type CommandName = keyof Commands;
@@ -34,12 +35,10 @@ export const COMMAND_NAMES = [
   'mark_all_read',
   'mark_unread',
   'set_pinned',
-  'set_app_status',
-  'set_note',
-  'set_archived',
+  'move_jobs',
   'set_override',
-  'delete_jobs',
-  'empty_archive',
+  'purge_jobs',
+  'empty_trash',
   'ai_prompt',
   'ai_prompt_top',
   'pick_profile',
@@ -176,16 +175,59 @@ export function onNavigate(handler: (view: string) => void): () => void {
 }
 
 /** An edit command of the OS that a context menu entry runs. */
-export type EditCommand = 'Cut' | 'Copy' | 'Paste' | 'SelectAll';
+/** An edit command the OS has a menu item of its own for (it acts on the focused field). */
+export type EditCommand = 'Undo' | 'Cut' | 'Copy' | 'Paste' | 'SelectAll';
 
-export interface EditEntry {
-  command: EditCommand;
-  text: string;
-  enabled: boolean;
-}
+/** One entry of an edit menu: an OS command, Delete (the OS has no item of its own for it,
+ *  so the page runs it) or a separator between groups. */
+export type EditEntry =
+  | { command: EditCommand; text: string; enabled: boolean }
+  | { command: 'Delete'; text: string; enabled: boolean; run: () => void }
+  | { command: 'Separator' };
 
 /** The menu shown last; its native resources go when the next one opens. */
 let shownMenu: Menu | null = null;
+
+/** Show a native menu (at a point of the window, else at the pointer). */
+async function show(menu: Menu, at: { x: number; y: number } | null = null): Promise<void> {
+  const previous = shownMenu;
+  shownMenu = menu;
+  void previous?.close();
+  await menu.popup(at === null ? undefined : new LogicalPosition(at.x, at.y));
+}
+
+/** One choice of a native menu with check marks (the chosen one is checked). */
+export interface ChoiceEntry {
+  text: string;
+  checked: boolean;
+  enabled?: boolean;
+  onchoose: () => void;
+}
+
+/**
+ * A native menu of choices below a menu button (`at`: its bottom left in window px), the
+ * OS's own: the current choice checked, a click chooses.
+ */
+export async function popupChoiceMenu(
+  entries: readonly ChoiceEntry[],
+  at: { x: number; y: number } | null = null,
+): Promise<void> {
+  try {
+    const items = await Promise.all(
+      entries.map((entry) =>
+        CheckMenuItem.new({
+          text: entry.text,
+          checked: entry.checked,
+          enabled: entry.enabled ?? true,
+          action: () => entry.onchoose(),
+        }),
+      ),
+    );
+    await show(await Menu.new({ items }), at);
+  } catch (error) {
+    reportUiError(`choice menu: ${String(error)}`, null, null);
+  }
+}
 
 /**
  * A native context menu at the pointer, the OS's own (Windows and macOS draw it). An
@@ -195,17 +237,17 @@ let shownMenu: Menu | null = null;
 export async function popupEditMenu(entries: readonly EditEntry[]): Promise<void> {
   try {
     const items = await Promise.all(
-      entries.map((entry) =>
-        entry.enabled
+      entries.map((entry) => {
+        if (entry.command === 'Separator') return PredefinedMenuItem.new({ item: 'Separator' });
+        if (entry.command === 'Delete') {
+          return MenuItem.new({ text: entry.text, enabled: entry.enabled, action: entry.run });
+        }
+        return entry.enabled
           ? PredefinedMenuItem.new({ item: entry.command, text: entry.text })
-          : MenuItem.new({ text: entry.text, enabled: false }),
-      ),
+          : MenuItem.new({ text: entry.text, enabled: false });
+      }),
     );
-    const menu = await Menu.new({ items });
-    const previous = shownMenu;
-    shownMenu = menu;
-    void previous?.close();
-    await menu.popup();
+    await show(await Menu.new({ items }));
   } catch (error) {
     reportUiError(`context menu: ${String(error)}`, null, null);
   }

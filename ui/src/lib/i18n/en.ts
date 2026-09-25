@@ -8,10 +8,9 @@
 // separator, no "X: Y", no exclamation marks. No German except product and portal names and
 // the name of the German language. Glossary: Job · Portal · Match · Details · Fetch ·
 // Profile · Mailbox · Alert mail · Overview · Excel file · Excluded · New · To check ·
-// Saved · Applications · Archive.
+// Favourites · Inbox (the place of the active jobs) · Archive · Trash.
 
 import type {
-  AppStatus,
   Band,
   DetailState,
   ErrorKind,
@@ -19,6 +18,7 @@ import type {
   JobSort,
   Language,
   PauseReason,
+  Place,
   Portal,
   PortalHealth,
   LanguageLevel,
@@ -49,9 +49,9 @@ const count = (value: number, one: string, many: string): string =>
   `${n(value)} ${value === 1 ? one : many}`;
 
 const portalName: Record<Portal, string> = {
-  linkedin: 'LinkedIn',
+  linkedin: 'linkedin.com',
   freelance: 'freelance.de',
-  freelancermap: 'freelancermap',
+  freelancermap: 'freelancermap.de',
 };
 const portalOf = (value: unknown): string =>
   typeof value === 'string' && value in portalName ? portalName[value as Portal] : str(value);
@@ -79,8 +79,8 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   mailCancelled: 'Cancelled.',
   secretStore: 'The password store of the system cannot be reached.',
   secretCorrupt: 'The stored app password cannot be read.',
-  portalUnavailable: (p) => `${portalOf(p.portal)} cannot be reached right now.`,
-  portalPaused: (p) => `${portalOf(p.portal)} is paused right now.`,
+  portalUnavailable: (p) => `No connection to ${portalOf(p.portal)}.`,
+  portalPaused: (p) => `Fetching from ${portalOf(p.portal)} is paused right now.`,
   portalQuota: (p) => `The limit for ${portalOf(p.portal)} is reached.`,
   internal: INTERNAL,
   unknown: INTERNAL,
@@ -102,9 +102,9 @@ const profileField: Record<string, string> = {
   minDayRate: 'Day rate from',
   countries: 'Countries',
   available: 'Available from',
-  targetYears: 'Required experience from',
+  targetYears: 'Roles from this much experience',
   minSalary: 'Annual salary from',
-  permanentPlaces: 'Places',
+  permanentPlaces: 'Places for permanent roles',
   permanentRemoteMin: 'Remote share from',
   focus: 'Focus areas',
   roles: 'Target roles',
@@ -123,8 +123,7 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   profileAnswer: 'The answer holds no profile.',
   mailAddress: 'The address is incomplete.',
   appPassword: 'An app password has 16 letters.',
-  noSignIn: (p) => `${portalOf(p.portal)} offers no sign-in.`,
-  noteTooLong: (p) => `The note is longer than ${n(num(p.max))} characters.`,
+  noSignIn: (p) => `There is no sign-in for ${portalOf(p.portal)}.`,
 };
 
 const status: Record<StatusCode, string> = {
@@ -230,7 +229,7 @@ function regionWish(p: Params): string {
     case 'missed':
       return `${str(p.location)} is outside the desired regions.`;
     default:
-      return 'It is open whether the location is in a desired region.';
+      return 'It is not certain whether the location is in a desired region.';
   }
 }
 
@@ -264,7 +263,7 @@ const reasonCode = {
   dayRateCurrency: (p) => `The rate is given in ${str(p.currency)}.`,
   availabilityGap: (p) =>
     `The start is ${count(num(p.days), 'day', 'days')} before the availability.`,
-  startVague: 'The start date is open.',
+  startVague: 'The start date is unclear.',
   permanent: 'This sounds like a permanent role.',
   permanentRegion: (p) =>
     p.location
@@ -330,30 +329,37 @@ const reasonCode = {
 const criteria = {
   minDayRate: {
     label: 'Day rate',
+    short: 'Day rate too low',
     exclusion: 'The day rate is below the minimum in the profile.',
   },
   countries: {
     label: 'Countries',
+    short: 'Location outside',
     exclusion: 'The location is outside the countries in the profile.',
   },
   noAnue: {
     label: 'Agency work',
+    short: 'Agency work',
     exclusion: ANUE,
   },
   availability: {
     label: 'Availability',
+    short: 'Start does not fit',
     exclusion: 'The start does not fit the availability.',
   },
   minSalary: {
     label: 'Annual salary',
+    short: 'Salary too low',
     exclusion: 'The salary is below the minimum in the profile.',
   },
   permanentRegion: {
     label: 'Places',
+    short: 'Place outside the region',
     exclusion: 'The permanent role is outside the region in the profile.',
   },
   targetYears: {
     label: 'Experience',
+    short: 'Experience does not fit',
     exclusion: 'The role asks for much less experience.',
   },
 } satisfies Catalog['reader']['criterion'];
@@ -387,13 +393,13 @@ const profileKey: Record<string, string> = {
   min_jahresgehalt: 'Annual salary from',
   min_annual_salary: 'Annual salary from',
   min_salary: 'Annual salary from',
-  festanstellung_orte: 'Places',
-  permanent_locations: 'Places',
-  permanent_places: 'Places',
+  festanstellung_orte: 'Places for permanent roles',
+  permanent_locations: 'Places for permanent roles',
+  permanent_places: 'Places for permanent roles',
   festanstellung_remote_min: 'Remote share from',
   permanent_remote_min: 'Remote share from',
-  zielprofil_min_jahre: 'Required experience from',
-  target_min_years: 'Required experience from',
+  zielprofil_min_jahre: 'Roles from this much experience',
+  target_min_years: 'Roles from this much experience',
   schwerpunkte: 'Focus areas',
   focus_areas: 'Focus areas',
   wunschrollen: 'Target roles',
@@ -464,10 +470,58 @@ export const en: Catalog = {
   splitter: {
     label: 'Width of the list',
   },
+  selection: {
+    count: (n: number) => `${n} selected`,
+    clear: 'Clear selection',
+  },
+  place: {
+    inbox: 'Inbox',
+    archive: 'Archive',
+    trash: 'Trash',
+    search: {
+      inbox: 'Search jobs',
+      archive: 'Search the archive',
+      trash: 'Search the trash',
+    } satisfies Record<Place, string>,
+    count: {
+      inbox: (value: number) => `${count(value, 'job', 'jobs')} in the inbox`,
+      archive: (value: number) => `${count(value, 'job', 'jobs')} in the archive`,
+      trash: (value: number) => `${count(value, 'job', 'jobs')} in the trash`,
+    } satisfies Record<Place, (value: number) => string>,
+    alsoIn: {
+      inbox: (value: number) => `Also in the inbox (${n(value)})`,
+      archive: (value: number) => `Also in the archive (${n(value)})`,
+      trash: (value: number) => `Also in the trash (${n(value)})`,
+    } satisfies Record<Place, (value: number) => string>,
+    inArchive: 'In the archive',
+    inTrash: 'In the trash',
+    inTrashFor: (days: number) => `In the trash, deleted after ${count(days, 'day', 'days')}`,
+    empty: {
+      inbox: 'No jobs.',
+      archive: 'The archive is empty.',
+      trash: 'The trash is empty.',
+    } satisfies Record<Place, string>,
+  },
+  actions: {
+    archive: 'Archive',
+    toInbox: 'Move to inbox',
+    trash: 'Delete',
+    restore: 'Restore',
+    purge: 'Delete forever',
+    purgeHeading: (value: number) =>
+      value === 1 ? 'Delete the job forever?' : `Delete ${n(value)} jobs forever?`,
+    purgeText: 'Deleted jobs do not come back, not even with old alert mails.',
+    emptyTrash: 'Empty trash',
+    emptyTrashHeading: 'Empty the trash?',
+    emptyTrashText: 'The jobs are deleted forever and do not come back.',
+    markAllRead: 'Mark all as read',
+  },
   edit: {
+    undo: 'Undo',
     cut: 'Cut',
     copy: 'Copy',
     paste: 'Paste',
+    delete: 'Delete',
     selectAll: 'Select all',
   },
   field: {
@@ -482,6 +536,7 @@ export const en: Catalog = {
     unscorable: 'Not scorable',
     pending: 'Being scored',
     none: 'Not scored yet',
+    off: 'No match without a profile',
     band: {
       high: 'High match',
       mid: 'Medium match',
@@ -492,16 +547,18 @@ export const en: Catalog = {
     kind: {
       met: 'Met',
       partial: 'Partly met',
-      open: 'Open',
+      open: 'Not in the profile',
       violation: 'Reason to exclude',
       check: 'To check',
     } satisfies Record<ReasonKind, string>,
     weight: {
-      must: 'Must',
-      nice: 'Nice to have',
+      must: 'Required',
+      nice: 'Optional',
       hard: 'Exclusion',
       info: 'Note',
     } satisfies Record<ReasonWeight, string>,
+    evidenceLine: (profile: string, partial: boolean) =>
+      partial ? `Partly fits “${profile}” in the profile.` : `Fits “${profile}” in the profile.`,
     evidence: (quote: string, profile: string, partial: boolean) =>
       partial
         ? `“${quote}” partly fits “${profile}” in the profile.`
@@ -516,16 +573,25 @@ export const en: Catalog = {
       onsite: 'On site',
     } satisfies Record<WorkMode, string>,
     detail: {
-      pending: 'No details',
+      pending: 'Details to come',
       teaser: 'Teaser only',
       failed: 'Details missing',
       unfetchable: 'Not fetchable',
       gone: 'No longer online',
       onRequest: 'Details on request',
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
+    detailHint: {
+      pending: 'The whole ad is not fetched yet.',
+      teaser: 'Without a sign-in the portal shows only a teaser.',
+      failed: 'The whole ad could not be fetched.',
+      unfetchable: 'The ad could not be read several times.',
+      gone: 'The ad is no longer online.',
+      onRequest: 'Older jobs get their details only on request.',
+    } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     closed: 'No longer taking applications',
+    closedHint: 'The ad can still be read but takes no applications any more.',
     unread: 'New',
-    pinned: 'Saved',
+    pinned: 'Favourite',
     alsoOn: (portals: string) => `also on ${portals}`,
     untitled: 'Job without a title',
   },
@@ -536,14 +602,12 @@ export const en: Catalog = {
     facet: 'View',
     facetNew: 'New',
     facetAll: 'All',
-    facetSent: 'Applied',
-    facetPinned: 'Saved',
+    facetSaved: 'Favourites',
     sortLabel: {
-      match: 'Best match',
-      newest: 'Newest',
+      match: 'By match',
+      newest: 'By date',
     } satisfies Record<JobSort, string>,
-    search: 'Search',
-    searchLabel: 'Search jobs',
+    sortNoProfile: 'Without a profile only by date.',
     needsMailbox: 'Connect a mailbox first.',
   },
   run: {
@@ -562,7 +626,7 @@ export const en: Catalog = {
     of: (done: number, total: number) => `${n(done)} of ${n(total)}`,
     ofTotal: (total: number) => `of ${n(total)}`,
     newPill: (value: number) => `${n(value)} new`,
-    topPill: (value: number) => `${n(value)} fit well`,
+    topPill: (value: number) => count(value, 'fits well', 'fit well'),
     resumesIn: (ms: number) => `Resumes in ${formatCountdown(ms)}`,
     pausedWhy: (reason: PauseReason, iso: string | null) =>
       iso
@@ -573,7 +637,7 @@ export const en: Catalog = {
       fetch: 'Fetch',
       details: 'Fetch details',
       rescore: 'Score again',
-      fullMailbox: 'Whole mailbox',
+      fullMailbox: 'Read older mails',
     } satisfies Record<RunKindName, string>,
     done: 'Fetch done',
     rescored: 'Scored again',
@@ -613,13 +677,13 @@ export const en: Catalog = {
       const name = portalName[portal];
       switch (kind) {
         case 'paused':
-          return `${name} paused`;
+          return `Pause on ${name}`;
         case 'quotaReached':
-          return `${name} reached its limit`;
+          return `Limit reached on ${name}`;
         case 'layoutSuspect':
-          return `${name} looks different than expected`;
+          return `Pages on ${name} look different than expected`;
         case 'loginRequired':
-          return `${name} asks for a sign-in`;
+          return `Sign-in needed on ${name}`;
       }
     },
     checkMailbox: 'Check mailbox',
@@ -627,41 +691,62 @@ export const en: Catalog = {
   list: {
     label: 'Jobs',
     excluded: 'Excluded',
-    hidden: 'Archive',
-    showHidden: 'Show',
-    emptySources: 'The jobs come from the alert mails of the portals.',
+    emptySources: 'One alert per portal brings new jobs.',
+    emptyWhileRun: 'The jobs show up once the fetch is done.',
     createAlert: (portal: string) => `Create an alert on ${portal}`,
     readOlder: 'Read older mails',
-    emptySent: 'No application noted yet.',
-    emptyHidden: 'The archive is empty.',
     emptyNew: 'No new jobs.',
+    emptyFavourites: 'No favourites yet.',
     emptyAll: 'After the first fetch the jobs show up here.',
     emptyAfterRun: 'The alert mails held no jobs so far.',
-    emptyFilter: 'There are no jobs for this right now.',
     noHit: (query: string) => `No jobs for “${query}”.`,
+    noHitIn: {
+      new: (query: string) => `No new jobs for “${query}”.`,
+      favourites: (query: string) => `No favourites for “${query}”.`,
+    },
+    searchAll: 'Search all',
     showAll: 'Show all',
     loadFailed: 'The list could not be loaded.',
     pageFailed: 'More jobs could not be loaded.',
     createProfile: 'Create profile',
     openProfile: 'Open profile',
     noMailbox: 'Without a mailbox no new jobs come in.',
+    noProfile: 'Without a profile there is no match.',
+    profileUnreadable: 'Profile cannot be read',
+    profileEmpty: 'Profile without competences',
+    profileBrokenText: 'So the jobs show no match.',
     connectMailbox: 'Connect mailbox',
-    filter: {
-      high: 'High match',
-      noDetail: 'No details',
-      excluded: 'Excluded',
-      pinned: 'Saved',
-      linkedin: `New on ${portalName.linkedin}`,
-      freelancermap: `New on ${portalName.freelancermap}`,
-      freelance: `New on ${portalName.freelance}`,
+  },
+  facts: {
+    now: 'starts now',
+    from: (date: string) => `from ${date}`,
+    vague: 'Start open',
+    months: (value: number) => count(value, 'month', 'months'),
+    remote: (from: number, to: number) => {
+      if (from >= 100) return 'fully remote';
+      if (to <= 0) return 'on site';
+      return from === to
+        ? `${formatPercent(from)} remote`
+        : `${n(from)} to ${formatPercent(to)} remote`;
     },
-    clearFilter: 'Remove filter',
+    rate: (amount: number, hourly: boolean, currency: string | null, unit: boolean) => {
+      const money = currency ? `${n(amount)} ${currency}` : formatEuro(amount);
+      return hourly ? `${money}/hr` : unit ? `${money}/day` : money;
+    },
+    rateOpen: 'Rate negotiable',
+    salary: (amount: number) => `${formatEuro(amount)} a year`,
+    years: (value: number) => `${count(value, 'year', 'years')} of experience`,
+    fullRemote: 'fully remote',
+    contract,
+    notMentioned: (label: string) => `${label} not mentioned`,
   },
   reader: {
     mustMet: (met: number, total: number, partial = 0) =>
-      `${n(met)} of ${n(total)} musts met` + (partial > 0 ? `, ${n(partial)} partly` : ''),
-    noMust: 'No must requirements found',
+      `${n(met)} of ${n(total)} requirements met` + (partial > 0 ? `, ${n(partial)} partly` : ''),
+    noMust: 'No requirements found',
     criteria: 'Exclusion criteria',
+    frame: 'Terms',
+    anueCheck: 'It is not certain whether the role is temporary agency work.',
     contractLabel: 'Contract type',
     criterion: criteria,
     criterionState: {
@@ -673,23 +758,31 @@ export const en: Catalog = {
     note,
     open: 'Open ad',
     close: 'Close',
-    pin: 'Save job',
-    hide: 'Archive',
-    unhide: 'Restore',
-    prompt: 'Copy as prompt',
+    pin: 'Mark as favourite',
+    unpin: 'Remove favourite',
+    archive: 'Archive',
+    restore: 'Restore',
+    override: 'Count anyway',
+    overrideUndo: 'Exclude again',
+    overridden: 'You marked it as fitting.',
+    prompt: 'Copy prompt for AI assessment',
+    promptShort: 'AI assessment',
+    promptHint:
+      'Copies the ad and the profile as a ready prompt for ChatGPT, Claude or another AI.',
     preliminary: 'Provisional, scored from a teaser',
-    noteLabel: 'Note',
-    status: 'Application',
-    appStatus: {
-      saved: 'Saved',
-      sent: 'Applied',
-    } satisfies Record<AppStatus, string>,
     mail: OPEN_MAIL,
+    noMail: 'There is no alert mail for this job.',
+    teaserOf: (portal: string) => `Without a sign-in ${portal} shows only a teaser.`,
+    setUpSignIn: 'Set up sign-in',
+    promptNoProfile: 'Without a profile there is nothing to assess.',
+    promptNoText: 'The text of the ad is still missing.',
+    mailAt: (moment: string) => `Alert mail of ${moment}`,
     fetchDetails: 'Fetch details',
     why: 'Why',
+    wishes: 'Wishes',
     met: 'Met',
     partial: 'Partly met',
-    missing: 'Open',
+    missing: 'Not in the profile',
     check: 'To check',
     violations: 'Excluded',
     noReasons: 'The ad names no clear requirements.',
@@ -708,18 +801,19 @@ export const en: Catalog = {
     loadFailed: 'The job could not be loaded.',
   },
   overview: {
+    noProfileText: 'With a profile every job shows how well it fits.',
+    profileUnreadable: 'Profile cannot be read',
     label: 'Today at a glance',
     issues: 'Open points',
-    best: 'Best match',
+    best: 'New and fitting',
     excel: 'Open Excel file',
+    promptTop: 'Copy prompt for AI comparison',
+    promptTopNone: 'No job scored yet.',
+    bestInList: 'The best new jobs are at the top of the list.',
+    files: 'Files',
     emptyAlerts: (value: number) =>
       value === 1 ? 'One alert mail held no jobs.' : `${n(value)} alert mails held no jobs.`,
     lastRun: 'Last fetch',
-    noProfile: 'No profile yet',
-    noProfileText: 'With a profile every job shows how well it fits.',
-    profileUnreadable: 'Profile cannot be read',
-    profileEmpty: 'Profile without competences',
-    profileBrokenText: 'So the jobs show no match.',
   },
   health: {
     layoutText: (mails: number) =>
@@ -743,16 +837,18 @@ export const en: Catalog = {
   },
   profile: {
     none: 'No profile yet',
-    noneText: 'Every job is checked against the profile.',
+    replaces: 'A new profile replaces the file.',
     create: 'Create profile',
     fromCv: 'Create from CV',
     pick: 'Choose file',
+    pickOther: 'Choose another file',
     remove: 'Remove',
     removeHeading: 'Remove profile?',
     removeText: 'Without a profile the jobs show no match.',
-    meta: (size: string, date: string) => (date ? `${size} · ${date}` : size),
+    savedAt: (date: string, time: string) => `Saved ${date}, ${time}`,
+    unnamed: 'Profile without a name',
     quality: {
-      good: 'Reads well',
+      good: 'Complete',
       thin: 'Little content',
       empty: 'No competences',
     } satisfies Record<ProfileQuality, string>,
@@ -762,11 +858,10 @@ export const en: Catalog = {
       empty: 'Without competences nothing is scored.',
     } satisfies Record<ProfileQuality, string>,
     rescoring: (value: number) => `${count(value, 'job is', 'jobs are')} being scored again.`,
-    rescored: 'Scored again.',
+    rescored: 'Saved, jobs scored again.',
     check: 'Please check',
     next: 'Go to the first fetch',
-    parseError: 'The profile can no longer be read.',
-    understood: (competences: number) => `${count(competences, 'competence', 'competences')} found`,
+    understood: (terms: number) => `${count(terms, 'term', 'terms')} for the match`,
     focusCount: (focus: number) => count(focus, 'focus area', 'focus areas'),
     packs: (packs: string[]) => `Domains ${packs.join(', ')}`,
     warning,
@@ -784,9 +879,10 @@ export const en: Catalog = {
     review: 'Check the details, then save.',
     save: 'Save',
     discard: 'Discard',
-    saved: 'The profile is saved.',
-    leaveHeading: 'Discard changes?',
-    leaveText: 'The profile has changes that are not saved yet.',
+    saved: 'Saved.',
+    unsavedShort: 'Not saved',
+    leaveHeading: 'Save changes?',
+    leaveText: 'The changes to the profile are not saved.',
     empty: 'Still empty',
     section: {
       person: 'Person',
@@ -812,11 +908,10 @@ export const en: Catalog = {
       competencePlaceholder: 'Project management',
       years: 'Years',
       aliases: 'Also called',
-      aliasesPlaceholder: 'PM',
       addCompetence: 'Add competence',
       removeCompetence: (name: string) => `Remove ${name || 'competence'}`,
       star: 'Mark as focus area',
-      focus: 'Focus areas',
+      focusCount: (count: number, max: number) => `Focus areas ${count} of ${max}`,
       focusHint: 'Mark up to five competences with the star.',
       focusFull: 'At most five focus areas.',
       strengths: 'Special strengths',
@@ -839,27 +934,29 @@ export const en: Catalog = {
       addLanguage: 'Add language',
       removeLanguage: (name: string) => `Remove ${name || 'language'}`,
       wishRate: 'Desired day rate (€)',
-      remote: 'Remote',
+      remote: 'Work location',
       regions: 'Desired regions',
       regionsPlaceholder: 'Munich',
       wishIndustries: 'Desired industries',
       wishIndustriesPlaceholder: 'Chemicals',
       minDayRate: 'Day rate from (€)',
       countries: 'Countries',
-      remoteOutside: 'Remote outside allowed',
-      remoteOutsideHint: 'Then fully remote roles abroad count too.',
+      remoteOutside: 'Allow remote roles abroad',
       noAnue: 'Exclude temporary agency work',
       available: 'Available from',
       date: 'Date',
       datePlaceholder: '01/11/2026',
       dateInvalid: 'Enter the date as 01/11/2026.',
-      targetYears: 'Required experience from (years)',
+      targetYears: 'Roles from this much experience (years)',
       targetYearsHint: 'Roles for much less experience drop out.',
       minSalary: 'Annual salary from (€)',
-      places: 'Places',
+      places: 'Places for permanent roles',
       placesPlaceholder: 'Munich',
       remoteMin: 'Remote share from (%)',
-      remoteMinHint: 'Roles outside these places count only from this much remote.',
+      remoteMinHint: 'Elsewhere a role counts only from this remote share.',
+      unreadableNumber: (value: string) => `The file said “${value}”, which is not a number.`,
+      unreadableDate: (value: string) => `The file said “${value}”, which is not a date.`,
+      unreadablePlaces: (value: string) => `The file said “${value}”, which are not places.`,
     },
     level: {
       a1: 'A1',
@@ -871,16 +968,15 @@ export const en: Catalog = {
       native: 'Native',
     } satisfies Record<LanguageLevel, string>,
     remoteWish: {
-      full: 'Full',
-      mostly: 'Mostly',
-      partly: 'Partly',
+      full: 'Fully remote',
+      mostly: 'Mostly remote',
+      partly: 'Partly remote',
       onSite: 'On site',
     } satisfies Record<RemoteWish, string>,
     availability: {
-      unset: 'Open',
       now: 'Now',
       from: 'From a date',
-    } satisfies Record<ProfileAvailability['kind'], string>,
+    } satisfies Record<Exclude<ProfileAvailability['kind'], 'unset'>, string>,
     country: {
       DE: 'Germany',
       AT: 'Austria',
@@ -896,11 +992,12 @@ export const en: Catalog = {
       IN: 'India',
     } as Record<string, string>,
     paste: {
-      copied: 'The request for Claude is copied.',
-      copyFailed: 'The request could not be copied.',
+      copied: 'The prompt is copied.',
+      copyFailed: 'The prompt could not be copied.',
+      copy: 'Copy prompt',
       copyAgain: 'Copy again',
-      step: 'Paste it into Claude and attach the CV.',
-      answer: 'Paste the answer from Claude',
+      step: 'Paste it into an AI and attach the CV.',
+      answer: "Paste the AI's answer",
       take: 'Use answer',
     },
   },
@@ -912,6 +1009,10 @@ export const en: Catalog = {
     maintenance: 'Maintenance',
     connected: 'Connected',
     notConnected: 'No mailbox connected.',
+    /** The last fetch could not reach Gmail, or Gmail refused the password. */
+    unreachable: 'Not reachable',
+    refused: 'Refused',
+    mailRefused: 'Gmail refuses the address or app password, enter them again with Change.',
     vault: {
       windowsCredentialManager: 'The app password is kept in the Windows Credential Manager.',
       macosKeychain: 'The app password is kept in the macOS keychain.',
@@ -921,14 +1022,18 @@ export const en: Catalog = {
     passwordHint: '16 letters, created in the Google account.',
     createPassword: 'Create app password',
     twoStep: 'An app password needs 2-Step Verification.',
+    addressMissing: 'The Gmail address is missing.',
+    passwordMissing: 'The app password is missing.',
     twoStepAction: 'Turn on verification',
     connect: 'Connect',
     removeMailbox: 'Remove mailbox?',
     removeMailboxText: 'The app password is deleted, the jobs stay.',
     autoFetch: 'Fetch at start',
     autoFetchHint: 'When the last fetch is more than six hours ago.',
-    autoArchive: 'Archive old jobs automatically',
-    autoArchiveHint: 'After 30 days, except saved jobs and applications.',
+    autoArchive: 'Archive jobs after 30 days',
+    autoArchiveHint: 'Favourites are never archived.',
+    autoEmptyTrash: 'Empty the trash after 30 days',
+    autoEmptyTrashHint: 'Deleted jobs are then gone for good.',
     active: 'Active',
     details: 'Fetch details',
     needsDetails: 'Turn on Fetch details first.',
@@ -952,9 +1057,13 @@ export const en: Catalog = {
     detailsOff: 'Without details the jobs of this portal get no match.',
     quota: (used: number, cap: number) => `Today ${n(used)} of ${n(cap)} pages`,
     quotaHour: (used: number, cap: number) => `This hour ${n(used)} of ${n(cap)} pages`,
+    /** The sign-in row of a portal: its label, and its state. */
+    session: 'Sign-in',
     signedIn: 'Signed in',
+    notSignedIn: 'Not signed in.',
+    /** A portal that is off. */
+    portalOff: 'The fetch skips it.',
     sessionLeft: 'The sign-in is still stored.',
-    signedOut: 'Not signed in',
     signIn: 'Sign in',
     signOut: 'Sign out',
     openPortal: 'Open in browser',
@@ -976,11 +1085,11 @@ export const en: Catalog = {
     fullMailbox: 'Read the whole mailbox',
     fullMailboxHint: 'Reads all alert mails, not only the new ones.',
     fullMailboxAction: 'Read mailbox',
+    fullMailboxConfirm: 'Read',
     fullMailboxHeading: 'Read the whole mailbox?',
     fullMailboxText: 'This takes longer and fetches more pages from the portals.',
     logs: 'Logs',
     data: 'App data',
-    copyPath: 'Copy path',
     reset: 'Reset everything',
     resetHint: 'Deletes jobs, settings, profile and app password.',
     resetAction: 'Reset',
@@ -1014,15 +1123,26 @@ export const en: Catalog = {
     loadFailed: 'The app could not load its data.',
     last: (iso: string) => `Fetched ${formatMoment(iso)}`,
     showRun: 'Show fetch',
-    runFailed: 'Fetch failed',
+    runFailed: (iso: string) => `Failed ${formatMoment(iso)}`,
     closing: 'The fetch is stopping, then the app closes.',
   },
   toast: {
     saved: 'Saved.',
+    mailboxSaved: 'Mailbox connected.',
     rescored: 'The jobs are scored again.',
     copied: 'Copied.',
     prompt: 'Prompt copied, ready for an AI chat.',
-    hidden: 'Archived.',
+    archivedOne: (name: string) => `“${name}” archived.`,
+    trashedOne: (name: string) => `“${name}” deleted.`,
+    trashedMany: (value: number) => `${n(value)} jobs deleted.`,
+    inboxOne: (name: string) => `“${name}” moved to the inbox.`,
+    inboxMany: (value: number) => `${n(value)} jobs moved to the inbox.`,
+    restoredMany: (value: number) => `${n(value)} jobs restored.`,
+    allRead: 'All marked as read.',
+    archivedMany: (value: number) => `${n(value)} jobs archived.`,
+    restored: (name: string) => `“${name}” restored.`,
+    deleted: (value: number) =>
+      value === 1 ? 'The job is deleted.' : `${n(value)} jobs are deleted.`,
     runDone: (value: number) =>
       value === 0
         ? 'Fetch done, nothing new.'

@@ -1,0 +1,35 @@
+Titel: Senior Java Entwickler (m/w/d) Spring Boot / Kubernetes
+Unternehmen: Quellwerk Digital Consulting GmbH
+Ort: Nürnberg (Deutschland)
+Quelle: freelance.de
+Link: https://www.freelance.de/projekte/projekt-1189055-Senior-Java-Entwickler-m-w-d-Spring-Boot-Kubernetes
+Abgerufen am: 22.09.2026 07:12
+
+Projektbeschreibung
+Für unseren Kunden aus der Versicherungsbranche suchen wir zur Verstärkung eines agilen Entwicklungsteams eine/n Senior Java Entwickler/in. Im Rahmen der Modernisierung der Bestandsführungssysteme werden bestehende Monolithen in eine Microservice-Architektur überführt.
+
+Aufgaben
+- Konzeption und Entwicklung von Microservices mit Java 21 und Spring Boot 3
+- Entwicklung von REST-Schnittstellen und asynchroner Kommunikation über Apache Kafka
+- Containerisierung der Services mit Docker und Deployment auf Kubernetes (OpenShift)
+- Aufbau und Pflege von CI/CD-Pipelines (GitLab CI, ArgoCD)
+- Code Reviews, Pair Programming und Mitarbeit an der Softwarearchitektur
+- Mitarbeit im Scrum-Team inkl. Refinements, Sprint Planning und Retros
+
+Anforderungen
+- Mind. 6 Jahre Erfahrung in der Backend-Entwicklung mit Java
+- Sehr gute Kenntnisse in Spring Boot, Spring Data JPA und Hibernate
+- Erfahrung mit Kafka, PostgreSQL und Oracle
+- Praxis mit Kubernetes, Helm und Infrastructure as Code (Terraform)
+- Testautomatisierung mit JUnit 5, Mockito und Testcontainers
+- Erfahrung in der Versicherungsbranche wünschenswert
+- Gute Deutschkenntnisse, English for technical documentation
+
+Rahmendaten
+Start: 01.11.2026
+Laufzeit: 12 Monate mit Verlängerungsoption
+Auslastung: 100 %
+Einsatzort: 80 % remote, 20 % vor Ort in Nürnberg
+Stundensatz: 85 bis 100 €
+
+Sie haben Interesse? Dann freuen wir uns auf Ihr aktuelles Projektprofil mit Angabe Ihrer Verfügbarkeit und Ihres Stundensatzes.

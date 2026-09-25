@@ -2,6 +2,6 @@
 import type { Portal } from "./Portal";
 
 /**
- * The new jobs ("Neu") of one portal.
+ * The unread jobs of one portal (in the inbox, not excluded).
  */
 export type PortalNew = { portal: Portal, new: number, };

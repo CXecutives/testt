@@ -63,22 +63,26 @@ characters): `ai_prompt(key)` for a deep analysis of one ad (text <= 12,000 char
 for one comparison with a ranking of the best current matches (scored, not hidden, ad still online; pinned first, then
 by score), all ad texts together <= 24,000 characters, an equal share each, the prompt says when one was cut.
 
-### Schema 5 (one mark, archive, delete for good, "fits anyway"; user decisions 2026-09-24/25)
+### Schema 5 (places like mail, the favourite, delete for good, "fits anyway"; user decisions 2026-09-24/25)
 Schema 4 is on main, so this is its own step (`migrate_4_to_5`, frozen fixture `core/tests/fixtures/schema_v4.sql`):
-`hidden_at` is renamed `archived_at` (UI word "Archiv", "Archivieren"), new nullable `override_include INTEGER` and
-`mail_version INTEGER`, every schema 4 application status (applied, interview, offer, rejected) becomes `sent`, a pinned
-job without a status becomes `saved`, and a `tombstone(portal, job_id, deleted_at)` table. One mark per job (user
-decision 2026-09-25, no stages, no follow-up): `saved` (the star, `set_pinned` is its alias and never overwrites
-`sent`) or `sent` (UI word "Beworben", with its date; Excel column "Beworben am"), plus the note. Archived jobs
-are in no list but the archive and in no count but their own. At the end of every run jobs without a mark whose first
-sighting is older than `autoArchiveDays` archive themselves (Einstellungen > Abruf, one switch). `delete_jobs(keys)` and
-`empty_archive()` delete rows (with the duplicates that stand for them), their TXT files and their Excel rows (the
-overview is written again), leaving only the tombstone, so a scan of an old alert mail never imports them again; the
-dry run deletes in its database only. `set_override(key, include)`: an excluded job counts as scored with its fit score
-(note and first reason `userOverride`), every rescore keeps it; taken back, the job is assessed again at once.
-"Neu" holds the unread jobs of the last 14 days (`store::new_since`, by the mail date); older unread ones stay under
-"Alle". "Alle gelesen" is `mark_all_read(facet)` with `mark_unread(keys)` as its undo. `top_matches.json` is schema 2
-(stage and first sighting per job, the unread or saved matches of the Neu window). The first mailbox scan reads 30 days.
+`hidden_at` is renamed `archived_at`, new nullable `override_include`, `mail_version` and `trashed_at`, every schema 4
+mark (an application status, the pin) becomes the favourite (`app_status = 'saved'`), the `note` column stays unused,
+and a `tombstone(portal, job_id, deleted_at)` table. Email model (user decision 2026-09-25): every job is in exactly
+one place, Eingang (inbox), Archiv or Papierkorb (trash; `trashed_at` wins over `archived_at`); the favourite (the star,
+`set_pinned`) is a flag of its own; no stages, no follow-up, no note. `move_jobs(keys, to)` moves; `purge_jobs(keys)`
+("Endgültig löschen", only from the trash) and `empty_trash()` delete rows (with the duplicates that stand for them)
+and their TXT files, rewrite the overview and leave the tombstone, so a scan of an old alert mail never imports them
+again (the dry run deletes in its database only). At the end of every run inbox jobs that are no favourite archive
+themselves after `autoArchiveDays` (default 30, 0 = off), and the trash empties itself after `autoEmptyTrashDays`
+(default 30, 0 = off; also at the start of the app). The Excel sheet, the HTML overview, `top_matches.json` and the
+best-matches prompt take only inbox jobs. `set_override(key, include)`: an excluded job counts as scored with its fit
+score (note and first reason `userOverride`), every rescore keeps it; taken back, the job is assessed again at once.
+A list is a place (or the favourites of inbox and archive) plus an `unread` filter ("Neu", no day window) and a sort
+(by match, or by date: the mail's, in the trash the day it went there); the counts per place (inbox, unread,
+favourites, archive, trash) come from the same statement and follow the search, so the page can say "Auch im Archiv
+(n)". "Alle als gelesen markieren" is `mark_all_read(place)` with `mark_unread(keys)` as its undo.
+`top_matches.json` is schema 2 (`appStatus` "saved" for a favourite, the first sighting per job; the unread or
+favourite inbox matches of the last 14 days). The first mailbox scan reads 30 days.
 Whether the user has to act comes from the backend: `actionNeeded` in `PortalState` and in the `PortalHealth` event
 (a sign-in, or alert mails without jobs; a pause, a cap or pages without a description resolve themselves). Both
 prompts carry `core/src/export/ai_rubric.de.md` whole (its preamble names no product). Mail healing: `mail_version`
@@ -89,13 +93,11 @@ IMAP read-only).
 
 ### IPC v3 (types from Rust via ts-rs; camelCase; `null` instead of missing; backend never sends prose)
 Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | rescore | fullMailbox})` · `cancel_run` ·
-`list_jobs(JobQuery{facet: new|all|saved|sent|archived, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{new, all, excluded, high, noDetail, saved, sent, archived, newByPortal[{portal, new}] in Portal::ALL order}}`
-(list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only; saved
-and sent latest mark first, archived latest archived first) ·
-`job_detail(key)` · `mark_read(key) -> bool` · `mark_all_read(facet) -> JobKey[]` · `mark_unread(keys) -> number` ·
-`set_pinned(key, on)` · `set_app_status(key, saved|sent|null) -> bool` ·
-`set_note(key, note) -> bool` · `set_archived(key, archived) -> bool` · `set_override(key, include) -> bool` ·
-`delete_jobs(keys) -> Deleted{count, exportError?}` · `empty_archive -> Deleted` ·
+`list_jobs(JobQuery{place: inbox|archive|trash, unread, favourites, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{inbox, unread, favourites, archive, trash, excluded, high, noDetail, newByPortal[{portal, new}] in Portal::ALL order}}`
+(list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only) ·
+`job_detail(key)` · `mark_read(key) -> bool` · `mark_all_read(place) -> JobKey[]` · `mark_unread(keys) -> number` ·
+`set_pinned(key, on)` · `move_jobs(to, keys) -> number` · `set_override(key, include) -> bool` ·
+`purge_jobs(keys) -> Deleted{count, exportError?}` · `empty_trash -> Deleted` ·
 `ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile -> ProfileDraft?` ·
 `parse_profile(text) -> ProfileDraft` · `profile_prompt` · `save_profile(ProfileSave{before, after, source?}) -> ProfileInfo` ·
 `remove_profile` · `save_mailbox` · `remove_mailbox` · `portal_login` · `portal_logout` ·
@@ -109,8 +111,8 @@ starts itself) · `Progress{step: scan|fetch|score|export, portal?, done, total}
 `PortalHealth{portal, health, actionNeeded}` · `LoginNeeded{portal, waiting}` ·
 `Finished{summary{kind, perPortal[{portal,new,known,dup,fetched,failed}], newJobs{count, high}?, score{scored,excluded,unscorable,pending,best}, export{..., error{kind, params.target}?}, stops[], emptyAlerts[]}}`
 (`newJobs` of a mailbox run: first seen, not a duplicate, not excluded; `high` of those; the export never fails a run but names what it could not write).
-Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[], appStatus|null, statusAt|null, archived, overridden}` ·
-`JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null, note|null}` ·
+Types: `JobView{key, portal, title, company, location, workMode, mailDate, firstSeenAt, unread, pinned, detail, match{score, band, status, note, mustMet, mustTotal, top[]}|null, alsoOn[], place: inbox|archive|trash, overridden}` ·
+`JobDetail{job, text, url, fetchedAt, mail{subject, gmailUrl}, match{score, status, band, rev, at, summary, reasons[<=40], highlights[<=200], criteria[]}|null}` ·
 `Reason{id, kind: met|partial|open|violation|check, weight: must|nice|hard|info, code, label, evidence{profile, path, via, quote}|null, params, ranges[]}` ·
 `Highlight{id, start, end (UTF-16), kind, reason}` · `ProfileInfo{fileName, bytes, savedAt, quality: good|thin|empty, understood{competenceCount, competences[], sources[], criteria[], warnings[], packs[], years, degrees[], focus[], roles[], wishes}, scoredAt, pending, form}` ·
 `ProfileForm` (the editor's fields, `core/src/profile/form.rs`) · `ProfileDraft{form, source, quality}` ·
@@ -208,7 +210,9 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   Since "cxpertise navy": hover-in `--dur-hover` 80 ms on the :hover rule, hover-out 150 ms on the base rule, press
   60 ms with `--scale-press*`, `--ease-emphasized` for everything that slides or settles; transforms on HTML
   wrappers, never on SVG children; one-shots only from event handlers or a mounted previous-value compare; every
-  scale, move and turn token has a neutral reduced-motion value (a half turn keeps its angle).
+  scale, move and turn token has a neutral reduced-motion value (a half turn keeps its angle). The one height
+  animation: a job moved out of the list folds its row away (`rowCollapse`, 150 ms, one contained row; not for
+  filtering; instant under reduced motion). Results of the same kind within 2 s merge into one toast with one undo.
 - Consistency: stylelint (no hex/named colours, no colour functions/units outside tokens, strict values, allowed
   transition properties, keyframes only in motion.css) · ESLint (no inline styles, raw elements only in components,
   restricted imports, no title attribute, no empty catch, listeners only in input.ts) · Rust architecture tests ·
@@ -227,7 +231,8 @@ Abrufen and moves the window, no title text) · dialog buttons (Windows: action 
 right) · scrollbars (Windows: slim styled, shown over their scroller; macOS: native overlay scrollbars) · middle-button
 autoscroll (Windows; macOS has none) · words for OS things (Explorer / Finder, Anmeldeinformationsverwaltung /
 Schlüsselbund) · menu (none vs. minimal App/Edit/Window) · font smoothing on macOS · keychain vs. credential manager
-(same code) · session storage API · reveal in folder (`explorer /select` vs. `open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
+(same code) · a text field's menu (Windows: Undo | Cut, Copy, Paste, Delete | Select all;
+macOS without Undo and Delete) · session storage API · reveal in folder (`explorer /select` vs. `open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
 `scrollbar-gutter`, `content-visibility`. Windows: NSIS currentUser, German installer, downloadBootstrapper.
 macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc signed, minimum 14.0; the icon targets the macOS 26 (Tahoe) Dock look.
 
@@ -284,6 +289,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       corpora with frozen floors (NDCG@10 0.822 to 0.930 and 0.632 to 0.805); criteria met only with the ad's value
       as evidence, key facts on `JobMatch`; one German rubric for the Claude check and the skill
       (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3.
+- [x] Engine v6: the gaps of the unseen held-out set 3 fixed as general rules (rates next to a currency, reading
+      noise, English language names, texts without requirements, generic heads, a tie-breaker, student roles);
+      set 3 is a regression corpus (NDCG@10 0.618 to 0.950). Open: the unseen check on held-out set 4.
 - [x] Domain packs for every field: hr, procurement, data, pharma, operations, sales, legal, software (held-out 2
       NDCG@10 0.805 to 0.862). Open: synthetic corpus ads and profiles of the new fields.
 

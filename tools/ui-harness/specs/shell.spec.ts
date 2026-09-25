@@ -283,7 +283,7 @@ test('per-OS convention: the order of dialog buttons', async ({ page }) => {
 test('the run status in the sidebar opens the last run', async ({ page }) => {
   await open(page, '?platform=windows');
   await expect(page.getByTestId('run-card')).toHaveCount(0);
-  await expect(page.getByTestId('run-status')).toContainText('Zuletzt 08:30');
+  await expect(page.getByTestId('run-status')).toContainText('Abgerufen 08:30');
   await page.getByTestId('nav-settings').click();
   await page.getByTestId('run-status').click();
   await expect(page.getByTestId('view-jobs')).toBeVisible();
@@ -341,7 +341,7 @@ test('every run status fits the sidebar without being cut off', async ({ page })
       code,
     );
     const status = page.getByTestId('run-status');
-    await expect(status).not.toContainText('Zuletzt');
+    await expect(status).not.toContainText('Abgerufen');
     const cut = await status.locator('.text').evaluate((node) => ({
       text: node.textContent,
       cut: node.scrollHeight > node.clientHeight + 1 || node.scrollWidth > node.clientWidth + 1,

@@ -11,7 +11,7 @@ use super::*;
 use crate::error::ErrorKind;
 use crate::export::TXT_DIR;
 use crate::fetch::policy::PauseReason;
-use crate::model::DescStatus;
+use crate::model::{DescStatus, Place};
 
 fn clock() -> impl Fn() -> Timestamp {
     let base = Timestamp::now();
@@ -33,6 +33,7 @@ fn ctx(workspace: &Path, dry_run: bool) -> RunContext {
         fetch_portals: Portal::ALL.to_vec(),
         sign_in: vec![Portal::FreelanceDe],
         auto_archive_days: 0,
+        auto_empty_trash_days: 0,
         language: Language::De,
     }
 }
@@ -1025,6 +1026,7 @@ impl Matcher for Picky {
             must_total: 0,
             top: Vec::new(),
             facts: crate::model::KeyFacts::default(),
+            rank: 0,
         })
     }
 }
@@ -1922,19 +1924,19 @@ async fn a_deleted_job_leaves_its_files_and_stays_gone() {
         .join(victim.txt_name.as_deref().unwrap());
     assert!(file.exists());
     let rows = overview_rows(dir.path());
-    let deleted = delete_jobs(
-        &store,
-        Some(dir.path()),
-        None,
-        std::slice::from_ref(&victim.key),
-        (c(), Language::De),
-    )
-    .unwrap();
+    let one = std::slice::from_ref(&victim.key);
+    // Only the trash is deleted for good.
+    let kept = delete_jobs(&store, Some(dir.path()), None, one, (c(), Language::De)).unwrap();
+    assert_eq!(kept.count, 0);
+    assert!(file.exists());
+    store.move_jobs(one, Place::Trash, c()).unwrap();
+    let rows = rows - 1;
+    let deleted = delete_jobs(&store, Some(dir.path()), None, one, (c(), Language::De)).unwrap();
     assert_eq!(deleted.export_error, None);
     let gone = i64::from(deleted.count);
     assert!(gone >= 1);
     assert!(!file.exists());
-    assert!(overview_rows(dir.path()) < rows);
+    assert!(overview_rows(dir.path()) <= rows);
     assert_eq!(overview_rows(dir.path()), 1 + listed(&store));
     assert_eq!(store.job_count().unwrap(), total - gone);
     let files = txt_files(dir.path());
@@ -2036,10 +2038,14 @@ async fn the_excel_sheet_leaves_out_archived_jobs() {
     .await;
     let rows = overview_rows(dir.path());
     let key = store.jobs(&JobFilter::default()).unwrap()[0].key.clone();
-    store.set_archived(&key, true, c()).unwrap();
+    let one = std::slice::from_ref(&key);
+    store.move_jobs(one, Place::Archive, c()).unwrap();
     export_all(&store, dir.path(), &[], 2, c(), Language::De);
     assert_eq!(overview_rows(dir.path()), rows - 1);
-    store.set_archived(&key, false, c()).unwrap();
+    store.move_jobs(one, Place::Trash, c()).unwrap();
+    export_all(&store, dir.path(), &[], 3, c(), Language::De);
+    assert_eq!(overview_rows(dir.path()), rows - 1, "nor the trash");
+    store.move_jobs(one, Place::Inbox, c()).unwrap();
     export_all(&store, dir.path(), &[], 3, c(), Language::De);
     assert_eq!(overview_rows(dir.path()), rows);
     let all = store.jobs(&JobFilter::default()).unwrap().len();
@@ -2052,4 +2058,66 @@ async fn the_excel_sheet_leaves_out_archived_jobs() {
         .len();
     assert_eq!(rows, 1 + listed, "the header and one row per listed job");
     assert!(listed <= all);
+}
+
+/// At the end of a run the trash empties itself of the jobs that lie there long enough
+/// (0 = never): rows and text files go, a tombstone stays; the young trash stays.
+#[tokio::test(start_paused = true)]
+async fn a_run_empties_an_old_trash() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let fetch = ctx(dir.path(), false);
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &fetch,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    let jobs = store.jobs(&JobFilter::default()).unwrap();
+    let old = jobs.iter().find(|j| j.txt_name.is_some()).unwrap().clone();
+    let young = jobs.iter().find(|j| j.key != old.key).unwrap().key.clone();
+    let file = dir
+        .path()
+        .join(RESULT_DIR)
+        .join(TXT_DIR)
+        .join(old.txt_name.as_deref().unwrap());
+    let long_ago = c() - SignedDuration::from_hours(24 * 40);
+    store
+        .move_jobs(std::slice::from_ref(&old.key), Place::Trash, long_ago)
+        .unwrap();
+    store
+        .move_jobs(std::slice::from_ref(&young), Place::Trash, c())
+        .unwrap();
+    // Switched off: nothing goes.
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &fetch,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert!(store.job(&old.key).unwrap().is_some());
+    let emptying = RunContext {
+        auto_empty_trash_days: 30,
+        ..ctx(dir.path(), false)
+    };
+    go(
+        &mut DemoBackends,
+        &store,
+        &request(),
+        &emptying,
+        &CancellationToken::new(),
+        &c,
+    )
+    .await;
+    assert!(store.job(&old.key).unwrap().is_none());
+    assert!(store.is_deleted(&old.key).unwrap());
+    assert!(!file.exists());
+    assert_eq!(store.job(&young).unwrap().unwrap().place(), Place::Trash);
 }

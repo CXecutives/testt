@@ -3,6 +3,9 @@
 //! items with AND parts, OR alternatives and examples (V6) and the kind of every item (V7).
 
 use std::ops::Range;
+use std::sync::LazyLock;
+
+use regex::Regex;
 
 use super::atoms::{self, Vocab, fold};
 use super::lexicon::{HeadingKind, engine as lex};
@@ -243,6 +246,19 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
         let start = offset(text, phrase);
         doc.requirement_lines.push(start..start + phrase.len());
         let level = level_in(phrase);
+        if soft_sentence(phrase) {
+            let nice = kind == ReqKind::Nice || nice_cue(phrase);
+            doc.items.push(Item {
+                span: Some(start..start + phrase.len()),
+                text: phrase.to_owned(),
+                alternatives: Vec::new(),
+                kind: if nice { ReqKind::Nice } else { kind },
+                class: Class::Soft,
+                years: None,
+                stage,
+            });
+            continue;
+        }
         let parts = split(phrase);
         // `X, idealerweise Y`: nice from the cue on; `X und Y von Vorteil`: a closing cue
         // makes the whole line nice.
@@ -274,7 +290,7 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
         }
     }
     if doc.items.is_empty() {
-        for term in extract_job_skills(text) {
+        for term in vocabulary_terms(text) {
             doc.items.push(Item {
                 span: None,
                 alternatives: vec![term.clone()],
@@ -287,6 +303,22 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
         }
     }
     doc
+}
+
+/// Terms of an ad without requirement sentences: the general vocabulary without industries
+/// (an industry is no skill).
+fn vocabulary_terms(text: &str) -> Vec<String> {
+    let industry = |t: &str| {
+        let folded = fold(t);
+        super::lexicon::wishes::INDUSTRY_WORDS
+            .iter()
+            .chain(super::lexicon::wishes::INDUSTRIES)
+            .any(|(w, _)| *w == folded)
+    };
+    extract_job_skills(text)
+        .into_iter()
+        .filter(|t| !industry(t))
+        .collect()
 }
 
 /// Sentences of a line: split after `.!?;` and whitespace before an uppercase letter or a
@@ -405,7 +437,92 @@ fn example_marker(text: &str) -> Option<(usize, usize)> {
         .min()
 }
 
-/// Items of a requirement phrase: (item range, alternative ranges), relative to `phrase`.
+/// The AND separators that really part two requirements: none inside a fixed phrase
+/// (`in Wort und Schrift`), none before a comma tail (`, gerne auch`), none between the
+/// bare nouns listed after a word of working together
+/// (`Zusammenarbeit mit Gesellschaftern, Investoren und Dienstleistern`).
+fn joined(phrase: &str, seps: &[Range<usize>]) -> Vec<Range<usize>> {
+    let lower = phrase.to_lowercase();
+    let protected: Vec<Range<usize>> = lex::PROTECTED_PHRASES
+        .iter()
+        .flat_map(|p| lower.match_indices(p).map(|(at, m)| at..at + m.len()))
+        .collect();
+    let mut kept: Vec<Range<usize>> = Vec::new();
+    let mut listing = false;
+    for (i, sep) in seps.iter().enumerate() {
+        let inside = protected
+            .iter()
+            .any(|p| p.start <= sep.start && sep.end <= p.end);
+        let rest = lower.get(sep.end..).unwrap_or("");
+        let tail = phrase[sep.clone()].starts_with(',')
+            && lex::COMMA_TAILS
+                .iter()
+                .chain(lex::PROTECTED_PHRASES)
+                .any(|t| rest.starts_with(t));
+        // The part before this separator, and the part after it (up to the next one).
+        let before_start = if i == 0 { 0 } else { seps[i - 1].end };
+        let before = lower.get(before_start..sep.start).unwrap_or("");
+        let after_end = seps.get(i + 1).map_or(phrase.len(), |s| s.start);
+        let after = phrase.get(sep.end..after_end).unwrap_or("");
+        if lex::LIST_OBJECT_WORDS.iter().any(|w| before.contains(w)) {
+            listing = true;
+        }
+        // Only a bare noun after the list word keeps the list together.
+        listing = listing && after.split_whitespace().count() == 1 && !known_skill(after);
+        if inside || tail || listing {
+            continue;
+        }
+        kept.push(sep.clone());
+    }
+    kept
+}
+
+/// Does a text name a known skill: a code or number (`SAP`, `S/4HANA`, `ISO 9001`), a
+/// language, a trigger of any domain pack or a term of the general vocabulary?
+pub(crate) fn known_skill(text: &str) -> bool {
+    let code = text
+        .split(|c: char| !(c.is_alphanumeric() || matches!(c, '/' | '&' | '+')))
+        .any(|w| {
+            let letters = w.chars().filter(|c| c.is_alphabetic()).count();
+            w.chars().any(|c| c.is_ascii_digit())
+                || ((2..=6).contains(&letters) && w.chars().all(|c| !c.is_lowercase()))
+        });
+    if code {
+        return true;
+    }
+    let folded = fold(text);
+    let tokens: Vec<&str> = atoms::raw_tokens(&folded).collect();
+    tokens.iter().any(|t| {
+        language_of(t).is_some()
+            || super::lexicon::domains::DOMAINS
+                .iter()
+                .any(|d| d.triggers.iter().any(|p| t.starts_with(p)))
+            || super::lexicon::JOB_SKILL_VOCAB.contains(t)
+    })
+}
+
+/// The language a token names (`Englisch`, `English`, `Niederländisch`, `Dutch`).
+pub(crate) fn language_of(token: &str) -> Option<&'static str> {
+    lex::LANGUAGES
+        .iter()
+        .find(|l| token.starts_with(**l))
+        .copied()
+        .or_else(|| {
+            lex::LANGUAGE_NAMES
+                .iter()
+                .find(|(name, _)| *name == token)
+                .map(|&(_, stem)| stem)
+        })
+}
+
+/// A sentence about the person, not a skill: it starts with `Sie`, `Du`, `You` or `Your`
+/// and names no known skill (`Sie kommunizieren klar, auch wenn es unbequem wird`).
+fn soft_sentence(phrase: &str) -> bool {
+    let folded = fold(phrase);
+    let first = atoms::raw_tokens(&folded).next().unwrap_or("");
+    lex::PRONOUN_STARTS.contains(&first) && !known_skill(phrase)
+}
+
 /// A part that is one adjective (`Classic`, `klassische`, `strategic`).
 fn lone_adjective(text: &str) -> bool {
     let word = fold(text.trim());
@@ -415,6 +532,7 @@ fn lone_adjective(text: &str) -> bool {
         && lex::ADJECTIVE_ENDINGS.iter().any(|e| word.ends_with(e))
 }
 
+/// Items of a requirement phrase: (item range, alternative ranges), relative to `phrase`.
 pub(crate) fn split(phrase: &str) -> Vec<(Range<usize>, Vec<Range<usize>>)> {
     let lower = fold(phrase);
     let has_or = OR.iter().any(|w| lower.contains(w));
@@ -422,7 +540,7 @@ pub(crate) fn split(phrase: &str) -> Vec<(Range<usize>, Vec<Range<usize>>)> {
     let and_seps: Vec<Range<usize>> = if has_or && !has_and {
         separators(phrase, &["; "])
     } else {
-        separators(phrase, AND)
+        joined(phrase, &separators(phrase, AND))
     };
     let mut items: Vec<(Range<usize>, Vec<Range<usize>>)> = Vec::new();
     let parts = cut(phrase, &and_seps);
@@ -542,6 +660,12 @@ fn starts_with_any(atom: &str, stems: &[&str]) -> bool {
     stems.iter().any(|s| atom.starts_with(s))
 }
 
+/// Any frame word inside a word (the quick test before the rules of [`frame_word`]).
+static FRAME_ANY: LazyLock<Regex> = LazyLock::new(|| {
+    let words: Vec<String> = lex::FRAME_WORDS.iter().map(|w| regex::escape(w)).collect();
+    Regex::new(&words.join("|")).expect("frame words")
+});
+
 /// A word with one of `WORD_ENDINGS` (or none) after `stem`.
 fn ending_after<'w>(word: &'w str, stem: &str) -> Option<&'w str> {
     word.strip_prefix(stem)
@@ -569,6 +693,10 @@ fn heads_after(rest: &str) -> impl Iterator<Item = &str> {
 /// head is a skill (`Vergütungsmanagement`, `Gehaltsabrechnung`, `Standortleitung`,
 /// `Start-up`).
 pub(crate) fn frame_word(word: &str) -> bool {
+    // Most words contain no frame word at all: one pass over the word first.
+    if !FRAME_ANY.is_match(word) {
+        return false;
+    }
     let frame = |part: &str| {
         lex::FRAME_WORDS
             .iter()
@@ -668,13 +796,21 @@ fn classify(text: &str, phrase_level: Option<u8>, vocab: &Vocab) -> Class {
     if soft > 0 && 2 * soft >= content.len() {
         return Class::Soft;
     }
+    // `Arbeitsweise`, `working style`, `Soft Skills` alone.
+    if !content.is_empty()
+        && content
+            .iter()
+            .all(|a| lex::SOFT_ALONE.iter().any(|w| atoms::stem(w) == *a))
+    {
+        return Class::Soft;
+    }
     if let Some(language) = tokens
         .iter()
         .map(|t| (*t).to_owned())
         .chain(content.iter().cloned())
-        .find_map(|t| lex::LANGUAGES.iter().find(|l| t.starts_with(**l)))
+        .find_map(|t| language_of(&t))
     {
-        return Class::Language((*language).to_owned(), level_in(text).or(phrase_level));
+        return Class::Language(language.to_owned(), level_in(text).or(phrase_level));
     }
     if names_degree(&tokens) {
         return Class::Degree;
@@ -824,6 +960,121 @@ mod tests {
         ] {
             assert_eq!(class(skill), Class::Skill, "{skill}");
         }
+    }
+
+    /// Soft words of every kind of ad; a soft word alone; a sentence about the person.
+    #[test]
+    fn soft_words_sentences_and_words_alone() {
+        for soft in [
+            "Strukturierte und sorgfältige Arbeitsweise",
+            "Zahlenaffinität, Sorgfalt und Neugier",
+            "Überzeugungskraft",
+            "Verhandlungsstärke",
+            "Structured approach",
+            "Reliable and analytical",
+            "Strong analytical skills",
+            "Arbeitsweise",
+            "Working style",
+            "Soft Skills",
+        ] {
+            assert_eq!(class(soft), Class::Soft, "{soft}");
+        }
+        let doc = read(
+            "Ihr Profil\n- Sie kommunizieren klar und wertschätzend, auch wenn es unbequem wird\n\
+             - Sie haben Erfahrung mit SAP FI\n",
+            &Vocab::all(),
+        );
+        let classes: Vec<(&str, &Class)> = doc
+            .items
+            .iter()
+            .map(|i| (i.text.as_str(), &i.class))
+            .collect();
+        assert_eq!(
+            classes[0],
+            (
+                "Sie kommunizieren klar und wertschätzend, auch wenn es unbequem wird",
+                &Class::Soft
+            )
+        );
+        // A sentence naming a known skill stays a requirement.
+        assert!(
+            classes
+                .iter()
+                .any(|(t, c)| t.contains("SAP FI") && **c == Class::Skill)
+        );
+    }
+
+    /// `in Wort und Schrift` is one item; a comma tail stays with its item; the partners
+    /// listed after `Zusammenarbeit mit` are one item, a skill list after `Erfahrung mit`
+    /// is not.
+    #[test]
+    fn fixed_phrases_comma_tails_and_partner_lists() {
+        let texts =
+            |phrase: &str| -> Vec<String> { items(phrase).into_iter().map(|(t, _)| t).collect() };
+        assert_eq!(
+            texts("Sehr gutes Deutsch in Wort und Schrift"),
+            ["Sehr gutes Deutsch in Wort und Schrift"]
+        );
+        assert_eq!(
+            texts("Fluent English, written and spoken"),
+            ["Fluent English, written and spoken"]
+        );
+        assert_eq!(
+            texts("Erfahrung mit SAP, gerne auch S/4HANA"),
+            ["Erfahrung mit SAP, gerne auch S/4HANA"]
+        );
+        assert_eq!(
+            texts("Zusammenarbeit mit Gesellschaftern, Investoren und Dienstleistern"),
+            ["Zusammenarbeit mit Gesellschaftern, Investoren und Dienstleistern"]
+        );
+        assert_eq!(
+            texts("Erfahrung mit Finanzierungsrunden und Investorenkommunikation"),
+            [
+                "Erfahrung mit Finanzierungsrunden",
+                "Investorenkommunikation"
+            ]
+        );
+    }
+
+    /// Must and can headings of tenders, portal footers, English nice cues.
+    #[test]
+    fn tender_headings_footers_and_nice_cues() {
+        let doc = read(
+            "Muss-Anforderungen\n- SAP FI\nKann-Anforderungen\n- SAP CO\n\
+             Projekt-ID: SDP-2026-118\nEingestellt am: 18.09.2026\nBranche: Medizintechnik\n",
+            &Vocab::all(),
+        );
+        let items: Vec<(&str, ReqKind)> = doc
+            .items
+            .iter()
+            .map(|i| (i.text.as_str(), i.kind))
+            .collect();
+        assert_eq!(
+            items,
+            [("SAP FI", ReqKind::Must), ("SAP CO", ReqKind::Nice)]
+        );
+        let doc = read(
+            "Requirements\n- Experience under GMP is an advantage\n- Power BI is helpful\n",
+            &Vocab::all(),
+        );
+        assert_eq!(doc.items[0].kind, ReqKind::Nice);
+        // The cue word does not count as a skill (`Power BI von Vorteil` is Power BI).
+        let vocab = Vocab::all();
+        assert_eq!(
+            atoms::atoms("Power BI von Vorteil", &vocab),
+            atoms::atoms("Power BI", &vocab)
+        );
+    }
+
+    /// Languages under their English names (`Fluent Dutch`).
+    #[test]
+    fn languages_by_english_name() {
+        assert_eq!(
+            class("Fluent Dutch"),
+            Class::Language("niederlandisch".into(), Some(5))
+        );
+        assert_eq!(language_of("english"), Some("englisch"));
+        assert_eq!(language_of("germany"), None);
     }
 
     /// `Qualified Person` and `Sachkundige Person` are one licence.

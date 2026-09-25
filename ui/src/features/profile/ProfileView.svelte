@@ -14,9 +14,8 @@
   import { app } from '$lib/state/app.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { navigation, type ViewId } from '$lib/state/navigation.svelte';
-  import { editor, sameForm } from '$lib/state/profile.svelte';
+  import { editor, sameForm, unreadableValues } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
-  import { toasts } from '$lib/state/toasts.svelte';
   import { onMount, untrack } from 'svelte';
   import ProfileEditor from './ProfileEditor.svelte';
   import ProfileHeader from './ProfileHeader.svelte';
@@ -34,6 +33,17 @@
   let saveNote = $state<string | null>(null);
   let pasteError = $state<string | null>(null);
   let saved = $state(false);
+  // The outcome of a save stands until the next change.
+  $effect(() => {
+    if (editor.dirty) saved = false;
+  });
+  const result = $derived(
+    !saved
+      ? null
+      : !rescoring && (app.state?.counts.inbox ?? 0) > 0
+        ? t.profile.rescored
+        : t.profile.saved,
+  );
   let confirmRemove = $state(false);
   let leaving = $state<ViewId | null>(null);
 
@@ -115,7 +125,10 @@
     }
   }
 
-  async function save(): Promise<void> {
+  let panel = $state<{ ready: () => boolean } | null>(null);
+
+  /** `true` when the profile is saved. */
+  async function save(): Promise<boolean> {
     busy = 'save';
     saveNote = null;
     try {
@@ -125,9 +138,10 @@
       if (form) editor.edit(form);
       else editor.close();
       saved = true;
-      toasts.show(t.profile.saved);
+      return true;
     } catch (error) {
       saveNote = errorText(error);
+      return false;
     } finally {
       busy = null;
     }
@@ -155,11 +169,24 @@
     }
   }
 
+  /** Leaving without saving. */
   function leave(): void {
     const next = leaving;
     leaving = null;
     editor.discard(stored);
     if (next !== null) navigation.go(next, true);
+  }
+
+  /** Saving, then leaving; a date that does not read or a failed save keeps the view. */
+  async function saveAndLeave(): Promise<void> {
+    const next = leaving;
+    if (panel !== null && !panel.ready()) {
+      leaving = null;
+      return;
+    }
+    const done = await save();
+    leaving = null;
+    if (done && next !== null) navigation.go(next, true);
   }
 
   const quality = $derived(
@@ -182,10 +209,10 @@
   {:else if editor.origin === null}
     <div class="empty">
       <ProfileStart
-        heading={profile?.parseError ? t.profile.parseError : t.profile.none}
+        heading={profile?.parseError ? t.overview.profileUnreadable : t.profile.none}
         text={profile?.parseError
-          ? t.error.text(profile.parseError.kind, profile.parseError.params)
-          : t.profile.noneText}
+          ? `${t.error.text(profile.parseError.kind, profile.parseError.params)} ${t.profile.replaces}`
+          : t.overview.noProfileText}
         picking={busy === 'pick'}
         {note}
         oncreate={() => editor.create()}
@@ -199,7 +226,6 @@
       {profile}
       {quality}
       {rescoring}
-      rescored={saved && !rescoring && (app.state?.counts.all ?? 0) > 0}
       dirty={editor.dirty}
       picking={busy === 'pick'}
       {note}
@@ -209,9 +235,14 @@
       onnext={saved && app.state?.firstRun ? () => navigation.go('jobs') : null}
     />
     <ProfileEditor
+      bind:this={panel}
       {quality}
+      unreadable={editor.origin === 'stored'
+        ? unreadableValues(profile?.understood?.warnings ?? [])
+        : {}}
       busy={busy === 'save'}
       note={saveNote}
+      {result}
       onsave={() => void save()}
       ondiscard={discard}
     />
@@ -231,12 +262,14 @@
 
 <Dialog
   open={leaving !== null}
-  variant="danger"
   heading={t.profile.leaveHeading}
   text={t.profile.leaveText}
-  confirmLabel={t.profile.discard}
+  confirmLabel={t.profile.save}
+  altLabel={t.profile.discard}
+  busy={busy === 'save'}
   testid="dialog-leave-profile"
-  onconfirm={leave}
+  onconfirm={() => void saveAndLeave()}
+  onalt={leave}
   oncancel={() => (leaving = null)}
 />
 

@@ -2,12 +2,13 @@
 // the app's language (`t`). The screens never build sentences themselves.
 //
 // Engine codes travel as plain strings (`Reason.code`, `Notice.code`). The catalog tables
-// in de.ts (and en.ts, the same keys) are the one place that knows them: a new code needs one
+// in t.ts (and en.ts, the same keys) are the one place that knows them: a new code needs one
 // entry there. Unknown codes from a newer core fall back to the ad's words or are left out,
 // never to a raw code.
 
 import { IpcError } from '../ipc/api';
-import type { JobView, Notice, PortalHealth, Reason } from '../ipc/types';
+import type { JobView, KeyFacts, Notice, PortalHealth, Reason } from '../ipc/types';
+import { formatDate } from './format';
 import {
   textOf,
   type CriterionKey,
@@ -51,6 +52,20 @@ export function reasonText(reason: Reason): string {
   return textOf(t.reason.code[code as ReasonCode], reason.params) || reason.label;
 }
 
+/** Wishes of the profile: their sentence names the wish already. */
+const WISH_CODES: readonly string[] = ['dayRateWish', 'remoteWish', 'regionWish', 'industryWish'];
+const same = (a: string, b: string): boolean =>
+  a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+
+/** The line under a reason: the profile's side of its evidence; null without one, for a wish
+ *  and when the profile says the very words of the reason. */
+export function reasonEvidence(reason: Reason): string | null {
+  const profile = reason.evidence?.profile;
+  if (!profile || WISH_CODES.includes(reason.code)) return null;
+  if (same(profile, reason.label) || same(profile, reason.evidence?.quote ?? '')) return null;
+  return t.reason.evidenceLine(profile, reason.kind === 'partial');
+}
+
 /** Tooltip of a reason: quote and profile evidence, or that the profile lacks it. */
 export function reasonHint(reason: Reason): string | null {
   if (reason.evidence) {
@@ -86,15 +101,113 @@ export function noteText(note: Notice | null): string | null {
   return key ? t.reader.criterion[key].exclusion : null;
 }
 
-/** The reason line of a list row: the exclusion note, else the best met requirement. */
+/** The criterion an exclusion note names (`hardCriterion` with its key, or the reason code). */
+function noteCriterion(note: Notice | null): CriterionKey | null {
+  if (note === null) return null;
+  return note.code === 'hardCriterion'
+    ? criterionKey(note.params.criterion)
+    : criterionKey(note.code);
+}
+
+/** The reason line of a list row: why it is excluded in short words ("Tagessatz zu
+ *  niedrig"), else the best met requirement. */
 export function rowReason(job: JobView): { kind: 'met' | 'violation'; text: string } | null {
   const match = job.match;
   if (match === null) return null;
   if (match.status === 'excluded') {
-    return { kind: 'violation', text: noteText(match.note) ?? t.score.excluded };
+    const key = noteCriterion(match.note);
+    const text = key ? t.reader.criterion[key].short : noteText(match.note);
+    return { kind: 'violation', text: text ?? t.score.excluded };
   }
   const top = match.top[0];
   return top ? { kind: 'met', text: top } : null;
+}
+
+/** The start of an ad in words (`now`, `vague` or an ISO date); `vague` only when asked. */
+function startWords(start: unknown, vague: boolean): string | null {
+  if (start === 'now') return t.facts.now;
+  if (start === 'vague') return vague ? t.facts.vague : null;
+  if (typeof start === 'string' && start !== '') return t.facts.from(formatDate(start));
+  return null;
+}
+
+function rateWords(
+  rate: unknown,
+  hourly: unknown,
+  currency: unknown,
+  unit: boolean,
+): string | null {
+  if (typeof rate !== 'number') return null;
+  return t.facts.rate(
+    rate,
+    hourly === true,
+    typeof currency === 'string' && currency !== '' ? currency : null,
+    unit,
+  );
+}
+
+/**
+ * The key facts of an ad for its list row, in this order: start, duration, remote share,
+ * rate ("ab sofort", "6 Monate", "60 % remote", "1.100 €/Tag"). What the ad does not say is
+ * left out.
+ */
+export function factWords(facts: KeyFacts | null | undefined): string[] {
+  if (!facts) return [];
+  const out: string[] = [];
+  const start = startWords(facts.start, false);
+  if (start) out.push(start);
+  if (facts.months) out.push(t.facts.months(facts.months));
+  const from = facts.remoteFrom ?? facts.remoteTo;
+  const to = facts.remoteTo ?? facts.remoteFrom;
+  if (from !== null && to !== null) out.push(t.facts.remote(from, to));
+  const rate =
+    rateWords(facts.rate, facts.hourly, facts.currency, true) ??
+    (facts.rateOpen ? t.facts.rateOpen : null);
+  if (rate) out.push(rate);
+  return out;
+}
+
+/** The duration and remote share of an ad (the reader's facts line, in place of the work
+ *  mode when the ad says more). */
+export function workWords(facts: KeyFacts | null | undefined): string[] {
+  if (!facts) return [];
+  const out: string[] = [];
+  if (facts.months) out.push(t.facts.months(facts.months));
+  const from = facts.remoteFrom ?? facts.remoteTo;
+  const to = facts.remoteTo ?? facts.remoteFrom;
+  if (from !== null && to !== null) out.push(t.facts.remote(from, to));
+  return out;
+}
+
+/**
+ * What the ad says about a hard criterion, in its own value ("1.100 €/Tag", "ab sofort",
+ * "Hamburg", "Interim"); `null` when it says nothing (the chip then names the criterion).
+ */
+export function criterionValue(reason: Reason): string | null {
+  const p = reason.params;
+  switch (criterionKey(reason.code)) {
+    case 'minDayRate':
+      return (
+        rateWords(p.rate, p.hourly, p.currency, true) ??
+        (p.rateOpen === true ? t.facts.rateOpen : null)
+      );
+    case 'countries':
+    case 'permanentRegion':
+      if (p.remote === true) return t.facts.fullRemote;
+      return typeof p.location === 'string' && p.location !== '' ? p.location : null;
+    case 'noAnue':
+      return typeof p.contract === 'string' && has(t.facts.contract, p.contract)
+        ? t.facts.contract[p.contract]
+        : null;
+    case 'availability':
+      return startWords(p.start, true);
+    case 'minSalary':
+      return typeof p.salary === 'number' ? t.facts.salary(p.salary) : null;
+    case 'targetYears':
+      return typeof p.years === 'number' ? t.facts.years(p.years) : null;
+    default:
+      return null;
+  }
 }
 
 /** A criterion of the reader strip (kind met = fulfilled with the ad as evidence, violation, check = unclear, open = the ad does not mention it). */

@@ -1,9 +1,13 @@
 <!--
   Connect a Gmail mailbox: address and app password, Enter saves, Esc cancels. Errors land
-  at the field they belong to; the password never leaves this form except to save_mailbox
-  (it goes straight into the OS keychain). Save and cancel follow the OS like the dialogs:
-  save first on Windows, cancel first (save last) on macOS; the row stays left-aligned.
-  When Gmail refuses the password, its field shakes once and the error rises in below it.
+  at the field they belong to (empty fields are said before anything is sent); when Gmail
+  refuses the pair, both fields are marked, the password shakes once and the one sentence
+  stands above the button. The password never leaves this form except to save_mailbox (it
+  goes straight into the OS keychain). Under both fields one line says what an app password
+  needs, with the two pages in the order she needs them: the 2-step verification, then the
+  app password. Save and cancel follow the OS like the dialogs (save first on Windows, last
+  on macOS) and sit at the trailing edge like every save/cancel pair; the single "Verbinden"
+  of the first run stays under the fields.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -17,6 +21,7 @@
   import { primaryFirst } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
+  import { onMount } from 'svelte';
 
   interface Props {
     /**
@@ -27,8 +32,10 @@
     /** Only when changing an existing mailbox. */
     oncancel?: (() => void) | null;
     onsaved?: (() => void) | null;
+    /** The caret starts in the address (the first run, where this form is the first step). */
+    autofocus?: boolean;
   }
-  let { saveLabel, oncancel = null, onsaved = null }: Props = $props();
+  let { saveLabel, oncancel = null, onsaved = null, autofocus = false }: Props = $props();
 
   const id = $props.id();
   const saveFirst = primaryFirst();
@@ -37,33 +44,48 @@
   let busy = $state(false);
   let userError = $state<string | null>(null);
   let passwordError = $state<string | null>(null);
+  /** Gmail refused the pair: both fields are marked, the sentence stands once above. */
+  let refused = $state(false);
   let formError = $state<string | null>(null);
   let passwordField = $state<TextField | null>(null);
 
+  const focus = (field: 'user' | 'password'): void =>
+    document.getElementById(`${id}-${field}`)?.focus();
+
+  onMount(() => {
+    if (autofocus && document.activeElement === document.body) focus('user');
+  });
+
   async function save(): Promise<void> {
     if (busy) return;
-    busy = true;
     userError = passwordError = formError = null;
+    refused = false;
+    // Empty fields are said at once, both of them, without asking Gmail.
+    if (user.trim() === '') userError = t.settings.addressMissing;
+    if (password.trim() === '') passwordError = t.settings.passwordMissing;
+    if (userError !== null || passwordError !== null) {
+      focus(userError !== null ? 'user' : 'password');
+      return;
+    }
+    busy = true;
     try {
       await invoke('save_mailbox', { user: user.trim(), password });
       password = '';
       await app.load();
-      if (oncancel) toasts.show(t.toast.saved);
+      if (oncancel) toasts.show(t.toast.mailboxSaved);
       onsaved?.();
     } catch (error) {
+      const kind = error instanceof IpcError ? error.kind : null;
       const reason = error instanceof IpcError ? error.params.reason : null;
-      if (
-        reason === 'mailAddress' ||
-        (error instanceof IpcError && error.kind === 'mailNotGmail')
-      ) {
+      if (kind === 'mailAuth') {
+        // Gmail refuses address or password: both are marked, the password shakes once.
+        refused = true;
+        formError = errorText(error);
+        passwordField?.shake();
+      } else if (reason === 'mailAddress' || kind === 'mailNotGmail') {
         userError = errorText(error);
-      } else if (
-        reason === 'appPassword' ||
-        (error instanceof IpcError && error.kind === 'mailAuth')
-      ) {
+      } else if (reason === 'appPassword') {
         passwordError = errorText(error);
-        // Gmail refused the password: the field it was typed in shakes once.
-        if (error instanceof IpcError && error.kind === 'mailAuth') passwordField?.shake();
       } else {
         formError = errorText(error);
       }
@@ -91,7 +113,7 @@
       <TextField
         id="{id}-user"
         bind:value={user}
-        invalid={userError !== null}
+        invalid={userError !== null || refused}
         describedby="{id}-user-message"
         testid="mailbox-user"
       />
@@ -100,12 +122,6 @@
       label={t.settings.password}
       for="{id}-password"
       hint={t.settings.passwordHint}
-      action={{
-        label: t.settings.createPassword,
-        icon: 'external-link',
-        testid: 'create-password',
-        onclick: () => openPage('appPasswordPage'),
-      }}
       error={passwordError}
     >
       <TextField
@@ -113,29 +129,40 @@
         id="{id}-password"
         kind="password"
         bind:value={password}
-        invalid={passwordError !== null}
+        invalid={passwordError !== null || refused}
         describedby="{id}-password-message"
         testid="mailbox-password"
       />
     </Field>
   </div>
-  <!-- Before an app password exists, Google wants 2-step verification: said once, with the way there. -->
-  <p class="two-step">
-    <span>{t.settings.twoStep}</span>
-    <Button
-      variant="link"
-      size="sm"
-      icon="external-link"
-      external
-      label={t.settings.twoStepAction}
-      testid="two-step"
-      onclick={() => openPage('twoStepPage')}
-    />
-  </p>
+  <!-- What an app password needs, and the two pages in the order she needs them. -->
+  <div class="help">
+    <p>{t.settings.twoStep}</p>
+    <div class="links">
+      <Button
+        variant="link"
+        size="sm"
+        icon="external-link"
+        external
+        label={t.settings.twoStepAction}
+        testid="two-step"
+        onclick={() => openPage('twoStepPage')}
+      />
+      <Button
+        variant="link"
+        size="sm"
+        icon="external-link"
+        external
+        label={t.settings.createPassword}
+        testid="create-password"
+        onclick={() => openPage('appPasswordPage')}
+      />
+    </div>
+  </div>
   {#if formError}
     <Notice tone="danger" variant="inline" text={formError} testid="mailbox-error" />
   {/if}
-  <div class="actions">
+  <div class="actions" class:pair={oncancel !== null}>
     {#snippet dismiss()}
       {#if oncancel}
         <Button
@@ -168,13 +195,18 @@
     container-type: inline-size;
   }
 
-  .two-step {
+  .help {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    column-gap: var(--space-8);
+    flex-direction: column;
+    gap: var(--space-4);
     color: var(--text-muted);
     font: var(--type-sm);
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-16);
   }
 
   /* Address and password side by side where there is room (the first run stays short). */
@@ -196,5 +228,10 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-8);
+  }
+
+  /* Save and cancel at the trailing edge, like the profile's save bar and every dialog. */
+  .pair {
+    justify-content: flex-end;
   }
 </style>

@@ -184,11 +184,48 @@ fn pair(new: (u8, Outcome), old: u8, grade: u8, label_excluded: bool) -> Pair {
     Pair {
         profile: 0,
         new_score: new.0,
+        new_rank: 0,
         new_outcome: new.1,
         old_score: old,
         grade,
         label_excluded,
     }
+}
+
+/// A profile without any relevant job is left out of the NDCG mean; equal scores follow
+/// the score before the caps.
+#[test]
+fn ndcg_skips_profiles_without_relevant_jobs_and_ranks_ties_by_rank() {
+    let mut pairs = vec![
+        pair((90, Scored), 10, 3, false),
+        pair((10, Scored), 90, 0, false),
+    ];
+    pairs.extend([
+        Pair {
+            profile: 1,
+            ..pair((50, Scored), 50, 0, false)
+        },
+        Pair {
+            profile: 1,
+            ..pair((40, Scored), 40, 0, true)
+        },
+    ]);
+    assert!(close(metrics::metrics(&pairs).new.ndcg10, 1.0));
+    let tie = |rank_relevant: u16, rank_other: u16| {
+        let pairs = [
+            Pair {
+                new_rank: rank_other,
+                ..pair((40, Scored), 0, 0, false)
+            },
+            Pair {
+                new_rank: rank_relevant,
+                ..pair((40, Scored), 0, 3, false)
+            },
+        ];
+        metrics::metrics(&pairs).new.ndcg10
+    };
+    assert!(close(tie(420, 380), 1.0));
+    assert!(tie(380, 420) < 1.0);
 }
 
 #[test]

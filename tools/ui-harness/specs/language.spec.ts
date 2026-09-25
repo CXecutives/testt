@@ -44,7 +44,15 @@ test('Sprache switches the whole app to English and back at once', async ({ page
     'true',
   );
   expect((await calls(page, 'save_settings')).map(([, args]) => args)).toEqual([
-    { patch: { portals: [], autoFetchOnStart: null, autoArchiveDays: null, language: 'en' } },
+    {
+      patch: {
+        portals: [],
+        autoFetchOnStart: null,
+        autoArchiveDays: null,
+        autoEmptyTrashDays: null,
+        language: 'en',
+      },
+    },
   ]);
 
   // The Jobs view in English: the list header, the reader, its numbers and words.
@@ -52,7 +60,7 @@ test('Sprache switches the whole app to English and back at once', async ({ page
   await expect(page.getByTestId('list-header')).toContainText('Fetch');
   await expect(page.getByTestId('reader-ring')).toHaveAttribute('aria-label', /^Match 91%/);
   await expect(page.getByTestId('band')).toHaveText('High match');
-  await expect(page.getByTestId('prompt')).toContainText('Copy as prompt');
+  await expect(page.getByTestId('prompt')).toContainText('AI assessment');
   await expect(page.getByTestId('reader')).not.toContainText('Passung');
 
   // Back to German, the same way.

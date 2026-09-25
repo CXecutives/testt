@@ -30,10 +30,10 @@ impl Store {
     /// carries the full text: a full text that arrives after its teaser becomes the original,
     /// and the teaser (with anything that pointed to it) points to it.
     ///
-    /// A job the user marked (a stage, a note, archived, "fits anyway") is never linked: a
-    /// duplicate leaves every list, and her marks must not leave with it. An archived or
-    /// closed job is never the original either - the fresh, open announcement would vanish
-    /// behind it.
+    /// A job the user marked (a favourite, moved out of the inbox, "fits anyway") is never
+    /// linked: a duplicate leaves every list, and her marks must not leave with it. An
+    /// archived, trashed or closed job is never the original either - the fresh, open
+    /// announcement would vanish behind it.
     pub fn link_duplicate(&self, key: &JobKey) -> Result<Option<JobKey>> {
         self.write(|conn| {
             let Some(own) = row(conn, key.portal.key(), &key.id, true)? else {
@@ -52,7 +52,7 @@ impl Store {
                  WHERE (portal <> ?1
                         OR (job_id <> ?2 AND (?3 OR job_id GLOB 'u*')))
                    AND desc_status IN ('ok', 'teaser') AND dup_of IS NULL
-                   AND archived_at IS NULL AND desc_closed = 0
+                   AND archived_at IS NULL AND trashed_at IS NULL AND desc_closed = 0
                  ORDER BY first_seen_at, portal, job_id",
             )?;
             let own_hash = !key.has_portal_id();
@@ -158,7 +158,7 @@ struct Row {
     /// Only a guest's teaser, not the full text.
     teaser: bool,
     closed: bool,
-    /// The user marked it (a stage, a note, archived, "fits anyway").
+    /// The user marked it (a favourite, moved out of the inbox, "fits anyway").
     marked: bool,
 }
 
@@ -168,8 +168,8 @@ fn row(conn: &rusqlite::Connection, portal: &str, id: &str, open: bool) -> Resul
     Ok(conn
         .query_row(
             "SELECT title, company, desc_text, desc_status = 'teaser', desc_closed,
-                    app_status IS NOT NULL OR note IS NOT NULL
-                      OR archived_at IS NOT NULL OR override_include IS NOT NULL
+                    app_status IS NOT NULL OR archived_at IS NOT NULL
+                      OR trashed_at IS NOT NULL OR override_include IS NOT NULL
              FROM job
              WHERE portal = ?1 AND job_id = ?2 AND desc_text IS NOT NULL
                AND (NOT ?3 OR (desc_status IN ('ok', 'teaser') AND dup_of IS NULL))",
@@ -375,6 +375,7 @@ mod tests {
             must_total: 1,
             top: Vec::new(),
             facts: crate::model::KeyFacts::default(),
+            rank: 0,
         };
         for p in [&first, &second] {
             store.upsert_posting(run, p, mail(), now()).unwrap();
@@ -414,10 +415,10 @@ mod tests {
     }
 
     /// A job the user marked stays a job of its own: linked as a duplicate it would leave
-    /// every list with its stage, note or archive mark.
+    /// every list with its favourite, its place or "fits anyway".
     #[test]
     fn a_marked_job_is_never_hidden_as_a_duplicate() {
-        use crate::model::AppStatus;
+        use crate::model::Place;
         use crate::store::test_support::{mail, now, posting};
         type Mark<'a> = &'a dyn Fn(&JobKey);
 
@@ -435,15 +436,17 @@ mod tests {
             .unwrap();
         let marks: [(&str, Mark<'_>); 4] = [
             ("4000000001", &|key| {
-                store
-                    .set_app_status(key, Some(AppStatus::Sent), now())
-                    .unwrap();
+                store.set_override(key, true).unwrap();
             }),
             ("4000000002", &|key| {
-                store.set_note(key, "Agentur anrufen").unwrap();
+                store
+                    .move_jobs(std::slice::from_ref(key), Place::Trash, now())
+                    .unwrap();
             }),
             ("4000000003", &|key| {
-                store.set_archived(key, true, now()).unwrap();
+                store
+                    .move_jobs(std::slice::from_ref(key), Place::Archive, now())
+                    .unwrap();
             }),
             ("4000000004", &|key| {
                 store.set_pinned(key, true, now()).unwrap();
@@ -638,7 +641,13 @@ mod tests {
         store
             .record_text(&archived, TEXT, false, false, now())
             .unwrap();
-        store.set_archived(&archived, true, now()).unwrap();
+        store
+            .move_jobs(
+                std::slice::from_ref(&archived),
+                crate::model::Place::Archive,
+                now(),
+            )
+            .unwrap();
         let closed = add("https://www.freelance.de/project/index.php?id=1255067");
         store
             .record_text(&closed, TEXT, false, true, now())

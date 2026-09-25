@@ -1,9 +1,10 @@
 <!--
   One reason of a match: met | partial | open | violation | check, weighted must | nice |
-  hard | info. Quote and profile evidence appear in the tooltip; hovering can highlight
-  the passage (onhover), a click can scroll to it (onselect). A reason that jumps washes
-  on hover and shows a small arrow down, darkens while pressed, and takes the navy wash
-  while its passage is pinned (active).
+  hard | info. Quote and profile evidence appear in the tooltip, or as a quiet line under
+  the words (`detail`), inside the reason so its wash and its click cover it too; hovering
+  can highlight the passage (onhover), a click can scroll to it (onselect). A reason that
+  jumps washes on hover and shows a small arrow down, darkens while pressed, and takes the
+  navy wash while its passage is pinned (active).
 -->
 <script lang="ts" module>
   import type { ReasonKind, ReasonWeight } from '$lib/ipc/types';
@@ -24,7 +25,8 @@
     partial: 'circle-half',
     open: 'circle-dashed',
     violation: 'ban',
-    check: 'info',
+    // To check: the question mark of the criteria chip, in info navy everywhere.
+    check: 'circle-help',
   };
 
   // Muss and Kann are plain facts, never alarms: both neutral. Only a decided exclusion is red.
@@ -48,6 +50,8 @@
     weight?: ReasonWeight | null;
     /** Tooltip: the ad's words and the profile evidence (texts.ts reasonHint). */
     hint?: string | null;
+    /** A quiet line under the words (the evidence), part of the reason (not in compact). */
+    detail?: string | null;
     /** One line without weight badge (list rows). */
     compact?: boolean;
     active?: boolean;
@@ -60,6 +64,7 @@
     label,
     weight = null,
     hint = null,
+    detail = null,
     compact = false,
     active = false,
     onhover = null,
@@ -67,12 +72,23 @@
   }: Props = $props();
 </script>
 
+{#snippet words()}
+  <span class="label">{label}</span>
+  {#if weight && !compact}<Badge label={t.reason.weight[weight]} tone={WEIGHT_TONE[weight]} />{/if}
+{/snippet}
+
 {#snippet body()}
   <span class="icon" role="img" aria-label={t.reason.kind[kind]}
     ><Icon name={ICON[kind]} size="sm" /></span
   >
-  <span class="label">{label}</span>
-  {#if weight && !compact}<Badge label={t.reason.weight[weight]} tone={WEIGHT_TONE[weight]} />{/if}
+  {#if detail && !compact}
+    <span class="words">
+      <span class="head">{@render words()}</span>
+      <span class="detail" data-testid="evidence">{detail}</span>
+    </span>
+  {:else}
+    {@render words()}
+  {/if}
 {/snippet}
 
 {#if onselect}
@@ -167,6 +183,28 @@
     display: inline-flex;
     flex: none;
     color: var(--reason-color);
+  }
+
+  /* With a detail: the words and, under them, the evidence (on the axis of the words). */
+  .words {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-8);
+    min-width: 0;
+  }
+
+  .detail {
+    color: var(--text-subtle);
+    font: var(--type-sm);
+    overflow-wrap: break-word;
   }
 
   .label {

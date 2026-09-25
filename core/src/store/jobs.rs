@@ -7,13 +7,14 @@ use jiff::{SignedDuration, Timestamp};
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use url::Url;
 
+use super::marks::{FAVOURITES, INBOX, place_condition};
 use super::{Store, bump};
 use crate::error::{Error, Result};
 use crate::fetch::policy::MAX_FETCH_ATTEMPTS;
 use crate::mail::MAIL_PARSER_VERSION;
 use crate::mail::extract::{has_gender_tag, looks_like_job_title};
 use crate::model::{
-    AlertMail, AppStatus, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord,
+    AlertMail, DescStatus, HIGH_FROM, MAX_FIELD_CHARS, MAX_TITLE_CHARS, MatchRecord, Place,
     Posting, is_usable_title,
 };
 use crate::portal::{Facts, JobKey, Portal};
@@ -65,74 +66,51 @@ pub struct JobRow {
     pub match_rev: Option<String>,
     /// The facts the job page stated (unreadable JSON counts as none).
     pub facts: Option<Facts>,
-    /// The user's mark (`None` = none; `Saved` is the star, `Sent` "Beworben").
-    pub app_status: Option<AppStatus>,
-    /// When the mark was set.
-    pub app_status_at: Option<Timestamp>,
-    /// The user's note.
-    pub note: Option<String>,
-    /// When the job was archived (by the user or by age); `None` = listed.
+    /// Since when the job is a favourite (the star); `None` = none.
+    pub pinned_at: Option<Timestamp>,
+    /// When the job went to the archive (by the user or by age).
     pub archived_at: Option<Timestamp>,
+    /// When the job went to the trash (it wins over the archive).
+    pub trashed_at: Option<Timestamp>,
     /// The user marked the job as fitting although the engine excludes it.
     pub override_include: bool,
 }
 
-/// "Neu" holds the unread jobs of this many days (by the date of the alert mail); older
-/// unread ones stay under "Alle" - freelance projects are often taken within two weeks.
+impl JobRow {
+    /// Where the job is: the trash wins over the archive, the rest is the inbox.
+    pub fn place(&self) -> Place {
+        if self.trashed_at.is_some() {
+            Place::Trash
+        } else if self.archived_at.is_some() {
+            Place::Archive
+        } else {
+            Place::Inbox
+        }
+    }
+}
+
+/// The skill's top matches take the jobs of this many days (by the date of the alert mail).
 pub const NEW_DAYS: i64 = 14;
 
-/// Where "Neu" starts for `now`: [`NEW_DAYS`] back, at the start of that day (UTC), so the
-/// border moves once a day.
+/// Where the skill's window starts for `now`: [`NEW_DAYS`] back, at the start of that day
+/// (UTC), so the border moves once a day.
 pub fn new_since(now: Timestamp) -> Timestamp {
     const DAY: i64 = 86_400;
     let start = now.as_second().div_euclid(DAY) * DAY - NEW_DAYS * DAY;
     Timestamp::from_second(start).unwrap_or(Timestamp::UNIX_EPOCH)
 }
 
-/// Which jobs a page of the list holds. An archived job is in no list but "Archived".
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum ListFacet {
-    /// The unread jobs of the last [`NEW_DAYS`] days, the excluded ones last. Its count
-    /// leaves the excluded ones out.
-    New,
-    /// Every job.
-    #[default]
-    All,
-    /// The saved jobs (the star), the latest saved first.
-    Saved,
-    /// The jobs applied for ("Beworben"), the latest first.
-    Sent,
-    /// The archived jobs, the latest archived first.
-    Archived,
-}
-
-impl ListFacet {
-    /// The condition of the facet on the rows of `base`; `since`: where "Neu" starts (Unix
-    /// seconds, computed here, never input).
-    pub(super) fn condition(self, since: i64) -> String {
-        match self {
-            ListFacet::New => format!(
-                "archived_at IS NULL AND read_at IS NULL \
-                 AND COALESCE(mail_date, first_seen_at) >= {since}"
-            ),
-            ListFacet::All => "archived_at IS NULL".to_owned(),
-            ListFacet::Saved => "archived_at IS NULL AND app_status = 'saved'".to_owned(),
-            ListFacet::Sent => "archived_at IS NULL AND app_status = 'sent'".to_owned(),
-            ListFacet::Archived => "archived_at IS NOT NULL".to_owned(),
-        }
-    }
-}
-
-/// One page of the job list. The facet only narrows the page; the counts cover the
-/// search, whatever the facet.
+/// One page of the job list: the jobs of one place, optionally only the unread ones. The
+/// counts cover the search, whatever the place and the filter.
 #[derive(Debug, Clone, Default)]
 pub struct PageQuery {
-    pub facet: ListFacet,
-    /// Where "Neu" starts ([`new_since`] of now).
-    pub new_since: Timestamp,
-    /// Best match first; otherwise newest first. Excluded jobs come last either way. Only
-    /// for "New" and "All": saved and sent jobs follow the time of their mark, the archived
-    /// jobs the moment they were archived.
+    pub place: Place,
+    /// Only unread jobs (the excluded ones last, uncounted).
+    pub unread: bool,
+    /// The favourites of the inbox and the archive instead of a place (each keeps its place).
+    pub favourites: bool,
+    /// Best match first; otherwise by date: the alert mail's, in the trash the day it went
+    /// there; excluded jobs last either way.
     pub by_match: bool,
     /// Search term in title, company, location and full text (case-insensitive).
     pub search: Option<String>,
@@ -143,24 +121,24 @@ pub struct PageQuery {
 /// Column of the first per-portal count in the statement of [`Store::job_page`].
 const PER_PORTAL_AT: usize = 8;
 
-/// Counts that belong to a page of the job list.
+/// Counts that belong to a page of the job list: per place, and within the inbox.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PageCounts {
-    /// Unread and not excluded.
-    pub new: u32,
-    pub all: u32,
+    /// In the inbox.
+    pub inbox: u32,
+    /// Unread in the inbox and not excluded.
+    pub unread: u32,
+    /// Favourites (the star), in the inbox or the archive.
+    pub favourites: u32,
+    pub archive: u32,
+    pub trash: u32,
+    /// Excluded, in the inbox.
     pub excluded: u32,
-    /// Scored in the high band.
+    /// Scored in the high band, in the inbox.
     pub high: u32,
-    /// Jobs without a full text.
+    /// Without a full text, in the inbox.
     pub no_detail: u32,
-    /// Saved (the star, "Gemerkt").
-    pub saved: u32,
-    /// Applied for ("Beworben").
-    pub sent: u32,
-    /// Archived - the only count an archived job is in.
-    pub archived: u32,
-    /// `new` per portal: every portal, in the order of `Portal::ALL`.
+    /// `unread` per portal: every portal, in the order of `Portal::ALL`.
     pub new_by_portal: Vec<(Portal, u32)>,
 }
 
@@ -190,8 +168,8 @@ pub struct JobFilter {
     pub first_seen_run: Option<i64>,
     /// Search term in title, company, location and full text (case-insensitive).
     pub search: Option<String>,
-    /// Only the jobs the app lists: neither archived nor another portal's duplicate (the
-    /// Excel overview shows what the app shows).
+    /// Only the inbox, without another portal's duplicates (the Excel overview shows what
+    /// the app lists as active).
     pub listed: bool,
 }
 
@@ -324,7 +302,7 @@ impl Store {
             "SELECT {JOB_COLUMNS} FROM job
              WHERE (?1 IS NULL OR first_seen_run = ?1)
                AND (?2 IS NULL OR search LIKE ?2 ESCAPE '\\')
-               AND (NOT ?3 OR (archived_at IS NULL AND dup_of IS NULL))
+               AND (NOT ?3 OR ({INBOX} AND dup_of IS NULL))
              ORDER BY first_seen_at DESC, mail_date DESC, portal, job_id"
         ))?;
         let rows = stmt.query_map(
@@ -340,36 +318,46 @@ impl Store {
         let conn = self.conn();
         let pattern = like_pattern(query.search.as_deref());
         // Excluded jobs always come last; "match" puts the best score first (unscored after
-        // scored), "newest" the latest first sighting. Saved and sent jobs follow the time of
-        // their mark, archived jobs the moment they were archived.
-        let order = |p: &str| match query.facet {
-            ListFacet::Saved | ListFacet::Sent => {
-                format!("{p}app_status_at DESC, {p}portal, {p}job_id")
-            }
-            ListFacet::Archived => format!("{p}archived_at DESC, {p}portal, {p}job_id"),
-            ListFacet::New | ListFacet::All => {
-                let by_match = if query.by_match {
-                    format!("({p}match_score IS NULL), {p}match_score DESC, ")
-                } else {
-                    String::new()
-                };
-                // A closed ad (no applications any more) follows the open ones.
+        // scored), "newest" the latest first sighting. The archive lists the latest archived
+        // first, the trash the latest trashed.
+        let order = |p: &str| {
+            // "By date": the date of the alert mail; in the trash the day it went there.
+            let date = if query.place == Place::Trash && !query.favourites {
+                format!("{p}trashed_at")
+            } else {
+                format!("COALESCE({p}mail_date, {p}first_seen_at)")
+            };
+            let by_match = if query.by_match {
+                // Equal scores follow the score before the caps (`rank` in the note).
                 format!(
-                    "({p}match_status IS 'excluded'), ({p}desc_status = 'ok' AND {p}desc_closed = 1), \
-                     {by_match}{p}first_seen_at DESC, {p}portal, {p}job_id"
+                    "({p}match_score IS NULL), {p}match_score DESC, \
+                     json_extract({p}match_note, '$.rank') DESC, "
                 )
-            }
+            } else {
+                String::new()
+            };
+            // A closed ad (no applications any more) follows the open ones.
+            format!(
+                "({p}match_status IS 'excluded'), ({p}desc_status = 'ok' AND {p}desc_closed = 1), \
+                 {by_match}{date} DESC, {p}portal, {p}job_id"
+            )
         };
-        // Every count but "archived" leaves the archived jobs out. "New" lists every unread job,
-        // the excluded ones last (grey in the list); its count leaves them out.
-        let since = to_db(query.new_since);
-        let shown = "archived_at IS NULL";
-        let new = format!(
-            "{} AND match_status IS NOT 'excluded'",
-            ListFacet::New.condition(since)
-        );
-        let facet = query.facet.condition(since);
-        // "New" per portal: one column each, in the order of `Portal::ALL` (the keys are
+        // The counts of the inbox leave the archive and the trash out. The unread filter lists
+        // every unread job, the excluded ones last (grey in the list); its count leaves them
+        // out. A favourite counts until it goes to the trash.
+        let shown = INBOX;
+        let new = format!("{INBOX} AND read_at IS NULL AND match_status IS NOT 'excluded'");
+        let place = if query.favourites {
+            FAVOURITES
+        } else {
+            place_condition(query.place)
+        };
+        let facet = if query.unread {
+            format!("{place} AND read_at IS NULL")
+        } else {
+            place.to_owned()
+        };
+        // Unread per portal: one column each, in the order of `Portal::ALL` (the keys are
         // constants of the code, never input).
         let mut per_portal = String::new();
         let mut per_portal_out = String::new();
@@ -386,15 +374,15 @@ impl Store {
                  SELECT * FROM job WHERE dup_of IS NULL
                                      AND (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
              ), counts AS (
-                 SELECT COALESCE(SUM({shown}), 0) AS n_all,
-                        COALESCE(SUM({new}), 0) AS n_new,
+                 SELECT COALESCE(SUM({shown}), 0) AS n_inbox,
+                        COALESCE(SUM({new}), 0) AS n_unread,
                         COALESCE(SUM({shown} AND match_status IS 'excluded'), 0) AS n_excluded,
                         COALESCE(SUM({shown} AND match_status IS 'scored'
                                      AND match_score >= ?4), 0) AS n_high,
                         COALESCE(SUM({shown} AND desc_status <> 'ok'), 0) AS n_no_detail,
-                        COALESCE(SUM({shown} AND app_status = 'saved'), 0) AS n_saved,
-                        COALESCE(SUM({shown} AND app_status = 'sent'), 0) AS n_sent,
-                        COALESCE(SUM(archived_at IS NOT NULL), 0) AS n_archived{per_portal}
+                        COALESCE(SUM({FAVOURITES}), 0) AS n_favourites,
+                        COALESCE(SUM({archive}), 0) AS n_archive,
+                        COALESCE(SUM({trash}), 0) AS n_trash{per_portal}
                  FROM base
              ), page AS (
                  SELECT {JOB_COLUMNS} FROM base
@@ -402,13 +390,15 @@ impl Store {
                  ORDER BY {}
                  LIMIT ?2 OFFSET ?3
              )
-             SELECT counts.n_all, counts.n_new, counts.n_excluded, counts.n_high,
-                    counts.n_no_detail, counts.n_saved, counts.n_sent,
-                    counts.n_archived{per_portal_out}, page.*
+             SELECT counts.n_inbox, counts.n_unread, counts.n_excluded, counts.n_high,
+                    counts.n_no_detail, counts.n_favourites, counts.n_archive,
+                    counts.n_trash{per_portal_out}, page.*
              FROM counts LEFT JOIN page
              ORDER BY {}",
             order(""),
-            order("page.")
+            order("page."),
+            archive = place_condition(Place::Archive),
+            trash = place_condition(Place::Trash),
         );
         // The columns of the page follow the counts.
         let first = PER_PORTAL_AT + Portal::ALL.len();
@@ -422,14 +412,14 @@ impl Store {
                 new_by_portal.push((portal, row.get(PER_PORTAL_AT + i)?));
             }
             counts = PageCounts {
-                all: row.get(0)?,
-                new: row.get(1)?,
+                inbox: row.get(0)?,
+                unread: row.get(1)?,
                 excluded: row.get(2)?,
                 high: row.get(3)?,
                 no_detail: row.get(4)?,
-                saved: row.get(5)?,
-                sent: row.get(6)?,
-                archived: row.get(7)?,
+                favourites: row.get(5)?,
+                archive: row.get(6)?,
+                trash: row.get(7)?,
                 new_by_portal,
             };
             if row.get::<_, Option<String>>(first)?.is_some() {
@@ -784,8 +774,9 @@ pub(super) const JOB_COLUMNS: &str = "portal, job_id, url, title, company, locat
     mail_subject, gmail_id, first_seen_at, first_seen_run, desc_status, desc_short, desc_closed,
     COALESCE(LENGTH(desc_text), 0) AS desc_len, desc_fetched_at, desc_attempts, desc_error,
     txt_name, desc_attempted_at, read_at, match_status, match_score, match_note, match_rev,
-    desc_facts, app_status, app_status_at, note, archived_at, override_include";
-pub(super) const JOB_COLUMN_COUNT: usize = 31;
+    desc_facts, CASE WHEN app_status IS NOT NULL THEN COALESCE(app_status_at, first_seen_at) END,
+    archived_at, trashed_at, override_include";
+pub(super) const JOB_COLUMN_COUNT: usize = 30;
 
 /// Fetchable automatically: open or failed (at the earliest `?2` after the last attempt),
 /// or a teaser (right away, after a failed attempt like a failure, at most
@@ -861,14 +852,10 @@ fn job_row_at(r: &Row<'_>, at: usize) -> rusqlite::Result<Result<JobRow>> {
         facts: r
             .get::<_, Option<String>>(col(25))?
             .and_then(|json| serde_json::from_str(&json).ok()),
-        app_status: r
-            .get::<_, Option<String>>(col(26))?
-            .as_deref()
-            .and_then(AppStatus::parse),
-        app_status_at: r.get::<_, Option<i64>>(col(27))?.and_then(from_db),
-        note: r.get(col(28))?,
-        archived_at: r.get::<_, Option<i64>>(col(29))?.and_then(from_db),
-        override_include: r.get::<_, Option<i64>>(col(30))?.is_some(),
+        pinned_at: r.get::<_, Option<i64>>(col(26))?.and_then(from_db),
+        archived_at: r.get::<_, Option<i64>>(col(27))?.and_then(from_db),
+        trashed_at: r.get::<_, Option<i64>>(col(28))?.and_then(from_db),
+        override_include: r.get::<_, Option<i64>>(col(29))?.is_some(),
     }))
 }
 
@@ -1264,6 +1251,7 @@ mod tests {
                 must_total: 1,
                 top: Vec::new(),
                 facts: crate::model::KeyFacts::default(),
+                rank: 0,
             };
             store
                 .save_matches(&[(key.clone(), record)], "r1", now())

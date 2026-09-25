@@ -7,49 +7,53 @@
   open (must before nice, only "Kann" carries a badge), what to check and what excludes;
   hovering a reason lights its passage in the ad text below, a click scrolls to it. Title,
   facts and the ad text are selectable and copy with Ctrl/Cmd+C (`data-copy`).
-  Actions by weight: at the end of the title line the star (Merken), Archivieren and a quiet
+  Actions by weight: at the end of the title line the star (Favorit), Archivieren and a quiet
   close back to the day overview (below 900 px the view's back button does); below the match
-  line "Anzeige öffnen" first, then "Als Prompt kopieren" (the job as a prompt for any AI
-  chat), the alert mail and "Details holen" when the details are missing (right under the
-  band when the job has no score yet). Then the user's own marks: where the application
-  stands (one chip per step, the chosen one again clears it, with the time it was set) and
-  a note that saves when the field is left (Enter saves, Esc takes the stored one back).
+  line always the same three outlined buttons: "Anzeige öffnen", "Alert-Mail öffnen"
+  (disabled, saying why, without a mail) and "Prompt für KI-Bewertung kopieren" (the job as
+  a prompt for any AI chat; "KI-Bewertung" where the whole label does not fit). "Details
+  holen" has one place: next to the note on the missing text, above the ad.
   After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
   that jumps to its passage makes the passage flash once when it has arrived. Once the
   action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
   it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick } from 'svelte';
   import Button from '$components/Button.svelte';
+  import Chip from '$components/Chip.svelte';
   import Count from '$components/Count.svelte';
+  import Dialog from '$components/Dialog.svelte';
   import Icon, { type IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
-  import TextField from '$components/TextField.svelte';
   import ReasonItem from '$components/ReasonItem.svelte';
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
   import { inView, scrollArea } from '$lib/actions/inView';
   import { tooltip } from '$lib/actions/tooltip';
-  import type { CriterionState } from '$lib/i18n/de';
+  import type { CriterionKey, CriterionState } from '$lib/i18n/de';
   import { t } from '$lib/i18n/t';
-  import { displayTitle, formatDate, formatRelative } from '$lib/i18n/format';
+  import { displayTitle, formatMoment, formatRelative } from '$lib/i18n/format';
   import {
     criterionKey,
     criterionState,
+    criterionValue,
     errorText,
     noteText,
+    reasonEvidence,
+    workWords,
     reasonHint,
     reasonText,
   } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
-  import { formKeys } from '$lib/input/input';
-  import type { AppStatus, JobDetail, JobKey, OpenTarget, Reason } from '$lib/ipc/types';
+  import type { JobDetail, OpenTarget, Reason } from '$lib/ipc/types';
   import { duration, isReducedMotion } from '$lib/motion/motion';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf } from '$lib/state/jobs.svelte';
+  import { navigation } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
+  import { actionsOf, guarded, hasStar, move, purge, toggleStar, type ActionId } from './actions';
 
   interface Props {
     detail: JobDetail;
@@ -89,20 +93,43 @@
   const all = $derived(match?.reasons ?? []);
   // The contract type is a fact about the ad, not a requirement: it goes into the chips.
   const contract = $derived(all.find((r) => r.code === CONTRACT) ?? null);
-  const reasons = $derived(all.filter((r) => r.code !== CONTRACT));
+  // Wishes of the profile move a score a little and never exclude: their own block.
+  const WISHES: readonly string[] = ['dayRateWish', 'remoteWish', 'regionWish', 'industryWish'];
+  const wishes = $derived(all.filter((r) => WISHES.includes(r.code)));
+  const reasons = $derived(all.filter((r) => r.code !== CONTRACT && !WISHES.includes(r.code)));
   // Only passages a reason under "Warum" explains are marked (the contract type is a chip).
-  const passages = $derived(
-    (match?.highlights ?? []).filter((h) => contract === null || h.reason !== contract.id),
-  );
+  const passages = $derived([
+    ...(match?.highlights ?? []).filter((h) => contract === null || h.reason !== contract.id),
+    ...(match?.criteria ?? []).flatMap((reason) =>
+      reason.ranges.map((range, index) => ({
+        id: `${reason.id}:${index}`,
+        start: range.start,
+        end: range.end,
+        kind: reason.kind,
+        reason: reason.id,
+      })),
+    ),
+  ]);
   const met = $derived(reasons.filter((r) => r.kind === 'met').sort(byWeight));
   // Met only in part is not met: its own group, never under "Erfüllt".
   const partial = $derived(reasons.filter((r) => r.kind === 'partial').sort(byWeight));
   const open = $derived(reasons.filter((r) => r.kind === 'open').sort(byWeight));
   // Under "Zu prüfen" what decides fastest comes first: the temporary agency work (ANÜ).
   const FIRST_CHECKS: readonly string[] = ['anue'];
+  // The strip owns the hard criteria: a check or a violation it shows as a chip is not listed
+  // again under "Warum" (the unclear start, the temporary agency work).
+  const chipOf = (reason: Reason): CriterionKey | null =>
+    criterionKey(reason.code) ?? (reason.code === 'startVague' ? 'availability' : null);
+  const chipKeys = $derived(
+    new Set((match?.criteria ?? []).map((reason) => criterionKey(reason.code))),
+  );
+  const onStrip = (reason: Reason): boolean => {
+    const key = chipOf(reason);
+    return key !== null && chipKeys.has(key);
+  };
   const checks = $derived(
     reasons
-      .filter((r) => r.kind === 'check')
+      .filter((r) => r.kind === 'check' && !onStrip(r))
       .sort(
         (a, b) => Number(FIRST_CHECKS.includes(b.code)) - Number(FIRST_CHECKS.includes(a.code)),
       ),
@@ -118,20 +145,22 @@
     unknown: 'circle-help',
     unset: 'minus',
   };
-  interface Chip {
+  interface StripChip {
     id: string;
     label: string;
     state: CriterionState | 'plain';
     icon: IconName;
     hint: string;
+    reason: Reason | null;
   }
-  const chips = $derived.by((): Chip[] => {
-    const out: Chip[] = [];
-    // The contract chip steps back when a criterion chip carries the same word (ANÜ).
+  const chips = $derived.by((): StripChip[] => {
+    const out: StripChip[] = [];
+    // The contract chip steps back when a criterion chip shows the same word (its value, as
+    // "Interim" for the temporary agency criterion, or its name).
     const labels = new Set(
       (match?.criteria ?? []).flatMap((reason) => {
         const key = criterionKey(reason.code);
-        return key === null ? [] : [t.reader.criterion[key].label];
+        return key === null ? [] : [criterionValue(reason) ?? t.reader.criterion[key].label];
       }),
     );
     if (contract && !labels.has(reasonText(contract))) {
@@ -142,22 +171,42 @@
         state: unclear ? 'unknown' : 'plain',
         icon: unclear ? 'circle-help' : 'file-text',
         hint: t.reader.contractLabel,
+        reason: contract.ranges.length > 0 ? contract : null,
       });
     }
     for (const reason of match?.criteria ?? []) {
       const key = criterionKey(reason.code);
       if (key === null) continue;
       const state = criterionState(reason);
+      const name = t.reader.criterion[key].label;
+      const value = criterionValue(reason);
       out.push({
         id: reason.id,
-        label: t.reader.criterion[key].label,
+        // The ad's own value; what it does not mention says so, neutral.
+        label: value ?? (state === 'unset' ? t.facts.notMentioned(name) : name),
         state,
         icon: STATE_ICON[state],
-        hint: t.reader.criterionState[state],
+        hint:
+          key === 'noAnue' && state === 'unknown'
+            ? t.reader.anueCheck
+            : value
+              ? `${name}, ${t.reader.criterionState[state]}`
+              : t.reader.criterionState[state],
+        reason:
+          reason.ranges.length > 0
+            ? reason
+            : (reasons.find(
+                (r) => chipOf(r) === key && passages.some((passage) => passage.reason === r.id),
+              ) ?? null),
       });
     }
     return out;
   });
+
+  // Every criterion met with the ad as evidence: one quiet line of the values, no chips.
+  const clean = $derived(
+    chips.length > 0 && chips.every((c) => c.state === 'met' || c.state === 'plain'),
+  );
 
   const headline = $derived.by((): { word: string; tone: string } | null => {
     if (!withRing) return null;
@@ -182,7 +231,9 @@
       : null,
   );
   // A violation that says exactly what the match line says is not repeated.
-  const violations = $derived(allViolations.filter((r) => reasonText(r) !== exclusion));
+  const violations = $derived(
+    allViolations.filter((r) => reasonText(r) !== exclusion && !onStrip(r)),
+  );
 
   const portalState = $derived(app.state?.portals.find((p) => p.portal === job.portal) ?? null);
   const detailKind = $derived(job.detail.kind);
@@ -192,47 +243,73 @@
       detailKind === 'failed' ||
       detailKind === 'teaser') &&
       portalState?.enabled === true &&
-      portalState.fetchDetails,
+      portalState.fetchDetails &&
+      (detailKind !== 'teaser' || portalState.loginEnabled),
   );
-  const facts = $derived(
-    [
+  // Company, place, what the ad says about duration and remote share (else its work mode),
+  // the portals, and the date like in the row ("gestern"), the exact moment in its tooltip.
+  const facts = $derived.by((): { text: string; hint: string | null }[] => {
+    const work = workWords(job.match?.facts);
+    const when = job.mailDate ?? job.firstSeenAt;
+    return [
       job.company,
       job.location,
-      job.workMode ? t.job.workMode[job.workMode] : '',
+      ...(work.length > 0 ? work : [job.workMode ? t.job.workMode[job.workMode] : '']),
       job.alsoOn.length > 0
         ? `${t.portal[job.portal]}, ${t.job.alsoOn(job.alsoOn.map((p) => t.portal[p]).join(', '))}`
         : t.portal[job.portal],
-      formatDate(job.mailDate ?? job.firstSeenAt),
-    ].filter((fact) => fact !== ''),
-  );
+    ]
+      .filter((fact) => fact !== '')
+      .map((text) => ({ text, hint: null as string | null }))
+      .concat({ text: formatRelative(when), hint: t.reader.mailAt(formatMoment(when)) });
+  });
 
   /** No score yet and the details can be fetched: the button stands right under the band. */
-  const fetchUnderBand = $derived(
-    canFetch && withRing && (match === null || match.status === 'unscorable'),
-  );
   /** A score from a teaser only is a first guess. */
   const preliminary = $derived(match?.status === 'scored' && detailKind === 'teaser');
 
-  const STATUSES: readonly AppStatus[] = ['sent'];
-  /** The note as typed; the stored one is the detail's. */
-  let note = $state(untrack(() => detail.note ?? ''));
+  /** The action row stays one line: where the whole label does not fit, the prompt action
+   *  says only "KI-Bewertung" (its tooltip says what it copies). Tried again whenever the
+   *  row's width changes (before the frame is painted). */
+  let actions = $state<HTMLElement | null>(null);
+  let promptShort = $state(false);
 
-  async function setStatus(status: AppStatus): Promise<void> {
-    actionError = null;
-    const error = await jobs.setAppStatus(job.key, job.appStatus === status ? null : status);
-    if (error !== null) actionError = error;
+  function oneLine(row: HTMLElement): boolean {
+    const first = row.firstElementChild;
+    const last = row.lastElementChild;
+    return !(first instanceof HTMLElement && last instanceof HTMLElement)
+      ? true
+      : first.offsetTop === last.offsetTop;
   }
 
-  async function saveNote(): Promise<void> {
-    if (note.trim() === (detail.note ?? '').trim()) return;
-    actionError = null;
-    const error = await jobs.setNote(job.key, note);
-    if (error !== null) actionError = error;
-  }
+  $effect(() => {
+    const row = actions;
+    if (row === null) return;
+    let width = -1;
+    let frame = 0;
+    const observer = new ResizeObserver(([entry]) => {
+      const next = entry?.contentRect.width ?? 0;
+      if (next === width) return;
+      width = next;
+      // In the next frame, before it is painted: changing the row inside the callback
+      // would make the observer report again in the same frame (a loop).
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        promptShort = false;
+        void tick().then(() => (promptShort = !oneLine(row)));
+      });
+    });
+    observer.observe(row);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  });
 
-  function revertNote(): void {
-    note = detail.note ?? '';
-  }
+  /** Why the prompt cannot work yet (no profile to assess against, no text of the ad). */
+  const promptOff = $derived(
+    !app.hasProfile ? t.reader.promptNoProfile : detail.text ? null : t.reader.promptNoText,
+  );
 
   async function copyPrompt(): Promise<void> {
     actionError = null;
@@ -244,33 +321,45 @@
     }
   }
 
-  /** Hide the job and open the next one of the list (the toast takes it back). */
-  async function hide(): Promise<void> {
+  /** The job's actions where it is (the same as on its row), then the star. */
+  const tools = $derived(actionsOf(job.place));
+  let confirmPurge = $state(false);
+  let purging = $state(false);
+  let purgeError = $state<string | null>(null);
+
+  function act(id: ActionId): void {
+    if (guarded()) return;
+    if (id === 'purge') {
+      purgeError = null;
+      confirmPurge = true;
+      return;
+    }
     actionError = null;
-    const key = job.key;
-    if (job.archived) {
-      const error = await jobs.archive(key, false);
-      if (error !== null) actionError = error;
-      return;
-    }
-    const list = jobs.visible;
-    const at = list.findIndex((row) => sameKey(row.key, key));
-    const next = at < 0 ? null : (list[at + 1] ?? list[at - 1] ?? null);
-    const error = await jobs.archive(key, true);
-    if (error !== null) {
-      actionError = error;
-      return;
-    }
-    toasts.show(t.toast.hidden, 'success', {
-      label: t.common.undo,
-      onclick: () => void undoHide(key),
-    });
-    if (next !== null) void jobs.select(next, false);
-    else jobs.clearSelection();
+    void move([job], id).then((error) => (actionError = error));
   }
 
-  async function undoHide(key: JobKey): Promise<void> {
-    if ((await jobs.archive(key, false)) === null) void jobs.load(true);
+  async function purgeJob(): Promise<void> {
+    purging = true;
+    purgeError = await purge([job]);
+    purging = false;
+    if (purgeError === null) confirmPurge = false;
+  }
+
+  function star(): void {
+    if (!guarded()) toggleStar([job]);
+  }
+
+  /** Not in the inbox: where it lies, quietly under the title (the trash says when it goes). */
+  const placeLine = $derived.by((): string | null => {
+    if (job.place === 'archive') return t.place.inArchive;
+    if (job.place !== 'trash') return null;
+    const days = app.state?.autoEmptyTrashDays ?? 0;
+    return days > 0 ? t.place.inTrashFor(days) : t.place.inTrash;
+  });
+
+  /** "Trotzdem passend": an excluded job counts with its fit score, and back. */
+  async function override(): Promise<void> {
+    actionError = await jobs.setOverride(job.key, !job.overridden);
   }
 
   function openTarget(target: OpenTarget): void {
@@ -333,7 +422,7 @@
 {#snippet reasonList(items: Reason[], testid: string)}
   <ul class="reasons" data-testid={testid}>
     {#each items as reason (reason.id)}
-      {@const evidence = reason.evidence ? reasonHint(reason) : null}
+      {@const evidence = reasonEvidence(reason)}
       <li data-weight={reason.weight}>
         <ReasonItem
           kind={reason.kind}
@@ -344,14 +433,53 @@
               : null}
           label={reasonText(reason)}
           hint={evidence ? null : reasonHint(reason)}
+          detail={evidence}
           active={active === reason.id}
           onhover={(on) => hover(reason, on)}
           onselect={reason.ranges.length > 0 ? () => scrollTo(reason) : null}
         />
-        {#if evidence}<p class="evidence" data-testid="evidence">{evidence}</p>{/if}
       </li>
     {/each}
   </ul>
+{/snippet}
+
+{#snippet placeTools(prefix: string)}
+  {#each tools as tool (tool.id)}
+    <Button
+      variant="ghost"
+      size="sm"
+      iconOnly
+      icon={tool.icon}
+      label={tool.label}
+      testid="{prefix}{tool.id}"
+      onclick={() => act(tool.id)}
+    />
+  {/each}
+  {#if hasStar(job.place)}
+    <Button
+      variant="ghost"
+      size="sm"
+      iconOnly
+      icon="star"
+      label={job.pinned ? t.reader.unpin : t.reader.pin}
+      pressed={job.pinned}
+      testid="{prefix}pin"
+      onclick={star}
+    />
+  {/if}
+  {#if onclose}
+    <span class="close">
+      <Button
+        variant="ghost"
+        size="sm"
+        iconOnly
+        icon="x"
+        label={t.reader.close}
+        testid="{prefix}close"
+        onclick={onclose}
+      />
+    </span>
+  {/if}
 {/snippet}
 
 <article class="reader" data-testid="reader">
@@ -366,7 +494,11 @@
     >
       {#if withRing}
         <ScoreRing
-          ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
+          ring={ringState(
+            job.match,
+            job.match === null && Boolean(app.state?.matchPending),
+            job.detail.kind,
+          )}
           size="sm"
         />
       {/if}
@@ -381,16 +513,7 @@
           testid="compact-open"
           onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
         />
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon="star"
-          label={t.reader.pin}
-          pressed={job.pinned}
-          testid="compact-pin"
-          onclick={() => void jobs.pin(job.key, !job.pinned)}
-        />
+        {@render placeTools('compact-')}
       </span>
     </div>
   </div>
@@ -401,98 +524,98 @@
         {job.title ? displayTitle(job.title) : t.job.untitled}
       </h1>
       <span class="title-tools">
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon="star"
-          label={t.reader.pin}
-          pressed={job.pinned}
-          testid="pin"
-          onclick={() => void jobs.pin(job.key, !job.pinned)}
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon={job.archived ? 'eye' : 'eye-off'}
-          label={job.archived ? t.reader.unhide : t.reader.hide}
-          testid="hide"
-          onclick={() => void hide()}
-        />
-        {#if onclose}
-          <span class="close">
-            <Button
-              variant="ghost"
-              size="sm"
-              iconOnly
-              icon="x"
-              label={t.reader.close}
-              testid="reader-close"
-              onclick={onclose}
-            />
-          </span>
-        {/if}
+        {@render placeTools('reader-')}
       </span>
     </div>
     <p class="facts" data-copy>
       <span class="facts-line">
-        {#each facts as fact, index (index)}<span class="fact">{fact}</span>{/each}
+        {#each facts as fact, index (index)}<span class="fact" use:tooltip={fact.hint}
+            >{fact.text}</span
+          >{/each}
       </span>
     </p>
+    {#if placeLine}<p class="place-line" data-testid="place-line">{placeLine}</p>{/if}
   </header>
 
   {#if headline}
     <div class="match">
       <ScoreRing
-        ring={ringState(job.match, job.match === null && Boolean(app.state?.matchPending))}
+        ring={ringState(
+          job.match,
+          job.match === null && Boolean(app.state?.matchPending),
+          job.detail.kind,
+        )}
         size="md"
         animate={keyOf(job.key)}
         testid="reader-ring"
       />
       <div class="verdict">
         <p class="line">
-          <span class="band {headline.tone}" data-testid="band">{headline.word}</span>
-          {#if match && match.status === 'scored'}
-            <span class="must" data-testid="must">
-              {job.match && job.match.mustTotal > 0
-                ? t.reader.mustMet(job.match.mustMet, job.match.mustTotal, partialMust)
-                : t.reader.noMust}
-            </span>
-          {/if}
+          <span class="line-inner">
+            <span class="band {headline.tone}" data-testid="band">{headline.word}</span>
+            {#if match && match.status === 'scored'}
+              <span class="must" data-testid="must">
+                {job.match && job.match.mustTotal > 0
+                  ? t.reader.mustMet(job.match.mustMet, job.match.mustTotal, partialMust)
+                  : t.reader.noMust}
+              </span>
+            {/if}
+          </span>
         </p>
         {#if exclusion}
-          <p class="because" data-testid="exclusion">{exclusion}</p>
+          <p class="because" data-testid="exclusion">
+            {exclusion}
+            <span class="inline-action">
+              <Button
+                variant="link"
+                size="sm"
+                label={t.reader.override}
+                testid="override"
+                onclick={() => void override()}
+              />
+            </span>
+          </p>
+        {:else if job.overridden}
+          <p class="because" data-testid="overridden">
+            {t.reader.overridden}
+            <span class="inline-action">
+              <Button
+                variant="link"
+                size="sm"
+                label={t.reader.overrideUndo}
+                testid="override-undo"
+                onclick={() => void override()}
+              />
+            </span>
+          </p>
         {:else if unscorable}
           <p class="because" data-testid="unscorable">{unscorable}</p>
         {:else if preliminary}
           <p class="because" data-testid="preliminary">{t.reader.preliminary}</p>
         {/if}
-        {#if fetchUnderBand}
-          <span class="fetch-here">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="download"
-              label={t.reader.fetchDetails}
-              disabled={run.active}
-              disabledReason={run.busyText}
-              testid="fetch-details"
-              onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
-            />
-          </span>
-        {/if}
-        {#if chips.length > 0}
-          <ul class="chips" aria-label={t.reader.criteria} data-testid="criteria">
+        {#if clean}
+          <p class="clean" aria-label={t.reader.frame} data-testid="criteria-clean">
+            <span class="strip-label">{t.reader.frame}</span>
+            <span class="clean-icon"><Icon name="check" size="xs" /></span>
+            <span class="clean-values" data-copy
+              >{#each chips as chip (chip.id)}<span class="fact">{chip.label}</span>{/each}</span
+            >
+          </p>
+        {:else if chips.length > 0}
+          <ul class="chips" aria-label={t.reader.frame} data-testid="criteria">
+            <li class="strip-label">{t.reader.frame}</li>
             {#each chips as chip (chip.id)}
-              <li
-                class="chip {chip.state}"
-                use:tooltip={chip.hint}
-                data-state={chip.state}
-                data-testid={chip.id === contract?.id ? 'contract' : undefined}
-              >
-                <span class="chip-icon"><Icon name={chip.icon} size="xs" /></span>
-                <span>{chip.label}</span>
+              {@const target = chip.reason}
+              <li data-testid={chip.id === contract?.id ? 'contract' : `criterion-${chip.id}`}>
+                <Chip
+                  label={chip.label}
+                  state={chip.state}
+                  icon={chip.icon}
+                  hint={chip.hint}
+                  active={active === chip.id}
+                  onhover={target ? (on) => hover(target, on) : null}
+                  onselect={target ? () => scrollTo(target) : null}
+                />
               </li>
             {/each}
           </ul>
@@ -501,7 +624,7 @@
     </div>
   {/if}
 
-  <div class="actions">
+  <div class="actions" bind:this={actions}>
     <Button
       variant="secondary"
       icon="external-link"
@@ -510,60 +633,23 @@
       onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
     />
     <Button
-      variant="ghost"
-      icon="copy"
-      label={t.reader.prompt}
-      testid="prompt"
-      onclick={() => void copyPrompt()}
+      variant="secondary"
+      icon="mail"
+      label={t.reader.mail}
+      disabled={!detail.mail.gmailUrl}
+      disabledReason={t.reader.noMail}
+      testid="open-mail"
+      onclick={() => openTarget({ kind: 'gmail', key: job.key })}
     />
-    {#if detail.mail.gmailUrl}
+    <span class="with-hint" use:tooltip={t.reader.promptHint}>
       <Button
-        variant="ghost"
-        icon="mail"
-        label={t.reader.mail}
-        testid="open-mail"
-        onclick={() => openTarget({ kind: 'gmail', key: job.key })}
-      />
-    {/if}
-    {#if canFetch && !fetchUnderBand}
-      <Button
-        variant="ghost"
-        icon="download"
-        label={t.reader.fetchDetails}
-        disabled={run.active}
-        disabledReason={run.busyText}
-        testid="fetch-details"
-        onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
-      />
-    {/if}
-  </div>
-  <div class="marks">
-    <div class="status" role="group" aria-label={t.reader.status} data-testid="status">
-      {#each STATUSES as status (status)}
-        <Button
-          variant="secondary"
-          size="sm"
-          label={t.reader.appStatus[status]}
-          pressed={job.appStatus === status}
-          testid="status-{status}"
-          onclick={() => void setStatus(status)}
-        />
-      {/each}
-      {#if job.appStatus === 'sent' && job.statusAt}
-        <span class="since" data-testid="status-since">{formatRelative(job.statusAt)}</span>
-      {/if}
-    </div>
-    <span
-      class="note"
-      onfocusout={() => void saveNote()}
-      use:formKeys={{ save: () => void saveNote(), cancel: revertNote }}
-    >
-      <TextField
-        value={note}
-        label={t.reader.noteLabel}
-        placeholder={t.reader.noteLabel}
-        testid="note"
-        oninput={(value) => (note = value)}
+        variant="secondary"
+        icon="copy"
+        label={promptShort ? t.reader.promptShort : t.reader.prompt}
+        disabled={promptOff !== null}
+        disabledReason={promptOff}
+        testid="prompt"
+        onclick={() => void copyPrompt()}
       />
     </span>
   </div>
@@ -609,6 +695,12 @@
           {@render reasonList(checks, 'reasons-check')}
         </div>
       {/if}
+      {#if wishes.length > 0}
+        <div class="group" data-testid="wishes">
+          {@render sub(t.reader.wishes, wishes.length)}
+          {@render reasonList(wishes, 'reasons-wish')}
+        </div>
+      {/if}
       {#if violations.length > 0}
         <div class="group">
           {@render sub(t.reader.violations, violations.length)}
@@ -621,16 +713,42 @@
   <section class="ad">
     <h2 class="section">{t.reader.ad}</h2>
     {#if detailKind !== 'ok'}
-      <Notice
-        tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
-        variant="inline"
-        text={portalState &&
-        !portalState.fetchDetails &&
-        (detailKind === 'pending' || detailKind === 'onRequest')
-          ? t.reader.detailsOff
-          : t.reader.detail[detailKind]}
-        testid="detail-note"
-      />
+      <div class="missing">
+        <Notice
+          tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
+          variant="inline"
+          text={portalState &&
+          (!portalState.enabled || !portalState.fetchDetails) &&
+          (detailKind === 'pending' || detailKind === 'onRequest')
+            ? t.reader.detailsOff
+            : detailKind === 'teaser'
+              ? t.reader.teaserOf(t.portal[job.portal])
+              : t.reader.detail[detailKind]}
+          testid="detail-note"
+        />
+        {#if detailKind === 'teaser' && portalState && !portalState.loginEnabled}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="log-in"
+            label={t.reader.setUpSignIn}
+            testid="set-up-sign-in"
+            onclick={() => navigation.go('settings')}
+          />
+        {/if}
+        {#if canFetch}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="download"
+            label={t.reader.fetchDetails}
+            disabled={run.active}
+            disabledReason={run.busyText}
+            testid="fetch-details"
+            onclick={() => void run.start({ kind: 'details', keys: [job.key] })}
+          />
+        {/if}
+      </div>
     {:else if job.closed}
       <Notice tone="info" variant="inline" text={t.reader.closed} testid="closed-note" />
     {:else if job.short && unscorable === null}
@@ -647,6 +765,18 @@
     {/if}
   </section>
 </article>
+
+<Dialog
+  bind:open={confirmPurge}
+  variant="danger"
+  heading={t.actions.purgeHeading(1)}
+  text={t.actions.purgeText}
+  confirmLabel={t.actions.purge}
+  busy={purging}
+  error={purgeError}
+  testid="dialog-purge"
+  onconfirm={() => void purgeJob()}
+/>
 
 <style>
   .reader {
@@ -790,6 +920,14 @@
     gap: var(--space-16);
   }
 
+  /* A narrow reader: the ring stands at the top of the verdict, which keeps its width. */
+  @container (width < 480px) {
+    .match {
+      align-items: flex-start;
+      gap: var(--space-12);
+    }
+  }
+
   .verdict {
     display: flex;
     flex-direction: column;
@@ -797,11 +935,18 @@
     min-width: 0;
   }
 
+  /* The band word and the must count; like the facts, a dot that would start a wrapped line
+     is clipped. */
   .line {
+    overflow: hidden;
+    font: var(--type-md);
+  }
+
+  .line-inner {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    font: var(--type-md);
+    margin-left: calc(-1 * var(--space-20));
   }
 
   .band {
@@ -812,9 +957,13 @@
     color: var(--text-muted);
   }
 
+  .band::before,
   .must::before {
-    padding: 0 var(--space-6);
+    display: inline-block;
+    width: var(--space-20);
     color: var(--text-subtle);
+    font-weight: var(--weight-regular);
+    text-align: center;
     content: '·';
   }
 
@@ -846,51 +995,32 @@
     gap: var(--space-6);
   }
 
-  /* Quiet chips: a neutral name, the state only in the icon (and in red when violated). A
-     hover only deepens the chip a little while its tooltip comes. */
-  .chip {
+  /* Every criterion met: the values in one quiet line after a green check. */
+  .strip-label {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-4);
-    height: var(--badge-height);
-    padding: 0 var(--space-8) 0 var(--space-6);
-    border-radius: var(--radius-full);
-    background-color: var(--surface-muted);
-    color: var(--text-muted);
+    color: var(--text-label);
     font: var(--type-xs);
     font-weight: var(--weight-medium);
-    white-space: nowrap;
-    transition: background-color var(--dur-base) var(--ease-standard);
   }
 
-  .chip:hover {
-    background-color: var(--border);
-    transition-duration: var(--dur-hover);
-  }
-
-  .chip-icon {
-    display: inline-flex;
-    color: var(--chip-icon, var(--text-subtle));
-  }
-
-  .chip.met {
-    --chip-icon: var(--success-strong);
-  }
-
-  .chip.unknown {
-    --chip-icon: var(--warning-strong);
-  }
-
-  .chip.violated,
-  .chip.violated:hover {
-    --chip-icon: var(--danger-strong);
-
-    background-color: var(--danger-soft);
-    color: var(--danger-strong);
-  }
-
-  .chip.unset {
+  .clean {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
     color: var(--text-muted);
+    font: var(--type-sm);
+  }
+
+  .clean-icon {
+    display: inline-flex;
+    color: var(--success-strong);
+  }
+
+  .clean-values {
+    display: flex;
+    flex-wrap: wrap;
+    margin-left: calc(-1 * var(--space-20));
   }
 
   .actions {
@@ -899,42 +1029,28 @@
     gap: var(--space-8);
   }
 
-  .fetch-here {
-    display: flex;
-    margin-top: var(--space-2);
+  .inline-action {
+    display: inline-flex;
+    margin-left: var(--space-6);
+    vertical-align: baseline;
   }
 
-  /* The user's own marks: the step of the application, the note. */
-  .marks {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
+  .with-hint {
+    display: inline-flex;
   }
 
-  .status {
+  /* Where a job lies when it is not in the inbox: quiet, under the facts. */
+  .place-line {
+    color: var(--text-subtle);
+    font: var(--type-sm);
+  }
+
+  /* The note on the missing text, and the way to fetch it. */
+  .missing {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-6);
-  }
-
-  .since {
-    margin-left: var(--space-2);
-    color: var(--text-muted);
-    font: var(--type-sm);
-    font-variant-numeric: var(--numeric);
-  }
-
-  .note {
-    display: flex;
-    max-width: var(--list-max);
-  }
-
-  /* The evidence of a point, quiet under it (on the axis of its words). */
-  .evidence {
-    padding: 0 var(--space-8) var(--space-4) calc(var(--space-8) + var(--icon-sm) + var(--space-8));
-    color: var(--text-subtle);
-    font: var(--type-sm);
+    gap: var(--space-8) var(--space-16);
   }
 
   .why,

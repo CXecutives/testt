@@ -27,8 +27,8 @@ use super::normalize::{char_len, strip};
 use super::params::{
     E_FULL, E_HALF, E_NONE, FOCUS_FACTOR, FOCUS_RELEVANCE, FOCUS_RELEVANCE_MAX, FORMAL_CAP,
     K_SHRINK, LIFT_CAP, LOW_EVIDENCE_ITEMS, LOW_PRIOR, LOW_PRIOR_WEIGHT, MIN_TEXT_CHARS, N_NICE,
-    OFF_FIELD_CAP, PERMANENT_FACTOR, ROLE_FULL, ROLE_HALF, SCORE_FLOOR, SEVERAL_OPEN_CAP,
-    TITLE_OPEN_CAP, W_MUST, W_SOFT, W_TERM, WISH_MAX,
+    NO_ITEMS_CAP, OFF_FIELD_CAP, PERMANENT_FACTOR, ROLE_FULL, ROLE_HALF, SCORE_FLOOR,
+    SEVERAL_OPEN_CAP, TITLE_OPEN_CAP, W_MUST, W_SOFT, W_TERM, WISH_MAX,
 };
 use super::permanent;
 use super::relevance;
@@ -124,6 +124,9 @@ pub(crate) struct Evaluation {
     pub wishes: Vec<WishResult>,
     /// What the ad states about rate, start, duration, remote share, place and contract.
     pub facts: AdFacts,
+    /// The score in per-mille before the caps and the rounding: orders jobs with the same
+    /// score (two jobs capped at 40 are not equally good).
+    pub rank: u16,
 }
 
 fn weight(item: &Item) -> u64 {
@@ -266,7 +269,12 @@ fn criteria_findings(
     let contract = contract::infer(facts, segments, &anue);
     let criteria = &profile.criteria;
     let mut findings = facts::check(criteria, facts, segments, folded, &contract, anue);
-    findings.extend(permanent::salary(criteria, &contract, segments));
+    findings.extend(permanent::salary(
+        criteria,
+        &contract,
+        facts.title,
+        segments,
+    ));
     findings.extend(permanent::region(
         criteria, &contract, facts, segments, folded,
     ));
@@ -428,6 +436,41 @@ fn page_levels(job: &JobInput<'_>) -> Vec<String> {
         .collect()
 }
 
+/// The relevance `R'` of a job: lexical and title fit plus the demanded Schwerpunkte;
+/// without any requirement only the title speaks for the field (a teaser's few words name
+/// tools of every field).
+fn relevance_of(
+    profile: &EngineProfile,
+    job: &JobInput<'_>,
+    requirement_lines: &[Range<usize>],
+    no_items: bool,
+    focus_relevance: u64,
+) -> u64 {
+    let vocab = &profile.skills.vocab;
+    if no_items {
+        return relevance::title_fit(&profile.query, job.title, vocab);
+    }
+    (relevance::relevance(
+        &profile.query,
+        vocab,
+        job.title,
+        job.text,
+        requirement_lines,
+    ) + focus_relevance)
+        .min(1000)
+}
+
+/// The score (rounded, capped, at least the floor; 0 when unscorable) and the rank (the
+/// per-mille score before caps and rounding).
+fn final_score(adjusted: u64, cap: Option<u8>, unscorable: bool) -> (u8, u16) {
+    if unscorable {
+        return (0, 0);
+    }
+    let rounded = u8::try_from(div_round_half_even(adjusted, 10).min(100)).unwrap_or(100);
+    let score = cap.map_or(rounded, |c| rounded.min(c)).max(SCORE_FLOOR);
+    (score, u16::try_from(adjusted).unwrap_or(1000))
+}
+
 /// Assesses one job.
 pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluation {
     let text = job.text;
@@ -444,39 +487,45 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     } else {
         job::read(text, vocab)
     };
+    // The seniority of an ad is the same for every profile (all packs, not the profile's).
     findings.extend(seniority::check(
         criteria.target_years,
         job.title,
         text,
         &doc,
-        vocab,
+        Vocab::every_pack(),
         &page_levels(job),
     ));
     let ad_facts = ad_facts::read(&facts, &segments, &folded, &stated_contract, &doc);
+    let requirement_lines = doc.requirement_lines;
     let items = scored(profile, doc.items);
     let (fit_score, must_weight, nice_count) = fit_score(&items);
     let evidence = evidence_level(job.kind, &items, must_weight);
     let (formal, formal_cap) = formal(profile, &items);
     findings.extend(formal);
-    let cap = cap(&items, job.title, vocab, formal_cap);
+    // A text long enough to read but without any requirement is judged from its title and
+    // words alone: low evidence, at most `NO_ITEMS_CAP`.
+    let cap = cap(&items, job.title, vocab, formal_cap)
+        .into_iter()
+        .chain((!short && items.is_empty()).then_some(NO_ITEMS_CAP))
+        .min();
     let decided = findings.iter().any(|f| f.decided);
 
     let weight_of_evidence = must_weight + N_NICE * nice_count;
-    let unscorable = short || items.is_empty();
+    let unscorable = short;
     let focus = if unscorable {
         Vec::new()
     } else {
         focus_hits(profile, &items, job.title)
     };
     let focus_relevance: u64 = focus.iter().map(|h| h.relevance).sum();
-    let relevance = (relevance::relevance(
-        &profile.query,
-        vocab,
-        job.title,
-        text,
-        &doc.requirement_lines,
-    ) + focus_relevance)
-        .min(1000);
+    let relevance = relevance_of(
+        profile,
+        job,
+        &requirement_lines,
+        items.is_empty(),
+        focus_relevance,
+    );
     let (prior_weight, prior) = if evidence == EvidenceLevel::Full {
         (0, 0)
     } else {
@@ -502,11 +551,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
         preferences(profile, &ad)
     };
     let adjusted = adjust(shrunk, role.as_ref(), &wishes, &items);
-    let mut score = u8::try_from(div_round_half_even(adjusted, 10).min(100)).unwrap_or(100);
-    if let Some(cap) = cap {
-        score = score.min(cap);
-    }
-    score = score.max(SCORE_FLOOR);
+    let (score, rank) = final_score(adjusted, cap, unscorable);
     let verdict = if decided {
         Verdict::Excluded
     } else if unscorable {
@@ -514,7 +559,6 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
     } else {
         Verdict::Scored
     };
-    let score = if unscorable { 0 } else { score };
     Evaluation {
         items,
         findings,
@@ -526,6 +570,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
         role,
         wishes,
         facts: ad_facts,
+        rank,
     }
 }
 
