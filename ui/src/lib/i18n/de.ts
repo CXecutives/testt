@@ -607,7 +607,8 @@ export const de = {
   /** What a job can do where it is: one name and icon on a row, in the reader, in the bar. */
   actions: {
     archive: 'Archivieren',
-    toInbox: 'Zurück zu Jobs',
+    /** Back into the inbox (the toast says "zurückgeholt"): a verb, not a way back. */
+    toInbox: 'Zurückholen',
     trash: 'In den Papierkorb',
     restore: 'Wiederherstellen',
     purge: 'Endgültig löschen',

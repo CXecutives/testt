@@ -584,7 +584,7 @@ export const en: Catalog = {
   },
   actions: {
     archive: 'Archive',
-    toInbox: 'Back to Jobs',
+    toInbox: 'Move back to Jobs',
     trash: 'Move to trash',
     restore: 'Restore',
     purge: 'Delete forever',

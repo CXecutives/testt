@@ -190,6 +190,15 @@ test('a job of last week shows its weekday and date, not "vor 4 Tagen"', async (
   await expect(date('freelancermap-2806')).toHaveText('So 20.09.');
 });
 
+test('an archived job is brought back with a verb, not a way back to Jobs', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('nav-archive').click();
+  const key = 'linkedin-4100200306';
+  await page.getByTestId('job-list').getByTestId(`job-row-${key}`).hover();
+  // "Zurück zu Jobs" read as navigation; the toast says "zurückgeholt".
+  await expect(page.getByTestId(`toInbox-${key}`)).toHaveAttribute('aria-label', 'Zurückholen');
+});
+
 test('a sentence speaks to the user and quotes the control it names', async ({ page }) => {
   await settings(page);
   // "Erst Details holen einschalten." read as "first fetch details, then switch on".
