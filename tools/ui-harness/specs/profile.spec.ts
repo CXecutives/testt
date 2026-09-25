@@ -46,7 +46,7 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   // The person first, the time of the last save; the file name only as the tooltip.
   await expect(page.getByTestId('profile-name')).toHaveText('Erika Beispiel');
   await expect(page.getByTestId('profile-role')).toHaveText('Interim Managerin Finanzen');
-  await expect(page.getByTestId('profile-saved-at')).toHaveText('Gespeichert 21.09.2026, 09:30');
+  await expect(page.getByTestId('profile-saved-at')).toHaveText('Gespeichert 21.09. 09:30');
   const head = page.getByTestId('profile-file');
   await expect(head).not.toContainText('KB');
   // Well filled, but something to check: the badge says so, its tooltip names it.

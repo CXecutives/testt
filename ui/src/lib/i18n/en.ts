@@ -961,7 +961,7 @@ export const en: Catalog = {
     removeHeading: 'Remove profile?',
     removeText: 'The jobs then show no match. The file stays as a backup in the profile folder.',
     removed: 'Profile removed.',
-    savedAt: (date: string, time: string) => `Saved ${date}, ${time}`,
+    savedAt: (moment: string) => `Saved ${moment}`,
     unnamed: 'Profile without a name',
     quality: {
       good: 'Complete',

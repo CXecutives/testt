@@ -1022,7 +1022,8 @@ export const de = {
     removeText:
       'Die Jobs zeigen danach keine Passung mehr. Die Datei bleibt als Sicherung im Profilordner.',
     removed: 'Profil entfernt.',
-    savedAt: (date: string, time: string) => `Gespeichert ${date}, ${time}`,
+    /** The moment like every moment of the app (`21.09. 09:30`, the time alone today). */
+    savedAt: (moment: string) => `Gespeichert ${moment}`,
     unnamed: 'Profil ohne Namen',
     quality: {
       good: 'Vollständig',

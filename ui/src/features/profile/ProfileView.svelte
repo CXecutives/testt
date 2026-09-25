@@ -121,10 +121,12 @@
     };
   });
 
-  async function reload(): Promise<void> {
-    await app.load();
+  /** The state again after a change; `false` when it could not be loaded. */
+  async function reload(): Promise<boolean> {
+    const loaded = await app.load();
     void jobs.load(true);
     void jobs.loadOverview();
+    return loaded !== null;
   }
 
   async function pick(): Promise<void> {
@@ -200,8 +202,10 @@
     fieldError = null;
     try {
       const info = await editor.save();
-      await reload();
-      const form = app.state?.profile?.form ?? info.form;
+      // The saved profile is the answer of the save: a state that could not be loaded
+      // again never puts the old values back next to "Gespeichert".
+      if (!(await reload()) && app.state) app.state.profile = info;
+      const form = info.form ?? app.state?.profile?.form;
       if (form) editor.edit(form);
       else editor.close();
       saved = true;
