@@ -214,6 +214,11 @@
     if (!sameKey(jobs.selected, only.key)) void jobs.select(only, click);
   }
 
+  // Two columns again: a single chosen row (one column's header bar acted on it) opens.
+  $effect(() => {
+    if (!viewport.narrow) untrack(() => settle(false));
+  });
+
   // Rows that leave the list (a move, a reload) leave the choice too.
   $effect(() => {
     const listed = new Set(jobs.rows.map((row) => keyOf(row.key)));

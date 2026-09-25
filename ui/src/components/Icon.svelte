@@ -42,6 +42,7 @@
   import FileText from '@lucide/svelte/icons/file-text';
   import FileUp from '@lucide/svelte/icons/file-up';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import Globe from '@lucide/svelte/icons/globe';
   import Inbox from '@lucide/svelte/icons/inbox';
   import Info from '@lucide/svelte/icons/info';
   import KeyRound from '@lucide/svelte/icons/key-round';
@@ -129,8 +130,9 @@
     'archive-restore': ArchiveRestore,
     // Change a stored value (the mailbox, the output folder).
     pencil: Pencil,
-    // The Excel file in the day overview.
+    // The Excel file in the day overview, and its HTML overview (it opens in the browser).
     'file-spreadsheet': FileSpreadsheet,
+    globe: Globe,
     // Mark all as read; bring a job back from the trash.
     'check-check': CheckCheck,
     'undo-2': Undo2,

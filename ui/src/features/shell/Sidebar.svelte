@@ -33,8 +33,6 @@
   import { shell } from '$lib/state/shell.svelte';
   import { viewport } from '$lib/state/viewport.svelte';
 
-  const SIDEBAR_ID = 'sidebar';
-
   /** The views, and under Jobs its places (the inbox is Jobs itself). */
   type NavId = ViewId | 'archive' | 'trash';
   const items = $derived<SideNavItem<NavId>[]>([
@@ -109,14 +107,15 @@
   function arrive(id: NavId, from: ViewId): void {
     // Before the first fetch Jobs is the setup page, whichever of its places was clicked.
     if (shell.firstRun) return;
+    // Another place starts without the search, like a folder of a mail app.
     if (id === 'archive' || id === 'trash') {
       const facet = id === 'archive' ? 'archived' : 'trash';
-      if (jobs.facet !== facet) jobs.setFacet(facet);
+      if (jobs.facet !== facet) jobs.setFacet(facet, true);
       return;
     }
     if (id !== 'jobs') return;
     // Jobs from the archive or the trash: back to the inbox, on its last tab.
-    if (jobs.facet === 'archived' || jobs.facet === 'trash') jobs.setFacet(jobs.inboxFacet);
+    if (jobs.facet === 'archived' || jobs.facet === 'trash') jobs.setFacet(jobs.inboxFacet, true);
     // Back from another view: Neu is entered again (the jobs read meanwhile leave it).
     else if (from !== 'jobs' && jobs.facet === 'new') void jobs.load(true);
   }
@@ -131,7 +130,7 @@
   }
 </script>
 
-<aside class="sidebar" class:rail={viewport.rail} id={SIDEBAR_ID} data-testid="sidebar">
+<aside class="sidebar" class:rail={viewport.rail} data-testid="sidebar">
   {#if dragBands()}<span class="lights"><DragBand /></span>{/if}
   <!-- Until the state is known nothing is guessed (like the views): the entries come with it,
        as they are, instead of changing their colours in front of the user. -->

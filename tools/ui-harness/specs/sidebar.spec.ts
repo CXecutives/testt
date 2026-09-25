@@ -17,8 +17,10 @@ async function pillOn(page: Page, id: string): Promise<void> {
   const nav = page.getByTestId('sidebar').locator('nav');
   await expect
     .poll(async () => {
-      const pill = (await nav.locator('.indicator').boundingBox())!;
-      const entry = (await page.getByTestId(id).boundingBox())!;
+      const pill = await nav.locator('.indicator').boundingBox();
+      const entry = await page.getByTestId(id).boundingBox();
+      // The pill is drawn anew when the entries below the places move: no box for a moment.
+      if (pill === null || entry === null) return null;
       return [
         pill.x - entry.x,
         pill.y - entry.y,
@@ -156,6 +158,8 @@ test('Archiv or Papierkorb open: the places stay, the arrow waits and says why',
   await expect(toggle).not.toHaveAttribute('aria-disabled');
   await pillOn(page, 'nav-jobs');
   // From the archive straight to a view below: they go at once and the pill lands on it.
+  // (Jobs in the sidebar dropped the search: the link needs it again.)
+  await page.getByTestId('search').fill('Kreditoren');
   await page.getByTestId('also-archive').click();
   await expect(page.getByTestId('nav-archive')).toHaveAttribute('aria-current', 'page');
   await page.getByTestId('nav-settings').click();

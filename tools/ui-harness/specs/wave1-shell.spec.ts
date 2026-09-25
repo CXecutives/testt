@@ -165,16 +165,16 @@ test('the trash buttons of the selection warn on hover like every quiet trash bu
   const danger = await tokenColour(page, '--danger-strong');
   await rows(page).first().click();
   await page.keyboard.press('Shift+ArrowDown');
-  const trash = page.getByTestId('pane-selection-trash');
+  const trash = page.getByTestId('selection-trash');
   await expect(trash).toBeVisible();
   await trash.hover();
   await expect(trash).toHaveCSS('color', danger);
-  // In the trash the pane's "Endgültig löschen" warns the same way.
+  // In the trash the bar's "Endgültig löschen" warns the same way.
   await trash.click();
   await page.getByTestId('nav-trash').click();
   await rows(page).first().click();
   await page.keyboard.press('Shift+ArrowDown');
-  const purge = page.getByTestId('pane-selection-purge');
+  const purge = page.getByTestId('selection-purge');
   await purge.hover();
   await expect(purge).toHaveCSS('color', danger);
 });
@@ -583,7 +583,7 @@ test('deleting for good names the job like a move; several by their number', asy
   await page.waitForTimeout(600);
   await rows(page).first().click();
   await page.keyboard.press('Shift+ArrowDown');
-  await page.getByTestId('pane-selection-purge').click();
+  await page.getByTestId('selection-purge').click();
   await page.getByTestId('dialog-purge-chosen').getByTestId('dialog-confirm').click();
   await expect(page.getByTestId('toast-text').last()).toHaveText('2 Jobs endgültig gelöscht.');
 });

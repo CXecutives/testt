@@ -2,10 +2,11 @@
 // click takes the range from the anchor, and so do Shift+ArrowUp/ArrowDown and Shift+Home/End
 // from the row reached last (its moving end, like Explorer and Mail); a plain click chooses
 // one row and opens it.
-// Two or more chosen rows show the selection bar in the list header; Esc clears them. The
-// open job belongs to a selection that starts from it: a Ctrl+click adds to it, and while
-// nothing else is chosen a range starts from it (also when the app opened it: the next job
-// after a move, a job of the day overview); otherwise from the anchor, the row clicked last.
+// Two or more chosen rows (one in one column) show the selection bar in the list header;
+// Esc clears them. The open job belongs to a selection that starts from it: a Ctrl+click
+// adds to it, and while nothing else is chosen a range starts from it (also when the app
+// opened it: the next job after a move, a job of the day overview); otherwise from the
+// anchor, the row clicked last.
 
 import type { JobView } from '$lib/ipc/types';
 import { jobs, keyOf } from '$lib/state/jobs.svelte';
