@@ -1,20 +1,22 @@
 <!--
   One job in the list, mail-style with fixed gutters: the unread dot (6 px, coral) centred
   in the pane padding on the axis of the ring (so a title never moves when the job is
-  read), the ring, then the title on up to two lines with the relative date at its end,
-  company and place, and one line with the ad's key facts ("ab sofort · 6 Monate · 60 %
-  remote · 1.100 €"; the best met requirement when the ad states none) and a status badge
-  right after it only when something deviates. Without a usable profile the ring stays, empty
-  (a dash), and the row has no third line unless a badge needs one.
-  The star to pin sits below the date: filled when pinned, otherwise it appears on hover (a
-  sibling of the row button, so it never selects the row; the row keeps its hover while
-  the pointer is on the star). An excluded row is muted as a whole, its dot and star too.
-  When a job is read while its row is on screen the dot shrinks away; an excluded row has
-  no dot (no count includes it). Under the date, on hover: archive (or bring back) and the
-  star (a pinned star always shows). A date older
-  than ten days sits on a quiet tint. A score from a teaser is a provisional ring. A cut-off
-  title shows in full in a tooltip. Layout stays inside the row (containment); like the
-  row, its hover waits while the list scrolls (`:root:not([data-scrolling])`).
+  read), the ring, then three lines that use the full width: the title on up to two lines
+  with the relative date at the end of its first line, company and place, and one line
+  with the ad's key facts ("ab sofort · 6 Monate · 60 % remote · 1.100 €/Tag"; the best
+  met requirement when the ad states none) and a badge right after it only when something
+  deviates. Without a usable profile the ring stays, empty (a dash), and the row has no
+  third line unless a badge needs one.
+  Like Mail and Gmail, the row's tools sit over the date: on hover (or when a tool has the
+  keyboard focus) the date fades out and archive (or bring back) and the star fade in
+  (100 ms); the title line keeps their room free. A pinned job shows a small star just
+  left of the date. The tools are siblings of the row button, so they never select the row;
+  the row keeps its hover while the pointer is on them. An excluded row is muted as a
+  whole, its dot and tools too. When a job is read while its row is on screen the dot
+  shrinks away; an excluded row has no dot (no count includes it). A date older than ten
+  days sits on a quiet tint. A score from a teaser is a provisional ring. A cut-off title
+  shows in full in a tooltip. Layout stays inside the row (containment); like the row, its
+  hover waits while the list scrolls (`:root:not([data-scrolling])`).
 -->
 <script lang="ts" module>
   /** How a click on a row selects: alone, toggled into a selection, or as a range. */
@@ -89,6 +91,8 @@
     aged ?? (now ?? new Date()).getTime() - new Date(when).getTime() > AGED_DAYS * DAY_MS,
   );
   const rowId = $derived(testid ?? `job-row-${job.key.portal}-${job.key.id}`);
+  /** How many tools the row has on hover (their room stays free on the title line). */
+  const tools = $derived((onpin ? 1 : 0) + (onarchive ? 1 : 0));
   const reason = $derived(ring ? rowReason(job) : null);
   const facts = $derived(ring ? factWords(job.match?.facts) : []);
   const heading = $derived(job.title ? displayTitle(job.title) : t.job.untitled);
@@ -120,29 +124,25 @@
   />
 {/snippet}
 
-{#snippet endCell()}
-  <span class="date" class:old>{formatRelative(when, now, true)}</span>
-  {#if onpin || onarchive}
-    <span class="tool-slot" class:two={onpin && onarchive} aria-hidden="true"></span>
-  {:else if job.pinned}
-    <span class="star" role="img" aria-label={t.job.pinned}
-      ><Icon name="star" size="sm" filled /></span
-    >
-  {/if}
-{/snippet}
-
-<div class="job" class:pinned={job.pinned} class:muted={excluded}>
+<div class="job" class:tooled={tools > 0} class:muted={excluded}>
   <ListRow
     leading={ringCell}
-    trailing={endCell}
     {selected}
     muted={excluded}
     onclick={onselect ? (event) => onselect?.(job, how(event)) : null}
     testid={rowId}
   >
-    <span class="title" class:unread={job.unread} use:tooltip={{ text: heading, truncated: true }}
-      >{heading}</span
-    >
+    <span class="head">
+      <span class="title" class:unread={job.unread} use:tooltip={{ text: heading, truncated: true }}
+        >{heading}</span
+      >
+      <span class="end" class:one={tools === 1} class:two={tools === 2}>
+        {#if job.pinned}<span class="mark" role="img" aria-label={t.job.pinned}
+            ><Icon name="star" size="sm" filled /></span
+          >{/if}
+        <span class="date" class:old>{formatRelative(when, now, true)}</span>
+      </span>
+    </span>
     <span class="meta">
       {#if job.company}<span class="text company">{job.company}</span>{/if}
       {#if job.location}<span class="text place">{job.location}</span>{/if}
@@ -164,7 +164,7 @@
   </ListRow>
   {#if job.unread && !excluded}<span class="dot" role="img" aria-label={t.job.unread} out:dotOut
     ></span>{/if}
-  {#if onpin || onarchive}
+  {#if tools > 0}
     <span class="tools">
       {#if onarchive}
         <span class="tool">
@@ -180,7 +180,7 @@
         </span>
       {/if}
       {#if onpin}
-        <span class="tool pin">
+        <span class="tool">
           <Button
             variant="ghost"
             size="sm"
@@ -226,10 +226,21 @@
     pointer-events: none;
   }
 
+  /* The title line: the title, and at the end of its first line the date (with a pinned
+     star before it), in a room as wide as the tools that replace it on hover. */
+  .head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-8);
+    min-width: 0;
+  }
+
   /* A long title takes a second line (the row grows by one line); past that it ends in an
      ellipsis and shows in full in a tooltip. */
   .title {
     display: -webkit-box;
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     color: var(--text);
     font: var(--type-title);
@@ -276,8 +287,32 @@
     max-width: 40%;
   }
 
-  /* The relative date on the title line, right-aligned in the trailing slot; it steps up
-     from subtle to muted on hover. */
+  .end {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-4);
+    height: var(--leading-title);
+    transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+
+  .end.one {
+    min-width: var(--control-sm);
+  }
+
+  .end.two {
+    min-width: calc(2 * var(--control-sm) + var(--space-2));
+  }
+
+  /* A pinned job: a small star just left of the date. */
+  .mark {
+    display: inline-flex;
+    color: var(--pressed);
+  }
+
+  /* The relative date at the end of the title line; it steps up from subtle to muted on
+     hover. */
   .date {
     color: var(--text-subtle);
     font: var(--type-xs);
@@ -325,16 +360,6 @@
     min-width: 0;
   }
 
-  /* Room under the date for the tools, so they never cover the meta line. */
-  .tool-slot {
-    width: var(--control-sm);
-    height: var(--control-sm);
-  }
-
-  .tool-slot.two {
-    width: calc(2 * var(--control-sm) + var(--space-2));
-  }
-
   /* An old date sits on a quiet tint (older than ten days). */
   .date.old {
     padding: 0 var(--space-6);
@@ -343,20 +368,11 @@
     color: var(--text-muted);
   }
 
-  .star {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--control-sm);
-    height: var(--control-sm);
-    color: var(--pressed);
-  }
-
-  /* The tools over the reserved slot below the date: they fade in on hover (100 ms); a
-     pinned star always shows. */
+  /* The tools over the date, centred on the title line: they fade in on hover (100 ms)
+     while the date fades out. */
   .tools {
     position: absolute;
-    top: calc(var(--space-12) + var(--leading-title) + var(--space-4));
+    top: calc(var(--space-12) + (var(--leading-title) - var(--control-sm)) / 2);
     right: var(--pane-padding);
     display: flex;
     gap: var(--space-2);
@@ -374,14 +390,18 @@
   }
 
   :global(:where(:root:not([data-scrolling]))) .job:hover .tool,
-  .tool:focus-within,
-  .pinned .pin {
+  .tool:focus-within {
     opacity: 1;
   }
 
   :global(:where(:root:not([data-scrolling]))) .muted:hover .tool,
-  .muted .tool:focus-within,
-  .muted.pinned .pin {
+  .muted .tool:focus-within {
     opacity: var(--opacity-muted);
+  }
+
+  :global(:where(:root:not([data-scrolling]))) .tooled:hover .end,
+  .tooled:has(.tool:focus-within) .end {
+    opacity: 0;
+    transition-duration: var(--dur-fast);
   }
 </style>
