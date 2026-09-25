@@ -78,10 +78,12 @@ and `Deleted{count, keys}` says how many and which. `move_jobs` returns the keys
 run inbox jobs that are no favourite archive themselves after `autoArchiveDays` (default 30, 0 = off; the age counts
 from the last time the user moved the job into the inbox, `inbox_at`, so her choice stands), and the trash empties itself after `autoEmptyTrashDays`
 (default 30, 0 = off; also at the start of the app). The Excel sheet, the HTML overview, `top_matches.json` and the
-best-matches prompt take only inbox jobs; the HTML overview (the inbox favourites and the app's "Neu und passend", at
-most 20, whatever run brought them) and `top_matches.json` follow a mark (move, star, "fits anyway", read) 2 s after
+best-matches prompt take only inbox jobs; the HTML overview (two sections under the title "Übersicht": the inbox
+favourites, only when there are some, and always the app's "Neu und passend", at most 20 with one line for the rest,
+whatever run brought them) and `top_matches.json` follow a mark (move, star, "fits anyway", read) 2 s after
 the last one without a run (never during one: it writes them at its end), the overview is written again right before
-"Übersicht öffnen", the Excel file waits for the next run (its Info sheet says so). `set_override(key, include)`: an excluded job counts as scored with its fit
+"Übersicht öffnen", the Excel file waits for the next run (its Info sheet says the app rewrites it, which a rescore, a
+details run and a delete for good do too). `set_override(key, include)`: an excluded job counts as scored with its fit
 score (note and first reason `userOverride`), every rescore keeps it; taken back, the job is assessed again at once.
 A list is a place (or the favourites of inbox and archive) plus an `unread` filter ("Neu", no day window) and a sort
 (by match, or by date: the mail's, in the trash the day it went there); the counts per place (inbox, unread,

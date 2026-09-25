@@ -2330,6 +2330,10 @@ async fn a_mark_refreshes_the_overview_and_the_top_matches() {
         html().contains(texts::HTML_PINNED),
         "the new favourite shows"
     );
+    assert!(
+        html().contains(texts::HTML_NEW) && html().contains("SAP FI/CO Berater"),
+        "and the other unread matches stay listed beside it"
+    );
     let path = refresh_overview(&store, dir.path(), c(), Language::De).unwrap();
     assert_eq!(path, export::overview_html_path(&result_dir));
 }

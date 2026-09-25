@@ -39,10 +39,11 @@ pub const COLUMNS: [&str; 12] = [
     "Passung",
 ];
 
-/// Label and warning of the last row of the info sheet.
+/// Label and warning of the last row of the info sheet. Not only a fetch writes the file: a
+/// rescore, a details run and "Endgültig löschen" do too.
 pub const INFO_NOTE_LABEL: &str = "Hinweis";
 pub const INFO_NOTE: &str =
-    "Diese Datei entsteht bei jedem Abruf neu, eigene Notizen gehen dabei verloren.";
+    "Die App schreibt diese Datei immer wieder neu, eigene Notizen gehen dabei verloren.";
 
 /// Labels of the info sheet (the mail address is deliberately not among them).
 pub const INFO_LAST_SCAN: &str = "Letzter Postfach-Abruf";
@@ -60,12 +61,22 @@ pub const SCOPE_NEW: &str = "Neu seit dem letzten Abruf";
 pub const SCOPE_ALL: &str = "Alle";
 
 /// Words of the HTML overview. "Übersicht" names this file only, like "Übersicht öffnen" in
-/// the interface; the favourites are "Favoriten" like its facet.
+/// the interface; the favourites are "Favoriten" like its facet, the new matches "Neu und
+/// passend" like the day overview's section.
 pub const HTML_TITLE: &str = "Übersicht";
 pub const HTML_PINNED: &str = "Favoriten";
-pub const HTML_NEW: &str = "Neue passende Jobs";
+pub const HTML_NEW: &str = "Neu und passend";
 pub const HTML_CREATED: &str = "Erstellt am";
 pub const HTML_EMPTY: &str = "Keine neuen passenden Jobs.";
+
+/// Under a cut list of new matches: how many more the app lists.
+pub fn html_more(count: usize) -> String {
+    if count == 1 {
+        "1 weiterer Job in der App.".to_owned()
+    } else {
+        format!("{} weitere Jobs in der App.", group(count, '.'))
+    }
+}
 pub const HTML_MATCH: &str = "Passung";
 pub const HTML_MET: &str = "Erfüllt";
 pub const HTML_EXCLUDED: &str = "Ausgeschlossen";
@@ -139,7 +150,7 @@ pub mod en {
 
     pub const INFO_NOTE_LABEL: &str = "Note";
     pub const INFO_NOTE: &str =
-        "This file is written anew at every fetch, so notes added here are lost.";
+        "The app rewrites this file from time to time, so notes added here are lost.";
 
     pub const INFO_LAST_SCAN: &str = "Last mailbox fetch";
     pub const INFO_SCOPE: &str = "Scope of the last mailbox fetch";
@@ -155,9 +166,17 @@ pub mod en {
 
     pub const HTML_TITLE: &str = "Overview";
     pub const HTML_PINNED: &str = "Favourites";
-    pub const HTML_NEW: &str = "New matching jobs";
+    pub const HTML_NEW: &str = "Best new matches";
     pub const HTML_CREATED: &str = "Created on";
     pub const HTML_EMPTY: &str = "No new matching jobs.";
+
+    pub fn html_more(count: usize) -> String {
+        if count == 1 {
+            "1 more job in the app.".to_owned()
+        } else {
+            format!("{} more jobs in the app.", super::group(count, ','))
+        }
+    }
     pub const HTML_MATCH: &str = "Match";
     pub const HTML_MET: &str = "Met";
     pub const HTML_EXCLUDED: &str = "Excluded";
@@ -198,6 +217,19 @@ pub mod en {
     // end of user-facing text
 }
 
+/// A count with its thousands grouped like the app's numbers (`1.234`, `1,234`).
+fn group(count: usize, separator: char) -> String {
+    let digits = count.to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (i, digit) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(separator);
+        }
+        out.push(digit);
+    }
+    out
+}
+
 /// Does a `formalOpen` violation name a licence (not a degree)?
 fn licence(params: &Map<String, Value>) -> bool {
     params.get("class").and_then(Value::as_str) == Some("licence")
@@ -234,6 +266,8 @@ pub struct Texts {
     pub html_new: &'static str,
     pub html_created: &'static str,
     pub html_empty: &'static str,
+    /// Under a cut list of new matches: how many more the app lists.
+    pub html_more: fn(usize) -> String,
     pub html_match: &'static str,
     pub html_met: &'static str,
     pub html_excluded: &'static str,
@@ -269,6 +303,7 @@ pub const DE: Texts = Texts {
     html_new: HTML_NEW,
     html_created: HTML_CREATED,
     html_empty: HTML_EMPTY,
+    html_more,
     html_match: HTML_MATCH,
     html_met: HTML_MET,
     html_excluded: HTML_EXCLUDED,
@@ -302,6 +337,7 @@ pub const EN: Texts = Texts {
     html_new: en::HTML_NEW,
     html_created: en::HTML_CREATED,
     html_empty: en::HTML_EMPTY,
+    html_more: en::html_more,
     html_match: en::HTML_MATCH,
     html_met: en::HTML_MET,
     html_excluded: en::HTML_EXCLUDED,

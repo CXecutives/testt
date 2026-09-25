@@ -1135,7 +1135,7 @@ pub fn export_all(
 pub const OVERVIEW_NEW_MAX: u32 = 20;
 
 /// Writes `JobAlerts.html` from the jobs as they are now (in `language`): the favourites of
-/// the inbox, else the best new matches. Returns its path.
+/// the inbox and the best new matches. Returns its path.
 fn write_html_overview(
     store: &Store,
     result_dir: &Path,
@@ -1144,19 +1144,14 @@ fn write_html_overview(
 ) -> crate::Result<PathBuf> {
     let path = export::overview_html_path(result_dir);
     let overview = store.overview_jobs(OVERVIEW_NEW_MAX)?;
-    let (jobs, pinned) = if overview.favourites.is_empty() {
-        (overview.new, false)
-    } else {
-        (overview.favourites, true)
-    };
-    export::write_overview_html(&path, &jobs, pinned, now, language)?;
+    export::write_overview_html(&path, &overview, now, language)?;
     Ok(path)
 }
 
 /// The files a mark changes (a move, the star, "fits anyway", read or unread), written anew
 /// without a run: the HTML overview and `top_matches.json` - both small, so the skill never
 /// reads a job the user threw away. The Excel file waits for the next run (its Info sheet
-/// says it is written anew then). A failure only goes to the log.
+/// says the app rewrites it). A failure only goes to the log.
 pub fn refresh_exports(
     store: &Store,
     workspace: &Path,
