@@ -120,9 +120,11 @@
       // While a run brings the details, "Details folgen" is no deviation.
       if (detail === 'pending' && pending) return null;
       if (detail !== 'ok') {
-        const tone: BadgeTone = detail === 'teaser' || detail === 'pending' ? 'neutral' : 'warning';
+        const quiet = detail === 'teaser' || detail === 'pending' || detail === 'onRequest';
+        const tone: BadgeTone = quiet ? 'neutral' : 'warning';
         return { label: t.job.detail[detail], tone, hint: t.job.detailHint[detail] };
       }
+      if (job.closed) return { label: t.job.closed, tone: 'neutral', hint: t.job.closedHint };
       if (job.match?.status === 'unscorable') {
         return { label: t.score.unscorable, tone: 'neutral', hint: null };
       }

@@ -131,6 +131,9 @@ const GENERIC: &[&str] = &[
     "zum projekt »",
     "projekt öffnen",
     "mehr lesen",
+    "diesen job anzeigen",
+    "view this job",
+    "weiter zum job",
 ];
 
 /// Extra text behind the title that is neither company nor location. The word labels
@@ -139,7 +142,7 @@ const GENERIC: &[&str] = &[
 /// before a name ("Neu Isenburg", "New York"). German mail patterns, do not translate.
 static NOISE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"^(?:(?i:vor \d+|\d+\s*(?:std|min|tag|stunde|minute|day|hour)|\d+ bewerber|be an early|erstellt:|von:$|ab (?:sofort|\w+ \d{4})|start:|beginn:|dauer:|laufzeit:|vertragsart:|/$)|(?i:aktiv|neu|new|promoted|anzeige|gesponsert|sofort|easy apply|einfach bewerben|schnell bewerben|remote möglich|bewerbungsfrist)(?:$|\s*[:!·|]|\s+[\p{Ll}\d]))",
+        r"^(?:(?i:vor \d+|\d+\s*(?:std|min|tag|stunde|minute|day|hour)|\d+ bewerber|be an early|erstellt:|eingestellt:|veröffentlicht:|posted:|von:$|ab (?:sofort|\w+ \d{4})|start:|beginn:|dauer:|laufzeit:|vertragsart:|/$)|(?i:aktiv|neu|new|promoted|anzeige|gesponsert|sofort|easy apply|einfach bewerben|schnell bewerben|remote möglich|bewerbungsfrist)(?:$|\s*[:!·|]|\s+[\p{Ll}\d]))",
     )
     .expect("valid pattern")
 });
@@ -769,38 +772,59 @@ fn link_lines(link: ElementRef<'_>) -> Vec<String> {
 
 // -------------------------------------------------------------------- Plain text
 
-/// Plain-text mails: every URL that is a job link (even without `https://`). The title
-/// is the first line of its block (since the last blank line or URL), the lines after
-/// it are company and location - so with "title / company / location / link" the
-/// location never becomes the title.
+/// Plain-text mails: every URL that is a job link (even without `https://`).
+///
+/// Mail programs write a link in several forms, and each decides where the title is:
+/// - the title on the link's own line: "Title<url>" (Outlook), "Title <url>" (Apple
+///   Mail), "<url> Title" (Outlook), "/ Title <url>" - company and location follow on the
+///   lines after it;
+/// - a line of only an image's alt text and its link, "[Company] <url>", carries no title
+///   at all (the job's text link follows);
+/// - an address alone on its line, or behind a label ("View job: <url>"): the title is the
+///   first line of its block above (since the last blank line, separator line or URL), the
+///   lines between are company and location - so with "title / company / location / link"
+///   the location never becomes the title. A sentence (a greeting, a heading line) is
+///   never the title.
 fn extract_plain(text: &str) -> Vec<Found> {
     let lines: Vec<&str> = text.lines().collect();
+    let spans: Vec<Vec<UrlSpan>> = lines.iter().map(|l| urls(l)).collect();
     let mut out = Vec::new();
     for (number, line) in lines.iter().enumerate() {
-        for (start, url) in urls(line) {
-            let Some(link) = job_link(&url) else { continue };
-            let mut first = number;
-            while first > 0 && number - first < 6 {
-                let previous = lines[first - 1];
-                if previous.trim().is_empty() || !urls(previous).is_empty() {
-                    break;
-                }
-                first -= 1;
+        let image = is_image_line(line, &spans[number]);
+        for (k, span) in spans[number].iter().enumerate() {
+            let Some(link) = job_link(&span.url) else {
+                continue;
+            };
+            if image {
+                out.push(Found {
+                    link,
+                    title: String::new(),
+                    company: String::new(),
+                    location: String::new(),
+                });
+                continue;
             }
-            let mut block: Vec<String> = lines[first..number]
-                .iter()
-                .map(|l| one_line(l))
-                .filter(|l| !l.is_empty() && !is_generic(l))
-                .collect();
-            // "SAP Berater: https://..." - the title sits before the link on the same line.
-            if block.is_empty() {
-                let before = one_line(line[..start].trim_end_matches([':', '-', '–', ' ']));
-                if !before.is_empty() && !is_generic(&before) {
-                    block.push(before);
+            let from = if k == 0 { 0 } else { spans[number][k - 1].end };
+            let to = spans[number].get(k + 1).map_or(line.len(), |s| s.start);
+            let raw_before = &line[from..span.start];
+            let before = label_text(raw_before);
+            let after = label_text(&line[span.end..to]);
+            // "View job: <url>" names the link, it does not title it - the block above
+            // does, when there is one.
+            let labelled = raw_before.trim_end().ends_with(':');
+            let block = block_above(&lines, &spans, number);
+            let same_line = [before, after].into_iter().find(|t| is_title_text(t));
+            let (title, details): (String, Vec<String>) = match same_line {
+                Some(title) if !labelled || block.is_empty() => {
+                    (title, lines_after(&lines, &spans, number))
                 }
-            }
-            let title = block.first().cloned().unwrap_or_default();
-            let details: Vec<&str> = block.iter().skip(1).map(String::as_str).collect();
+                _ => {
+                    let mut block = block.into_iter();
+                    let title = block.next().unwrap_or_default();
+                    (title, block.collect())
+                }
+            };
+            let details: Vec<&str> = details.iter().map(String::as_str).collect();
             let (company, location) = split_details(&details);
             out.push(Found {
                 link,
@@ -813,26 +837,166 @@ fn extract_plain(text: &str) -> Vec<Found> {
     out
 }
 
-/// A line's URLs with their start position; portal addresses count even without a scheme.
-fn urls(line: &str) -> Vec<(usize, String)> {
+/// The title and its details from the lines above a link, up to the last blank line,
+/// separator line or URL; leading sentences (a greeting, a heading line) are skipped.
+fn block_above(lines: &[&str], spans: &[Vec<UrlSpan>], number: usize) -> Vec<String> {
+    let mut first = number;
+    while first > 0 && number - first < 6 {
+        let previous = lines[first - 1];
+        if previous.trim().is_empty() || is_separator(previous) || !spans[first - 1].is_empty() {
+            break;
+        }
+        first -= 1;
+    }
+    lines[first..number]
+        .iter()
+        .map(|l| one_line(l))
+        .filter(|l| !l.is_empty() && !is_generic(l))
+        .skip_while(|l| is_prose(l))
+        .collect()
+}
+
+/// Company and location behind a link whose line carries its title: the next paragraph
+/// (Outlook and Apple Mail put a blank line between title and details), up to a separator
+/// line, a line with a URL, a button's alt text ("[Alle Projekte]"), or a line that titles
+/// the address right below it (the next job).
+fn lines_after(lines: &[&str], spans: &[Vec<UrlSpan>], number: usize) -> Vec<String> {
+    let mut out = Vec::new();
+    for at in number + 1..lines.len().min(number + 1 + 2 * MAX_TRAILING) {
+        let line = lines[at];
+        if line.trim().is_empty() {
+            if out.is_empty() {
+                continue;
+            }
+            break;
+        }
+        let bracketed = {
+            let t = line.trim();
+            t.starts_with('[') && t.ends_with(']')
+        };
+        if is_separator(line) || bracketed || !spans[at].is_empty() || out.len() >= 4 {
+            break;
+        }
+        let titles_next = lines
+            .get(at + 1)
+            .zip(spans.get(at + 1))
+            .is_some_and(|(next, found)| {
+                !found.is_empty() && !is_image_line(next, found) && is_address_only(next, found)
+            });
+        if titles_next {
+            break;
+        }
+        out.push(one_line(line));
+    }
+    out
+}
+
+/// A URL in a text line: where it stands and the address it names.
+struct UrlSpan {
+    start: usize,
+    end: usize,
+    url: String,
+}
+
+/// A line's URLs with their position; portal addresses count even without a scheme.
+fn urls(line: &str) -> Vec<UrlSpan> {
     let trim = |s: &str| {
         s.trim_end_matches(['.', ',', ';', ':', '!', '?'])
             .to_string()
     };
-    let mut found: Vec<(usize, usize, String)> = PLAIN_URL
+    let mut found: Vec<UrlSpan> = PLAIN_URL
         .find_iter(line)
-        .map(|m| (m.start(), m.end(), trim(m.as_str())))
+        .map(|m| UrlSpan {
+            start: m.start(),
+            end: m.end(),
+            url: trim(m.as_str()),
+        })
         .collect();
     for m in BARE_URL.find_iter(line) {
         if !found
             .iter()
-            .any(|(s, e, _)| m.start() >= *s && m.start() < *e)
+            .any(|s| m.start() >= s.start && m.start() < s.end)
         {
-            found.push((m.start(), m.end(), format!("https://{}", trim(m.as_str()))));
+            found.push(UrlSpan {
+                start: m.start(),
+                end: m.end(),
+                url: format!("https://{}", trim(m.as_str())),
+            });
         }
     }
-    found.sort_by_key(|(s, ..)| *s);
-    found.into_iter().map(|(s, _, url)| (s, url)).collect()
+    found.sort_by_key(|s| s.start);
+    found
+}
+
+/// The text of a line without its URLs.
+fn outside_urls(line: &str, spans: &[UrlSpan]) -> String {
+    let mut rest = String::new();
+    let mut from = 0;
+    for span in spans {
+        rest.push_str(&line[from..span.start]);
+        rest.push(' ');
+        from = span.end;
+    }
+    rest.push_str(&line[from..]);
+    rest
+}
+
+/// A line of nothing but addresses (and the brackets around them).
+fn is_address_only(line: &str, spans: &[UrlSpan]) -> bool {
+    outside_urls(line, spans)
+        .chars()
+        .all(|c| c.is_whitespace() || "<>()[]\"'„“”«»‹›".contains(c))
+}
+
+/// An image link as a mail program writes it in plain text: only an alt text in brackets
+/// and its link(s) - "[Company] <url>", "[`https://.../logo.png`]<url>".
+fn is_image_line(line: &str, spans: &[UrlSpan]) -> bool {
+    static ALT: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\[[^\]]*\]").expect("valid pattern"));
+    let rest = outside_urls(line, spans);
+    ALT.is_match(&rest)
+        && ALT
+            .replace_all(&rest, "")
+            .chars()
+            .all(|c| c.is_whitespace() || "<>".contains(c))
+}
+
+/// A separator line ("-----", "=====", "_____", "*****"): a block ends there.
+fn is_separator(line: &str) -> bool {
+    let line = line.trim();
+    line.chars().count() >= 3 && line.chars().all(|c| "-_=*~–—".contains(c))
+}
+
+/// The text beside a link on its line, without the brackets, quotes and list marks
+/// around it ("Title<", "/ Title (", "[Projekt]").
+fn label_text(raw: &str) -> String {
+    let text = one_line(raw);
+    let text = text
+        .trim_start_matches(|c: char| c.is_whitespace() || ">)]/|·•-–—»›“”\"'".contains(c))
+        .trim_end_matches(|c: char| c.is_whitespace() || "<([„\"':-–—|·•".contains(c));
+    let text = text
+        .strip_prefix('[')
+        .and_then(|t| t.strip_suffix(']'))
+        .unwrap_or(text);
+    text.trim().to_string()
+}
+
+/// Can the text beside a link be its title?
+fn is_title_text(text: &str) -> bool {
+    !text.is_empty() && !is_generic(text) && !is_url(text) && !is_prose(text)
+}
+
+/// A sentence, not a title: a greeting ("Hallo Erika,"), a heading line that ends in a
+/// colon, a sentence with its full stop, a long footer. Titles run long ("Senior `IT/OT`
+/// Security & Compliance Lead - Pharma OT Security (CSV / `GxP`)"), so the length alone
+/// takes a lot; a cut title ("...") and a text with a job title's gender tag are titles.
+fn is_prose(text: &str) -> bool {
+    if has_gender_tag(text) || text.ends_with("...") || text.ends_with('…') {
+        return false;
+    }
+    text.ends_with(['.', '!', '?', ':', ','])
+        || text.split_whitespace().count() > 20
+        || text.chars().count() > 160
 }
 
 // ---------------------------------------------------------------------- Helpers
@@ -1351,6 +1515,116 @@ mod tests {
                 ("2971858", "SAP Berater", "")
             ]
         );
+    }
+
+    /// The link forms of the plain-text parts Outlook, Apple Mail and Gmail write:
+    /// "Title<url>", "<url> Title", "[alt] <url>" image lines, "/ Title <url>" and
+    /// separator lines. Measured on real forwarded alerts: all titles were the placeholder,
+    /// "[Company] <" or the header sentence, and the previous job's details became the
+    /// next title.
+    #[test]
+    fn plain_text_link_forms_of_the_mail_programs() {
+        let url = |id: u64| format!("https://www.linkedin.com/comm/jobs/view/{id}/?trk=x");
+        let outlook = format!(
+            "Hallo Erika,\n\nIhr Suchagent hat 2 neue Projekte für Sie gefunden:\n\n\
+             Senior Controller (m/w/d)<{}>\n\nMusterwerke GmbH · Köln\n\n\
+             Interim CFO<{}>\n\nNordlicht AG · Hamburg\n",
+            url(4_100_000_001),
+            url(4_100_000_002)
+        );
+        let found = extract(&[], &[outlook]);
+        let got: Vec<(&str, &str, &str)> = found
+            .iter()
+            .map(|f| (f.title.as_str(), f.company.as_str(), f.location.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("Senior Controller (m/w/d)", "Musterwerke GmbH", "Köln"),
+                ("Interim CFO", "Nordlicht AG", "Hamburg")
+            ]
+        );
+
+        // Outlook's other form: the address first, the title behind it; a lone address
+        // (the logo) and the start date before it.
+        let fd = |id: u64| format!("https://www.freelance.de/projekte/projekt-{id}-x");
+        let outlook_after = format!(
+            "\t\n\n <{a}>\n\nAb Oktober 2026\n\n <{a}> Projektleiter Finance (m/w/d)\n\nD-20038 Hamburg\n\n\t\n\n\
+             <{b}>\n\nAb November 2026\n\n <{b}> SAP FI/CO Berater\n\nCH-4000 Basel\n",
+            a = fd(1_200_001),
+            b = fd(1_200_002)
+        );
+        let found = extract(&[], &[outlook_after]);
+        let got: Vec<(&str, String)> = found
+            .iter()
+            .map(|f| {
+                let (_, location) = split_company_location(&f.company, &f.location);
+                (f.title.as_str(), location)
+            })
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("Projektleiter Finance (m/w/d)", "Hamburg".to_string()),
+                ("SAP FI/CO Berater", "Basel".to_string())
+            ]
+        );
+
+        // Apple Mail: the logo line "[alt] <url> <url>", then "Title <url>", then the
+        // details; the list mark "/ " of another portal's layout goes too.
+        let apple = format!(
+            "Neue Jobs für Sie\n[Musterwerke in Köln] <{a}> <{a}>\nSenior Controller (m/w/d) - Konzern <{a}>\n\n\
+             Musterwerke GmbH · Köln\n\n[https://static.example/logo.png]<{b}>\n\n\
+             / ERP-Projektleiter (m/w/d) <{b}>\nEingestellt: 14.09.2026 um 16:54 Uhr\nvon: Nordstern GmbH\n\
+             Ort: Hamburg // Start: ab sofort\nWeiter zum Projekt <{b}>\n",
+            a = url(4_100_000_003),
+            b = url(4_100_000_004)
+        );
+        let found = extract(&[], &[apple]);
+        let got: Vec<(&str, String, String)> = found
+            .iter()
+            .map(|f| {
+                let (company, location) = split_company_location(&f.company, &f.location);
+                (f.title.as_str(), company, location)
+            })
+            .collect();
+        assert_eq!(
+            got,
+            [
+                (
+                    "Senior Controller (m/w/d) - Konzern",
+                    "Musterwerke GmbH".to_string(),
+                    "Köln".to_string()
+                ),
+                (
+                    "ERP-Projektleiter (m/w/d)",
+                    "Nordstern GmbH".to_string(),
+                    "Hamburg".to_string()
+                )
+            ]
+        );
+
+        // A separator line ends a block: it is never a title, and the title above it never
+        // slides into the company.
+        let separated = format!(
+            "Controller (m/w/d)\nMusterwerke GmbH\n{a}\n-----------------------------\nInterim CFO\nNordlicht AG\n{b}\n",
+            a = url(4_100_000_005),
+            b = url(4_100_000_006)
+        );
+        let found = extract(&[], &[separated]);
+        let got: Vec<(&str, &str)> = found
+            .iter()
+            .map(|f| (f.title.as_str(), f.company.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("Controller (m/w/d)", "Musterwerke GmbH"),
+                ("Interim CFO", "Nordlicht AG")
+            ]
+        );
+        let dashes = format!("-----\n{}\n", url(4_100_000_007));
+        assert_eq!(extract(&[], &[dashes])[0].title, "");
     }
 
     #[test]

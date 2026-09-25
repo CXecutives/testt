@@ -285,6 +285,22 @@ loses 0.02 of NDCG@10 to swaps between grade-2 and grade-3 jobs at the top (its 
 from 0.85 to 0.84); its Spearman rose from 0.56 to 0.63. The corpus K01-K58 stays within its
 gates (14 rows off band, none further than the old engine).
 
+### Version 7: a page's structured criteria
+
+LinkedIn states four criteria under every ad; the parser kept two and the engine read one.
+Corpus scores unchanged (the corpus ads carry no page facts; only the version line of the
+digest moved). `core/tests/matching_page_facts.rs` covers each value.
+
+- The page facts `level` (Karrierestufe) and `industries` (Branchen) reach the engine
+  (`fact_key::LEVEL`, `fact_key::INDUSTRIES`); `function` (Tätigkeitsbereich) is stored only.
+- Employment type by its exact value (`LIMITED_CONTRACT_VALUES`): `Befristet`, `Contract`,
+  `Temporary`, `Freiberuflich` make the ad interim; `Vollzeit` and `Teilzeit` say nothing.
+- With a target (`zielprofil_min_jahre`) and no requirement at or above it: a career level or
+  employment type of `ENTRY_LEVEL_VALUES` (`Praktikum`, `Internship`, `Berufseinstieg`,
+  `Entry level`, `Ehrenamtlich`, ...) is `tooJunior` (decided); `Associate`, `Assistent` or
+  `Junior` without years is `seniorityUnclear` (a check).
+- The industry wish reads the page's industries first, then title, company and context.
+
 ### Rubric of the Claude check
 
 `core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the
@@ -483,7 +499,8 @@ unchanged.
 
 `pipeline::LocalMatcher` wraps one compiled profile; revision `e{ENGINE_VERSION}.{INPUTS}:{fingerprint}`
 (a stored score of another revision is stale; `INPUTS` counts what a stored job hands the engine besides
-its text - since 2 the page facts under `matching::fact_key` and the teaser flag). A panic of the engine
+its text - since 2 the page facts under `matching::fact_key` and the teaser flag, since 4 the career level, the
+industries and a remote field in words). A panic of the engine
 leaves the job `unscorable` with the note `engineFailed` and the run goes on. The profile is compiled once and kept until its file changes
 (`src-tauri/src/commands/scoring.rs`); an empty profile or a parse error means no matcher, so nothing is
 scored and nothing is pending. Jobs without text are judged from title and location (usually

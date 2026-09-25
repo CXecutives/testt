@@ -51,8 +51,10 @@ use params::FOCUS_MAX;
 /// (not prefixes of skills), real compound boundaries, codes with their number and short
 /// skills, multiword terms across dropped words, doctorate and QP. 6: rules from the unseen
 /// held-out set 3 (rates next to a currency, reading noise, English language names, texts
-/// without requirements, generic heads, a tie-breaker, student roles).
-pub const ENGINE_VERSION: u32 = 6;
+/// without requirements, generic heads, a tie-breaker, student roles). 7: a page's
+/// structured criteria (a limited employment type, an internship or entry level, the
+/// industries).
+pub const ENGINE_VERSION: u32 = 7;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.
@@ -69,8 +71,21 @@ pub mod fact_key {
     pub const START: &str = "start";
     /// Duration as the page words it ("6 Monate").
     pub const DURATION: &str = "duration";
+    /// Career level as the page words it (LinkedIn: "Praktikum", "Direktor").
+    pub const LEVEL: &str = "level";
+    /// Industries as the page lists them (LinkedIn: "Maschinenbau").
+    pub const INDUSTRIES: &str = "industries";
     /// Every key the engine reads.
-    pub const ALL: &[&str] = &[CONTRACT, LOCATION, REMOTE_PERCENT, RATE, START, DURATION];
+    pub const ALL: &[&str] = &[
+        CONTRACT,
+        LOCATION,
+        REMOTE_PERCENT,
+        RATE,
+        START,
+        DURATION,
+        LEVEL,
+        INDUSTRIES,
+    ];
 }
 
 /// Profiles with fewer competences than this are `Thin`.

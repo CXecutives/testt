@@ -98,11 +98,13 @@ fn every_alert_fixture_is_an_alert_with_jobs() {
 /// Onboarding, promo and network mails from the portals' own addresses (invented, with
 /// subjects like the ones a real test mailbox collected): none is an alert - so none can
 /// raise the "mail layout changed?" warning, although they speak of projects, agents and
-/// jobs.
+/// jobs. Nor are the portals' activity mails (an application sent, an `InMail`, a message
+/// about an application) or a company newsletter, although each links a job: only the
+/// user's alert mails bring job links in.
 #[test]
 fn promo_and_onboarding_mails_are_no_alerts() {
     let mails = fixtures("promo_mails");
-    assert!(mails.len() >= 13, "{}", mails.len());
+    assert!(mails.len() >= 17, "{}", mails.len());
     let mut out = String::new();
     for (name, bytes) in mails {
         let verdict = describe(bytes.clone());
