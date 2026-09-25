@@ -80,14 +80,21 @@ test.describe('rows keep their shape', () => {
     expect(Math.abs((await width()) - unread)).toBeLessThan(0.01);
   });
 
-  test('the company gives way before the place', async ({ page }) => {
+  test('company and place are one line, cut at its end like the title', async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 800 });
     await open(page, WIN);
     await facet(page, 'Alle').click();
-    const place = row(page, 'linkedin-4100200303').locator('.place');
-    await expect(place).toBeVisible();
-    const cut = await place.evaluate((node) => node.scrollWidth > node.clientWidth);
-    expect(cut).toBe(false);
+    const meta = row(page, 'linkedin-4100200303').locator('.meta');
+    await expect(meta).toBeVisible();
+    // One box that ends in an ellipsis; the company is never cut while the place shows.
+    expect(
+      await meta.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return [style.whiteSpace, style.textOverflow, style.display];
+      }),
+    ).toEqual(['nowrap', 'ellipsis', 'block']);
+    const company = meta.locator('.company');
+    expect(await company.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(false);
   });
 
   test('without a profile a row without a badge has the height of every row', async ({ page }) => {

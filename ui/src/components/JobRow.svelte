@@ -5,7 +5,7 @@
   row one height (an unread title is drawn heavier without getting wider, so reading a job never wraps
   its title anew) with the relative date at the end of its first line, on its baseline (in
   the Papierkorb the day the job went there, the date the trash sorts by), company and
-  place (the company gives way first), and one line
+  place as one line read left to right and cut at its end (user, 2026-09-25), and one line
   with the ad's key facts ("ab sofort · 6 Monate · 60 % remote · 1.100 €/Tag"; the best
   met requirement when the ad states none) and a badge right after it only when something
   deviates. Facts are whole: one that does not fit drops out, none is ever cut in the
@@ -344,12 +344,14 @@
     -webkit-text-stroke: calc(var(--border-width) * 0.4) currentcolor;
   }
 
+  /* Company and place: one line, read left to right and cut at its end like the title. */
   .meta {
-    display: flex;
-    align-items: baseline;
     min-width: 0;
+    overflow: hidden;
     color: var(--text-muted);
     font: var(--type-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* Parts joined by a middle dot. */
@@ -357,24 +359,6 @@
     padding: 0 var(--space-6);
     color: var(--text-subtle);
     content: '·';
-  }
-
-  .text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* The place is short and says more than the end of a long company name: the company
-     gives way first, the place only past the larger part of the line. */
-  .company {
-    flex: 0 1 auto;
-    min-width: 0;
-  }
-
-  .place {
-    flex: none;
-    max-width: 60%;
   }
 
   .end {
