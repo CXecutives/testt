@@ -1215,13 +1215,14 @@ export const en: Catalog = {
     logs: 'Logs',
     data: 'App data',
     reset: 'Reset everything',
-    resetHint: 'Deletes jobs, settings, profile and app password.',
+    resetHint: 'Deletes jobs, settings, profile, app password and sign-ins.',
     resetAction: 'Reset',
     resetHeading: 'Reset everything?',
-    resetText: 'The app restarts and is empty afterwards.',
+    resetText:
+      'The app restarts and also deletes the Excel file, the overview and the text files in the work folder.',
     resetDone: 'The app is reset.',
     resetPartly: (value: number) =>
-      `The app is reset, but ${count(value, 'file', 'files')} could not be deleted.`,
+      `The app is reset, but ${count(value, 'item', 'items')} could not be deleted.`,
     running: 'A fetch is running right now.',
     dryRun: 'Dry run, so no data is changed.',
     language: 'Language',

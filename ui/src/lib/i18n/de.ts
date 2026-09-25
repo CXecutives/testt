@@ -1319,13 +1319,17 @@ export const de = {
     logs: 'Protokolle',
     data: 'Daten der App',
     reset: 'Alles zurücksetzen',
-    resetHint: 'Löscht Jobs, Einstellungen, Profil und App-Passwort.',
+    /** Everything core's reset deletes: the database, the profile, the keychain entry, the
+     *  portal sign-ins; the dialog adds the app's files in the work folder. */
+    resetHint: 'Löscht Jobs, Einstellungen, Profil, App-Passwort und Anmeldungen.',
     resetAction: 'Zurücksetzen',
     resetHeading: 'Alles zurücksetzen?',
-    resetText: 'Die App startet neu und ist danach leer.',
+    resetText:
+      'Die App startet neu und löscht auch Excel-Datei, Übersicht und Textdateien im Arbeitsordner.',
     resetDone: 'Die App ist zurückgesetzt.',
+    /** What stayed can be a file, a folder, the app password or a sign-in: "Element". */
     resetPartly: (value: number) =>
-      `Die App ist zurückgesetzt, ${count(value, 'Datei ließ', 'Dateien ließen')} sich nicht löschen.`,
+      `Die App ist zurückgesetzt, ${count(value, 'Element ließ', 'Elemente ließen')} sich nicht löschen.`,
     running: 'Ein Abruf läuft gerade.',
     dryRun: 'Probelauf, es werden keine Daten verändert.',
     language: 'Sprache',

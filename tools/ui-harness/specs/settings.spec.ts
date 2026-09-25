@@ -446,7 +446,9 @@ test('reset asks with a danger dialog; the report shows after the restart', asyn
   // After the restart the app is empty: the first-run page with the report.
   await open(page, `${WIN}&scenario=reset`);
   const report = page.getByTestId('first-reset-report');
-  await expect(report).toContainText('Die App ist zurückgesetzt, 1 Datei ließ sich nicht löschen.');
+  await expect(report).toContainText(
+    'Die App ist zurückgesetzt, 1 Element ließ sich nicht löschen.',
+  );
   // The file left behind can be found: the app's folder opens.
   await report.getByRole('button', { name: 'Ordner öffnen' }).click();
   expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({

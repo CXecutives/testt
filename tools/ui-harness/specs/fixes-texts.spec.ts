@@ -30,3 +30,18 @@ test('the text files say what they are for, and that only Rewrite brings them ba
   await page.getByTestId('txt-clear').hover();
   await expect(page.getByRole('tooltip')).toHaveText('Es gibt keine Textdateien.');
 });
+
+test('reset names everything it deletes before it asks', async ({ page }) => {
+  await settings(page);
+  await expect(page.getByTestId('settings-reset')).toContainText(
+    'Löscht Jobs, Einstellungen, Profil, App-Passwort und Anmeldungen.',
+  );
+  await page.getByTestId('reset').click();
+  // The files in the user's own work folder go too (core reset: `app_files`).
+  await expect(page.getByTestId('dialog-reset')).toContainText(
+    'Die App startet neu und löscht auch Excel-Datei, Übersicht und Textdateien im Arbeitsordner.',
+  );
+  // What stays behind need not be a file (the app password, a sign-in).
+  await open(page, `${WIN}&scenario=reset`);
+  await expect(page.getByTestId('first-reset-report')).not.toContainText('Datei');
+});
