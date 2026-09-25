@@ -99,10 +99,11 @@
   --surface-muted: hsl(var(--p-muted));
   --surface-hover: hsl(var(--p-ink) / 0.04);
   --surface-press: hsl(var(--p-ink) / 0.08);
-  /* The selected list row: a very light warm wash; one step deeper under the pointer; grey
-     while the window is inactive (like Mail, Explorer). */
+  /* The selected list row: a very light warm wash; one step deeper under the pointer and one
+     more while pressed; grey while the window is inactive (like Mail, Explorer). */
   --surface-selected: hsl(var(--p-coral-25));
   --surface-selected-hover: hsl(var(--p-coral-50));
+  --surface-selected-press: hsl(var(--p-coral-70));
   --surface-selected-inactive: hsl(var(--p-ink) / 0.06);
   /* Track of segmented controls: visible on white and on cream alike. */
   --surface-track: hsl(var(--p-ink) / 0.055);

@@ -4,7 +4,7 @@
   padding of the columns on the sides. A hairline under each row; a list whose rows reach
   past its column (for the wash) insets the line with `--row-rule-inset`, so it is as wide
   as every other hairline there. Hover washes the row (80 ms in, 150 ms out), a press
-  darkens it (60 ms); rows never move or scale. The selected row takes a very light warm wash (one step deeper under the pointer)
+  darkens it (60 ms); rows never move or scale. The selected row takes a very light warm wash (one step deeper under the pointer, one more while pressed)
   and a coral bar on the left that fades in (150 ms) and out (100 ms); a row created as
   selected is simply there. While the window is inactive the selection
   turns grey, as in Mail and Explorer. While the list scrolls rows take no hover: a row
@@ -87,8 +87,7 @@
     transition-duration: var(--dur-instant);
   }
 
-  .selected,
-  :global(:where(:root:not([data-aux-press]))) .selected:active:hover {
+  .selected {
     background-color: var(--surface-selected);
 
     /* The ring's track stays visible on the warm wash. */
@@ -97,6 +96,12 @@
 
   .selected:hover:where(:not([data-still])) {
     background-color: var(--surface-selected-hover);
+  }
+
+  /* Pressed, the warm wash deepens one more step (the grey press never covers it). */
+  :global(:where(:root:not([data-aux-press]))) .selected:active:hover {
+    background-color: var(--surface-selected-press);
+    transition-duration: var(--dur-instant);
   }
 
   /* The selection bar on the left edge: always there, shown by opacity (it never

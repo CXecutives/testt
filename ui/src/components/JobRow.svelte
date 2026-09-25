@@ -3,9 +3,9 @@
   in the pane padding on the axis of the ring (so a title never moves when the job is
   read), the ring, then three lines that use the full width: the title on up to two lines
   (an unread title is drawn heavier without getting wider, so reading a job never wraps
-  its title anew) with the relative date at the end of its first line (in the Papierkorb
-  the day the job went there, the date the trash sorts by), company and place (the
-  company gives way first), and one line
+  its title anew) with the relative date at the end of its first line, on its baseline (in
+  the Papierkorb the day the job went there, the date the trash sorts by), company and
+  place (the company gives way first), and one line
   with the ad's key facts ("ab sofort · 6 Monate · 60 % remote · 1.100 €/Tag"; the best
   met requirement when the ad states none) and a badge right after it only when something
   deviates. Facts are whole: one that does not fit drops out, none is ever cut in the
@@ -210,7 +210,9 @@
             role="img"
             aria-label={t.job.pinned}><Icon name="star" size="sm" filled /></span
           >{/if}
-        <span class="date" class:old>{formatRelative(when, current, true)}</span>
+        <span class="date" class:old
+          ><span class="stamp">{formatRelative(when, current, true)}</span></span
+        >
       </span>
     </span>
     <span class="meta">
@@ -295,7 +297,7 @@
     background-color: var(--surface-hover);
   }
 
-  .job:hover:where(:not([data-still])) :global(.row.selected) {
+  .job:hover:where(:not([data-still])) :global(.row.selected:not(:active)) {
     background-color: var(--surface-selected-hover);
   }
 
@@ -403,14 +405,18 @@
   }
 
   /* The relative date at the end of the title line; it steps up from subtle to muted on
-     hover. */
+     hover. Its line has the title's type, so the small stamp stands on the baseline of the
+     title's first line (and an old date's tint is as high as that line). */
   .date {
     color: var(--text-subtle);
-    font: var(--type-xs);
-    line-height: var(--leading-title);
-    font-variant-numeric: var(--numeric);
+    font: var(--type-title);
     white-space: nowrap;
     transition: color var(--dur-base) var(--ease-standard);
+  }
+
+  .stamp {
+    font: var(--type-xs);
+    font-variant-numeric: var(--numeric);
   }
 
   .job:hover:where(:not([data-still])) .date {
