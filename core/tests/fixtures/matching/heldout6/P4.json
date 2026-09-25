@@ -1,0 +1,238 @@
+{
+  "name": "Dr. Helena Specimen",
+  "email": "helena.specimen@example.invalid",
+  "telefon": "+49 176 0000000",
+  "titel": "Interim Head of Quality und Regulatory Affairs (Pharma)",
+  "abschluss": "Dr. rer. nat., approbierte Apothekerin",
+  "years_of_experience": 19,
+  "ausbildung": [
+    {
+      "abschluss": "Promotion (Dr. rer. nat.)",
+      "fach": "Pharmazeutische Technologie",
+      "hochschule": "Beispieluniversität",
+      "jahr": 2007
+    },
+    {
+      "abschluss": "Approbation als Apothekerin nach Staatsexamen Pharmazie",
+      "fach": "Pharmazie",
+      "jahr": 2003
+    }
+  ],
+  "stationen": [
+    {
+      "zeitraum": "2019 - heute",
+      "rolle": "Interim Head of Quality und Sachkundige Person (selbstständig)",
+      "schwerpunkte": [
+        "Interim-Leitung von QA und QC bei Lohnherstellern und Generikaherstellern",
+        "Remediation nach FDA Warning Letter und nach Mängeln aus EU-GMP-Inspektionen",
+        "Chargenfreigabe als Sachkundige Person nach § 15 AMG",
+        "Inspection Readiness für FDA, Regierungspräsidium und Swissmedic",
+        "Umsetzung des neuen EU-GMP Annex 1 in der sterilen Herstellung"
+      ]
+    },
+    {
+      "zeitraum": "2013 - 2019",
+      "rolle": "Head of Quality Assurance eines Lohnherstellers für sterile Arzneimittel (CDMO)",
+      "schwerpunkte": [
+        "Führung von 45 Mitarbeitenden in QA und QC",
+        "Einführung des elektronischen QMS mit Veeva Vault",
+        "Kundenaudits, Qualitätsvereinbarungen und Product Quality Reviews"
+      ]
+    },
+    {
+      "zeitraum": "2007 - 2013",
+      "rolle": "Regulatory Affairs Manager, später QA Manager bei einem Generikahersteller",
+      "schwerpunkte": [
+        "Zulassungsdossiers im CTD-Format und Änderungsanzeigen (Variations)",
+        "eCTD-Einreichungen im dezentralen Verfahren und im Verfahren der gegenseitigen Anerkennung",
+        "Qualifizierung von Wirkstoffherstellern in Indien und China"
+      ]
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "GMP-Compliance",
+      "jahre": 19,
+      "aliases": ["EU-GMP", "GMP", "Good Manufacturing Practice", "cGMP"]
+    },
+    {
+      "kompetenz": "Qualitätssicherung",
+      "jahre": 17,
+      "aliases": ["Quality Assurance", "QA"]
+    },
+    {
+      "kompetenz": "Qualitätsmanagementsysteme",
+      "jahre": 15,
+      "aliases": ["QMS", "Pharmaceutical Quality System", "ICH Q10"]
+    },
+    {
+      "kompetenz": "Chargenfreigabe als Sachkundige Person",
+      "jahre": 10,
+      "aliases": ["Qualified Person", "QP", "Batch Release", "Sachkundige Person nach § 15 AMG"]
+    },
+    {
+      "kompetenz": "Regulatory Affairs",
+      "jahre": 8,
+      "aliases": ["Arzneimittelzulassung", "Zulassung", "Regulatory Submissions"]
+    },
+    {
+      "kompetenz": "Zulassungsdossiers im CTD-Format",
+      "jahre": 6,
+      "aliases": ["CTD", "eCTD", "Module 3"]
+    },
+    {
+      "kompetenz": "Abweichungs- und CAPA-Management",
+      "jahre": 15,
+      "aliases": ["Deviation Management", "CAPA", "Root Cause Analysis"]
+    },
+    {
+      "kompetenz": "Change Control",
+      "jahre": 15,
+      "aliases": ["Änderungskontrolle"]
+    },
+    {
+      "kompetenz": "Audits und Inspektionen",
+      "jahre": 14,
+      "aliases": ["Inspection Readiness", "Behördeninspektionen", "Lieferantenaudits", "GMP-Audits"]
+    },
+    {
+      "kompetenz": "Validierung",
+      "jahre": 12,
+      "aliases": ["Prozessvalidierung", "Reinigungsvalidierung", "Computer System Validation", "CSV"]
+    },
+    {
+      "kompetenz": "Data Integrity",
+      "jahre": 8,
+      "aliases": ["Datenintegrität", "ALCOA+"]
+    },
+    {
+      "kompetenz": "Remediation",
+      "jahre": 6,
+      "aliases": ["Warning Letter Remediation", "GMP-Remediation"]
+    },
+    {
+      "kompetenz": "Lieferantenqualifizierung",
+      "jahre": 11,
+      "aliases": ["Supplier Qualification"]
+    },
+    {
+      "kompetenz": "Sterile Herstellung",
+      "jahre": 6,
+      "aliases": ["Aseptic Processing", "Annex 1"]
+    },
+    {
+      "kompetenz": "Qualitätsrisikomanagement",
+      "jahre": 10,
+      "aliases": ["Quality Risk Management", "ICH Q9", "FMEA"]
+    },
+    {
+      "kompetenz": "Führung von QA- und QC-Teams",
+      "jahre": 11,
+      "aliases": ["Head of Quality", "Leitung Qualitätssicherung"]
+    },
+    {
+      "kompetenz": "Interim Management",
+      "jahre": 7,
+      "aliases": ["Interim Head of Quality", "Interim-Mandate"]
+    }
+  ],
+  "methoden_tools": [
+    {
+      "name": "Veeva Vault QMS"
+    },
+    {
+      "name": "TrackWise"
+    },
+    {
+      "name": "SAP QM"
+    },
+    {
+      "name": "LabWare LIMS"
+    },
+    {
+      "name": "docuBridge (eCTD)"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Sachkenntnis nach § 15 AMG (Sachkundige Person)"
+    },
+    {
+      "name": "ECA Certified GMP Lead Auditor"
+    },
+    {
+      "name": "Fachapothekerin für Pharmazeutische Technologie"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Pharma"
+    },
+    {
+      "branche": "Biotechnologie"
+    },
+    {
+      "branche": "Lohnherstellung (CDMO)"
+    },
+    {
+      "branche": "Generika"
+    },
+    {
+      "branche": "Wirkstoffherstellung (API)"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C2"
+    },
+    {
+      "sprache": "Französisch",
+      "niveau": "B2"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Drei Betriebe nach FDA Warning Letter bis zur Wiederinspektion ohne kritische Mängel geführt",
+    "Kann als Sachkundige Person vom ersten Tag an Chargen freigeben"
+  ],
+  "keywords": [
+    "GMP",
+    "Qualitätssicherung",
+    "Qualified Person",
+    "Regulatory Affairs",
+    "CAPA",
+    "Inspection Readiness",
+    "Annex 1",
+    "FDA",
+    "Pharma"
+  ],
+  "hard_criteria": {
+    "min_tagessatz": 1050,
+    "laender": [
+      "DE",
+      "CH"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "anue"
+    ],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "sofort",
+    "min_annual_salary": 135000,
+    "permanent_locations": [
+      "Freiburg im Breisgau",
+      "Lörrach",
+      "Weil am Rhein",
+      "Basel",
+      "Müllheim",
+      "Emmendingen",
+      "Offenburg",
+      "Rheinfelden"
+    ],
+    "permanent_remote_min": 60,
+    "target_min_years": 8
+  }
+}

@@ -394,6 +394,45 @@ disagree and the set-5 precision floor is 0.98.
 | held-out 4 | 0.808 | 0.821 | 0.521 / 0.542 | 1 / 0 | 1.0-0.988 / 1.0-0.988 |
 | held-out 5 | 0.694 | 0.819 | 0.442 / 0.485 | 1 / 0 | 0.980-0.943 / 0.988-1.0 |
 
+### Version 10: bugs from the unseen set 6
+
+Held-out set 6 (40 fresh ads x 11 profiles) scored NDCG@10 0.843 on first contact with engine 9
+(old engine 0.561; exclusions 0.929 / 0.939), the lead over the old engine steady against sets
+4 and 5. Only general bugs were fixed, each with a unit test (`facts.rs`, `atoms.rs`, `job.rs`,
+`contract.rs`, `fit.rs`, `matching_generalisation.rs`); set 6 joined the regression corpora
+(`heldout6/`).
+
+- Country: a country belongs to the on-site or travel statement before it in the sentence
+  (else the first one after it); `vor Ort in Düsseldorf, gelegentlich Reisen zu Standorten
+  in Belgien, Polen und Spanien` works in Germany and is at most a check for the others (H09
+  was excluded for every profile).
+- `Führung` is never met inside a word with a verbal particle, also after a hyphen or a
+  modifier (`HRIS-Einführung`, `Markteinführung`, `Durchführung`, `Ausführung`); parts of a
+  line joined by `und` keep the object the last one names (`Erfahrung im Aufbau und in der
+  Führung von Vertriebsteams` leaves no bare `Erfahrung im Aufbau`).
+- Contract: a comma between the words still states a permanent role (`permanent, full-time`);
+  denied interim wording (`we do not consider freelance, interim ...`, `not an option`) is no
+  interim signal; a stated `unbefristet` beats the trainee inference (the salary decides).
+- Compounds meet with or without the linking `s` (`Werkleiter` and `Werksleiter`), in the
+  concept table and between atoms (`Leistung` is still no `Leitung`).
+- Teasers: an open field word of the title caps like an open must on the title's topic (60);
+  a teaser term met only through a compound of another field (`Personalcontrolling`, an HR
+  word, for `Controlling`) is half.
+
+Open decision, unchanged: the wage of temporary agency work (`82 € entspricht dem
+Bruttostundenlohn`) is read as a day rate x 8, so F03 is excluded for two profiles by the day
+rate and F08 is not excluded by a salary per year; the labels read it as employment pay. The
+set-6 floors (precision 0.98, recall 0.99) hold these three pairs.
+
+| Set | NDCG@10 v9 | NDCG@10 v10 | Spearman v9 / v10 | buried v9 / v10 | exclusions P-R v9 / v10 |
+|---|---|---|---|---|---|
+| held-out 1 | 0.928 | 0.928 | 0.757 / 0.757 | 0 / 0 | 1.0-1.0 / 1.0-1.0 |
+| held-out 2 | 0.856 | 0.856 | 0.642 / 0.642 | 1 / 1 | 1.0-1.0 / 1.0-1.0 |
+| held-out 3 | 0.956 | 0.956 | 0.492 / 0.493 | 0 / 0 | 1.0-1.0 / 1.0-1.0 |
+| held-out 4 | 0.821 | 0.821 | 0.542 / 0.543 | 0 / 0 | 1.0-0.988 / 1.0-0.988 |
+| held-out 5 | 0.819 | 0.819 | 0.485 / 0.486 | 0 / 0 | 0.988-1.0 / 0.988-1.0 |
+| held-out 6 | 0.843 | 0.909 | 0.459 / 0.502 | 1 / 0 | 0.929-0.939 / 0.989-0.994 |
+
 ### Rubric of the Claude check
 
 `core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the

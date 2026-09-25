@@ -1,0 +1,34 @@
+Titel: Senior Java Entwickler (m/w/d) – Hauptbuch- und Finanzbuchhaltungsplattform
+Unternehmen: Quellbach Technology Partners GmbH
+Ort: D-60311 Frankfurt am Main
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1308214
+Abgerufen am: 24.09.2026 07:10
+
+Projekt-ID: 1308214
+Ort: Frankfurt am Main
+Remote: 80 %
+Start: 01.11.2026
+Dauer: 12 Monate
+Vertragsart: Freiberuflich
+Honorar: 95 - 110 € pro Stunde
+
+Projektbeschreibung
+Unser Kunde, ein Finanzdienstleister mit Sitz in Frankfurt, modernisiert seine Hauptbuch- und Finanzbuchhaltungsplattform. Die bestehende Monolith-Anwendung für Buchungslogik, Abschlussprozesse nach HGB und IFRS sowie das Controlling-Reporting wird in eine Microservice-Architektur überführt. Das Entwicklungsteam besteht aus neun Entwicklern, zwei Business Analysts aus dem Rechnungswesen und einem Product Owner aus dem Finanzbereich.
+
+Aufgaben
+- Entwicklung neuer Microservices für Buchungs- und Abschlusslogik in Java 21 mit Spring Boot
+- Anbindung der Nebenbücher (Kreditoren, Debitoren, Anlagen) über Kafka
+- Implementierung von Schnittstellen zum Meldewesen und zur Konzernkonsolidierung
+- Code Reviews, Pair Programming und Mitarbeit an der Architektur
+- Enge Abstimmung mit den Fachbereichen Rechnungswesen und Controlling
+
+Anforderungen
+- 5+ Jahre Erfahrung in der Backend-Entwicklung mit Java und Spring Boot
+- Sehr gute Kenntnisse in Kafka, PostgreSQL und REST
+- Erfahrung mit Kubernetes und CI/CD (GitLab)
+- Fachliches Verständnis von Buchhaltung (Hauptbuch, Nebenbücher, Periodenabschluss) von Vorteil
+- Deutsch fließend
+
+Sonstiges
+Beauftragung als Dienstvertrag, keine Arbeitnehmerüberlassung. Vor-Ort-Termine in Frankfurt etwa zweimal im Monat.

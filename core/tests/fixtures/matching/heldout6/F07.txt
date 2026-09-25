@@ -1,0 +1,38 @@
+Titel: SAP S/4HANA Finance Solution Architect (Freelance)
+Unternehmen: Aurelian Consumer Brands B.V.
+Ort: Amsterdam (Niederlande)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4135270481/
+Abgerufen am: 17.09.2026 08:20
+
+About the job
+Aurelian Consumer Brands is running a group-wide finance transformation across 23 legal entities in Europe. We are looking for a freelance SAP S/4HANA Finance Solution Architect to own the end-to-end record-to-report design.
+
+Your responsibilities
+Own the solution design for record to report on SAP S/4HANA, including Central Finance and Group Reporting
+Lead design authority sessions with finance process owners and the system integrator
+Define the target chart of accounts, ledger approach and intercompany process
+Review functional specifications and challenge customer-specific developments
+Support data migration and reconciliation strategy for the first wave go-live
+
+Your profile
+10+ years of SAP FI/CO experience, including at least two S/4HANA implementations as lead or architect
+Deep knowledge of Central Finance, Group Reporting and the Universal Journal
+Background in consumer goods or retail is an advantage
+Strong stakeholder management in an international setting
+Fluent English is required, Dutch is not needed
+
+Engagement
+Start 1 December 2026, initial term 12 months
+Day rate EUR 1,150, excluding VAT
+Hybrid: remote work from the Netherlands, Belgium or Germany is possible; onsite in Amsterdam two days every other week
+Contracting via our preferred supplier; for non-Dutch residents we can also arrange payrolling through an umbrella company
+
+Seniority level
+Mid-Senior level
+Employment type
+Contract
+Job function
+Finance and Information Technology
+Industries
+Manufacturing

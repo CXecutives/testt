@@ -8,8 +8,9 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use super::atoms::{self, Fit, Vocab, fold};
-use super::job::{Class, Item, contains_word, language_of, level_in, names_degree};
+use super::job::{Class, Item, Stage, contains_word, language_of, level_in, names_degree};
 use super::legacy::LegacyProfile;
+use super::lexicon::domains::DOMAINS;
 use super::lexicon::{self, engine as lex};
 use super::params::{E_FULL, E_HALF, E_NONE, SENTENCE_ATOMS};
 use super::types::Via;
@@ -599,6 +600,23 @@ pub(crate) fn title_names(skills: &Skills, title: &str, only: &[usize]) -> bool 
         .any(|entry| entry_fit(&job, &expanded, entry) == (E_FULL, Via::Exact))
 }
 
+/// The packs whose triggers an atom starts with.
+fn packs_of(atom: &str) -> Vec<&'static str> {
+    DOMAINS
+        .iter()
+        .filter(|d| d.triggers.iter().any(|t| atom.starts_with(t)))
+        .map(|d| d.name)
+        .collect()
+}
+
+/// Is a profile atom a compound of another field than the job atom it narrows
+/// (`Personalcontrolling`, an HR word, for `Controlling`)?
+fn other_field(job: &str, profile: &str) -> bool {
+    let own = packs_of(job);
+    let theirs = packs_of(profile);
+    !theirs.is_empty() && theirs.iter().all(|p| !own.contains(p))
+}
+
 /// The ladder for one item (best alternative), then the years requirement.
 pub(crate) fn item_fit(skills: &Skills, item: &Item) -> ItemFit {
     let mut fit = match &item.class {
@@ -612,6 +630,25 @@ pub(crate) fn item_fit(skills: &Skills, item: &Item) -> ItemFit {
             .max_by_key(|f| f.value)
             .unwrap_or(NONE),
     };
+    // A teaser's term met only through a compound of another field is half: the profile
+    // names the skill as part of other work (`Personalcontrolling` for `Controlling`).
+    if item.stage == Stage::Vocabulary
+        && fit.value == E_FULL
+        && fit.via == Via::Specific
+        && let Some(entry) = fit.entry.and_then(|e| skills.entries.get(e))
+    {
+        let job = atoms::atoms(&item.text, &skills.vocab);
+        let narrowed = job.iter().any(|j| {
+            entry
+                .atoms
+                .iter()
+                .any(|p| atoms::fit(j, p) == Fit::Specific && other_field(j, p))
+        });
+        if narrowed {
+            fit.value = E_HALF;
+            fit.via = Via::General;
+        }
+    }
     if let Some(needed) = item.years {
         let folded = fold(&item.text);
         // General experience only without a topic: `10 Jahre Berufserfahrung`, not
@@ -718,5 +755,28 @@ mod tests {
         assert_eq!(fit("Vertriebserfahrung im Maschinenbau"), E_NONE);
         assert_eq!(fit("Controlling im Maschinenbau"), E_FULL);
         assert_eq!(fit("Controlling in der Automobilindustrie"), E_HALF);
+    }
+
+    /// A teaser's term met only through a compound of another field is half
+    /// (`Personalcontrolling` for `Controlling`); a compound of its own field stays full.
+    #[test]
+    fn a_teaser_term_in_another_field_is_half() {
+        let term = |profile: &str| {
+            let data = json!({"kernkompetenzen": [{"kompetenz": profile}]});
+            let skills = Skills::new(&LegacyProfile::new(&data), &data, &[]);
+            let item = Item {
+                span: None,
+                text: "controlling".to_owned(),
+                alternatives: vec!["controlling".to_owned()],
+                kind: crate::matching::sections::ReqKind::Must,
+                class: Class::Skill,
+                years: None,
+                stage: Stage::Vocabulary,
+            };
+            item_fit(&skills, &item).value
+        };
+        assert_eq!(term("Personalcontrolling"), E_HALF);
+        assert_eq!(term("Konzerncontrolling"), E_FULL);
+        assert_eq!(term("Controlling"), E_FULL);
     }
 }

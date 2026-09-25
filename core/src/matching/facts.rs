@@ -507,21 +507,53 @@ static PLACES_BY_FIRST_WORD: LazyLock<HashMap<&'static str, Vec<Place>>> = LazyL
     index
 });
 
-fn countries_in(folded: &str) -> Vec<&'static str> {
-    let mut found: Vec<&'static str> = Vec::new();
+/// Every country or city a text names, with the byte offset of the name.
+fn countries_at(folded: &str) -> Vec<(usize, &'static str)> {
+    let mut found = Vec::new();
     for word in folded.split(|c: char| !c.is_alphanumeric()) {
-        if let Some(names) = PLACES_BY_FIRST_WORD.get(word) {
-            found.extend(
-                names
-                    .iter()
-                    .filter(|(name, _)| contains_word(folded, name))
-                    .map(|&(_, code)| code),
-            );
+        let Some(names) = PLACES_BY_FIRST_WORD.get(word) else {
+            continue;
+        };
+        let at = word.as_ptr() as usize - folded.as_ptr() as usize;
+        let rest = &folded[at..];
+        for &(name, code) in names {
+            let whole = rest
+                .strip_prefix(name)
+                .is_some_and(|after| after.chars().next().is_none_or(|c| !c.is_alphanumeric()));
+            if whole {
+                found.push((at, code));
+            }
         }
     }
+    found
+}
+
+fn countries_in(folded: &str) -> Vec<&'static str> {
+    let mut found: Vec<&'static str> = countries_at(folded).into_iter().map(|(_, c)| c).collect();
     found.sort_unstable();
     found.dedup();
     found
+}
+
+/// Where a sentence says on-site (`true`) or travel (`false`), by byte offset.
+fn place_cues(folded: &str) -> Vec<(usize, bool)> {
+    let mut cues: Vec<(usize, bool)> = lex::ONSITE_WORDS
+        .iter()
+        .flat_map(|w| folded.match_indices(w).map(|(at, _)| (at, true)))
+        .chain(lex::TRAVEL_WORDS.iter().flat_map(|w| {
+            folded
+                .match_indices(w)
+                .filter(|(at, _)| {
+                    let before = folded[..*at].chars().next_back();
+                    let after = folded[at + w.len()..].chars().next();
+                    before.is_none_or(|c| !c.is_alphanumeric())
+                        && after.is_none_or(|c| !c.is_alphanumeric())
+                })
+                .map(|(at, _)| (at, false))
+        }))
+        .collect();
+    cues.sort_unstable();
+    cues
 }
 
 pub(crate) fn location_countries(location: &str) -> Vec<&'static str> {
@@ -537,6 +569,50 @@ pub(crate) fn location_countries(location: &str) -> Vec<&'static str> {
             digits.len() == 5 && digits.chars().all(|c| c.is_ascii_digit())
         });
     if german_code { vec!["DE"] } else { Vec::new() }
+}
+
+/// A country with the sentence that names it.
+type Named = (&'static str, Range<usize>);
+
+/// The countries of on-site statements and of travel. A country belongs to the on-site or
+/// travel statement before it (else the first one after it): `vor Ort in Düsseldorf,
+/// gelegentlich Reisen nach Polen` works in Germany and travels to Poland. A frame line
+/// naming the place (`Ort: 3199 Rotterdam, Niederlande`) is decided like the job location.
+fn places_of_work(segments: &[(Range<usize>, String)]) -> (Vec<Named>, Vec<Named>) {
+    let mut onsite: Vec<Named> = Vec::new();
+    let mut travel: Vec<Named> = Vec::new();
+    for (range, f) in segments {
+        let named = countries_at(f);
+        if named.is_empty() {
+            continue;
+        }
+        let place = lex::PLACE_LABELS
+            .iter()
+            .any(|l| f.trim_start().starts_with(l));
+        let cues = place_cues(f);
+        let (mut here, mut away): (Vec<&'static str>, Vec<&'static str>) = (Vec::new(), Vec::new());
+        for (at, code) in named {
+            let cue = cues
+                .iter()
+                .rev()
+                .find(|(c, _)| *c < at)
+                .or_else(|| cues.iter().find(|(c, _)| *c > at))
+                .map(|&(_, onsite)| onsite);
+            match (place, cue) {
+                (true, _) | (false, Some(true)) => here.push(code),
+                (false, Some(false)) => away.push(code),
+                (false, None) => {}
+            }
+        }
+        for list in [&mut here, &mut away] {
+            list.sort_unstable();
+            list.dedup();
+        }
+        away.retain(|c| !here.contains(c));
+        onsite.extend(here.into_iter().map(|c| (c, range.clone())));
+        travel.extend(away.into_iter().map(|c| (c, range.clone())));
+    }
+    (onsite, travel)
 }
 
 fn country(
@@ -567,23 +643,7 @@ fn country(
                 .iter()
                 .any(|c| allowed.iter().any(|a| a == c))
     });
-    let mut onsite: Vec<(&'static str, Range<usize>)> = Vec::new();
-    let mut travel: Vec<(&'static str, Range<usize>)> = Vec::new();
-    for (range, f) in segments {
-        let codes = countries_in(f);
-        if codes.is_empty() {
-            continue;
-        }
-        // `Ort: 3199 Rotterdam, Niederlande` names the place of work like the job's location.
-        let place = lex::PLACE_LABELS
-            .iter()
-            .any(|l| f.trim_start().starts_with(l));
-        if place || lex::ONSITE_WORDS.iter().any(|w| f.contains(w)) {
-            onsite.extend(codes.iter().map(|c| (*c, range.clone())));
-        } else if lex::TRAVEL_WORDS.iter().any(|w| contains_word(f, w)) {
-            travel.extend(codes.iter().map(|c| (*c, range.clone())));
-        }
-    }
+    let (onsite, travel) = places_of_work(segments);
     let located = outside(&location_countries(location));
     let onsite_codes: Vec<&'static str> = onsite.iter().map(|(c, _)| *c).collect();
     let onsite_out = outside(&onsite_codes);
@@ -1138,6 +1198,46 @@ mod tests {
                 &serde_json::json!({ "harte_kriterien": { "tagessatz_max": 2 } })
             ),
             ["tagessatz_max"]
+        );
+    }
+
+    /// Country findings of an ad in Cologne for a profile that works in Germany.
+    fn country_codes(text: &str) -> Vec<(ReasonCode, bool)> {
+        let data = serde_json::json!({ "harte_kriterien": { "laender": ["DE"] } });
+        let criteria = HardCriteria::new(&super::super::profile::criteria(&data), &data);
+        let allowed = criteria.countries.clone().expect("countries");
+        let job = JobFacts {
+            title: "Projektleitung",
+            text,
+            location: "Köln",
+            portal: Portal::LinkedIn,
+            facts: None,
+            posted: None,
+        };
+        country(&criteria, &allowed, &job, &segments(text), &fold(text))
+            .into_iter()
+            .map(|f| (f.code, f.decided))
+            .collect()
+    }
+
+    /// Only the countries of the on-site statement are places of work; a business trip in
+    /// the same sentence is at most a check.
+    #[test]
+    fn only_the_place_of_work_decides_the_country() {
+        assert_eq!(
+            country_codes(
+                "Vier Tage pro Woche vor Ort in Düsseldorf, gelegentlich Reisen zu Standorten \
+                 in Belgien, Polen und Spanien."
+            ),
+            [(ReasonCode::CountryUnclear, false)]
+        );
+        assert_eq!(
+            country_codes("Einsatz vor Ort in Wien, gelegentlich Reisen nach Köln."),
+            [(ReasonCode::Country, true)]
+        );
+        assert_eq!(
+            country_codes("In Wien vor Ort."),
+            [(ReasonCode::Country, true)]
         );
     }
 }

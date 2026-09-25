@@ -1,0 +1,39 @@
+Titel: Data Engineer Snowflake / dbt (m/w/d) - Arbeitnehmerüberlassung
+Unternehmen: Peregrin Personal- und IT-Service GmbH
+Ort: Nürnberg
+Quelle: freelancermap
+Link: https://www.freelancermap.de/projekt/data-engineer-snowflake-dbt-m-w-d-arbeitnehmerueberlassung-2996730
+Abgerufen am: 21.09.2026 07:40
+
+Projekt-ID 2996730
+Eingestellt am 20.09.2026
+Start 10/2026
+Dauer 12 Monate
+Einsatzort Nürnberg
+Remote 40 %
+
+Projektbeschreibung
+Im Rahmen der Arbeitnehmerüberlassung suchen wir für unseren Kunden, einen Versicherungskonzern mit Sitz in Nürnberg, einen Data Engineer (m/w/d) zur Unterstützung des Teams Data & Analytics.
+
+Deine Aufgaben
+Entwicklung und Betrieb von Datenstrecken in Snowflake
+Modellierung mit dbt und Orchestrierung mit Apache Airflow
+Anbindung neuer Quellsysteme aus dem Bestandsführungssystem
+Datenqualitätsprüfungen und Dokumentation im Data Catalog
+Unterstützung der Fachbereiche bei Power BI Berichten
+
+Dein Profil
+Abgeschlossenes Studium der Informatik oder vergleichbare Ausbildung
+Erste Berufserfahrung (1 bis 3 Jahre) im Data Engineering, gern auch Berufseinsteiger mit Praxissemester
+Gute Kenntnisse in SQL und Python
+Idealerweise erste Erfahrung mit Snowflake oder einer anderen Cloud-Datenplattform
+Gute Deutschkenntnisse, Englisch für die Dokumentation
+
+Was wir bieten
+Beginn zum 01.10.2026, Einsatz zunächst für 12 Monate
+Stundenlohn 34,50 € brutto nach Tarifvertrag GVP plus Branchenzuschlag
+Übernahmeoption durch den Kunden nach 12 Monaten
+2 Tage mobiles Arbeiten pro Woche, mobiles Arbeiten aus dem Ausland ist nicht möglich
+30 Tage Urlaub, Fahrtkostenzuschuss
+
+Bitte beachte, dass wir für diese Position ausschließlich eine Festanstellung im Rahmen der ANÜ anbieten. Bewerbungen von Freiberuflern können wir leider nicht berücksichtigen.

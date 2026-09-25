@@ -308,6 +308,7 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
             continue;
         }
         let parts = split(phrase);
+        let tails = shared_objects(phrase, &parts);
         // `X, idealerweise Y`: nice from the cue on; `X und Y von Vorteil`: a closing cue
         // makes the whole line nice.
         let closing = parts.last().is_some_and(|(r, _)| {
@@ -315,35 +316,24 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
             lex::NICE_CLOSING.iter().any(|c| folded.contains(c))
         });
         let mut nice = kind == ReqKind::Nice || closing;
-        // One soft part among parts without a known skill makes all of them soft
-        // (`verbindlich, pragmatisch und mit Freude am Detail`).
-        // Each part classified once.
-        let classes: Vec<Class> = parts
-            .iter()
-            .map(|(r, _)| classify(&phrase[r.clone()], level, vocab))
-            .collect();
-        let soft_line = classes.contains(&Class::Soft)
-            && parts
-                .iter()
-                .zip(&classes)
-                .all(|((r, _), class)| *class == Class::Soft || !known_skill(&phrase[r.clone()]));
-        for ((span, alternatives), class) in parts.into_iter().zip(classes) {
+        let classes = part_classes(phrase, &parts, level, vocab);
+        for (((span, alternatives), class), tail) in parts.into_iter().zip(classes).zip(tails) {
             let whole = &phrase[span.clone()];
             if atoms::atoms(whole, vocab).is_empty() || not_needed(whole) || noise_item(whole) {
                 continue;
             }
+            let with_tail = |text: &str| match &tail {
+                Some(t) => format!("{text} {}", &phrase[t.clone()]),
+                None => text.to_owned(),
+            };
             nice |= nice_cue(whole);
             let kind = if nice { ReqKind::Nice } else { kind };
-            let class = match class {
-                Class::Skill if soft_line => Class::Soft,
-                class => class,
-            };
             doc.items.push(Item {
                 span: Some(start + span.start..start + span.end),
-                text: whole.to_owned(),
+                text: with_tail(whole),
                 alternatives: alternatives
                     .into_iter()
-                    .map(|r| phrase[r].to_owned())
+                    .map(|r| with_tail(&phrase[r]))
                     .collect(),
                 kind,
                 class,
@@ -546,6 +536,74 @@ fn joined(phrase: &str, seps: &[Range<usize>]) -> Vec<Range<usize>> {
         kept.push(sep.clone());
     }
     kept
+}
+
+/// The class of each part of a line, classified once: one soft part among parts without a
+/// known skill makes all of them soft (`verbindlich, pragmatisch und mit Freude am Detail`).
+fn part_classes(
+    phrase: &str,
+    parts: &[(Range<usize>, Vec<Range<usize>>)],
+    level: Option<u8>,
+    vocab: &Vocab,
+) -> Vec<Class> {
+    let classes: Vec<Class> = parts
+        .iter()
+        .map(|(r, _)| classify(&phrase[r.clone()], level, vocab))
+        .collect();
+    let soft_line = classes.contains(&Class::Soft)
+        && parts
+            .iter()
+            .zip(&classes)
+            .all(|((r, _), class)| *class == Class::Soft || !known_skill(&phrase[r.clone()]));
+    classes
+        .into_iter()
+        .map(|class| match class {
+            Class::Skill if soft_line => Class::Soft,
+            class => class,
+        })
+        .collect()
+}
+
+/// The object a part shares with the next ones (`Erfahrung im Aufbau und in der Führung von
+/// Vertriebsteams`: `im Aufbau` is of the sales teams too): a part that ends in a noun after
+/// an activity preposition, followed by parts that start with one, takes the object the
+/// last of them names (`von ...`), as a range of `phrase`.
+fn shared_objects(
+    phrase: &str,
+    parts: &[(Range<usize>, Vec<Range<usize>>)],
+) -> Vec<Option<Range<usize>>> {
+    let preposition = |w: &str| lex::ACTIVITY_PREPOSITIONS.contains(&w.to_lowercase().as_str());
+    let words = |r: &Range<usize>| phrase[r.clone()].split_whitespace().collect::<Vec<&str>>();
+    let bare_activity = |r: &Range<usize>| {
+        let w = words(r);
+        w.len() >= 2
+            && w.last()
+                .is_some_and(|l| l.chars().next().is_some_and(char::is_uppercase))
+            && w[w.len().saturating_sub(3)..w.len() - 1]
+                .iter()
+                .any(|p| preposition(p))
+    };
+    let object = |r: &Range<usize>| -> Option<Range<usize>> {
+        let w = words(r);
+        if !w.first().is_some_and(|f| preposition(f)) {
+            return None;
+        }
+        let opener = w.iter().skip(2).find(|x| lex::OBJECT_OPENERS.contains(x))?;
+        let at = opener.as_ptr() as usize - phrase.as_ptr() as usize;
+        Some(at..r.end)
+    };
+    (0..parts.len())
+        .map(|i| {
+            let (part, _) = &parts[i];
+            if !bare_activity(part) || object(part).is_some() {
+                return None;
+            }
+            parts[i + 1..]
+                .iter()
+                .take_while(|(r, _)| words(r).first().is_some_and(|f| preposition(f)))
+                .find_map(|(r, _)| object(r))
+        })
+        .collect()
 }
 
 /// Is `after` a second object of the head noun that starts `before` (`Steuerung großer
@@ -1433,5 +1491,23 @@ mod tests {
             ]
         );
         assert_eq!(heading_kind("Projektanbieter"), Some(HeadingKind::Neutral));
+    }
+
+    /// Parts joined by `und` share the object the last one names: no bare `Erfahrung im
+    /// Aufbau` is left.
+    #[test]
+    fn split_parts_keep_their_shared_object() {
+        let doc = read(
+            "Ihr Profil\n- Erfolgreiche Erfahrung im Aufbau und in der Führung von Vertriebsteams\n",
+            &Vocab::all(),
+        );
+        let texts: Vec<&str> = doc.items.iter().map(|i| i.text.as_str()).collect();
+        assert_eq!(
+            texts,
+            [
+                "Erfolgreiche Erfahrung im Aufbau von Vertriebsteams",
+                "in der Führung von Vertriebsteams"
+            ]
+        );
     }
 }

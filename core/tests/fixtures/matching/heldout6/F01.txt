@@ -1,0 +1,44 @@
+Titel: SAP S/4HANA FI/CO Berater (m/w/d) - Migration Hauptbuch und Anlagenbuchhaltung
+Unternehmen: Brückwerk IT Consulting GmbH
+Ort: Stuttgart
+Quelle: freelancermap
+Link: https://www.freelancermap.de/projekt/sap-s-4hana-fi-co-berater-m-w-d-migration-hauptbuch-2984417
+Abgerufen am: 03.09.2026 08:12
+
+Projekt-ID 2984417
+Eingestellt am 02.09.2026
+Start 11/2026
+Dauer 5 Monate
+Einsatzort Stuttgart
+Remote 80 %
+
+Projektbeschreibung
+Für unseren Kunden, einen Automobilzulieferer aus dem Raum Stuttgart, suchen wir zur Verstärkung des Finance-Teams im laufenden S/4HANA-Brownfield-Projekt einen erfahrenen SAP FI/CO Berater (m/w/d). Das Projekt befindet sich in der Realisierungsphase, der Go-live ist für den 01.04.2027 geplant.
+
+Projektdaten
+Start: 01.11.2026
+Stundensatz: 105,00 €/h zzgl. MwSt.
+Laufzeit: bis 31.03.2027, Option auf Verlängerung bis Hypercare-Ende
+Auslastung: 5 Tage/Woche
+Einsatz: 80 % remote, ca. 1 Tag pro Woche vor Ort in Stuttgart-Vaihingen
+
+Ihre Aufgaben
+- Migration der Hauptbuchhaltung und der Anlagenbuchhaltung nach SAP S/4HANA Finance
+- Customizing Universal Journal (ACDOCA), Ledger- und Belegartenkonzept
+- Umstellung auf New Asset Accounting inklusive paralleler Bewertung (HGB/IFRS)
+- Begleitung der Testphasen (SIT, UAT) und Fehleranalyse
+- Abstimmung mit den Fachbereichen Rechnungswesen und Controlling
+- Erstellung von Fachkonzepten und Schulungsunterlagen für Key User
+
+Ihr Profil
+- Mindestens 5 Jahre Projekterfahrung in SAP FI/CO, davon mindestens zwei S/4HANA-Projekte
+- Sehr gute Kenntnisse in FI-AA und New Asset Accounting
+- Erfahrung mit dem SAP S/4HANA Migration Cockpit von Vorteil
+- Branchenkenntnisse Automotive wünschenswert
+- Verhandlungssichere Deutschkenntnisse (mind. C1), gute Englischkenntnisse
+
+Hinweis
+Die Beauftragung erfolgt als Dienstvertrag über unser Haus. Es handelt sich nicht um eine Arbeitnehmerüberlassung. Bitte senden Sie uns Ihr aktuelles Profil mit Verfügbarkeit und Stundensatz über das Bewerbungsformular.
+
+Über Brückwerk IT Consulting GmbH
+Wir vermitteln seit 2009 SAP-Spezialisten in Projekte bei Industrie- und Handelsunternehmen in der DACH-Region.

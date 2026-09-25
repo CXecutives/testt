@@ -566,6 +566,9 @@ pub(crate) const DAY_WORDS_ONSITE: &[&str] = &[
 ];
 /// Verbal particles: `Einführung`, `Durchführung`, `Ausbildung` are no compounds of
 /// `Führung` or `Bildung`; `Buchführung` is bookkeeping, no leadership.
+/// Heads that verbal particles bind to (`Einführung`, `Durchführung`, `Markteinführung`): a
+/// modifier ending in a particle makes another word, no compound of the head.
+pub(crate) const PARTICLE_HEADS: &[&str] = &["fuhrung"];
 pub(crate) const PARTICLE_MODIFIERS: &[&str] = &[
     "ab", "an", "auf", "aus", "bei", "buch", "durch", "ein", "ent", "fort", "mit", "nach", "uber",
     "um", "unter", "ver", "vor", "weg", "wieder", "zu", "zuruck",
@@ -1225,6 +1228,8 @@ pub(crate) const CONTRACT_DENIED: &[&str] = &[
     "keine freiberufler",
     "no freelancer",
     "no interim",
+    "not consider",
+    "don't consider",
 ];
 /// Currencies and rate units next to an amount (`950 €`, `EUR 950`, `95 €/h`).
 pub(crate) const RATE_UNITS: &[&str] = &[
@@ -1574,6 +1579,11 @@ pub(crate) const ONSITE_WORDS: &[&str] = &[
     "on-site",
     "onsite",
 ];
+/// Prepositions of a requirement part that names an activity (`im Aufbau`, `in der Führung`)
+/// and the words that open its object (`von Vertriebsteams`): parts joined by `und` share
+/// the object the last one names.
+pub(crate) const ACTIVITY_PREPOSITIONS: &[&str] = &["im", "in", "beim", "bei", "zur", "zum", "am"];
+pub(crate) const OBJECT_OPENERS: &[&str] = &["von", "of"];
 /// Words that make a country mention travel (a check, never decided).
 pub(crate) const TRAVEL_WORDS: &[&str] = &["reise", "reisen", "travel", "workshops an"];
 /// Words for "fully remote".
