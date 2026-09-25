@@ -351,9 +351,10 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [ ] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios
 - [x] Long tasks at 2000 jobs (2026-09-25): the tab switch and the windows while scrolling stay below 50 ms on the
       reference machine (see "Performance" above; harness `timing.spec.ts`, 10 of 10 in Chromium and WebKit; the smoke
-      probe of the real app shows none). Still above 50 ms at 4x CPU throttling with 300 rows mounted: the first
-      layout of a job in the reader (text shaping), the fold of a moved row (the one height animation moves every row
-      below it), and a tab switch that tears down hundreds of rows.
+      probe of the real app shows none). Still above 50 ms at 4x CPU throttling with 300 rows mounted (50 to 100 ms):
+      the first layout of a job in the reader (text shaping), the fold of a moved row and its return on undo (every row
+      below it moves: paint properties and layers of the whole list), and a tab switch or a re-sort that tears down
+      hundreds of rows at once (Svelte's teardown of their effects).
 - [ ] Performance: start time; contrast
 - [ ] Consistency audit per screen (checklist below) and fixes; one adversarial review workflow over the whole diff
 
