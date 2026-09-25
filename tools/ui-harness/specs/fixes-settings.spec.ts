@@ -2,7 +2,7 @@
 // Profil page (track "settings").
 
 import type { Page } from '@playwright/test';
-import { expect, open, test } from './fixtures';
+import { calls, expect, open, test } from './fixtures';
 
 const WIN = '?platform=windows';
 
@@ -153,6 +153,46 @@ test('notes and errors in Einstellungen follow a switch of the language', async 
   await expect(refused).toHaveText('At least one portal must be active.');
   await expect(form).toContainText('The Gmail address is missing.');
   await expect(form).toContainText('The app password is missing.');
+});
+
+test('details off: no page counts, and only the alert mails keep their problem', async ({
+  page,
+}) => {
+  await settings(page);
+  const details = page.getByTestId('toggle-details-freelancermap');
+  await expect(page.getByTestId('quota-freelancermap')).toContainText('Heute 86 von 100 Seiten');
+  await details.click();
+  await expect(details).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByTestId('quota-freelancermap')).toHaveCount(0);
+  await expect(page.getByTestId('status-freelancermap')).toHaveCount(0);
+
+  await settings(page, `${WIN}&scenario=paused`);
+  // A pause concerns the pages: it goes with the details.
+  await expect(page.getByTestId('health-linkedin')).toBeVisible();
+  await page.getByTestId('toggle-details-linkedin').click();
+  await expect(page.getByTestId('health-linkedin')).toHaveCount(0);
+  // Alert mails without jobs come from Gmail: they stay.
+  await page.getByTestId('toggle-details-freelance').click();
+  await expect(page.getByTestId('toggle-details-freelance')).toHaveAttribute(
+    'aria-checked',
+    'false',
+  );
+  await expect(page.getByTestId('health-freelance')).toBeVisible();
+});
+
+test('alert mails without jobs: the portal card opens one, like the day overview', async ({
+  page,
+}) => {
+  await settings(page, `${WIN}&scenario=paused`);
+  await page
+    .getByTestId('health-freelance')
+    .getByRole('button', { name: 'Alert-Mail öffnen' })
+    .click();
+  expect((await calls(page, 'open_target')).at(-1)?.[1]).toEqual({
+    target: { kind: 'alertMail', gmailId: '18c2f0a9d1e4b7a3' },
+  });
+  // A pause has no mail to open.
+  await expect(page.getByTestId('health-linkedin').getByRole('button')).toHaveCount(0);
 });
 
 test('the first run opens at its top, the caret waiting in the address', async ({ page }) => {

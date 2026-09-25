@@ -2,8 +2,10 @@
   One portal in the settings, the same skeleton on every card: the header (the portal by its
   web address, the portal in the browser, its switch Aktiv; the name is the switch's label),
   then the switch rows, then the status under its own divider (the portal's problem in one
-  sentence that says whether she has to act, and the pages used today, the meter only from
-  80 % or while paused). A portal that is off says in one line that the fetch skips it.
+  sentence that says whether she has to act, with "Alert-Mail öffnen" when alert mails came
+  without jobs, and the pages used today, the meter only from 80 % or while paused). What
+  concerns only the pages (a pause, the limit, the sign-in) goes while details are off:
+  then no page is fetched. A portal that is off says in one line that the fetch skips it.
   Each switch carries its own risk and keeps it: Details holen the risk of the requests
   (while it is on), Mit Anmeldung always Kontorisiko. Sign-in exists only while details and
   sign-in are both on; a stored sign-in the switches no longer show keeps its Abmelden.
@@ -43,12 +45,28 @@
   /** Only the answer to the latest save may replace the state (quick double flips). */
   let saves = 0;
 
-  /** Its problem in one sentence; `portal.actionNeeded` says whether she has to act. */
-  const health = $derived(healthAdvice(portal.health));
-  /** The pages used: the fuller window's numbers; the meter only near the limit. */
+  /** Alert mails of the portal that came without jobs (a mail problem, not one of the pages). */
+  const emptyMails = $derived(
+    portal.health.kind === 'layoutSuspect' ? portal.health.emptyMails : 0,
+  );
+  /** Its problem in one sentence; `portal.actionNeeded` says whether she has to act. Without
+   *  details only the alert mails can have one (no page is fetched). */
+  const health = $derived(
+    portal.fetchDetails || emptyMails > 0 ? healthAdvice(portal.health) : null,
+  );
+  /** One of those mails to look at in Gmail (from the last fetch), as the day overview does. */
+  const alertMail = $derived(
+    emptyMails > 0
+      ? (app.state?.lastRun?.emptyAlerts.find(
+          (alert) => alert.portal === portal.portal && alert.gmailId !== null,
+        )?.gmailId ?? null)
+      : null,
+  );
+  /** The pages used: the fuller window's numbers; the meter only near the limit. Only while
+   *  details are fetched: without them no page counts. */
   const quota = $derived.by(() => {
     const q = portal.quota;
-    if (q === null) return null;
+    if (q === null || !portal.fetchDetails) return null;
     const day = q.usedDay / Math.max(q.capDay, 1);
     const hour = q.usedHour / Math.max(q.capHour, 1);
     const paused = portal.health.kind === 'paused' || portal.health.kind === 'quotaReached';
@@ -114,6 +132,13 @@
 
   function openPortal(): void {
     invoke('open_target', { target: { kind: 'portalHome', portal: portal.portal } }).catch(
+      (failure: unknown) => (error = () => errorText(failure)),
+    );
+  }
+
+  function openMail(gmailId: string): void {
+    error = null;
+    invoke('open_target', { target: { kind: 'alertMail', gmailId } }).catch(
       (failure: unknown) => (error = () => errorText(failure)),
     );
   }
@@ -268,6 +293,9 @@
               tone={portal.actionNeeded ? 'warning' : 'info'}
               variant="inline"
               text={health}
+              action={alertMail
+                ? { label: t.reader.mail, onclick: () => openMail(alertMail) }
+                : null}
               testid="health-{portal.portal}"
             />
           {/if}
