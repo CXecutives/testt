@@ -177,3 +177,11 @@ test('one word per thing: the view switch, the Excel file', async ({ page }) => 
   // The glossary's Excel-Datei, as in Einstellungen ("Excel öffnen" read as "start Excel").
   await expect(page.getByTestId('overview-excel')).toHaveText('Excel-Datei öffnen');
 });
+
+test('a sentence speaks to the user and quotes the control it names', async ({ page }) => {
+  await settings(page);
+  // "Erst Details holen einschalten." read as "first fetch details, then switch on".
+  await page.getByTestId('toggle-details-freelance').click();
+  await page.getByTestId('toggle-login-freelance').hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Schalte erst „Details holen“ ein.');
+});

@@ -882,7 +882,7 @@ export const en: Catalog = {
       onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     closed: 'The ad no longer takes applications.',
-    detailsOff: 'Fetch details is off for this portal.',
+    detailsOff: '“Fetch details” is off for this portal.',
     short: SHORT_TEXT,
     loadFailed: 'The job could not be loaded.',
   },
@@ -1162,7 +1162,7 @@ export const en: Catalog = {
     /** The last fetch could not reach Gmail, or Gmail refused the password. */
     unreachable: 'Not reachable',
     refused: 'Refused',
-    mailRefused: 'Gmail rejected the address or app password, so enter them again with Change.',
+    mailRefused: 'Gmail rejected the address or app password, so enter them again with “Change”.',
     vault: {
       windowsCredentialManager: 'The app password is kept in the Windows Credential Manager.',
       macosKeychain: 'The app password is kept in the macOS keychain.',
@@ -1186,7 +1186,7 @@ export const en: Catalog = {
     autoEmptyTrashHint: 'Deleted jobs are then gone forever.',
     active: 'Active',
     details: 'Fetch details',
-    needsDetails: 'Turn on Fetch details first.',
+    needsDetails: 'Turn on “Fetch details” first.',
     login: 'With sign-in',
     loginHint: 'Shows full ads instead of a teaser.',
     risk: {

@@ -45,7 +45,7 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   const fetch = page.getByTestId('first-fetch');
   await expect(fetch).toHaveAttribute('aria-disabled', 'true');
   await fetch.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst ein Postfach verbinden.');
+  await expect(page.getByRole('tooltip')).toHaveText('Verbinde erst ein Postfach.');
 
   await page.getByTestId('mailbox-user').fill('alerts.demo');
   await page.getByTestId('mailbox-password').fill('abcdabcdabcdabcd');
@@ -340,7 +340,7 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   await expect(pause).toHaveClass(/info/);
   const mails = page.getByTestId('health-freelance');
   await expect(mails).toHaveText(
-    '2 Alert-Mails enthielten keine Jobs, bitte in Gmail nachsehen, ob dort welche stehen.',
+    '2 Alert-Mails enthielten keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
   );
   await expect(mails).toHaveClass(/warning/);
   // The hour binds: bar and words speak of the same window.
@@ -513,7 +513,7 @@ test('locked buttons explain themselves', async ({ page }) => {
     .click();
   await expect(page.getByTestId('mailbox-form')).toBeVisible();
   await page.getByTestId('full-mailbox').hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst ein Postfach verbinden.');
+  await expect(page.getByRole('tooltip')).toHaveText('Verbinde erst ein Postfach.');
 });
 
 test('first run: the sidebar waits until the setup is done', async ({ page }) => {

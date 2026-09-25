@@ -5,11 +5,13 @@
 // Style rules (CLAUDE.md, checked by core/tests/ui_contract.rs): little text, plain and
 // human. Buttons are one verb phrase without a period; notes are one short sentence with a
 // period; headings and labels end without a colon; no dash or em dash as a separator, no
-// "X: Y", no exclamation marks, no text twice. Glossary: Job · Portal · Passung · Details ·
-// Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Excel-Datei · Ausgeschlossen · Neu ·
-// Zu prüfen · Favorit (Favoriten) · Archiv · Papierkorb (docs/PLAN.md). A profile field has
-// one name: the label of its form field (without the unit) in errors, warnings and the
-// profile.
+// "X: Y", no exclamation marks, no text twice. A sentence speaks to the user as "du", and an
+// instruction in a sentence is a du imperative ("Verbinde erst ein Postfach."); a button
+// stays an infinitive ("Postfach verbinden"). A control a sentence names stands in quotes
+// („Details holen“). Glossary (docs/PLAN.md): Job · Portal · Passung · Details · Abrufen ·
+// Profil · Postfach · Alert-Mail · Übersicht · Excel-Datei · Ausgeschlossen · Neu · Zu prüfen ·
+// Favorit (Favoriten) · Archiv · Papierkorb. A profile field has one name: the label of its
+// form field (without the unit) in errors, warnings and the profile.
 //
 // Every code of the generated types has exactly one text here: the tables are typed as
 // `Record<Code, ...>`, so a new code without a text is a type error.
@@ -724,7 +726,7 @@ export const de = {
     } satisfies Record<JobSort, string>,
     /** The order without a usable profile: there is no fit to sort by. */
     sortNoProfile: 'Ohne Profil nur nach Datum.',
-    needsMailbox: 'Erst ein Postfach verbinden.',
+    needsMailbox: 'Verbinde erst ein Postfach.',
   },
   run: {
     never: 'Noch kein Abruf',
@@ -945,7 +947,7 @@ export const de = {
       onRequest: detailSays.onRequest,
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     closed: 'Die Anzeige nimmt keine Bewerbungen mehr an.',
-    detailsOff: 'Details holen ist für dieses Portal aus.',
+    detailsOff: '„Details holen“ ist für dieses Portal aus.',
     short: SHORT_TEXT,
     loadFailed: 'Der Job ließ sich nicht laden.',
   },
@@ -954,7 +956,7 @@ export const de = {
     profileUnreadable: PROFILE_UNREADABLE,
     label: 'Tagesüberblick',
     /** Shown in the empty reader when the overview has nothing else to say (like Mail's "no message selected"). */
-    pick: 'Links einen Job auswählen.',
+    pick: 'Wähle links einen Job aus.',
     issues: 'Offene Punkte',
     best: 'Neu und passend',
     excel: 'Excel-Datei öffnen',
@@ -986,10 +988,10 @@ export const de = {
       quota: (iso: string) =>
         `Das Limit ist erreicht, der Abruf macht ab ${formatMoment(iso)} von selbst weiter.`,
       emptyMails: (mails: number) =>
-        `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte in Gmail nachsehen, ob dort welche stehen.`,
+        `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.`,
       pages:
         'Die Seiten des Portals sehen anders aus, der nächste Abruf versucht es von selbst wieder.',
-      login: 'Die Anmeldung ist abgelaufen, bitte neu anmelden.',
+      login: 'Die Anmeldung ist abgelaufen, bitte melde dich neu an.',
     },
   },
   profile: {
@@ -1050,7 +1052,7 @@ export const de = {
       update: 'Profil mit dem Lebenslauf aktualisiert',
     },
     unsaved: 'Nicht gespeichert',
-    review: 'Die Angaben prüfen, dann speichern.',
+    review: 'Prüfe die Angaben und speichere sie.',
     save: 'Speichern',
     discard: 'Verwerfen',
     saved: 'Gespeichert.',
@@ -1133,14 +1135,14 @@ export const de = {
       remoteOutside: 'Remote-Stellen im Ausland zulassen',
       remoteOutsideHint:
         'Ausgeschaltet markiert die App ganz remote Stellen mit Sitz im Ausland zum Prüfen.',
-      remoteOutsideOff: 'Erst Einsatzländer wählen.',
+      remoteOutsideOff: 'Wähle erst die Einsatzländer.',
       noAnue: 'Arbeitnehmerüberlassung ausschließen',
       noPermanent: 'Festanstellung ausschließen',
       noPermanentHint: 'Nur bei klarem Wortlaut, sonst markiert die App den Job zum Prüfen.',
       available: 'Verfügbar ab',
       date: 'Datum',
       datePlaceholder: '01.11.2026',
-      dateInvalid: 'Datum im Format 01.11.2026 eingeben.',
+      dateInvalid: 'Gib das Datum im Format 01.11.2026 ein.',
       targetYears: 'Mindest-Erfahrung der Stelle (Jahre)',
       targetYearsHint: 'Stellen für deutlich weniger Erfahrung fallen weg.',
       minSalary: 'Mindest-Jahresgehalt (€)',
@@ -1246,7 +1248,7 @@ export const de = {
       copyFailed: 'Der Prompt ließ sich nicht kopieren.',
       copy: 'Prompt kopieren',
       copyAgain: 'Erneut kopieren',
-      step: 'In eine KI einfügen und den Lebenslauf anhängen.',
+      step: 'Füge ihn in eine KI ein und hänge den Lebenslauf an.',
       preview: 'Prompt ansehen',
       answer: 'Antwort der KI',
       take: 'Übernehmen',
@@ -1263,7 +1265,7 @@ export const de = {
     /** The last fetch could not reach Gmail, or Gmail refused the password. */
     unreachable: 'Nicht erreichbar',
     refused: 'Abgelehnt',
-    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, bitte über Ändern neu eintragen.',
+    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, bitte trag sie über „Ändern“ neu ein.',
     vault: {
       windowsCredentialManager:
         'Das App-Passwort liegt in der Windows-Anmeldeinformationsverwaltung.',
@@ -1288,7 +1290,7 @@ export const de = {
     autoEmptyTrashHint: 'Gelöschte Jobs sind danach endgültig weg.',
     active: 'Aktiv',
     details: 'Details holen',
-    needsDetails: 'Erst Details holen einschalten.',
+    needsDetails: 'Schalte erst „Details holen“ ein.',
     login: 'Mit Anmeldung',
     loginHint: 'Zeigt ganze Anzeigen statt eines Anrisses.',
     risk: {
