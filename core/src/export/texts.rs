@@ -86,6 +86,8 @@ pub fn html_more(count: usize) -> String {
 pub const HTML_MATCH: &str = "Passung";
 pub const HTML_MET: &str = "Erfüllt";
 pub const HTML_EXCLUDED: &str = "Ausgeschlossen";
+/// A job whose portal showed only the start of its ad (the list's badge in the app).
+pub const HTML_TEASER: &str = "Nur Anriss";
 pub const HTML_UNSCORABLE: &str = "Nicht bewertbar";
 /// A job not scored yet (also one that waits for its details), like the app's ring.
 pub const HTML_NONE: &str = "Noch nicht bewertet";
@@ -193,6 +195,7 @@ pub mod en {
     pub const HTML_MATCH: &str = "Match";
     pub const HTML_MET: &str = "Met";
     pub const HTML_EXCLUDED: &str = "Excluded";
+    pub const HTML_TEASER: &str = "Teaser only";
     pub const HTML_UNSCORABLE: &str = "Not scorable";
     pub const HTML_NONE: &str = "Not scored yet";
 
@@ -295,6 +298,7 @@ pub struct Texts {
     pub html_match: &'static str,
     pub html_met: &'static str,
     pub html_excluded: &'static str,
+    pub html_teaser: &'static str,
     pub html_unscorable: &'static str,
     pub html_none: &'static str,
     /// A moment as text (`strftime`): `19.09.2026 14:05`, `19/09/2026 14:05`.
@@ -335,6 +339,7 @@ pub const DE: Texts = Texts {
     html_match: HTML_MATCH,
     html_met: HTML_MET,
     html_excluded: HTML_EXCLUDED,
+    html_teaser: HTML_TEASER,
     html_unscorable: HTML_UNSCORABLE,
     html_none: HTML_NONE,
     moment: "%d.%m.%Y %H:%M",
@@ -372,6 +377,7 @@ pub const EN: Texts = Texts {
     html_match: en::HTML_MATCH,
     html_met: en::HTML_MET,
     html_excluded: en::HTML_EXCLUDED,
+    html_teaser: en::HTML_TEASER,
     html_unscorable: en::HTML_UNSCORABLE,
     html_none: en::HTML_NONE,
     moment: "%d/%m/%Y %H:%M",

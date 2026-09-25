@@ -52,7 +52,7 @@ li { display: flex; gap: 16px; padding: 16px; margin: 0 0 8px; background: #fff;
 .job a { color: var(--navy); font-weight: 600; text-decoration: none; }
 .job a:hover { text-decoration: underline; }
 .sub { color: var(--low); font-size: 13px; }
-.met, .excluded, p.sub { margin: 6px 0 0; font-size: 13px; }
+.met, .excluded, .teaser, p.sub { margin: 6px 0 0; font-size: 13px; }
 .tag { display: inline-block; margin: 2px 6px 0 0; padding: 0 8px; border-radius: 10px;
   font-size: 12px; font-weight: 600; background: var(--line); color: var(--ink); }
 .met .tag:first-child { background: none; padding-left: 0; color: var(--low); }
@@ -215,6 +215,15 @@ fn item(out: &mut String, job: &JobRow, waits: bool, texts: &Texts) {
         esc(&crate::view::display_title(job)),
         esc(&sub.join(" · ")),
     );
+    // A job read from a teaser only says so, like its badge in the app's list (the ring
+    // looks like any other).
+    if job.desc_status == DescStatus::Teaser {
+        let _ = write!(
+            out,
+            "<p class=\"teaser\"><span class=\"tag\">{}</span></p>",
+            esc(texts.html_teaser)
+        );
+    }
     if let Some(m) = &job.match_ {
         // The met requirements the list keeps (at most two), each as a tag after a caption.
         if !m.top.is_empty() {
@@ -394,6 +403,12 @@ mod tests {
             .map(|ring| &ring[..ring.find("</div>").unwrap()])
             .collect();
         assert_eq!(rings.len(), 6, "{html}");
+        // The teaser says so once, in the words of the app's badge.
+        assert_eq!(
+            html.matches("<p class=\"teaser\"><span class=\"tag\">Nur Anriss</span></p>")
+                .count(),
+            1
+        );
         assert!(rings[0].starts_with("s8\"") && rings[0].contains("stroke-dasharray=\"83 100\""));
         assert!(rings[1].starts_with("s0\"") && rings[1].contains("stroke-dasharray=\"5 100\""));
         assert!(rings[2].starts_with("s4 provisional\"") && rings[2].ends_with(">42"));
@@ -416,7 +431,7 @@ mod tests {
         );
         // The line of an unscorable job sits like the others (no paragraph margins of its own).
         assert!(html.contains("<p class=\"sub\">Nicht bewertbar</p>"));
-        assert!(STYLE.contains(".met, .excluded, p.sub { margin: 6px 0 0;"));
+        assert!(STYLE.contains(".met, .excluded, .teaser, p.sub { margin: 6px 0 0;"));
     }
 
     /// The overview shows the title the app shows: without a portal's mark for an ended
