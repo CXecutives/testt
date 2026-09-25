@@ -393,6 +393,29 @@ fn yes() -> bool {
     true
 }
 
+/// freelancermap puts "Archiviertes Projekt - " (or "Archived project - ") in front of the
+/// title of a project that has ended; the job keeps its own title and is marked closed.
+pub(crate) fn without_archive_mark(title: &str) -> &str {
+    const MARKS: [&str; 2] = ["archiviertes projekt", "archived project"];
+    for mark in MARKS {
+        let Some(head) = title.get(..mark.len()) else {
+            continue;
+        };
+        if !head.eq_ignore_ascii_case(mark) {
+            continue;
+        }
+        let rest = title[mark.len()..].trim_start();
+        for sep in ['-', '\u{2013}', '\u{2014}', ':', '|'] {
+            if let Some(after) = rest.strip_prefix(sep).map(str::trim_start)
+                && !after.is_empty()
+            {
+                return after;
+            }
+        }
+    }
+    title
+}
+
 /// `expected_id`: the project id from the mail (unknown for slug links). Another id on the
 /// page means: the wrong page - never store its text.
 pub(crate) fn parse(html: &str, expected_id: Option<&str>) -> Result<Parsed, Cause> {
@@ -467,7 +490,11 @@ pub(crate) fn parse(html: &str, expected_id: Option<&str>) -> Result<Parsed, Cau
         text: project.description.as_deref().map(html_to_text),
         closed: project.is_archived || !project.active || project.disabled,
         fields: PageFields {
-            title: project.title.as_deref().map(one_line).unwrap_or_default(),
+            title: project
+                .title
+                .as_deref()
+                .map(|t| without_archive_mark(&one_line(t)).to_owned())
+                .unwrap_or_default(),
             company: project.company.as_deref().map(one_line).unwrap_or_default(),
             location,
         },
@@ -661,6 +688,26 @@ pub(crate) mod tests {
         );
         // Slug link without an id from the mail: no check possible.
         assert!(parse(&page(1, "x", false), None).is_ok());
+    }
+
+    #[test]
+    fn an_archive_mark_leaves_the_title() {
+        assert_eq!(
+            without_archive_mark("Archiviertes Projekt - Senior Requirements Engineer"),
+            "Senior Requirements Engineer"
+        );
+        assert_eq!(
+            without_archive_mark("Archived project \u{2013} SAP FI/CO"),
+            "SAP FI/CO"
+        );
+        assert_eq!(
+            without_archive_mark("Archiviertes Projekt"),
+            "Archiviertes Projekt"
+        );
+        assert_eq!(
+            without_archive_mark("Projektleitung Archivierung"),
+            "Projektleitung Archivierung"
+        );
     }
 
     #[test]

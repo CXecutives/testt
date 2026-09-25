@@ -11,6 +11,8 @@
 
 mod freelance_de;
 mod freelancermap;
+
+pub(crate) use freelancermap::without_archive_mark;
 mod linkedin;
 #[cfg(test)]
 mod probe;

@@ -673,13 +673,13 @@ fn config(name: &str) -> serde_json::Value {
         .unwrap_or_else(|e| panic!("{name}: {e}"))
 }
 
-/// Windows: the page draws its own 36 px title bar (TitleBar, WindowControls: caption buttons
+/// Windows: the page draws its own 36 px title bar (`TitleBar`, `WindowControls`: caption buttons
 /// like the native Windows 11 ones, the snap layouts on a short rest over maximize) and the
 /// window has no native frame (`decorations(false)` in platform.rs, the native shadow and
 /// resize border stay). macOS: the unified toolbar row of a Mac app - the title bar
 /// transparent over the page, the title hidden, the traffic lights moved into the 52 px row;
 /// the page keeps that row free and marks its empty parts as drag regions. Drag regions only
-/// in the Windows title bar, DragBand and the list's first row; the window API only in api.ts;
+/// in the Windows title bar, `DragBand` and the list's first row; the window API only in api.ts;
 /// the caption font only in tokens.css.
 #[test]
 fn the_window_frame_is_own_on_windows_and_unified_on_macos() {
