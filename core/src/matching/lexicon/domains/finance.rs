@@ -52,6 +52,7 @@ pub(crate) const DOMAIN: Domain = Domain {
         // Group accounting and reporting.
         ("group accounting", "konzernrechnungslegung"),
         ("konzernrechnungswesen", "konzernrechnungslegung"),
+        ("konzernrechnung", "konzernrechnungslegung"),
         ("group reporting", "konzernreporting"),
         ("group controlling", "konzerncontrolling"),
         ("group consolidation", "konzernkonsolidierung"),

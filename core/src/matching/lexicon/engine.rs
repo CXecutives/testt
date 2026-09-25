@@ -556,6 +556,80 @@ pub(crate) const DAY_WORDS_ONSITE: &[&str] = &[
     "tag", "tage", "tagen", "day", "days", "woche", "week", "vor", "ort", "on-site", "onsite",
     "hybrid", "remote", "prasenz", "buro", "office",
 ];
+/// Verbal particles: `Einführung`, `Durchführung`, `Ausbildung` are no compounds of
+/// `Führung` or `Bildung`; `Buchführung` is bookkeeping, no leadership.
+pub(crate) const PARTICLE_MODIFIERS: &[&str] = &[
+    "ab", "an", "auf", "aus", "bei", "buch", "durch", "ein", "ent", "fort", "mit", "nach", "uber",
+    "um", "unter", "ver", "vor", "weg", "wieder", "zu", "zuruck",
+];
+/// Leadership asked for (`Führungserfahrung`, `leadership experience`): a profile with a
+/// leading role meets it at least half.
+pub(crate) const LEADERSHIP_ATOMS: &[&str] = &[
+    "disziplinarisch",
+    "fuhrung",
+    "fuhrungserfahrung",
+    "fuhrungskompetenz",
+    "fuhrungsverantwortung",
+    "leadership",
+    "mitarbeiterfuhrung",
+    "personalfuhrung",
+    "personalverantwortung",
+    "teamfuhrung",
+    "teamleitung",
+];
+/// Words of a leading role in a profile entry (`Leiter Controlling`, `Head of IT`, `CFO`).
+pub(crate) const PROFILE_LEAD_WORDS: &[&str] = &[
+    "leiter",
+    "leiterin",
+    "leitung",
+    "head",
+    "director",
+    "direktor",
+    "chief",
+    "cfo",
+    "cio",
+    "coo",
+    "ceo",
+    "cto",
+    "geschaftsfuhrer",
+    "geschaftsfuhrung",
+    "vorstand",
+    "werksleiter",
+    "vp",
+    "teamleiter",
+    "abteilungsleiter",
+    "bereichsleiter",
+];
+
+/// Stems that ask for knowledge (`Kenntnisse`, `Erfahrung`, `know-how`).
+pub(crate) const KNOWLEDGE_STEMS: &[&str] = &[
+    "kenntnis",
+    "erfahrung",
+    "knowledge",
+    "experience",
+    "know-how",
+    "wissen",
+    "skills",
+];
+/// Words that only say "knowledge of" around a skill (`SAP-Kenntnisse`, `Erfahrung mit SAP`).
+pub(crate) const KNOWLEDGE_WORDS: &[&str] = &[
+    "erfahrung",
+    "erfahrungen",
+    "experience",
+    "kenntnis",
+    "kenntnisse",
+    "knowledge",
+    "know-how",
+    "skills",
+    "wissen",
+    "sehr",
+    "gute",
+    "gut",
+    "fundierte",
+    "umfassende",
+    "tiefe",
+];
+
 /// Shortest modifier of a compound (`Bericht-erstellung`); `h` of `Herstellung` is none.
 pub(crate) const MIN_COMPOUND_MODIFIER: usize = 3;
 

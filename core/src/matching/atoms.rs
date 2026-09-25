@@ -424,7 +424,13 @@ fn fit_direct(job: &str, profile: &str) -> Fit {
     // Four letters are too short to be a compound part (`steu` of `Steuern` is not the
     // head of `Steuerung`).
     // A compound needs a real modifier: `h` + `erstellung` is `Herstellung`, no compound.
-    let modifier_ok = |m: &str| m.trim_end_matches('-').len() >= lex::MIN_COMPOUND_MODIFIER;
+    // `IT-Carve-out` narrows `Carve-out` (a hyphen marks the compound); `Einführung` is no
+    // `Führung` (a verbal particle is no modifier).
+    let modifier_ok = |m: &str| {
+        let bare = m.trim_end_matches('-');
+        (m.ends_with('-') || bare.len() >= lex::MIN_COMPOUND_MODIFIER)
+            && !lex::PARTICLE_MODIFIERS.contains(&bare)
+    };
     if profile.len() >= 5 {
         if let Some(modifier) = job.strip_suffix(profile).filter(|m| modifier_ok(m)) {
             return if light(modifier, lex::LIGHT_MODIFIERS) {
@@ -597,6 +603,12 @@ mod tests {
     #[test]
     fn compound_boundaries() {
         let a = |s: &str| all(s).remove(0);
+        // A hyphen marks a compound however short its modifier; a verbal particle is none.
+        assert_eq!(fit(&a("IT-Carve-out"), &a("Carve-out")), Fit::General);
+        assert_eq!(fit(&a("Führung"), &a("Einführung")), Fit::None);
+        assert_eq!(fit(&a("Führung"), &a("Durchführung")), Fit::None);
+        assert_eq!(fit(&a("Führung"), &a("Buchführung")), Fit::None);
+        assert_eq!(all("Konzernrechnung"), all("Konzernrechnungslegung"));
         // `Unternehmen` and `Partner` are too broad to meet anything alone.
         assert!(is_generic(&a("Unternehmen")));
         assert!(is_generic(&a("Partner")));
