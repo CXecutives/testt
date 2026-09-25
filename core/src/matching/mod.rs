@@ -65,7 +65,7 @@ use params::FOCUS_MAX;
 /// cap and count half through another field's compound). 11: permanent employment as an
 /// excluded contract type (`ausgeschlossene_vertragsarten` names `festanstellung`), decided
 /// only for a stated permanent role.
-pub const ENGINE_VERSION: u32 = 12;
+pub const ENGINE_VERSION: u32 = 13;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.

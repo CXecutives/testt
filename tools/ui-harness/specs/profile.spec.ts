@@ -911,7 +911,7 @@ test('every value that does not read is said at its field and can be removed', a
   const form = page.getByTestId('profile-form');
   for (const text of [
     'In der Datei stand „teuer“, das ist keine Zahl.',
-    'In der Datei stand „Deutschland“, das kann die App nicht lesen.',
+    'In der Datei stand „Atlantis“, das kann die App nicht lesen.',
     'In der Datei stand „5“, das kann die App nicht lesen.',
     'In der Datei stand „vielleicht“, das kann die App nicht lesen.',
     'In der Datei stand „senior“, das ist keine Zahl.',

@@ -429,6 +429,8 @@ export interface ChipKeyHandlers {
   removeLast: () => boolean;
   /** Esc: drop the typed text; `true` if there was some. */
   clear: () => boolean;
+  /** ArrowDown/ArrowUp: move the highlight of the field's suggestions; `true` if it moved. */
+  step?: (by: -1 | 1) => boolean;
 }
 
 const CHIPS = '[data-chip-keys]';
@@ -499,7 +501,11 @@ function dispatchChipKey(event: KeyboardEvent): boolean {
         ? handlers.removeLast()
         : event.key === 'Escape'
           ? handlers.clear()
-          : false;
+          : event.key === 'ArrowDown'
+            ? (handlers.step?.(1) ?? false)
+            : event.key === 'ArrowUp'
+              ? (handlers.step?.(-1) ?? false)
+              : false;
   if (handled) event.preventDefault();
   return handled;
 }

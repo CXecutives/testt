@@ -94,19 +94,39 @@ pub(crate) fn number(value: &Value) -> Option<u64> {
 
 /// Countries of a criteria value: a list, or one text (`DE` or `DE, AT`).
 fn countries_of(value: &Value) -> Option<Vec<String>> {
-    let list: Vec<String> = match value {
+    let entries: Vec<&str> = match value {
         Value::Array(items) => items
             .iter()
-            .map(|v| v.as_str().map(|s| s.trim().to_uppercase()))
-            .collect::<Option<Vec<String>>>()?,
+            .map(Value::as_str)
+            .collect::<Option<Vec<_>>>()?,
         Value::String(text) => text
             .split([',', ';', '/'])
-            .map(|s| s.trim().to_uppercase())
+            .map(str::trim)
             .filter(|s| !s.is_empty())
             .collect(),
         _ => return None,
     };
-    (!list.is_empty() && list.iter().all(|c| c.len() == 2)).then_some(list)
+    let list = entries
+        .iter()
+        .map(|entry| country_code(entry))
+        .collect::<Option<Vec<String>>>()?;
+    (!list.is_empty()).then_some(list)
+}
+
+/// A country of the profile as its ISO code: a two-letter code as written ("UK" is GB), or a
+/// country name the engine knows ("Deutschland", "Österreich", "Switzerland"); `None` for
+/// anything else, so an unknown name is reported instead of excluding every country.
+fn country_code(entry: &str) -> Option<String> {
+    let text = entry.trim();
+    if text.len() == 2 && text.chars().all(|c| c.is_ascii_alphabetic()) {
+        let code = text.to_ascii_uppercase();
+        return Some(if code == "UK" { "GB".to_owned() } else { code });
+    }
+    let name = fold(text);
+    lex::COUNTRIES
+        .iter()
+        .find(|(known, _)| *known == name)
+        .map(|(_, code)| (*code).to_owned())
 }
 
 /// Does a criteria value exclude temporary agency work (a list or a text naming ANÜ)?
@@ -209,10 +229,17 @@ impl HardCriteria {
                 }
             },
         };
+        // The old reader keeps the entries as written (upper case): names become codes
+        // here; a list with an unknown name goes the checked way below and is reported.
         let countries = legacy
             .countries
             .clone()
             .filter(|c| !c.is_empty())
+            .and_then(|list| {
+                list.iter()
+                    .map(|entry| country_code(entry))
+                    .collect::<Option<Vec<String>>>()
+            })
             .or_else(|| {
                 let (key, value) = criterion(data, lexicon::KEYS_COUNTRIES)?;
                 let list = countries_of(value);
@@ -1130,6 +1157,21 @@ mod tests {
             .into_iter()
             .map(|f| (f.code, f.decided))
             .collect()
+    }
+
+    #[test]
+    fn country_names_in_a_profile_become_codes_and_unknown_ones_are_no_rule() {
+        assert_eq!(
+            countries_of(&json!(["Deutschland", "Österreich", "UK", "ch"])),
+            Some(vec!["DE".into(), "AT".into(), "GB".into(), "CH".into()])
+        );
+        assert_eq!(
+            countries_of(&json!("Germany, Switzerland")),
+            Some(vec!["DE".into(), "CH".into()])
+        );
+        // An unknown name never turns into a code that excludes every job.
+        assert_eq!(countries_of(&json!(["Deutschland", "Atlantis"])), None);
+        assert_eq!(country_code("DEUTSCHLAND").as_deref(), Some("DE"));
     }
 
     #[test]

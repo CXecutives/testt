@@ -689,7 +689,7 @@ const UNREADABLE_PROFILE: ProfileInfo = {
     warnings: [
       { code: 'availabilityNotUnderstood', params: { value: 'bald' } },
       unread('min_tagessatz', '"teuer"', 'minDayRate'),
-      unread('laender', '"Deutschland"', 'countries'),
+      unread('laender', '"Atlantis"', 'countries'),
       unread('ausgeschlossene_vertragsarten', '5', 'contracts'),
       unread('remote_ausserhalb_erlaubt', '"vielleicht"', 'remoteOutside'),
       unread('zielprofil_min_jahre', '"senior"', 'targetYears'),

@@ -1592,7 +1592,7 @@ mod tests {
             "target_roles": "CFO",
             "harte_kriterien": {
                 "min_tagessatz": "viel",
-                "laender": "Deutschland",
+                "laender": "Atlantis",
                 "ausgeschlossene_vertragsarten": 5,
                 "remote_ausserhalb_erlaubt": "vielleicht",
                 "zielprofil_min_jahre": "senior",

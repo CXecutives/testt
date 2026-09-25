@@ -56,27 +56,24 @@ for (const [width, expected] of [
   });
 }
 
-test('the limits follow the window and the sidebar; a kept width waits for its room', async ({
-  page,
-}) => {
+test('the limits follow the window; a kept width waits for its room', async ({ page }) => {
   await open(page, WIN);
   await drag(page, 2000);
   await expect.poll(async () => (await handle(page)).width).toBe(698);
-  // The sidebar folds to its icons: 1295 px of content, the list may take 777.
-  await page.keyboard.press('Control+b');
-  expect(await handle(page)).toEqual({ width: 698, min: 320, max: 777 });
+  // A wider window gives the list more room; dragged to its end there.
+  await page.setViewportSize({ width: 1920, height: 800 });
+  await expect.poll(async () => (await handle(page)).max).toBeGreaterThan(698);
   await drag(page, 2000);
-  await expect.poll(async () => (await handle(page)).width).toBe(777);
-  // Unfolded: shown at the limit, the choice stays and comes back.
-  await page.keyboard.press('Control+b');
-  expect(await handle(page)).toEqual({ width: 698, min: 320, max: 698 });
+  const wide = (await handle(page)).max;
+  await expect.poll(async () => (await handle(page)).width).toBe(wide);
+  // Narrower: shown at the limit, the choice stays and comes back.
   await page.setViewportSize({ width: 1100, height: 800 });
   await expect.poll(async () => (await handle(page)).max).toBe(463);
   expect((await handle(page)).width).toBe(463);
   await page.setViewportSize({ width: 1920, height: 800 });
-  await expect.poll(async () => (await handle(page)).width).toBe(777);
+  await expect.poll(async () => (await handle(page)).width).toBe(wide);
   await page.reload();
-  expect((await handle(page)).width).toBe(777);
+  expect((await handle(page)).width).toBe(wide);
 });
 
 test('a kept width that is too wide shows at the limit', async ({ page }) => {

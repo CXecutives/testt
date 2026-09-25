@@ -286,3 +286,25 @@ test('the connected mailbox address is text to copy', async ({ page }) => {
   await expect(address).toHaveText('alerts.demo@gmail.com');
   expect(await address.evaluate((node) => getComputedStyle(node).userSelect)).not.toBe('none');
 });
+
+test('the countries: the arrow keys move through the suggestions, Enter takes the highlighted one', async ({
+  page,
+}) => {
+  await profile(page);
+  const input = countryInput(page);
+  await input.fill('schw');
+  await expect(options(page).getByRole('option')).toHaveText(['Schweden', 'Schweiz']);
+  await input.press('ArrowDown');
+  await input.press('Enter');
+  await expect(chips(countries(page))).toHaveText(['Deutschland', 'Österreich', 'Schweiz']);
+  await input.fill('schw');
+  await input.press('ArrowDown');
+  await input.press('ArrowUp');
+  await input.press('Enter');
+  await expect(chips(countries(page))).toHaveText([
+    'Deutschland',
+    'Österreich',
+    'Schweiz',
+    'Schweden',
+  ]);
+});
