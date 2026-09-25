@@ -475,9 +475,10 @@ mod tests {
                 .unwrap(),
         );
         assert_eq!(top, std::slice::from_ref(&first.key));
-        let (overview, pinned) = store.overview_jobs(run).unwrap();
-        assert!(!pinned);
-        assert_eq!(keys(overview), [first.key]);
+        let overview = store.overview_jobs(20).unwrap();
+        assert!(overview.favourites.is_empty());
+        assert_eq!(keys(overview.new), [first.key]);
+        assert_eq!(overview.new_total, 1);
     }
 
     /// A job the user marked stays a job of its own: linked as a duplicate it would leave

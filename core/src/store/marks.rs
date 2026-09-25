@@ -476,7 +476,6 @@ mod tests {
     fn only_inbox_jobs_reach_the_overview_and_the_top_matches() {
         let (store, keys) = store_with_jobs(1);
         let key = &keys[0];
-        let run = store.job(key).unwrap().unwrap().first_seen_run;
         let scored = crate::model::MatchRecord {
             status: MatchStatus::Scored,
             score: 88,
@@ -495,18 +494,19 @@ mod tests {
         };
         let since = super::super::new_since(now());
         let one = std::slice::from_ref(key);
+        let overview = || store.overview_jobs(20).unwrap();
         assert_eq!(listed(store.skill_matches(since, 5).unwrap()), one);
-        assert_eq!(listed(store.overview_jobs(run).unwrap().0), one);
+        assert_eq!(listed(overview().new), one);
         for away in [Place::Archive, Place::Trash] {
             store.move_jobs(one, away, now()).unwrap();
             assert!(store.skill_matches(since, 5).unwrap().is_empty());
-            assert!(store.overview_jobs(run).unwrap().0.is_empty());
-            // A favourite away from the inbox: the overview falls back to the (empty) list.
+            assert!(overview().new.is_empty());
+            // A favourite away from the inbox is none of the overview's either.
             store.set_pinned(key, true, now()).unwrap();
-            assert_eq!(store.overview_jobs(run).unwrap(), (Vec::new(), false));
+            assert_eq!(overview(), super::super::matches::OverviewJobs::default());
             store.set_pinned(key, false, now()).unwrap();
             store.move_jobs(one, Place::Inbox, now()).unwrap();
-            assert_eq!(listed(store.overview_jobs(run).unwrap().0), one);
+            assert_eq!(listed(overview().new), one);
         }
     }
 

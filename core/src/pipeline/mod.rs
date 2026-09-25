@@ -565,11 +565,13 @@ pub async fn run<B: Backends>(
         if ctx.portals.is_empty() {
             summary.outcome = failed(ErrorInfo::from(&InvalidInput::NoPortal));
         } else if let Err(e) = store.kv_set(LAST_SCAN_RUN, &run.to_string()) {
-            // "New in this run" shows the jobs of the last run with a mailbox scan.
+            // The alert mails of the last run with a mailbox scan tell the portals' health.
             summary.outcome = failed(ErrorInfo::from(&e));
         } else {
-            // Remember the state of the last real scan: whoever never reaches the mailbox
-            // (wrong app password, no network, instant cancel) must not empty it.
+            // Remember the state of the last scan that read mail: one that read none (wrong
+            // app password, no network, instant cancel, or no alert mail since the last
+            // fetch) says nothing new about the alert mails - "alert mails without jobs" stays
+            // until mails are read again.
             let mut scanned = ScanSummary::default();
             let result = scan_step(
                 backends,
@@ -779,7 +781,8 @@ fn failed(error: ErrorInfo) -> Outcome {
     Outcome::Failed { error }
 }
 
-/// Number of the last run with a mailbox scan ("new in this run"); 0 = none yet.
+/// Number of the last run with a mailbox scan that read mail (its alert mails without jobs
+/// are the portals' health); 0 = none yet.
 pub fn last_scan_run(store: &Store) -> crate::Result<i64> {
     Ok(store
         .kv_get(LAST_SCAN_RUN)?
@@ -1107,17 +1110,33 @@ pub fn export_all(
         &mut summary,
     );
     // The HTML overview is small and never locked by a browser: written on every export.
-    let path = export::overview_html_path(&result_dir);
-    let written = last_scan_run(store)
-        .and_then(|new_run| store.overview_jobs(new_run))
-        .and_then(|(jobs, pinned)| {
-            export::write_overview_html(&path, &jobs, pinned, now, language)
-        });
-    match written {
-        Ok(()) => summary.overview_html = Some(path),
+    match write_html_overview(store, &result_dir, now, language) {
+        Ok(path) => summary.overview_html = Some(path),
         Err(e) => note_error(&mut summary, &e, Target::OverviewHtml),
     }
     summary
+}
+
+/// Most new matches the HTML overview lists, best first (the app lists them all).
+pub const OVERVIEW_NEW_MAX: u32 = 20;
+
+/// Writes `JobAlerts.html` from the jobs as they are now (in `language`): the favourites of
+/// the inbox, else the best new matches. Returns its path.
+fn write_html_overview(
+    store: &Store,
+    result_dir: &Path,
+    now: Timestamp,
+    language: Language,
+) -> crate::Result<PathBuf> {
+    let path = export::overview_html_path(result_dir);
+    let overview = store.overview_jobs(OVERVIEW_NEW_MAX)?;
+    let (jobs, pinned) = if overview.favourites.is_empty() {
+        (overview.new, false)
+    } else {
+        (overview.favourites, true)
+    };
+    export::write_overview_html(&path, &jobs, pinned, now, language)?;
+    Ok(path)
 }
 
 /// `top_matches.json` for the matching skill; a failure only goes to the log (the file is an

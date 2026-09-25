@@ -162,7 +162,7 @@ async fn one_click_run_writes_everything_and_finishes_once() {
     let export = s.export.as_ref().unwrap();
     assert_eq!(export.txt_written, 4);
     assert!(export.overview_xlsx.as_ref().unwrap().exists());
-    // The HTML overview: the new scored jobs of this run, the excluded one not.
+    // The HTML overview: the unread scored jobs, the excluded one not.
     let html = std::fs::read_to_string(export.overview_html.as_ref().unwrap()).unwrap();
     assert!(html.contains("Interim CFO") && !html.contains("Projektleiter S/4HANA"));
     assert!(!html.contains("Beispielanzeige"), "never the full text");
@@ -2120,6 +2120,38 @@ async fn a_run_empties_an_old_trash() {
     assert!(store.is_deleted(&old.key).unwrap());
     assert!(!file.exists());
     assert_eq!(store.job(&young).unwrap().unwrap().place(), Place::Trash);
+}
+
+/// A fetch that brings nothing new keeps the unread matches in the HTML overview: it lists
+/// the app's "Neu und passend", whatever run brought them, until they are read.
+#[tokio::test(start_paused = true)]
+async fn the_overview_keeps_the_unread_matches_of_earlier_fetches() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let fetch = ctx(dir.path(), false);
+    let html_path = export::overview_html_path(&dir.path().join(RESULT_DIR));
+    let html = || std::fs::read_to_string(&html_path).unwrap();
+    let cancel = CancellationToken::new();
+    go(&mut DemoBackends, &store, &request(), &fetch, &cancel, &c).await;
+    assert!(html().contains("Interim CFO"));
+    let (s, _) = go(&mut DemoBackends, &store, &request(), &fetch, &cancel, &c).await;
+    assert_eq!(s.new_jobs.unwrap().count, 0, "nothing new");
+    assert!(
+        s.scan.unwrap().mails_checked > 0,
+        "the mails were read again"
+    );
+    assert!(html().contains("Interim CFO"), "still unread, still listed");
+    assert!(!html().contains(texts::HTML_EMPTY));
+    let cfo = store
+        .jobs(&JobFilter::default())
+        .unwrap()
+        .into_iter()
+        .find(|job| job.title.starts_with("Interim CFO"))
+        .unwrap();
+    store.mark_read(&cfo.key, c()).unwrap();
+    export_all(&store, dir.path(), &[], 3, c(), Language::De);
+    assert!(!html().contains("Interim CFO"), "read, it leaves");
 }
 
 /// One job two portals announced, as the list shows it: the freelancermap row with the
