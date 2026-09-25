@@ -2,9 +2,10 @@
 // docs/PLAN.md, UI "Jobs").
 
 import type { Locator, Page } from '@playwright/test';
-import { calls, expect, open, runFinished, settle, test } from './fixtures';
+import { calls, expect, NOW, open, runFinished, settle, test } from './fixtures';
 
 const WIN = '?platform=windows';
+const DAY = 86_400_000;
 const list = (page: Page) => page.getByTestId('job-list');
 const rows = (page: Page) => page.getByTestId('job-rows').locator('[data-testid^="job-row-"]');
 const row = (page: Page, key: string) => list(page).getByTestId(`job-row-${key}`);
@@ -15,6 +16,11 @@ const facet = (page: Page, name: string) =>
 async function tool(page: Page, id: string, key: string): Promise<void> {
   await row(page, key).hover();
   await page.getByTestId(`${id}-${key}`).click();
+}
+
+/** After a move the list ignores clicks for a moment (the row under the pointer changed). */
+async function settleMoves(page: Page): Promise<void> {
+  await page.waitForTimeout(550);
 }
 
 /** The next call of `command` fails with a database error. */
@@ -432,6 +438,28 @@ test('the compact bar is for the pointer: Tab reaches each tool once', async ({ 
   }
   expect(walk.filter((id) => id.startsWith('compact-'))).toEqual([]);
   expect(walk.filter((id) => id === 'reader-archive')).toHaveLength(1);
+});
+
+test('the trash says in how many days a job goes, following the clock', async ({ page }) => {
+  await open(page, WIN);
+  await facet(page, 'Alle').click();
+  await tool(page, 'trash', 'freelancermap-2803');
+  await settleMoves(page);
+  await page.getByTestId('nav-trash').click();
+  await settle(page);
+  await row(page, 'freelancermap-2803').click();
+  const line = page.getByTestId('place-line');
+  await expect(line).toHaveText('Im Papierkorb, wird in 30 Tagen gelöscht');
+  const later = async (days: number): Promise<void> => {
+    await page.clock.setFixedTime(new Date(NOW.getTime() + days * DAY));
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  };
+  await later(27);
+  await expect(line).toHaveText('Im Papierkorb, wird in 3 Tagen gelöscht');
+  await later(29.5);
+  await expect(line).toHaveText('Im Papierkorb, wird in 1 Tag gelöscht');
+  await later(30);
+  await expect(line).toHaveText('Im Papierkorb, wird bald gelöscht');
 });
 
 test('a copy of the facts starts with the first fact', async ({ page }) => {

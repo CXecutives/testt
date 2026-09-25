@@ -598,8 +598,8 @@ export const en: Catalog = {
     } satisfies Record<Place, (value: number) => string>,
     inArchive: 'In the archive',
     inTrash: 'In the trash',
-    inTrashFor: (days: number) =>
-      `In the trash, deleted forever after ${count(days, 'day', 'days')}`,
+    inTrashLeft: (days: number) => `In the trash, deleted forever in ${count(days, 'day', 'days')}`,
+    inTrashSoon: 'In the trash, due to be deleted forever',
     empty: {
       inbox: 'No jobs.',
       archive: 'The archive is empty.',

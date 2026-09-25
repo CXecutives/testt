@@ -453,12 +453,21 @@
     if (!guarded()) toggleStar([job]);
   }
 
-  /** Not in the inbox: where it lies, quietly under the title (the trash says when it goes). */
+  /** Not in the inbox: where it lies, quietly under the title. The trash says in how many
+   *  days it goes (counted from the day the job went there, following the clock; past that,
+   *  soon: the next run or start empties it). */
+  const DAY_MS = 86_400_000;
   const placeLine = $derived.by((): string | null => {
     if (job.place === 'archive') return t.place.inArchive;
     if (job.place !== 'trash') return null;
     const days = app.state?.autoEmptyTrashDays ?? 0;
-    return days > 0 ? t.place.inTrashFor(days) : t.place.inTrash;
+    if (days === 0) return t.place.inTrash;
+    const since =
+      job.trashedAt === null
+        ? 0
+        : Math.max(0, Math.floor((clock.now.getTime() - Date.parse(job.trashedAt)) / DAY_MS));
+    const left = days - since;
+    return left > 0 ? t.place.inTrashLeft(left) : t.place.inTrashSoon;
   });
 
   /** "Trotzdem passend": an excluded job counts with its fit score, and back. */
