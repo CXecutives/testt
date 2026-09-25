@@ -125,6 +125,7 @@ Nothing person-specific is in code: every threshold comes from the profile.
 | `harte_kriterien.festanstellung_orte` | `permanent_locations`, `permanent_places` | places of the region for permanent roles |
 | `harte_kriterien.festanstellung_remote_min` | `permanent_remote_min` | remote share (percent) that accepts a place outside the region; without places the rule stays off (warning `regionWithoutPlaces`) |
 | `harte_kriterien.zielprofil_min_jahre` | `target_min_years` | minimum years an ad's target profile must ask for |
+| `harte_kriterien.ausgeschlossene_vertragsarten` | `excluded_contract_types` | excluded contract types: `anue` (temporary agency work), `festanstellung` or `permanent` (permanent employment, version 11) |
 | `berufserfahrung_jahre` | `years_of_experience`, `total_years` | total years of experience |
 | `<list>[].auch` | `aliases` | alternative terms of a competence |
 
@@ -432,6 +433,19 @@ set-6 floors (precision 0.98, recall 0.99) hold these three pairs.
 | held-out 4 | 0.821 | 0.821 | 0.542 / 0.543 | 0 / 0 | 1.0-0.988 / 1.0-0.988 |
 | held-out 5 | 0.819 | 0.819 | 0.485 / 0.486 | 0 / 0 | 0.988-1.0 / 0.988-1.0 |
 | held-out 6 | 0.843 | 0.909 | 0.459 / 0.502 | 1 / 0 | 0.929-0.939 / 0.989-0.994 |
+
+### Version 11: permanent employment as an excluded contract type
+
+`ausgeschlossene_vertragsarten` may name `festanstellung` (also `permanent`) next to `anue`; the
+profile editor sets it with a switch next to the one for temporary agency work. The rule reuses
+the contract type: a stated permanent role (the contract field, `Festanstellung`, `unbefristet`,
+a salary; not denied, not merely possible) is excluded, the `permanent` reason becomes a
+violation with `{excluded, stated}` and the sentence that states it, criterion `noPermanent`. A
+permanent role inferred from benefits or a trainee title, or one that offers freelance work
+too, is a check. An interim role meets the criterion with the ad's contract type
+(`matching_criteria.rs`). Profiles without the value score exactly as before: every corpus row
+is unchanged, the golden digest changed only by its version line (with `engine 10` in front the
+rows give the version-10 value).
 
 ### Rubric of the Claude check
 

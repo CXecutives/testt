@@ -2083,6 +2083,7 @@ Rahmenbedingungen:
                 ("minDayRate", true),
                 ("countries", true),
                 ("noAnue", true),
+                ("noPermanent", false),
                 ("availability", true),
                 ("minSalary", false),
                 ("permanentRegion", false),

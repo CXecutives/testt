@@ -269,7 +269,12 @@ const reasonCode = {
   availabilityGap: (p) =>
     `Der Start liegt ${count(num(p.days), 'Tag', 'Tage')} vor der Verfügbarkeit.`,
   startVague: 'Der Starttermin ist unklar.',
-  permanent: 'Das klingt nach einer Festanstellung.',
+  permanent: (p) => {
+    if (p.excluded !== true) return 'Das klingt nach einer Festanstellung.';
+    return p.stated === true
+      ? 'Die Stelle ist eine Festanstellung, das Profil schließt sie aus.'
+      : 'Das klingt nach einer Festanstellung, das Profil schließt sie aus.';
+  },
   permanentRegion: (p) =>
     p.location
       ? `Die Festanstellung in ${str(p.location)} liegt außerhalb der Region im Profil.`
@@ -356,6 +361,11 @@ const criteria = {
     label: 'Arbeitnehmerüberlassung',
     short: 'Arbeitnehmerüberlassung',
     exclusion: ANUE,
+  },
+  noPermanent: {
+    label: 'Festanstellung',
+    short: 'Festanstellung',
+    exclusion: 'Die Stelle ist eine Festanstellung, das Profil schließt sie aus.',
   },
   availability: {
     label: 'Verfügbarkeit',

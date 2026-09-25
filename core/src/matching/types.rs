@@ -247,6 +247,8 @@ pub enum CriterionKey {
     PermanentRegion,
     /// Minimum years the target profile of an ad must ask for.
     TargetYears,
+    /// Permanent employment excluded (`ausgeschlossene_vertragsarten` names `festanstellung`).
+    NoPermanent,
 }
 
 /// State of one hard criterion for a job.

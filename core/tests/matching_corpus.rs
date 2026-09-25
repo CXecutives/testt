@@ -27,8 +27,11 @@ use serde_json::Value;
 use sha2::Digest as _;
 
 /// SHA-256 (16 hex) over every profile x job result of the corpus. Update it only together
-/// with `ENGINE_VERSION` and the before/after table in `docs/MATCHING.md`.
-const GOLDEN_DIGEST: &str = "6e4d9945276f410c";
+/// with `ENGINE_VERSION` and the before/after table in `docs/MATCHING.md`. Version 11 (the
+/// excluded permanent employment, a key no corpus profile sets) changed only the version
+/// line: with `engine 10` in front the rows still give the version-10 value
+/// `6e4d9945276f410c`.
+const GOLDEN_DIGEST: &str = "0764840c4d33e6c1";
 
 /// SHA-256 (16 hex) over the results of the four profiles without the version-4 keys
 /// (`schwerpunkte`, `wunschrollen`, the wishes in `einsatzpraeferenzen`; the IT profile's

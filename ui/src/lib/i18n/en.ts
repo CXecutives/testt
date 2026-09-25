@@ -295,7 +295,12 @@ const reasonCode = {
   availabilityGap: (p) =>
     `The start is ${count(num(p.days), 'day', 'days')} before you are available.`,
   startVague: 'The start date is unclear.',
-  permanent: 'This sounds like a permanent role.',
+  permanent: (p) => {
+    if (p.excluded !== true) return 'This sounds like a permanent role.';
+    return p.stated === true
+      ? 'This is a permanent role, which the profile excludes.'
+      : 'This sounds like a permanent role, which the profile excludes.';
+  },
   permanentRegion: (p) =>
     p.location
       ? `The permanent role in ${str(p.location)} is outside the region in the profile.`
@@ -372,6 +377,11 @@ const criteria = {
     label: 'Agency work',
     short: 'Agency work',
     exclusion: ANUE,
+  },
+  noPermanent: {
+    label: 'Permanent role',
+    short: 'Permanent role',
+    exclusion: 'This is a permanent role, which the profile excludes.',
   },
   availability: {
     label: 'Availability',

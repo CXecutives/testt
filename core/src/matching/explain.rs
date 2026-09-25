@@ -428,6 +428,19 @@ fn evidence_states(profile: &EngineProfile, ad: &AdFacts, text: &str) -> Vec<Cri
         } else {
             unset(CriterionKey::NoAnue)
         },
+        if c.permanent_excluded {
+            // Met only where the ad states an interim role.
+            let ok = ad.contract_stated && ad.contract == ContractKind::Interim;
+            let params = if ok {
+                json!({ "contract": ad.contract.name() })
+            } else {
+                json!({})
+            };
+            let span = ad.contract_span.as_ref().filter(|_| ok);
+            criterion(CriterionKey::NoPermanent, told(ok), &params, span, text)
+        } else {
+            unset(CriterionKey::NoPermanent)
+        },
         if c.available == Availability::Unset {
             unset(CriterionKey::Availability)
         } else {

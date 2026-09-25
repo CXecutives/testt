@@ -62,8 +62,10 @@ use params::FOCUS_MAX;
 /// minimum is the target). 10: bugs of the unseen held-out set 6 (the country of the on-site
 /// clause, particle words are no `Führung`, shared objects of split lines, stated permanent
 /// roles with a comma and denied interim wording, the linking `s` of compounds, teaser terms
-/// cap and count half through another field's compound).
-pub const ENGINE_VERSION: u32 = 10;
+/// cap and count half through another field's compound). 11: permanent employment as an
+/// excluded contract type (`ausgeschlossene_vertragsarten` names `festanstellung`), decided
+/// only for a stated permanent role.
+pub const ENGINE_VERSION: u32 = 11;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.
@@ -170,6 +172,7 @@ fn criteria_info(c: &HardCriteria) -> Vec<CriterionInfo> {
             json!({ "countries": c.countries, "remoteOutsideAllowed": c.remote_outside }),
         ),
         info(CriterionKey::NoAnue, c.anue_excluded, json!({})),
+        info(CriterionKey::NoPermanent, c.permanent_excluded, json!({})),
         info(
             CriterionKey::Availability,
             c.available != Availability::Unset,
@@ -382,7 +385,7 @@ fn fingerprint(engine: &EngineProfile) -> String {
     roles.sort();
     let canonical = format!(
         "engine {ENGINE_VERSION}\nentries {}\nlanguages {languages:?}\ndegree {:?} {}\nyears {:?}\n\
-         min {:?}\ncountries {countries:?}\nremote {:?}\nanue {}\navailable {:?}\n\
+         min {:?}\ncountries {countries:?}\nremote {:?}\nanue {}\npermanent {}\navailable {:?}\n\
          salary {:?}\nplaces {places:?}\nremoteMin {:?}\ntarget {:?}\npacks {:?}\n\
          focus {focus:?}\nroles {roles:?}\nwishes {}\n",
         entries.join("|"),
@@ -392,6 +395,7 @@ fn fingerprint(engine: &EngineProfile) -> String {
         c.min_rate,
         c.remote_outside,
         c.anue_excluded,
+        c.permanent_excluded,
         c.available,
         c.min_salary,
         c.remote_min,

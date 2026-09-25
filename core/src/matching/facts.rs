@@ -1,8 +1,10 @@
 //! Hard criteria of the new engine (V10-V13), structured facts first. A violation is
 //! decided only on clear wording; everything unclear becomes a check:
-//! ANÜ (named, not negated, not optional) · work country (location, on-site sentence, not
-//! fully remote) · day rate (EUR, upper bound, hourly x 8, not for permanent roles) ·
-//! availability (never decided: a gap or a vague start is a check).
+//! ANÜ (named, not negated, not optional) · permanent employment (excluded by the profile:
+//! a stated permanent role, not an inferred one or one that offers interim too) · work
+//! country (location, on-site sentence, not fully remote) · day rate (EUR, upper bound,
+//! hourly x 8, not for permanent roles) · availability (never decided: a gap or a vague
+//! start is a check).
 
 use std::collections::HashMap;
 use std::ops::Range;
@@ -38,6 +40,8 @@ pub(crate) struct HardCriteria {
     pub countries: Option<Vec<String>>,
     pub remote_outside: Option<bool>,
     pub anue_excluded: bool,
+    /// `ausgeschlossene_vertragsarten` names permanent employment (`festanstellung`).
+    pub permanent_excluded: bool,
     pub available: Availability,
     /// Minimum annual salary (EUR) for permanent roles.
     pub min_salary: Option<u64>,
@@ -119,6 +123,42 @@ fn excludes_anue(value: &Value) -> Option<bool> {
     }))
 }
 
+/// Words of `ausgeschlossene_vertragsarten` that exclude permanent employment (external
+/// contract - do not translate: values of the profile, German and English).
+const CONTRACT_PERMANENT: &[&str] = &["festanstellung", "permanent"];
+
+/// Does a criteria value exclude permanent employment (a list or a text naming it)?
+fn excludes_permanent(value: &Value) -> bool {
+    let texts: Vec<String> = match value {
+        Value::Array(items) => items.iter().filter_map(Value::as_str).map(fold).collect(),
+        Value::String(text) => vec![fold(text)],
+        _ => return false,
+    };
+    texts
+        .iter()
+        .any(|t| CONTRACT_PERMANENT.iter().any(|word| t.contains(word)))
+}
+
+/// The excluded contract types: temporary agency work and permanent employment. A value
+/// that names neither in a readable way is reported as not understood.
+fn excluded_contracts(
+    legacy: &Criteria,
+    data: &Value,
+    not_understood: &mut Vec<(&'static str, String)>,
+) -> (bool, bool) {
+    let found = criterion(data, lexicon::KEYS_EXCLUDED_CONTRACTS);
+    let anue = legacy.anue_excluded == Some(true)
+        || found.is_some_and(|(key, value)| {
+            let excluded = excludes_anue(value);
+            if excluded.is_none() {
+                not_understood.push((key, value.to_string()));
+            }
+            excluded == Some(true)
+        });
+    let permanent = found.is_some_and(|(_, value)| excludes_permanent(value));
+    (anue, permanent)
+}
+
 /// A yes or no of a criteria value (`true`, `"ja"`, `"yes"`).
 fn yes_no(value: &Value) -> Option<bool> {
     match value {
@@ -181,14 +221,8 @@ impl HardCriteria {
                 }
                 list
             });
-        let anue_excluded = legacy.anue_excluded == Some(true)
-            || criterion(data, lexicon::KEYS_EXCLUDED_CONTRACTS).is_some_and(|(key, value)| {
-                let excluded = excludes_anue(value);
-                if excluded.is_none() {
-                    not_understood.push((key, value.to_string()));
-                }
-                excluded == Some(true)
-            });
+        let (anue_excluded, permanent_excluded) =
+            excluded_contracts(legacy, data, &mut not_understood);
         let remote_outside = legacy.remote_outside_allowed.or_else(|| {
             let (key, value) = criterion(data, lexicon::KEYS_REMOTE_OUTSIDE)?;
             let allowed = yes_no(value);
@@ -230,6 +264,7 @@ impl HardCriteria {
             countries,
             remote_outside,
             anue_excluded,
+            permanent_excluded,
             available,
             min_salary,
             places,
@@ -389,13 +424,20 @@ pub(crate) fn check(
         contract.spans.clone(),
     ));
     if contract.kind == ContractKind::Permanent || contract.stated_permanent {
-        findings.push(Finding::new(
-            ReasonCode::Permanent,
-            false,
-            None,
-            json!({}),
-            Vec::new(),
-        ));
+        findings.push(if criteria.permanent_excluded {
+            // Excluded by the profile: decided only for a stated permanent role (not one
+            // inferred from benefits or a title, not one that offers interim work too).
+            let stated = contract.kind == ContractKind::Permanent && !contract.inferred;
+            Finding::new(
+                ReasonCode::Permanent,
+                stated,
+                Some(CriterionKey::NoPermanent),
+                json!({ "excluded": true, "stated": stated }),
+                contract.spans.clone(),
+            )
+        } else {
+            Finding::new(ReasonCode::Permanent, false, None, json!({}), Vec::new())
+        });
     }
     if criteria.anue_excluded {
         if anue_findings.is_empty() && contract.kind == ContractKind::Unclear && contract.agency {
