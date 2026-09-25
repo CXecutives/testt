@@ -136,7 +136,7 @@ impl Store {
 
     /// Marks every unread job of a place as read - with a search only its hits, as the list
     /// shows them - and returns their keys: the page can undo it with [`Store::mark_unread`].
-    /// Reading exports nothing: no change counter.
+    /// No change counter (the Excel file stays); the app's small result files follow the mark.
     pub fn mark_all_read(
         &self,
         place: Place,
@@ -455,7 +455,7 @@ mod tests {
         store.mark_unread(&hits).unwrap();
         let marked = store.mark_all_read(Place::Inbox, None, now()).unwrap();
         assert_eq!(marked, [keys[2].clone(), keys[3].clone()]);
-        assert_eq!(store.data_rev().unwrap(), rev, "reading exports nothing");
+        assert_eq!(store.data_rev().unwrap(), rev, "no change counter");
         assert!(store.job(&keys[1]).unwrap().unwrap().read_at.is_none());
         assert!(
             store

@@ -1057,7 +1057,7 @@ fn an_unreachable_work_folder_is_one_clear_error() {
     let one = &keys[..1];
     store.move_jobs(one, Place::Trash, now).unwrap();
     let deleted = delete_jobs(&store, Some(&gone), None, one, (now, Language::De)).unwrap();
-    assert_eq!((deleted.count, deleted.txt_left), (1, 1));
+    assert_eq!(deleted.count, 1);
     assert_eq!(store.txt_leftovers().unwrap(), ["a.txt"]);
     let (removed, _) = clear_txt(&store, &gone).unwrap();
     assert_eq!(removed, 0);
@@ -2402,7 +2402,7 @@ fn a_purge_counts_the_rows_it_deleted() {
         deleted.keys.contains(&duplicate),
         "the page drops both keys"
     );
-    assert_eq!(deleted.txt_left, 0);
+    assert!(store.txt_leftovers().unwrap().is_empty());
     // Emptying the whole trash counts the same way.
     let (store, keys) = store_with_texts();
     store.move_jobs(&keys, Place::Trash, now).unwrap();
@@ -2452,11 +2452,10 @@ fn a_text_file_that_stayed_is_removed_later() {
 }
 
 /// A text file open in another program (Windows: without delete sharing, as Word holds it)
-/// stays when its job is deleted for good; the result says so, and the next export removes
-/// it.
+/// stays when its job is deleted for good; it is remembered, and the next export removes it.
 #[cfg(windows)]
 #[test]
-fn an_open_text_file_of_a_deleted_job_is_reported_and_removed_later() {
+fn an_open_text_file_of_a_deleted_job_is_remembered_and_removed_later() {
     use std::os::windows::fs::OpenOptionsExt;
     let dir = tempfile::tempdir().unwrap();
     let (store, keys) = store_with_texts();
@@ -2472,7 +2471,7 @@ fn an_open_text_file_of_a_deleted_job_is_reported_and_removed_later() {
         .open(&file)
         .unwrap();
     let deleted = delete_jobs(&store, Some(dir.path()), None, one, (now, Language::De)).unwrap();
-    assert_eq!((deleted.count, deleted.txt_left), (1, 1));
+    assert_eq!(deleted.count, 1);
     assert!(file.exists());
     assert_eq!(store.txt_leftovers().unwrap(), std::slice::from_ref(&name));
     assert!(store.txt_names().unwrap().contains(&name));

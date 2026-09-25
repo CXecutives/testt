@@ -1221,7 +1221,7 @@ function purgeJobs(keys: JobKey[]): Deleted {
   jobs = jobs.filter((j) => !doomed.has(markKey(j.key)));
   for (const key of doomed) tombstones.add(key);
   refresh();
-  return { count: gone.length, keys: gone, txtLeft: 0, exportError: null };
+  return { count: gone.length, keys: gone, exportError: null };
 }
 
 const fold = (text: string): string =>
