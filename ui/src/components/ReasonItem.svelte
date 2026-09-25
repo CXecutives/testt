@@ -4,7 +4,8 @@
   the words (`detail`), inside the reason so its wash and its click cover it too; hovering
   can highlight the passage (onhover), a click can scroll to it (onselect). A reason that
   jumps washes on hover and shows a small arrow down, darkens while pressed, and takes the
-  navy wash while its passage is pinned (active).
+  navy wash while its passage is pinned (active). Compact (a list row), words cut off show in
+  full in a tooltip.
 -->
 <script lang="ts" module>
   import type { ReasonKind, ReasonWeight } from '$lib/ipc/types';
@@ -72,8 +73,12 @@
   }: Props = $props();
 </script>
 
+<!-- In a row the words stay on one line: cut off, they show in full in a tooltip (unless the
+     reason has a tooltip of its own). The tooltip measures the node it sits on: the words. -->
 {#snippet words()}
-  <span class="label">{label}</span>
+  <span class="label" use:tooltip={compact && !hint ? { text: label, truncated: true } : null}
+    >{label}</span
+  >
   {#if weight && !compact}<Badge label={t.reason.weight[weight]} tone={WEIGHT_TONE[weight]} />{/if}
 {/snippet}
 

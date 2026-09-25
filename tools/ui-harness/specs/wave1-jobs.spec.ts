@@ -322,3 +322,72 @@ test('a detail state has one tone in the row, the reader and the run card', asyn
   await expect(page.getByTestId('details-gone')).toHaveClass(/warning/);
   await expect(page.getByTestId('details-failed')).toHaveClass(/warning/);
 });
+
+test('cut words in a row and in the compact bar show in full in a tooltip', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 700 });
+  await open(page, `${WIN}&lang=en`);
+  await facet(page, 'All').click();
+  const labels = list(page).locator('.reason .label');
+  const cut = await labels.evaluateAll((nodes) =>
+    nodes.map((node) => node.scrollWidth > node.clientWidth),
+  );
+  const cutAt = cut.indexOf(true);
+  const wholeAt = cut.indexOf(false);
+  expect(cutAt).toBeGreaterThanOrEqual(0);
+  expect(wholeAt).toBeGreaterThanOrEqual(0);
+  const long = labels.nth(cutAt);
+  await long.hover();
+  await expect(page.getByRole('tooltip')).toHaveText((await long.textContent()) ?? '');
+  await page.mouse.move(4, 4);
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await labels.nth(wholeAt).hover();
+  await page.waitForTimeout(900);
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+
+  // The compact bar of a reader scrolled past its actions: a cut title shows in full.
+  const title = 'Interim CFO for a family business with a focus on restructuring and financing';
+  const job = await page.evaluate((key) => window.__harness.job(key), {
+    portal: 'linkedin',
+    id: '4100200301',
+  } as const);
+  await page.evaluate(
+    ([base, long]) =>
+      window.__harness.emit({ type: 'jobUpdated', job: { ...base, title: long }, fresh: false }),
+    [job!, title] as const,
+  );
+  await row(page, 'linkedin-4100200301').click();
+  await expect(page.getByTestId('reader-title')).toHaveText(title);
+  await page.getByTestId('stage').evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
+  const bar = page.getByTestId('reader-compact');
+  await expect(bar).toHaveCSS('opacity', '1');
+  const compact = bar.locator('.compact-title');
+  expect(await compact.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+  await compact.hover();
+  await expect(page.getByRole('tooltip')).toHaveText(title);
+});
+
+test('the compact bar is for the pointer: Tab reaches each tool once', async ({ page }) => {
+  await open(page, WIN);
+  const opened = row(page, 'linkedin-4100200301');
+  await opened.click();
+  await page.getByTestId('stage').evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
+  const bar = page.getByTestId('reader-compact');
+  await expect(bar).toHaveCSS('opacity', '1');
+  const tabIndexes = await bar
+    .locator('button')
+    .evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).tabIndex));
+  expect(tabIndexes.length).toBeGreaterThan(3);
+  expect(tabIndexes.every((index) => index === -1)).toBe(true);
+  await opened.focus();
+  const walk: string[] = [];
+  for (let step = 0; step < 8; step++) {
+    await page.keyboard.press('Tab');
+    walk.push(
+      await page.evaluate(
+        () => (document.activeElement as HTMLElement | null)?.dataset.testid ?? '',
+      ),
+    );
+  }
+  expect(walk.filter((id) => id.startsWith('compact-'))).toEqual([]);
+  expect(walk.filter((id) => id === 'reader-archive')).toHaveLength(1);
+});

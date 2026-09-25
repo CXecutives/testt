@@ -19,6 +19,8 @@
   that jumps to its passage makes the passage flash once when it has arrived. Once the
   action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
   it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.
+  Like a row's tools it is for the pointer (out of the Tab order: the head's tools are the
+  keyboard's); its title, cut off, shows in full in a tooltip.
 -->
 <script lang="ts" module>
   /** A button of the reader had the focus when its job moved away: the same button of the
@@ -85,6 +87,8 @@
   let { detail, onclose = null }: Props = $props();
 
   const job = $derived(detail.job);
+  /** The title without gender tags (the head and the compact bar, which cuts it off). */
+  const heading = $derived(job.title ? displayTitle(job.title) : t.job.untitled);
   const match = $derived(detail.match);
   const withRing = $derived(app.hasProfile);
   // The passage under the pointer wins; a clicked reason keeps its passage marked after the
@@ -503,6 +507,18 @@
     if (on) hovered = reason.id;
     else if (hovered === reason.id) hovered = null;
   }
+
+  /** The compact bar is for the pointer, like a row's tools: its buttons stay out of the Tab
+   *  order (the head's twins are the keyboard's), also the ones another place brings. */
+  function pointerOnly(node: HTMLElement): { destroy: () => void } {
+    const untab = (): void => {
+      for (const button of node.querySelectorAll('button')) button.tabIndex = -1;
+    };
+    untab();
+    const observer = new MutationObserver(untab);
+    observer.observe(node, { childList: true, subtree: true });
+    return { destroy: () => observer.disconnect() };
+  }
 </script>
 
 <!-- Values joined by middle dots that copy with them ("Hamburg · 6 Monate"); a line breaks
@@ -613,8 +629,8 @@
           size="sm"
         />
       {/if}
-      <span class="compact-title">{job.title ? displayTitle(job.title) : t.job.untitled}</span>
-      <span class="compact-tools">
+      <span class="compact-title" use:tooltip={{ text: heading, truncated: true }}>{heading}</span>
+      <span class="compact-tools" use:pointerOnly>
         <Button
           variant="ghost"
           size="sm"
@@ -632,7 +648,7 @@
   <header class="head">
     <div class="title-line">
       <h1 class="title" data-testid="reader-title" data-copy>
-        {job.title ? displayTitle(job.title) : t.job.untitled}
+        {heading}
       </h1>
       <span class="title-tools">
         {@render placeTools('reader-')}
