@@ -1,7 +1,7 @@
 // Wave 1, track jobs: the job list, its rows and the reader, and the errors they say (see
 // docs/PLAN.md, UI "Jobs").
 
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { calls, expect, open, runFinished, settle, test } from './fixtures';
 
 const WIN = '?platform=windows';
@@ -366,6 +366,48 @@ test('cut words in a row and in the compact bar show in full in a tooltip', asyn
   await expect(page.getByRole('tooltip')).toHaveText(title);
 });
 
+for (const { width, height } of [
+  { width: 480, height: 360 },
+  { width: 510, height: 700 },
+]) {
+  test(`the reader's action row stays one line at ${width} px`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await open(page, WIN);
+    await facet(page, 'Alle').click();
+    await rows(page).first().click();
+    const top = async (id: string): Promise<number> =>
+      (await page.getByTestId(id).boundingBox())?.y ?? -1;
+    await expect
+      .poll(async () => {
+        const ad = await top('open-ad');
+        return ad >= 0 && (await top('open-mail')) === ad && (await top('prompt')) === ad;
+      })
+      .toBe(true);
+    // The mail action is an icon then: its tooltip names it.
+    await page.getByTestId('open-mail').hover();
+    await expect(page.getByRole('tooltip')).toHaveText('Alert-Mail öffnen');
+  });
+}
+
+test('the terms label takes the size of the line it labels', async ({ page }) => {
+  await open(page, WIN);
+  await facet(page, 'Alle').click();
+  const size = (target: Locator): Promise<string> =>
+    target.evaluate((node) => getComputedStyle(node).fontSize);
+  await row(page, 'freelancermap-2801').click();
+  const chips = page.getByTestId('criteria');
+  await expect(chips).toBeVisible();
+  expect(await size(chips.locator('.strip-label'))).toBe(
+    await size(chips.locator('.chip').first()),
+  );
+  await row(page, 'linkedin-4100200301').click();
+  const clean = page.getByTestId('criteria-clean');
+  await expect(clean).toBeVisible();
+  expect(await size(clean.locator('.strip-label'))).toBe(
+    await size(clean.locator('.clean-values')),
+  );
+});
+
 test('the compact bar is for the pointer: Tab reaches each tool once', async ({ page }) => {
   await open(page, WIN);
   const opened = row(page, 'linkedin-4100200301');
@@ -390,4 +432,21 @@ test('the compact bar is for the pointer: Tab reaches each tool once', async ({ 
   }
   expect(walk.filter((id) => id.startsWith('compact-'))).toEqual([]);
   expect(walk.filter((id) => id === 'reader-archive')).toHaveLength(1);
+});
+
+test('a copy of the facts starts with the first fact', async ({ page }) => {
+  await open(page, WIN);
+  await facet(page, 'Alle').click();
+  const copy = (target: Locator): Promise<string> =>
+    target.evaluate((line) => {
+      const selection = window.getSelection();
+      selection?.selectAllChildren(line);
+      return selection?.toString() ?? '';
+    });
+  await row(page, 'freelancermap-2801').click();
+  const facts = await copy(page.locator('.head .facts'));
+  expect(facts).toMatch(/^\S/);
+  expect(facts).toMatch(/\S · \S/);
+  await row(page, 'linkedin-4100200301').click();
+  expect(await copy(page.getByTestId('criteria-clean').locator('.clean-values'))).toMatch(/^\S/);
 });

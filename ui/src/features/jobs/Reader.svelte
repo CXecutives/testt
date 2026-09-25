@@ -12,7 +12,8 @@
   line always the same three outlined buttons: "Anzeige öffnen", "Alert-Mail öffnen"
   (disabled, saying why, without a mail) and "Prompt für KI-Bewertung kopieren" (the job as
   a prompt for any AI chat; "Prompt kopieren" where the whole label does not fit, an icon
-  button where that does not fit either: the row never wraps). "Details holen" has one
+  button where that does not fit either, at the narrowest widths "Alert-Mail öffnen" too:
+  the row never wraps). "Details holen" has one
   place: next to the note on the missing text, above the ad. Moving the job away from one of
   its buttons hands the focus to the same button of the next job.
   After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
@@ -304,16 +305,24 @@
       });
   });
 
-  /** No score yet and the details can be fetched: the button stands right under the band. */
   /** A score from a teaser only is a first guess. */
   const preliminary = $derived(match?.status === 'scored' && detailKind === 'teaser');
 
   /** The action row stays one line: where the whole label does not fit, the prompt action
-   *  says only "Prompt kopieren" (its tooltip says what it copies), and where that does not
-   *  fit either it is an icon button (its tooltip names it). Tried again whenever the row's
-   *  width changes (before the frame is painted). */
+   *  says only "Prompt kopieren" (its tooltip says what it copies), where that does not fit
+   *  either it is an icon button (its tooltip names it), and at the narrowest widths
+   *  "Alert-Mail öffnen" is one too. Tried again whenever the row's width changes (before
+   *  the frame is painted). */
   let actions = $state<HTMLElement | null>(null);
   let promptFit = $state<'full' | 'short' | 'icon'>('full');
+  let mailIcon = $state(false);
+  /** The forms of the row, the longest first. */
+  const FITS = [
+    { prompt: 'full', mail: false },
+    { prompt: 'short', mail: false },
+    { prompt: 'icon', mail: false },
+    { prompt: 'icon', mail: true },
+  ] as const;
 
   function oneLine(row: HTMLElement): boolean {
     const first = row.firstElementChild;
@@ -323,14 +332,15 @@
       : first.offsetTop === last.offsetTop;
   }
 
-  /** The longest form of the prompt action that keeps the row on one line (the newest try
-   *  wins when the width changes again meanwhile). */
+  /** The longest form of the actions that keeps the row on one line (the newest try wins
+   *  when the width changes again meanwhile). */
   let fitting = 0;
   async function fit(row: HTMLElement): Promise<void> {
     const attempt = ++fitting;
-    for (const form of ['full', 'short', 'icon'] as const) {
+    for (const form of FITS) {
       if (attempt !== fitting) return;
-      promptFit = form;
+      promptFit = form.prompt;
+      mailIcon = form.mail;
       await tick();
       if (attempt !== fitting || oneLine(row)) return;
     }
@@ -522,11 +532,12 @@
 </script>
 
 <!-- Values joined by middle dots that copy with them ("Hamburg · 6 Monate"); a line breaks
-     only between two values. -->
+     only between two values. The first value's dot is an empty box: it is clipped anyway, and
+     a copy of the line starts with the value. -->
 {#snippet dotted(items: { text: string; hint: string | null }[])}
   {#each items as item, index (index)}<wbr /><span class="fact"
-      ><span class="sep" aria-hidden="true">{SEPARATOR}</span><span use:tooltip={item.hint}
-        >{item.text}</span
+      ><span class="sep" aria-hidden="true">{index === 0 ? '' : SEPARATOR}</span><span
+        use:tooltip={item.hint}>{item.text}</span
       ></span
     >{/each}
 {/snippet}
@@ -760,6 +771,7 @@
     <Button
       variant="secondary"
       icon="mail"
+      iconOnly={mailIcon}
       label={t.reader.mail}
       disabled={!detail.mail.gmailUrl}
       disabledReason={t.reader.noMail}
@@ -1127,7 +1139,8 @@
     gap: var(--space-6);
   }
 
-  /* The label of the strip: the size of its chips. */
+  /* The label of the strip: navy, the size of the line it labels (the chips here, the
+     values of the clean line below). */
   .strip-label {
     display: inline-flex;
     align-items: center;
@@ -1150,6 +1163,11 @@
   .clean-icon {
     flex: none;
     min-height: var(--leading-sm);
+  }
+
+  .clean .strip-label {
+    font: var(--type-sm);
+    font-weight: var(--weight-medium);
   }
 
   .clean-icon {
