@@ -33,8 +33,8 @@ test('profile switches: only the switch switches, its text names and describes i
   const cases = [
     {
       id: 'profile-remote-outside',
-      label: 'Remote-Stellen im Ausland zulassen',
-      hint: 'Ausgeschaltet markiert die App ganz remote Stellen mit Sitz im Ausland zum Prüfen.',
+      label: 'Remote-Jobs im Ausland zulassen',
+      hint: 'Ausgeschaltet markiert die App ganz remote Jobs mit Sitz im Ausland zum Prüfen.',
     },
     { id: 'profile-no-anue', label: 'Arbeitnehmerüberlassung ausschließen', hint: null },
     {

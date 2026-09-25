@@ -39,3 +39,14 @@ One line per item: done, skipped (why) or open.
 - export-matching-05 done: the overview's waiting ring matches the app's.
 - ui-forms-03, export-matching-02 done: every offered country name reads back to its code (engine 15).
 - export-matching-03 done: assess-level tests for engines 12 and 13; held-out set 7's floor at engine 12's level.
+- names-01, live-jobs-13 done: "gelöscht"/"deleted" only for deleted forever; the trash sort is "Nach Datum".
+- names-02 done: "Job" (en "job") for the listed position in both catalogs and the export texts; "Role" only for the
+  consultant's own field. The AI prompt's wording is left as it is.
+- names-03 done: hints say "ausgeschlossen" instead of "fällt weg".
+- names-04 done: "Von dir trotzdem gewertet." / "You included this job anyway."
+- names-05 done: the Profil page's reading uses the form's labels; "Orte für Festanstellung" instead of "Region";
+  "ab 15 Jahren".
+- names-06 skipped: fixed before (HTML_NEW is "Neu und passend").
+- names-07, live-forms-09 done: the section is "Automatisch" / "Automatic".
+- names-09 done: en reader.frame "Conditions".
+- backend-02 done: "Diese Details holt die App nur auf Anfrage."

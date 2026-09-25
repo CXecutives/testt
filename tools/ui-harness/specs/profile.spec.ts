@@ -131,7 +131,7 @@ test('one name per field: the labels, their hints and neutral examples', async (
     'Remote-Anteil',
     'Den Mindest-Tagessatz legen die Ausschlusskriterien fest.',
     'Mindest-Tagessatz',
-    'Mindest-Erfahrung der Stelle',
+    'Mindest-Erfahrung des Jobs',
     'Mindest-Jahresgehalt',
     'Mindest-Remote-Anteil',
   ]) {
@@ -996,7 +996,7 @@ test('the remote switch sits under the countries and needs one', async ({ page }
   expect(toggleBox.y).toBeGreaterThan(countriesBox.y);
   expect(toggleBox.y).toBeLessThan(anueBox.y);
   await expect(page.getByTestId('section-criteria')).toContainText(
-    'Ausgeschaltet markiert die App ganz remote Stellen mit Sitz im Ausland zum Prüfen.',
+    'Ausgeschaltet markiert die App ganz remote Jobs mit Sitz im Ausland zum Prüfen.',
   );
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   // Without countries it has nothing to do: disabled, its tooltip says why.

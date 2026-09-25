@@ -502,7 +502,7 @@ mod tests {
             Timestamp::now(),
             &texts::DE,
         );
-        assert!(html.contains("Die Stelle ist eine Festanstellung, das Profil schließt sie aus."));
+        assert!(html.contains("Der Job ist eine Festanstellung, das Profil schließt sie aus."));
         let unknown = record(MatchStatus::Excluded, 50, Some("somethingNew"));
         let html = render(
             &favourites(vec![job("A", Some(unknown))]),

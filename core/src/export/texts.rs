@@ -92,11 +92,11 @@ pub fn exclusion_reason(code: &str, params: &Map<String, Value>) -> Option<&'sta
         "dayRate" => "Der Tagessatz liegt unter dem Minimum im Profil.",
         "country" => "Der Einsatzort liegt außerhalb der Länder im Profil.",
         "anue" => "Die Anzeige nennt Arbeitnehmerüberlassung.",
-        "permanent" => "Die Stelle ist eine Festanstellung, das Profil schließt sie aus.",
+        "permanent" => "Der Job ist eine Festanstellung, das Profil schließt sie aus.",
         "availability" => "Der Start passt nicht zur Verfügbarkeit.",
         "salary" => "Das Gehalt liegt unter dem Minimum im Profil.",
-        "permanentRegion" => "Die Festanstellung liegt außerhalb der Region im Profil.",
-        "tooJunior" => "Die Stelle verlangt deutlich weniger Erfahrung.",
+        "permanentRegion" => "Der Ort liegt außerhalb der Orte für Festanstellung.",
+        "tooJunior" => "Der Job verlangt deutlich weniger Erfahrung.",
         "formalOpen" if licence(params) => {
             "Die Anzeige verlangt eine Zulassung, die das Profil nicht nennt."
         }
@@ -190,11 +190,11 @@ pub mod en {
             "dayRate" => "The day rate is below the minimum in the profile.",
             "country" => "The location is outside the countries in the profile.",
             "anue" => "The ad mentions temporary agency work.",
-            "permanent" => "This is a permanent role, which the profile excludes.",
+            "permanent" => "This is a permanent job, which the profile excludes.",
             "availability" => "The start does not fit the availability.",
             "salary" => "The salary is below the minimum in the profile.",
-            "permanentRegion" => "The permanent role is outside the region in the profile.",
-            "tooJunior" => "The role asks for much less experience.",
+            "permanentRegion" => "The location is outside your locations for permanent jobs.",
+            "tooJunior" => "The job asks for much less experience.",
             "formalOpen" if licence(params) => {
                 "The ad requires a licence the profile does not name."
             }

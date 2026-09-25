@@ -149,9 +149,9 @@ const profileField: Record<string, string> = {
   minDayRate: 'Mindest-Tagessatz',
   countries: 'Einsatzländer',
   contracts: 'Ausgeschlossene Vertragsarten',
-  remoteOutside: 'Remote-Stellen im Ausland zulassen',
+  remoteOutside: 'Remote-Jobs im Ausland zulassen',
   available: 'Verfügbar ab',
-  targetYears: 'Mindest-Erfahrung der Stelle',
+  targetYears: 'Mindest-Erfahrung des Jobs',
   minSalary: 'Mindest-Jahresgehalt',
   permanentPlaces: 'Orte für Festanstellung',
   permanentRemoteMin: 'Mindest-Remote-Anteil',
@@ -214,7 +214,7 @@ const detailSays = {
   teaser: 'Ohne Anmeldung zeigt das Portal nur den Anfang der Anzeige.',
   unfetchable: 'Die Anzeige ließ sich mehrmals nicht holen.',
   gone: 'Die Anzeige ist nicht mehr online.',
-  onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
+  onRequest: 'Diese Details holt die App nur auf Anfrage.',
 } as const;
 
 /** Alert mails without jobs, and what to do about them (the overview's open points and the
@@ -280,12 +280,12 @@ function remoteWish(p: Params): string {
   const level = typeof p.level === 'string' ? REMOTE_LEVEL[p.level] : undefined;
   const wished = level ? `, gewünscht ist ${level}` : '';
   let ad: string;
-  if (p.share === 0) ad = 'Die Stelle ist ganz vor Ort';
-  else if (p.share === 100) ad = 'Die Stelle ist ganz remote';
-  else if (typeof p.share === 'number') ad = `Die Stelle ist zu ${formatPercent(p.share)} remote`;
+  if (p.share === 0) ad = 'Der Job ist ganz vor Ort';
+  else if (p.share === 100) ad = 'Der Job ist ganz remote';
+  else if (typeof p.share === 'number') ad = `Der Job ist zu ${formatPercent(p.share)} remote`;
   else if (typeof p.from === 'number' && typeof p.to === 'number')
-    ad = `Die Stelle ist zu ${str(p.from)} bis ${formatPercent(p.to)} remote`;
-  else ad = 'Die Stelle ist teilweise remote';
+    ad = `Der Job ist zu ${str(p.from)} bis ${formatPercent(p.to)} remote`;
+  else ad = 'Der Job ist teilweise remote';
   return `${ad}${wished}.`;
 }
 
@@ -293,10 +293,10 @@ function regionWish(p: Params): string {
   switch (p.state) {
     case 'met':
       return p.remote === true
-        ? 'Die Stelle ist voll remote, die Region spielt keine Rolle.'
+        ? 'Der Job ist voll remote, die Region spielt keine Rolle.'
         : `${str(p.location)} liegt in einer Wunschregion.`;
     case 'near':
-      return `${str(p.location)} liegt außerhalb der Wunschregionen, die Stelle ist überwiegend remote.`;
+      return `${str(p.location)} liegt außerhalb der Wunschregionen, der Job ist überwiegend remote.`;
     case 'missed':
       return `${str(p.location)} liegt außerhalb der Wunschregionen.`;
     default:
@@ -341,16 +341,16 @@ const reasonCode = {
   permanent: (p) => {
     if (p.excluded !== true) return 'Das klingt nach einer Festanstellung.';
     return p.stated === true
-      ? 'Die Stelle ist eine Festanstellung, das Profil schließt sie aus.'
+      ? 'Der Job ist eine Festanstellung, das Profil schließt sie aus.'
       : 'Das klingt nach einer Festanstellung, das Profil schließt sie aus.';
   },
   permanentRegion: (p) =>
     p.location
-      ? `Die Festanstellung in ${str(p.location)} liegt außerhalb der Region im Profil.`
-      : 'Die Festanstellung liegt außerhalb der Region im Profil.',
+      ? `${str(p.location)} liegt außerhalb der Orte für Festanstellung.`
+      : 'Der Ort liegt außerhalb der Orte für Festanstellung.',
   permanentRegionUnclear: (p) =>
     p.location
-      ? `Ob ${str(p.location)} in der Region liegt, ist unklar.`
+      ? `Ob ${str(p.location)} zu den Orten für Festanstellung gehört, ist unklar.`
       : 'Der Arbeitsort der Festanstellung ist unklar.',
   salary: (p) => {
     if (p.salary === undefined || p.salary === null || p.min === undefined) {
@@ -366,8 +366,8 @@ const reasonCode = {
   salaryUnknown: 'Die Anzeige nennt kein Gehalt.',
   tooJunior: (p) =>
     p.years !== undefined && p.years !== null
-      ? `Die Stelle verlangt ${count(num(p.years), 'Jahr', 'Jahre')} Erfahrung, das Profil zielt auf ${count(num(p.target), 'Jahr', 'Jahre')}.`
-      : 'Die Stelle richtet sich an weniger Erfahrene.',
+      ? `Der Job verlangt ${count(num(p.years), 'Jahr', 'Jahre')} Erfahrung, das Profil zielt auf ${count(num(p.target), 'Jahr', 'Jahre')}.`
+      : 'Der Job richtet sich an weniger Erfahrene.',
   seniorityUnclear: (p) =>
     p.junior
       ? 'Der Titel klingt nach einer Einstiegsstelle.'
@@ -434,7 +434,7 @@ const criteria = {
   noPermanent: {
     label: 'Festanstellung',
     short: 'Festanstellung',
-    exclusion: 'Die Stelle ist eine Festanstellung, das Profil schließt sie aus.',
+    exclusion: 'Der Job ist eine Festanstellung, das Profil schließt sie aus.',
   },
   availability: {
     label: 'Verfügbarkeit',
@@ -448,13 +448,13 @@ const criteria = {
   },
   permanentRegion: {
     label: 'Orte',
-    short: 'Ort außerhalb der Region',
-    exclusion: 'Die Festanstellung liegt außerhalb der Region im Profil.',
+    short: 'Ort passt nicht',
+    exclusion: 'Der Ort liegt außerhalb der Orte für Festanstellung.',
   },
   targetYears: {
     label: 'Erfahrung',
     short: 'Erfahrung passt nicht',
-    exclusion: 'Die Stelle verlangt deutlich weniger Erfahrung.',
+    exclusion: 'Der Job verlangt deutlich weniger Erfahrung.',
   },
 } satisfies Record<string, CriterionText>;
 export type CriterionKey = keyof typeof criteria;
@@ -645,11 +645,13 @@ export const de = {
     } satisfies Record<Place, string>,
     /** The reader of the archive and the trash while no job is open. */
     reader: {
-      archive: 'Archivierte Jobs bleiben hier, bis du sie zurückholst oder löschst.',
-      trash: 'Gelöschte Jobs liegen hier, bis du sie wiederherstellst oder den Papierkorb leerst.',
+      archive:
+        'Archivierte Jobs bleiben hier, bis du sie zurückholst oder in den Papierkorb legst.',
+      trash:
+        'Jobs im Papierkorb bleiben hier, bis du sie wiederherstellst oder den Papierkorb leerst.',
     } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
-      `Gelöschte Jobs liegen hier ${count(days, 'Tag', 'Tage')}, dann sind sie endgültig weg.`,
+      `Jobs im Papierkorb werden nach ${count(days, 'Tag', 'Tagen')} endgültig gelöscht.`,
   },
   /** What a job can do where it is: one name and icon on a row, in the reader, in the bar. */
   actions: {
@@ -663,7 +665,7 @@ export const de = {
     purgeConfirm: 'Löschen',
     purgeHeading: (value: number) =>
       value === 1 ? 'Job endgültig löschen?' : `${n(value)} Jobs endgültig löschen?`,
-    purgeText: 'Gelöschte Jobs kommen nicht wieder, auch nicht mit alten Alert-Mails.',
+    purgeText: 'Endgültig gelöschte Jobs kommen nicht wieder, auch nicht mit alten Alert-Mails.',
     emptyTrash: 'Papierkorb leeren',
     emptyTrashConfirm: 'Leeren',
     emptyTrashHeading: 'Papierkorb leeren?',
@@ -775,8 +777,6 @@ export const de = {
       match: 'Nach Passung',
       newest: 'Nach Datum',
     } satisfies Record<JobSort, string>,
-    /** By date in the Papierkorb: the day a job went there, which its row shows. */
-    sortDeleted: 'Nach Löschdatum',
     /** The order without a usable profile: there is no fit to sort by. */
     sortNoProfile: 'Ohne Profil nur nach Datum.',
     needsMailbox: 'Verbinde erst ein Postfach.',
@@ -948,7 +948,7 @@ export const de = {
     /** The label of the strip of hard criteria next to the score. */
     frame: 'Rahmen',
     /** Why the temporary agency criterion needs a look. */
-    anueCheck: 'Ob die Stelle über Arbeitnehmerüberlassung läuft, steht nicht fest.',
+    anueCheck: 'Ob der Job über Arbeitnehmerüberlassung läuft, steht nicht fest.',
     contractLabel: 'Vertragsart',
     criterion: criteria,
     /** The tooltip of a criterion chip that shows the ad's value: the criterion and its
@@ -971,7 +971,7 @@ export const de = {
     /** An excluded job the user counts anyway, and back. */
     override: 'Trotzdem werten',
     overrideUndo: 'Wieder ausschließen',
-    overridden: 'Von dir als passend markiert.',
+    overridden: 'Von dir trotzdem gewertet.',
     prompt: 'Prompt für KI-Bewertung kopieren',
     promptShort: 'Prompt kopieren',
     promptHint: 'Kopiert Anzeige und Profil als fertigen Prompt für eine KI.',
@@ -1200,16 +1200,16 @@ export const de = {
       wishIndustries: 'Wunschbranchen',
       wishIndustriesPlaceholder: 'z. B. Energie',
       minDayRate: 'Mindest-Tagessatz',
-      minDayRateHint: 'Liegt der Satz einer Anzeige darunter, fällt der Job weg.',
+      minDayRateHint: 'Liegt der Satz einer Anzeige darunter, ist der Job ausgeschlossen.',
       countries: 'Einsatzländer',
       countriesPlaceholder: 'Land suchen',
       /** Typed text that names no country the app knows. */
       countryNone: 'Kein Land mit diesem Namen.',
       /** One click for Deutschland, Österreich and Schweiz. */
       dach: 'DACH hinzufügen',
-      remoteOutside: 'Remote-Stellen im Ausland zulassen',
+      remoteOutside: 'Remote-Jobs im Ausland zulassen',
       remoteOutsideHint:
-        'Ausgeschaltet markiert die App ganz remote Stellen mit Sitz im Ausland zum Prüfen.',
+        'Ausgeschaltet markiert die App ganz remote Jobs mit Sitz im Ausland zum Prüfen.',
       remoteOutsideOff: 'Wähle erst die Einsatzländer.',
       noAnue: 'Arbeitnehmerüberlassung ausschließen',
       noPermanent: 'Festanstellung ausschließen',
@@ -1218,8 +1218,8 @@ export const de = {
       date: 'Datum',
       datePlaceholder: '01.11.2026',
       dateInvalid: 'Gib das Datum im Format 01.11.2026 ein.',
-      targetYears: 'Mindest-Erfahrung der Stelle',
-      targetYearsHint: 'Stellen für deutlich weniger Erfahrung fallen weg.',
+      targetYears: 'Mindest-Erfahrung des Jobs',
+      targetYearsHint: 'Jobs für deutlich weniger Erfahrung sind ausgeschlossen.',
       minSalary: 'Mindest-Jahresgehalt',
       places: 'Orte für Festanstellung',
       placesPlaceholder: 'z. B. München',
@@ -1318,6 +1318,8 @@ export const de = {
       fileOnly: (name: string) => `${name}, nur in der Datei`,
       years: 'Berufserfahrung',
       yearsValue: (value: number) => count(value, 'Jahr', 'Jahre'),
+      /** A minimum of years (dative): `ab 15 Jahren`. */
+      yearsFrom: (value: number) => `ab ${count(value, 'Jahr', 'Jahren')}`,
       degrees: 'Abschlüsse',
       packs: 'Fachwortschatz',
       criteria: 'Ausschlusskriterien',
@@ -1358,7 +1360,8 @@ export const de = {
   },
   settings: {
     mailbox: 'Postfach',
-    fetch: 'Abruf',
+    /** The section of what the app does on its own: fetch at start, archive, empty the trash. */
+    automatic: 'Automatisch',
     portals: 'Portale',
     files: 'Dateien',
     maintenance: 'Wartung',
@@ -1391,7 +1394,7 @@ export const de = {
     autoArchive: 'Jobs nach 30 Tagen archivieren',
     autoArchiveHint: 'Favoriten werden nie archiviert.',
     autoEmptyTrash: 'Papierkorb nach 30 Tagen leeren',
-    autoEmptyTrashHint: 'Gelöschte Jobs sind danach endgültig weg.',
+    autoEmptyTrashHint: 'Jobs im Papierkorb werden dann endgültig gelöscht.',
     active: 'Aktiv',
     details: 'Details holen',
     needsDetails: 'Schalte erst „Details holen“ ein.',

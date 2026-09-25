@@ -185,11 +185,11 @@ const profileField: Record<string, string> = {
   minDayRate: 'Minimum day rate',
   countries: 'Countries',
   contracts: 'Excluded contract types',
-  remoteOutside: 'Allow remote roles abroad',
+  remoteOutside: 'Allow remote jobs abroad',
   available: 'Available from',
-  targetYears: 'Minimum seniority of the role',
+  targetYears: 'Minimum experience of the job',
   minSalary: 'Minimum annual salary',
-  permanentPlaces: 'Locations for permanent roles',
+  permanentPlaces: 'Locations for permanent jobs',
   permanentRemoteMin: 'Minimum remote share',
   focus: 'Focus areas',
   roles: 'Target roles',
@@ -252,7 +252,7 @@ const detailSays = {
   teaser: 'Without a sign-in, the portal shows only the start of the ad.',
   unfetchable: 'The ad could not be fetched after several tries.',
   gone: 'The ad is no longer online.',
-  onRequest: 'Older jobs get their details only on request.',
+  onRequest: 'The app fetches these details only on request.',
 } as const;
 
 /** Alert emails without jobs, and what to do about them (the overview and the settings). */
@@ -316,12 +316,12 @@ function remoteWish(p: Params): string {
   const level = typeof p.level === 'string' ? REMOTE_LEVEL[p.level] : undefined;
   const wished = level ? `, and you prefer ${level}` : '';
   let ad: string;
-  if (p.share === 0) ad = 'The role is fully on site';
-  else if (p.share === 100) ad = 'The role is fully remote';
-  else if (typeof p.share === 'number') ad = `The role is ${formatPercent(p.share)} remote`;
+  if (p.share === 0) ad = 'The job is fully on site';
+  else if (p.share === 100) ad = 'The job is fully remote';
+  else if (typeof p.share === 'number') ad = `The job is ${formatPercent(p.share)} remote`;
   else if (typeof p.from === 'number' && typeof p.to === 'number')
-    ad = `The role is ${str(p.from)} to ${formatPercent(p.to)} remote`;
-  else ad = 'The role is partly remote';
+    ad = `The job is ${str(p.from)} to ${formatPercent(p.to)} remote`;
+  else ad = 'The job is partly remote';
   return `${ad}${wished}.`;
 }
 
@@ -329,10 +329,10 @@ function regionWish(p: Params): string {
   switch (p.state) {
     case 'met':
       return p.remote === true
-        ? 'The role is fully remote, so the region does not matter.'
+        ? 'The job is fully remote, so the region does not matter.'
         : `${str(p.location)} is in one of your preferred regions.`;
     case 'near':
-      return `${str(p.location)} is outside your preferred regions, but the role is mostly remote.`;
+      return `${str(p.location)} is outside your preferred regions, but the job is mostly remote.`;
     case 'missed':
       return `${str(p.location)} is outside your preferred regions.`;
     default:
@@ -374,19 +374,19 @@ const reasonCode = {
     `The start is ${count(num(p.days), 'day', 'days')} before you are available.`,
   startVague: 'The start date is unclear.',
   permanent: (p) => {
-    if (p.excluded !== true) return 'This sounds like a permanent role.';
+    if (p.excluded !== true) return 'This sounds like a permanent job.';
     return p.stated === true
-      ? 'This is a permanent role, which the profile excludes.'
-      : 'This sounds like a permanent role, which the profile excludes.';
+      ? 'This is a permanent job, which the profile excludes.'
+      : 'This sounds like a permanent job, which the profile excludes.';
   },
   permanentRegion: (p) =>
     p.location
-      ? `The permanent role in ${str(p.location)} is outside the region in the profile.`
-      : 'The permanent role is outside the region in the profile.',
+      ? `${str(p.location)} is outside your locations for permanent jobs.`
+      : 'The location is outside your locations for permanent jobs.',
   permanentRegionUnclear: (p) =>
     p.location
-      ? `It is unclear whether ${str(p.location)} is in the region.`
-      : 'The location of the permanent role is unclear.',
+      ? `It is unclear whether ${str(p.location)} is one of your locations for permanent jobs.`
+      : 'The location of the permanent job is unclear.',
   salary: (p) => {
     if (p.salary === undefined || p.salary === null || p.min === undefined) {
       return 'The salary is below the minimum in the profile.';
@@ -401,15 +401,13 @@ const reasonCode = {
   salaryUnknown: 'The ad names no salary.',
   tooJunior: (p) =>
     p.years !== undefined && p.years !== null
-      ? `The role asks for ${count(num(p.years), 'year', 'years')} of experience, while the profile targets ${count(num(p.target), 'year', 'years')}.`
-      : 'The role is meant for people with less experience.',
+      ? `The job asks for ${count(num(p.years), 'year', 'years')} of experience, while the profile targets ${count(num(p.target), 'year', 'years')}.`
+      : 'The job is meant for people with less experience.',
   seniorityUnclear: (p) =>
-    p.junior
-      ? 'The title sounds like a junior role.'
-      : 'The level of experience sought is unclear.',
+    p.junior ? 'The title sounds like a junior job.' : 'The level of experience sought is unclear.',
   overqualified: (p) =>
     p.years !== undefined && p.years !== null
-      ? `The role asks for ${count(num(p.years), 'year', 'years')} of experience, and the profile has much more.`
+      ? `The job asks for ${count(num(p.years), 'year', 'years')} of experience, and the profile has much more.`
       : 'The profile has much more experience than sought.',
   contractType: (p) => contractName(p),
   formalOpen: (p) => {
@@ -457,9 +455,9 @@ const criteria = {
     exclusion: ANUE,
   },
   noPermanent: {
-    label: 'Permanent role',
-    short: 'Permanent role',
-    exclusion: 'This is a permanent role, which the profile excludes.',
+    label: 'Permanent job',
+    short: 'Permanent job',
+    exclusion: 'This is a permanent job, which the profile excludes.',
   },
   availability: {
     label: 'Availability',
@@ -473,13 +471,13 @@ const criteria = {
   },
   permanentRegion: {
     label: 'Locations',
-    short: 'Location outside the region',
-    exclusion: 'The permanent role is outside the region in the profile.',
+    short: 'Location does not fit',
+    exclusion: 'The location is outside your locations for permanent jobs.',
   },
   targetYears: {
     label: 'Experience',
     short: 'Experience does not fit',
-    exclusion: 'The role asks for much less experience.',
+    exclusion: 'The job asks for much less experience.',
   },
 } satisfies Catalog['reader']['criterion'];
 
@@ -636,11 +634,11 @@ export const en: Catalog = {
       trash: 'The trash is empty.',
     } satisfies Record<Place, string>,
     reader: {
-      archive: 'Archived jobs stay here until you bring them back or delete them.',
-      trash: 'Deleted jobs stay here until you restore them or empty the trash.',
+      archive: 'Archived jobs stay here until you bring them back or move them to the trash.',
+      trash: 'Jobs in the trash stay here until you restore them or empty the trash.',
     } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
-      `Deleted jobs stay here for ${count(days, 'day', 'days')} and are then gone forever.`,
+      `Jobs in the trash are deleted forever after ${count(days, 'day', 'days')}.`,
   },
   actions: {
     archive: 'Archive',
@@ -651,7 +649,7 @@ export const en: Catalog = {
     purgeConfirm: 'Delete',
     purgeHeading: (value: number) =>
       value === 1 ? 'Delete the job forever?' : `Delete ${n(value)} jobs forever?`,
-    purgeText: 'Deleted jobs never come back, not even from old alert emails.',
+    purgeText: 'Jobs deleted forever never come back, not even from old alert emails.',
     emptyTrash: 'Empty trash',
     emptyTrashConfirm: 'Empty',
     emptyTrashHeading: 'Empty the trash?',
@@ -752,7 +750,6 @@ export const en: Catalog = {
       match: 'By match',
       newest: 'By date',
     } satisfies Record<JobSort, string>,
-    sortDeleted: 'By date deleted',
     sortNoProfile: 'Without a profile, jobs sort by date only.',
     needsMailbox: 'Connect a mailbox first.',
     needsPortal: 'Switch on a portal first.',
@@ -893,8 +890,8 @@ export const en: Catalog = {
       `${n(met)} of ${n(total)} must-have requirements met` +
       (partial > 0 ? `, ${n(partial)} partly` : ''),
     noMust: 'No must-have requirements found',
-    frame: 'Terms',
-    anueCheck: 'It is not certain whether the role is temporary agency work.',
+    frame: 'Conditions',
+    anueCheck: 'It is not certain whether the job is temporary agency work.',
     contractLabel: 'Contract type',
     criterion: criteria,
     criterionHint: {
@@ -913,7 +910,7 @@ export const en: Catalog = {
     restore: 'Restore',
     override: 'Include anyway',
     overrideUndo: 'Exclude again',
-    overridden: 'You marked this job as a match.',
+    overridden: 'You included this job anyway.',
     prompt: 'Copy prompt for AI assessment',
     promptShort: 'Copy prompt',
     promptHint: 'Copies the ad and the profile as a ready prompt for an AI.',
@@ -1047,7 +1044,7 @@ export const en: Catalog = {
       languages: 'Languages',
       wishes: 'Preferences',
       criteria: 'Exclusion criteria',
-      permanent: 'Permanent roles',
+      permanent: 'Permanent jobs',
       availability: 'Availability',
       understood: 'How the app reads your profile',
     },
@@ -1058,7 +1055,7 @@ export const en: Catalog = {
       languages: 'The app compares them with the languages an ad asks for.',
       wishes: 'Preferences nudge the score but never exclude a job.',
       criteria: 'A job that does not fit here counts as excluded.',
-      permanent: 'These rules apply to permanent roles only.',
+      permanent: 'These rules apply to permanent jobs only.',
       availability: 'A job that starts earlier is marked to check, never excluded.',
     },
     field: {
@@ -1093,7 +1090,7 @@ export const en: Catalog = {
       keywordsPlaceholder: 'e.g. Transformation',
       keywordsHint: 'Terms that appear in matching ads.',
       totalYears: 'Professional experience',
-      totalYearsHint: 'From ten years on, junior roles score low.',
+      totalYearsHint: 'From ten years on, junior jobs score low.',
       degrees: 'Degrees',
       degreesPlaceholder: 'e.g. Master',
       industries: 'Industries',
@@ -1116,29 +1113,29 @@ export const en: Catalog = {
       wishIndustries: 'Preferred industries',
       wishIndustriesPlaceholder: 'e.g. Energy',
       minDayRate: 'Minimum day rate',
-      minDayRateHint: 'A job whose rate is lower is left out.',
+      minDayRateHint: 'A job whose rate is lower is excluded.',
       countries: 'Countries',
       countriesPlaceholder: 'Search for a country',
       countryNone: 'No country by this name.',
       dach: 'Add DACH',
-      remoteOutside: 'Allow remote roles abroad',
-      remoteOutsideHint: 'When off, the app marks fully remote roles based abroad to check.',
+      remoteOutside: 'Allow remote jobs abroad',
+      remoteOutsideHint: 'When off, the app marks fully remote jobs based abroad to check.',
       remoteOutsideOff: 'Choose the countries first.',
       noAnue: 'Exclude temporary agency work',
-      noPermanent: 'Exclude permanent roles',
+      noPermanent: 'Exclude permanent jobs',
       noPermanentHint: 'Only on clear wording, otherwise the app marks the job to check.',
       available: 'Available from',
       date: 'Date',
       datePlaceholder: '01/11/2026',
       dateInvalid: 'Enter the date as 01/11/2026.',
-      targetYears: 'Minimum seniority of the role',
-      targetYearsHint: 'Roles for far less experienced people are left out.',
+      targetYears: 'Minimum experience of the job',
+      targetYearsHint: 'Jobs for far less experienced people are excluded.',
       minSalary: 'Minimum annual salary',
-      places: 'Locations for permanent roles',
+      places: 'Locations for permanent jobs',
       placesPlaceholder: 'e.g. Munich',
       remoteMin: 'Minimum remote share',
       remoteMinHint:
-        'Outside these locations, a permanent role counts only with at least this much remote work.',
+        'Outside these locations, a permanent job counts only with at least this much remote work.',
       rounded: 'Rounded down to whole euros.',
       roundedWhole: 'Rounded down to a whole number.',
       refused: 'This value does not fit.',
@@ -1192,6 +1189,7 @@ export const en: Catalog = {
       fileOnly: (name: string) => `${name}, only in the file`,
       years: 'Professional experience',
       yearsValue: (value: number) => count(value, 'year', 'years'),
+      yearsFrom: (value: number) => `from ${count(value, 'year', 'years')}`,
       degrees: 'Degrees',
       packs: 'Specialist vocabulary',
       criteria: 'Exclusion criteria',
@@ -1230,7 +1228,7 @@ export const en: Catalog = {
   },
   settings: {
     mailbox: 'Mailbox',
-    fetch: 'Fetch',
+    automatic: 'Automatic',
     portals: 'Portals',
     files: 'Files',
     maintenance: 'Maintenance',
@@ -1260,7 +1258,7 @@ export const en: Catalog = {
     autoArchive: 'Archive jobs after 30 days',
     autoArchiveHint: 'Favourites are never archived.',
     autoEmptyTrash: 'Empty the trash after 30 days',
-    autoEmptyTrashHint: 'Deleted jobs are then gone forever.',
+    autoEmptyTrashHint: 'Jobs in the trash are then deleted forever.',
     active: 'Active',
     details: 'Fetch details',
     needsDetails: 'Turn on “Fetch details” first.',

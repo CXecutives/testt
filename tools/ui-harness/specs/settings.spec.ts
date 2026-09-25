@@ -155,7 +155,7 @@ test('the trash empties itself after 30 days unless switched off', async ({ page
   const trash = page.getByTestId('toggle-auto-empty-trash');
   const fetch = page.getByTestId('settings-fetch');
   await expect(fetch).toContainText('Papierkorb nach 30 Tagen leeren');
-  await expect(fetch).toContainText('Gelöschte Jobs sind danach endgültig weg.');
+  await expect(fetch).toContainText('Jobs im Papierkorb werden dann endgültig gelöscht.');
   const on = (await trash.getAttribute('aria-checked')) === 'true';
   await trash.click();
   await expect(trash).toHaveAttribute('aria-checked', on ? 'false' : 'true');

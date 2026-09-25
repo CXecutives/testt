@@ -382,7 +382,7 @@
     </section>
 
     <section class="section" data-testid="settings-fetch">
-      <h2 class="heading">{t.settings.fetch}</h2>
+      <h2 class="heading">{t.settings.automatic}</h2>
       <Card padding="rows">
         <SettingRow
           label={t.settings.autoFetch}
