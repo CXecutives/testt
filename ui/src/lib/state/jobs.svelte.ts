@@ -688,7 +688,7 @@ class JobsStore {
     const search = this.search.trim() === '' ? null : this.search.trim();
     try {
       const keys = await invoke('mark_all_read', { place: placeOf(this.facet), search });
-      for (const key of keys) this.patch(key, { unread: false });
+      this.patchAll(keys, { unread: false });
       void this.refreshCounts();
       return { keys };
     } catch (error) {
@@ -700,7 +700,7 @@ class JobsStore {
   async markUnread(keys: JobKey[]): Promise<string | null> {
     try {
       await invoke('mark_unread', { keys });
-      for (const key of keys) this.patch(key, { unread: true });
+      this.patchAll(keys, { unread: true });
       void this.refreshCounts();
       return null;
     } catch (error) {
@@ -852,6 +852,36 @@ class JobsStore {
     }
     if (shown !== null && this.detail) {
       this.detail = { ...this.detail, job: { ...this.detail.job, ...change } };
+    }
+  }
+
+  /**
+   * `patch` for many jobs at once ("all read" and its undo): one pass over the rows and one
+   * copy of them, the list's counts moved per listed row. The caller asks the backend for the
+   * counts afterwards (it knows the jobs the page does not hold).
+   */
+  private patchAll(keys: readonly JobKey[], change: Partial<JobView>): void {
+    const wanted = new Set(keys.map(keyOf));
+    let counts = this.counts;
+    let overall = this.overviewCounts;
+    let changed = false;
+    const rows = this.rows.map((row) => {
+      if (!wanted.has(keyOf(row.key))) return row;
+      const after = { ...row, ...change };
+      counts = moved(counts, row, after);
+      if (overall !== null) overall = moved(overall, row, after);
+      this.recount(row, after);
+      changed = true;
+      return after;
+    });
+    if (changed) {
+      this.rows = rows;
+      this.counts = counts;
+      this.overviewCounts = overall;
+    }
+    const shown = this.detail;
+    if (shown !== null && wanted.has(keyOf(shown.job.key))) {
+      this.detail = { ...shown, job: { ...shown.job, ...change } };
     }
   }
 

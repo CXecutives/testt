@@ -72,8 +72,10 @@
 </div>
 
 <style>
+  /* As wide as the row it takes, so "Auswahl aufheben" ends on its edge. */
   .bar {
     display: flex;
+    flex: 1;
     align-items: center;
     gap: var(--space-8);
     min-width: 0;

@@ -2,6 +2,7 @@
 // choosing several jobs, the keys, the header row, errors and the empty states.
 
 import type { Page } from '@playwright/test';
+import type { Portal } from '../../../ui/src/lib/ipc/types';
 import { calls, expect, open, settle, test } from './fixtures';
 
 const WIN = '?platform=windows';
@@ -51,26 +52,43 @@ const SAMPLE = [
   ['freelancermap', '2806'],
 ] as const;
 
+/** Change jobs of the stub before the page asks for the app state (read, pinned). */
+async function atStart(
+  page: Page,
+  keys: readonly (readonly [Portal, string])[],
+  change: { unread?: boolean; pinned?: boolean },
+): Promise<void> {
+  await page.addInitScript(
+    ({ keys, change }) => {
+      let harness: Window['__harness'] | undefined;
+      Object.defineProperty(window, '__harness', {
+        configurable: true,
+        get: () => harness,
+        set: (value: Window['__harness']) => {
+          harness = value;
+          // After the stub has built its jobs (the rest of its module), before app_state.
+          queueMicrotask(() => {
+            for (const [portal, id] of keys) {
+              const job = value.job({ portal, id });
+              if (job) value.emit({ type: 'jobUpdated', job: { ...job, ...change }, fresh: false });
+            }
+          });
+        },
+      });
+    },
+    { keys, change },
+  );
+}
+
 /** Every sample job is read before the page asks for the app state. */
-async function allReadAtStart(page: Page): Promise<void> {
-  await page.addInitScript((keys) => {
-    let harness: Window['__harness'] | undefined;
-    Object.defineProperty(window, '__harness', {
-      configurable: true,
-      get: () => harness,
-      set: (value: Window['__harness']) => {
-        harness = value;
-        // After the stub has built its jobs (the rest of its module), before app_state.
-        queueMicrotask(() => {
-          for (const [portal, id] of keys) {
-            const job = value.job({ portal, id });
-            if (job?.unread)
-              value.emit({ type: 'jobUpdated', job: { ...job, unread: false }, fresh: false });
-          }
-        });
-      },
-    });
-  }, SAMPLE);
+function allReadAtStart(page: Page): Promise<void> {
+  return atStart(page, SAMPLE, { unread: false });
+}
+
+/** Keys of the jobs of `?scenario=many` (stub.ts manyJobs). */
+function manyKeys(count: number): [Portal, string][] {
+  const portals: Portal[] = ['linkedin', 'freelance', 'freelancermap'];
+  return Array.from({ length: count }, (_, i) => [portals[i % 3]!, String(100000 + i)]);
 }
 
 test.describe('paging and the remembered tab', () => {
@@ -262,5 +280,124 @@ test.describe('the keys over the whole list', () => {
     const next = keys[keys.indexOf(key) + 1];
     await page.keyboard.press('ArrowDown');
     await expect.poll(() => highlighted(page)).toEqual([next]);
+  });
+});
+
+/** The right edge of an element (px from the left of the window). */
+async function rightOf(page: Page, testid: string): Promise<number> {
+  const box = await page.getByTestId(testid).boundingBox();
+  return Math.round((box?.x ?? 0) + (box?.width ?? 0));
+}
+
+/** Archive two sample jobs with their row tools. */
+async function archiveTwo(page: Page): Promise<void> {
+  await facet(page, 'Alle').click();
+  for (const key of ['freelancermap-2802', 'freelancermap-2804']) {
+    await row(page, key).hover();
+    await page.getByTestId(`archive-${key}`).click();
+    await settleMoves(page);
+  }
+}
+
+test.describe('the list header', () => {
+  test('Neu, Alle and Favoriten keep their whole labels with thousands of jobs', async ({
+    page,
+  }) => {
+    await atStart(page, manyKeys(12), { pinned: true });
+    const labelsCut = (): Promise<boolean> =>
+      page
+        .getByTestId('facet')
+        .locator('.label')
+        .evaluateAll((labels) => labels.some((label) => label.scrollWidth > label.clientWidth));
+    for (const width of [1100, 1300, 1366, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      await open(page, `${WIN}&scenario=many`);
+      await expect(facet(page, 'Favoriten')).toContainText('12');
+      expect(await labelsCut(), `${width} px`).toBe(false);
+    }
+    // A wide column holds the segments and the tools on one line.
+    await page.addInitScript(() => localStorage.setItem('jobs-list-width', '560'));
+    await open(page, `${WIN}&scenario=many`);
+    const second = page.getByTestId('facet').locator('xpath=..');
+    expect((await second.boundingBox())?.height).toBe(28);
+    expect(await labelsCut()).toBe(false);
+  });
+
+  test('the selection bar ends where the order does, on one line and on two', async ({ page }) => {
+    for (const width of [1360, 1600]) {
+      await page.setViewportSize({ width, height: 900 });
+      if (width === 1600) {
+        await page.addInitScript(() => localStorage.setItem('jobs-list-width', '560'));
+      }
+      await open(page, WIN);
+      await facet(page, 'Alle').click();
+      const end = await rightOf(page, 'sort');
+      await row(page, 'freelancermap-2801').click();
+      await row(page, 'linkedin-4100200301').click({ modifiers: ['Control'] });
+      await expect(page.getByTestId('selection-bar')).toBeVisible();
+      expect(await rightOf(page, 'selection-clear'), `${width} px`).toBe(end);
+    }
+  });
+
+  test('the order keeps the end of the row in the Papierkorb too', async ({ page }) => {
+    await open(page, WIN);
+    await facet(page, 'Alle').click();
+    const end = await rightOf(page, 'sort');
+    for (const key of ['freelancermap-2802', 'freelancermap-2804']) {
+      await row(page, key).hover();
+      await page.getByTestId(`trash-${key}`).click();
+      await settleMoves(page);
+    }
+    await page.getByTestId('nav-trash').click();
+    await expect(page.getByTestId('empty-trash')).toBeVisible();
+    expect(await rightOf(page, 'sort')).toBe(end);
+    const trash = await page.getByTestId('empty-trash').boundingBox();
+    const sort = await page.getByTestId('sort').boundingBox();
+    expect((trash?.x ?? 0) < (sort?.x ?? 0)).toBe(true);
+  });
+
+  test('during a search the place count says what it found there', async ({ page }) => {
+    await open(page, WIN);
+    await archiveTwo(page);
+    await page.getByTestId('nav-archive').click();
+    // (The sample data keeps one job in the archive already.)
+    await expect(page.getByTestId('place-count')).toHaveText('3 Jobs im Archiv');
+    await page.getByTestId('search').fill('Treasury');
+    await expect(page.getByTestId('place-count')).toHaveText('1 Job zu „Treasury“ im Archiv');
+  });
+
+  test('a double click on Alle als gelesen markieren marks once; its undo brings Neu back', async ({
+    page,
+  }) => {
+    await open(page, WIN);
+    const unread = await facet(page, 'Neu').innerText();
+    await page.getByTestId('mark-all-read').dblclick();
+    await expect(page.getByTestId('toast')).toHaveCount(1);
+    expect(await calls(page, 'mark_all_read')).toHaveLength(1);
+    await page.keyboard.press('Control+z');
+    await expect(facet(page, 'Neu')).toHaveText(unread);
+    expect(await calls(page, 'mark_unread')).toHaveLength(1);
+  });
+
+  test('Alle als gelesen markieren stays while Neu lists an unread excluded job', async ({
+    page,
+  }) => {
+    await open(page, WIN);
+    // Read every counted job of Neu: only the unread excluded one stays unread.
+    const counted = await rows(page).evaluateAll((items) =>
+      items.map((item) => item.getAttribute('data-testid') ?? ''),
+    );
+    for (const id of counted) await page.getByTestId('job-list').getByTestId(id).click();
+    // Closed, the last one read leaves Neu too once it is entered again.
+    await page.keyboard.press('Escape');
+    await facet(page, 'Alle').click();
+    await facet(page, 'Neu').click();
+    await expect(rows(page)).toHaveCount(0);
+    await expect(
+      page.getByTestId('excluded-rows').locator('[data-testid^="job-row-"]'),
+    ).toHaveCount(1);
+    await page.getByTestId('mark-all-read').click();
+    expect(await calls(page, 'mark_all_read')).toHaveLength(1);
+    await expect(page.getByTestId('mark-all-read')).toHaveCount(0);
   });
 });

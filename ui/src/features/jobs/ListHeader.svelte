@@ -9,16 +9,18 @@
   macOS this row is the list's part of the toolbar row, centred on the traffic lights, and
   its empty parts move the window.
   Row 2 in the inbox: Neu · Alle · Favoriten with their counts, and at its end "Alle als
-  gelesen markieren" (while there are unread jobs; the toast takes it back) and the order, a
-  quiet button that opens the OS's own menu (Nach Passung, Nach Datum; one choice for every
-  list, kept; without a usable profile by date, saying why). In the Archiv and the
-  Papierkorb: how many jobs lie there, the order, and in the Papierkorb "Papierkorb leeren"
-  (asks first). While two or more jobs are chosen, the selection bar takes this row: how
-  many, the place's actions, "Auswahl aufheben" (Esc too). The row keeps one height in every
-  state: in a wide column it is one line (the segments shorten before anything wraps), in a
-  narrow one always two (the tools on their own line, in every place, also under the
-  selection bar), so the list never jumps. The bottom hairline shows only once the list below
-  is scrolled.
+  gelesen markieren" (while the list holds unread jobs; the toast takes it back) and the
+  order, a quiet button that opens the OS's own menu (Nach Passung, Nach Datum; one choice
+  for every list, kept; without a usable profile by date, saying why). In the Archiv and
+  the Papierkorb: how many jobs lie there (during a search, how many it found there), in the
+  Papierkorb "Papierkorb leeren" (asks first), and the order, which keeps the end of the row
+  in every place. While two or more jobs are chosen, the selection bar takes this row: how
+  many, the place's actions, "Auswahl aufheben" at its end (Esc too). The row keeps one
+  height in every state: one line in a column wide enough for the segments with four-digit
+  counts and the tools, else always two (the tools on their own line, in every place, also
+  under the selection bar), so the list never jumps and no label shortens (only as a last
+  resort, with still longer counts). The bottom hairline shows only once the list below is
+  scrolled.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -28,6 +30,7 @@
   import Segmented from '$components/Segmented.svelte';
   import SelectionBar from '$components/SelectionBar.svelte';
   import TextField from '$components/TextField.svelte';
+  import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import type { JobSort } from '$lib/ipc/types';
   import { fade } from '$lib/motion/transitions';
@@ -75,6 +78,16 @@
   const inPlace = $derived(
     jobs.facet === 'favourites' ? jobs.counts.favourites : jobs.counts[place],
   );
+  const query = $derived(jobs.search.trim());
+  /** How many jobs lie in the archive or the trash; during a search, how many it found. */
+  const placeCount = $derived(
+    query === '' ? t.place.count[place](inPlace) : t.place.found[place](inPlace, query),
+  );
+  /** "Alle als gelesen markieren" while the list holds an unread job: the count leaves out
+   *  the excluded ones, which Neu lists all the same (and the action marks too). */
+  const unread = $derived(
+    jobs.counts.unread > 0 || jobs.rows.some((job) => job.unread && job.place === 'inbox'),
+  );
 
   let searchBox = $state<HTMLElement | null>(null);
 
@@ -89,16 +102,22 @@
   const sorts = $derived(SORTS.map((sort) => ({ id: sort, label: t.toolbar.sortLabel[sort] })));
 
   let error = $state<string | null>(null);
+  /** "Alle als gelesen markieren" is on its way: a second click (a double click) waits. */
+  let marking = false;
 
   /** "Alle als gelesen markieren": the unread jobs of the list (with a search its hits);
-   *  the toast takes it back. */
+   *  the toast takes it back. Nothing marked, nothing to say or take back. */
   async function markAllRead(): Promise<void> {
+    if (marking) return;
+    marking = true;
     error = null;
     const result = await jobs.markAllRead();
+    marking = false;
     if ('error' in result) {
       error = result.error;
       return;
     }
+    if (result.keys.length === 0) return;
     void jobs.loadOverview();
     toasts.show(t.toast.allRead, 'success', {
       label: t.common.undo,
@@ -206,13 +225,15 @@
         {:else}
           <!-- An empty place says so in the list; no "0 Jobs" above it. -->
           {#if inPlace > 0}
-            <span class="place-count" data-testid="place-count"
-              >{t.place.count[place](inPlace)}</span
+            <span
+              class="place-count"
+              data-testid="place-count"
+              use:tooltip={{ text: placeCount, truncated: true }}>{placeCount}</span
             >
           {/if}
         {/if}
         <span class="tools">
-          {#if inInbox && jobs.facet !== 'favourites' && jobs.counts.unread > 0}
+          {#if inInbox && jobs.facet !== 'favourites' && unread}
             <Button
               variant="ghost"
               size="sm"
@@ -221,16 +242,6 @@
               label={t.actions.markAllRead}
               testid="mark-all-read"
               onclick={() => void markAllRead()}
-            />
-          {/if}
-          {#if inPlace > 0}
-            <MenuButton
-              options={sorts}
-              value={app.hasProfile ? jobs.sortChoice : 'newest'}
-              disabled={!app.hasProfile}
-              disabledReason={t.toolbar.sortNoProfile}
-              testid="sort"
-              onchange={(sort) => jobs.setSort(sort)}
             />
           {/if}
           {#if place === 'trash' && inTrash > 0}
@@ -246,6 +257,16 @@
                 emptyError = null;
                 confirmEmpty = true;
               }}
+            />
+          {/if}
+          {#if inPlace > 0}
+            <MenuButton
+              options={sorts}
+              value={app.hasProfile ? jobs.sortChoice : 'newest'}
+              disabled={!app.hasProfile}
+              disabledReason={t.toolbar.sortNoProfile}
+              testid="sort"
+              onchange={(sort) => jobs.setSort(sort)}
             />
           {/if}
         </span>
@@ -340,9 +361,11 @@
     min-height: var(--control-sm);
   }
 
-  /* A narrow column: two lines in every state (the segments or the count, then the tools),
-     so the list below stands at one height whatever the row holds. */
-  @container (width < 440px) {
+  /* A column too narrow for the segments with four-digit counts and the tools on one line
+     (German needs 516 px, English 488): two lines in every state (the segments or the
+     count, then the tools), so the list below stands at one height whatever the row holds
+     and no label shortens when a count grows. */
+  @container (width < 520px) {
     .second {
       flex-wrap: wrap;
       align-content: flex-start;
@@ -355,9 +378,14 @@
     }
   }
 
+  /* A long search shortens the line (the tooltip has it whole). */
   .place-count {
+    min-width: 0;
+    overflow: hidden;
     color: var(--text-muted);
     font: var(--type-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .tools {
