@@ -206,9 +206,11 @@ test.describe('toasts and their undo', () => {
     await tool(page, 'purge', 'freelancermap-2802');
     await page.getByTestId('dialog-purge').getByTestId('dialog-confirm').click();
     await expect(page.getByTestId('toast-text').filter({ hasText: 'gelöscht' })).toBeVisible();
-    // The archive's undo is still there and works.
+    // The archive's undo is still there and works (once the dialog is gone).
     await expect(page.getByTestId('toast-action')).toHaveCount(1);
+    await expect(page.getByTestId('dialog-purge')).toHaveCount(0);
     await page.keyboard.press('Control+z');
+    await expect(page.getByTestId('toast-action')).toHaveCount(0);
     await page.getByTestId('nav-jobs').click();
     await settle(page);
     await expect(row(page, 'freelancermap-2803')).toBeVisible();
