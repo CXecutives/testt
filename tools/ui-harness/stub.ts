@@ -725,8 +725,9 @@ const UNREADABLE_PROFILE: ProfileInfo = {
   },
 };
 
-/** The request for an AI (the real text lives in core/src/profile/prompt.rs). */
-const PROMPT = 'Erstelle aus meinem angehängten Lebenslauf ein Beraterprofil.';
+/** The prompt for an AI (the real text lives in core/src/profile/prompt.rs). */
+const PROMPT =
+  'Bitte erstelle aus meinem angehängten Lebenslauf das Profil für meine Job-Alert-App.';
 
 type Json = Record<string, unknown>;
 const texts = (value: unknown, key?: string): string[] =>

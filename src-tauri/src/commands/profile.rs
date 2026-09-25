@@ -37,7 +37,7 @@ pub async fn pick_profile(
     Ok(Some(profile::draft_from_file(file.path())?.into()))
 }
 
-/// Reads the AI's answer to the profile request (pasted) into the form for review.
+/// Reads the AI's answer to the CV prompt (pasted) into the form for review.
 #[tauri::command]
 pub async fn parse_profile(text: String) -> CmdResult<ProfileDraft> {
     Ok(profile::draft_from_answer(&text)
@@ -45,11 +45,11 @@ pub async fn parse_profile(text: String) -> CmdResult<ProfileDraft> {
         .into())
 }
 
-/// The request for an AI that turns a CV into a profile (copied by the page), in the app's
+/// The prompt for an AI that turns a CV into a profile (copied by the page), in the app's
 /// language.
 #[tauri::command]
 pub async fn profile_prompt(state: State<'_, AppState>) -> CmdResult<String> {
-    Ok(profile::prompt::text(state.language()?))
+    Ok(profile::cv_prompt(None, state.language()?))
 }
 
 /// Saves the editor: merges the form into the profile (or the draft it came from), keeps

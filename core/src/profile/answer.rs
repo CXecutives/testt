@@ -736,7 +736,7 @@ mod tests {
     /// The skeleton's JSON is found wherever an AI puts it; valid JSON keeps its text.
     #[test]
     fn the_profile_is_found_between_prose_and_other_json() {
-        let skeleton = super::super::prompt::SKELETON;
+        let skeleton = super::super::prompt::skeleton(true);
         for answer in [
             JSON.to_owned(),
             format!("```json\n{JSON}\n```"),
@@ -927,7 +927,7 @@ mod tests {
             cut.to_owned(),
             format!("```json\n{cut}"),
             format!("Hier ist es.\n```json\n{cut}\n```"),
-            format!("{}\n{cut}", super::super::prompt::SKELETON),
+            format!("{}\n{cut}", super::super::prompt::skeleton(false)),
         ] {
             assert_eq!(
                 read(&answer).err(),

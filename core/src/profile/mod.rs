@@ -19,6 +19,7 @@ use serde_json::Value;
 use crate::error::{Error, InvalidInput, Result};
 use crate::export::write_atomic;
 use crate::matching::{self, ProfileQuality, ProfileSummary};
+use crate::settings::Language;
 
 pub use form::{
     LanguageLevel, MAX_FOCUS, ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileForm,
@@ -157,6 +158,16 @@ pub fn draft_from_file(path: &Path) -> Result<Draft> {
 pub fn draft_from_answer(answer: &str) -> std::result::Result<Draft, InvalidInput> {
     let (doc, source) = answer::read(answer)?;
     Ok(draft(&doc, &source))
+}
+
+/// The request for an AI in the app's language (see [`prompt`]): for a new profile, or with a
+/// `workspace` whose stored profile holds something of a CV, for an update of it.
+pub fn cv_prompt(workspace: Option<&Path>, language: Language) -> String {
+    let today = crate::time::local_date(Timestamp::now());
+    let stored = workspace
+        .and_then(stored_form)
+        .filter(ProfileForm::has_content);
+    prompt::text(language, today, stored.as_ref())
 }
 
 /// The form of the stored profile; `None` without a readable one.
@@ -566,6 +577,28 @@ mod tests {
                 "{answer}"
             );
         }
+    }
+
+    /// The prompt updates only a stored profile that holds something of a CV.
+    #[test]
+    fn the_update_prompt_needs_a_profile_from_a_cv() {
+        let dir = workspace();
+        let new = cv_prompt(None, Language::De);
+        assert!(new.contains("Bitte erstelle"), "{new}");
+        assert_eq!(cv_prompt(Some(dir.path()), Language::De), new, "no profile");
+        store(dir.path(), "{\"harte_kriterien\": {\"laender\": [\"DE\"]}}");
+        assert_eq!(
+            cv_prompt(Some(dir.path()), Language::De),
+            new,
+            "settings only"
+        );
+        store(dir.path(), HAND_MADE);
+        let update = cv_prompt(Some(dir.path()), Language::En);
+        assert!(update.contains("Please update"), "{update}");
+        assert!(
+            update.contains("{ \"kompetenz\": \"Controlling\", \"jahre\": 18 }"),
+            "{update}"
+        );
     }
 
     /// Every field of the form filled.

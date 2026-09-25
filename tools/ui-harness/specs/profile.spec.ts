@@ -744,7 +744,7 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
   );
   await expect(page.getByTestId('paste-prompt')).toHaveCount(0);
   await page.getByTestId('paste-preview').getByRole('button', { name: 'Prompt ansehen' }).click();
-  await expect(page.getByTestId('paste-prompt')).toContainText('Lebenslauf');
+  await expect(page.getByTestId('paste-prompt')).toContainText('Bitte erstelle');
   await expect(card).toContainText('Füge ihn in eine KI ein und hänge den Lebenslauf an.');
   // The same words as the rest of the app: KI and Prompt, never Claude or Anfrage.
   await expect(card).not.toContainText('Claude');
@@ -753,7 +753,7 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
     await expect(page.getByTestId('paste-copied')).toContainText('Der Prompt ist kopiert.');
     await expect(page.getByTestId('paste-copy')).toHaveText('Erneut kopieren');
     const copied = await page.evaluate(() => navigator.clipboard.readText());
-    expect(copied).toContain('Lebenslauf');
+    expect(copied).toContain('Bitte erstelle');
   }
   const take = page.getByTestId('paste-take');
   await expect(take).toHaveAttribute('aria-disabled', 'true');

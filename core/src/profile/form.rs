@@ -232,7 +232,7 @@ impl LanguageLevel {
     }
 
     /// The level as the profile writes it (`niveau`).
-    fn text(self) -> &'static str {
+    pub(crate) fn text(self) -> &'static str {
         match self {
             LanguageLevel::A1 => "A1",
             LanguageLevel::A2 => "A2",
