@@ -1,0 +1,380 @@
+{
+  "name": "Claudia Fallbeispiel",
+  "email": "claudia.fallbeispiel@example.invalid",
+  "telefon": "+49 172 0000000",
+  "titel": "Interim Kaufmännische Direktorin im Krankenhaus",
+  "berufserfahrung_jahre": 20,
+  "abschluss": "Diplom-Kauffrau (Univ.)",
+  "ausbildung": [
+    {
+      "abschluss": "Diplom-Kauffrau (Univ.)",
+      "fach": "Betriebswirtschaftslehre mit den Schwerpunkten Gesundheitsökonomie und Krankenhausmanagement",
+      "hochschule": "Beispieluniversität",
+      "jahr": 2005
+    },
+    {
+      "abschluss": "Master of Business Administration",
+      "fach": "Führung und Management im Gesundheitswesen",
+      "hochschule": "Beispielhochschule",
+      "jahr": 2013
+    }
+  ],
+  "stationen": [
+    {
+      "zeitraum": "2018 - heute",
+      "rolle": "Interim Kaufmännische Direktorin und Interim Geschäftsführerin im Krankenhauswesen (selbstständig)",
+      "schwerpunkte": [
+        "Acht Interim-Mandate als Kaufmännische Direktorin, Geschäftsführerin oder Leiterin Finanzen in Krankenhäusern und Rehabilitationskliniken",
+        "Sanierung eines kommunalen Klinikverbunds mit drei Standorten und 1.100 Betten, Rückkehr zu einem positiven Jahresergebnis",
+        "Medizinstrategie und Leistungsgruppenplanung zur Krankenhausreform, Standortkonzept mit Konzentration der Notfallversorgung",
+        "Neuaufstellung von Medizincontrolling und Erlösmanagement, deutliche Senkung der Rückforderungen aus MD-Prüfungen",
+        "Steuerung der Förderprojekte nach dem Krankenhauszukunftsgesetz"
+      ]
+    },
+    {
+      "zeitraum": "2011 - 2018",
+      "rolle": "Kaufmännische Direktorin eines freigemeinnützigen Krankenhauses der Schwerpunktversorgung mit 650 Betten",
+      "schwerpunkte": [
+        "Verantwortung für Finanzen, Controlling, Einkauf, Personalverwaltung, IT und Technik",
+        "Budget- und Entgeltverhandlungen mit den Krankenkassen einschließlich Pflegebudget",
+        "Gründung eines Medizinischen Versorgungszentrums und Ausbau ambulanter Operationen",
+        "Jahresabschlüsse nach KHBV und Wirtschaftsplanung für den Träger"
+      ]
+    },
+    {
+      "zeitraum": "2006 - 2011",
+      "rolle": "Controllerin, zuletzt Leiterin Controlling und Medizincontrolling einer privaten Klinikgruppe",
+      "schwerpunkte": [
+        "Aufbau einer Deckungsbeitragsrechnung und Teilnahme an der InEK-Kostenkalkulation",
+        "Berichtswesen für Chefärzte, Klinikleitungen und Geschäftsführung",
+        "Einführung einer Kodierprüfung vor Rechnungsstellung"
+      ]
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Kaufmännische Leitung im Krankenhaus",
+      "jahre": 15,
+      "auch": [
+        "Kaufmännische Direktorin",
+        "Kaufmännischer Direktor",
+        "Kaufmännische Leitung",
+        "Verwaltungsdirektorin",
+        "Krankenhausdirektorin",
+        "CFO Klinik"
+      ]
+    },
+    {
+      "kompetenz": "Sanierung und Restrukturierung von Kliniken",
+      "jahre": 8,
+      "auch": [
+        "Kliniksanierung",
+        "Restrukturierung",
+        "Turnaround",
+        "Sanierungskonzept",
+        "Ergebnisverbesserung"
+      ]
+    },
+    {
+      "kompetenz": "Medizincontrolling und Erlösmanagement",
+      "jahre": 16,
+      "auch": [
+        "Medizincontrolling",
+        "Erlösmanagement",
+        "DRG",
+        "aG-DRG",
+        "Kodierung",
+        "MD-Management",
+        "Fallpauschalen"
+      ]
+    },
+    {
+      "kompetenz": "Krankenhausmanagement",
+      "jahre": 20,
+      "auch": [
+        "Klinikmanagement",
+        "Hospital Management",
+        "Klinikleitung",
+        "Geschäftsführung Krankenhaus",
+        "Krankenhausbetriebswirtschaft"
+      ]
+    },
+    {
+      "kompetenz": "Budget- und Entgeltverhandlungen",
+      "jahre": 15,
+      "auch": [
+        "Budgetverhandlungen",
+        "Entgeltverhandlungen",
+        "AEB",
+        "Pflegebudget",
+        "Verhandlungen mit Krankenkassen"
+      ]
+    },
+    {
+      "kompetenz": "Krankenhausfinanzierung",
+      "jahre": 18,
+      "auch": [
+        "KHG",
+        "KHEntgG",
+        "Fördermittel",
+        "Investitionsfinanzierung",
+        "Krankenhausfinanzierungsgesetz"
+      ]
+    },
+    {
+      "kompetenz": "Krankenhausreform und Leistungsgruppenplanung",
+      "jahre": 3,
+      "auch": [
+        "KHVVG",
+        "Krankenhausreform",
+        "Leistungsgruppen",
+        "Vorhaltevergütung",
+        "Medizinstrategie"
+      ]
+    },
+    {
+      "kompetenz": "Controlling im Gesundheitswesen",
+      "jahre": 20,
+      "auch": [
+        "Krankenhauscontrolling",
+        "Klinikcontrolling",
+        "Deckungsbeitragsrechnung",
+        "InEK-Kalkulation",
+        "Kostenträgerrechnung"
+      ]
+    },
+    {
+      "kompetenz": "Jahresabschluss und Wirtschaftsplanung nach KHBV",
+      "jahre": 15,
+      "auch": [
+        "KHBV",
+        "Krankenhausbuchführungsverordnung",
+        "Jahresabschluss",
+        "Wirtschaftsplan"
+      ]
+    },
+    {
+      "kompetenz": "Ambulantisierung und MVZ",
+      "jahre": 7,
+      "auch": [
+        "MVZ",
+        "Medizinisches Versorgungszentrum",
+        "Ambulantisierung",
+        "Hybrid-DRG",
+        "AOP",
+        "Sektorenübergreifende Versorgung"
+      ]
+    },
+    {
+      "kompetenz": "Digitalisierung im Krankenhaus",
+      "jahre": 5,
+      "auch": [
+        "KHZG",
+        "Krankenhauszukunftsgesetz",
+        "KIS",
+        "Patientenportal",
+        "Digitale Pflegedokumentation"
+      ]
+    },
+    {
+      "kompetenz": "Personalkostensteuerung und Personalbedarfsplanung",
+      "jahre": 15,
+      "auch": [
+        "Personalbedarfsplanung",
+        "PPR 2.0",
+        "Pflegepersonaluntergrenzen",
+        "Dienstplanung",
+        "Personalcontrolling"
+      ]
+    },
+    {
+      "kompetenz": "Einkauf und Sachkostenmanagement im Krankenhaus",
+      "jahre": 10,
+      "auch": [
+        "Krankenhauseinkauf",
+        "Sachkostenmanagement",
+        "Einkaufsgemeinschaft",
+        "Medizinprodukte-Einkauf"
+      ]
+    },
+    {
+      "kompetenz": "Prozessmanagement im Krankenhaus",
+      "jahre": 12,
+      "auch": [
+        "OP-Management",
+        "Belegungsmanagement",
+        "Patientenmanagement",
+        "Entlassmanagement",
+        "Prozessoptimierung"
+      ]
+    },
+    {
+      "kompetenz": "Klinikfusionen und Verbundbildung",
+      "jahre": 5,
+      "auch": [
+        "Klinikfusion",
+        "Verbundbildung",
+        "Post Merger Integration",
+        "Standortkonzentration"
+      ]
+    },
+    {
+      "kompetenz": "Gremienarbeit mit Träger und Aufsichtsrat",
+      "jahre": 15,
+      "auch": [
+        "Aufsichtsrat",
+        "Gesellschafterversammlung",
+        "Kommunaler Träger",
+        "Trägerkommunikation"
+      ]
+    },
+    {
+      "kompetenz": "Zusammenarbeit mit Betriebsrat und Mitarbeitervertretung",
+      "jahre": 15,
+      "auch": [
+        "Mitarbeitervertretung",
+        "MAV",
+        "Betriebsrat",
+        "TVöD",
+        "AVR"
+      ]
+    },
+    {
+      "kompetenz": "Führung von Verwaltungs- und Controllingbereichen",
+      "jahre": 17,
+      "auch": [
+        "Personalführung",
+        "Führung",
+        "Leitung Verwaltung"
+      ]
+    },
+    {
+      "kompetenz": "Interim Management",
+      "jahre": 8,
+      "auch": [
+        "Interim-Mandate",
+        "Interim Kaufmännische Direktorin",
+        "Interim Geschäftsführung Klinik"
+      ]
+    }
+  ],
+  "schwerpunkte": [
+    "Kaufmännische Leitung im Krankenhaus",
+    "Sanierung und Restrukturierung von Kliniken",
+    "Medizincontrolling und Erlösmanagement"
+  ],
+  "wunschrollen": [
+    "Interim Kaufmännische Direktorin",
+    "Interim Geschäftsführerin Krankenhaus",
+    "Kaufmännische Leitung Klinik",
+    "Interim CFO Klinikverbund",
+    "Leitung Medizincontrolling"
+  ],
+  "methoden_tools": [
+    {
+      "name": "SAP IS-H"
+    },
+    {
+      "name": "SAP S/4HANA"
+    },
+    {
+      "name": "ORBIS KIS"
+    },
+    {
+      "name": "InEK-Kostenmatrix"
+    },
+    {
+      "name": "DRG-Grouper"
+    },
+    {
+      "name": "Power BI"
+    },
+    {
+      "name": "Qlik Sense"
+    },
+    {
+      "name": "Excel"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Zertifizierte Medizincontrollerin"
+    },
+    {
+      "name": "Zertifizierte Restrukturierungs- und Sanierungsberaterin"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Krankenhäuser"
+    },
+    {
+      "branche": "Klinikverbünde"
+    },
+    {
+      "branche": "Rehabilitationskliniken"
+    },
+    {
+      "branche": "Medizinische Versorgungszentren"
+    },
+    {
+      "branche": "Gesundheitswesen"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "B2"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Hat drei Kliniken aus der Verlustzone geführt, ohne die Versorgung einzuschränken",
+    "Verbindet Erlösmanagement, Controlling und Budgetverhandlungen mit den Kostenträgern",
+    "Kennt kommunale, freigemeinnützige und private Träger aus eigener Leitungserfahrung"
+  ],
+  "keywords": [
+    "Krankenhaus",
+    "Klinik",
+    "Kaufmännische Direktorin",
+    "Kaufmännische Leitung",
+    "Geschäftsführung",
+    "Medizincontrolling",
+    "DRG",
+    "Budgetverhandlungen",
+    "Sanierung",
+    "Krankenhausreform",
+    "KHVVG",
+    "MVZ",
+    "KHZG",
+    "Gesundheitswesen"
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 1100,
+    "laender": [
+      "DE"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "anue"
+    ],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "sofort"
+  },
+  "einsatzpraeferenzen": {
+    "tagessatz_wunsch": 1250,
+    "remote": "teilweise",
+    "regionen": [
+      "Niedersachsen",
+      "Nordrhein-Westfalen",
+      "Hessen",
+      "Bremen"
+    ],
+    "branchen": [
+      "Krankenhäuser",
+      "Klinikverbünde"
+    ]
+  }
+}

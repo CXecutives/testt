@@ -12,13 +12,16 @@
   line always the same three outlined buttons: "Anzeige öffnen", "Alert-Mail öffnen"
   (disabled, saying why, without a mail) and "Prompt für KI-Bewertung kopieren" (the job as
   a prompt for any AI chat; "Prompt kopieren" where the whole label does not fit, an icon
-  button where that does not fit either: the row never wraps). "Details holen" has one
+  button where that does not fit either, at the narrowest widths "Alert-Mail öffnen" too:
+  the row never wraps). "Details holen" has one
   place: next to the note on the missing text, above the ad. Moving the job away from one of
   its buttons hands the focus to the same button of the next job.
   After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
   that jumps to its passage makes the passage flash once when it has arrived. Once the
   action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
   it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.
+  Like a row's tools it is for the pointer (out of the Tab order: the head's tools are the
+  keyboard's); its title, cut off, shows in full in a tooltip.
 -->
 <script lang="ts" module>
   /** A button of the reader had the focus when its job moved away: the same button of the
@@ -43,14 +46,17 @@
   import type { CriterionKey, CriterionState } from '$lib/i18n/de';
   import { t } from '$lib/i18n/t';
   import { displayTitle, formatDate, formatRelative, formatTime } from '$lib/i18n/format';
+  import { contentMoving } from '$lib/input/input';
   import { clock } from '$lib/state/clock.svelte';
   import {
+    DETAIL_WARNS,
     criterionKey,
     criterionState,
     criterionValue,
     errorText,
     noteText,
     reasonEvidence,
+    termWords,
     workWords,
     reasonHint,
     reasonText,
@@ -84,6 +90,8 @@
   let { detail, onclose = null }: Props = $props();
 
   const job = $derived(detail.job);
+  /** The title without gender tags (the head and the compact bar, which cuts it off). */
+  const heading = $derived(job.title ? displayTitle(job.title) : t.job.untitled);
   const match = $derived(detail.match);
   const withRing = $derived(app.hasProfile);
   // The passage under the pointer wins; a clicked reason keeps its passage marked after the
@@ -172,6 +180,7 @@
   };
   interface StripChip {
     id: string;
+    testid: string;
     label: string;
     state: CriterionState | 'plain';
     icon: IconName;
@@ -192,6 +201,7 @@
       const unclear = contract.kind === 'check';
       out.push({
         id: contract.id,
+        testid: 'contract',
         label: reasonText(contract),
         state: unclear ? 'unknown' : 'plain',
         icon: unclear ? 'circle-help' : 'file-text',
@@ -199,6 +209,28 @@
         reason: contract.ranges.length > 0 ? contract : null,
       });
     }
+    // The ad's rate and start show whatever the profile asks: a plain chip where no criterion
+    // chip covers them, the rate first and the start after it.
+    const terms = termWords(job.match?.facts);
+    const covered = new Set((match?.criteria ?? []).map((reason) => criterionKey(reason.code)));
+    const term = (key: 'minDayRate' | 'availability'): StripChip[] => {
+      const label = terms[key];
+      if (label === null || covered.has(key)) return [];
+      const icon = key === 'minDayRate' ? 'banknote' : 'calendar';
+      return [
+        {
+          id: `fact:${key}`,
+          testid: `fact-${key}`,
+          label,
+          state: 'plain',
+          icon,
+          hint: null,
+          reason: null,
+        },
+      ];
+    };
+    out.push(...term('minDayRate'));
+    if (!covered.has('minDayRate')) out.push(...term('availability'));
     for (const reason of match?.criteria ?? []) {
       const key = criterionKey(reason.code);
       if (key === null) continue;
@@ -217,6 +249,7 @@
             : t.reader.criterionHint[state === 'unset' ? 'open' : state](name);
       out.push({
         id: reason.id,
+        testid: `criterion-${reason.id}`,
         // The ad's own value; what it does not mention says so, neutral.
         label: value ?? (state === 'unset' ? t.facts.notMentioned(name) : name),
         state,
@@ -229,6 +262,7 @@
                 (r) => chipOf(r) === key && passages.some((passage) => passage.reason === r.id),
               ) ?? null),
       });
+      if (key === 'minDayRate') out.push(...term('availability'));
     }
     return out;
   });
@@ -267,6 +301,8 @@
 
   const portalState = $derived(app.state?.portals.find((p) => p.portal === job.portal) ?? null);
   const detailKind = $derived(job.detail.kind);
+  /** The note on a missing text warns like the row's badge (texts.ts DETAIL_WARNS). */
+  const detailWarns = $derived(detailKind !== 'ok' && DETAIL_WARNS[detailKind]);
   const canFetch = $derived(
     (detailKind === 'pending' ||
       detailKind === 'onRequest' ||
@@ -297,16 +333,24 @@
       });
   });
 
-  /** No score yet and the details can be fetched: the button stands right under the band. */
   /** A score from a teaser only is a first guess. */
   const preliminary = $derived(match?.status === 'scored' && detailKind === 'teaser');
 
   /** The action row stays one line: where the whole label does not fit, the prompt action
-   *  says only "Prompt kopieren" (its tooltip says what it copies), and where that does not
-   *  fit either it is an icon button (its tooltip names it). Tried again whenever the row's
-   *  width changes (before the frame is painted). */
+   *  says only "Prompt kopieren" (its tooltip says what it copies), where that does not fit
+   *  either it is an icon button (its tooltip names it), and at the narrowest widths
+   *  "Alert-Mail öffnen" is one too. Tried again whenever the row's width changes (before
+   *  the frame is painted). */
   let actions = $state<HTMLElement | null>(null);
   let promptFit = $state<'full' | 'short' | 'icon'>('full');
+  let mailIcon = $state(false);
+  /** The forms of the row, the longest first. */
+  const FITS = [
+    { prompt: 'full', mail: false },
+    { prompt: 'short', mail: false },
+    { prompt: 'icon', mail: false },
+    { prompt: 'icon', mail: true },
+  ] as const;
 
   function oneLine(row: HTMLElement): boolean {
     const first = row.firstElementChild;
@@ -316,14 +360,15 @@
       : first.offsetTop === last.offsetTop;
   }
 
-  /** The longest form of the prompt action that keeps the row on one line (the newest try
-   *  wins when the width changes again meanwhile). */
+  /** The longest form of the actions that keeps the row on one line (the newest try wins
+   *  when the width changes again meanwhile). */
   let fitting = 0;
   async function fit(row: HTMLElement): Promise<void> {
     const attempt = ++fitting;
-    for (const form of ['full', 'short', 'icon'] as const) {
+    for (const form of FITS) {
       if (attempt !== fitting) return;
-      promptFit = form;
+      promptFit = form.prompt;
+      mailIcon = form.mail;
       await tick();
       if (attempt !== fitting || oneLine(row)) return;
     }
@@ -436,12 +481,21 @@
     if (!guarded()) toggleStar([job]);
   }
 
-  /** Not in the inbox: where it lies, quietly under the title (the trash says when it goes). */
+  const DAY_MS = 86_400_000;
+  /** Not in the inbox: where it lies, quietly under the title. The trash says in how many
+   *  days it goes (counted from the day the job went there, following the clock; past that,
+   *  soon: the next run or start empties it). */
   const placeLine = $derived.by((): string | null => {
     if (job.place === 'archive') return t.place.inArchive;
     if (job.place !== 'trash') return null;
     const days = app.state?.autoEmptyTrashDays ?? 0;
-    return days > 0 ? t.place.inTrashFor(days) : t.place.inTrash;
+    if (days === 0) return t.place.inTrash;
+    const since =
+      job.trashedAt === null
+        ? 0
+        : Math.max(0, Math.floor((clock.now.getTime() - Date.parse(job.trashedAt)) / DAY_MS));
+    const left = days - since;
+    return left > 0 ? t.place.inTrashLeft(left) : t.place.inTrashSoon;
   });
 
   /** "Trotzdem passend": an excluded job counts with its fit score, and back. */
@@ -497,17 +551,33 @@
   }
 
   function hover(reason: Reason, on: boolean): void {
-    if (on) hovered = reason.id;
-    else if (hovered === reason.id) hovered = null;
+    // A reason the content scrolls under a still pointer takes no mark (a jump to a passage
+    // keeps its own); only a pointer that moves onto it does.
+    if (on) {
+      if (!contentMoving()) hovered = reason.id;
+    } else if (hovered === reason.id) hovered = null;
+  }
+
+  /** The compact bar is for the pointer, like a row's tools: its buttons stay out of the Tab
+   *  order (the head's twins are the keyboard's), also the ones another place brings. */
+  function pointerOnly(node: HTMLElement): { destroy: () => void } {
+    const untab = (): void => {
+      for (const button of node.querySelectorAll('button')) button.tabIndex = -1;
+    };
+    untab();
+    const observer = new MutationObserver(untab);
+    observer.observe(node, { childList: true, subtree: true });
+    return { destroy: () => observer.disconnect() };
   }
 </script>
 
 <!-- Values joined by middle dots that copy with them ("Hamburg · 6 Monate"); a line breaks
-     only between two values. -->
+     only between two values. The first value's dot is an empty box: it is clipped anyway, and
+     a copy of the line starts with the value. -->
 {#snippet dotted(items: { text: string; hint: string | null }[])}
   {#each items as item, index (index)}<wbr /><span class="fact"
-      ><span class="sep" aria-hidden="true">{SEPARATOR}</span><span use:tooltip={item.hint}
-        >{item.text}</span
+      ><span class="sep" aria-hidden="true">{index === 0 ? '' : SEPARATOR}</span><span
+        use:tooltip={item.hint}>{item.text}</span
       ></span
     >{/each}
 {/snippet}
@@ -540,6 +610,7 @@
   </ul>
 {/snippet}
 
+<!-- Deleting for good waits for a run, like on the row (the backend refuses meanwhile). -->
 {#snippet placeTools(prefix: string)}
   {#each tools as tool (tool.id)}
     <Button
@@ -548,6 +619,8 @@
       iconOnly
       icon={tool.icon}
       label={tool.label}
+      disabled={tool.id === 'purge' && run.active}
+      disabledReason={run.busyText}
       testid="{prefix}{tool.id}"
       onclick={() => act(tool.id)}
     />
@@ -607,8 +680,8 @@
           size="sm"
         />
       {/if}
-      <span class="compact-title">{job.title ? displayTitle(job.title) : t.job.untitled}</span>
-      <span class="compact-tools">
+      <span class="compact-title" use:tooltip={{ text: heading, truncated: true }}>{heading}</span>
+      <span class="compact-tools" use:pointerOnly>
         <Button
           variant="ghost"
           size="sm"
@@ -626,7 +699,7 @@
   <header class="head">
     <div class="title-line">
       <h1 class="title" data-testid="reader-title" data-copy>
-        {job.title ? displayTitle(job.title) : t.job.untitled}
+        {heading}
       </h1>
       <span class="title-tools">
         {@render placeTools('reader-')}
@@ -709,7 +782,7 @@
             <li class="strip-label">{t.reader.frame}</li>
             {#each chips as chip (chip.id)}
               {@const target = chip.reason}
-              <li data-testid={chip.id === contract?.id ? 'contract' : `criterion-${chip.id}`}>
+              <li data-testid={chip.testid}>
                 <Chip
                   label={chip.label}
                   state={chip.state}
@@ -738,6 +811,7 @@
     <Button
       variant="secondary"
       icon="mail"
+      iconOnly={mailIcon}
       label={t.reader.mail}
       disabled={!detail.mail.gmailUrl}
       disabledReason={t.reader.noMail}
@@ -820,7 +894,7 @@
     {#if detailKind !== 'ok'}
       <div class="missing">
         <Notice
-          tone={detailKind === 'gone' || detailKind === 'failed' ? 'warning' : 'info'}
+          tone={detailWarns ? 'warning' : 'info'}
           variant="inline"
           text={portalState &&
           (!portalState.enabled || !portalState.fetchDetails) &&
@@ -876,7 +950,7 @@
   variant="danger"
   heading={t.actions.purgeHeading(1)}
   text={t.actions.purgeText}
-  confirmLabel={t.actions.purge}
+  confirmLabel={t.actions.purgeConfirm}
   busy={purging}
   error={purgeError}
   testid="dialog-purge"
@@ -1011,7 +1085,10 @@
     margin-left: calc(-1 * var(--space-20));
   }
 
+  /* One box per value: a line never breaks inside one (WebKit breaks a nowrap span that
+     holds an inline block). */
   .fact {
+    display: inline-block;
     white-space: nowrap;
   }
 
@@ -1105,7 +1182,8 @@
     gap: var(--space-6);
   }
 
-  /* The label of the strip: the size of its chips. */
+  /* The label of the strip: navy, the size of the line it labels (the chips here, the
+     values of the clean line below). */
   .strip-label {
     display: inline-flex;
     align-items: center;
@@ -1128,6 +1206,11 @@
   .clean-icon {
     flex: none;
     min-height: var(--leading-sm);
+  }
+
+  .clean .strip-label {
+    font: var(--type-sm);
+    font-weight: var(--weight-medium);
   }
 
   .clean-icon {

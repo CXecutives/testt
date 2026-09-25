@@ -44,8 +44,10 @@ import {
   formatCountdown,
   formatEuro,
   formatMoment,
+  formatMoney,
   formatNumber,
   formatPercent,
+  formatStamp,
 } from './format';
 
 type Params = Record<string, string | number | boolean | null>;
@@ -70,6 +72,31 @@ const portalOf = (value: unknown): string =>
 
 const INTERNAL = 'Ein interner Fehler, mehr steht im Protokoll.';
 
+/** What holds the app (the backend's `activity`: a run by its kind, a sign-in, a file
+ *  command), for the busy error and the closing note. Reading the whole mailbox is a fetch,
+ *  and so is what the backend does not name. */
+type Busy = 'fetch' | 'details' | 'rescore' | 'session' | 'files';
+const busyOf = (value: unknown): Busy =>
+  value === 'details' || value === 'rescore' || value === 'session' || value === 'files'
+    ? value
+    : 'fetch';
+
+const busy: Record<Busy, string> = {
+  fetch: 'Gerade läuft schon ein Abruf.',
+  details: 'Gerade werden schon Details geholt.',
+  rescore: 'Die Jobs werden gerade neu bewertet.',
+  session: 'Gerade läuft eine Anmeldung.',
+  files: 'Die App schreibt gerade ihre Dateien.',
+};
+
+const closing: Record<Busy, string> = {
+  fetch: 'Der Abruf wird beendet, dann schließt die App.',
+  details: 'Das Holen der Details wird beendet, dann schließt die App.',
+  rescore: 'Das Bewerten wird beendet, dann schließt die App.',
+  session: 'Die Anmeldung wird beendet, dann schließt die App.',
+  files: 'Die App schreibt ihre Dateien fertig, dann schließt sie.',
+};
+
 const errors: Record<ErrorKind | 'unknown', Text> = {
   db: 'Die Datenbank meldet einen Fehler.',
   fileLocked: 'Eine Datei ist gerade in einem anderen Programm geöffnet.',
@@ -78,7 +105,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   corrupt: 'Die Daten der App sind beschädigt.',
   newerSchema: 'Die Daten stammen von einer neueren Version der App.',
   invalid: 'Die Eingabe passt nicht.',
-  busy: 'Gerade läuft schon ein Abruf.',
+  busy: (p) => busy[busyOf(p.activity)],
   // By what was looked for (`what`): a file or folder may never have been written (a new
   // work folder), a job or a mail is gone.
   notFound: (p) =>
@@ -99,7 +126,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   secretStore: 'Der Passwortspeicher des Systems ist nicht erreichbar.',
   secretCorrupt: 'Das gespeicherte App-Passwort ist nicht lesbar.',
   portalUnavailable: (p) => `Keine Verbindung zu ${portalOf(p.portal)}.`,
-  portalPaused: (p) => `Die Abrufe bei ${portalOf(p.portal)} pausieren gerade.`,
+  portalPaused: (p) => `${portalOf(p.portal)} pausiert gerade.`,
   portalQuota: (p) => `Das Limit für ${portalOf(p.portal)} ist erreicht.`,
   internal: INTERNAL,
   unknown: INTERNAL,
@@ -121,10 +148,10 @@ const profileField: Record<string, string> = {
   languages: 'Sprachen',
   minDayRate: 'Mindest-Tagessatz',
   countries: 'Einsatzländer',
-  contracts: 'Ausgeschlossene Vertragsarten',
-  remoteOutside: 'Remote-Stellen im Ausland zulassen',
+  contracts: 'Arbeitnehmerüberlassung und Festanstellung',
+  remoteOutside: 'Remote-Jobs im Ausland zulassen',
   available: 'Verfügbar ab',
-  targetYears: 'Mindest-Erfahrung der Stelle',
+  targetYears: 'Mindest-Erfahrung des Jobs',
   minSalary: 'Mindest-Jahresgehalt',
   permanentPlaces: 'Orte für Festanstellung',
   permanentRemoteMin: 'Mindest-Remote-Anteil',
@@ -144,6 +171,7 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   profileNotObject: 'Die Datei enthält kein Profil.',
   profileValue: (p) => `Der Wert bei „${fieldName(p.field)}“ passt nicht.`,
   profileAnswer: 'In der Antwort steht kein Profil.',
+  profileAnswerCut: 'Die Antwort bricht mitten im Profil ab.',
   mailAddress: 'Die Adresse ist unvollständig.',
   appPassword: 'Ein App-Passwort hat 16 Buchstaben.',
   noSignIn: (p) => `Für ${portalOf(p.portal)} gibt es keine Anmeldung.`,
@@ -167,7 +195,7 @@ const statusAt: Partial<Record<StatusCode, (portal: string) => string>> = {
   waiting: (portal) => `Wartet auf ${portal}`,
 };
 
-/** Why a portal pauses, as the second half of one sentence (`run.pausedWhy`). */
+/** Why a portal pauses, as the first half of one sentence (`health.advice.paused`). */
 const pause: Record<PauseReason, string> = {
   throttled: 'das Portal bremst die Anfragen',
   blocked: 'das Portal blockiert die Anfragen',
@@ -186,13 +214,13 @@ const detailSays = {
   teaser: 'Ohne Anmeldung zeigt das Portal nur den Anfang der Anzeige.',
   unfetchable: 'Die Anzeige ließ sich mehrmals nicht holen.',
   gone: 'Die Anzeige ist nicht mehr online.',
-  onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
+  onRequest: 'Diese Details holt die App nur auf Anfrage.',
 } as const;
 
-/** Alert mails without jobs, and what to do about them (the overview's open points and the
- *  settings say it alike): look whether the mail lists any. */
+/** Alert mails in which the app found no jobs (the overview's open points and the settings
+ *  say it alike, next to the button that opens the mail to look). */
 const emptyMails = (mails: number): string =>
-  `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.`;
+  `${mails === 1 ? 'In einer Alert-Mail' : `In ${n(mails)} Alert-Mails`} fand die App keine Jobs.`;
 
 /** A profile file the app cannot read (the list, the overview, the Profil view). */
 const PROFILE_UNREADABLE = 'Profil nicht lesbar';
@@ -252,12 +280,12 @@ function remoteWish(p: Params): string {
   const level = typeof p.level === 'string' ? REMOTE_LEVEL[p.level] : undefined;
   const wished = level ? `, gewünscht ist ${level}` : '';
   let ad: string;
-  if (p.share === 0) ad = 'Die Stelle ist ganz vor Ort';
-  else if (p.share === 100) ad = 'Die Stelle ist ganz remote';
-  else if (typeof p.share === 'number') ad = `Die Stelle ist zu ${formatPercent(p.share)} remote`;
+  if (p.share === 0) ad = 'Der Job ist ganz vor Ort';
+  else if (p.share === 100) ad = 'Der Job ist ganz remote';
+  else if (typeof p.share === 'number') ad = `Der Job ist zu ${formatPercent(p.share)} remote`;
   else if (typeof p.from === 'number' && typeof p.to === 'number')
-    ad = `Die Stelle ist zu ${str(p.from)} bis ${formatPercent(p.to)} remote`;
-  else ad = 'Die Stelle ist teilweise remote';
+    ad = `Der Job ist zu ${str(p.from)} bis ${formatPercent(p.to)} remote`;
+  else ad = 'Der Job ist teilweise remote';
   return `${ad}${wished}.`;
 }
 
@@ -265,10 +293,10 @@ function regionWish(p: Params): string {
   switch (p.state) {
     case 'met':
       return p.remote === true
-        ? 'Die Stelle ist voll remote, die Region spielt keine Rolle.'
+        ? 'Der Job ist voll remote, die Region spielt keine Rolle.'
         : `${str(p.location)} liegt in einer Wunschregion.`;
     case 'near':
-      return `${str(p.location)} liegt außerhalb der Wunschregionen, die Stelle ist überwiegend remote.`;
+      return `${str(p.location)} liegt außerhalb der Wunschregionen, der Job ist überwiegend remote.`;
     case 'missed':
       return `${str(p.location)} liegt außerhalb der Wunschregionen.`;
     default:
@@ -313,16 +341,16 @@ const reasonCode = {
   permanent: (p) => {
     if (p.excluded !== true) return 'Das klingt nach einer Festanstellung.';
     return p.stated === true
-      ? 'Die Stelle ist eine Festanstellung, das Profil schließt sie aus.'
+      ? 'Der Job ist eine Festanstellung, das Profil schließt sie aus.'
       : 'Das klingt nach einer Festanstellung, das Profil schließt sie aus.';
   },
   permanentRegion: (p) =>
     p.location
-      ? `Die Festanstellung in ${str(p.location)} liegt außerhalb der Region im Profil.`
-      : 'Die Festanstellung liegt außerhalb der Region im Profil.',
+      ? `${str(p.location)} liegt außerhalb der Orte für Festanstellung.`
+      : 'Der Ort liegt außerhalb der Orte für Festanstellung.',
   permanentRegionUnclear: (p) =>
     p.location
-      ? `Ob ${str(p.location)} in der Region liegt, ist unklar.`
+      ? `Ob ${str(p.location)} zu den Orten für Festanstellung gehört, ist unklar.`
       : 'Der Arbeitsort der Festanstellung ist unklar.',
   salary: (p) => {
     if (p.salary === undefined || p.salary === null || p.min === undefined) {
@@ -330,7 +358,7 @@ const reasonCode = {
     }
     const amount =
       typeof p.currency === 'string' && p.currency !== 'EUR'
-        ? `${n(num(p.salary))} ${p.currency}`
+        ? formatMoney(num(p.salary), p.currency)
         : formatEuro(p.salary);
     const from = p.lowerBound ? `ab ${amount}` : `von ${amount}`;
     return `Das Jahresgehalt ${from} liegt unter ${formatEuro(p.min)}.`;
@@ -338,11 +366,11 @@ const reasonCode = {
   salaryUnknown: 'Die Anzeige nennt kein Gehalt.',
   tooJunior: (p) =>
     p.years !== undefined && p.years !== null
-      ? `Die Stelle verlangt ${count(num(p.years), 'Jahr', 'Jahre')} Erfahrung, das Profil zielt auf ${count(num(p.target), 'Jahr', 'Jahre')}.`
-      : 'Die Stelle richtet sich an weniger Erfahrene.',
+      ? `Der Job verlangt ${count(num(p.years), 'Jahr', 'Jahre')} Erfahrung, das Profil zielt auf ${count(num(p.target), 'Jahr', 'Jahre')}.`
+      : 'Der Job richtet sich an weniger Erfahrene.',
   seniorityUnclear: (p) =>
     p.junior
-      ? 'Der Titel klingt nach einer Einstiegsstelle.'
+      ? 'Der Titel klingt nach einem Job für Einsteiger.'
       : 'Das gesuchte Erfahrungslevel ist unklar.',
   overqualified: (p) =>
     p.years !== undefined && p.years !== null
@@ -406,7 +434,7 @@ const criteria = {
   noPermanent: {
     label: 'Festanstellung',
     short: 'Festanstellung',
-    exclusion: 'Die Stelle ist eine Festanstellung, das Profil schließt sie aus.',
+    exclusion: 'Der Job ist eine Festanstellung, das Profil schließt sie aus.',
   },
   availability: {
     label: 'Verfügbarkeit',
@@ -420,13 +448,13 @@ const criteria = {
   },
   permanentRegion: {
     label: 'Orte',
-    short: 'Ort außerhalb der Region',
-    exclusion: 'Die Festanstellung liegt außerhalb der Region im Profil.',
+    short: 'Ort passt nicht',
+    exclusion: 'Der Ort liegt außerhalb der Orte für Festanstellung.',
   },
   targetYears: {
     label: 'Erfahrung',
     short: 'Erfahrung passt nicht',
-    exclusion: 'Die Stelle verlangt deutlich weniger Erfahrung.',
+    exclusion: 'Der Job verlangt deutlich weniger Erfahrung.',
   },
 } satisfies Record<string, CriterionText>;
 export type CriterionKey = keyof typeof criteria;
@@ -545,6 +573,11 @@ export const de = {
     undo: 'Rückgängig',
     openFolder: 'Ordner öffnen',
     openLog: 'Protokoll öffnen',
+    /** A file shown selected in its folder, named by the file manager of the OS. */
+    showInFolder: {
+      explorer: 'Im Explorer zeigen',
+      finder: 'Im Finder zeigen',
+    } satisfies Record<'explorer' | 'finder', string>,
   },
   portal: portalName,
   chips: {
@@ -603,8 +636,8 @@ export const de = {
     /** The quiet line under the title of a job that is not in the inbox. */
     inArchive: 'Im Archiv',
     inTrash: 'Im Papierkorb',
-    inTrashFor: (days: number) =>
-      `Im Papierkorb, wird nach ${count(days, 'Tag', 'Tagen')} gelöscht`,
+    inTrashLeft: (days: number) => `Im Papierkorb, wird in ${count(days, 'Tag', 'Tagen')} gelöscht`,
+    inTrashSoon: 'Im Papierkorb, wird bald gelöscht',
     empty: {
       inbox: 'Keine Jobs.',
       archive: 'Das Archiv ist leer.',
@@ -612,11 +645,12 @@ export const de = {
     } satisfies Record<Place, string>,
     /** The reader of the archive and the trash while no job is open. */
     reader: {
-      archive: 'Archivierte Jobs bleiben hier, bis du sie zurückholst oder löschst.',
-      trash: 'Gelöschte Jobs liegen hier, bis du sie wiederherstellst oder den Papierkorb leerst.',
+      archive: 'Archivierte Jobs bleiben hier, bis du sie zurückholst.',
+      trash:
+        'Jobs im Papierkorb bleiben hier, bis du sie wiederherstellst oder den Papierkorb leerst.',
     } satisfies Record<Exclude<Place, 'inbox'>, string>,
     trashFor: (days: number) =>
-      `Gelöschte Jobs liegen hier ${count(days, 'Tag', 'Tage')}, dann sind sie endgültig weg.`,
+      `Jobs im Papierkorb werden nach ${count(days, 'Tag', 'Tagen')} endgültig gelöscht.`,
   },
   /** What a job can do where it is: one name and icon on a row, in the reader, in the bar. */
   actions: {
@@ -626,10 +660,13 @@ export const de = {
     trash: 'In den Papierkorb',
     restore: 'Wiederherstellen',
     purge: 'Endgültig löschen',
+    /** The confirm button of a dialog is the bare verb of its heading. */
+    purgeConfirm: 'Löschen',
     purgeHeading: (value: number) =>
       value === 1 ? 'Job endgültig löschen?' : `${n(value)} Jobs endgültig löschen?`,
-    purgeText: 'Gelöschte Jobs kommen nicht wieder, auch nicht mit alten Alert-Mails.',
+    purgeText: 'Endgültig gelöschte Jobs kommen nicht wieder, auch nicht mit alten Alert-Mails.',
     emptyTrash: 'Papierkorb leeren',
+    emptyTrashConfirm: 'Leeren',
     emptyTrashHeading: 'Papierkorb leeren?',
     emptyTrashText: (value: number) =>
       value === 1
@@ -704,7 +741,7 @@ export const de = {
       pending: 'Details folgen',
       teaser: 'Nur Anriss',
       failed: 'Details fehlen',
-      unfetchable: 'Nicht abrufbar',
+      unfetchable: 'Nicht erreichbar',
       gone: 'Nicht mehr online',
       onRequest: 'Details auf Anfrage',
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
@@ -739,11 +776,11 @@ export const de = {
       match: 'Nach Passung',
       newest: 'Nach Datum',
     } satisfies Record<JobSort, string>,
-    /** By date in the Papierkorb: the day a job went there, which its row shows. */
-    sortDeleted: 'Nach Löschdatum',
     /** The order without a usable profile: there is no fit to sort by. */
     sortNoProfile: 'Ohne Profil nur nach Datum.',
     needsMailbox: 'Verbinde erst ein Postfach.',
+    /** Every portal is switched off in Einstellungen: nothing to fetch from. */
+    needsPortal: 'Schalte erst ein Portal ein.',
   },
   run: {
     never: 'Noch kein Abruf',
@@ -763,14 +800,8 @@ export const de = {
     /** After the rolling number of a step counter: "von 7". */
     ofTotal: (total: number) => `von ${n(total)}`,
     newPill: (value: number) => `${n(value)} neu`,
-    topPill: (value: number) => count(value, 'passt gut', 'passen gut'),
+    topPill: (value: number) => `${n(value)} mit hoher Passung`,
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
-    /** A paused portal in one sentence: until when, then why. */
-    pausedWhy: (reason: PauseReason, iso: string | null) =>
-      iso
-        ? `Pause bis ${formatMoment(iso)}, ${pause[reason]}.`
-        : `Pause bis zum nächsten Abruf, ${pause[reason]}.`,
-    quota: (iso: string) => `Das Limit ist erreicht, weiter ab ${formatMoment(iso)}.`,
     kind: {
       fetch: 'Abruf',
       details: 'Details holen',
@@ -780,6 +811,8 @@ export const de = {
     done: 'Abruf fertig',
     rescored: 'Neu bewertet',
     nothingNew: 'Nichts Neues seit dem letzten Abruf.',
+    /** On the card in Archiv or Papierkorb: the way to the new jobs of the fetch. */
+    showNew: 'Neue Jobs zeigen',
     cancelled: 'Abruf abgebrochen',
     failed: 'Abruf fehlgeschlagen',
     /** A details run (the reader's "Details holen"): its title, what it did not get. */
@@ -817,6 +850,8 @@ export const de = {
     skipped: (value: number) => `${count(value, 'Job folgt', 'Jobs folgen')} beim nächsten Abruf.`,
     filesFailed: (value: number) =>
       count(value, 'Datei ließ', 'Dateien ließen') + ' sich nicht schreiben.',
+    /** The old program's Excel file, renamed before the app wrote its own (by its name). */
+    excelRenamed: (name: string) => `Die alte Excel-Datei heißt jetzt ${name}.`,
     openOverview: 'Übersicht öffnen',
     history: 'Verlauf',
     collapse: 'Einklappen',
@@ -895,7 +930,7 @@ export const de = {
     },
     /** `1.100 €`, with the unit `1.100 €/Tag`, per hour `95 €/Std.`, `1.000 CHF/Tag`. */
     rate: (amount: number, hourly: boolean, currency: string | null, unit: boolean) => {
-      const money = currency ? `${n(amount)} ${currency}` : formatEuro(amount);
+      const money = formatMoney(amount, currency);
       return hourly ? `${money}/Std.` : unit ? `${money}/Tag` : money;
     },
     rateOpen: 'Satz nach Absprache',
@@ -914,7 +949,7 @@ export const de = {
     /** The label of the strip of hard criteria next to the score. */
     frame: 'Rahmen',
     /** Why the temporary agency criterion needs a look. */
-    anueCheck: 'Ob die Stelle über Arbeitnehmerüberlassung läuft, steht nicht fest.',
+    anueCheck: 'Ob der Job über Arbeitnehmerüberlassung läuft, steht nicht fest.',
     contractLabel: 'Vertragsart',
     criterion: criteria,
     /** The tooltip of a criterion chip that shows the ad's value: the criterion and its
@@ -937,10 +972,10 @@ export const de = {
     /** An excluded job the user counts anyway, and back. */
     override: 'Trotzdem werten',
     overrideUndo: 'Wieder ausschließen',
-    overridden: 'Von dir als passend markiert.',
+    overridden: 'Von dir trotzdem gewertet.',
     prompt: 'Prompt für KI-Bewertung kopieren',
     promptShort: 'Prompt kopieren',
-    promptHint: 'Kopiert Anzeige und Profil als fertigen Prompt für eine KI.',
+    promptHint: 'Kopiert Anzeige und Profil als Prompt für eine KI.',
     /** The clipboard refused the prompt. */
     promptNotCopied: 'Der Prompt ließ sich nicht kopieren.',
     /** Under the band of a score that comes from a teaser only. */
@@ -1001,11 +1036,8 @@ export const de = {
     lastRun: 'Letzter Abruf',
   },
   health: {
-    layoutText: (mails: number) =>
-      `${mails === 1 ? 'Eine Alert-Mail enthielt' : `${n(mails)} Alert-Mails enthielten`} keine Jobs, vielleicht hat sich das Mail-Format geändert.`,
-    layoutPages: 'Die Seiten des Portals sehen anders aus als erwartet.',
-    loginText: 'Die Anmeldung ist abgelaufen.',
-    /** A portal problem in the settings, in one sentence that says whether to act. */
+    /** A portal problem in one sentence that says whether to act, the same in the run card,
+     *  the day overview and the settings. */
     advice: {
       paused: (reason: PauseReason, iso: string | null) => {
         const why = pause[reason].charAt(0).toUpperCase() + pause[reason].slice(1);
@@ -1018,7 +1050,7 @@ export const de = {
       emptyMails,
       pages:
         'Die Seiten des Portals sehen anders aus, der nächste Abruf versucht es von selbst wieder.',
-      login: 'Die Anmeldung ist abgelaufen, bitte melde dich neu an.',
+      login: 'Die Anmeldung ist abgelaufen, melde dich neu an.',
     },
   },
   profile: {
@@ -1026,7 +1058,7 @@ export const de = {
     /** Under the error of a profile that no longer reads. */
     replaces: 'Ein neues Profil ersetzt die Datei.',
     create: 'Profil anlegen',
-    fromCv: 'Aus Lebenslauf erstellen',
+    fromCv: 'Aus Lebenslauf anlegen',
     /** The same way for a profile that exists: the answer fills the form for review. */
     updateFromCv: 'Aus Lebenslauf aktualisieren',
     pick: 'Datei wählen',
@@ -1034,7 +1066,7 @@ export const de = {
     remove: 'Entfernen',
     removeHeading: 'Profil entfernen?',
     removeText:
-      'Die Jobs zeigen danach keine Passung mehr. Die Datei bleibt als Sicherung im Profilordner.',
+      'Die Jobs zeigen danach keine Passung, die Datei bleibt als Sicherung im Profilordner.',
     removed: 'Profil entfernt.',
     /** The moment like every moment of the app (`21.09. 09:30`, the time alone today). */
     savedAt: (moment: string) => `Gespeichert ${moment}`,
@@ -1106,11 +1138,10 @@ export const de = {
       competences: 'Nur dieser Block ist nötig, danach bewertet die App jeden Job.',
       experience: 'Damit prüft die App, was eine Anzeige verlangt.',
       languages: 'Die App vergleicht sie mit den Sprachen einer Anzeige.',
-      wishes: 'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.',
+      wishes: 'Wünsche verschieben die Passung leicht, sie schließen nichts aus.',
       criteria: 'Ein Job, der hier nicht passt, gilt als ausgeschlossen.',
       permanent: 'Diese Regeln gelten nur für Festanstellungen.',
-      availability:
-        'Beginnt ein Job früher, markiert die App ihn zum Prüfen, sie schließt ihn nicht aus.',
+      availability: 'Beginnt ein Job früher, markiert die App ihn zum Prüfen.',
     },
     field: {
       name: 'Name',
@@ -1118,7 +1149,7 @@ export const de = {
       title: 'Rolle',
       titlePlaceholder: 'z. B. Interim Manager',
       roles: 'Wunschrollen',
-      rolesHint: 'Passt der Titel einer Anzeige dazu, steigt die Bewertung leicht.',
+      rolesHint: 'Passt der Titel einer Anzeige dazu, steigt die Passung leicht.',
       rolesPlaceholder: 'z. B. Interim Management',
       competence: 'Kompetenz',
       competencePlaceholder: 'z. B. Projektleitung',
@@ -1132,7 +1163,7 @@ export const de = {
       star: 'Als Schwerpunkt markieren',
       /** The star of a Schwerpunkt, and of a row without a competence yet. */
       unstar: 'Schwerpunkt entfernen',
-      starEmpty: 'Erst eine Kompetenz eintragen.',
+      starEmpty: 'Trag erst eine Kompetenz ein.',
       focusCount: (count: number, max: number) => `Schwerpunkte ${count} von ${max}`,
       focusHint: 'Kompetenzen mit Stern zählen doppelt, höchstens fünf.',
       focusFull: 'Höchstens fünf Schwerpunkte.',
@@ -1146,7 +1177,7 @@ export const de = {
       keywordsPlaceholder: 'z. B. Transformation',
       keywordsHint: 'Begriffe, die in passenden Anzeigen stehen.',
       totalYears: 'Berufserfahrung',
-      totalYearsHint: 'Ab zehn Jahren bewertet die App Einstiegsstellen niedrig.',
+      totalYearsHint: 'Ab zehn Jahren bewertet die App Jobs für Einsteiger niedrig.',
       degrees: 'Abschlüsse',
       degreesPlaceholder: 'z. B. Master',
       industries: 'Branchen',
@@ -1169,16 +1200,15 @@ export const de = {
       wishIndustries: 'Wunschbranchen',
       wishIndustriesPlaceholder: 'z. B. Energie',
       minDayRate: 'Mindest-Tagessatz',
-      minDayRateHint: 'Liegt der Satz einer Anzeige darunter, fällt der Job weg.',
       countries: 'Einsatzländer',
       countriesPlaceholder: 'Land suchen',
       /** Typed text that names no country the app knows. */
       countryNone: 'Kein Land mit diesem Namen.',
       /** One click for Deutschland, Österreich and Schweiz. */
       dach: 'DACH hinzufügen',
-      remoteOutside: 'Remote-Stellen im Ausland zulassen',
+      remoteOutside: 'Remote-Jobs im Ausland zulassen',
       remoteOutsideHint:
-        'Ausgeschaltet markiert die App ganz remote Stellen mit Sitz im Ausland zum Prüfen.',
+        'Ausgeschaltet markiert die App ganz remote Jobs mit Sitz im Ausland zum Prüfen.',
       remoteOutsideOff: 'Wähle erst die Einsatzländer.',
       noAnue: 'Arbeitnehmerüberlassung ausschließen',
       noPermanent: 'Festanstellung ausschließen',
@@ -1187,16 +1217,23 @@ export const de = {
       date: 'Datum',
       datePlaceholder: '01.11.2026',
       dateInvalid: 'Gib das Datum im Format 01.11.2026 ein.',
-      targetYears: 'Mindest-Erfahrung der Stelle',
-      targetYearsHint: 'Stellen für deutlich weniger Erfahrung fallen weg.',
+      /** A day in the right format that the calendar does not have (31.02.2026). */
+      dateImpossible: 'Diesen Tag gibt es nicht.',
+      targetYears: 'Mindest-Erfahrung des Jobs',
+      targetYearsHint: 'Jobs für deutlich weniger Erfahrung sind ausgeschlossen.',
       minSalary: 'Mindest-Jahresgehalt',
       places: 'Orte für Festanstellung',
       placesPlaceholder: 'z. B. München',
       remoteMin: 'Mindest-Remote-Anteil',
       remoteMinHint:
-        'Außerhalb dieser Orte zählt eine Festanstellung erst ab diesem Remote-Anteil.',
+        'Außerhalb der Orte für Festanstellung braucht ein Job mindestens diesen Remote-Anteil.',
       /** A euro amount with cents: the app counts whole euros. */
       rounded: 'Auf ganze Euro abgerundet.',
+      /** Another number with a decimal part: the app counts whole ones. */
+      roundedWhole: 'Auf eine ganze Zahl abgerundet.',
+      /** A value the backend refused, said at its field: the limit where one is. */
+      refused: 'Dieser Wert passt nicht.',
+      atMost: (max: number) => `Höchstens ${n(max)}.`,
       /** A value in the file that the app could not read, shown at its field. */
       unreadableNumber: (value: string) => `In der Datei stand „${value}“, das ist keine Zahl.`,
       unreadableDate: (value: string) => `In der Datei stand „${value}“, das ist kein Datum.`,
@@ -1282,6 +1319,8 @@ export const de = {
       fileOnly: (name: string) => `${name}, nur in der Datei`,
       years: 'Berufserfahrung',
       yearsValue: (value: number) => count(value, 'Jahr', 'Jahre'),
+      /** A minimum of years (dative): `ab 15 Jahren`. */
+      yearsFrom: (value: number) => `ab ${count(value, 'Jahr', 'Jahren')}`,
       degrees: 'Abschlüsse',
       packs: 'Fachwortschatz',
       criteria: 'Ausschlusskriterien',
@@ -1317,12 +1356,13 @@ export const de = {
       answer: 'Antwort der KI',
       take: 'Übernehmen',
       /** Why Übernehmen waits. */
-      takeEmpty: 'Erst die Antwort der KI einfügen.',
+      takeEmpty: 'Füge erst die Antwort der KI ein.',
     },
   },
   settings: {
     mailbox: 'Postfach',
-    fetch: 'Abruf',
+    /** The section of what the app does on its own: fetch at start, archive, empty the trash. */
+    automatic: 'Automatisch',
     portals: 'Portale',
     files: 'Dateien',
     maintenance: 'Wartung',
@@ -1331,7 +1371,7 @@ export const de = {
     /** The last fetch could not reach Gmail, or Gmail refused the password. */
     unreachable: 'Nicht erreichbar',
     refused: 'Abgelehnt',
-    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, bitte trag sie über „Ändern“ neu ein.',
+    mailRefused: 'Gmail lehnt Adresse oder App-Passwort ab, trag sie über „Ändern“ neu ein.',
     vault: {
       windowsCredentialManager:
         'Das App-Passwort liegt in der Windows-Anmeldeinformationsverwaltung.',
@@ -1355,7 +1395,7 @@ export const de = {
     autoArchive: 'Jobs nach 30 Tagen archivieren',
     autoArchiveHint: 'Favoriten werden nie archiviert.',
     autoEmptyTrash: 'Papierkorb nach 30 Tagen leeren',
-    autoEmptyTrashHint: 'Gelöschte Jobs sind danach endgültig weg.',
+    autoEmptyTrashHint: 'Jobs im Papierkorb werden dann endgültig gelöscht.',
     active: 'Aktiv',
     details: 'Details holen',
     needsDetails: 'Schalte erst „Details holen“ ein.',
@@ -1383,12 +1423,13 @@ export const de = {
     workspaceDefault: 'Standard',
     excel: 'Excel-Datei',
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
+    overview: 'Übersicht',
     txt: 'Textdateien',
     /** What the text files are (one per ad) and what they are for, with their number. */
     txtCount: (value: number) =>
       `${count(value, 'Anzeige', 'Anzeigen')} als Text für eine KI-Bewertung`,
     /** After a change of the work folder: only new text files are written there by themselves. */
-    txtLeftBehind: 'Die Textdateien liegen noch im alten Ordner, Neu schreiben legt sie hier an.',
+    txtLeftBehind: 'Die Textdateien liegen noch im alten Ordner, „Neu schreiben“ legt sie hier an.',
     txtNone: 'Es gibt keine Textdateien.',
     txtRewrite: 'Neu schreiben',
     txtClear: 'Löschen',
@@ -1401,8 +1442,9 @@ export const de = {
     fullMailbox: FULL_MAILBOX,
     fullMailboxHint: 'Liest alle Alert-Mails, nicht nur die neuen.',
     fullMailboxAction: 'Postfach lesen',
+    fullMailboxConfirm: 'Lesen',
     fullMailboxHeading: 'Ganzes Postfach lesen?',
-    fullMailboxText: 'Das dauert länger und ruft mehr Seiten der Portale ab.',
+    fullMailboxText: 'Das dauert länger und holt mehr Seiten der Portale.',
     logs: 'Protokolle',
     data: 'Daten der App',
     reset: 'Alles zurücksetzen',
@@ -1423,10 +1465,10 @@ export const de = {
     languageLabel: 'Sprache der App',
     /** Excel file and overview are written at the next fetch (the text files stay German). */
     languageHint: 'Excel-Datei und Übersicht folgen beim nächsten Abruf.',
-    /** Each language named in the language of the app (Deutsch/Englisch, German/English). */
+    /** Each language in its own words, the same in both catalogs. */
     languageName: {
       de: 'Deutsch',
-      en: 'Englisch',
+      en: 'English',
     } satisfies Record<Language, string>,
   },
   firstRun: {
@@ -1443,17 +1485,19 @@ export const de = {
   },
   shell: {
     loadFailed: 'Die App konnte ihre Daten nicht laden.',
-    last: (iso: string) => `Abgerufen ${formatMoment(iso)}`,
+    /** The sidebar's run status, one line: the time today, the date on another day. */
+    last: (iso: string) => `Abgerufen ${formatStamp(iso)}`,
     showRun: 'Abruf anzeigen',
-    runFailed: (iso: string) => `Fehlgeschlagen ${formatMoment(iso)}`,
-    /** Closing while a fetch runs: the window waits until it has stopped. */
-    closing: 'Der Abruf wird beendet, dann schließt die App.',
+    runFailed: (iso: string) => `Fehler ${formatStamp(iso)}`,
+    runCancelled: (iso: string) => `Abgebrochen ${formatStamp(iso)}`,
+    /** Closing while the app is busy: the window waits until what holds it has stopped. */
+    closing: (activity: string | null) => closing[busyOf(activity)],
   },
   toast: {
-    rescored: 'Die Jobs sind neu bewertet.',
+    rescored: 'Jobs neu bewertet.',
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
-    prompt: 'Prompt kopiert, bereit für einen KI-Chat.',
+    prompt: 'Prompt kopiert.',
     archivedOne: (name: string) => `„${name}“ archiviert.`,
     trashedOne: (name: string) => `„${name}“ in den Papierkorb gelegt.`,
     trashedMany: (value: number) => `${n(value)} Jobs in den Papierkorb gelegt.`,
@@ -1464,8 +1508,8 @@ export const de = {
     archivedMany: (value: number) => `${n(value)} Jobs archiviert.`,
     restored: (name: string) => `„${name}“ wiederhergestellt.`,
     /** Only a deletion for good says "endgültig". */
-    deleted: (value: number) =>
-      value === 1 ? 'Der Job ist endgültig gelöscht.' : `${n(value)} Jobs sind endgültig gelöscht.`,
+    deletedOne: (name: string) => `„${name}“ endgültig gelöscht.`,
+    deletedMany: (value: number) => `${n(value)} Jobs endgültig gelöscht.`,
     trashEmptied: 'Papierkorb geleert.',
     runDone: (value: number) =>
       value === 0

@@ -4,11 +4,11 @@
 use std::fmt::Write as _;
 
 use jiff::{SignedDuration, Timestamp};
-use rusqlite::{Connection, OptionalExtension, Row, params};
+use rusqlite::{Connection, OptionalExtension, Row, Transaction, TransactionBehavior, params};
 use url::Url;
 
 use super::marks::{FAVOURITES, INBOX, place_condition};
-use super::{Store, bump};
+use super::{Store, bump, kv_get_i64, kv_set};
 use crate::error::{Error, Result};
 use crate::fetch::policy::MAX_FETCH_ATTEMPTS;
 use crate::mail::MAIL_PARSER_VERSION;
@@ -112,7 +112,8 @@ pub struct PageQuery {
     /// Best match first; otherwise by date: the alert mail's, in the trash the day it went
     /// there; excluded jobs last either way.
     pub by_match: bool,
-    /// Search term in title, company, location and full text (case-insensitive).
+    /// Search: every word in the portal's name, title, company, location or full text
+    /// (case-insensitive, in any order).
     pub search: Option<String>,
     pub limit: u32,
     pub offset: u32,
@@ -287,16 +288,17 @@ impl Store {
     /// Jobs, newest first (first sighting, then mail date).
     pub fn jobs(&self, filter: &JobFilter) -> Result<Vec<JobRow>> {
         let conn = self.conn();
-        let pattern = like_pattern(filter.search.as_deref());
+        let words = search_words(filter.search.as_deref());
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE (?1 IS NULL OR first_seen_run = ?1)
-               AND (?2 IS NULL OR search LIKE ?2 ESCAPE '\\')
+               AND {}
                AND (NOT ?3 OR ({INBOX} AND dup_of IS NULL))
-             ORDER BY first_seen_at DESC, mail_date DESC, portal, job_id"
+             ORDER BY first_seen_at DESC, mail_date DESC, portal, job_id",
+            matches_words("?2")
         ))?;
         let rows = stmt.query_map(
-            params![filter.first_seen_run, pattern, filter.listed],
+            params![filter.first_seen_run, words, filter.listed],
             job_row,
         )?;
         rows.map(|r| r?).collect()
@@ -306,7 +308,7 @@ impl Store {
     /// never disagree.
     pub fn job_page(&self, query: &PageQuery) -> Result<(Vec<JobRow>, PageCounts)> {
         let conn = self.conn();
-        let pattern = like_pattern(query.search.as_deref());
+        let words = search_words(query.search.as_deref());
         // Excluded jobs always come last; "match" puts the best score first (unscored after
         // scored), "newest" the latest first sighting. The archive lists the latest archived
         // first, the trash the latest trashed.
@@ -361,8 +363,7 @@ impl Store {
         }
         let sql = format!(
             "WITH base AS (
-                 SELECT * FROM job WHERE dup_of IS NULL
-                                     AND (?1 IS NULL OR search LIKE ?1 ESCAPE '\\')
+                 SELECT * FROM job WHERE dup_of IS NULL AND {words}
              ), counts AS (
                  SELECT COALESCE(SUM({shown}), 0) AS n_inbox,
                         COALESCE(SUM({new}), 0) AS n_unread,
@@ -387,6 +388,7 @@ impl Store {
              ORDER BY {}",
             order(""),
             order("page."),
+            words = matches_words("?1"),
             archive = place_condition(Place::Archive),
             trash = place_condition(Place::Trash),
         );
@@ -395,7 +397,7 @@ impl Store {
         let mut stmt = conn.prepare_cached(&sql)?;
         let mut counts = PageCounts::default();
         let mut jobs = Vec::new();
-        let mut rows = stmt.query(params![pattern, query.limit, query.offset, HIGH_FROM])?;
+        let mut rows = stmt.query(params![words, query.limit, query.offset, HIGH_FROM])?;
         while let Some(row) = rows.next()? {
             let mut new_by_portal = Vec::with_capacity(Portal::ALL.len());
             for (i, portal) in Portal::ALL.into_iter().enumerate() {
@@ -911,7 +913,7 @@ fn upsert(
                 mail.gmail_id.map(|id| id.to_string()),
                 to_db(now),
                 run,
-                search_text(&posting.title, &posting.company, &posting.location, ""),
+                mail_search(key, posting),
                 MAIL_PARSER_VERSION,
             ],
         )?;
@@ -1002,6 +1004,48 @@ fn usable_details<'a>((company, location): (&'a str, &'a str)) -> (&'a str, &'a 
     }
 }
 
+/// Version of what the search column holds: raised with every change of [`search_text`],
+/// so that [`refresh_all_searches`] recomputes the column of the jobs stored before.
+const SEARCH_VERSION: i64 = 2;
+
+/// Recomputes the search column of every job once after [`search_text`] changed (a row keeps
+/// the column of the version that wrote it).
+pub(super) fn refresh_all_searches(conn: &Connection) -> Result<()> {
+    if kv_get_i64(conn, "search_version")? == Some(SEARCH_VERSION) {
+        return Ok(());
+    }
+    let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+    let rows = tx
+        .prepare("SELECT portal, job_id, title, company, location, desc_text FROM job")?
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+                r.get::<_, String>(4)?,
+                r.get::<_, Option<String>>(5)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for (portal, id, title, company, location, text) in rows {
+        let search = search_text(
+            Portal::from_key(&portal),
+            &title,
+            &company,
+            &location,
+            text.as_deref().unwrap_or(""),
+        );
+        tx.execute(
+            "UPDATE job SET search = ?3 WHERE portal = ?1 AND job_id = ?2",
+            params![portal, id, search],
+        )?;
+    }
+    kv_set(&tx, "search_version", &SEARCH_VERSION.to_string())?;
+    tx.commit()?;
+    Ok(())
+}
+
 /// Recomputes the search column (lower case, umlauts included).
 fn refresh_search(conn: &Connection, key: &JobKey) -> Result<()> {
     let row: Option<(String, String, String, Option<String>)> = conn
@@ -1017,15 +1061,40 @@ fn refresh_search(conn: &Connection, key: &JobKey) -> Result<()> {
             params![
                 key.portal.key(),
                 key.id,
-                search_text(&title, &company, &location, text.as_deref().unwrap_or(""))
+                search_text(
+                    Some(key.portal),
+                    &title,
+                    &company,
+                    &location,
+                    text.as_deref().unwrap_or("")
+                )
             ],
         )?;
     }
     Ok(())
 }
 
-fn search_text(title: &str, company: &str, location: &str, text: &str) -> String {
-    fold(&format!("{title}\n{company}\n{location}\n{text}"))
+/// What the search looks through: the portal's name, title, company, location and text.
+fn search_text(
+    portal: Option<Portal>,
+    title: &str,
+    company: &str,
+    location: &str,
+    text: &str,
+) -> String {
+    let portal = portal.map_or("", Portal::label);
+    fold(&format!("{portal}\n{title}\n{company}\n{location}\n{text}"))
+}
+
+/// The search column of a job as its alert mail names it (no text yet).
+fn mail_search(key: &JobKey, posting: &Posting) -> String {
+    search_text(
+        Some(key.portal),
+        &posting.title,
+        &posting.company,
+        &posting.location,
+        "",
+    )
 }
 
 /// Comparison form for the search: lower case (Unicode, so umlauts too).
@@ -1033,11 +1102,27 @@ fn fold(text: &str) -> String {
     text.to_lowercase()
 }
 
-/// `LIKE` pattern of a search term; an empty search matches everything (`None`).
-pub(super) fn like_pattern(search: Option<&str>) -> Option<String> {
-    search
-        .map(|s| format!("%{}%", escape_like(&fold(s.trim()))))
-        .filter(|p| p != "%%")
+/// Words a search takes at most; the rest of a longer query is ignored.
+const MAX_SEARCH_WORDS: usize = 8;
+
+/// The `LIKE` patterns of a search, one per word, as a JSON array for [`matches_words`]; an
+/// empty search matches everything (`None`).
+pub(super) fn search_words(search: Option<&str>) -> Option<String> {
+    let words: Vec<String> = fold(search.unwrap_or(""))
+        .split_whitespace()
+        .take(MAX_SEARCH_WORDS)
+        .map(|word| format!("%{}%", escape_like(word)))
+        .collect();
+    (!words.is_empty()).then(|| serde_json::Value::from(words).to_string())
+}
+
+/// The condition that a job's search column holds every word of a search, in any field and
+/// order (`param` binds the JSON array of [`search_words`]).
+pub(super) fn matches_words(param: &str) -> String {
+    format!(
+        "({param} IS NULL OR NOT EXISTS (SELECT 1 FROM json_each({param}) AS word
+                                          WHERE search NOT LIKE word.value ESCAPE '\\'))"
+    )
 }
 
 fn escape_like(text: &str) -> String {
@@ -1849,6 +1934,121 @@ mod tests {
             )
             .unwrap();
         assert_eq!(find("projektleiter"), ["Überwachung SAP"]);
+    }
+
+    #[test]
+    fn search_matches_every_word_in_any_field() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let a = posting(
+            "https://www.freelancermap.de/nproj/12345.html",
+            "SAP FI/CO Berater (m/w/d)",
+            "Datenwerk GmbH",
+            "München",
+        );
+        let b = posting(
+            "https://www.linkedin.com/jobs/view/4000000001/",
+            "Controller",
+            "Hanse AG",
+            "Hamburg",
+        );
+        store.upsert_posting(run, &a, mail(), now()).unwrap();
+        store.upsert_posting(run, &b, mail(), now()).unwrap();
+        let find = |q: &str| {
+            let query = PageQuery {
+                search: Some(q.into()),
+                limit: 50,
+                ..PageQuery::default()
+            };
+            let (jobs, counts) = store.job_page(&query).unwrap();
+            // The counts follow the same search as the list.
+            assert_eq!(counts.inbox as usize, jobs.len(), "{q}");
+            jobs.into_iter().map(|j| j.title).collect::<Vec<_>>()
+        };
+        let sap = ["SAP FI/CO Berater (m/w/d)"];
+        assert_eq!(find("sap berater"), sap);
+        assert_eq!(find("SAP  MÜNCHEN"), sap);
+        assert_eq!(find("münchen berater"), sap);
+        assert!(find("sap berlin").is_empty());
+        assert!(find("sap hamburg").is_empty());
+        assert_eq!(find("  ").len(), 2); // empty search = everything
+        store
+            .record_text(&b.key, "Remote möglich, Start sofort", false, false, now())
+            .unwrap();
+        assert_eq!(find("controller remote"), ["Controller"]);
+        // Mark all read takes the same hits.
+        let read = store
+            .mark_all_read(Place::Inbox, Some("berater münchen"), now())
+            .unwrap();
+        assert_eq!(read, std::slice::from_ref(&a.key));
+    }
+
+    #[test]
+    fn search_finds_the_portal_name() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let a = posting(
+            "https://www.freelancermap.de/nproj/12345.html",
+            "Controller",
+            "",
+            "",
+        );
+        let b = posting(
+            "https://www.linkedin.com/jobs/view/4000000001/",
+            "Controller",
+            "",
+            "",
+        );
+        store.upsert_posting(run, &a, mail(), now()).unwrap();
+        store.upsert_posting(run, &b, mail(), now()).unwrap();
+        let find = |q: &str| {
+            store
+                .jobs(&JobFilter {
+                    search: Some(q.into()),
+                    ..JobFilter::default()
+                })
+                .unwrap()
+                .into_iter()
+                .map(|j| j.key)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(find("freelancermap"), std::slice::from_ref(&a.key));
+        assert_eq!(find("LinkedIn controller"), std::slice::from_ref(&b.key));
+    }
+
+    #[test]
+    fn rows_stored_before_the_portal_name_get_it_once() {
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        let a = posting(
+            "https://www.linkedin.com/jobs/view/4000000001/",
+            "Controller",
+            "",
+            "",
+        );
+        store.upsert_posting(run, &a, mail(), now()).unwrap();
+        // The column as an older version wrote it, before the portal's name was in it.
+        store
+            .conn()
+            .execute_batch(
+                "UPDATE job SET search = 'controller'; UPDATE kv SET value = '1'
+                 WHERE key = 'search_version';",
+            )
+            .unwrap();
+        let hits = |q: &str| {
+            let filter = JobFilter {
+                search: Some(q.into()),
+                ..JobFilter::default()
+            };
+            store.jobs(&filter).unwrap().len()
+        };
+        assert_eq!(hits("linkedin"), 0);
+        refresh_all_searches(&store.conn()).unwrap();
+        assert_eq!(hits("linkedin"), 1);
+        assert_eq!(
+            store.kv_get("search_version").unwrap().as_deref(),
+            Some(SEARCH_VERSION.to_string().as_str())
+        );
     }
 
     #[test]

@@ -181,6 +181,7 @@
       />
       <Toggle
         id="switch-enabled-{portal.portal}"
+        describedby={portal.enabled ? null : `switch-enabled-${portal.portal}-hint`}
         checked={portal.enabled}
         label={t.settings.active}
         testid="toggle-enabled-{portal.portal}"
@@ -278,7 +279,7 @@
               variant="inline"
               text={health}
               action={alertMail
-                ? { label: t.reader.mail, onclick: () => openMail(alertMail) }
+                ? { label: t.reader.mail, icon: 'mail', onclick: () => openMail(alertMail) }
                 : null}
               testid="health-{portal.portal}"
             />

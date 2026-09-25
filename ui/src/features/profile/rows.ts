@@ -1,6 +1,7 @@
 // Enter in a row list of the Profil form (competences, languages), like a table in a native
 // app: Enter goes to the next row, on the last row it adds a new one, and on an empty last
 // row it ends the list (the row goes, the caret moves to the next field after the list).
+// A row removed by its focused x hands the focus on, so it never drops to the page.
 
 import { tick } from 'svelte';
 
@@ -23,6 +24,23 @@ function moveOn(list: HTMLElement): void {
       (list.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
   );
   after?.focus();
+}
+
+/**
+ * The row at `index` is gone and its remove button had the focus: the caret goes into the
+ * row now in its place, else the one before, else the list's add button (`add`, a testid).
+ */
+export async function focusAfterRemove(
+  list: HTMLElement | null,
+  index: number,
+  add: string,
+): Promise<void> {
+  await tick();
+  if (list === null) return;
+  const rows = rowsOf(list);
+  const row = rows[index] ?? rows[index - 1];
+  if (row) row.querySelector('input')?.focus();
+  else list.querySelector<HTMLElement>(`[data-testid="${add}"]`)?.focus();
 }
 
 export interface RowEnter<Row> {

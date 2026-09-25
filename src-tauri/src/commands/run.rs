@@ -231,7 +231,7 @@ pub(super) fn launch(
 ) -> CmdResult<()> {
     // A run that cannot start never asks the keychain.
     if state.busy() {
-        return Err(ErrorInfo::new(ErrorKind::Busy));
+        return Err(state.busy_error());
     }
     // Settings and Gmail access outside the lock: reading the keychain can wait for a prompt
     // (macOS), and the reader, the close button and every busy check wait for this lock.
@@ -240,7 +240,7 @@ pub(super) fn launch(
     // meanwhile keeps the slot, and the credentials read for nothing are dropped.
     let mut activity = lock(&state.activity);
     if !matches!(*activity, Activity::Idle) {
-        return Err(ErrorInfo::new(ErrorKind::Busy));
+        return Err(super::busy_error(&activity));
     }
     let kind = request.kind.name();
     let handle = RunHandle {

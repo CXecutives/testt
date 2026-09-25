@@ -102,13 +102,7 @@
 
   const SORTS: readonly JobSort[] = ['match', 'newest'];
   // In the Papierkorb the date is the day a job went there (what its row shows).
-  const sorts = $derived(
-    SORTS.map((sort) => ({
-      id: sort,
-      label:
-        sort === 'newest' && place === 'trash' ? t.toolbar.sortDeleted : t.toolbar.sortLabel[sort],
-    })),
-  );
+  const sorts = $derived(SORTS.map((sort) => ({ id: sort, label: t.toolbar.sortLabel[sort] })));
 
   /** "Alle als gelesen markieren" is on its way: a second click (a double click) waits. */
   let marking = false;
@@ -171,11 +165,11 @@
 
 {#snippet fetchButton(live: boolean)}
   <Button
-    variant={app.hasMailbox ? 'primary' : 'secondary'}
+    variant={app.hasMailbox && app.hasPortal ? 'primary' : 'secondary'}
     icon="refresh-cw"
     label={t.toolbar.fetch}
-    disabled={!app.hasMailbox || run.active}
-    disabledReason={run.active ? run.busyText : t.toolbar.needsMailbox}
+    disabled={run.fetchBlocked !== null}
+    disabledReason={run.fetchBlocked}
     wide
     testid={live ? 'fetch' : null}
     onclick={() => void run.start({ kind: 'fetch' })}
@@ -301,7 +295,7 @@
   variant="danger"
   heading={t.actions.emptyTrashHeading}
   text={t.actions.emptyTrashText(inTrash)}
-  confirmLabel={t.actions.emptyTrash}
+  confirmLabel={t.actions.emptyTrashConfirm}
   busy={emptying}
   error={emptyError}
   testid="dialog-empty-trash"
@@ -313,7 +307,7 @@
   variant="danger"
   heading={t.actions.purgeHeading(bulk.chosen.length)}
   text={t.actions.purgeText}
-  confirmLabel={t.actions.purge}
+  confirmLabel={t.actions.purgeConfirm}
   busy={bulk.purging}
   error={bulk.purgeError}
   testid="dialog-purge-chosen"
@@ -411,6 +405,6 @@
     align-items: center;
     gap: var(--space-2);
     margin-left: auto;
-    margin-right: calc(-1 * var(--space-12));
+    margin-right: calc(-1 * var(--ghost-inset));
   }
 </style>

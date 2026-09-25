@@ -7,7 +7,7 @@
 // never to a raw code.
 
 import { IpcError } from '../ipc/api';
-import type { JobView, KeyFacts, Notice, PortalHealth, Reason } from '../ipc/types';
+import type { DetailState, JobView, KeyFacts, Notice, PortalHealth, Reason } from '../ipc/types';
 import { formatDate } from './format';
 import {
   textOf,
@@ -110,6 +110,18 @@ function noteCriterion(note: Notice | null): CriterionKey | null {
     : criterionKey(note.code);
 }
 
+/** Whether a detail state warns (the ad could not be read, or is gone) or is a quiet fact
+ *  (it follows, it is a teaser, it comes on request): one tone for the row's badge, the
+ *  reader's note and the run card. */
+export const DETAIL_WARNS: Record<Exclude<DetailState['kind'], 'ok'>, boolean> = {
+  failed: true,
+  unfetchable: true,
+  gone: true,
+  pending: false,
+  teaser: false,
+  onRequest: false,
+};
+
 /** The reason line of a list row: why it is excluded in short words ("Tagessatz zu
  *  niedrig"), else the best met requirement. */
 export function rowReason(job: JobView): { kind: 'met' | 'violation'; text: string } | null {
@@ -165,17 +177,28 @@ function rateWords(
 export function factWords(facts: KeyFacts | null | undefined): string[] {
   if (!facts) return [];
   const out: string[] = [];
-  const start = startWords(facts.start, false);
-  if (start) out.push(start);
+  const terms = termWords(facts);
+  if (terms.availability) out.push(terms.availability);
   if (facts.months) out.push(t.facts.months(facts.months));
   const from = facts.remoteFrom ?? facts.remoteTo;
   const to = facts.remoteTo ?? facts.remoteFrom;
   if (from !== null && to !== null) out.push(t.facts.remote(from, to));
-  const rate =
-    rateWords(facts.rate, facts.hourly, facts.currency, true) ??
-    (facts.rateOpen ? t.facts.rateOpen : null);
-  if (rate) out.push(rate);
+  if (terms.minDayRate) out.push(terms.minDayRate);
   return out;
+}
+
+/** The rate and the start an ad states ("1.100 €/Tag", "ab sofort"), by the criterion they
+ *  stand for: the reader's strip shows them where the profile sets no such criterion. */
+export function termWords(
+  facts: KeyFacts | null | undefined,
+): Record<'minDayRate' | 'availability', string | null> {
+  if (!facts) return { minDayRate: null, availability: null };
+  return {
+    minDayRate:
+      rateWords(facts.rate, facts.hourly, facts.currency, true) ??
+      (facts.rateOpen ? t.facts.rateOpen : null),
+    availability: startWords(facts.start, false),
+  };
 }
 
 /** The duration and remote share of an ad (the reader's facts line, in place of the work
@@ -243,26 +266,10 @@ export function warningText(notice: Notice): string | null {
     : null;
 }
 
-/** One sentence for a portal's health (`ok` has none). */
-export function healthSentence(health: PortalHealth): string | null {
-  switch (health.kind) {
-    case 'ok':
-      return null;
-    case 'paused':
-      return t.run.pausedWhy(health.reason, health.until);
-    case 'quotaReached':
-      return t.run.quota(health.until);
-    case 'layoutSuspect':
-      // Empty alert mails point at the mail format; otherwise the pages looked odd.
-      return health.emptyMails > 0 ? t.health.layoutText(health.emptyMails) : t.health.layoutPages;
-    case 'loginRequired':
-      return t.health.loginText;
-  }
-}
-
 /**
- * A portal problem as the settings say it: one sentence that says what she has to do, or
- * that the app carries on by itself (which of the two is `PortalState.actionNeeded`).
+ * A portal problem in one sentence that says what she has to do, or that the app carries on
+ * by itself (which of the two is `PortalState.actionNeeded`); the same words in the run
+ * card, the day overview and the settings. `ok` has none.
  */
 export function healthAdvice(health: PortalHealth): string | null {
   switch (health.kind) {

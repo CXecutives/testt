@@ -8,15 +8,15 @@
   at once.
   A scored ring takes the colour of its decile (ten steps, red through orange and yellow
   to green; `d0` ... `d9`) with ink digits; the tinted disc of the larger rings follows
-  the band. The centre and the track say the state:
-  provisional: a score from a teaser only, not final: the value and its colour on a dashed
-  track. none: not scored yet: a dashed track alone. excluded: a pale red track and a ban
-  icon. unscorable, and off (no usable profile, so no match at all): the track and a dash.
-  pending: in the reader the track and a quarter
-  arc that turns; in the list (sm, where many turning arcs would cost frames and a still
-  arc looks like a frozen spinner) the dashed track breathes slowly (2 s, opacity only);
-  under reduced motion both stand still. A score of 100 sets its digits smaller in the list
-  ring. A selected row passes a warm --ring-track.
+  the band. Every ring has the same solid track; the centre and the arc say the state:
+  provisional (a score from a teaser only) looks exactly like a scored ring, the row's
+  badge and the reader say that it is not final (its name says it too). none: not scored
+  yet: the track with an empty centre. excluded: a pale red track and a ban icon.
+  unscorable, and off (no usable profile, so no match at all): the track and a dash.
+  pending: in the reader a quarter arc turns on the track; in the list (sm, where many
+  turning arcs would cost frames and a still arc looks like a frozen spinner) the track
+  breathes slowly (2 s, opacity only); under reduced motion both stand still. A score of
+  100 sets its digits smaller in the list ring. A selected row passes a warm --ring-track.
 -->
 <script lang="ts" module>
   import type { Band, DetailState, JobMatch } from '$lib/ipc/types';
@@ -178,7 +178,7 @@
   </svg>
   {#if ring.status === 'pending'}
     <!-- On its own HTML wrapper (a loop on an SVG child runs on the main thread): the
-         reader's quarter arc turns, the list's dashed track breathes; both stand still
+         reader's quarter arc turns, the list's track breathes; both stand still
          under reduced motion. -->
     <span class="wait" aria-hidden="true">
       <svg class="svg" viewBox="0 0 36 36">
@@ -234,12 +234,6 @@
     stroke: var(--score-excluded-track);
   }
 
-  /* Not final (from a teaser) or not scored yet: the track is dashed. */
-  .provisional .track,
-  .none .track {
-    stroke-dasharray: 2.5 2.5;
-  }
-
   /* Pending: a quarter arc over the track (25 of the 100 units), from 12 o'clock. */
   .wait {
     position: absolute;
@@ -262,16 +256,15 @@
     animation-play-state: var(--loop-state);
   }
 
-  /* The list ring that waits: no spinner shape, the dashed track breathes instead. */
+  /* The list ring that waits: no spinner shape, the whole track breathes instead (it moves
+     onto the layer that breathes). */
   .sm.pending .track {
     stroke: none;
   }
 
   .sm .arc {
     stroke: var(--ring-track, var(--score-track));
-    stroke-dasharray: 2.5 2.5;
-    stroke-dashoffset: 0;
-    stroke-linecap: butt;
+    stroke-dasharray: none;
   }
 
   .sm .wait {
@@ -383,8 +376,7 @@
     --ring-type: var(--type-2xl);
   }
 
-  /* The small ring stays calm: no tinted disc inside a 40 px row (a provisional one neither;
-     its dashed track says it). */
+  /* The small ring stays calm: no tinted disc inside a 40 px row. */
   .sm.scored,
   .sm.provisional {
     --ring-surface: transparent;

@@ -64,8 +64,12 @@ use params::FOCUS_MAX;
 /// roles with a comma and denied interim wording, the linking `s` of compounds, teaser terms
 /// cap and count half through another field's compound). 11: permanent employment as an
 /// excluded contract type (`ausgeschlossene_vertragsarten` names `festanstellung`), decided
-/// only for a stated permanent role.
-pub const ENGINE_VERSION: u32 = 13;
+/// only for a stated permanent role. 12: the hard criteria read only the ad, not the other
+/// listings a portal shows under it. 13: country names in a profile become ISO codes. 14:
+/// rules from the unseen held-out set 8 (a part of a total is no years minimum, English ANÜ
+/// denials, rate spellings). 15: a heading of the other listings is one only as a whole
+/// heading, never a requirement line that starts with its words.
+pub const ENGINE_VERSION: u32 = 15;
 
 /// Keys of the facts JSON the engine reads ([`JobInput::facts`]) - the one definition for
 /// the engine and for the pipeline that hands it the facts stored from the job page.
@@ -414,6 +418,12 @@ fn fingerprint(engine: &EngineProfile) -> String {
 /// shows and writes these).
 pub(crate) fn hard_criteria(data: &Value) -> HardCriteria {
     HardCriteria::new(&profile::criteria(data), data)
+}
+
+/// The hard criteria of a profile with their thresholds, as the profile summary names them
+/// (the AI prompts state them next to the ad's values).
+pub(crate) fn profile_criteria(data: &Value) -> Vec<CriterionInfo> {
+    criteria_info(&hard_criteria(data))
 }
 
 /// A language level as the engine reads it: CEFR 1 (A1) to 6 (C2), 7 native.

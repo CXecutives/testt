@@ -81,7 +81,7 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
   ]);
   // Wishes say what they do: they nudge, they never exclude.
   await expect(page.getByTestId('section-wishes')).toContainText(
-    'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.',
+    'Wünsche verschieben die Passung leicht, sie schließen nichts aus.',
   );
   await expect(page.getByTestId('profile-name-field')).toHaveValue('Erika Beispiel');
   await expect(chips(page.getByTestId('profile-roles'))).toHaveText(['Interim CFO']);
@@ -104,10 +104,10 @@ test('the profile is a form, filled from the stored profile', async ({ page }) =
     'Kompetenzen mit Stern zählen doppelt, höchstens fünf.',
   );
   const english = page.getByTestId('language-row').nth(1);
-  await expect(english.getByRole('button', { name: 'B2' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(english.getByRole('radio', { name: 'B2' })).toHaveAttribute('aria-checked', 'true');
   await expect(
-    page.getByTestId('profile-remote').getByRole('button', { name: 'Überwiegend remote' }),
-  ).toHaveAttribute('aria-pressed', 'true');
+    page.getByTestId('profile-remote').getByRole('radio', { name: 'Überwiegend remote' }),
+  ).toHaveAttribute('aria-checked', 'true');
   await expect(chips(page.getByTestId('profile-countries'))).toHaveText([
     'Deutschland',
     'Österreich',
@@ -126,12 +126,12 @@ test('one name per field: the labels, their hints and neutral examples', async (
   for (const text of [
     'Die Rolle zählt für die Passung.',
     'Sie stützen die Passung, belegen aber keine Anforderung.',
-    'Ab zehn Jahren bewertet die App Einstiegsstellen niedrig.',
+    'Ab zehn Jahren bewertet die App Jobs für Einsteiger niedrig.',
     'Ohne Niveau rechnet die App mit B2.',
     'Remote-Anteil',
     'Den Mindest-Tagessatz legen die Ausschlusskriterien fest.',
     'Mindest-Tagessatz',
-    'Mindest-Erfahrung der Stelle',
+    'Mindest-Erfahrung des Jobs',
     'Mindest-Jahresgehalt',
     'Mindest-Remote-Anteil',
   ]) {
@@ -159,7 +159,7 @@ test('one name per field: the labels, their hints and neutral examples', async (
   );
   // A level says what it means.
   const levels = page.getByTestId('language-row').first().getByTestId('language-level');
-  expect(await tooltipOf(page, levels.getByRole('button', { name: 'C1' }))).toBe('Fließend');
+  expect(await tooltipOf(page, levels.getByRole('radio', { name: 'C1' }))).toBe('Fließend');
   await expect(page.getByTestId('profile-wish-industries').locator('input')).toHaveAttribute(
     'placeholder',
     'z. B. Energie',
@@ -193,7 +193,7 @@ test('edit and save: both forms go to the backend, the change is confirmed', asy
   const keywords = page.getByTestId('profile-keywords').locator('input');
   await keywords.fill('Bilanzierung');
   await keywords.press('Enter');
-  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('1.11.2026');
   await save(page).click();
   await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
@@ -272,12 +272,13 @@ test('money with cents counts whole euros and says so, never a hundred times mor
   await profile(page);
   const rate = page.getByTestId('profile-min-rate');
   await rate.fill('950,50');
+  // Said once the field is left, not while typing.
+  await expect(page.getByTestId('profile-min-rate-rounded')).toHaveCount(0);
+  await page.getByTestId('profile-name-field').focus();
+  await expect(rate).toHaveValue('950');
   await expect(page.getByTestId('profile-min-rate-rounded')).toHaveText(
     'Auf ganze Euro abgerundet.',
   );
-  await page.getByTestId('profile-name-field').focus();
-  await expect(rate).toHaveValue('950');
-  await expect(page.getByTestId('profile-min-rate-rounded')).toBeVisible();
   // A point works the same; a group of three digits stays a thousands separator.
   const wish = page.getByTestId('profile-wish-rate');
   await wish.fill('1.180.75');
@@ -307,17 +308,13 @@ test('narrow, a language row keeps its levels under the name', async ({ page }) 
 
 test('a wrong date is said at the field and nothing is saved', async ({ page }) => {
   await profile(page);
-  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('31.02.2026');
-  await expect(page.getByTestId('profile-date-error')).toHaveText(
-    'Gib das Datum im Format 01.11.2026 ein.',
-  );
   await save(page).click();
   expect(await calls(page, 'save_profile')).toHaveLength(0);
-  // Saving says why in the bar and puts the caret into the day.
-  await expect(page.getByTestId('profile-save-status')).toHaveText(
-    'Gib das Datum im Format 01.11.2026 ein.',
-  );
+  // Said once, at the day, which gets the caret; the day has the format but does not exist.
+  await expect(page.getByTestId('profile-date-error')).toHaveText('Diesen Tag gibt es nicht.');
+  await expect(page.getByTestId('profile-save-status')).toHaveText('Nicht gespeichert');
   await expect(page.getByTestId('profile-date')).toBeFocused();
 });
 
@@ -327,7 +324,7 @@ test('a value the backend refuses is said at its field, which gets the caret', a
   await rate.fill('250000');
   await save(page).click();
   const criteria = page.getByTestId('section-criteria');
-  await expect(criteria).toContainText('Der Wert bei „Mindest-Tagessatz“ passt nicht.');
+  await expect(criteria).toContainText('Höchstens 100.000.');
   await expect(rate).toHaveAttribute('aria-invalid', 'true');
   await expect(rate).toBeFocused();
   // The bar only says that nothing is saved; the reason is at the field.
@@ -342,9 +339,7 @@ test('a value the backend refuses is said at its field, which gets the caret', a
   await years.nth(3).fill('80');
   await save(page).click();
   expect((await lastSave(page)).after.competences[3]!.years).toBe(80);
-  await expect(page.getByTestId('competence-error')).toHaveText(
-    'Der Wert bei „Kompetenzen“ passt nicht.',
-  );
+  await expect(page.getByTestId('competence-error')).toHaveText('Höchstens 70.');
   const names = page.getByTestId('competence-name');
   await expect(names.nth(3)).toHaveAttribute('aria-invalid', 'true');
   await expect(names.nth(2)).not.toHaveAttribute('aria-invalid', 'true');
@@ -494,9 +489,7 @@ test('chip field: Enter adds, a pasted list splits, x and Backspace remove, Esc 
   await input.fill('Miro');
   await page.getByTestId('profile-name-field').click();
   await expect(chips(field).last()).toHaveText('Miro');
-  // Enter never saves the long form; Ctrl+S (Cmd+S on macOS) does.
-  await input.press('Enter');
-  expect(await calls(page, 'save_profile')).toHaveLength(0);
+  // Ctrl+S (Cmd+S on macOS) saves from anywhere in the form.
   await input.press('Control+s');
   await expect(page.getByTestId('profile-saved')).toHaveText('Gespeichert, Jobs neu bewertet.');
   expect((await lastSave(page)).after.tools).toEqual([
@@ -549,7 +542,7 @@ test('Enter goes through the rows and never saves; on an empty last row it moves
 }) => {
   await profile(page);
   const names = page.getByTestId('competence-name');
-  // A field outside the rows: Enter does nothing.
+  // A field outside the rows: Enter saves, and with nothing changed nothing is saved.
   await page.getByTestId('profile-name-field').press('Enter');
   // In a row: Enter goes to the next row.
   await names.nth(0).press('Enter');
@@ -629,7 +622,7 @@ test('no profile: one sentence and the three ways in', async ({ page }) => {
   await expect(empty).toContainText('Mit einem Profil zeigt jeder Job, wie gut er passt.');
   await expect(empty.getByRole('button')).toHaveText([
     'Profil anlegen',
-    'Aus Lebenslauf erstellen',
+    'Aus Lebenslauf anlegen',
     'Datei wählen',
   ]);
   await expect(empty.locator('.btn.primary')).toHaveText('Profil anlegen');
@@ -654,7 +647,7 @@ test('create from the empty form and save; the quality follows while typing', as
   await page.getByTestId('competence-add').click();
   await expect(page.getByTestId('competence-name').last()).toBeFocused();
   await page.getByTestId('language-name').last().fill('Englisch');
-  await page.getByTestId('language-row').last().getByRole('button', { name: 'C1' }).click();
+  await page.getByTestId('language-row').last().getByRole('radio', { name: 'C1' }).click();
   await save(page).click();
   const sent = await lastSave(page);
   expect(sent.source).toBe('{}');
@@ -716,6 +709,7 @@ const ANSWER = [
       sprachen: [{ sprache: 'Englisch', niveau: 'C1' }],
       alleinstellungsmerkmale: [],
       keywords: ['IFRS'],
+      stationen: [{ zeitraum: '01/2020 bis heute', rolle: 'CFO', schwerpunkte: ['Treasury'] }],
     },
     null,
     2,
@@ -733,7 +727,7 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
   await profile(page, 'no-profile');
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   const card = page.getByTestId('profile-paste');
   await expect(card).toBeVisible();
@@ -743,7 +737,7 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
   );
   await expect(page.getByTestId('paste-prompt')).toHaveCount(0);
   await page.getByTestId('paste-preview').getByRole('button', { name: 'Prompt ansehen' }).click();
-  await expect(page.getByTestId('paste-prompt')).toContainText('Lebenslauf');
+  await expect(page.getByTestId('paste-prompt')).toContainText('Bitte erstelle');
   await expect(card).toContainText('Füge ihn in eine KI ein und hänge den Lebenslauf an.');
   // The same words as the rest of the app: KI and Prompt, never Claude or Anfrage.
   await expect(card).not.toContainText('Claude');
@@ -752,21 +746,31 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
     await expect(page.getByTestId('paste-copied')).toContainText('Der Prompt ist kopiert.');
     await expect(page.getByTestId('paste-copy')).toHaveText('Erneut kopieren');
     const copied = await page.evaluate(() => navigator.clipboard.readText());
-    expect(copied).toContain('Lebenslauf');
+    expect(copied).toContain('Bitte erstelle');
   }
+  expect((await calls(page, 'profile_prompt')).map((call) => call[1])).toContainEqual({
+    update: false,
+  });
   const take = page.getByTestId('paste-take');
   await expect(take).toHaveAttribute('aria-disabled', 'true');
   await expect(card).toContainText('Antwort der KI');
   await page.getByTestId('paste-answer').fill('Das kann ich leider nicht.');
   await take.click();
   await expect(card).toContainText('In der Antwort steht kein Profil.');
+  // An answer the AI broke off says so.
+  await page.getByTestId('paste-answer').fill(ANSWER.slice(0, 200));
+  await take.click();
+  await expect(card).toContainText('Die Antwort bricht mitten im Profil ab.');
   await page.getByTestId('paste-answer').fill(ANSWER);
   await take.click();
   await expect(page.getByTestId('profile-name')).toHaveText('Profil aus dem Lebenslauf');
   await expect(page.getByTestId('profile-name-field')).toHaveValue('Carla Exempel');
   await expect(page.getByTestId('competence-name')).toHaveCount(2);
   await expect(chips(page.getByTestId('focus'))).toHaveText(['Controlling']);
-  expect((await calls(page, 'parse_profile')).at(-1)![1]).toEqual({ text: ANSWER });
+  expect((await calls(page, 'parse_profile')).at(-1)![1]).toEqual({
+    text: ANSWER,
+    update: false,
+  });
   // Criteria are the user's own: the form asks for them, the answer brings none.
   await expect(page.getByTestId('profile-min-rate')).toHaveValue('');
   await save(page).click();
@@ -777,8 +781,15 @@ test('from a CV for the stored profile: the answer updates it for review', async
   await profile(page);
   await page.getByTestId('profile-update-cv').click();
   await expect(page.getByTestId('profile-paste')).toContainText('Aus Lebenslauf aktualisieren');
+  // The update prompt (it carries the stored profile), loaded with the profile.
+  await page.getByTestId('paste-preview').getByRole('button', { name: 'Prompt ansehen' }).click();
+  await expect(page.getByTestId('paste-prompt')).toContainText('Bitte aktualisiere');
+  expect((await calls(page, 'profile_prompt')).map((call) => call[1])).toContainEqual({
+    update: true,
+  });
   await page.getByTestId('paste-answer').fill(ANSWER);
   await page.getByTestId('paste-take').click();
+  expect((await calls(page, 'parse_profile')).at(-1)![1]).toEqual({ text: ANSWER, update: true });
   await expect(page.getByTestId('profile-name')).toHaveText(
     'Profil mit dem Lebenslauf aktualisiert',
   );
@@ -793,11 +804,16 @@ test('from a CV for the stored profile: the answer updates it for review', async
     'Controlling',
     'Konzernrechnungslegung nach IFRS',
   ]);
-  // Nothing is saved by itself; saving writes into the stored profile.
+  // Nothing is saved by itself; saving writes into the stored profile, which now has the
+  // career stations of the answer.
   expect(await calls(page, 'save_profile')).toHaveLength(0);
   await save(page).click();
   const sent = await lastSave(page);
-  expect(sent.source).toBeNull();
+  const source = JSON.parse(sent.source!) as Record<string, unknown>;
+  expect(source.harte_kriterien).toEqual({ min_tagessatz: 1100 });
+  expect(source.stationen).toEqual([
+    { zeitraum: '01/2020 bis heute', rolle: 'CFO', schwerpunkte: ['Treasury'] },
+  ]);
   const controlling = sent.after.competences.find((row) => row.name === 'Controlling')!;
   expect(controlling.years).toBe(28);
   expect(controlling.aliases).toEqual(['Financial Controlling', 'FP&A']);
@@ -816,7 +832,7 @@ test('from a CV: when the prompt could not be copied, the step says so and copie
   await profile(page, 'no-profile');
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   await expect(page.getByTestId('paste-copied')).toContainText(
     'Der Prompt ließ sich nicht kopieren.',
@@ -884,7 +900,7 @@ test('remove asks first, says what happens and can be taken back', async ({ page
   await page.getByTestId('profile-remove').click();
   const dialog = page.getByTestId('dialog-remove-profile');
   await expect(dialog).toContainText(
-    'Die Jobs zeigen danach keine Passung mehr. Die Datei bleibt als Sicherung im Profilordner.',
+    'Die Jobs zeigen danach keine Passung, die Datei bleibt als Sicherung im Profilordner.',
   );
   await dialog.getByRole('button', { name: 'Entfernen' }).click();
   await expect(page.getByTestId('profile-empty')).toBeVisible();
@@ -974,7 +990,7 @@ test('the remote switch sits under the countries and needs one', async ({ page }
   expect(toggleBox.y).toBeGreaterThan(countriesBox.y);
   expect(toggleBox.y).toBeLessThan(anueBox.y);
   await expect(page.getByTestId('section-criteria')).toContainText(
-    'Ausgeschaltet markiert die App ganz remote Stellen mit Sitz im Ausland zum Prüfen.',
+    'Ausgeschaltet markiert die App ganz remote Jobs mit Sitz im Ausland zum Prüfen.',
   );
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   // Without countries it has nothing to do: disabled, its tooltip says why.
@@ -1008,9 +1024,7 @@ test('availability is a block of its own that only marks', async ({ page }) => {
   await profile(page);
   const block = page.getByTestId('section-availability');
   await expect(block).toContainText('Verfügbarkeit');
-  await expect(block).toContainText(
-    'Beginnt ein Job früher, markiert die App ihn zum Prüfen, sie schließt ihn nicht aus.',
-  );
+  await expect(block).toContainText('Beginnt ein Job früher, markiert die App ihn zum Prüfen.');
   await expect(block.getByTestId('profile-available')).toBeVisible();
   await expect(page.getByTestId('section-criteria').getByTestId('profile-available')).toHaveCount(
     0,
@@ -1057,7 +1071,7 @@ test('baseline: from a CV', async ({ page, browserName }) => {
   await profile(page, 'no-profile');
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   await expect(page.getByTestId('profile-paste')).toBeVisible();
   await page.getByTestId('paste-answer').fill(ANSWER.slice(0, 120));

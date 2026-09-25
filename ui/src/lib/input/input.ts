@@ -17,19 +17,27 @@
 // - no dragging of text, links or images
 // - text is selectable only in fields and where a user would copy it (`data-copy`: the ad
 //   text, job title and facts, profile values, paths); Ctrl/Cmd+C copies such a selection
-// - keys like in a native window: Tab and Shift+Tab move the focus, Space presses the
-//   focused button, switch or radio, Enter a button only. Inside a field every character the keyboard
-//   layout types (AltGr on Windows, Option on macOS: @ is Option+L on a German Mac) and
-//   the editing keys of the OS (word and line moves, delete word, Shift selection,
-//   Ctrl/Cmd+C/V/X/A/Z, redo) work. Enter saves and Esc cancels a form or dialog.
+// - keys like in a native window: Tab and Shift+Tab move the focus (a disabled control is
+//   passed, like a native one), Space presses the focused button, switch or radio, Enter a
+//   button only; in a radio group (the segments) the arrows, Home and End choose. Inside a
+//   field every character the keyboard layout types (AltGr on Windows, Option on macOS: @
+//   is Option+L on a German Mac) and the editing keys of the OS (word and line moves,
+//   delete word, Shift selection, Ctrl/Cmd+C/V/X/A/Z, redo) work. Enter saves and Esc
+//   cancels a form or dialog; Ctrl+S (Cmd+S on macOS) saves the long Profil form from
+//   anywhere in it.
 // - a list with a reader (the Jobs view, `listKeys`) moves like a mail app: outside a field
-//   ArrowUp/ArrowDown open the previous/next item, Home/End the first/last, Esc closes the
-//   open item (in the search field Esc first clears the search), Space on the open item's
-//   row pages through the reader (`reader`), and Ctrl+F (Cmd+F on macOS) goes to its search
-//   field from anywhere.
+//   ArrowUp/ArrowDown open the previous/next item, Home/End the first/last, Shift with them
+//   extends the choice of items like Explorer and Mail (`extend`), Esc closes the open item
+//   (in the search field Esc first clears the search), Space on the open item's row pages
+//   through the reader (`reader`), and Ctrl+F (Cmd+F on macOS) goes to its search field from
+//   anywhere. After a click into the reader (the focus nowhere) the arrows scroll it by a
+//   line and Home/End to its top and end, like the message of a mail app; a click in the
+//   list gives them back to the list.
 //   Outside fields Ctrl+Z (Cmd+Z on macOS) takes back the last list action while it can
 //   still be undone (`onUndo`), and PageUp, PageDown, Space and Shift+Space scroll the pane
-//   that has the focus (or the one clicked last) by a page, like a native window.
+//   that has the focus (or the one clicked last) by a page, like a native window; with the
+//   focus nowhere the arrows scroll the pane clicked last by a line and Home/End to its
+//   top and end (Einstellungen, Profil).
 //   Everything else, including every WebView shortcut (reload, find, print, zoom,
 //   devtools, caret browsing, Alt+Arrow back/forward), is swallowed.
 // - a modal dialog holds the focus: Tab cycles inside it, Esc cancels it wherever the
@@ -200,8 +208,9 @@ export interface FormKeyHandlers {
   save?: () => void;
   /** Esc anywhere inside the form. */
   cancel?: () => void;
-  /** Ctrl+S (Cmd+S on macOS) anywhere inside the form: saves a long form whose Enter
-   *  already means something else (the next row of a list). */
+  /** Ctrl+S (Cmd+S on macOS) anywhere inside the form: saves a long form also where Enter
+   *  means something else (the next row of a list, a chip). A form key like Enter and Esc,
+   *  not an app shortcut (docs/PLAN.md, Decisions "Keys"). */
   shortcut?: () => void;
 }
 
@@ -268,12 +277,16 @@ export interface ListKeyHandlers {
   step: (by: -1 | 1) => void;
   /** Home / End: open the first or the last item. */
   edge: (last: boolean) => void;
+  /** Shift+ArrowUp/ArrowDown, Shift+Home/End: the choice of items reaches one further, or
+   *  to the first or the last item. */
+  extend?: (to: -1 | 1 | 'first' | 'last') => void;
   /** Esc: close the open item. */
   close: () => void;
   /** Ctrl+F (Cmd+F on macOS): the search field. */
   find: () => void;
   /** The scroll area of the open item: Space and Shift+Space on the open item's row page
-   *  through it, like in a mail app (pressing the row again would change nothing). */
+   *  through it, like in a mail app (pressing the row again would change nothing), and after
+   *  a click into it the arrows, Home and End scroll it. */
   reader?: () => HTMLElement | null;
 }
 
@@ -314,8 +327,7 @@ function shownList(): ListKeyHandlers | null {
 function listFor(target: EventTarget | null): ListKeyHandlers | null {
   const node = closest(target, LIST);
   if (node instanceof HTMLElement) return lists.get(node) ?? null;
-  const nowhere = target === document.body || target === document.documentElement;
-  return nowhere ? shownList() : null;
+  return isNowhere(target) ? shownList() : null;
 }
 
 /** Ctrl+F or Cmd+F (the command key of the OS), without Alt or Shift. */
@@ -328,15 +340,20 @@ function isFindShortcut(event: KeyboardEvent): boolean {
   );
 }
 
+/** The keys that move in a list, a radio group or a pane. */
+const MOVE_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
+
 /** Arrows, Home, End and Esc outside a field; `true` if a list took the key. */
 function dispatchListKey(event: KeyboardEvent): boolean {
-  if (event.isComposing || hasModifier(event) || event.shiftKey) return false;
-  // The arrows of a radio group (the segments) are the group's.
-  if (closest(event.target, '[role="radio"]') !== null && event.key.startsWith('Arrow')) {
+  if (event.isComposing || hasModifier(event)) return false;
+  // The arrows, Home and End of a radio group (the segments) are the group's.
+  if (closest(event.target, '[role="radio"]') !== null && MOVE_KEYS.has(event.key)) {
     return false;
   }
   const list = listFor(event.target);
   if (list === null) return false;
+  if (event.shiftKey) return extendList(list, event.key);
+  if (readsReader(event, list)) return true;
   switch (event.key) {
     case 'ArrowUp':
       list.step(-1);
@@ -358,9 +375,69 @@ function dispatchListKey(event: KeyboardEvent): boolean {
   }
 }
 
+/** Shift with ArrowUp/ArrowDown, Home or End: the list's choice reaches further. */
+function extendList(list: ListKeyHandlers, key: string): boolean {
+  const to = EXTEND_TO[key];
+  if (to === undefined || list.extend === undefined) return false;
+  list.extend(to);
+  return true;
+}
+
+const EXTEND_TO: Record<string, -1 | 1 | 'first' | 'last'> = {
+  ArrowUp: -1,
+  ArrowDown: 1,
+  Home: 'first',
+  End: 'last',
+};
+
+/**
+ * The focus is nowhere and the last left press was in the list's reader (the ad's text,
+ * its head): the arrows scroll it by a line and Home/End to its top and end, like the
+ * message of a mail app. `true` if the reader took the key.
+ */
+function readsReader(event: KeyboardEvent, list: ListKeyHandlers): boolean {
+  if (!isNowhere(event.target) || !MOVE_KEYS.has(event.key)) return false;
+  const pane = list.reader?.() ?? null;
+  if (pane === null || lastPress === null || !pane.contains(lastPress)) return false;
+  // A press on one of its buttons (the star, a move) leaves the keys with the list, like a
+  // toolbar button of a mail app that takes no focus.
+  if (closest(lastPress, `${PRESSABLE}, a[href]`) !== null) return false;
+  return scrollByKey(pane, event.key);
+}
+
+/** The arrows, Home and End with the focus nowhere scroll the pane clicked last (a view
+ *  without a list: Einstellungen, Profil). `true` if a pane took the key. */
+function scrollsLine(event: KeyboardEvent): boolean {
+  if (hasModifier(event) || event.shiftKey || !isNowhere(event.target)) return false;
+  const pane = lastPane?.isConnected ? lastPane : null;
+  return pane !== null && scrollByKey(pane, event.key);
+}
+
+/** ArrowUp/ArrowDown scroll `pane` by a line, Home/End to its top or end. */
+function scrollByKey(pane: HTMLElement, key: string): boolean {
+  const smooth = document.documentElement.dataset.motion !== 'reduce';
+  const behavior: ScrollBehavior = smooth ? 'smooth' : 'auto';
+  if (key === 'ArrowUp' || key === 'ArrowDown') {
+    const line = tokenPx('--scroll-line');
+    pane.scrollBy({ top: (key === 'ArrowDown' ? 1 : -1) * line, behavior });
+    return true;
+  }
+  if (key === 'Home' || key === 'End') {
+    pane.scrollTo({ top: key === 'End' ? pane.scrollHeight : 0, behavior });
+    return true;
+  }
+  return false;
+}
+
+/** The focus is on no control (a click on plain text leaves it on the page). */
+function isNowhere(target: EventTarget | null): boolean {
+  return target === document.body || target === document.documentElement;
+}
+
 /** The arrows inside a radio group (the segments): the previous or the next option takes
- *  the focus and is chosen, wrapping at the ends, like native radio buttons. The group is
- *  one Tab stop (only the chosen option has tabindex 0). `true` if the group took the key. */
+ *  the focus and is chosen, wrapping at the ends, like native radio buttons; Home and End
+ *  choose the first and the last. The group is one Tab stop (only the chosen option has
+ *  tabindex 0). `true` if the group took the key. */
 function dispatchRadioKey(event: KeyboardEvent): boolean {
   if (hasModifier(event) || event.shiftKey) return false;
   const step =
@@ -369,14 +446,16 @@ function dispatchRadioKey(event: KeyboardEvent): boolean {
       : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
         ? -1
         : 0;
+  const edge = event.key === 'Home' ? 0 : event.key === 'End' ? -1 : null;
   const radio = closest(event.target, '[role="radio"]');
   const group = radio?.closest('[role="radiogroup"]') ?? null;
-  if (step === 0 || radio === null || group === null) return false;
+  if ((step === 0 && edge === null) || radio === null || group === null) return false;
   const options = [...group.querySelectorAll<HTMLElement>('[role="radio"]')].filter(
     (node) => node.getAttribute('aria-disabled') !== 'true' && !node.matches(':disabled'),
   );
   const at = options.indexOf(radio as HTMLElement);
-  const next = options[(at + step + options.length) % options.length];
+  const next =
+    edge === null ? options[(at + step + options.length) % options.length] : options.at(edge);
   event.preventDefault();
   if (next === undefined || next === radio) return true;
   next.focus();
@@ -431,6 +510,8 @@ export interface ChipKeyHandlers {
   clear: () => boolean;
   /** ArrowDown/ArrowUp: move the highlight of the field's suggestions; `true` if it moved. */
   step?: (by: -1 | 1) => boolean;
+  /** Ctrl/Cmd+S: turn the typed text into chips as leaving the field would. */
+  settle?: () => void;
 }
 
 const CHIPS = '[data-chip-keys]';
@@ -442,21 +523,34 @@ const chipEdits = new WeakMap<Element, (index: number) => void>();
 
 /**
  * A chip field whose chips a double click takes back into its text for editing
- * (components/ChipInput.svelte): the chip carries its index in `data-chip`.
+ * (components/ChipInput.svelte): the chip carries its index in `data-chip`. `null`: its
+ * chips are not edited (a double click selects a word of the value, like any copyable text).
  */
-export const chipEdit: Action<HTMLElement, (index: number) => void> = (node, edit) => {
-  chipEdits.set(node, edit);
-  node.dataset.chipEdit = '';
-  return {
-    update(next: (index: number) => void) {
-      chipEdits.set(node, next);
-    },
-    destroy() {
+export const chipEdit: Action<HTMLElement, ((index: number) => void) | null> = (node, edit) => {
+  const apply = (next: ((index: number) => void) | null): void => {
+    if (next === null) {
       chipEdits.delete(node);
       delete node.dataset.chipEdit;
+    } else {
+      chipEdits.set(node, next);
+      node.dataset.chipEdit = '';
+    }
+  };
+  apply(edit);
+  return {
+    update: apply,
+    destroy() {
+      apply(null);
     },
   };
 };
+
+/** The second press of a double click on a chip that edits: no word gets selected first
+ *  (the chip's value is copyable text, and the edit puts it into the field). */
+function pressesEditableChip(event: MouseEvent): boolean {
+  const chip = closest(event.target, CHIP);
+  return event.detail >= 2 && chip !== null && chip.closest(EDITABLE_CHIPS) !== null;
+}
 
 /** A double click with the left button on an editable chip edits it; `true` if it did. */
 function editChip(event: MouseEvent): boolean {
@@ -573,8 +667,11 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
   if (isSaveShortcut(event)) {
-    // Never the WebView's "save page"; a form that saves this way gets it.
+    // Never the WebView's "save page"; a form that saves this way gets it, with the text
+    // typed into a chip field taken in first (the caret stays where it is).
     event.preventDefault();
+    const field = closest(event.target, CHIPS);
+    if (field !== null) chipFields.get(field)?.settle?.();
     handlerFor(event.target, 'shortcut')?.();
     return;
   }
@@ -603,12 +700,15 @@ function onKeyDown(event: KeyboardEvent): void {
     escapes.at(-1)?.();
     return;
   }
-  if (modal === null) dispatchListKey(event);
+  // A list takes its keys first (the Jobs view), else the pane clicked last scrolls.
+  if (modal === null && !dispatchListKey(event)) scrollsLine(event);
 }
 
 /** The scroll area the user clicked in last (the page keys scroll it while the focus is
  *  nowhere, e.g. after a click on the ad's text). */
 let lastPane: HTMLElement | null = null;
+/** What the left button pressed last (after a press in the reader its keys scroll it). */
+let lastPress: Element | null = null;
 /** A page is this much of the pane (a line of the last page stays in view). */
 const PAGE_SHARE = 0.9;
 
@@ -627,8 +727,9 @@ function scrollsPage(event: KeyboardEvent): boolean {
   const down = event.key === 'PageDown' || (event.key === ' ' && !event.shiftKey);
   const up = event.key === 'PageUp' || (event.key === ' ' && event.shiftKey);
   if (!down && !up) return false;
-  const nowhere = event.target === document.body || event.target === document.documentElement;
-  const pane = scrollAreaOf(event.target) ?? (nowhere && lastPane?.isConnected ? lastPane : null);
+  const pane =
+    scrollAreaOf(event.target) ??
+    (isNowhere(event.target) && lastPane?.isConnected ? lastPane : null);
   if (pane === null) return false;
   scrollByPage(pane, down);
   return true;
@@ -833,6 +934,15 @@ function rest(target: Element | null): void {
   }
 }
 
+/**
+ * True while a scroll goes on (until --scroll-idle after its last event): a hover that begins
+ * then is the content moving under a still pointer, not the pointer moving. For hovers kept in
+ * state rather than in CSS (the reader's marked passage).
+ */
+export function contentMoving(): boolean {
+  return scrolling;
+}
+
 function scrollOver(): void {
   scrolling = false;
   for (const node of resting) delete node.dataset.still;
@@ -932,9 +1042,13 @@ export function installInput(): void {
       if (event.button === LEFT) {
         if (!otherButtonsDown(event)) auxPress(false);
         lastPane = scrollAreaOf(event.target);
+        lastPress = event.target instanceof Element ? event.target : null;
         // A button inside a field (show password, clear) leaves the caret in the field.
-        if (closest(event.target, KEEP_FOCUS) !== null) event.preventDefault();
-        else leaveField(event);
+        if (closest(event.target, KEEP_FOCUS) !== null || pressesEditableChip(event)) {
+          event.preventDefault();
+        } else {
+          leaveField(event);
+        }
         return;
       }
       auxPress(true);

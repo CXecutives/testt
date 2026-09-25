@@ -1,9 +1,11 @@
 <!--
   A quiet, clickable status line (the run status at the foot of the sidebar): an icon or a
-  navy spinner, one short text (it wraps to a second line rather than being cut off) and,
-  while something runs, a slim navy meter below. Hover washes it and turns the icon navy;
-  a new text cross-fades in (100 ms). Collapsed (icon rail) only the icon stays; the text
-  moves into the tooltip, right of the icon like the rail's. A failure keeps its danger tone on hover.
+  navy spinner, one short line of text (a long one wraps to a second line rather than being
+  cut off) and, while something runs, a slim navy meter below. It is as high as a nav entry
+  and its glyph stands on the nav icons' axis (centred in their 20 px). Hover washes it and
+  turns the icon navy; a new text cross-fades in (100 ms). Collapsed (icon rail) only the
+  icon stays, in a square as large as the rail's; the text moves into the tooltip, right of
+  the icon like the rail's. A failure keeps its danger tone on hover.
 -->
 <script lang="ts">
   import { tooltip } from '$lib/actions/tooltip';
@@ -70,8 +72,10 @@
   .status {
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: var(--space-8);
     width: 100%;
+    min-height: var(--control-md);
     padding: var(--space-8) var(--space-4) var(--space-8) var(--space-12);
     border-radius: var(--radius-md);
     color: var(--text-muted);
@@ -105,7 +109,8 @@
   .collapsed {
     align-items: center;
     width: var(--control-lg);
-    padding: var(--space-12) 0;
+    min-height: var(--control-lg);
+    padding: 0;
   }
 
   .line {
@@ -115,14 +120,20 @@
     min-width: 0;
   }
 
-  /* The glyph sits on the axis of the first text line; it turns navy on hover (a failure
-     keeps its red). */
+  /* The glyph sits on the axis of the first text line, centred where the nav icons are; it
+     turns navy on hover (a failure keeps its red). */
   .glyph {
     display: inline-flex;
     flex: none;
     align-items: center;
+    justify-content: center;
+    width: var(--icon-md);
     height: var(--leading-sm);
     transition: color var(--dur-base) var(--ease-standard);
+  }
+
+  .collapsed .glyph {
+    height: var(--icon-sm);
   }
 
   .neutral:hover .glyph {

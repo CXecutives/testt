@@ -1,0 +1,82 @@
+Titel: Salesforce Programme Lead (f/m/d) – Sales Cloud and Account Engagement Rollout
+Unternehmen: Filderhöhe Digital Consulting GmbH
+Ort: Stuttgart
+Quelle: Freelancermap
+Link: https://www.freelancermap.com/project/salesforce-programme-lead-f-m-d-sales-cloud-and-account-engagement-rollout-2917360
+Abgerufen am: 24.09.2026 07:26
+
+Project details
+Start
+01.11.2026
+Duration
+12 months
+From
+Filderhöhe Digital Consulting GmbH
+Posted
+23.09.2026
+Project ID
+2917360
+Industry
+Mechanical engineering
+Contract type
+Freelance
+Work type
+100 % remote
+Hourly rate
+120 - 135 €/h
+
+Description
+Our client is a manufacturer of machine tools and automation cells headquartered near Stuttgart, with 14 sales and service subsidiaries worldwide and around 260 users in sales, service and marketing. The current CRM is a heavily customised on-premises solution that will be switched off at the end of 2027. The client has decided to move to Salesforce Sales Cloud and Marketing Cloud Account Engagement (formerly Pardot), with CPQ to follow in a second phase.
+
+We are looking for an experienced Salesforce programme lead who takes end-to-end responsibility for the rollout on the client side and steers the implementation partner.
+
+Your tasks
+• Lead the Salesforce programme with four workstreams (sales, service, marketing, data migration) and around 25 team members
+• Translate the client's go-to-market model (key accounts, distributors, service contracts) into a harmonised sales process and opportunity management
+• Steer the implementation partner, the budget and the release plan for the first two waves (Germany and USA, then Asia)
+• Define the lead management process between marketing and sales, including scoring and handover rules
+• Plan the data migration from the legacy CRM (accounts, contacts, installed base, open opportunities)
+• Drive adoption with a training concept, a champions network and pipeline and forecast dashboards for sales management
+
+Requirements
+• At least 15 years of hands-on experience implementing Salesforce solutions, including Sales Cloud and Account Engagement
+• Several rollouts as programme or project lead for B2B manufacturing companies with international sales organisations
+• Salesforce certifications (Administrator, Sales Cloud Consultant); Account Engagement Specialist is a plus
+• Solid understanding of B2B sales processes, key account management and channel sales
+• Fluent English and German
+
+Conditions
+• Fully remote; workshops in Stuttgart about once a month, travel expenses reimbursed
+• Start 01.11.2026, 12 months, extension likely for phase 2
+• Freelance contract with Filderhöhe Digital Consulting GmbH
+
+Keywords
+Salesforce
+Sales Cloud
+Account Engagement
+Pardot
+CRM
+Programme management
+B2B sales
+Data migration
+Mechanical engineering
+
+Apply now
+Save project
+Share project
+
+Provider
+Filderhöhe Digital Consulting GmbH
+CRM and customer experience consulting
+52 published projects
+Member since 2018
+View company profile
+
+Similar projects
+Salesforce Developer Apex/LWC (f/m/d)
+Remote · from now · 6 months
+Salesforce CPQ Consultant (f/m/d)
+Munich · 01/2027
+Dynamics 365 Sales Consultant (f/m/d)
+Hamburg · 12/2026
+Show more projects

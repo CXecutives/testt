@@ -65,10 +65,9 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await expect(page.getByTestId('reader')).toBeVisible();
   await expect(page.getByTestId('band')).toHaveText('Hohe Passung');
   await expect(page.getByTestId('must')).toHaveText('4 von 4 Pflichtanforderungen erfüllt');
-  await expect(page.getByTestId('contract')).toHaveText('Interim');
-  await expect(page.getByTestId('criteria').locator('li[data-testid^="criterion-"]')).toHaveCount(
-    5,
-  );
+  // Its ad states every criterion of the profile, and meets it: one quiet line with the terms.
+  await expect(page.getByTestId('criteria-clean')).toBeVisible();
+  await expect(page.getByTestId('criteria-clean')).toContainText('Interim');
   // The click marks the job read; wait until the list and the reader have taken that in (a
   // slow machine would otherwise re-render the reader under the pointer).
   await expect(top.locator('.title')).not.toHaveClass(/unread/);
@@ -228,7 +227,7 @@ test('one place for filters: Neu, Alle, Favoriten; the overview says what now', 
   // The files have a block of their own.
   await expect(page.getByTestId('files')).toContainText('Dateien');
   await expect(page.getByTestId('issue-freelance-mails')).toContainText(
-    'Eine Alert-Mail enthielt keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
+    'In einer Alert-Mail fand die App keine Jobs.',
   );
   await expect(overview.getByTestId('overview-excel')).toBeVisible();
   // The one filter place: the segments in the list header count their lists.
@@ -523,7 +522,7 @@ test('offline: the failed run says why, and Abrufen tries again', async ({ page 
   await expect(failed).toContainText('Gmail ist nicht erreichbar.');
   // The sidebar says the fetch failed; the open point names it once and says why.
   await expect(failed).toContainText('Letzter Abruf');
-  await expect(page.getByTestId('run-status')).toContainText('Fehlgeschlagen 08:30');
+  await expect(page.getByTestId('run-status')).toContainText('Fehler 08:30');
   // Like the run card: no second button beside Abrufen that does the same.
   await expect(failed.getByRole('button')).toHaveCount(0);
   await page.getByTestId('fetch').click();
@@ -539,8 +538,9 @@ test('a run in progress after a reload: steps, portals, countdown and pause', as
   // The status names the portal it is about.
   await expect(page.getByTestId('run-running')).toContainText('Wartet auf linkedin.com');
   await expect(page.getByTestId('countdown')).toHaveText('Weiter in 0:42');
+  // The same sentence as the day overview and Einstellungen say it.
   await expect(page.getByTestId('pause-freelance')).toContainText(
-    'Pause bis 09:42, das Portal bremst die Anfragen.',
+    'Das Portal bremst die Anfragen, der Abruf macht ab 09:42 von selbst weiter.',
   );
 });
 
@@ -557,7 +557,7 @@ test('rows and reader say the same in short words; dead ends lead on', async ({ 
   // An excluded row names its reason in short words, the day rate carries its unit.
   await expect(excludedRows(page).first().locator('.foot')).toHaveText('Arbeitnehmerüberlassung');
   await expect(row(page, 'freelancermap-2801').getByTestId('row-facts')).toContainText(
-    '1.100 €/Tag',
+    '1.200 €/Tag',
   );
   // The reader's facts: duration and remote share like the row, the date like the row with
   // the exact moment in its tooltip.
@@ -839,7 +839,10 @@ test('the reader: a compact bar once the actions scroll away, a jump flashes its
     await bar.locator('.btn').evaluateAll((els) => els.map((el) => el.getAttribute('data-testid'))),
   ).toEqual(['compact-open', 'compact-archive', 'compact-trash', 'compact-pin', 'compact-close']);
   const pinned = await page.getByTestId('reader-pin').getAttribute('aria-pressed');
-  await bar.getByTestId('compact-pin').click();
+  // A pointer click where the bar is (a locator click would first scroll the pin into view
+  // past the stage's scroll padding, and the bar would leave).
+  const pin = (await bar.getByTestId('compact-pin').boundingBox())!;
+  await page.mouse.click(pin.x + pin.width / 2, pin.y + pin.height / 2);
   await expect(page.getByTestId('reader-pin')).not.toHaveAttribute('aria-pressed', pinned ?? '');
   await stage.evaluate((node) => node.scrollTo({ top: 0 }));
   await expect(bar).toHaveCSS('opacity', '0');
@@ -938,9 +941,7 @@ test('the reader: one row of alike actions, archive opens the next job, undo, a 
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   }
   await page.getByTestId('prompt').click();
-  await expect(page.getByTestId('toast').last()).toContainText(
-    'Prompt kopiert, bereit für einen KI-Chat.',
-  );
+  await expect(page.getByTestId('toast').last()).toContainText('Prompt kopiert.');
   // Archivieren folds the row away and opens the next job; a double click archives one.
   const title = await page.getByTestId('reader-title').innerText();
   const next = await rows(page).nth(1).locator('.title').innerText();
@@ -984,10 +985,15 @@ test('keys like a mail app: arrows open the next job, Home and End, Esc, Ctrl+F'
   // Esc closes the job: the day overview again.
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('day-overview')).toBeVisible();
-  // A click on plain text in the reader leaves the keys working.
+  // A click on plain text in the reader gives it the arrows (they scroll it, like the message
+  // of a mail app); a click on a row gives them back to the list.
   await all.nth(2).click();
   await expect(reader).toHaveText(titles[2]!);
   await page.getByTestId('reader-title').click();
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(200);
+  await expect(reader).toHaveText(titles[2]!);
+  await all.nth(2).click();
   await page.keyboard.press('ArrowDown');
   await expect(reader).toHaveText(titles[3]!);
   // Ctrl+F goes to the search, from anywhere; in the search Esc clears it first, then closes.
@@ -1088,7 +1094,10 @@ test('the Papierkorb: delete, restore, delete for good and empty it, asking firs
   await row(page, two).hover();
   await page.getByTestId(`purge-${two}`).click();
   await expect(page.getByTestId('dialog-purge')).toBeVisible();
-  await page.getByTestId('dialog-purge').getByRole('button', { name: 'Endgültig löschen' }).click();
+  await page
+    .getByTestId('dialog-purge')
+    .getByRole('button', { name: 'Löschen', exact: true })
+    .click();
   await expect(row(page, two)).toHaveCount(0);
   expect((await calls(page, 'purge_jobs')).map(([, args]) => args)).toEqual([
     { keys: [{ portal: 'freelancermap', id: '2803' }] },
@@ -1103,7 +1112,7 @@ test('the Papierkorb: delete, restore, delete for good and empty it, asking firs
   await page.getByTestId('empty-trash').click();
   await page
     .getByTestId('dialog-empty-trash')
-    .getByRole('button', { name: 'Papierkorb leeren' })
+    .getByRole('button', { name: 'Leeren', exact: true })
     .click();
   await expect(page.getByTestId('empty-place-trash')).toBeVisible();
   await expect(page.getByTestId('empty-trash')).toHaveCount(0);
@@ -1237,7 +1246,8 @@ test('Ctrl+Z takes back the last move while its toast is up; an undo toast stays
   await expect(page.getByTestId('toast')).toHaveCount(0);
   // Nothing left to undo: Ctrl+Z does nothing.
   await page.keyboard.press('Control+z');
-  expect(await calls(page, 'move_jobs')).toHaveLength(2);
+  expect(await calls(page, 'move_jobs')).toHaveLength(1);
+  expect(await calls(page, 'move_back')).toHaveLength(1);
 });
 
 test('a job of the day overview opens during a search', async ({ page }) => {
@@ -1265,7 +1275,7 @@ test('the choice follows the list: rows that leave it leave the choice too', asy
   await expect(page.getByTestId('selection-bar')).toHaveCount(0);
 });
 
-test('two or more chosen: the reader shows what is chosen and acts on all of them', async ({
+test('two or more chosen: the reader says how many, the bar acts on all of them', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -1278,8 +1288,10 @@ test('two or more chosen: the reader shows what is chosen and acts on all of the
   await expect(pane).toContainText('2 Jobs ausgewählt');
   await expect(pane).toContainText('Strg+Klick');
   await expect(page.getByTestId('reader')).toHaveCount(0);
+  // The actions are said once, in the list header's bar.
+  await expect(pane.getByRole('button')).toHaveCount(0);
   const before = await rows(page).count();
-  await pane.getByTestId('pane-selection-archive').click();
+  await page.getByTestId('selection-bar').getByTestId('selection-archive').click();
   await expect(rows(page)).toHaveCount(before - 2);
   await expect(pane).toHaveCount(0);
 });
@@ -1391,9 +1403,7 @@ test('the best matches as one prompt: at the end of the overview heading', async
   await open(page, WIN);
   await expect(page.getByTestId('best').getByTestId('prompt-top')).toBeVisible();
   await page.getByTestId('prompt-top').click();
-  await expect(page.getByTestId('toast').last()).toContainText(
-    'Prompt kopiert, bereit für einen KI-Chat.',
-  );
+  await expect(page.getByTestId('toast').last()).toContainText('Prompt kopiert.');
   expect(await calls(page, 'ai_prompt_top')).toHaveLength(1);
   expect((await calls(page, 'ai_prompt_top'))[0]?.[1]).toEqual({ limit: 5 });
 });
@@ -1404,12 +1414,16 @@ test('criteria show the ad value and jump to it; wishes have their block; rows s
   await open(page, WIN);
   // The row's key facts from the ad.
   await expect(row(page, 'freelancermap-2801').getByTestId('row-facts')).toHaveText(
-    /ab sofort.*6 Monate.*60\s%\sremote.*1\.100/,
+    /ab sofort.*6 Monate.*60\s%\sremote.*1\.200/,
   );
   await row(page, 'freelancermap-2801').click();
+  // Wishes in their own block of "Warum", next to what the ad states.
+  await expect(page.getByTestId('wishes')).toContainText('erreicht den Wunsch von 1.200');
+  // An ad that leaves the rate and the start open.
+  await row(page, 'freelancermap-2802').click();
   const criteria = page.getByTestId('criteria');
   // A value the ad states, a criterion it leaves open (neutral, not ticked).
-  await expect(criteria.getByTestId('criterion-c:countries')).toHaveText('Hamburg');
+  await expect(criteria.getByTestId('criterion-c:countries')).toHaveText('Berlin');
   const rate = criteria.getByTestId('criterion-c:minDayRate');
   await expect(rate).toHaveText('Satz nach Absprache');
   await expect(rate.locator('[data-state]')).toHaveAttribute('data-state', 'unset');
@@ -1417,8 +1431,6 @@ test('criteria show the ad value and jump to it; wishes have their block; rows s
   // A click marks the passage that states it.
   await rate.getByRole('button').click();
   await expect(page.locator('mark.active')).toContainText('Tagessatz nach Absprache');
-  // Wishes in their own block of "Warum".
-  await expect(page.getByTestId('wishes')).toContainText('erreicht den Wunsch');
   // A job whose ad meets every criterion shows one quiet line of the values.
   await row(page, 'linkedin-4100200301').click();
   await expect(page.getByTestId('criteria-clean')).toContainText('Bremen');

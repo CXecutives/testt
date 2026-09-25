@@ -12,9 +12,11 @@
   is (Archivieren, Löschen, the star; in the Papierkorb Wiederherstellen, Endgültig
   löschen); a row the user moves out folds away. Rows are chosen like in a mail app: a
   click opens one, Ctrl+click (Cmd on macOS) takes one in or out, Shift+click a range; the
-  highlight shows what is chosen, and in one column choosing never opens a job. The list is
-  one Tab stop: the open row (else the row last focused, else the first) takes Tab, the
-  arrows move from there; the row tools are for the pointer. Back in the Jobs view, the open
+  highlight shows what is chosen, and in one column choosing never opens a job. One coral
+  bar marks the open job's row and slides from row to row (RowBar); the other chosen rows
+  mark themselves. The list is one Tab stop: the open row (else the row last focused, else
+  the first) takes Tab, the arrows move from there; the row tools are for the pointer.
+  Back in the Jobs view, the open
   job's row is in view again. A row move that fails says so in the list header. An
   empty inbox says where jobs come from (an alert on each portal, older mails; reading the
   whole mailbox asks first, as in Einstellungen). Every empty
@@ -46,6 +48,7 @@
   import { run } from '$lib/state/run.svelte';
   import { viewport } from '$lib/state/viewport.svelte';
   import { actionsOf, disarm, guarded, hasStar, move, moving, purge, toggleStar } from './actions';
+  import RowBar from './RowBar.svelte';
   import { selection } from './selection.svelte';
 
   const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
@@ -83,8 +86,20 @@
   // Jobs without a match get one soon while a run goes or a rescore is pending.
   const pending = $derived(app.hasProfile && (run.active || (app.state?.matchPending ?? 0) > 0));
 
-  /** The rows in the order they stand: the active ones, then the excluded ones. */
-  const order = $derived([...active, ...excluded]);
+  /** The rows in the order they stand: the active ones, then the excluded ones (the store's
+   *  order). */
+  const order = $derived(shown);
+  /** The rows the list shows (a row on the page that is not among them is leaving). */
+  const listed = $derived(new Set(shown.map((job) => keyOf(job.key))));
+  const openKey = $derived(jobs.selected ? keyOf(jobs.selected) : null);
+  /** The open job's row while it shows as selected: the list's one bar marks it (the other
+   *  rows of a choice mark themselves). */
+  const marked = $derived(
+    openKey !== null && (selection.size === 0 || selection.keys.includes(openKey)) ? openKey : null,
+  );
+  const markedExcluded = $derived(
+    marked !== null && excluded.some((job) => keyOf(job.key) === marked),
+  );
 
   /**
    * Open the job at `target` of the whole list (the keyboard), also one below the rows
@@ -110,13 +125,30 @@
     void openAt(last ? 'last' : 0);
   }
 
+  /**
+   * Shift+ArrowUp / Shift+ArrowDown, Shift+Home / Shift+End (lib/input/input.ts): the choice
+   * reaches from its start to the previous or next row, or to the first or the last, like a
+   * Shift+click (Explorer, Mail); the row reached comes into view with the focus.
+   */
+  export function extend(to: -1 | 1 | 'first' | 'last'): void {
+    const end = selection.end;
+    const at = end === null ? -1 : jobs.visible.findIndex((job) => keyOf(job.key) === end);
+    // Without a row to start from, down starts at the first and up at the last.
+    let target: number | 'last' = to === 1 ? 0 : 'last';
+    if (to === 'first') target = 0;
+    else if (at !== -1 && to !== 'last') target = Math.max(0, at + to);
+    void jobs.reach(target, true).then((job) => {
+      if (job === null) return;
+      selection.range(job, jobs.visible);
+      settle(true);
+    });
+  }
+
   /** The row focused last (the list's one Tab stop when no job is open). */
   let focused = $state<string | null>(null);
   /** The row Tab stops at: the open job's, else the one focused last, else the first. */
   const tabStop = $derived.by(() => {
-    const listed = new Set(shown.map((job) => keyOf(job.key)));
-    const open = jobs.selected ? keyOf(jobs.selected) : null;
-    if (open !== null && listed.has(open)) return open;
+    if (openKey !== null && listed.has(openKey)) return openKey;
     if (focused !== null && listed.has(focused)) return focused;
     const first = order[0];
     return first ? keyOf(first.key) : null;
@@ -182,6 +214,11 @@
     if (!sameKey(jobs.selected, only.key)) void jobs.select(only, click);
   }
 
+  // Two columns again: a single chosen row (one column's header bar acted on it) opens.
+  $effect(() => {
+    if (!viewport.narrow) untrack(() => settle(false));
+  });
+
   // Rows that leave the list (a move, a reload) leave the choice too.
   $effect(() => {
     const listed = new Set(jobs.rows.map((row) => keyOf(row.key)));
@@ -240,6 +277,9 @@
   /* --------------------------------------------------------------------- glides */
 
   let list = $state<HTMLElement | null>(null);
+  /** The rows of the list (both groups and the divider), which the bar follows. */
+  let groups = $state<HTMLElement | null>(null);
+  let rowBar = $state<RowBar | null>(null);
   /** The next new rows come from the user's own change (sort, facet, filter) or from the
    *  re-sort at the end of a run: the rows on screen glide to their new place. */
   let armed = false;
@@ -248,7 +288,6 @@
   let last = untrack(() => ({
     sort: jobs.sortChoice,
     facet: jobs.facet,
-    filter: jobs.filter,
     active: run.active,
   }));
 
@@ -276,6 +315,7 @@
         duration: 'base',
       });
       motion?.addEventListener('finish', () => motion.cancel());
+      if (row.hasAttribute('data-open')) rowBar?.shift(offset);
     }
   }
 
@@ -297,25 +337,23 @@
     }
   }
 
-  // What changed the list: the user's sort, facet or filter (never while a run streams new
+  // What changed the list: the user's sort or facet (never while a run streams new
   // rows in), or the end of a run. A search and live updates arm nothing.
   $effect.pre(() => {
     const now = {
       sort: jobs.sortChoice,
       facet: jobs.facet,
-      filter: jobs.filter,
       active: run.active,
     };
     untrack(() => {
-      const chosen =
-        now.sort !== last.sort || now.facet !== last.facet || now.filter !== last.filter;
+      const chosen = now.sort !== last.sort || now.facet !== last.facet;
       if ((chosen && !now.active) || (last.active && !now.active)) armed = true;
       last = now;
     });
   });
 
   // Before the DOM changes: note where the rows stand. The glide stays armed until the
-  // change has loaded (a filter shows its rows at once and again once every page is in).
+  // change has loaded.
   $effect.pre(() => {
     void shown;
     untrack(() => {
@@ -435,7 +473,7 @@
         text={jobs.error ?? t.list.loadFailed}
         secondary={{
           label: t.common.retry,
-          icon: 'rotate-ccw',
+          icon: 'refresh-cw',
           onclick: () => {
             void jobs.load();
             void jobs.loadOverview();
@@ -445,7 +483,8 @@
       />
     </div>
   {:else if jobs.rows.length === 0 && jobs.status !== 'ready'}
-    {#if jobs.slow || app.slow}
+    <!-- Only once the list has taken a while (jobs.slow): then at once, never blank rows. -->
+    {#if jobs.slow}
       <div class="skeletons" data-testid="list-skeleton">
         {#each SKELETON_ROWS as index (index)}
           <div class="skeleton-row">
@@ -507,14 +546,19 @@
       {:else if run.active || !mailRead}
         <!-- A fetch that goes, or none yet: only what comes (no setup links). -->
         <EmptyState
-          icon="inbox"
+          icon="briefcase"
           tone="neutral"
           text={run.active ? t.list.emptyWhileRun : t.list.emptyAll}
           testid="empty-all"
         />
       {:else}
         <div class="sources">
-          <EmptyState icon="inbox" tone="neutral" text={t.list.emptyAfterRun} testid="empty-all" />
+          <EmptyState
+            icon="briefcase"
+            tone="neutral"
+            text={t.list.emptyAfterRun}
+            testid="empty-all"
+          />
           <p class="sources-text">{t.list.emptySources}</p>
           <div class="sources-actions">
             {#each PORTALS as portal (portal.portal)}
@@ -534,8 +578,8 @@
                 size="sm"
                 icon="mail"
                 label={t.list.readOlder}
-                disabled={run.active}
-                disabledReason={run.busyText}
+                disabled={run.fetchBlocked !== null}
+                disabledReason={run.fetchBlocked}
                 testid="read-older"
                 onclick={() => (confirmOlder = true)}
               />
@@ -548,14 +592,16 @@
       {/if}
     </div>
   {:else}
-    {#snippet row(job: JobView)}
-      <!-- While rows are chosen the highlight shows exactly them (what the bar counts and
-           a Ctrl+click takes out); else the open job. -->
+    {#snippet row(job: JobView, open: boolean)}
+      <!-- While rows are chosen the highlight shows exactly them (what the header's bar
+           counts and a Ctrl+click takes out); else the open job. The open job's row is
+           marked by the list's one bar, every other chosen row by its own. -->
       <JobRow
         {job}
         ring={!profileMissing}
         pending={pending && job.match === null}
-        selected={selection.size > 0 ? selection.has(job) : sameKey(jobs.selected, job.key)}
+        selected={selection.size > 0 ? selection.has(job) : open}
+        bar={!open}
         tabbable={keyOf(job.key) === tabStop}
         onselect={select}
         onpin={hasStar(job.place) ? pin : null}
@@ -565,30 +611,38 @@
     {#snippet group(items: JobView[])}
       {#each items as job (keyOf(job.key))}
         {@const key = keyOf(job.key)}
-        <div class="item" data-key={key} out:rowCollapse={{ on: moving.has(key) }}>
-          {@render row(job)}
+        {@const open = key === openKey}
+        <div
+          class="item"
+          data-key={key}
+          data-open={open ? '' : undefined}
+          out:rowCollapse={{ on: moving.has(key) }}
+        >
+          {@render row(job, open)}
         </div>
       {/each}
     {/snippet}
-    <!-- Another list is built anew: its old rows leave as one piece, not row by row. -->
-    {#key jobs.generation}
-      <div class="rows" data-testid="job-rows">
-        {@render group(active)}
-      </div>
-      {#if excluded.length > 0}
-        <div class="divider" data-testid="excluded-divider">
-          <span class="divider-label">{t.list.excluded}</span>
-          {#if excludedCount !== null}<Count
-              value={excludedCount}
-              tone="plain"
-              testid="excluded-count"
-            />{/if}
+    <div class="groups" bind:this={groups}>
+      <!-- Another list is built anew: its old rows leave as one piece, not row by row. -->
+      {#key jobs.generation}
+        <div class="rows" data-testid="job-rows">
+          {@render group(active)}
         </div>
-        <div class="rows" data-testid="excluded-rows">
-          {@render group(excluded)}
-        </div>
-      {/if}
-    {/key}
+        {#if excluded.length > 0}
+          <div class="divider" data-testid="excluded-divider">
+            <span class="divider-label">{t.list.excluded}</span>
+            {#if excludedCount !== null}<Count
+                value={excludedCount}
+                tone="plain"
+                testid="excluded-count"
+              />{/if}
+          </div>
+          <div class="rows" data-testid="excluded-rows">
+            {@render group(excluded)}
+          </div>
+        {/if}
+      {/key}
+    </div>
     {#if elsewhere.length > 0 && !jobs.more}{@render alsoIn()}{/if}
     {#if jobs.pageError}
       <div class="page-error">
@@ -596,25 +650,35 @@
           tone="warning"
           variant="row"
           text={t.list.pageFailed}
-          action={{ label: t.common.retry, onclick: () => void jobs.grow() }}
+          action={{ label: t.common.retry, icon: 'refresh-cw', onclick: () => void jobs.grow() }}
           testid="page-error"
         />
       </div>
     {:else if jobs.more}
       {#key shown.length}
         <div class="sentinel" use:nearEnd={() => void jobs.grow()}>
-          <Skeleton width={60} />
+          <Skeleton width={60} late />
         </div>
       {/key}
     {/if}
   {/if}
+  <RowBar
+    bind:this={rowBar}
+    rows={groups}
+    open={marked}
+    muted={markedExcluded}
+    {listed}
+    folding={moving}
+    several={selection.size > 0}
+    generation={jobs.generation}
+  />
 </div>
 
 <Dialog
   bind:open={confirmOlder}
   heading={t.settings.fullMailboxHeading}
   text={t.settings.fullMailboxText}
-  confirmLabel={t.settings.fullMailboxAction}
+  confirmLabel={t.settings.fullMailboxConfirm}
   testid="dialog-read-older"
   onconfirm={() => {
     confirmOlder = false;
@@ -627,7 +691,7 @@
   variant="danger"
   heading={t.actions.purgeHeading(1)}
   text={t.actions.purgeText}
-  confirmLabel={t.actions.purge}
+  confirmLabel={t.actions.purgeConfirm}
   busy={purgeBusy}
   error={purgeError}
   testid="dialog-purge"
@@ -636,7 +700,9 @@
 />
 
 <style>
+  /* The containing block of the rows' one selection bar (RowBar). */
   .list {
+    position: relative;
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -663,6 +729,7 @@
 
   /* Plain block flow: a flex column adds nothing here and costs a little more each time the
      rows are laid out again. */
+  .groups,
   .rows {
     display: block;
   }

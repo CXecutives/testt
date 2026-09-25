@@ -15,7 +15,7 @@ export type JobView = { key: JobKey, portal: Portal,
  */
 title: string, company: string, location: string, workMode: WorkMode | null, mailDate: string | null, firstSeenAt: string, unread: boolean, 
 /**
- * Saved ("Gemerkt", the star): the stage `saved`.
+ * The favourite (the star, stored as `app_status` 'saved').
  */
 pinned: boolean, detail: DetailState, 
 /**

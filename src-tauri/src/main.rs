@@ -188,6 +188,8 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), Failure> {
         );
     }));
     jobalert_core::install_crypto();
+    // Dates in the files follow the OS's zone, like the page's.
+    jobalert_core::time::follow_system_zone();
     // A requested reset runs before anything else - nothing holds a file open yet. The dry
     // run never deletes anything.
     let reset_report = (!dry_run)
@@ -377,7 +379,9 @@ mod lifecycle {
                 if CLOSING.swap(true, Ordering::SeqCst) {
                     return;
                 }
-                let _ = win.emit("closing", ());
+                // The note names what the window waits for (a fetch, a rescore, a sign-in...).
+                let activity = state.activity_name();
+                let _ = win.emit("closing", serde_json::json!({ "activity": activity }));
                 state.scoring.stop();
                 state.cancel_run();
                 let app = win.app_handle().clone();
@@ -419,24 +423,25 @@ mod lifecycle {
     /// The process ends (`RunEvent::Exit`). Without the closing sequence before it - macOS
     /// quits from the Dock or at logout through `terminate:` without any window event - this
     /// is the last chance: save the placement, start no own run any more, cancel a running
-    /// one and wait for it the same grace. The runtime threads keep running meanwhile.
+    /// one and wait for it the same grace. The runtime threads keep running meanwhile. Every
+    /// way out ends here, so the files still waiting for a mark are written last.
     pub fn exiting<R: Runtime>(app: &AppHandle<R>) {
-        if CLOSING.swap(true, Ordering::SeqCst) {
-            return;
-        }
         let Some(state) = app.try_state::<AppState>() else {
             return;
         };
-        if let Some(window) = app.get_webview_window(crate::platform::MAIN) {
-            super::geometry::save(&window, &state.store);
-        }
-        state.scoring.stop();
-        state.cancel_run();
-        for _ in 0..(GRACE.as_millis() / STEP.as_millis()) {
-            if !state.busy() {
-                break;
+        if !CLOSING.swap(true, Ordering::SeqCst) {
+            if let Some(window) = app.get_webview_window(crate::platform::MAIN) {
+                super::geometry::save(&window, &state.store);
             }
-            std::thread::sleep(STEP);
+            state.scoring.stop();
+            state.cancel_run();
+            for _ in 0..(GRACE.as_millis() / STEP.as_millis()) {
+                if !state.busy() {
+                    break;
+                }
+                std::thread::sleep(STEP);
+            }
         }
+        crate::commands::flush_marks(&state);
     }
 }

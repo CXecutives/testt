@@ -1,7 +1,8 @@
 // Token-bound wrappers of svelte/transition, svelte/animate and svelte/motion.
 // This folder is the only place allowed to import them (eslint + ui_contract.rs).
 //
-// Rules: only transform and opacity move; end values are whole pixels; at most
+// Rules: only transform and opacity move (and the height of a folding row and of the job
+// list's selection bar, each one small box); end values are whole pixels; at most
 // --stagger-max list rows animate at once, and only rows that arrive while the list is on
 // screen. Nothing staggers, nothing bounces. Under reduced motion every movement is dropped
 // and what remains is a cross-fade of --dur-crossfade.
@@ -179,7 +180,7 @@ export interface RollParams {
 }
 
 /**
- * A count that changes while it is visible (sidebar count, segment counts, tiles, run
+ * A count that changes while it is visible (segment counts, tiles, run
  * counters): `{#key value}<span class="roll" in:roll={{ up }}>{value}</span>{/key}` on an
  * inline-block span. The new number rises --move-md in the direction of the change and
  * fades in (150 ms, emphasized); the old one leaves at once (no out, so nothing stacks or
@@ -216,6 +217,38 @@ export function rowCollapse(node: Element, { on }: CollapseParams): TransitionCo
     easing: easing('in'),
     css: (t) => `overflow: hidden; height: ${Math.round(t * height)}px; opacity: ${t}`,
   };
+}
+
+/** Where the job list's selection bar stands: its top in the list and its height (px). */
+export interface BarBox {
+  top: number;
+  height: number;
+}
+
+/**
+ * The job list's one selection bar goes to another row like the sidebar's pill (180 ms,
+ * emphasized): its top and its height move together, so it keeps the inset of rows of
+ * either height. `glide` follows a row that glides to its new place instead, in the row's
+ * own timing (150 ms, standard). The bar's style holds `to` already; the animation starts
+ * from `from` and is dropped once it ends. Null under reduced motion (it is simply there).
+ */
+export function barSlide(
+  bar: HTMLElement,
+  from: BarBox,
+  to: BarBox,
+  glide = false,
+): Animation | null {
+  const at = (box: BarBox): Keyframe => ({
+    transform: `translateY(${Math.round(box.top)}px)`,
+    height: `${Math.round(box.height)}px`,
+  });
+  const motion = play(
+    bar,
+    [at(from), at(to)],
+    glide ? { duration: 'base' } : { duration: 'slow', easing: 'emphasized' },
+  );
+  motion?.addEventListener('finish', () => motion.cancel());
+  return motion;
 }
 
 /**

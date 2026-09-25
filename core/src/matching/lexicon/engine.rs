@@ -928,6 +928,9 @@ pub(crate) const GENERAL_EXPERIENCE: &[&str] =
     &["berufserfahrung", "berufspraxis", "praxis", "professional"];
 /// Year units after a number (`10 Jahre`, `8 years`).
 pub(crate) const YEAR_UNITS: &[&str] = &["jahr", "year"];
+/// Words that open a part of the years a line stated before them (`Mehrjährige Erfahrung,
+/// davon mindestens drei Jahre in ...`): the years after them are no minimum of the ad.
+pub(crate) const YEARS_SUBSPAN: &[&str] = &["davon", "hiervon", "darunter", "thereof", "including"];
 /// Numbers written as words.
 pub(crate) const NUMBER_WORDS: &[(&str, u32)] = &[
     ("zwei", 2),
@@ -1018,6 +1021,15 @@ pub(crate) const OTHER_LISTINGS: &[&str] = &[
     "similar jobs",
     "more jobs",
     "people also viewed",
+];
+/// What may follow a heading of `OTHER_LISTINGS` on its line (folded): a portal's link
+/// text or the listings' owner.
+pub(crate) const LISTING_TAILS: &[&str] = &[
+    "anzeigen",
+    "dieses anbieters",
+    "des anbieters",
+    "fur dich",
+    "for you",
 ];
 /// Headings that end requirement sections.
 pub(crate) const OTHER_PREFIXES: &[&str] = &[
@@ -1299,6 +1311,16 @@ pub(crate) const DURATION_WORDS: &[&str] = &[
 pub(crate) const MONTH_UNITS: &[&str] = &["monat", "month"];
 pub(crate) const WEEK_UNITS: &[&str] = &["woche", "week"];
 pub(crate) const HOURLY_WORDS: &[&str] = &["stunde", "std", "hour", "/h", "stundensatz"];
+/// A day rate named in the value of a rate line.
+pub(crate) const DAILY_WORDS: &[&str] = &[
+    "tagessatz",
+    "pro tag",
+    "per day",
+    "/tag",
+    "/day",
+    "day rate",
+    "daily rate",
+];
 pub(crate) const OTHER_CURRENCIES: &[&str] = &["chf", "usd", "gbp", "$", "£"];
 /// Sentences that state a start.
 pub(crate) const START_WORDS: &[&str] = &[
@@ -1356,13 +1378,23 @@ pub(crate) const START_VAGUE: &[&str] = &[
 pub(crate) const COUNTRIES: &[(&str, &str)] = &[
     ("austria", "AT"),
     ("belgien", "BE"),
+    ("belgium", "BE"),
+    ("croatia", "HR"),
     ("czech", "CZ"),
+    ("czech republic", "CZ"),
+    ("czechia", "CZ"),
+    ("danemark", "DK"),
+    ("denmark", "DK"),
     ("deutschland", "DE"),
     ("england", "GB"),
+    ("finland", "FI"),
+    ("finnland", "FI"),
     ("france", "FR"),
     ("frankreich", "FR"),
     ("germany", "DE"),
+    ("great britain", "GB"),
     ("grossbritannien", "GB"),
+    ("holland", "NL"),
     ("hungary", "HU"),
     ("india", "IN"),
     ("indien", "IN"),
@@ -1370,9 +1402,13 @@ pub(crate) const COUNTRIES: &[(&str, &str)] = &[
     ("irland", "IE"),
     ("italien", "IT"),
     ("italy", "IT"),
+    ("kroatien", "HR"),
+    ("luxembourg", "LU"),
     ("luxemburg", "LU"),
     ("netherlands", "NL"),
     ("niederlande", "NL"),
+    ("norway", "NO"),
+    ("norwegen", "NO"),
     ("oesterreich", "AT"),
     ("osterreich", "AT"),
     ("poland", "PL"),
@@ -1382,11 +1418,16 @@ pub(crate) const COUNTRIES: &[(&str, &str)] = &[
     ("rumanien", "RO"),
     ("schweden", "SE"),
     ("schweiz", "CH"),
+    ("slovakia", "SK"),
+    ("slovenia", "SI"),
+    ("slowakei", "SK"),
+    ("slowenien", "SI"),
     ("spain", "ES"),
     ("spanien", "ES"),
     ("sweden", "SE"),
     ("switzerland", "CH"),
     ("tschechien", "CZ"),
+    ("tschechische republik", "CZ"),
     ("uk", "GB"),
     ("ungarn", "HU"),
     ("united kingdom", "GB"),
@@ -1619,12 +1660,16 @@ pub(crate) const ANUE_PARTS: &[&str] = &["uberlassung", "temporary agency"];
 /// ANÜ in substance without the name (whole words).
 pub(crate) const ANUE_HIDDEN: &[&str] = &["payrolling", "equal pay", "igz", "bap", "gvp"];
 /// Negations in the same sentence: whole words, then substrings.
-pub(crate) const ANUE_NEGATION: &[&str] = &["kein", "keine", "nicht", "ohne", "not", "no"];
+pub(crate) const ANUE_NEGATION: &[&str] = &[
+    "kein", "keine", "nicht", "ohne", "not", "no", "without", "never",
+];
 pub(crate) const ANUE_NEGATION_PARTS: &[&str] = &[
     "ausgeschlossen",
     "abgrenzung",
     "nicht vorgesehen",
     "not considered",
+    "excluded",
+    "ruled out",
 ];
 /// ANÜ only one option: whole words, then substrings.
 pub(crate) const ANUE_OPTION: &[&str] = &["oder", "or", "wahlweise", "alternativ", "optional"];

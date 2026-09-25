@@ -9,9 +9,9 @@
 //! Both OS show the native window frame (title bar, caption buttons, system menu, snap
 //! layouts). Documented differences: WebView2 switches and the title bar in the app's
 //! colours (Windows) vs. a minimal app menu, link preview, first-mouse clicks and the
-//! traffic lights centred in the page's toolbar row (macOS), and the user agent of the HTTP
-//! client. What differs inside the page (dialog button order, scrollbars, OS words) lives in
-//! `ui/src/lib/platform.ts`.
+//! traffic lights centred in the page's toolbar row (macOS), how a file is shown in its
+//! folder (Explorer, Finder) and the user agent of the HTTP client. What differs inside the
+//! page (dialog button order, scrollbars, OS words) lives in `ui/src/lib/platform.ts`.
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -740,7 +740,7 @@ mod macos {
     const PASTE: &str = "Einfügen";
     const SELECT_ALL: &str = "Alles auswählen";
     const WINDOW: &str = "Fenster";
-    const MINIMIZE: &str = "Minimieren";
+    const MINIMIZE: &str = "Im Dock ablegen";
     const CLOSE_WINDOW: &str = "Fenster schließen";
     // end of user-facing text
 
@@ -768,9 +768,9 @@ mod macos {
     /// Minimal app menu instead of Tauri's default (no reload or zoom, no Help, no
     /// Services). It carries the system shortcuts the app keeps: Cmd+, (settings), Cmd+Q,
     /// Cmd+H, Cmd+M, Cmd+W, and Cmd+C/V/X/A/Z, which `WKWebView` only receives through an
-    /// Edit menu; its View menu holds one item, the sidebar (Cmd+B). Like the menus of every
-    /// Mac app it speaks the language of the OS (it is built before the app's own setting is
-    /// read; the page follows that setting).
+    /// Edit menu. Like the menus of every Mac app it speaks the language of the OS and uses
+    /// its words (it is built before the app's own setting is read; the page follows that
+    /// setting).
     pub fn menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         let english = super::system_language() == super::Language::En;
         let w = |german: &'static str, english_word: &'static str| {
@@ -871,6 +871,42 @@ pub fn platform() -> jobalert_core::view::Platform {
         jobalert_core::view::Platform::Macos
     } else {
         jobalert_core::view::Platform::Windows
+    }
+}
+
+/// Shows a file selected in its folder, the way the OS does: Explorer with `/select` on
+/// Windows, the Finder with `open -R` on macOS (elsewhere the folder opens).
+pub fn show_in_folder(path: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+        // The Explorer of the system folder, never one found elsewhere on the PATH. It reads
+        // its command line itself: the path in quotes right after the comma. Its exit code
+        // says nothing (1 also when it worked), so it is not waited for.
+        let explorer = std::env::var_os("SystemRoot").map_or_else(
+            || std::path::PathBuf::from("explorer.exe"),
+            |root| std::path::PathBuf::from(root).join("explorer.exe"),
+        );
+        std::process::Command::new(explorer)
+            .raw_arg(format!("/select,\"{}\"", path.display()))
+            .spawn()
+            .map(drop)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let mut finder = std::process::Command::new("/usr/bin/open")
+            .arg("-R")
+            .arg(path)
+            .spawn()?;
+        // `open` hands over to the Finder and ends at once; it is reaped off this thread.
+        std::thread::spawn(move || {
+            let _ = finder.wait();
+        });
+        Ok(())
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        open::that_detached(path.parent().unwrap_or(path))
     }
 }
 

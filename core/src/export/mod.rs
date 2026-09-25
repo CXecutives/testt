@@ -22,15 +22,15 @@ use crate::store::JobRow;
 use crate::text::split_company_location;
 
 pub use ai_prompt::{
-    MAX_AD_CHARS, MAX_PROFILE_CHARS, MAX_TOP_AD_CHARS, PromptJob, TOP_LIMITS, ai_prompt,
-    ai_prompt_top,
+    MAX_AD_CHARS, MAX_PROFILE_CHARS, MAX_TOP_AD_CHARS, PromptJob, PromptSource, TOP_LIMITS,
+    ai_prompt, ai_prompt_top,
 };
 pub use job_txt::{TXT_DIR, write_job_txt};
 pub use overview_html::write_overview_html;
 pub use texts::{COLUMNS, Texts, details_label};
 pub use top_matches::{
-    TOP_MATCHES_MAX, TOP_MATCHES_NAME, TOP_MATCHES_SCHEMA, TopMatch, TopMatches, findings,
-    top_matches,
+    Found, TOP_MATCHES_MAX, TOP_MATCHES_NAME, TOP_MATCHES_SCHEMA, TopMatch, TopMatches, findings,
+    found, top_matches,
 };
 pub use xlsx::write_xlsx;
 
@@ -39,6 +39,9 @@ pub use xlsx::write_xlsx;
 pub const XLSX_NAME: &str = "JobAlerts.xlsx";
 /// The HTML overview next to the Excel file.
 pub const HTML_NAME: &str = "JobAlerts.html";
+/// Name part of an Excel file of the old program the app renamed before its first write
+/// (`JobAlerts.alt-20260925-093000.xlsx`, next to its own).
+pub const XLSX_BACKUP_PREFIX: &str = "JobAlerts.alt-";
 /// Overview of earlier versions; only kept so that "reset everything" takes it along.
 const LEGACY_CSV_NAME: &str = "JobAlerts.csv";
 /// Subfolder of the workspace for results (as before).
@@ -68,7 +71,7 @@ impl Line {
         let (company, location) = split_company_location(&job.company, &job.location);
         Line {
             source: job.key.portal.label(),
-            title: job.title.clone(),
+            title: crate::view::display_title(job),
             company,
             location,
             url: job.url.to_string(),
@@ -215,6 +218,17 @@ pub fn clear_txt_files(result_dir: &Path, txt_names: &[String]) -> (usize, Vec<S
     // The subfolder only disappears if that made it empty.
     let _ = std::fs::remove_dir(result_dir.join(TXT_DIR));
     (removed, failed)
+}
+
+/// The name of an Excel file the app renamed ([`XLSX_BACKUP_PREFIX`]): a plain file name in
+/// the result folder, never a path.
+pub fn is_xlsx_backup(name: &str) -> bool {
+    name.starts_with(XLSX_BACKUP_PREFIX)
+        && !name.contains(['/', '\\', ':'])
+        && !name.contains("..")
+        && Path::new(name)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("xlsx"))
 }
 
 /// Only a file name, no path - protects "clear" against manipulated entries.

@@ -5,6 +5,7 @@
   is sent, one line on what to do in the AI, then the field for its answer. "Übernehmen"
   (waiting, and saying so, until there is an answer) reads the answer (also inside a code
   block) with the same checks as a file and fills the form for review; nothing is saved yet.
+  The answer is the caller's (bound): closing the steps keeps it.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -25,17 +26,28 @@
     copied: boolean;
     busy: boolean;
     error: string | null;
+    /** The AI's answer as pasted. */
+    answer: string;
     oncopy: () => void;
     ontake: (answer: string) => void;
     oncancel: () => void;
   }
 
-  let { heading, prompt, copied, busy, error, oncopy, ontake, oncancel }: Props = $props();
+  let {
+    heading,
+    prompt,
+    copied,
+    busy,
+    error,
+    answer = $bindable(),
+    oncopy,
+    ontake,
+    oncancel,
+  }: Props = $props();
 
   const words = $derived(t.profile.paste);
   const id = $props.id();
   const actionFirst = primaryFirst();
-  let answer = $state('');
 
   function take(): void {
     if (answer.trim() !== '' && !busy) ontake(answer);
@@ -79,7 +91,6 @@
         bind:value={answer}
         rows={10}
         invalid={error !== null}
-        describedby="{id}-answer-message"
         testid="paste-answer"
       />
     </Field>

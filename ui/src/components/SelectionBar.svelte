@@ -101,6 +101,6 @@
   .clear {
     display: inline-flex;
     flex: none;
-    margin-right: calc(-1 * var(--space-12));
+    margin-right: calc(-1 * var(--ghost-inset));
   }
 </style>

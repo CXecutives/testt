@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use super::atoms::{self, Vocab, fold};
-use super::facts::rate_in;
+use super::facts::{self, rate_in};
 use super::lexicon::{HeadingKind, engine as lex};
 use super::normalize::{splitlines, strip};
 use super::requirements::extract_job_skills;
@@ -71,8 +71,14 @@ fn heading(line: &str) -> Option<HeadingKind> {
         return None;
     }
     let starts = |list: &[&str]| list.iter().any(|p| norm.starts_with(p));
+    // A heading of the other listings only as a whole heading ("Ähnliche Projekterfahrung"
+    // is a requirement).
+    let other = OTHER_PREFIXES.iter().any(|p| {
+        norm.starts_with(p)
+            && (!lex::OTHER_LISTINGS.contains(p) || facts::is_listings_heading(&norm))
+    });
     // A bare `Skills` heading is the portal's tag list, not the ad's requirements.
-    if starts(OTHER_PREFIXES) || lex::TAG_HEADINGS.contains(&norm.as_str()) {
+    if other || lex::TAG_HEADINGS.contains(&norm.as_str()) {
         return Some(HeadingKind::Neutral);
     }
     if let Some(kind) = sections::section_kind(line) {

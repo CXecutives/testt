@@ -1135,7 +1135,7 @@ pub fn export_all(
 pub const OVERVIEW_NEW_MAX: u32 = 20;
 
 /// Writes `JobAlerts.html` from the jobs as they are now (in `language`): the favourites of
-/// the inbox, else the best new matches. Returns its path.
+/// the inbox and the best new matches. Returns its path.
 fn write_html_overview(
     store: &Store,
     result_dir: &Path,
@@ -1144,19 +1144,14 @@ fn write_html_overview(
 ) -> crate::Result<PathBuf> {
     let path = export::overview_html_path(result_dir);
     let overview = store.overview_jobs(OVERVIEW_NEW_MAX)?;
-    let (jobs, pinned) = if overview.favourites.is_empty() {
-        (overview.new, false)
-    } else {
-        (overview.favourites, true)
-    };
-    export::write_overview_html(&path, &jobs, pinned, now, language)?;
+    export::write_overview_html(&path, &overview, now, language)?;
     Ok(path)
 }
 
 /// The files a mark changes (a move, the star, "fits anyway", read or unread), written anew
 /// without a run: the HTML overview and `top_matches.json` - both small, so the skill never
 /// reads a job the user threw away. The Excel file waits for the next run (its Info sheet
-/// says it is written anew then). A failure only goes to the log.
+/// says the app rewrites it). A failure only goes to the log.
 pub fn refresh_exports(
     store: &Store,
     workspace: &Path,
@@ -1217,14 +1212,12 @@ pub fn delete_jobs(
     let mut deleted = Deleted {
         count: u32::try_from(rows).unwrap_or(u32::MAX),
         keys: gone,
-        txt_left: 0,
         export_error: None,
     };
     let Some(workspace) = workspace.filter(|_| !deleted.keys.is_empty()) else {
         return Ok(deleted);
     };
-    let left = remove_deleted_txt(store, workspace, &names);
-    deleted.txt_left = u32::try_from(left).unwrap_or(u32::MAX);
+    remove_deleted_txt(store, workspace, &names);
     let info = info_rows(store, now, Texts::of(language));
     let run = last_scan_run(store).unwrap_or(0);
     let exported = export_all(store, workspace, &info, run, now, language);
@@ -1236,15 +1229,15 @@ pub fn delete_jobs(
 /// Removes the text files of jobs deleted for good. A file that stays (open in another
 /// program, or the work folder on a drive that is gone) is remembered - its job's row is
 /// gone - so the next export, "Textdateien löschen" or a reset removes it
-/// ([`Store::txt_leftovers`]). Returns how many stayed.
-fn remove_deleted_txt(store: &Store, workspace: &Path, names: &[String]) -> usize {
+/// ([`Store::txt_leftovers`]); the user needs no word about it.
+fn remove_deleted_txt(store: &Store, workspace: &Path, names: &[String]) {
     let failed = if workspace.is_dir() {
         export::clear_txt_files(&workspace.join(RESULT_DIR), names).1
     } else {
         names.to_vec()
     };
     if failed.is_empty() {
-        return 0;
+        return;
     }
     log::warn!(
         "{} text files of deleted jobs not removed (open), removed later",
@@ -1259,7 +1252,6 @@ fn remove_deleted_txt(store: &Store, workspace: &Path, names: &[String]) -> usiz
     if let Err(e) = store.set_txt_leftovers(&left) {
         log::warn!("text files not removed are not remembered: {e}");
     }
-    failed.len()
 }
 
 /// Another try at the text files of deleted jobs that stayed earlier; the ones gone meanwhile
@@ -1428,7 +1420,8 @@ fn write_overview(
     // text files' names.
     if path.exists() && last.is_none() {
         let backup = path.with_file_name(format!(
-            "JobAlerts.alt-{}.{}",
+            "{}{}.{}",
+            export::XLSX_BACKUP_PREFIX,
             time::local(now).strftime("%Y%m%d-%H%M%S"),
             path.extension().and_then(|e| e.to_str()).unwrap_or("xlsx")
         ));

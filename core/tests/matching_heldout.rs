@@ -1,4 +1,4 @@
-//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout7`):
+//! Held-out regression corpora (`core/tests/fixtures/matching/heldout1` to `heldout8`):
 //! invented ads with blind labels (grade 0-3, excluded) written by independent agents for
 //! profiles the engine was not tuned on at the time. Every set was later used to find and
 //! fix systematic gaps, so they are regression gates now, not an unseen measurement.
@@ -200,15 +200,22 @@ const HELDOUT5: Floor = Floor {
     exclusion_recall: 1.0,
     grade3_buried: 0,
 };
-/// Set 7 at first contact (engine 10): the footer ANÜ of another listing excludes K03 for
-/// seven profiles, three grade-3 jobs are buried, and the student jobs the labelers exclude by
-/// their wage stay in for ten profiles.
+/// Set 7 at the level of engine 12 (the hard criteria read only the ad, not the other
+/// listings under it; first contact with engine 10 gave 0.900, 0.438, 0.973 and 3 buried):
+/// the student jobs the labelers exclude by their wage stay in for ten profiles.
 const HELDOUT7: Floor = Floor {
-    ndcg10: 0.89,
-    spearman: 0.43,
-    exclusion_precision: 0.97,
+    ndcg10: 0.91,
+    spearman: 0.44,
+    exclusion_precision: 0.98,
     exclusion_recall: 0.88,
-    grade3_buried: 3,
+    grade3_buried: 2,
+};
+const HELDOUT8: Floor = Floor {
+    ndcg10: 0.93,
+    spearman: 0.39,
+    exclusion_precision: 0.97,
+    exclusion_recall: 0.85,
+    grade3_buried: 1,
 };
 /// Engine 9 moved set 2 from 0.864 to 0.856: a language met is a light fit now, so off-field
 /// ads whose only fitting musts are languages (grade 0 and 1 alike) fall below the cap they
@@ -301,9 +308,14 @@ fn heldout7_holds_its_gates() {
     check("heldout7", &HELDOUT7);
 }
 
+#[test]
+fn heldout8_holds_its_gates() {
+    check("heldout8", &HELDOUT8);
+}
+
 /// Every held-out set.
-const SETS: [&str; 7] = [
-    "heldout1", "heldout2", "heldout3", "heldout4", "heldout5", "heldout6", "heldout7",
+const SETS: [&str; 8] = [
+    "heldout1", "heldout2", "heldout3", "heldout4", "heldout5", "heldout6", "heldout7", "heldout8",
 ];
 
 /// Prints every set's tables and misses (`-- --ignored heldout_report --nocapture`), then

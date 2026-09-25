@@ -36,6 +36,8 @@ export const COMMAND_NAMES = [
   'mark_unread',
   'set_pinned',
   'move_jobs',
+  'move_back',
+  'restore_jobs',
   'set_override',
   'purge_jobs',
   'empty_trash',
@@ -159,11 +161,18 @@ export function onCloseRequested(handler: () => void): () => void {
 }
 
 /**
- * The window has been asked to close while a fetch runs: it stays until the run has stopped
- * (at most ten seconds, src-tauri/src/main.rs). Returns an unsubscribe function.
+ * The window has been asked to close while the app is busy: it stays until what holds it
+ * has stopped (at most ten seconds, src-tauri/src/main.rs). The handler gets what that is,
+ * as the busy error names it (`activity`: a run's kind, `session`, `files`), or null.
+ * Returns an unsubscribe function.
  */
-export function onClosing(handler: () => void): () => void {
-  return subscribe(() => listen('closing', () => handler()));
+export function onClosing(handler: (activity: string | null) => void): () => void {
+  return subscribe(() =>
+    listen<{ activity?: unknown } | null>('closing', (event) => {
+      const activity = event.payload?.activity;
+      handler(typeof activity === 'string' ? activity : null);
+    }),
+  );
 }
 
 /**

@@ -22,6 +22,7 @@ import type {
   ProfileUnderstanding,
   UnreadableField,
 } from '../ipc/types';
+import { TypedText } from './typed.svelte';
 
 /** Where the form in the editor came from: the stored profile, a new one, a chosen file, an
  *  AI's answer for a new profile, or an answer that updates the stored profile. */
@@ -298,14 +299,17 @@ export function shownDate(iso: string): string {
   return match ? `${match[3]}${mark}${match[2]}${mark}${match[1]}` : iso;
 }
 
+const GERMAN_DAY = /^(\d{1,2})[./](\d{1,2})[./](\d{2}|\d{4})$/;
+const ISO_DAY = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+
 /**
  * A typed day (`1.11.2026`, `01.11.26`, `01/11/2026`, `2026-11-01`) as `YYYY-MM-DD`; `null`
  * if it is none. Day first in both languages (German and British English).
  */
 export function isoDate(text: string): string | null {
   const value = text.trim();
-  const german = /^(\d{1,2})[./](\d{1,2})[./](\d{2}|\d{4})$/.exec(value);
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value);
+  const german = GERMAN_DAY.exec(value);
+  const iso = ISO_DAY.exec(value);
   const [year, month, day] = german
     ? [
         Number(german[3]) + (german[3]!.length === 2 ? 2000 : 0),
@@ -319,6 +323,12 @@ export function isoDate(text: string): string | null {
   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0;
   const valid = year > 1900 && day >= 1 && day <= days;
   return valid ? `${year}-${pad(month)}-${pad(day)}` : null;
+}
+
+/** A typed day in a form `isoDate` reads, whether or not the calendar has it (`31.02.2026`). */
+export function dayShaped(text: string): boolean {
+  const value = text.trim();
+  return GERMAN_DAY.test(value) || ISO_DAY.test(value);
 }
 
 /** The day field's text for a form. */
@@ -403,15 +413,20 @@ class ProfileEditor {
   cleared = $state<UnreadableField[]>([]);
   /** The steps to fill the profile from a CV with an AI are open. */
   pasting = $state(false);
+  /** The AI's answer as pasted: kept until it fills the form, also when the steps close or
+   *  the view changes. */
+  answer = $state('');
   /** The day of "Verfügbar ab" as typed (the form holds it as `YYYY-MM-DD`). */
   dateText = $state('');
+  /** Text typed into a chip field that is no chip yet: a change like any other. */
+  readonly typed = new TypedText();
 
   get dirty(): boolean {
     if (this.origin === null) return false;
     if (this.origin === 'file' || this.origin === 'answer' || this.origin === 'update') {
       return true;
     }
-    return this.cleared.length > 0 || !sameForm(this.before, this.after);
+    return this.cleared.length > 0 || this.typed.any || !sameForm(this.before, this.after);
   }
 
   #start(origin: DraftOrigin, before: ProfileForm, after: ProfileForm): void {
@@ -452,10 +467,11 @@ class ProfileEditor {
     this.understood = draft.understood;
   }
 
-  /** An AI's answer that updates the stored profile: saving merges it into the stored file. */
+  /** An AI's answer that updates the stored profile: saving merges it into the stored file,
+   *  which the draft brings with the answer's career stations (they are no field of the form). */
   update(draft: ProfileDraft, stored: ProfileForm): void {
     this.#start('update', stored, updated(copy(stored), copy(draft.form)));
-    this.source = null;
+    this.source = draft.source;
     this.quality = null;
     this.understood = null;
   }
@@ -481,6 +497,7 @@ class ProfileEditor {
 
   /** Drops the changes: the stored profile as saved, or no draft at all. */
   discard(stored: ProfileForm | null): void {
+    this.typed.clear();
     if (stored !== null) this.edit(stored);
     else this.close();
   }

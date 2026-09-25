@@ -14,8 +14,10 @@
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import Ban from '@lucide/svelte/icons/ban';
+  import Banknote from '@lucide/svelte/icons/banknote';
   import Briefcase from '@lucide/svelte/icons/briefcase';
   import Building2 from '@lucide/svelte/icons/building-2';
+  import Calendar from '@lucide/svelte/icons/calendar';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import ClipboardPaste from '@lucide/svelte/icons/clipboard-paste';
   import Check from '@lucide/svelte/icons/check';
@@ -40,6 +42,7 @@
   import FileText from '@lucide/svelte/icons/file-text';
   import FileUp from '@lucide/svelte/icons/file-up';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import Globe from '@lucide/svelte/icons/globe';
   import Inbox from '@lucide/svelte/icons/inbox';
   import Info from '@lucide/svelte/icons/info';
   import KeyRound from '@lucide/svelte/icons/key-round';
@@ -127,13 +130,17 @@
     'archive-restore': ArchiveRestore,
     // Change a stored value (the mailbox, the output folder).
     pencil: Pencil,
-    // The Excel file in the day overview.
+    // The Excel file in the day overview, and its HTML overview (it opens in the browser).
     'file-spreadsheet': FileSpreadsheet,
+    globe: Globe,
     // Mark all as read; bring a job back from the trash.
     'check-check': CheckCheck,
     'undo-2': Undo2,
     // The way on after a step ("Weiter zum ersten Abruf").
     'arrow-right': ArrowRight,
+    // The ad's rate and start in the reader's strip, where no criterion covers them.
+    banknote: Banknote,
+    calendar: Calendar,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

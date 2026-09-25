@@ -13,6 +13,7 @@
 //   followed. A rescore opens no run card and brings no fetch news; only when it failed or
 //   could not write the files the card says so.
 
+import type { IconName } from '$components/Icon.svelte';
 import { t } from '../i18n/t';
 import { errorText } from '../i18n/texts';
 import { invoke, IpcError, onRun } from '../ipc/api';
@@ -30,6 +31,7 @@ import type {
 } from '../ipc/types';
 import { app } from './app.svelte';
 import { navigation } from './navigation.svelte';
+import { shell } from './shell.svelte';
 import { toasts } from './toasts.svelte';
 
 export const STEPS: readonly Step[] = ['scan', 'fetch', 'score'];
@@ -148,6 +150,16 @@ class RunStore {
   /** Why an action waits while a run goes. */
   get busyText(): string {
     return this.kind === 'rescore' ? t.run.rescoring : t.settings.running;
+  }
+
+  /** Why a run that reads the mailbox (Abrufen, the whole mailbox) cannot start now, in the
+   *  order she would fix it: a run holds the app, no mailbox, no portal switched on; null
+   *  when it can. The backend refuses the same. */
+  get fetchBlocked(): string | null {
+    if (this.active) return this.busyText;
+    if (!app.hasMailbox) return t.toolbar.needsMailbox;
+    if (!app.hasPortal) return t.toolbar.needsPortal;
+    return null;
   }
 
   /** The steps of the run in progress. */
@@ -366,15 +378,17 @@ class RunStore {
       if (live && this.panel === 'hidden') this.panel = 'open';
     }
     if (!live) return;
-    // In the Jobs view the run card says it; elsewhere a toast brings the news. A rescore
-    // speaks where it was started (the Profil view), not as a fetch.
-    if (summary.outcome.kind === 'completed' && navigation.current !== 'jobs') {
+    // In the Jobs view the run card says it; elsewhere, and while one column shows a job in
+    // place of the list and its card, a toast brings the news. A rescore speaks where it was
+    // started (the Profil view), not as a fetch.
+    const cardShown = navigation.current === 'jobs' && !shell.listHidden;
+    if (summary.outcome.kind === 'completed' && !cardShown) {
       if (isFetch(kind)) {
         // Files that could not be written are no success: a calm note, the card has the way.
         if (exportError(summary) === null)
           toasts.show(t.toast.runDone(summary.newJobs?.count ?? 0));
         else toasts.show(t.toast.runDoneFilesOld, 'info');
-      } else if (kind === 'rescore' && navigation.current !== 'profile') {
+      } else if (kind === 'rescore' && navigation.current === 'settings') {
         toasts.show(t.toast.rescored);
       }
     }
@@ -395,6 +409,8 @@ export function needsAction(health: PortalHealth): boolean {
 
 export interface FailureAction {
   label: string;
+  /** The glyph the action has everywhere (a retry loads again, like Abrufen). */
+  icon?: IconName;
   onclick: () => void;
 }
 
@@ -417,17 +433,38 @@ export function failureAction(
     case 'secretStore':
       return { label: t.run.checkMailbox, onclick: () => navigation.go('settings') };
     case 'internal':
-      return { label: t.common.openLog, onclick: openLog };
+      return { label: t.common.openLog, icon: 'folder-open', onclick: openLog };
     default:
       if (run.active) return null;
       if (summary !== null && isFetch(summary.kind) && app.hasMailbox) return null;
-      return { label: t.common.retry, onclick: () => run.retry(summary) };
+      return { label: t.common.retry, icon: 'refresh-cw', onclick: () => run.retry(summary) };
   }
 }
 
 /** The export error of a finished run, if its files could not all be written. */
 export function exportError(summary: RunSummary): ErrorInfo | null {
   return summary.export?.error ?? null;
+}
+
+/** Why a result file stayed as it was, by what could not be written (`params.target`): one
+ *  sentence for the run card and for a delete for good in the list. */
+export function exportText(error: ErrorInfo | null): string | null {
+  if (error === null) return null;
+  const texts = t.run.exportFailed;
+  switch (error.params['target']) {
+    case 'overview':
+      return error.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
+    case 'overviewHtml':
+      return texts.overviewHtml;
+    case 'txtFolder':
+      return texts.txtFolder;
+    case 'backup':
+      return texts.backup;
+    case 'workspace':
+      return texts.workspace;
+    default:
+      return texts.txt;
+  }
 }
 
 /** The title of a finished run: done, cancelled or failed, in the words of its kind. */

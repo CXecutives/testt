@@ -1,28 +1,34 @@
 <!--
-  The button of the app: primary | secondary | ghost | danger | link × sm | md | lg. Native
+  The button of the app: primary | secondary | ghost | danger | link × sm | md | lg | field. Native
   in feel, rich on contact: hover-in changes colour in 80 ms and relaxes in 150 ms, the
   icon nudges toward what it does (external link up-right, download down, refresh a
   quarter turn, the star grows), a press lets the button give a little, uniformly (0.98,
   60 ms), and it settles back in 150 ms. Nothing stretches; no lift, no glow, no bounce.
-  - Trailing actions inside a row are sm, action bars are md.
+  - Trailing actions inside a row are sm, action bars are md; a choice beside fields is field
+    (as tall as a field, with the small type of chips and segments).
   - At most one primary per view (checked by core/tests/ui_contract.rs).
   - iconOnly needs its label: it becomes aria-label and tooltip.
   - Disabled buttons stay hoverable (aria-disabled) so the tooltip can say why; they do
-    not react otherwise.
+    not react otherwise, and Tab passes them like native disabled buttons (one that is
+    disabled while focused keeps the focus).
   - Loading keeps the width: the content fades out under the spinner.
   - A ghost toggle (the pin star) pops once when it is switched on by a click.
+  - radio: an option of a group with one choice (profile/ChoiceButtons, a radiogroup): it
+    looks like a secondary toggle, is chosen while `checked`, and only the group's one Tab
+    stop (`stop`) is in the Tab order; the arrows move between the options (input.ts).
   - turned: the glyph stands half a turn; it turns in 180 ms.
   - link: navy text that underlines on hover (a way on, e.g. under a field).
   - inField: a button inside a text field (show password, clear search), like the native
     ones: not in the Tab order, and a click leaves the caret in the field.
   - isDefault: the default of a dialog, the one Enter presses; the dialog marks it.
   - warns: a quiet (secondary or ghost) button that removes or resets something: its text
-    turns red on hover, before the dialog asks. A ghost with the trash icon always warns.
+    turns red on hover, before the dialog asks. A quiet button with the trash icon always
+    warns.
   The icon sits on its own HTML wrapper: transforms on SVG children run on the main thread.
 -->
 <script lang="ts" module>
   export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'link';
-  export type ButtonSize = 'sm' | 'md' | 'lg';
+  export type ButtonSize = 'sm' | 'md' | 'lg' | 'field';
   export const BUTTON_VARIANTS: readonly ButtonVariant[] = [
     'primary',
     'secondary',
@@ -30,7 +36,7 @@
     'danger',
     'link',
   ];
-  export const BUTTON_SIZES: readonly ButtonSize[] = ['sm', 'md', 'lg'];
+  export const BUTTON_SIZES: readonly ButtonSize[] = ['sm', 'md', 'lg', 'field'];
 </script>
 
 <script lang="ts">
@@ -52,6 +58,8 @@
     type?: 'button' | 'submit';
     /** Toggle buttons (e.g. the pin star). */
     pressed?: boolean | null;
+    /** An option of a radiogroup: whether it is chosen and whether it is the group's Tab stop. */
+    radio?: { checked: boolean; stop: boolean } | null;
     /** The glyph stands half a turn. */
     turned?: boolean;
     /** Opens something outside the app (a link shows the hand then). */
@@ -83,6 +91,7 @@
     disabledReason = null,
     type = 'button',
     pressed = null,
+    radio = null,
     turned = false,
     external = false,
     wide = false,
@@ -95,8 +104,13 @@
     onclick,
   }: Props = $props();
 
-  const ICON_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', md: 'sm', lg: 'md' };
-  const ICON_ONLY_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', md: 'md', lg: 'lg' };
+  const ICON_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', md: 'sm', lg: 'md', field: 'sm' };
+  const ICON_ONLY_SIZE: Record<ButtonSize, IconSize> = {
+    sm: 'sm',
+    md: 'md',
+    lg: 'lg',
+    field: 'md',
+  };
 
   const inactive = $derived(disabled || loading);
   const hint = $derived(disabled && disabledReason ? disabledReason : iconOnly ? label : null);
@@ -124,13 +138,15 @@
   class:turned
   class:external
   class:default={isDefault}
-  class:warns={warns || (variant === 'ghost' && icon === 'trash-2')}
+  class:warns={warns || ((variant === 'ghost' || variant === 'secondary') && icon === 'trash-2')}
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
-  aria-pressed={pressed === null ? undefined : pressed}
+  role={radio ? 'radio' : undefined}
+  aria-checked={radio ? radio.checked : undefined}
+  aria-pressed={pressed === null || radio ? undefined : pressed}
   aria-haspopup={menu ? 'menu' : undefined}
-  tabindex={inField ? -1 : undefined}
+  tabindex={inField || disabled || (radio && !radio.stop) ? -1 : radio ? 0 : undefined}
   data-keep-focus={inField ? '' : undefined}
   data-testid={testid ?? undefined}
   use:tooltip={hint}
@@ -304,8 +320,10 @@
     --btn-shadow: var(--sh-xs);
   }
 
-  /* A secondary toggle that is on (a filter chip): the navy trio of a chosen filter. */
-  .secondary[aria-pressed='true'] {
+  /* A secondary toggle that is on (a filter chip) or a chosen option of a radiogroup: the
+     navy trio of a chosen filter. */
+  .secondary[aria-pressed='true'],
+  .secondary[aria-checked='true'] {
     --btn-bg: var(--active-surface);
     --btn-bg-hover: var(--active-surface);
     --btn-bg-active: var(--active-surface);
@@ -415,6 +433,13 @@
     --btn-pad: var(--space-16);
     --btn-gap: var(--space-8);
     --btn-type: var(--type-md);
+  }
+
+  .field {
+    --btn-height: var(--control-md);
+    --btn-pad: var(--space-12);
+    --btn-gap: var(--space-6);
+    --btn-type: var(--type-sm);
   }
 
   .lg {

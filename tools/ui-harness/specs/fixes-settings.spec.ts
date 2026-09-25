@@ -72,7 +72,7 @@ test('one glyph per file and per action: Excel, Ändern, and a reset that warns'
 test('an unreachable Gmail is one red badge, said once', async ({ page }) => {
   await settings(page, `${WIN}&scenario=offline`);
   const mailbox = page.getByTestId('settings-mailbox');
-  // The same tone as the sidebar's "Fehlgeschlagen" and the overview's failed fetch.
+  // The same tone as the sidebar's "Fehler" and the overview's failed fetch.
   const badge = mailbox.locator('.badge').filter({ hasText: 'Nicht erreichbar' });
   await expect(badge).toHaveClass(/danger/);
   // "Gmail ist nicht erreichbar." would only repeat the badge.
@@ -145,7 +145,7 @@ test('notes and errors in Einstellungen follow a switch of the language', async 
   const form = page.getByTestId('mailbox-form');
   await expect(form).toContainText('Die Gmail-Adresse fehlt.');
 
-  await page.getByTestId('language').getByRole('radio', { name: 'Englisch' }).click();
+  await page.getByTestId('language').getByRole('radio', { name: 'English' }).click();
   await expect(page.getByTestId('settings-files')).toContainText('Files');
   await expect(page.getByTestId('files-note')).toHaveText('38 files written.');
   await expect(form).toContainText('The Gmail address is missing.');
@@ -202,7 +202,7 @@ test('text files: the row says what they are; another folder says where they are
   await page.getByTestId('workspace-change').click();
   await expect(files).toContainText('C:/Users/demo/Documents/Jobs');
   await expect(page.getByTestId('files-note')).toHaveText(
-    'Die Textdateien liegen noch im alten Ordner, Neu schreiben legt sie hier an.',
+    'Die Textdateien liegen noch im alten Ordner, „Neu schreiben“ legt sie hier an.',
   );
   await expect(page.getByTestId('files-note')).toHaveClass(/info/);
   await expect(files).toContainText('0 Anzeigen als Text für eine KI');
@@ -331,7 +331,7 @@ test('the Schwerpunkt star says what a click does; an empty row what comes first
   const empty = page.getByTestId('competence-row').last().getByTestId('competence-star');
   await expect(empty).toHaveAttribute('aria-disabled', 'true');
   await empty.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst eine Kompetenz eintragen.');
+  await expect(page.getByRole('tooltip')).toHaveText('Trag erst eine Kompetenz ein.');
 });
 
 test('Speichern, Verwerfen and Übernehmen say why they wait', async ({ page }) => {
@@ -351,5 +351,5 @@ test('Speichern, Verwerfen and Übernehmen say why they wait', async ({ page }) 
   const take = page.getByTestId('paste-take');
   await expect(take).toHaveAttribute('aria-disabled', 'true');
   await take.hover();
-  await expect(page.getByRole('tooltip')).toHaveText('Erst die Antwort der KI einfügen.');
+  await expect(page.getByRole('tooltip')).toHaveText('Füge erst die Antwort der KI ein.');
 });

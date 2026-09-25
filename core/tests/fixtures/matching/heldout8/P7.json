@@ -1,0 +1,324 @@
+{
+  "name": "Helena Probe",
+  "email": "helena.probe@example.invalid",
+  "telefon": "+49 171 0000000",
+  "titel": "Interim Head of Compliance, Recht und Datenschutz",
+  "berufserfahrung_jahre": 16,
+  "abschluss": "Zweites juristisches Staatsexamen (Volljuristin)",
+  "ausbildung": [
+    {
+      "abschluss": "LL.M. Europäisches Wirtschaftsrecht",
+      "fach": "Europäisches Wirtschafts- und Datenschutzrecht",
+      "hochschule": "Beispieluniversität",
+      "jahr": 2010
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Compliance-Management",
+      "jahre": 14,
+      "auch": [
+        "Compliance Management",
+        "Compliance-Management-System",
+        "CMS",
+        "Compliance Officer",
+        "Chief Compliance Officer"
+      ]
+    },
+    {
+      "kompetenz": "Datenschutz nach DSGVO",
+      "jahre": 12,
+      "auch": [
+        "DSGVO",
+        "GDPR",
+        "Datenschutz",
+        "Data Protection",
+        "Datenschutzbeauftragte",
+        "BDSG"
+      ]
+    },
+    {
+      "kompetenz": "Geldwäscheprävention",
+      "jahre": 9,
+      "auch": [
+        "AML",
+        "Anti-Money Laundering",
+        "Geldwäsche",
+        "GwG",
+        "KYC",
+        "Geldwäschebeauftragte"
+      ]
+    },
+    {
+      "kompetenz": "Interne Ermittlungen",
+      "jahre": 8,
+      "auch": [
+        "Internal Investigations",
+        "Interne Untersuchungen",
+        "Forensic Investigations",
+        "Sonderuntersuchungen"
+      ]
+    },
+    {
+      "kompetenz": "Compliance-Management-Systeme nach ISO 37301",
+      "jahre": 5,
+      "auch": [
+        "ISO 37301",
+        "IDW PS 980",
+        "CMS-Zertifizierung"
+      ]
+    },
+    {
+      "kompetenz": "Syndikusrechtsanwältin",
+      "jahre": 16,
+      "auch": [
+        "Legal Counsel",
+        "Unternehmensjuristin",
+        "Inhouse Counsel",
+        "Rechtsabteilung"
+      ]
+    },
+    {
+      "kompetenz": "Wirtschafts- und Vertragsrecht",
+      "jahre": 16,
+      "auch": [
+        "Vertragsrecht",
+        "Vertragsmanagement",
+        "Contract Management",
+        "Handelsrecht"
+      ]
+    },
+    {
+      "kompetenz": "Gesellschaftsrecht",
+      "jahre": 9,
+      "auch": [
+        "Corporate Law",
+        "Corporate Governance",
+        "Gremienarbeit"
+      ]
+    },
+    {
+      "kompetenz": "Antikorruption",
+      "jahre": 10,
+      "auch": [
+        "Korruptionsprävention",
+        "Anti-Bribery and Corruption",
+        "ABC",
+        "Interessenkonflikte"
+      ]
+    },
+    {
+      "kompetenz": "Hinweisgebersysteme",
+      "jahre": 6,
+      "auch": [
+        "Whistleblowing",
+        "HinSchG",
+        "Hinweisgeberschutzgesetz",
+        "Meldestelle"
+      ]
+    },
+    {
+      "kompetenz": "Governance, Risk und Compliance",
+      "jahre": 10,
+      "auch": [
+        "GRC",
+        "Risikomanagement",
+        "Internes Kontrollsystem",
+        "IKS"
+      ]
+    },
+    {
+      "kompetenz": "Exportkontrolle und Sanktionsrecht",
+      "jahre": 5,
+      "auch": [
+        "Export Control",
+        "Sanktionslistenprüfung",
+        "Sanctions Compliance"
+      ]
+    },
+    {
+      "kompetenz": "Lieferketten-Compliance",
+      "jahre": 3,
+      "auch": [
+        "LkSG",
+        "Lieferkettensorgfaltspflichtengesetz",
+        "Supply Chain Compliance",
+        "CSDDD"
+      ]
+    },
+    {
+      "kompetenz": "Aufsichtsrecht und Behördenkommunikation",
+      "jahre": 8,
+      "auch": [
+        "BaFin",
+        "Regulatory Compliance",
+        "Aufsichtsbehörden",
+        "MaRisk"
+      ]
+    },
+    {
+      "kompetenz": "Richtlinienmanagement und Schulungen",
+      "jahre": 12,
+      "auch": [
+        "Policy Management",
+        "Code of Conduct",
+        "Compliance-Schulungen",
+        "Awareness"
+      ]
+    },
+    {
+      "kompetenz": "Interim Management",
+      "jahre": 6,
+      "auch": [
+        "Interim-Mandate",
+        "Interim Compliance Officer"
+      ]
+    },
+    {
+      "kompetenz": "Aufbau und Führung von Rechts- und Compliance-Abteilungen",
+      "jahre": 8,
+      "auch": [
+        "Head of Legal",
+        "Leitung Recht",
+        "Legal Operations",
+        "Teamführung"
+      ]
+    }
+  ],
+  "schwerpunkte": [
+    "Compliance-Management",
+    "Datenschutz nach DSGVO",
+    "Geldwäscheprävention",
+    "Interne Ermittlungen",
+    "Compliance-Management-Systeme nach ISO 37301"
+  ],
+  "wunschrollen": [
+    "Interim Chief Compliance Officer",
+    "Interim Head of Legal and Compliance",
+    "Leitung Compliance",
+    "Interim Datenschutzbeauftragte",
+    "Geldwäschebeauftragte"
+  ],
+  "methoden_tools": [
+    {
+      "name": "OneTrust"
+    },
+    {
+      "name": "EQS Integrity Line"
+    },
+    {
+      "name": "SAP GRC"
+    },
+    {
+      "name": "Microsoft Purview"
+    },
+    {
+      "name": "Relativity"
+    },
+    {
+      "name": "Datenschutz-Folgenabschätzung"
+    },
+    {
+      "name": "Compliance-Risikoanalyse"
+    },
+    {
+      "name": "Verzeichnis von Verarbeitungstätigkeiten"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Certified Information Privacy Professional/Europe (CIPP/E)"
+    },
+    {
+      "name": "Certified Anti-Money Laundering Specialist (CAMS)"
+    },
+    {
+      "name": "ISO 37301 Lead Auditor"
+    },
+    {
+      "name": "Certified Compliance Officer (Univ.)"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Banken"
+    },
+    {
+      "branche": "Finanzdienstleistungen"
+    },
+    {
+      "branche": "Versicherungen"
+    },
+    {
+      "branche": "Pharma"
+    },
+    {
+      "branche": "Medizintechnik"
+    },
+    {
+      "branche": "Maschinenbau"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C1"
+    },
+    {
+      "sprache": "Französisch",
+      "niveau": "B2"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Aufbau und Zertifizierung von Compliance-Management-Systemen nach ISO 37301 und IDW PS 980",
+    "Leitung interner Ermittlungen mit Kontakt zu BaFin und Staatsanwaltschaft",
+    "Verbindet Rechtsberatung, Datenschutz und Geldwäscheprävention in einer Rolle"
+  ],
+  "keywords": [
+    "Compliance",
+    "Chief Compliance Officer",
+    "Syndikusrechtsanwältin",
+    "DSGVO",
+    "Datenschutz",
+    "GwG",
+    "AML",
+    "ISO 37301",
+    "IDW PS 980",
+    "HinSchG",
+    "LkSG",
+    "BaFin",
+    "Internal Investigations"
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 1100,
+    "laender": [
+      "DE",
+      "AT"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "anue"
+    ],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "sofort"
+  },
+  "einsatzpraeferenzen": {
+    "tagessatz_wunsch": 1300,
+    "remote": "teilweise",
+    "regionen": [
+      "Frankfurt am Main",
+      "Rhein-Main",
+      "Köln",
+      "Düsseldorf",
+      "Wien"
+    ],
+    "branchen": [
+      "Finanzdienstleistungen",
+      "Versicherungen",
+      "Pharma"
+    ]
+  }
+}

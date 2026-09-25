@@ -27,7 +27,7 @@ use jobalert_core::settings::{Language, Settings};
 use jobalert_core::store::Store;
 use tokio_util::sync::CancellationToken;
 
-pub use files::Refresh;
+pub use files::{Refresh, flush_marks};
 pub use run::RunHandle;
 pub use scoring::Scoring;
 
@@ -37,7 +37,7 @@ pub use scoring::Scoring;
     dead_code,
     reason = "read by core/tests/contract.rs, which generates the TypeScript command map"
 )]
-pub const COMMANDS: [(&str, &str, &str); 34] = [
+pub const COMMANDS: [(&str, &str, &str); 36] = [
     ("app_state", "{ channel: Channel<RunEvent> }", "AppState"),
     (
         "start_run",
@@ -56,6 +56,8 @@ pub const COMMANDS: [(&str, &str, &str); 34] = [
     ("mark_unread", "{ keys: JobKey[] }", "number"),
     ("set_pinned", "{ key: JobKey; on: boolean }", "boolean"),
     ("move_jobs", "{ to: Place; keys: JobKey[] }", "JobKey[]"),
+    ("move_back", "{ jobs: MoveBack[] }", "JobKey[]"),
+    ("restore_jobs", "{ keys: JobKey[] }", "JobKey[]"),
     (
         "set_override",
         "{ key: JobKey; include: boolean }",
@@ -70,8 +72,12 @@ pub const COMMANDS: [(&str, &str, &str); 34] = [
         "Record<string, never>",
         "ProfileDraft | null",
     ),
-    ("parse_profile", "{ text: string }", "ProfileDraft"),
-    ("profile_prompt", "Record<string, never>", "string"),
+    (
+        "parse_profile",
+        "{ text: string; update: boolean }",
+        "ProfileDraft",
+    ),
+    ("profile_prompt", "{ update: boolean }", "string"),
     ("save_profile", "{ save: ProfileSave }", "ProfileInfo"),
     ("remove_profile", "Record<string, never>", "boolean"),
     ("restore_profile", "Record<string, never>", "boolean"),
@@ -111,6 +117,8 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + '
         jobs::mark_unread,
         jobs::set_pinned,
         jobs::move_jobs,
+        jobs::move_back,
+        jobs::restore_jobs,
         jobs::set_override,
         jobs::purge_jobs,
         jobs::empty_trash,
@@ -159,16 +167,16 @@ mod texts {
     // User-facing text, German.
     const DE: Dialogs = Dialogs {
         pick_workspace: "Arbeitsordner wählen",
-        pick_profile: "Beraterprofil (JSON) wählen",
-        profile_filter: "Beraterprofil",
+        pick_profile: "Profil wählen",
+        profile_filter: "Profil (JSON)",
     };
     // end of user-facing text
 
     // User-facing text, English.
     const EN: Dialogs = Dialogs {
         pick_workspace: "Choose the work folder",
-        pick_profile: "Choose a consultant profile (JSON)",
-        profile_filter: "Consultant profile",
+        pick_profile: "Choose a profile",
+        profile_filter: "Profile (JSON)",
     };
     // end of user-facing text
 }
@@ -245,6 +253,25 @@ pub enum Activity {
     Files,
 }
 
+/// What holds the app, by the name the page knows (a run by its kind); `None` while idle.
+fn activity_name(activity: &Activity) -> Option<serde_json::Value> {
+    match activity {
+        Activity::Idle => None,
+        Activity::Run(handle) => serde_json::to_value(handle.snapshot().kind).ok(),
+        Activity::Session(_) => Some("session".into()),
+        Activity::Files => Some("files".into()),
+    }
+}
+
+/// `Busy` with what holds the app as its `activity` (no prose: the page words it).
+fn busy_error(activity: &Activity) -> ErrorInfo {
+    let error = ErrorInfo::new(ErrorKind::Busy);
+    match activity_name(activity) {
+        Some(name) => error.with("activity", name),
+        None => error,
+    }
+}
+
 /// The app held for a file command ([`AppState::claim_files`]); dropped, the slot is free
 /// again and a profile change the command held up is scored.
 pub struct FilesGuard<'a> {
@@ -306,9 +333,21 @@ impl AppState {
         !matches!(*lock(&self.activity), Activity::Idle)
     }
 
+    /// What holds the app, as the page names it (`fetch`, `fullMailbox`, `details`,
+    /// `rescore`, `session`, `files`): the closing note and the busy error say which.
+    pub fn activity_name(&self) -> Option<serde_json::Value> {
+        activity_name(&lock(&self.activity))
+    }
+
+    /// The busy error, with what holds the app as its `activity`.
+    pub fn busy_error(&self) -> ErrorInfo {
+        busy_error(&lock(&self.activity))
+    }
+
     fn ensure_idle(&self) -> CmdResult<()> {
-        if self.busy() {
-            return Err(ErrorInfo::new(ErrorKind::Busy));
+        let activity = lock(&self.activity);
+        if !matches!(*activity, Activity::Idle) {
+            return Err(busy_error(&activity));
         }
         Ok(())
     }
@@ -318,7 +357,7 @@ impl AppState {
     fn claim_files(&self, app: &tauri::AppHandle) -> CmdResult<FilesGuard<'_>> {
         let mut activity = lock(&self.activity);
         if !matches!(*activity, Activity::Idle) {
-            return Err(ErrorInfo::new(ErrorKind::Busy));
+            return Err(busy_error(&activity));
         }
         *activity = Activity::Files;
         Ok(FilesGuard {
@@ -363,4 +402,20 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// "Not found" with what was looked for (`job`, `mail`, `folder`, `file`).
 fn not_found(what: &str) -> ErrorInfo {
     ErrorInfo::new(ErrorKind::NotFound).with("what", what)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The busy error names what holds the app, so the page can say it (no prose here).
+    #[test]
+    fn the_busy_error_names_what_holds_the_app() {
+        let files = busy_error(&Activity::Files);
+        assert_eq!(files.kind, ErrorKind::Busy);
+        assert_eq!(files.params.get("activity"), Some(&"files".into()));
+        let session = busy_error(&Activity::Session(CancellationToken::new()));
+        assert_eq!(session.params.get("activity"), Some(&"session".into()));
+        assert!(busy_error(&Activity::Idle).params.is_empty());
+    }
 }

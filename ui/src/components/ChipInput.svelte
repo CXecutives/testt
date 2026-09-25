@@ -1,7 +1,9 @@
 <!--
   A list of short values as chips in a field: type and press Enter (or leave the field) to
   add, x removes, Backspace in the empty field removes the last one, Esc drops what was
-  typed, a double click on a chip takes it back into the text to edit it. A list of terms
+  typed, a double click on a chip takes it back into the text to edit it. A chip's value is
+  copyable text (a drag selects it, Ctrl/Cmd+C copies); its x names what it removes in a
+  tooltip, like every icon-only button. A list of terms
   (`split` list) also splits at commas and semicolons, typed or pasted; a list of sentences
   or names that hold commas (`split` lines) only at line breaks. A value that is already
   there (in any case) is not added twice. Without `entry` the field only shows and removes
@@ -10,9 +12,12 @@
   With `options` the field takes only those (the countries of the profile): typing shows the
   options whose name or other names start with it (any word of them, in any case, with or
   without accents) in a list under the field, Enter or a click takes the marked one (the
-  first), leaving the field takes a single match. A chip shows its option's name; a value
-  that is no option (from a file) stays and shows as it is. Text that matches nothing stays
-  in the field and says so (`noMatch`).
+  first), leaving the field takes a single match. The list has one mark, like a native
+  menu: the pointer moves it as the arrows do. A chip shows its option's name; a value that
+  is no option (from a file) stays and shows as it is. Text that matches no option stays in
+  the field and says so (`noMatch`); text that matches only chosen ones says nothing.
+  Typed text that is no chip yet is a change of the form around the field (`typedText`), and
+  Ctrl/Cmd+S takes it in first, as leaving the field would.
 -->
 <script lang="ts" module>
   /** A value a field with options can take: its id, its name, other names to find it by. */
@@ -29,8 +34,11 @@
 </script>
 
 <script lang="ts">
+  import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import { chipEdit, chipKeys, FIELD_ATTRIBUTES, type ChipKeyHandlers } from '$lib/input/input';
+  import { describedBy } from '$lib/state/described';
+  import { typedText } from '$lib/state/typed.svelte';
   import Icon from './Icon.svelte';
 
   interface Props {
@@ -40,6 +48,7 @@
     placeholder?: string | null;
     /** id of the text input, for the label of a Field. */
     id?: string | null;
+    /** Default: the message of its Field, while it shows one. */
     describedby?: string | null;
     invalid?: boolean;
     /** The field takes typed values (off: it only shows and removes). */
@@ -73,9 +82,18 @@
   const SEPARATORS = { list: /[,;\n\r\t]+/, lines: /[\n\r]+/ } as const;
   const separators = $derived(SEPARATORS[split]);
   const own = $props.id();
+  const described = describedBy();
 
   let draft = $state('');
   let input = $state<HTMLInputElement | null>(null);
+
+  // The form around the field counts typed text as a change.
+  const typed = typedText();
+  $effect(() => {
+    const holds = draft.trim() !== '';
+    typed?.set(own, holds ? () => (draft = '') : null);
+  });
+  $effect(() => () => typed?.set(own, null));
   /** The focus is in the field (the list of options shows only then). */
   let focused = $state(false);
   /** The marked option of the list (Enter takes it). */
@@ -88,8 +106,8 @@
   const labelOf = (value: string): string =>
     options?.find((option) => option.id === value)?.label ?? value;
 
-  /** Options not chosen yet whose names start with the typed text (a whole name first). */
-  const matches = $derived.by((): ChipOption[] => {
+  /** Options whose names start with the typed text (a whole name first), chosen or not. */
+  const found = $derived.by((): ChipOption[] => {
     const query = folded(draft);
     if (options === null || query === '') return [];
     const rank = (option: ChipOption): number => {
@@ -101,14 +119,28 @@
       return 2;
     };
     return options
-      .filter((option) => !values.includes(option.id))
       .map((option) => ({ option, rank: rank(option) }))
       .filter((entry) => entry.rank < 2)
       .sort((a, b) => a.rank - b.rank || a.option.label.localeCompare(b.option.label))
       .map((entry) => entry.option);
   });
+  /** The options found that are not chosen yet: the list under the field. */
+  const matches = $derived(found.filter((option) => !values.includes(option.id)));
   const listed = $derived(focused && matches.length > 0);
-  const nothing = $derived(options !== null && folded(draft) !== '' && matches.length === 0);
+  /** The typed text names an option that is a chip already: taking it only clears the text. */
+  const chosen = $derived(
+    options !== null &&
+      folded(draft) !== '' &&
+      options.some(
+        (option) =>
+          values.includes(option.id) &&
+          [option.label, option.id, ...(option.terms ?? [])].some(
+            (name) => folded(name) === folded(draft),
+          ),
+      ),
+  );
+  /** The typed text names no option at all (one that is chosen already is no news). */
+  const nothing = $derived(options !== null && folded(draft) !== '' && found.length === 0);
 
   $effect(() => {
     void draft;
@@ -147,6 +179,7 @@
       if (draft.trim() === '') return false;
       const option = matches[active] ?? matches[0];
       if (option) choose(option);
+      else if (chosen) draft = '';
       return true;
     }
     const added = add(draft);
@@ -157,6 +190,11 @@
   /** The field is left: typed text becomes chips; with options only a single match. */
   function leave(): void {
     focused = false;
+    settle();
+  }
+
+  /** Typed text becomes chips as when leaving the field; with options only a single match. */
+  function settle(): void {
     if (options === null) {
       commit();
       return;
@@ -168,6 +206,7 @@
     );
     const only = exact.length === 1 ? exact[0] : matches.length === 1 ? matches[0] : undefined;
     if (only) choose(only);
+    else if (chosen) draft = '';
   }
 
   function remove(index: number): void {
@@ -178,6 +217,7 @@
   /** The keys of input.ts; the arrows move the mark in the list of options. */
   const keys: ChipKeyHandlers & { step: (by: -1 | 1) => boolean } = {
     commit,
+    settle,
     removeLast: (): boolean => {
       if (draft !== '' || values.length === 0) return false;
       update(values.slice(0, -1));
@@ -235,17 +275,18 @@
     role="presentation"
     data-testid={testid ?? undefined}
     onpointerdown={focusInput}
-    use:chipEdit={edit}
+    use:chipEdit={entry && options === null ? edit : null}
   >
     {#each values as value, index (value)}
       <span class="chip" data-chip={index} data-value={value}>
-        <span class="text">{labelOf(value)}</span>
+        <span class="text" data-copy>{labelOf(value)}</span>
         <button
           type="button"
           class="remove"
           tabindex="-1"
           data-keep-focus
           aria-label={t.chips.remove(labelOf(value))}
+          use:tooltip={t.chips.remove(labelOf(value))}
           onclick={() => remove(index)}
         >
           <Icon name="x" size="xs" />
@@ -266,7 +307,7 @@
         aria-activedescendant={listed ? `${own}-option-${active}` : undefined}
         aria-label={label ?? undefined}
         aria-invalid={invalid ? 'true' : undefined}
-        aria-describedby={[describedby, nothing ? `${own}-none` : null]
+        aria-describedby={[describedby ?? described(), nothing ? `${own}-none` : null]
           .filter((part) => part !== null)
           .join(' ') || undefined}
         placeholder={values.length === 0 ? (placeholder ?? undefined) : undefined}
@@ -300,6 +341,7 @@
           aria-selected={index === active}
           tabindex="-1"
           data-keep-focus
+          onpointermove={() => (active = index)}
           onclick={() => choose(option)}
         >
           {option.label}
@@ -371,9 +413,10 @@
     cursor: default;
   }
 
+  /* A long value wraps at its spaces; a word breaks only when it cannot fit alone. */
   .text {
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   .remove {
@@ -461,11 +504,7 @@
     white-space: nowrap;
   }
 
-  .option:hover,
-  .option.active {
-    background-color: var(--surface-hover);
-  }
-
+  /* One mark: the pointer moves it (pointermove), never a second wash of its own. */
   .option.active {
     background-color: var(--active-surface);
     color: var(--active-text);

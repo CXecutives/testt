@@ -1,6 +1,5 @@
 <!-- Gallery: toggles, segmented controls, fields, chip fields, disclosure and setting rows. -->
 <script lang="ts">
-  import Badge from '$components/Badge.svelte';
   import ChipInput from '$components/ChipInput.svelte';
   import Disclosure from '$components/Disclosure.svelte';
   import Field from '$components/Field.svelte';
@@ -188,7 +187,6 @@
       />
     </SettingRow>
     <SettingRow label={t.locked} hint={t.lockedReason}>
-      {#snippet badges()}<Badge tone="warning" label={t.risk} icon="shield" />{/snippet}
       <Toggle
         checked={false}
         label={t.locked}

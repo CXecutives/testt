@@ -9,6 +9,12 @@ It is optional. The app scores every job itself (stage 1, `docs/MATCHING.md`) an
 from the skill. The skill runs in the user's own Claude (no API key, it counts against the
 user's plan) and reads only the app's top 5 ads, or up to 10 on request, so it stays cheap.
 
+Without the skill, the app copies the same check as a prompt for any AI chat: one job from the
+reader, or the best current matches from the overview. The prompt carries this rubric, the
+skill's method and the app's own assessment of the job (hard criteria with the ad's words,
+requirements with the profile entry behind them), so the skill is only needed for a report over
+the work folder (`core/src/export/ai_prompt.rs`).
+
 ## What it needs
 
 - A fetch in the app with a profile, so the work folder holds `auswertung/top_matches.json`,

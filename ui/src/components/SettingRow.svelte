@@ -5,15 +5,16 @@
      --row-inset, so its divider and its text share the container's grid.
      With `for` (the id of its switch) the row works like a row of the system settings of
      Windows 11 and macOS: only the switch switches (user decision). The label names the
-     switch and the hint describes it (`{for}-label`, `{for}-hint`, read by Toggle), but
-     neither is a click target, and the row never reacts to the pointer. -->
+     switch and the hint describes it (`{for}-label`, and `{for}-hint` while there is a hint,
+     read by Toggle), but neither is a click target, and the row never reacts to the pointer. -->
 <script lang="ts">
+  import { describe } from '$lib/state/described';
   import type { Snippet } from 'svelte';
 
   interface Props {
     label: string;
     hint?: string | null;
-    /** Badges next to the label (e.g. the risk of a portal switch). */
+    /** Badges next to the label (e.g. Verbunden). */
     badges?: Snippet | null;
     /** The hint is a value a user would copy (a folder path). */
     copy?: boolean;
@@ -35,6 +36,8 @@
     testid = null,
     children,
   }: Props = $props();
+
+  describe(() => (control !== null && hint ? `${control}-hint` : null));
 </script>
 
 <div
@@ -123,7 +126,7 @@
   /* A ghost button at the end lines its text up with the edge, like toggles and bordered
      buttons (the ghost's own padding would inset it). */
   .control :global(.btn.ghost.sm:last-child) {
-    margin-right: calc(-1 * var(--space-12));
+    margin-right: calc(-1 * var(--ghost-inset));
   }
 
   /* In a narrow container (the settings page at the minimum window) buttons go under the

@@ -6,8 +6,7 @@ use jobalert_core::model::Place;
 use jobalert_core::pipeline::{self, Matcher, demo};
 use jobalert_core::portal::JobKey;
 use jobalert_core::profile;
-use jobalert_core::store::JobRow;
-use jobalert_core::view::{self, Deleted, JobDetail, JobPage, JobQuery, JobView};
+use jobalert_core::view::{self, Deleted, JobDetail, JobPage, JobQuery, MoveBack};
 use tauri::{AppHandle, State};
 
 use super::{AppState, CmdResult, files, not_found};
@@ -71,6 +70,40 @@ pub async fn move_jobs(
     to: Place,
 ) -> CmdResult<Vec<JobKey>> {
     let moved = state.store.move_jobs(&keys, to, Timestamp::now())?;
+    if !moved.is_empty() {
+        files::marked(&app);
+    }
+    Ok(moved)
+}
+
+/// "Wiederherstellen": takes jobs out of the trash, back to where they lay (the archive for
+/// a job thrown away from there, the inbox otherwise); returns the keys that really left it.
+#[tauri::command]
+pub async fn restore_jobs(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    keys: Vec<JobKey>,
+) -> CmdResult<Vec<JobKey>> {
+    let restored = state.store.restore_jobs(&keys, Timestamp::now())?;
+    if !restored.is_empty() {
+        files::marked(&app);
+    }
+    Ok(restored)
+}
+
+/// Takes moves back (the undo of a toast): each job returns to the place it came from as it
+/// was there, into the trash with its earlier date; returns the keys that really moved.
+#[tauri::command]
+pub async fn move_back(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    jobs: Vec<MoveBack>,
+) -> CmdResult<Vec<JobKey>> {
+    let back: Vec<_> = jobs
+        .into_iter()
+        .map(|job| (job.key, job.to, job.trashed_at))
+        .collect();
+    let moved = state.store.move_back(&back, Timestamp::now())?;
     if !moved.is_empty() {
         files::marked(&app);
     }
@@ -156,51 +189,21 @@ fn prompt_profile(state: &AppState) -> CmdResult<serde_json::Value> {
     profile.ok_or_else(|| not_found("profile"))
 }
 
-/// What a prompt needs of one job: its row, link, text and the app's findings.
-struct Prompted {
-    view: JobView,
-    url: String,
-    text: Option<String>,
-    findings: Option<export::TopMatch>,
-}
-
-fn prompted(state: &AppState, row: &JobRow) -> CmdResult<Prompted> {
-    let matcher = state.matcher();
-    let matcher = matcher.as_deref().map(|m| m as &dyn Matcher);
-    Ok(Prompted {
-        view: JobView::from(row),
-        url: row.url.to_string(),
-        text: state.store.description(&row.key)?,
-        findings: export::findings(&state.store, matcher, row)?,
-    })
-}
-
-impl Prompted {
-    fn item(&self) -> export::PromptJob<'_> {
-        export::PromptJob {
-            job: &self.view,
-            url: &self.url,
-            text: self.text.as_deref(),
-            findings: self.findings.as_ref(),
-        }
-    }
-}
-
-/// The prompt for a deep analysis of a job in any AI chat: the rubric in short, the profile
-/// without name and contact data, the ad and the app's findings. The app sends it nowhere.
+/// The prompt for a deep analysis of a job in any AI chat: the profile without name and
+/// contact data, the ad with its key facts, the app's pre-assessment to check, the method,
+/// the rubric and the answer format. The app sends it nowhere.
 #[tauri::command]
 pub async fn ai_prompt(state: State<'_, AppState>, key: JobKey) -> CmdResult<String> {
     let profile = prompt_profile(&state)?;
     let row = state.store.job(&key)?.ok_or_else(|| not_found("job"))?;
-    Ok(export::ai_prompt(
-        &profile,
-        prompted(&state, &row)?.item(),
-        state.language()?,
-    ))
+    let matcher = state.matcher();
+    let source = export::PromptSource::load(&state.store, matcher.as_deref(), &row)?;
+    Ok(export::ai_prompt(&profile, source.job(), state.language()?))
 }
 
 /// One prompt that compares the best current matches (3 to 5; saved first, then the best
-/// open ones; never excluded, archived or in an application) with the profile.
+/// open ones; never excluded, archived or in an application) with the profile, a ranking
+/// first.
 #[tauri::command]
 pub async fn ai_prompt_top(state: State<'_, AppState>, limit: u32) -> CmdResult<String> {
     let profile = prompt_profile(&state)?;
@@ -213,11 +216,13 @@ pub async fn ai_prompt_top(state: State<'_, AppState>, limit: u32) -> CmdResult<
     if rows.is_empty() {
         return Err(not_found("jobs"));
     }
-    let jobs = rows
+    // Each job assessed afresh from its stored text with the current profile.
+    let matcher = state.matcher();
+    let sources = rows
         .iter()
-        .map(|row| prompted(&state, row))
-        .collect::<CmdResult<Vec<_>>>()?;
-    let items: Vec<export::PromptJob<'_>> = jobs.iter().map(Prompted::item).collect();
+        .map(|row| export::PromptSource::load(&state.store, matcher.as_deref(), row))
+        .collect::<jobalert_core::Result<Vec<_>>>()?;
+    let items: Vec<export::PromptJob<'_>> = sources.iter().map(export::PromptSource::job).collect();
     Ok(export::ai_prompt_top(&profile, &items, state.language()?))
 }
 

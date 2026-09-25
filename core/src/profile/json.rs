@@ -69,6 +69,24 @@ impl Json {
         }
     }
 
+    /// Sets `key` of an object: in its place if it exists, else before the first of `before`
+    /// that is there, else at the end.
+    pub(crate) fn insert_before(&mut self, key: &str, value: Json, before: &[&str]) {
+        if self.get(key).is_some() {
+            self.set(key, value);
+            return;
+        }
+        if let Json::Object(entries) = self {
+            let at = entries
+                .iter()
+                .position(|(k, _)| before.contains(&k.as_str()))
+                .unwrap_or(entries.len());
+            entries.insert(at, (key.to_owned(), value));
+        } else {
+            self.set(key, value);
+        }
+    }
+
     /// Removes `key` of an object; `true` if it was there.
     pub(crate) fn remove(&mut self, key: &str) -> bool {
         match self {
@@ -266,6 +284,13 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&doc).unwrap(),
             "{\"b\":\"x\",\"c\":true,\"d\":{}}"
+        );
+        doc.insert_before("e", Json::number(1), &["c", "d"]);
+        doc.insert_before("b", Json::number(2), &["c"]);
+        doc.insert_before("f", Json::number(3), &["z"]);
+        assert_eq!(
+            serde_json::to_string(&doc).unwrap(),
+            "{\"b\":2,\"e\":1,\"c\":true,\"d\":{},\"f\":3}"
         );
     }
 

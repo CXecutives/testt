@@ -35,41 +35,54 @@ pub const COLUMNS: [&str; 12] = [
     "Alert-Mail in Gmail",
     "Zuerst gesehen",
     "Details",
-    "Schlüssel",
+    "Job-ID",
     "Passung",
 ];
 
-/// Label and warning of the last row of the info sheet.
+/// Label and warning of the last row of the info sheet. Not only a fetch writes the file: a
+/// rescore, a details run and "Endgültig löschen" do too.
 pub const INFO_NOTE_LABEL: &str = "Hinweis";
 pub const INFO_NOTE: &str =
-    "Diese Datei entsteht bei jedem Abruf neu, eigene Notizen gehen dabei verloren.";
+    "Die App schreibt diese Datei immer wieder neu, eigene Notizen gehen dabei verloren.";
 
-/// Labels of the info sheet (the mail address is deliberately not among them).
-pub const INFO_LAST_SCAN: &str = "Letzter Postfach-Abruf";
-pub const INFO_SCOPE: &str = "Umfang des letzten Postfach-Abrufs";
-pub const INFO_NEW: &str = "Neu beim letzten Postfach-Abruf";
-pub const INFO_KNOWN: &str = "Schon bekannt beim letzten Postfach-Abruf";
-pub const INFO_DUP: &str = "In mehreren Alert-Mails beim letzten Postfach-Abruf";
-pub const INFO_LAST_RUN: &str = "Letzter Abruf";
+/// Labels of the info sheet (the mail address is deliberately not among them). The mailbox
+/// is "gelesen" like "Ganzes Postfach lesen" in the interface; "Abruf" is the whole run.
+pub const INFO_LAST_SCAN: &str = "Postfach zuletzt gelesen";
+pub const INFO_SCOPE: &str = "Umfang beim letzten Lesen des Postfachs";
+pub const INFO_NEW: &str = "Neu beim letzten Lesen des Postfachs";
+pub const INFO_KNOWN: &str = "Schon bekannt beim letzten Lesen des Postfachs";
+pub const INFO_DUP: &str = "In mehreren Alert-Mails beim letzten Lesen des Postfachs";
 pub const INFO_JOBS_TOTAL: &str = "Jobs gesamt";
 pub const INFO_PROGRAM: &str = "Programm";
 pub const PROGRAM_NAME: &str = "Job-Alert-Monitor";
 
 /// Scope of a mailbox scan in words.
 pub const SCOPE_NEW: &str = "Neu seit dem letzten Abruf";
-pub const SCOPE_ALL: &str = "Alle";
+pub const SCOPE_ALL: &str = "Ganzes Postfach";
 
 /// Words of the HTML overview. "Übersicht" names this file only, like "Übersicht öffnen" in
-/// the interface; the favourites are "Favoriten" like its facet.
+/// the interface; the favourites are "Favoriten" like its facet, the new matches "Neu und
+/// passend" like the day overview's section.
 pub const HTML_TITLE: &str = "Übersicht";
 pub const HTML_PINNED: &str = "Favoriten";
-pub const HTML_NEW: &str = "Neue passende Jobs";
+pub const HTML_NEW: &str = "Neu und passend";
 pub const HTML_CREATED: &str = "Erstellt am";
 pub const HTML_EMPTY: &str = "Keine neuen passenden Jobs.";
+
+/// Under a cut list of new matches: how many more the app lists.
+pub fn html_more(count: usize) -> String {
+    if count == 1 {
+        "1 weiterer Job in der App.".to_owned()
+    } else {
+        format!("{} weitere Jobs in der App.", group(count, '.'))
+    }
+}
 pub const HTML_MATCH: &str = "Passung";
 pub const HTML_MET: &str = "Erfüllt";
 pub const HTML_EXCLUDED: &str = "Ausgeschlossen";
 pub const HTML_UNSCORABLE: &str = "Nicht bewertbar";
+/// A job not scored yet (also one that waits for its details), like the app's ring.
+pub const HTML_NONE: &str = "Noch nicht bewertet";
 
 /// Why a job is excluded, by the code of its first violation (the list's `note`), in the
 /// words of the interface's criteria. `None` for a code without a text: the overview then
@@ -79,11 +92,11 @@ pub fn exclusion_reason(code: &str, params: &Map<String, Value>) -> Option<&'sta
         "dayRate" => "Der Tagessatz liegt unter dem Minimum im Profil.",
         "country" => "Der Einsatzort liegt außerhalb der Länder im Profil.",
         "anue" => "Die Anzeige nennt Arbeitnehmerüberlassung.",
-        "permanent" => "Die Stelle ist eine Festanstellung, das Profil schließt sie aus.",
+        "permanent" => "Der Job ist eine Festanstellung, das Profil schließt sie aus.",
         "availability" => "Der Start passt nicht zur Verfügbarkeit.",
         "salary" => "Das Gehalt liegt unter dem Minimum im Profil.",
-        "permanentRegion" => "Die Festanstellung liegt außerhalb der Region im Profil.",
-        "tooJunior" => "Die Stelle verlangt deutlich weniger Erfahrung.",
+        "permanentRegion" => "Der Ort liegt außerhalb der Orte für Festanstellung.",
+        "tooJunior" => "Der Job verlangt deutlich weniger Erfahrung.",
         "formalOpen" if licence(params) => {
             "Die Anzeige verlangt eine Zulassung, die das Profil nicht nennt."
         }
@@ -105,7 +118,7 @@ pub fn details_label(detail: DetailState, closed: bool, short: bool) -> &'static
         DetailState::Teaser => "Nur Anriss",
         DetailState::Failed { .. } => "Details fehlen",
         DetailState::Gone => "Nicht mehr online",
-        DetailState::Unfetchable => "Nicht abrufbar",
+        DetailState::Unfetchable => "Nicht erreichbar",
     }
 }
 // end of user-facing text
@@ -133,46 +146,54 @@ pub mod en {
         "Alert email in Gmail",
         "First seen",
         "Details",
-        "Key",
+        "Job ID",
         "Match",
     ];
 
     pub const INFO_NOTE_LABEL: &str = "Note";
     pub const INFO_NOTE: &str =
-        "This file is written anew at every fetch, so notes added here are lost.";
+        "The app rewrites this file from time to time, so notes added here are lost.";
 
-    pub const INFO_LAST_SCAN: &str = "Last mailbox fetch";
-    pub const INFO_SCOPE: &str = "Scope of the last mailbox fetch";
-    pub const INFO_NEW: &str = "New at the last mailbox fetch";
-    pub const INFO_KNOWN: &str = "Already known at the last mailbox fetch";
-    pub const INFO_DUP: &str = "In several alert emails at the last mailbox fetch";
-    pub const INFO_LAST_RUN: &str = "Last fetch";
+    pub const INFO_LAST_SCAN: &str = "Mailbox last read";
+    pub const INFO_SCOPE: &str = "Scope of the last mailbox read";
+    pub const INFO_NEW: &str = "New at the last mailbox read";
+    pub const INFO_KNOWN: &str = "Already known at the last mailbox read";
+    pub const INFO_DUP: &str = "In several alert emails at the last mailbox read";
     pub const INFO_JOBS_TOTAL: &str = "Jobs in total";
     pub const INFO_PROGRAM: &str = "Program";
 
     pub const SCOPE_NEW: &str = "New since the last fetch";
-    pub const SCOPE_ALL: &str = "All";
+    pub const SCOPE_ALL: &str = "Whole mailbox";
 
     pub const HTML_TITLE: &str = "Overview";
     pub const HTML_PINNED: &str = "Favourites";
-    pub const HTML_NEW: &str = "New matching jobs";
+    pub const HTML_NEW: &str = "Best new matches";
     pub const HTML_CREATED: &str = "Created on";
     pub const HTML_EMPTY: &str = "No new matching jobs.";
+
+    pub fn html_more(count: usize) -> String {
+        if count == 1 {
+            "1 more job in the app.".to_owned()
+        } else {
+            format!("{} more jobs in the app.", super::group(count, ','))
+        }
+    }
     pub const HTML_MATCH: &str = "Match";
     pub const HTML_MET: &str = "Met";
     pub const HTML_EXCLUDED: &str = "Excluded";
     pub const HTML_UNSCORABLE: &str = "Not scorable";
+    pub const HTML_NONE: &str = "Not scored yet";
 
     pub fn exclusion_reason(code: &str, params: &Map<String, Value>) -> Option<&'static str> {
         Some(match code {
             "dayRate" => "The day rate is below the minimum in the profile.",
             "country" => "The location is outside the countries in the profile.",
             "anue" => "The ad mentions temporary agency work.",
-            "permanent" => "This is a permanent role, which the profile excludes.",
+            "permanent" => "This is a permanent job, which the profile excludes.",
             "availability" => "The start does not fit the availability.",
             "salary" => "The salary is below the minimum in the profile.",
-            "permanentRegion" => "The permanent role is outside the region in the profile.",
-            "tooJunior" => "The role asks for much less experience.",
+            "permanentRegion" => "The location is outside your locations for permanent jobs.",
+            "tooJunior" => "The job asks for much less experience.",
             "formalOpen" if licence(params) => {
                 "The ad requires a licence the profile does not name."
             }
@@ -198,6 +219,19 @@ pub mod en {
     // end of user-facing text
 }
 
+/// A count with its thousands grouped like the app's numbers (`1.234`, `1,234`).
+fn group(count: usize, separator: char) -> String {
+    let digits = count.to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (i, digit) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(separator);
+        }
+        out.push(digit);
+    }
+    out
+}
+
 /// Does a `formalOpen` violation name a licence (not a degree)?
 fn licence(params: &Map<String, Value>) -> bool {
     params.get("class").and_then(Value::as_str) == Some("licence")
@@ -206,10 +240,21 @@ fn licence(params: &Map<String, Value>) -> bool {
 /// Words of the info sheet an earlier version stored with the last mailbox scan in a wording
 /// of this file that changed since, and the German word of that row today - do not
 /// translate.
-const FORMER_WORDS: [(&str, &str); 1] = [(
-    "Doppelt in mehreren Alert-Mails beim letzten Postfach-Abruf",
-    INFO_DUP,
-)];
+const FORMER_WORDS: [(&str, &str); 7] = [
+    (
+        "Doppelt in mehreren Alert-Mails beim letzten Postfach-Abruf",
+        INFO_DUP,
+    ),
+    ("Letzter Postfach-Abruf", INFO_LAST_SCAN),
+    ("Umfang des letzten Postfach-Abrufs", INFO_SCOPE),
+    ("Neu beim letzten Postfach-Abruf", INFO_NEW),
+    ("Schon bekannt beim letzten Postfach-Abruf", INFO_KNOWN),
+    (
+        "In mehreren Alert-Mails beim letzten Postfach-Abruf",
+        INFO_DUP,
+    ),
+    ("Alle", SCOPE_ALL),
+];
 
 /// The words of the files in one language.
 pub struct Texts {
@@ -224,7 +269,6 @@ pub struct Texts {
     pub info_new: &'static str,
     pub info_known: &'static str,
     pub info_dup: &'static str,
-    pub info_last_run: &'static str,
     pub info_jobs_total: &'static str,
     pub info_program: &'static str,
     pub scope_new: &'static str,
@@ -234,10 +278,13 @@ pub struct Texts {
     pub html_new: &'static str,
     pub html_created: &'static str,
     pub html_empty: &'static str,
+    /// Under a cut list of new matches: how many more the app lists.
+    pub html_more: fn(usize) -> String,
     pub html_match: &'static str,
     pub html_met: &'static str,
     pub html_excluded: &'static str,
     pub html_unscorable: &'static str,
+    pub html_none: &'static str,
     /// A moment as text (`strftime`): `19.09.2026 14:05`, `19/09/2026 14:05`.
     pub moment: &'static str,
     /// The number format of the date cells in Excel.
@@ -259,7 +306,6 @@ pub const DE: Texts = Texts {
     info_new: INFO_NEW,
     info_known: INFO_KNOWN,
     info_dup: INFO_DUP,
-    info_last_run: INFO_LAST_RUN,
     info_jobs_total: INFO_JOBS_TOTAL,
     info_program: INFO_PROGRAM,
     scope_new: SCOPE_NEW,
@@ -269,10 +315,12 @@ pub const DE: Texts = Texts {
     html_new: HTML_NEW,
     html_created: HTML_CREATED,
     html_empty: HTML_EMPTY,
+    html_more,
     html_match: HTML_MATCH,
     html_met: HTML_MET,
     html_excluded: HTML_EXCLUDED,
     html_unscorable: HTML_UNSCORABLE,
+    html_none: HTML_NONE,
     moment: "%d.%m.%Y %H:%M",
     excel_moment: "dd.mm.yyyy hh:mm",
     exclusion: exclusion_reason,
@@ -292,7 +340,6 @@ pub const EN: Texts = Texts {
     info_new: en::INFO_NEW,
     info_known: en::INFO_KNOWN,
     info_dup: en::INFO_DUP,
-    info_last_run: en::INFO_LAST_RUN,
     info_jobs_total: en::INFO_JOBS_TOTAL,
     info_program: en::INFO_PROGRAM,
     scope_new: en::SCOPE_NEW,
@@ -302,10 +349,12 @@ pub const EN: Texts = Texts {
     html_new: en::HTML_NEW,
     html_created: en::HTML_CREATED,
     html_empty: en::HTML_EMPTY,
+    html_more: en::html_more,
     html_match: en::HTML_MATCH,
     html_met: en::HTML_MET,
     html_excluded: en::HTML_EXCLUDED,
     html_unscorable: en::HTML_UNSCORABLE,
+    html_none: en::HTML_NONE,
     moment: "%d/%m/%Y %H:%M",
     excel_moment: "dd/mm/yyyy hh:mm",
     exclusion: en::exclusion_reason,
@@ -416,9 +465,16 @@ mod tests {
         }
         assert_eq!(EN.from_german("3"), None);
         // A row stored in a wording this file used before reads as today's row.
-        let (former, today) = FORMER_WORDS[0];
-        assert_eq!(DE.from_german(former), Some(today));
-        assert_eq!(EN.from_german(former), Some(en::INFO_DUP));
+        for (former, today) in FORMER_WORDS {
+            assert_eq!(DE.from_german(former), Some(today));
+            let index = DE.stored_words().iter().position(|w| *w == today).unwrap();
+            assert_eq!(EN.from_german(former), Some(EN.stored_words()[index]));
+        }
+        assert_eq!(
+            EN.from_german("Letzter Postfach-Abruf"),
+            Some(en::INFO_LAST_SCAN)
+        );
+        assert_eq!(EN.from_german("Alle"), Some(en::SCOPE_ALL));
         for (de, en) in DE.columns.iter().zip(EN.columns) {
             // Product and loan words are the same in both.
             if !["Portal", "Link", "Details"].contains(de) {

@@ -116,7 +116,7 @@ fn countries_of(value: &Value) -> Option<Vec<String>> {
 /// A country of the profile as its ISO code: a two-letter code as written ("UK" is GB), or a
 /// country name the engine knows ("Deutschland", "Österreich", "Switzerland"); `None` for
 /// anything else, so an unknown name is reported instead of excluding every country.
-fn country_code(entry: &str) -> Option<String> {
+pub(crate) fn country_code(entry: &str) -> Option<String> {
     let text = entry.trim();
     if text.len() == 2 && text.chars().all(|c| c.is_ascii_alphabetic()) {
         let code = text.to_ascii_uppercase();
@@ -415,14 +415,33 @@ pub(crate) fn own_text(text: &str) -> &str {
     let mut offset = 0;
     for line in text.split_inclusive('\n') {
         let folded = fold(line.trim());
-        let heading = folded.chars().count() <= 48
-            && lex::OTHER_LISTINGS.iter().any(|p| folded.starts_with(p));
+        let heading = folded.chars().count() <= 48 && is_listings_heading(&folded);
         if heading && offset > 0 {
             return &text[..offset];
         }
         offset += line.len();
     }
     text
+}
+
+/// A folded line that heads the other listings of a portal: a heading of
+/// `lexicon::OTHER_LISTINGS` as whole words, then nothing, a count (`(12)`), a colon or a
+/// known tail (`anzeigen`, `dieses Anbieters`). A line that goes on is a sentence of the ad
+/// (`Ähnliche Projekterfahrung von Vorteil`, `Weitere Projekte sind geplant.`).
+pub(crate) fn is_listings_heading(folded: &str) -> bool {
+    lex::OTHER_LISTINGS.iter().any(|heading| {
+        let Some(tail) = folded.strip_prefix(heading) else {
+            return false;
+        };
+        if tail.chars().next().is_some_and(char::is_alphanumeric) {
+            return false;
+        }
+        let tail = tail.trim().trim_end_matches(':').trim_end();
+        let count = tail.trim_start_matches('(').trim_end_matches(')');
+        tail.is_empty()
+            || (!count.is_empty() && count.chars().all(|c| c.is_ascii_digit()))
+            || lex::LISTING_TAILS.contains(&tail)
+    })
 }
 
 /// Sentences of the text (also split at ` // `, ` · `, ` | `, ` • `), as byte ranges with
@@ -832,10 +851,11 @@ pub(crate) fn rate_in(folded: &str) -> Option<Rate> {
         .max_by_key(Rate::per_day)
 }
 
-/// A currency next to a time unit (`110 EUR/h`, `EUR pro Stunde`, `CHF/Tag`). Only a text
+/// A currency next to a time unit, also with the amount between them (`110 EUR/h`, `EUR pro
+/// Stunde`, `CHF/Tag`, LinkedIn's `€420/day`). Only a text
 /// with one of `CURRENCY_MARKS` can match (the regex is checked after them).
 static CURRENCY_PER_TIME: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?:€|\beur\b|\beuro\b|\bchf\b|\busd\b|\bgbp\b)\s*(?:/|\bpro\b|\bper\b|\bje\b)\s*(?:h\b|std\b|stunde|tag\b|day\b|hour|pt\b|mt\b)")
+    Regex::new(r"(?:€|\beur\b|\beuro\b|\bchf\b|\busd\b|\bgbp\b)\s*(?:\d[\d.,]*\s*)?(?:/|\bpro\b|\bper\b|\bje\b)\s*(?:h\b|hr\b|std\b|stunde|tag\b|day\b|hour|pt\b|mt\b)")
         .expect("currency per time")
 });
 
@@ -901,7 +921,11 @@ pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
         }
     }
     let upper = amounts.into_iter().max()?;
-    let hourly = lex::HOURLY_WORDS.iter().any(|w| folded.contains(w));
+    let names = |f: &str, words: &[&str]| words.iter().any(|w| f.contains(w));
+    // The value beats its label: `Stundensatz: Tagessatz 1.100 - 1.250 €` is a day rate.
+    let value = folded.split_once(':').map_or(folded, |(_, v)| v);
+    let hourly = names(folded, lex::HOURLY_WORDS)
+        && (names(value, lex::HOURLY_WORDS) || !names(value, lex::DAILY_WORDS));
     let currency = lex::OTHER_CURRENCIES
         .iter()
         .find(|w| folded.contains(**w))
@@ -963,7 +987,10 @@ fn rate_context(folded: &str, start: usize, end: usize) -> bool {
         .iter()
         .find_map(|w| before.strip_suffix(w))
         .map_or(before, |b| {
-            b.trim_end_matches(|c: char| c.is_whitespace() || matches!(c, ':' | '('))
+            // `EUR 1,100 to 1,250`: past the lower end of the range to its unit.
+            b.trim_end_matches(|c: char| {
+                c.is_whitespace() || c.is_ascii_digit() || matches!(c, ':' | '(' | '.' | ',')
+            })
         });
     lex::RATE_UNITS
         .iter()
@@ -1191,6 +1218,26 @@ mod tests {
         let whole = "Ähnliche Projekte im Mittelstand erfolgreich umgesetzt und begleitet, \
                      idealerweise mehrere davon";
         assert_eq!(own_text(whole), whole);
+        // Nor is a short line that goes on after the heading's words, or a sentence.
+        for line in [
+            "Ähnliche Projekterfahrung von Vorteil",
+            "Weitere Projekterfahrung wünschenswert",
+            "Weitere Projekte sind bereits geplant.",
+            "Andere Projekte im Konzern laufen parallel",
+        ] {
+            let text = format!("Ihr Profil\n{line}\nEinsatz über Arbeitnehmerüberlassung");
+            assert_eq!(own_text(&text), text, "{line}");
+        }
+        // A heading with a count, a colon or a known tail is one.
+        for heading in [
+            "Ähnliche Projekte (12)",
+            "Similar jobs:",
+            "Ähnliche Projekte anzeigen",
+            "Weitere Projekte dieses Anbieters",
+        ] {
+            let text = format!("Ihr Profil\n{heading}\nx");
+            assert_eq!(own_text(&text), "Ihr Profil\n", "{heading}");
+        }
         let english = "Contract: freelance\n\nSimilar jobs\nPayroll clerk (temporary agency work)";
         assert_eq!(own_text(english), "Contract: freelance\n\n");
         // A text that starts with such a heading keeps it (nothing before it).
@@ -1213,6 +1260,23 @@ mod tests {
                  Bei ANÜ gilt ein entsprechender Stundenlohn."
             ),
             [(ReasonCode::AnueOptional, false)]
+        );
+    }
+
+    #[test]
+    fn a_denied_anue_never_excludes_in_english_either() {
+        for text in [
+            "We contract freelancers only; Arbeitnehmerüberlassung (ANÜ) is excluded.",
+            "No temporary agency work.",
+            "The engagement is not via ANÜ but under a service contract.",
+            "A service contract without temporary agency work.",
+            "Temporary agency work is ruled out for this mandate.",
+        ] {
+            assert!(anue_codes(text).is_empty(), "{text}");
+        }
+        assert_eq!(
+            anue_codes("The assignment is temporary agency work via our staffing unit."),
+            [(ReasonCode::Anue, true)]
         );
     }
 
@@ -1266,6 +1330,28 @@ mod tests {
         ))
         .unwrap();
         assert_eq!((r.upper, r.hourly), (90, true));
+    }
+
+    #[test]
+    fn a_rate_range_reads_its_upper_end_in_every_spelling() {
+        let rate = |s: &str| rate_in(&fold(s)).map(|r| (r.upper, r.hourly));
+        // LinkedIn: the currency before each amount, the unit after it.
+        assert_eq!(rate("€610/day - €680/day"), Some((680, false)));
+        assert_eq!(rate("€85/hr - €95/hr"), Some((95, true)));
+        // English range words between two amounts after one currency.
+        assert_eq!(
+            rate("Daily rate: EUR 1,050 to 1,180 plus expenses"),
+            Some((1180, false))
+        );
+        assert_eq!(rate("Tagessatz 950 bis 1.050 €"), Some((1050, false)));
+        // A portal's rate label is overruled by the value it holds.
+        assert_eq!(
+            rate("Stundensatz: Tagessatz 980 - 1.120 €"),
+            Some((1120, false))
+        );
+        assert_eq!(rate("Stundensatz: 120 €"), Some((120, true)));
+        // A salary chip stays no rate.
+        assert_eq!(rate("€95,000/yr - €110,000/yr"), None);
     }
 
     #[test]

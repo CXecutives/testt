@@ -2,9 +2,9 @@
   A heading that opens a section. One chevron turns half a turn when open (180 ms,
   emphasized; the angle stays under reduced motion). The content fades in (100 ms) when the
   user opens it and is gone at once when closed: no height animation, which would lay out
-  the page in every frame. On hover the head's text darkens and its chevron turns navy (no
-  background); like a row it runs edge to edge in its container and pads its label by
-  --row-inset.
+  the page in every frame. On hover the head's text darkens and its chevron turns navy, deep
+  navy while pressed (no background); like a row it runs edge to edge in its container and
+  pads its label by --row-inset.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -77,6 +77,12 @@
 
   .head:hover .chevron {
     color: var(--icon-accent);
+  }
+
+  /* Pressed, the chevron darkens one step (the head has no background). */
+  :global(:where(:root:not([data-aux-press]))) .head:active:hover .chevron {
+    color: var(--pressed);
+    transition-duration: var(--dur-instant);
   }
 
   .open .chevron {

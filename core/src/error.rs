@@ -67,12 +67,20 @@ pub enum InvalidInput {
     ProfileNotObject { found: String },
     /// A value of the profile form is out of range; `field` names it (`minDayRate`, ...),
     /// `row` the entry of a list of rows (`competences`, `languages`), counted from 0 without
-    /// the empty rows.
+    /// the empty rows, `max` the highest number (or count of entries) it takes, where one is
+    /// the limit.
     #[error("the profile value {field} is out of range")]
-    ProfileValue { field: String, row: Option<u32> },
+    ProfileValue {
+        field: String,
+        row: Option<u32>,
+        max: Option<u32>,
+    },
     /// A pasted answer holds no profile JSON with anything the form can show.
     #[error("the answer holds no profile")]
     ProfileAnswer,
+    /// The profile JSON of a pasted answer breaks off (the AI stopped before its end).
+    #[error("the profile in the answer breaks off")]
+    ProfileAnswerCut,
     /// Not a complete e-mail address.
     #[error("not a complete mail address")]
     MailAddress,

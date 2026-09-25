@@ -2,14 +2,16 @@
   A whole number in a text field (years, euros, percent): digits only, an empty field is no
   value. Money is grouped like everywhere in the app (`1.100`, the euro sign stands in the
   label); the grouping comes back when the field is left, so typing never moves the caret.
-  Money typed with cents (`950,50` or `950.50`) counts whole euros and says so under the
-  field; a group of three digits after a point or comma is a thousands separator (`1.100`,
-  `1,100`). Every number field has the same width (or its column's, if that is narrower).
+  A decimal part is cut off, never joined to the digits (`7,5` years count 7), and once the
+  field is left a note under it says so; in money a group of three digits after a point or
+  comma is a thousands separator (`1.100`, `1,100`), one or two digits are cents (`950,50`).
+  Every number field has the same width (or its column's, if that is narrower).
 -->
 <script lang="ts">
   import TextField from '$components/TextField.svelte';
   import { formatNumber } from '$lib/i18n/format';
   import { t } from '$lib/i18n/t';
+  import { describedBy } from '$lib/state/described';
 
   interface Props {
     value: number | null;
@@ -38,15 +40,17 @@
   }: Props = $props();
 
   const noteId = $props.id();
+  const described = describedBy();
 
-  /** A typed text as a whole number and whether cents were cut off (`,00` cuts nothing). */
-  function read(text: string): { value: number | null; cents: boolean } {
-    const decimal = money ? /[.,](\d{1,2})$/.exec(text) : null;
-    const whole = decimal ? text.slice(0, decimal.index) : text;
+  /** A typed text as a whole number and whether a decimal part was cut off (`,00` cuts
+   *  nothing). */
+  function read(text: string): { value: number | null; cut: boolean } {
+    const at = money ? (/[.,]\d{0,2}$/.exec(text)?.index ?? -1) : text.search(/[.,]/);
+    const whole = at < 0 ? text : text.slice(0, at);
     const digits = whole.replace(/\D/g, '');
     return {
       value: digits === '' ? null : Number(digits.slice(0, 9)),
-      cents: /[1-9]/.test(decimal?.[1] ?? ''),
+      cut: at >= 0 && /[1-9]/.test(text.slice(at + 1)),
     };
   }
 
@@ -55,19 +59,28 @@
     number === null ? '' : money ? formatNumber(number) : String(number);
 
   let text = $state(shown(value));
-  /** The last input had cents: the note stays until the next input without them. */
+  /** The last input had a decimal part: said once the field is left, until the next input. */
+  let cut = false;
   let rounded = $state(false);
 
   // A value set from outside (discard, a new draft) shows in the field.
   $effect(() => {
     if (read(text).value !== value) {
       text = shown(value);
+      cut = false;
       rounded = false;
     }
   });
 </script>
 
-<span class="number" role="presentation" onfocusout={() => (text = shown(value))}>
+<span
+  class="number"
+  role="presentation"
+  onfocusout={() => {
+    text = shown(value);
+    rounded = cut;
+  }}
+>
   <span class="box">
     <TextField
       bind:value={text}
@@ -75,15 +88,19 @@
       {label}
       {placeholder}
       {invalid}
-      describedby={[rounded ? `${noteId}-rounded` : describedby, unit ? `${noteId}-unit` : null]
+      describedby={[
+        rounded ? `${noteId}-rounded` : (describedby ?? described()),
+        unit ? `${noteId}-unit` : null,
+      ]
         .filter((part) => part !== null)
         .join(' ') || null}
       {testid}
       oninput={(next) => {
-        const clean = next.replace(money ? /[^\d.,]/g : /\D/g, '');
+        const clean = next.replace(/[^\d.,]/g, '');
         if (clean !== next) text = clean;
         const typed = read(clean);
-        rounded = typed.cents;
+        cut = typed.cut;
+        rounded = false;
         value = typed.value;
       }}
     />
@@ -92,7 +109,7 @@
 </span>
 {#if rounded}
   <p class="note" id="{noteId}-rounded" data-testid={testid ? `${testid}-rounded` : undefined}>
-    {t.profile.field.rounded}
+    {money ? t.profile.field.rounded : t.profile.field.roundedWhole}
   </p>
 {/if}
 

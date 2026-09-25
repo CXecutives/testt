@@ -10,8 +10,8 @@ function query(width: number): MediaQueryList {
 }
 
 class Viewport {
-  /** Below 1100 px there is no room for the full sidebar: it is the rail. */
-  forcedRail = $state(false);
+  /** Below 1100 px there is no room for the full sidebar: it shows its icons only. */
+  rail = $state(false);
   narrow = $state(false);
   /** The inner width of the window in px. */
   width = $state(innerWidth);
@@ -19,16 +19,11 @@ class Viewport {
   constructor() {
     const rail = query(RAIL_BELOW);
     const narrow = query(NARROW_BELOW);
-    this.forcedRail = rail.matches;
+    this.rail = rail.matches;
     this.narrow = narrow.matches;
-    rail.addEventListener('change', (event) => (this.forcedRail = event.matches));
+    rail.addEventListener('change', (event) => (this.rail = event.matches));
     narrow.addEventListener('change', (event) => (this.narrow = event.matches));
     addEventListener('resize', () => (this.width = innerWidth));
-  }
-
-  /** The sidebar shows its icons only (below 1100 px). */
-  get rail(): boolean {
-    return this.forcedRail;
   }
 }
 

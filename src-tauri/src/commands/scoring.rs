@@ -90,6 +90,25 @@ impl AppState {
         matcher
     }
 
+    /// Whether the profile's state is known for sure: the work folder can be reached, and the
+    /// profile file is either absent or could be read. An unreachable drive or a read error
+    /// says nothing about the profile.
+    pub(super) fn profile_certain(&self) -> bool {
+        if self.dry_run {
+            return true;
+        }
+        let Ok(workspace) = self.workspace() else {
+            return false;
+        };
+        if !workspace.is_dir() {
+            return false;
+        }
+        match std::fs::metadata(profile::profile_path(&workspace)) {
+            Err(e) => e.kind() == std::io::ErrorKind::NotFound,
+            Ok(_) => profile::load(&workspace).is_ok(),
+        }
+    }
+
     /// The matcher of the runs and the reader: only a usable profile scores.
     pub(super) fn matcher(&self) -> Option<Arc<LocalMatcher>> {
         self.compiled_profile().filter(|m| m.usable())
@@ -144,6 +163,10 @@ impl Host for AppHost<'_> {
 
     fn usable(&self) -> bool {
         self.state.matcher().is_some()
+    }
+
+    fn certain(&self) -> bool {
+        self.state.profile_certain()
     }
 
     fn pending(&self) -> u32 {

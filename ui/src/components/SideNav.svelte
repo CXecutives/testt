@@ -224,6 +224,7 @@
           aria-controls={groupId}
           aria-label={shown ? fold.hide : fold.show}
           aria-disabled={locked ? 'true' : undefined}
+          tabindex={locked ? -1 : undefined}
           data-testid={fold.testid}
           use:tooltip={{
             text: locked ? fold.locked : shown ? fold.hide : fold.show,

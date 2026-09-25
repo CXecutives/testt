@@ -155,7 +155,7 @@ test('the trash empties itself after 30 days unless switched off', async ({ page
   const trash = page.getByTestId('toggle-auto-empty-trash');
   const fetch = page.getByTestId('settings-fetch');
   await expect(fetch).toContainText('Papierkorb nach 30 Tagen leeren');
-  await expect(fetch).toContainText('Gelöschte Jobs sind danach endgültig weg.');
+  await expect(fetch).toContainText('Jobs im Papierkorb werden dann endgültig gelöscht.');
   const on = (await trash.getAttribute('aria-checked')) === 'true';
   await trash.click();
   await expect(trash).toHaveAttribute('aria-checked', on ? 'false' : 'true');
@@ -350,9 +350,7 @@ test('quota only from 80 %, pauses with reason and end', async ({ page }) => {
   );
   await expect(pause).toHaveClass(/info/);
   const mails = page.getByTestId('health-freelance');
-  await expect(mails.locator('.text')).toHaveText(
-    '2 Alert-Mails enthielten keine Jobs, bitte sieh in Gmail nach, ob dort welche stehen.',
-  );
+  await expect(mails.locator('.text')).toHaveText('In 2 Alert-Mails fand die App keine Jobs.');
   await expect(mails).toHaveClass(/warning/);
   // The hour binds: bar and words speak of the same window.
   const quota = page.getByTestId('quota-freelancermap');
@@ -441,7 +439,7 @@ test('reading the whole mailbox asks first, then shows the run', async ({ page }
   await page.getByTestId('full-mailbox').click();
   await page
     .getByTestId('dialog-full-mailbox')
-    .getByRole('button', { name: 'Postfach lesen' })
+    .getByRole('button', { name: 'Lesen', exact: true })
     .click();
   await expect(page.getByTestId('view-jobs')).toBeVisible();
   const started = await calls(page, 'start_run');
@@ -530,18 +528,21 @@ test('locked buttons explain themselves', async ({ page }) => {
   await expect(page.getByRole('tooltip')).toHaveText('Verbinde erst ein Postfach.');
 });
 
-test('first run: the sidebar waits until the setup is done', async ({ page }) => {
+test('first run: Einstellungen opens from the sidebar, Jobs leads back to the setup', async ({
+  page,
+}) => {
   await open(page, `${WIN}&scenario=first-run`);
-  const nav = page.getByTestId('nav-settings').locator('xpath=../..');
-  await expect(nav).toHaveAttribute('inert', '');
-  await page
-    .getByTestId('nav-settings')
-    .click({ force: true, timeout: 2000 })
-    .catch(() => {});
+  await page.getByTestId('nav-settings').click();
+  await expect(page.getByTestId('view-settings')).toBeVisible();
+  await page.getByTestId('nav-jobs').click();
   await expect(page.getByTestId('first-run')).toBeVisible();
   // The helper line of the password carries the way to create one.
   await expect(
-    page.getByTestId('mailbox-form').locator('.help').getByTestId('create-password'),
+    page
+      .getByTestId('first-run')
+      .getByTestId('mailbox-form')
+      .locator('.help')
+      .getByTestId('create-password'),
   ).toBeVisible();
 });
 

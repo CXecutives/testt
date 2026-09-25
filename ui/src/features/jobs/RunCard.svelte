@@ -10,8 +10,9 @@
   one, a check that draws itself when a step finishes while the card is on screen, and
   counters that roll; then every limit or pause with its reason and end.
   finished (the header cross-fades from the running one): the outcome, its time and, for a
-  fetch, the pills "n neu" and "n passen gut" (the run's own numbers from the backend;
-  nothing when there are none, the note says it), a details run what it got, a rescore only
+  fetch, the pills "n neu" and "n mit hoher Passung" (the run's own numbers from the backend;
+  nothing when there are none, the note says it; seen in Archiv or Papierkorb, a quiet
+  "Neue Jobs zeigen" leads to them), a details run what it got, a rescore only
   that it is done; then what went wrong with a fitting action, a file the export could not
   write (once), the history with copy. The overview file and the folder have their one
   place in the day overview. A rescore shows here only when it failed or could not write
@@ -28,19 +29,23 @@
   import Spinner from '$components/Spinner.svelte';
   import { t } from '$lib/i18n/t';
   import { formatMoment, formatNumber, formatTime } from '$lib/i18n/format';
-  import { errorText, healthSentence } from '$lib/i18n/texts';
+  import { DETAIL_WARNS, errorText, healthAdvice } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget, Portal, PortalHealth, Step } from '$lib/ipc/types';
   import { fade, roll } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
+  import { clock } from '$lib/state/clock.svelte';
+  import { fileManager } from '$lib/platform';
   import {
     exportError,
+    exportText,
     failureAction,
     isFetch,
     needsAction,
     outcomeText,
     run,
   } from '$lib/state/run.svelte';
+  import { jobs } from '$lib/state/jobs.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import { copyText } from './prompt';
 
@@ -52,26 +57,15 @@
     summary?.perPortal.reduce((total, p) => total + p[key], 0) ?? 0;
   // A fetch counts what it brought (new, not excluded) and how many of those fit well.
   const newJobs = $derived(summary?.newJobs?.count ?? 0);
+  /** A fetch that brought new jobs, seen in Archiv or Papierkorb: the card leads to them. */
+  const elsewhere = $derived(jobs.facet === 'archived' || jobs.facet === 'trash');
   const topJobs = $derived(summary?.newJobs?.high ?? 0);
   const skipped = $derived(sum('skipped'));
   const failure = $derived(summary?.outcome.kind === 'failed' ? summary.outcome.error : null);
   const files = $derived(summary ? exportError(summary) : null);
-  const filesText = $derived.by(() => {
-    if (files === null) return null;
-    const texts = t.run.exportFailed;
-    switch (files.params.target) {
-      case 'overview':
-        return files.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
-      case 'overviewHtml':
-        return texts.overviewHtml;
-      case 'txtFolder':
-        return texts.txtFolder;
-      case 'backup':
-        return texts.backup;
-      default:
-        return texts.txt;
-    }
-  });
+  const filesText = $derived(exportText(files));
+  // The old program's Excel file the export renamed before it wrote its own: by its name.
+  const renamed = $derived(summary?.export?.backup?.split(/[\\/]/).pop() ?? null);
   // A text file problem is said once: by the export error when it names the text files.
   const txtFailed = $derived(
     files !== null && (files.params.target === 'txt' || files.params.target === 'txtFolder')
@@ -203,7 +197,7 @@
               tone={needsAction(health) ? 'warning' : 'info'}
               variant="inline"
               heading={t.portal[portal]}
-              text={healthSentence(health) ?? ''}
+              text={healthAdvice(health) ?? ''}
               testid="pause-{portal}"
             />
           {/each}
@@ -226,7 +220,8 @@
       {#if open}
         <div class="more" in:fade>
           <p class="facts">
-            <span class="time">{formatMoment(summary.finishedAt)}</span>
+            <!-- The shared clock: "08:30" gains its date after midnight, like the sidebar. -->
+            <span class="time">{formatMoment(summary.finishedAt, clock.now)}</span>
             {#if fetchRun && newJobs > 0}
               <span data-testid="last-new"
                 ><Badge label={t.run.newPill(newJobs)} tone="coral" /></span
@@ -238,6 +233,18 @@
               {/if}
             {/if}
           </p>
+          {#if fetchRun && newJobs > 0 && elsewhere}
+            <span class="show-new">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="arrow-right"
+                label={t.run.showNew}
+                testid="run-show-new"
+                onclick={() => jobs.setFacet('new')}
+              />
+            </span>
+          {/if}
           {#if failure}
             <Notice
               tone="danger"
@@ -249,9 +256,10 @@
           {:else if fetchRun && summary.outcome.kind === 'completed' && newJobs === 0}
             <Notice tone="info" variant="inline" text={t.run.nothingNew} testid="nothing-new" />
           {/if}
+          <!-- Ads that did not come warn like their rows (texts.ts DETAIL_WARNS). -->
           {#if summary.kind === 'details' && sum('failed') > 0}
             <Notice
-              tone="warning"
+              tone={DETAIL_WARNS.failed ? 'warning' : 'info'}
               variant="inline"
               text={t.run.details.failedAds(sum('failed'))}
               testid="details-failed"
@@ -259,7 +267,7 @@
           {/if}
           {#if summary.kind === 'details' && sum('gone') > 0}
             <Notice
-              tone="info"
+              tone={DETAIL_WARNS.gone ? 'warning' : 'info'}
               variant="inline"
               text={t.run.details.goneAds(sum('gone'))}
               testid="details-gone"
@@ -275,12 +283,24 @@
               text={filesText}
               action={failure || run.active
                 ? null
-                : { label: t.common.retry, onclick: () => run.rewriteFiles() }}
+                : { label: t.common.retry, icon: 'refresh-cw', onclick: () => run.rewriteFiles() }}
               testid="export-failed"
             />
           {/if}
           {#if txtFailed > 0}
             <Notice tone="warning" variant="inline" text={t.run.filesFailed(txtFailed)} />
+          {/if}
+          {#if renamed}
+            <Notice
+              tone="info"
+              variant="inline"
+              text={t.run.excelRenamed(renamed)}
+              action={{
+                label: t.common.showInFolder[fileManager()],
+                onclick: () => openTarget({ kind: 'excelBackupInFolder', name: renamed }),
+              }}
+              testid="excel-renamed"
+            />
           {/if}
           {#if run.history.length > 0}
             <Disclosure label={t.run.history} testid="run-history">
@@ -367,6 +387,12 @@
     font-weight: var(--weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* The way to the new jobs: a quiet button whose text starts on the card's edge. */
+  .show-new {
+    display: flex;
+    margin-left: calc(-1 * var(--ghost-inset));
   }
 
   /* The countdown of a pause: a soft navy pill; tabular digits, so the ticking stays still. */
@@ -514,7 +540,7 @@
   .copy {
     display: flex;
     align-self: flex-start;
-    margin-left: calc(-1 * (var(--space-12) + var(--border-width)));
+    margin-left: calc(-1 * var(--ghost-inset));
   }
 
   /* The space after the time is a real one, so a selection copies like "Kopieren". */

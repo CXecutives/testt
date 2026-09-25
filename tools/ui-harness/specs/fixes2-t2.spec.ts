@@ -33,8 +33,8 @@ test('profile switches: only the switch switches, its text names and describes i
   const cases = [
     {
       id: 'profile-remote-outside',
-      label: 'Remote-Stellen im Ausland zulassen',
-      hint: 'Ausgeschaltet markiert die App ganz remote Stellen mit Sitz im Ausland zum Prüfen.',
+      label: 'Remote-Jobs im Ausland zulassen',
+      hint: 'Ausgeschaltet markiert die App ganz remote Jobs mit Sitz im Ausland zum Prüfen.',
     },
     { id: 'profile-no-anue', label: 'Arbeitnehmerüberlassung ausschließen', hint: null },
     {
@@ -81,7 +81,7 @@ test('the profile in its logical order, each block with its sentence', async ({ 
     ['section-competences', 'Nur dieser Block ist nötig, danach bewertet die App jeden Job.'],
     ['section-experience', 'Damit prüft die App, was eine Anzeige verlangt.'],
     ['section-languages', 'Die App vergleicht sie mit den Sprachen einer Anzeige.'],
-    ['section-wishes', 'Wünsche verschieben die Bewertung leicht, sie schließen nichts aus.'],
+    ['section-wishes', 'Wünsche verschieben die Passung leicht, sie schließen nichts aus.'],
     ['section-criteria', 'Ein Job, der hier nicht passt, gilt als ausgeschlossen.'],
   ];
   for (const [id, sentence] of sentences) {
@@ -96,7 +96,7 @@ test('the profile in its logical order, each block with its sentence', async ({ 
 
 test('every control of a block has the height of a field', async ({ page }) => {
   await profile(page);
-  await page.getByTestId('profile-available').getByRole('button', { name: 'Ab Datum' }).click();
+  await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   const heights = await page.locator('[data-testid^="section-"]').evaluateAll((sections) =>
     Object.fromEntries(
       sections.map((section) => {
@@ -110,7 +110,7 @@ test('every control of a block has the height of a field', async ({ page }) => {
               : Math.round(box.getBoundingClientRect().height);
           },
         );
-        const choices = [...section.querySelectorAll<HTMLElement>('[role="group"] .btn')].map(
+        const choices = [...section.querySelectorAll<HTMLElement>('[role="radiogroup"] .btn')].map(
           (button) => Math.round(button.getBoundingClientRect().height),
         );
         return [section.getAttribute('data-testid'), [...new Set([...fields, ...choices])]];
@@ -121,6 +121,11 @@ test('every control of a block has the height of a field', async ({ page }) => {
     if (section === 'section-understood') continue;
     expect(set, section).toEqual([36]);
   }
+  // The choice buttons take the small type of chips and segments, not the larger button type.
+  const types = await page
+    .locator('[data-testid^="section-"] [role="radiogroup"] .btn')
+    .evaluateAll((buttons) => [...new Set(buttons.map((b) => getComputedStyle(b).fontSize))]);
+  expect(types).toEqual(['13px']);
   // Every number field has one width; the day of "Ab Datum" too.
   const widths = await Promise.all(
     [
@@ -215,7 +220,7 @@ test('a country of a file the app does not know stays and shows as it is', async
   await page.getByTestId('nav-profile').click();
   await page
     .getByTestId('profile-empty')
-    .getByRole('button', { name: 'Aus Lebenslauf erstellen' })
+    .getByRole('button', { name: 'Aus Lebenslauf anlegen' })
     .click();
   const answer = JSON.stringify({
     name: 'Carla Exempel',
@@ -233,13 +238,13 @@ test('availability: the day exists only for "Ab Datum" and gets the caret', asyn
   await profile(page);
   const choices = page.getByTestId('profile-available');
   const date = page.getByTestId('profile-date');
-  await choices.getByRole('button', { name: 'Sofort' }).click();
+  await choices.getByRole('radio', { name: 'Sofort' }).click();
   await expect(date).toHaveCount(0);
-  await choices.getByRole('button', { name: 'Ab Datum' }).click();
+  await choices.getByRole('radio', { name: 'Ab Datum' }).click();
   await expect(date).toBeVisible();
   await expect(date).toBeFocused();
   await date.fill('1.11.2026');
-  await choices.getByRole('button', { name: 'Sofort' }).click();
+  await choices.getByRole('radio', { name: 'Sofort' }).click();
   await expect(date).toHaveCount(0);
   await page.getByTestId('profile-save').click();
   expect((await lastSave(page)).after.criteria.available).toEqual({ kind: 'now' });

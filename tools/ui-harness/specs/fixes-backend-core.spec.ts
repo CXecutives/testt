@@ -1,12 +1,13 @@
 // Fixes of the backend-core track as the page sees them through the stub, which mirrors the
 // backend's contract: a profile that no longer reads leaves no scores behind, and every
-// portal may be switched off, while a fetch then is refused instead of failing.
+// portal may be switched off, while a fetch then waits for one, like it waits for a mailbox
+// (the backend refuses it too, never with a failed fetch).
 
 import { calls, expect, open, test } from './fixtures';
 
 const WIN = '?platform=windows';
 
-test('every portal may be switched off; a fetch is then refused, never a failed one', async ({
+test('every portal may be switched off; Abrufen then waits for one and says why', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -22,14 +23,30 @@ test('every portal may be switched off; a fetch is then refused, never a failed 
   // Saved as chosen: no refusal after the switches moved.
   await expect(page.getByTestId('portal-error')).toHaveCount(0);
   expect(await calls(page, 'save_settings')).toHaveLength(3);
+  // Reading the whole mailbox waits for a portal too.
+  const whole = page.getByTestId('full-mailbox');
+  await expect(whole).toHaveAttribute('aria-disabled', 'true');
+  await whole.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Schalte erst ein Portal ein.');
+
   await page.getByTestId('nav-jobs').click();
-  await page.getByTestId('fetch').click();
-  await expect(page.getByTestId('start-error')).toContainText(
-    'Mindestens ein Portal muss aktiv sein.',
-  );
-  // No run began, so no failed fetch is stored: the card keeps the last one.
+  const fetch = page.getByTestId('fetch');
+  await expect(fetch).toHaveAttribute('aria-disabled', 'true');
+  await expect(fetch).not.toHaveClass(/primary/);
+  await fetch.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Schalte erst ein Portal ein.');
+  await fetch.click({ force: true });
+  expect(await calls(page, 'start_run')).toHaveLength(0);
+  // No run began, so no failed fetch and no refusal.
+  await expect(page.getByTestId('start-error')).toHaveCount(0);
   await expect(page.getByText('Abruf fehlgeschlagen')).toHaveCount(0);
-  await expect(page.getByTestId('run-finished')).toContainText('Abruf fertig');
+
+  // One portal back on: Abrufen is the primary action again.
+  await page.getByTestId('nav-settings').click();
+  await page.getByTestId('toggle-enabled-freelancermap').click();
+  await page.getByTestId('nav-jobs').click();
+  await expect(fetch).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(fetch).toHaveClass(/primary/);
 });
 
 test('a profile that no longer reads leaves no verdicts in the list', async ({ page }) => {

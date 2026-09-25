@@ -1,5 +1,9 @@
-//! Time: UTC timestamps inside; German local time for display, file names and export.
+//! Time: UTC timestamps inside; local time for display, file names and export. Local is the
+//! time zone of the OS, like the interface's dates: the app sets it once at its start
+//! ([`follow_system_zone`]). Until then, and so in every test, it is Europe/Berlin: the TXT
+//! byte tests and the golden digests stay the same on any machine.
 
+use std::sync::{LazyLock, OnceLock};
 use std::time::Duration;
 
 use jiff::Timestamp;
@@ -7,17 +11,42 @@ use jiff::civil::{Date, DateTime};
 use jiff::tz::TimeZone;
 use tokio_util::sync::CancellationToken;
 
-/// Time zone of everything the user sees.
-pub fn berlin() -> TimeZone {
-    TimeZone::get("Europe/Berlin").unwrap_or_else(|_| TimeZone::system())
+/// The zone the app set at its start ([`set_zone`]).
+static ZONE: OnceLock<TimeZone> = OnceLock::new();
+/// The zone until then.
+static BERLIN: LazyLock<TimeZone> =
+    LazyLock::new(|| TimeZone::get("Europe/Berlin").unwrap_or_else(|_| TimeZone::system()));
+
+/// Time zone of everything the user sees: the OS's once the app set it, else Europe/Berlin.
+pub fn zone() -> &'static TimeZone {
+    ZONE.get().unwrap_or(&BERLIN)
 }
 
-/// Local time (Europe/Berlin) of a timestamp.
+/// Sets the zone of everything the user sees, once per process; `false` if it was set before.
+pub fn set_zone(zone: TimeZone) -> bool {
+    ZONE.set(zone).is_ok()
+}
+
+/// At the start of the app: local time is the OS's, like the interface's. A zone the OS does
+/// not name keeps Europe/Berlin.
+pub fn follow_system_zone() {
+    match TimeZone::try_system() {
+        Ok(system) => {
+            let name = system.iana_name().unwrap_or("unnamed").to_owned();
+            if set_zone(system) {
+                log::info!("time zone {name}");
+            }
+        }
+        Err(e) => log::warn!("time zone of the system unknown, Europe/Berlin kept: {e}"),
+    }
+}
+
+/// Local time of a timestamp.
 pub fn local(ts: Timestamp) -> DateTime {
-    ts.to_zoned(berlin()).datetime()
+    zone().to_datetime(ts)
 }
 
-/// Calendar day (Europe/Berlin) of a timestamp.
+/// Calendar day (local) of a timestamp.
 pub fn local_date(ts: Timestamp) -> Date {
     local(ts).date()
 }

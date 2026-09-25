@@ -1,0 +1,88 @@
+Titel: SAP S/4HANA Finance Berater (m/w/d) – Central Finance und Datenmigration
+Unternehmen: Taunusblick IT-Consulting GmbH
+Ort: Wiesbaden
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/projekt/sap-s-4hana-finance-berater-m-w-d-central-finance-und-datenmigration-2917342
+Abgerufen am: 22.09.2026 07:26
+
+Projektdetails
+Start
+11.2026
+Dauer
+12 Monate
+Von
+Taunusblick IT-Consulting GmbH
+Eingestellt
+21.09.2026
+Projekt-ID
+2917342
+Branche
+Versicherungen
+Vertragsart
+Freiberuflich
+Einsatzart
+70 % Remote
+
+Beschreibung
+Für unseren langjährigen Kunden, eine Versicherungsgruppe mit Sitz in Wiesbaden (Leben, Kranken, Komposit; rund 7.500 Mitarbeitende), suchen wir einen erfahrenen SAP S/4HANA Finance Berater (m/w/d) zur Verstärkung des Finanzprogramms "FIN 2028".
+
+Hintergrund
+Die Gruppe führt ihre heterogene ERP-Landschaft (SAP ECC 6.0 in zwei Gesellschaften, ein Nicht-SAP-Hauptbuch in einer dritten) in einem zentralen SAP S/4HANA-System zusammen. Als Zwischenschritt wird SAP Central Finance aufgebaut, das die Buchungen der Quellsysteme repliziert und ab 2027 als führendes System für Konzernreporting und Controlling dient. Die Architektur steht, die Realisierungsphase beginnt im November 2026.
+
+Aufgaben
+• Konzeption und Customizing der Central-Finance-Szenarien im Hauptbuch, in der Anlagenbuchhaltung und im Controlling (Kostenstellen, Innenaufträge, Ergebnisrechnung)
+• Einrichtung und Test der Replikation mit SAP SLT sowie des Mappings (MDG-basierte Mapping-Tabellen) für Kontenplan, Kostenstellen und Profit Center
+• Planung und Durchführung der Datenmigration der historischen Salden und offenen Posten inklusive Abstimmung mit der Fachabteilung
+• Fehleranalyse im AIF, Betreuung der Initial-Load-Läufe und der Abstimmungsreports
+• Erstellung von Fach- und DV-Konzepten, Testfällen sowie Unterstützung der Key User in den Integrationstests
+• Enge Zusammenarbeit mit dem Konzernrechnungswesen, dem Controlling und dem Architekturteam des Kunden
+
+Anforderungen
+• Mehrjährige Erfahrung als SAP FI/CO Berater, davon mindestens drei Jahre in SAP S/4HANA Finance
+• Praxis in mindestens einem Central-Finance-Projekt (Replikation, Mapping, Initial Load)
+• Sehr gute Kenntnisse in Hauptbuch (FI-GL), Anlagenbuchhaltung (FI-AA) und Ergebnisrechnung (CO-PA)
+• Erfahrung mit Datenmigration im Finanzwesen (Migration Cockpit oder vergleichbare Werkzeuge)
+• Kenntnisse im Versicherungsumfeld (FS-CD, FS-RI) sind ein Plus, aber keine Voraussetzung
+• Verhandlungssicheres Deutsch, gutes Englisch
+
+Rahmendaten
+Start: 02.11.2026
+Laufzeit: 12 Monate, Verlängerung wahrscheinlich
+Auslastung: 100 %, 5 Tage pro Woche
+Einsatzort: Wiesbaden, ca. 70 % remote (Workshops und Integrationstests vor Ort)
+Tagessatz: 1.050 – 1.150 € (all-in, zzgl. MwSt.)
+
+Bitte senden Sie uns Ihr aktuelles Profil mit Verfügbarkeit und Tagessatz über den Button "Jetzt bewerben". Wir melden uns innerhalb von 48 Stunden bei Ihnen.
+
+Schlagworte
+SAP S/4HANA
+SAP FI
+SAP CO
+Central Finance
+SAP SLT
+Datenmigration
+Hauptbuch
+Anlagenbuchhaltung
+Versicherung
+
+Jetzt bewerben
+Projekt merken
+Projekt teilen
+
+Anbieter
+Taunusblick IT-Consulting GmbH
+SAP-Beratung und Projektvermittlung für Finanzdienstleister
+128 veröffentlichte Projekte
+Mitglied seit 2016
+Firmenprofil ansehen
+
+Ähnliche Projekte
+SAP FI Berater (m/w/d) – ANÜ
+Mannheim · 01.2027 · Arbeitnehmerüberlassung
+SAP BW/4HANA Entwickler (m/w/d)
+Remote · ab sofort · 6 Monate
+SAP FS-CD Berater (m/w/d)
+Köln · 11.2026 · Freiberuflich
+Mehr Projekte anzeigen
+
+Sie sind Freelancer im Bereich SAP? Jetzt kostenlos registrieren und passende Projekte per E-Mail erhalten.

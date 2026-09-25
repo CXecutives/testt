@@ -18,10 +18,12 @@
   pointer and drops its test ids. The close button in the reader head, Esc and a search
   that no longer finds the job go back to the day overview.
   The keys of a mail app (lib/input/input.ts): ArrowUp/ArrowDown open the previous/next job,
-  Home/End the first/last, Ctrl+F (Cmd+F on macOS) goes to the search.
+  Home/End the first/last, with Shift they choose from the open job on; Space on the open
+  job's row pages through the reader, and after a click into the reader the arrows, Home and
+  End scroll it; Ctrl+F (Cmd+F on macOS) goes to the search.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import DragBand from '$components/DragBand.svelte';
   import Splitter, { splitLimits } from '$components/Splitter.svelte';
@@ -82,6 +84,13 @@
   // One column shows the list or the reader. Choosing rows is no reading: the list stays and
   // its header's selection bar acts on the chosen rows.
   const reading = $derived(stage.what !== OVERVIEW && !(stage.what === CHOSEN && viewport.narrow));
+  // One column: a job in place of the list hides the run card too (the sidebar says the run).
+  $effect(() => {
+    shell.listHidden = reading && viewport.narrow;
+    return () => {
+      shell.listHidden = false;
+    };
+  });
   const place = $derived(placeOf(jobs.facet));
   const trashDays = $derived(app.state?.autoEmptyTrashDays ?? 0);
   /** The place holds nothing (no search): the list says it, the reader adds no second tile. */
@@ -95,7 +104,7 @@
   /** The width of the list column (the splitter keeps it per user). */
   let listWidth = $state<number | undefined>(undefined);
   /** The content beside the sidebar (and the sheet's hairline): the list's limits and its
-   *  first width follow it when the window resizes or the sidebar folds. */
+   *  first width follow it when the window resizes (the sidebar turns to its rail too). */
   const content = $derived(
     viewport.width -
       tokenPx(viewport.rail ? '--rail-width' : '--sidebar-width') -
@@ -114,8 +123,11 @@
     const open = jobs.selected;
     const focused = document.activeElement;
     const inReader = right !== null && focused !== null && right.contains(focused);
+    // In one column the list comes back: at the open job's row, which gets the focus unless
+    // the pointer was elsewhere (the keys stepped through jobs the list never showed).
+    const lost = focused === null || focused === document.body;
     jobs.clearSelection();
-    if (open === null || !inReader) return;
+    if (open === null || !(inReader || (viewport.narrow && lost))) return;
     if (jobs.shown.some((job) => sameKey(job.key, open))) {
       jobs.reveal = { key: keyOf(open), focus: true };
     }
@@ -153,7 +165,7 @@
   // Mail); the open one stays until another opens.
   $effect(() => {
     untrack(() => {
-      if (jobs.status === 'ready' && jobs.facet === 'new') void jobs.load(true);
+      if (jobs.status === 'ready' && jobs.facet === 'new') void jobs.load(true, false);
     });
   });
 
@@ -187,8 +199,17 @@
   use:listKeys={{
     step: (by) => list?.step(by),
     edge: (last) => list?.edge(last),
+    extend: (to) => list?.extend(to),
     close,
-    find: () => header?.find(),
+    // In one column the search sits in the hidden list: the open job closes first.
+    find: () => {
+      if (viewport.narrow && jobs.selected !== null) {
+        close();
+        void tick().then(() => header?.find());
+      } else header?.find();
+    },
+    // The stage on screen: the one on its way out has dropped its test ids.
+    reader: () => right?.querySelector<HTMLElement>('[data-testid="stage"]') ?? null,
   }}
 >
   <div class="body">
@@ -264,6 +285,7 @@
                   text={jobs.detailError ?? t.reader.loadFailed}
                   secondary={{
                     label: t.common.retry,
+                    icon: 'refresh-cw',
                     onclick: () => jobs.selected && void jobs.loadDetail(jobs.selected),
                   }}
                   testid="reader-error"
@@ -311,9 +333,14 @@
   /* The header asks the column's width (its second row wraps in a narrow column): the query
      container is the header's box, as wide as the column, and not the column itself. Around
      the list a query container made every layout of the view half as long again (the
-     reader's ring fill lays the view out in each of its frames). */
+     reader's ring fill lays the view out in each of its frames).
+     It keeps the room of the list's scrollbar beside it, empty (a scroller that never
+     scrolls): its search, Abrufen and tools end where the rows' text ends, with the engine's
+     own scrollbar width (Windows 8 px, overlay scrollbars none). */
   .head {
     flex: none;
+    overflow-x: hidden;
+    overflow-y: scroll;
     container-type: inline-size;
   }
 
@@ -333,12 +360,17 @@
     height: 0;
   }
 
+  /* The list and the reader keep their scrollbar's room whether they scroll or not, like the
+     views of the shell (Windows: a transparent track, the thumb only under the pointer;
+     macOS overlay scrollbars take none): the rows end on the header's line, and the reader
+     does not move sideways between a short and a long job. */
   .scroll {
     display: flex;
     flex: 1;
     flex-direction: column;
     min-height: 0;
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: scroll;
   }
 
   /* One cell: a leaving stage and the next one lie on top of each other. */
@@ -350,12 +382,15 @@
     overflow: hidden;
   }
 
-  /* Each stage scrolls on its own; the sheet colour lets the next one cover the last. */
+  /* Each stage scrolls on its own; the sheet colour lets the next one cover the last. The
+     keyboard focus stops below the macOS toolbar row and the reader's compact bar. */
   .stage {
     grid-area: 1 / 1;
     min-height: 0;
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: scroll;
     background-color: var(--surface);
+    scroll-padding-top: calc(var(--window-top) + var(--compact-header));
   }
 
   /* Centred on a whole pixel (rounded down to the step of a hairline): an odd pane width
@@ -374,7 +409,7 @@
      hang out, and so does the glyph's own inset in its box. */
   .back {
     display: none;
-    margin-left: calc(-1 * (var(--space-12) + var(--border-width) + var(--space-6)));
+    margin-left: calc(-1 * (var(--ghost-inset) + var(--space-6)));
   }
 
   /* The reader of the archive and the trash with nothing open: centred across the pane,
@@ -404,7 +439,8 @@
        row brought into view stops below it (the header at its tallest, two lines). */
     .left {
       width: 100%;
-      overflow: auto;
+      overflow-x: auto;
+      overflow-y: scroll;
       border-right: 0;
       scroll-padding-top: calc(
         var(--list-header-top) + var(--list-toolbar) + var(--space-12) + 2 * var(--control-sm) +
@@ -412,10 +448,12 @@
       );
     }
 
+    /* Inside the column's scroller: the scrollbar runs beside it already. */
     .head {
       position: sticky;
       top: 0;
       z-index: var(--z-sticky);
+      overflow: visible;
       background-color: var(--surface);
     }
 
