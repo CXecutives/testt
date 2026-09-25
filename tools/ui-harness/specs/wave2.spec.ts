@@ -124,8 +124,11 @@ test('text typed into a chip field is a change: Ctrl+S takes it, closing asks', 
 
 test('from a CV: the pasted answer outlasts Esc and the view, the clipboard stays', async ({
   page,
+  browserName,
 }) => {
-  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  // WebKit has no clipboard permissions to grant: its part is the answer alone.
+  const clipboard = browserName === 'chromium';
+  if (clipboard) await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await open(page, `${WIN}&scenario=no-profile`);
   await page.getByTestId('nav-profile').click();
   const fromCv = page.getByTestId('profile-empty').getByRole('button', {
@@ -134,7 +137,7 @@ test('from a CV: the pasted answer outlasts Esc and the view, the clipboard stay
   await fromCv.click();
   const answer = page.getByTestId('paste-answer');
   await answer.fill('{"name": "Erika Muster"}');
-  await page.evaluate(() => navigator.clipboard.writeText('the answer'));
+  if (clipboard) await page.evaluate(() => navigator.clipboard.writeText('the answer'));
   await answer.press('Escape');
   await expect(page.getByTestId('profile-paste')).toHaveCount(0);
   // Another view and back: the answer is there, the clipboard untouched.
@@ -142,7 +145,9 @@ test('from a CV: the pasted answer outlasts Esc and the view, the clipboard stay
   await page.getByTestId('nav-profile').click();
   await fromCv.click();
   await expect(answer).toHaveValue('{"name": "Erika Muster"}');
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('the answer');
+  if (clipboard) {
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('the answer');
+  }
 });
 
 test('a failed save from the leave dialog leaves the caret in the refused field', async ({
