@@ -9,8 +9,8 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 |---|---|
 | UI language | superseded (user, 2026-09-25): German and English. Einstellungen > Sprache (Deutsch / English) switches the whole app at once, no restart; the app starts German, English only when chosen (amended 2026-09-25: many German consultants run an English OS; only the macOS menu follows the OS, `sys-locale` in `platform.rs`); the choice is stored in the settings (`language`, `save_settings`). `de.ts` stays the source catalog, `en.ts` has its type (a missing or extra key is a type error), the screens read `t` (`lib/i18n/t.ts`); numbers and dates de-DE / en-GB. Excel file, HTML overview, the AI prompts (with `ai_rubric.en.md`), the CV prompt, file dialogs and the sign-in window follow the setting, the macOS menu the OS; the TXT files stay German and byte-identical |
 | Frontend | Svelte 5 + Vite + TypeScript, no SvelteKit, no animation library, Lucide icons only |
-| Keys | only inside fields/dialogs: Tab/Shift+Tab, Enter = save, Esc = cancel, Ctrl/Cmd+C/V/X/A/Z. Amended by the input audit (2026-09-24): fields take every character of the layout (AltGr on Windows, Option on macOS) and the OS editing keys (word/line moves, delete word, redo, Shift selection); Tab/Shift+Tab move the focus everywhere and Enter/Space press the focused control (no dead end after a field); a modal dialog holds the focus; Cmd+, reaches the macOS menu. No WebView shortcut. Amended (user, final round 2026-09-25): the app's own shortcuts are exactly three, with the command key of the OS (Ctrl on Windows, Cmd on macOS; `keyConventions()` in platform.ts, handled only in input.ts): Ctrl/Cmd+F (the list's search), Ctrl/Cmd+Z outside fields (the last list action) and Ctrl/Cmd+B outside fields (fold the sidebar; in a field it does nothing) |
-| OS window functions | keep Alt+F4, Cmd+Q/W/M/H, double-click on title bar; no own shortcuts besides the three under "Keys" |
+| Keys | only inside fields/dialogs: Tab/Shift+Tab, Enter = save, Esc = cancel, Ctrl/Cmd+C/V/X/A/Z. Amended by the input audit (2026-09-24): fields take every character of the layout (AltGr on Windows, Option on macOS) and the OS editing keys (word/line moves, delete word, redo, Shift selection); Tab/Shift+Tab move the focus everywhere and Enter/Space press the focused control (no dead end after a field); a modal dialog holds the focus; Cmd+, reaches the macOS menu. No WebView shortcut. Amended (user, final round 2026-09-25): the app's own shortcuts are exactly three, with the command key of the OS (Ctrl on Windows, Cmd on macOS; `keyConventions()` in platform.ts, handled only in input.ts): Ctrl/Cmd+F (the list's search), Ctrl/Cmd+Z outside fields (the last list action) and Ctrl/Cmd+B outside fields (fold the sidebar; in a field it does nothing). Amended (user, 2026-09-25 evening): the fold is gone, so the shortcuts are two, Ctrl/Cmd+F and Ctrl/Cmd+Z |
+| OS window functions | keep Alt+F4, Cmd+Q/W/M/H, double-click on title bar; no own shortcuts besides the two under "Keys" |
 | Mac | no Mac available: macOS via GitHub `macos-latest` (real app screenshots, dmg install probe, keychain test) + WebKit locally |
 | macOS minimum | 14.0 (Safari 17 baseline, `data_store_identifier` for sessions) |
 | Evaluation data | no access to Katharina: local real data + real runs through the app, two realistic invented profiles, blind labels by two independent agents + tie-breaker |
@@ -25,7 +25,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Heading colour | warm dark ink (45 7% 17%), not slate; coral is the only accent colour (user chose variant A). Headings stay ink; "only accent colour" is superseded by "cxpertise navy" below |
 | Windows caption buttons | superseded (2026-09-24 night): the native caption buttons of the Windows title bar |
 | Sizes | controls 28/36/40, list rows 86 (one-line title, date top right; amended 2026-09-25: a long title takes a second line and the row grows to 106, the rest is a tooltip), body text 15 (the top strip is gone: the native title bar of the OS) |
-| Layout | variant C chosen by the user: calm sidebar (~196 px, no own surface, hairline divider, nav with icons and unread count, quiet run status at the bottom; icons only below ~1100 px, and above it whenever the user folds it: its edge, Ctrl/Cmd+B, kept); search, "Abrufen" and filters in the list column header (revised 2026-09-24 night: no content strip, the native title bar) |
+| Layout | variant C chosen by the user: calm sidebar (~196 px, no own surface, hairline divider, nav with icons and unread count, quiet run status at the bottom; icons only below ~1100 px; the manual fold was dropped by the user as unneeded, 2026-09-25 evening); search, "Abrufen" and filters in the list column header (revised 2026-09-24 night: no content strip, the native title bar) |
 | Toasts | allowed for short confirmations whose result is not visible otherwise (saved, copied, files written, run finished): bottom right, at most 3, 4 s (10 s with an undo), paused on hover, while the window is in the back and while a modal dialog is open (the stack lies below its scrim); 520 px wide, a job's title keeps to one line in its quotes; anything needing action stays inline |
 | User test of the installed app (2026-09-24 evening) | Windows title bar like a native one (full width, 16 px app icon + app name at the left, caption buttons at the native height, no tooltips); macOS uses the normal native title bar; "Abrufen" lives in the list column header next to the search; the cxpertise palette again: light coral (13 73% 63%) for primary fills, hover 13 64% 56%, switches coral when on; lighter font weights; faster, snappier motion; no lag in the real app; native-feeling input (left click only for controls, middle-button scrolling in scroll areas, copyable text where it makes sense); no unneeded micro details |
 | UI round 2 (design critique) | one white sheet for all views (no floating cards), coral only for Abrufen, selection bar, unread dot, active nav (progress bars stay coral as Abrufen feedback) - amended by "cxpertise navy": the selection bar, active nav and progress are navy now; mid scores ochre; primary in deep coral (4.9:1); reader like an issue view (title, facts, match line, chips, actions); sort as icon toggle; switches ink when on |
@@ -197,16 +197,13 @@ cache, profile dir, marker, then verifies `signedIn=false`.
   the pill shrinks onto them; the height fits 480 x 360 on both OS (harness). A click in the sidebar switches the view
   first: an unsaved Profil may ask, and the place changes only with the switch (Abbrechen keeps both; Verwerfen or
   Speichern goes to the place asked for); a click on the place that is open reloads nothing.
-- Folding the sidebar (like Claude's "hide sidebar"): from 1100 px on a click on the sidebar's right edge
-  (`SidebarEdge`, an 8 px strip over the border, mostly on the sidebar's side; on hover a 2 px navy line and a grip,
-  the tooltip "Seitenleiste einklappen"/"ausklappen" over its key, Strg+B or ⌘B, in a second smaller line), Ctrl+B
-  (Cmd+B on macOS, never in a field) and on macOS the View menu fold it to its icon rail and back; the width switches
-  at once, the labels fade in as when the window grows past 1100 px; kept (`viewport.pinnedRail`; `rail` = forced below
-  1100 px or chosen). Below 1100 px it is the rail anyway: no edge, and the key changes nothing.
+- Folding the sidebar: dropped (user, 2026-09-25 evening: "nichts Überflüssiges"). The sidebar is the icon rail
+  only below 1100 px, by the window width alone; no edge, no key, no menu item.
 - The handle between the list and the reader: the list keeps 320 px (`--list-min`), the reader 440 px (`--reader-min`),
   and the list takes at most 60 % of the content; the first width is 40 % of the content, at most 460 px
   (`--list-first-max`). Limits and first width follow the window and the sidebar (`splitLimits`), a kept width that
-  does not fit shows at the limit and comes back once there is room. On hover a grip in the middle of the line and the
+  does not fit shows at the limit and comes back once there is room. Only this handle resizes (the sidebar has none). No line: on hover a
+  grey 4 x 44 px grip (`--grip-width`, `--grip-height`) in the middle of the gap, darker while dragging, like Claude's; the
   tooltip "Breite ändern" over "Doppelklick setzt zurück"; a double click sets the first width back.
 - Jobs: toolbar (Abrufen primary lg / Abbrechen · Neu n | Alle n · Beste Passung | Neueste · search) · left column
   run card + list (72 px rows: ring 40, title with unread dot, meta, reason line, date, status badge only on deviation;
@@ -268,10 +265,8 @@ inactive; macOS unified title bar: traffic lights over the sidebar in a 52 px to
 Abrufen and moves the window, no title text) · dialog buttons (Windows: action first; macOS: cancel left, action
 right) · scrollbars (Windows: slim styled, shown over their scroller; macOS: native overlay scrollbars) · middle-button
 autoscroll (Windows; macOS has none) · words for OS things (Explorer / Finder, Anmeldeinformationsverwaltung /
-Schlüsselbund) · the command key of the app's shortcuts and how a shortcut is written (Strg+B vs. ⌘B) · menu (none vs.
-minimal App/Edit/View/Window; the View menu holds "Seitenleiste ein-/ausblenden" with Cmd+B, which folds the sidebar
-through the `sidebar` event like `navigate`; its title names both ways because the page alone knows the state, and the
-page takes Cmd+B itself first so one press folds once) · font smoothing on macOS · keychain vs. credential manager
+Schlüsselbund) · the command key of the app's shortcuts and how a shortcut is written (Strg vs. Cmd) · menu (none vs.
+minimal App/Edit/Window) · font smoothing on macOS · keychain vs. credential manager
 (same code) · a text field's menu (Windows: Undo | Cut, Copy, Paste, Delete | Select all;
 macOS without Undo and Delete) · session storage API · reveal in folder (`explorer /select` vs. `open -R`) · per-OS user agent. Build target Safari 17; forbidden: View Transitions, `@starting-style`,
 `scrollbar-gutter`, `content-visibility`. Windows: NSIS currentUser, German installer, downloadBootstrapper.
@@ -401,10 +396,16 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       hundreds of rows at once (Svelte's teardown of their effects).
 - [x] Final round, sidebar and handle (tracks A and B, 2026-09-25; see UI "Sidebar", "Folding the sidebar", "The
       handle"): the arrow for Archiv and Papierkorb (kept, forced open while one is open, grouped in the rail), the
-      sidebar folds at its edge, with Ctrl/Cmd+B and from the macOS View menu (kept, not below 1100 px), a click in
+      sidebar fold (dropped later by the user), a click in
       the sidebar waits for the Profil's question before it changes the place, the handle's wider limits that follow
       the window and the sidebar, grip and two-line tooltips; harness `sidebar.spec.ts`, `splitter.spec.ts` in both
       engines and both OS conventions
+- [x] UI logic round after the user's test of the installed app (tracks T1 to T4, 2026-09-25): only the left
+      button presses (`data-aux-press`, a pressed look only under the pointer, `ui_contract`), a press beside a field
+      ends its focus, one focus ring and only from the keyboard, only the switch toggles, the profile in a logical order
+      with one control height and neutral placeholders, searchable countries (names in a file become codes, engine 13),
+      the list one Tab stop with stable rows, dates that follow the clock, undo per toast; the native title bars again;
+      the sidebar fold dropped; the handle's grip like Claude's; harness 819 in both engines, baselines refreshed
 - [ ] Performance: start time; contrast
 - [x] Consistency audit per screen (checklist below) and fixes; one adversarial review workflow over the whole diff
       (2026-09-25: two UI audits with 86 and 36 confirmed findings, a scraping review with 31 and a final review with

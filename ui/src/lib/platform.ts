@@ -9,8 +9,8 @@
 //     (base.css keys them off `:root[data-platform]`, like the font smoothing),
 //   - words that name OS things (Explorer / Finder, the password store),
 //   - the editing keys of text fields and the command key of the app's few shortcuts
-//     (`keyConventions()`, applied by lib/input/input.ts: Ctrl+F/Z/B on Windows, Cmd on
-//     macOS), and how a shortcut is written (Strg+B, ⌘B; `commandKey()`).
+//     (`keyConventions()`, applied by lib/input/input.ts: Ctrl+F/Z on Windows, Cmd on
+//     macOS), and how the key is named (Strg, Cmd; `commandKey()`).
 // Components ask here (`dragBands()`, `primaryFirst()`, `keyConventions()`, `platform()`),
 // never compare OS names themselves. The window's focus state is the same on both:
 // `:root[data-window]` is 'inactive' while the window is in the background, and selections
