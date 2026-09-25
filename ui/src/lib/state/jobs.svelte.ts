@@ -5,12 +5,12 @@
 //   it shows); the list renders in windows of 60 rows that grow while scrolling, chunk by
 //   chunk, so 2000 jobs never block a frame. A reload of the same list (sort, undo, the end
 //   of a run) asks for as many rows as it holds, keeps the rows that did not change and
-//   builds at most a chunk of new ones at once. Another list (place, tab, search, filter) is
+//   builds at most a chunk of new ones at once. Another list (place, tab, search) is
 //   a new generation of rows: the old rows go as one piece instead of one by one.
 // - Rows are plain objects (`$state.raw`): a change replaces the row, so only that row
 //   renders again, and no proxy sits between the template and 2000 jobs.
 // - Every number comes from the backend (one truth): the counts of the list (with the
-//   search) and the counts over every job (tiles, sidebar, new jobs per portal, favourites).
+//   search) and the counts over every job (sidebar, new jobs per portal, favourites).
 //   A change the page makes itself (read, a move) or a run update of a listed row moves
 //   them at once; during a run a counts-only query follows every update (throttled), so
 //   they stay exact for rows the page does not hold.
@@ -39,7 +39,6 @@ import type {
   JobSort,
   JobView,
   Place,
-  Portal,
   RunEvent,
 } from '../ipc/types';
 import { tokenMs } from '../tokens';
@@ -57,8 +56,6 @@ const HIGH = 80;
 /** At most one counts query per this many ms while a run updates jobs. */
 const COUNTS_EVERY = 400;
 
-/** A tile of the day overview, or a portal (its new jobs). */
-export type JobFilter = 'high' | 'noDetail' | 'excluded' | 'pinned' | Portal;
 type Status = 'idle' | 'loading' | 'ready' | 'error';
 /** What the list shows: the unread or all jobs of the inbox, the favourites, a place. */
 export type JobFacet = 'new' | 'all' | 'favourites' | 'archived' | 'trash';
@@ -105,26 +102,6 @@ export function inFacet(job: JobView, facet: JobFacet): boolean {
       return job.place === 'trash';
   }
 }
-const TILES: readonly string[] = ['high', 'noDetail', 'excluded', 'pinned'];
-const isPortal = (filter: JobFilter): filter is Portal => !TILES.includes(filter);
-
-function matches(job: JobView, filter: JobFilter | null): boolean {
-  switch (filter) {
-    case null:
-      return true;
-    case 'high':
-      return job.match?.status === 'scored' && job.match.score >= HIGH;
-    case 'noDetail':
-      return job.detail.kind !== 'ok';
-    case 'excluded':
-      return isExcluded(job);
-    case 'pinned':
-      return job.pinned;
-    default:
-      return job.portal === filter;
-  }
-}
-
 /**
  * What one job adds to the counts (the backend's definitions, store::job_page): the inbox
  * counts only inbox jobs, a favourite counts until it goes to the trash.
@@ -220,7 +197,6 @@ class JobsStore {
   facet = $state<JobFacet>('new');
   sortChoice = $state<JobSort>(keptSort());
   search = $state('');
-  filter = $state<JobFilter | null>(null);
 
   rows = $state.raw<JobView[]>([]);
   /** The counts of the list: with the search, whatever the facet. */
@@ -280,7 +256,7 @@ class JobsStore {
   detailSlow = $state(false);
   detailError = $state<string | null>(null);
 
-  /** The counts over every job, without the search (tiles, sidebar, new per portal). */
+  /** The counts over every job, without the search (sidebar, new per portal). */
   overviewCounts = $state<JobCounts | null>(null);
   overviewStatus = $state<Status>('idle');
 
@@ -297,10 +273,10 @@ class JobsStore {
     return app.hasProfile ? this.sortChoice : 'newest';
   }
 
-  /** Rows of the list after the tile filter, excluded ones last (behind the divider). */
-  readonly visible = $derived(
-    this.filter === null ? this.rows : this.rows.filter((job) => matches(job, this.filter)),
-  );
+  /** Rows of the list, excluded ones last (behind the divider). */
+  get visible(): JobView[] {
+    return this.rows;
+  }
 
   readonly shown = $derived(this.visible.slice(0, this.rendered));
 
@@ -370,7 +346,6 @@ class JobsStore {
     }
     this.facet = facet;
     if (facet === 'new' || facet === 'all' || facet === 'favourites') this.inboxFacet = facet;
-    this.filter = null;
     this.quiet();
     void this.load();
   }
@@ -399,16 +374,8 @@ class JobsStore {
     );
   }
 
-  setFilter(filter: JobFilter | null): void {
-    this.filter = filter;
-    this.quiet();
-    // A tile counts over all jobs; a portal chip counts its new ones.
-    if (filter !== null) this.facet = isPortal(filter) ? 'new' : 'all';
-    void this.load();
-  }
-
   /**
-   * Load the first page (and with a tile filter every page, the filter is local).
+   * Load the first page.
    * `keep` = the same rows in a new order (sort, end of a run): the mounted rows stay and move,
    * and as many rows come back as the list holds (a list scrolled far down stays as long).
    */
@@ -436,7 +403,6 @@ class JobsStore {
       if (!keep) this.generation += 1;
       this.fresh.clear();
       this.status = 'ready';
-      if (this.filter !== null) await this.loadAll(request);
       this.pump();
     } catch (error) {
       if (request !== this.#request) return;
@@ -524,10 +490,6 @@ class JobsStore {
     this.rows = [...this.rows, ...page.jobs.filter((job) => !known.has(keyOf(job.key)))];
     this.counts = page.counts;
     return true;
-  }
-
-  private async loadAll(request: number): Promise<void> {
-    while (request === this.#request && (await this.page(request)));
   }
 
   /**

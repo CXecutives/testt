@@ -159,10 +159,7 @@
   const fetchedOnce = $derived((run.summary ?? app.state?.lastRun ?? null) !== null);
   /** The list beside shows the best new jobs on top already (Neu, by fit, no search). */
   const listShowsBest = $derived(
-    jobs.facet === 'new' &&
-      jobs.sortChoice === 'match' &&
-      jobs.search.trim() === '' &&
-      jobs.filter === null,
+    jobs.facet === 'new' && jobs.sortChoice === 'match' && jobs.search.trim() === '',
   );
   /** Nothing else to say while the list beside holds jobs: a quiet "select one" (never beside
    *  an empty list, which says where jobs come from). */

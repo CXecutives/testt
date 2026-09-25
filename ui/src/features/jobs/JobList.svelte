@@ -282,7 +282,6 @@
   let last = untrack(() => ({
     sort: jobs.sortChoice,
     facet: jobs.facet,
-    filter: jobs.filter,
     active: run.active,
   }));
 
@@ -332,25 +331,23 @@
     }
   }
 
-  // What changed the list: the user's sort, facet or filter (never while a run streams new
+  // What changed the list: the user's sort or facet (never while a run streams new
   // rows in), or the end of a run. A search and live updates arm nothing.
   $effect.pre(() => {
     const now = {
       sort: jobs.sortChoice,
       facet: jobs.facet,
-      filter: jobs.filter,
       active: run.active,
     };
     untrack(() => {
-      const chosen =
-        now.sort !== last.sort || now.facet !== last.facet || now.filter !== last.filter;
+      const chosen = now.sort !== last.sort || now.facet !== last.facet;
       if ((chosen && !now.active) || (last.active && !now.active)) armed = true;
       last = now;
     });
   });
 
   // Before the DOM changes: note where the rows stand. The glide stays armed until the
-  // change has loaded (a filter shows its rows at once and again once every page is in).
+  // change has loaded.
   $effect.pre(() => {
     void shown;
     untrack(() => {
