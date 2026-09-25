@@ -155,6 +155,14 @@ function moved(counts: JobCounts, before: JobView, after: JobView): JobCounts {
   return add(add(counts, before, -1), after, 1);
 }
 
+/** A job a move took away, to bring back (`moveBack`): as it was, where it went, and its
+ *  index in the list then (-1: the list did not hold it). */
+export interface Unmove {
+  job: JobView;
+  to: Place;
+  at: number;
+}
+
 /** The text of a row as it came from the backend, kept per object (each is read once). */
 const texts = new WeakMap<JobView, string>();
 
@@ -237,6 +245,21 @@ class JobsStore {
   error = $state<string | null>(null);
   /** The next page did not load (the list stays, the end of it offers a retry). */
   pageError = $state<string | null>(null);
+  /**
+   * A job action of the list that failed (a move of a row or of the chosen jobs, its undo,
+   * the star, "all read" and its undo): one sentence in the list header until the next
+   * action succeeds or another list comes (place, tab, search, order).
+   */
+  actionError = $state<string | null>(null);
+  /** Jobs were deleted for good, but a result file could not follow (the Excel file is open
+   *  elsewhere): said in the list header like `actionError`. */
+  exportNote = $state<string | null>(null);
+
+  /** Another list or view: what the header said about the last action goes. */
+  quiet(): void {
+    this.actionError = null;
+    this.exportNote = null;
+  }
   window = $state(WINDOW);
   /** Rows mounted so far (grows towards `window` chunk by chunk). */
   rendered = $state(CHUNK);
@@ -345,12 +368,14 @@ class JobsStore {
     this.facet = facet;
     if (facet === 'new' || facet === 'all' || facet === 'favourites') this.inboxFacet = facet;
     this.filter = null;
+    this.quiet();
     void this.load();
   }
 
   setSort(sort: JobSort): void {
     this.sortChoice = sort;
     keepSort(sort);
+    this.quiet();
     // The open job keeps its row in view in the new order, also when that is further down.
     const open = this.selected;
     const listed = this.rows.some((job) => sameKey(job.key, open));
@@ -363,6 +388,7 @@ class JobsStore {
 
   setSearch(value: string): void {
     this.search = value;
+    this.quiet();
     if (this.#searchTimer !== null) clearTimeout(this.#searchTimer);
     this.#searchTimer = setTimeout(
       () => void this.load(),
@@ -372,6 +398,7 @@ class JobsStore {
 
   setFilter(filter: JobFilter | null): void {
     this.filter = filter;
+    this.quiet();
     // A tile counts over all jobs; a portal chip counts its new ones.
     if (filter !== null) this.facet = isPortal(filter) ? 'new' : 'all';
     void this.load();
@@ -661,15 +688,18 @@ class JobsStore {
     }
   }
 
-  /** The favourite (the star), a flag of its own whatever the place. */
-  async pin(key: JobKey, on: boolean): Promise<void> {
+  /** The favourite (the star), a flag of its own whatever the place. Resolves with the
+   *  error text (the star goes back), or null. */
+  async pin(key: JobKey, on: boolean): Promise<string | null> {
     const before = this.held(key);
-    if (before === null || before.pinned === on) return;
+    if (before === null || before.pinned === on) return null;
     this.patch(key, { pinned: on });
     try {
       await invoke('set_pinned', { key, on });
-    } catch {
+      return null;
+    } catch (error) {
       this.patch(key, { pinned: before.pinned });
+      return errorText(error);
     }
   }
 
@@ -788,6 +818,49 @@ class JobsStore {
       void this.load(true);
       return { error: errorText(error) };
     }
+  }
+
+  /**
+   * Takes moves back (the undo of a toast): every job goes back to the place it came from
+   * (one call per place). A row the list lost comes back where it stood when the list is
+   * still the one it left (Neu keeps a read job, like before the move); in another list the
+   * list loads again when the job belongs there. Resolves with the error text, or null.
+   */
+  async moveBack(back: readonly Unmove[], generation: number): Promise<string | null> {
+    const landed: JobKey[] = [];
+    try {
+      for (const place of new Set(back.map(({ job }) => job.place))) {
+        const keys = back.filter(({ job }) => job.place === place).map(({ job }) => job.key);
+        landed.push(...(await invoke('move_jobs', { keys, to: place })));
+      }
+    } catch (error) {
+      void this.load(true);
+      return errorText(error);
+    }
+    const done = new Set(landed.map(keyOf));
+    const same = generation === this.generation;
+    let missing = false;
+    for (const { job, to, at } of [...back].sort((a, b) => a.at - b.at)) {
+      if (!done.has(keyOf(job.key))) continue;
+      if (this.rows.some((row) => sameKey(row.key, job.key)) || !same || at < 0) {
+        this.patch(job.key, { place: job.place });
+        missing ||= !this.rows.some((row) => sameKey(row.key, job.key)) && inFacet(job, this.facet);
+        continue;
+      }
+      const gone = { ...job, place: to };
+      const rows = [...this.rows];
+      rows.splice(Math.min(at, rows.length), 0, job);
+      this.rows = rows;
+      this.counts = moved(this.counts, gone, job);
+      if (this.overviewCounts !== null) this.overviewCounts = moved(this.overviewCounts, gone, job);
+      this.recount(gone, job);
+      if (this.detail && sameKey(this.detail.job.key, job.key)) {
+        this.detail = { ...this.detail, job: { ...this.detail.job, place: job.place } };
+      }
+    }
+    if (missing) void this.load(true);
+    else void this.refreshCounts();
+    return null;
   }
 
   /** Archives a job or brings it back to the inbox (the reader's and the row's tool). */

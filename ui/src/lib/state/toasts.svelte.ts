@@ -5,7 +5,9 @@
 // or a modal dialog is open (`hold`): its time only runs while the user can act on it.
 // Anything that needs an action stays inline where it belongs; the one exception is an
 // undo of what the user just did (a job moved), which the toast may carry; results of the
-// same kind in quick succession merge into one toast with one undo (`undoable`).
+// same kind in quick succession merge into one toast with one undo (`undoable`). Ctrl/Cmd+Z
+// takes back the newest result, also when it merged into a toast that came up earlier. An
+// undo names the jobs it concerns: when they are deleted for good, it goes (`forget`).
 
 import { tokenMs } from '../tokens';
 
@@ -31,11 +33,14 @@ const MAX = 3;
  *  archiviert."), whose one undo takes back all of them. */
 const MERGE_MS = 2000;
 
+/** An undo; it may take a while (the next one of a merged toast waits for it). */
+export type Undo = () => void | Promise<void>;
+
 /** What a mergeable toast adds up: how many, their undos, when the last one came. */
 interface Merged {
   kind: string;
   count: number;
-  undos: (() => void)[];
+  undos: Undo[];
   at: number;
 }
 
@@ -60,25 +65,46 @@ class Toasts {
   #merged = new Map<number, Merged>();
   /** Toasts under the pointer. */
   #hovered = new Set<number>();
+  /** When each toast last got a result (a counter): Ctrl/Cmd+Z takes back the newest. */
+  #latest = new Map<number, number>();
+  #results = 0;
+  /** The jobs (keyOf) each undo of a toast concerns. */
+  #keys = new Map<number, Set<string>>();
   /** Why the toasts wait; each hold is released on its own. */
   #holds = new Set<symbol>();
 
-  show(text: string, tone: ToastTone = 'success', action: ToastAction | null = null): number {
+  /** A toast; `keys` are the jobs (keyOf) its undo concerns. */
+  show(
+    text: string,
+    tone: ToastTone = 'success',
+    action: ToastAction | null = null,
+    keys: readonly string[] = [],
+  ): number {
     const id = this.#next++;
     this.items = [...this.items, { id, text, tone, action, round: 0 }];
     while (this.items.length > MAX) this.dismiss(this.items[0]!.id);
     this.#timers.set(id, { timer: null, left: lifetime(action), since: 0 });
+    this.#latest.set(id, ++this.#results);
+    if (keys.length > 0) this.#keys.set(id, new Set(keys));
     this.#start(id);
     return id;
   }
 
   /**
-   * A result the user may take back (a job archived, deleted, restored). One of the same
+   * A result the user may take back (jobs archived, deleted, restored). One of the same
    * `kind` within 2 s joins the toast that is up: `text(n)` says how many ("„Titel“
    * archiviert." for one, "2 Jobs archiviert." for more), the one undo (`undoLabel`) takes
-   * back all of them, and the toast stays its full time from the last one.
+   * back all of them, the last result first, and the toast stays its full time from the last
+   * one. `count` is how many jobs this result moved, `keys` which ones.
    */
-  undoable(kind: string, text: (n: number) => string, undoLabel: string, undo: () => void): void {
+  undoable(
+    kind: string,
+    text: (n: number) => string,
+    undoLabel: string,
+    undo: Undo,
+    count = 1,
+    keys: readonly string[] = [],
+  ): void {
     const now = Date.now();
     const open = [...this.#merged.entries()].find(
       ([id, merged]) =>
@@ -87,21 +113,31 @@ class Toasts {
         this.items.some((item) => item.id === id),
     );
     if (open === undefined) {
-      const merged: Merged = { kind, count: 1, undos: [undo], at: now };
-      const id = this.show(text(1), 'success', {
-        label: undoLabel,
-        // The last result first, like an undo stack (each undo finds the list as it was).
-        onclick: () => {
-          for (const each of [...merged.undos].reverse()) each();
+      const merged: Merged = { kind, count, undos: [undo], at: now };
+      const id = this.show(
+        text(count),
+        'success',
+        {
+          label: undoLabel,
+          // The last result first, like an undo stack (each undo finds the list as it was).
+          onclick: () => {
+            void (async () => {
+              for (const each of [...merged.undos].reverse()) await each();
+            })();
+          },
         },
-      });
+        keys,
+      );
       this.#merged.set(id, merged);
       return;
     }
     const [id, merged] = open;
-    merged.count += 1;
+    merged.count += count;
     merged.undos.push(undo);
     merged.at = now;
+    this.#latest.set(id, ++this.#results);
+    const known = new Set([...(this.#keys.get(id) ?? []), ...keys]);
+    if (known.size > 0) this.#keys.set(id, known);
     this.items = this.items.map((item) =>
       item.id === id ? { ...item, text: text(merged.count), round: item.round + 1 } : item,
     );
@@ -118,7 +154,13 @@ class Toasts {
   /** Ctrl/Cmd+Z (lib/input/input.ts): the newest undo that is still up runs, as its button
    *  would; `true` if there was one. */
   undoLast(): boolean {
-    const newest = [...this.items].reverse().find((item) => item.action !== null);
+    const latest = (item: ToastItem): number => this.#latest.get(item.id) ?? 0;
+    const newest = this.items
+      .filter((item) => item.action !== null)
+      .reduce<ToastItem | null>(
+        (best, item) => (best === null || latest(item) > latest(best) ? item : best),
+        null,
+      );
     if (!newest?.action) return false;
     newest.action.onclick();
     this.dismiss(newest.id);
@@ -130,7 +172,19 @@ class Toasts {
     this.#timers.delete(id);
     this.#merged.delete(id);
     this.#hovered.delete(id);
+    this.#latest.delete(id);
+    this.#keys.delete(id);
     this.items = this.items.filter((item) => item.id !== id);
+  }
+
+  /** Jobs deleted for good: an undo that concerned only them can do nothing any more. */
+  forget(deleted: ReadonlySet<string>): void {
+    for (const item of this.items) {
+      const keys = this.#keys.get(item.id);
+      if (item.action && keys && [...keys].every((key) => deleted.has(key))) {
+        this.dismiss(item.id);
+      }
+    }
   }
 
   /** Hovered: the toast stays. */
