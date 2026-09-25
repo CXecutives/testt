@@ -85,7 +85,9 @@ whatever run brought them) and `top_matches.json` follow a mark (move, star, "fi
 the last one without a run (never during one: it writes them at its end), the overview is written again right before
 "Übersicht öffnen", the Excel file waits for the next run (its Info sheet says the app rewrites it, which a rescore, a
 details run and a delete for good do too). `set_override(key, include)`: an excluded job counts as scored with its fit
-score (note and first reason `userOverride`), every rescore keeps it; taken back, the job is assessed again at once.
+score (note and first reason `userOverride`), every rescore keeps it, and `top_matches.json` lists it like a scored job
+with `userOverride` and the codes of the exclusion first in `checks` (`export::found` also says why for the prompts);
+taken back, the job is assessed again at once.
 A list is a place (or the favourites of inbox and archive) plus an `unread` filter ("Neu", no day window) and a sort
 (by match, or by date: the mail's, in the trash the day it went there); the counts per place (inbox, unread,
 favourites, archive, trash) come from the same statement and follow the search, so the page can say "Auch im Archiv
