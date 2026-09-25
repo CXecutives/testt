@@ -43,6 +43,7 @@
   import type { CriterionKey, CriterionState } from '$lib/i18n/de';
   import { t } from '$lib/i18n/t';
   import { displayTitle, formatDate, formatRelative, formatTime } from '$lib/i18n/format';
+  import { clock } from '$lib/state/clock.svelte';
   import {
     criterionKey,
     criterionState,
@@ -291,7 +292,7 @@
       .filter((fact) => fact !== '')
       .map((text) => ({ text, hint: null as string | null }))
       .concat({
-        text: formatRelative(when),
+        text: formatRelative(when, clock.now),
         hint: t.reader.mailAt(formatDate(when), formatTime(when)),
       });
   });
@@ -582,7 +583,10 @@
   class="reader"
   data-testid="reader"
   bind:this={article}
-  onpointerdown={() => seen(job.key)}
+  onpointerdown={(event) => {
+    // Only a left press counts as looking at the job (a right or middle press is no reading).
+    if (event.button === 0) seen(job.key);
+  }}
 >
   <!-- Sticks to the top of the stage; up only while the action row is scrolled away. -->
   <div class="compact-anchor">

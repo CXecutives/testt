@@ -25,6 +25,7 @@
   import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
+  import { clock } from '$lib/state/clock.svelte';
   import { jobs } from '$lib/state/jobs.svelte';
   import { navigation, type ViewId } from '$lib/state/navigation.svelte';
   import { run } from '$lib/state/run.svelte';
@@ -62,6 +63,8 @@
       return run.step ? t.run.step[run.step] : t.run.kind[run.kind ?? 'fetch'];
     }
     if (last === null) return t.run.never;
+    // The time moves on ("08:30" gains its date after midnight): read the shared clock.
+    void clock.now;
     // What happened last and when, in the same short form either way (one line).
     return failed ? t.shell.runFailed(last.finishedAt) : t.shell.last(last.finishedAt);
   });
