@@ -241,7 +241,7 @@
         tone="warning"
         variant="row"
         text={topError}
-        action={{ label: t.common.retry, onclick: loadTop }}
+        action={{ label: t.common.retry, icon: 'refresh-cw', onclick: loadTop }}
       />
     </section>
   {:else if best.length > 0}
@@ -296,6 +296,7 @@
             action={issue.mail
               ? {
                   label: t.reader.mail,
+                  icon: 'mail',
                   onclick: () => open({ kind: 'alertMail', gmailId: issue.mail ?? '' }),
                 }
               : null}
@@ -398,7 +399,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-12);
-    margin-right: calc(-1 * (var(--space-12) + var(--border-width)));
+    margin-right: calc(-1 * var(--ghost-inset));
   }
 
   .heading-action {
@@ -414,7 +415,7 @@
   .compare {
     display: flex;
     order: 2;
-    margin-left: calc(-1 * (var(--space-12) + var(--border-width)));
+    margin-left: calc(-1 * var(--ghost-inset));
   }
 
   .quiet {
@@ -441,7 +442,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-4);
-    margin-left: calc(-1 * (var(--space-12) + var(--border-width)));
+    margin-left: calc(-1 * var(--ghost-inset));
   }
 
   .rows {

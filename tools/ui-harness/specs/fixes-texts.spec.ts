@@ -102,7 +102,7 @@ test('reading the whole mailbox has one name: in the list, the settings and the 
   await page.getByTestId('full-mailbox').click();
   await page
     .getByTestId('dialog-full-mailbox')
-    .getByRole('button', { name: 'Postfach lesen' })
+    .getByRole('button', { name: 'Lesen', exact: true })
     .click();
   await expect(page.getByTestId('run-running')).toContainText('Ganzes Postfach lesen');
   await page.evaluate(() => (window.__harness.holdAfter = null));
@@ -248,7 +248,7 @@ test('English names agency work and the preferred rate one way everywhere', asyn
   // The field is "Preferred day rate"; "target" is the word of the target roles.
   await page.getByTestId('job-rows').getByTestId('job-row-freelancermap-2801').click();
   await expect(page.getByTestId('reader')).toContainText(
-    'The day rate of €1,100 meets your preferred rate of €1,000.',
+    'The day rate of €1,200 meets your preferred rate of €1,200.',
   );
 });
 

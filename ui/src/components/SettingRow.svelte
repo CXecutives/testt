@@ -13,7 +13,7 @@
   interface Props {
     label: string;
     hint?: string | null;
-    /** Badges next to the label (e.g. the risk of a portal switch). */
+    /** Badges next to the label (e.g. the state of the mailbox). */
     badges?: Snippet | null;
     /** The hint is a value a user would copy (a folder path). */
     copy?: boolean;
@@ -123,7 +123,7 @@
   /* A ghost button at the end lines its text up with the edge, like toggles and bordered
      buttons (the ghost's own padding would inset it). */
   .control :global(.btn.ghost.sm:last-child) {
-    margin-right: calc(-1 * var(--space-12));
+    margin-right: calc(-1 * var(--ghost-inset));
   }
 
   /* In a narrow container (the settings page at the minimum window) buttons go under the

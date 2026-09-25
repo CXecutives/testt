@@ -13,6 +13,7 @@
 //   followed. A rescore opens no run card and brings no fetch news; only when it failed or
 //   could not write the files the card says so.
 
+import type { IconName } from '$components/Icon.svelte';
 import { t } from '../i18n/t';
 import { errorText } from '../i18n/texts';
 import { invoke, IpcError, onRun } from '../ipc/api';
@@ -30,6 +31,7 @@ import type {
 } from '../ipc/types';
 import { app } from './app.svelte';
 import { navigation } from './navigation.svelte';
+import { shell } from './shell.svelte';
 import { toasts } from './toasts.svelte';
 
 export const STEPS: readonly Step[] = ['scan', 'fetch', 'score'];
@@ -366,15 +368,17 @@ class RunStore {
       if (live && this.panel === 'hidden') this.panel = 'open';
     }
     if (!live) return;
-    // In the Jobs view the run card says it; elsewhere a toast brings the news. A rescore
-    // speaks where it was started (the Profil view), not as a fetch.
-    if (summary.outcome.kind === 'completed' && navigation.current !== 'jobs') {
+    // In the Jobs view the run card says it; elsewhere, and while one column shows a job in
+    // place of the list and its card, a toast brings the news. A rescore speaks where it was
+    // started (the Profil view), not as a fetch.
+    const cardShown = navigation.current === 'jobs' && !shell.listHidden;
+    if (summary.outcome.kind === 'completed' && !cardShown) {
       if (isFetch(kind)) {
         // Files that could not be written are no success: a calm note, the card has the way.
         if (exportError(summary) === null)
           toasts.show(t.toast.runDone(summary.newJobs?.count ?? 0));
         else toasts.show(t.toast.runDoneFilesOld, 'info');
-      } else if (kind === 'rescore' && navigation.current !== 'profile') {
+      } else if (kind === 'rescore' && navigation.current === 'settings') {
         toasts.show(t.toast.rescored);
       }
     }
@@ -395,6 +399,8 @@ export function needsAction(health: PortalHealth): boolean {
 
 export interface FailureAction {
   label: string;
+  /** The glyph the action has everywhere (a retry loads again, like Abrufen). */
+  icon?: IconName;
   onclick: () => void;
 }
 
@@ -417,11 +423,11 @@ export function failureAction(
     case 'secretStore':
       return { label: t.run.checkMailbox, onclick: () => navigation.go('settings') };
     case 'internal':
-      return { label: t.common.openLog, onclick: openLog };
+      return { label: t.common.openLog, icon: 'folder-open', onclick: openLog };
     default:
       if (run.active) return null;
       if (summary !== null && isFetch(summary.kind) && app.hasMailbox) return null;
-      return { label: t.common.retry, onclick: () => run.retry(summary) };
+      return { label: t.common.retry, icon: 'refresh-cw', onclick: () => run.retry(summary) };
   }
 }
 

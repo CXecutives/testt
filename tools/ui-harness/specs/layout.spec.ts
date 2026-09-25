@@ -126,22 +126,20 @@ test('toasts: at most three, they stay while hovered and leave on their own', as
   await expect(toasts).toHaveCount(0, { timeout: 6000 });
 });
 
-// The first-run page keeps the sidebar inert, so only its Jobs tab is reachable there;
-// Profil and Einstellungen without a profile come from the no-profile scenario.
+// Every view in every scenario, the first run included (its sidebar reaches Profil and
+// Einstellungen; Jobs is the setup page there).
 for (const [width, height] of [
   [480, 360],
   [780, 560],
 ] as const) {
   for (const scenario of ['default', 'first-run', 'running', 'no-profile']) {
-    for (const tab of scenario === 'first-run'
-      ? ['nav-jobs']
-      : ['nav-jobs', 'nav-profile', 'nav-settings']) {
+    for (const tab of ['nav-jobs', 'nav-profile', 'nav-settings']) {
       test(`nothing clipped or scrolling sideways at ${width}x${height}: ${scenario} ${tab}`, async ({
         page,
       }) => {
         await page.setViewportSize({ width, height });
         await open(page, `?platform=windows&scenario=${scenario}`);
-        if (scenario !== 'first-run') await page.getByTestId(tab).click();
+        await page.getByTestId(tab).click();
         await page.waitForTimeout(300);
         const wide = await page.evaluate(() =>
           [...document.querySelectorAll('.view, .view *')]

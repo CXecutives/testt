@@ -1,5 +1,7 @@
 <!-- A short status word in a pill (12/500). Static: a badge never reacts to the pointer
-     (a hint shows as a tooltip). navy: a data chip (a competence, a chosen value). -->
+     (a hint shows as a tooltip). navy: a data chip (a competence, a chosen value). A
+     neutral pill takes the fill its surroundings give it (--badge-neutral-bg: white on the
+     warm wash of a selected row), else the muted grey. -->
 <script lang="ts" module>
   import type { IconName } from './Icon.svelte';
 
@@ -51,7 +53,7 @@
   }
 
   .neutral {
-    --badge-bg: var(--surface-muted);
+    --badge-bg: var(--badge-neutral-bg, var(--surface-muted));
     --badge-fg: var(--text-muted);
   }
 

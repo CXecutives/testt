@@ -275,7 +275,7 @@
               text={filesText}
               action={failure || run.active
                 ? null
-                : { label: t.common.retry, onclick: () => run.rewriteFiles() }}
+                : { label: t.common.retry, icon: 'refresh-cw', onclick: () => run.rewriteFiles() }}
               testid="export-failed"
             />
           {/if}
@@ -514,7 +514,7 @@
   .copy {
     display: flex;
     align-self: flex-start;
-    margin-left: calc(-1 * (var(--space-12) + var(--border-width)));
+    margin-left: calc(-1 * var(--ghost-inset));
   }
 
   /* The space after the time is a real one, so a selection copies like "Kopieren". */

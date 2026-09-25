@@ -43,7 +43,7 @@ const TARGET: Record<MoveId, Place> = {
 
 const ICON: Record<ActionId, IconName> = {
   archive: 'archive',
-  toInbox: 'inbox',
+  toInbox: 'briefcase',
   trash: 'trash-2',
   restore: 'undo-2',
   purge: 'trash-2',
@@ -340,7 +340,12 @@ export async function purge(list: readonly JobView[]): Promise<string | null> {
   arm();
   openNext(list, next, focus);
   deletedFor(result);
-  toasts.show(t.toast.deleted(result.count));
+  // Like a move: one job by its title, more by their number.
+  const gone = list.filter((job) => result.keys.some((key) => sameKey(key, job.key)));
+  const only = result.count === 1 ? (gone[0] ?? list[0]) : undefined;
+  toasts.show(
+    only === undefined ? t.toast.deletedMany(result.count) : t.toast.deletedOne(title(only)),
+  );
   void jobs.loadOverview();
   return null;
 }

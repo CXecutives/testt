@@ -377,7 +377,9 @@ mod lifecycle {
                 if CLOSING.swap(true, Ordering::SeqCst) {
                     return;
                 }
-                let _ = win.emit("closing", ());
+                // The note names what the window waits for (a fetch, a rescore, a sign-in...).
+                let activity = state.activity_name();
+                let _ = win.emit("closing", serde_json::json!({ "activity": activity }));
                 state.scoring.stop();
                 state.cancel_run();
                 let app = win.app_handle().clone();

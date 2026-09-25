@@ -8,7 +8,8 @@
   - At most one primary per view (checked by core/tests/ui_contract.rs).
   - iconOnly needs its label: it becomes aria-label and tooltip.
   - Disabled buttons stay hoverable (aria-disabled) so the tooltip can say why; they do
-    not react otherwise.
+    not react otherwise, and Tab passes them like native disabled buttons (one that is
+    disabled while focused keeps the focus).
   - Loading keeps the width: the content fades out under the spinner.
   - A ghost toggle (the pin star) pops once when it is switched on by a click.
   - turned: the glyph stands half a turn; it turns in 180 ms.
@@ -17,7 +18,8 @@
     ones: not in the Tab order, and a click leaves the caret in the field.
   - isDefault: the default of a dialog, the one Enter presses; the dialog marks it.
   - warns: a quiet (secondary or ghost) button that removes or resets something: its text
-    turns red on hover, before the dialog asks. A ghost with the trash icon always warns.
+    turns red on hover, before the dialog asks. A quiet button with the trash icon always
+    warns.
   The icon sits on its own HTML wrapper: transforms on SVG children run on the main thread.
 -->
 <script lang="ts" module>
@@ -124,13 +126,13 @@
   class:turned
   class:external
   class:default={isDefault}
-  class:warns={warns || (variant === 'ghost' && icon === 'trash-2')}
+  class:warns={warns || ((variant === 'ghost' || variant === 'secondary') && icon === 'trash-2')}
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
   aria-pressed={pressed === null ? undefined : pressed}
   aria-haspopup={menu ? 'menu' : undefined}
-  tabindex={inField ? -1 : undefined}
+  tabindex={inField || disabled ? -1 : undefined}
   data-keep-focus={inField ? '' : undefined}
   data-testid={testid ?? undefined}
   use:tooltip={hint}

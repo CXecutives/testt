@@ -278,7 +278,7 @@
               variant="inline"
               text={health}
               action={alertMail
-                ? { label: t.reader.mail, onclick: () => openMail(alertMail) }
+                ? { label: t.reader.mail, icon: 'mail', onclick: () => openMail(alertMail) }
                 : null}
               testid="health-{portal.portal}"
             />

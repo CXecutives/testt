@@ -1,7 +1,9 @@
 <!--
   A list of short values as chips in a field: type and press Enter (or leave the field) to
   add, x removes, Backspace in the empty field removes the last one, Esc drops what was
-  typed, a double click on a chip takes it back into the text to edit it. A list of terms
+  typed, a double click on a chip takes it back into the text to edit it. A chip's value is
+  copyable text (a drag selects it, Ctrl/Cmd+C copies); its x names what it removes in a
+  tooltip, like every icon-only button. A list of terms
   (`split` list) also splits at commas and semicolons, typed or pasted; a list of sentences
   or names that hold commas (`split` lines) only at line breaks. A value that is already
   there (in any case) is not added twice. Without `entry` the field only shows and removes
@@ -29,6 +31,7 @@
 </script>
 
 <script lang="ts">
+  import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
   import { chipEdit, chipKeys, FIELD_ATTRIBUTES, type ChipKeyHandlers } from '$lib/input/input';
   import Icon from './Icon.svelte';
@@ -235,17 +238,18 @@
     role="presentation"
     data-testid={testid ?? undefined}
     onpointerdown={focusInput}
-    use:chipEdit={edit}
+    use:chipEdit={entry && options === null ? edit : null}
   >
     {#each values as value, index (value)}
       <span class="chip" data-chip={index} data-value={value}>
-        <span class="text">{labelOf(value)}</span>
+        <span class="text" data-copy>{labelOf(value)}</span>
         <button
           type="button"
           class="remove"
           tabindex="-1"
           data-keep-focus
           aria-label={t.chips.remove(labelOf(value))}
+          use:tooltip={t.chips.remove(labelOf(value))}
           onclick={() => remove(index)}
         >
           <Icon name="x" size="xs" />

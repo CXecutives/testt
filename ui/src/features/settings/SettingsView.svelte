@@ -42,7 +42,7 @@
    *  language (a sentence made at once would stay in the old one). */
   type Feedback = { tone: NoticeTone; text: () => string } | null;
 
-  /** The app's languages, each named in its own words. */
+  /** The app's languages, named in the language of the app. */
   const LANGUAGES: readonly Language[] = ['de', 'en'];
 
   const cfg = $derived(app.state);
@@ -615,7 +615,7 @@
   bind:open={confirmFull}
   heading={t.settings.fullMailboxHeading}
   text={t.settings.fullMailboxText}
-  confirmLabel={t.settings.fullMailboxAction}
+  confirmLabel={t.settings.fullMailboxConfirm}
   testid="dialog-full-mailbox"
   onconfirm={readAll}
 />

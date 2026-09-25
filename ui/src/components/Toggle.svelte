@@ -1,8 +1,9 @@
 <!--
   On/off switch, coral when on (user decision). The thumb travels in 180 ms (emphasized, no
-  bounce) and the track changes colour in 100 ms; while the left button is down the track
-  darkens a step (the thumb never changes shape). Disabled switches stay hoverable so the
-  tooltip can say why (disabledReason).
+  bounce) and the track changes colour in 100 ms; it darkens a step under the pointer and one
+  more while the left button is down, off and on alike (the thumb never changes shape).
+  Disabled switches stay hoverable so the tooltip can say why (disabledReason), and Tab
+  passes them like native disabled controls.
   It flips at once, like a native switch: when `onchange` returns a promise (the save),
   the switch shows the new state until it settles, then `checked` again - which is the old
   state if the save failed, so the thumb slides back.
@@ -71,6 +72,7 @@
     aria-labelledby={labelledby ?? undefined}
     aria-describedby={id ? `${id}-hint` : undefined}
     aria-disabled={disabled ? 'true' : undefined}
+    tabindex={disabled ? -1 : undefined}
     data-testid={testid ?? undefined}
     use:tooltip={disabled ? disabledReason : null}
     onclick={() => void toggle()}
@@ -115,7 +117,7 @@
     width: var(--toggle-width);
     height: var(--toggle-height);
     border-radius: var(--radius-full);
-    background-color: var(--border-strong);
+    background-color: var(--toggle-off);
     transition: background-color var(--dur-fast) var(--ease-standard);
   }
 
@@ -132,7 +134,7 @@
   }
 
   .toggle:not([aria-disabled='true']):hover .track {
-    background-color: var(--border-input);
+    background-color: var(--toggle-off-hover);
     transition-duration: var(--dur-hover);
   }
 
@@ -148,18 +150,18 @@
     transform: translateX(var(--toggle-travel));
   }
 
-  /* Pressed: the track darkens a step, 60 ms. */
+  /* Pressed: the track darkens one more step than on hover, 60 ms, off and on alike. */
   :global(:where(:root:not([data-aux-press])))
     .toggle:not([aria-disabled='true']):active:hover
     .track {
-    background-color: var(--border-input);
+    background-color: var(--toggle-off-press);
     transition-duration: var(--dur-instant);
   }
 
   :global(:where(:root:not([data-aux-press])))
     .toggle[aria-checked='true']:not([aria-disabled='true']):active:hover
     .track {
-    background-color: var(--primary-active);
+    background-color: var(--toggle-on-press);
   }
 
   .toggle:focus-visible .track {

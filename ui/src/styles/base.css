@@ -55,10 +55,10 @@ body {
    the lights), the list's first row sits next to them, the sheet reaches the window edge. */
 :root[data-platform='macos'] {
   --window-top: var(--mac-toolbar);
-  --list-header-top: 0;
+  --list-header-top: var(--length-none);
   --list-toolbar: var(--mac-toolbar);
-  --sheet-top-edge: 0;
-  --sheet-corner: 0;
+  --sheet-top-edge: var(--length-none);
+  --sheet-corner: var(--length-none);
   --rail-width: var(--traffic-lights-width);
 }
 

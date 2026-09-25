@@ -66,9 +66,8 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await expect(page.getByTestId('band')).toHaveText('Hohe Passung');
   await expect(page.getByTestId('must')).toHaveText('4 von 4 Pflichtanforderungen erfüllt');
   await expect(page.getByTestId('contract')).toHaveText('Interim');
-  await expect(page.getByTestId('criteria').locator('li[data-testid^="criterion-"]')).toHaveCount(
-    5,
-  );
+  // Its ad states every criterion of the profile, and meets it: one quiet line.
+  await expect(page.getByTestId('criteria-clean')).toBeVisible();
   // The click marks the job read; wait until the list and the reader have taken that in (a
   // slow machine would otherwise re-render the reader under the pointer).
   await expect(top.locator('.title')).not.toHaveClass(/unread/);
@@ -523,7 +522,7 @@ test('offline: the failed run says why, and Abrufen tries again', async ({ page 
   await expect(failed).toContainText('Gmail ist nicht erreichbar.');
   // The sidebar says the fetch failed; the open point names it once and says why.
   await expect(failed).toContainText('Letzter Abruf');
-  await expect(page.getByTestId('run-status')).toContainText('Fehlgeschlagen 08:30');
+  await expect(page.getByTestId('run-status')).toContainText('Fehler 08:30');
   // Like the run card: no second button beside Abrufen that does the same.
   await expect(failed.getByRole('button')).toHaveCount(0);
   await page.getByTestId('fetch').click();
@@ -557,7 +556,7 @@ test('rows and reader say the same in short words; dead ends lead on', async ({ 
   // An excluded row names its reason in short words, the day rate carries its unit.
   await expect(excludedRows(page).first().locator('.foot')).toHaveText('Arbeitnehmerüberlassung');
   await expect(row(page, 'freelancermap-2801').getByTestId('row-facts')).toContainText(
-    '1.100 €/Tag',
+    '1.200 €/Tag',
   );
   // The reader's facts: duration and remote share like the row, the date like the row with
   // the exact moment in its tooltip.
@@ -984,10 +983,15 @@ test('keys like a mail app: arrows open the next job, Home and End, Esc, Ctrl+F'
   // Esc closes the job: the day overview again.
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('day-overview')).toBeVisible();
-  // A click on plain text in the reader leaves the keys working.
+  // A click on plain text in the reader gives it the arrows (they scroll it, like the message
+  // of a mail app); a click on a row gives them back to the list.
   await all.nth(2).click();
   await expect(reader).toHaveText(titles[2]!);
   await page.getByTestId('reader-title').click();
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(200);
+  await expect(reader).toHaveText(titles[2]!);
+  await all.nth(2).click();
   await page.keyboard.press('ArrowDown');
   await expect(reader).toHaveText(titles[3]!);
   // Ctrl+F goes to the search, from anywhere; in the search Esc clears it first, then closes.
@@ -1088,7 +1092,10 @@ test('the Papierkorb: delete, restore, delete for good and empty it, asking firs
   await row(page, two).hover();
   await page.getByTestId(`purge-${two}`).click();
   await expect(page.getByTestId('dialog-purge')).toBeVisible();
-  await page.getByTestId('dialog-purge').getByRole('button', { name: 'Endgültig löschen' }).click();
+  await page
+    .getByTestId('dialog-purge')
+    .getByRole('button', { name: 'Löschen', exact: true })
+    .click();
   await expect(row(page, two)).toHaveCount(0);
   expect((await calls(page, 'purge_jobs')).map(([, args]) => args)).toEqual([
     { keys: [{ portal: 'freelancermap', id: '2803' }] },
@@ -1103,7 +1110,7 @@ test('the Papierkorb: delete, restore, delete for good and empty it, asking firs
   await page.getByTestId('empty-trash').click();
   await page
     .getByTestId('dialog-empty-trash')
-    .getByRole('button', { name: 'Papierkorb leeren' })
+    .getByRole('button', { name: 'Leeren', exact: true })
     .click();
   await expect(page.getByTestId('empty-place-trash')).toBeVisible();
   await expect(page.getByTestId('empty-trash')).toHaveCount(0);
@@ -1404,12 +1411,16 @@ test('criteria show the ad value and jump to it; wishes have their block; rows s
   await open(page, WIN);
   // The row's key facts from the ad.
   await expect(row(page, 'freelancermap-2801').getByTestId('row-facts')).toHaveText(
-    /ab sofort.*6 Monate.*60\s%\sremote.*1\.100/,
+    /ab sofort.*6 Monate.*60\s%\sremote.*1\.200/,
   );
   await row(page, 'freelancermap-2801').click();
+  // Wishes in their own block of "Warum", next to what the ad states.
+  await expect(page.getByTestId('wishes')).toContainText('erreicht den Wunsch von 1.200');
+  // An ad that leaves the rate and the start open.
+  await row(page, 'freelancermap-2802').click();
   const criteria = page.getByTestId('criteria');
   // A value the ad states, a criterion it leaves open (neutral, not ticked).
-  await expect(criteria.getByTestId('criterion-c:countries')).toHaveText('Hamburg');
+  await expect(criteria.getByTestId('criterion-c:countries')).toHaveText('Berlin');
   const rate = criteria.getByTestId('criterion-c:minDayRate');
   await expect(rate).toHaveText('Satz nach Absprache');
   await expect(rate.locator('[data-state]')).toHaveAttribute('data-state', 'unset');
@@ -1417,8 +1428,6 @@ test('criteria show the ad value and jump to it; wishes have their block; rows s
   // A click marks the passage that states it.
   await rate.getByRole('button').click();
   await expect(page.locator('mark.active')).toContainText('Tagessatz nach Absprache');
-  // Wishes in their own block of "Warum".
-  await expect(page.getByTestId('wishes')).toContainText('erreicht den Wunsch');
   // A job whose ad meets every criterion shows one quiet line of the values.
   await row(page, 'linkedin-4100200301').click();
   await expect(page.getByTestId('criteria-clean')).toContainText('Bremen');

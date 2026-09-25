@@ -44,8 +44,10 @@ import {
   formatCountdown,
   formatEuro,
   formatMoment,
+  formatMoney,
   formatNumber,
   formatPercent,
+  formatStamp,
 } from './format';
 
 type Params = Record<string, string | number | boolean | null>;
@@ -110,6 +112,29 @@ const countryNames = (value: unknown): string =>
 
 const INTERNAL = 'An internal error occurred, and the log has the details.';
 
+/** What holds the app (as de.ts). */
+type Busy = 'fetch' | 'details' | 'rescore' | 'session' | 'files';
+const busyOf = (value: unknown): Busy =>
+  value === 'details' || value === 'rescore' || value === 'session' || value === 'files'
+    ? value
+    : 'fetch';
+
+const busy: Record<Busy, string> = {
+  fetch: 'A fetch is running already.',
+  details: 'Details are being fetched already.',
+  rescore: 'The jobs are being scored again.',
+  session: 'A sign-in is running.',
+  files: 'The app is writing its files.',
+};
+
+const closing: Record<Busy, string> = {
+  fetch: 'The fetch is stopping, and then the app closes.',
+  details: 'Fetching details is stopping, and then the app closes.',
+  rescore: 'Scoring is stopping, and then the app closes.',
+  session: 'The sign-in is stopping, and then the app closes.',
+  files: 'The app is finishing its files, and then it closes.',
+};
+
 const errors: Record<ErrorKind | 'unknown', Text> = {
   db: 'The database reports an error.',
   fileLocked: 'A file is open in another program right now.',
@@ -118,7 +143,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   corrupt: 'The app’s data is damaged.',
   newerSchema: 'The data comes from a newer version of the app.',
   invalid: 'The input is not valid.',
-  busy: 'A fetch is running already.',
+  busy: (p) => busy[busyOf(p.activity)],
   notFound: (p) =>
     p.what === 'file'
       ? 'The file does not exist.'
@@ -367,7 +392,7 @@ const reasonCode = {
     }
     const amount =
       typeof p.currency === 'string' && p.currency !== 'EUR'
-        ? `${n(num(p.salary))} ${p.currency}`
+        ? formatMoney(num(p.salary), p.currency)
         : formatEuro(p.salary);
     const from = p.lowerBound ? `from ${amount}` : `of ${amount}`;
     return `The annual salary ${from} is below ${formatEuro(p.min)}.`;
@@ -618,10 +643,12 @@ export const en: Catalog = {
     trash: 'Move to trash',
     restore: 'Restore',
     purge: 'Delete forever',
+    purgeConfirm: 'Delete',
     purgeHeading: (value: number) =>
       value === 1 ? 'Delete the job forever?' : `Delete ${n(value)} jobs forever?`,
     purgeText: 'Deleted jobs never come back, not even from old alert emails.',
     emptyTrash: 'Empty trash',
+    emptyTrashConfirm: 'Empty',
     emptyTrashHeading: 'Empty the trash?',
     emptyTrashText: (value: number) =>
       value === 1
@@ -848,7 +875,7 @@ export const en: Catalog = {
         : `${n(from)} to ${formatPercent(to)} remote`;
     },
     rate: (amount: number, hourly: boolean, currency: string | null, unit: boolean) => {
-      const money = currency ? `${n(amount)} ${currency}` : formatEuro(amount);
+      const money = formatMoney(amount, currency);
       return hourly ? `${money}/hr` : unit ? `${money}/day` : money;
     },
     rateOpen: 'Rate negotiable',
@@ -1271,6 +1298,7 @@ export const en: Catalog = {
     fullMailbox: FULL_MAILBOX,
     fullMailboxHint: 'Reads all alert emails, not only the new ones.',
     fullMailboxAction: 'Read mailbox',
+    fullMailboxConfirm: 'Read',
     fullMailboxHeading: 'Read the whole mailbox?',
     fullMailboxText: 'This takes longer and fetches more pages from the portals.',
     logs: 'Logs',
@@ -1308,13 +1336,14 @@ export const en: Catalog = {
   },
   shell: {
     loadFailed: 'The app could not load its data.',
-    last: (iso: string) => `Fetched ${formatMoment(iso)}`,
+    last: (iso: string) => `Fetched ${formatStamp(iso)}`,
     showRun: 'Show fetch',
-    runFailed: (iso: string) => `Failed ${formatMoment(iso)}`,
-    closing: 'The fetch is stopping, and then the app closes.',
+    runFailed: (iso: string) => `Failed ${formatStamp(iso)}`,
+    runCancelled: (iso: string) => `Cancelled ${formatStamp(iso)}`,
+    closing: (activity: string | null) => closing[busyOf(activity)],
   },
   toast: {
-    rescored: 'The jobs have been scored again.',
+    rescored: 'Jobs scored again.',
     copied: 'Copied.',
     prompt: 'Prompt copied, ready for an AI chat.',
     archivedOne: (name: string) => `“${name}” archived.`,
@@ -1326,8 +1355,8 @@ export const en: Catalog = {
     allRead: 'All marked as read.',
     archivedMany: (value: number) => `${n(value)} jobs archived.`,
     restored: (name: string) => `“${name}” restored.`,
-    deleted: (value: number) =>
-      value === 1 ? 'The job is deleted forever.' : `${n(value)} jobs are deleted forever.`,
+    deletedOne: (name: string) => `“${name}” deleted forever.`,
+    deletedMany: (value: number) => `${n(value)} jobs deleted forever.`,
     trashEmptied: 'Trash emptied.',
     runDone: (value: number) =>
       value === 0

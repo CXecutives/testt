@@ -287,7 +287,7 @@ function sampleJobs(): JobView[] {
           ...scored(91, ['Interim-Management im Mittelstand', 'Konzernabschluss nach HGB'], 4, 4),
           facts: {
             ...NO_FACTS,
-            rate: 1100,
+            rate: 1200,
             start: 'now',
             months: 6,
             remoteFrom: 60,
@@ -307,7 +307,17 @@ function sampleJobs(): JobView[] {
       {
         unread: true,
         workMode: 'remote',
-        match: scored(84, ['Controlling mit SAP S/4HANA', 'Aufbau Reporting'], 4, 5),
+        match: {
+          ...scored(84, ['Controlling mit SAP S/4HANA', 'Aufbau Reporting'], 4, 5),
+          facts: {
+            ...NO_FACTS,
+            rate: 1250,
+            start: 'now',
+            remoteFrom: 100,
+            remoteTo: 100,
+            contract: 'interim',
+          },
+        },
       },
     ),
     job(
@@ -1241,7 +1251,57 @@ function listJobs(query: JobQuery): { jobs: JobView[]; counts: JobCounts } {
 /* ------------------------------------------------------------------- detail */
 
 const AD_INTRO = (j: JobView): string =>
-  `Für ${j.company} suchen wir ab sofort Unterstützung als ${j.title} in ${j.location || 'Deutschland'}.\n\n`;
+  `Für ${j.company} suchen wir Unterstützung als ${j.title} in ${j.location || 'Deutschland'}.\n\n`;
+
+/** The passages of an ad's frame, as its facts say them (the engine reads the facts from
+ *  them): a job's row, its reader and its prompt say the same. */
+function frameOf(facts: Match['facts']): { start: string; rate: string; text: string } {
+  const start = facts.start === 'now' ? 'Start ab sofort' : 'Start zum nächstmöglichen Zeitpunkt';
+  const rate =
+    facts.rate === null
+      ? 'Tagessatz nach Absprache'
+      : `Tagessatz ${facts.rate.toLocaleString('de-DE')} €`;
+  const months =
+    facts.months === null ? '' : `, Laufzeit ${facts.months} Monate mit Option auf Verlängerung`;
+  const remote =
+    facts.remoteFrom === null
+      ? ''
+      : facts.remoteFrom >= 100
+        ? ', vollständig remote'
+        : `, Einsatz zu ${facts.remoteFrom} Prozent remote`;
+  return { start, rate, text: `\nRahmen\n${start}${months}. ${rate}${remote}.\n` };
+}
+
+/** The profile's wishes next to an ad's facts, in the engine's states (met, near, missed). */
+function wishesOf(facts: Match['facts']): {
+  rate: { state: string; rate: number; wish: number } | null;
+  remote: { state: string; share: number; level: string } | null;
+} {
+  const wish = PROFILE_FORM.wishes;
+  const rateState = (rate: number, target: number): string =>
+    rate >= target ? 'met' : rate * 1000 >= target * 950 ? 'near' : 'missed';
+  const minShare: Record<string, number> = { full: 100, mostly: 60, partly: 20 };
+  const share = facts.remoteFrom;
+  const min = wish.remote === null ? undefined : minShare[wish.remote];
+  return {
+    rate:
+      facts.rate === null || wish.dayRate === null
+        ? null
+        : { state: rateState(facts.rate, wish.dayRate), rate: facts.rate, wish: wish.dayRate },
+    remote:
+      share === null || wish.remote === null || min === undefined
+        ? null
+        : {
+            state: share >= min ? 'met' : share + 30 >= min ? 'near' : 'missed',
+            share,
+            level: wish.remote,
+          },
+  };
+}
+
+/** A wish state as the reader groups it (met, met in part, open). */
+const wishKind = (state: string): Reason['kind'] =>
+  state === 'met' ? 'met' : state === 'near' ? 'partial' : 'open';
 
 /** Requirements the stub ads ask for, beyond the job's own top reasons. */
 const MORE_MUSTS = [
@@ -1277,15 +1337,17 @@ function detailOf(j: JobView): JobDetail {
   const openMusts = OPEN_MUSTS.slice(0, missing - partial.length);
   const tasks = ['Führung eines Teams von sechs Personen', 'Monatsabschluss und Forecast'];
 
+  const facts = m?.facts ?? NO_FACTS;
+  const frame = frameOf(facts);
   const parts: string[] = [AD_INTRO(j), 'Ihre Aufgaben\n'];
   for (const t of [...tasks, ...partial]) parts.push(`• ${t}\n`);
   parts.push('\nIhr Profil\n');
   for (const r of [...metMusts, NICE_MET, ...openMusts, NICE_OPEN]) parts.push(`• ${r}\n`);
-  parts.push('• Erfahrung mit Arbeitnehmerüberlassung von Vorteil\n');
-  parts.push(
-    '\nRahmen\nStart zum nächstmöglichen Zeitpunkt, Laufzeit sechs Monate mit Option auf Verlängerung. ',
-  );
-  parts.push('Tagessatz nach Absprache, Einsatz zu 60 Prozent remote.\n');
+  // An interim contract the ad states leaves agency work out (the engine meets `noAnue`).
+  if (facts.contract !== 'interim') {
+    parts.push('• Erfahrung mit Arbeitnehmerüberlassung von Vorteil\n');
+  }
+  parts.push(frame.text);
   const text = parts.join('');
 
   const reasons: Reason[] = [];
@@ -1332,20 +1394,18 @@ function detailOf(j: JobView): JobDetail {
   for (const r of openMusts) add('open', 'must', 'requirement', r, null);
   add('met', 'nice', 'requirement', NICE_MET, 'Konzernabschluss nach HGB');
   add('open', 'nice', 'requirement', NICE_OPEN, null);
-  add('check', 'info', 'startVague', 'Start zum nächstmöglichen Zeitpunkt', null);
+  if (facts.start !== 'now') add('check', 'info', 'startVague', frame.start, null);
   const excluded = m?.status === 'excluded';
   if (excluded) add('violation', 'hard', 'anue', 'Arbeitnehmerüberlassung', null);
-  // Wishes of the profile (engine v4): a rate at the wish, a remote share near it.
-  if (j.key.id === '2801') {
-    add('met', 'info', 'dayRateWish', '', 'Tagessatz ab 1.000 €', {
-      state: 'met',
-      rate: 1100,
-      wish: 1000,
-    });
-    add('partial', 'info', 'remoteWish', '', 'überwiegend remote', {
-      state: 'near',
-      share: 60,
-      level: 'mostly',
+  // Wishes of the profile (engine v4), next to what the ad states.
+  const wishes = wishesOf(facts);
+  if (wishes.rate !== null) {
+    const wish = `Tagessatz ab ${wishes.rate.wish.toLocaleString('de-DE')} €`;
+    add(wishKind(wishes.rate.state), 'info', 'dayRateWish', '', wish, wishes.rate);
+  }
+  if (wishes.remote !== null) {
+    add(wishKind(wishes.remote.state), 'info', 'remoteWish', '', 'überwiegend remote', {
+      ...wishes.remote,
     });
   }
   // The strip shows the criteria the profile sets (the engine leaves out the others), with
@@ -1369,34 +1429,31 @@ function detailOf(j: JobView): JobDetail {
       ranges: start >= 0 && passage ? [{ start, end: start + passage.length }] : [],
     };
   };
-  // One job whose ad states every criterion cleanly.
-  const clean = j.key.id === '4100200301';
-  const criteria: Reason[] = clean
-    ? [
-        criterion('c:minDayRate', 'met', 'minDayRate', { rate: 1200, min: 1000 }),
-        criterion('c:countries', 'met', 'countries', { location: j.location }),
-        criterion('c:noAnue', 'met', 'noAnue', { contract: 'interim' }),
-        criterion('c:availability', 'met', 'availability', { start: 'now' }),
-      ]
-    : [
-        criterion(
+  // The criteria of the profile against what the ad states (4100200301 states every one
+  // cleanly, most ads leave the rate and the start open).
+  const min = PROFILE_FORM.criteria.minDayRate ?? 0;
+  const interim = facts.contract === 'interim' && !excluded;
+  const criteria: Reason[] = [
+    facts.rate === null
+      ? criterion('c:minDayRate', 'open', 'minDayRate', { rateOpen: true, min }, frame.rate)
+      : criterion(
           'c:minDayRate',
-          'open',
+          facts.rate >= min ? 'met' : 'violation',
           'minDayRate',
-          { rateOpen: true, min: 1000 },
-          'Tagessatz nach Absprache',
+          { rate: facts.rate, min },
+          frame.rate,
         ),
-        criterion('c:countries', 'met', 'countries', { location: j.location }),
-        criterion('c:noAnue', excluded ? 'violation' : 'check', 'noAnue'),
-        criterion(
-          'c:availability',
-          'open',
-          'availability',
-          { start: 'vague' },
-          'Start zum nächstmöglichen Zeitpunkt',
-        ),
-        criterion('c:targetYears', 'met', 'targetYears', { years: 10 }),
-      ];
+    criterion('c:countries', 'met', 'countries', { location: j.location }),
+    interim
+      ? criterion('c:noAnue', 'met', 'noAnue', { contract: 'interim' })
+      : criterion('c:noAnue', excluded ? 'violation' : 'check', 'noAnue'),
+    facts.start === 'now'
+      ? criterion('c:availability', 'met', 'availability', { start: 'now' }, frame.start)
+      : criterion('c:availability', 'open', 'availability', { start: 'vague' }, frame.start),
+    ...(j.key.id === '4100200301'
+      ? []
+      : [criterion('c:targetYears', 'met', 'targetYears', { years: 10 })]),
+  ];
   const ok = j.detail.kind === 'ok';
   return {
     job: j,
@@ -1626,6 +1683,8 @@ function script(kind: RunSummary['kind']): RunEvent[] {
     { type: 'status', code: 'scoring', portal: null, until: null },
     { type: 'progress', step: 'score', portal: null, done: 0, total: 3 },
   ];
+  // Without a profile nothing is scored (the backend has no matcher then).
+  const profiled = state.profile !== null;
   const results: Match[] = [
     scored(88, ['Carve-out Erfahrung', 'Konzernabschluss nach HGB'], 4, 4),
     scored(61, ['Post-Merger-Integration'], 2, 4),
@@ -1634,7 +1693,11 @@ function script(kind: RunSummary['kind']): RunEvent[] {
   NEW_JOBS.forEach((j, i) => {
     events.push({
       type: 'jobUpdated',
-      job: { ...j, detail: i === 2 ? j.detail : { kind: 'ok' }, match: results[i]! },
+      job: {
+        ...j,
+        detail: i === 2 ? j.detail : { kind: 'ok' },
+        match: profiled ? results[i]! : null,
+      },
       fresh: true,
     });
     events.push({ type: 'progress', step: 'score', portal: null, done: i + 1, total: 3 });
@@ -1683,8 +1746,9 @@ function script(kind: RunSummary['kind']): RunEvent[] {
           stopped: null,
         },
       ],
-      // Three new jobs, the excluded one is none; the 88 fits well.
-      newJobs: { count: 2, high: 1 },
+      // Three new jobs, the excluded one is none; the 88 fits well (without a profile none
+      // is excluded and none fits well).
+      newJobs: profiled ? { count: 2, high: 1 } : { count: 3, high: 0 },
       export: exported(),
       emptyAlerts: [],
     },
@@ -1703,7 +1767,11 @@ function detailsScript(keys: JobKey[]): RunEvent[] {
   targets.forEach((j, i) => {
     events.push({
       type: 'jobUpdated',
-      job: { ...j, detail: { kind: 'ok' }, match: j.match ?? scored(62, ['Controlling'], 2, 3) },
+      job: {
+        ...j,
+        detail: { kind: 'ok' },
+        match: state.profile === null ? null : (j.match ?? scored(62, ['Controlling'], 2, 3)),
+      },
       fresh: false,
     });
     events.push({

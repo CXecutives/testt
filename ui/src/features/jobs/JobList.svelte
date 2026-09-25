@@ -110,6 +110,25 @@
     void openAt(last ? 'last' : 0);
   }
 
+  /**
+   * Shift+ArrowUp / Shift+ArrowDown, Shift+Home / Shift+End (lib/input/input.ts): the choice
+   * reaches from its start to the previous or next row, or to the first or the last, like a
+   * Shift+click (Explorer, Mail); the row reached comes into view with the focus.
+   */
+  export function extend(to: -1 | 1 | 'first' | 'last'): void {
+    const end = selection.end;
+    const at = end === null ? -1 : jobs.visible.findIndex((job) => keyOf(job.key) === end);
+    // Without a row to start from, down starts at the first and up at the last.
+    let target: number | 'last' = to === 1 ? 0 : 'last';
+    if (to === 'first') target = 0;
+    else if (at !== -1 && to !== 'last') target = Math.max(0, at + to);
+    void jobs.reach(target, true).then((job) => {
+      if (job === null) return;
+      selection.range(job, jobs.visible);
+      settle(true);
+    });
+  }
+
   /** The row focused last (the list's one Tab stop when no job is open). */
   let focused = $state<string | null>(null);
   /** The row Tab stops at: the open job's, else the one focused last, else the first. */
@@ -435,7 +454,7 @@
         text={jobs.error ?? t.list.loadFailed}
         secondary={{
           label: t.common.retry,
-          icon: 'rotate-ccw',
+          icon: 'refresh-cw',
           onclick: () => {
             void jobs.load();
             void jobs.loadOverview();
@@ -507,14 +526,19 @@
       {:else if run.active || !mailRead}
         <!-- A fetch that goes, or none yet: only what comes (no setup links). -->
         <EmptyState
-          icon="inbox"
+          icon="briefcase"
           tone="neutral"
           text={run.active ? t.list.emptyWhileRun : t.list.emptyAll}
           testid="empty-all"
         />
       {:else}
         <div class="sources">
-          <EmptyState icon="inbox" tone="neutral" text={t.list.emptyAfterRun} testid="empty-all" />
+          <EmptyState
+            icon="briefcase"
+            tone="neutral"
+            text={t.list.emptyAfterRun}
+            testid="empty-all"
+          />
           <p class="sources-text">{t.list.emptySources}</p>
           <div class="sources-actions">
             {#each PORTALS as portal (portal.portal)}
@@ -596,7 +620,7 @@
           tone="warning"
           variant="row"
           text={t.list.pageFailed}
-          action={{ label: t.common.retry, onclick: () => void jobs.grow() }}
+          action={{ label: t.common.retry, icon: 'refresh-cw', onclick: () => void jobs.grow() }}
           testid="page-error"
         />
       </div>
@@ -614,7 +638,7 @@
   bind:open={confirmOlder}
   heading={t.settings.fullMailboxHeading}
   text={t.settings.fullMailboxText}
-  confirmLabel={t.settings.fullMailboxAction}
+  confirmLabel={t.settings.fullMailboxConfirm}
   testid="dialog-read-older"
   onconfirm={() => {
     confirmOlder = false;
@@ -627,7 +651,7 @@
   variant="danger"
   heading={t.actions.purgeHeading(1)}
   text={t.actions.purgeText}
-  confirmLabel={t.actions.purge}
+  confirmLabel={t.actions.purgeConfirm}
   busy={purgeBusy}
   error={purgeError}
   testid="dialog-purge"

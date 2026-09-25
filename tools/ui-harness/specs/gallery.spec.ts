@@ -540,7 +540,8 @@ test('a toast that names a job: the title keeps to one line in its quotes, two l
       const inner = text.clientHeight - parseFloat(style.paddingTop) * 2;
       return {
         lines: Math.round(inner / parseFloat(style.lineHeight)),
-        cut: name.scrollWidth > name.clientWidth,
+        // Cut by the toast itself: the ellipsis is part of the text, the quote follows it.
+        cut: (name.textContent ?? '').endsWith('…'),
         quoted: text.querySelector('.quoted')!.textContent ?? '',
         width: (node as HTMLElement).offsetWidth,
       };

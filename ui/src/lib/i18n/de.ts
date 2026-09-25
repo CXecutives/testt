@@ -44,8 +44,10 @@ import {
   formatCountdown,
   formatEuro,
   formatMoment,
+  formatMoney,
   formatNumber,
   formatPercent,
+  formatStamp,
 } from './format';
 
 type Params = Record<string, string | number | boolean | null>;
@@ -70,6 +72,31 @@ const portalOf = (value: unknown): string =>
 
 const INTERNAL = 'Ein interner Fehler, mehr steht im Protokoll.';
 
+/** What holds the app (the backend's `activity`: a run by its kind, a sign-in, a file
+ *  command), for the busy error and the closing note. Reading the whole mailbox is a fetch,
+ *  and so is what the backend does not name. */
+type Busy = 'fetch' | 'details' | 'rescore' | 'session' | 'files';
+const busyOf = (value: unknown): Busy =>
+  value === 'details' || value === 'rescore' || value === 'session' || value === 'files'
+    ? value
+    : 'fetch';
+
+const busy: Record<Busy, string> = {
+  fetch: 'Gerade läuft schon ein Abruf.',
+  details: 'Gerade werden schon Details geholt.',
+  rescore: 'Die Jobs werden gerade neu bewertet.',
+  session: 'Gerade läuft eine Anmeldung.',
+  files: 'Die App schreibt gerade ihre Dateien.',
+};
+
+const closing: Record<Busy, string> = {
+  fetch: 'Der Abruf wird beendet, dann schließt die App.',
+  details: 'Das Holen der Details wird beendet, dann schließt die App.',
+  rescore: 'Das Bewerten wird beendet, dann schließt die App.',
+  session: 'Die Anmeldung wird beendet, dann schließt die App.',
+  files: 'Die App schreibt ihre Dateien fertig, dann schließt sie.',
+};
+
 const errors: Record<ErrorKind | 'unknown', Text> = {
   db: 'Die Datenbank meldet einen Fehler.',
   fileLocked: 'Eine Datei ist gerade in einem anderen Programm geöffnet.',
@@ -78,7 +105,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   corrupt: 'Die Daten der App sind beschädigt.',
   newerSchema: 'Die Daten stammen von einer neueren Version der App.',
   invalid: 'Die Eingabe passt nicht.',
-  busy: 'Gerade läuft schon ein Abruf.',
+  busy: (p) => busy[busyOf(p.activity)],
   // By what was looked for (`what`): a file or folder may never have been written (a new
   // work folder), a job or a mail is gone.
   notFound: (p) =>
@@ -330,7 +357,7 @@ const reasonCode = {
     }
     const amount =
       typeof p.currency === 'string' && p.currency !== 'EUR'
-        ? `${n(num(p.salary))} ${p.currency}`
+        ? formatMoney(num(p.salary), p.currency)
         : formatEuro(p.salary);
     const from = p.lowerBound ? `ab ${amount}` : `von ${amount}`;
     return `Das Jahresgehalt ${from} liegt unter ${formatEuro(p.min)}.`;
@@ -626,10 +653,13 @@ export const de = {
     trash: 'In den Papierkorb',
     restore: 'Wiederherstellen',
     purge: 'Endgültig löschen',
+    /** The confirm button of a dialog is the bare verb of its heading. */
+    purgeConfirm: 'Löschen',
     purgeHeading: (value: number) =>
       value === 1 ? 'Job endgültig löschen?' : `${n(value)} Jobs endgültig löschen?`,
     purgeText: 'Gelöschte Jobs kommen nicht wieder, auch nicht mit alten Alert-Mails.',
     emptyTrash: 'Papierkorb leeren',
+    emptyTrashConfirm: 'Leeren',
     emptyTrashHeading: 'Papierkorb leeren?',
     emptyTrashText: (value: number) =>
       value === 1
@@ -895,7 +925,7 @@ export const de = {
     },
     /** `1.100 €`, with the unit `1.100 €/Tag`, per hour `95 €/Std.`, `1.000 CHF/Tag`. */
     rate: (amount: number, hourly: boolean, currency: string | null, unit: boolean) => {
-      const money = currency ? `${n(amount)} ${currency}` : formatEuro(amount);
+      const money = formatMoney(amount, currency);
       return hourly ? `${money}/Std.` : unit ? `${money}/Tag` : money;
     },
     rateOpen: 'Satz nach Absprache',
@@ -1401,6 +1431,7 @@ export const de = {
     fullMailbox: FULL_MAILBOX,
     fullMailboxHint: 'Liest alle Alert-Mails, nicht nur die neuen.',
     fullMailboxAction: 'Postfach lesen',
+    fullMailboxConfirm: 'Lesen',
     fullMailboxHeading: 'Ganzes Postfach lesen?',
     fullMailboxText: 'Das dauert länger und ruft mehr Seiten der Portale ab.',
     logs: 'Protokolle',
@@ -1443,14 +1474,16 @@ export const de = {
   },
   shell: {
     loadFailed: 'Die App konnte ihre Daten nicht laden.',
-    last: (iso: string) => `Abgerufen ${formatMoment(iso)}`,
+    /** The sidebar's run status, one line: the time today, the date on another day. */
+    last: (iso: string) => `Abgerufen ${formatStamp(iso)}`,
     showRun: 'Abruf anzeigen',
-    runFailed: (iso: string) => `Fehlgeschlagen ${formatMoment(iso)}`,
-    /** Closing while a fetch runs: the window waits until it has stopped. */
-    closing: 'Der Abruf wird beendet, dann schließt die App.',
+    runFailed: (iso: string) => `Fehler ${formatStamp(iso)}`,
+    runCancelled: (iso: string) => `Abgebrochen ${formatStamp(iso)}`,
+    /** Closing while the app is busy: the window waits until what holds it has stopped. */
+    closing: (activity: string | null) => closing[busyOf(activity)],
   },
   toast: {
-    rescored: 'Die Jobs sind neu bewertet.',
+    rescored: 'Jobs neu bewertet.',
     copied: 'Kopiert.',
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
     prompt: 'Prompt kopiert, bereit für einen KI-Chat.',
@@ -1464,8 +1497,8 @@ export const de = {
     archivedMany: (value: number) => `${n(value)} Jobs archiviert.`,
     restored: (name: string) => `„${name}“ wiederhergestellt.`,
     /** Only a deletion for good says "endgültig". */
-    deleted: (value: number) =>
-      value === 1 ? 'Der Job ist endgültig gelöscht.' : `${n(value)} Jobs sind endgültig gelöscht.`,
+    deletedOne: (name: string) => `„${name}“ endgültig gelöscht.`,
+    deletedMany: (value: number) => `${n(value)} Jobs endgültig gelöscht.`,
     trashEmptied: 'Papierkorb geleert.',
     runDone: (value: number) =>
       value === 0
