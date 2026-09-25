@@ -691,8 +691,6 @@ export const en: Catalog = {
     closedHint: 'The ad can still be read but no longer takes applications.',
     unread: 'New',
     pinned: 'Favourite',
-    /** The moment a job went to the trash, in the tooltip of its date there. */
-    trashedAt: (moment: string) => `Deleted ${moment}`,
     alsoOn: (portals: string) => `also on ${portals}`,
     untitled: 'Job without a title',
   },
@@ -708,6 +706,7 @@ export const en: Catalog = {
       match: 'By match',
       newest: 'By date',
     } satisfies Record<JobSort, string>,
+    sortDeleted: 'By date deleted',
     sortNoProfile: 'Without a profile, jobs sort by date only.',
     needsMailbox: 'Connect a mailbox first.',
   },

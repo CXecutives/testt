@@ -824,9 +824,13 @@ class JobsStore {
    * Takes moves back (the undo of a toast): every job goes back to the place it came from
    * (one call per place). A row the list lost comes back where it stood when the list is
    * still the one it left (Neu keeps a read job, like before the move); in another list the
-   * list loads again when the job belongs there. Resolves with the error text, or null.
+   * list loads again when the job belongs there. Resolves with the keys that went back (a
+   * job already there did not), or the error text.
    */
-  async moveBack(back: readonly Unmove[], generation: number): Promise<string | null> {
+  async moveBack(
+    back: readonly Unmove[],
+    generation: number,
+  ): Promise<{ moved: JobKey[] } | { error: string }> {
     const landed: JobKey[] = [];
     try {
       for (const place of new Set(back.map(({ job }) => job.place))) {
@@ -835,7 +839,7 @@ class JobsStore {
       }
     } catch (error) {
       void this.load(true);
-      return errorText(error);
+      return { error: errorText(error) };
     }
     const done = new Set(landed.map(keyOf));
     const same = generation === this.generation;
@@ -860,7 +864,7 @@ class JobsStore {
     }
     if (missing) void this.load(true);
     else void this.refreshCounts();
-    return null;
+    return { moved: landed };
   }
 
   /** Archives a job or brings it back to the inbox (the reader's and the row's tool). */

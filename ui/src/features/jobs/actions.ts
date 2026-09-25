@@ -191,10 +191,12 @@ async function undo(
   generation: number,
   reopen: JobKey | null,
 ): Promise<void> {
-  const error = await jobs.moveBack(back, generation);
-  jobs.actionError = error;
+  const result = await jobs.moveBack(back, generation);
+  jobs.actionError = 'error' in result ? result.error : null;
   void jobs.loadOverview();
-  if (error !== null || reopen === null) return;
+  // Only a job that really came back opens again (one already back is left as it is).
+  if ('error' in result || reopen === null) return;
+  if (!result.moved.some((key) => sameKey(key, reopen))) return;
   const row = jobs.rows.find((job) => sameKey(job.key, reopen));
   if (row) {
     await jobs.select(row, false);

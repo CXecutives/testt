@@ -4,7 +4,7 @@
   read), the ring, then three lines that use the full width: the title on up to two lines
   (an unread title is drawn heavier without getting wider, so reading a job never wraps
   its title anew) with the relative date at the end of its first line (in the Papierkorb
-  the moment the job went there, the date the trash sorts by), company and place (the
+  the day the job went there, the date the trash sorts by), company and place (the
   company gives way first), and one line
   with the ad's key facts ("ab sofort · 6 Monate · 60 % remote · 1.100 €/Tag"; the best
   met requirement when the ad states none) and a badge right after it only when something
@@ -53,7 +53,7 @@
   import { presence } from '$lib/actions/presence';
   import { tooltip } from '$lib/actions/tooltip';
   import { t } from '$lib/i18n/t';
-  import { displayTitle, formatMoment, formatRelative } from '$lib/i18n/format';
+  import { displayTitle, formatRelative } from '$lib/i18n/format';
   import { factWords, noteText, rowReason } from '$lib/i18n/texts';
   import type { JobView } from '$lib/ipc/types';
   import { duration } from '$lib/motion/motion';
@@ -210,12 +210,7 @@
             role="img"
             aria-label={t.job.pinned}><Icon name="star" size="sm" filled /></span
           >{/if}
-        <span
-          class="date"
-          class:old
-          use:tooltip={trashed ? t.job.trashedAt(formatMoment(trashed, current)) : null}
-          >{formatRelative(when, current, true)}</span
-        >
+        <span class="date" class:old>{formatRelative(when, current, true)}</span>
       </span>
     </span>
     <span class="meta">
