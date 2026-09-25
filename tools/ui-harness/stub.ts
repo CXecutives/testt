@@ -658,6 +658,18 @@ function answerDraft(answer: string): ProfileDraft {
   return { form, source: text, quality: form.competences.length >= 5 ? 'good' : 'thin' };
 }
 
+/** The domain packs the engine would switch on for a form (a rough stand-in: words of the
+ *  competences, keywords and tools). */
+function packsOf(form: ProfileForm): string[] {
+  const words = [...form.competences.map((row) => row.name), ...form.keywords, ...form.tools].join(
+    ' ',
+  );
+  return [
+    ...(/controlling|ifrs|hgb|finanz|konsolid|treasury|buchhalt/i.test(words) ? ['finance'] : []),
+    ...(/(^|[^a-z])sap([^a-z]|$)/i.test(words) ? ['sap'] : []),
+  ];
+}
+
 /** A saved form: trimmed, empty rows gone, origins as the backend reads them back. */
 function savedForm(form: ProfileForm): ProfileForm {
   const clean = (items: string[]): string[] => items.map((t) => t.trim()).filter((t) => t !== '');
@@ -1787,6 +1799,8 @@ const handlers: Handlers = {
         ...PROFILE.understood!,
         competenceCount: count,
         competences: form.competences.map((r) => r.name),
+        // Like the engine: a domain only from what the profile names (no fixed sample packs).
+        packs: packsOf(form),
         warnings: [],
         focus: form.focus,
         roles: form.roles,

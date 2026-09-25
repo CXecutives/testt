@@ -44,6 +44,8 @@
         ? t.profile.rescored
         : t.profile.saved,
   );
+  /** During setup, a saved profile leads on to the first fetch (head and save bar). */
+  const next = $derived(saved && app.state?.firstRun ? () => navigation.go('jobs') : null);
   let confirmRemove = $state(false);
   let leaving = $state<ViewId | null>(null);
 
@@ -232,7 +234,7 @@
       onpick={() => void pick()}
       onremove={() => (confirmRemove = true)}
       onfromcv={() => void fromCv()}
-      onnext={saved && app.state?.firstRun ? () => navigation.go('jobs') : null}
+      onnext={next}
     />
     <ProfileEditor
       bind:this={panel}
@@ -243,6 +245,7 @@
       busy={busy === 'save'}
       note={saveNote}
       {result}
+      onnext={next}
       onsave={() => void save()}
       ondiscard={discard}
     />
@@ -274,10 +277,11 @@
 />
 
 <style>
+  /* The same 32 between the head and the first section as between all sections. */
   .page {
     display: flex;
     flex-direction: column;
-    gap: var(--space-24);
+    gap: var(--space-32);
     max-width: calc(var(--reader-width) + 2 * var(--pane-padding));
     min-height: 100%;
     margin: 0 auto;
