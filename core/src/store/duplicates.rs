@@ -19,7 +19,9 @@ pub const MAX_DISTANCE: u32 = 3;
 
 impl Store {
     /// Compares a job that just got its full text (or a guest's teaser) with the other
-    /// portals' jobs and links it to the earliest match. Returns the original.
+    /// portals' jobs - and with its own portal's where one key has no portal id (a slug
+    /// link of a project the alerts name by its id) - and links it to the earliest match;
+    /// the row with the portal's id is always the original. Returns the original.
     ///
     /// Two full texts match by `SimHash`; a teaser (the start of the ad, cut) matches a full
     /// text when its word triples are contained in it ([`MIN_CONTAINED`]), since a
@@ -62,15 +64,21 @@ impl Store {
             if same.0.is_empty() {
                 return Ok(None);
             }
-            // Titles and companies first (small), texts only for the few that match.
+            // Titles and companies first (small), texts only for the few that match. The
+            // other portals' jobs - and the same portal's where one side has no portal id
+            // (freelancermap's `/projekt/<slug>` link of a project the alerts name as
+            // `/nproj/<id>`, or its .com slug): the same page, two keys.
             let mut stmt = conn.prepare_cached(
                 "SELECT portal, job_id, title, company FROM job
-                 WHERE portal <> ?1 AND desc_status IN ('ok', 'teaser') AND dup_of IS NULL
+                 WHERE (portal <> ?1
+                        OR (job_id <> ?2 AND (?3 OR job_id GLOB 'u*')))
+                   AND desc_status IN ('ok', 'teaser') AND dup_of IS NULL
                    AND archived_at IS NULL AND desc_closed = 0
                  ORDER BY first_seen_at, portal, job_id",
             )?;
+            let own_hash = !key.has_portal_id();
             let candidates: Vec<(String, String)> = stmt
-                .query_map([key.portal.key()], |r| {
+                .query_map(params![key.portal.key(), key.id, own_hash], |r| {
                     Ok((
                         r.get::<_, String>(0)?,
                         r.get::<_, String>(1)?,
@@ -110,10 +118,14 @@ impl Store {
                     continue;
                 };
                 let other_key = JobKey { portal, id };
-                // The full text arrived after its teaser: it becomes the original, and the
-                // teaser (with whatever pointed to it) points to it - unless the user marked
-                // the teaser, or the full-text ad is closed.
-                if other.teaser && !own.teaser {
+                // The full text arrived after its teaser, or the job with the portal's id
+                // after the same page under a slug key: it becomes the original, and the
+                // other row (with whatever pointed to it) points to it - unless the user
+                // marked that row, or this ad is closed.
+                let same_portal = other_key.portal == key.portal;
+                let id_after_slug =
+                    same_portal && key.has_portal_id() && !other_key.has_portal_id();
+                if (other.teaser && !own.teaser) || id_after_slug {
                     if other.marked || own.closed {
                         continue;
                     }
@@ -164,7 +176,8 @@ impl Store {
             else {
                 continue;
             };
-            if keys.contains(&&original) {
+            // The same portal under a second key (a slug link) is no other portal.
+            if keys.contains(&&original) && portal != original.portal {
                 let portals = out.entry(original).or_default();
                 if !portals.contains(&portal) {
                     portals.push(portal);
@@ -555,6 +568,66 @@ mod tests {
             None,
             "the full text is listed"
         );
+    }
+
+    /// freelancermap's `/projekt/<slug>` link carries no id, its alerts link `/nproj/<id>`:
+    /// the same project under two keys is one row - the one with the portal's id - in
+    /// either order; two different projects of the portal never merge.
+    #[test]
+    fn a_slug_link_and_an_id_link_of_one_project_are_one_row() {
+        use crate::store::test_support::{mail, now, posting};
+        for id_first in [true, false] {
+            let store = Store::in_memory().unwrap();
+            let run = store.begin_run().unwrap();
+            let add = |url: &str| {
+                let p = posting(
+                    url,
+                    "SAP FI/CO Berater (m/w/d)",
+                    "Ferrum Systems SE",
+                    "Hamburg",
+                );
+                store.upsert_posting(run, &p, mail(), now()).unwrap();
+                store
+                    .record_text(&p.key, TEXT, false, false, now())
+                    .unwrap();
+                p.key
+            };
+            let (id, slug) = if id_first {
+                let id = add("https://www.freelancermap.de/nproj/2971857.html");
+                (
+                    id,
+                    add("https://www.freelancermap.de/projekt/sap-fi-co-berater-m-w-d"),
+                )
+            } else {
+                let slug = add("https://www.freelancermap.de/projekt/sap-fi-co-berater-m-w-d");
+                (add("https://www.freelancermap.de/nproj/2971857.html"), slug)
+            };
+            assert!(!slug.has_portal_id());
+            let later = if id_first { &slug } else { &id };
+            assert_eq!(store.link_duplicate(later).unwrap(), Some(id.clone()));
+            assert_eq!(store.dup_of(&slug).unwrap(), Some(id.clone()), "{id_first}");
+            assert_eq!(store.dup_of(&id).unwrap(), None);
+            assert!(store.also_on(&[&id]).unwrap().is_empty(), "no other portal");
+        }
+        // Two projects of the portal, both with an id: never merged, however alike.
+        let store = Store::in_memory().unwrap();
+        let run = store.begin_run().unwrap();
+        for url in [
+            "https://www.freelancermap.de/nproj/2971857.html",
+            "https://www.freelancermap.de/nproj/2971858.html",
+        ] {
+            let p = posting(
+                url,
+                "SAP FI/CO Berater (m/w/d)",
+                "Ferrum Systems SE",
+                "Hamburg",
+            );
+            store.upsert_posting(run, &p, mail(), now()).unwrap();
+            store
+                .record_text(&p.key, TEXT, false, false, now())
+                .unwrap();
+            assert_eq!(store.link_duplicate(&p.key).unwrap(), None);
+        }
     }
 
     /// An archived or closed original never swallows a fresh announcement of the same job.
