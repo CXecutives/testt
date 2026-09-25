@@ -413,9 +413,10 @@
     cursor: default;
   }
 
+  /* A long value wraps at its spaces; a word breaks only when it cannot fit alone. */
   .text {
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   .remove {

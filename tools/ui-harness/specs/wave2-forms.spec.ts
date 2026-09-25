@@ -261,3 +261,41 @@ test('live-forms-15: one choice is one Tab stop, and the arrows choose', async (
   };
   expect(await sent()).toBeNull();
 });
+
+test('live-forms-16: narrow, a Schwerpunkt wraps at its words; a field action ends its line', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 480, height: 640 });
+  await profile(page);
+  const chip = page
+    .getByTestId('focus')
+    .locator('.chip .text')
+    .filter({ hasText: 'Konzernrechnungslegung nach IFRS' });
+  await chip.scrollIntoViewIfNeeded();
+  // The long word stands on one line.
+  const lines = await chip.evaluate((node) => {
+    const text = node.firstChild!;
+    const range = document.createRange();
+    const at = text.textContent!.indexOf('Konzernrechnungslegung');
+    range.setStart(text, at);
+    range.setEnd(text, at + 'Konzernrechnungslegung'.length);
+    return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+  });
+  expect(lines).toBe(1);
+  // Wide, the chips stay beside their label.
+  await page.setViewportSize({ width: 1360, height: 900 });
+  const label = (await page.getByTestId('focus-count').boundingBox())!;
+  const first = (await page.getByTestId('focus').locator('.chip').first().boundingBox())!;
+  expect(first.x).toBeGreaterThan(label.x + label.width);
+  expect(Math.abs(first.y + first.height / 2 - (label.y + label.height / 2))).toBeLessThan(2);
+  // "Wert entfernen" ends the message line of a half-width field as of a full-width one.
+  await profile(page, `${WIN}&scenario=profile-unreadable`);
+  for (const field of ['minDayRate', 'regions']) {
+    const scope = page.locator(`[data-field="${field}"]`);
+    const action = (await scope.getByTestId('value-remove').boundingBox())!;
+    const message = (await scope.locator('[role="alert"]').boundingBox())!;
+    const box = (await scope.boundingBox())!;
+    expect(Math.abs(action.x + action.width - (box.x + box.width)), field).toBeLessThan(2);
+    expect(action.y, field).toBeLessThan(message.y + message.height / 2);
+  }
+});

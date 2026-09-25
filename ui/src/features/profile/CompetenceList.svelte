@@ -200,7 +200,9 @@
         {words.focusCount(focus.length, MAX_FOCUS)}
       </span>
       {#if focus.length > 0}
-        <ChipInput bind:values={focus} entry={false} />
+        <span class="focus-chips">
+          <ChipInput bind:values={focus} entry={false} />
+        </span>
       {/if}
     </div>
     {#each problems as problem (problem.value)}
@@ -271,11 +273,20 @@
     border-top: var(--border-width) solid var(--border);
   }
 
+  /* The chips stand beside their label while room for a long word is left there, else they
+     go under it (a long Schwerpunkt then wraps at its spaces, not inside a word). */
   .focus-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-12);
+    gap: var(--space-8) var(--space-12);
     min-height: var(--control-sm);
+  }
+
+  .focus-chips {
+    display: flex;
+    flex: 1 1 calc(var(--stat-min) + var(--space-48));
+    min-width: 0;
   }
 
   .focus-label {
