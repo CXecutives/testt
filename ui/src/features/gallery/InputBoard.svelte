@@ -177,7 +177,7 @@
   </div>
 
   <div class="panel">
-    <!-- A switch row like the system settings: a click on its text toggles the switch. -->
+    <!-- A switch row like the system settings: only the switch toggles, its text names it. -->
     <SettingRow label={t.toggle} hint={t.toggleHint} for="gallery-auto-fetch">
       <Toggle
         id="gallery-auto-fetch"
