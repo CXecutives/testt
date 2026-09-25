@@ -54,7 +54,9 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await page.getByTestId('mailbox-user').fill('alerts.demo@gmail.com');
   await page.getByTestId('mailbox-password').fill('kurz');
   await page.getByTestId('mailbox-password').press('Enter');
-  await expect(page.getByTestId('mailbox-form')).toContainText('16 Buchstaben');
+  await expect(page.getByTestId('mailbox-form')).toContainText(
+    'Ein App-Passwort hat 16 Buchstaben.',
+  );
   await expect(page.getByTestId('step-mailbox')).toHaveAttribute('aria-current', 'step');
   await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
   await page.getByTestId('mailbox-password').press('Enter');

@@ -211,6 +211,35 @@ test('text files: the row says what they are; another folder says where they are
   await expect(files).toContainText('0 Anzeigen als Text für eine KI');
 });
 
+test('first run: the three steps are in view at 1280 x 720 on both systems', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  /** How far a control ends below the bottom of the view (0 or less: in view). */
+  const below = (id: string): Promise<number> =>
+    page.getByTestId(id).evaluate((node) => {
+      const view = node.closest('.view')!.getBoundingClientRect();
+      return node.getBoundingClientRect().bottom - view.bottom;
+    });
+  for (const platform of ['windows', 'macos']) {
+    await open(page, `?platform=${platform}&scenario=first-run`);
+    expect(await below('first-fetch')).toBeLessThanOrEqual(0);
+    // After a reset its report stands above them: the current step's action is in view.
+    await open(page, `?platform=${platform}&scenario=reset`);
+    expect(await below('mailbox-save')).toBeLessThanOrEqual(0);
+  }
+});
+
+test('the first run card lines up with the cards of the views it leads to', async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 560 });
+  for (const platform of ['windows', 'macos']) {
+    await open(page, `?platform=${platform}&scenario=mailbox-only`);
+    const first = await page.getByTestId('first-run').locator('.card').first().boundingBox();
+    await settings(page, `?platform=${platform}`);
+    const card = await page.getByTestId('settings-mailbox').locator('.card').first().boundingBox();
+    expect(first?.x).toBe(card?.x);
+    expect(first?.width).toBe(card?.width);
+  }
+});
+
 test('the first run opens at its top, the caret waiting in the address', async ({ page }) => {
   await page.setViewportSize({ width: 480, height: 360 });
   for (const query of [`${WIN}&scenario=reset&lang=en`, '?platform=macos&scenario=first-run']) {

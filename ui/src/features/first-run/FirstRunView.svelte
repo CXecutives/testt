@@ -1,11 +1,13 @@
 <!--
-  First run (full page) on the white sheet: the app mark, one sentence of what the app
-  does, one about privacy, and three real steps that tick themselves: connect the mailbox,
-  a usable profile (made in the Profil view, whose editor also imports a file or a CV),
-  fetch. The next open step carries the one primary button; "Abrufen" stays locked
-  with its reason until a mailbox is connected. After "Alles zurücksetzen" the app starts
-  here again, so this is where the reset reports. Compact enough that the third step is in
-  view at 1280 x 720; the sidebar is inert here (the Profil view frees it again).
+  First run (full page) on the white sheet, in the column of every view: the app mark beside
+  its name, one sentence of what the app does, one about privacy, and three real steps that
+  tick themselves: connect the mailbox, a usable profile (made in the Profil view, whose
+  editor also imports a file or a CV), fetch. The next open step carries the one primary
+  button; "Abrufen" stays locked with its reason until a mailbox is connected. After "Alles
+  zurücksetzen" the app starts here again, so this is where the reset reports. Compact enough
+  that all three steps are in view at 1280 x 720 on both OS (after a reset its report stands
+  above them; the current step's action is in view then too); the sidebar is inert here (the
+  Profil view frees it again).
 
   A vertical stepper: 28 px markers (the current one deep navy, "you are here"; upcoming
   ones outlined; done ones green with a check) joined by a hairline that fills green below
@@ -106,8 +108,10 @@
 <div class="hero" data-testid="first-run">
   <div class="column">
     <header class="intro">
-      <BrandMark size="lg" />
-      <h1 class="title">{t.app.name}</h1>
+      <div class="brand">
+        <BrandMark size="lg" />
+        <h1 class="title">{t.app.name}</h1>
+      </div>
       <p class="benefit">{t.firstRun.benefit}</p>
       <p class="privacy"><Icon name="shield" size="sm" />{t.firstRun.privacy}</p>
     </header>
@@ -206,9 +210,11 @@
 </div>
 
 <style>
+  /* The one inner padding of every content column, so the card lines up with the Profil and
+     Einstellungen cards it leads to. */
   .hero {
     min-height: 100%;
-    padding: var(--space-16) var(--space-24) var(--space-24);
+    padding: var(--pane-padding) var(--pane-padding) var(--space-24);
   }
 
   .column {
@@ -225,6 +231,13 @@
     align-items: center;
     gap: var(--space-8);
     text-align: center;
+  }
+
+  /* The mark beside the name, like the app's lockup: one row, not two. */
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
   }
 
   .title {

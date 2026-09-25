@@ -3,9 +3,9 @@
   at the field they belong to (empty fields are said before anything is sent); when Gmail
   refuses the pair, both fields are marked, the password shakes once and the one sentence
   stands above the button. The password never leaves this form except to save_mailbox (it
-  goes straight into the OS keychain). Under both fields one line says what an app password
-  needs, with the two pages in the order she needs them: the 2-step verification, then the
-  app password. The fields and that line keep the measure of a form; save and cancel follow
+  goes straight into the OS keychain). Under both fields (none has a hint of its own, so the
+  two stay one row) one line says what an app password is and needs, with the two pages in
+  the order she needs them: the 2-step verification, then the app password. The fields and that line keep the measure of a form; save and cancel follow
   the OS like the dialogs (save first on Windows, last on macOS), 12 apart, and end on the
   trailing edge of the card like every save/cancel pair; the single "Verbinden" of the first
   run stays under the fields. A saved change says so where the mailbox is (Einstellungen).
@@ -134,12 +134,7 @@
         testid="mailbox-user"
       />
     </Field>
-    <Field
-      label={t.settings.password}
-      for="{id}-password"
-      hint={t.settings.passwordHint}
-      error={passwordError?.() ?? null}
-    >
+    <Field label={t.settings.password} for="{id}-password" error={passwordError?.() ?? null}>
       <TextField
         bind:this={passwordField}
         id="{id}-password"
@@ -151,7 +146,7 @@
       />
     </Field>
   </div>
-  <!-- What an app password needs, and the two pages in the order she needs them. -->
+  <!-- What an app password is and needs, and the two pages in the order she needs them. -->
   <div class="help">
     <p>{t.settings.twoStep}</p>
     <div class="links">

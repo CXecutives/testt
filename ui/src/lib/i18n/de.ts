@@ -1240,9 +1240,9 @@ export const de = {
     } satisfies Record<VaultKind, string>,
     address: 'Gmail-Adresse',
     password: 'App-Passwort',
-    passwordHint: '16 Buchstaben, erstellt im Google-Konto.',
     createPassword: 'App-Passwort erstellen',
-    twoStep: 'Ein App-Passwort braucht die Bestätigung in zwei Schritten.',
+    /** Under both fields: what an app password is and needs (the pages follow). */
+    twoStep: 'Ein App-Passwort hat 16 Buchstaben und braucht die Bestätigung in zwei Schritten.',
     addressMissing: 'Die Gmail-Adresse fehlt.',
     passwordMissing: 'Das App-Passwort fehlt.',
     twoStepAction: 'Bestätigung einschalten',
