@@ -11,6 +11,7 @@
   import Archive from '@lucide/svelte/icons/archive';
   import ArchiveRestore from '@lucide/svelte/icons/archive-restore';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import Ban from '@lucide/svelte/icons/ban';
   import Briefcase from '@lucide/svelte/icons/briefcase';
@@ -131,6 +132,8 @@
     // Mark all as read; bring a job back from the trash.
     'check-check': CheckCheck,
     'undo-2': Undo2,
+    // The way on after a step ("Weiter zum ersten Abruf").
+    'arrow-right': ArrowRight,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

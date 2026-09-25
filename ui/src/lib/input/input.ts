@@ -365,6 +365,40 @@ export interface ChipKeyHandlers {
 
 const CHIPS = '[data-chip-keys]';
 const chipFields = new WeakMap<Element, ChipKeyHandlers>();
+/** A chip of a chip field whose chips can be edited, with its index (`data-chip`). */
+const CHIP = '[data-chip]';
+const EDITABLE_CHIPS = '[data-chip-edit]';
+const chipEdits = new WeakMap<Element, (index: number) => void>();
+
+/**
+ * A chip field whose chips a double click takes back into its text for editing
+ * (components/ChipInput.svelte): the chip carries its index in `data-chip`.
+ */
+export const chipEdit: Action<HTMLElement, (index: number) => void> = (node, edit) => {
+  chipEdits.set(node, edit);
+  node.dataset.chipEdit = '';
+  return {
+    update(next: (index: number) => void) {
+      chipEdits.set(node, next);
+    },
+    destroy() {
+      chipEdits.delete(node);
+      delete node.dataset.chipEdit;
+    },
+  };
+};
+
+/** A double click with the left button on an editable chip edits it; `true` if it did. */
+function editChip(event: MouseEvent): boolean {
+  if (event.button !== LEFT) return false;
+  const chip = closest(event.target, CHIP);
+  const field = chip === null ? null : chip.closest(EDITABLE_CHIPS);
+  const edit = field === null ? undefined : chipEdits.get(field);
+  const index = Number(chip instanceof HTMLElement ? chip.dataset.chip : NaN);
+  if (edit === undefined || !Number.isInteger(index)) return false;
+  edit(index);
+  return true;
+}
 
 /**
  * The keys of a chip field (components/ChipInput.svelte): Enter adds, Backspace in the empty
@@ -749,7 +783,7 @@ export function installInput(): void {
   document.addEventListener(
     'dblclick',
     (event) => {
-      if (!selectable(event.target)) event.preventDefault();
+      if (editChip(event) || !selectable(event.target)) event.preventDefault();
     },
     capture,
   );

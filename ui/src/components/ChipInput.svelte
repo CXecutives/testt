@@ -1,13 +1,16 @@
 <!--
   A list of short values as chips in a field: type and press Enter (or leave the field) to
   add, x removes, Backspace in the empty field removes the last one, Esc drops what was
-  typed. A pasted comma, semicolon or line list becomes one chip per entry. A value that
-  is already there (in any case) is not added twice. Without `entry` the field only shows
-  and removes (chips chosen elsewhere). Keys come from input.ts (chipKeys).
+  typed, a double click on a chip takes it back into the text to edit it. A list of terms
+  (`split` list) also splits at commas and semicolons, typed or pasted; a list of sentences
+  or names that hold commas (`split` lines) only at line breaks. A value that is already
+  there (in any case) is not added twice. Without `entry` the field only shows and removes
+  (chips chosen elsewhere). Keys and the double click come from input.ts (chipKeys,
+  chipEdit).
 -->
 <script lang="ts">
   import { t } from '$lib/i18n/t';
-  import { chipKeys, FIELD_ATTRIBUTES } from '$lib/input/input';
+  import { chipEdit, chipKeys, FIELD_ATTRIBUTES } from '$lib/input/input';
   import Icon from './Icon.svelte';
 
   interface Props {
@@ -21,6 +24,9 @@
     invalid?: boolean;
     /** The field takes typed values (off: it only shows and removes). */
     entry?: boolean;
+    /** Where text splits into chips: at commas, semicolons and line breaks (terms), or only
+     *  at line breaks (sentences, degrees, certificate names). */
+    split?: 'list' | 'lines';
     testid?: string | null;
     onchange?: (values: string[]) => void;
   }
@@ -33,11 +39,13 @@
     describedby = null,
     invalid = false,
     entry = true,
+    split = 'list',
     testid = null,
     onchange,
   }: Props = $props();
 
-  const SEPARATORS = /[,;\n\r\t]+/;
+  const SEPARATORS = { list: /[,;\n\r\t]+/, lines: /[\n\r]+/ } as const;
+  const separators = $derived(SEPARATORS[split]);
 
   let draft = $state('');
   let input = $state<HTMLInputElement | null>(null);
@@ -53,7 +61,7 @@
   /** Adds every entry of `text` that is not there yet; `true` if there was text. */
   function add(text: string): boolean {
     const parts = text
-      .split(SEPARATORS)
+      .split(separators)
       .map((part) => part.trim())
       .filter((part) => part !== '');
     if (parts.length === 0) return false;
@@ -93,10 +101,22 @@
   /** A pasted list becomes chips at once; a single value is pasted as text. */
   function paste(event: ClipboardEvent): void {
     const text = event.clipboardData?.getData('text') ?? '';
-    if (!SEPARATORS.test(text.trim())) return;
+    if (!separators.test(text.trim())) return;
     event.preventDefault();
-    add(`${draft},${text}`);
+    add(`${draft}\n${text}`);
     draft = '';
+  }
+
+  /** A double click on a chip: what was typed becomes a chip, the chip's text goes back
+   *  into the field with the caret at its end. */
+  function edit(index: number): void {
+    const value = values[index];
+    if (!entry || value === undefined) return;
+    commit();
+    update(values.filter((other) => other !== value));
+    draft = value;
+    input?.focus();
+    queueMicrotask(() => input?.setSelectionRange(value.length, value.length));
   }
 
   /** A press on the free area of the field puts the caret into its input. */
@@ -115,9 +135,10 @@
   role="presentation"
   data-testid={testid ?? undefined}
   onpointerdown={focusInput}
+  use:chipEdit={edit}
 >
   {#each values as value, index (value)}
-    <span class="chip">
+    <span class="chip" data-chip={index}>
       <span class="text">{value}</span>
       <button
         type="button"
