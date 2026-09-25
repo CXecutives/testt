@@ -850,6 +850,74 @@ async fn the_info_sheet_keeps_the_last_good_scan() {
     );
 }
 
+/// The Info sheet of the Excel file as `(label, value)` rows.
+fn info_sheet(workspace: &Path) -> Vec<(String, String)> {
+    use calamine::{Reader, Xlsx, open_workbook};
+    let path = export::overview_path(&workspace.join(RESULT_DIR));
+    let mut book: Xlsx<_> = open_workbook(&path).unwrap();
+    book.worksheet_range(texts::INFO_SHEET)
+        .unwrap()
+        .rows()
+        .map(|row| (row[0].to_string(), row[1].to_string()))
+        .collect()
+}
+
+/// The Info sheet says what the app says: "new" is the run card's number (one per job, the
+/// excluded one left out), the job count is the sheet's rows, and a rescore writes the
+/// moment the file was made - never a fetch time it did not have.
+#[tokio::test(start_paused = true)]
+async fn the_info_sheet_says_what_the_app_says() {
+    let c = clock();
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::in_memory().unwrap();
+    let cancel = CancellationToken::new();
+    let fetch = ctx(dir.path(), false);
+    let (s, _) = go(&mut DemoBackends, &store, &request(), &fetch, &cancel, &c).await;
+    let card = s.new_jobs.unwrap().count;
+    assert!(card < s.scan.unwrap().new, "the excluded job is no new job");
+    let value = |rows: &[(String, String)], label: &str| -> String {
+        rows.iter()
+            .find(|(k, _)| k == label)
+            .map_or_else(|| panic!("{label}: {rows:?}"), |(_, v)| v.clone())
+    };
+    assert_eq!(
+        value(&info_sheet(dir.path()), texts::INFO_NEW),
+        card.to_string()
+    );
+    let listed = store.listed_count().unwrap();
+    let key = store.jobs(&JobFilter::default()).unwrap()[0].key.clone();
+    store
+        .move_jobs(std::slice::from_ref(&key), Place::Archive, c())
+        .unwrap();
+    // A rescore an hour later writes the file again.
+    let later = move || c() + SignedDuration::from_hours(1);
+    let rescore = RunRequest {
+        kind: RunKind::Rescore,
+    };
+    let (r, _) = go(&mut DemoBackends, &store, &rescore, &fetch, &cancel, &later).await;
+    let rows = info_sheet(dir.path());
+    assert_eq!(
+        value(&rows, texts::INFO_JOBS_TOTAL),
+        (listed - 1).to_string(),
+        "the sheet's rows"
+    );
+    assert_eq!(
+        value(&rows, texts::HTML_CREATED),
+        texts::DE.moment(r.finished_at)
+    );
+    assert_ne!(
+        value(&rows, texts::INFO_LAST_SCAN),
+        value(&rows, texts::HTML_CREATED),
+        "the fetch keeps its own time"
+    );
+    assert_eq!(
+        value(&rows, texts::INFO_NEW),
+        card.to_string(),
+        "still the fetch's"
+    );
+    assert!(rows.iter().all(|(k, _)| k != texts::INFO_LAST_RUN));
+}
+
 /// Rows stored by an earlier version (mail address, "Lauf" for a mailbox scan) come out in
 /// today's words and without the address.
 #[test]
@@ -884,7 +952,7 @@ fn info_rows_of_an_earlier_version_use_todays_words() {
             texts::INFO_NEW,
             texts::INFO_KNOWN,
             texts::INFO_DUP,
-            texts::INFO_LAST_RUN,
+            texts::HTML_CREATED,
             texts::INFO_JOBS_TOTAL,
             texts::INFO_PROGRAM
         ]

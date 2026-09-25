@@ -477,6 +477,16 @@ impl Store {
             .query_row("SELECT COUNT(*) FROM job", [], |r| r.get(0))?)
     }
 
+    /// Number of the jobs the Excel sheet lists (see [`JobFilter::listed`]): the inbox,
+    /// without another portal's duplicates.
+    pub fn listed_count(&self) -> Result<i64> {
+        Ok(self.conn().query_row(
+            &format!("SELECT COUNT(*) FROM job WHERE {INBOX} AND dup_of IS NULL"),
+            [],
+            |r| r.get(0),
+        )?)
+    }
+
     // ------------------------------------------------------------------ Job details
 
     /// Jobs whose full text should be fetched automatically: open or failed (at the earliest

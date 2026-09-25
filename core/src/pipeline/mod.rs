@@ -559,6 +559,8 @@ pub async fn run<B: Backends>(
     log::info!("run {run}: {:?} started", summary.kind);
     let plan = Plan::of(&request.kind, ctx);
     let mut postings: BTreeMap<Portal, usize> = BTreeMap::new();
+    // The scan of this run succeeded: its facts are the Info sheet's.
+    let mut scanned_ok = false;
 
     if let Some(scope) = plan.scan {
         let before_scan = last_scan_run(store).unwrap_or(0);
@@ -587,6 +589,7 @@ pub async fn run<B: Backends>(
             summary.outcome = match result {
                 Ok(()) => {
                     remember_scan(store, scope, &scanned, started_at);
+                    scanned_ok = true;
                     Outcome::Completed
                 }
                 Err(ScanError::Mail(MailError::Cancelled)) => Outcome::Cancelled,
@@ -642,7 +645,12 @@ pub async fn run<B: Backends>(
 
     if summary.scan.is_some() {
         match store.new_jobs(run) {
-            Ok((count, high)) => summary.new_jobs = Some(NewJobs { count, high }),
+            Ok((count, high)) => {
+                summary.new_jobs = Some(NewJobs { count, high });
+                if scanned_ok {
+                    remember_new_jobs(store, count);
+                }
+            }
             Err(e) => log::warn!("run {run}: new jobs not counted: {e}"),
         }
     }
@@ -652,7 +660,7 @@ pub async fn run<B: Backends>(
     summary.finished_at = clock();
     if !ctx.dry_run {
         emit(status(StatusCode::WritingFiles, None, None));
-        let info = info_rows(store, started_at, Texts::of(ctx.language));
+        let info = info_rows(store, summary.finished_at, Texts::of(ctx.language));
         let exported = export_all(
             store,
             &ctx.workspace,
@@ -1211,11 +1219,7 @@ pub fn delete_jobs(
     };
     let left = remove_deleted_txt(store, &workspace.join(RESULT_DIR), &names);
     deleted.txt_left = u32::try_from(left).unwrap_or(u32::MAX);
-    let info = info_rows(
-        store,
-        last_fetch_at(store).unwrap_or(now),
-        Texts::of(language),
-    );
+    let info = info_rows(store, now, Texts::of(language));
     let run = last_scan_run(store).unwrap_or(0);
     let exported = export_all(store, workspace, &info, run, now, language);
     write_top_matches(store, workspace, matcher, now);
@@ -1428,9 +1432,14 @@ struct ScanFacts {
     /// Start of the scan (Unix seconds).
     at: i64,
     scope: Scope,
+    /// Listings in the alert mails, by what the scan knew of them.
     new: usize,
     known: usize,
     dup: usize,
+    /// The new jobs of the run, as its card counts them ([`NewJobs`]: a job several portals
+    /// announce once, excluded ones left out); `None` in the facts of earlier versions.
+    #[serde(default)]
+    jobs: Option<usize>,
 }
 
 /// Remembers the numbers of a successful mailbox scan for the sheet "Info" - only then: a
@@ -1443,8 +1452,38 @@ fn remember_scan(store: &Store, scope: Scope, scan: &ScanSummary, at: Timestamp)
         new: scan.new,
         known: scan.known_before,
         dup: scan.dup_in_run,
+        jobs: None,
     };
-    let saved = serde_json::to_string(&facts)
+    save_facts(store, &facts);
+    if let Err(e) = store.kv_set(LAST_FETCH_AT, &time::to_db(at).to_string()) {
+        log::warn!("time of the mailbox scan not stored: {e}");
+    }
+}
+
+/// The run card's number of new jobs goes with the facts of the scan that just succeeded:
+/// the Info sheet says the same number as the card.
+fn remember_new_jobs(store: &Store, count: usize) {
+    if let Some(facts) = scan_facts(store) {
+        save_facts(
+            store,
+            &ScanFacts {
+                jobs: Some(count),
+                ..facts
+            },
+        );
+    }
+}
+
+fn scan_facts(store: &Store) -> Option<ScanFacts> {
+    store
+        .kv_get(LAST_SCAN_FACTS)
+        .ok()
+        .flatten()
+        .and_then(|json| serde_json::from_str(&json).ok())
+}
+
+fn save_facts(store: &Store, facts: &ScanFacts) {
+    let saved = serde_json::to_string(facts)
         .map_err(|e| e.to_string())
         .and_then(|json| {
             store
@@ -1453,9 +1492,6 @@ fn remember_scan(store: &Store, scope: Scope, scan: &ScanSummary, at: Timestamp)
         });
     if let Err(e) = saved {
         log::warn!("mailbox scan details not stored: {e}");
-    }
-    if let Err(e) = store.kv_set(LAST_FETCH_AT, &time::to_db(at).to_string()) {
-        log::warn!("time of the mailbox scan not stored: {e}");
     }
 }
 
@@ -1482,15 +1518,13 @@ pub fn auto_fetch_due(
         && last_fetch_at(store).is_none_or(|at| now.duration_since(at) > AUTO_FETCH_AFTER)
 }
 
-/// Sheet "Info" of the Excel file (last scan, last run, counters, program). The numbers
-/// come from the last successful mailbox scan - after pure detail runs too.
-fn info_rows(store: &Store, started_at: Timestamp, words: &Texts) -> Vec<(String, String)> {
-    let facts = store
-        .kv_get(LAST_SCAN_FACTS)
-        .ok()
-        .flatten()
-        .and_then(|json| serde_json::from_str::<ScanFacts>(&json).ok());
-    let mut rows = match facts {
+/// Sheet "Info" of the Excel file (last mailbox fetch, when the file was written, counters,
+/// program). The numbers come from the last successful mailbox scan - after pure detail
+/// runs too; "new" is the run card's number of new jobs. Any run and a delete for good write
+/// the file (`written`: that moment), so it says when, not the time of a fetch: that is the
+/// first row's. The job count is the sheet's rows.
+fn info_rows(store: &Store, written: Timestamp, words: &Texts) -> Vec<(String, String)> {
+    let mut rows = match scan_facts(store) {
         Some(facts) => {
             let at = time::from_db(facts.at).map_or_else(String::new, |at| words.moment(at));
             let scope = match facts.scope {
@@ -1500,17 +1534,21 @@ fn info_rows(store: &Store, started_at: Timestamp, words: &Texts) -> Vec<(String
             vec![
                 (words.info_last_scan.to_owned(), at),
                 (words.info_scope.to_owned(), scope.to_owned()),
-                (words.info_new.to_owned(), facts.new.to_string()),
+                (
+                    words.info_new.to_owned(),
+                    facts.jobs.unwrap_or(facts.new).to_string(),
+                ),
                 (words.info_known.to_owned(), facts.known.to_string()),
                 (words.info_dup.to_owned(), facts.dup.to_string()),
             ]
         }
         None => legacy_info_rows(store, words),
     };
-    rows.push((words.info_last_run.into(), words.moment(started_at)));
+    // "Erstellt am" / "Created on", the HTML overview's word for the same thing.
+    rows.push((words.html_created.into(), words.moment(written)));
     rows.push((
         words.info_jobs_total.into(),
-        store.job_count().unwrap_or(0).to_string(),
+        store.listed_count().unwrap_or(0).to_string(),
     ));
     rows.push((words.info_program.into(), texts::PROGRAM_NAME.into()));
     rows
