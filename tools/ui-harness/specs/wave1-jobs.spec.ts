@@ -397,24 +397,26 @@ for (const { width, height } of [
   });
 }
 
-test('the terms label takes the size of the line it labels', async ({ page }) => {
+test('the terms table: name, value and verdict in one type size, a word for each verdict', async ({
+  page,
+}) => {
   await open(page, WIN);
   await facet(page, 'Alle').click();
   const size = (target: Locator): Promise<string> =>
     target.evaluate((node) => getComputedStyle(node).fontSize);
   await row(page, 'freelancermap-2801').click();
-  // The strip as chips or, when every criterion is met, as one quiet line.
-  const strip = page.getByTestId('criteria').or(page.getByTestId('criteria-clean'));
-  await expect(strip).toBeVisible();
-  expect(await size(strip.locator('.strip-label'))).toBe(
-    await size(strip.locator('.chip, .clean-values').first()),
-  );
-  await row(page, 'linkedin-4100200301').click();
-  const clean = page.getByTestId('criteria-clean');
-  await expect(clean).toBeVisible();
-  expect(await size(clean.locator('.strip-label'))).toBe(
-    await size(clean.locator('.clean-values')),
-  );
+  const table = page.getByTestId('stage').getByTestId('criteria');
+  await expect(table).toBeVisible();
+  const name = await size(table.locator('.term-name').first());
+  expect(await size(table.locator('.term-value .chip').first())).toBe(name);
+  expect(await size(table.locator('.verdict').first())).toBe(name);
+  // A verdict is a word, never a mark to decode.
+  const verdicts = await table
+    .locator('.verdict')
+    .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ''));
+  for (const verdict of verdicts) {
+    expect(['', 'passt', 'passt nicht', 'prüfen', 'offen']).toContain(verdict);
+  }
 });
 
 test('the compact bar is for the pointer: Tab reaches each tool once', async ({ page }) => {
@@ -487,7 +489,4 @@ test('a copy of the facts starts with the first fact', async ({ page }) => {
   await expect.poll(() => copy(head)).toMatch(/^\S/);
   const facts = await copy(head);
   expect(facts).toMatch(/\S · \S/);
-  await row(page, 'linkedin-4100200301').click();
-  const clean = page.getByTestId('stage').getByTestId('criteria-clean').locator('.clean-values');
-  await expect.poll(() => copy(clean)).toMatch(/^\S/);
 });

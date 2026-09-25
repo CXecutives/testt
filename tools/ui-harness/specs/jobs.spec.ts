@@ -66,8 +66,9 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await expect(page.getByTestId('band')).toHaveText('Hohe Passung');
   await expect(page.getByTestId('must')).toHaveText('4 von 4 Pflichtpunkten erfüllt');
   // Its ad states every criterion of the profile, and meets it: one quiet line with the terms.
-  await expect(page.getByTestId('criteria-clean')).toBeVisible();
-  await expect(page.getByTestId('criteria-clean')).toContainText('Interim');
+  await expect(page.getByTestId('criteria')).toBeVisible();
+  await expect(page.getByTestId('criteria')).toContainText('Interim');
+  await expect(page.getByTestId('criteria')).not.toContainText('passt nicht');
   // The click marks the job read; wait until the list and the reader have taken that in (a
   // slow machine would otherwise re-render the reader under the pointer).
   await expect(top.locator('.title')).not.toHaveClass(/unread/);
@@ -1416,18 +1417,22 @@ test('criteria show the ad value and jump to it; wishes have their block; rows s
   await row(page, 'freelancermap-2802').click();
   const criteria = page.getByTestId('criteria');
   // A value the ad states, a criterion it leaves open (neutral, not ticked).
-  await expect(criteria.getByTestId('criterion-c:countries')).toHaveText('Berlin');
+  await expect(criteria.getByTestId('criterion-c:countries').locator('.term-value')).toHaveText(
+    'Berlin',
+  );
   const rate = criteria.getByTestId('criterion-c:minDayRate');
-  await expect(rate).toHaveText('Satz nach Absprache');
-  await expect(rate.locator('[data-state]')).toHaveAttribute('data-state', 'unset');
-  await expect(criteria.getByTestId('criterion-c:availability')).toHaveText('Start offen');
+  await expect(rate.locator('.term-value')).toHaveText('Satz nach Absprache');
+  await expect(rate).toHaveAttribute('data-state', 'unset');
+  await expect(criteria.getByTestId('criterion-c:availability').locator('.term-value')).toHaveText(
+    'Start offen',
+  );
   // A click marks the passage that states it.
   await rate.getByRole('button').click();
   await expect(page.locator('mark.active')).toContainText('Tagessatz nach Absprache');
-  // A job whose ad meets every criterion shows one quiet line of the values.
+  // A job whose ad meets every criterion shows the same table, every verdict a fit.
   await row(page, 'linkedin-4100200301').click();
-  await expect(page.getByTestId('criteria-clean')).toContainText('Bremen');
-  await expect(page.getByTestId('criteria')).toHaveCount(0);
+  await expect(page.getByTestId('criteria')).toContainText('Bremen');
+  await expect(page.getByTestId('criteria')).not.toContainText('passt nicht');
 });
 
 test('an empty list says where jobs come from', async ({ page }) => {

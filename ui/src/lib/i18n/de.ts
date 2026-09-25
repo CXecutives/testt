@@ -947,7 +947,17 @@ export const de = {
       (partial > 0 ? `, ${n(partial)} teilweise` : ''),
     noMust: 'Keine Pflichtanforderungen erkannt',
     /** The label of the strip of hard criteria next to the score. */
-    frame: 'Rahmen',
+    frame: 'Konditionen',
+    /** The value of a term the ad names without a value, and of one it leaves out. */
+    stated: 'genannt',
+    notStated: 'nicht genannt',
+    /** Whether a term of the ad fits the profile, in a word (the table's third column). */
+    verdict: {
+      met: 'passt',
+      violated: 'passt nicht',
+      unknown: 'prüfen',
+      unset: 'offen',
+    } satisfies Record<CriterionState, string>,
     /** Why the temporary agency criterion needs a look. */
     anueCheck: 'Ob der Job über Arbeitnehmerüberlassung läuft, steht nicht fest.',
     contractLabel: 'Vertragsart',

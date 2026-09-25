@@ -20,7 +20,9 @@
   interface Props {
     label: string;
     state?: ChipState;
-    icon: IconName;
+    icon?: IconName | null;
+    /** A value in running text (the reader's terms table): no pill, the line's type. */
+    text?: boolean;
     /** Tooltip (what the state means). */
     hint?: string | null;
     /** Its passage is marked in the text. */
@@ -33,7 +35,8 @@
   let {
     label,
     state = 'plain',
-    icon,
+    icon = null,
+    text = false,
     hint = null,
     active = false,
     onhover = null,
@@ -43,7 +46,7 @@
 </script>
 
 {#snippet body()}
-  <span class="chip-icon"><Icon name={icon} size="xs" /></span>
+  {#if icon}<span class="chip-icon"><Icon name={icon} size="xs" /></span>{/if}
   <span class="chip-label">{label}</span>
 {/snippet}
 
@@ -51,6 +54,7 @@
   <button
     type="button"
     class="chip {state}"
+    class:text
     class:active
     data-state={state}
     data-testid={testid ?? undefined}
@@ -64,6 +68,7 @@
 {:else}
   <span
     class="chip {state}"
+    class:text
     data-state={state}
     data-testid={testid ?? undefined}
     use:tooltip={hint}
@@ -131,5 +136,13 @@
 
   .unset {
     color: var(--text-subtle);
+  }
+  /* A value in running text: no pill, the type of its line, ink. */
+  .chip.text {
+    height: auto;
+    padding: 0;
+    background-color: transparent;
+    color: var(--text);
+    font: var(--type-sm);
   }
 </style>

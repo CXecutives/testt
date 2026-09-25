@@ -37,7 +37,7 @@
   import Chip from '$components/Chip.svelte';
   import Count from '$components/Count.svelte';
   import Dialog from '$components/Dialog.svelte';
-  import Icon, { type IconName } from '$components/Icon.svelte';
+  import type { IconName } from '$components/Icon.svelte';
   import Notice from '$components/Notice.svelte';
   import ReasonItem from '$components/ReasonItem.svelte';
   import ScoreRing, { ringState } from '$components/ScoreRing.svelte';
@@ -181,6 +181,8 @@
   interface StripChip {
     id: string;
     testid: string;
+    /** What the row is about (Vertragsart, Tagessatz, Start ...). */
+    name: string;
     label: string;
     state: CriterionState | 'plain';
     icon: IconName;
@@ -202,6 +204,7 @@
       out.push({
         id: contract.id,
         testid: 'contract',
+        name: t.reader.contractLabel,
         label: reasonText(contract),
         state: unclear ? 'unknown' : 'plain',
         icon: unclear ? 'circle-help' : 'file-text',
@@ -221,6 +224,7 @@
         {
           id: `fact:${key}`,
           testid: `fact-${key}`,
+          name: t.reader.criterion[key].label,
           label,
           state: 'plain',
           icon,
@@ -250,8 +254,10 @@
       out.push({
         id: reason.id,
         testid: `criterion-${reason.id}`,
-        // The ad's own value; what it does not mention says so, neutral.
-        label: value ?? (state === 'unset' ? t.facts.notMentioned(name) : name),
+        name,
+        // The ad's own value; the name stands in the row already, so a criterion without a
+        // value says only whether the ad names it.
+        label: value ?? (state === 'unset' ? t.reader.notStated : t.reader.stated),
         state,
         icon: STATE_ICON[state],
         hint,
@@ -266,11 +272,6 @@
     }
     return out;
   });
-
-  // Every criterion met with the ad as evidence: one quiet line of the values, no chips.
-  const clean = $derived(
-    chips.length > 0 && chips.every((c) => c.state === 'met' || c.state === 'plain'),
-  );
 
   const headline = $derived.by((): { word: string; tone: string } | null => {
     if (!withRing) return null;
@@ -767,31 +768,29 @@
         {:else if preliminary}
           <p class="because" data-testid="preliminary">{t.reader.preliminary}</p>
         {/if}
-        {#if clean}
-          <p class="clean" aria-label={t.reader.frame} data-testid="criteria-clean">
-            <span class="strip-label">{t.reader.frame}</span>
-            <span class="clean-icon"><Icon name="check" size="xs" /></span>
-            <span class="clean-values" data-copy
-              ><span class="facts-line"
-                >{@render dotted(chips.map((chip) => ({ text: chip.label, hint: null })))}</span
-              ></span
-            >
-          </p>
-        {:else if chips.length > 0}
-          <ul class="chips" aria-label={t.reader.frame} data-testid="criteria">
-            <li class="strip-label">{t.reader.frame}</li>
+        {#if chips.length > 0}
+          <!-- The ad's terms as a table: what, the ad's value, and whether it fits the profile
+               in a word (no marks to decode). A value with a passage marks it on hover and
+               jumps to it on a click. -->
+          <ul class="terms" aria-label={t.reader.frame} data-testid="criteria">
             {#each chips as chip (chip.id)}
               {@const target = chip.reason}
-              <li data-testid={chip.testid}>
-                <Chip
-                  label={chip.label}
-                  state={chip.state}
-                  icon={chip.icon}
-                  hint={chip.hint}
-                  active={active === chip.id}
-                  onhover={target ? (on) => hover(target, on) : null}
-                  onselect={target ? () => scrollTo(target) : null}
-                />
+              <li class="term" data-state={chip.state} data-testid={chip.testid}>
+                <span class="term-name">{chip.name}</span>
+                <span class="term-value" data-copy>
+                  <Chip
+                    label={chip.label}
+                    state="plain"
+                    text
+                    hint={chip.hint}
+                    active={active === chip.id}
+                    onhover={target ? (on) => hover(target, on) : null}
+                    onselect={target ? () => scrollTo(target) : null}
+                  />
+                </span>
+                <span class="verdict {chip.state}"
+                  >{chip.state === 'plain' ? '' : t.reader.verdict[chip.state]}</span
+                >
               </li>
             {/each}
           </ul>
@@ -1176,52 +1175,47 @@
     color: var(--danger-strong);
   }
 
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-6);
-  }
-
-  /* The label of the strip: navy, the size of the line it labels (the chips here, the
-     values of the clean line below). */
-  .strip-label {
-    display: inline-flex;
+  /* The ad's terms: name, value and verdict in three columns that line up row by row. */
+  .terms {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    gap: var(--space-4) var(--space-12);
     align-items: center;
-    color: var(--text-label);
-    font: var(--type-xs);
-    font-weight: var(--weight-medium);
+    justify-items: start;
+    font: var(--type-sm);
+    text-align: start;
   }
 
-  /* Every criterion met: the values in one quiet line after a green check; the label and
-     the check stand on its first line when it wraps. */
-  .clean {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-6);
+  .term {
+    display: contents;
+  }
+
+  .term-name {
     color: var(--text-muted);
-    font: var(--type-sm);
   }
 
-  .clean .strip-label,
-  .clean-icon {
-    flex: none;
-    min-height: var(--leading-sm);
+  .term-value {
+    min-width: 0;
   }
 
-  .clean .strip-label {
-    font: var(--type-sm);
+  .verdict {
     font-weight: var(--weight-medium);
   }
 
-  .clean-icon {
-    display: inline-flex;
-    align-items: center;
+  .verdict.met {
     color: var(--success-strong);
   }
 
-  .clean-values {
-    min-width: 0;
-    overflow: hidden;
+  .verdict.violated {
+    color: var(--danger-strong);
+  }
+
+  .verdict.unknown {
+    color: var(--warning-strong);
+  }
+
+  .verdict.unset {
+    color: var(--text-subtle);
   }
 
   .actions {

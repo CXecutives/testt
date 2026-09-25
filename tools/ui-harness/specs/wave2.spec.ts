@@ -18,14 +18,14 @@ test('the reader shows the ad rate and start without a profile minimum', async (
     await open(page, `${WIN}&scenario=no-minimum${lang}`);
     await row(page, 'freelancermap-2801').click();
     // The profile sets neither a minimum rate nor a start: the ad's values join the line.
-    const clean = stage(page).getByTestId('criteria-clean');
+    const clean = stage(page).getByTestId('criteria');
     await expect(clean).toContainText(rate);
     await expect(clean).toContainText(start);
   }
   // With a minimum the criterion chip says the rate, and no fact repeats it.
   await open(page, WIN);
   await row(page, 'freelancermap-2801').click();
-  const clean = stage(page).getByTestId('criteria-clean');
+  const clean = stage(page).getByTestId('criteria');
   await expect(clean).toContainText('1.200 €/Tag');
   const text = async () => (await clean.textContent())?.replace(/\s/g, ' ') ?? '';
   await expect.poll(async () => (await text()).split('1.200 €/Tag').length).toBe(2);

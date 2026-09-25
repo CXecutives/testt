@@ -601,7 +601,7 @@ test('the demo job says the same in its row, its reader and its prompt', async (
   await expect(reader).toContainText('Tagessatz 1.200 €');
   await expect(reader).not.toContainText('nach Absprache');
   await expect(page.getByTestId('wishes')).toContainText('erreicht den Wunsch von 1.200');
-  // Every criterion of the profile is stated and met: one quiet line of the values.
-  await expect(page.getByTestId('criteria-clean')).toBeVisible();
-  await expect(page.getByTestId('criteria')).toHaveCount(0);
+  // Every criterion of the profile is stated and met: the table says so row by row.
+  await expect(page.getByTestId('criteria')).toBeVisible();
+  await expect(page.getByTestId('criteria')).not.toContainText('passt nicht');
 });

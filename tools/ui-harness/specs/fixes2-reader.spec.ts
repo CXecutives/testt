@@ -93,13 +93,15 @@ test('the date of a job names the day and the time of its alert mail', async ({ 
   await expect(page.getByRole('tooltip')).toHaveText(/^Alert-Mail vom 24\.09\.2026 um \d\d:\d\d$/);
 });
 
-test('the chips of the terms say criterion and state in one phrase', async ({ page }) => {
+test('a value of the terms table says criterion and state in one phrase under the pointer', async ({
+  page,
+}) => {
   await open(page, WIN);
   await facet(page, 'Alle').click();
   // An ad that leaves the rate open.
   await row(page, 'freelancermap-2802').click();
   const tip = async (id: string): Promise<string> => {
-    await page.getByTestId(`criterion-${id}`).hover();
+    await page.getByTestId(`criterion-${id}`).locator('.term-value .chip').hover();
     const text = (await page.getByRole('tooltip').textContent()) ?? '';
     await page.mouse.move(0, 0);
     return text;
