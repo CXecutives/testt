@@ -77,13 +77,22 @@ export async function viewsSettled(page: Page): Promise<void> {
 /**
  * A defined machine for a timing check: slows the CPU of the page (Chromium, through the
  * DevTools protocol) until a fixed piece of script and DOM work takes REFERENCE_MS, as long
- * as on a machine four times slower than the development one. A fast machine is slowed more,
- * a slower CI runner less, so both check the same speed. Returns the rate (1 = unthrottled:
- * this machine is already as slow as the reference; other engines are not throttled).
+ * as on the development machine throttled 4x (it takes 5 ms there unthrottled, the throttling
+ * itself adds a little). A fast machine is slowed more, a slower CI runner less, so both check
+ * the same speed. Returns the rate (1 = unthrottled: this machine is already as slow as the
+ * reference; other engines are not throttled). HARNESS_CPU_RATE=4 sets a rate of its own
+ * instead (to compare with a trace at that rate).
  */
 export async function asReferenceMachine(page: Page): Promise<number> {
   if (page.context().browser()?.browserType().name() !== 'chromium') return 1;
-  const REFERENCE_MS = 20;
+  const forced = Number(process.env.HARNESS_CPU_RATE);
+  if (forced >= 1) {
+    const session = await page.context().newCDPSession(page);
+    await session.send('Emulation.setCPUThrottlingRate', { rate: forced });
+    test.info().annotations.push({ type: 'cpu', description: `throttled ${forced}x (set)` });
+    return forced;
+  }
+  const REFERENCE_MS = 24;
   const measure = (): Promise<number> =>
     page.evaluate(() => {
       const now = (): number => new Event('probe').timeStamp;
@@ -118,15 +127,34 @@ export async function asReferenceMachine(page: Page): Promise<number> {
     });
   const cdp = await page.context().newCDPSession(page);
   const plain = await measure();
-  let rate = Math.min(8, Math.max(1, REFERENCE_MS / plain));
-  await cdp.send('Emulation.setCPUThrottlingRate', { rate });
-  // One correction: the rate a machine needs is close to, not exactly, the ratio.
-  const slowed = await measure();
-  rate = Math.min(8, Math.max(1, (rate * REFERENCE_MS) / slowed));
-  await cdp.send('Emulation.setCPUThrottlingRate', { rate });
+  const clamp = (value: number): number => Math.min(8, Math.max(1, value));
+  let rate = clamp(REFERENCE_MS / plain);
+  // The throttling finds its pace over the first rounds at a new rate: those are not counted.
+  const throttled = async (): Promise<number> => {
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate });
+    await measure();
+    return measure();
+  };
+  // The time does not grow in proportion to the rate (the throttling costs something of its
+  // own): the rate is found by secant steps from the last two measurements.
+  let previous = { rate: 1, ms: plain };
+  let slowed = await throttled();
+  const trail = [slowed];
+  for (let step = 0; step < 4 && Math.abs(slowed - REFERENCE_MS) > REFERENCE_MS / 20; step += 1) {
+    const slope = (slowed - previous.ms) / (rate - previous.rate);
+    previous = { rate, ms: slowed };
+    rate = clamp(
+      Number.isFinite(slope) && slope > 0
+        ? rate + (REFERENCE_MS - slowed) / slope
+        : (rate * REFERENCE_MS) / slowed,
+    );
+    if (rate === previous.rate) break;
+    slowed = await throttled();
+    trail.push(slowed);
+  }
   test.info().annotations.push({
     type: 'cpu',
-    description: `throttled ${rate.toFixed(1)}x (work took ${plain.toFixed(1)} ms unthrottled)`,
+    description: `throttled ${rate.toFixed(1)}x (work took ${plain.toFixed(1)} ms unthrottled, then ${trail.map((ms) => ms.toFixed(1)).join(', ')} ms)`,
   });
   return rate;
 }
