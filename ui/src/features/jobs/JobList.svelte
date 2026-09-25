@@ -445,7 +445,8 @@
       />
     </div>
   {:else if jobs.rows.length === 0 && jobs.status !== 'ready'}
-    {#if jobs.slow || app.slow}
+    <!-- Only once the list has taken a while (jobs.slow): then at once, never blank rows. -->
+    {#if jobs.slow}
       <div class="skeletons" data-testid="list-skeleton">
         {#each SKELETON_ROWS as index (index)}
           <div class="skeleton-row">
@@ -603,7 +604,7 @@
     {:else if jobs.more}
       {#key shown.length}
         <div class="sentinel" use:nearEnd={() => void jobs.grow()}>
-          <Skeleton width={60} />
+          <Skeleton width={60} late />
         </div>
       {/key}
     {/if}
