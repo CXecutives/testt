@@ -258,3 +258,32 @@ fn permanent_employment_can_be_excluded() {
     assert!(set.contains(&CriterionKey::NoPermanent), "{set:?}");
     assert!(!set.contains(&CriterionKey::NoAnue), "{set:?}");
 }
+
+/// A short requirement line that starts like a heading of the other listings ("Ähnliche
+/// Projekterfahrung von Vorteil") is part of the ad: the hard criteria below it still count,
+/// as a plain line and as a list item of a page. A real heading still ends the ad.
+#[test]
+fn a_requirement_that_starts_like_other_listings_keeps_the_ad_whole() {
+    let frame = "Rahmendaten:\n- Einsatz über Arbeitnehmerüberlassung\n- Tagessatz: 600 €";
+    for line in [
+        "Ähnliche Projekterfahrung von Vorteil",
+        "- Weitere Projekterfahrung wünschenswert",
+    ] {
+        let text = format!("Ihr Profil:\n- Erfahrung im Controlling\n{line}\n\n{frame}");
+        let a = run("Hamburg", &text);
+        assert_eq!(a.verdict, Verdict::Excluded, "{line}");
+        assert_eq!(
+            criterion(&a, CriterionKey::NoAnue).status,
+            CriterionStatus::Violated
+        );
+        assert_eq!(
+            criterion(&a, CriterionKey::MinDayRate).status,
+            CriterionStatus::Violated
+        );
+    }
+    let listings = format!(
+        "Ihr Profil:\n- Erfahrung im Controlling\n- Tagessatz: 950 €\n\nÄhnliche Projekte (12)\n{frame}"
+    );
+    let a = run("Hamburg", &listings);
+    assert_ne!(a.verdict, Verdict::Excluded);
+}

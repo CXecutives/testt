@@ -596,6 +596,22 @@ recall 0.85, at most 1 buried). The rest are judgement calls and the open decisi
 jobs (read as a day rate x 8, the labels read them as employment pay). The app scores every stored job again after the
 update (revision `e14.4:{fingerprint}`).
 
+### Version 15: whole headings of the other listings
+
+Version 12 took any short line that starts with a heading of `lexicon::OTHER_LISTINGS` for one, with no word boundary.
+So an ordinary requirement line (`Ähnliche Projekterfahrung von Vorteil`, `Weitere Projekte sind bereits geplant.`)
+ended the ad for the hard criteria, and an ANÜ or a low day rate below it no longer excluded. A portal's list item
+reaches the engine as such a bare line.
+
+- `facts::is_listings_heading` takes a line for a heading only with the heading's words whole, followed by nothing, a
+  count (`(12)`), a colon or a known tail of `lexicon::LISTING_TAILS` (`anzeigen`, `dieses Anbieters`). `own_text`
+  and the requirement parser's headings (`job.rs`, for the entries shared with `OTHER_PREFIXES`) use it.
+- Tests: `the_other_listings_under_an_ad_are_no_part_of_it` (`facts.rs`) and
+  `a_requirement_that_starts_like_other_listings_keeps_the_ad_whole` (`matching_criteria.rs`).
+
+The corpus rows and held-out sets 1 to 8 are unchanged; the golden digest changed only by its version line. The app
+scores every stored job again after the update.
+
 ### Rubric of the Claude check
 
 `core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the

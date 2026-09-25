@@ -415,14 +415,33 @@ pub(crate) fn own_text(text: &str) -> &str {
     let mut offset = 0;
     for line in text.split_inclusive('\n') {
         let folded = fold(line.trim());
-        let heading = folded.chars().count() <= 48
-            && lex::OTHER_LISTINGS.iter().any(|p| folded.starts_with(p));
+        let heading = folded.chars().count() <= 48 && is_listings_heading(&folded);
         if heading && offset > 0 {
             return &text[..offset];
         }
         offset += line.len();
     }
     text
+}
+
+/// A folded line that heads the other listings of a portal: a heading of
+/// `lexicon::OTHER_LISTINGS` as whole words, then nothing, a count (`(12)`), a colon or a
+/// known tail (`anzeigen`, `dieses Anbieters`). A line that goes on is a sentence of the ad
+/// (`Ähnliche Projekterfahrung von Vorteil`, `Weitere Projekte sind geplant.`).
+pub(crate) fn is_listings_heading(folded: &str) -> bool {
+    lex::OTHER_LISTINGS.iter().any(|heading| {
+        let Some(tail) = folded.strip_prefix(heading) else {
+            return false;
+        };
+        if tail.chars().next().is_some_and(char::is_alphanumeric) {
+            return false;
+        }
+        let tail = tail.trim().trim_end_matches(':').trim_end();
+        let count = tail.trim_start_matches('(').trim_end_matches(')');
+        tail.is_empty()
+            || (!count.is_empty() && count.chars().all(|c| c.is_ascii_digit()))
+            || lex::LISTING_TAILS.contains(&tail)
+    })
 }
 
 /// Sentences of the text (also split at ` // `, ` · `, ` | `, ` • `), as byte ranges with
@@ -1199,6 +1218,26 @@ mod tests {
         let whole = "Ähnliche Projekte im Mittelstand erfolgreich umgesetzt und begleitet, \
                      idealerweise mehrere davon";
         assert_eq!(own_text(whole), whole);
+        // Nor is a short line that goes on after the heading's words, or a sentence.
+        for line in [
+            "Ähnliche Projekterfahrung von Vorteil",
+            "Weitere Projekterfahrung wünschenswert",
+            "Weitere Projekte sind bereits geplant.",
+            "Andere Projekte im Konzern laufen parallel",
+        ] {
+            let text = format!("Ihr Profil\n{line}\nEinsatz über Arbeitnehmerüberlassung");
+            assert_eq!(own_text(&text), text, "{line}");
+        }
+        // A heading with a count, a colon or a known tail is one.
+        for heading in [
+            "Ähnliche Projekte (12)",
+            "Similar jobs:",
+            "Ähnliche Projekte anzeigen",
+            "Weitere Projekte dieses Anbieters",
+        ] {
+            let text = format!("Ihr Profil\n{heading}\nx");
+            assert_eq!(own_text(&text), "Ihr Profil\n", "{heading}");
+        }
         let english = "Contract: freelance\n\nSimilar jobs\nPayroll clerk (temporary agency work)";
         assert_eq!(own_text(english), "Contract: freelance\n\n");
         // A text that starts with such a heading keeps it (nothing before it).

@@ -1022,6 +1022,15 @@ pub(crate) const OTHER_LISTINGS: &[&str] = &[
     "more jobs",
     "people also viewed",
 ];
+/// What may follow a heading of `OTHER_LISTINGS` on its line (folded): a portal's link
+/// text or the listings' owner.
+pub(crate) const LISTING_TAILS: &[&str] = &[
+    "anzeigen",
+    "dieses anbieters",
+    "des anbieters",
+    "fur dich",
+    "for you",
+];
 /// Headings that end requirement sections.
 pub(crate) const OTHER_PREFIXES: &[&str] = &[
     "rahmenbedingungen",
