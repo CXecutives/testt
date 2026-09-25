@@ -6,8 +6,8 @@
   as every other hairline there. Hover washes the row (80 ms in, 150 ms out), a press
   darkens it (60 ms); rows never move or scale. The selected row takes a very light warm wash (one step deeper under the pointer)
   and a coral bar on the left that fades in (150 ms) and out (100 ms); a row created as
-  selected is simply there. While the window is inactive the selection
-  turns grey, as in Mail and Explorer. While the list scrolls rows take no hover: a row
+  selected is simply there. While the window is inactive the selection turns grey (its
+  ring track too), as in Mail and Explorer. While the list scrolls rows take no hover: a row
   rests (`data-rests`), and the rows the pointer passes during a scroll carry `data-still`
   (input.ts) until it is over, so only those rows restyle. A mark on :root or a property that
   inherits (pointer-events) would restyle every row twice per scroll, a long task with a few
@@ -136,6 +136,8 @@
   /* Like Mail and Explorer: the selection greys out while the window is in the back. */
   :global(:root[data-window='inactive']) .selected {
     background-color: var(--surface-selected-inactive);
+
+    --ring-track: var(--ring-track-inactive);
   }
 
   :global(:root[data-window='inactive']) .selected::before {

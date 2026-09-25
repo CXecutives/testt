@@ -50,9 +50,7 @@ test('score rings show their value; excluded and unscorable show no number', asy
   await expect(page.getByTestId('ring-unscorable-lg')).toHaveText('–');
 });
 
-test("a ring that waits: the reader's arc turns, the list's dashed track breathes", async ({
-  page,
-}) => {
+test("a ring that waits: the reader's arc turns, the list's track breathes", async ({ page }) => {
   await open(page, '?gallery');
   const wait = (id: string): Promise<{ name: string; dashes: string }> =>
     page.getByTestId(id).evaluate((ring) => {
@@ -63,10 +61,10 @@ test("a ring that waits: the reader's arc turns, the list's dashed track breathe
       };
     });
   expect((await wait('ring-pending-md')).name).toBe('spin');
-  // In the list no spinner shape stands still: a dashed full track, breathing.
+  // In the list no spinner shape stands still: the whole solid track, breathing.
   const list = await wait('ring-pending-sm');
   expect(list.name).toBe('breathe');
-  expect(list.dashes).toMatch(/^2\.5(px)?,? 2\.5(px)?$/);
+  expect(list.dashes).toBe('none');
 });
 
 test('the evidence of a reason is part of it: its wash and its click cover the line', async ({
@@ -236,8 +234,10 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   // Older than ten days: the date sits on a tint.
   await expect(job('freelancermap-1005').locator('.date')).toHaveClass(/old/);
   await expect(job('freelancermap-1001').locator('.date')).not.toHaveClass(/old/);
-  // A score from a teaser is provisional (dashed); an excluded unread row has no dot.
+  // A score from a teaser is provisional (named so, drawn like any score); an excluded unread
+  // row has no dot.
   await expect(job('freelance-1003').locator('.ring')).toHaveClass(/provisional/);
+  await expect(job('freelance-1003').locator('.ring .track')).toHaveCSS('stroke-dasharray', 'none');
   await expect(job('freelancermap-1006').locator('.dot')).toHaveCount(0);
 });
 

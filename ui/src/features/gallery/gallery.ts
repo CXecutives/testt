@@ -378,6 +378,7 @@ export const colourGroups: readonly { title: string; tokens: readonly ColourToke
       { name: 'surface-selected-inactive', role: 'surface' },
       { name: 'selection-bar', role: 'decor' },
       { name: 'ring-track-selected', role: 'decor' },
+      { name: 'ring-track-inactive', role: 'decor' },
       { name: 'nav-active-fg', role: 'text' },
       { name: 'nav-active-icon', role: 'decor' },
       { name: 'count-soft-bg', role: 'surface' },

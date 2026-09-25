@@ -25,7 +25,8 @@
   read while its row is on screen the dot shrinks away; an excluded row has no dot (no
   count includes it). A date older than ten days sits on a quiet tint; relative dates follow
   the page's clock (they move on while the app stays open). A score from a
-  teaser is a provisional ring. A cut-off title shows in full in a tooltip. Layout stays
+  teaser rings like any other (its badge says that only a teaser was read). A cut-off
+  title shows in full in a tooltip. Layout stays
   inside the row (containment); like the row, its hover rests while the list scrolls
   (`data-still`, see ListRow).
 -->

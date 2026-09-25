@@ -55,6 +55,12 @@
       {/each}
     </div>
   {/each}
+  <!-- On the wash of a selected list row. -->
+  <div class="row wash" data-testid="ring-wash">
+    {#each rings as ring (ring.id)}
+      <ScoreRing ring={ring.state} size="sm" testid="ring-{ring.id}-selected" />
+    {/each}
+  </div>
 </Section>
 
 <Section heading={t.stats} id="stats">
@@ -142,5 +148,21 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-16);
+  }
+
+  /* Like a selected list row (ListRow): the warm wash with the warm track, both grey while
+     the window is in the back. */
+  .wash {
+    padding: var(--space-12);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-selected);
+
+    --ring-track: var(--ring-track-selected);
+  }
+
+  :global(:root[data-window='inactive']) .wash {
+    background-color: var(--surface-selected-inactive);
+
+    --ring-track: var(--ring-track-inactive);
   }
 </style>
