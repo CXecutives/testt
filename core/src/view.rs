@@ -188,6 +188,8 @@ pub struct JobView {
     pub also_on: Vec<Portal>,
     /// Where the job is: inbox, archive or trash.
     pub place: Place,
+    /// When the job went to the trash (null outside it): the trash lists and sorts by it.
+    pub trashed_at: Option<Timestamp>,
     /// The user marked the job as fitting although the engine excludes it ("Trotzdem
     /// passend"): it counts as scored with its fit score, its note is `userOverride`.
     pub overridden: bool,
@@ -223,6 +225,7 @@ impl From<&JobRow> for JobView {
             }),
             also_on: Vec::new(),
             place: job.place(),
+            trashed_at: job.trashed_at,
             overridden: job.override_include,
         }
     }

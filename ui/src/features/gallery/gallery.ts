@@ -215,6 +215,7 @@ function sample(
     match: null,
     alsoOn: [],
     place: 'inbox',
+    trashedAt: null,
     overridden: false,
     ...extra,
   };

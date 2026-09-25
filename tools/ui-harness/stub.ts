@@ -264,6 +264,7 @@ function job(
     match: null,
     alsoOn: [],
     place: 'inbox',
+    trashedAt: null,
     overridden: false,
     ...extra,
   };
@@ -1169,6 +1170,7 @@ function moveJobs(keys: JobKey[], to: Place): JobKey[] {
     j.place = to;
     if (to === 'trash') trashedAt.set(markKey(key), new Date(Date.now()).toISOString());
     else trashedAt.delete(markKey(key));
+    j.trashedAt = trashedAt.get(markKey(key)) ?? null;
     moved.push(structuredClone(j.key));
   }
   refresh();

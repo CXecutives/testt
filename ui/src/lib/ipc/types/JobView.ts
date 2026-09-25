@@ -35,6 +35,10 @@ alsoOn: Array<Portal>,
  */
 place: Place, 
 /**
+ * When the job went to the trash (null outside it): the trash lists and sorts by it.
+ */
+trashedAt: string | null, 
+/**
  * The user marked the job as fitting although the engine excludes it ("Trotzdem
  * passend"): it counts as scored with its fit score, its note is `userOverride`.
  */
