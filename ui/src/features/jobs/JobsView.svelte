@@ -32,7 +32,7 @@
   import { dragBands } from '$lib/platform';
   import { tokenPx } from '$lib/tokens';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf, placeOf, sameKey } from '$lib/state/jobs.svelte';
   import { shell } from '$lib/state/shell.svelte';
   import { viewport } from '$lib/state/viewport.svelte';
   import DayOverview from './DayOverview.svelte';
@@ -40,8 +40,11 @@
   import Reader from './Reader.svelte';
   import ListHeader from './ListHeader.svelte';
   import RunCard from './RunCard.svelte';
+  import SelectionPane from './SelectionPane.svelte';
+  import { bulk } from './bulk.svelte';
 
   const OVERVIEW = 'overview';
+  const CHOSEN = 'chosen';
   const ERROR = 'error';
   const WAITING = 'waiting';
 
@@ -62,7 +65,8 @@
   const stage = $derived.by((): { what: string; turn: number } => {
     const selected = jobs.selected !== null;
     let next = shown;
-    if (selected && jobs.detailStatus === 'error') next = ERROR;
+    if (bulk.active) next = CHOSEN;
+    else if (selected && jobs.detailStatus === 'error') next = ERROR;
     else if (jobs.detail !== null) next = keyOf(jobs.detail.job.key);
     else if (selected && jobs.detailSlow) next = WAITING;
     else if (!selected) next = OVERVIEW;
@@ -73,6 +77,8 @@
     return { what: shown, turn: turns };
   });
   const reading = $derived(stage.what !== OVERVIEW);
+  const place = $derived(placeOf(jobs.facet));
+  const trashDays = $derived(app.state?.autoEmptyTrashDays ?? 0);
   /** The list is scrolled away from its top (the header shows its hairline). */
   let scrolled = $state(false);
   /** The width of the list column (the splitter keeps it per user). */
@@ -89,11 +95,35 @@
   let header = $state<ListHeader | null>(null);
   let list = $state<JobList | null>(null);
 
-  // A search that no longer finds the open job closes it (the list shows what it found).
+  // A search that no longer finds the open job closes it (the list shows what it found);
+  // only a change of the search does, never a job opened from elsewhere (the overview).
+  let searched = untrack(() => jobs.search.trim());
+  let searchChanged = false;
+  $effect(() => {
+    const search = jobs.search.trim();
+    untrack(() => {
+      if (search !== searched) searchChanged = true;
+      searched = search;
+    });
+  });
   $effect(() => {
     const selected = jobs.selected;
-    if (selected === null || jobs.search.trim() === '' || jobs.status !== 'ready') return;
-    if (!jobs.visible.some((row) => sameKey(row.key, selected))) untrack(close);
+    const ready = jobs.status === 'ready';
+    const listed = jobs.visible;
+    untrack(() => {
+      if (!searchChanged || !ready) return;
+      searchChanged = false;
+      if (selected === null || searched === '') return;
+      if (!listed.some((row) => sameKey(row.key, selected))) close();
+    });
+  });
+
+  // Back to the Jobs view: Neu is entered again, so the jobs read meanwhile leave it (like
+  // Mail); the open one stays until another opens.
+  $effect(() => {
+    untrack(() => {
+      if (jobs.status === 'ready' && jobs.facet === 'new') void jobs.load(true);
+    });
   });
 
   /** A job rises in (4 px, 150 ms); the overview and the placeholders only fade (100 ms). */
@@ -156,7 +186,21 @@
         <div class="stage" data-testid="stage" in:enter={stage.what !== OVERVIEW} out:leave>
           {#if dragBands()}<DragBand sheet />{/if}
           <div class="column">
-            {#if stage.what === OVERVIEW}
+            {#if stage.what === CHOSEN}
+              <SelectionPane />
+            {:else if stage.what === OVERVIEW && place !== 'inbox'}
+              <!-- The archive and the trash have no day overview: what lies here, quietly. -->
+              <div class="place-reader">
+                <EmptyState
+                  icon={place === 'trash' ? 'trash-2' : 'archive'}
+                  tone="neutral"
+                  text={place === 'trash' && trashDays > 0
+                    ? t.place.trashFor(trashDays)
+                    : t.place.reader[place]}
+                  testid="place-reader"
+                />
+              </div>
+            {:else if stage.what === OVERVIEW}
               <DayOverview />
             {:else}
               <div class="back">
@@ -275,6 +319,13 @@
   .back {
     display: none;
     margin-left: calc(-1 * var(--space-12));
+  }
+
+  /* The reader of the archive and the trash with nothing open: centred in the pane. */
+  .place-reader {
+    display: flex;
+    justify-content: center;
+    padding-top: var(--space-48);
   }
 
   .skeleton {

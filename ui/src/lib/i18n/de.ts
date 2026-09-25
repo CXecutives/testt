@@ -508,10 +508,19 @@ export const de = {
   selection: {
     count: (n: number) => `${n} ausgewählt`,
     clear: 'Auswahl aufheben',
+    /** The reader while several jobs are chosen. */
+    chosen: (value: number) => `${count(value, 'Job', 'Jobs')} ausgewählt`,
+    /** The key that takes a row in or out, by OS. */
+    commandKey: { ctrl: 'Strg', cmd: 'Cmd' } satisfies Record<'ctrl' | 'cmd', string>,
+    hint: (key: string) =>
+      `${key}+Klick nimmt einen Job dazu oder heraus, Umschalt+Klick einen ganzen Bereich.`,
+    /** Once, after a few single moves: several jobs can go at once. */
+    tip: (key: string) => `Mehrere Jobs auf einmal wählst du mit ${key}+Klick.`,
   },
   /** Where a job is, like a mail: the inbox ("Jobs" in the sidebar), the archive, the trash. */
   place: {
-    inbox: 'Eingang',
+    /** The inbox is "Jobs", like the sidebar says. */
+    inbox: 'Jobs',
     archive: 'Archiv',
     trash: 'Papierkorb',
     /** The field's placeholder names what it searches. */
@@ -522,13 +531,13 @@ export const de = {
     } satisfies Record<Place, string>,
     /** The second header row of the archive and the trash. */
     count: {
-      inbox: (value: number) => `${count(value, 'Job', 'Jobs')} im Eingang`,
+      inbox: (value: number) => `${count(value, 'Job', 'Jobs')} unter Jobs`,
       archive: (value: number) => `${count(value, 'Job', 'Jobs')} im Archiv`,
       trash: (value: number) => `${count(value, 'Job', 'Jobs')} im Papierkorb`,
     } satisfies Record<Place, (value: number) => string>,
     /** Search hits in another place, under the results. */
     alsoIn: {
-      inbox: (value: number) => `Auch im Eingang (${n(value)})`,
+      inbox: (value: number) => `Auch unter Jobs (${n(value)})`,
       archive: (value: number) => `Auch im Archiv (${n(value)})`,
       trash: (value: number) => `Auch im Papierkorb (${n(value)})`,
     } satisfies Record<Place, (value: number) => string>,
@@ -542,12 +551,20 @@ export const de = {
       archive: 'Das Archiv ist leer.',
       trash: 'Der Papierkorb ist leer.',
     } satisfies Record<Place, string>,
+    /** The reader of the archive and the trash while no job is open. */
+    reader: {
+      inbox: 'Wähle einen Job aus der Liste.',
+      archive: 'Archivierte Jobs bleiben hier, bis du sie zurückholst oder löschst.',
+      trash: 'Gelöschte Jobs liegen hier, bis du sie wiederherstellst oder den Papierkorb leerst.',
+    } satisfies Record<Place, string>,
+    trashFor: (days: number) =>
+      `Gelöschte Jobs liegen hier ${count(days, 'Tag', 'Tage')}, dann sind sie endgültig weg.`,
   },
   /** What a job can do where it is: one name and icon on a row, in the reader, in the bar. */
   actions: {
     archive: 'Archivieren',
-    toInbox: 'In den Eingang',
-    trash: 'Löschen',
+    toInbox: 'Zurück zu Jobs',
+    trash: 'In den Papierkorb',
     restore: 'Wiederherstellen',
     purge: 'Endgültig löschen',
     purgeHeading: (value: number) =>
@@ -555,7 +572,10 @@ export const de = {
     purgeText: 'Gelöschte Jobs kommen nicht wieder, auch nicht mit alten Alert-Mails.',
     emptyTrash: 'Papierkorb leeren',
     emptyTrashHeading: 'Papierkorb leeren?',
-    emptyTrashText: 'Die Jobs werden endgültig gelöscht und kommen nicht wieder.',
+    emptyTrashText: (value: number) =>
+      value === 1
+        ? 'Der Job wird endgültig gelöscht und kommt nicht wieder.'
+        : `Die ${n(value)} Jobs werden endgültig gelöscht und kommen nicht wieder.`,
     markAllRead: 'Alle als gelesen markieren',
   },
   /** The native context menu of fields and selected text (the OS's words). */
@@ -845,7 +865,7 @@ export const de = {
     overrideUndo: 'Wieder ausschließen',
     overridden: 'Von dir als passend markiert.',
     prompt: 'Prompt für KI-Bewertung kopieren',
-    promptShort: 'KI-Bewertung',
+    promptShort: 'Prompt kopieren',
     promptHint:
       'Kopiert Anzeige und Profil als fertigen Prompt für ChatGPT, Claude oder eine andere KI.',
     /** Under the band of a score that comes from a teaser only. */
@@ -1236,16 +1256,18 @@ export const de = {
     /** The job, or the best matches, as a prompt for any AI chat (no brand named). */
     prompt: 'Prompt kopiert, bereit für einen KI-Chat.',
     archivedOne: (name: string) => `„${name}“ archiviert.`,
-    trashedOne: (name: string) => `„${name}“ gelöscht.`,
-    trashedMany: (value: number) => `${n(value)} Jobs gelöscht.`,
-    inboxOne: (name: string) => `„${name}“ in den Eingang verschoben.`,
-    inboxMany: (value: number) => `${n(value)} Jobs in den Eingang verschoben.`,
+    trashedOne: (name: string) => `„${name}“ in den Papierkorb gelegt.`,
+    trashedMany: (value: number) => `${n(value)} Jobs in den Papierkorb gelegt.`,
+    inboxOne: (name: string) => `„${name}“ zurückgeholt.`,
+    inboxMany: (value: number) => `${n(value)} Jobs zurückgeholt.`,
     restoredMany: (value: number) => `${n(value)} Jobs wiederhergestellt.`,
     allRead: 'Alle als gelesen markiert.',
     archivedMany: (value: number) => `${n(value)} Jobs archiviert.`,
     restored: (name: string) => `„${name}“ wiederhergestellt.`,
+    /** Only a deletion for good says "endgültig". */
     deleted: (value: number) =>
-      value === 1 ? 'Der Job ist gelöscht.' : `${n(value)} Jobs sind gelöscht.`,
+      value === 1 ? 'Der Job ist endgültig gelöscht.' : `${n(value)} Jobs sind endgültig gelöscht.`,
+    trashEmptied: 'Papierkorb geleert.',
     runDone: (value: number) =>
       value === 0
         ? 'Abruf fertig, nichts Neues.'

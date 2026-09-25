@@ -3,9 +3,11 @@
 //   Eingang: Archivieren, Löschen · Archiv: In den Eingang, Löschen · Papierkorb:
 //   Wiederherstellen, Endgültig löschen (asks first; the caller shows the dialog).
 // A move folds the rows that leave the list (`moving`), opens the next job when the open one
-// left, and says so in a toast that merges ("2 Jobs archiviert.") with one undo. A second
-// click within GUARD_MS after the pane changed is ignored, so a double click never moves the
-// job that just opened.
+// left, and says so in a toast that merges ("2 Jobs archiviert.") with one undo (Ctrl/Cmd+Z
+// too, while the toast is up). A click within GUARD_MS after the list or the pane changed is
+// ignored, so a double click never moves the job that slid under the pointer. The job the
+// app opens by itself counts as read only once it has been looked at (DWELL_MS, or a click
+// in the reader). A job that is already where it goes is no move.
 
 import type { IconName } from '$components/Icon.svelte';
 import { SvelteSet } from 'svelte/reactivity';
@@ -13,6 +15,8 @@ import { displayTitle } from '$lib/i18n/format';
 import { t } from '$lib/i18n/t';
 import type { JobKey, JobView, Place } from '$lib/ipc/types';
 import { inFacet, isExcluded, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+import { onUndo } from '$lib/input/input';
+import { commandKey } from '$lib/platform';
 import { toasts } from '$lib/state/toasts.svelte';
 
 export type MoveId = 'archive' | 'toInbox' | 'trash' | 'restore';
@@ -56,15 +60,26 @@ export const hasStar = (place: Place): boolean => place !== 'trash';
 /** Rows that fold away because the user moved them, until they are gone. */
 export const moving = new SvelteSet<string>();
 
-const GUARD_MS = 600;
+// Ctrl/Cmd+Z takes back the newest move (or "all read") while its toast is up.
+onUndo(() => toasts.undoLast());
+
+const GUARD_MS = 500;
 let guardUntil = 0;
+/** How long the next job opened by the app stays on screen before it counts as read. */
+const DWELL_MS = 2000;
+let dwell: ReturnType<typeof setTimeout> | undefined;
 
 /** A click right after the pane changed to the next job (a double click) does nothing. */
 export function guarded(): boolean {
   return performance.now() < guardUntil;
 }
 
-const title = (job: JobView): string => (job.title ? displayTitle(job.title) : t.job.untitled);
+/** A title in a toast: one or two lines at most (the full title is in the list). */
+const TOAST_TITLE = 36;
+function title(job: JobView): string {
+  const full = job.title ? displayTitle(job.title) : t.job.untitled;
+  return full.length > TOAST_TITLE ? `${full.slice(0, TOAST_TITLE - 1).trimEnd()}…` : full;
+}
 
 function said(action: MoveId, job: JobView): (count: number) => string {
   switch (action) {
@@ -100,29 +115,83 @@ function nextAfter(gone: readonly JobView[]): JobView | null {
   );
 }
 
-/** When the open job left the list, the next one opens (and a second click is ignored). */
+/** The list changed under the pointer: clicks on it wait a moment. */
+function arm(): void {
+  guardUntil = performance.now() + GUARD_MS;
+}
+
+/** Another list (another tab or place): nothing slid under the pointer, clicks count. */
+export function disarm(): void {
+  guardUntil = 0;
+}
+
+/** When the open job left the list, the next one opens, not yet read (see `seen`). */
 function openNext(gone: readonly JobView[], next: JobView | null): void {
   const open = jobs.selected;
   if (open === null || !gone.some((job) => sameKey(job.key, open))) return;
-  guardUntil = performance.now() + GUARD_MS;
-  if (next) void jobs.select(next, true);
-  else jobs.clearSelection();
+  clearTimeout(dwell);
+  if (!next) {
+    jobs.clearSelection();
+    return;
+  }
+  void jobs.select(next, false);
+  const key = next.key;
+  dwell = setTimeout(() => seen(key), DWELL_MS);
+}
+
+/** The job the app opened has been looked at (the dwell, or a click in the reader). */
+export function seen(key: JobKey | null = jobs.selected): void {
+  clearTimeout(dwell);
+  if (key !== null && sameKey(jobs.selected, key)) jobs.markSeen(key);
 }
 
 let undoing = 0;
+/** The job that was open when a move took it away, to open again when that is undone. */
+let reopen: JobKey | null = null;
 
-/** Takes one move back; the list loads once every undo of the toast has landed. */
+/** Takes one move back; the list loads once every undo of the toast has landed, and the job
+ *  that was open opens again. */
 async function undo(key: JobKey, from: Place): Promise<void> {
   undoing += 1;
   await jobs.move([key], from);
   undoing -= 1;
-  if (undoing === 0) await Promise.all([jobs.load(true), jobs.loadOverview()]);
+  if (undoing > 0) return;
+  await Promise.all([jobs.load(true), jobs.loadOverview()]);
+  const back = reopen;
+  reopen = null;
+  const row = back ? jobs.rows.find((job) => sameKey(job.key, back)) : undefined;
+  if (row) void jobs.select(row, false);
+}
+
+/** Undo toasts of jobs deleted for good can do nothing any more. */
+function dropUndos(): void {
+  for (const item of toasts.items) if (item.action) toasts.dismiss(item.id);
+}
+
+/** Single moves in this session; after the third one a tip says several go at once. */
+let singles = 0;
+const TIP_KEY = 'jobs-tip-choose';
+const TIP_AFTER = 3;
+
+function tipOnce(): void {
+  singles += 1;
+  if (singles !== TIP_AFTER) return;
+  try {
+    if (localStorage.getItem(TIP_KEY) !== null) return;
+    localStorage.setItem(TIP_KEY, '1');
+  } catch {
+    // Without a store the tip would come every session: better not at all.
+    return;
+  }
+  toasts.show(t.selection.tip(t.selection.commandKey[commandKey()]), 'info');
 }
 
 /** Moves jobs (the row's, the reader's or the selection's). Resolves with the error text. */
-export async function move(list: readonly JobView[], action: MoveId): Promise<string | null> {
-  if (list.length === 0 || guarded()) return null;
+export async function move(all: readonly JobView[], action: MoveId): Promise<string | null> {
   const to = TARGET[action];
+  // A job that already lies there is no move (and no toast says it moved).
+  const list = all.filter((job) => job.place !== to);
+  if (list.length === 0 || guarded()) return null;
   // Only rows that leave the list fold away (a favourite archived stays among Favoriten).
   const leaving = list.filter((job) => !inFacet({ ...job, place: to }, jobs.facet));
   const next = leaving.length > 0 ? nextAfter(leaving) : null;
@@ -135,8 +204,20 @@ export async function move(list: readonly JobView[], action: MoveId): Promise<st
     for (const job of leaving) moving.delete(keyOf(job.key));
   }, 400);
   if ('error' in result) return result.error;
+  if (leaving.length > 0) arm();
+  const open = jobs.selected;
+  if (open !== null && leaving.some((job) => sameKey(job.key, open))) reopen = open;
   openNext(leaving, next);
+  // Moved into the listed place without being listed (opened from elsewhere): list it.
+  if (
+    list.some(
+      (job) => !leaving.includes(job) && !jobs.rows.some((row) => sameKey(row.key, job.key)),
+    )
+  ) {
+    void jobs.load(true);
+  }
   void jobs.loadOverview();
+  if (list.length === 1) tipOnce();
   // Toasts and undos only for the jobs that really moved.
   const moved = new Set(result.moved.map(keyOf));
   for (const job of list.filter((row) => moved.has(keyOf(row.key)))) {
@@ -158,10 +239,27 @@ export async function purge(list: readonly JobView[]): Promise<string | null> {
     for (const job of list) moving.delete(keyOf(job.key));
   }, 400);
   if ('error' in result) return result.error;
+  arm();
   openNext(list, next);
+  dropUndos();
   toasts.show(t.toast.deleted(result.count));
   void jobs.loadOverview();
   return null;
+}
+
+/** After the trash was emptied: no undo can reach its jobs any more. */
+export function trashEmptied(): void {
+  dropUndos();
+}
+
+/**
+ * The actions for chosen jobs: those of their place; chosen from several places (Favoriten
+ * holds inbox and archive) only what fits every one of them.
+ */
+export function actionsFor(list: readonly JobView[]): JobAction[] {
+  const places = [...new Set(list.map((job) => job.place))];
+  if (places.length === 1 && places[0]) return actionsOf(places[0]);
+  return actionsOf('inbox').filter((action) => action.id === 'trash');
 }
 
 /** The star: a favourite, or not any more. */

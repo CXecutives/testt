@@ -38,7 +38,7 @@
   import { navigation } from '$lib/state/navigation.svelte';
   import { editor } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
-  import { actionsOf, guarded, hasStar, move, moving, purge, toggleStar } from './actions';
+  import { actionsOf, disarm, guarded, hasStar, move, moving, purge, toggleStar } from './actions';
   import { selection } from './selection.svelte';
 
   const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
@@ -115,15 +115,32 @@
     else {
       selection.only(job);
       if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
+      return;
+    }
+    // One chosen row is no selection: that job simply opens (like a mail app).
+    const [only, ...more] = selection.jobs(order);
+    if (only && more.length === 0) {
+      selection.only(only);
+      if (!sameKey(jobs.selected, only.key)) void jobs.select(only, true);
     }
   }
 
-  // Another list, another search or order: the choice starts anew.
+  // Rows that leave the list (a move, a reload) leave the choice too.
+  $effect(() => {
+    const listed = new Set(jobs.rows.map((row) => keyOf(row.key)));
+    untrack(() => selection.prune(listed));
+  });
+
+  // Another list, another search or order: the choice starts anew, and a click right away
+  // counts (the guard after a move is for rows that slid under the pointer).
   $effect(() => {
     void jobs.facet;
     void jobs.search;
     void jobs.sortChoice;
-    untrack(() => selection.clear());
+    untrack(() => {
+      selection.clear();
+      disarm();
+    });
   });
 
   // Another place: an open job of the one left behind closes (like a mail of another

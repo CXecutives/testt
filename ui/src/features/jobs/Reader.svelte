@@ -53,7 +53,16 @@
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
-  import { actionsOf, guarded, hasStar, move, purge, toggleStar, type ActionId } from './actions';
+  import {
+    actionsOf,
+    guarded,
+    hasStar,
+    move,
+    purge,
+    seen,
+    toggleStar,
+    type ActionId,
+  } from './actions';
 
   interface Props {
     detail: JobDetail;
@@ -482,7 +491,7 @@
   {/if}
 {/snippet}
 
-<article class="reader" data-testid="reader">
+<article class="reader" data-testid="reader" onpointerdown={() => seen(job.key)}>
   <!-- Sticks to the top of the stage; up only while the action row is scrolled away. -->
   <div class="compact-anchor">
     <div

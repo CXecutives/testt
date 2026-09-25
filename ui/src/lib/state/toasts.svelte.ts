@@ -115,6 +115,16 @@ class Toasts {
     }
   }
 
+  /** Ctrl/Cmd+Z (lib/input/input.ts): the newest undo that is still up runs, as its button
+   *  would; `true` if there was one. */
+  undoLast(): boolean {
+    const newest = [...this.items].reverse().find((item) => item.action !== null);
+    if (!newest?.action) return false;
+    newest.action.onclick();
+    this.dismiss(newest.id);
+    return true;
+  }
+
   dismiss(id: number): void {
     this.#stop(id);
     this.#timers.delete(id);
