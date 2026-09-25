@@ -151,9 +151,31 @@ function replaced(list: JobView[], key: JobKey, change: (job: JobView) => JobVie
   return index < 0 ? list : list.with(index, change(list[index]!));
 }
 
+/** Where the order of the list is kept (one choice for every list, per user). */
+const SORT_KEY = 'jobs-sort';
+
+/** The kept order; a store that cannot be read keeps the default. */
+function keptSort(): JobSort {
+  try {
+    const value = localStorage.getItem(SORT_KEY);
+    return value === 'newest' ? 'newest' : 'match';
+  } catch {
+    return 'match';
+  }
+}
+
+function keepSort(sort: JobSort): void {
+  try {
+    localStorage.setItem(SORT_KEY, sort);
+  } catch {
+    // Without a store the order lasts for this session only.
+    return;
+  }
+}
+
 class JobsStore {
   facet = $state<JobFacet>('new');
-  sortChoice = $state<JobSort>('match');
+  sortChoice = $state<JobSort>(keptSort());
   search = $state('');
   filter = $state<JobFilter | null>(null);
 
@@ -257,6 +279,7 @@ class JobsStore {
 
   setSort(sort: JobSort): void {
     this.sortChoice = sort;
+    keepSort(sort);
     void this.load(true);
   }
 

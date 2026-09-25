@@ -168,7 +168,7 @@ pub struct AppState {
     pub default_workspace: PathBuf,
     pub dry_run: bool,
     pub user_agent: String,
-    /// The language of the OS at the start: the app's language until the user chooses one.
+    /// The app's language until the user chooses one (`Language::DEFAULT`, German).
     pub system_language: Language,
     pub reset_report: Mutex<Option<ResetReport>>,
     /// Gmail address from the vault. The vault (with the password) is thus read only once per
@@ -267,7 +267,7 @@ pub fn language<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Language {
     use tauri::Manager as _;
     app.try_state::<AppState>()
         .and_then(|state| state.language().ok())
-        .unwrap_or_else(crate::platform::system_language)
+        .unwrap_or(Language::DEFAULT)
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {

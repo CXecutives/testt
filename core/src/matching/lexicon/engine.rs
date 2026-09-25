@@ -1591,6 +1591,34 @@ pub(crate) const PERMANENT_OPTION: &[&str] = &[
 ];
 /// A contract type line (`Vertragsart: Festanstellung`).
 pub(crate) const CONTRACT_LINES: &[&str] = &["vertragsart:", "anstellungsart:", "employment type:"];
+/// Values of a page's employment type field (exact, folded) that mean a limited engagement:
+/// LinkedIn's "Befristet", "Contract", "Temporary", the freelance portals' "Freiberuflich".
+pub(crate) const LIMITED_CONTRACT_VALUES: &[&str] = &[
+    "befristet",
+    "contract",
+    "temporary",
+    "temporar",
+    "freiberuflich",
+    "freelance",
+    "selbststandig",
+    "self-employed",
+];
+/// Values of a page's career level or employment type field (exact, folded) that are
+/// clearly below a senior target: an internship, an entry-level role, voluntary work.
+pub(crate) const ENTRY_LEVEL_VALUES: &[&str] = &[
+    "praktikum",
+    "internship",
+    "berufseinstieg",
+    "einstiegslevel",
+    "entry level",
+    "entry-level",
+    "ehrenamtlich",
+    "volunteer",
+    "werkstudent",
+    "trainee",
+];
+/// Career levels (exact, folded) that may be below a senior target: a check only.
+pub(crate) const LOW_LEVEL_VALUES: &[&str] = &["assistent", "assistant", "associate", "junior"];
 /// Indirect hints of a permanent position (benefits, work permit, career page).
 pub(crate) const PERMANENT_HINTS: &[&str] = &[
     "why join",

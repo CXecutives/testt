@@ -1,0 +1,8 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: describe(bytes)
+---
+linkedin.com | Fwd: Beispiel AG hat eine Position als Senior Controller (m/w/d) zu besetzen | Ich
+- linkedin:4199000101 | Senior Controller (m/w/d) - befristet | Beispiel AG | Köln | https://www.linkedin.com/jobs/view/4199000101/
+- linkedin:4199000102 | Interim Brand Manager (m/w/d) FMCG | Nordlicht Beratung | Frankfurt am Main | https://www.linkedin.com/jobs/view/4199000102/
+- linkedin:4199000103 | Project Manager (all genders) - temporary | Muster SE | Herzogenrath | https://www.linkedin.com/jobs/view/4199000103/

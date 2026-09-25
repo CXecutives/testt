@@ -27,6 +27,9 @@ pub struct ParsedMail {
     /// Damaged encoding (missing MIME boundary, broken base64, ...) - read leniently;
     /// if the mail still yields nothing, it counts as unreadable.
     pub damaged: bool,
+    /// Sender addresses (lower-cased) of the mails forwarded inside this one as an
+    /// attachment (`message/rfc822`).
+    pub inner_senders: Vec<String>,
 }
 
 impl ParsedMail {
@@ -95,6 +98,13 @@ fn collect_bodies(message: &Message<'_>, depth: usize, out: &mut ParsedMail) {
             PartType::Html(html) if !attachment => out.html.push(html.to_string()),
             PartType::Text(text) if !attachment => out.text.push(text.to_string()),
             PartType::Message(inner) if depth < MAX_NESTING => {
+                if let Some(address) = inner
+                    .from()
+                    .and_then(|a| a.first())
+                    .and_then(|a| a.address())
+                {
+                    out.inner_senders.push(address.trim().to_lowercase());
+                }
                 collect_bodies(inner, depth + 1, out);
             }
             _ => {}
@@ -207,6 +217,7 @@ Content-Type: text/html\r\n\
         assert_eq!(mail.text, ["Siehe Anhang"]);
         assert_eq!(mail.html.len(), 1);
         assert!(mail.html[0].contains("4123456789"));
+        assert_eq!(mail.inner_senders, ["jobalerts-noreply@linkedin.com"]);
     }
 
     #[test]

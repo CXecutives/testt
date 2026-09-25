@@ -285,14 +285,15 @@ impl Store {
     }
 
     /// The jobs for the skill's `top_matches.json`: scored (not excluded), unread or a
-    /// favourite, in the inbox, no duplicate, the alert mail at most since `since`; best
-    /// first. A fetch without new jobs keeps the list (it does not depend on the last run).
+    /// favourite, in the inbox, no duplicate, the ad not closed, the alert mail at most since
+    /// `since`; best first. A fetch without new jobs keeps the list (it does not depend on
+    /// the last run).
     pub fn skill_matches(&self, since: Timestamp, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE match_status = 'scored' AND dup_of IS NULL AND {INBOX}
-               AND (read_at IS NULL OR app_status IS NOT NULL)
+               AND (read_at IS NULL OR app_status IS NOT NULL) AND desc_closed = 0
                AND COALESCE(mail_date, first_seen_at) >= ?1
              ORDER BY match_score DESC, first_seen_at DESC, portal, job_id LIMIT ?2"
         ))?;
@@ -318,14 +319,14 @@ impl Store {
     }
 
     /// The best current matches for a comparison in an AI chat: scored (not excluded), in the
-    /// inbox, not a duplicate, the ad still online; the favourites first (like the HTML
+    /// inbox, not a duplicate, the ad still online and open; the favourites first (like the HTML
     /// overview's choice), then the highest scores, the newest first among equals.
     pub fn best_matches(&self, limit: u32) -> Result<Vec<JobRow>> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(&format!(
             "SELECT {JOB_COLUMNS} FROM job
              WHERE match_status = 'scored' AND dup_of IS NULL AND {INBOX}
-               AND desc_status <> 'gone'
+               AND desc_status <> 'gone' AND desc_closed = 0
              ORDER BY (app_status IS NULL), match_score DESC, first_seen_at DESC,
                       portal, job_id
              LIMIT ?1"

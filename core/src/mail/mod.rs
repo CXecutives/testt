@@ -18,7 +18,9 @@ pub(crate) use extract::Found;
 /// version read takes the current reading the next time a mail names it, and the first scan
 /// after an update reads back to the oldest such job once (`scan`).
 /// 2: a collection mail never takes the next job's title as company.
-pub const MAIL_PARSER_VERSION: i64 = 2;
+/// 3: the plain-text link forms of Outlook, Apple Mail and Gmail ("Title<url>", "<url> Title",
+/// "[alt] <url>") give the title; separator lines end a block.
+pub const MAIL_PARSER_VERSION: i64 = 3;
 pub(crate) use parse::{ParsedMail, parse_mail};
 
 /// A mail as it comes from the mailbox.
@@ -47,8 +49,9 @@ pub enum MailKind {
 }
 
 /// Is the mail worth loading whole, judged by its head alone? Original alerts come from a
-/// portal's domain; forwarded ones carry a forward prefix, an alert word or a portal name in
-/// the subject or sender. An unreadable head is loaded too (and then counted as defective,
+/// portal's domain; forwarded ones carry a forward prefix, an alert word (every subject form
+/// of a real alert among them) or a portal name in the subject or sender. An unreadable
+/// head is loaded too (and then counted as defective,
 /// never silently dropped).
 pub fn is_candidate(head: &[u8], allowed: &[Portal]) -> bool {
     let Some(mail) = parse_mail(head) else {
@@ -100,6 +103,11 @@ pub fn classify_mail(raw: &RawMail, allowed: &[Portal]) -> MailKind {
     // Without a single job: an alert only with a real alert's markers (layout guard).
     let unlinked_alert = found.is_empty() && classify::looks_like_alert(&mail);
     if found.is_empty() && !unlinked_alert {
+        return nothing;
+    }
+    // With jobs: only an alert brings them in - a newsletter, an InMail or an application
+    // confirmation that links a job is none.
+    if !found.is_empty() && !classify::vouches_for_links(&mail) {
         return nothing;
     }
     // A forwarded alert whose links are no longer recognised names its portal in the

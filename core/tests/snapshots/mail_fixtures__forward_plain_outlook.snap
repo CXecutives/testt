@@ -1,0 +1,8 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: describe(bytes)
+---
+freelance.de | WG: Suchagent Beispiel vom 18.09.2026 | Ich
+- freelance:1990201 | Interim Werkscontroller (m/w/d) |  | Hamburg | https://www.freelance.de/project/index.php?id=1990201
+- freelance:1990202 | Senior IT/OT Security & Compliance Lead – Pharma OT Security (CSV / GxP) |  | Basel (Basel-Stadt) | https://www.freelance.de/project/index.php?id=1990202
+- freelance:1990203 | Projektsteuerung nachhaltiges Rechenzentrum |  | Göttingen | https://www.freelance.de/project/index.php?id=1990203

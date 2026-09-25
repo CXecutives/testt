@@ -481,6 +481,15 @@ fn junior_for_senior(profile: &EngineProfile, title: &str) -> bool {
             .is_some_and(|years| years >= SENIOR_YEARS)
 }
 
+/// The page's own career level and employment type (LinkedIn's criteria), folded.
+fn page_levels(job: &JobInput<'_>) -> Vec<String> {
+    [super::fact_key::LEVEL, super::fact_key::CONTRACT]
+        .iter()
+        .filter_map(|key| facts::fact(job.facts, key).and_then(Value::as_str))
+        .map(fold)
+        .collect()
+}
+
 /// The relevance `R'` of a job: lexical and title fit plus the demanded Schwerpunkte;
 /// without any requirement only the title speaks for the field (a teaser's few words name
 /// tools of every field).
@@ -546,6 +555,7 @@ pub(crate) fn evaluate(profile: &EngineProfile, job: &JobInput<'_>) -> Evaluatio
         text,
         &doc,
         Vocab::every_pack(),
+        &page_levels(job),
     ));
     let ad_facts = ad_facts::read(&facts, &segments, &folded, &stated_contract, &doc);
     let requirement_lines = doc.requirement_lines;

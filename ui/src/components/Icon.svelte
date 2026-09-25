@@ -28,7 +28,9 @@
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Eye from '@lucide/svelte/icons/eye';
   import EyeOff from '@lucide/svelte/icons/eye-off';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
+  import Undo2 from '@lucide/svelte/icons/undo-2';
   import FileText from '@lucide/svelte/icons/file-text';
   import FileUp from '@lucide/svelte/icons/file-up';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
@@ -121,6 +123,9 @@
     pencil: Pencil,
     // The Excel file in the day overview.
     'file-spreadsheet': FileSpreadsheet,
+    // Mark all as read; bring a job back from the trash.
+    'check-check': CheckCheck,
+    'undo-2': Undo2,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

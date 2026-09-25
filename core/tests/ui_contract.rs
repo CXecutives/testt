@@ -1076,7 +1076,8 @@ fn the_catalog_keeps_the_glossary() {
             ("Full text", "Details"),
             ("Hit", "Match"),
             ("Hits", "Matches"),
-            ("Inbox", "Mailbox"),
+            // "Inbox" is the place of the active jobs (next to Archive and Trash); the Gmail
+            // account stays the "Mailbox".
             ("Pinned", "Saved"),
             ("Bookmark", "Saved"),
         ] {

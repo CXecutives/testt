@@ -116,7 +116,8 @@ const INIT: &str = r#"(() => {
       }
       await wait(600);
       const rows = all('[data-testid^="job-row-"]').length;
-      const rings = all('[data-testid^="job-row-"] [role="img"][aria-label^="Passung"]').length;
+      // Scored rings in either language (the class, not the German aria label).
+      const rings = all('[data-testid^="job-row-"] .ring.scored').length;
       return { ok: rows > 0 && rings > 0, rows, rings, perf: stop() };
     },
     async views() {
@@ -176,7 +177,7 @@ const PROBE: &str = r#"(() => { try {
     return JSON.stringify({
       ready: shown(q('shell')) && shown(q('sidebar')),
       tabs: document.querySelectorAll('[data-testid^="nav-"]').length,
-      named: ['nav-jobs', 'nav-profile', 'nav-settings'].every((id) => !!q(id)),
+      named: ['nav-jobs', 'nav-archive', 'nav-trash', 'nav-profile', 'nav-settings'].every((id) => !!q(id)),
       tauri: '__TAURI_INTERNALS__' in window,
       csp: window.__smokeCsp ?? null,
     });
@@ -234,7 +235,8 @@ pub fn attach<R: Runtime, M: Manager<R>>(
 }
 
 fn check_shell<R: Runtime>(window: &WebviewWindow<R>, value: &Value) {
-    let ok = value["tabs"] == 3
+    // Jobs with its two places (Archiv, Papierkorb), Profil, Einstellungen.
+    let ok = value["tabs"] == 5
         && value["named"] == true
         && value["tauri"] == true
         && no_csp_violation(value);

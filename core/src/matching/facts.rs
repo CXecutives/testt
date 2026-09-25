@@ -668,6 +668,12 @@ static CURRENCY_PER_TIME: LazyLock<Regex> = LazyLock::new(|| {
         .expect("currency per time")
 });
 
+/// Can the engine read a rate from this text (a page's rate field)? A bare number is none:
+/// without a unit it is no day or hourly rate.
+pub(crate) fn readable_rate(text: &str) -> bool {
+    parse_rate(&fold(text)).is_some()
+}
+
 pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
     let rate_word = lex::RATE_WORDS.iter().any(|w| folded.contains(w));
     if !(rate_word || CURRENCY_PER_TIME.is_match(folded))

@@ -352,7 +352,10 @@ async fn matrix_text_short_closed_gone_suspicious() {
             .as_deref(),
         Some("Vollzeit")
     );
-    assert_eq!(store.parser_version(&closed).unwrap(), Some(1));
+    assert_eq!(
+        store.parser_version(&closed).unwrap(),
+        Some(FM.adapter().parser_version())
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -434,8 +437,10 @@ async fn the_breaker_counts_across_runs() {
     assert_eq!(policy.state(LI).suspicious_streak, 0);
 }
 
+/// A page the parser understood resets the breaker: a full text, a verified short one and a
+/// page that is gone - the layout is fine.
 #[tokio::test(start_paused = true)]
-async fn a_full_text_between_resets_the_breaker_but_a_short_one_does_not() {
+async fn an_understood_page_between_resets_the_breaker() {
     let c = clock();
     let store = store_with(&[
         (LI, 4_000_000_001, 1),
@@ -457,27 +462,28 @@ async fn a_full_text_between_resets_the_breaker_but_a_short_one_does_not() {
     .await;
     assert_eq!(fake.calls().len(), 4);
 
-    let store = store_with(&[
-        (LI, 4_000_000_001, 1),
-        (LI, 4_000_000_002, 2),
-        (LI, 4_000_000_003, 3),
-    ]);
-    let fake = Fake::default()
-        .with("4000000001", [suspicious()])
-        .with("4000000002", [text("kurz")])
-        .with("4000000003", [suspicious()]);
-    let r = run(
-        &fake,
-        &store,
-        &mut Policy::in_memory(),
-        Selection::Queue(&Portal::ALL),
-        &c,
-    )
-    .await;
-    assert!(matches!(
-        r.stops.as_slice(),
-        [(LI, StopReason::Breaker { .. }, 0)]
-    ));
+    for between in [text("kurz"), PageOutcome::Gone] {
+        let fake = Fake::default()
+            .with("4000000001", [suspicious()])
+            .with("4000000002", [between])
+            .with("4000000003", [suspicious()]);
+        let mut policy = Policy::in_memory();
+        let r = run(
+            &fake,
+            &store_with(&[
+                (LI, 4_000_000_001, 1),
+                (LI, 4_000_000_002, 2),
+                (LI, 4_000_000_003, 3),
+            ]),
+            &mut policy,
+            Selection::Queue(&Portal::ALL),
+            &c,
+        )
+        .await;
+        assert!(r.stops.is_empty(), "{:?}", r.stops);
+        assert_eq!(fake.calls().len(), 3);
+        assert_eq!(policy.state(LI).suspicious_streak, 1);
+    }
 }
 
 #[tokio::test(start_paused = true)]
@@ -1519,6 +1525,33 @@ async fn a_parser_update_requeues_the_failed_jobs_of_its_portal() {
     );
 }
 
+/// A parser update reopens only the jobs the automatic queue fetches: an old given-up job
+/// keeps its honest "not fetchable" instead of a promise that never comes.
+#[tokio::test(start_paused = true)]
+async fn a_parser_update_requeues_only_what_the_queue_fetches() {
+    let c = clock();
+    let store = store_with(&[(FM, 10_001, 40)]);
+    let old = key(FM, 10_001);
+    for _ in 0..3 {
+        store.record_failed(&old, "noDescription", base()).unwrap();
+    }
+    store.record_parse(&old, 0, None).unwrap();
+    let fake = Fake::default();
+    run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Queue(&[FM]),
+        &c,
+    )
+    .await;
+    assert!(fake.calls().is_empty());
+    assert_eq!(
+        store.job(&old).unwrap().unwrap().desc_status,
+        DescStatus::Unfetchable
+    );
+}
+
 /// A series of suspicious pages (layout changed?) costs ONE attempt - the portal's fault
 /// must not use up the attempts of every job it touched.
 #[tokio::test(start_paused = true)]
@@ -1690,4 +1723,153 @@ async fn a_portal_switched_off_during_the_run_gets_no_further_request() {
     let open = store.fetch_queue(c(), MAX_AGE, RETRY_AFTER).unwrap();
     assert_eq!(open.len(), 2);
     assert!(open.iter().all(|job| job.desc_attempts == 0), "untouched");
+}
+
+/// A layout series that never ends (the streak persists across runs) still costs its jobs
+/// their attempts: the first page of every run is charged, the retries take turns, and once
+/// every job has used up its attempts the requests stop - instead of one page being
+/// requested every run for a month while the jobs behind it are never tried.
+#[tokio::test(start_paused = true)]
+async fn an_endless_layout_series_uses_up_the_attempts_and_stops() {
+    let c = clock();
+    let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 2)]);
+    let always = || {
+        std::iter::repeat_with(suspicious)
+            .take(20)
+            .collect::<Vec<_>>()
+    };
+    let fake = Fake::default()
+        .with("10001", always())
+        .with("10002", always());
+    let mut policy = Policy::in_memory();
+    let mut runs = 0;
+    while runs < 20 {
+        let before = fake.calls().len();
+        run(&fake, &store, &mut policy, Selection::Queue(&[FM]), &c).await;
+        runs += 1;
+        if fake.calls().len() == before {
+            break;
+        }
+        tokio::time::advance(Duration::from_secs(12 * 3600 + 300)).await;
+    }
+    let status = |id| store.job(&key(FM, id)).unwrap().unwrap().desc_status;
+    assert_eq!(status(10_001), DescStatus::Unfetchable);
+    assert_eq!(status(10_002), DescStatus::Unfetchable);
+    let limit = 2 * usize::try_from(policy::MAX_FETCH_ATTEMPTS).unwrap() + 1;
+    assert!(runs <= limit, "{runs} runs");
+    assert!(
+        fake.ids().contains(&"10002".to_string()),
+        "both jobs were tried"
+    );
+}
+
+/// One job's own odd page (an expired project leading to the search, a 4xx, another job's
+/// page) is that job's attempt - it never feeds the "layout changed" breaker or health.
+#[tokio::test(start_paused = true)]
+async fn a_per_job_verdict_is_no_layout_signal() {
+    let c = clock();
+    let store = store_with(&[(FM, 10_001, 1), (FM, 10_002, 2), (FM, 10_003, 3)]);
+    let fake = Fake::default()
+        .with("10001", [PageOutcome::Suspicious(Cause::NotAProjectPage)])
+        .with("10002", [PageOutcome::Suspicious(Cause::Http(400))])
+        .with("10003", [PageOutcome::Suspicious(Cause::WrongPage)]);
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[FM]), &c).await;
+    assert!(r.stops.is_empty(), "{:?}", r.stops);
+    assert_eq!(fake.calls().len(), 3);
+    assert_eq!(policy.state(FM).suspicious_streak, 0);
+    for id in [10_001, 10_002, 10_003] {
+        let job = store.job(&key(FM, id)).unwrap().unwrap();
+        assert_eq!(
+            (job.desc_status, job.desc_attempts),
+            (DescStatus::Failed, 1)
+        );
+    }
+    assert_eq!(
+        PortalHealth::of(&policy, FM, c(), false, 0),
+        PortalHealth::Ok
+    );
+    // One layout-suspicious page alone is no warning either; a series is.
+    policy.count_suspicious(FM);
+    assert_eq!(
+        PortalHealth::of(&policy, FM, c(), false, 0),
+        PortalHealth::Ok
+    );
+    policy.count_suspicious(FM);
+    assert_eq!(
+        PortalHealth::of(&policy, FM, c(), false, 0),
+        PortalHealth::LayoutSuspect {
+            empty_mails: 0,
+            pages: 2
+        }
+    );
+    assert!(Cause::NoDescription.is_layout_signal());
+    assert!(Cause::RepeatedRedirect.is_layout_signal());
+    assert!(!Cause::RedirectNotFollowed.is_layout_signal());
+}
+
+/// "Details holen" on a guest teaser: no request (only a sign-in brings the full text), and
+/// the run says so - instead of ending with nothing and no reason.
+#[tokio::test(start_paused = true)]
+async fn details_for_a_guest_teaser_say_that_a_sign_in_is_needed() {
+    let c = clock();
+    let store = store_with(&[(FL, 1_255_067, 1)]);
+    let chosen = key(FL, 1_255_067);
+    store
+        .record_teaser(&chosen, "Derzeit suchen wir einen Controller.", base())
+        .unwrap();
+    let fake = Fake {
+        guest_only: true,
+        ..Fake::default()
+    };
+    let keys = [chosen];
+    let r = run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Jobs(&keys, &[FL]),
+        &c,
+    )
+    .await;
+    assert!(fake.calls().is_empty());
+    assert!(matches!(
+        r.stops.as_slice(),
+        [(FL, StopReason::LoginRequired, 1)]
+    ));
+    assert_eq!(r.summary.per_portal[&FL].skipped, 1);
+    // The automatic queue skips teasers quietly: nothing to say there.
+    let r = run(
+        &fake,
+        &store,
+        &mut Policy::in_memory(),
+        Selection::Queue(&[FL]),
+        &c,
+    )
+    .await;
+    assert!(r.stops.is_empty());
+}
+
+/// An empty teaser proves nothing about the layout: it never resets the breaker.
+#[tokio::test(start_paused = true)]
+async fn an_empty_teaser_does_not_reset_the_breaker() {
+    let c = clock();
+    let store = store_with(&[(FL, 1_255_067, 1), (FL, 1_255_068, 2), (FL, 1_255_069, 3)]);
+    let empty = PageOutcome::Teaser {
+        text: String::new(),
+        fields: None,
+        facts: Facts::default(),
+    };
+    let fake = Fake {
+        guest_only: true,
+        ..Fake::default()
+    }
+    .with("1255067", [suspicious()])
+    .with("1255068", [empty])
+    .with("1255069", [suspicious()]);
+    let mut policy = Policy::in_memory();
+    let r = run(&fake, &store, &mut policy, Selection::Queue(&[FL]), &c).await;
+    assert!(matches!(
+        r.stops.as_slice(),
+        [(FL, StopReason::Breaker { .. }, 0)]
+    ));
 }

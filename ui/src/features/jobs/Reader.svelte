@@ -53,7 +53,7 @@
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
-  import { archive } from './archive';
+  import { actionsOf, guarded, hasStar, move, purge, toggleStar, type ActionId } from './actions';
 
   interface Props {
     detail: JobDetail;
@@ -238,7 +238,10 @@
   const portalState = $derived(app.state?.portals.find((p) => p.portal === job.portal) ?? null);
   const detailKind = $derived(job.detail.kind);
   const canFetch = $derived(
-    (detailKind === 'pending' || detailKind === 'failed' || detailKind === 'teaser') &&
+    (detailKind === 'pending' ||
+      detailKind === 'onRequest' ||
+      detailKind === 'failed' ||
+      detailKind === 'teaser') &&
       portalState?.enabled === true &&
       portalState.fetchDetails &&
       (detailKind !== 'teaser' || portalState.loginEnabled),
@@ -318,28 +321,41 @@
     }
   }
 
-  /** Archive the job (the next one opens, the toast takes it back), or bring it back. */
-  async function hide(): Promise<void> {
-    actionError = await archive(job);
-  }
+  /** The job's actions where it is (the same as on its row), then the star. */
+  const tools = $derived(actionsOf(job.place));
+  let confirmPurge = $state(false);
+  let purging = $state(false);
+  let purgeError = $state<string | null>(null);
 
-  let confirmDelete = $state(false);
-  let deleting = $state(false);
-  let deleteError = $state<string | null>(null);
-
-  async function deleteJob(): Promise<void> {
-    deleting = true;
-    deleteError = null;
-    const error = await jobs.move([job.key], 'trash');
-    deleting = false;
-    if (error !== null) {
-      deleteError = error;
+  function act(id: ActionId): void {
+    if (guarded()) return;
+    if (id === 'purge') {
+      purgeError = null;
+      confirmPurge = true;
       return;
     }
-    confirmDelete = false;
-    toasts.show(t.toast.deleted(1));
-    void jobs.loadOverview();
+    actionError = null;
+    void move([job], id).then((error) => (actionError = error));
   }
+
+  async function purgeJob(): Promise<void> {
+    purging = true;
+    purgeError = await purge([job]);
+    purging = false;
+    if (purgeError === null) confirmPurge = false;
+  }
+
+  function star(): void {
+    if (!guarded()) toggleStar([job]);
+  }
+
+  /** Not in the inbox: where it lies, quietly under the title (the trash says when it goes). */
+  const placeLine = $derived.by((): string | null => {
+    if (job.place === 'archive') return t.place.inArchive;
+    if (job.place !== 'trash') return null;
+    const days = app.state?.autoEmptyTrashDays ?? 0;
+    return days > 0 ? t.place.inTrashFor(days) : t.place.inTrash;
+  });
 
   /** "Trotzdem passend": an excluded job counts with its fit score, and back. */
   async function override(): Promise<void> {
@@ -417,14 +433,53 @@
               : null}
           label={reasonText(reason)}
           hint={evidence ? null : reasonHint(reason)}
+          detail={evidence}
           active={active === reason.id}
           onhover={(on) => hover(reason, on)}
           onselect={reason.ranges.length > 0 ? () => scrollTo(reason) : null}
         />
-        {#if evidence}<p class="evidence" data-testid="evidence">{evidence}</p>{/if}
       </li>
     {/each}
   </ul>
+{/snippet}
+
+{#snippet placeTools(prefix: string)}
+  {#each tools as tool (tool.id)}
+    <Button
+      variant="ghost"
+      size="sm"
+      iconOnly
+      icon={tool.icon}
+      label={tool.label}
+      testid="{prefix}{tool.id}"
+      onclick={() => act(tool.id)}
+    />
+  {/each}
+  {#if hasStar(job.place)}
+    <Button
+      variant="ghost"
+      size="sm"
+      iconOnly
+      icon="star"
+      label={job.pinned ? t.reader.unpin : t.reader.pin}
+      pressed={job.pinned}
+      testid="{prefix}pin"
+      onclick={star}
+    />
+  {/if}
+  {#if onclose}
+    <span class="close">
+      <Button
+        variant="ghost"
+        size="sm"
+        iconOnly
+        icon="x"
+        label={t.reader.close}
+        testid="{prefix}close"
+        onclick={onclose}
+      />
+    </span>
+  {/if}
 {/snippet}
 
 <article class="reader" data-testid="reader">
@@ -458,16 +513,7 @@
           testid="compact-open"
           onclick={() => openTarget({ kind: 'jobUrl', key: job.key })}
         />
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon="star"
-          label={job.pinned ? t.reader.unpin : t.reader.pin}
-          pressed={job.pinned}
-          testid="compact-pin"
-          onclick={() => void jobs.pin(job.key, !job.pinned)}
-        />
+        {@render placeTools('compact-')}
       </span>
     </div>
   </div>
@@ -478,38 +524,7 @@
         {job.title ? displayTitle(job.title) : t.job.untitled}
       </h1>
       <span class="title-tools">
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon="star"
-          label={job.pinned ? t.reader.unpin : t.reader.pin}
-          pressed={job.pinned}
-          testid="pin"
-          onclick={() => void jobs.pin(job.key, !job.pinned)}
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          icon={job.place === 'archive' ? 'archive-restore' : 'archive'}
-          label={job.place === 'archive' ? t.reader.restore : t.reader.archive}
-          testid="hide"
-          onclick={() => void hide()}
-        />
-        {#if onclose}
-          <span class="close">
-            <Button
-              variant="ghost"
-              size="sm"
-              iconOnly
-              icon="x"
-              label={t.reader.close}
-              testid="reader-close"
-              onclick={onclose}
-            />
-          </span>
-        {/if}
+        {@render placeTools('reader-')}
       </span>
     </div>
     <p class="facts" data-copy>
@@ -519,25 +534,8 @@
           >{/each}
       </span>
     </p>
+    {#if placeLine}<p class="place-line" data-testid="place-line">{placeLine}</p>{/if}
   </header>
-  {#if job.place === 'archive'}
-    <div class="archived" data-testid="archived-note">
-      <Notice
-        tone="info"
-        variant="row"
-        text={t.reader.archived}
-        action={{ label: t.reader.restore, onclick: () => void hide() }}
-      />
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="trash-2"
-        label={t.reader.deleteForGood}
-        testid="delete-job"
-        onclick={() => (confirmDelete = true)}
-      />
-    </div>
-  {/if}
 
   {#if headline}
     <div class="match">
@@ -721,7 +719,7 @@
           variant="inline"
           text={portalState &&
           (!portalState.enabled || !portalState.fetchDetails) &&
-          detailKind === 'pending'
+          (detailKind === 'pending' || detailKind === 'onRequest')
             ? t.reader.detailsOff
             : detailKind === 'teaser'
               ? t.reader.teaserOf(t.portal[job.portal])
@@ -751,6 +749,8 @@
           />
         {/if}
       </div>
+    {:else if job.closed}
+      <Notice tone="info" variant="inline" text={t.reader.closed} testid="closed-note" />
     {:else if job.short && unscorable === null}
       <Notice tone="info" variant="inline" text={t.reader.short} />
     {/if}
@@ -767,15 +767,15 @@
 </article>
 
 <Dialog
-  bind:open={confirmDelete}
+  bind:open={confirmPurge}
   variant="danger"
-  heading={t.reader.deleteHeading}
-  text={t.reader.deleteText}
-  confirmLabel={t.reader.deleteForGood}
-  busy={deleting}
-  error={deleteError}
-  testid="dialog-delete-job"
-  onconfirm={() => void deleteJob()}
+  heading={t.actions.purgeHeading(1)}
+  text={t.actions.purgeText}
+  confirmLabel={t.actions.purge}
+  busy={purging}
+  error={purgeError}
+  testid="dialog-purge"
+  onconfirm={() => void purgeJob()}
 />
 
 <style>
@@ -1039,16 +1039,10 @@
     display: inline-flex;
   }
 
-  /* An archived job says so under its facts, with the way back and the way out. */
-  .archived {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-8);
-  }
-
-  .archived > :global(:first-child) {
-    flex: 1;
+  /* Where a job lies when it is not in the inbox: quiet, under the facts. */
+  .place-line {
+    color: var(--text-subtle);
+    font: var(--type-sm);
   }
 
   /* The note on the missing text, and the way to fetch it. */
@@ -1057,13 +1051,6 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-8) var(--space-16);
-  }
-
-  /* The evidence of a point, quiet under it (on the axis of its words). */
-  .evidence {
-    padding: 0 var(--space-8) var(--space-4) calc(var(--space-8) + var(--icon-sm) + var(--space-8));
-    color: var(--text-subtle);
-    font: var(--type-sm);
   }
 
   .why,

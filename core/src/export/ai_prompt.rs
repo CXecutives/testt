@@ -368,6 +368,7 @@ mod tests {
             pinned: false,
             detail: DetailState::Ok,
             short: false,
+            closed: false,
             match_: None,
             also_on: Vec::new(),
             place: crate::model::Place::Inbox,
