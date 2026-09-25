@@ -89,22 +89,31 @@ fn copy(conn: &Connection, target: &Path) -> Result<()> {
 }
 
 /// Keeps the `kept` newest copies of one kind in `dir` (newest by `order`, a name that is no
-/// copy of this kind has none), deletes the older ones. A failure only goes to the log.
+/// copy of this kind has none), deletes the older ones and the copies of this kind that were
+/// cut off before (the app ended while it wrote one; only a copy of the same day or schema
+/// would replace it). A failure only goes to the log.
 fn prune<K: Ord>(dir: &Path, kept: usize, order: impl Fn(&str) -> Option<K>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
-    let mut copies: Vec<(K, PathBuf)> = entries
-        .filter_map(std::result::Result::ok)
-        .filter_map(|e| {
-            let key = order(e.file_name().to_str()?)?;
-            Some((key, e.path()))
-        })
-        .collect();
+    let mut copies: Vec<(K, PathBuf)> = Vec::new();
+    let mut old: Vec<PathBuf> = Vec::new();
+    for entry in entries.filter_map(std::result::Result::ok) {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if let Some(key) = order(name) {
+            copies.push((key, entry.path()));
+        } else if name.strip_suffix(PARTIAL).and_then(&order).is_some() {
+            old.push(entry.path());
+        }
+    }
     copies.sort_by(|a, b| b.0.cmp(&a.0));
-    for (_, old) in copies.into_iter().skip(kept) {
-        if let Err(e) = std::fs::remove_file(&old) {
-            log::warn!("old database copy {} not deleted: {e}", old.display());
+    old.extend(copies.into_iter().skip(kept).map(|(_, path)| path));
+    for path in old {
+        if let Err(e) = std::fs::remove_file(&path) {
+            log::warn!("old database copy {} not deleted: {e}", path.display());
         }
     }
 }
@@ -194,7 +203,8 @@ mod tests {
         assert_eq!(store.backup_daily(day("2026-09-20")).unwrap(), None);
     }
 
-    /// A copy that was cut off is written again, never taken for a copy.
+    /// A copy that was cut off is written again, never taken for a copy; one of an earlier
+    /// day, which no copy replaces, goes with the next copy. Other files stay.
     #[test]
     fn a_cut_off_copy_is_replaced() {
         let root = tempfile::tempdir().unwrap();
@@ -207,6 +217,14 @@ mod tests {
         let copy = store.backup_daily(day("2026-09-20")).unwrap().unwrap();
         assert_eq!(marker(&copy).as_deref(), Some("ganz"));
         assert_eq!(names(&dir), ["jobs-2026-09-20.db"]);
+
+        std::fs::write(dir.join("jobs-2026-09-18.db.partial"), b"halb").unwrap();
+        std::fs::write(dir.join("notes.partial"), b"mine").unwrap();
+        store.backup_daily(day("2026-09-21")).unwrap().unwrap();
+        assert_eq!(
+            names(&dir),
+            ["jobs-2026-09-20.db", "jobs-2026-09-21.db", "notes.partial"]
+        );
     }
 
     #[test]
