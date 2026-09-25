@@ -142,6 +142,15 @@
       jobs.search.trim() === '' &&
       jobs.filter === null,
   );
+  /** Nothing else to say while the list beside holds jobs: a quiet "select one" (never beside
+   *  an empty list, which says where jobs come from). */
+  const pick = $derived(
+    !topError &&
+      best.length === 0 &&
+      !hasIssues &&
+      jobs.status === 'ready' &&
+      jobs.visible.length > 0,
+  );
   let actionError = $state<string | null>(null);
 
   function open(target: OpenTarget): void {
@@ -225,7 +234,7 @@
     </section>
   {/if}
 
-  {#if !topError && best.length === 0 && !hasIssues}
+  {#if pick}
     <p class="pick" data-testid="overview-pick">{t.overview.pick}</p>
   {/if}
 

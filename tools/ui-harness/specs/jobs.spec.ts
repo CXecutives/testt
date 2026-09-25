@@ -389,6 +389,8 @@ test('without a profile: empty rings, newest first, one line in the list leads t
   expect(await page.getByTestId('job-list').getByTestId('no-profile').count()).toBe(1);
   await expect(page.getByTestId('day-overview').getByTestId('no-profile')).toHaveCount(0);
   await expect(page.getByTestId('best')).toHaveCount(0);
+  // The open point of the last fetch is what the overview says, no "select a job" beside it.
+  await expect(page.getByTestId('overview-pick')).toHaveCount(0);
   await expect(notice.locator('.btn.primary')).toHaveCount(0);
   // Without a profile the order is by date; the menu cannot open, its tooltip says why.
   await expect(page.getByTestId('sort')).toHaveText('Nach Datum');
@@ -408,6 +410,17 @@ test('without a profile: empty rings, newest first, one line in the list leads t
   await expect(page.getByTestId('profile-name')).toHaveText('Neues Profil');
 });
 
+test('nothing else to say beside a list with jobs: one quiet line, like a mail app', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&scenario=no-profile`);
+  await expect(page.getByTestId('issues')).toBeVisible();
+  await page.getByTestId('fetch').click();
+  await runFinished(page);
+  await expect(page.getByTestId('issues')).toHaveCount(0);
+  await expect(page.getByTestId('overview-pick')).toHaveText('Links einen Job auswählen.');
+});
+
 test('an empty list and a first fetch without news', async ({ page }) => {
   await open(page, `${WIN}&scenario=empty`);
   await expect(page.getByTestId('empty-all')).toBeVisible();
@@ -417,6 +430,8 @@ test('an empty list and a first fetch without news', async ({ page }) => {
   await expect(page.getByTestId('new-jobs')).toHaveCount(0);
   await expect(page.getByTestId('day-overview')).not.toContainText('Keine neuen Jobs');
   await expect(page.getByTestId('overview-open')).toBeVisible();
+  // No "select a job" beside a list without jobs.
+  await expect(page.getByTestId('overview-pick')).toHaveCount(0);
 });
 
 test('an unusable profile: the list names it and leads to the Profil view', async ({ page }) => {
