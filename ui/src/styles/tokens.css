@@ -557,13 +557,12 @@
      nothing ever stretches or changes shape. Larger surfaces (tiles, cards, rows, switches)
      only darken. */
   --scale-press: 0.98;
-  /* The one-shot pop of the star on pin (keyframes 1, 1.18, 1) and the star on hover. */
+  /* The one-shot pop of the star on pin (keyframes 1, 1.18, 1): state feedback, not a hover.
+     No icon moves on hover (user, 2026-09-25). */
   --scale-pop: 1.18;
-  --scale-nudge: 1.1;
-  /* The refresh glyph of Abrufen on hover; half a turn is state (sort order, open
-     chevron) and keeps its angle under reduced motion, like the quarter turn of a folded
-     arrow (the sidebar's places: pointing right while they are hidden). */
-  --turn-nudge: 45deg;
+  /* Half a turn is state (sort order, open chevron) and keeps its angle under reduced
+     motion, like the quarter turn of a folded arrow (the sidebar's places: pointing right
+     while they are hidden). */
   --turn-half: 180deg;
   --turn-quarter: 90deg;
   --loop-state: running;
@@ -605,7 +604,5 @@
   --scale-enter: 1;
   --scale-press: 1;
   --scale-pop: 1;
-  --scale-nudge: 1;
-  --turn-nudge: 0deg;
   --loop-state: paused;
 }

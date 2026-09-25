@@ -36,6 +36,7 @@ class Bulk {
       icon: action.icon,
       label: action.label,
       testid: `selection-${action.id}`,
+      warns: action.id === 'purge',
       // Deleting for good waits for a run (the backend refuses meanwhile).
       disabled: action.id === 'purge' && run.active,
       disabledReason: run.busyText,

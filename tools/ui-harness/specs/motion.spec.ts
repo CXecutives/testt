@@ -153,11 +153,11 @@ test('under reduced motion nothing scales, pops or shakes', async ({ page }) => 
   await open(page, '?gallery');
   const tokens = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);
-    return ['--scale-press', '--scale-pop', '--scale-nudge', '--move-xs', '--dur-hover'].map(
-      (name) => parseFloat(style.getPropertyValue(name)),
+    return ['--scale-press', '--scale-pop', '--move-xs', '--dur-hover'].map((name) =>
+      parseFloat(style.getPropertyValue(name)),
     );
   });
-  expect(tokens).toEqual([1, 1, 1, 0, 0]);
+  expect(tokens).toEqual([1, 1, 0, 0]);
   const pin = page.getByTestId('motion-pin');
   await pin.scrollIntoViewIfNeeded();
   await pin.click();

@@ -345,6 +345,7 @@
                 label={t.common.remove}
                 disabled={run.active || dryRun}
                 disabledReason={lockedReason}
+                warns
                 testid="mailbox-remove"
                 onclick={() => (confirmRemove = true)}
               />
@@ -527,6 +528,7 @@
               label={t.settings.txtClear}
               disabled={run.active || dryRun || cfg.settings.txtFiles === 0}
               disabledReason={run.active || dryRun ? lockedReason : t.settings.txtNone}
+              warns
               testid="txt-clear"
               onclick={() => (confirmClear = true)}
             />

@@ -264,6 +264,7 @@
               label={t.actions.emptyTrash}
               disabled={run.active}
               disabledReason={run.busyText}
+              warns
               testid="empty-trash"
               onclick={() => {
                 emptyError = null;

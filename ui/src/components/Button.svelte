@@ -1,9 +1,8 @@
 <!--
   The button of the app: primary | secondary | ghost | danger | link × sm | md | lg | field. Native
-  in feel, rich on contact: hover-in changes colour in 80 ms and relaxes in 150 ms, the
-  icon nudges toward what it does (external link up-right, download down, refresh a
-  quarter turn, the star grows), a press lets the button give a little, uniformly (0.98,
-  60 ms), and it settles back in 150 ms. Nothing stretches; no lift, no glow, no bounce.
+  in feel, calm on contact: hover-in changes colour in 80 ms and relaxes in 150 ms, every
+  icon stays still and behaves alike (no nudges, user 2026-09-25), a press lets the button
+  give a little, uniformly (0.98, 60 ms), and it settles back in 150 ms. Nothing stretches; no lift, no glow, no bounce.
   - Trailing actions inside a row are sm, action bars are md; a choice beside fields, and a
     button in a row of fields, is field (as tall as a field, with the small type).
   - At most one primary per view (checked by core/tests/ui_contract.rs).
@@ -21,9 +20,10 @@
   - inField: a button inside a text field (show password, clear search), like the native
     ones: not in the Tab order, and a click leaves the caret in the field.
   - isDefault: the default of a dialog, the one Enter presses; the dialog marks it.
-  - warns: a quiet (secondary or ghost) button that removes or resets something: its text
-    turns red on hover, before the dialog asks. A quiet button with the trash icon always
-    warns.
+  - warns: a quiet (secondary or ghost) button whose action loses something for good
+    (empty the trash, delete for good, remove the mailbox, delete the text files): it turns
+    red on hover, before the dialog asks. Moving a job to the trash can be undone and does
+    not warn; no icon warns by itself.
   The icon sits on its own HTML wrapper: transforms on SVG children run on the main thread.
 -->
 <script lang="ts" module>
@@ -138,7 +138,7 @@
   class:turned
   class:external
   class:default={isDefault}
-  class:warns={warns || ((variant === 'ghost' || variant === 'secondary') && icon === 'trash-2')}
+  class:warns
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
@@ -246,35 +246,12 @@
     transition-duration: var(--dur-instant);
   }
 
-  /* The glyph nudges toward what the button does; it holds while pressed. */
-  .btn:not([aria-disabled='true'], .loading, .turned):hover .glyph {
-    transition-duration: var(--dur-hover);
-  }
 
-  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='external-link'] {
-    transform: translate(var(--move-xs), calc(-1 * var(--move-xs)));
-  }
 
-  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='chevron-left'] {
-    transform: translateX(calc(-1 * var(--move-sm)));
-  }
 
-  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='download'] {
-    transform: translateY(var(--move-xs));
-  }
 
-  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='file-up'],
-  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='mail'] {
-    transform: translateY(calc(-1 * var(--move-xs)));
-  }
 
-  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='refresh-cw'] {
-    transform: rotate(var(--turn-nudge));
-  }
 
-  .btn:not([aria-disabled='true'], .loading, .danger):hover .glyph[data-icon='star'] {
-    transform: scale(var(--scale-nudge));
-  }
 
   /* A state, not a nudge: half a turn in 180 ms (the angle stays under reduced motion). */
   .turned .glyph {

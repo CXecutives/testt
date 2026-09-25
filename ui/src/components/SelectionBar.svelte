@@ -13,6 +13,8 @@
     label: string;
     disabled?: boolean;
     disabledReason?: string | null;
+    /** It loses something for good (delete for good): red on hover. */
+    warns?: boolean;
     testid?: string;
     onclick: () => void;
   }
@@ -54,6 +56,7 @@
         label={action.label}
         disabled={action.disabled ?? false}
         disabledReason={action.disabledReason ?? null}
+        warns={action.warns ?? false}
         testid={action.testid ?? null}
         onclick={action.onclick}
       />

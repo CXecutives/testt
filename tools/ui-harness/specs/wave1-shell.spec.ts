@@ -158,7 +158,7 @@ test('a switch darkens a step on hover and one more while pressed, off and on', 
   }
 });
 
-test('the trash buttons of the selection warn on hover like every quiet trash button', async ({
+test('only what loses something for good warns: the trash does not, delete for good does', async ({
   page,
 }) => {
   await open(page, WIN);
@@ -168,8 +168,9 @@ test('the trash buttons of the selection warn on hover like every quiet trash bu
   const trash = page.getByTestId('selection-trash');
   await expect(trash).toBeVisible();
   await trash.hover();
-  await expect(trash).toHaveCSS('color', danger);
-  // In the trash the bar's "Endgültig löschen" warns the same way.
+  // The trash can be undone: it looks like every other icon on hover.
+  await expect(trash).not.toHaveCSS('color', danger);
+  // In the trash the bar's "Endgültig löschen" loses the jobs for good: it warns.
   await trash.click();
   await page.getByTestId('nav-trash').click();
   await rows(page).first().click();
