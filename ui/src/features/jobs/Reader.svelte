@@ -540,6 +540,7 @@
   </ul>
 {/snippet}
 
+<!-- Deleting for good waits for a run, like on the row (the backend refuses meanwhile). -->
 {#snippet placeTools(prefix: string)}
   {#each tools as tool (tool.id)}
     <Button
@@ -548,6 +549,8 @@
       iconOnly
       icon={tool.icon}
       label={tool.label}
+      disabled={tool.id === 'purge' && run.active}
+      disabledReason={run.busyText}
       testid="{prefix}{tool.id}"
       onclick={() => act(tool.id)}
     />

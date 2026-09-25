@@ -2,7 +2,7 @@
 // docs/PLAN.md, UI "Jobs").
 
 import type { Page } from '@playwright/test';
-import { expect, open, runFinished, test } from './fixtures';
+import { calls, expect, open, runFinished, settle, test } from './fixtures';
 
 const WIN = '?platform=windows';
 const list = (page: Page) => page.getByTestId('job-list');
@@ -10,6 +10,12 @@ const rows = (page: Page) => page.getByTestId('job-rows').locator('[data-testid^
 const row = (page: Page, key: string) => list(page).getByTestId(`job-row-${key}`);
 const facet = (page: Page, name: string) =>
   page.getByTestId('facet').getByRole('radio', { name: new RegExp(name) });
+
+/** A row's tool: it exists while the pointer is on the row. */
+async function tool(page: Page, id: string, key: string): Promise<void> {
+  await row(page, key).hover();
+  await page.getByTestId(`${id}-${key}`).click();
+}
 
 /** A token's colour as the engine computes it (for a text or a background). */
 async function tokenColour(page: Page, token: string): Promise<string> {
@@ -107,6 +113,29 @@ test.describe('placeholders wait once', () => {
     const later = frames.find((frame) => frame.shape !== null && frame.t >= first!.t + 250);
     expect(later?.shape ?? 0).toBeGreaterThanOrEqual(0.9);
   });
+});
+
+test('deleting for good waits for a run in the reader too', async ({ page }) => {
+  await open(page, WIN);
+  await facet(page, 'Alle').click();
+  await tool(page, 'trash', 'freelancermap-2803');
+  await page.getByTestId('nav-trash').click();
+  await settle(page);
+  await row(page, 'freelancermap-2803').click();
+  const purge = page.getByTestId('reader-purge');
+  await expect(purge).toBeVisible();
+  await expect(purge).not.toHaveAttribute('aria-disabled', 'true');
+  await page.evaluate(() => (window.__harness.holdAfter = 1));
+  await page.getByTestId('fetch').click();
+  await expect(purge).toHaveAttribute('aria-disabled', 'true');
+  await purge.hover();
+  await expect(page.getByRole('tooltip')).toHaveText(/Abruf/);
+  await purge.click({ force: true });
+  await expect(page.getByTestId('dialog-purge')).toBeHidden();
+  expect(await calls(page, 'purge_jobs')).toEqual([]);
+  await page.evaluate(() => (window.__harness.holdAfter = null));
+  await runFinished(page);
+  await expect(purge).not.toHaveAttribute('aria-disabled', 'true');
 });
 
 test('a row date stands on the baseline of its title', async ({ page }) => {
