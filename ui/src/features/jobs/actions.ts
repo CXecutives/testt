@@ -2,19 +2,25 @@
 // in the selection bar (the star, a flag of its own, comes last where there is one):
 //   Eingang: Archivieren, Löschen · Archiv: In den Eingang, Löschen · Papierkorb:
 //   Wiederherstellen, Endgültig löschen (asks first; the caller shows the dialog).
-// A move folds the rows that leave the list (`moving`), opens the next job when the open one
-// left, and says so in a toast that merges ("2 Jobs archiviert.") with one undo (Ctrl/Cmd+Z
-// too, while the toast is up). A click within GUARD_MS after the list or the pane changed is
-// ignored, so a double click never moves the job that slid under the pointer. The job the
-// app opens by itself counts as read only once it has been looked at (DWELL_MS, or a click
-// in the reader). A job that is already where it goes is no move.
+// A move folds the rows that leave the list (`moving`; a few, more simply go), opens the
+// next job when the open one left (its row in view, with the focus when the focus was on the
+// row that left), and says so in a toast that merges ("2 Jobs archiviert.") with one undo
+// (Ctrl/Cmd+Z too, while the toast is up). The undo brings every job back to where it was,
+// its row too, and opens the job again that was open when it left. A click within GUARD_MS
+// after the list or the pane changed is ignored, so a double click never moves the job that
+// slid under the pointer. The job the app opens by itself counts as read only once it has
+// been looked at (DWELL_MS on screen in the Jobs view, or a click in the reader). A job that
+// is already where it goes is no move. A move, its undo or the star that fails says so in
+// the list header (`jobs.actionError`).
 
 import type { IconName } from '$components/Icon.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import { displayTitle } from '$lib/i18n/format';
 import { t } from '$lib/i18n/t';
-import type { JobKey, JobView, Place } from '$lib/ipc/types';
-import { inFacet, isExcluded, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+import type { Deleted, ErrorInfo, JobKey, JobView, Place } from '$lib/ipc/types';
+import { staggerLimit } from '$lib/motion/motion';
+import { inFacet, isExcluded, jobs, keyOf, sameKey, type Unmove } from '$lib/state/jobs.svelte';
+import { navigation } from '$lib/state/navigation.svelte';
 import { onUndo } from '$lib/input/input';
 import { commandKey } from '$lib/platform';
 import { toasts } from '$lib/state/toasts.svelte';
@@ -67,15 +73,18 @@ const GUARD_MS = 500;
 let guardUntil = 0;
 /** How long the next job opened by the app stays on screen before it counts as read. */
 const DWELL_MS = 2000;
-let dwell: ReturnType<typeof setTimeout> | undefined;
+/** The dwell counts in steps of this, only while the job is on screen. */
+const DWELL_STEP = 250;
+let dwell: ReturnType<typeof setInterval> | undefined;
 
 /** A click right after the pane changed to the next job (a double click) does nothing. */
 export function guarded(): boolean {
   return performance.now() < guardUntil;
 }
 
-/** A title in a toast: one or two lines at most (the full title is in the list). */
-const TOAST_TITLE = 36;
+/** A title in a toast: whole (the toast cuts it to its line and shows it in a tooltip); only
+ *  an absurdly long one is cut here. */
+const TOAST_TITLE = 120;
 function title(job: JobView): string {
   const full = job.title ? displayTitle(job.title) : t.job.untitled;
   return full.length > TOAST_TITLE ? `${full.slice(0, TOAST_TITLE - 1).trimEnd()}…` : full;
@@ -100,11 +109,13 @@ function order(): JobView[] {
   return [...shown.filter((job) => !isExcluded(job)), ...shown.filter(isExcluded)];
 }
 
-/** The job to open when `gone` leave the list: the next one below, else the one above. */
+/** The job to open when `gone` leave the list: the next one below, else the one above; none
+ *  when the list did not hold them (a job opened from the day overview). */
 function nextAfter(gone: readonly JobView[]): JobView | null {
   const rows = order();
   const out = new Set(gone.map((job) => keyOf(job.key)));
   const last = Math.max(...gone.map((job) => rows.findIndex((row) => sameKey(row.key, job.key))));
+  if (last < 0) return null;
   const below = rows.slice(last + 1).find((row) => !out.has(keyOf(row.key)));
   if (below) return below;
   return (
@@ -125,47 +136,99 @@ export function disarm(): void {
   guardUntil = 0;
 }
 
-/** When the open job left the list, the next one opens, not yet read (see `seen`). */
-function openNext(gone: readonly JobView[], next: JobView | null): void {
+/** The job is on screen: the Jobs view is shown and the window is in front. */
+function onScreen(): boolean {
+  return (
+    navigation.current === 'jobs' &&
+    document.visibilityState !== 'hidden' &&
+    document.documentElement.dataset['window'] !== 'inactive'
+  );
+}
+
+/** The focus was on a row of the list, or on one of its tools. */
+function inRow(): boolean {
+  return document.activeElement?.closest('[data-key]') != null;
+}
+
+/**
+ * When the open job left the list, the next one opens, not yet read (see `seen`): its row
+ * comes into view, and takes the focus when the focus was on the row (or its tool) that left.
+ */
+function openNext(gone: readonly JobView[], next: JobView | null, focus: boolean): void {
   const open = jobs.selected;
   if (open === null || !gone.some((job) => sameKey(job.key, open))) return;
-  clearTimeout(dwell);
+  clearInterval(dwell);
   if (!next) {
     jobs.clearSelection();
     return;
   }
   void jobs.select(next, false);
+  jobs.reveal = { key: keyOf(next.key), focus };
   const key = next.key;
-  dwell = setTimeout(() => seen(key), DWELL_MS);
+  let looked = 0;
+  dwell = setInterval(() => {
+    if (!sameKey(jobs.selected, key)) {
+      clearInterval(dwell);
+      return;
+    }
+    if (onScreen()) looked += DWELL_STEP;
+    if (looked >= DWELL_MS) seen(key);
+  }, DWELL_STEP);
 }
 
 /** The job the app opened has been looked at (the dwell, or a click in the reader). */
 export function seen(key: JobKey | null = jobs.selected): void {
-  clearTimeout(dwell);
+  clearInterval(dwell);
   if (key !== null && sameKey(jobs.selected, key)) jobs.markSeen(key);
 }
 
-let undoing = 0;
-/** The job that was open when a move took it away, to open again when that is undone. */
-let reopen: JobKey | null = null;
-
-/** Takes one move back; the list loads once every undo of the toast has landed, and the job
- *  that was open opens again. */
-async function undo(key: JobKey, from: Place): Promise<void> {
-  undoing += 1;
-  await jobs.move([key], from);
-  undoing -= 1;
-  if (undoing > 0) return;
-  await Promise.all([jobs.load(true), jobs.loadOverview()]);
-  const back = reopen;
-  reopen = null;
-  const row = back ? jobs.rows.find((job) => sameKey(job.key, back)) : undefined;
-  if (row) void jobs.select(row, false);
+/**
+ * Takes one move back (the jobs to where they were, their rows too), then opens the job
+ * again that was open when the move took it away, if it is listed again.
+ */
+async function undo(
+  back: readonly Unmove[],
+  generation: number,
+  reopen: JobKey | null,
+): Promise<void> {
+  const result = await jobs.moveBack(back, generation);
+  jobs.actionError = 'error' in result ? result.error : null;
+  void jobs.loadOverview();
+  // Only a job that really came back opens again (one already back is left as it is).
+  if ('error' in result || reopen === null) return;
+  if (!result.moved.some((key) => sameKey(key, reopen))) return;
+  const row = jobs.rows.find((job) => sameKey(job.key, reopen));
+  if (row) {
+    await jobs.select(row, false);
+    jobs.reveal = { key: keyOf(row.key), focus: false };
+  }
 }
 
-/** Undo toasts of jobs deleted for good can do nothing any more. */
-function dropUndos(): void {
-  for (const item of toasts.items) if (item.action) toasts.dismiss(item.id);
+/** Jobs deleted for good: their undo toasts can do nothing any more (the others stay), and
+ *  a result file that could not follow says so in the list header. */
+function deletedFor(deleted: Deleted): void {
+  toasts.forget(new Set(deleted.keys.map(keyOf)));
+  jobs.exportNote = exportText(deleted.exportError);
+}
+
+/** Why a result file stayed as it was (the run card's words). */
+function exportText(error: ErrorInfo | null): string | null {
+  if (error === null) return null;
+  const texts = t.run.exportFailed;
+  switch (error.params['target']) {
+    case 'overview':
+      return error.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
+    case 'overviewHtml':
+      return texts.overviewHtml;
+    case 'txtFolder':
+      return texts.txtFolder;
+    case 'backup':
+      return texts.backup;
+    case 'workspace':
+      return texts.workspace;
+    default:
+      return texts.txt;
+  }
 }
 
 /** Single moves in this session; after the third one a tip says several go at once. */
@@ -186,16 +249,42 @@ function tipOnce(): void {
   toasts.show(t.selection.tip(t.selection.commandKey[commandKey()]), 'info');
 }
 
-/** Moves jobs (the row's, the reader's or the selection's). Resolves with the error text. */
+/** Two or more jobs chosen and moved at once: the tip about choosing is known. */
+function tipKnown(): void {
+  try {
+    localStorage.setItem(TIP_KEY, '1');
+  } catch {
+    // Without a store the tip may still come once this session.
+    return;
+  }
+}
+
+/**
+ * Moves jobs (the row's, the reader's or the selection's). Resolves with the error text,
+ * which the caller shows where the move was asked (the list header for a row or the chosen
+ * jobs, the reader for its own).
+ */
 export async function move(all: readonly JobView[], action: MoveId): Promise<string | null> {
   const to = TARGET[action];
   // A job that already lies there is no move (and no toast says it moved).
   const list = all.filter((job) => job.place !== to);
   if (list.length === 0 || guarded()) return null;
-  // Only rows that leave the list fold away (a favourite archived stays among Favoriten).
+  // Only rows that leave the list fold away (a favourite archived stays among Favoriten), and
+  // only a few: many rows folding at once would hold the page for frames.
   const leaving = list.filter((job) => !inFacet({ ...job, place: to }, jobs.facet));
   const next = leaving.length > 0 ? nextAfter(leaving) : null;
-  for (const job of leaving) moving.add(keyOf(job.key));
+  const focus = inRow();
+  const folding = leaving.length <= staggerLimit() ? leaving : [];
+  for (const job of folding) moving.add(keyOf(job.key));
+  // What the undo brings back: each job as the list held it, and where its row stood.
+  const generation = jobs.generation;
+  const back: Unmove[] = list.map((job) => {
+    const at = jobs.rows.findIndex((row) => sameKey(row.key, job.key));
+    return { job: jobs.rows[at] ?? job, to, at };
+  });
+  const open = jobs.selected;
+  const reopen =
+    open !== null && leaving.some((job) => sameKey(job.key, open)) ? { ...open } : null;
   // The list changes now, not when the backend answers: the second click of a double click
   // may come first (it would take the job straight back from where it went).
   if (leaving.length > 0) arm();
@@ -204,13 +293,11 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
     to,
   );
   setTimeout(() => {
-    for (const job of leaving) moving.delete(keyOf(job.key));
+    for (const job of folding) moving.delete(keyOf(job.key));
   }, 400);
   if ('error' in result) return result.error;
   if (leaving.length > 0) arm();
-  const open = jobs.selected;
-  if (open !== null && leaving.some((job) => sameKey(job.key, open))) reopen = open;
-  openNext(leaving, next);
+  openNext(leaving, next, focus);
   // Moved into the listed place without being listed (opened from elsewhere): list it.
   if (
     list.some(
@@ -221,14 +308,20 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
   }
   void jobs.loadOverview();
   if (list.length === 1) tipOnce();
-  // Toasts and undos only for the jobs that really moved.
+  else tipKnown();
+  // A toast and its undo only for the jobs that really moved.
   const moved = new Set(result.moved.map(keyOf));
-  for (const job of list.filter((row) => moved.has(keyOf(row.key)))) {
-    const from = job.place;
-    toasts.undoable(`move-${action}`, said(action, job), t.common.undo, () => {
-      void undo(job.key, from);
-    });
-  }
+  const undone = back.filter((entry) => moved.has(keyOf(entry.job.key)));
+  const first = undone[0];
+  if (first === undefined) return null;
+  toasts.undoable(
+    `move-${action}`,
+    said(action, first.job),
+    t.common.undo,
+    () => undo(undone, generation, reopen),
+    undone.length,
+    undone.map((entry) => keyOf(entry.job.key)),
+  );
   return null;
 }
 
@@ -236,23 +329,25 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
 export async function purge(list: readonly JobView[]): Promise<string | null> {
   if (list.length === 0) return null;
   const next = nextAfter(list);
-  for (const job of list) moving.add(keyOf(job.key));
+  const focus = inRow();
+  const folding = list.length <= staggerLimit() ? list : [];
+  for (const job of folding) moving.add(keyOf(job.key));
   const result = await jobs.purge(list.map((job) => job.key));
   setTimeout(() => {
-    for (const job of list) moving.delete(keyOf(job.key));
+    for (const job of folding) moving.delete(keyOf(job.key));
   }, 400);
   if ('error' in result) return result.error;
   arm();
-  openNext(list, next);
-  dropUndos();
+  openNext(list, next, focus);
+  deletedFor(result);
   toasts.show(t.toast.deleted(result.count));
   void jobs.loadOverview();
   return null;
 }
 
 /** After the trash was emptied: no undo can reach its jobs any more. */
-export function trashEmptied(): void {
-  dropUndos();
+export function trashEmptied(deleted: Deleted): void {
+  deletedFor(deleted);
 }
 
 /**
@@ -265,10 +360,14 @@ export function actionsFor(list: readonly JobView[]): JobAction[] {
   return actionsOf('inbox').filter((action) => action.id === 'trash');
 }
 
-/** The star: a favourite, or not any more. */
+/** The star: a favourite, or not any more (one that fails says so in the list header). */
 export function toggleStar(list: readonly JobView[]): void {
   const on = list.some((job) => !job.pinned);
   for (const job of list) {
-    if (job.pinned !== on) void jobs.pin(job.key, on);
+    if (job.pinned !== on) {
+      void jobs.pin(job.key, on).then((error) => {
+        if (error !== null) jobs.actionError = error;
+      });
+    }
   }
 }

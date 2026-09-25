@@ -739,6 +739,8 @@ export const de = {
       match: 'Nach Passung',
       newest: 'Nach Datum',
     } satisfies Record<JobSort, string>,
+    /** By date in the Papierkorb: the day a job went there, which its row shows. */
+    sortDeleted: 'Nach Löschdatum',
     /** The order without a usable profile: there is no fit to sort by. */
     sortNoProfile: 'Ohne Profil nur nach Datum.',
     needsMailbox: 'Verbinde erst ein Postfach.',

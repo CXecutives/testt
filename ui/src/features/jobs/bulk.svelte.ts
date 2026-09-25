@@ -28,9 +28,6 @@ class Bulk {
   confirmPurge = $state(false);
   purging = $state(false);
   purgeError = $state<string | null>(null);
-  /** A move that failed (said in the list header). */
-  error = $state<string | null>(null);
-
   readonly actions = $derived.by((): SelectionAction[] => {
     const chosen = this.chosen;
     const out: SelectionAction[] = actionsFor(chosen).map((action) => ({
@@ -48,7 +45,8 @@ class Bulk {
         }
         const list = this.chosen;
         selection.clear();
-        void move(list, action.id).then((failed) => (this.error = failed));
+        // One that fails says so in the list header.
+        void move(list, action.id).then((failed) => (jobs.actionError = failed));
       },
     }));
     if (chosen.every((job) => hasStar(job.place))) {

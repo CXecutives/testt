@@ -706,6 +706,7 @@ export const en: Catalog = {
       match: 'By match',
       newest: 'By date',
     } satisfies Record<JobSort, string>,
+    sortDeleted: 'By date deleted',
     sortNoProfile: 'Without a profile, jobs sort by date only.',
     needsMailbox: 'Connect a mailbox first.',
   },

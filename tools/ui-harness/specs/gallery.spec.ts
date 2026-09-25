@@ -271,14 +271,14 @@ test('a row: the date ends the title line, the tools take its place on hover', a
   expect(Math.abs(over.y + over.height / 2 - (date.y + date.height / 2))).toBeLessThan(2);
   // The title never runs under them: its line keeps their room free.
   expect(title.x + title.width).toBeLessThanOrEqual(over.x);
-  // From the keyboard: Tab from the row to its first tool shows the tools, too.
+  // The tools are for the pointer: Tab leaves the row (the list is one Tab stop), the date
+  // stays.
   await page.mouse.move(0, 0);
   await expect(end).toHaveCSS('opacity', '1');
   await page.getByTestId('job-row-freelancermap-1001').focus();
   await page.keyboard.press('Tab');
-  await expect(page.getByTestId('archive-freelancermap-1001')).toBeFocused();
-  await expect(end).toHaveCSS('opacity', '0');
-  await expect(tools.locator('.tool').first()).toHaveCSS('opacity', '1');
+  await expect(page.getByTestId('archive-freelancermap-1001')).not.toBeFocused();
+  await expect(end).toHaveCSS('opacity', '1');
 });
 
 test('the facts of a row drop out whole, a value is never cut', async ({ page }) => {

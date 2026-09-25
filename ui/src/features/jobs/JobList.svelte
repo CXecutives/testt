@@ -12,15 +12,19 @@
   is (Archivieren, Löschen, the star; in the Papierkorb Wiederherstellen, Endgültig
   löschen); a row the user moves out folds away. Rows are chosen like in a mail app: a
   click opens one, Ctrl+click (Cmd on macOS) takes one in or out, Shift+click a range; the
-  highlight shows what is chosen, and in one column choosing never opens a job. An
-  empty inbox says where jobs come from (an alert on each portal, older mails). Every empty
+  highlight shows what is chosen, and in one column choosing never opens a job. The list is
+  one Tab stop: the open row (else the row last focused, else the first) takes Tab, the
+  arrows move from there; the row tools are for the pointer. Back in the Jobs view, the open
+  job's row is in view again. A row move that fails says so in the list header. An
+  empty inbox says where jobs come from (an alert on each portal, older mails; reading the
+  whole mailbox asks first, as in Einstellungen). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
   view's primary). Without a mailbox one slim note at the top says how to connect one;
   without a usable profile one says that there is no fit without it and leads to the Profil
   view (the rings stay, empty).
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import Count from '$components/Count.svelte';
   import EmptyState from '$components/EmptyState.svelte';
@@ -31,6 +35,7 @@
   import { nearEnd } from '$lib/actions/nearEnd';
   import { t } from '$lib/i18n/t';
   import { invoke } from '$lib/ipc/api';
+  import { errorText } from '$lib/i18n/texts';
   import type { JobView, Place, Portal } from '$lib/ipc/types';
   import { play, staggerLimit } from '$lib/motion/motion';
   import { rowCollapse, rowEnter } from '$lib/motion/transitions';
@@ -104,6 +109,33 @@
   export function edge(last: boolean): void {
     void openAt(last ? 'last' : 0);
   }
+
+  /** The row focused last (the list's one Tab stop when no job is open). */
+  let focused = $state<string | null>(null);
+  /** The row Tab stops at: the open job's, else the one focused last, else the first. */
+  const tabStop = $derived.by(() => {
+    const listed = new Set(shown.map((job) => keyOf(job.key)));
+    const open = jobs.selected ? keyOf(jobs.selected) : null;
+    if (open !== null && listed.has(open)) return open;
+    if (focused !== null && listed.has(focused)) return focused;
+    const first = order[0];
+    return first ? keyOf(first.key) : null;
+  });
+
+  function onfocusin(event: FocusEvent): void {
+    const item = (event.target as Element | null)?.closest<HTMLElement>('[data-key]');
+    if (item?.dataset['key']) focused = item.dataset['key'];
+  }
+
+  // Back in the Jobs view (the list is built anew): what the header said about an action in
+  // another list goes, and the open job's row comes into view.
+  onMount(() => {
+    jobs.quiet();
+    const open = jobs.selected;
+    if (open !== null && jobs.visible.some((job) => sameKey(job.key, open))) {
+      void jobs.reach(open, false);
+    }
+  });
 
   // A job the keys opened, or the open job after a re-sort: once its row is mounted it
   // scrolls into view (and takes the focus when the keys opened it).
@@ -194,9 +226,16 @@
       : [],
   );
   const PORTALS = $derived((app.state?.portals ?? []).filter((p) => p.enabled));
+  /** A portal's page that did not open (said under the links). */
+  let portalError = $state<string | null>(null);
   function openPortal(portal: Portal): void {
-    invoke('open_target', { target: { kind: 'portalHome', portal } }).catch(() => undefined);
+    portalError = null;
+    invoke('open_target', { target: { kind: 'portalHome', portal } }).catch((error: unknown) => {
+      portalError = errorText(error);
+    });
   }
+  /** "Ältere Mails lesen" asks first, like Einstellungen: it fetches more portal pages. */
+  let confirmOlder = $state(false);
 
   /* --------------------------------------------------------------------- glides */
 
@@ -307,24 +346,26 @@
     if (!guarded()) toggleStar([job]);
   }
 
-  let rowError = $state<string | null>(null);
   /** Ends with "Endgültig löschen" of a row: the dialog asks first. */
   let purging = $state<JobView | null>(null);
   let purgeBusy = $state(false);
   let purgeError = $state<string | null>(null);
 
-  /** The row's tools: the job's actions where it is. */
+  /** The row's tools: the job's actions where it is (deleting for good waits for a run: the
+   *  backend refuses meanwhile). */
   function toolsOf(job: JobView): RowTool[] {
     return actionsOf(job.place).map((action) => ({
       id: action.id,
       icon: action.icon,
       label: action.label,
+      disabled: action.id === 'purge' && run.active,
+      disabledReason: run.busyText,
       onclick: () => {
         if (action.id === 'purge') {
           purgeError = null;
           purging = job;
         } else {
-          void move([job], action.id).then((error) => (rowError = error));
+          void move([job], action.id).then((error) => (jobs.actionError = error));
         }
       },
     }));
@@ -359,6 +400,7 @@
   data-testid="job-list"
   aria-label={t.list.label}
   aria-busy={jobs.status === 'loading'}
+  {onfocusin}
 >
   {#if mailboxMissing}
     <div class="note">
@@ -382,12 +424,6 @@
         action={{ label: profileNote.label, onclick: toProfile }}
         testid="no-profile"
       />
-    </div>
-  {/if}
-
-  {#if rowError}
-    <div class="note">
-      <Notice tone="danger" variant="inline" text={rowError} testid="row-error" />
     </div>
   {/if}
 
@@ -415,8 +451,8 @@
           <div class="skeleton-row">
             <Skeleton shape="circle" size="sm" />
             <span class="lines">
-              <Skeleton width={70} />
-              <Skeleton width={45} />
+              <span class="line title"><Skeleton width={70} /></span>
+              <span class="line"><Skeleton width={45} /></span>
             </span>
           </div>
         {/each}
@@ -486,6 +522,7 @@
                 variant="ghost"
                 size="sm"
                 icon="external-link"
+                external
                 label={t.list.createAlert(t.portal[portal.portal])}
                 testid="alert-{portal.portal}"
                 onclick={() => openPortal(portal.portal)}
@@ -500,10 +537,13 @@
                 disabled={run.active}
                 disabledReason={run.busyText}
                 testid="read-older"
-                onclick={() => void run.start({ kind: 'fullMailbox' })}
+                onclick={() => (confirmOlder = true)}
               />
             {/if}
           </div>
+          {#if portalError}
+            <Notice tone="danger" variant="inline" text={portalError} testid="portal-error" />
+          {/if}
         </div>
       {/if}
     </div>
@@ -516,6 +556,7 @@
         ring={!profileMissing}
         pending={pending && job.match === null}
         selected={selection.size > 0 ? selection.has(job) : sameKey(jobs.selected, job.key)}
+        tabbable={keyOf(job.key) === tabStop}
         onselect={select}
         onpin={hasStar(job.place) ? pin : null}
         tools={toolsOf(job)}
@@ -568,6 +609,18 @@
     {/if}
   {/if}
 </div>
+
+<Dialog
+  bind:open={confirmOlder}
+  heading={t.settings.fullMailboxHeading}
+  text={t.settings.fullMailboxText}
+  confirmLabel={t.settings.fullMailboxAction}
+  testid="dialog-read-older"
+  onconfirm={() => {
+    confirmOlder = false;
+    void run.start({ kind: 'fullMailbox' });
+  }}
+/>
 
 <Dialog
   open={purging !== null}
@@ -640,6 +693,12 @@
     width: 100%;
   }
 
+  /* Under a centred empty state the links are centred too (under rows they start left). */
+  .stack > .also {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
   /* The empty list says where jobs come from: the portals' alerts, older mails. */
   .sources {
     display: flex;
@@ -655,10 +714,11 @@
     text-align: center;
   }
 
+  /* The block is centred, its links start on one line (their icons on one axis). */
   .sources-actions {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
   }
 
   .empty {
@@ -674,12 +734,14 @@
     flex-direction: column;
   }
 
+  /* Laid out like a row (ListRow, JobRow): the ring and the title at its top, the next line
+     under it, so nothing moves when the rows arrive. */
   .skeleton-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-12);
     height: var(--row-height);
-    padding: 0 var(--pane-padding);
+    padding: var(--space-12) var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
   }
 
@@ -687,7 +749,17 @@
     display: flex;
     flex: 1;
     flex-direction: column;
-    gap: var(--space-8);
+    gap: var(--space-2);
+  }
+
+  .line {
+    display: flex;
+    align-items: center;
+    height: var(--leading-sm);
+  }
+
+  .line.title {
+    height: var(--leading-title);
   }
 
   .sentinel {

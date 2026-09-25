@@ -372,6 +372,7 @@ mod tests {
             match_: None,
             also_on: Vec::new(),
             place: crate::model::Place::Inbox,
+            trashed_at: None,
             overridden: false,
         }
     }

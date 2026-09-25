@@ -20,7 +20,9 @@
   counts and the tools, else always two (the tools on their own line, in every place, also
   under the selection bar), so the list never jumps and no label shortens (only as a last
   resort, with still longer counts). The bottom hairline shows only once the list below is
-  scrolled.
+  scrolled. Under the rows one sentence says when a job action of the list failed (a move,
+  its undo, the star, "all read") or when jobs deleted for good could not leave the Excel
+  file; it goes with the next list or the next action that works.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -36,7 +38,7 @@
   import { fade } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
-  import { jobs, placeOf, type JobFacet } from '$lib/state/jobs.svelte';
+  import { jobs, keyOf, placeOf, type JobFacet } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import { trashEmptied } from './actions';
@@ -99,9 +101,15 @@
   }
 
   const SORTS: readonly JobSort[] = ['match', 'newest'];
-  const sorts = $derived(SORTS.map((sort) => ({ id: sort, label: t.toolbar.sortLabel[sort] })));
+  // In the Papierkorb the date is the day a job went there (what its row shows).
+  const sorts = $derived(
+    SORTS.map((sort) => ({
+      id: sort,
+      label:
+        sort === 'newest' && place === 'trash' ? t.toolbar.sortDeleted : t.toolbar.sortLabel[sort],
+    })),
+  );
 
-  let error = $state<string | null>(null);
   /** "Alle als gelesen markieren" is on its way: a second click (a double click) waits. */
   let marking = false;
 
@@ -110,21 +118,29 @@
   async function markAllRead(): Promise<void> {
     if (marking) return;
     marking = true;
-    error = null;
     const result = await jobs.markAllRead();
     marking = false;
     if ('error' in result) {
-      error = result.error;
+      jobs.actionError = result.error;
       return;
     }
+    jobs.actionError = null;
     if (result.keys.length === 0) return;
     void jobs.loadOverview();
-    toasts.show(t.toast.allRead, 'success', {
-      label: t.common.undo,
-      onclick: () => {
-        void jobs.markUnread(result.keys).then(() => jobs.loadOverview());
+    toasts.show(
+      t.toast.allRead,
+      'success',
+      {
+        label: t.common.undo,
+        onclick: () => {
+          void jobs.markUnread(result.keys).then((error) => {
+            jobs.actionError = error;
+            void jobs.loadOverview();
+          });
+        },
       },
-    });
+      result.keys.map(keyOf),
+    );
   }
 
   /* ----------------------------------------------------------------------- trash */
@@ -147,7 +163,7 @@
       return;
     }
     confirmEmpty = false;
-    trashEmptied();
+    trashEmptied(result);
     toasts.show(t.toast.trashEmptied);
     void jobs.loadOverview();
   }
@@ -273,8 +289,10 @@
       {/if}
     </div>
   {/if}
-  {#if error ?? bulk.error}
-    <Notice tone="danger" variant="inline" text={error ?? bulk.error ?? ''} testid="header-error" />
+  {#if jobs.actionError}
+    <Notice tone="danger" variant="inline" text={jobs.actionError} testid="header-error" />
+  {:else if jobs.exportNote}
+    <Notice tone="warning" variant="inline" text={jobs.exportNote} testid="header-export" />
   {/if}
 </div>
 
