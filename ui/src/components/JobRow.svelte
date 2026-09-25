@@ -5,8 +5,9 @@
   with the relative date at the end of its first line, company and place, and one line
   with the ad's key facts ("ab sofort · 6 Monate · 60 % remote · 1.100 €/Tag"; the best
   met requirement when the ad states none) and a badge right after it only when something
-  deviates. Without a usable profile the ring stays, empty (a dash), and the row has no
-  third line unless a badge needs one.
+  deviates. Facts are whole: one that does not fit drops out, none is ever cut in the
+  middle of its value. Without a usable profile the ring stays, empty (a dash), and the row
+  has no third line unless a badge needs one.
   Like Mail and Gmail, the row's tools sit over the date: on hover (or when a tool has the
   keyboard focus) the date fades out and archive (or bring back) and the star fade in
   (100 ms); the title line keeps their room free. A pinned job shows a small star just
@@ -336,14 +337,27 @@
     height: var(--leading-title);
   }
 
-  /* The ad's key facts, joined by middle dots; the line gives way at its end. */
+  /* The ad's key facts, joined by middle dots, in the order of their weight (start,
+     months, remote, rate). Only whole facts: one that does not fit wraps onto a second line
+     that is never shown, so no value is cut ("1.100 €/Tag", never "1..."). One fact wider
+     than the whole line ends in an ellipsis. */
   .facts {
+    display: flex;
     flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-content: flex-start;
     min-width: 0;
+    height: var(--leading-sm);
     overflow: hidden;
     color: var(--text-muted);
     font: var(--type-sm);
     font-variant-numeric: var(--numeric);
+  }
+
+  .fact {
+    flex: none;
+    max-width: 100%;
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }

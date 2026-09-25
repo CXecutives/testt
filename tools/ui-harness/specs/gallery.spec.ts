@@ -256,6 +256,35 @@ test('a row: the date ends the title line, the tools take its place on hover', a
   expect(title.x + title.width).toBeLessThanOrEqual(over.x);
 });
 
+test('the facts of a row drop out whole, a value is never cut', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const facts = page.getByTestId('job-row-freelancermap-1001').getByTestId('row-facts');
+  const fit = (): Promise<{ shown: string[]; hidden: string[]; cut: string[] }> =>
+    facts.evaluate((line) => {
+      const edge = line.getBoundingClientRect();
+      const out = { shown: [] as string[], hidden: [] as string[], cut: [] as string[] };
+      for (const fact of line.querySelectorAll<HTMLElement>('.fact')) {
+        const box = fact.getBoundingClientRect();
+        if (box.top >= edge.bottom - 0.5) out.hidden.push(fact.textContent ?? '');
+        else out.shown.push(fact.textContent ?? '');
+        if (box.top < edge.bottom - 0.5 && box.right > edge.right + 0.5) out.cut.push('right');
+        if (fact.scrollWidth > fact.clientWidth) out.cut.push(fact.textContent ?? '');
+      }
+      return out;
+    });
+  const wide = await fit();
+  expect(wide.shown).toHaveLength(4);
+  expect(wide.cut).toEqual([]);
+  // A narrow list: the facts at the end drop out whole, in the order of their weight.
+  await list.evaluate((node) => node.style.setProperty('width', '330px'));
+  const narrow = await fit();
+  expect(narrow.hidden.length).toBeGreaterThan(0);
+  expect(narrow.shown[0]).toBe('ab sofort');
+  expect(narrow.cut).toEqual([]);
+});
+
 test('a long row title takes two lines, the row grows by one line, the rest is a tooltip', async ({
   page,
 }) => {
