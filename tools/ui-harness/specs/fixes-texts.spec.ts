@@ -221,6 +221,19 @@ test('an ad that could not be fetched says so with the one verb for details', as
   );
 });
 
+test('the teaser badge says what "Anriss" is', async ({ page }) => {
+  await open(page, WIN);
+  const badge = page
+    .getByTestId('job-rows')
+    .getByTestId('job-row-freelance-900411')
+    .locator('.badge');
+  await expect(badge).toHaveText('Nur Anriss');
+  await badge.hover();
+  await expect(page.getByRole('tooltip')).toHaveText(
+    'Ohne Anmeldung zeigt das Portal nur den Anfang der Anzeige.',
+  );
+});
+
 test('English names agency work and the preferred rate one way everywhere', async ({ page }) => {
   await open(page, `${WIN}&lang=en`);
   await page.getByTestId('facet').getByRole('radio', { name: /All/ }).click();

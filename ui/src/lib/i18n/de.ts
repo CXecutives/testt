@@ -181,9 +181,10 @@ const pause: Record<PauseReason, string> = {
 /** Opening the alert mail of a job in Gmail, the same words wherever it is offered. */
 const OPEN_MAIL = 'Alert-Mail öffnen';
 
-/** What a detail state means, the same in a row's badge tooltip and in the reader. */
+/** What a detail state means, the same in a row's badge tooltip and in the reader (the
+ *  teaser's says what the glossary word "Anriss" is). */
 const detailSays = {
-  teaser: 'Ohne Anmeldung zeigt das Portal nur einen Anriss.',
+  teaser: 'Ohne Anmeldung zeigt das Portal nur den Anfang der Anzeige.',
   unfetchable: 'Die Anzeige ließ sich mehrmals nicht holen.',
   gone: 'Die Anzeige ist nicht mehr online.',
   onRequest: 'Bei älteren Jobs kommen die Details nur auf Anfrage.',
