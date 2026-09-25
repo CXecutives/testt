@@ -3,7 +3,8 @@
 //! any more - processes are never killed.
 //!
 //! Only things of the app are deleted: the database (jobs, settings, scan state) with its
-//! journal, WAL and shared-memory files, the profiles of the session windows (freelance.de
+//! journal, WAL and shared-memory files and its copies (`backups/`), the profiles of the
+//! session windows (freelance.de
 //! sign-in; on macOS the app removes their `WKWebView` data stores right after the start,
 //! which needs the running app), the Gmail access in the keychain and, in the workspace, the
 //! app's files including `profil/beraterprofil.json`. `policy.json` stays - a block pause
@@ -19,6 +20,7 @@ use crate::fetch::policy::Policy;
 use crate::portal::Portal;
 use crate::profile::{BACKUP_FILE, PROFILE_DIR, PROFILE_FILE, profile_path};
 use crate::secrets::Vault;
+use crate::store::BACKUP_DIR;
 use crate::{DB_FILE, POLICY_FILE, session_dir};
 
 const MARKER: &str = "reset.pending";
@@ -90,13 +92,14 @@ pub fn perform_pending(data_dir: &Path, vault: &Vault) -> Option<ResetReport> {
     let result_dir = plan.workspace.join(RESULT_DIR);
     let sessions: Vec<String> = Portal::ALL.into_iter().map(session_dir).collect();
     let sidecars: Vec<String> = SIDECARS.iter().map(|s| format!("{DB_FILE}{s}")).collect();
-    let mut targets = vec![db, profile];
+    let mut targets = vec![db, data_dir.join(BACKUP_DIR), profile];
     targets.extend(sidecars.iter().map(|name| data_dir.join(name)));
     targets.extend(sessions.iter().map(|dir| data_dir.join(dir)));
     // Take along the leftovers of earlier attempts - a renamed session profile with its
     // sign-in cookie would otherwise stay forever.
     let names_in_data = |base: &str| {
         base == DB_FILE
+            || base == BACKUP_DIR
             || sidecars.iter().any(|name| name == base)
             || sessions.iter().any(|dir| dir == base)
     };
@@ -227,6 +230,8 @@ mod tests {
         std::fs::write(data.join("jobs.db-shm"), b"shm").unwrap();
         std::fs::write(data.join("policy.json"), b"{}").unwrap();
         std::fs::write(data.join("session-freelance/Default/Cookies"), b"c").unwrap();
+        std::fs::create_dir_all(data.join("backups")).unwrap();
+        std::fs::write(data.join("backups/jobs-2026-09-19.db"), b"copy").unwrap();
         std::fs::write(workspace.join(RESULT_DIR).join(XLSX_NAME), b"x").unwrap();
         std::fs::write(txt.join("20260919_LinkedIn_A_1.txt"), b"t").unwrap();
         std::fs::write(txt.join("fremd.txt"), b"f").unwrap();
@@ -255,6 +260,10 @@ mod tests {
         assert!(report.failed.is_empty(), "{report:?}");
         assert!(!data.join("jobs.db").exists());
         assert!(!data.join("jobs.db-wal").exists() && !data.join("jobs.db-shm").exists());
+        assert!(
+            !data.join("backups").exists(),
+            "the copies go with the database"
+        );
         assert!(!data.join("session-freelance").exists());
         assert!(!profile_path(&plan.workspace).exists());
         assert!(

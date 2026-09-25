@@ -185,7 +185,11 @@ pub async fn app_state(
 /// the first page load never waits for it - the page follows the run by its events.
 fn at_start(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) {
     static CHECKED: AtomicBool = AtomicBool::new(false);
-    if CHECKED.swap(true, Ordering::SeqCst) || state.busy() {
+    if CHECKED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    daily_backup(app);
+    if state.busy() {
         return;
     }
     let app = app.clone();
@@ -193,6 +197,25 @@ fn at_start(app: &AppHandle, state: &AppState, channel: Channel<RunEvent>) {
         let state = app.state::<AppState>();
         if !auto_fetch(&app, &state, channel) {
             scoring::rescore_if_pending(&app, &state);
+        }
+    });
+}
+
+/// Once per app start, after the first page load and off the window thread: the database's
+/// copy of the day in the data folder (`Store::backup_daily`, the newest three kept). The dry
+/// run has none: its database lives in memory.
+fn daily_backup(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let today = jobalert_core::time::local_date(Timestamp::now());
+        match state.store.backup_daily(today) {
+            Ok(Some(copy)) => log::info!(
+                "database copied to {}",
+                copy.file_name().unwrap_or_default().to_string_lossy()
+            ),
+            Ok(None) => {}
+            Err(e) => log::warn!("database not copied: {e}"),
         }
     });
 }

@@ -124,6 +124,13 @@ fn steps() -> Vec<String> {
     ]
 }
 
+/// The schema an existing database is about to be migrated from: `None` for a new, empty one
+/// (it is created), a current one and a newer one (refused by [`migrate`]).
+pub(super) fn pending_migration(conn: &Connection) -> Result<Option<i64>> {
+    let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
+    Ok((version > 0 && version < SCHEMA_VERSION).then_some(version))
+}
+
 /// Brings a freshly opened connection to the current schema: creates the tables in an empty
 /// database, migrates an older one step by step and refuses a newer one.
 pub(super) fn migrate(conn: &Connection) -> Result<()> {
@@ -262,6 +269,22 @@ mod tests {
         drop(old);
         let store = Store::open(&path).unwrap();
         assert_eq!(version(&store.conn()), SCHEMA_VERSION);
+        // The database as schema 4 left it, next to it in backups/, and only once.
+        let copy = dir.path().join("backups").join("jobs.pre-v4.db");
+        let before = Connection::open(&copy).unwrap();
+        assert_eq!(version(&before), 4);
+        let rows: i64 = before
+            .query_row("SELECT COUNT(*) FROM job WHERE hidden_at = 170", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(rows, 1, "the old columns with their marks");
+        drop(before);
+        drop(Store::open(&path).unwrap());
+        let copies = std::fs::read_dir(dir.path().join("backups"))
+            .unwrap()
+            .count();
+        assert_eq!(copies, 1, "a current database is not copied again");
         let key = |id: &str| {
             crate::portal::job_link(&format!("https://www.linkedin.com/jobs/view/{id}/"))
                 .unwrap()
@@ -518,5 +541,9 @@ mod tests {
             .pragma_query_value(None, "journal_mode", |r| r.get(0))
             .unwrap();
         assert_eq!(mode, "wal");
+        assert!(
+            !dir.path().join("backups").exists(),
+            "a new database needs no copy"
+        );
     }
 }
