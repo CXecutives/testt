@@ -586,6 +586,15 @@ export const de = {
       archive: (value: number) => `${count(value, 'Job', 'Jobs')} im Archiv`,
       trash: (value: number) => `${count(value, 'Job', 'Jobs')} im Papierkorb`,
     } satisfies Record<Place, (value: number) => string>,
+    /** The same row during a search: what it found there, not how many jobs lie there. */
+    found: {
+      inbox: (value: number, query: string) =>
+        `${count(value, 'Job', 'Jobs')} zu „${query}“ unter Jobs`,
+      archive: (value: number, query: string) =>
+        `${count(value, 'Job', 'Jobs')} zu „${query}“ im Archiv`,
+      trash: (value: number, query: string) =>
+        `${count(value, 'Job', 'Jobs')} zu „${query}“ im Papierkorb`,
+    } satisfies Record<Place, (value: number, query: string) => string>,
     /** Search hits in another place, under the results. */
     alsoIn: {
       inbox: (value: number) => `Auch unter Jobs (${n(value)})`,

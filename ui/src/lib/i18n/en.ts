@@ -570,6 +570,14 @@ export const en: Catalog = {
       archive: (value: number) => `${count(value, 'job', 'jobs')} in the archive`,
       trash: (value: number) => `${count(value, 'job', 'jobs')} in the trash`,
     } satisfies Record<Place, (value: number) => string>,
+    found: {
+      inbox: (value: number, query: string) =>
+        `${count(value, 'job', 'jobs')} for “${query}” in Jobs`,
+      archive: (value: number, query: string) =>
+        `${count(value, 'job', 'jobs')} for “${query}” in the archive`,
+      trash: (value: number, query: string) =>
+        `${count(value, 'job', 'jobs')} for “${query}” in the trash`,
+    } satisfies Record<Place, (value: number, query: string) => string>,
     alsoIn: {
       inbox: (value: number) => `Also in Jobs (${n(value)})`,
       archive: (value: number) => `Also in the archive (${n(value)})`,
