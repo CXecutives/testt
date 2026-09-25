@@ -359,6 +359,10 @@ mod lifecycle {
                     match win.emit(CLOSE_REQUESTED, ()) {
                         Ok(()) => {
                             api.prevent_close();
+                            // The question must be seen (closed from the taskbar while
+                            // minimized, say): the window comes to the front.
+                            let _ = win.unminimize();
+                            let _ = win.set_focus();
                             wait_for_answer(&win, asked);
                             return;
                         }
