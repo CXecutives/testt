@@ -73,10 +73,9 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await expect(page.getByTestId('profile-form')).toBeVisible();
   await expect(page.getByTestId('profile-name')).toHaveText('Neues Profil');
   await page.getByTestId('profile-name-field').fill('Erika Beispiel');
-  await page.getByTestId('competence-add').click();
   await page.getByTestId('competence-name').fill('Controlling');
   await page.getByTestId('profile-save').click();
-  await expect(page.getByTestId('profile-name')).toHaveText('beraterprofil.json');
+  await expect(page.getByTestId('profile-name')).toHaveText('Erika Beispiel');
   await page.getByTestId('profile-next').click();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
   await expect(page.getByTestId('step-profile')).toContainText('Erika Beispiel');

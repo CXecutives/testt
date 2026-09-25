@@ -1,5 +1,7 @@
 <!--
-  Modal question with at most two actions: confirm | danger. A plain scrim (no blur: a
+  Modal question with at most two actions: confirm | danger, plus an optional third one
+  (`altLabel`, a secondary button, as "Verwerfen" in "Änderungen speichern?"). A plain
+  scrim (no blur: a
   blurred backdrop over the whole window drops frames in the web view); the dialog rises in
   180 ms (ease-out) and leaves in 100 ms. It holds the focus like a native one (input.ts):
   Tab and Shift+Tab cycle through its buttons, Esc cancels wherever the focus is, Enter
@@ -10,7 +12,8 @@
   it was. A failure of the action shows inside the dialog
   (`error`), never behind the scrim.
   Pressing inside and releasing on the scrim keeps it open; only the left button counts.
-  The buttons follow the OS: the action first on Windows, last (right) on macOS.
+  The buttons follow the OS: the action first on Windows (then the third action, then
+  cancel), last (right) on macOS with the third action on the far left.
 -->
 <script lang="ts">
   import { t } from '$lib/i18n/t';
@@ -26,12 +29,17 @@
     variant?: 'confirm' | 'danger';
     heading: string;
     text: string;
+    /** The bare verb of the heading ("Postfach entfernen?": Entfernen; "Ganzes Postfach
+     *  lesen?": Lesen), the same pattern in every dialog. */
     confirmLabel: string;
     cancelLabel?: string;
     busy?: boolean;
     /** Why the action failed (shown inside the dialog, which stays open). */
     error?: string | null;
     testid?: string | null;
+    /** A third action next to confirm and cancel (secondary). */
+    altLabel?: string | null;
+    onalt?: () => void;
     onconfirm: () => void;
     oncancel?: () => void;
   }
@@ -46,6 +54,8 @@
     busy = false,
     error = null,
     testid = null,
+    altLabel = null,
+    onalt,
     onconfirm,
     oncancel,
   }: Props = $props();
@@ -126,7 +136,20 @@
             onclick={cancel}
           />
         {/snippet}
-        {#if !actionFirst}{@render dismiss()}{/if}
+        {#snippet alt()}
+          {#if altLabel}
+            <span class:apart={!actionFirst}>
+              <Button
+                variant="secondary"
+                label={altLabel}
+                disabled={busy}
+                testid="dialog-alt"
+                onclick={() => onalt?.()}
+              />
+            </span>
+          {/if}
+        {/snippet}
+        {#if !actionFirst}{@render alt()}{@render dismiss()}{/if}
         <Button
           variant={variant === 'danger' ? 'danger' : 'primary'}
           label={confirmLabel}
@@ -135,7 +158,7 @@
           testid="dialog-confirm"
           onclick={confirm}
         />
-        {#if actionFirst}{@render dismiss()}{/if}
+        {#if actionFirst}{@render alt()}{@render dismiss()}{/if}
       </div>
     </div>
   </div>
@@ -184,9 +207,15 @@
 
   .actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: var(--space-12);
     margin-top: var(--space-12);
+  }
+
+  /* On macOS the third action stands apart on the left. */
+  .apart {
+    margin-right: auto;
   }
 
   /* The default button stays marked until the keyboard focus moves on (a native dialog

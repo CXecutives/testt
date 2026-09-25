@@ -69,8 +69,8 @@ export function primaryFirst(): boolean {
 }
 
 /**
- * A text field's menu. Windows: undo | cut, copy, paste, delete | select all. macOS has no
- * undo and no delete there: cut, copy, paste | select all.
+ * A text field's menu. Windows: Undo | Cut, Copy, Paste, Delete | Select all. macOS has no
+ * undo and no delete there: Cut, Copy, Paste | Select all.
  */
 export function fieldMenuUndoDelete(): boolean {
   return platform() === 'windows';

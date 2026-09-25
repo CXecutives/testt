@@ -1,0 +1,59 @@
+Titel: Senior Data Engineer (m/w/d) Finance Data Platform – Azure Databricks, dbt
+Unternehmen: Solvik Data Partners GmbH
+Ort: München
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/projekt/senior-data-engineer-m-w-d-finance-data-platform-azure-databricks-dbt
+Abgerufen am: 19.09.2026 06:58
+
+Beschreibung
+Im Auftrag unseres Kunden, eines international tätigen Herstellers von Medizintechnik mit Hauptsitz im Münchner Umland, suchen wir einen erfahrenen Data Engineer (m/w/d) für den Aufbau einer zentralen Finance Data Platform.
+
+Ausgangslage
+Konzernreporting und Controlling arbeiten heute mit rund 40 Excel-basierten Reports, die aus SAP ECC, SAP S/4HANA (zwei Tochtergesellschaften), einem Treasury-Management-System und diversen lokalen ERP-Systemen gespeist werden. Die Konsolidierung erfolgt in einem separaten Tool. Jeden Monat fließen mehrere Personentage in manuelles Datensammeln. Ziel des Programms "FinData 2027" ist eine zentrale, automatisierte Datenplattform auf Microsoft Azure, auf der Hauptbuch-, Kostenstellen-, Cashflow- und Liquiditätsdaten harmonisiert bereitgestellt werden. Auftraggeber ist der CFO-Bereich (Controlling, Treasury, Konzernrechnungswesen), die fachliche Anforderungsaufnahme verantwortet eine Business Analystin des Kunden.
+
+Ihre Aufgaben
+- Konzeption und Implementierung von Datenpipelines in Azure Databricks (PySpark, Delta Lake) nach Medallion-Architektur
+- Extraktion von Finanzdaten aus SAP (ODP, SLT, CDS-basierte Extraktoren) und Anbindung weiterer Quellsysteme über Azure Data Factory
+- Modellierung der Gold-Layer mit dbt für Konzernreporting, Controlling (Kostenstellen, Profit Center), Cashflow und die 13-Wochen-Liquiditätsplanung
+- Aufbau von Datenqualitätsregeln (dbt tests, Great Expectations), z. B. Abstimmung Hauptbuch gegen Nebenbücher und Saldenprüfungen nach dem Periodenabschluss
+- Einführung von Unity Catalog, Berechtigungskonzept und Data Lineage
+- CI/CD mit Azure DevOps, Infrastructure as Code mit Terraform
+- Bereitstellung semantischer Modelle für Power BI in Zusammenarbeit mit dem BI-Team
+- Enge Abstimmung mit Controlling und Treasury zur Validierung der Kennzahlen
+- Dokumentation und Wissenstransfer an das interne Data Team
+
+Muss-Anforderungen
+- Mindestens 5 Jahre Erfahrung als Data Engineer
+- Sehr gute Kenntnisse in Python, PySpark und SQL
+- Praxiserfahrung mit Azure Databricks und Delta Lake in Produktivumgebungen
+- Erfahrung mit dbt (Core oder Cloud)
+- Erfahrung mit Terraform und Azure DevOps Pipelines
+- Erfahrung mit SAP als Datenquelle
+- Deutsch mindestens C1 (der Fachbereich spricht überwiegend Deutsch)
+
+Soll-Anforderungen
+- Verständnis finanzieller Datenstrukturen (Hauptbuch, Kontenplan, Kostenrechnung, Konsolidierung)
+- Erfahrung mit Datenmodellierung nach Data Vault 2.0 oder Kimball
+- Kenntnisse in Power BI (DAX, Tabular Editor)
+- Erfahrung in regulierten Branchen (Medizintechnik, Pharma)
+- Databricks-Zertifizierung
+
+Hinweis
+Es handelt sich um eine technische Rolle mit Hands-on-Entwicklung, nicht um eine Beratungsrolle im Controlling oder Rechnungswesen. Finance-Wissen ist ein Plus, ersetzt aber nicht die Engineering-Erfahrung.
+
+Projektdetails
+Start: 01.12.2026
+Dauer: 12 Monate, Option auf Verlängerung
+Auslastung: 100 %
+Standort: München / Remote (ca. 90 % remote, Workshops vor Ort nach Absprache, etwa 2 Tage pro Monat)
+Stundensatz: bis 100 €/h zzgl. MwSt.
+Vertragsart: Dienstvertrag, keine Arbeitnehmerüberlassung
+Sprachen: Deutsch, Englisch
+
+Skills
+Azure Databricks, PySpark, Python, SQL, dbt, Delta Lake, Terraform, Azure DevOps, Azure Data Factory, SAP, Power BI, Unity Catalog
+
+Projekt-ID: SDP-2026-118
+Eingestellt am: 18.09.2026
+Branche: Medizintechnik
+Kategorie: IT, Data Engineering

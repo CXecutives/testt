@@ -328,7 +328,11 @@ impl Store {
                 format!("COALESCE({p}mail_date, {p}first_seen_at)")
             };
             let by_match = if query.by_match {
-                format!("({p}match_score IS NULL), {p}match_score DESC, ")
+                // Equal scores follow the score before the caps (`rank` in the note).
+                format!(
+                    "({p}match_score IS NULL), {p}match_score DESC, \
+                     json_extract({p}match_note, '$.rank') DESC, "
+                )
             } else {
                 String::new()
             };
@@ -1242,6 +1246,7 @@ mod tests {
                 must_total: 1,
                 top: Vec::new(),
                 facts: crate::model::KeyFacts::default(),
+                rank: 0,
             };
             store
                 .save_matches(&[(key.clone(), record)], "r1", now())

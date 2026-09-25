@@ -16,6 +16,8 @@
   - inField: a button inside a text field (show password, clear search), like the native
     ones: not in the Tab order, and a click leaves the caret in the field.
   - isDefault: the default of a dialog, the one Enter presses; the dialog marks it.
+  - warns: a quiet (secondary or ghost) button that removes or resets something: its text
+    turns red on hover, before the dialog asks. A ghost with the trash icon always warns.
   The icon sits on its own HTML wrapper: transforms on SVG children run on the main thread.
 -->
 <script lang="ts" module>
@@ -64,6 +66,8 @@
     menu?: boolean;
     /** The default of a dialog (Enter presses it); Dialog marks it with the focus ring. */
     isDefault?: boolean;
+    /** Removes or resets something: red text on hover (secondary and ghost). */
+    warns?: boolean;
     testid?: string | null;
     onclick?: (event: MouseEvent) => void;
   }
@@ -86,6 +90,7 @@
     trailing = null,
     menu = false,
     isDefault = false,
+    warns = false,
     testid = null,
     onclick,
   }: Props = $props();
@@ -119,7 +124,7 @@
   class:turned
   class:external
   class:default={isDefault}
-  class:warns={variant === 'ghost' && icon === 'trash-2'}
+  class:warns={warns || (variant === 'ghost' && icon === 'trash-2')}
   aria-label={iconOnly ? label : undefined}
   aria-disabled={disabled ? 'true' : undefined}
   aria-busy={loading ? 'true' : undefined}
@@ -322,8 +327,9 @@
     --btn-shadow: none;
   }
 
-  /* Removing something: a quiet warning on hover, before the dialog asks. */
-  .ghost.warns {
+  /* Removing or resetting something: a quiet warning on hover, before the dialog asks. */
+  .ghost.warns,
+  .secondary.warns {
     --btn-fg-hover: var(--danger-strong);
   }
 

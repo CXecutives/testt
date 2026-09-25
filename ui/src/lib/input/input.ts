@@ -5,9 +5,9 @@
 //
 // - controls react to the left button only: the right button never presses, focuses or
 //   selects anything. There is no browser context menu; the OS's own menu appears where
-//   a native app has one: in a text field (Windows: undo | cut, copy, paste, delete |
-//   select all; macOS: cut, copy, paste | select all; each enabled by the field's state)
-//   and on selected copyable text (copy). Everywhere else a right click does nothing.
+//   a native app has one: in a text field (Windows: Undo | Cut, Copy, Paste, Delete |
+//   Select all; macOS: Cut, Copy, Paste | Select all; each enabled by the field's state)
+//   and on selected copyable text (Copy). Everywhere else a right click does nothing.
 // - the middle button scrolls: pressed over a scroll area it starts the autoscroll of the
 //   OS (WebView2 on Windows; macOS has none); anywhere else it does nothing; a middle
 //   click never activates anything (no auxclick), the back/forward buttons do nothing
@@ -487,7 +487,7 @@ const SEPARATOR: EditEntry = { command: 'Separator' };
 
 /**
  * The context menu of a text field, like the OS's own, its entries enabled by the field's
- * state. Windows: undo | cut, copy, paste, delete | select all; macOS without undo and
+ * state. Windows: Undo | Cut, Copy, Paste, Delete | Select all; macOS without undo and
  * delete (platform.ts).
  */
 function fieldMenu(field: HTMLInputElement | HTMLTextAreaElement): EditEntry[] {

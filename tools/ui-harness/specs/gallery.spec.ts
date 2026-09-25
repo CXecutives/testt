@@ -89,6 +89,20 @@ test('the evidence of a reason is part of it: its wash and its click cover the l
   await expect(reason).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 });
 
+test('to check has one colour: the chip and the reason show the same navy', async ({ page }) => {
+  await open(page, '?gallery');
+  const section = page.getByTestId('gallery-reasons');
+  await section.scrollIntoViewIfNeeded();
+  const chip = await section
+    .locator('.chip.unknown .chip-icon')
+    .evaluate((node) => getComputedStyle(node).color);
+  const reason = await section
+    .locator('.reason.check .icon')
+    .first()
+    .evaluate((node) => getComputedStyle(node).color);
+  expect(chip).toBe(reason);
+});
+
 test('under reduced motion the rings jump to their value', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '?gallery');
@@ -162,6 +176,44 @@ test('job rows select on click and reorder without losing a row', async ({ page 
   await expect(rows.last()).toHaveAttribute('data-testid', first!);
 });
 
+test('a quiet button that resets warns on hover, like the trash ghost', async ({ page }) => {
+  await open(page, '?gallery');
+  const reset = page.getByTestId('button-warns');
+  await reset.scrollIntoViewIfNeeded();
+  const colour = (): Promise<string> => reset.evaluate((node) => getComputedStyle(node).color);
+  const rest = await colour();
+  await reset.hover();
+  await expect.poll(colour).not.toBe(rest);
+  const danger = await page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--danger-strong)';
+    document.body.append(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  });
+  await expect.poll(colour).toBe(danger);
+});
+
+test('the hairline under a row spans it, or insets where the list reaches past its column', async ({
+  page,
+}) => {
+  await open(page, '?gallery');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const rule = (): Promise<{ left: string; right: string; height: string }> =>
+    list
+      .locator('.row')
+      .first()
+      .evaluate((row) => {
+        const style = getComputedStyle(row, '::after');
+        return { left: style.left, right: style.right, height: style.height };
+      });
+  expect(await rule()).toEqual({ left: '0px', right: '0px', height: '1px' });
+  await list.evaluate((node) => node.style.setProperty('--row-rule-inset', 'var(--pane-padding)'));
+  expect(await rule()).toEqual({ left: '16px', right: '16px', height: '1px' });
+});
+
 test('job rows: tools, status, aged date, provisional ring, no dot on excluded', async ({
   page,
 }) => {
@@ -170,12 +222,12 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   await list.scrollIntoViewIfNeeded();
   const job = (id: string) =>
     list.locator('.job', { has: page.locator(`[data-testid="job-row-${id}"]`) });
-  // The archive tool names its action.
+  // The archive tool names its action (a click moves the job out, see the collapse test).
   await expect(page.getByTestId('archive-freelancermap-1001')).toHaveAttribute(
     'aria-label',
     'Archivieren',
   );
-  // No application badge; a saved job has only its star.
+  // No stage badges: a favourite has only its star.
   await expect(job('linkedin-1002')).not.toContainText('Beworben');
   await expect(job('freelancermap-1001')).not.toContainText('Gemerkt');
   // Older than ten days: the date sits on a tint.
@@ -184,6 +236,75 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   // A score from a teaser is provisional (dashed); an excluded unread row has no dot.
   await expect(job('freelance-1003').locator('.ring')).toHaveClass(/provisional/);
   await expect(job('freelancermap-1006').locator('.dot')).toHaveCount(0);
+});
+
+test('a row: the date ends the title line, the tools take its place on hover', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const job = list.locator('.job', { has: page.getByTestId('job-row-freelancermap-1001') });
+  const box = async (selector: string) => (await job.locator(selector).first().boundingBox())!;
+  const title = await box('.title');
+  const date = await box('.date');
+  const mark = await box('.mark');
+  // The date on the first title line, the small pinned star just left of it.
+  expect(Math.abs(date.y + date.height / 2 - (title.y + 10))).toBeLessThan(2);
+  expect(mark.x + mark.width).toBeLessThanOrEqual(date.x);
+  expect(mark.width).toBe(16);
+  // Company, place and facts use the full width, up to the date's right edge.
+  const meta = await box('.meta');
+  const foot = await box('.foot');
+  expect(meta.x + meta.width).toBeGreaterThan(date.x + date.width - 1);
+  expect(foot.x + foot.width).toBeGreaterThan(date.x + date.width - 1);
+  // On hover the date and its star give way to the tools, which sit over them.
+  const end = job.locator('.end');
+  const tools = job.locator('.tools');
+  await expect(end).toHaveCSS('opacity', '1');
+  await job.hover({ position: { x: 120, y: 30 } });
+  await expect(end).toHaveCSS('opacity', '0');
+  await expect(tools.locator('.tool').last()).toHaveCSS('opacity', '1');
+  const over = (await tools.boundingBox())!;
+  expect(Math.abs(over.x + over.width - (date.x + date.width))).toBeLessThan(1);
+  expect(Math.abs(over.y + over.height / 2 - (date.y + date.height / 2))).toBeLessThan(2);
+  // The title never runs under them: its line keeps their room free.
+  expect(title.x + title.width).toBeLessThanOrEqual(over.x);
+  // From the keyboard: Tab from the row to its first tool shows the tools, too.
+  await page.mouse.move(0, 0);
+  await expect(end).toHaveCSS('opacity', '1');
+  await page.getByTestId('job-row-freelancermap-1001').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('archive-freelancermap-1001')).toBeFocused();
+  await expect(end).toHaveCSS('opacity', '0');
+  await expect(tools.locator('.tool').first()).toHaveCSS('opacity', '1');
+});
+
+test('the facts of a row drop out whole, a value is never cut', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const facts = page.getByTestId('job-row-freelancermap-1001').getByTestId('row-facts');
+  const fit = (): Promise<{ shown: string[]; hidden: string[]; cut: string[] }> =>
+    facts.evaluate((line) => {
+      const edge = line.getBoundingClientRect();
+      const out = { shown: [] as string[], hidden: [] as string[], cut: [] as string[] };
+      for (const fact of line.querySelectorAll<HTMLElement>('.fact')) {
+        const box = fact.getBoundingClientRect();
+        if (box.top >= edge.bottom - 0.5) out.hidden.push(fact.textContent ?? '');
+        else out.shown.push(fact.textContent ?? '');
+        if (box.top < edge.bottom - 0.5 && box.right > edge.right + 0.5) out.cut.push('right');
+        if (fact.scrollWidth > fact.clientWidth) out.cut.push(fact.textContent ?? '');
+      }
+      return out;
+    });
+  const wide = await fit();
+  expect(wide.shown).toHaveLength(4);
+  expect(wide.cut).toEqual([]);
+  // A narrow list: the facts at the end drop out whole, in the order of their weight.
+  await list.evaluate((node) => node.style.setProperty('width', '330px'));
+  const narrow = await fit();
+  expect(narrow.hidden.length).toBeGreaterThan(0);
+  expect(narrow.shown[0]).toBe('ab sofort');
+  expect(narrow.cut).toEqual([]);
 });
 
 test('a long row title takes two lines, the row grows by one line, the rest is a tooltip', async ({

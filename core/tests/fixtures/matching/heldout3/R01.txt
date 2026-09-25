@@ -1,0 +1,32 @@
+Titel: SAP FI/CO Berater S/4HANA Brownfield-Migration (m/w/d)
+Unternehmen: von: Rheinquader IT-Consulting GmbH
+Ort: 60311 Frankfurt am Main
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3148215.html
+Abgerufen am: 23.09.2026 07:31
+
+Ort: 60311 Frankfurt am Main, Deutschland // Vertragsart: Freiberuflich // Start: 02.11.2026 // Dauer: 6 Monate, Verlängerung geplant // Auslastung: 100 %
+
+Projektbeschreibung
+Für unseren Kunden, ein international tätiges Unternehmen aus dem Maschinen- und Anlagenbau (ca. 3.800 Mitarbeitende, 14 Buchungskreise), suchen wir Verstärkung für die laufende Migration von SAP ECC 6.0 auf SAP S/4HANA 2023 (Brownfield). Go-live ist für den 01.07.2027 geplant. Das Projekt befindet sich in der Realisierungsphase.
+
+Aufgaben:
+- Analyse der bestehenden FI/CO-Prozesse und des Customizings im ECC-System
+- Konzeption und Umsetzung in den Bereichen Hauptbuch (Universal Journal), Anlagenbuchhaltung (New Asset Accounting), Kreditoren und Debitoren
+- Kostenstellenrechnung, Innenaufträge und Umstellung der kalkulatorischen auf die buchhalterische Ergebnisrechnung (CO-PA)
+- Durchführung von Workshops mit Rechnungswesen und Controlling
+- Testmanagement (Integrationstest, UAT) und Fehlerbehebung
+- Mitarbeit an Cutover-Planung und Hypercare
+
+Anforderungen:
+- Mindestens 5 Jahre Erfahrung als SAP FI/CO-Berater
+- Mindestens ein S/4HANA-Migrationsprojekt (Brownfield) von Anfang bis Ende
+- Sehr gute Kenntnisse in New Asset Accounting und im Universal Journal
+- Erfahrung mit Periodenabschluss und Intercompany-Prozessen
+- Kenntnisse in SAP Group Reporting von Vorteil
+- Verhandlungssicheres Deutsch, gute Englischkenntnisse
+
+Rahmenbedingungen:
+Stundensatz: bis 110 € all-in
+Remote-Anteil: 80 %, ca. ein Tag pro Woche vor Ort in Frankfurt
+Bitte senden Sie uns Ihr aktuelles Profil mit Stundensatz und frühestmöglichem Starttermin unter Angabe der Projektnummer RQ-26-0917.

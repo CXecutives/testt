@@ -7,7 +7,7 @@ use std::ops::Range;
 
 use super::atoms::{self, Fit, Vocab};
 use super::fit::Skills;
-use super::lexicon::engine::KEY_USP;
+use super::lexicon::engine::{self as lex, KEY_USP};
 use super::params::{
     BM25_B, BM25_K1, BM25_LENGTH, FIELD_REQUIREMENTS, FIELD_REST, FIELD_TITLE, GENERIC_WEIGHT,
     RELEVANCE_HALF, SPECIFIC_WEIGHT,
@@ -63,6 +63,14 @@ pub(crate) fn query(skills: &Skills) -> Vec<(String, u64)> {
 /// Title fit in per-mille: share of the title's content atoms the profile covers, scaled
 /// by the static weight of the profile atom (specific 1000, USP-only 500).
 pub(crate) fn title_fit(query: &[(String, u64)], title: &str, vocab: &Vocab) -> u64 {
+    // Contract words (`Interim`, `Freelance`, `befristet`) say nothing about the field: they
+    // count in the title but never match the profile (`Interim Management` in a profile
+    // does not make every interim title fit).
+    let contract = |a: &str| {
+        lex::TITLE_CONTRACT_WORDS
+            .iter()
+            .any(|w| *w == a || atoms::stem(w) == a)
+    };
     let title_atoms: Vec<String> = atoms::atoms(title, vocab)
         .into_iter()
         .filter(|a| !atoms::is_generic(a))
@@ -72,6 +80,7 @@ pub(crate) fn title_fit(query: &[(String, u64)], title: &str, vocab: &Vocab) -> 
     }
     let score: u64 = title_atoms
         .iter()
+        .filter(|t| !contract(t))
         .map(|t| {
             query
                 .iter()
@@ -126,4 +135,20 @@ pub(crate) fn relevance(
     let lexical = 1000 * mass / (mass + RELEVANCE_HALF);
     let title = title_fit(query, title, vocab);
     (lexical + title / 2).min(1000)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A contract word in the title (`Interim`) never matches the profile, not even its
+    /// `Interim Management`.
+    #[test]
+    fn title_contract_words_never_match() {
+        let vocab = Vocab::all();
+        let query = vec![("interim".to_owned(), 1000), ("controll".to_owned(), 1000)];
+        assert_eq!(title_fit(&query, "Interim Controller", &vocab), 500);
+        assert_eq!(title_fit(&query, "Controller", &vocab), 1000);
+        assert_eq!(title_fit(&query, "Freelance Interim", &vocab), 0);
+    }
 }

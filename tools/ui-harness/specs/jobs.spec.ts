@@ -325,19 +325,24 @@ test('the star pins from the list without opening the job', async ({ page }) => 
   await open(page, WIN);
   const key = 'linkedin-4100200301';
   const pin = page.getByTestId(`pin-${key}`);
-  // The star shows on hover only (its wrapper fades), unless the job is pinned.
+  // The star shows on hover only (its wrapper fades in over the date).
   const star = pin.locator('xpath=..');
+  const job = page.locator('.job', { has: page.getByTestId(`job-row-${key}`) });
   await expect(star).toHaveCSS('opacity', '0');
   await row(page, key).hover();
   await expect(star).toHaveCSS('opacity', '1');
+  await expect(job.locator('.end')).toHaveCSS('opacity', '0');
   await pin.click();
   await expect(pin).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('reader')).toHaveCount(0);
   expect((await calls(page, 'set_pinned')).map(([, args]) => args)).toEqual([
     { key: { portal: 'linkedin', id: '4100200301' }, on: true },
   ]);
+  // Away from the row, the date is back with the small pinned star before it.
   await page.mouse.move(0, 0);
-  await expect(star).toHaveCSS('opacity', '1');
+  await expect(star).toHaveCSS('opacity', '0');
+  await expect(job.locator('.end')).toHaveCSS('opacity', '1');
+  await expect(job.locator('.mark')).toBeVisible();
 });
 
 test('no search hit: one empty state with a way back', async ({ page }) => {

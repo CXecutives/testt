@@ -115,7 +115,9 @@
   --text-muted: hsl(var(--p-muted-fg));
   --text-subtle: hsl(var(--p-fg-subtle));
   /* Headings (h1, h2) in the warm dark ink (user decision A). Navy colours only the
-     13/500 sub-labels (Erfüllt, Offen, Kompetenzen, the Ausgeschlossen divider) and links. */
+     13/500 sub-labels that group a reader's list (Erfüllt, Offen, the Ausgeschlossen
+     divider) and links. A label of a field or of a column of fields is ink (--text, 13/500,
+     as in Field): navy text alone over a form reads as a link. */
   --text-heading: hsl(var(--p-ink));
   --text-label: hsl(var(--p-navy));
   --text-on-accent: hsl(var(--p-on-accent));

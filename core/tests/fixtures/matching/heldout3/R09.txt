@@ -1,0 +1,33 @@
+Titel: SAP CO-PC / Material Ledger Experte gesucht!! (Remote only)
+Unternehmen: von: Quellbright Recruitment Ltd.
+Ort: Deutschland
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/nproj/3150478.html
+Abgerufen am: 21.09.2026 07:34
+
+Ort: Deutschland // Vertragsart: Freiberuflich // Start: ASAP // Dauer: 6 Monate+
+
+Projektbeschreibung
+Hi zusammen,
+
+für einen meiner Kunden (Food & Beverage, international, DAX-nah) suche ich ab ASAP einen erfahrenen SAP CO-PC Consultant. Kunde ist live auf S/4HANA 2023 und hat massive Probleme im Periodenabschluss mit dem Material Ledger / Actual Costing.
+
+Tasks:
+- Analyse und Stabilisierung Actual Costing Run
+- Produktkalkulation (Standardpreise, Kalkulationsvarianten)
+- Periodenabschluss CO inkl. WIP und Abweichungsermittlung
+- Support Key User + Doku
+- ggf. Anbindung an SAC
+
+Must have:
+- Material Ledger in S/4 !! (kein reines ECC Profil bitte)
+- CO-PC mind. 5 Jahre
+- Deutsch fließend
+
+Nice to have: Food Industrie, Chargenfertigung, PP-PI
+
+Rate: 95 €/h all in, 40h/Woche
+Remote only, kein Onsite!
+Vertrag über uns (freiberuflich oder Umbrella)
+
+Bei Interesse bitte CV + Rate + Verfügbarkeit, thx!

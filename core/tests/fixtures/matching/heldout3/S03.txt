@@ -1,0 +1,34 @@
+Titel: Senior Demand & Supply Planning Consultant (all genders) – S&OP / SAP IBP
+Unternehmen: Veldmark Consumer Health B.V.
+Ort: Lörrach-Nord (Deutschland)
+Quelle: LinkedIn
+Link: https://www.linkedin.com/jobs/view/4219034567/
+Abgerufen am: 22.09.2026 08:15
+
+About the role
+Veldmark Consumer Health is a mid-sized manufacturer of over-the-counter products and food supplements with sites in the Netherlands, Germany and Poland. We are rolling out a harmonised Sales & Operations Planning process across all three markets and are looking for an experienced freelance consultant to lead the demand and supply planning workstream.
+
+What you will do
+- Design and roll out a monthly S&OP cycle (demand review, supply review, pre-S&OP, executive S&OP)
+- Improve statistical forecasting in SAP IBP for Demand and define forecast accuracy and bias KPIs
+- Align supply planning parameters (safety stocks, lot sizes, lead times) with the production and procurement teams
+- Drive SKU rationalisation and inventory reduction without compromising service levels (target: OTIF above 95 %)
+- Build planning dashboards together with the BI team (Power BI)
+- Coach local planners in Germany and Poland and document the new process landscape
+
+What you bring
+- 7+ years of experience in supply chain planning, ideally in FMCG, consumer health or pharma
+- Proven track record in S&OP / IBP implementations
+- Hands-on experience with SAP IBP or SAP APO; knowledge of SAP S/4HANA PP/MM is a plus
+- Strong analytical skills, advanced Excel; Power BI is a plus
+- Experience working under GMP-regulated conditions is an advantage
+- Fluent English; German is a strong plus for the Lörrach site
+
+Engagement details
+Start: mid October 2026
+Duration: 9 months with option to extend
+Workload: 4 to 5 days per week
+Location: hybrid, 2 days per week on site in Lörrach, remainder remote
+Rate: competitive daily rate, please state your expectation
+
+Veldmark is an equal opportunity employer. We welcome applications from all backgrounds, regardless of gender, age, ethnicity, religion, disability or sexual orientation.

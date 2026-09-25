@@ -108,6 +108,16 @@
         pressed={false}
         onclick={noop}
       />
+      <!-- A stored value changes; a reset warns on hover before its dialog asks. -->
+      <Button size="sm" label={text.buttons.change} icon="pencil" onclick={noop} />
+      <Button
+        size="sm"
+        label={text.buttons.reset}
+        icon="rotate-ccw"
+        warns
+        testid="button-warns"
+        onclick={noop}
+      />
     </div>
   </Section>
 

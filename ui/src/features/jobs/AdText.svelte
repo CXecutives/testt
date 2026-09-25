@@ -78,9 +78,14 @@
     transition-duration: var(--dur-hover);
   }
 
-  .met,
-  .partial {
+  .met {
     text-decoration-color: var(--score-high-ring);
+  }
+
+  /* Met in part: amber, like its half circle; a point to check: navy, like its question
+     mark (RD-06). */
+  .partial {
+    text-decoration-color: var(--warning);
   }
 
   .violation {
@@ -88,12 +93,15 @@
   }
 
   .check {
-    text-decoration-color: var(--warning);
+    text-decoration-color: var(--info);
   }
 
-  .met.active,
-  .partial.active {
+  .met.active {
     background-color: var(--score-high-surface);
+  }
+
+  .partial.active {
+    background-color: var(--warning-soft);
   }
 
   .open.active {
@@ -105,7 +113,7 @@
   }
 
   .check.active {
-    background-color: var(--warning-soft);
+    background-color: var(--info-soft);
   }
 
   /* After a jump: the passage lights up in navy ("you are here") and settles. */

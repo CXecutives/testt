@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use super::atoms::{self, Fit, Vocab, fold};
-use super::job::{Class, Item, contains_word, level_in, names_degree};
+use super::job::{Class, Item, contains_word, language_of, level_in, names_degree};
 use super::legacy::LegacyProfile;
 use super::lexicon::{self, engine as lex};
 use super::params::{E_FULL, E_HALF, E_NONE, SENTENCE_ATOMS};
@@ -102,19 +102,25 @@ pub(crate) fn degree_level_in(folded: &str) -> u8 {
 
 /// Languages of the profile with their CEFR level (4 when the level is not readable).
 fn languages_of(data: &Value) -> Vec<(String, u8)> {
-    data.get(lex::KEY_LANGUAGES)
-        .and_then(Value::as_array)
+    let field = |item: &Value, keys: &[&str]| {
+        keys.iter()
+            .find_map(|k| item.get(*k).and_then(Value::as_str))
+            .map(str::to_owned)
+    };
+    lex::KEYS_LANGUAGES
+        .iter()
+        .find_map(|k| data.get(*k).and_then(Value::as_array))
         .into_iter()
         .flatten()
         .filter_map(|item| {
-            let name = fold(item.get(lex::KEY_LANGUAGE)?.as_str()?);
-            let language = lex::LANGUAGES.iter().find(|l| name.starts_with(**l))?;
-            let level = item
-                .get(lex::KEY_LEVEL)
-                .and_then(Value::as_str)
+            let name = fold(&field(item, lex::KEYS_LANGUAGE)?);
+            let first = atoms::raw_tokens(&name).next()?.to_owned();
+            let language = language_of(&first)?;
+            let level = field(item, lex::KEYS_LEVEL)
+                .as_deref()
                 .and_then(level_in)
                 .unwrap_or(4);
-            Some(((*language).to_owned(), level))
+            Some((language.to_owned(), level))
         })
         .collect()
 }

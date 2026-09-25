@@ -430,11 +430,11 @@
               : null}
           label={reasonText(reason)}
           hint={evidence ? null : reasonHint(reason)}
+          detail={evidence}
           active={active === reason.id}
           onhover={(on) => hover(reason, on)}
           onselect={reason.ranges.length > 0 ? () => scrollTo(reason) : null}
         />
-        {#if evidence}<p class="evidence" data-testid="evidence">{evidence}</p>{/if}
       </li>
     {/each}
   </ul>
@@ -1046,13 +1046,6 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-8) var(--space-16);
-  }
-
-  /* The evidence of a point, quiet under it (on the axis of its words). */
-  .evidence {
-    padding: 0 var(--space-8) var(--space-4) calc(var(--space-8) + var(--icon-sm) + var(--space-8));
-    color: var(--text-subtle);
-    font: var(--type-sm);
   }
 
   .why,

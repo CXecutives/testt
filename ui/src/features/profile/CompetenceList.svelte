@@ -1,14 +1,14 @@
 <!--
   The core competences: one row each with the star (Schwerpunkt), the competence, its years
   and other words for it (`auch`), then "Kompetenz hinzufügen" and the Schwerpunkte. At most
-  five stars; a sixth is refused with one short sentence. Renaming or removing a starred
+  five stars: a sixth star is disabled and its tooltip says why; the count stands at the
+  Schwerpunkte. Renaming or removing a starred
   competence takes its Schwerpunkt along. Enter goes to the next row, adds one after the
   last and ends the list on an empty last row (rows.ts); it never saves the profile.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import ChipInput from '$components/ChipInput.svelte';
-  import Notice from '$components/Notice.svelte';
   import TextField from '$components/TextField.svelte';
   import { t } from '$lib/i18n/t';
   import { formKeys } from '$lib/input/input';
@@ -27,7 +27,6 @@
 
   const words = $derived(t.profile.field);
   const id = $props.id();
-  let full = $state(false);
   let list = $state<HTMLElement | null>(null);
 
   const same = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -39,10 +38,7 @@
     if (name === '') return;
     if (starred(name)) {
       focus = focus.filter((entry) => !same(entry, name));
-      full = false;
-    } else if (focus.length >= MAX_FOCUS) {
-      full = true;
-    } else {
+    } else if (focus.length < MAX_FOCUS) {
       focus = [...focus, name];
     }
   }
@@ -60,7 +56,6 @@
     const name = row.name;
     rows = rows.filter((other) => other !== row);
     if (starred(name)) focus = focus.filter((entry) => !same(entry, name));
-    full = false;
   }
 
   const append = (): void => {
@@ -104,7 +99,8 @@
           icon="star"
           label={words.star}
           pressed={starred(row.name)}
-          disabled={row.name.trim() === ''}
+          disabled={row.name.trim() === '' || (!starred(row.name) && focus.length >= MAX_FOCUS)}
+          disabledReason={row.name.trim() === '' ? null : words.focusFull}
           testid="competence-star"
           onclick={() => star(row)}
         />
@@ -126,7 +122,7 @@
         <ChipInput
           bind:values={row.aliases}
           label={words.aliases}
-          placeholder={rows.length === 1 ? words.aliasesPlaceholder : null}
+          placeholder={words.aliases}
           testid="competence-aliases"
         />
       </span>
@@ -143,7 +139,7 @@
       </span>
     </div>
   {/each}
-  <span class="add">
+  <span class="add" class:indent={rows.length > 0}>
     <Button
       variant="secondary"
       size="sm"
@@ -154,16 +150,15 @@
     />
   </span>
   <div class="focus" data-testid="focus">
-    <span class="focus-label">{words.focus}</span>
+    <span class="focus-label" data-testid="focus-count">
+      {words.focusCount(focus.length, MAX_FOCUS)}
+    </span>
     {#if focus.length > 0}
-      <ChipInput bind:values={focus} entry={false} onchange={() => (full = false)} />
+      <ChipInput bind:values={focus} entry={false} />
     {:else}
       <span class="focus-hint">{words.focusHint}</span>
     {/if}
   </div>
-  {#if full}
-    <Notice tone="warning" variant="inline" text={words.focusFull} testid="focus-full" />
-  {/if}
 </div>
 
 <style>
@@ -186,7 +181,7 @@
   }
 
   .head {
-    color: var(--text-label);
+    color: var(--text);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
   }
@@ -198,7 +193,9 @@
     height: var(--control-md);
   }
 
-  .add {
+  /* Under the rows the button lines up with the competence column; alone it starts at the
+     card's edge. */
+  .add.indent {
     margin-left: calc(var(--control-sm) + var(--space-8));
   }
 
@@ -213,7 +210,7 @@
 
   .focus-label {
     flex: none;
-    color: var(--text-label);
+    color: var(--text);
     font: var(--type-sm);
     font-weight: var(--weight-medium);
   }
