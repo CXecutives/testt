@@ -50,6 +50,11 @@ pub enum Language {
 }
 
 impl Language {
+    /// The app's language until the user picks one in Einstellungen: German, whatever the
+    /// OS display language is (the app is written for German-speaking consultants; many of
+    /// them run an English Windows or macOS).
+    pub const DEFAULT: Language = Language::De;
+
     /// The language for a BCP 47 tag of the OS (`de-DE`, `de_AT.UTF-8`, `gsw-CH` ...): German
     /// for German, English for everything else (and for no tag at all).
     pub fn from_locale(tag: Option<&str>) -> Language {
