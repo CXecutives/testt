@@ -1213,6 +1213,19 @@ fn the_prompts_name_no_product_and_carry_the_rubric() {
     assert!(en::English.words().rubric.starts_with("# Scoring rule"));
 }
 
+/// The other listings a portal shows under an ad are no part of it, as for the engine: the
+/// rubric of the prompt and the skill says so (an ANÜ in a footer excludes nothing).
+#[test]
+fn the_rubric_leaves_out_the_other_listings_under_an_ad() {
+    let flat = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(flat(de_words().rubric).contains(
+        "Die weiteren Anzeigen, die ein Portal unter einer Anzeige zeigt (etwa „Ähnliche Projekte“ oder „Similar jobs“), gehören nicht zu ihr. Keine Regel liest sie, und sie schließen nichts aus."
+    ));
+    assert!(flat(en::English.words().rubric).contains(
+        "The other listings a portal shows under an ad (such as “Similar jobs” or „Ähnliche Projekte“) are no part of it. No rule reads them, and they exclude nothing."
+    ));
+}
+
 // ------------------------------------------------------------------------- the real engine
 
 /// A stored job with `text`, assessed by the real engine through [`PromptSource::load`].
