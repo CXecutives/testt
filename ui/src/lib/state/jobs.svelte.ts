@@ -1,7 +1,12 @@
 // The job list, the selection and the reader.
 //
-// - List and counts come from one `list_jobs` call (pages of 500); the list renders in
-//   windows of 60 rows that grow while scrolling, so 2000 jobs never block a frame.
+// - List and counts come from one `list_jobs` call (pages of 120: a page is read in the task
+//   that shows its first rows, and 500 rows made that task several times longer than the 60
+//   it shows); the list renders in windows of 60 rows that grow while scrolling, chunk by
+//   chunk, so 2000 jobs never block a frame. A reload of the same list (sort, undo, the end
+//   of a run) asks for as many rows as it holds, keeps the rows that did not change and
+//   builds at most a chunk of new ones at once. Another list (place, tab, search, filter) is
+//   a new generation of rows: the old rows go as one piece instead of one by one.
 // - Rows are plain objects (`$state.raw`): a change replaces the row, so only that row
 //   renders again, and no proxy sits between the template and 2000 jobs.
 // - Every number comes from the backend (one truth): the counts of the list (with the
@@ -41,7 +46,9 @@ import { tokenMs } from '../tokens';
 import { app } from './app.svelte';
 import { run } from './run.svelte';
 
-export const PAGE = 500;
+export const PAGE = 120;
+/** The most rows one `list_jobs` call returns (core::view::MAX_PAGE). */
+const MAX_PAGE = 500;
 export const WINDOW = 60;
 /** Rows mounted per frame while a window fills (small: every frame stays well below 50 ms
  *  on a slow machine, the window still fills within a few frames). */
@@ -148,6 +155,31 @@ function moved(counts: JobCounts, before: JobView, after: JobView): JobCounts {
   return add(add(counts, before, -1), after, 1);
 }
 
+/** The text of a row as it came from the backend, kept per object (each is read once). */
+const texts = new WeakMap<JobView, string>();
+
+function textOf(job: JobView): string {
+  let text = texts.get(job);
+  if (text === undefined) {
+    text = JSON.stringify(job);
+    texts.set(job, text);
+  }
+  return text;
+}
+
+/**
+ * `next` with every row that equals the one held keeping the held object: a reload of the
+ * same list (a sort, an undo, the end of a run) renders only the rows that changed, not all
+ * of them again.
+ */
+function reused(held: readonly JobView[], next: JobView[]): JobView[] {
+  const byKey = new Map(held.map((job) => [keyOf(job.key), job]));
+  return next.map((job) => {
+    const old = byKey.get(keyOf(job.key));
+    return old !== undefined && textOf(old) === textOf(job) ? old : job;
+  });
+}
+
 /** `list` with the row of `key` replaced by `change(row)` (the same array if absent). */
 function replaced(list: JobView[], key: JobKey, change: (job: JobView) => JobView): JobView[] {
   const index = list.findIndex((job) => sameKey(job.key, key));
@@ -195,6 +227,8 @@ class JobsStore {
   window = $state(WINDOW);
   /** Rows mounted so far (grows towards `window` chunk by chunk). */
   rendered = $state(CHUNK);
+  /** Counts the lists: a load that is not the same list in a new order starts a new one. */
+  generation = $state(0);
   /** Keys inserted while the list was on screen (they fade in). */
   fresh = new SvelteSet<string>();
 
@@ -308,7 +342,8 @@ class JobsStore {
 
   /**
    * Load the first page (and with a tile filter every page, the filter is local).
-   * `keep` = the same rows in a new order (sort, end of a run): the mounted rows stay and move.
+   * `keep` = the same rows in a new order (sort, end of a run): the mounted rows stay and move,
+   * and as many rows come back as the list holds (a list scrolled far down stays as long).
    */
   async load(keep = false): Promise<void> {
     const request = ++this.#request;
@@ -319,13 +354,16 @@ class JobsStore {
       if (request === this.#request) this.slow = true;
     }, tokenMs('--dur-fast'));
     try {
-      const page = await invoke('list_jobs', { query: this.query(0) });
+      const limit = keep ? Math.min(MAX_PAGE, Math.max(PAGE, this.rows.length)) : PAGE;
+      const page = await invoke('list_jobs', { query: this.query(0, limit) });
       if (request !== this.#request) return;
-      this.rows = this.withOpen(page.jobs);
+      const mounted = keep ? new Set(this.shown.map((job) => keyOf(job.key))) : null;
+      this.rows = this.withOpen(keep ? reused(this.rows, page.jobs) : page.jobs);
       this.counts = page.counts;
-      this.total = page.jobs.length < PAGE ? page.jobs.length : this.countOf(page.counts);
+      this.total = page.jobs.length < limit ? page.jobs.length : this.countOf(page.counts);
       this.window = keep ? Math.max(WINDOW, this.window) : WINDOW;
-      this.rendered = keep ? Math.min(this.rendered, this.window) : CHUNK;
+      this.rendered = mounted ? this.kept(mounted, Math.min(this.rendered, this.window)) : CHUNK;
+      if (!keep) this.generation += 1;
       this.fresh.clear();
       this.status = 'ready';
       if (this.filter !== null) await this.loadAll(request);
@@ -352,6 +390,23 @@ class JobsStore {
     const at = this.rows.findIndex((job) => sameKey(job.key, open.key));
     const index = at < 0 ? 0 : Math.min(at, rows.length);
     return [...rows.slice(0, index), open, ...rows.slice(index)];
+  }
+
+  /**
+   * How many rows stay mounted when the same list comes back in a new order (the sort, the
+   * end of a run, an undo): up to `limit`, but never more than CHUNK rows that are not
+   * mounted yet, so no frame builds a whole window of new rows (another sort shows other
+   * jobs in its first rows). The rest follows chunk by chunk.
+   */
+  private kept(mounted: ReadonlySet<string>, limit: number): number {
+    const rows = this.visible;
+    const end = Math.min(limit, rows.length);
+    let fresh = 0;
+    for (let index = 0; index < end; index += 1) {
+      if (!mounted.has(keyOf(rows[index]!.key))) fresh += 1;
+      if (fresh > CHUNK) return Math.max(CHUNK, index);
+    }
+    return end;
   }
 
   /** Rows the query has: under Neu the unread excluded jobs come on top of the count. */

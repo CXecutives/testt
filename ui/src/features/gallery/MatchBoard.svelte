@@ -9,7 +9,7 @@
   import ListRow from '$components/ListRow.svelte';
   import ReasonItem, { REASON_KINDS, REASON_WEIGHTS } from '$components/ReasonItem.svelte';
   import type { JobView } from '$lib/ipc/types';
-  import { flip, rowCollapse, rowIn } from '$lib/motion/transitions';
+  import { flip, rise, rowCollapse } from '$lib/motion/transitions';
   import { toasts } from '$lib/state/toasts.svelte';
   import Section from './Section.svelte';
   import { sampleJobs, text } from './gallery';
@@ -130,10 +130,10 @@
   </div>
   {#key run}
     <div class="list" data-testid="job-list">
-      {#each jobs as job, index (job.key.id)}
+      {#each jobs as job (job.key.id)}
         <div
           animate:flip={{ count: jobs.length }}
-          in:rowIn|global={{ index, fresh: true }}
+          in:rise|global={{ distance: 'md', duration: 'base' }}
           out:rowCollapse={{ on: leaving.includes(job.key.id) }}
         >
           <JobRow

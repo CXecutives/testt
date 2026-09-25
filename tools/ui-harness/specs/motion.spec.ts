@@ -1,6 +1,6 @@
 // Reduced motion is enforced by lib/motion/motion.ts, not by the CSS media query.
 
-import { expect, open, test } from './fixtures';
+import { expect, open, settle, test } from './fixtures';
 
 test('full motion by default', async ({ page }) => {
   await open(page, '?platform=windows');
@@ -71,22 +71,42 @@ test('nothing animates at start, and a view that comes back does not replay', as
 });
 
 test('the reader ring fills from empty the first time a job opens, once', async ({ page }) => {
+  // Every Web Animation of the reader ring's arc, noted as it starts: the fill lasts 360 ms,
+  // and a busy machine may look only after it is over.
+  await page.addInitScript(() => {
+    const fills: string[] = [];
+    (window as unknown as { __fills: string[] }).__fills = fills;
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (this: Element, keyframes, options) {
+      if (this.matches('[data-testid="reader-ring"] .value')) {
+        const first = Array.isArray(keyframes) ? keyframes[0] : undefined;
+        fills.push(String(first?.strokeDashoffset));
+      }
+      return animate.call(this, keyframes, options);
+    };
+  });
+  const fills = (): Promise<string[]> =>
+    page.evaluate(() => [...(window as unknown as { __fills: string[] }).__fills]);
   await open(page, '?platform=windows');
-  await page.locator('[data-testid^="job-row-"]').first().click();
+  const rows = page.locator('[data-testid^="job-row-"]');
+  await rows.first().click();
   const ring = page.getByTestId('reader-ring');
   await expect(ring).toBeVisible();
   // One Web Animation on the arc, starting from empty (stroke-dashoffset 100).
-  const fill = await ring.evaluate((node) =>
-    node
-      .querySelector('.value')!
-      .getAnimations()
-      .map((a) => String((a.effect as KeyframeEffect).getKeyframes()[0]?.strokeDashoffset)),
-  );
-  expect(fill).toEqual(['100']);
+  await expect.poll(fills).toEqual(['100']);
   // It is dropped when done.
-  await page.waitForTimeout(500);
-  const after = await ring.evaluate((node) => node.querySelector('.value')!.getAnimations().length);
-  expect(after).toBe(0);
+  await expect
+    .poll(() => ring.evaluate((node) => node.querySelector('.value')!.getAnimations().length))
+    .toBe(0);
+  // Once: another job fills its own ring, the first one back is simply there.
+  await rows.nth(1).click();
+  await expect.poll(fills).toEqual(['100', '100']);
+  await rows.first().click();
+  await expect(page.getByTestId('reader-title')).toHaveText(
+    await rows.first().locator('.title').innerText(),
+  );
+  await settle(page);
+  expect(await fills()).toEqual(['100', '100']);
 });
 
 test('a count rolls when it changes on screen, not when it first shows', async ({ page }) => {
@@ -157,20 +177,41 @@ test('hover rests while a list scrolls', async ({ page }) => {
       page.getByTestId('list-scroll').evaluate((node) => node.scrollHeight - node.clientHeight),
     )
     .toBeGreaterThan(200);
-  const scrolling = (): Promise<boolean> =>
-    page.evaluate(() => document.documentElement.hasAttribute('data-scrolling'));
-  // Scroll and look right after the scroll event (the mark lasts --scroll-idle).
+  // The pointer rests on a row (once the rows stand still: the switch glides them).
+  await settle(page);
+  const row = page.getByTestId('job-list').locator('[data-testid^="job-row-"]').first();
+  await row.hover();
+  const still = (): Promise<string[]> =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('[data-still]')].map((node) => node.className),
+    );
+  expect(await still()).toEqual([]);
+  // Scroll and look right after the scroll event: the row under the pointer rests (its hover
+  // waits for `:not([data-still])`), the row button and the row around it; nothing else in
+  // the list changes. The mark lasts --scroll-idle.
   const during = await page.getByTestId('list-scroll').evaluate(
     (node) =>
-      new Promise<boolean>((resolve) => {
+      new Promise<{ rows: (string | undefined)[]; hovered: boolean }>((resolve) => {
         node.addEventListener(
           'scroll',
-          () => resolve(document.documentElement.hasAttribute('data-scrolling')),
+          () => {
+            const marked = [...document.querySelectorAll<HTMLElement>('[data-still]')];
+            resolve({
+              rows: marked.map(
+                (el) =>
+                  (el.querySelector<HTMLElement>('[data-testid^="job-row-"]') ?? el).dataset.testid,
+              ),
+              hovered: marked.every((el) => el.matches(':hover')),
+            });
+          },
           { once: true },
         );
         node.scrollBy(0, 200);
       }),
   );
-  expect(during).toBe(true);
-  await expect.poll(scrolling, { timeout: 1000 }).toBe(false);
+  expect(during.rows).toHaveLength(2);
+  expect(during.rows[0]).toMatch(/^job-row-/);
+  expect(during.rows[1]).toBe(during.rows[0]);
+  expect(during.hovered).toBe(true);
+  await expect.poll(still, { timeout: 1000 }).toEqual([]);
 });

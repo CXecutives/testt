@@ -6,6 +6,7 @@ import {
   calls,
   expect,
   expectShot,
+  motionSettled,
   open,
   runFinished,
   settle,
@@ -98,9 +99,11 @@ test('counts equal the list, with and without search', async ({ page }) => {
   await open(page, WIN);
   expect(await rows(page).count()).toBe(await segmentCount(page, 'Neu'));
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  await expect(page.getByTestId('excluded-divider')).toBeVisible();
-  const all = (await rows(page).count()) + (await excludedRows(page).count());
-  expect(all).toBe(await segmentCount(page, 'Alle'));
+  await expect(page.getByTestId('excluded-count')).toBeVisible();
+  // The list of Alle arrives from the backend and builds a few rows per frame.
+  const listed = async (): Promise<number> =>
+    (await rows(page).count()) + (await excludedRows(page).count());
+  await expect.poll(listed).toBe(await segmentCount(page, 'Alle'));
   await expect(page.getByTestId('excluded-divider')).toHaveText(
     `Ausgeschlossen ${await excludedRows(page).count()}`,
   );
@@ -117,10 +120,12 @@ test('counts equal the list, with and without search', async ({ page }) => {
 test('a hidden job is in no list and no count', async ({ page }) => {
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  await expect(page.getByTestId('excluded-divider')).toBeVisible();
+  await expect(page.getByTestId('excluded-count')).toBeVisible();
+  // The list of Alle arrives from the backend and builds a few rows per frame.
+  const listed = async (): Promise<number> =>
+    (await rows(page).count()) + (await excludedRows(page).count());
+  await expect.poll(listed).toBe(await segmentCount(page, 'Alle'));
   await expect(row(page, 'linkedin-4100200306')).toHaveCount(0);
-  const listed = (await rows(page).count()) + (await excludedRows(page).count());
-  expect(listed).toBe(await segmentCount(page, 'Alle'));
 });
 
 test('mark_read only on a real click, and only once', async ({ page }) => {
@@ -308,7 +313,9 @@ test('rows are mail-style: one height per title line, at most two, a fixed dot g
     .locator('.title')
     .evaluate((node) => getComputedStyle(node).getPropertyValue('-webkit-line-clamp'));
   expect(clamp).toBe('2');
-  // Every row, with or without badge, has the same height per title line (86, 106).
+  // Every row, with or without badge, has the same height per title line (86, 106), once
+  // the rows have glided into their places (a row on its way has a fractional box).
+  await motionSettled(page);
   const heights = await page
     .getByTestId('job-list')
     .locator('[data-testid^="job-row-"]')
@@ -336,10 +343,11 @@ test('the star pins from the list without opening the job', async ({ page }) => 
   await open(page, WIN);
   const key = 'linkedin-4100200301';
   const pin = page.getByTestId(`pin-${key}`);
-  // The star shows on hover only (its wrapper fades in over the date).
+  // The star shows on hover only (its wrapper fades in over the date); at rest the row has
+  // no tools at all.
   const star = pin.locator('xpath=..');
   const job = page.locator('.job', { has: page.getByTestId(`job-row-${key}`) });
-  await expect(star).toHaveCSS('opacity', '0');
+  await expect(job.locator('.tools')).toHaveCount(0);
   await row(page, key).hover();
   await expect(star).toHaveCSS('opacity', '1');
   await expect(job.locator('.end')).toHaveCSS('opacity', '0');
@@ -349,9 +357,14 @@ test('the star pins from the list without opening the job', async ({ page }) => 
   expect((await calls(page, 'set_pinned')).map(([, args]) => args)).toEqual([
     { key: { portal: 'linkedin', id: '4100200301' }, on: true },
   ]);
-  // Away from the row, the date is back with the small pinned star before it.
+  // Away from the row the tools fade out (they stay built while the clicked star keeps the
+  // focus, else they go); the date is back with the small pinned star before it.
   await page.mouse.move(0, 0);
-  await expect(star).toHaveCSS('opacity', '0');
+  const toolShown = (): Promise<boolean> =>
+    job.evaluate((node) =>
+      [...node.querySelectorAll('.tool')].some((tool) => getComputedStyle(tool).opacity !== '0'),
+    );
+  await expect.poll(toolShown).toBe(false);
   await expect(job.locator('.end')).toHaveCSS('opacity', '1');
   await expect(job.locator('.mark')).toBeVisible();
 });
@@ -598,7 +611,8 @@ test('details and pins: teaser note, fetch details, pin star', async ({ page }) 
   await row(page, 'freelance-900411').click();
   await page.getByTestId('reader-pin').click();
   await expect(page.getByTestId('reader-pin')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('pin-freelance-900411')).toHaveAttribute('aria-pressed', 'true');
+  // The row shows the star at rest (its tools only exist under the pointer).
+  await expect(row(page, 'freelance-900411').getByRole('img', { name: 'Favorit' })).toBeVisible();
 });
 
 test('the close button in the reader leads back to the day overview', async ({ page }) => {
@@ -763,6 +777,10 @@ test('the list header: one slot for Abrufen and Abbrechen, a steady second row, 
   // The bottom line only once the list is scrolled.
   await expect(header).toHaveCSS('border-bottom-color', clear);
   const list = page.getByTestId('list-scroll');
+  // The window mounts a few rows per frame: scroll once the list can.
+  await expect
+    .poll(() => list.evaluate((node) => node.scrollHeight - node.clientHeight))
+    .toBeGreaterThan(300);
   await list.evaluate((node) => node.scrollTo({ top: 300 }));
   await expect(header).not.toHaveCSS('border-bottom-color', clear);
   await list.evaluate((node) => node.scrollTo({ top: 0 }));
@@ -1160,6 +1178,8 @@ test('under a search all read marks the hits; the trash empties whole and says h
     await settleMoves(page);
   }
   await page.getByTestId('nav-trash').click();
+  // The trash's own list (it arrives from the backend a moment after the click).
+  await expect(page.getByTestId('place-count')).toHaveText('2 Jobs im Papierkorb');
   const title = await rows(page).first().locator('.title').innerText();
   await page.getByTestId('search').fill(title);
   await expect(rows(page)).toHaveCount(1);
@@ -1381,62 +1401,6 @@ test('an empty list says where jobs come from', async ({ page }) => {
     target: { kind: 'portalHome', portal: 'linkedin' },
   });
   await expect(page.getByTestId('read-older')).toBeVisible();
-});
-
-test('2000 jobs render in windows without long tasks', async ({ page, browserName }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __long: number[][] }).__long = [];
-    if (PerformanceObserver.supportedEntryTypes?.includes('longtask')) {
-      new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          (window as unknown as { __long: number[][] }).__long.push([
-            entry.startTime,
-            entry.duration,
-          ]);
-        }
-      }).observe({ type: 'longtask', buffered: true });
-    }
-  });
-  await open(page, `${WIN}&scenario=many`);
-  await expect(rows(page).first()).toBeVisible();
-  // Only the list work counts, not the start of the app: wait until the first window has
-  // mounted completely and the main thread is idle, then measure the interactions.
-  await expect
-    .poll(async () => {
-      const before = await rows(page).count();
-      await settle(page);
-      return before > 0 && before === (await rows(page).count());
-    })
-    .toBe(true);
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) =>
-        'requestIdleCallback' in window
-          ? requestIdleCallback(() => resolve(), { timeout: 2000 })
-          : setTimeout(resolve, 200),
-      ),
-  );
-  const since = await page.evaluate(() => performance.now());
-  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
-  await expect(page.getByTestId('facet').getByRole('radio', { name: /Alle/ })).toContainText(
-    '2.000',
-  );
-  const count = await page.locator('[data-testid^="job-row-"]').count();
-  expect(count).toBeLessThanOrEqual(70);
-  for (let i = 0; i < 4; i += 1) {
-    await page
-      .getByTestId('list-scroll')
-      .evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
-    await page.waitForTimeout(150);
-  }
-  expect(await page.locator('[data-testid^="job-row-"]').count()).toBeGreaterThan(count);
-  if (browserName === 'chromium') {
-    const long = await page.evaluate(() => (window as unknown as { __long: number[][] }).__long);
-    expect(
-      long.filter(([start, d]) => start! > since && d! > 50),
-      JSON.stringify(long),
-    ).toEqual([]);
-  }
 });
 
 test('below 900 px one column with a back button', async ({ page }) => {

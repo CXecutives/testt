@@ -162,7 +162,7 @@
 >
   <div class="body">
     <aside class="left" use:cssVars={listWidth ? { 'list-width': `${listWidth}px` } : {}}>
-      <ListHeader bind:this={header} {scrolled} />
+      <div class="head"><ListHeader bind:this={header} {scrolled} /></div>
       <div class="scroll" data-testid="list-scroll">
         <span class="top" use:inView={(place) => (scrolled = place === 'above')}></span>
         {#if shell.runCard}
@@ -260,9 +260,17 @@
     flex: none;
     flex-direction: column;
     width: var(--list-width, clamp(var(--list-min), 40%, var(--list-max)));
-    container-type: inline-size;
     min-height: 0;
     border-right: var(--border-width) solid var(--border);
+  }
+
+  /* The header asks the column's width (its second row wraps in a narrow column): the query
+     container is the header's box, as wide as the column, and not the column itself. Around
+     the list a query container made every layout of the view half as long again (the
+     reader's ring fill lays the view out in each of its frames). */
+  .head {
+    flex: none;
+    container-type: inline-size;
   }
 
   .run {
