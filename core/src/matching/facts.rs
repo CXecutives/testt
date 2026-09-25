@@ -116,7 +116,7 @@ fn countries_of(value: &Value) -> Option<Vec<String>> {
 /// A country of the profile as its ISO code: a two-letter code as written ("UK" is GB), or a
 /// country name the engine knows ("Deutschland", "Österreich", "Switzerland"); `None` for
 /// anything else, so an unknown name is reported instead of excluding every country.
-fn country_code(entry: &str) -> Option<String> {
+pub(crate) fn country_code(entry: &str) -> Option<String> {
     let text = entry.trim();
     if text.len() == 2 && text.chars().all(|c| c.is_ascii_alphabetic()) {
         let code = text.to_ascii_uppercase();

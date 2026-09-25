@@ -116,7 +116,10 @@ mod tests {
 
     /// The app as far as the rules see it.
     #[derive(Default)]
-    #[expect(clippy::struct_excessive_bools, reason = "one flag per answer of the host")]
+    #[expect(
+        clippy::struct_excessive_bools,
+        reason = "one flag per answer of the host"
+    )]
     struct Fake {
         running: Cell<bool>,
         usable: bool,

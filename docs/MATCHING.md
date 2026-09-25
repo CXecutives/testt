@@ -608,6 +608,12 @@ reaches the engine as such a bare line.
   and the requirement parser's headings (`job.rs`, for the entries shared with `OTHER_PREFIXES`) use it.
 - Tests: `the_other_listings_under_an_ad_are_no_part_of_it` (`facts.rs`) and
   `a_requirement_that_starts_like_other_listings_keeps_the_ad_whole` (`matching_criteria.rs`).
+- Country names: `lexicon::COUNTRIES` knows every country the Profil view offers by its German and English name
+  (`Norwegen`, `Denmark`, `Czechia`, ...), so no name the app itself uses switches the country rule off
+  (`every_country_name_of_the_app_reads_back_to_its_code` in `core/tests/countries.rs`,
+  `country_names_in_a_profile_keep_the_country_rule` in `matching_criteria.rs`).
+- The floor of held-out set 7 is now the level engine 12 reached (NDCG@10 0.91, Spearman 0.44, exclusion precision
+  0.98, at most 2 buried), so undoing the other-listings rule fails it.
 
 The corpus rows and held-out sets 1 to 8 are unchanged; the golden digest changed only by its version line. The app
 scores every stored job again after the update.

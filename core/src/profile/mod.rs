@@ -68,6 +68,13 @@ pub fn info(workspace: &Path) -> Result<Option<ProfileInfo>> {
     }))
 }
 
+/// The ISO code of a country entry of a profile as the engine reads it: a two-letter code,
+/// or a German or English name of its lexicon (`Norwegen`, `Czechia`); `None` for a name it
+/// does not know.
+pub fn country_code(name: &str) -> Option<String> {
+    crate::matching::facts::country_code(name)
+}
+
 /// The ISO codes of every country the engine tells apart in a job ad, by a country or a
 /// city name of its lexicon (a German city without a country is in Germany), sorted: the
 /// countries a profile can choose (`laender`). The UI catalogs name each of them
