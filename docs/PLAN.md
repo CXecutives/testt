@@ -361,15 +361,16 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 ### Phase 2 - core work (parallel, disjoint files; contracts frozen)
 - [x] 2A Matching better (merged 9c8279f; in band fin 17->38/40, it 30->39/40, band distance 491->3 and 188->1, ~0.25 ms/job): V5, V6, V3, V2, V1, V4, V15, V7, V9, V8, V16, V10-V13, decided/check model, V17, V18, V19,
       explain.rs, prescore - one commit each with corpus guard; calibrate, freeze.
-- [ ] 2B Store, runs, export (done with 1a and the integration track except: alsoOn, freelance.de guest teaser; the engine is wired as `LocalMatcher`, see `docs/MATCHING.md`): schema 3 + chain + WAL; save_match(es), mark_read, set_pinned, job_page; settings
-      (portal switches, autoFetchOnStart); LocalMatcher, scoring at JobUpdated + catch-up, Rust-triggered rescore and
-      auto fetch; profile summary + template; Excel column + grey header, mail address out of info sheet; HTML
-      overview; TXT byte tests; demo with high/mid/low/excluded.
+- [x] 2B Store, runs, export (schema chain to 5 + WAL; save_match(es), mark_read, set_pinned, job_page; alsoOn;
+      freelance.de guest teaser; LocalMatcher, scoring at JobUpdated + catch-up, Rust-triggered rescore and auto fetch
+      after 6 h; settings (portal switches, autoFetchOnStart, autoArchiveDays, autoEmptyTrashDays); profile summary;
+      Excel grey header and grey excluded rows, no mail address on the Info sheet; HTML overview; TXT byte tests; demo
+      with high/mid/low/excluded. Dropped by later decisions: the template, the Excel status column)
 - [x] 2C Components (merged 587dbec; 78 harness tests, both engines): all 23 with variants, states, motion; complete gallery; baselines.
 - [x] 2D Scraping and sign-in (session delete, macOS data store, no unasked sign-in window, keychain test already merged with 1c): S1-S11; switches honoured in the fetch path; optional sign-in with risk note; delete
       session per portal (macOS `data_store_identifier`); keychain test on macOS; dead code list.
-      Left for the integrator: `AppBackends::prescore` -> `matching::prescore` with the profile (neutral until then);
-      `commands/mod.rs` could use `sync::lock`. Done since: exports list no duplicate rows (Excel sheet, one text file
+      Done by the integrator: `AppBackends::prescore` -> `matching::prescore` with the profile; `commands/mod.rs` uses
+      `sync::lock`. Done since: exports list no duplicate rows (Excel sheet, one text file
       per job); the automatic queue fetches only what the lists show as active (inbox and favourites, never the trash
       or a duplicate), the rest says "Details auf Anfrage".
       Done when: 26 fetch tests + new (4th test portal via registry only, health, teaser, Retry-After, requeue, slug
@@ -377,7 +378,7 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       verified on both OS).
 - [x] Integration: engine wired (LocalMatcher, rescore, job detail, profile summary, template, top_matches.json), scraping merged, prescore orders the fetch queue; engine v3 with the skill rubric, domain packs and aliases (in band 49/51/49/51 of 52 for the four profiles). A + B done (LocalMatcher, Rust-triggered
       rescore, reader recompute, profile summary, template, demo on the real engine, `auswertung/top_matches.json` for the
-      skill as optional stage 2); D open (prescore hook not exposed by the fetch queue yet).
+      skill as optional stage 2); D done (the fetch queue follows `matching::prescore`).
 - [x] Engine v4 (`docs/MATCHING.md`): Schwerpunkte, target roles and wishes (bounded, never an exclusion, no lift
       into the high band while fewer than half of the musts are met); fixes of held-out sets 1 and 2, now regression
       corpora with frozen floors (NDCG@10 0.822 to 0.930 and 0.632 to 0.805); criteria met only with the ad's value
@@ -423,10 +424,13 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 - [x] Finish the dead-code list
 
 ### Phase 5 - verification, measurement, audit
-- [ ] Real runs through the app (gold set within limits and switches), blind labels, old/new report in `docs/MATCHING.md`
-      Run 9 on the test mailbox, fixed: portal promo/onboarding mails are no alerts (no false "layout changed?"),
-      a collection mail never takes another job's title as company or location, a stored title-like pair gives
-      way, a new location makes the score pending (fixtures `promo_mails/`, `forward_composite.eml`).
+- [x] Real runs through the app and the measurement: run 9 on the test mailbox fixed the mail reading (portal
+      promo/onboarding mails are no alerts, no false "layout changed?"; a collection mail never takes another job's
+      title as company or location; a stored title-like pair gives way; a new location makes the score pending;
+      fixtures `promo_mails/`, `forward_composite.eml`), and the user's run of 2026-09-25 fetched every portal (Live
+      canary below). The evaluation used eight blind held-out sets of invented ads (192 to 960 pairs each, two
+      labelers and an arbiter) instead of a private gold set; old/new reports per set in `docs/MATCHING.md`. Open for
+      later: real ads with blind labels (`export_gold --blind`, `match_eval`; below 60 jobs the result is "preliminary").
 - [x] Scraping review, offline only (2026-09-25 night, fixtures and unit tests, no live request): the scan reads
       All Mail (`\All`, drafts and own sent mails left out); only alert mails bring job links in (activity mails,
       InMails and newsletters do not); every alert subject is a head candidate; plain-text link forms of Outlook and
@@ -482,7 +486,13 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       questions, conditions); `PromptSource` assesses a stored job afresh for the prompt; tests for every section in
       both languages, the contact filter, missing facts, teaser and short texts, exclusions, English ads, no engine
       code; a golden prompt per language
-- [ ] Final CI builds (artifacts only), first-start guide (SmartScreen, Gatekeeper, keychain), close this plan, hand over
+- [x] Final CI builds (artifacts only), first-start guide, close this plan, hand over: CI builds the Windows installer
+      and the macOS dmg and .app on every push to main and publishes nothing (workflow artifacts); the first-start guide
+      is README "Install" and "First start" (SmartScreen, Gatekeeper, the keychain prompt after updates, mailbox,
+      profile, Abrufen, the language); wave 2 closes this plan and hands over with its pull request
+- [x] Wave 2 (one cloud session, 2026-09-25, branch `wave2`; see Decisions "Wave 2"): the last confirmed findings of
+      the ship audit, the list search over every word, the ad's rate and start in the reader's terms strip, engine 15,
+      one word per thing in the texts, the docs true for the app
 
 ## Consistency audit per screen
 For each of Jobs, Reader, Day overview, Profil, Einstellungen, First run, dialogs:
@@ -509,10 +519,10 @@ no sub-agents inside tracks, screenshots only at milestones, commit every finish
 - **Sonnet** for simple, fully verifiable work: phase 4 comment/log translation (checked by language.rs, build and
   tests), README and first-start guide from finished facts, collecting CI artifacts and screenshots, routine cleanup.
 
-## Status 2026-09-24 evening (pause until the usage limit resets)
-Done on main (pushed, CI green on Windows and a real macOS runner before the last push): phases 0-4, engine v3,
-scraping, all screens with navigation variant C and the polish round, macOS-shaped app icon, improved optional skill.
-Next: (1) check the CI run of e67e2ac incl. the macOS Dock screenshot of the new icon (shadow ok on macOS 26?);
-(2) independent design critique of every screen (screenshots in both engines) and fixes; (3) `ProfileUnderstanding`
-gets `packs`, `years`, `degrees` in view.rs (UI already renders them); (4) phase 5 real-data measurement - needs the
-user to connect the mailbox in the app first; (5) README + first-start guide, final review, installer on this PC.
+## Status 2026-09-25 evening (wave 2)
+Every box of this plan is ticked. The app has engine 15, German and English, the native title bars, the UI logic
+round and eight held-out sets as regression gates; wave 2 (branch `wave2`, one pull request against `main`) fixed the
+last confirmed findings of the ship audit. Left for later, each needing the user: real ads with blind labels (the
+tools are ready, see Phase 5); one freelance.de guest page for a real-structure fixture at the next allowed live run;
+the contrast of the primary label (about 2.8:1, the documented exception) and of the subtle text for dates and hints
+(4.2:1 on white, 3.9:1 on cream, below AA), both a choice of colour.
