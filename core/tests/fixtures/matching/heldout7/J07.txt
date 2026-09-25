@@ -1,0 +1,60 @@
+Titel: SAP S/4HANA FI/CO Senior Berater (m/w/d) – Template-Rollout Handel, Wien
+Unternehmen: Praterstern IT-Beratung GmbH
+Ort: A-1020 Wien
+Quelle: Freelance
+Link: https://www.freelance.de/project/index.php?id=1306742
+Abgerufen am: 23.09.2026 18:07
+
+Projekt-ID: 1306742
+Ort: Wien
+Remote: 40 %
+Start: 01.12.2026
+Dauer: 9 Monate
+Vertragsart: Freiberuflich
+Honorar: 1.000 - 1.150 € pro Tag
+Letztes Update: 23.09.2026
+
+Projektbeschreibung
+Unser Kunde, ein Lebensmittelhändler mit Zentrale in Wien und Landesgesellschaften in Tschechien, der Slowakei, Ungarn und Slowenien, rollt sein S/4HANA-Template aus Österreich in drei weitere Länder aus. Für den Finance-Stream suchen wir einen sehr erfahrenen FI/CO Berater, der die Länder-Rollouts fachlich verantwortet.
+
+Aufgaben:
+- Fit-Gap-Analysen mit den Finanzteams der Landesgesellschaften und Abgleich mit dem Konzern-Template
+- Customizing FI (Hauptbuch, Kreditoren, Debitoren, Anlagenbuchhaltung) und CO (Kostenstellen, Profit-Center, Margin Analysis)
+- Umsetzung länderspezifischer Anforderungen (lokale Kontenpläne, Steuermeldungen, E-Invoicing, SAF-T)
+- Datenmigration mit dem Migration Cockpit inklusive Saldenabstimmung
+- Testkoordination, Cutover-Planung und Hypercare nach dem Go-live
+- Abstimmung mit den Streams MM, SD und Retail
+
+Anforderungen:
+- Mindestens 20 Jahre Berufserfahrung als SAP FI/CO Berater, davon mindestens 8 Jahre in S/4HANA-Projekten
+- Mehrere internationale Rollouts von der Konzeption bis zum Go-live, idealerweise im Handel
+- Erfahrung mit lokalen Anforderungen in Mittel- und Osteuropa
+- Deutsch und Englisch verhandlungssicher, eine CEE-Sprache von Vorteil
+- Reisebereitschaft in die Rollout-Länder (ca. 20 %)
+
+Einsatz drei Tage pro Woche vor Ort in Wien, der Rest remote. Reisekosten in die Rollout-Länder werden gesondert erstattet.
+
+Kategorien und Skills
+SAP FI
+SAP CO
+S/4HANA
+Rollout
+Customizing
+Datenmigration
+Handel
+Englisch
+
+Projektanbieter
+Praterstern IT-Beratung GmbH
+Die Kontaktdaten des Projektanbieters sind nur für angemeldete Freelancer sichtbar.
+Projekt merken
+Jetzt bewerben
+
+Ähnliche Projekte
+SAP FI Berater Rollout CEE (m/w/d)
+Graz · ab sofort
+SAP S/4HANA CO Berater Margin Analysis (m/w/d)
+Remote · 6 Monate
+SAP Retail Berater (m/w/d)
+Wien · 01.2027
+Alle Projekte in SAP anzeigen

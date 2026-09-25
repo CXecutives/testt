@@ -1,0 +1,381 @@
+{
+  "name": "Bernd Prototyp",
+  "email": "bernd.prototyp@example.invalid",
+  "telefon": "+49 176 0000000",
+  "titel": "Technischer Projektleiter Maschinen- und Anlagenbau",
+  "berufserfahrung_jahre": 18,
+  "abschluss": "Diplom-Ingenieur Maschinenbau (TU)",
+  "ausbildung": [
+    {
+      "abschluss": "Diplom-Ingenieur (TU)",
+      "fach": "Maschinenbau mit Vertiefung Produktentwicklung und Konstruktionstechnik",
+      "hochschule": "Beispieluniversität",
+      "jahr": 2008
+    }
+  ],
+  "stationen": [
+    {
+      "zeitraum": "2016 - heute",
+      "rolle": "Freiberuflicher technischer Projektleiter und Entwicklungsingenieur",
+      "schwerpunkte": [
+        "Technische Projektleitung für Sondermaschinen und automatisierte Montageanlagen mit Auftragswerten bis 12 Mio. Euro",
+        "Leitung von Inbetriebnahmen und Abnahmen (FAT und SAT) in Deutschland, den USA, Mexiko und China",
+        "Entwicklungsprojekt für eine neue Generation von Verpackungsmaschinen von der Konzeptphase bis zur Serienreife",
+        "CE-Konformitätsbewertung, Risikobeurteilung und Umstellung auf die neue EU-Maschinenverordnung",
+        "Claim- und Nachtragsmanagement gegenüber Kunden und Unterlieferanten"
+      ]
+    },
+    {
+      "zeitraum": "2011 - 2016",
+      "rolle": "Projektleiter Anlagenbau bei einem mittelständischen Hersteller von Montage- und Fördertechnik",
+      "schwerpunkte": [
+        "Projektleitung für Montagelinien und Prüfstände in der Automobilindustrie",
+        "Koordination von Mechanik- und Elektrokonstruktion, Steuerungsprogrammierung und Zulieferern",
+        "Termin-, Kosten- und Ressourcenplanung mit Budgetverantwortung",
+        "Montage- und Baustellenkoordination beim Kunden"
+      ]
+    },
+    {
+      "zeitraum": "2008 - 2011",
+      "rolle": "Konstruktionsingenieur in der Entwicklung eines Werkzeugmaschinenherstellers",
+      "schwerpunkte": [
+        "Konstruktion von Baugruppen in Siemens NX und Festigkeitsberechnung mit FEM",
+        "Versuchsbegleitung und Prototypenbau",
+        "Erstellung von Lastenheften und Design-FMEA"
+      ]
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Technische Projektleitung",
+      "jahre": 15,
+      "auch": [
+        "Technischer Projektleiter",
+        "Projektleitung Engineering",
+        "Technical Project Manager",
+        "Projektleitung Anlagenbau",
+        "Projektleitung Sondermaschinenbau",
+        "Projektingenieur"
+      ]
+    },
+    {
+      "kompetenz": "Anlagenbau",
+      "jahre": 15,
+      "auch": [
+        "Plant Engineering",
+        "Industrieanlagenbau",
+        "Montageanlagen",
+        "Automatisierungsanlagen",
+        "Montagelinien"
+      ]
+    },
+    {
+      "kompetenz": "Produktentwicklung",
+      "jahre": 9,
+      "auch": [
+        "Neuentwicklung",
+        "Forschung und Entwicklung",
+        "F&E",
+        "R&D",
+        "Entwicklungsprojekte",
+        "Product Development"
+      ]
+    },
+    {
+      "kompetenz": "Inbetriebnahme",
+      "jahre": 13,
+      "auch": [
+        "Commissioning",
+        "Inbetriebnahmeleitung",
+        "FAT",
+        "SAT",
+        "Anlagenabnahme",
+        "Endabnahme"
+      ]
+    },
+    {
+      "kompetenz": "Sondermaschinenbau",
+      "jahre": 10,
+      "auch": [
+        "Sondermaschinen",
+        "Special Machinery",
+        "Maschinenbau",
+        "Mechanical Engineering"
+      ]
+    },
+    {
+      "kompetenz": "CE-Kennzeichnung und Maschinenrichtlinie",
+      "jahre": 10,
+      "auch": [
+        "CE-Konformität",
+        "Maschinenrichtlinie 2006/42/EG",
+        "Maschinenverordnung (EU) 2023/1230",
+        "Risikobeurteilung",
+        "EN ISO 12100"
+      ]
+    },
+    {
+      "kompetenz": "Funktionale Sicherheit",
+      "jahre": 6,
+      "auch": [
+        "EN ISO 13849",
+        "Maschinensicherheit",
+        "Safety",
+        "Performance Level",
+        "SISTEMA"
+      ]
+    },
+    {
+      "kompetenz": "Konstruktion",
+      "jahre": 7,
+      "auch": [
+        "Mechanische Konstruktion",
+        "Mechanical Design",
+        "3D-CAD",
+        "Design Engineering",
+        "Baugruppenkonstruktion"
+      ]
+    },
+    {
+      "kompetenz": "Termin- und Kostenplanung",
+      "jahre": 15,
+      "auch": [
+        "Projektcontrolling",
+        "Terminplanung",
+        "Kostenkontrolle",
+        "Ressourcenplanung",
+        "Budgetverantwortung"
+      ]
+    },
+    {
+      "kompetenz": "Claim- und Änderungsmanagement",
+      "jahre": 10,
+      "auch": [
+        "Claim Management",
+        "Nachtragsmanagement",
+        "Change Request Management",
+        "Vertragsmanagement im Anlagenbau"
+      ]
+    },
+    {
+      "kompetenz": "Lastenheft und Pflichtenheft",
+      "jahre": 14,
+      "auch": [
+        "Anforderungsmanagement",
+        "Requirements Engineering",
+        "Spezifikation",
+        "Lastenheft",
+        "Pflichtenheft"
+      ]
+    },
+    {
+      "kompetenz": "Schnittstellenkoordination Mechanik, Elektrik und Software",
+      "jahre": 15,
+      "auch": [
+        "Mechatronik",
+        "Automatisierungstechnik",
+        "SPS",
+        "Interdisziplinäre Koordination"
+      ]
+    },
+    {
+      "kompetenz": "Lieferanten- und Unterlieferantensteuerung",
+      "jahre": 12,
+      "auch": [
+        "Zulieferersteuerung",
+        "Supplier Management",
+        "Lieferantenmanagement",
+        "Einkaufsabstimmung"
+      ]
+    },
+    {
+      "kompetenz": "FMEA und technisches Risikomanagement",
+      "jahre": 12,
+      "auch": [
+        "FMEA",
+        "Design-FMEA",
+        "Prozess-FMEA",
+        "Projektrisikomanagement",
+        "Risikoanalyse"
+      ]
+    },
+    {
+      "kompetenz": "Montage- und Baustellenkoordination international",
+      "jahre": 11,
+      "auch": [
+        "Montageleitung",
+        "Baustellenleitung",
+        "Site Management",
+        "Auslandsinbetriebnahme"
+      ]
+    },
+    {
+      "kompetenz": "Berechnung und Simulation",
+      "jahre": 5,
+      "auch": [
+        "FEM",
+        "Festigkeitsberechnung",
+        "Auslegung",
+        "Simulation"
+      ]
+    },
+    {
+      "kompetenz": "Prototypenbau und Erprobung",
+      "jahre": 6,
+      "auch": [
+        "Prototyping",
+        "Versuchsbau",
+        "Erprobung",
+        "Validierung"
+      ]
+    },
+    {
+      "kompetenz": "Technische Dokumentation",
+      "jahre": 9,
+      "auch": [
+        "Betriebsanleitung",
+        "Technische Unterlagen",
+        "Dokumentation nach Maschinenrichtlinie"
+      ]
+    }
+  ],
+  "focus_areas": [
+    "Technische Projektleitung",
+    "Anlagenbau",
+    "Produktentwicklung",
+    "Inbetriebnahme"
+  ],
+  "target_roles": [
+    "Technischer Projektleiter",
+    "Projektleiter Anlagenbau",
+    "Projektleiter Sondermaschinenbau",
+    "Inbetriebnahmeleiter",
+    "Projektleiter Entwicklung",
+    "Technical Project Manager"
+  ],
+  "methoden_tools": [
+    {
+      "name": "Siemens NX"
+    },
+    {
+      "name": "SolidWorks"
+    },
+    {
+      "name": "Teamcenter"
+    },
+    {
+      "name": "ANSYS Mechanical"
+    },
+    {
+      "name": "SAP PS"
+    },
+    {
+      "name": "MS Project"
+    },
+    {
+      "name": "Oracle Primavera P6"
+    },
+    {
+      "name": "Safexpert"
+    },
+    {
+      "name": "SISTEMA"
+    },
+    {
+      "name": "Stage-Gate-Prozess"
+    },
+    {
+      "name": "Jira"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Project Management Professional (PMP)"
+    },
+    {
+      "name": "CE-Koordinator (TÜV)"
+    },
+    {
+      "name": "Funktionale Sicherheit von Maschinen nach EN ISO 13849 (TÜV)"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Maschinenbau"
+    },
+    {
+      "branche": "Anlagenbau"
+    },
+    {
+      "branche": "Automobilindustrie"
+    },
+    {
+      "branche": "Verpackungsindustrie"
+    },
+    {
+      "branche": "Lebensmittelindustrie"
+    },
+    {
+      "branche": "Intralogistik"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C1"
+    },
+    {
+      "sprache": "Spanisch",
+      "niveau": "B1"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Führt Anlagenprojekte vom Kick-off über FAT und SAT bis zur Endabnahme beim Kunden",
+    "Hat Inbetriebnahmen in Deutschland, den USA, Mexiko und China geleitet",
+    "Kommt aus der Konstruktion und bewertet technische Entscheidungen im Projekt selbst"
+  ],
+  "keywords": [
+    "Maschinenbau",
+    "Anlagenbau",
+    "Sondermaschinenbau",
+    "Projektleiter",
+    "Technische Projektleitung",
+    "Inbetriebnahme",
+    "FAT",
+    "SAT",
+    "CE",
+    "Maschinenrichtlinie",
+    "Konstruktion",
+    "Entwicklung",
+    "Engineering"
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 750,
+    "laender": [
+      "DE",
+      "AT",
+      "CH"
+    ],
+    "ausgeschlossene_vertragsarten": [],
+    "remote_ausserhalb_erlaubt": true,
+    "verfuegbar_ab": "2026-12-01"
+  },
+  "einsatzpraeferenzen": {
+    "tagessatz_wunsch": 850,
+    "remote": "teilweise",
+    "regionen": [
+      "Baden-Württemberg",
+      "Bayern",
+      "Schweiz"
+    ],
+    "branchen": [
+      "Maschinenbau",
+      "Anlagenbau",
+      "Verpackungsindustrie"
+    ]
+  }
+}

@@ -8,13 +8,16 @@
 //! every job with the new engine (`compile_profile` + `assess`: title, raw location, portal,
 //! text, page facts, teaser kind, mail date) and the old one (`legacy::legacy_percent`) for
 //! every profile (`core/tests/fixtures/matching/sample_profile*.json` or `--profile`), and
-//! reports per profile and in total: NDCG@10/@20, P@5, Spearman, high-band precision,
-//! grade-3 jobs buried, exclusion precision/recall and a paired bootstrap of NDCG@10
-//! new - old (`examples/common/metrics.rs`). Prints a Markdown table (numbers only, never
-//! ad text) and writes `gold/report.md` (private; it also lists job keys of misses).
+//! reports per profile and in total: NDCG@10/@20, P@5, Spearman (all pairs and relevant
+//! pairs), the concordance per grade pair, high-band precision, grade-3 jobs buried,
+//! exclusion precision/recall and a paired bootstrap of NDCG@10 new - old
+//! (`examples/common/metrics.rs`). Prints Markdown tables (numbers only, never ad text) and
+//! writes `gold/report.md` (private; it also lists job keys of misses).
 //!
-//! Exit code 1 when a gate of `docs/PLAN.md` fails with at least 60 labelled jobs; below
-//! that the result is "preliminary" and the exit code 0.
+//! Exit code 1 when a gate fails with at least 60 labelled jobs (`docs/PLAN.md`, the
+//! Spearman gate replaced by the relevant-pair Spearman and the concordance gates of
+//! `docs/MATCHING.md` "Corpus and gates"); below that the result is "preliminary" and the exit
+//! code 0.
 
 mod common;
 
@@ -284,6 +287,31 @@ fn misses_section(runs: &[ProfileRun]) -> String {
     out
 }
 
+/// The metric tables and the gates.
+fn results(rows: &[(String, Metrics)], total: &Metrics, gates: &[metrics::Gate]) -> String {
+    let mut out = String::from(
+        "\nNew / old per cell. NDCG and P@5: mean over profiles; Spearman, high band and \
+         buried grade-3 jobs pooled. Gain 2^grade - 1, grade 0 when the labelers excluded \
+         the job; the new engine ranks excluded jobs last. Bootstrap: ",
+    );
+    let _ = writeln!(
+        out,
+        "{} rounds, seed {}.\n",
+        metrics::BOOTSTRAP_ROUNDS,
+        metrics::BOOTSTRAP_SEED
+    );
+    out.push_str(&metrics::table(rows, total));
+    out.push_str(
+        "\nThe order below the top: Spearman of list order and gain over the relevant \
+         pairs (gain > 0), and the concordance of label grade and shown score per grade \
+         pair (same-profile job pairs, ties half, the score of an excluded job kept).\n\n",
+    );
+    out.push_str(&metrics::order_table(rows, total));
+    out.push('\n');
+    out.push_str(&metrics::gate_table(gates));
+    out
+}
+
 fn main() -> Res<ExitCode> {
     let args = parse_args()?;
     let dir = args.gold.unwrap_or_else(gold::gold_dir);
@@ -358,20 +386,7 @@ fn main() -> Res<ExitCode> {
         Status::Fail => "At least one gate FAILS.".to_owned(),
     };
     if status != Status::NoLabels {
-        summary.push_str(
-            "\nNew / old per cell. NDCG and P@5: mean over profiles; Spearman, high band and \
-             buried grade-3 jobs pooled. Gain 2^grade - 1, grade 0 when the labelers excluded \
-             the job; the new engine ranks excluded jobs last. Bootstrap: ",
-        );
-        let _ = writeln!(
-            summary,
-            "{} rounds, seed {}.\n",
-            metrics::BOOTSTRAP_ROUNDS,
-            metrics::BOOTSTRAP_SEED
-        );
-        summary.push_str(&metrics::table(&rows, &total));
-        summary.push('\n');
-        summary.push_str(&metrics::gate_table(&gates));
+        summary.push_str(&results(&rows, &total, &gates));
     }
     let _ = writeln!(summary, "\n**{verdict}**");
     println!("{summary}");

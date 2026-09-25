@@ -372,7 +372,7 @@ fn gates_and_status() {
         .collect();
     let m = metrics::metrics(&good);
     let gates = metrics::gates(&m);
-    assert_eq!(gates.len(), 10);
+    assert_eq!(gates.len(), 14);
     assert!(gates.iter().all(|g| g.pass), "{gates:?}");
     assert_eq!(metrics::status(0, &gates), Status::NoLabels);
     assert_eq!(metrics::status(59, &gates), Status::Preliminary);
@@ -382,7 +382,11 @@ fn gates_and_status() {
     let mut bad = good.clone();
     bad[0].new_outcome = Excluded;
     let gates = metrics::gates(&metrics::metrics(&bad));
-    let failed: Vec<&str> = gates.iter().filter(|g| !g.pass).map(|g| g.name).collect();
+    let failed: Vec<&str> = gates
+        .iter()
+        .filter(|g| !g.pass)
+        .map(|g| g.name.as_str())
+        .collect();
     assert!(failed.contains(&"Exclusion precision"), "{failed:?}");
     assert!(
         failed.contains(&"Grade-3 jobs buried (< 40, excluded or unscorable)"),
@@ -390,6 +394,63 @@ fn gates_and_status() {
     );
     assert_eq!(metrics::status(60, &gates), Status::Fail);
     assert_eq!(metrics::status(59, &gates), Status::Preliminary);
+
+    // Grade 3 below grade 0 in every pair fails the concordance gate.
+    let reversed: Vec<Pair> = good
+        .iter()
+        .map(|p| Pair {
+            new_score: 100 - p.new_score,
+            ..*p
+        })
+        .collect();
+    let gates = metrics::gates(&metrics::metrics(&reversed));
+    let failed: Vec<&str> = gates
+        .iter()
+        .filter(|g| !g.pass)
+        .map(|g| g.name.as_str())
+        .collect();
+    assert!(failed.contains(&"Concordance grade 0 v 3"), "{failed:?}");
+}
+
+/// The order below the top: Spearman over the relevant pairs only, and the concordance of
+/// label grade and shown score per grade pair (ties half, the score of an excluded job kept).
+#[test]
+fn relevant_spearman_and_concordance_per_grade_pair() {
+    let pairs = [
+        pair((90, Scored), 90, 3, false),
+        pair((70, Scored), 50, 2, false),
+        pair((70, Scored), 60, 1, false),
+        // Excluded by the engine with its score kept, a grade-2 job by the labels.
+        pair((80, Excluded), 30, 2, false),
+        pair((20, Scored), 70, 0, false),
+        pair((10, Scored), 20, 0, true),
+    ];
+    let m = metrics::metrics(&pairs);
+    let c = |lower, higher| {
+        let c = m.new.concordance_of(lower, higher);
+        (c.share, c.pairs)
+    };
+    assert_eq!(c(0, 3), (Some(1.0), 2));
+    // The excluded job keeps its 80 against the grade-0 jobs.
+    assert_eq!(c(0, 2), (Some(1.0), 4));
+    // Grade 1 against 2: tied at 70 (half) and below 80.
+    assert_eq!(c(1, 2), (Some(0.75), 2));
+    assert_eq!(c(2, 3), (Some(1.0), 2));
+    assert_eq!(c(1, 3), (Some(1.0), 1));
+    assert_eq!(m.old.concordance_of(0, 2).share, Some(0.5));
+    // Relevant pairs by list order (the excluded job last), gains 3, 2, 1, 2: key ranks
+    // 4, 2.5, 2.5, 1 against gain ranks 4, 2.5, 1, 2.5.
+    assert_eq!(m.new.spearman_relevant, Some(0.5));
+    // Relevant pairs of one gain have no order to judge.
+    let flat = [
+        pair((90, Scored), 0, 3, false),
+        pair((10, Scored), 0, 3, false),
+    ];
+    assert_eq!(metrics::metrics(&flat).new.spearman_relevant, None);
+    let table = metrics::order_table(&[("a.json".to_owned(), m)], &m);
+    assert_eq!(table.lines().count(), 4, "{table}");
+    assert!(table.contains("| 1.000 / 0.500 (4) |"), "{table}");
+    assert!(!table.contains("NaN"));
 }
 
 #[test]
@@ -405,6 +466,6 @@ fn tables_have_one_row_per_profile_and_the_total() {
     assert!(table.contains("| **Total** | 2 |"));
     assert!(!table.contains("NaN"));
     let gates = metrics::gate_table(&metrics::gates(&m));
-    assert_eq!(gates.lines().count(), 12);
+    assert_eq!(gates.lines().count(), 16);
     assert!(gates.contains("| Exclusion precision | 1.000 | 1.000 | pass |"));
 }

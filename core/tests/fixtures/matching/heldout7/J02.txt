@@ -1,0 +1,81 @@
+Titel: SAP S/4HANA Finance Berater (m/w/d) – Central Finance und Datenmigration
+Unternehmen: Taunusblick IT Consulting GmbH
+Ort: Wiesbaden
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/projekt/sap-s-4hana-finance-berater-m-w-d-central-finance-und-datenmigration-2899613
+Abgerufen am: 21.09.2026 07:41
+
+Projektdetails
+Start
+02.11.2026
+Dauer
+12 Monate
+Von
+Taunusblick IT Consulting GmbH
+Eingestellt
+20.09.2026
+Projekt-ID
+2899613
+Branche
+Versicherungen
+Vertragsart
+Freiberuflich
+Einsatzart
+80 % Remote
+Stundensatz
+120 - 135 €/h
+
+Beschreibung
+Für eine Versicherungsgruppe mit Sitz in Wiesbaden suchen wir einen erfahrenen SAP S/4HANA Finance Berater (m/w/d) für den Aufbau einer Central-Finance-Plattform. Ziel des Programms ist ein konzernweites Hauptbuch in S/4HANA, in das die Buchungen aus vier Quellsystemen (drei SAP ECC Systeme und ein Fremdsystem der Rückversicherung) repliziert werden. Die Einführung von SAP Group Reporting ist für 2028 geplant.
+
+Ihre Aufgaben
+• Fachkonzeption und Customizing von Central Finance (Hauptbuch, Kostenstellenrechnung, Profit-Center-Rechnung)
+• Definition der Mappings für Kontenplan, Kostenstellen und Profit Center in Abstimmung mit dem Stammdatenteam (SAP MDG)
+• Vorbereitung und Durchführung der Initial Loads, Abstimmung der Salden zwischen Quellsystemen und Central Finance
+• Fehlerbehandlung in der Replikation mit AIF, Zusammenarbeit mit dem SLT-Team
+• Datenmigration der historischen Salden und offenen Posten, Planung der Probeläufe und des Cutovers
+• Erstellung von Testfällen, Begleitung der Integrationstests und Key-User-Schulungen
+
+Ihr Profil
+• Mindestens sechs Jahre Erfahrung als SAP FI/CO Berater, davon mindestens zwei Projekte mit S/4HANA Finance
+• Praktische Erfahrung mit Central Finance oder mit größeren Datenmigrationen im Finanzwesen
+• Kenntnisse in SLT, AIF und MDG von Vorteil
+• Erfahrung in der Versicherungsbranche wünschenswert, aber keine Voraussetzung
+• Sehr gute Deutschkenntnisse, gutes Englisch
+
+Rahmendaten
+Einsatz überwiegend remote, vor Ort in Wiesbaden etwa zwei Tage pro Monat für Workshops und die Cutover-Planung.
+Die Beauftragung erfolgt freiberuflich auf Basis eines Dienstvertrags mit uns. Es handelt sich ausdrücklich nicht um eine Arbeitnehmerüberlassung (keine ANÜ).
+
+Schlagworte
+SAP FI
+SAP CO
+S/4HANA
+Central Finance
+Datenmigration
+SLT
+AIF
+MDG
+Versicherungen
+
+Jetzt bewerben
+Projekt merken
+Projekt teilen
+
+Anbieter
+Taunusblick IT Consulting GmbH
+SAP Beratung und Projektvermittlung
+148 veröffentlichte Projekte
+Mitglied seit 2016
+Firmenprofil ansehen
+
+Ähnliche Projekte
+SAP FI Berater Hauptbuch S/4HANA (m/w/d)
+Remote · ab sofort · 6 Monate
+SAP Central Finance Architect (m/w/d)
+Frankfurt am Main · 01.2027
+SAP CO Berater Profit-Center-Rechnung (m/w/d)
+Köln · 9 Monate
+Mehr Projekte anzeigen
+
+Sie sind Freelancer im Bereich SAP? Jetzt kostenlos registrieren und passende Projekte per E-Mail erhalten.

@@ -1,0 +1,360 @@
+{
+  "name": "Jörg Vordruck",
+  "email": "joerg.vordruck@example.invalid",
+  "telefon": "+49 157 0000000",
+  "titel": "Programmmanager Verwaltungsdigitalisierung und OZG",
+  "berufserfahrung_jahre": 17,
+  "abschluss": "Diplom-Verwaltungswirt (FH), Master of Public Administration",
+  "ausbildung": [
+    {
+      "abschluss": "Diplom-Verwaltungswirt (FH)",
+      "fach": "Allgemeine innere Verwaltung",
+      "hochschule": "Beispielhochschule für öffentliche Verwaltung",
+      "jahr": 2009
+    },
+    {
+      "abschluss": "Master of Public Administration (MPA)",
+      "fach": "Verwaltungsmodernisierung und E-Government",
+      "hochschule": "Beispieluniversität",
+      "jahr": 2014
+    }
+  ],
+  "stationen": [
+    {
+      "zeitraum": "2019 - heute",
+      "rolle": "Freiberuflicher Programmmanager und Berater für Verwaltungsdigitalisierung",
+      "schwerpunkte": [
+        "Programmleitung für die OZG-Umsetzung in einem Landesministerium mit mehr als 60 Onlinediensten",
+        "Leitung des Programmbüros für ein Themenfeld nach dem Einer-für-Alle-Prinzip mit Nachnutzung durch zwölf Bundesländer",
+        "Anbindung von Onlinediensten an Nutzerkonten, FIT-Connect und die Registermodernisierung",
+        "Vorbereitung von Vergabeverfahren nach VgV und UVgO einschließlich Leistungsbeschreibung und Wertung",
+        "Einführung der E-Akte und Digitalisierung von Antragsprozessen in drei Kommunalverwaltungen"
+      ]
+    },
+    {
+      "zeitraum": "2014 - 2019",
+      "rolle": "Senior Consultant Public Sector bei einer Unternehmensberatung",
+      "schwerpunkte": [
+        "Organisationsuntersuchungen und Personalbedarfsermittlung für Bundes- und Landesbehörden",
+        "Projektleitung für die Einführung der E-Akte nach dem E-Government-Gesetz",
+        "Wirtschaftlichkeitsbetrachtungen für IT-Vorhaben der öffentlichen Hand"
+      ]
+    },
+    {
+      "zeitraum": "2009 - 2014",
+      "rolle": "Sachgebietsleiter IT-Organisation in einer Kreisverwaltung",
+      "schwerpunkte": [
+        "Koordination der IT-Projekte der Kreisverwaltung mit dem kommunalen IT-Dienstleister",
+        "Einführung eines Dokumentenmanagementsystems und elektronischer Workflows",
+        "Führung eines Teams mit sechs Mitarbeitenden"
+      ]
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "OZG-Umsetzung",
+      "jahre": 7,
+      "auch": [
+        "Onlinezugangsgesetz",
+        "OZG",
+        "OZG 2.0",
+        "OZG-Änderungsgesetz",
+        "Onlinedienste",
+        "Digitalisierung von Verwaltungsleistungen"
+      ]
+    },
+    {
+      "kompetenz": "Programmmanagement",
+      "jahre": 9,
+      "auch": [
+        "Programmleitung",
+        "Programm-Management",
+        "Multiprojektmanagement",
+        "Portfoliomanagement",
+        "Programme Management"
+      ]
+    },
+    {
+      "kompetenz": "Verwaltungsdigitalisierung",
+      "jahre": 16,
+      "auch": [
+        "E-Government",
+        "Digitale Verwaltung",
+        "Verwaltungsmodernisierung",
+        "Digitalisierung der öffentlichen Verwaltung",
+        "Public Sector Digitalisierung"
+      ]
+    },
+    {
+      "kompetenz": "PMO",
+      "jahre": 10,
+      "auch": [
+        "Project Management Office",
+        "Programmbüro",
+        "Projektsteuerung",
+        "Projektcontrolling"
+      ]
+    },
+    {
+      "kompetenz": "E-Akte und Dokumentenmanagement",
+      "jahre": 14,
+      "auch": [
+        "E-Akte",
+        "Elektronische Akte",
+        "DMS",
+        "Dokumentenmanagementsystem",
+        "Schriftgutverwaltung",
+        "E-Government-Gesetz"
+      ]
+    },
+    {
+      "kompetenz": "Einer-für-Alle-Nachnutzung",
+      "jahre": 5,
+      "auch": [
+        "EfA",
+        "EfA-Prinzip",
+        "Nachnutzung",
+        "FIT-Store",
+        "Föderale Zusammenarbeit"
+      ]
+    },
+    {
+      "kompetenz": "Prozessmanagement in der Verwaltung",
+      "jahre": 14,
+      "auch": [
+        "Prozessanalyse",
+        "Prozessmodellierung",
+        "BPMN",
+        "FIM",
+        "Föderales Informationsmanagement",
+        "Geschäftsprozessoptimierung"
+      ]
+    },
+    {
+      "kompetenz": "Registermodernisierung und Interoperabilität",
+      "jahre": 3,
+      "auch": [
+        "Registermodernisierung",
+        "NOOTS",
+        "Once-Only",
+        "XÖV",
+        "FIT-Connect",
+        "Interoperabilität"
+      ]
+    },
+    {
+      "kompetenz": "Öffentliches Vergaberecht",
+      "jahre": 10,
+      "auch": [
+        "Vergaberecht",
+        "Vergabeverfahren",
+        "VgV",
+        "UVgO",
+        "EVB-IT",
+        "Leistungsbeschreibung",
+        "Ausschreibung"
+      ]
+    },
+    {
+      "kompetenz": "Organisationsuntersuchungen",
+      "jahre": 6,
+      "auch": [
+        "Organisationsberatung",
+        "Personalbedarfsermittlung",
+        "Aufgabenkritik",
+        "Organisationsentwicklung"
+      ]
+    },
+    {
+      "kompetenz": "Wirtschaftlichkeitsbetrachtungen",
+      "jahre": 8,
+      "auch": [
+        "WiBe",
+        "Wirtschaftlichkeitsuntersuchung",
+        "Business Case",
+        "Haushaltsrecht",
+        "Kosten-Nutzen-Analyse"
+      ]
+    },
+    {
+      "kompetenz": "Anforderungsmanagement",
+      "jahre": 12,
+      "auch": [
+        "Requirements Engineering",
+        "Fachkonzept",
+        "Lastenheft",
+        "Anforderungsanalyse"
+      ]
+    },
+    {
+      "kompetenz": "Stakeholdermanagement im föderalen Umfeld",
+      "jahre": 12,
+      "auch": [
+        "Stakeholdermanagement",
+        "Gremienarbeit",
+        "Bund, Länder und Kommunen",
+        "IT-Planungsrat",
+        "Abstimmung mit Ministerien"
+      ]
+    },
+    {
+      "kompetenz": "Changemanagement in Behörden",
+      "jahre": 10,
+      "auch": [
+        "Changemanagement",
+        "Change Management",
+        "Veränderungsmanagement",
+        "Akzeptanzmanagement",
+        "Schulungskonzepte"
+      ]
+    },
+    {
+      "kompetenz": "Projektmanagement nach V-Modell XT und PRINCE2",
+      "jahre": 10,
+      "auch": [
+        "V-Modell XT",
+        "V-Modell XT Bund",
+        "PRINCE2",
+        "PM²",
+        "Projektmanagement"
+      ]
+    },
+    {
+      "kompetenz": "Agiles und hybrides Projektmanagement",
+      "jahre": 5,
+      "auch": [
+        "Scrum",
+        "Hybrides Projektmanagement",
+        "Agile Methoden",
+        "Product Owner"
+      ]
+    },
+    {
+      "kompetenz": "Informationssicherheit und Datenschutz in der Verwaltung",
+      "jahre": 6,
+      "auch": [
+        "BSI IT-Grundschutz",
+        "IT-Grundschutz",
+        "Informationssicherheit",
+        "DSGVO",
+        "Datenschutz"
+      ]
+    }
+  ],
+  "schwerpunkte": [
+    "OZG-Umsetzung",
+    "Programmmanagement",
+    "Verwaltungsdigitalisierung",
+    "PMO",
+    "E-Akte und Dokumentenmanagement"
+  ],
+  "wunschrollen": [
+    "Programmmanager OZG",
+    "Programmleitung Verwaltungsdigitalisierung",
+    "Leitung PMO Public Sector",
+    "Projektleiter E-Government",
+    "Senior Projektmanager Public Sector"
+  ],
+  "methoden_tools": [
+    {
+      "name": "Jira"
+    },
+    {
+      "name": "Confluence"
+    },
+    {
+      "name": "MS Project"
+    },
+    {
+      "name": "SAP Signavio"
+    },
+    {
+      "name": "PICTURE-Prozessplattform"
+    },
+    {
+      "name": "BPMN 2.0"
+    },
+    {
+      "name": "FIM-Methodik"
+    },
+    {
+      "name": "XÖV-Standards"
+    },
+    {
+      "name": "V-Modell XT Bund"
+    },
+    {
+      "name": "PRINCE2"
+    },
+    {
+      "name": "Scrum"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "PRINCE2 Practitioner"
+    },
+    {
+      "name": "Professional Scrum Master I (PSM I)"
+    },
+    {
+      "name": "IT-Grundschutz-Praktiker"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Öffentliche Verwaltung"
+    },
+    {
+      "branche": "Bundesbehörden"
+    },
+    {
+      "branche": "Landesverwaltung"
+    },
+    {
+      "branche": "Kommunalverwaltung"
+    },
+    {
+      "branche": "IT-Dienstleister der öffentlichen Hand"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "B2"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Hat selbst in einer Kreisverwaltung gearbeitet und kennt die Verwaltung von innen",
+    "Hat mehr als 60 Verwaltungsleistungen nach OZG online gebracht, davon 14 als EfA-Leistung",
+    "Verbindet Programmsteuerung, Vergabe und Prozessdigitalisierung"
+  ],
+  "keywords": [
+    "OZG",
+    "Onlinezugangsgesetz",
+    "E-Government",
+    "Verwaltungsdigitalisierung",
+    "Public Sector",
+    "Öffentliche Verwaltung",
+    "Behörde",
+    "Programmmanagement",
+    "PMO",
+    "EfA",
+    "E-Akte",
+    "Registermodernisierung",
+    "Vergaberecht"
+  ],
+  "harte_kriterien": {
+    "min_tagessatz": 850,
+    "laender": [
+      "DE"
+    ],
+    "ausgeschlossene_vertragsarten": [],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "sofort"
+  }
+}

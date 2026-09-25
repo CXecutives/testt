@@ -93,6 +93,17 @@ warnings; a mandatory licence excludes, an optional one caps.
 Metrics for the private gold set (`common/eval.rs`): NDCG@k (gain 2^grade - 1), P@k,
 Spearman, high-band precision, paired bootstrap with a fixed seed.
 
+The order below the top has two more measures (`examples/common/metrics.rs`, printed by
+`match_eval` and `heldout_report`): the Spearman correlation of list order and gain over the
+relevant pairs only (gain > 0), and the concordance per grade pair (0v3, 0v2, 0v1, 1v3, 1v2,
+2v3): the share of same-profile job pairs whose shown scores order them like their label
+grades, ties half, the score of an excluded job kept (it measures the fit, the exclusions have
+their own gates). They replace the pooled Spearman gate of `docs/PLAN.md` (>= 0.55): most pairs
+of a set have gain 0, so its ceiling is low (a perfect order reaches 0.51 on set 7) and it failed
+on every set whatever the engine did. The gates: Spearman over the relevant pairs >= 0.50 and
+above the old engine; concordance 0v3 >= 0.95, 0v2 >= 0.85, 1v3 >= 0.80, 2v3 >= 0.70 (0v1 and
+1v2 are reported only: the labelers themselves disagree most there).
+
 ## The new engine (ENGINE_VERSION 3)
 
 Integer-only, per-mille throughout; `core/src/matching/{job,atoms,fit,facts,contract,permanent,

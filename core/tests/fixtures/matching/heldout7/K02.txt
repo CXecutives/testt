@@ -1,0 +1,90 @@
+Titel: PMO Lead (m/w/d) S/4HANA-Transformationsprogramm Versicherung
+Unternehmen: Brandauer & Kolb IT-Projektpartner GmbH
+Ort: Frankfurt am Main
+Quelle: Freelancermap
+Link: https://www.freelancermap.de/projekt/pmo-lead-m-w-d-s-4hana-transformationsprogramm-versicherung-3192466
+Abgerufen am: 22.09.2026 07:51
+
+Projektdetails
+Start
+11.2026
+Dauer
+12 Monate
+Von
+Brandauer & Kolb IT-Projektpartner GmbH
+Eingestellt
+21.09.2026
+Projekt-ID
+3192466
+Branche
+Versicherungen
+Vertragsart
+Freiberuflich
+Einsatzart
+80 % Remote
+
+Beschreibung
+Für unseren langjährigen Kunden, eine Versicherungsgruppe mit Sitz in Frankfurt am Main (Leben, Kranken, Komposit; rund 6.500 Mitarbeitende), suchen wir einen erfahrenen PMO Lead (m/w/d) für das konzernweite Transformationsprogramm im Finanz- und Einkaufsbereich.
+
+Das Programm löst die bestehende SAP-ECC-Landschaft in Rechnungswesen, Controlling und Einkauf durch SAP S/4HANA ab und führt parallel ein neues Nebenbuch für IFRS 17 ein. Beteiligt sind sieben Teilprojekte, drei Implementierungspartner und rund 140 interne und externe Projektmitarbeitende. Das Programmbudget liegt bei rund 45 Mio. €.
+
+Ihre Aufgaben
+• Aufbau und Leitung des Programm-PMO mit vier Mitarbeitenden (intern und extern)
+• Integrierte Programmplanung über alle Teilprojekte, Meilenstein- und Abhängigkeitsmanagement
+• Budget- und Ressourcencontrolling, Forecasts und Abweichungsanalysen für den Lenkungsausschuss
+• Risiko-, Issue- und Change-Request-Management nach den Programmstandards
+• Vorbereitung und Moderation von Lenkungsausschuss und Programm-Board
+• Steuerung der Implementierungspartner hinsichtlich Leistungsnachweisen und Abrechnung
+• Einführung eines einheitlichen Programmreportings in Jira Align und Power BI
+• Mitarbeit an der Cutover- und Go-live-Planung für das erste Release (Q3 2027)
+
+Ihr Profil
+• Mindestens 20 Jahre Berufserfahrung in IT-Großprojekten, davon mindestens 10 Jahre in der Leitung von PMOs oder als Programmmanager
+• Nachweisbare Erfahrung in SAP-S/4HANA-Programmen, idealerweise im Finanzbereich
+• Sicher in hybriden Vorgehensmodellen (SAP Activate, SAFe) und in PMO-Werkzeugen (Jira Align, MS Project, Power BI)
+• Erfahrung in der Versicherungs- oder Finanzbranche von Vorteil
+• Zertifizierung nach PMP, PRINCE2 oder IPMA wünschenswert
+• Sehr gute Deutsch- und Englischkenntnisse
+
+Rahmendaten
+Start: 02.11.2026
+Laufzeit: 12 Monate, Option auf Verlängerung bis Ende 2028
+Auslastung: 100 %
+Einsatzort: Frankfurt am Main, ca. 80 % remote; Präsenz zu Lenkungsausschüssen und Planungsworkshops
+Stundensatz: nach Vereinbarung
+
+Hinweis zur Vertragsform
+Die Beauftragung erfolgt freiberuflich auf Basis eines Dienstvertrags mit der Brandauer & Kolb IT-Projektpartner GmbH. Es handelt sich ausdrücklich nicht um Arbeitnehmerüberlassung (keine ANÜ).
+
+Schlagworte
+PMO
+Programmmanagement
+SAP S/4HANA
+Projektcontrolling
+Jira Align
+Power BI
+IFRS 17
+Versicherungen
+SAFe
+
+Jetzt bewerben
+Projekt merken
+Projekt teilen
+
+Anbieter
+Brandauer & Kolb IT-Projektpartner GmbH
+IT-Projektvermittlung für Banken und Versicherungen
+211 veröffentlichte Projekte
+Mitglied seit 2014
+Firmenprofil ansehen
+
+Ähnliche Projekte
+PMO Consultant SAP (m/w/d)
+Köln · 01.2027 · Freiberuflich
+Projektcontroller IT-Programm (m/w/d) Remote
+Remote · ab sofort · 6 Monate
+SAP S/4HANA Programmmanager Finance (m/w/d)
+München · 11.2026 · 12 Monate
+Mehr Projekte anzeigen
+
+Sie sind Freelancer im Bereich Projektmanagement? Jetzt kostenlos registrieren und Projekte per E-Mail erhalten.
