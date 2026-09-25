@@ -81,34 +81,44 @@
   /** The rows in the order they stand: the active ones, then the excluded ones. */
   const order = $derived([...active, ...excluded]);
 
-  /** Open the row at `index` (the keyboard): it scrolls into view and takes the focus. */
-  function openAt(index: number): void {
-    const job = order[index];
-    if (job === undefined) return;
+  /**
+   * Open the job at `target` of the whole list (the keyboard), also one below the rows
+   * mounted or loaded so far: the pages up to it load, its row mounts, then it scrolls into
+   * view and takes the focus.
+   */
+  async function openAt(target: number | 'last'): Promise<void> {
+    const job = await jobs.reach(target, true);
+    if (job === null) return;
     selection.only(job);
     if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
-    const row = list?.querySelector<HTMLElement>(`[data-key="${CSS.escape(keyOf(job.key))}"] .row`);
-    row?.focus({ preventScroll: true });
-    row?.scrollIntoView({ block: 'nearest' });
   }
 
-  /** ArrowUp / ArrowDown (lib/input/input.ts): the previous or next row opens; with none
-   *  open, the first (down) or the last (up). */
+  /** ArrowUp / ArrowDown (lib/input/input.ts): the previous or next job opens; with none
+   *  open, the first (down) or the last of the list (up). */
   export function step(by: -1 | 1): void {
-    const at = order.findIndex((job) => sameKey(jobs.selected, job.key));
-    openAt(
-      at === -1
-        ? by === 1
-          ? 0
-          : order.length - 1
-        : Math.max(0, Math.min(order.length - 1, at + by)),
-    );
+    const at = jobs.visible.findIndex((job) => sameKey(jobs.selected, job.key));
+    void openAt(at === -1 ? (by === 1 ? 0 : 'last') : Math.max(0, at + by));
   }
 
-  /** Home / End: the first or the last row shown. */
+  /** Home / End: the first or the last job of the list. */
   export function edge(last: boolean): void {
-    openAt(last ? order.length - 1 : 0);
+    void openAt(last ? 'last' : 0);
   }
+
+  // A job the keys opened, or the open job after a re-sort: once its row is mounted it
+  // scrolls into view (and takes the focus when the keys opened it).
+  $effect(() => {
+    const want = jobs.reveal;
+    void shown;
+    if (want === null) return;
+    untrack(() => {
+      const row = list?.querySelector<HTMLElement>(`[data-key="${CSS.escape(want.key)}"] .row`);
+      if (!row) return;
+      jobs.reveal = null;
+      if (want.focus) row.focus({ preventScroll: true });
+      row.scrollIntoView({ block: 'nearest' });
+    });
+  });
 
   /** A click opens the job (the open one stays open); with Ctrl/Cmd or Shift it chooses. */
   function select(job: JobView, how: SelectHow): void {

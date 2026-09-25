@@ -219,3 +219,48 @@ test.describe('choosing several jobs', () => {
     expect(await calls(page, 'job_detail')).toEqual([]);
   });
 });
+
+test.describe('the keys over the whole list', () => {
+  /** The open job's row is the last row of the list, mounted: every page has loaded. */
+  async function lastIsOpen(page: Page): Promise<boolean> {
+    const keys = await listedKeys(page);
+    return keys.length > 120 && (await highlighted(page))[0] === keys.at(-1);
+  }
+
+  test('End opens the last job of the whole list and gives its row the focus', async ({ page }) => {
+    await open(page, `${WIN}&scenario=many`);
+    await page.keyboard.press('End');
+    await expect.poll(() => lastIsOpen(page), { timeout: 20_000 }).toBe(true);
+    const last = (await listedKeys(page)).at(-1) ?? '';
+    const focused = page.getByTestId(`job-row-${last.replace(':', '-')}`);
+    await expect(focused).toBeFocused();
+    await expect(focused).toBeInViewport();
+    await expect(page.getByTestId('job-list').locator('.sentinel')).toHaveCount(0);
+    // End again stays on it.
+    await page.keyboard.press('End');
+    await expect.poll(() => lastIsOpen(page)).toBe(true);
+  });
+
+  test('ArrowUp with nothing open opens the last job of the whole list', async ({ page }) => {
+    await open(page, `${WIN}&scenario=many`);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => lastIsOpen(page), { timeout: 20_000 }).toBe(true);
+  });
+
+  test('a re-sort keeps the open job in view, and the arrows go on from it', async ({ page }) => {
+    await open(page, `${WIN}&scenario=many`);
+    await facet(page, 'Alle').click();
+    await rows(page).nth(39).click();
+    const key = (await highlighted(page))[0] ?? '';
+    await page.getByTestId('sort').click();
+    await page.evaluate(() => window.__harness.pick(1));
+    await expect(page.getByTestId('sort')).toHaveText('Nach Datum');
+    const target = page.getByTestId('job-list').locator(`[data-key="${key}"] .row`);
+    await expect(target).toHaveClass(/selected/);
+    await expect(target).toBeInViewport();
+    const keys = await listedKeys(page);
+    const next = keys[keys.indexOf(key) + 1];
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => highlighted(page)).toEqual([next]);
+  });
+});

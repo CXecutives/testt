@@ -244,6 +244,9 @@ class JobsStore {
   generation = $state(0);
   /** Keys inserted while the list was on screen (they fade in). */
   fresh = new SvelteSet<string>();
+  /** A row the list brings into view once it is mounted (a job the keys opened further down,
+   *  the open job after a re-sort), and whether it takes the focus. */
+  reveal = $state<{ key: string; focus: boolean } | null>(null);
 
   selected = $state<JobKey | null>(null);
   detail = $state.raw<JobDetail | null>(null);
@@ -348,7 +351,14 @@ class JobsStore {
   setSort(sort: JobSort): void {
     this.sortChoice = sort;
     keepSort(sort);
-    void this.load(true);
+    // The open job keeps its row in view in the new order, also when that is further down.
+    const open = this.selected;
+    const listed = this.rows.some((job) => sameKey(job.key, open));
+    void this.load(true).then(() => {
+      if (open !== null && listed && sameKey(this.selected, open) && this.status === 'ready') {
+        void this.reach(open, false);
+      }
+    });
   }
 
   setSearch(value: string): void {
@@ -377,6 +387,7 @@ class JobsStore {
     this.status = 'loading';
     this.error = null;
     this.pageError = null;
+    if (!keep) this.reveal = null;
     const timer = setTimeout(() => {
       if (request === this.#request) this.slow = true;
     }, tokenMs('--dur-fast'));
@@ -417,7 +428,11 @@ class JobsStore {
     if (open === null || !sameKey(open.key, this.selected)) return rows;
     if (open.place !== 'inbox' || rows.some((job) => sameKey(job.key, open.key))) return rows;
     const at = this.rows.findIndex((job) => sameKey(job.key, open.key));
-    const index = at < 0 ? 0 : Math.min(at, rows.length);
+    // Among its kind: the excluded jobs stay behind the others.
+    const out = rows.findIndex(isExcluded);
+    const split = out < 0 ? rows.length : out;
+    const [low, high] = isExcluded(open) ? [split, rows.length] : [0, split];
+    const index = Math.max(low, Math.min(at < 0 ? low : at, high));
     this.#own.add(keyOf(open.key));
     return [...rows.slice(0, index), open, ...rows.slice(index)];
   }
@@ -483,6 +498,38 @@ class JobsStore {
 
   private async loadAll(request: number): Promise<void> {
     while (request === this.#request && (await this.page(request)));
+  }
+
+  /**
+   * The row at `target` of the list (an index, the last row, or a job), loading the pages up
+   * to it, and a window that reaches it: its row mounts within a few frames (chunk by chunk,
+   * like every window) and the list then brings it into view (`reveal`). Resolves with the
+   * job, or null when the list has no such row or another list replaced it meanwhile.
+   */
+  async reach(target: number | 'last' | JobKey, focus: boolean): Promise<JobView | null> {
+    const request = this.#request;
+    const index = (): number =>
+      target === 'last'
+        ? this.visible.length - 1
+        : typeof target === 'number'
+          ? target
+          : this.visible.findIndex((job) => sameKey(job.key, target));
+    const missing = (): boolean =>
+      target === 'last' || index() < 0 || index() >= this.visible.length;
+    this.pageError = null;
+    try {
+      while (request === this.#request && missing() && (await this.page(request)));
+    } catch (error) {
+      if (request === this.#request) this.pageError = errorText(error);
+    }
+    if (request !== this.#request) return null;
+    const at = Math.min(index(), this.visible.length - 1);
+    const job = at < 0 ? undefined : this.visible[at];
+    if (job === undefined) return null;
+    if (at >= this.window) this.window = Math.ceil((at + 1) / WINDOW) * WINDOW;
+    this.pump();
+    this.reveal = { key: keyOf(job.key), focus };
+    return job;
   }
 
   /** The sentinel at the end of the list became visible: show the next window. */
