@@ -8,6 +8,7 @@
 import { language } from '../i18n/language.svelte';
 import { invoke } from '../ipc/api';
 import type {
+  Notice,
   ProfileCompetence,
   ProfileDraft,
   ProfileForm,
@@ -69,6 +70,42 @@ export function cleanList(items: readonly string[]): string[] {
 
 const positive = (value: number | null): number | null =>
   value !== null && value > 0 ? value : null;
+
+/** Form fields that can hold a value from the file the app could not read. */
+export type UnreadableField = 'minSalary' | 'places' | 'remoteMin' | 'targetYears' | 'available';
+
+/** The profile keys of those values (an external contract, German and English). */
+const UNREADABLE_KEYS: Record<string, UnreadableField> = {
+  min_jahresgehalt: 'minSalary',
+  min_annual_salary: 'minSalary',
+  min_salary: 'minSalary',
+  festanstellung_orte: 'places',
+  permanent_locations: 'places',
+  permanent_places: 'places',
+  festanstellung_remote_min: 'remoteMin',
+  permanent_remote_min: 'remoteMin',
+  zielprofil_min_jahre: 'targetYears',
+  target_min_years: 'targetYears',
+};
+
+/** The values the engine could not read (its warnings), by form field, as the file had
+ *  them (a JSON text loses its quotes). */
+export function unreadableValues(
+  warnings: readonly Notice[],
+): Partial<Record<UnreadableField, string>> {
+  const out: Partial<Record<UnreadableField, string>> = {};
+  const text = (value: unknown): string =>
+    typeof value === 'string' ? value.replace(/^"(.*)"$/, '$1') : String(value ?? '');
+  for (const warning of warnings) {
+    if (warning.code === 'availabilityNotUnderstood') {
+      out.available = text(warning.params.value);
+    } else if (warning.code === 'criterionNotUnderstood') {
+      const field = UNREADABLE_KEYS[text(warning.params.key)];
+      if (field) out[field] = text(warning.params.value);
+    }
+  }
+  return out;
+}
 
 /** The form the way the backend compares it (trimmed, empty rows and entries gone). */
 export function normalized(form: ProfileForm): ProfileForm {
@@ -186,11 +223,16 @@ class ProfileEditor {
     this.pasting = false;
   }
 
-  /** An empty form for a new profile. */
+  /** An empty form for a new profile, with one empty competence and language row, so the
+   *  table and the star show at once. */
   create(): void {
     this.origin = 'new';
     this.before = emptyForm();
-    this.after = emptyForm();
+    this.after = {
+      ...emptyForm(),
+      competences: [{ name: '', years: null, aliases: [], origin: null }],
+      languages: [{ language: '', level: null, origin: null }],
+    };
     this.dateText = '';
     this.source = NEW_SOURCE;
     this.quality = null;
@@ -233,7 +275,7 @@ class ProfileEditor {
   /** Writes the form; the caller reloads the app state (and with it the stored form). */
   save(): Promise<ProfileInfo> {
     return invoke('save_profile', {
-      save: { before: this.before, after: copy(this.after), source: this.source },
+      save: { before: this.before, after: normalized(copy(this.after)), source: this.source },
     });
   }
 }

@@ -54,6 +54,12 @@ fn any(folded: &str, words: &[&str]) -> bool {
     words.iter().any(|w| folded.contains(w))
 }
 
+/// A student or trainee role (`Werkstudent`, `Praktikum` in the title): employment, inferred
+/// from the title; only its stated wage decides.
+pub(crate) fn student_role(title: &str) -> bool {
+    any(&format!("{} ", fold(title)), lex::STUDENT_ROLES)
+}
+
 /// Infers the contract type; `anue` holds the decided ANÜ findings of the ad.
 pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) -> Contract {
     let contract_fact = fact(job.facts, super::fact_key::CONTRACT)
@@ -85,8 +91,12 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
             .take(2)
             .collect()
     };
+    // The page's own field, read by its exact value: LinkedIn's "Befristet" or "Contract"
+    // is a limited engagement ("Vollzeit" and "Teilzeit" say nothing about it).
+    let limited_fact = lex::LIMITED_CONTRACT_VALUES.contains(&contract_fact.trim());
     let interim = interim_at(&title)
         || interim_at(&contract_fact)
+        || limited_fact
         || fact(job.facts, super::fact_key::RATE).is_some()
         || segments.iter().any(|(_, f)| interim_at(f));
     let stated = stated_at(&contract_fact) || segments.iter().any(|(_, f)| stated_at(f));
@@ -94,6 +104,7 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
     let agency = segments.iter().any(|(_, f)| any(f, lex::AGENCY_CUES));
     let portal_interim = matches!(job.portal, Portal::Freelancermap | Portal::FreelanceDe);
     let decided_anue = anue.iter().any(|f| f.decided);
+    let student = student_role(job.title);
     let contract = |kind, inferred, spans| Contract {
         kind,
         inferred,
@@ -107,6 +118,11 @@ pub(crate) fn infer(job: &JobFacts<'_>, segments: &[Segment], anue: &[Finding]) 
     }
     if field {
         return contract(ContractKind::Permanent, false, spans_of(&stated_at));
+    }
+    // A student or trainee role (`Werkstudent`, `Praktikum`) is employment, whatever the
+    // hourly wage suggests; inferred from the title, so region and salary are checks.
+    if student {
+        return contract(ContractKind::Permanent, true, spans_of(&stated_at));
     }
     match (stated, interim) {
         (true, true) => contract(ContractKind::Unclear, false, spans_of(&stated_at)),
@@ -201,6 +217,63 @@ mod tests {
             li,
         );
         assert_eq!((both.kind, both.stated_permanent), (Unclear, true));
+    }
+
+    /// LinkedIn's employment type, read by its exact value: a limited engagement is
+    /// interim, a full-time or part-time or internship value says nothing about it.
+    #[test]
+    fn the_page_employment_type_by_its_value() {
+        use ContractKind::{Interim, Unclear};
+        let kind = |value: &str| {
+            let facts = serde_json::json!({ "contract": value });
+            let job = JobFacts {
+                title: "Leiter Controlling (m/w/d)",
+                text: "Leitung des Controllings.",
+                location: "",
+                portal: Portal::LinkedIn,
+                facts: Some(&facts),
+                posted: None,
+            };
+            let segments = segments(job.text);
+            infer(&job, &segments, &[]).kind
+        };
+        for limited in ["Befristet", "Contract", "Temporary", "Freiberuflich"] {
+            assert_eq!(kind(limited), Interim, "{limited}");
+        }
+        for neutral in [
+            "Vollzeit",
+            "Teilzeit",
+            "Full-time",
+            "Praktikum",
+            "Sonstiges",
+        ] {
+            assert_eq!(kind(neutral), Unclear, "{neutral}");
+        }
+    }
+
+    /// freelancermap's contract type code, in the page's words: a permanent position or
+    /// temporary agency work is seen although the description does not repeat it (the
+    /// portal alone used to make every project interim).
+    #[test]
+    fn freelancermap_contract_types_from_the_page() {
+        use ContractKind::{Anue, Interim, Permanent};
+        let kind = |value: &str| {
+            let facts = serde_json::json!({ "contract": value });
+            let job = JobFacts {
+                title: "Leitung Controlling (m/w/d)",
+                text: "Leitung des Controllings im Mittelstand.",
+                location: "",
+                portal: Portal::Freelancermap,
+                facts: Some(&facts),
+                posted: None,
+            };
+            let segments = segments(job.text);
+            let anue = anue(&job, &segments);
+            infer(&job, &segments, &anue).kind
+        };
+        assert_eq!(kind("Festanstellung"), Permanent);
+        assert_eq!(kind("Arbeitnehmerüberlassung"), Anue);
+        assert_eq!(kind("Freiberuflich"), Interim);
     }
 
     #[test]

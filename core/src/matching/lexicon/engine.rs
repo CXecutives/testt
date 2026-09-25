@@ -8,10 +8,13 @@
 pub(crate) const FILLERS: &[&str] = &[
     "ability",
     "abstimmung",
+    "advantage",
+    "advantageous",
     "aktuelle",
     "analytische",
     "anspruchsvolle",
     "anwendung",
+    "asset",
     "aufgaben",
     "ausgepragt",
     "background",
@@ -35,6 +38,7 @@ pub(crate) const FILLERS: &[&str] = &[
     "general",
     "ggf",
     "hands-on",
+    "hilfreich",
     "hohe",
     "hoher",
     "idealerweise",
@@ -51,7 +55,9 @@ pub(crate) const FILLERS: &[&str] = &[
     "more",
     "nachweisbare",
     "nachweislich",
+    "nice",
     "niveau",
+    "plus",
     "proven",
     "record",
     "several",
@@ -70,11 +76,13 @@ pub(crate) const FILLERS: &[&str] = &[
     "vergleichbaren",
     "vertiefte",
     "very",
+    "vorteil",
     "vorzugsweise",
     "weitreichende",
     "within",
     "worked",
     "working",
+    "wunschenswert",
     "year",
     "zudem",
 ];
@@ -102,6 +110,8 @@ pub(crate) const GENERIC_ATOMS: &[&str] = &[
     "manag",
     "management",
     "manager",
+    "partn",
+    "partner",
     "process",
     "project",
     "projekt",
@@ -112,6 +122,8 @@ pub(crate) const GENERIC_ATOMS: &[&str] = &[
     "technologi",
     "technologie",
     "tool",
+    "unternehm",
+    "unternehmen",
     "unterstutzung",
     "werkzeug",
 ];
@@ -198,6 +210,46 @@ pub(crate) const LANGUAGES: &[&str] = &[
     "chinesisch",
     "portugiesisch",
     "turkisch",
+    "tschechisch",
+    "ungarisch",
+    "rumanisch",
+    "schwedisch",
+    "danisch",
+    "norwegisch",
+    "finnisch",
+    "griechisch",
+    "japanisch",
+    "arabisch",
+    "koreanisch",
+    "kroatisch",
+];
+/// English names of languages (whole words) and their stem in `LANGUAGES`.
+pub(crate) const LANGUAGE_NAMES: &[(&str, &str)] = &[
+    ("german", "deutsch"),
+    ("english", "englisch"),
+    ("french", "franzosisch"),
+    ("spanish", "spanisch"),
+    ("italian", "italienisch"),
+    ("dutch", "niederlandisch"),
+    ("flemish", "niederlandisch"),
+    ("polish", "polnisch"),
+    ("russian", "russisch"),
+    ("chinese", "chinesisch"),
+    ("mandarin", "chinesisch"),
+    ("portuguese", "portugiesisch"),
+    ("turkish", "turkisch"),
+    ("czech", "tschechisch"),
+    ("hungarian", "ungarisch"),
+    ("romanian", "rumanisch"),
+    ("swedish", "schwedisch"),
+    ("danish", "danisch"),
+    ("norwegian", "norwegisch"),
+    ("finnish", "finnisch"),
+    ("greek", "griechisch"),
+    ("japanese", "japanisch"),
+    ("arabic", "arabisch"),
+    ("korean", "koreanisch"),
+    ("croatian", "kroatisch"),
 ];
 
 /// Language level words (case-folded, without umlauts) and CEFR level 1 (A1) .. 7 (native).
@@ -230,6 +282,7 @@ pub(crate) const LEVEL_WORDS: &[(&str, u8)] = &[
 
 /// Soft skills: weight 250, cannot be proven from a profile (prefix stems, sorted).
 pub(crate) const SOFT_SKILLS: &[&str] = &[
+    "analytical",
     "analytisch",
     "belastbar",
     "communication",
@@ -238,18 +291,33 @@ pub(crate) const SOFT_SKILLS: &[&str] = &[
     "empathie",
     "engagement",
     "flexibilit",
+    "gelassen",
+    "gespur",
     "hands-on-mental",
+    "humor",
     "kommunikation",
+    "konfliktfahig",
     "kundenorientier",
     "losungsorientier",
+    "mentalitat",
     "motivation",
+    "neugier",
     "organisationstalent",
     "proaktiv",
+    "reliable",
     "selbststandig",
+    "sorgfalt",
     "sozialkompetenz",
+    "structured",
+    "strukturiert",
     "teamfahig",
     "teamplayer",
+    "uberzeugungskraft",
     "verhandlungsgeschick",
+    "verhandlungsstark",
+    "wertschatz",
+    "zahlenaffin",
+    "zuhor",
     "zuverlassig",
 ];
 
@@ -295,8 +363,9 @@ pub(crate) const FRAME_WORDS: &[&str] = &[
 /// Endings of a frame or soft word that keep its meaning (`Verfügbarkeit`, `Reisen`,
 /// `analytische`, `Flexibilität`) (sorted).
 pub(crate) const WORD_ENDINGS: &[&str] = &[
-    "at", "e", "em", "en", "er", "es", "ing", "itat", "keit", "keiten", "ly", "n", "s", "t", "te",
-    "ten", "ter", "ung", "ungen",
+    "at", "de", "e", "em", "en", "end", "er", "es", "heit", "ig", "ige", "igen", "iger", "iges",
+    "igkeit", "ing", "itat", "keit", "keiten", "ly", "n", "s", "t", "te", "ten", "ter", "ung",
+    "ungen", "voll",
 ];
 /// Linking letters between the parts of a compound (`Gehalt-s-vorstellung`).
 pub(crate) const LINKERS: &[&str] = &["es", "keits", "n", "s", "ungs"];
@@ -412,8 +481,11 @@ pub(crate) const FRAME_SKILL_CONTEXT: &[&str] = &[
 /// Heads that keep a soft word soft (`Kommunikationsfähigkeit`, `analytisches Denken`)
 /// (sorted).
 pub(crate) const SOFT_HEADS: &[&str] = &[
+    "approach",
+    "arbeiten",
     "arbeitsweise",
     "art",
+    "attitude",
     "auftreten",
     "denken",
     "denkvermogen",
@@ -423,12 +495,14 @@ pub(crate) const SOFT_HEADS: &[&str] = &[
     "geschick",
     "kompetenz",
     "kompetenzen",
+    "manner",
     "mindset",
     "personlichkeit",
     "skill",
     "skills",
     "starke",
     "starken",
+    "style",
     "talent",
     "thinking",
     "vermogen",
@@ -465,6 +539,87 @@ pub(crate) const ADJECTIVE_ENDINGS: &[&str] = &[
 ];
 /// Shortest modifier of a compound (`Bericht-erstellung`); `h` of `Herstellung` is none.
 pub(crate) const MIN_COMPOUND_MODIFIER: usize = 3;
+
+/// Contract words in a title that say nothing about the field (title fit).
+pub(crate) const TITLE_CONTRACT_WORDS: &[&str] = &[
+    "befristet",
+    "befristete",
+    "befristeter",
+    "contract",
+    "contractor",
+    "freelance",
+    "freelancer",
+    "freiberufler",
+    "freiberuflich",
+    "interim",
+    "interimistisch",
+    "temporary",
+    "zeitlich",
+];
+/// Items that are only a soft word (`Arbeitsweise`, `working style`, `Soft Skills`); compared
+/// as stems.
+pub(crate) const SOFT_ALONE: &[&str] = &[
+    "arbeitsweise",
+    "eigenschaften",
+    "fahigkeiten",
+    "haltung",
+    "kompetenzen",
+    "mentalitat",
+    "mindset",
+    "personlichkeit",
+    "skills",
+    "soft",
+    "style",
+];
+/// A sentence starting with one of these words and naming no known skill is a soft
+/// requirement (`Sie kommunizieren klar`, `Du packst gerne mit an`).
+pub(crate) const PRONOUN_STARTS: &[&str] =
+    &["sie", "du", "you", "your", "ihr", "ihre", "dein", "deine"];
+/// Phrases whose `und`/`and` joins no two requirements (`Deutsch in Wort und Schrift`).
+pub(crate) const PROTECTED_PHRASES: &[&str] = &[
+    "in wort und schrift",
+    "wort und schrift",
+    "mündlich und schriftlich",
+    "schriftlich und mündlich",
+    "written and spoken",
+    "spoken and written",
+    "written and verbal",
+    "verbal and written",
+];
+/// Words after a comma that continue the item (`SAP, gerne auch S/4HANA`,
+/// `klar, auch wenn es unbequem wird`); `, davon 3 Jahre in Führung` splits.
+pub(crate) const COMMA_TAILS: &[&str] = &[
+    "auch ",
+    "gerne ",
+    "gern ",
+    "davon ",
+    "ob ",
+    "ohne dass",
+    "auch wenn",
+    "as ",
+    "egal ",
+    "insbesondere ",
+    "vorzugsweise ",
+];
+/// Words after which a list of bare nouns names the partners of one item
+/// (`Zusammenarbeit mit Gesellschaftern, Investoren und Dienstleistern`); a list after
+/// `Erfahrung mit` names skills and splits.
+pub(crate) const LIST_OBJECT_WORDS: &[&str] = &[
+    "zusammenarbeit mit",
+    "umgang mit",
+    "abstimmung mit",
+    "austausch mit",
+    "kontakt mit",
+    "kommunikation mit",
+    "verhandlungen mit",
+    "schnittstelle zu",
+    "working with",
+    "collaboration with",
+    "interaction with",
+    "liaising with",
+    "dealing with",
+    "interface with",
+];
 
 /// Formal requirements: degrees (prefix stems; a bare `Abschluss` is also a financial
 /// statement, so it does not count).
@@ -676,6 +831,10 @@ pub(crate) const NUMBER_WORDS: &[(&str, u32)] = &[
 pub(crate) const KEY_LANGUAGES: &str = "sprachen";
 pub(crate) const KEY_LANGUAGE: &str = "sprache";
 pub(crate) const KEY_LEVEL: &str = "niveau";
+/// English keys of the language list, its entries and their level.
+pub(crate) const KEYS_LANGUAGES: &[&str] = &[KEY_LANGUAGES, "languages"];
+pub(crate) const KEYS_LANGUAGE: &[&str] = &[KEY_LANGUAGE, "language", "name"];
+pub(crate) const KEYS_LEVEL: &[&str] = &[KEY_LEVEL, "level"];
 pub(crate) const KEYS_YEARS: &[&str] = &["jahre", "years", "erfahrung_jahre"];
 /// Free-text USPs (`alleinstellungsmerkmale`).
 pub(crate) const KEY_USP: &str = "alleinstellungsmerkmal";
@@ -692,6 +851,10 @@ pub(crate) const MUST_PREFIXES: &[&str] = &[
     "must have",
     "anforderungsprofil",
     "profil",
+    "muss-anforderung",
+    "mussanforderung",
+    "muss-kriteri",
+    "musskriteri",
 ];
 /// Extra nice headings.
 pub(crate) const NICE_PREFIXES: &[&str] = &[
@@ -700,6 +863,14 @@ pub(crate) const NICE_PREFIXES: &[&str] = &[
     "nice-to-have",
     "good to have",
     "a plus",
+    "soll-anforderung",
+    "sollanforderung",
+    "soll-kriteri",
+    "sollkriteri",
+    "kann-anforderung",
+    "kannanforderung",
+    "kann-kriteri",
+    "kannkriteri",
 ];
 /// Headings that end requirement sections.
 pub(crate) const OTHER_PREFIXES: &[&str] = &[
@@ -746,6 +917,22 @@ pub(crate) const OTHER_PREFIXES: &[&str] = &[
     "job function",
     "industries",
     "bitte beachten",
+    // Portal footers and meta lines.
+    "projekt-id",
+    "projekt id",
+    "projektnummer",
+    "projekt-nr",
+    "referenznummer",
+    "kennziffer",
+    "job-id",
+    "eingestellt am",
+    "veroffentlicht am",
+    "online seit",
+    "branche",
+    "kategorie",
+    "karrierestufe",
+    "beschaftigungsverhaltnis",
+    "tatigkeitsbereich",
 ];
 /// A must line containing one of these is a nice-to-have.
 pub(crate) const NICE_CUES: &[&str] = &[
@@ -761,6 +948,11 @@ pub(crate) const NICE_CUES: &[&str] = &[
     "ein plus",
     "strong plus",
     "gerne mit",
+    "an advantage",
+    "advantageous",
+    "hilfreich",
+    "grosses plus",
+    "an asset",
 ];
 /// Nice cues that close a line (`X und Y von Vorteil`): the whole line is nice.
 pub(crate) const NICE_CLOSING: &[&str] = &[
@@ -773,6 +965,11 @@ pub(crate) const NICE_CLOSING: &[&str] = &[
     "nice-to-have",
     "vorteilhaft",
     "bonus",
+    "an advantage",
+    "advantageous",
+    "hilfreich",
+    "grosses plus",
+    "an asset",
 ];
 /// A requirement item that says something is not needed.
 pub(crate) const NOT_NEEDED: &[&str] = &[
@@ -843,6 +1040,33 @@ pub(crate) const RATE_WORDS: &[&str] = &[
     "€/h",
 ];
 pub(crate) const SALARY_WORDS: &[&str] = &["gehalt", "salary"];
+/// Currencies and rate units next to an amount (`950 €`, `EUR 950`, `95 €/h`).
+pub(crate) const RATE_UNITS: &[&str] = &[
+    "€",
+    "eur",
+    "euro",
+    "chf",
+    "usd",
+    "gbp",
+    "$",
+    "£",
+    "/h",
+    "/std",
+    "/tag",
+    "/day",
+    "pro tag",
+    "pro stunde",
+    "per day",
+    "per hour",
+    "k€",
+];
+/// Words of a rate range (`bis 1.100 €`, `ab 900`, `max. 1.000`).
+pub(crate) const RATE_RANGE_WORDS: &[&str] = &[
+    "maximal", "circa", "up to", "from", "rund", "max.", "max", "ca.", "ca", "bis", "von", "ab",
+    "to", "zu",
+];
+/// Separators of the parts of one line (`Start: 02/2027 · Dauer: 10 Monate · 78 €/h`).
+pub(crate) const SEGMENT_SEPARATORS: &[&str] = &[" // ", " · ", " | ", " • "];
 /// A rate to be agreed, without an amount (with a rate word in the same sentence).
 pub(crate) const RATE_OPEN: &[&str] = &[
     "nach absprache",
@@ -1081,6 +1305,21 @@ pub(crate) const PERMANENT_STATED: &[&str] = &[
     "zielgehalt",
     "bruttojahresgehalt",
 ];
+/// A student or trainee role in the title is employment, never interim work.
+pub(crate) const STUDENT_ROLES: &[&str] = &[
+    "werkstudent",
+    "werkstudierende",
+    "praktikant",
+    "praktikum",
+    "pflichtpraktikum",
+    "working student",
+    "internship",
+    "intern ",
+    "trainee",
+    "auszubildende",
+    "ausbildung zum",
+    "ausbildung zur",
+];
 /// A permanent position denied (`this is not a permanent position`).
 pub(crate) const PERMANENT_NEGATED: &[&str] = &[
     "not a permanent",
@@ -1104,6 +1343,34 @@ pub(crate) const PERMANENT_OPTION: &[&str] = &[
 ];
 /// A contract type line (`Vertragsart: Festanstellung`).
 pub(crate) const CONTRACT_LINES: &[&str] = &["vertragsart:", "anstellungsart:", "employment type:"];
+/// Values of a page's employment type field (exact, folded) that mean a limited engagement:
+/// LinkedIn's "Befristet", "Contract", "Temporary", the freelance portals' "Freiberuflich".
+pub(crate) const LIMITED_CONTRACT_VALUES: &[&str] = &[
+    "befristet",
+    "contract",
+    "temporary",
+    "temporar",
+    "freiberuflich",
+    "freelance",
+    "selbststandig",
+    "self-employed",
+];
+/// Values of a page's career level or employment type field (exact, folded) that are
+/// clearly below a senior target: an internship, an entry-level role, voluntary work.
+pub(crate) const ENTRY_LEVEL_VALUES: &[&str] = &[
+    "praktikum",
+    "internship",
+    "berufseinstieg",
+    "einstiegslevel",
+    "entry level",
+    "entry-level",
+    "ehrenamtlich",
+    "volunteer",
+    "werkstudent",
+    "trainee",
+];
+/// Career levels (exact, folded) that may be below a senior target: a check only.
+pub(crate) const LOW_LEVEL_VALUES: &[&str] = &["assistent", "assistant", "associate", "junior"];
 /// Indirect hints of a permanent position (benefits, work permit, career page).
 pub(crate) const PERMANENT_HINTS: &[&str] = &[
     "why join",

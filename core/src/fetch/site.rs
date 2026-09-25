@@ -16,7 +16,13 @@ use crate::portal::Portal;
 pub struct SessionPage {
     pub ok: bool,
     pub err: Option<String>,
+    /// The HTTP status of the navigation; 0 = unknown (a web view without
+    /// `responseStatus`: `WebKit` on macOS) - then `status_hint` speaks.
     pub status: u16,
+    /// What the page's title or first heading says when the status is unknown:
+    /// `throttled` (429, too many requests), `blocked` (403, access denied, a check),
+    /// `gone` (404, not found) or empty.
+    pub status_hint: String,
     pub url: String,
     pub has_logout: bool,
     pub has_expert_marker: bool,
@@ -29,6 +35,8 @@ pub struct SessionPage {
     pub start: String,
     pub duration: String,
     pub remote: String,
+    /// The rate (hourly or daily) as the page words it.
+    pub rate: String,
     /// HTML of the description field.
     pub panel_html: Option<String>,
 }

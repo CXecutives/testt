@@ -100,18 +100,33 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-8);
+    container-type: inline-size;
   }
 
   .row {
     display: grid;
     grid-template-columns: var(--language-name) minmax(0, 1fr) var(--control-sm);
     align-items: center;
-    gap: var(--space-12);
+    gap: var(--space-6) var(--space-12);
     width: 100%;
   }
 
   .remove {
     display: flex;
     align-items: center;
+    height: var(--control-md);
+  }
+
+  /* Narrow: the levels go in one wrapping line under the language, the x stays beside it. */
+  @container (width < 520px) {
+    .row {
+      grid-template-columns: minmax(0, 1fr) var(--control-sm);
+      align-items: start;
+    }
+
+    .row > :global([role='group']) {
+      grid-column: 1 / 2;
+      grid-row: 2;
+    }
   }
 </style>

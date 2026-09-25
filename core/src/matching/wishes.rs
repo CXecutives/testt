@@ -780,7 +780,11 @@ fn region(places: &[String], ad: &Ad<'_>, share: Option<(u64, u64)>) -> WishResu
 fn industry(wished: &[Industry], ad: &Ad<'_>) -> WishResult {
     let code = ReasonCode::IndustryWish;
     let job = ad.job;
-    let mut sources: Vec<(&str, Option<Range<usize>>)> = vec![(job.title, None)];
+    // The page's own industries field (LinkedIn's "Branchen") first: stated, not guessed.
+    let stated = facts::fact(job.facts, super::fact_key::INDUSTRIES).and_then(Value::as_str);
+    let mut sources: Vec<(&str, Option<Range<usize>>)> =
+        stated.map(|s| (s, None)).into_iter().collect();
+    sources.push((job.title, None));
     // On the freelance portals the company is the agency that posts the project.
     if job.portal == Portal::LinkedIn {
         sources.push((ad.company, None));

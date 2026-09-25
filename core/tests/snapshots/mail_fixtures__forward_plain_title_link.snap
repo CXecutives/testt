@@ -1,0 +1,7 @@
+---
+source: core/tests/mail_fixtures.rs
+expression: describe(bytes)
+---
+freelancermap.de | WG: Fwd: Change - Anzahl neue Projekte: 2 | Ich
+- freelancermap:2990201 | ERP-Projektleiter für Business Central (m/w/d) | Nordstern Personalberatung GmbH | Rotenburg Wümme | https://www.freelancermap.de/nproj/2990201.html
+- freelancermap:2990202 | Projektleitung Change Management (m/w/d) - #319001 | Beispiel Consulting GmbH | Münster | https://www.freelancermap.de/nproj/2990202.html

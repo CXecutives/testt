@@ -65,7 +65,7 @@
     border-radius: var(--radius-control);
     background-color: var(--surface);
     color: var(--text);
-    font: var(--type-sm);
+    font: var(--type-md);
     resize: vertical;
     outline: none;
     transition: border-color var(--dur-fast) var(--ease-standard);

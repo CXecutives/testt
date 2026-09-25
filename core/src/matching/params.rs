@@ -83,6 +83,10 @@ pub(crate) const WISH_INDUSTRY: i64 = 20;
 pub(crate) const PACK_HITS: usize = 2;
 /// Bound of the summed wish effect (per-mille, both directions).
 pub(crate) const WISH_MAX: i64 = 100;
+/// Working hours of a year (40 per week): an hourly wage of an employment per year.
+pub(crate) const HOURS_PER_YEAR: u64 = 2080;
+/// Highest score of a text without any requirement (judged from title and words alone).
+pub(crate) const NO_ITEMS_CAP: u8 = 60;
 /// While fewer than half of the musts are met, the target role and the wishes lift a score
 /// at most to this (per-mille, score 79): never into the high band (80) of the list.
 pub(crate) const LIFT_CAP: u64 = 790;

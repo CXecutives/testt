@@ -86,9 +86,9 @@ favourite inbox matches of the last 14 days). The first mailbox scan reads 30 da
 Whether the user has to act comes from the backend: `actionNeeded` in `PortalState` and in the `PortalHealth` event
 (a sign-in, or alert mails without jobs; a pause, a cap or pages without a description resolve themselves). Both
 prompts carry `core/src/export/ai_rubric.de.md` whole (its preamble names no product). Mail healing: `mail_version`
-(`mail::MAIL_PARSER_VERSION`, 2 since a collection mail no longer gives the next job's title as company); a job an
+(`mail::MAIL_PARSER_VERSION`, 2 since a collection mail no longer gives the next job's title as company, 3 since the plain-text link forms of Outlook and Apple Mail give the title); a job an
 older parser read takes the current reading when a mail names it again (with its page read, only a pair that reads like
-a job title gives way), and the first scan after an update reads back once to the oldest such job (kv `mail_healed`,
+a job title gives way), and the first scan after an update reads back once to the oldest such job (kv `mail_healed:<portal>`, per portal: a portal switched off meanwhile reads back once it is on again;
 IMAP read-only).
 
 ### IPC v3 (types from Rust via ts-rs; camelCase; `null` instead of missing; backend never sends prose)
@@ -289,6 +289,9 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       corpora with frozen floors (NDCG@10 0.822 to 0.930 and 0.632 to 0.805); criteria met only with the ad's value
       as evidence, key facts on `JobMatch`; one German rubric for the Claude check and the skill
       (`core/src/export/ai_rubric.de.md`). Open: the honest check on held-out set 3.
+- [x] Engine v6: the gaps of the unseen held-out set 3 fixed as general rules (rates next to a currency, reading
+      noise, English language names, texts without requirements, generic heads, a tie-breaker, student roles);
+      set 3 is a regression corpus (NDCG@10 0.618 to 0.950). Open: the unseen check on held-out set 4.
 - [x] Domain packs for every field: hr, procurement, data, pharma, operations, sales, legal, software (held-out 2
       NDCG@10 0.805 to 0.862). Open: synthetic corpus ads and profiles of the new fields.
 
@@ -314,6 +317,19 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       Run 9 on the test mailbox, fixed: portal promo/onboarding mails are no alerts (no false "layout changed?"),
       a collection mail never takes another job's title as company or location, a stored title-like pair gives
       way, a new location makes the score pending (fixtures `promo_mails/`, `forward_composite.eml`).
+- [x] Scraping review, offline only (2026-09-25 night, fixtures and unit tests, no live request): the scan reads
+      All Mail (`\All`, drafts and own sent mails left out); only alert mails bring job links in (activity mails,
+      InMails and newsletters do not); every alert subject is a head candidate; plain-text link forms of Outlook and
+      Apple Mail (`MAIL_PARSER_VERSION` 3, read-back per portal); `?currentJobId=` links. Pages: walls and checks
+      served with 200 block at once (LinkedIn, freelancermap); LinkedIn's four criteria and `<br><br>` paragraphs
+      (anonymised skeleton fixtures in `core/tests/fixtures/pages/`); freelancermap's real island (start, duration,
+      skills, contract type, country); freelance.de end markers as headings only, the exact description heading,
+      the EXPERT notice only in place of the description, long guest teasers, rate and more head labels, a status
+      hint without `responseStatus`, redirects to a sign-in. Policy: every run's first layout page costs an attempt
+      and retries rotate; per-job verdicts never feed the breaker; broken settings switch no portal on; closed ads
+      marked and never a TXT; jobs beyond the 30-day window say "Details auf Anfrage"; teasers and slug links take
+      part in duplicates, archived or closed jobs are no original. Open: the WebKit status path wants the
+      macos-latest probe, one guest page of freelance.de for a real-structure fixture at the next allowed live run.
 - [ ] Live canary per portal (one counted page via `admit`)
 - [ ] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios
 - [ ] Performance (start time, long tasks at 2000 jobs), contrast

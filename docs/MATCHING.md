@@ -238,6 +238,69 @@ Found by the domain-pack work; scores of the corpus unchanged, held-out 1 NDCG@1
   `Sachkundige Person` are one licence.
 - A lone adjective before an AND is no item (`Classic and agile project management`).
 
+### Version 6: rules from the unseen set 3
+
+Held-out set 3 (30 fresh ads x 8 profiles, blind labels) scored NDCG@10 0.618 on first
+contact, far below the tuned sets 1 and 2. Its gaps were fixed as general rules (unit tests in
+`job.rs`, `facts.rs`, `atoms.rs`, `relevance.rs` and `core/tests/matching_generalisation.rs`)
+and set 3 joined the regression corpora (`heldout3/`):
+
+- Rates: an amount counts only next to a currency or rate unit, or after a rate word
+  (`Tagessatz: bis 1.100`), from 5 on; dates, years and postcodes are none; lines split at
+  ` · `, ` | `, ` • ` (`Start: 02/2027 · 78 €/h` is 78 €/h, not 2027).
+- Reading noise: more soft words (strukturiert, Sorgfalt, Neugier, zahlenaffin, Humor,
+  Gespür, zuhören, wertschätzend, konfliktfähig, Überzeugungskraft, verhandlungsstark,
+  structured, reliable, analytical) and soft words alone (`Arbeitsweise`, `working style`,
+  `Soft Skills`); a sentence starting with `Sie`, `Du`, `You` that names no known skill (code,
+  language, pack trigger, vocabulary term) is one soft item; `in Wort und Schrift` and
+  `written and spoken` never split; comma tails (`, gerne auch`, `, auch wenn`, `, ob`,
+  `, ohne dass`, `, as`) stay with their item; the bare nouns after a word of working
+  together (`Zusammenarbeit mit Gesellschaftern, Investoren und Dienstleistern`) are one item;
+  tender headings (`Muss-`, `Soll-`, `Kann-Anforderungen`, `-Kriterien`); portal footers
+  (`Projekt-ID`, `Eingestellt am`, `Branche`, `Kategorie`, `Karrierestufe`) end requirements;
+  `is an advantage`, `advantageous`, `hilfreich`, `großes Plus` are nice cues and cue words no
+  skill atoms.
+- Languages under English names (`Dutch`, `English`, `Polish`, ...) in profiles (also under
+  `languages`/`language`/`level`) and ads.
+- A text long enough to read but without any requirement is scored from its title alone
+  (low evidence, at most `NO_ITEMS_CAP` 60) instead of unscorable; the vocabulary fallback
+  leaves industries out; contract words in a title (`Interim`, `Freelance`, `befristet`) never
+  match the profile.
+- `Unternehmen` and `Partner` are generic atoms.
+- Tie-breaker: `Assessment.rank` (per-mille before caps and rounding) orders equal scores in
+  the list (`match_note.rank`) and in the metrics.
+- Seniority reads with every pack (the same decision for every profile); a student or trainee
+  role in the title is employment (inferred), its stated hourly wage decides the salary
+  criterion (x 2080 hours); the metrics leave profiles without a relevant job out of the
+  NDCG mean.
+
+| Set | Metric | v5 | v6 |
+|---|---|---|---|
+| held-out 1 | NDCG@10 / Spearman / buried / exclusions P-R | 0.921 / 0.702 / 1 / 1.0-1.0 | 0.921 / 0.725 / 0 / 1.0-1.0 |
+| held-out 2 | NDCG@10 / Spearman / buried / exclusions P-R | 0.862 / 0.562 / 1 / 1.0-0.948 | 0.842 / 0.634 / 1 / 1.0-0.948 |
+| held-out 3 | NDCG@10 / Spearman / buried / exclusions P-R | 0.618 / 0.396 / 2 / 1.0-0.891 | 0.950 / 0.479 / 0 / 1.0-1.0 |
+
+Set 3 NDCG@10 is 0.835 without the new rule for profiles without a relevant job (P4). Set 2
+loses 0.02 of NDCG@10 to swaps between grade-2 and grade-3 jobs at the top (its floor moved
+from 0.85 to 0.84); its Spearman rose from 0.56 to 0.63. The corpus K01-K58 stays within its
+gates (14 rows off band, none further than the old engine).
+
+### Version 7: a page's structured criteria
+
+LinkedIn states four criteria under every ad; the parser kept two and the engine read one.
+Corpus scores unchanged (the corpus ads carry no page facts; only the version line of the
+digest moved). `core/tests/matching_page_facts.rs` covers each value.
+
+- The page facts `level` (Karrierestufe) and `industries` (Branchen) reach the engine
+  (`fact_key::LEVEL`, `fact_key::INDUSTRIES`); `function` (Tätigkeitsbereich) is stored only.
+- Employment type by its exact value (`LIMITED_CONTRACT_VALUES`): `Befristet`, `Contract`,
+  `Temporary`, `Freiberuflich` make the ad interim; `Vollzeit` and `Teilzeit` say nothing.
+- With a target (`zielprofil_min_jahre`) and no requirement at or above it: a career level or
+  employment type of `ENTRY_LEVEL_VALUES` (`Praktikum`, `Internship`, `Berufseinstieg`,
+  `Entry level`, `Ehrenamtlich`, ...) is `tooJunior` (decided); `Associate`, `Assistent` or
+  `Junior` without years is `seniorityUnclear` (a check).
+- The industry wish reads the page's industries first, then title, company and context.
+
 ### Rubric of the Claude check
 
 `core/src/export/ai_rubric.de.md` (German) is the one rubric for the app's Claude check and the
@@ -436,7 +499,8 @@ unchanged.
 
 `pipeline::LocalMatcher` wraps one compiled profile; revision `e{ENGINE_VERSION}.{INPUTS}:{fingerprint}`
 (a stored score of another revision is stale; `INPUTS` counts what a stored job hands the engine besides
-its text - since 2 the page facts under `matching::fact_key` and the teaser flag). A panic of the engine
+its text - since 2 the page facts under `matching::fact_key` and the teaser flag, since 4 the career level, the
+industries and a remote field in words). A panic of the engine
 leaves the job `unscorable` with the note `engineFailed` and the run goes on. The profile is compiled once and kept until its file changes
 (`src-tauri/src/commands/scoring.rs`); an empty profile or a parse error means no matcher, so nothing is
 scored and nothing is pending. Jobs without text are judged from title and location (usually

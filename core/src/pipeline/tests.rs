@@ -1026,6 +1026,7 @@ impl Matcher for Picky {
             must_total: 0,
             top: Vec::new(),
             facts: crate::model::KeyFacts::default(),
+            rank: 0,
         })
     }
 }

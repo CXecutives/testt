@@ -215,6 +215,8 @@ pub struct MatchRecord {
     pub top: Vec<String>,
     /// Rate, start, duration, remote share and contract type as the engine read them.
     pub facts: KeyFacts,
+    /// Per-mille score before caps and rounding: orders equal scores in the list.
+    pub rank: u16,
 }
 
 /// The key facts of an ad as the engine read them (the page facts first, then the text):

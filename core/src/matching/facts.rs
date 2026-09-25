@@ -333,11 +333,21 @@ pub(crate) struct JobFacts<'a> {
 /// A sentence of the text: byte range and folded text.
 pub(crate) type Segment = (Range<usize>, String);
 
-/// Sentences of the text (also split at ` // `), as byte ranges with their folded text.
+/// Parts of a line between the separators of `SEGMENT_SEPARATORS`.
+fn line_parts(line: &str) -> Vec<&str> {
+    let mut parts = vec![line];
+    for sep in lex::SEGMENT_SEPARATORS {
+        parts = parts.into_iter().flat_map(|p| p.split(sep)).collect();
+    }
+    parts
+}
+
+/// Sentences of the text (also split at ` // `, ` · `, ` | `, ` • `), as byte ranges with
+/// their folded text.
 pub(crate) fn segments(text: &str) -> Vec<Segment> {
     let mut out = Vec::new();
     for line in splitlines(text) {
-        for part in line.split(" // ") {
+        for part in line_parts(line) {
             for sentence in sentences(part) {
                 let start = (sentence.as_ptr() as usize).saturating_sub(text.as_ptr() as usize);
                 out.push((start..start + sentence.len(), fold(sentence)));
@@ -633,6 +643,12 @@ pub(crate) fn stated_rate(
     })
 }
 
+/// Can the engine read a rate from this text (a page's rate field)? A bare number is none:
+/// without a unit it is no day or hourly rate.
+pub(crate) fn readable_rate(text: &str) -> bool {
+    parse_rate(&fold(text)).is_some()
+}
+
 pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
     if !lex::RATE_WORDS.iter().any(|w| folded.contains(w))
         || lex::SALARY_WORDS.iter().any(|w| folded.contains(w))
@@ -647,6 +663,7 @@ pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
             i += 1;
             continue;
         }
+        let start = i;
         let mut value: u64 = 0;
         while i < bytes.len() {
             let c = bytes[i];
@@ -664,12 +681,9 @@ pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
                 break;
             }
         }
+        let date = date_part(bytes, start, i);
         // Decimals (",50", ",-") and percentages are no separate amounts.
-        let percent = folded[i..].trim_start().starts_with('%');
-        if !percent && value >= 20 {
-            amounts.push(value);
-        }
-        if i < bytes.len() && (bytes[i] == b',' || bytes[i] == b'.') {
+        if i < bytes.len() && (bytes[i] == b',' || bytes[i] == b'.') && !date {
             let mut j = i + 1;
             while j < bytes.len() && (bytes[j].is_ascii_digit() || bytes[j] == b'-') {
                 j += 1;
@@ -677,6 +691,13 @@ pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
             if j > i + 1 {
                 i = j;
             }
+        }
+        let percent = folded[i..].trim_start().starts_with('%');
+        // Only an amount next to a currency or a rate word is a rate (`Start: 02/2027 ·
+        // 78 €/h` is 78, a postcode or a year is none).
+        // Next to a currency even a student's wage counts (`16,50 € pro Stunde`).
+        if !percent && !date && value >= MIN_RATE_AMOUNT && rate_context(folded, start, i) {
+            amounts.push(value);
         }
     }
     let upper = amounts.into_iter().max()?;
@@ -690,6 +711,64 @@ pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
         hourly,
         currency,
     })
+}
+
+/// Smallest amount read as a rate (a rate is always next to a currency or rate word).
+const MIN_RATE_AMOUNT: u64 = 5;
+
+/// Is the number at `start..end` part of a date (`02/2027`, `01.11.2026`)?
+fn date_part(bytes: &[u8], start: usize, end: usize) -> bool {
+    let digit_at = |i: usize| bytes.get(i).is_some_and(u8::is_ascii_digit);
+    // Digits joined by `/` or `.` before the number: `11/2026`, `01.11.2026`.
+    let joined_before =
+        start >= 2 && matches!(bytes[start - 1], b'/' | b'.') && digit_at(start - 2);
+    // `02/2027`, `01.11.`: digits after `/`, or two digits and a dot after `.` (no
+    // thousands group such as `1.100`, no decimals such as `95.50`).
+    let joined_after = match bytes.get(end) {
+        Some(b'/') => digit_at(end + 1),
+        Some(b'.') => digit_at(end + 1) && digit_at(end + 2) && bytes.get(end + 3) == Some(&b'.'),
+        _ => false,
+    };
+    joined_before || joined_after
+}
+
+/// Does a currency or rate unit follow the amount (after a range such as `- 1.100`), or a
+/// currency or rate word precede it (`Tagessatz: bis`, `EUR`)?
+fn rate_context(folded: &str, start: usize, end: usize) -> bool {
+    let after = folded.get(end..).unwrap_or("");
+    let rest = after.trim_start_matches(|c: char| {
+        c.is_whitespace() || c.is_ascii_digit() || matches!(c, '.' | ',' | '-' | '–')
+    });
+    let rest = lex::RATE_RANGE_WORDS
+        .iter()
+        .find_map(|w| rest.strip_prefix(w))
+        .map_or(rest, |r| {
+            r.trim_start_matches(|c: char| {
+                c.is_whitespace() || c.is_ascii_digit() || matches!(c, '.' | ',' | '-')
+            })
+        });
+    if lex::RATE_UNITS.iter().any(|u| rest.starts_with(u)) {
+        return true;
+    }
+    // The upper end of a range looks past the lower one (`EUR 950–1,100`).
+    let before = folded
+        .get(..start)
+        .unwrap_or("")
+        .trim_end_matches(|c: char| {
+            c.is_whitespace()
+                || c.is_ascii_digit()
+                || matches!(c, ':' | '(' | '~' | '-' | '–' | '.' | ',')
+        });
+    let before = lex::RATE_RANGE_WORDS
+        .iter()
+        .find_map(|w| before.strip_suffix(w))
+        .map_or(before, |b| {
+            b.trim_end_matches(|c: char| c.is_whitespace() || matches!(c, ':' | '('))
+        });
+    lex::RATE_UNITS
+        .iter()
+        .chain(lex::RATE_WORDS)
+        .any(|w| before.ends_with(w))
 }
 
 fn day_rate(
@@ -916,6 +995,22 @@ mod tests {
             Some("chf")
         );
         assert!(parse_rate(&fold("Jahresgehalt von 110.000 € pro Jahr")).is_none());
+        // Only amounts next to a currency or a rate word: no year, date or postcode.
+        let rate = |s: &str| parse_rate(&fold(s)).map(|r| (r.upper, r.hourly));
+        assert_eq!(
+            rate("Start: 02/2027 · Dauer: 10 Monate · 80 % · 78 €/h zzgl. MwSt."),
+            Some((78, true))
+        );
+        assert_eq!(rate("Tagessatz: bis 1.100"), Some((1100, false)));
+        assert_eq!(rate("Tagessatz ab 01.11.2026: 950 EUR"), Some((950, false)));
+        assert_eq!(rate("80331 München, Tagessatz 900 €"), Some((900, false)));
+        assert_eq!(rate("Stundensatz: 95,50 €"), Some((95, true)));
+        assert_eq!(
+            rate("Day rate: EUR 950–1,100 depending on experience"),
+            Some((1100, false))
+        );
+        assert_eq!(rate("Honorar nach Absprache, Laufzeit bis 2027"), None);
+        assert_eq!(rate("16,50 € pro Stunde"), Some((16, true)));
     }
 
     #[test]

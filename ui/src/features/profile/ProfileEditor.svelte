@@ -11,15 +11,14 @@
   import ChipInput from '$components/ChipInput.svelte';
   import Field from '$components/Field.svelte';
   import Notice from '$components/Notice.svelte';
-  import Segmented from '$components/Segmented.svelte';
   import SettingRow from '$components/SettingRow.svelte';
   import TextField from '$components/TextField.svelte';
   import Toggle from '$components/Toggle.svelte';
   import { t } from '$lib/i18n/t';
   import { formKeys } from '$lib/input/input';
-  import type { ProfileAvailability, ProfileQuality, RemoteWish } from '$lib/ipc/types';
+  import type { ProfileQuality, RemoteWish } from '$lib/ipc/types';
   import { primaryFirst } from '$lib/platform';
-  import { editor, isoDate } from '$lib/state/profile.svelte';
+  import { editor, isoDate, type UnreadableField } from '$lib/state/profile.svelte';
   import ChoiceButtons from './ChoiceButtons.svelte';
   import CompetenceList from './CompetenceList.svelte';
   import LanguageList from './LanguageList.svelte';
@@ -32,16 +31,44 @@
     busy: boolean;
     /** A failure of the last save, in words. */
     note: string | null;
+    /** The outcome of the last save (until the next change). */
+    result: string | null;
+    /** Values of the file the app could not read, by field (said there while it is empty). */
+    unreadable: Partial<Record<UnreadableField, string>>;
     onsave: () => void;
     ondiscard: () => void;
   }
 
-  let { quality, busy, note, onsave, ondiscard }: Props = $props();
+  let { quality, busy, note, result, unreadable, onsave, ondiscard }: Props = $props();
 
   const words = $derived(t.profile.field);
   const id = $props.id();
   const form = $derived(editor.after);
   const c = $derived(editor.after.criteria);
+
+  /** What the file had at a field the app could not read, while the field is empty. */
+  const unread = $derived({
+    minSalary:
+      unreadable.minSalary !== undefined && c.minSalary === null
+        ? words.unreadableNumber(unreadable.minSalary)
+        : null,
+    remoteMin:
+      unreadable.remoteMin !== undefined && c.permanentRemoteMin === null
+        ? words.unreadableNumber(unreadable.remoteMin)
+        : null,
+    targetYears:
+      unreadable.targetYears !== undefined && c.targetYears === null
+        ? words.unreadableNumber(unreadable.targetYears)
+        : null,
+    places:
+      unreadable.places !== undefined && c.permanentPlaces.length === 0
+        ? words.unreadablePlaces(unreadable.places)
+        : null,
+    available:
+      unreadable.available !== undefined && c.available.kind === 'unset'
+        ? words.unreadableDate(unreadable.available)
+        : null,
+  });
   const thin = $derived(quality === 'thin' || quality === 'empty');
   const actionFirst = primaryFirst();
 
@@ -59,18 +86,22 @@
       label: t.profile.remoteWish[wish],
     })),
   );
-  const AVAILABLE = $derived<{ id: ProfileAvailability['kind']; label: string }[]>(
-    (['unset', 'now', 'from'] as const).map((kind) => ({
+  const AVAILABLE = $derived<{ id: 'now' | 'from'; label: string }[]>(
+    (['now', 'from'] as const).map((kind) => ({
       id: kind,
       label: t.profile.availability[kind],
     })),
   );
 
-  function setAvailable(kind: ProfileAvailability['kind']): void {
+  /** Nothing chosen is no availability; pressing the chosen one again clears it. */
+  function setAvailable(chosen: string[]): void {
+    const kind = chosen[0];
     c.available =
       kind === 'from'
         ? { kind, date: isoDate(editor.dateText) ?? editor.dateText.trim() }
-        : { kind };
+        : kind === 'now'
+          ? { kind }
+          : { kind: 'unset' };
   }
 
   function setDate(text: string): void {
@@ -83,11 +114,32 @@
     editor.dateInvalid && (tried || editor.dateText.trim().length >= 8) ? words.dateInvalid : null,
   );
 
+  /** Ready to save: a day that does not read is said at its field, which gets the caret. */
+  export function ready(): boolean {
+    tried = true;
+    if (!editor.dateInvalid) return true;
+    document.querySelector<HTMLInputElement>('[data-testid="profile-date"]')?.focus();
+    return false;
+  }
+
+  let bar = $state<HTMLElement | null>(null);
+
+  /** A focused control that ends under the sticky save bar moves up (WebKit does not
+   *  apply scroll-margin when it scrolls a focused field into view). */
+  function keepClear(event: FocusEvent): void {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    requestAnimationFrame(() => {
+      const top = bar?.getBoundingClientRect().top ?? Infinity;
+      if (target.isConnected && target.getBoundingClientRect().bottom > top) {
+        target.scrollIntoView({ block: 'center' });
+      }
+    });
+  }
+
   function save(): void {
     if (!editor.dirty || busy) return;
-    tried = true;
-    if (editor.dateInvalid) return;
-    onsave();
+    if (ready()) onsave();
   }
 
   const empty = (...values: unknown[]): boolean =>
@@ -101,7 +153,12 @@
   );
 </script>
 
-<div class="editor" use:formKeys={{ shortcut: save }} data-testid="profile-form">
+<div
+  class="editor"
+  use:formKeys={{ shortcut: save }}
+  onfocusin={keepClear}
+  data-testid="profile-form"
+>
   <ProfileSection heading={t.profile.section.person} testid="section-person">
     <div class="pair">
       <Field label={words.name} for="{id}-name">
@@ -116,14 +173,6 @@
         />
       </Field>
     </div>
-    <Field label={words.roles} for="{id}-roles">
-      <ChipInput
-        id="{id}-roles"
-        bind:values={form.roles}
-        placeholder={words.rolesPlaceholder}
-        testid="profile-roles"
-      />
-    </Field>
   </ProfileSection>
 
   <ProfileSection
@@ -157,11 +206,9 @@
     empty={thin && empty(form.years, form.degrees, form.industries)}
     testid="section-experience"
   >
-    <div class="pair">
-      <Field label={words.totalYears} for="{id}-years">
-        <NumberField id="{id}-years" bind:value={form.years} testid="profile-years" />
-      </Field>
-    </div>
+    <Field label={words.totalYears} for="{id}-years">
+      <NumberField id="{id}-years" bind:value={form.years} testid="profile-years" />
+    </Field>
     <Field label={words.degrees} for="{id}-degrees">
       <ChipInput
         id="{id}-degrees"
@@ -216,15 +263,22 @@
     hint={t.profile.sectionHint.wishes}
     testid="section-wishes"
   >
-    <div class="pair">
-      <Field label={words.wishRate} for="{id}-wish-rate">
-        <NumberField
-          id="{id}-wish-rate"
-          bind:value={form.wishes.dayRate}
-          testid="profile-wish-rate"
-        />
-      </Field>
-    </div>
+    <Field label={words.roles} for="{id}-roles">
+      <ChipInput
+        id="{id}-roles"
+        bind:values={form.roles}
+        placeholder={words.rolesPlaceholder}
+        testid="profile-roles"
+      />
+    </Field>
+    <Field label={words.wishRate} for="{id}-wish-rate">
+      <NumberField
+        id="{id}-wish-rate"
+        money
+        bind:value={form.wishes.dayRate}
+        testid="profile-wish-rate"
+      />
+    </Field>
     <div class="block">
       <span class="label">{words.remote}</span>
       <ChoiceButtons
@@ -261,9 +315,14 @@
   >
     <div class="pair">
       <Field label={words.minDayRate} for="{id}-min-rate">
-        <NumberField id="{id}-min-rate" bind:value={c.minDayRate} testid="profile-min-rate" />
+        <NumberField id="{id}-min-rate" money bind:value={c.minDayRate} testid="profile-min-rate" />
       </Field>
-      <Field label={words.targetYears} for="{id}-target" hint={words.targetYearsHint}>
+      <Field
+        label={words.targetYears}
+        for="{id}-target"
+        hint={words.targetYearsHint}
+        error={unread.targetYears}
+      >
         <NumberField
           id="{id}-target"
           bind:value={c.targetYears}
@@ -286,11 +345,10 @@
     <div class="block">
       <span class="label">{words.available}</span>
       <div class="available">
-        <Segmented
+        <ChoiceButtons
           options={AVAILABLE}
-          value={c.available.kind}
+          selected={c.available.kind === 'unset' ? [] : [c.available.kind]}
           label={words.available}
-          size="sm"
           testid="profile-available"
           onchange={setAvailable}
         />
@@ -310,14 +368,17 @@
       </div>
       {#if dateError}
         <Notice tone="danger" variant="inline" text={dateError} testid="profile-date-error" />
+      {:else if unread.available}
+        <Notice
+          tone="danger"
+          variant="inline"
+          text={unread.available}
+          testid="profile-available-unread"
+        />
       {/if}
     </div>
     <div class="toggles">
-      <SettingRow
-        label={words.remoteOutside}
-        hint={words.remoteOutsideHint}
-        for="{id}-remote-outside"
-      >
+      <SettingRow label={words.remoteOutside} for="{id}-remote-outside">
         <Toggle
           id="{id}-remote-outside"
           checked={c.remoteOutside}
@@ -338,10 +399,15 @@
     </div>
     <h3 class="sub">{t.profile.section.permanent}</h3>
     <div class="pair">
-      <Field label={words.minSalary} for="{id}-salary">
-        <NumberField id="{id}-salary" bind:value={c.minSalary} testid="profile-min-salary" />
+      <Field label={words.minSalary} for="{id}-salary" error={unread.minSalary}>
+        <NumberField id="{id}-salary" money bind:value={c.minSalary} testid="profile-min-salary" />
       </Field>
-      <Field label={words.remoteMin} for="{id}-remote-min" hint={words.remoteMinHint}>
+      <Field
+        label={words.remoteMin}
+        for="{id}-remote-min"
+        hint={words.remoteMinHint}
+        error={unread.remoteMin}
+      >
         <NumberField
           id="{id}-remote-min"
           bind:value={c.permanentRemoteMin}
@@ -350,7 +416,7 @@
         />
       </Field>
     </div>
-    <Field label={words.places} for="{id}-places">
+    <Field label={words.places} for="{id}-places" error={unread.places}>
       <ChipInput
         id="{id}-places"
         bind:values={c.permanentPlaces}
@@ -361,10 +427,16 @@
   </ProfileSection>
 </div>
 
-<div class="bar" data-testid="profile-save-bar">
-  <div class="status">
+<div class="bar" bind:this={bar} data-testid="profile-save-bar">
+  <div class="status" data-testid="profile-save-status">
     {#if note}
       <Notice tone="danger" variant="inline" text={note} testid="profile-save-error" />
+    {:else if tried && dateError}
+      <Notice tone="danger" variant="inline" text={dateError} />
+    {:else if editor.dirty}
+      <span class="quiet">{t.profile.unsavedShort}</span>
+    {:else if result}
+      <Notice tone="success" variant="inline" text={result} testid="profile-saved" />
     {/if}
   </div>
   <div class="buttons">
@@ -441,11 +513,12 @@
     border-bottom: var(--border-width) solid var(--border);
   }
 
+  /* Festanstellung: its own group below the switches' hairline, a real subheading. */
   .sub {
     padding-top: var(--space-4);
-    color: var(--text-label);
-    font: var(--type-sm);
-    font-weight: var(--weight-medium);
+    color: var(--text-heading);
+    font: var(--type-md);
+    font-weight: var(--weight-semibold);
   }
 
   /* The save bar stays in view at the bottom of the scrolling view. */
@@ -467,6 +540,17 @@
   .status {
     flex: 1;
     min-width: 0;
+  }
+
+  .quiet {
+    color: var(--text-muted);
+    font: var(--type-sm);
+  }
+
+  /* Tab and focus scrolling keep a field clear of the sticky save bar. */
+  .editor :global(:is(input, textarea, button, [role='switch'])) {
+    scroll-margin-top: var(--pane-padding);
+    scroll-margin-bottom: calc(var(--control-md) + 2 * var(--space-12) + var(--space-8));
   }
 
   .buttons {

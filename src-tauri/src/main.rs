@@ -214,7 +214,7 @@ fn setup(app: &mut tauri::App, dry_run: bool) -> Result<(), Failure> {
         data_dir,
         dry_run,
         user_agent: platform::USER_AGENT.to_owned(),
-        system_language: platform::system_language(),
+        system_language: jobalert_core::settings::Language::DEFAULT,
         reset_report: Mutex::new(reset_report),
         gmail_user: Mutex::new(GmailUser::Unread),
         activity: Mutex::new(Activity::Idle),

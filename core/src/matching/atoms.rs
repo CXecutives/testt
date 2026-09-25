@@ -2,6 +2,7 @@
 //! stemming (V1), bilingual concepts (V3), and the fit of two atoms including compounds
 //! (V2) and specific/general relations (V4).
 
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use super::lexicon::domains::{DOMAINS, Domain};
@@ -35,6 +36,8 @@ static STOP: LazyLock<Vec<String>> = LazyLock::new(|| {
 #[derive(Debug, Clone)]
 pub(crate) struct Vocab {
     concepts: Vec<(Vec<String>, String)>,
+    /// Indices into `concepts` by the first stem of the key, in `concepts` order.
+    by_first: HashMap<String, Vec<usize>>,
     packs: Vec<&'static str>,
 }
 
@@ -46,8 +49,15 @@ impl Vocab {
             .map(|(key, value)| (key.split(' ').map(stem).collect(), stem(value)))
             .collect();
         concepts.sort_by_key(|(key, _)| std::cmp::Reverse(key.len()));
+        let mut by_first: HashMap<String, Vec<usize>> = HashMap::new();
+        for (index, (key, _)) in concepts.iter().enumerate() {
+            if let Some(first) = key.first() {
+                by_first.entry(first.clone()).or_default().push(index);
+            }
+        }
         Self {
             concepts,
+            by_first,
             packs: packs.iter().map(|d| d.name).collect(),
         }
     }
@@ -83,13 +93,23 @@ impl Vocab {
         Self::with(DOMAINS)
     }
 
+    /// Every pack, built once: for decisions that must not depend on the profile's packs
+    /// (the seniority of an ad).
+    pub(crate) fn every_pack() -> &'static Self {
+        static EVERY: LazyLock<Vocab> = LazyLock::new(|| Vocab::with(DOMAINS));
+        &EVERY
+    }
+
     /// Names of the switched-on packs.
     pub(crate) fn packs(&self) -> &[&'static str] {
         &self.packs
     }
 
+    /// The longest concept whose key starts at `at` (the first in `concepts` order).
     fn concept_at(&self, stems: &[String], at: usize) -> Option<(usize, String)> {
-        self.concepts.iter().find_map(|(key, value)| {
+        let candidates = self.by_first.get(stems.get(at)?)?;
+        candidates.iter().find_map(|&index| {
+            let (key, value) = &self.concepts[index];
             let end = at + key.len();
             (end <= stems.len() && stems[at..end] == key[..]).then(|| (key.len(), value.clone()))
         })
@@ -577,6 +597,9 @@ mod tests {
     #[test]
     fn compound_boundaries() {
         let a = |s: &str| all(s).remove(0);
+        // `Unternehmen` and `Partner` are too broad to meet anything alone.
+        assert!(is_generic(&a("Unternehmen")));
+        assert!(is_generic(&a("Partner")));
         assert_eq!(fit(&a("Herstellung"), &a("Erstellung")), Fit::None);
         assert_eq!(fit(&a("Erstellung"), &a("Herstellung")), Fit::None);
         assert_eq!(fit(&a("Berichterstellung"), &a("Erstellung")), Fit::General);

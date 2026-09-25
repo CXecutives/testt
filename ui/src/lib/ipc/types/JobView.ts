@@ -21,7 +21,11 @@ pinned: boolean, detail: DetailState,
 /**
  * The full text is short (verified, but under 100 characters).
  */
-short: boolean, match: JobMatch | null, 
+short: boolean, 
+/**
+ * The ad's page says it no longer accepts applications (the text stays readable).
+ */
+closed: boolean, match: JobMatch | null, 
 /**
  * The same job was also announced by these portals.
  */

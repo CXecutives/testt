@@ -273,6 +273,8 @@
   /* The rows of "Beste Passung" like the list's: their ring on the edge of the column; the
      last row's own line gives way to the hairline of the next block. */
   .best {
+    --row-rule-inset: var(--pane-padding);
+
     display: flex;
     flex-direction: column;
     margin: 0 calc(-1 * var(--pane-padding));

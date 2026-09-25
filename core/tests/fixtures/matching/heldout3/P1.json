@@ -1,0 +1,267 @@
+{
+  "name": "Katrin Beispielmann",
+  "email": "katrin.beispielmann@example.invalid",
+  "telefon": "+49 172 0000000",
+  "titel": "Interim HR-Direktorin und HR-Transformation",
+  "abschluss": "Diplom-Kauffrau (Univ.)",
+  "berufserfahrung_jahre": 25,
+  "ausbildung": [
+    {
+      "abschluss": "Diplom-Kauffrau (Univ.)",
+      "fach": "Betriebswirtschaftslehre mit den Schwerpunkten Personalwirtschaft und Arbeitsrecht",
+      "hochschule": "Beispieluniversität",
+      "jahr": 2001
+    },
+    {
+      "abschluss": "Zertifizierte Wirtschaftsmediatorin",
+      "fach": "Konfliktmanagement in Organisationen",
+      "jahr": 2011
+    }
+  ],
+  "stationen": [
+    {
+      "zeitraum": "2015 - heute",
+      "rolle": "Interim HR-Direktorin und Interim CHRO (selbstständig)",
+      "schwerpunkte": [
+        "Elf Interim-Mandate als HR-Direktorin, CHRO oder Personalleiterin in Industrie und Dienstleistung",
+        "Neuausrichtung von HR-Organisationen nach dem HR-Business-Partner-Modell",
+        "Restrukturierungen mit Interessenausgleich und Sozialplan, zwei Standortschließungen",
+        "HR-Integration nach Unternehmenskäufen und Carve-outs, Betriebsübergänge nach § 613a BGB",
+        "Einführung von SAP SuccessFactors und Workday als Projektsponsorin auf HR-Seite"
+      ]
+    },
+    {
+      "zeitraum": "2009 - 2015",
+      "rolle": "Leiterin Personal DACH eines Maschinenbauunternehmens mit 4.500 Mitarbeitenden",
+      "schwerpunkte": [
+        "Führung von 38 HR-Mitarbeitenden an sechs Standorten",
+        "Verhandlungen mit Gesamtbetriebsrat und IG Metall, Haustarifvertrag",
+        "Neues Vergütungssystem mit Stellenbewertung für den außertariflichen Bereich",
+        "Aufbau eines HR Shared Service Centers für Abrechnung und Personaladministration"
+      ]
+    },
+    {
+      "zeitraum": "2001 - 2009",
+      "rolle": "HR Business Partnerin und zuvor Referentin Personalentwicklung bei einem Automobilzulieferer",
+      "schwerpunkte": [
+        "Betreuung von Produktion, Logistik und Vertrieb mit rund 1.200 Mitarbeitenden",
+        "Aufbau des Führungskräfteentwicklungsprogramms und der Nachfolgeplanung",
+        "Personalcontrolling und Personalkostenplanung"
+      ]
+    }
+  ],
+  "kernkompetenzen": [
+    {
+      "kompetenz": "Interim Management",
+      "jahre": 11,
+      "auch": ["Interim-Mandate", "Interim CHRO", "Interim HR Director"]
+    },
+    {
+      "kompetenz": "Personalleitung",
+      "jahre": 17,
+      "auch": ["HR-Leitung", "Head of HR", "Leitung Personal", "HR-Direktorin"]
+    },
+    {
+      "kompetenz": "HR-Transformation",
+      "jahre": 11,
+      "auch": ["HR Transformation", "Neuausrichtung HR"]
+    },
+    {
+      "kompetenz": "HR-Organisation und HR-Business-Partner-Modell",
+      "jahre": 10,
+      "auch": ["HR Operating Model", "Drei-Säulen-Modell", "HR Business Partnering"]
+    },
+    {
+      "kompetenz": "Arbeitsrecht",
+      "jahre": 20,
+      "auch": ["Individualarbeitsrecht", "Kollektivarbeitsrecht"]
+    },
+    {
+      "kompetenz": "Zusammenarbeit mit dem Betriebsrat",
+      "jahre": 18,
+      "auch": ["Betriebsverfassungsrecht", "Betriebsvereinbarungen", "Mitbestimmung", "Verhandlungen mit Betriebsrat"]
+    },
+    {
+      "kompetenz": "Restrukturierung",
+      "jahre": 11,
+      "auch": ["Personalabbau", "Interessenausgleich und Sozialplan", "Standortschließung"]
+    },
+    {
+      "kompetenz": "Tarifverhandlungen",
+      "jahre": 9,
+      "auch": ["Tarifrecht", "Haustarifvertrag", "Tarifpolitik"]
+    },
+    {
+      "kompetenz": "Post Merger Integration",
+      "jahre": 8,
+      "auch": ["HR-Integration", "Carve-out", "Betriebsübergang"]
+    },
+    {
+      "kompetenz": "Changemanagement",
+      "jahre": 14,
+      "auch": ["Change Management", "Veränderungsmanagement"]
+    },
+    {
+      "kompetenz": "Organisationsentwicklung",
+      "jahre": 14
+    },
+    {
+      "kompetenz": "Vergütungsmanagement",
+      "jahre": 11,
+      "auch": ["Compensation & Benefits", "Vergütungssysteme", "Stellenbewertung"]
+    },
+    {
+      "kompetenz": "Talent Management",
+      "jahre": 12,
+      "auch": ["Nachfolgeplanung", "Performance Management", "Talentmanagement"]
+    },
+    {
+      "kompetenz": "Führungskräfteentwicklung",
+      "jahre": 15,
+      "auch": ["Leadership Development", "Personalentwicklung"]
+    },
+    {
+      "kompetenz": "Recruiting und Employer Branding",
+      "jahre": 10,
+      "auch": ["Talent Acquisition", "Personalbeschaffung"]
+    },
+    {
+      "kompetenz": "Personalcontrolling",
+      "jahre": 12,
+      "auch": ["HR-Kennzahlen", "HR-Reporting", "Personalkostenplanung"]
+    },
+    {
+      "kompetenz": "Einführung von HR-IT-Systemen",
+      "jahre": 8,
+      "auch": ["HRIS-Einführung", "Digitalisierung HR"]
+    },
+    {
+      "kompetenz": "Steuerung der Entgeltabrechnung",
+      "jahre": 7,
+      "auch": ["Payroll"]
+    },
+    {
+      "kompetenz": "Shared Service Center",
+      "jahre": 6,
+      "auch": ["HR Shared Services"]
+    },
+    {
+      "kompetenz": "Mediation und Konfliktmanagement",
+      "jahre": 13
+    },
+    {
+      "kompetenz": "Führung von HR-Teams",
+      "jahre": 17,
+      "auch": ["Personalverantwortung", "disziplinarische Führung"]
+    },
+    {
+      "kompetenz": "Projektmanagement",
+      "jahre": 15
+    }
+  ],
+  "methoden_tools": [
+    {
+      "name": "SAP SuccessFactors"
+    },
+    {
+      "name": "SAP HCM"
+    },
+    {
+      "name": "Workday"
+    },
+    {
+      "name": "Personio"
+    },
+    {
+      "name": "DATEV Lohn und Gehalt"
+    },
+    {
+      "name": "Korn Ferry Hay Stellenbewertung"
+    },
+    {
+      "name": "Power BI"
+    },
+    {
+      "name": "Excel"
+    }
+  ],
+  "zertifizierungen": [
+    {
+      "name": "Zertifizierte Wirtschaftsmediatorin"
+    },
+    {
+      "name": "Systemischer Business Coach"
+    },
+    {
+      "name": "Hogan Assessments zertifiziert"
+    }
+  ],
+  "branchen": [
+    {
+      "branche": "Maschinenbau"
+    },
+    {
+      "branche": "Automobilzulieferer"
+    },
+    {
+      "branche": "Medizintechnik"
+    },
+    {
+      "branche": "Logistik"
+    },
+    {
+      "branche": "IT-Dienstleistung"
+    },
+    {
+      "branche": "Private-Equity-Portfoliounternehmen"
+    }
+  ],
+  "sprachen": [
+    {
+      "sprache": "Deutsch",
+      "niveau": "Muttersprache"
+    },
+    {
+      "sprache": "Englisch",
+      "niveau": "C1"
+    },
+    {
+      "sprache": "Spanisch",
+      "niveau": "B1"
+    }
+  ],
+  "alleinstellungsmerkmale": [
+    "Elf Interim-Mandate als HR-Direktorin oder CHRO, davon sechs in Restrukturierungen",
+    "Hat jeden Interessenausgleich ohne Einigungsstelle abgeschlossen",
+    "Führt HR-Organisationen von der Verwaltung zum Business Partnering"
+  ],
+  "keywords": [
+    "HR-Direktorin",
+    "CHRO",
+    "Personalleitung",
+    "HR-Transformation",
+    "Arbeitsrecht",
+    "Betriebsrat",
+    "Restrukturierung",
+    "Sozialplan",
+    "Changemanagement",
+    "SuccessFactors"
+  ],
+  "einsatzpraeferenzen": {
+    "remote": "bis 40 %, sonst vor Ort beim Kunden"
+  },
+  "harte_kriterien": {
+    "min_tagessatz": 1100,
+    "laender": [
+      "DE",
+      "AT",
+      "CH"
+    ],
+    "ausgeschlossene_vertragsarten": [
+      "anue"
+    ],
+    "remote_ausserhalb_erlaubt": false,
+    "verfuegbar_ab": "ab 15.10.2026",
+    "zielprofil_min_jahre": 10
+  }
+}

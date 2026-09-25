@@ -3,7 +3,9 @@
   the white sheet of the content is the divider. App icon and name live in the native title
   bar of the OS, so the sidebar starts with the views (on macOS below the traffic lights,
   whose 52 px band moves the window): the first sits on the line of the list's search field
-  on Windows, each with its icon and the unread count, and
+  on Windows, each with its icon and the unread count; under Jobs (the inbox) the two other
+  places of the jobs, Archiv and Papierkorb, quieter and without counts (a click on Jobs from
+  there goes back to the inbox); and
   at the foot a quiet run status that opens the run in the Jobs view. It shows only while
   there is a run to open (before the first fetch the first-run page says it all), and it is
   said once: while the run card is on screen it steps aside. "Abrufen" lives in the list
@@ -26,8 +28,20 @@
 
   // New jobs over everything (the overview's unfiltered counts), whatever the list shows.
   const unread = $derived(jobs.overviewCounts?.unread ?? app.state?.counts.unread ?? 0);
-  const items = $derived<SideNavItem<ViewId>[]>([
-    { id: 'jobs', label: t.nav.jobs, icon: 'briefcase', count: unread, testid: 'nav-jobs' },
+  /** The views, and under Jobs its places (the inbox is Jobs itself). */
+  type NavId = ViewId | 'archive' | 'trash';
+  const items = $derived<SideNavItem<NavId>[]>([
+    {
+      id: 'jobs',
+      label: t.nav.jobs,
+      icon: 'briefcase',
+      count: unread,
+      testid: 'nav-jobs',
+      children: [
+        { id: 'archive', label: t.place.archive, icon: 'archive', testid: 'nav-archive' },
+        { id: 'trash', label: t.place.trash, icon: 'trash-2', testid: 'nav-trash' },
+      ],
+    },
     { id: 'profile', label: t.nav.profile, icon: 'user-round', testid: 'nav-profile' },
     { id: 'settings', label: t.nav.settings, icon: 'sliders-horizontal', testid: 'nav-settings' },
   ]);
@@ -54,6 +68,25 @@
       !(navigation.current === 'jobs' && !shell.firstRun && shell.runCard),
   );
 
+  const active = $derived.by((): NavId => {
+    if (navigation.current !== 'jobs') return navigation.current;
+    if (jobs.facet === 'archived') return 'archive';
+    return jobs.facet === 'trash' ? 'trash' : 'jobs';
+  });
+
+  function choose(id: NavId): void {
+    if (id === 'archive' || id === 'trash') {
+      jobs.setFacet(id === 'archive' ? 'archived' : 'trash');
+      navigation.go('jobs');
+      return;
+    }
+    // Jobs from the archive or the trash: back to the inbox (its unread jobs, if any).
+    if (id === 'jobs' && (jobs.facet === 'archived' || jobs.facet === 'trash')) {
+      jobs.setFacet(unread > 0 ? 'new' : 'all');
+    }
+    navigation.go(id);
+  }
+
   function openRun(): void {
     navigation.go('jobs');
     run.panel = 'open';
@@ -69,10 +102,10 @@
     <!-- The setup page is no view of the list: nothing is marked current while it shows. -->
     <SideNav
       {items}
-      active={setup ? null : navigation.current}
+      active={setup ? null : active}
       label={t.nav.label}
       collapsed={viewport.rail}
-      onselect={(id) => navigation.go(id)}
+      onselect={choose}
     />
   </div>
 

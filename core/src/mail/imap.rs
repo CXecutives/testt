@@ -1,8 +1,12 @@
-//! Gmail over IMAP: the inbox only, read-only (`EXAMINE`, `BODY.PEEK`), so Gmail
-//! marks nothing as read.
+//! Gmail over IMAP, read-only (`EXAMINE`, `BODY.PEEK`), so Gmail marks nothing as read.
 //!
-//! Deliberately not "All Mail": it also holds "Sent", so an alert the user forwarded
-//! themselves would stay visible even after they deleted it.
+//! The scan reads "All Mail" (the special-use `\All` mailbox, found by its attribute
+//! because its name is localized: "[Gmail]/Alle Nachrichten"): archiving a read alert and
+//! a filter that skips the inbox for the portals' alerts are common, and the inbox alone
+//! would never find those alerts. Trash and spam are not in All Mail; drafts and the
+//! user's own sent mails are left out by the search (`-in:drafts (in:inbox OR -in:sent)`),
+//! so an alert the user forwarded to someone else never counts. Without an `\All` mailbox
+//! the inbox is read.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
@@ -11,7 +15,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use async_imap::imap_proto::{AttributeValue, MailboxDatum, Response, Status};
+use async_imap::imap_proto::{AttributeValue, MailboxDatum, NameAttribute, Response, Status};
 
 use jiff::civil::Date;
 use rustls_platform_verifier::ConfigVerifierExt as _;
@@ -208,8 +212,10 @@ const HEAD_FIELDS: &str = "FROM SUBJECT DATE MESSAGE-ID";
 
 /// Search expression: the portals' sender domains **or** their keywords (forwarded
 /// alerts come from the user themselves). `X-GM-RAW` is Gmail's own search - server-side,
-/// fast and without downloading the mailbox.
-fn search_query(since: Option<Date>, portals: &[Portal]) -> String {
+/// fast and without downloading the mailbox. In All Mail (`all_mail`) drafts and the
+/// user's own sent mails stay out - a mail the user sent to themselves is in the inbox
+/// and counts.
+fn search_query(since: Option<Date>, portals: &[Portal], all_mail: bool) -> String {
     let domains: Vec<&str> = portals
         .iter()
         .flat_map(|p| p.sender_domains().iter().copied())
@@ -218,11 +224,19 @@ fn search_query(since: Option<Date>, portals: &[Portal]) -> String {
         .iter()
         .flat_map(|p| p.search_terms().iter().copied())
         .collect();
-    let raw = format!(
-        r#"X-GM-RAW "from:({}) OR {}""#,
-        domains.join(" OR "),
-        terms.join(" OR ")
-    );
+    let raw = if all_mail {
+        format!(
+            r#"X-GM-RAW "(from:({}) OR {}) -in:drafts (in:inbox OR -in:sent)""#,
+            domains.join(" OR "),
+            terms.join(" OR ")
+        )
+    } else {
+        format!(
+            r#"X-GM-RAW "from:({}) OR {}""#,
+            domains.join(" OR "),
+            terms.join(" OR ")
+        )
+    };
     match since {
         // IMAP month names are English; jiff formats them regardless of the system language.
         Some(date) => format!("SINCE {} {raw}", date.strftime("%d-%b-%Y")),
@@ -239,10 +253,12 @@ where
 {
     session: async_imap::Session<T>,
     cancel: CancellationToken,
+    /// All Mail is open (else the inbox).
+    all_mail: bool,
 }
 
 impl Gmail {
-    /// Connect, log in, open the inbox read-only.
+    /// Connect, log in, open All Mail (else the inbox) read-only.
     pub async fn connect(
         credentials: &Credentials,
         cancel: CancellationToken,
@@ -277,8 +293,13 @@ impl Gmail {
         if !capabilities.has_str("X-GM-EXT-1") {
             return Err(MailError::NotGmail);
         }
-        guarded(&cancel, session.examine("INBOX"), protocol).await?;
-        Ok(Gmail { session, cancel })
+        let mut gmail = Gmail {
+            session,
+            cancel,
+            all_mail: false,
+        };
+        gmail.open_mailbox().await?;
+        Ok(gmail)
     }
 }
 
@@ -286,6 +307,33 @@ impl<T> Gmail<T>
 where
     T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + fmt::Debug + Send,
 {
+    /// Opens All Mail read-only - the mailbox with the special-use attribute `\All`, whose
+    /// name Gmail localizes - or the inbox when there is none.
+    async fn open_mailbox(&mut self) -> Result<(), MailError> {
+        let mut all = None;
+        self.command(r#"LIST "" "*""#, |response| {
+            if let Response::MailboxData(MailboxDatum::List {
+                name_attributes,
+                name,
+                ..
+            }) = response
+                && all.is_none()
+                && name_attributes.contains(&NameAttribute::All)
+            {
+                all = Some(name.to_string());
+            }
+        })
+        .await?;
+        let cancel = self.cancel.clone();
+        self.all_mail = all.is_some();
+        if let Some(name) = all {
+            guarded(&cancel, self.session.examine(&name), protocol).await?;
+        } else {
+            guarded(&cancel, self.session.examine("INBOX"), protocol).await?;
+        }
+        Ok(())
+    }
+
     /// Log out; errors here do not matter (the connection ends either way).
     pub async fn close(mut self) {
         let _ = tokio::time::timeout(Duration::from_secs(5), self.session.logout()).await;
@@ -341,7 +389,7 @@ where
             return Ok(Vec::new());
         }
         let mut uids = Vec::new();
-        let command = format!("UID SEARCH {}", search_query(since, portals));
+        let command = format!("UID SEARCH {}", search_query(since, portals, self.all_mail));
         self.command(&command, |response| {
             if let Response::MailboxData(MailboxDatum::Search(ids)) = response {
                 uids.extend(ids.iter().copied());
@@ -458,13 +506,57 @@ mod tests {
     fn query_for_selected_portals() {
         let since = Date::new(2026, 3, 5).unwrap();
         assert_eq!(
-            search_query(Some(since), &[Portal::LinkedIn, Portal::Freelancermap]),
+            search_query(
+                Some(since),
+                &[Portal::LinkedIn, Portal::Freelancermap],
+                false
+            ),
             r#"SINCE 05-Mar-2026 X-GM-RAW "from:(linkedin.com OR freelancermap.de OR freelancermap.com) OR linkedin OR freelancermap""#
         );
         assert_eq!(
-            search_query(None, &[Portal::FreelanceDe]),
+            search_query(None, &[Portal::FreelanceDe], false),
             r#"X-GM-RAW "from:(freelance.de) OR freelance.de""#
         );
+        // All Mail: without drafts and the user's own sent mails.
+        assert_eq!(
+            search_query(None, &[Portal::FreelanceDe], true),
+            r#"X-GM-RAW "(from:(freelance.de) OR freelance.de) -in:drafts (in:inbox OR -in:sent)""#
+        );
+    }
+
+    /// All Mail is found by its special-use attribute, whatever its localized name; the
+    /// search then leaves drafts and sent mails out. Without it the inbox is read.
+    #[tokio::test]
+    async fn all_mail_by_its_attribute_else_the_inbox() {
+        let list = "* LIST (\\HasNoChildren) \"/\" \"INBOX\"\r\n\
+                    * LIST (\\HasChildren \\Noselect) \"/\" \"[Gmail]\"\r\n\
+                    * LIST (\\All \\HasNoChildren) \"/\" \"[Gmail]/Alle Nachrichten\"\r\n\
+                    * LIST (\\HasNoChildren \\Sent) \"/\" \"[Gmail]/Gesendet\"\r\n\
+                    {tag} OK Success\r\n";
+        let examine =
+            "* FLAGS (\\Seen)\r\n* 3 EXISTS\r\n{tag} OK [READ-ONLY] EXAMINE completed\r\n";
+        let (mut gmail, sent) = scripted_logging(vec![
+            list.into(),
+            examine.into(),
+            "* SEARCH 7\r\n{tag} OK SEARCH completed\r\n".into(),
+        ])
+        .await;
+        gmail.open_mailbox().await.unwrap();
+        assert!(gmail.all_mail);
+        gmail.search(None, &[Portal::LinkedIn]).await.unwrap();
+        let commands = sent.lock().unwrap().join("\n");
+        assert!(
+            commands.contains(r#"EXAMINE "[Gmail]/Alle Nachrichten""#),
+            "{commands}"
+        );
+        assert!(commands.contains("(in:inbox OR -in:sent)"), "{commands}");
+
+        let list = "* LIST (\\HasNoChildren) \"/\" \"INBOX\"\r\n{tag} OK Success\r\n";
+        let (mut gmail, sent) = scripted_logging(vec![list.into(), examine.into()]).await;
+        gmail.open_mailbox().await.unwrap();
+        assert!(!gmail.all_mail);
+        let commands = sent.lock().unwrap().join("\n");
+        assert!(commands.contains(r#"EXAMINE "INBOX""#), "{commands}");
     }
 
     /// Formerly: whitespace in the app password was only removed when saving, and the
@@ -547,6 +639,7 @@ mod tests {
             Gmail {
                 session,
                 cancel: CancellationToken::new(),
+                all_mail: false,
             },
             sent,
         )
@@ -580,6 +673,7 @@ mod tests {
         // The search text is assembled here, otherwise the test would find itself.
         let source = include_str!("imap.rs");
         assert!(source.contains(&format!("session{}", r#".examine("INBOX")"#)));
+        assert!(source.contains(&format!("session{}", ".examine(&name)")));
         assert!(!source.contains(&format!("session{}", ".select(")));
     }
 

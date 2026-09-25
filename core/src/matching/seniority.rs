@@ -86,18 +86,28 @@ pub(crate) fn junior_title(title: &str) -> bool {
     lex::JUNIOR_TITLES.iter().any(|w| contains_word(&folded, w))
 }
 
-/// The seniority rule; empty when the profile sets no minimum.
+/// The seniority rule; empty when the profile sets no minimum. `page_levels`: the career
+/// level and employment type the page states in its own fields (folded) - an internship or
+/// an entry-level role is too junior, an assistant or associate level a check, unless the
+/// ad asks for the target's years somewhere.
 pub(crate) fn check(
     target: Option<u32>,
     title: &str,
     text: &str,
     doc: &JobDoc,
     vocab: &Vocab,
+    page_levels: &[String],
 ) -> Vec<Finding> {
     let Some(target) = target else {
         return Vec::new();
     };
     let key = Some(CriterionKey::TargetYears);
+    let level_is = |values: &[&str]| {
+        page_levels
+            .iter()
+            .find(|l| values.contains(&l.trim()))
+            .cloned()
+    };
     let title_atoms: Vec<String> = atoms::atoms(title, vocab)
         .into_iter()
         .filter(|a| !atoms::is_generic(a))
@@ -121,8 +131,27 @@ pub(crate) fn check(
     if statements.iter().any(|(min, ..)| *min >= target) {
         return Vec::new();
     }
+    // The page's own career level: an internship or an entry-level role is decided.
+    if let Some(level) = level_is(lex::ENTRY_LEVEL_VALUES) {
+        return vec![Finding::new(
+            ReasonCode::TooJunior,
+            true,
+            key,
+            json!({ "target": target, "level": level }),
+            Vec::new(),
+        )];
+    }
     let Some((min, max, career, range)) = statements.into_iter().max_by_key(|(min, ..)| *min)
     else {
+        if let Some(level) = level_is(lex::LOW_LEVEL_VALUES) {
+            return vec![Finding::new(
+                ReasonCode::SeniorityUnclear,
+                false,
+                key,
+                json!({ "target": target, "level": level }),
+                Vec::new(),
+            )];
+        }
         return if junior_title(title) {
             vec![Finding::new(
                 ReasonCode::SeniorityUnclear,
