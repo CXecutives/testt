@@ -3,9 +3,10 @@
 //! ([`form`]): saving merges the form into the file, so keys the form does not know, their
 //! values and the order of the keys stay; the previous file stays next to it as the one
 //! backup. Removing the profile makes it that backup, so it can be restored. A file or a
-//! pasted answer of an AI ([`prompt`]) fills the form first, the user reviews it and saves.
-//! No network: everything stays on the computer.
+//! pasted answer of an AI ([`prompt`], read by [`answer`]) fills the form first, the user
+//! reviews it and saves. No network: everything stays on the computer.
 
+mod answer;
 mod form;
 mod json;
 pub mod prompt;
@@ -149,80 +150,13 @@ pub fn draft_from_file(path: &Path) -> Result<Draft> {
     Ok(draft(&parse_doc(text)?, text))
 }
 
-/// The AI's answer to the [`prompt`]: the profile JSON in it (bare, inside a code block or
-/// between a sentence before and after), for review in the editor. What the answer leaves
-/// empty (`null`, `""`, `[]`, `{}`, the unfilled parts of the skeleton) is dropped, so no
-/// empty value becomes a criterion the app cannot read.
+/// The AI's answer to the [`prompt`] for a new profile: the profile JSON in it (bare, inside
+/// a code block or between sentences, repaired and in the skeleton's shape, see [`answer`]),
+/// for review in the editor. What the answer leaves empty is dropped, so no empty value
+/// becomes a criterion the app cannot read.
 pub fn draft_from_answer(answer: &str) -> std::result::Result<Draft, InvalidInput> {
-    answer_candidates(answer)
-        .into_iter()
-        .filter_map(|text| {
-            let mut doc = parse_doc(text).ok()?;
-            if !drop_empty(&mut doc) {
-                return Some(draft(&doc, text));
-            }
-            Some(draft(&doc, doc.to_pretty().trim_end()))
-        })
-        .find(|found| found.form.has_content())
-        .ok_or(InvalidInput::ProfileAnswer)
-}
-
-/// Removes empty values from objects and lists, deepest first (a list of empty objects goes
-/// as a whole); `true` if anything went.
-fn drop_empty(value: &mut Json) -> bool {
-    let empty = |value: &Json| match value {
-        Json::Null => true,
-        Json::String(text) => text.trim().is_empty(),
-        Json::Array(items) => items.is_empty(),
-        Json::Object(entries) => entries.is_empty(),
-        Json::Bool(_) | Json::Number(_) => false,
-    };
-    let mut dropped = false;
-    match value {
-        Json::Object(entries) => {
-            for (_, child) in entries.iter_mut() {
-                dropped |= drop_empty(child);
-            }
-            let before = entries.len();
-            entries.retain(|(_, child)| !empty(child));
-            dropped |= entries.len() != before;
-        }
-        Json::Array(items) => {
-            for child in items.iter_mut() {
-                dropped |= drop_empty(child);
-            }
-            let before = items.len();
-            items.retain(|child| !empty(child));
-            dropped |= items.len() != before;
-        }
-        _ => {}
-    }
-    dropped
-}
-
-/// Where a JSON object may stand in an answer: every fenced code block (without its
-/// language tag), then the span from the first `{` to the last `}`.
-fn answer_candidates(answer: &str) -> Vec<&str> {
-    const FENCE: &str = "```";
-    let text = answer.trim().trim_start_matches('\u{feff}');
-    let mut out = Vec::new();
-    let mut rest = text;
-    while let Some(start) = rest.find(FENCE) {
-        let fenced = &rest[start + FENCE.len()..];
-        let body = &fenced[fenced.find('\n').map_or(fenced.len(), |n| n + 1)..];
-        let Some(end) = body.find(FENCE) else {
-            out.push(body.trim());
-            break;
-        };
-        out.push(body[..end].trim());
-        rest = &body[end + FENCE.len()..];
-    }
-    if let (Some(open), Some(close)) = (text.find('{'), text.rfind('}'))
-        && open < close
-    {
-        out.push(&text[open..=close]);
-    }
-    out
+    let (doc, source) = answer::read(answer)?;
+    Ok(draft(&doc, &source))
 }
 
 /// The form of the stored profile; `None` without a readable one.

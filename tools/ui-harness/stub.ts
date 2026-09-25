@@ -749,7 +749,7 @@ const LEVELS: Record<string, ProfileForm['languages'][number]['level']> = {
   muttersprache: 'native',
 };
 
-/** Claude's answer as the backend reads it: the JSON (also in a code block) into the form. */
+/** An AI's answer as the backend reads it: the JSON (also in a code block) into the form. */
 function answerDraft(answer: string): ProfileDraft {
   const fenced = /```[a-z]*\s*([\s\S]*?)```/.exec(answer)?.[1];
   const text = fenced ?? answer.slice(answer.indexOf('{'), answer.lastIndexOf('}') + 1);
@@ -757,7 +757,9 @@ function answerDraft(answer: string): ProfileDraft {
   try {
     data = JSON.parse(text) as Json;
   } catch {
-    throw fail('invalid', { reason: 'profileAnswer' });
+    // An object that never closes: the answer breaks off.
+    const open = answer.split('{').length - answer.split('}').length;
+    throw fail('invalid', { reason: open > 0 ? 'profileAnswerCut' : 'profileAnswer' });
   }
   const list = (key: string): unknown[] =>
     Array.isArray(data[key]) ? (data[key] as unknown[]) : [];

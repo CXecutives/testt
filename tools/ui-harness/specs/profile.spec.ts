@@ -716,6 +716,7 @@ const ANSWER = [
       sprachen: [{ sprache: 'Englisch', niveau: 'C1' }],
       alleinstellungsmerkmale: [],
       keywords: ['IFRS'],
+      stationen: [{ zeitraum: '01/2020 bis heute', rolle: 'CFO', schwerpunkte: ['Treasury'] }],
     },
     null,
     2,
@@ -760,6 +761,10 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
   await page.getByTestId('paste-answer').fill('Das kann ich leider nicht.');
   await take.click();
   await expect(card).toContainText('In der Antwort steht kein Profil.');
+  // An answer the AI broke off says so.
+  await page.getByTestId('paste-answer').fill(ANSWER.slice(0, 200));
+  await take.click();
+  await expect(card).toContainText('Die Antwort bricht mitten im Profil ab.');
   await page.getByTestId('paste-answer').fill(ANSWER);
   await take.click();
   await expect(page.getByTestId('profile-name')).toHaveText('Profil aus dem Lebenslauf');
