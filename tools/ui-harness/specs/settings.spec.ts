@@ -540,7 +540,11 @@ test('first run: Einstellungen opens from the sidebar, Jobs leads back to the se
   await expect(page.getByTestId('first-run')).toBeVisible();
   // The helper line of the password carries the way to create one.
   await expect(
-    page.getByTestId('mailbox-form').locator('.help').getByTestId('create-password'),
+    page
+      .getByTestId('first-run')
+      .getByTestId('mailbox-form')
+      .locator('.help')
+      .getByTestId('create-password'),
   ).toBeVisible();
 });
 

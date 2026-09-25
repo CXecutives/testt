@@ -65,9 +65,9 @@ test('core workflow: fetch, rings fill, open the best job, reasons light the ad'
   await expect(page.getByTestId('reader')).toBeVisible();
   await expect(page.getByTestId('band')).toHaveText('Hohe Passung');
   await expect(page.getByTestId('must')).toHaveText('4 von 4 Pflichtanforderungen erfüllt');
-  await expect(page.getByTestId('contract')).toHaveText('Interim');
-  // Its ad states every criterion of the profile, and meets it: one quiet line.
+  // Its ad states every criterion of the profile, and meets it: one quiet line with the terms.
   await expect(page.getByTestId('criteria-clean')).toBeVisible();
+  await expect(page.getByTestId('criteria-clean')).toContainText('Interim');
   // The click marks the job read; wait until the list and the reader have taken that in (a
   // slow machine would otherwise re-render the reader under the pointer).
   await expect(top.locator('.title')).not.toHaveClass(/unread/);
@@ -839,7 +839,10 @@ test('the reader: a compact bar once the actions scroll away, a jump flashes its
     await bar.locator('.btn').evaluateAll((els) => els.map((el) => el.getAttribute('data-testid'))),
   ).toEqual(['compact-open', 'compact-archive', 'compact-trash', 'compact-pin', 'compact-close']);
   const pinned = await page.getByTestId('reader-pin').getAttribute('aria-pressed');
-  await bar.getByTestId('compact-pin').click();
+  // A pointer click where the bar is (a locator click would first scroll the pin into view
+  // past the stage's scroll padding, and the bar would leave).
+  const pin = (await bar.getByTestId('compact-pin').boundingBox())!;
+  await page.mouse.click(pin.x + pin.width / 2, pin.y + pin.height / 2);
   await expect(page.getByTestId('reader-pin')).not.toHaveAttribute('aria-pressed', pinned ?? '');
   await stage.evaluate((node) => node.scrollTo({ top: 0 }));
   await expect(bar).toHaveCSS('opacity', '0');

@@ -401,10 +401,11 @@ test('the terms label takes the size of the line it labels', async ({ page }) =>
   const size = (target: Locator): Promise<string> =>
     target.evaluate((node) => getComputedStyle(node).fontSize);
   await row(page, 'freelancermap-2801').click();
-  const chips = page.getByTestId('criteria');
-  await expect(chips).toBeVisible();
-  expect(await size(chips.locator('.strip-label'))).toBe(
-    await size(chips.locator('.chip').first()),
+  // The strip as chips or, when every criterion is met, as one quiet line.
+  const strip = page.getByTestId('criteria').or(page.getByTestId('criteria-clean'));
+  await expect(strip).toBeVisible();
+  expect(await size(strip.locator('.strip-label'))).toBe(
+    await size(strip.locator('.chip, .clean-values').first()),
   );
   await row(page, 'linkedin-4100200301').click();
   const clean = page.getByTestId('criteria-clean');
