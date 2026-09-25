@@ -397,6 +397,8 @@
   --toggle-thumb: 16px;
   --toggle-travel: 16px;
   --row-bar: 3px;
+  /* The selection bar keeps the row's top and bottom padding. */
+  --row-bar-inset: var(--space-12);
   --dialog-width: 440px;
   --stat-min: 180px;
   /* Sidebar (collapses to the icon rail below 1100 px) and the toast stack. */

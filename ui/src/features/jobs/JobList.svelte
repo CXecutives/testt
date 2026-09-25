@@ -12,9 +12,11 @@
   is (Archivieren, Löschen, the star; in the Papierkorb Wiederherstellen, Endgültig
   löschen); a row the user moves out folds away. Rows are chosen like in a mail app: a
   click opens one, Ctrl+click (Cmd on macOS) takes one in or out, Shift+click a range; the
-  highlight shows what is chosen, and in one column choosing never opens a job. The list is
-  one Tab stop: the open row (else the row last focused, else the first) takes Tab, the
-  arrows move from there; the row tools are for the pointer. Back in the Jobs view, the open
+  highlight shows what is chosen, and in one column choosing never opens a job. One coral
+  bar marks the open job's row and slides from row to row (RowBar); the other chosen rows
+  mark themselves. The list is one Tab stop: the open row (else the row last focused, else
+  the first) takes Tab, the arrows move from there; the row tools are for the pointer.
+  Back in the Jobs view, the open
   job's row is in view again. A row move that fails says so in the list header. An
   empty inbox says where jobs come from (an alert on each portal, older mails; reading the
   whole mailbox asks first, as in Einstellungen). Every empty
@@ -46,6 +48,7 @@
   import { run } from '$lib/state/run.svelte';
   import { viewport } from '$lib/state/viewport.svelte';
   import { actionsOf, disarm, guarded, hasStar, move, moving, purge, toggleStar } from './actions';
+  import RowBar from './RowBar.svelte';
   import { selection } from './selection.svelte';
 
   const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
@@ -85,6 +88,17 @@
 
   /** The rows in the order they stand: the active ones, then the excluded ones. */
   const order = $derived([...active, ...excluded]);
+  /** The rows the list shows (a row on the page that is not among them is leaving). */
+  const listed = $derived(new Set(shown.map((job) => keyOf(job.key))));
+  const openKey = $derived(jobs.selected ? keyOf(jobs.selected) : null);
+  /** The open job's row while it shows as selected: the list's one bar marks it (the other
+   *  rows of a choice mark themselves). */
+  const marked = $derived(
+    openKey !== null && (selection.size === 0 || selection.keys.includes(openKey)) ? openKey : null,
+  );
+  const markedExcluded = $derived(
+    marked !== null && excluded.some((job) => keyOf(job.key) === marked),
+  );
 
   /**
    * Open the job at `target` of the whole list (the keyboard), also one below the rows
@@ -114,9 +128,7 @@
   let focused = $state<string | null>(null);
   /** The row Tab stops at: the open job's, else the one focused last, else the first. */
   const tabStop = $derived.by(() => {
-    const listed = new Set(shown.map((job) => keyOf(job.key)));
-    const open = jobs.selected ? keyOf(jobs.selected) : null;
-    if (open !== null && listed.has(open)) return open;
+    if (openKey !== null && listed.has(openKey)) return openKey;
     if (focused !== null && listed.has(focused)) return focused;
     const first = order[0];
     return first ? keyOf(first.key) : null;
@@ -240,6 +252,9 @@
   /* --------------------------------------------------------------------- glides */
 
   let list = $state<HTMLElement | null>(null);
+  /** The rows of the list (both groups and the divider), which the bar follows. */
+  let groups = $state<HTMLElement | null>(null);
+  let rowBar = $state<RowBar | null>(null);
   /** The next new rows come from the user's own change (sort, facet, filter) or from the
    *  re-sort at the end of a run: the rows on screen glide to their new place. */
   let armed = false;
@@ -276,6 +291,7 @@
         duration: 'base',
       });
       motion?.addEventListener('finish', () => motion.cancel());
+      if (row.hasAttribute('data-open')) rowBar?.shift(offset);
     }
   }
 
@@ -548,14 +564,16 @@
       {/if}
     </div>
   {:else}
-    {#snippet row(job: JobView)}
-      <!-- While rows are chosen the highlight shows exactly them (what the bar counts and
-           a Ctrl+click takes out); else the open job. -->
+    {#snippet row(job: JobView, open: boolean)}
+      <!-- While rows are chosen the highlight shows exactly them (what the header's bar
+           counts and a Ctrl+click takes out); else the open job. The open job's row is
+           marked by the list's one bar, every other chosen row by its own. -->
       <JobRow
         {job}
         ring={!profileMissing}
         pending={pending && job.match === null}
-        selected={selection.size > 0 ? selection.has(job) : sameKey(jobs.selected, job.key)}
+        selected={selection.size > 0 ? selection.has(job) : open}
+        bar={!open}
         tabbable={keyOf(job.key) === tabStop}
         onselect={select}
         onpin={hasStar(job.place) ? pin : null}
@@ -565,30 +583,38 @@
     {#snippet group(items: JobView[])}
       {#each items as job (keyOf(job.key))}
         {@const key = keyOf(job.key)}
-        <div class="item" data-key={key} out:rowCollapse={{ on: moving.has(key) }}>
-          {@render row(job)}
+        {@const open = key === openKey}
+        <div
+          class="item"
+          data-key={key}
+          data-open={open ? '' : undefined}
+          out:rowCollapse={{ on: moving.has(key) }}
+        >
+          {@render row(job, open)}
         </div>
       {/each}
     {/snippet}
-    <!-- Another list is built anew: its old rows leave as one piece, not row by row. -->
-    {#key jobs.generation}
-      <div class="rows" data-testid="job-rows">
-        {@render group(active)}
-      </div>
-      {#if excluded.length > 0}
-        <div class="divider" data-testid="excluded-divider">
-          <span class="divider-label">{t.list.excluded}</span>
-          {#if excludedCount !== null}<Count
-              value={excludedCount}
-              tone="plain"
-              testid="excluded-count"
-            />{/if}
+    <div class="groups" bind:this={groups}>
+      <!-- Another list is built anew: its old rows leave as one piece, not row by row. -->
+      {#key jobs.generation}
+        <div class="rows" data-testid="job-rows">
+          {@render group(active)}
         </div>
-        <div class="rows" data-testid="excluded-rows">
-          {@render group(excluded)}
-        </div>
-      {/if}
-    {/key}
+        {#if excluded.length > 0}
+          <div class="divider" data-testid="excluded-divider">
+            <span class="divider-label">{t.list.excluded}</span>
+            {#if excludedCount !== null}<Count
+                value={excludedCount}
+                tone="plain"
+                testid="excluded-count"
+              />{/if}
+          </div>
+          <div class="rows" data-testid="excluded-rows">
+            {@render group(excluded)}
+          </div>
+        {/if}
+      {/key}
+    </div>
     {#if elsewhere.length > 0 && !jobs.more}{@render alsoIn()}{/if}
     {#if jobs.pageError}
       <div class="page-error">
@@ -608,6 +634,16 @@
       {/key}
     {/if}
   {/if}
+  <RowBar
+    bind:this={rowBar}
+    rows={groups}
+    open={marked}
+    muted={markedExcluded}
+    {listed}
+    folding={moving}
+    several={selection.size > 0}
+    generation={jobs.generation}
+  />
 </div>
 
 <Dialog
@@ -636,7 +672,9 @@
 />
 
 <style>
+  /* The containing block of the rows' one selection bar (RowBar). */
   .list {
+    position: relative;
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -663,6 +701,7 @@
 
   /* Plain block flow: a flex column adds nothing here and costs a little more each time the
      rows are laid out again. */
+  .groups,
   .rows {
     display: block;
   }

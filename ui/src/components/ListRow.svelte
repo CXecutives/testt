@@ -4,9 +4,12 @@
   padding of the columns on the sides. A hairline under each row; a list whose rows reach
   past its column (for the wash) insets the line with `--row-rule-inset`, so it is as wide
   as every other hairline there. Hover washes the row (80 ms in, 150 ms out), a press
-  darkens it (60 ms); rows never move or scale. The selected row takes a very light warm wash (one step deeper under the pointer)
-  and a coral bar on the left that fades in (150 ms) and out (100 ms); a row created as
-  selected is simply there. While the window is inactive the selection turns grey (its
+  darkens it (60 ms); rows never move or scale. The selected row takes a very light warm
+  wash (one step deeper under the pointer) and a coral bar on the left, inset by the row's
+  padding, that fades in (150 ms) and out (100 ms); a row created as selected is simply
+  there. A list that marks its open row with one bar of its own, which slides from row to
+  row (the job list), turns the row's bar off (`bar={false}`): it goes at once, as the
+  list's bar takes its place. While the window is inactive the selection turns grey (its
   ring track too), as in Mail and Explorer. While the list scrolls rows take no hover: a row
   rests (`data-rests`), and the rows the pointer passes during a scroll carry `data-still`
   (input.ts) until it is over, so only those rows restyle. A mark on :root or a property that
@@ -20,6 +23,8 @@
 
   interface Props {
     selected?: boolean;
+    /** A selected row draws its own bar (false: the list's one sliding bar marks it). */
+    bar?: boolean;
     /** Greyed out (excluded jobs behind the divider). */
     muted?: boolean;
     /** The click (its modifiers say whether it extends a selection). */
@@ -34,6 +39,7 @@
 
   let {
     selected = false,
+    bar = true,
     muted = false,
     onclick = null,
     tabbable = true,
@@ -48,6 +54,7 @@
   type="button"
   class="row"
   class:selected
+  class:bar
   class:muted
   aria-current={selected ? 'true' : undefined}
   tabindex={tabbable ? undefined : -1}
@@ -103,8 +110,8 @@
      changes shape). */
   .row::before {
     position: absolute;
-    top: var(--space-12);
-    bottom: var(--space-12);
+    top: var(--row-bar-inset);
+    bottom: var(--row-bar-inset);
     left: 0;
     width: var(--row-bar);
     border-radius: var(--radius-full);
@@ -127,10 +134,15 @@
     content: '';
   }
 
-  .selected::before {
+  .selected.bar::before {
     opacity: 1;
     transition-duration: var(--dur-base);
     transition-timing-function: var(--ease-out), var(--ease-standard);
+  }
+
+  /* The list's own bar takes over this row in the same frame: no fade under it. */
+  .selected:not(.bar)::before {
+    transition: none;
   }
 
   /* Like Mail and Explorer: the selection greys out while the window is in the back. */

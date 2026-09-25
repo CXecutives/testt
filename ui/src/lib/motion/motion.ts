@@ -182,8 +182,9 @@ export interface PlayOptions {
 
 /**
  * The only use of the Web Animations API in the UI. Keyframes may animate transform,
- * opacity and stroke-dashoffset only. Under reduced motion the animation jumps to its
- * end state unless it is a cross-fade.
+ * opacity and stroke-dashoffset only, and the height of the job list's selection bar (a
+ * 3 px element out of the flow, `barSlide`). Under reduced motion the animation jumps to
+ * its end state unless it is a cross-fade.
  */
 export function play(
   element: Element,
