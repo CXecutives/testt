@@ -1283,6 +1283,7 @@ export const en: Catalog = {
     workspaceDefault: 'Default',
     excel: 'Excel file',
     excelMissing: 'The Excel file is created at the first fetch.',
+    overview: 'Overview',
     txt: 'Text files',
     txtCount: (value: number) => `${count(value, 'ad', 'ads')} as text for an AI assessment`,
     txtLeftBehind: 'The text files are still in the old folder, and “Rewrite” puts them here.',

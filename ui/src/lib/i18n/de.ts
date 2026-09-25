@@ -1422,6 +1422,7 @@ export const de = {
     workspaceDefault: 'Standard',
     excel: 'Excel-Datei',
     excelMissing: 'Die Excel-Datei entsteht beim ersten Abruf.',
+    overview: 'Übersicht',
     txt: 'Textdateien',
     /** What the text files are (one per ad) and what they are for, with their number. */
     txtCount: (value: number) =>

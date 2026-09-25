@@ -491,6 +491,22 @@
             />
           </div>
         </SettingRow>
+        <!-- The HTML overview next to it: opening writes it first, except in the dry run and
+             while a run holds the files (as in the day overview). -->
+        <SettingRow label={t.settings.overview} testid="overview">
+          <div class="buttons">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="file-text"
+              label={t.common.open}
+              disabled={!cfg.settings.excelExists && (dryRun || run.active)}
+              disabledReason={lockedReason}
+              testid="overview-open"
+              onclick={() => open({ kind: 'overview' }, setFiles)}
+            />
+          </div>
+        </SettingRow>
         <SettingRow label={t.settings.txt} hint={t.settings.txtCount(cfg.settings.txtFiles)}>
           <div class="buttons">
             <Button
