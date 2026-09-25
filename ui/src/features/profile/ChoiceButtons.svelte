@@ -2,7 +2,8 @@
   A small fixed choice as a row of toggle buttons (the design system's pressed secondary
   button, as the filter chips): one (`multiple` off, pressing the chosen one clears it) or
   several. For the language level, the remote share and the availability of the profile: no
-  dropdowns. The buttons are as tall as the fields beside them (md). An option may explain
+  dropdowns. The buttons are as tall as the fields beside them, in the small type of chips
+  and segments (size field). An option may explain
   itself in a tooltip (what a language level means).
 -->
 <script lang="ts">
@@ -38,7 +39,7 @@
     >
       <Button
         variant="secondary"
-        size="md"
+        size="field"
         label={option.label}
         pressed={selected.includes(option.id)}
         onclick={() => toggle(option.id)}

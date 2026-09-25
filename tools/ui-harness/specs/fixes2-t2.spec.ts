@@ -121,6 +121,11 @@ test('every control of a block has the height of a field', async ({ page }) => {
     if (section === 'section-understood') continue;
     expect(set, section).toEqual([36]);
   }
+  // The choice buttons take the small type of chips and segments, not the larger button type.
+  const types = await page
+    .locator('[data-testid^="section-"] [role="group"] .btn')
+    .evaluateAll((buttons) => [...new Set(buttons.map((b) => getComputedStyle(b).fontSize))]);
+  expect(types).toEqual(['13px']);
   // Every number field has one width; the day of "Ab Datum" too.
   const widths = await Promise.all(
     [
