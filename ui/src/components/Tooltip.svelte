@@ -70,8 +70,7 @@
     use:place={{ anchor: tooltipState.anchor, text: tooltipState.text, hint }}
   >
     <div class="bubble" in:tooltipIn={{ placement: tooltipState.placement }} out:tooltipOut>
-      {tooltipState.text}
-      {#if hint}<span class="hint">{hint}</span>{/if}
+      {tooltipState.text}{#if hint}<span class="hint">{hint}</span>{/if}
     </div>
   </div>
 {/if}
