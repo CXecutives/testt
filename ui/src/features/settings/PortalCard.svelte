@@ -241,7 +241,7 @@
                 label={t.settings.signIn}
                 loading={busy}
                 disabled={run.active || dryRun}
-                disabledReason={dryRun ? dryRunReason : t.settings.running}
+                disabledReason={dryRun ? dryRunReason : run.busyText}
                 testid="sign-in-{portal.portal}"
                 onclick={() => void session(true)}
               />

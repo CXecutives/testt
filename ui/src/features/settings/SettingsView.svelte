@@ -6,9 +6,10 @@
   confirm, and a confirmed action that fails closes its dialog so the note beside the action
   can say why.
   Switches move at once and are their own answer (no toast). The dry run changes nothing,
-  and a running fetch holds the mailbox, the folder and the files, so what they cannot do is
-  locked with that reason instead of failing. The Postfach says when the last fetch could
-  not reach Gmail or Gmail refused the password, instead of "Verbunden".
+  and a run (a fetch, or the rescore after a profile change) holds the mailbox, the folder
+  and the files, so what they cannot do is locked with the reason of that run instead of
+  failing. The Postfach says when the last fetch could not reach Gmail or Gmail refused the
+  password, instead of "Verbunden".
   Every path row works the same: the path is text to select and copy, the folder opens with
   "Ordner öffnen", the Excel file with "Öffnen".
 -->
@@ -56,7 +57,8 @@
   /** What the dry run cannot do, and why (the backend would refuse it). */
   const dryRun = $derived(cfg?.dryRun ?? false);
   const dryRunReason = $derived(t.error.text('dryRun', {}));
-  const lockedReason = $derived(dryRun ? dryRunReason : t.settings.running);
+  /** Why a locked action waits: the dry run, or the run in progress (a fetch or a rescore). */
+  const lockedReason = $derived(dryRun ? dryRunReason : run.busyText);
 
   /** Fetch failures that are about the mailbox itself (not a cancel, not a missing one). */
   const MAIL_FAILURES: readonly string[] = [
@@ -496,7 +498,7 @@
             icon="mail"
             label={t.settings.fullMailboxAction}
             disabled={run.active || !cfg.mailbox.user}
-            disabledReason={run.active ? t.settings.running : t.toolbar.needsMailbox}
+            disabledReason={run.active ? run.busyText : t.toolbar.needsMailbox}
             testid="full-mailbox"
             onclick={() => (confirmFull = true)}
           />
