@@ -112,6 +112,8 @@ test('toasts: at most three, they stay while hovered and leave on their own', as
   await open(page, '?platform=windows');
   await page.getByTestId('nav-settings').click();
   // Switches and file actions answer in place; a changed mailbox still reports by toast.
+  // The window in the back holds their time, so a slow machine still sees all of them.
+  await page.evaluate(() => window.__harness.fire('tauri://blur', null));
   for (let i = 0; i < 4; i += 1) {
     await page.getByTestId('mailbox-change').click();
     await page.getByTestId('mailbox-password').fill('abcd efgh ijkl mnop');
@@ -121,6 +123,7 @@ test('toasts: at most three, they stay while hovered and leave on their own', as
   const toasts = page.getByTestId('toast');
   await expect(toasts).toHaveCount(3);
   await toasts.first().hover();
+  await page.evaluate(() => window.__harness.fire('tauri://focus', null));
   await page.waitForTimeout(4500);
   await expect(toasts).toHaveCount(1);
   await page.mouse.move(5, 5);

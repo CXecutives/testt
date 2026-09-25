@@ -1,7 +1,8 @@
 // Short confirmations whose result is not visible otherwise (saved, copied, files written,
-// run finished). At most three at once, each leaves after --dur-toast (one with an undo
-// after --dur-toast-undo); the time stands still while it is hovered and while the window is
-// in the background. Ctrl/Cmd+Z runs the newest undo (`undoLast`, lib/input/input.ts).
+// run finished). At most three at once. A plain one leaves after --dur-toast (4 s); one
+// with an undo stays --dur-toast-action (10 s), long enough to read and reach it. A toast
+// waits while the pointer is on it, and every toast waits while the window is in the back
+// or a modal dialog is open (`hold`): its time only runs while the user can act on it.
 // Anything that needs an action stays inline where it belongs; the one exception is an
 // undo of what the user just did (a job moved), which the toast may carry; results of the
 // same kind in quick succession merge into one toast with one undo (`undoable`).
@@ -21,11 +22,9 @@ export interface ToastItem {
   text: string;
   tone: ToastTone;
   action: ToastAction | null;
+  /** Counts up when a merged result starts the toast's time again (its line restarts). */
+  round: number;
 }
-
-/** How long a toast stays: longer when it can take something back. */
-const lifetime = (action: ToastAction | null): number =>
-  tokenMs(action ? '--dur-toast-undo' : '--dur-toast');
 
 const MAX = 3;
 /** A result of the same kind within this time joins the toast that is up ("2 Jobs
@@ -40,45 +39,37 @@ interface Merged {
   at: number;
 }
 
+interface Timer {
+  timer: ReturnType<typeof setTimeout> | null;
+  /** Time left (ms) while the timer does not run. */
+  left: number;
+  since: number;
+}
+
+/** How long a toast stays: longer when it carries an undo. */
+function lifetime(action: ToastAction | null): number {
+  return tokenMs(action === null ? '--dur-toast' : '--dur-toast-action');
+}
+
 class Toasts {
   items = $state<ToastItem[]>([]);
+  /** Every toast waits (the window is in the back, a modal dialog is open): for the view. */
+  held = $state(false);
   #next = 1;
-  #timers = new Map<
-    number,
-    { timer: ReturnType<typeof setTimeout> | null; left: number; since: number }
-  >();
-
+  #timers = new Map<number, Timer>();
   #merged = new Map<number, Merged>();
-  /** Hovered toasts (their time stands still). */
-  #held = new Set<number>();
-  /** The window is in the background: every toast waits. */
-  #away = false;
-
-  constructor() {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    new MutationObserver(() => this.#window(root.dataset.window !== 'inactive')).observe(root, {
-      attributes: true,
-      attributeFilter: ['data-window'],
-    });
-  }
+  /** Toasts under the pointer. */
+  #hovered = new Set<number>();
+  /** Why the toasts wait; each hold is released on its own. */
+  #holds = new Set<symbol>();
 
   show(text: string, tone: ToastTone = 'success', action: ToastAction | null = null): number {
     const id = this.#next++;
-    this.items = [...this.items, { id, text, tone, action }];
+    this.items = [...this.items, { id, text, tone, action, round: 0 }];
     while (this.items.length > MAX) this.dismiss(this.items[0]!.id);
     this.#timers.set(id, { timer: null, left: lifetime(action), since: 0 });
     this.#start(id);
     return id;
-  }
-
-  /** Ctrl/Cmd+Z: the newest undo that is still up runs; `true` if there was one. */
-  undoLast(): boolean {
-    const newest = [...this.items].reverse().find((item) => item.action !== null);
-    if (!newest?.action) return false;
-    newest.action.onclick();
-    this.dismiss(newest.id);
-    return true;
   }
 
   /**
@@ -112,60 +103,83 @@ class Toasts {
     merged.undos.push(undo);
     merged.at = now;
     this.items = this.items.map((item) =>
-      item.id === id ? { ...item, text: text(merged.count) } : item,
+      item.id === id ? { ...item, text: text(merged.count), round: item.round + 1 } : item,
     );
     // The toast stays its full time from the last result.
     const entry = this.#timers.get(id);
     if (entry) {
-      if (entry.timer !== null) clearTimeout(entry.timer);
-      entry.timer = null;
-      entry.left = tokenMs('--dur-toast-undo');
+      this.#stop(id);
+      const item = this.items.find((each) => each.id === id);
+      entry.left = lifetime(item?.action ?? null);
       this.#start(id);
     }
   }
 
+  /** Ctrl/Cmd+Z (lib/input/input.ts): the newest undo that is still up runs, as its button
+   *  would; `true` if there was one. */
+  undoLast(): boolean {
+    const newest = [...this.items].reverse().find((item) => item.action !== null);
+    if (!newest?.action) return false;
+    newest.action.onclick();
+    this.dismiss(newest.id);
+    return true;
+  }
+
   dismiss(id: number): void {
-    const entry = this.#timers.get(id);
-    if (entry?.timer) clearTimeout(entry.timer);
+    this.#stop(id);
     this.#timers.delete(id);
     this.#merged.delete(id);
-    this.#held.delete(id);
+    this.#hovered.delete(id);
     this.items = this.items.filter((item) => item.id !== id);
   }
 
   /** Hovered: the toast stays. */
   pause(id: number): void {
-    this.#held.add(id);
+    this.#hovered.add(id);
     this.#stop(id);
   }
 
   resume(id: number): void {
-    this.#held.delete(id);
+    this.#hovered.delete(id);
     this.#start(id);
   }
 
+  /**
+   * Every toast waits until the returned release is called: while the window is in the
+   * back (Toast.svelte) or a modal dialog is open (Dialog.svelte), so an undo cannot run
+   * out while the user cannot reach it.
+   */
+  hold(): () => void {
+    // Only the plain set decides (reading `held` here would make a calling effect depend
+    // on what it writes).
+    const reason = Symbol('hold');
+    this.#holds.add(reason);
+    if (this.#holds.size === 1) {
+      this.held = true;
+      for (const id of this.#timers.keys()) this.#stop(id);
+    }
+    return () => {
+      if (!this.#holds.delete(reason) || this.#holds.size > 0) return;
+      this.held = false;
+      for (const id of this.#timers.keys()) this.#start(id);
+    };
+  }
+
+  /** The time runs (unless the toast is hovered or all toasts are held). */
+  #start(id: number): void {
+    const entry = this.#timers.get(id);
+    if (!entry || entry.timer !== null || this.#holds.size > 0 || this.#hovered.has(id)) return;
+    entry.since = Date.now();
+    entry.timer = setTimeout(() => this.dismiss(id), entry.left);
+  }
+
+  /** The time stops where it is. */
   #stop(id: number): void {
     const entry = this.#timers.get(id);
     if (!entry || entry.timer === null) return;
     clearTimeout(entry.timer);
     entry.timer = null;
     entry.left = Math.max(0, entry.left - (Date.now() - entry.since));
-  }
-
-  /** The time runs on, unless the toast is hovered or the window is in the background. */
-  #start(id: number): void {
-    const entry = this.#timers.get(id);
-    if (!entry || entry.timer !== null || this.#away || this.#held.has(id)) return;
-    entry.since = Date.now();
-    entry.timer = setTimeout(() => this.dismiss(id), entry.left);
-  }
-
-  #window(active: boolean): void {
-    this.#away = !active;
-    for (const id of this.#timers.keys()) {
-      if (active) this.#start(id);
-      else this.#stop(id);
-    }
   }
 }
 
