@@ -7,6 +7,7 @@ import { t } from '$lib/i18n/t';
 import type { JobView } from '$lib/ipc/types';
 import { isExcluded, jobs } from '$lib/state/jobs.svelte';
 import { run } from '$lib/state/run.svelte';
+import { viewport } from '$lib/state/viewport.svelte';
 import { actionsFor, hasStar, move, purge, toggleStar } from './actions';
 import { selection } from './selection.svelte';
 
@@ -20,9 +21,10 @@ class Bulk {
     ]);
   });
 
-  /** Two or more chosen: the bar and the summary are up. */
+  /** Two or more chosen: the bar and the summary are up. In one column one is enough:
+   *  choosing opens no job there, so the header's bar acts on it. */
   get active(): boolean {
-    return this.chosen.length >= 2;
+    return this.chosen.length >= (viewport.narrow ? 1 : 2);
   }
 
   confirmPurge = $state(false);

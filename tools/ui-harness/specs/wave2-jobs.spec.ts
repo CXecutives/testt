@@ -50,3 +50,38 @@ test('a place chosen in the sidebar opens without the search; the link keeps it'
   await expect(search).toHaveValue('');
   await expect.poll(lastSearch).toBeNull();
 });
+
+test('one column: a single chosen row keeps the selection bar; two columns open it', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 800, height: 700 });
+  await open(page, WIN);
+  const bar = page.getByTestId('selection-bar');
+  const chosen = rows(page).and(page.locator('[aria-current="true"]'));
+  await rows(page).nth(0).click();
+  await page.getByTestId('back').click();
+  await rows(page)
+    .nth(1)
+    .click({ modifiers: ['Control'] });
+  await expect(bar).toContainText('1 ausgewählt');
+  await rows(page)
+    .nth(2)
+    .click({ modifiers: ['Control'] });
+  await expect(bar).toContainText('2 ausgewählt');
+  // One taken out again: the other one stays chosen, and the bar acts on it.
+  await rows(page)
+    .nth(2)
+    .click({ modifiers: ['Control'] });
+  await expect(bar).toContainText('1 ausgewählt');
+  await expect(chosen).toHaveCount(1);
+  await expect(page.getByTestId('selection-trash')).toBeVisible();
+  // Two columns: that job opens like after a plain click.
+  const key = await chosen.getAttribute('data-testid');
+  await page.setViewportSize({ width: 1280, height: 700 });
+  await expect(bar).toHaveCount(0);
+  await expect(page.getByTestId('reader')).toBeVisible();
+  await expect(rows(page).and(page.locator('[aria-current="true"]'))).toHaveAttribute(
+    'data-testid',
+    key ?? '',
+  );
+});
