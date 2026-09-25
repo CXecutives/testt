@@ -48,7 +48,7 @@ import type { Action } from 'svelte/action';
 import { t } from '../i18n/t';
 import { popupEditMenu, type EditEntry } from '../ipc/api';
 import { fieldMenuUndoDelete, keyConventions, type KeyConventions } from '../platform';
-import { tokenMs } from '../tokens';
+import { tokenMs, tokenPx } from '../tokens';
 
 const FIELD = 'input, textarea, [contenteditable="true"], [contenteditable=""]';
 /** Text a user would copy (selectable, Ctrl/Cmd+C). */
@@ -118,6 +118,11 @@ function isCopy(event: KeyboardEvent): boolean {
   if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 'c') {
     return false;
   }
+  return hasSelection();
+}
+
+/** Selected text (outside fields only copyable text can be selected). */
+function hasSelection(): boolean {
   const selection = getSelection();
   return selection !== null && !selection.isCollapsed && selection.toString().trim() !== '';
 }
@@ -145,6 +150,9 @@ function middleScrolls(target: EventTarget | null): boolean {
 
 function isWindowShortcut(event: KeyboardEvent): boolean {
   if (event.altKey && event.key === 'F4') return true;
+  // Windows: Alt+Space opens the window's system menu (a cancelled key never reaches it).
+  const plainAlt = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+  if (plainAlt && event.code === 'Space' && keyConventions().systemMenuKey) return true;
   if (!event.metaKey || event.ctrlKey) return false;
   // Hide Others (Cmd+Option+H): Option changes the character, so the key itself counts.
   if (event.altKey) return event.code === 'KeyH';
@@ -165,7 +173,15 @@ function typesWithAltGraph(event: KeyboardEvent, os: KeyConventions): boolean {
   return event.ctrlKey && event.altKey && !event.metaKey && isTypedCharacter(event.key);
 }
 
+/** Shift+F10 alone: the context menu (Windows), which the engine turns into `contextmenu`. */
+function isContextMenuKey(event: KeyboardEvent): boolean {
+  return (
+    event.key === 'F10' && event.shiftKey && !hasModifier(event) && keyConventions().contextMenuKey
+  );
+}
+
 function allowedInField(event: KeyboardEvent): boolean {
+  if (isContextMenuKey(event)) return true;
   // Function keys (F1-F12) reach the WebView (reload, caret browsing, devtools).
   if (/^F\d{1,2}$/.test(event.key)) return false;
   const os = keyConventions();
@@ -342,6 +358,32 @@ function dispatchListKey(event: KeyboardEvent): boolean {
   }
 }
 
+/** The arrows inside a radio group (the segments): the previous or the next option takes
+ *  the focus and is chosen, wrapping at the ends, like native radio buttons. The group is
+ *  one Tab stop (only the chosen option has tabindex 0). `true` if the group took the key. */
+function dispatchRadioKey(event: KeyboardEvent): boolean {
+  if (hasModifier(event) || event.shiftKey) return false;
+  const step =
+    event.key === 'ArrowRight' || event.key === 'ArrowDown'
+      ? 1
+      : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+        ? -1
+        : 0;
+  const radio = closest(event.target, '[role="radio"]');
+  const group = radio?.closest('[role="radiogroup"]') ?? null;
+  if (step === 0 || radio === null || group === null) return false;
+  const options = [...group.querySelectorAll<HTMLElement>('[role="radio"]')].filter(
+    (node) => node.getAttribute('aria-disabled') !== 'true' && !node.matches(':disabled'),
+  );
+  const at = options.indexOf(radio as HTMLElement);
+  const next = options[(at + step + options.length) % options.length];
+  event.preventDefault();
+  if (next === undefined || next === radio) return true;
+  next.focus();
+  next.click();
+  return true;
+}
+
 const isFocusMove = (event: KeyboardEvent): boolean => event.key === 'Tab' && !hasModifier(event);
 
 /** The focused control is a button that Enter presses (not a switch or a radio). */
@@ -462,7 +504,43 @@ function dispatchChipKey(event: KeyboardEvent): boolean {
   return handled;
 }
 
+/** The focus moves by the keyboard (Tab, the arrows, a key that opens something) until the
+ *  next press of a mouse button. */
+let keyboardFocus = false;
+
+/**
+ * A control the keyboard focuses stays clear of its scroll area's edges with its ring and a
+ * gap (--space-8), below a sticky band too (the area's scroll-padding). The engines scroll a
+ * focused control only until it touches the edge, and WebKit ignores scroll-margin there.
+ */
+function keepInView(node: HTMLElement): void {
+  const pane = scrollAreaOf(node.parentElement);
+  if (pane === null || !node.isConnected) return;
+  const clear = tokenPx('--space-8');
+  const style = getComputedStyle(pane);
+  const view = pane.getBoundingClientRect();
+  const top = view.top + pane.clientTop + (Number.parseFloat(style.scrollPaddingTop) || 0);
+  const bottom =
+    view.top +
+    pane.clientTop +
+    pane.clientHeight -
+    (Number.parseFloat(style.scrollPaddingBottom) || 0);
+  const box = node.getBoundingClientRect();
+  const above = top - (box.top - clear);
+  const below = box.bottom + clear - bottom;
+  if (above > 0) pane.scrollTop -= above;
+  else if (below > 0) pane.scrollTop += Math.min(below, box.top - clear - top);
+}
+
+function onFocusIn(event: FocusEvent): void {
+  const node = event.target;
+  if (!keyboardFocus || !(node instanceof HTMLElement)) return;
+  // After the engine's own scroll into view.
+  requestAnimationFrame(() => keepInView(node));
+}
+
 function onKeyDown(event: KeyboardEvent): void {
+  keyboardFocus = true;
   if (event.ctrlKey || event.metaKey) guardZoom(true);
   if (isWindowShortcut(event)) return;
   const modal = topModal();
@@ -480,6 +558,8 @@ function onKeyDown(event: KeyboardEvent): void {
     }
   }
   if (isCopy(event)) return;
+  // Shift+F10 on selected text opens its menu (Copy), like the Menu key.
+  if (isContextMenuKey(event) && !inField(event.target) && hasSelection()) return;
   if (isFindShortcut(event)) {
     // Never the WebView's find bar; a list with a search field takes it.
     event.preventDefault();
@@ -504,7 +584,7 @@ function onKeyDown(event: KeyboardEvent): void {
     if (closest(event.target, LIST) !== null) dispatchListKey(event);
     return;
   }
-  if (isFocusMove(event) || pressesControl(event)) return;
+  if (isFocusMove(event) || pressesControl(event) || dispatchRadioKey(event)) return;
   event.preventDefault();
   if (isUndo(event)) {
     if (modal === null) [...undos].reverse().some((undo) => undo());
@@ -648,7 +728,11 @@ function fieldMenu(field: HTMLInputElement | HTMLTextAreaElement): EditEntry[] {
   const selected = (field.selectionStart ?? 0) !== (field.selectionEnd ?? 0);
   const full = fieldMenuUndoDelete();
   const undo: EditEntry[] = full
-    ? [{ command: 'Undo', text: t.edit.undo, enabled: editable }, SEPARATOR]
+    ? [
+        // The engine keeps one undo history for the page (the entry sends Ctrl+Z).
+        { command: 'Undo', text: t.edit.undo, enabled: editable && canUndo() },
+        SEPARATOR,
+      ]
     : [];
   const remove: EditEntry[] = full
     ? [
@@ -671,6 +755,15 @@ function fieldMenu(field: HTMLInputElement | HTMLTextAreaElement): EditEntry[] {
   ];
 }
 
+/** The page has an edit to take back (greys out the Undo entry otherwise, like the OS). */
+function canUndo(): boolean {
+  try {
+    return document.queryCommandEnabled('undo');
+  } catch {
+    return true;
+  }
+}
+
 /** Copyable text under the pointer that is part of the current selection. */
 function selectedCopy(target: EventTarget | null): boolean {
   const copy = closest(target, COPY);
@@ -679,14 +772,17 @@ function selectedCopy(target: EventTarget | null): boolean {
   return selection.toString().trim() !== '' && selection.containsNode(copy, true);
 }
 
-/** The right click: the OS's menu in fields and on selected copyable text, else nothing. */
+/** The right click: the OS's menu in fields and on selected copyable text, else nothing.
+ *  From the keyboard (the Menu key, Shift+F10: no button) the menu opens where the engine
+ *  puts the event, at the field or the selection, not at the pointer. */
 function onContextMenu(event: MouseEvent): void {
   event.preventDefault();
+  const at = event.button === -1 ? { x: event.clientX, y: event.clientY } : null;
   const field = closest(event.target, 'input, textarea');
   if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
-    void popupEditMenu(fieldMenu(field));
+    void popupEditMenu(fieldMenu(field), at);
   } else if (selectedCopy(event.target)) {
-    void popupEditMenu([{ command: 'Copy', text: t.edit.copy, enabled: true }]);
+    void popupEditMenu([{ command: 'Copy', text: t.edit.copy, enabled: true }], at);
   }
 }
 
@@ -836,6 +932,7 @@ export function installInput(): void {
   document.addEventListener(
     'mousedown',
     (event) => {
+      keyboardFocus = false;
       if (event.button === LEFT) {
         if (!otherButtonsDown(event)) auxPress(false);
         lastPane = scrollAreaOf(event.target);
@@ -906,6 +1003,7 @@ export function installInput(): void {
     capture,
   );
   document.addEventListener('keydown', onKeyDown, capture);
+  document.addEventListener('focusin', onFocusIn, { capture: true, passive: true });
   document.addEventListener(
     'keyup',
     (event) => {

@@ -322,9 +322,10 @@
       color var(--dur-base) var(--ease-standard);
   }
 
-  /* The parent's row answers the pointer as a whole: over its arrow it keeps its wash. */
+  /* The parent's row answers the pointer as a whole: over its arrow it keeps its wash, but
+     not over an arrow that waits (nothing there reacts to a click). */
   .item:not([aria-current='page']):hover,
-  .parent:hover > .item:not([aria-current='page']) {
+  .parent:hover:not(:has(.fold[aria-disabled='true']:hover)) > .item:not([aria-current='page']) {
     background-color: var(--surface-hover);
     color: var(--text);
     transition-duration: var(--dur-hover);
