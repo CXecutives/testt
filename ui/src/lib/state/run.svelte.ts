@@ -430,6 +430,27 @@ export function exportError(summary: RunSummary): ErrorInfo | null {
   return summary.export?.error ?? null;
 }
 
+/** Why a result file stayed as it was, by what could not be written (`params.target`): one
+ *  sentence for the run card and for a delete for good in the list. */
+export function exportText(error: ErrorInfo | null): string | null {
+  if (error === null) return null;
+  const texts = t.run.exportFailed;
+  switch (error.params['target']) {
+    case 'overview':
+      return error.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
+    case 'overviewHtml':
+      return texts.overviewHtml;
+    case 'txtFolder':
+      return texts.txtFolder;
+    case 'backup':
+      return texts.backup;
+    case 'workspace':
+      return texts.workspace;
+    default:
+      return texts.txt;
+  }
+}
+
 /** The title of a finished run: done, cancelled or failed, in the words of its kind. */
 export function outcomeText(summary: RunSummary): string {
   const outcome = summary.outcome.kind;

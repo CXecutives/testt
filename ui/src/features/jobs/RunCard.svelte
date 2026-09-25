@@ -28,13 +28,15 @@
   import Spinner from '$components/Spinner.svelte';
   import { t } from '$lib/i18n/t';
   import { formatMoment, formatNumber, formatTime } from '$lib/i18n/format';
-  import { errorText, healthSentence } from '$lib/i18n/texts';
+  import { errorText, healthAdvice } from '$lib/i18n/texts';
   import { invoke } from '$lib/ipc/api';
   import type { OpenTarget, Portal, PortalHealth, Step } from '$lib/ipc/types';
   import { fade, roll } from '$lib/motion/transitions';
   import { app } from '$lib/state/app.svelte';
+  import { fileManager } from '$lib/platform';
   import {
     exportError,
+    exportText,
     failureAction,
     isFetch,
     needsAction,
@@ -56,22 +58,9 @@
   const skipped = $derived(sum('skipped'));
   const failure = $derived(summary?.outcome.kind === 'failed' ? summary.outcome.error : null);
   const files = $derived(summary ? exportError(summary) : null);
-  const filesText = $derived.by(() => {
-    if (files === null) return null;
-    const texts = t.run.exportFailed;
-    switch (files.params.target) {
-      case 'overview':
-        return files.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
-      case 'overviewHtml':
-        return texts.overviewHtml;
-      case 'txtFolder':
-        return texts.txtFolder;
-      case 'backup':
-        return texts.backup;
-      default:
-        return texts.txt;
-    }
-  });
+  const filesText = $derived(exportText(files));
+  // The old program's Excel file the export renamed before it wrote its own: by its name.
+  const renamed = $derived(summary?.export?.backup?.split(/[\\/]/).pop() ?? null);
   // A text file problem is said once: by the export error when it names the text files.
   const txtFailed = $derived(
     files !== null && (files.params.target === 'txt' || files.params.target === 'txtFolder')
@@ -203,7 +192,7 @@
               tone={needsAction(health) ? 'warning' : 'info'}
               variant="inline"
               heading={t.portal[portal]}
-              text={healthSentence(health) ?? ''}
+              text={healthAdvice(health) ?? ''}
               testid="pause-{portal}"
             />
           {/each}
@@ -281,6 +270,18 @@
           {/if}
           {#if txtFailed > 0}
             <Notice tone="warning" variant="inline" text={t.run.filesFailed(txtFailed)} />
+          {/if}
+          {#if renamed}
+            <Notice
+              tone="info"
+              variant="inline"
+              text={t.run.excelRenamed(renamed)}
+              action={{
+                label: t.common.showInFolder[fileManager()],
+                onclick: () => openTarget({ kind: 'excelBackupInFolder', name: renamed }),
+              }}
+              testid="excel-renamed"
+            />
           {/if}
           {#if run.history.length > 0}
             <Disclosure label={t.run.history} testid="run-history">

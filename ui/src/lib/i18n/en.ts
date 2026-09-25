@@ -205,7 +205,7 @@ const statusAt: Partial<Record<StatusCode, (portal: string) => string>> = {
   waiting: (portal) => `Waiting for ${portal}`,
 };
 
-/** Why a portal pauses, as the second half of one sentence (`run.pausedWhy`). */
+/** Why a portal pauses, as the first half of one sentence (`health.advice.paused`). */
 const pause: Record<PauseReason, string> = {
   throttled: 'the portal is throttling requests',
   blocked: 'the portal is blocking requests',
@@ -745,11 +745,6 @@ export const en: Catalog = {
     newPill: (value: number) => `${n(value)} new`,
     topPill: (value: number) => count(value, 'fits well', 'fit well'),
     resumesIn: (ms: number) => `Resumes in ${formatCountdown(ms)}`,
-    pausedWhy: (reason: PauseReason, iso: string | null) =>
-      iso
-        ? `Paused until ${formatMoment(iso)} because ${pause[reason]}.`
-        : `Paused until the next fetch because ${pause[reason]}.`,
-    quota: (iso: string) => `The limit is reached, so fetching resumes at ${formatMoment(iso)}.`,
     kind: {
       fetch: 'Fetch',
       details: 'Fetch details',
@@ -785,6 +780,7 @@ export const en: Catalog = {
     },
     skipped: (value: number) => `${count(value, 'job is', 'jobs are')} left for the next fetch.`,
     filesFailed: (value: number) => `${count(value, 'file', 'files')} could not be written.`,
+    excelRenamed: (name: string) => `The old Excel file is now called ${name}.`,
     openOverview: 'Open overview',
     history: 'History',
     collapse: 'Collapse',
@@ -941,10 +937,6 @@ export const en: Catalog = {
     lastRun: 'Last fetch',
   },
   health: {
-    layoutText: (mails: number) =>
-      `${mails === 1 ? 'One alert email' : `${n(mails)} alert emails`} had no jobs, which may mean the email format changed.`,
-    layoutPages: 'The pages of the portal look different than expected.',
-    loginText: 'The sign-in has expired.',
     advice: {
       paused: (reason: PauseReason, iso: string | null) => {
         const why = pause[reason].charAt(0).toUpperCase() + pause[reason].slice(1);

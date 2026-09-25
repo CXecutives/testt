@@ -17,10 +17,11 @@ import type { IconName } from '$components/Icon.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import { displayTitle } from '$lib/i18n/format';
 import { t } from '$lib/i18n/t';
-import type { Deleted, ErrorInfo, JobKey, JobView, Place } from '$lib/ipc/types';
+import type { Deleted, JobKey, JobView, Place } from '$lib/ipc/types';
 import { staggerLimit } from '$lib/motion/motion';
 import { inFacet, isExcluded, jobs, keyOf, sameKey, type Unmove } from '$lib/state/jobs.svelte';
 import { navigation } from '$lib/state/navigation.svelte';
+import { exportText } from '$lib/state/run.svelte';
 import { onUndo } from '$lib/input/input';
 import { commandKey } from '$lib/platform';
 import { toasts } from '$lib/state/toasts.svelte';
@@ -209,26 +210,6 @@ async function undo(
 function deletedFor(deleted: Deleted): void {
   toasts.forget(new Set(deleted.keys.map(keyOf)));
   jobs.exportNote = exportText(deleted.exportError);
-}
-
-/** Why a result file stayed as it was (the run card's words). */
-function exportText(error: ErrorInfo | null): string | null {
-  if (error === null) return null;
-  const texts = t.run.exportFailed;
-  switch (error.params['target']) {
-    case 'overview':
-      return error.kind === 'fileLocked' ? texts.overviewLocked : texts.overview;
-    case 'overviewHtml':
-      return texts.overviewHtml;
-    case 'txtFolder':
-      return texts.txtFolder;
-    case 'backup':
-      return texts.backup;
-    case 'workspace':
-      return texts.workspace;
-    default:
-      return texts.txt;
-  }
 }
 
 /** Single moves in this session; after the third one a tip says several go at once. */
