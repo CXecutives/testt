@@ -1,13 +1,15 @@
 <!--
-  A profile from a CV with an AI: the prompt is on the clipboard (or can be copied again;
-  when copying failed the step says so in the danger tone and the button copies), one line
-  on what to do in the AI, then the field for its answer. "Übernehmen" reads
-  the answer (also inside a code block) with the same checks as a file and fills the form
-  for review; nothing is saved yet.
+  A profile from a CV with an AI (a new one, or an update of the stored one): one sentence on
+  where the CV goes, the prompt is on the clipboard (or can be copied again; when copying
+  failed the step says so in the danger tone and the button copies) and can be read before it
+  is sent, one line on what to do in the AI, then the field for its answer. "Übernehmen"
+  reads the answer (also inside a code block) with the same checks as a file and fills the
+  form for review; nothing is saved yet.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
   import Card from '$components/Card.svelte';
+  import Disclosure from '$components/Disclosure.svelte';
   import Field from '$components/Field.svelte';
   import Icon from '$components/Icon.svelte';
   import TextArea from '$components/TextArea.svelte';
@@ -16,6 +18,9 @@
   import { primaryFirst } from '$lib/platform';
 
   interface Props {
+    heading: string;
+    /** The prompt as it goes to the AI (`null` while it loads). */
+    prompt: string | null;
     /** The request is on the clipboard (false: copying failed). */
     copied: boolean;
     busy: boolean;
@@ -25,7 +30,7 @@
     oncancel: () => void;
   }
 
-  let { copied, busy, error, oncopy, ontake, oncancel }: Props = $props();
+  let { heading, prompt, copied, busy, error, oncopy, ontake, oncancel }: Props = $props();
 
   const words = $derived(t.profile.paste);
   const id = $props.id();
@@ -39,7 +44,10 @@
 
 <Card padding="lg" testid="profile-paste">
   <div class="paste" use:formKeys={{ cancel: oncancel }}>
-    <h2 class="heading">{t.profile.fromCv}</h2>
+    <div class="top">
+      <h2 class="heading">{heading}</h2>
+      <p class="privacy" data-testid="paste-privacy">{words.privacy}</p>
+    </div>
     <ol class="steps">
       <li class="step" data-testid="paste-copied">
         <span class="mark" class:done={copied} class:failed={!copied}>
@@ -60,6 +68,11 @@
         <span class="text">{words.step}</span>
       </li>
     </ol>
+    {#if prompt}
+      <Disclosure label={words.preview} testid="paste-preview">
+        <pre class="prompt" data-copy data-testid="paste-prompt">{prompt}</pre>
+      </Disclosure>
+    {/if}
     <Field label={words.answer} for="{id}-answer" {error}>
       <TextArea
         id="{id}-answer"
@@ -100,9 +113,20 @@
     gap: var(--space-16);
   }
 
+  .top {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
   .heading {
     color: var(--text-heading);
     font: var(--type-lg);
+  }
+
+  .privacy {
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   .steps {
@@ -144,6 +168,19 @@
     border-color: var(--danger-soft);
     background-color: var(--danger-soft);
     color: var(--danger-strong);
+  }
+
+  /* The prompt as it goes out: its own lines, scrolled inside when long. */
+  .prompt {
+    max-height: calc(var(--control-md) * 8);
+    overflow: auto;
+    padding: var(--space-12);
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--radius-control);
+    background-color: var(--surface-muted);
+    color: var(--text);
+    font: var(--type-sm);
+    white-space: pre-wrap;
   }
 
   .actions {

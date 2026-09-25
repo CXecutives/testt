@@ -1,11 +1,12 @@
 <!--
   The head of the Profil view: the person (name and role, copyable; the file name as the
-  tooltip) with the time of the last save, or the unsaved draft, how well it reads (badge), one quiet line of what the app understood (competences,
-  Schwerpunkte, domains), what it could not use, the rescore a save starts, and the file
-  actions (choose another file, remove). A new form offers the other two ways in (from a CV,
-  a file). Drafts say once that they are to be reviewed. "Gut lesbar" only stands without a
-  warning (otherwise "Bitte prüfen"). During the first run a saved profile leads on to the
-  first fetch.
+  tooltip) with the time of the last save, or the draft; how well the form reads (an honest
+  badge, following the form while it changes: "Vollständig" only with competences, else
+  "Wenig Inhalt" or "Ohne Kompetenzen"; "Etwas prüfen" while a value of the file does not
+  read, its tooltip names them); one quiet line of what the app reads (terms, Schwerpunkte,
+  its specialist vocabulary); keys the app does not read; the rescore a save starts; and the
+  actions: another file, an update from a CV, the profile folder, remove. A new form offers
+  the other two ways in (from a CV, a file). Drafts say once that they are to be reviewed.
 -->
 <script lang="ts">
   import Badge, { type BadgeTone } from '$components/Badge.svelte';
@@ -18,29 +19,47 @@
   import { t } from '$lib/i18n/t';
   import { formatDate, formatTime } from '$lib/i18n/format';
   import { warningText } from '$lib/i18n/texts';
-  import type { ProfileInfo, ProfileQuality } from '$lib/ipc/types';
+  import type { Notice as NoticeData, ProfileInfo, ProfileQuality } from '$lib/ipc/types';
   import type { DraftOrigin } from '$lib/state/profile.svelte';
 
   interface Props {
     origin: DraftOrigin;
     profile: ProfileInfo | null;
+    /** How well the form as it is reads. */
     quality: ProfileQuality | null;
+    /** The form has competences ("Vollständig" needs them). */
+    competences: boolean;
+    /** Terms for the match (the engine's count, moved by the changes of the form). */
+    terms: number | null;
+    /** Schwerpunkte of the form. */
+    focus: number;
+    /** Domain packs the profile switched on. */
+    packs: readonly string[];
+    /** What is still to check, each in one sentence (the badge's tooltip). */
+    checks: readonly string[];
+    /** Warnings said here: what the form cannot change (keys the app does not read). */
+    warnings: readonly NoticeData[];
     rescoring: boolean;
-    /** Unsaved changes: another file would replace them. */
+    /** Unsaved changes: another file or an update would replace them. */
     dirty: boolean;
     picking: boolean;
     note: string | null;
     onpick: () => void;
     onremove: () => void;
     onfromcv: () => void;
-    /** The way on after the first save during the first run; `null` otherwise. */
-    onnext: (() => void) | null;
+    onopenfolder: () => void;
   }
 
   let {
     origin,
     profile,
     quality,
+    competences,
+    terms,
+    focus,
+    packs,
+    checks,
+    warnings,
     rescoring,
     dirty,
     picking,
@@ -48,49 +67,44 @@
     onpick,
     onremove,
     onfromcv,
-    onnext,
+    onopenfolder,
   }: Props = $props();
 
-  const QUALITY_TONE: Record<ProfileQuality, BadgeTone> = {
-    good: 'success',
-    thin: 'warning',
-    empty: 'danger',
-  };
-  /** Said where it helps: the quality at the competences, empty criteria at their section,
-   *  a value the app could not read at its field. */
-  const SHOWN_ELSEWHERE = new Set([
-    'fewCompetences',
-    'noCompetences',
-    'noCriteria',
-    'criterionNotUnderstood',
-    'availabilityNotUnderstood',
-  ]);
-  /** Warnings shown at a field still make the profile one to check. */
-  const AT_A_FIELD = new Set(['criterionNotUnderstood', 'availabilityNotUnderstood']);
-
   const stored = $derived(origin === 'stored' && profile !== null);
-  const understood = $derived(stored ? (profile?.understood ?? null) : null);
-  const packs = $derived((understood?.packs ?? []).map((pack) => t.profile.pack[pack] ?? pack));
-  /** One separator for the whole line: count, Schwerpunkte, the domains as one group. */
+  /** The badge: honest about competences, "Etwas prüfen" in place of "Vollständig". */
+  const badge = $derived.by((): { label: string; tone: BadgeTone; hint: string | null } | null => {
+    if (quality === null) return null;
+    if (!competences || quality === 'empty') {
+      return {
+        label: t.profile.quality.empty,
+        tone: quality === 'empty' ? 'danger' : 'warning',
+        hint: null,
+      };
+    }
+    if (quality === 'thin') return { label: t.profile.quality.thin, tone: 'warning', hint: null };
+    if (checks.length > 0) {
+      return { label: t.profile.check, tone: 'warning', hint: checks.join(' ') };
+    }
+    return { label: t.profile.quality.good, tone: 'success', hint: null };
+  });
+  const packNames = $derived(packs.map((pack) => t.profile.pack[pack] ?? pack));
+  /** One separator for the whole line: terms, Schwerpunkte, the vocabulary as one group. */
   const summary = $derived(
-    understood === null
+    terms === null
       ? null
       : [
-          t.profile.understood(understood.competenceCount),
-          understood.focus.length > 0 ? t.profile.focusCount(understood.focus.length) : '',
-          packs.length > 0 ? t.profile.packs(packs) : '',
+          t.profile.understood(terms),
+          focus > 0 ? t.profile.focusCount(focus) : '',
+          packNames.length > 0 ? t.profile.packs(packNames) : '',
         ]
           .filter((part) => part !== '')
           .join(' · '),
   );
-  const warnings = $derived(
-    (understood?.warnings ?? []).flatMap((notice) => {
-      const text = SHOWN_ELSEWHERE.has(notice.code) ? null : warningText(notice);
+  const notes = $derived(
+    warnings.flatMap((notice) => {
+      const text = warningText(notice);
       return text === null ? [] : [text];
     }),
-  );
-  const check = $derived(
-    warnings.length > 0 || (understood?.warnings ?? []).some((w) => AT_A_FIELD.has(w.code)),
   );
   /** The person first: the name (the file name only as its tooltip), the role muted. */
   const person = $derived(profile?.form ?? null);
@@ -117,41 +131,28 @@
           <h2 class="name" data-testid="profile-name">
             {t.profile.draft[origin === 'stored' ? 'new' : origin]}
           </h2>
-          <p class="meta">{t.profile.unsaved}</p>
         {/if}
       </div>
-      {#if quality === 'good' && check}
-        <Badge label={t.profile.check} tone="warning" />
-      {:else if quality}
-        <Badge label={t.profile.quality[quality]} tone={QUALITY_TONE[quality]} />
+      {#if badge}
+        <span class="quality" data-testid="profile-quality">
+          <Badge label={badge.label} tone={badge.tone} hint={badge.hint} />
+        </span>
       {/if}
     </div>
 
     {#if summary}
       <p class="summary" data-testid="profile-understood">{summary}</p>
     {/if}
-    {#each warnings as warning, index (index)}
-      <Notice tone="warning" variant="inline" text={warning} testid="profile-warning" />
+    {#each notes as text, index (index)}
+      <Notice tone="info" variant="inline" {text} testid="profile-warning" />
     {/each}
-    {#if origin === 'file' || origin === 'answer'}
+    {#if origin === 'file' || origin === 'answer' || origin === 'update'}
       <Notice tone="info" variant="inline" text={t.profile.review} testid="profile-review" />
     {/if}
     {#if rescoring}
       <p class="status" data-testid="profile-rescoring">
         <Spinner size="sm" label={null} />{t.profile.rescoring(profile?.pending ?? 0)}
       </p>
-    {/if}
-    {#if onnext}
-      <span>
-        <Button
-          variant="secondary"
-          size="sm"
-          icon="refresh-cw"
-          label={t.profile.next}
-          testid="profile-next"
-          onclick={onnext}
-        />
-      </span>
     {/if}
 
     {#if stored}
@@ -166,6 +167,24 @@
           disabledReason={t.profile.leaveText}
           testid="profile-pick"
           onclick={onpick}
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="clipboard-paste"
+          label={t.profile.updateFromCv}
+          disabled={dirty}
+          disabledReason={t.profile.leaveText}
+          testid="profile-update-cv"
+          onclick={onfromcv}
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="folder-open"
+          label={t.common.openFolder}
+          testid="profile-folder"
+          onclick={onopenfolder}
         />
         <span class="end">
           <Button
@@ -228,6 +247,11 @@
     flex-direction: column;
     gap: var(--space-2);
     min-width: 0;
+  }
+
+  /* The badge's box, no line around it (it stays centred on the person). */
+  .quality {
+    display: flex;
   }
 
   .role {

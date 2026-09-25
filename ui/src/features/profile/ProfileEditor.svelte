@@ -1,10 +1,12 @@
 <!--
   The profile as a form, in the order a consultant thinks: person, competences and
-  Schwerpunkte, experience, tools and certificates, languages, wishes (they only nudge the
-  score) and the hard criteria (they exclude). A thin profile marks its empty sections. The
-  save bar stays at the bottom of the view: "Speichern" (the one primary, only with a
-  change) and "Verwerfen", or Ctrl/Cmd+S. Enter never saves this long form: in the row
-  lists it goes to the next row.
+  Schwerpunkte, experience and qualifications, wishes (they only nudge the score), the
+  exclusion criteria (they exclude), availability (it only marks) and at the end what the
+  app reads in the file. A thin profile marks its empty sections. A value of the file the app
+  could not read is said at its field with "Wert entfernen"; a value the backend refused is
+  said there too, and the field gets the caret. The save bar stays at the bottom of the view:
+  "Speichern" (the one primary, only with a change) and "Verwerfen", or Ctrl/Cmd+S. Enter
+  never saves this long form: in the row lists it goes to the next row.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -16,18 +18,35 @@
   import Toggle from '$components/Toggle.svelte';
   import { t } from '$lib/i18n/t';
   import { formKeys } from '$lib/input/input';
-  import type { ProfileQuality, RemoteWish } from '$lib/ipc/types';
+  import type {
+    Notice as NoticeData,
+    ProfileQuality,
+    ProfileUnderstanding,
+    RemoteWish,
+    UnreadableField,
+  } from '$lib/ipc/types';
   import { primaryFirst } from '$lib/platform';
-  import { editor, isoDate, type UnreadableField } from '$lib/state/profile.svelte';
+  import { editor, isoDate, type FieldError, type FieldProblem } from '$lib/state/profile.svelte';
+  import { tick } from 'svelte';
   import ChoiceButtons from './ChoiceButtons.svelte';
   import CompetenceList from './CompetenceList.svelte';
   import LanguageList from './LanguageList.svelte';
   import NumberField from './NumberField.svelte';
+  import ProfileReading from './ProfileReading.svelte';
   import ProfileSection from './ProfileSection.svelte';
+  import ValueNote from './ValueNote.svelte';
 
   interface Props {
-    /** How much the engine understands of what is shown (guidance for a thin profile). */
+    /** How much the engine understands of the form as it is (guidance for a thin profile). */
     quality: ProfileQuality | null;
+    /** Values of the file the app could not read that are still there. */
+    problems: readonly FieldProblem[];
+    /** The engine's warnings of the profile (Schwerpunkte taken over, a region rule). */
+    warnings: readonly NoticeData[];
+    /** What the app reads in the file ("So liest die App dein Profil"); `null` for a new one. */
+    understood: ProfileUnderstanding | null;
+    /** A value the backend refused on the last save. */
+    fieldError: FieldError | null;
     busy: boolean;
     /** A failure of the last save, in words. */
     note: string | null;
@@ -35,42 +54,94 @@
     result: string | null;
     /** The way on after the first save during setup (next to the result); `null` otherwise. */
     onnext: (() => void) | null;
-    /** Values of the file the app could not read, by field (said there while it is empty). */
-    unreadable: Partial<Record<UnreadableField, string>>;
     onsave: () => void;
     ondiscard: () => void;
   }
 
-  let { quality, busy, note, result, onnext, unreadable, onsave, ondiscard }: Props = $props();
+  let {
+    quality,
+    problems,
+    warnings,
+    understood,
+    fieldError,
+    busy,
+    note,
+    result,
+    onnext,
+    onsave,
+    ondiscard,
+  }: Props = $props();
 
   const words = $derived(t.profile.field);
   const id = $props.id();
   const form = $derived(editor.after);
   const c = $derived(editor.after.criteria);
 
-  /** What the file had at a field the app could not read, while the field is empty. */
-  const unread = $derived({
-    minSalary:
-      unreadable.minSalary !== undefined && c.minSalary === null
-        ? words.unreadableNumber(unreadable.minSalary)
-        : null,
-    remoteMin:
-      unreadable.remoteMin !== undefined && c.permanentRemoteMin === null
-        ? words.unreadableNumber(unreadable.remoteMin)
-        : null,
-    targetYears:
-      unreadable.targetYears !== undefined && c.targetYears === null
-        ? words.unreadableNumber(unreadable.targetYears)
-        : null,
-    places:
-      unreadable.places !== undefined && c.permanentPlaces.length === 0
-        ? words.unreadablePlaces(unreadable.places)
-        : null,
-    available:
-      unreadable.available !== undefined && c.available.kind === 'unset'
-        ? words.unreadableDate(unreadable.available)
-        : null,
+  /** The words of a value the app could not read, by the kind of its field. */
+  function unreadText(problem: FieldProblem): string {
+    switch (problem.field) {
+      case 'minDayRate':
+      case 'targetYears':
+      case 'minSalary':
+      case 'permanentRemoteMin':
+      case 'wishDayRate':
+        return words.unreadableNumber(problem.value);
+      case 'available':
+        return words.unreadableDate(problem.value);
+      case 'roles':
+        return problem.entry
+          ? words.unreadableRole(problem.value)
+          : words.unreadableValue(problem.value);
+      default:
+        return words.unreadableValue(problem.value);
+    }
+  }
+
+  const problemsOf = (field: UnreadableField): FieldProblem[] =>
+    problems.filter((problem) => problem.field === field);
+
+  /** "Wert entfernen": an entry of a list goes at once, a whole value when saving. */
+  function drop(problem: FieldProblem): void {
+    const same = (entry: string): boolean => entry.toLowerCase() !== problem.value.toLowerCase();
+    if (problem.entry && problem.field === 'roles') form.roles = form.roles.filter(same);
+    else if (problem.entry && problem.field === 'focus') form.focus = form.focus.filter(same);
+    else editor.clear(problem.field);
+  }
+
+  /** The error of a field: a value the backend refused, else the first value of the file
+   *  that does not read (said by `Field` with "Wert entfernen" as its way on). */
+  function errorOf(field: string): string | null {
+    if (fieldError?.field === field) return fieldError.text;
+    const first = problemsOf(field as UnreadableField).find((problem) => !problem.entry);
+    return first ? unreadText(first) : null;
+  }
+
+  function removeOf(field: UnreadableField): {
+    label: string;
+    testid: string;
+    onclick: () => void;
+  } | null {
+    if (fieldError?.field === field) return null;
+    const first = problemsOf(field).find((problem) => !problem.entry);
+    return first
+      ? { label: words.removeValue, testid: 'value-remove', onclick: () => drop(first) }
+      : null;
+  }
+
+  const listError = (field: string): { row: number | null; text: string } | null =>
+    fieldError?.field === field ? { row: fieldError.row, text: fieldError.text } : null;
+
+  const trimmed = $derived.by((): number | null => {
+    const notice = warnings.find((w) => w.code === 'focusTrimmed');
+    return notice ? Number(notice.params.count) : null;
   });
+  /** The minimum remote share of permanent roles without places (the rule stays off). */
+  const regionWithoutPlaces = $derived(
+    warnings.some((w) => w.code === 'regionWithoutPlaces') &&
+      c.permanentPlaces.length === 0 &&
+      c.permanentRemoteMin !== null,
+  );
+
   const thin = $derived(quality === 'thin' || quality === 'empty');
   const actionFirst = primaryFirst();
 
@@ -116,12 +187,26 @@
     editor.dateInvalid && (tried || editor.dateText.trim().length >= 8) ? words.dateInvalid : null,
   );
 
+  let root = $state<HTMLElement | null>(null);
+
   /** Ready to save: a day that does not read is said at its field, which gets the caret. */
   export function ready(): boolean {
     tried = true;
     if (!editor.dateInvalid) return true;
     document.querySelector<HTMLInputElement>('[data-testid="profile-date"]')?.focus();
     return false;
+  }
+
+  /** The caret into the field a refused value belongs to (its marked control first), in
+   *  the middle of the view. */
+  export async function focusField(field: string): Promise<void> {
+    await tick();
+    const scope = root?.querySelector<HTMLElement>(`[data-field="${field}"]`);
+    const target =
+      scope?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
+      scope?.querySelector<HTMLElement>('input, textarea, button');
+    target?.focus();
+    target?.scrollIntoView({ block: 'center' });
   }
 
   let bar = $state<HTMLElement | null>(null);
@@ -151,113 +236,172 @@
   const noCriteria = $derived(
     empty(c.minDayRate, c.countries, c.targetYears, c.minSalary, c.permanentPlaces) &&
       !c.noAnue &&
-      c.available.kind === 'unset',
+      !c.noPermanent,
   );
 </script>
 
 <div
   class="editor"
+  bind:this={root}
   use:formKeys={{ shortcut: save }}
   onfocusin={keepClear}
   data-testid="profile-form"
 >
   <ProfileSection heading={t.profile.section.person} testid="section-person">
     <div class="pair">
-      <Field label={words.name} for="{id}-name">
-        <TextField id="{id}-name" bind:value={form.name} testid="profile-name-field" />
-      </Field>
-      <Field label={words.title} for="{id}-title">
-        <TextField
-          id="{id}-title"
-          bind:value={form.title}
-          placeholder={words.titlePlaceholder}
-          testid="profile-title"
-        />
-      </Field>
+      <div data-field="name">
+        <Field label={words.name} for="{id}-name" error={errorOf('name')}>
+          <TextField
+            id="{id}-name"
+            bind:value={form.name}
+            invalid={fieldError?.field === 'name'}
+            testid="profile-name-field"
+          />
+        </Field>
+      </div>
+      <div data-field="title">
+        <Field label={words.title} for="{id}-title" hint={words.titleHint} error={errorOf('title')}>
+          <TextField
+            id="{id}-title"
+            bind:value={form.title}
+            placeholder={words.titlePlaceholder}
+            invalid={fieldError?.field === 'title'}
+            describedby="{id}-title-message"
+            testid="profile-title"
+          />
+        </Field>
+      </div>
     </div>
   </ProfileSection>
 
   <ProfileSection
     heading={t.profile.section.competences}
     hint={quality && quality !== 'good' ? t.profile.qualityText[quality] : null}
-    empty={thin && form.competences.length === 0}
+    empty={thin && form.competences.every((row) => row.name.trim() === '')}
     testid="section-competences"
   >
-    <CompetenceList bind:rows={form.competences} bind:focus={form.focus} />
-    <Field label={words.strengths} for="{id}-strengths">
-      <ChipInput
-        id="{id}-strengths"
-        bind:values={form.strengths}
-        placeholder={words.strengthsPlaceholder}
-        testid="profile-strengths"
-      />
-    </Field>
-    <Field label={words.keywords} for="{id}-keywords" hint={words.keywordsHint}>
-      <ChipInput
-        id="{id}-keywords"
-        bind:values={form.keywords}
-        placeholder={words.keywordsPlaceholder}
-        describedby="{id}-keywords-message"
-        testid="profile-keywords"
-      />
-    </Field>
+    <CompetenceList
+      bind:rows={form.competences}
+      bind:focus={form.focus}
+      problems={problemsOf('focus')}
+      {trimmed}
+      onclear={() => editor.clear('focus')}
+      error={listError('competences') ?? listError('focus')}
+    />
+    <div data-field="strengths">
+      <Field
+        label={words.strengths}
+        for="{id}-strengths"
+        hint={words.strengthsHint}
+        error={errorOf('strengths')}
+      >
+        <ChipInput
+          id="{id}-strengths"
+          bind:values={form.strengths}
+          split="lines"
+          placeholder={words.strengthsPlaceholder}
+          invalid={fieldError?.field === 'strengths'}
+          describedby="{id}-strengths-message"
+          testid="profile-strengths"
+        />
+      </Field>
+    </div>
+    <div data-field="keywords">
+      <Field
+        label={words.keywords}
+        for="{id}-keywords"
+        hint={words.keywordsHint}
+        error={errorOf('keywords')}
+      >
+        <ChipInput
+          id="{id}-keywords"
+          bind:values={form.keywords}
+          placeholder={words.keywordsPlaceholder}
+          invalid={fieldError?.field === 'keywords'}
+          describedby="{id}-keywords-message"
+          testid="profile-keywords"
+        />
+      </Field>
+    </div>
   </ProfileSection>
 
   <ProfileSection
     heading={t.profile.section.experience}
-    empty={thin && empty(form.years, form.degrees, form.industries)}
+    empty={thin &&
+      empty(form.years, form.degrees, form.certificates, form.tools, form.industries) &&
+      form.languages.every((row) => row.language.trim() === '')}
     testid="section-experience"
   >
-    <Field label={words.totalYears} for="{id}-years">
-      <NumberField id="{id}-years" bind:value={form.years} testid="profile-years" />
-    </Field>
-    <Field label={words.degrees} for="{id}-degrees">
-      <ChipInput
-        id="{id}-degrees"
-        bind:values={form.degrees}
-        placeholder={words.degreesPlaceholder}
-        testid="profile-degrees"
-      />
-    </Field>
-    <Field label={words.industries} for="{id}-industries">
-      <ChipInput
-        id="{id}-industries"
-        bind:values={form.industries}
-        placeholder={words.industriesPlaceholder}
-        testid="profile-industries"
-      />
-    </Field>
-  </ProfileSection>
-
-  <ProfileSection
-    heading={t.profile.section.tools}
-    empty={thin && empty(form.tools, form.certificates)}
-    testid="section-tools"
-  >
-    <Field label={words.tools} for="{id}-tools">
-      <ChipInput
-        id="{id}-tools"
-        bind:values={form.tools}
-        placeholder={words.toolsPlaceholder}
-        testid="profile-tools"
-      />
-    </Field>
-    <Field label={words.certificates} for="{id}-certificates">
-      <ChipInput
-        id="{id}-certificates"
-        bind:values={form.certificates}
-        placeholder={words.certificatesPlaceholder}
-        testid="profile-certificates"
-      />
-    </Field>
-  </ProfileSection>
-
-  <ProfileSection
-    heading={t.profile.section.languages}
-    empty={thin && form.languages.length === 0}
-    testid="section-languages"
-  >
-    <LanguageList bind:rows={form.languages} />
+    <div data-field="years">
+      <Field
+        label={words.totalYears}
+        for="{id}-years"
+        hint={words.totalYearsHint}
+        error={errorOf('years')}
+      >
+        <NumberField
+          id="{id}-years"
+          bind:value={form.years}
+          invalid={fieldError?.field === 'years'}
+          describedby="{id}-years-message"
+          testid="profile-years"
+        />
+      </Field>
+    </div>
+    <div data-field="degrees">
+      <Field label={words.degrees} for="{id}-degrees" error={errorOf('degrees')}>
+        <ChipInput
+          id="{id}-degrees"
+          bind:values={form.degrees}
+          split="lines"
+          placeholder={words.degreesPlaceholder}
+          invalid={fieldError?.field === 'degrees'}
+          describedby="{id}-degrees-message"
+          testid="profile-degrees"
+        />
+      </Field>
+    </div>
+    <div data-field="certificates">
+      <Field label={words.certificates} for="{id}-certificates" error={errorOf('certificates')}>
+        <ChipInput
+          id="{id}-certificates"
+          bind:values={form.certificates}
+          split="lines"
+          placeholder={words.certificatesPlaceholder}
+          invalid={fieldError?.field === 'certificates'}
+          describedby="{id}-certificates-message"
+          testid="profile-certificates"
+        />
+      </Field>
+    </div>
+    <div data-field="tools">
+      <Field label={words.tools} for="{id}-tools" error={errorOf('tools')}>
+        <ChipInput
+          id="{id}-tools"
+          bind:values={form.tools}
+          placeholder={words.toolsPlaceholder}
+          invalid={fieldError?.field === 'tools'}
+          describedby="{id}-tools-message"
+          testid="profile-tools"
+        />
+      </Field>
+    </div>
+    <div data-field="industries">
+      <Field label={words.industries} for="{id}-industries" error={errorOf('industries')}>
+        <ChipInput
+          id="{id}-industries"
+          bind:values={form.industries}
+          placeholder={words.industriesPlaceholder}
+          invalid={fieldError?.field === 'industries'}
+          describedby="{id}-industries-message"
+          testid="profile-industries"
+        />
+      </Field>
+    </div>
+    <div class="block">
+      <span class="label">{words.languages}</span>
+      <LanguageList bind:rows={form.languages} error={listError('languages')} />
+    </div>
   </ProfileSection>
 
   <ProfileSection
@@ -265,23 +409,50 @@
     hint={t.profile.sectionHint.wishes}
     testid="section-wishes"
   >
-    <Field label={words.roles} for="{id}-roles">
-      <ChipInput
-        id="{id}-roles"
-        bind:values={form.roles}
-        placeholder={words.rolesPlaceholder}
-        testid="profile-roles"
-      />
-    </Field>
-    <Field label={words.wishRate} for="{id}-wish-rate">
-      <NumberField
-        id="{id}-wish-rate"
-        money
-        bind:value={form.wishes.dayRate}
-        testid="profile-wish-rate"
-      />
-    </Field>
-    <div class="block">
+    <div data-field="roles">
+      <Field
+        label={words.roles}
+        for="{id}-roles"
+        hint={words.rolesHint}
+        error={errorOf('roles')}
+        action={removeOf('roles')}
+      >
+        <ChipInput
+          id="{id}-roles"
+          bind:values={form.roles}
+          placeholder={words.rolesPlaceholder}
+          invalid={errorOf('roles') !== null}
+          describedby="{id}-roles-message"
+          testid="profile-roles"
+        />
+      </Field>
+      {#each problemsOf('roles').filter((problem) => problem.entry) as problem (problem.value)}
+        <ValueNote
+          text={unreadText(problem)}
+          testid="roles-unread"
+          onremove={() => drop(problem)}
+        />
+      {/each}
+    </div>
+    <div data-field="wishDayRate">
+      <Field
+        label={words.wishRate}
+        for="{id}-wish-rate"
+        hint={words.wishRateHint}
+        error={errorOf('wishDayRate')}
+        action={removeOf('wishDayRate')}
+      >
+        <NumberField
+          id="{id}-wish-rate"
+          money
+          bind:value={form.wishes.dayRate}
+          invalid={errorOf('wishDayRate') !== null}
+          describedby="{id}-wish-rate-message"
+          testid="profile-wish-rate"
+        />
+      </Field>
+    </div>
+    <div class="block" data-field="remote">
       <span class="label">{words.remote}</span>
       <ChoiceButtons
         options={REMOTE}
@@ -290,23 +461,48 @@
         testid="profile-remote"
         onchange={(next) => (form.wishes.remote = (next[0] as RemoteWish | undefined) ?? null)}
       />
+      {#each problemsOf('remote') as problem (problem.value)}
+        <ValueNote
+          text={unreadText(problem)}
+          testid="remote-unread"
+          onremove={() => drop(problem)}
+        />
+      {/each}
     </div>
-    <Field label={words.regions} for="{id}-regions">
-      <ChipInput
-        id="{id}-regions"
-        bind:values={form.wishes.regions}
-        placeholder={words.regionsPlaceholder}
-        testid="profile-regions"
-      />
-    </Field>
-    <Field label={words.wishIndustries} for="{id}-wish-industries">
-      <ChipInput
-        id="{id}-wish-industries"
-        bind:values={form.wishes.industries}
-        placeholder={words.wishIndustriesPlaceholder}
-        testid="profile-wish-industries"
-      />
-    </Field>
+    <div data-field="regions">
+      <Field
+        label={words.regions}
+        for="{id}-regions"
+        error={errorOf('regions')}
+        action={removeOf('regions')}
+      >
+        <ChipInput
+          id="{id}-regions"
+          bind:values={form.wishes.regions}
+          placeholder={words.regionsPlaceholder}
+          invalid={errorOf('regions') !== null}
+          describedby="{id}-regions-message"
+          testid="profile-regions"
+        />
+      </Field>
+    </div>
+    <div data-field="wishIndustries">
+      <Field
+        label={words.wishIndustries}
+        for="{id}-wish-industries"
+        error={errorOf('wishIndustries')}
+        action={removeOf('wishIndustries')}
+      >
+        <ChipInput
+          id="{id}-wish-industries"
+          bind:values={form.wishes.industries}
+          placeholder={words.wishIndustriesPlaceholder}
+          invalid={errorOf('wishIndustries') !== null}
+          describedby="{id}-wish-industries-message"
+          testid="profile-wish-industries"
+        />
+      </Field>
+    </div>
   </ProfileSection>
 
   <ProfileSection
@@ -316,25 +512,43 @@
     testid="section-criteria"
   >
     <div class="pair">
-      <Field label={words.minDayRate} for="{id}-min-rate">
-        <NumberField id="{id}-min-rate" money bind:value={c.minDayRate} testid="profile-min-rate" />
-      </Field>
-      <Field
-        label={words.targetYears}
-        for="{id}-target"
-        hint={words.targetYearsHint}
-        error={unread.targetYears}
-      >
-        <NumberField
-          id="{id}-target"
-          bind:value={c.targetYears}
-          invalid={unread.targetYears !== null}
-          describedby="{id}-target-message"
-          testid="profile-target-years"
-        />
-      </Field>
+      <div data-field="minDayRate">
+        <Field
+          label={words.minDayRate}
+          for="{id}-min-rate"
+          hint={words.minDayRateHint}
+          error={errorOf('minDayRate')}
+          action={removeOf('minDayRate')}
+        >
+          <NumberField
+            id="{id}-min-rate"
+            money
+            bind:value={c.minDayRate}
+            invalid={errorOf('minDayRate') !== null}
+            describedby="{id}-min-rate-message"
+            testid="profile-min-rate"
+          />
+        </Field>
+      </div>
+      <div data-field="targetYears">
+        <Field
+          label={words.targetYears}
+          for="{id}-target"
+          hint={words.targetYearsHint}
+          error={errorOf('targetYears')}
+          action={removeOf('targetYears')}
+        >
+          <NumberField
+            id="{id}-target"
+            bind:value={c.targetYears}
+            invalid={errorOf('targetYears') !== null}
+            describedby="{id}-target-message"
+            testid="profile-target-years"
+          />
+        </Field>
+      </div>
     </div>
-    <div class="block">
+    <div class="block" data-field="countries">
       <span class="label">{words.countries}</span>
       <ChoiceButtons
         options={countries}
@@ -344,8 +558,138 @@
         testid="profile-countries"
         onchange={(next) => (c.countries = next)}
       />
+      {#each problemsOf('countries') as problem (problem.value)}
+        <ValueNote
+          text={unreadText(problem)}
+          testid="countries-unread"
+          onremove={() => drop(problem)}
+        />
+      {/each}
+      {#if fieldError?.field === 'countries'}
+        <Notice tone="danger" variant="inline" text={fieldError.text} />
+      {/if}
     </div>
-    <div class="block">
+    <div class="toggles">
+      <div data-field="remoteOutside">
+        <SettingRow
+          label={words.remoteOutside}
+          hint={words.remoteOutsideHint}
+          for="{id}-remote-outside"
+        >
+          <Toggle
+            id="{id}-remote-outside"
+            checked={c.remoteOutside}
+            label={words.remoteOutside}
+            disabled={c.countries.length === 0}
+            disabledReason={words.remoteOutsideOff}
+            testid="profile-remote-outside"
+            onchange={(on) => (c.remoteOutside = on)}
+          />
+        </SettingRow>
+        {#each problemsOf('remoteOutside') as problem (problem.value)}
+          <ValueNote
+            text={unreadText(problem)}
+            testid="remote-outside-unread"
+            onremove={() => drop(problem)}
+          />
+        {/each}
+      </div>
+      <div data-field="contracts">
+        <SettingRow label={words.noAnue} for="{id}-no-anue">
+          <Toggle
+            id="{id}-no-anue"
+            checked={c.noAnue}
+            label={words.noAnue}
+            testid="profile-no-anue"
+            onchange={(on) => (c.noAnue = on)}
+          />
+        </SettingRow>
+        <SettingRow label={words.noPermanent} hint={words.noPermanentHint} for="{id}-no-permanent">
+          <Toggle
+            id="{id}-no-permanent"
+            checked={c.noPermanent}
+            label={words.noPermanent}
+            testid="profile-no-permanent"
+            onchange={(on) => (c.noPermanent = on)}
+          />
+        </SettingRow>
+        {#each problemsOf('contracts') as problem (problem.value)}
+          <ValueNote
+            text={unreadText(problem)}
+            testid="contracts-unread"
+            onremove={() => drop(problem)}
+          />
+        {/each}
+      </div>
+    </div>
+    {#if !c.noPermanent}
+      <div class="sub" data-testid="profile-permanent">
+        <h3 class="sub-heading">{t.profile.section.permanent}</h3>
+        <p class="sub-hint">{t.profile.sectionHint.permanent}</p>
+      </div>
+      <div class="pair">
+        <div data-field="minSalary">
+          <Field
+            label={words.minSalary}
+            for="{id}-salary"
+            error={errorOf('minSalary')}
+            action={removeOf('minSalary')}
+          >
+            <NumberField
+              id="{id}-salary"
+              money
+              bind:value={c.minSalary}
+              invalid={errorOf('minSalary') !== null}
+              describedby="{id}-salary-message"
+              testid="profile-min-salary"
+            />
+          </Field>
+        </div>
+        <div data-field="permanentRemoteMin">
+          <Field
+            label={words.remoteMin}
+            for="{id}-remote-min"
+            hint={words.remoteMinHint}
+            error={errorOf('permanentRemoteMin') ??
+              (regionWithoutPlaces ? t.profile.warning.regionWithoutPlaces : null)}
+            action={removeOf('permanentRemoteMin')}
+          >
+            <NumberField
+              id="{id}-remote-min"
+              bind:value={c.permanentRemoteMin}
+              invalid={errorOf('permanentRemoteMin') !== null || regionWithoutPlaces}
+              describedby="{id}-remote-min-message"
+              testid="profile-remote-min"
+            />
+          </Field>
+        </div>
+      </div>
+      <div data-field="permanentPlaces">
+        <Field
+          label={words.places}
+          for="{id}-places"
+          error={errorOf('permanentPlaces')}
+          action={removeOf('permanentPlaces')}
+        >
+          <ChipInput
+            id="{id}-places"
+            bind:values={c.permanentPlaces}
+            invalid={errorOf('permanentPlaces') !== null}
+            describedby="{id}-places-message"
+            placeholder={words.placesPlaceholder}
+            testid="profile-places"
+          />
+        </Field>
+      </div>
+    {/if}
+  </ProfileSection>
+
+  <ProfileSection
+    heading={t.profile.section.availability}
+    hint={t.profile.sectionHint.availability}
+    testid="section-availability"
+  >
+    <div class="block" data-field="available">
       <span class="label">{words.available}</span>
       <div class="available">
         <ChoiceButtons
@@ -361,7 +705,7 @@
               value={editor.dateText}
               label={words.date}
               placeholder={words.datePlaceholder}
-              invalid={dateError !== null}
+              invalid={dateError !== null || fieldError?.field === 'available'}
               describedby="{id}-date-message"
               testid="profile-date"
               oninput={setDate}
@@ -371,73 +715,22 @@
       </div>
       {#if dateError}
         <Notice tone="danger" variant="inline" text={dateError} testid="profile-date-error" />
-      {:else if unread.available}
-        <Notice
-          tone="danger"
-          variant="inline"
-          text={unread.available}
-          testid="profile-available-unread"
-        />
+      {:else if fieldError?.field === 'available'}
+        <Notice tone="danger" variant="inline" text={fieldError.text} />
       {/if}
+      {#each problemsOf('available') as problem (problem.value)}
+        <ValueNote
+          text={unreadText(problem)}
+          testid="profile-available-unread"
+          onremove={() => drop(problem)}
+        />
+      {/each}
     </div>
-    <div class="toggles">
-      <SettingRow label={words.remoteOutside} for="{id}-remote-outside">
-        <Toggle
-          id="{id}-remote-outside"
-          checked={c.remoteOutside}
-          label={words.remoteOutside}
-          testid="profile-remote-outside"
-          onchange={(on) => (c.remoteOutside = on)}
-        />
-      </SettingRow>
-      <SettingRow label={words.noAnue} for="{id}-no-anue">
-        <Toggle
-          id="{id}-no-anue"
-          checked={c.noAnue}
-          label={words.noAnue}
-          testid="profile-no-anue"
-          onchange={(on) => (c.noAnue = on)}
-        />
-      </SettingRow>
-    </div>
-    <h3 class="sub">{t.profile.section.permanent}</h3>
-    <div class="pair">
-      <Field label={words.minSalary} for="{id}-salary" error={unread.minSalary}>
-        <NumberField
-          id="{id}-salary"
-          money
-          bind:value={c.minSalary}
-          invalid={unread.minSalary !== null}
-          describedby="{id}-salary-message"
-          testid="profile-min-salary"
-        />
-      </Field>
-      <Field
-        label={words.remoteMin}
-        for="{id}-remote-min"
-        hint={words.remoteMinHint}
-        error={unread.remoteMin}
-      >
-        <NumberField
-          id="{id}-remote-min"
-          bind:value={c.permanentRemoteMin}
-          invalid={unread.remoteMin !== null}
-          describedby="{id}-remote-min-message"
-          testid="profile-remote-min"
-        />
-      </Field>
-    </div>
-    <Field label={words.places} for="{id}-places" error={unread.places}>
-      <ChipInput
-        id="{id}-places"
-        bind:values={c.permanentPlaces}
-        invalid={unread.places !== null}
-        describedby="{id}-places-message"
-        placeholder={words.placesPlaceholder}
-        testid="profile-places"
-      />
-    </Field>
   </ProfileSection>
+
+  {#if understood}
+    <ProfileReading {understood} stale={editor.dirty} />
+  {/if}
 </div>
 
 <div class="bar" bind:this={bar} data-testid="profile-save-bar">
@@ -447,16 +740,16 @@
     {:else if tried && dateError}
       <Notice tone="danger" variant="inline" text={dateError} />
     {:else if editor.dirty}
-      <span class="quiet">{t.profile.unsavedShort}</span>
+      <span class="quiet">{t.profile.unsaved}</span>
     {:else if result}
       <span class="result">
         <Notice tone="success" variant="inline" text={result} testid="profile-saved" />
         {#if onnext}
           <Button
             variant="secondary"
-            icon="refresh-cw"
+            icon="arrow-right"
             label={t.profile.next}
-            testid="profile-next-bar"
+            testid="profile-next"
             onclick={onnext}
           />
         {/if}
@@ -539,10 +832,21 @@
 
   /* Festanstellung: its own group below the switches' hairline, a real subheading. */
   .sub {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
     padding-top: var(--space-4);
+  }
+
+  .sub-heading {
     color: var(--text-heading);
     font: var(--type-md);
     font-weight: var(--weight-semibold);
+  }
+
+  .sub-hint {
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   /* The save bar stays in view at the bottom of the scrolling view. */

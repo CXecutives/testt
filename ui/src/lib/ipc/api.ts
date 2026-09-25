@@ -149,6 +149,16 @@ function subscribe(start: () => Promise<() => void>): () => void {
 }
 
 /**
+ * The user closes the window (the close button, Alt+F4, Cmd+W or Cmd+Q) while the page holds
+ * unsaved changes (`set_unsaved`): the window stays and the page asks, then closes it with
+ * `close_window` (src-tauri/src/main.rs). The page answers at once (a `set_unsaved`), else
+ * the window closes anyway. Returns an unsubscribe function.
+ */
+export function onCloseRequested(handler: () => void): () => void {
+  return subscribe(() => listen('close-requested', () => handler()));
+}
+
+/**
  * The window has been asked to close while a fetch runs: it stays until the run has stopped
  * (at most ten seconds, src-tauri/src/main.rs). Returns an unsubscribe function.
  */

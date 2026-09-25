@@ -1,9 +1,13 @@
 // The profile editor (Profil view): the form as it was handed out (`before`), the form as
 // the user has it (`after`) and where it came from. Saving sends both; the backend writes
 // only what differs and keeps every other key of the file. A draft (a new profile, a chosen
-// file, Claude's answer) is unsaved until it is saved; the stored profile only once
-// something differs. Leaving the view with unsaved changes asks first (ProfileView holds
-// the guard and the dialog).
+// file, an AI's answer) is unsaved until it is saved; the stored profile only once
+// something differs. Leaving the view or closing the window with unsaved changes asks first
+// (ProfileView holds the guard and the dialog).
+//
+// Values of the file the engine could not read are said at their field (`fieldProblems`);
+// "Wert entfernen" clears one (`clear`), saving then removes its keys. Quality and the empty
+// sections follow the form while typing (`localQuality`, with the engine's thresholds).
 
 import { language } from '../i18n/language.svelte';
 import { invoke } from '../ipc/api';
@@ -15,13 +19,19 @@ import type {
   ProfileInfo,
   ProfileLanguage,
   ProfileQuality,
+  ProfileUnderstanding,
+  UnreadableField,
 } from '../ipc/types';
 
-/** Where the form in the editor came from. */
-export type DraftOrigin = 'stored' | 'new' | 'file' | 'answer';
+/** Where the form in the editor came from: the stored profile, a new one, a chosen file, an
+ *  AI's answer for a new profile, or an answer that updates the stored profile. */
+export type DraftOrigin = 'stored' | 'new' | 'file' | 'answer' | 'update';
 
 /** At most this many competences are Schwerpunkte (the backend refuses more). */
 export const MAX_FOCUS = 5;
+
+/** Fewer terms than this make a thin profile (the engine's `THIN_BELOW`). */
+const THIN_BELOW = 5;
 
 /** The JSON a new profile is written into. */
 const NEW_SOURCE = '{}';
@@ -72,42 +82,6 @@ export function cleanList(items: readonly string[]): string[] {
 
 const positive = (value: number | null): number | null =>
   value !== null && value > 0 ? value : null;
-
-/** Form fields that can hold a value from the file the app could not read. */
-export type UnreadableField = 'minSalary' | 'places' | 'remoteMin' | 'targetYears' | 'available';
-
-/** The profile keys of those values (an external contract, German and English). */
-const UNREADABLE_KEYS: Record<string, UnreadableField> = {
-  min_jahresgehalt: 'minSalary',
-  min_annual_salary: 'minSalary',
-  min_salary: 'minSalary',
-  festanstellung_orte: 'places',
-  permanent_locations: 'places',
-  permanent_places: 'places',
-  festanstellung_remote_min: 'remoteMin',
-  permanent_remote_min: 'remoteMin',
-  zielprofil_min_jahre: 'targetYears',
-  target_min_years: 'targetYears',
-};
-
-/** The values the engine could not read (its warnings), by form field, as the file had
- *  them (a JSON text loses its quotes). */
-export function unreadableValues(
-  warnings: readonly Notice[],
-): Partial<Record<UnreadableField, string>> {
-  const out: Partial<Record<UnreadableField, string>> = {};
-  const text = (value: unknown): string =>
-    typeof value === 'string' ? value.replace(/^"(.*)"$/, '$1') : String(value ?? '');
-  for (const warning of warnings) {
-    if (warning.code === 'availabilityNotUnderstood') {
-      out.available = text(warning.params.value);
-    } else if (warning.code === 'criterionNotUnderstood') {
-      const field = UNREADABLE_KEYS[text(warning.params.key)];
-      if (field) out[field] = text(warning.params.value);
-    }
-  }
-  return out;
-}
 
 /** The form the way the backend compares it (trimmed, empty rows and entries gone). */
 export function normalized(form: ProfileForm): ProfileForm {
@@ -160,6 +134,160 @@ export function sameForm(a: ProfileForm, b: ProfileForm): boolean {
 
 const copy = (form: ProfileForm): ProfileForm => structuredClone($state.snapshot(form));
 
+// ------------------------------------------------------------------ quality
+
+/** The texts of the form the engine counts as terms for the quality: the role, the
+ *  competences, the lists of the experience and the strengths and keywords (its other words
+ *  and wishes do not count). */
+function terms(form: ProfileForm): number {
+  const n = normalized(form);
+  return cleanList([
+    n.title,
+    ...n.competences.map((row) => row.name),
+    ...n.strengths,
+    ...n.keywords,
+    ...n.degrees,
+    ...n.industries,
+    ...n.tools,
+    ...n.certificates,
+    ...n.languages.map((row) => row.language),
+  ]).length;
+}
+
+/**
+ * The quality of the form as the user has it, with the engine's thresholds (no terms empty,
+ * fewer than five thin): the engine's count for what the form started with (it also counts
+ * what only the file holds, the career stations), moved by what the form changed.
+ */
+export function localQuality(
+  counted: number,
+  before: ProfileForm,
+  after: ProfileForm,
+): { quality: ProfileQuality; terms: number } {
+  const count = Math.max(0, counted - terms(before) + terms(after));
+  const quality: ProfileQuality = count === 0 ? 'empty' : count < THIN_BELOW ? 'thin' : 'good';
+  return { quality, terms: count };
+}
+
+// ------------------------------------------------------------------ values that did not read
+
+/** A value the backend refused on saving: the field (and row) it names and its words. */
+export interface FieldError {
+  field: string;
+  row: number | null;
+  text: string;
+}
+
+/** A value of the file the engine could not read, at the field of the form that holds it. */
+export interface FieldProblem {
+  field: UnreadableField;
+  /** The engine's warning (the head names it in its tooltip). */
+  notice: Notice;
+  /** The value as the file had it (a JSON text loses its quotes). */
+  value: string;
+  /** One entry of a list does not count (a Schwerpunkt that is no competence, a target role
+   *  without a field), not the whole value: removing it is removing the entry. */
+  entry: boolean;
+}
+
+const FIELDS: readonly UnreadableField[] = [
+  'minDayRate',
+  'countries',
+  'contracts',
+  'remoteOutside',
+  'available',
+  'targetYears',
+  'minSalary',
+  'permanentPlaces',
+  'permanentRemoteMin',
+  'focus',
+  'roles',
+  'wishDayRate',
+  'remote',
+  'regions',
+  'wishIndustries',
+];
+
+const isField = (value: unknown): value is UnreadableField =>
+  typeof value === 'string' && (FIELDS as readonly string[]).includes(value);
+
+/** The value of a field of the form, to see whether the user changed it. */
+function fieldValue(form: ProfileForm, field: UnreadableField): unknown {
+  const c = form.criteria;
+  const w = form.wishes;
+  switch (field) {
+    case 'minDayRate':
+      return c.minDayRate;
+    case 'countries':
+      return c.countries;
+    case 'contracts':
+      return [c.noAnue, c.noPermanent];
+    case 'remoteOutside':
+      return c.remoteOutside;
+    case 'available':
+      return c.available;
+    case 'targetYears':
+      return c.targetYears;
+    case 'minSalary':
+      return c.minSalary;
+    case 'permanentPlaces':
+      return c.permanentPlaces;
+    case 'permanentRemoteMin':
+      return c.permanentRemoteMin;
+    case 'focus':
+      return form.focus;
+    case 'roles':
+      return form.roles;
+    case 'wishDayRate':
+      return w.dayRate;
+    case 'remote':
+      return w.remote;
+    case 'regions':
+      return w.regions;
+    case 'wishIndustries':
+      return w.industries;
+  }
+}
+
+const text = (value: unknown): string =>
+  typeof value === 'string' ? value.replace(/^"(.*)"$/, '$1') : String(value ?? '');
+
+/**
+ * The values of the file the engine could not read that are still there: not removed with
+ * "Wert entfernen" (`cleared`) and not replaced by a new value in the form. A Schwerpunkt or a
+ * target role that does not count is fixed once it is gone from its list (or, for a
+ * Schwerpunkt, once a competence carries its name).
+ */
+export function fieldProblems(
+  warnings: readonly Notice[],
+  before: ProfileForm,
+  after: ProfileForm,
+  cleared: readonly UnreadableField[],
+): FieldProblem[] {
+  const out: FieldProblem[] = [];
+  for (const notice of warnings) {
+    const field = notice.code === 'availabilityNotUnderstood' ? 'available' : notice.params.field;
+    if (!isField(field) || cleared.includes(field)) continue;
+    const value = text(notice.params.value);
+    const list = field === 'focus' ? before.focus : field === 'roles' ? before.roles : [];
+    const entry = list.some((item) => same(item, value));
+    if (entry) {
+      const now = field === 'focus' ? after.focus : after.roles;
+      const named =
+        field === 'focus' && after.competences.some((row) => same(row.name.trim(), value));
+      if (!now.some((item) => same(item, value)) || named) continue;
+    } else if (
+      JSON.stringify(fieldValue(before, field)) !== JSON.stringify(fieldValue(after, field))
+    ) {
+      continue;
+    }
+    out.push({ field, notice, value, entry });
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------ dates
+
 const pad = (value: number): string => String(value).padStart(2, '0');
 
 /** `2026-11-01` -> `01.11.2026`, in English `01/11/2026` (as the field shows a day). */
@@ -196,6 +324,70 @@ export function isoDate(text: string): string | null {
 const dateTextOf = (form: ProfileForm): string =>
   form.criteria.available.kind === 'from' ? shownDate(form.criteria.available.date) : '';
 
+// ------------------------------------------------------------------ update from a CV
+
+/** Entries of both lists, the stored ones first, each once. */
+const union = (stored: readonly string[], added: readonly string[]): string[] =>
+  cleanList([...stored, ...added]);
+
+/**
+ * The stored profile updated with an AI's answer to a CV: the answer fills and adds (a role,
+ * years, new competences and other terms, new list entries, languages and their levels), the
+ * stored profile keeps everything the answer leaves out, the Schwerpunkte and the user's
+ * wishes and criteria (the answer only fills what the profile leaves empty). Rows keep their
+ * place in the stored file (`origin`); new rows have none.
+ */
+export function updated(stored: ProfileForm, answer: ProfileForm): ProfileForm {
+  const a = normalized(answer);
+  const form: ProfileForm = {
+    ...structuredClone(stored),
+    name: stored.name.trim() || a.name,
+    title: a.title || stored.title,
+    years: a.years ?? stored.years,
+  };
+  for (const row of a.competences) {
+    const match = form.competences.find((own) => same(own.name.trim(), row.name));
+    if (match) {
+      match.years = row.years ?? match.years;
+      match.aliases = union(match.aliases, row.aliases);
+    } else {
+      form.competences.push({ ...row, origin: null });
+    }
+  }
+  form.strengths = union(form.strengths, a.strengths);
+  form.keywords = union(form.keywords, a.keywords);
+  form.degrees = union(form.degrees, a.degrees);
+  form.industries = union(form.industries, a.industries);
+  form.tools = union(form.tools, a.tools);
+  form.certificates = union(form.certificates, a.certificates);
+  for (const row of a.languages) {
+    const match = form.languages.find((own) => same(own.language.trim(), row.language));
+    if (match) match.level = row.level ?? match.level;
+    else form.languages.push({ ...row, origin: null });
+  }
+  if (form.focus.length === 0) form.focus = a.focus.slice(0, MAX_FOCUS);
+  form.roles = union(form.roles, a.roles);
+  const w = form.wishes;
+  w.dayRate ??= a.wishes.dayRate;
+  w.remote ??= a.wishes.remote;
+  w.regions = union(w.regions, a.wishes.regions);
+  w.industries = union(w.industries, a.wishes.industries);
+  const c = form.criteria;
+  const ac = a.criteria;
+  c.minDayRate ??= ac.minDayRate;
+  if (c.countries.length === 0) c.countries = ac.countries;
+  c.noAnue ||= ac.noAnue;
+  c.noPermanent ||= ac.noPermanent;
+  if (c.available.kind === 'unset') c.available = ac.available;
+  c.targetYears ??= ac.targetYears;
+  c.minSalary ??= ac.minSalary;
+  if (c.permanentPlaces.length === 0) c.permanentPlaces = ac.permanentPlaces;
+  c.permanentRemoteMin ??= ac.permanentRemoteMin;
+  return form;
+}
+
+// ------------------------------------------------------------------ the editor
+
 class ProfileEditor {
   /** `null`: nothing in the editor (no profile yet, or the view has not opened one). */
   origin = $state<DraftOrigin | null>(null);
@@ -204,64 +396,81 @@ class ProfileEditor {
   source = $state<string | null>(null);
   /** How much the engine understands of a draft (the stored profile has its own). */
   quality = $state<ProfileQuality | null>(null);
-  /** The steps to create a profile from a CV with Claude are open. */
+  /** What the engine reads in a draft from a file or an answer (its warnings, its terms). */
+  understood = $state.raw<ProfileUnderstanding | null>(null);
+  /** Values of the file the user removed ("Wert entfernen"); saving removes their keys. */
+  cleared = $state<UnreadableField[]>([]);
+  /** The steps to fill the profile from a CV with an AI are open. */
   pasting = $state(false);
   /** The day of "Verfügbar ab" as typed (the form holds it as `YYYY-MM-DD`). */
   dateText = $state('');
 
   get dirty(): boolean {
     if (this.origin === null) return false;
-    if (this.origin === 'file' || this.origin === 'answer') return true;
-    return !sameForm(this.before, this.after);
+    if (this.origin === 'file' || this.origin === 'answer' || this.origin === 'update') {
+      return true;
+    }
+    return this.cleared.length > 0 || !sameForm(this.before, this.after);
+  }
+
+  #start(origin: DraftOrigin, before: ProfileForm, after: ProfileForm): void {
+    this.origin = origin;
+    this.before = copy(before);
+    this.after = copy(after);
+    this.dateText = dateTextOf(after);
+    this.cleared = [];
+    this.pasting = false;
   }
 
   /** The stored profile (again, e.g. after a save). */
   edit(form: ProfileForm): void {
-    this.origin = 'stored';
-    this.before = copy(form);
-    this.after = copy(form);
-    this.dateText = dateTextOf(form);
+    this.#start('stored', form, form);
     this.source = null;
     this.quality = null;
-    this.pasting = false;
+    this.understood = null;
   }
 
   /** An empty form for a new profile, with one empty competence and language row, so the
    *  table and the star show at once. */
   create(): void {
-    this.origin = 'new';
-    this.before = emptyForm();
-    this.after = {
+    this.#start('new', emptyForm(), {
       ...emptyForm(),
       competences: [{ name: '', years: null, aliases: [], origin: null }],
       languages: [{ language: '', level: null, origin: null }],
-    };
-    this.dateText = '';
+    });
     this.source = NEW_SOURCE;
     this.quality = null;
-    this.pasting = false;
+    this.understood = null;
   }
 
-  /** A chosen file or Claude's answer, to review before it is saved. */
+  /** A chosen file or an AI's answer, to review before it is saved. */
   take(draft: ProfileDraft, origin: 'file' | 'answer'): void {
-    this.origin = origin;
-    this.before = copy(draft.form);
-    this.after = copy(draft.form);
-    this.dateText = dateTextOf(draft.form);
+    this.#start(origin, draft.form, draft.form);
     this.source = draft.source;
     this.quality = draft.quality;
-    this.pasting = false;
+    this.understood = draft.understood;
+  }
+
+  /** An AI's answer that updates the stored profile: saving merges it into the stored file. */
+  update(draft: ProfileDraft, stored: ProfileForm): void {
+    this.#start('update', stored, updated(copy(stored), copy(draft.form)));
+    this.source = null;
+    this.quality = null;
+    this.understood = null;
   }
 
   /** Nothing in the editor (the empty state shows). */
   close(): void {
+    this.#start('stored', emptyForm(), emptyForm());
     this.origin = null;
-    this.before = emptyForm();
-    this.after = emptyForm();
-    this.dateText = '';
     this.source = null;
     this.quality = null;
-    this.pasting = false;
+    this.understood = null;
+  }
+
+  /** "Wert entfernen": the value of the file goes when the profile is saved. */
+  clear(field: UnreadableField): void {
+    if (!this.cleared.includes(field)) this.cleared = [...this.cleared, field];
   }
 
   /** "Ab Datum" is chosen but the day does not read. */
@@ -282,7 +491,7 @@ class ProfileEditor {
         before: this.before,
         after: normalized(copy(this.after)),
         source: this.source,
-        clear: [],
+        clear: [...this.cleared],
       },
     });
   }

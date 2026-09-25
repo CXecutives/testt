@@ -17,12 +17,16 @@
 //
 // Scenarios (`?scenario=`): default · first-run · mailbox-only · no-profile · empty ·
 // many (2000 jobs) · offline · paused · running · slow · list-error · profile-broken ·
-// profile-thin · reset (the state after
+// profile-thin · profile-unreadable (a value of every criterion and wish does not read, a key
+// is not read at all) · reset (the state after
 // "reset everything": first run, no mailbox, no profile, the report) · first-run-empty-profile
 // · session-left (freelance.de still signed in with the sign-in switched off)
 // · dry-run (the demo: a Probelauf mailbox, every command that writes outside the database
 // refuses with `dryRun` like `ensure_real`).
 // `save_mailbox` refuses the app password `falschfalschfals` with `mailAuth` (Gmail said no).
+// `?file=focus` lets `pick_profile` choose a file with seven Schwerpunkte (the form takes five).
+// `save_profile` refuses a minimum day rate above 100.000 and a competence with more than 70
+// years (with its row), like core's validation.
 // `?tick=ms` sets the pace of a scripted run (default 40); `?export=locked` lets the export
 // of a run find the Excel file open; `?mail=offline` lets every fetch fail to reach Gmail.
 // Dates are fixed so screenshots stay stable (the tests also fix the clock). The portals
@@ -566,6 +570,13 @@ const FILE_FORM: ProfileForm = {
     row('SAP S/4HANA Migration', 6, [], 1),
     row('Programmmanagement', 8, [], 2),
   ],
+  strengths: [],
+  keywords: [],
+  degrees: [],
+  industries: [],
+  tools: [],
+  certificates: [],
+  languages: [],
   focus: [],
   roles: [],
   wishes: { dayRate: null, remote: 'partly', regions: [], industries: [] },
@@ -610,11 +621,10 @@ const PROFILE: ProfileInfo = {
     ],
     sources: [
       { path: 'kernkompetenzen[].kompetenz', count: 6 },
-      { path: 'kernkompetenzen[].auch', count: 3 },
       { path: 'keywords[]', count: 3 },
       { path: 'methoden_tools[].name', count: 3 },
-      { path: 'stationen[].rolle', count: 12 },
-      { path: 'stationen[].schwerpunkte[]', count: 15 },
+      { path: 'branchen[].branche', count: 3 },
+      { path: 'stationen[].schwerpunkte[]', count: 27 },
     ],
     criteria: [
       { code: 'minDayRate', params: { set: true, min: '1100' } },
@@ -629,7 +639,7 @@ const PROFILE: ProfileInfo = {
     warnings: [
       {
         code: 'criterionNotUnderstood',
-        params: { key: 'festanstellung_remote_min', value: '"viel"' },
+        params: { key: 'festanstellung_remote_min', value: '"viel"', field: 'permanentRemoteMin' },
       },
     ],
     focus: PROFILE_FORM.focus,
@@ -642,7 +652,77 @@ const PROFILE: ProfileInfo = {
   form: PROFILE_FORM,
 };
 
-/** The request for Claude (the real text lives in core/src/profile/prompt.rs). */
+/** A chosen file with seven Schwerpunkte: the form takes the first five (core's form::read),
+ *  the engine says how many the file named. */
+const FOCUS_FORM: ProfileForm = {
+  ...structuredClone(PROFILE_FORM),
+  name: 'Jonas Muster',
+  competences: ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((n, index) =>
+    row(`Kompetenz ${n}`, null, [], index),
+  ),
+  focus: ['A', 'B', 'C', 'D', 'E'].map((n) => `Kompetenz ${n}`),
+};
+const FOCUS_DRAFT: ProfileDraft = {
+  form: FOCUS_FORM,
+  source: '{"name": "Jonas Muster"}',
+  quality: 'good',
+  understood: understoodOf(FOCUS_FORM, [{ code: 'focusTrimmed', params: { count: 7, max: 5 } }]),
+};
+
+/** A value that does not read, as the engine reports it (the field it belongs to added by
+ *  core's view::profile_warning). */
+const unread = (key: string, value: string, field: string | null): Notice => ({
+  code: 'criterionNotUnderstood',
+  params: field === null ? { key, value } : { key, value, field },
+});
+
+/** A profile whose criteria and wishes do not read: each field says so, a Schwerpunkt that is
+ *  no competence and a target role without a field too, and a key of the criteria the app
+ *  does not read at all. */
+const UNREADABLE_PROFILE: ProfileInfo = {
+  ...PROFILE,
+  understood: {
+    ...PROFILE.understood!,
+    warnings: [
+      { code: 'availabilityNotUnderstood', params: { value: 'bald' } },
+      unread('min_tagessatz', '"teuer"', 'minDayRate'),
+      unread('laender', '"Deutschland"', 'countries'),
+      unread('ausgeschlossene_vertragsarten', '5', 'contracts'),
+      unread('remote_ausserhalb_erlaubt', '"vielleicht"', 'remoteOutside'),
+      unread('zielprofil_min_jahre', '"senior"', 'targetYears'),
+      unread('min_jahresgehalt', '"hoch"', 'minSalary'),
+      unread('festanstellung_orte', '[]', 'permanentPlaces'),
+      unread('festanstellung_remote_min', '"viel"', 'permanentRemoteMin'),
+      unread('schwerpunkte', 'Treasury', 'focus'),
+      unread('wunschrollen', 'Head of', 'roles'),
+      unread('tagessatz_wunsch', '"hoch"', 'wishDayRate'),
+      unread('remote', '"egal"', 'remote'),
+      unread('regionen', '5', 'regions'),
+      unread('branchen', '{}', 'wishIndustries'),
+      { code: 'ignoredKeys', params: { keys: 'tagessatz_max' } },
+    ],
+  },
+  form: {
+    ...structuredClone(PROFILE_FORM),
+    focus: ['Controlling', 'Treasury'],
+    roles: ['Interim CFO', 'Head of'],
+    wishes: { dayRate: null, remote: null, regions: [], industries: [] },
+    criteria: {
+      minDayRate: null,
+      countries: [],
+      noAnue: false,
+      noPermanent: false,
+      available: { kind: 'unset' },
+      remoteOutside: true,
+      targetYears: null,
+      minSalary: null,
+      permanentPlaces: [],
+      permanentRemoteMin: null,
+    },
+  },
+};
+
+/** The request for an AI (the real text lives in core/src/profile/prompt.rs). */
 const PROMPT = 'Erstelle aus meinem angehängten Lebenslauf ein Beraterprofil.';
 
 type Json = Record<string, unknown>;
@@ -988,12 +1068,18 @@ function initial(): void {
           focus: [],
           roles: [],
           keywords: ['IFRS'],
+          years: null,
+          degrees: [],
+          industries: [],
           tools: [],
           certificates: [],
           languages: [],
           wishes: { dayRate: null, remote: null, regions: [], industries: [] },
         },
       };
+      break;
+    case 'profile-unreadable':
+      state.profile = UNREADABLE_PROFILE;
       break;
     case 'running':
       state.running = {
@@ -1861,15 +1947,18 @@ const handlers: Handlers = {
     if (state.profile === null) throw fail('notFound', { what: 'profile' });
     return promptTopOf(limit);
   },
-  pick_profile: () => structuredClone(FILE_DRAFT),
+  pick_profile: () => structuredClone(params.get('file') === 'focus' ? FOCUS_DRAFT : FILE_DRAFT),
   parse_profile: ({ text }) => answerDraft(text),
   profile_prompt: () => PROMPT,
   save_profile: ({ save }) => {
     const after = save.after;
-    if (after.focus.length > 5) throw fail('invalid', { reason: 'profileValue', field: 'focus' });
-    if ((after.criteria.minDayRate ?? 0) > 100_000) {
-      throw fail('invalid', { reason: 'profileValue', field: 'minDayRate' });
-    }
+    const refuse = (field: string, row: number | null = null): never => {
+      throw fail('invalid', { reason: 'profileValue', field, row });
+    };
+    if ((after.criteria.minDayRate ?? 0) > 100_000) refuse('minDayRate');
+    const tooLong = after.competences.findIndex((r) => (r.years ?? 0) > 70);
+    if (tooLong >= 0) refuse('competences', tooLong);
+    if (after.focus.length > 5) refuse('focus');
     const form = savedForm(after);
     const count = form.competences.length + form.tools.length + form.keywords.length;
     const quality = count === 0 ? 'empty' : count < 5 ? 'thin' : 'good';

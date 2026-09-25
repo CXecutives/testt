@@ -1,7 +1,9 @@
 <!--
   The languages: one row each with the language and its level (A1 to C2 or Muttersprache as
-  toggle buttons; pressing the chosen level again clears it), then "Sprache hinzufügen".
-  Enter moves through the rows like in the competences (rows.ts); it never saves.
+  toggle buttons, each explaining itself in a tooltip; pressing the chosen level again
+  clears it, and without one the app assumes B2), then "Sprache hinzufügen". Enter moves
+  through the rows like in the competences (rows.ts); it never saves. A value the backend
+  refused marks its row.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
@@ -15,15 +17,27 @@
 
   interface Props {
     rows: ProfileLanguage[];
+    /** A row the backend refused (its place among the rows with a language) and why. */
+    error?: { row: number | null; text: string } | null;
   }
 
-  let { rows = $bindable() }: Props = $props();
+  let { rows = $bindable(), error = null }: Props = $props();
 
   const words = $derived(t.profile.field);
+  const id = $props.id();
   const LEVELS = $derived(
-    Object.entries(t.profile.level).map(([level, label]) => ({ id: level, label })),
+    (Object.keys(t.profile.level) as LanguageLevel[]).map((level) => ({
+      id: level,
+      label: t.profile.level[level],
+      hint: t.profile.levelMeaning[level],
+    })),
   );
   let list = $state<HTMLElement | null>(null);
+
+  const refused = $derived.by((): ProfileLanguage | null => {
+    if (error === null || error.row === null) return null;
+    return rows.filter((row) => row.language.trim() !== '')[error.row] ?? null;
+  });
 
   const append = (): void => {
     rows = [...rows, { language: '', level: null, origin: null }];
@@ -49,7 +63,7 @@
     });
 </script>
 
-<div class="list" bind:this={list} data-testid="languages">
+<div class="list" bind:this={list} data-testid="languages" data-field="languages">
   {#each rows as row (row)}
     <div class="row" data-row data-testid="language-row" use:formKeys={{ save: () => enter(row) }}>
       <span class="name">
@@ -57,6 +71,8 @@
           bind:value={row.language}
           label={words.language}
           placeholder={rows.length === 1 ? words.languagePlaceholder : null}
+          invalid={row === refused}
+          describedby={row === refused ? `${id}-error` : null}
           testid="language-name"
         />
       </span>
@@ -80,7 +96,10 @@
       </span>
     </div>
   {/each}
-  <span>
+  {#if error}
+    <p class="error" id="{id}-error" role="alert" data-testid="language-error">{error.text}</p>
+  {/if}
+  <div class="foot">
     <Button
       variant="secondary"
       size="sm"
@@ -89,7 +108,8 @@
       testid="language-add"
       onclick={() => void add()}
     />
-  </span>
+    <p class="hint">{words.levelHint}</p>
+  </div>
 </div>
 
 <style>
@@ -115,6 +135,23 @@
     display: flex;
     align-items: center;
     height: var(--control-md);
+  }
+
+  .error {
+    color: var(--danger-strong);
+    font: var(--type-sm);
+  }
+
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8) var(--space-16);
+  }
+
+  .hint {
+    color: var(--text-muted);
+    font: var(--type-sm);
   }
 
   /* Narrow: the levels go in one wrapping line under the language, the x stays beside it. */
