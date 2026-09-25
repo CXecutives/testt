@@ -299,14 +299,17 @@ export function shownDate(iso: string): string {
   return match ? `${match[3]}${mark}${match[2]}${mark}${match[1]}` : iso;
 }
 
+const GERMAN_DAY = /^(\d{1,2})[./](\d{1,2})[./](\d{2}|\d{4})$/;
+const ISO_DAY = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+
 /**
  * A typed day (`1.11.2026`, `01.11.26`, `01/11/2026`, `2026-11-01`) as `YYYY-MM-DD`; `null`
  * if it is none. Day first in both languages (German and British English).
  */
 export function isoDate(text: string): string | null {
   const value = text.trim();
-  const german = /^(\d{1,2})[./](\d{1,2})[./](\d{2}|\d{4})$/.exec(value);
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value);
+  const german = GERMAN_DAY.exec(value);
+  const iso = ISO_DAY.exec(value);
   const [year, month, day] = german
     ? [
         Number(german[3]) + (german[3]!.length === 2 ? 2000 : 0),
@@ -320,6 +323,12 @@ export function isoDate(text: string): string | null {
   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0;
   const valid = year > 1900 && day >= 1 && day <= days;
   return valid ? `${year}-${pad(month)}-${pad(day)}` : null;
+}
+
+/** A typed day in a form `isoDate` reads, whether or not the calendar has it (`31.02.2026`). */
+export function dayShaped(text: string): boolean {
+  const value = text.trim();
+  return GERMAN_DAY.test(value) || ISO_DAY.test(value);
 }
 
 /** The day field's text for a form. */

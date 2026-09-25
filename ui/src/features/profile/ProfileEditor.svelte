@@ -35,7 +35,13 @@
     UnreadableField,
   } from '$lib/ipc/types';
   import { primaryFirst } from '$lib/platform';
-  import { editor, isoDate, type FieldError, type FieldProblem } from '$lib/state/profile.svelte';
+  import {
+    dayShaped,
+    editor,
+    isoDate,
+    type FieldError,
+    type FieldProblem,
+  } from '$lib/state/profile.svelte';
   import { tick } from 'svelte';
   import ChoiceButtons from './ChoiceButtons.svelte';
   import CompetenceList from './CompetenceList.svelte';
@@ -186,7 +192,7 @@
   );
 
   /** Nothing chosen is no availability; pressing the chosen one again clears it. "Ab Datum"
-   *  puts the caret into its day. */
+   *  puts the caret into its day, which is judged anew when it is left. */
   async function setAvailable(chosen: string[]): Promise<void> {
     const kind = chosen[0];
     c.available =
@@ -195,6 +201,7 @@
         : kind === 'now'
           ? { kind }
           : { kind: 'unset' };
+    judged = false;
     if (kind !== 'from') return;
     await tick();
     root?.querySelector<HTMLInputElement>('[data-testid="profile-date"]')?.focus();
@@ -203,18 +210,26 @@
   function setDate(text: string): void {
     editor.dateText = text;
     c.available = { kind: 'from', date: isoDate(text) ?? text.trim() };
+    judged = false;
   }
 
-  let tried = $state(false);
+  /** The day is judged when its field is left with text in it or on saving; typing waits
+   *  for the next judgement, so nothing flashes while a valid day is typed. */
+  let judged = $state(false);
   const dateError = $derived(
-    editor.dateInvalid && (tried || editor.dateText.trim().length >= 8) ? words.dateInvalid : null,
+    judged && editor.dateInvalid
+      ? dayShaped(editor.dateText)
+        ? words.dateImpossible
+        : words.dateInvalid
+      : null,
   );
+  const dateSaid = $derived(dateError !== null || fieldError?.field === 'available');
 
   let root = $state<HTMLElement | null>(null);
 
   /** Ready to save: a day that does not read is said at its field, which gets the caret. */
   export function ready(): boolean {
-    tried = true;
+    judged = true;
     if (!editor.dateInvalid) return true;
     document.querySelector<HTMLInputElement>('[data-testid="profile-date"]')?.focus();
     return false;
@@ -789,23 +804,31 @@
           onchange={setAvailable}
         />
         {#if c.available.kind === 'from'}
-          <span class="date">
+          <span
+            class="date"
+            role="presentation"
+            onfocusout={() => (judged = editor.dateText.trim() !== '')}
+          >
             <TextField
               value={editor.dateText}
               label={words.date}
               placeholder={words.datePlaceholder}
-              invalid={dateError !== null || fieldError?.field === 'available'}
-              describedby="{id}-date-message"
+              invalid={dateSaid}
+              describedby={dateSaid ? `${id}-date-message` : null}
               testid="profile-date"
               oninput={setDate}
             />
           </span>
         {/if}
       </div>
-      {#if dateError}
-        <Notice tone="danger" variant="inline" text={dateError} testid="profile-date-error" />
-      {:else if fieldError?.field === 'available'}
-        <Notice tone="danger" variant="inline" text={fieldError.text()} />
+      {#if dateSaid}
+        <div id="{id}-date-message">
+          {#if dateError}
+            <Notice tone="danger" variant="inline" text={dateError} testid="profile-date-error" />
+          {:else if fieldError?.field === 'available'}
+            <Notice tone="danger" variant="inline" text={fieldError.text()} />
+          {/if}
+        </div>
       {/if}
       {#each problemsOf('available') as problem (problem.value)}
         <ValueNote
@@ -826,8 +849,6 @@
   <div class="status" data-testid="profile-save-status">
     {#if note}
       <Notice tone="danger" variant="inline" text={note} testid="profile-save-error" />
-    {:else if tried && dateError}
-      <Notice tone="danger" variant="inline" text={dateError} />
     {:else if editor.dirty}
       <span class="quiet">{t.profile.unsaved}</span>
     {:else if result}

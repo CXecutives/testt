@@ -310,15 +310,11 @@ test('a wrong date is said at the field and nothing is saved', async ({ page }) 
   await profile(page);
   await page.getByTestId('profile-available').getByRole('radio', { name: 'Ab Datum' }).click();
   await page.getByTestId('profile-date').fill('31.02.2026');
-  await expect(page.getByTestId('profile-date-error')).toHaveText(
-    'Gib das Datum im Format 01.11.2026 ein.',
-  );
   await save(page).click();
   expect(await calls(page, 'save_profile')).toHaveLength(0);
-  // Saving says why in the bar and puts the caret into the day.
-  await expect(page.getByTestId('profile-save-status')).toHaveText(
-    'Gib das Datum im Format 01.11.2026 ein.',
-  );
+  // Said once, at the day, which gets the caret; the day has the format but does not exist.
+  await expect(page.getByTestId('profile-date-error')).toHaveText('Diesen Tag gibt es nicht.');
+  await expect(page.getByTestId('profile-save-status')).toHaveText('Nicht gespeichert');
   await expect(page.getByTestId('profile-date')).toBeFocused();
 });
 

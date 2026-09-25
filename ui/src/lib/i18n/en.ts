@@ -1128,6 +1128,7 @@ export const en: Catalog = {
       date: 'Date',
       datePlaceholder: '01/11/2026',
       dateInvalid: 'Enter the date as 01/11/2026.',
+      dateImpossible: 'This day does not exist.',
       targetYears: 'Minimum experience of the job',
       targetYearsHint: 'Jobs for far less experienced people are excluded.',
       minSalary: 'Minimum annual salary',

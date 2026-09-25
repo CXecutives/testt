@@ -1218,6 +1218,8 @@ export const de = {
       date: 'Datum',
       datePlaceholder: '01.11.2026',
       dateInvalid: 'Gib das Datum im Format 01.11.2026 ein.',
+      /** A day in the right format that the calendar does not have (31.02.2026). */
+      dateImpossible: 'Diesen Tag gibt es nicht.',
       targetYears: 'Mindest-Erfahrung des Jobs',
       targetYearsHint: 'Jobs für deutlich weniger Erfahrung sind ausgeschlossen.',
       minSalary: 'Mindest-Jahresgehalt',
