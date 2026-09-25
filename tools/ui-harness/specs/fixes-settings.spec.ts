@@ -128,6 +128,33 @@ test('the changed mailbox: save and cancel end on the edge like every control', 
   }
 });
 
+test('notes and errors in Einstellungen follow a switch of the language', async ({ page }) => {
+  await settings(page);
+  // A note of an action, a refused switch and the errors of the open mailbox form.
+  await page.getByTestId('txt-rewrite').click();
+  await expect(page.getByTestId('files-note')).toHaveText('38 Dateien geschrieben.');
+  await page.getByTestId('toggle-enabled-linkedin').click();
+  await page.getByTestId('toggle-enabled-freelance').click();
+  await page.getByTestId('toggle-enabled-freelancermap').click();
+  const refused = page.getByTestId('portal-freelancermap').getByTestId('portal-error');
+  await expect(refused).toHaveText('Mindestens ein Portal muss aktiv sein.');
+  // One portal on again, so the language can be saved.
+  await page.getByTestId('toggle-enabled-linkedin').click();
+  await expect(page.getByTestId('toggle-enabled-linkedin')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('mailbox-change').click();
+  await page.getByTestId('mailbox-user').fill('');
+  await page.getByTestId('mailbox-save').click();
+  const form = page.getByTestId('mailbox-form');
+  await expect(form).toContainText('Die Gmail-Adresse fehlt.');
+
+  await page.getByTestId('language').getByRole('radio', { name: 'English' }).click();
+  await expect(page.getByTestId('settings-files')).toContainText('Files');
+  await expect(page.getByTestId('files-note')).toHaveText('38 files written.');
+  await expect(refused).toHaveText('At least one portal must be active.');
+  await expect(form).toContainText('The Gmail address is missing.');
+  await expect(form).toContainText('The app password is missing.');
+});
+
 test('the first run opens at its top, the caret waiting in the address', async ({ page }) => {
   await page.setViewportSize({ width: 480, height: 360 });
   for (const query of [`${WIN}&scenario=reset&lang=en`, '?platform=macos&scenario=first-run']) {

@@ -171,11 +171,12 @@ export function localQuality(
 
 // ------------------------------------------------------------------ values that did not read
 
-/** A value the backend refused on saving: the field (and row) it names and its words. */
+/** A value the backend refused on saving: the field (and row) it names and its words (said
+ *  when they show, so they follow a switch of the language). */
 export interface FieldError {
   field: string;
   row: number | null;
-  text: string;
+  text: () => string;
 }
 
 /** A value of the file the engine could not read, at the field of the form that holds it. */

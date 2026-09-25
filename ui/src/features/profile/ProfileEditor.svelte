@@ -111,7 +111,7 @@
   /** The error of a field: a value the backend refused, else the first value of the file
    *  that does not read (said by `Field` with "Wert entfernen" as its way on). */
   function errorOf(field: string): string | null {
-    if (fieldError?.field === field) return fieldError.text;
+    if (fieldError?.field === field) return fieldError.text();
     const first = problemsOf(field as UnreadableField).find((problem) => !problem.entry);
     return first ? unreadText(first) : null;
   }
@@ -129,7 +129,7 @@
   }
 
   const listError = (field: string): { row: number | null; text: string } | null =>
-    fieldError?.field === field ? { row: fieldError.row, text: fieldError.text } : null;
+    fieldError?.field === field ? { row: fieldError.row, text: fieldError.text() } : null;
 
   const trimmed = $derived.by((): number | null => {
     const notice = warnings.find((w) => w.code === 'focusTrimmed');
@@ -566,7 +566,7 @@
         />
       {/each}
       {#if fieldError?.field === 'countries'}
-        <Notice tone="danger" variant="inline" text={fieldError.text} />
+        <Notice tone="danger" variant="inline" text={fieldError.text()} />
       {/if}
     </div>
     <div class="toggles">
@@ -716,7 +716,7 @@
       {#if dateError}
         <Notice tone="danger" variant="inline" text={dateError} testid="profile-date-error" />
       {:else if fieldError?.field === 'available'}
-        <Notice tone="danger" variant="inline" text={fieldError.text} />
+        <Notice tone="danger" variant="inline" text={fieldError.text()} />
       {/if}
       {#each problemsOf('available') as problem (problem.value)}
         <ValueNote

@@ -36,7 +36,9 @@
   import MailboxForm from '../shared/MailboxForm.svelte';
   import PortalCard from './PortalCard.svelte';
 
-  type Feedback = { tone: NoticeTone; text: string } | null;
+  /** A note keeps what happened and says it when it shows, so it follows a switch of the
+   *  language (a sentence made at once would stay in the old one). */
+  type Feedback = { tone: NoticeTone; text: () => string } | null;
 
   /** The app's languages, each named in its own words. */
   const LANGUAGES: readonly Language[] = ['de', 'en'];
@@ -99,7 +101,7 @@
     try {
       note(await work());
     } catch (error) {
-      note({ tone: 'danger', text: errorText(error) });
+      note({ tone: 'danger', text: () => errorText(error) });
     } finally {
       busy = null;
       close?.();
@@ -108,7 +110,7 @@
 
   function open(target: OpenTarget, note: (f: Feedback) => void): void {
     invoke('open_target', { target }).catch((error: unknown) =>
-      note({ tone: 'danger', text: errorText(error) }),
+      note({ tone: 'danger', text: () => errorText(error) }),
     );
   }
 
@@ -227,13 +229,11 @@
 
   function rewrite(): void {
     void act('rewrite', setFiles, async () => {
-      const result = await invoke('rewrite_txt');
+      const { error, txtFailed, txtWritten } = await invoke('rewrite_txt');
       await app.load();
-      if (result.error)
-        return { tone: 'danger', text: t.error.text(result.error.kind, result.error.params) };
-      if (result.txtFailed > 0)
-        return { tone: 'warning', text: t.settings.txtFailed(result.txtFailed) };
-      return { tone: 'success', text: t.settings.txtWritten(result.txtWritten) };
+      if (error) return { tone: 'danger', text: () => t.error.text(error.kind, error.params) };
+      if (txtFailed > 0) return { tone: 'warning', text: () => t.settings.txtFailed(txtFailed) };
+      return { tone: 'success', text: () => t.settings.txtWritten(txtWritten) };
     });
   }
 
@@ -242,12 +242,12 @@
       'clear',
       setFiles,
       async () => {
-        const result = await invoke('clear_txt');
+        const { failed, removed } = await invoke('clear_txt');
         await app.load();
-        if (result.failed.length > 0) {
-          return { tone: 'warning', text: t.settings.txtFailed(result.failed.length) };
+        if (failed.length > 0) {
+          return { tone: 'warning', text: () => t.settings.txtFailed(failed.length) };
         }
-        return { tone: 'success', text: t.settings.txtCleared(result.removed) };
+        return { tone: 'success', text: () => t.settings.txtCleared(removed) };
       },
       () => (confirmClear = false),
     );
@@ -257,7 +257,7 @@
     confirmFull = false;
     void run.start({ kind: 'fullMailbox' }).then((started) => {
       if (started) navigation.go('jobs');
-      else setCare({ tone: 'danger', text: run.startError ?? t.run.failed });
+      else setCare({ tone: 'danger', text: () => run.startError ?? t.run.failed });
     });
   }
 
@@ -278,7 +278,7 @@
 <!-- A note rises in where its action happened and fades when it goes (Notice, never at mount). -->
 {#snippet note(feedback: Feedback, testid: string)}
   {#if feedback}
-    <Notice tone={feedback.tone} variant="inline" text={feedback.text} {testid} />
+    <Notice tone={feedback.tone} variant="inline" text={feedback.text()} {testid} />
   {/if}
 {/snippet}
 
@@ -352,7 +352,7 @@
             oncancel={cfg.mailbox.user ? () => void closeForm() : null}
             onsaved={() => {
               mailboxSaved = true;
-              mailboxNote = { tone: 'success', text: t.settings.mailboxSaved };
+              mailboxNote = { tone: 'success', text: () => t.settings.mailboxSaved };
               void closeForm();
             }}
           />

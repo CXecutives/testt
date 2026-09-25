@@ -46,11 +46,13 @@
   let user = $state(app.state?.mailbox.user ?? '');
   let password = $state('');
   let busy = $state(false);
-  let userError = $state<string | null>(null);
-  let passwordError = $state<string | null>(null);
+  /** An error is said when it shows, so it follows a switch of the language. */
+  type Words = () => string;
+  let userError = $state<Words | null>(null);
+  let passwordError = $state<Words | null>(null);
   /** Gmail refused the pair: both fields are marked, the sentence stands once above. */
   let refused = $state(false);
-  let formError = $state<string | null>(null);
+  let formError = $state<Words | null>(null);
   let passwordField = $state<TextField | null>(null);
 
   const focus = (field: 'user' | 'password', preventScroll = false): void =>
@@ -75,8 +77,8 @@
     userError = passwordError = formError = null;
     refused = false;
     // Empty fields are said at once, both of them, without asking Gmail.
-    if (user.trim() === '') userError = t.settings.addressMissing;
-    if (password.trim() === '') passwordError = t.settings.passwordMissing;
+    if (user.trim() === '') userError = () => t.settings.addressMissing;
+    if (password.trim() === '') passwordError = () => t.settings.passwordMissing;
     if (userError !== null || passwordError !== null) {
       focus(userError !== null ? 'user' : 'password');
       return;
@@ -90,17 +92,18 @@
     } catch (error) {
       const kind = error instanceof IpcError ? error.kind : null;
       const reason = error instanceof IpcError ? error.params.reason : null;
+      const words = (): string => errorText(error);
       if (kind === 'mailAuth') {
         // Gmail refuses address or password: both are marked, the password shakes once.
         refused = true;
-        formError = errorText(error);
+        formError = words;
         passwordField?.shake();
       } else if (reason === 'mailAddress' || kind === 'mailNotGmail') {
-        userError = errorText(error);
+        userError = words;
       } else if (reason === 'appPassword') {
-        passwordError = errorText(error);
+        passwordError = words;
       } else {
-        formError = errorText(error);
+        formError = words;
       }
     } finally {
       busy = false;
@@ -109,7 +112,7 @@
 
   function openPage(kind: 'appPasswordPage' | 'twoStepPage'): void {
     invoke('open_target', { target: { kind } }).catch(
-      (error: unknown) => (formError = errorText(error)),
+      (error: unknown) => (formError = () => errorText(error)),
     );
   }
 </script>
@@ -122,7 +125,7 @@
     : { save: () => void save() }}
 >
   <div class="fields">
-    <Field label={t.settings.address} for="{id}-user" error={userError}>
+    <Field label={t.settings.address} for="{id}-user" error={userError?.() ?? null}>
       <TextField
         id="{id}-user"
         bind:value={user}
@@ -135,7 +138,7 @@
       label={t.settings.password}
       for="{id}-password"
       hint={t.settings.passwordHint}
-      error={passwordError}
+      error={passwordError?.() ?? null}
     >
       <TextField
         bind:this={passwordField}
@@ -173,7 +176,7 @@
     </div>
   </div>
   {#if formError}
-    <Notice tone="danger" variant="inline" text={formError} testid="mailbox-error" />
+    <Notice tone="danger" variant="inline" text={formError()} testid="mailbox-error" />
   {/if}
   <div class="actions" class:pair={oncancel !== null}>
     {#snippet dismiss()}

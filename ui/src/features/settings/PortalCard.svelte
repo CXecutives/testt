@@ -37,7 +37,8 @@
   const QUOTA_SHOWN = 0.8;
   const RISK_TONE: Record<Risk, BadgeTone> = { low: 'success', grey: 'warning', account: 'danger' };
 
-  let error = $state<string | null>(null);
+  /** Why the last action failed, said when it shows (so in the language of the moment). */
+  let error = $state<(() => string) | null>(null);
   let busy = $state(false);
   /** Only the answer to the latest save may replace the state (quick double flips). */
   let saves = 0;
@@ -93,7 +94,7 @@
       });
       if (save === saves) app.set(next);
     } catch (failure) {
-      error = errorText(failure);
+      error = () => errorText(failure);
       void app.load();
     }
   }
@@ -105,7 +106,7 @@
       await invoke(on ? 'portal_login' : 'portal_logout', { portal: portal.portal });
       await app.load();
     } catch (failure) {
-      error = errorText(failure);
+      error = () => errorText(failure);
     } finally {
       busy = false;
     }
@@ -113,7 +114,7 @@
 
   function openPortal(): void {
     invoke('open_target', { target: { kind: 'portalHome', portal: portal.portal } }).catch(
-      (failure: unknown) => (error = errorText(failure)),
+      (failure: unknown) => (error = () => errorText(failure)),
     );
   }
 </script>
@@ -282,7 +283,7 @@
       {/if}
       {#if error}
         <div class="status">
-          <Notice tone="danger" variant="inline" text={error} testid="portal-error" />
+          <Notice tone="danger" variant="inline" text={error()} testid="portal-error" />
         </div>
       {/if}
     </div>
