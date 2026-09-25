@@ -11,15 +11,25 @@
   close back to the day overview (below 900 px the view's back button does); below the match
   line always the same three outlined buttons: "Anzeige öffnen", "Alert-Mail öffnen"
   (disabled, saying why, without a mail) and "Prompt für KI-Bewertung kopieren" (the job as
-  a prompt for any AI chat; "KI-Bewertung" where the whole label does not fit). "Details
-  holen" has one place: next to the note on the missing text, above the ad.
+  a prompt for any AI chat; "Prompt kopieren" where the whole label does not fit, an icon
+  button where that does not fit either: the row never wraps). "Details holen" has one
+  place: next to the note on the missing text, above the ad. Moving the job away from one of
+  its buttons hands the focus to the same button of the next job.
   After Archivieren the next job of the list opens, and the toast can take it back. The groups of "Warum" carry navy sub-labels with a soft count; a reason
   that jumps to its passage makes the passage flash once when it has arrived. Once the
   action row has scrolled away, a compact bar sticks to the top (ring, title, open, pin):
   it fades in sliding down 4 px and leaves faster, and it cannot be clicked while hidden.
 -->
+<script lang="ts" module>
+  /** A button of the reader had the focus when its job moved away: the same button of the
+   *  next job takes it, so archive, archive, archive works from the keyboard. */
+  let handoff: { testid: string; from: string; until: number } | null = null;
+  /** How long the next job may take to open and still take the focus. */
+  const HANDOFF_MS = 3000;
+</script>
+
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import Button from '$components/Button.svelte';
   import Chip from '$components/Chip.svelte';
   import Count from '$components/Count.svelte';
@@ -32,7 +42,7 @@
   import { tooltip } from '$lib/actions/tooltip';
   import type { CriterionKey, CriterionState } from '$lib/i18n/de';
   import { t } from '$lib/i18n/t';
-  import { displayTitle, formatMoment, formatRelative } from '$lib/i18n/format';
+  import { displayTitle, formatDate, formatRelative, formatTime } from '$lib/i18n/format';
   import {
     criterionKey,
     criterionState,
@@ -53,6 +63,7 @@
   import { run } from '$lib/state/run.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import AdText from './AdText.svelte';
+  import { copyText } from './prompt';
   import {
     actionsOf,
     guarded,
@@ -87,12 +98,16 @@
     hovered = null;
   });
   let textElement = $state<HTMLElement | null>(null);
+  let article = $state<HTMLElement | null>(null);
   let actionError = $state<string | null>(null);
   /** The action row has scrolled away: the compact bar is up. */
   let compact = $state(false);
   /** The passage that flashes once after a jump to it. */
   let flash = $state<string | null>(null);
   let flashTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Between two facts; an expression, so its spaces stay (a copy reads "Hamburg · Remote"). */
+  const SEPARATOR = ' · ';
 
   const WEIGHT_ORDER = { must: 0, hard: 1, nice: 2, info: 3 } as const;
   const byWeight = (a: Reason, b: Reason): number =>
@@ -159,7 +174,7 @@
     label: string;
     state: CriterionState | 'plain';
     icon: IconName;
-    hint: string;
+    hint: string | null;
     reason: Reason | null;
   }
   const chips = $derived.by((): StripChip[] => {
@@ -189,18 +204,23 @@
       const state = criterionState(reason);
       const name = t.reader.criterion[key].label;
       const value = criterionValue(reason);
+      // The chip's words say the state where it shows no value ("Tagessatz nicht genannt");
+      // a value without a state is one the ad leaves open (a rate by arrangement).
+      const hint =
+        key === 'noAnue' && state === 'unknown'
+          ? t.reader.anueCheck
+          : value === null
+            ? state === 'unset'
+              ? null
+              : t.reader.criterionHint[state](name)
+            : t.reader.criterionHint[state === 'unset' ? 'open' : state](name);
       out.push({
         id: reason.id,
         // The ad's own value; what it does not mention says so, neutral.
         label: value ?? (state === 'unset' ? t.facts.notMentioned(name) : name),
         state,
         icon: STATE_ICON[state],
-        hint:
-          key === 'noAnue' && state === 'unknown'
-            ? t.reader.anueCheck
-            : value
-              ? `${name}, ${t.reader.criterionState[state]}`
-              : t.reader.criterionState[state],
+        hint,
         reason:
           reason.ranges.length > 0
             ? reason
@@ -270,7 +290,10 @@
     ]
       .filter((fact) => fact !== '')
       .map((text) => ({ text, hint: null as string | null }))
-      .concat({ text: formatRelative(when), hint: t.reader.mailAt(formatMoment(when)) });
+      .concat({
+        text: formatRelative(when),
+        hint: t.reader.mailAt(formatDate(when), formatTime(when)),
+      });
   });
 
   /** No score yet and the details can be fetched: the button stands right under the band. */
@@ -278,10 +301,11 @@
   const preliminary = $derived(match?.status === 'scored' && detailKind === 'teaser');
 
   /** The action row stays one line: where the whole label does not fit, the prompt action
-   *  says only "KI-Bewertung" (its tooltip says what it copies). Tried again whenever the
-   *  row's width changes (before the frame is painted). */
+   *  says only "Prompt kopieren" (its tooltip says what it copies), and where that does not
+   *  fit either it is an icon button (its tooltip names it). Tried again whenever the row's
+   *  width changes (before the frame is painted). */
   let actions = $state<HTMLElement | null>(null);
-  let promptShort = $state(false);
+  let promptFit = $state<'full' | 'short' | 'icon'>('full');
 
   function oneLine(row: HTMLElement): boolean {
     const first = row.firstElementChild;
@@ -289,6 +313,19 @@
     return !(first instanceof HTMLElement && last instanceof HTMLElement)
       ? true
       : first.offsetTop === last.offsetTop;
+  }
+
+  /** The longest form of the prompt action that keeps the row on one line (the newest try
+   *  wins when the width changes again meanwhile). */
+  let fitting = 0;
+  async function fit(row: HTMLElement): Promise<void> {
+    const attempt = ++fitting;
+    for (const form of ['full', 'short', 'icon'] as const) {
+      if (attempt !== fitting) return;
+      promptFit = form;
+      await tick();
+      if (attempt !== fitting || oneLine(row)) return;
+    }
   }
 
   $effect(() => {
@@ -304,8 +341,7 @@
       // would make the observer report again in the same frame (a loop).
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        promptShort = false;
-        void tick().then(() => (promptShort = !oneLine(row)));
+        void fit(row);
       });
     });
     observer.observe(row);
@@ -322,12 +358,15 @@
 
   async function copyPrompt(): Promise<void> {
     actionError = null;
+    let prompt: string;
     try {
-      await navigator.clipboard.writeText(await jobs.aiPrompt(job.key));
-      toasts.show(t.toast.prompt);
+      prompt = await jobs.aiPrompt(job.key);
     } catch (error) {
       actionError = errorText(error);
+      return;
     }
+    if (await copyText(prompt)) toasts.show(t.toast.prompt);
+    else actionError = t.reader.promptNotCopied;
   }
 
   /** The job's actions where it is (the same as on its row), then the star. */
@@ -344,8 +383,46 @@
       return;
     }
     actionError = null;
-    void move([job], id).then((error) => (actionError = error));
+    const focused = document.activeElement;
+    const testid =
+      focused instanceof HTMLElement && article?.contains(focused)
+        ? (focused.dataset.testid ?? null)
+        : null;
+    // The compact bar starts hidden in the next job: its twin in the head takes the focus.
+    handoff =
+      testid === null
+        ? null
+        : {
+            testid: testid.replace(/^compact-/, 'reader-'),
+            from: keyOf(job.key),
+            until: performance.now() + HANDOFF_MS,
+          };
+    void move([job], id).then((error) => {
+      actionError = error;
+      if (error !== null) handoff = null;
+    });
   }
+
+  // The next job, opened after a move from one of this reader's buttons: the same button of
+  // this reader takes the focus, unless the user put it somewhere else meanwhile.
+  $effect(() => {
+    if (article === null) return;
+    untrack(() => {
+      const want = handoff;
+      if (want === null || want.from === keyOf(job.key)) return;
+      handoff = null;
+      if (performance.now() > want.until) return;
+      const now = document.activeElement;
+      const free =
+        now === null ||
+        now === document.body ||
+        now.closest('[data-testid="reader-pane"]') !== null;
+      if (!free) return;
+      article
+        ?.querySelector<HTMLElement>(`[data-testid="${CSS.escape(want.testid)}"]`)
+        ?.focus({ preventScroll: true });
+    });
+  });
 
   async function purgeJob(): Promise<void> {
     purging = true;
@@ -424,6 +501,16 @@
   }
 </script>
 
+<!-- Values joined by middle dots that copy with them ("Hamburg · 6 Monate"); a line breaks
+     only between two values. -->
+{#snippet dotted(items: { text: string; hint: string | null }[])}
+  {#each items as item, index (index)}<wbr /><span class="fact"
+      ><span class="sep" aria-hidden="true">{SEPARATOR}</span><span use:tooltip={item.hint}
+        >{item.text}</span
+      ></span
+    >{/each}
+{/snippet}
+
 {#snippet sub(label: string, count: number)}
   <h3 class="sub">{label}<Count value={count} /></h3>
 {/snippet}
@@ -491,7 +578,12 @@
   {/if}
 {/snippet}
 
-<article class="reader" data-testid="reader" onpointerdown={() => seen(job.key)}>
+<article
+  class="reader"
+  data-testid="reader"
+  bind:this={article}
+  onpointerdown={() => seen(job.key)}
+>
   <!-- Sticks to the top of the stage; up only while the action row is scrolled away. -->
   <div class="compact-anchor">
     <div
@@ -537,11 +629,7 @@
       </span>
     </div>
     <p class="facts" data-copy>
-      <span class="facts-line">
-        {#each facts as fact, index (index)}<span class="fact" use:tooltip={fact.hint}
-            >{fact.text}</span
-          >{/each}
-      </span>
+      <span class="facts-line">{@render dotted(facts)}</span>
     </p>
     {#if placeLine}<p class="place-line" data-testid="place-line">{placeLine}</p>{/if}
   </header>
@@ -607,7 +695,9 @@
             <span class="strip-label">{t.reader.frame}</span>
             <span class="clean-icon"><Icon name="check" size="xs" /></span>
             <span class="clean-values" data-copy
-              >{#each chips as chip (chip.id)}<span class="fact">{chip.label}</span>{/each}</span
+              ><span class="facts-line"
+                >{@render dotted(chips.map((chip) => ({ text: chip.label, hint: null })))}</span
+              ></span
             >
           </p>
         {:else if chips.length > 0}
@@ -650,11 +740,13 @@
       testid="open-mail"
       onclick={() => openTarget({ kind: 'gmail', key: job.key })}
     />
-    <span class="with-hint" use:tooltip={t.reader.promptHint}>
+    <!-- An icon button names itself in its own tooltip. -->
+    <span class="with-hint" use:tooltip={promptFit === 'icon' ? null : t.reader.promptHint}>
       <Button
         variant="secondary"
         icon="copy"
-        label={promptShort ? t.reader.promptShort : t.reader.prompt}
+        iconOnly={promptFit === 'icon'}
+        label={promptFit === 'short' ? t.reader.promptShort : t.reader.prompt}
         disabled={promptOff !== null}
         disabledReason={promptOff}
         testid="prompt"
@@ -823,8 +915,9 @@
     gap: var(--space-12);
     height: var(--compact-header);
     padding: 0 var(--reader-padding);
-    border-bottom: var(--border-width) solid var(--border);
     background-color: var(--surface);
+    /* The hairline lies below the bar, so its content centres on a whole pixel. */
+    box-shadow: 0 var(--border-width) 0 var(--border);
     opacity: 0;
     pointer-events: none;
     transform: translateY(calc(-1 * var(--move-md)));
@@ -901,7 +994,8 @@
   }
 
   /* Facts joined by middle dots; a dot that would start a wrapped line is clipped (every
-     fact carries its dot in front, the line is shifted left by one dot). */
+     fact carries its dot in front, the line is shifted left by one dot). The dots are text,
+     so a copy keeps them; a fact never breaks inside. */
   .facts {
     overflow: hidden;
     color: var(--text-muted);
@@ -909,17 +1003,20 @@
   }
 
   .facts-line {
-    display: flex;
-    flex-wrap: wrap;
+    display: block;
     margin-left: calc(-1 * var(--space-20));
   }
 
-  .fact::before {
+  .fact {
+    white-space: nowrap;
+  }
+
+  .sep {
     display: inline-block;
     width: var(--space-20);
     color: var(--text-subtle);
     text-align: center;
-    content: '·';
+    white-space: pre;
   }
 
   /* One quiet match line: the ring, the band word with the must count, the chips. */
@@ -1004,7 +1101,7 @@
     gap: var(--space-6);
   }
 
-  /* Every criterion met: the values in one quiet line after a green check. */
+  /* The label of the strip: the size of its chips. */
   .strip-label {
     display: inline-flex;
     align-items: center;
@@ -1013,23 +1110,31 @@
     font-weight: var(--weight-medium);
   }
 
+  /* Every criterion met: the values in one quiet line after a green check; the label and
+     the check stand on its first line when it wraps. */
   .clean {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-6);
     color: var(--text-muted);
     font: var(--type-sm);
   }
 
+  .clean .strip-label,
+  .clean-icon {
+    flex: none;
+    min-height: var(--leading-sm);
+  }
+
   .clean-icon {
     display: inline-flex;
+    align-items: center;
     color: var(--success-strong);
   }
 
   .clean-values {
-    display: flex;
-    flex-wrap: wrap;
-    margin-left: calc(-1 * var(--space-20));
+    min-width: 0;
+    overflow: hidden;
   }
 
   .actions {
@@ -1038,8 +1143,10 @@
     gap: var(--space-8);
   }
 
+  /* The link keeps its hit area but not its height: the line stays a line of text. */
   .inline-action {
     display: inline-flex;
+    margin-block: calc((var(--leading-sm) - var(--control-sm)) / 2);
     margin-left: var(--space-6);
     vertical-align: baseline;
   }
@@ -1086,18 +1193,10 @@
     font-weight: var(--weight-medium);
   }
 
-  /* One list; two columns only where there is room for them. */
   .columns {
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--space-16);
-  }
-
-  @container (width >= 720px) {
-    .columns {
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-24);
-    }
   }
 
   .group {
@@ -1114,11 +1213,12 @@
     min-width: 0;
   }
 
+  /* The hover wash of a reason hangs out on both sides alike. */
   .reasons {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-    margin-left: calc(-1 * var(--space-8));
+    margin-inline: calc(-1 * var(--space-8));
   }
 
   .quiet {

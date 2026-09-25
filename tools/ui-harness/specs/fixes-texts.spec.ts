@@ -160,14 +160,18 @@ test('an empty list during a fetch says the jobs come in as it goes, not at its 
   await runFinished(page);
 });
 
-test('a result file nothing wrote yet is "not there", not "no longer there"', async ({ page }) => {
-  // A workspace without files yet (a new work folder, the dry run): the overview offers
-  // its file, and the backend finds none (`notFound` with `what: 'file'`).
+test('a result file nothing wrote yet cannot be opened and says why', async ({ page }) => {
+  // A workspace without files yet (a new work folder): the Excel file waits for the first
+  // fetch, as in Einstellungen; the HTML overview is written when it opens.
   await open(page, `${WIN}&scenario=no-files`);
   const overview = page.getByTestId('day-overview');
+  const excel = overview.getByTestId('overview-excel');
+  await expect(excel).toHaveAttribute('aria-disabled', 'true');
+  await excel.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Die Excel-Datei entsteht beim ersten Abruf.');
   await overview.getByTestId('overview-open').click();
-  await expect(overview).toContainText('Die Datei ist nicht vorhanden.');
   await expect(overview).not.toContainText('nicht mehr');
+  await expect(overview).not.toContainText('nicht vorhanden');
 });
 
 test('one word per thing: the view switch, the Excel file', async ({ page }) => {

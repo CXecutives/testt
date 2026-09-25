@@ -745,6 +745,8 @@ export const de = {
   },
   run: {
     never: 'Noch kein Abruf',
+    /** The clipboard refused the history. */
+    historyNotCopied: 'Der Verlauf ließ sich nicht kopieren.',
     step: {
       scan: 'Postfach',
       fetch: 'Details',
@@ -913,12 +915,16 @@ export const de = {
     anueCheck: 'Ob die Stelle über Arbeitnehmerüberlassung läuft, steht nicht fest.',
     contractLabel: 'Vertragsart',
     criterion: criteria,
-    criterionState: {
-      met: 'Erfüllt',
-      violated: 'Verletzt',
-      unknown: 'Zu prüfen',
-      unset: 'Nicht genannt',
-    } satisfies Record<CriterionState, string>,
+    /** The tooltip of a criterion chip that shows the ad's value: the criterion and its
+     *  state in one phrase. `open`: the ad names it without a fixed value (a rate by
+     *  arrangement, a vague start). */
+    criterionHint: {
+      met: (name: string) => `${name} erfüllt`,
+      violated: (name: string) => `${name} nicht erfüllt`,
+      unknown: (name: string) => `${name} zu prüfen`,
+      unset: (name: string) => `${name} nicht genannt`,
+      open: (name: string) => `${name} offen`,
+    } satisfies Record<CriterionState | 'open', (name: string) => string>,
     note,
     open: 'Anzeige öffnen',
     close: 'Schließen',
@@ -933,6 +939,8 @@ export const de = {
     prompt: 'Prompt für KI-Bewertung kopieren',
     promptShort: 'Prompt kopieren',
     promptHint: 'Kopiert Anzeige und Profil als fertigen Prompt für eine KI.',
+    /** The clipboard refused the prompt. */
+    promptNotCopied: 'Der Prompt ließ sich nicht kopieren.',
     /** Under the band of a score that comes from a teaser only. */
     preliminary: 'Vorläufig, aus einem Anriss bewertet',
     mail: OPEN_MAIL,
@@ -943,7 +951,7 @@ export const de = {
     promptNoProfile: 'Ohne Profil gibt es nichts zu bewerten.',
     promptNoText: 'Der Text der Anzeige fehlt noch.',
     /** The exact moment of the mail, in the tooltip of its date. */
-    mailAt: (moment: string) => `Alert-Mail vom ${moment}`,
+    mailAt: (date: string, time: string) => `Alert-Mail vom ${date} um ${time}`,
     fetchDetails: 'Details holen',
     why: 'Warum',
     wishes: 'Wünsche',
@@ -978,6 +986,10 @@ export const de = {
     excel: 'Excel-Datei öffnen',
     /** The best matches as one prompt for any AI chat. */
     promptTop: 'Prompt für KI-Vergleich kopieren',
+    /** Its tooltip: what goes into it (favourites first, read or not). */
+    promptTopHint: 'Kopiert deine Favoriten und die besten Jobs mit dem Profil als einen Prompt.',
+    /** No scored job and no favourite to compare yet. */
+    promptTopNone: 'Noch ist kein Job bewertet.',
     /** When the list beside shows the best new jobs on top already. */
     bestInList: 'Die besten neuen Jobs stehen oben in der Liste.',
     files: 'Dateien',
