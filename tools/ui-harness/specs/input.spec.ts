@@ -1,6 +1,6 @@
 // The input policy of lib/input/input.ts: like a native app. Controls react to the left
 // button only, the middle button scrolls scroll areas, text a user would copy selects and
-// copies. Keys: Tab moves the focus and Enter/Space press controls everywhere; fields take
+// copies. Keys: Tab moves the focus, Space presses controls and Enter buttons; fields take
 // every character of the keyboard layout (AltGr, Option) and the editing keys of the OS;
 // dialogs hold the focus; everything else is swallowed.
 
@@ -305,7 +305,7 @@ test('Tab from a field goes on through the controls, Enter and Space press them'
   expect(await focused()).toBe(first);
   await page.keyboard.press('Shift+Tab');
   expect(await focused()).toBe('search');
-  // Enter presses a focused nav entry, Space a focused switch.
+  // Enter presses a focused nav entry, Space a focused switch (Enter does not toggle it).
   await page.getByTestId('nav-settings').focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('view-settings')).toBeVisible();

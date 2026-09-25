@@ -30,22 +30,24 @@ async function heldLook(
 ): Promise<{ hover: string; held: string; after: string }> {
   const box = (await target.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(200);
   const hover = await look(target);
   await page.mouse.down({ button });
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(200);
   const held = await look(target);
   await page.mouse.up({ button });
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(200);
   const after = await look(target);
   // Away, so the next control starts at rest (and a started autoscroll ends).
   await page.mouse.move(box.x + box.width / 2 + 1, box.y + box.height / 2 + 1);
   await page.mouse.move(4, 4);
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(200);
   return { hover, held, after };
 }
 
 test('the right and the middle button never press a control', async ({ page }) => {
+  // Eight held presses, each waiting for the transitions to settle.
+  test.setTimeout(60_000);
   await open(page, WIN);
   const targets = [
     page.getByTestId('fetch'),
@@ -67,10 +69,10 @@ test('the right and the middle button never press a control', async ({ page }) =
   const fetch = page.getByTestId('fetch');
   const box = (await fetch.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(200);
   const hover = await look(fetch);
   await page.mouse.down();
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(200);
   expect(await look(fetch)).not.toBe(hover);
   await page.mouse.move(4, 4, { steps: 4 });
   await page.mouse.up();
@@ -304,9 +306,9 @@ test('a waiting fold arrow gives the Jobs entry no hover wash', async ({ page })
   await expect(fold).toHaveAttribute('aria-disabled', 'true');
   const jobs = page.getByTestId('nav-jobs');
   await page.mouse.move(4, 600);
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(200);
   const rest = await jobs.evaluate((node) => getComputedStyle(node).backgroundColor);
   await fold.hover();
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(200);
   expect(await jobs.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe(rest);
 });
