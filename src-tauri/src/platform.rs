@@ -727,7 +727,7 @@ mod macos {
     const NAVIGATE: &str = "navigate";
     /// Id of the sidebar item in the View menu: it folds the page's sidebar to its icons and
     /// back. Its key, Cmd+B, is shown here but taken by the page first (lib/input/input.ts
-    /// prevents it, so WKWebView never hands it on): a click on the item is what arrives.
+    /// prevents it, so `WKWebView` never hands it on): a click on the item is what arrives.
     /// The page decides whether the sidebar can fold (not below 1100 px), and its title
     /// names both ways because only the page knows the state.
     const SIDEBAR_ID: &str = "sidebar";
@@ -866,10 +866,10 @@ mod macos {
     )]
     pub fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
         if event.id() == SIDEBAR_ID {
-            if let Some(window) = app.get_webview_window(super::MAIN) {
-                if let Err(e) = window.emit(SIDEBAR, ()) {
-                    log::warn!("sidebar item: page not reached ({e})");
-                }
+            if let Some(window) = app.get_webview_window(super::MAIN)
+                && let Err(e) = window.emit(SIDEBAR, ())
+            {
+                log::warn!("sidebar item: page not reached ({e})");
             }
             return;
         }
