@@ -906,7 +906,7 @@ pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
     // The value beats its label: `Stundensatz: Tagessatz 1.100 - 1.250 €` is a day rate.
     let value = folded.split_once(':').map_or(folded, |(_, v)| v);
     let hourly = names(folded, lex::HOURLY_WORDS)
-        && !(names(value, lex::DAILY_WORDS) && !names(value, lex::HOURLY_WORDS));
+        && (names(value, lex::HOURLY_WORDS) || !names(value, lex::DAILY_WORDS));
     let currency = lex::OTHER_CURRENCIES
         .iter()
         .find(|w| folded.contains(**w))
