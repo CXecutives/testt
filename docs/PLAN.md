@@ -349,8 +349,10 @@ For each of Jobs, Reader, Day overview, Profil, Einstellungen, First run, dialog
 ## Glossary (UI)
 Job · Portal · Passung · Details · Abrufen · Profil · Postfach · Alert-Mail · Übersicht · Ausgeschlossen · Neu (= unread) ·
 Zu prüfen · Merken. Checked for the UI catalog (`ui_contract.rs`) and the Rust texts: exports, startup dialog, window titles, file dialogs, macOS menu (`rust_texts.rs`).
-English (`en.ts`, the English exports): Job · Portal · Match · Details · Fetch · Profile · Mailbox · Alert mail · Overview ·
-Excel file · Excluded · New · To check · Saved · Applications · Archive; "Copy as prompt"; product and portal names stay.
+English (`en.ts`, the English exports and prompts): Job · Portal · Match · Details · Fetch · Profile · Mailbox · Alert email ·
+Overview · Excel file · Excluded · New · To check · Favourites · Inbox · Archive · Trash · Skill (Kompetenz) · Preference
+(Wunsch) · Location (Ort); plain British English, not German word for word (usability round 2: "email", never "mail"; no
+comma splices; "Needs attention", "Include anyway", "Minimum day rate (€)"; countries in words); product and portal names stay.
 
 
 ## Budget and models

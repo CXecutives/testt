@@ -37,7 +37,7 @@ test('Sprache switches the whole app to English and back at once', async ({ page
   await expect(page.getByTestId('nav-settings')).toContainText('Settings');
   await expect(page.getByTestId('nav-profile')).toContainText('Profile');
   await expect(page.getByTestId('settings-language')).toContainText('App language');
-  await expect(page.getByTestId('settings-fetch')).toContainText('Fetch at start');
+  await expect(page.getByTestId('settings-fetch')).toContainText('Fetch on startup');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(choice.getByRole('radio', { name: 'English' })).toHaveAttribute(
     'aria-checked',
@@ -88,6 +88,24 @@ test('the app starts in the language the backend says', async ({ page }) => {
   await expect(
     page.getByTestId('language').getByRole('radio', { name: 'English' }),
   ).toHaveAttribute('aria-checked', 'true');
+});
+
+test('an exclusion by country names the countries in words, in both languages', async ({
+  page,
+}) => {
+  for (const [query, all, sentence] of [
+    [WIN, /Alle/, 'Der Einsatzort liegt außerhalb von Deutschland und Österreich.'],
+    [EN, /All/, 'The location is outside Germany and Austria.'],
+  ] as const) {
+    await open(page, query);
+    await page.getByTestId('facet').getByRole('radio', { name: all }).click();
+    await page
+      .getByTestId('excluded-rows')
+      .locator('[data-testid^="job-row-"]')
+      .filter({ hasText: 'Payroll Specialist' })
+      .click();
+    await expect(page.getByTestId('exclusion')).toContainText(sentence);
+  }
 });
 
 test('baseline: jobs with the reader in English', async ({ page }) => {

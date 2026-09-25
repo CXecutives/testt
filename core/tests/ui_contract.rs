@@ -1078,8 +1078,21 @@ fn the_catalog_keeps_the_glossary() {
             ("Hits", "Matches"),
             // "Inbox" is the place of the active jobs (next to Archive and Trash); the Gmail
             // account stays the "Mailbox".
-            ("Pinned", "Saved"),
-            ("Bookmark", "Saved"),
+            ("Pinned", "Favourite"),
+            ("Bookmark", "Favourite"),
+            // Plain English, not German word for word (usability round 2): one message is
+            // an "email", the profile's Wünsche are "preferences", Kompetenzen "skills", Orte
+            // "locations", Offene Punkte "Needs attention".
+            ("Mail", "Email"),
+            ("Mails", "Emails"),
+            ("Wish", "Preference"),
+            ("Wishes", "Preferences"),
+            ("Desired", "Preferred"),
+            ("Competence", "Skill"),
+            ("Competences", "Skills"),
+            ("Places", "Locations"),
+            ("Open points", "Needs attention"),
+            ("Count anyway", "Include anyway"),
         ] {
             // Whole words in any case ("Hit" is no part of "white").
             let used = literals(line).iter().any(|text| {
@@ -1112,15 +1125,17 @@ fn the_catalog_keeps_the_glossary() {
 }
 
 /// The keys of a table of a catalog that is typed open (`as Record<string, string>`): the
-/// lines `key: ...` between `<name>: {` and the closing brace.
+/// lines `key: ...` between `<name>: {` (or a constant `const <name>: ... = {` it names)
+/// and the closing brace.
 fn open_table_keys(catalog: &Source, name: &str) -> Vec<String> {
     let start = format!("{name}: {{");
+    let constant = format!("const {name}: ");
     let mut keys = Vec::new();
     let mut inside = false;
     for (_, line) in catalog.lines() {
         let line = line.trim();
         if !inside {
-            inside = line == start;
+            inside = line == start || (line.starts_with(&constant) && line.ends_with("= {"));
             continue;
         }
         if line.starts_with('}') {
@@ -1139,10 +1154,12 @@ fn open_table_keys(catalog: &Source, name: &str) -> Vec<String> {
 fn the_open_tables_have_the_same_keys() {
     let all = scanned(MIN_FILES);
     let (de, en) = (catalog(&all, CATALOGS[0]), catalog(&all, CATALOGS[1]));
-    for table in ["pack", "country"] {
+    // English keeps the country names in a constant of its own (the exclusion reason
+    // names the countries in words too).
+    for (table, english) in [("pack", "pack"), ("country", "countryName")] {
         let german = open_table_keys(de, table);
         assert!(german.len() >= 3, "{table}: {german:?}");
-        assert_eq!(german, open_table_keys(en, table), "{table}");
+        assert_eq!(german, open_table_keys(en, english), "{table}");
     }
 }
 
