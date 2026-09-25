@@ -240,6 +240,60 @@ test('the first run card lines up with the cards of the views it leads to', asyn
   }
 });
 
+test('first run: a new profile with the plus, named like the Profil view names it', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&scenario=mailbox-only`);
+  // The address the alert mails must go to is text to copy.
+  await expect(page.getByTestId('step-mailbox').locator('.done-text')).toHaveAttribute(
+    'data-copy',
+    '',
+  );
+  // Making a profile has the plus, as in the Profil view.
+  const create = page.getByTestId('first-profile');
+  await expect(create).toHaveText('Profil anlegen');
+  await expect(create.locator('[data-icon]')).toHaveAttribute('data-icon', 'plus');
+  await create.click();
+  await page.getByTestId('competence-name').fill('Controlling');
+  await page.getByTestId('profile-save').click();
+  await expect(page.getByTestId('profile-name')).toHaveText('Profil ohne Namen');
+  await page.getByTestId('profile-next').click();
+  // The same state has one name, not the file's.
+  const step = page.getByTestId('step-profile');
+  await expect(step).toHaveAttribute('data-done', 'true');
+  await expect(step.locator('.done-text')).toHaveText('Profil ohne Namen');
+});
+
+test('first run: a profile that does not count says so in the place of the hint', async ({
+  page,
+}) => {
+  await open(page, `${WIN}&scenario=first-run-empty-profile`);
+  const problem = page.getByTestId('first-profile-problem');
+  await expect(problem).toHaveText('Ohne Kompetenzen wird nichts bewertet.');
+  await expect(problem.locator('svg')).toHaveCount(1);
+  // The size of every step's sentence, in the tone of a warning.
+  const hint = page.getByTestId('step-fetch').locator('.hint');
+  for (const property of ['font-size', 'line-height']) {
+    const value = await hint.evaluate(
+      (node, name) => getComputedStyle(node).getPropertyValue(name),
+      property,
+    );
+    await expect(problem).toHaveCSS(property, value);
+  }
+  const warning = await page.evaluate(() => {
+    const probe = document.body.appendChild(document.createElement('span'));
+    probe.style.color = 'var(--warning-strong)';
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  });
+  await expect(problem).toHaveCSS('color', warning);
+  // An existing profile is opened: its glyph is the file.
+  const openProfile = page.getByTestId('first-profile');
+  await expect(openProfile).toHaveText('Profil öffnen');
+  await expect(openProfile.locator('[data-icon]')).toHaveAttribute('data-icon', 'file-text');
+});
+
 test('the first run opens at its top, the caret waiting in the address', async ({ page }) => {
   await page.setViewportSize({ width: 480, height: 360 });
   for (const query of [`${WIN}&scenario=reset&lang=en`, '?platform=macos&scenario=first-run']) {

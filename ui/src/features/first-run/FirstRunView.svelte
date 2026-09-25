@@ -51,9 +51,10 @@
   const current = $derived(!mailboxDone ? 1 : !profileDone ? 2 : 3);
   const reset = $derived(app.state?.resetReport ?? null);
 
-  /** Who the profile is about (the file name only when it names nobody). */
+  /** Who the profile is about: the name, else the role, else what the Profil view calls a
+   *  profile without a name. */
   const profileName = $derived(
-    profile?.form?.name.trim() || profile?.form?.title.trim() || profile?.fileName || '',
+    profile?.form?.name.trim() || profile?.form?.title.trim() || t.profile.unnamed,
   );
   let profileActions = $state<HTMLElement | null>(null);
 
@@ -139,7 +140,8 @@
           <div class="body">
             <h2 class="name">{t.firstRun.mailbox}</h2>
             {#if mailboxDone}
-              <p class="done-text" in:rise>{app.state?.mailbox.user}</p>
+              <!-- The address the portals' alert mails must go to: text to copy. -->
+              <p class="done-text" data-copy in:rise>{app.state?.mailbox.user}</p>
             {:else}
               <p class="hint">{t.firstRun.mailboxText}</p>
               <MailboxForm saveLabel={t.settings.connect} autofocus />
@@ -161,19 +163,18 @@
               <p class="done-text" in:rise>{profileName}</p>
             {:else}
               {#if profileProblem}
-                <Notice
-                  tone="warning"
-                  variant="inline"
-                  text={profileProblem}
-                  testid="first-profile-problem"
-                />
+                <!-- In the place and size of the hint, with the glyph and tone of a warning. -->
+                <p class="hint problem" data-testid="first-profile-problem">
+                  <Icon name="triangle-alert" size="sm" /><span>{profileProblem}</span>
+                </p>
               {:else}
                 <p class="hint">{t.firstRun.profileText}</p>
               {/if}
               <div class="actions" bind:this={profileActions}>
+                <!-- A new profile is made (plus, as in the Profil view), an existing one opened. -->
                 <Button
                   variant={current === 2 ? 'primary' : 'secondary'}
-                  icon="file-text"
+                  icon={profile ? 'file-text' : 'plus'}
                   label={profile ? t.list.openProfile : t.profile.create}
                   testid="first-profile"
                   onclick={openProfile}
@@ -379,6 +380,18 @@
   .done-text {
     color: var(--text-muted);
     font: var(--type-md);
+  }
+
+  /* The glyph sits on the first line when the sentence wraps. */
+  .problem {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-6);
+    color: var(--warning-strong);
+  }
+
+  .problem > :global(:first-child) {
+    margin-top: calc((var(--leading-md) - var(--icon-sm)) / 2);
   }
 
   .actions {
