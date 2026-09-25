@@ -36,14 +36,14 @@
 
   const noteId = $props.id();
 
-  /** A typed text as a whole number and whether cents were cut off. */
+  /** A typed text as a whole number and whether cents were cut off (`,00` cuts nothing). */
   function read(text: string): { value: number | null; cents: boolean } {
-    const cents = money ? /[.,]\d{1,2}$/.exec(text) : null;
-    const whole = cents ? text.slice(0, cents.index) : text;
+    const decimal = money ? /[.,](\d{1,2})$/.exec(text) : null;
+    const whole = decimal ? text.slice(0, decimal.index) : text;
     const digits = whole.replace(/\D/g, '');
     return {
       value: digits === '' ? null : Number(digits.slice(0, 9)),
-      cents: cents !== null,
+      cents: /[1-9]/.test(decimal?.[1] ?? ''),
     };
   }
 
