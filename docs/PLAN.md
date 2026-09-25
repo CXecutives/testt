@@ -78,7 +78,8 @@ one place, Eingang (inbox), Archiv or Papierkorb (trash; `trashed_at` wins over 
 ("Endgültig löschen", only from the trash) and `empty_trash()` delete rows (with the duplicates that stand for them)
 and their TXT files, rewrite the overview and leave the tombstone, so a scan of an old alert mail never imports them
 again (the dry run deletes in its database only); `empty_trash` empties the whole trash like Mail, whatever the search,
-and `Deleted{count, keys}` says how many and which. `move_jobs` returns the keys that really moved. At the end of every
+and `Deleted{count, keys}` says how many and which. `move_jobs` returns the keys that really moved; `move_back(jobs)`
+(the undo of a toast) puts each job back with its earlier times (the trash keeps its date, the inbox its age). At the end of every
 run inbox jobs that are no favourite archive themselves after `autoArchiveDays` (default 30, 0 = off; the age counts
 from the last time the user moved the job into the inbox, `inbox_at`, so her choice stands), and the trash empties itself after `autoEmptyTrashDays`
 (default 30, 0 = off; also at the start of the app). The Excel sheet, the HTML overview, `top_matches.json` and the
@@ -111,7 +112,8 @@ Commands: `app_state` · `start_run(RunRequest{kind: fetch | details{keys} | res
 `list_jobs(JobQuery{place: inbox|archive|trash, unread, favourites, sort: match|newest, search?, limit, offset}) -> JobPage{jobs, counts{inbox, unread, favourites, archive, trash, excluded, high, noDetail, newByPortal[{portal, new}] in Portal::ALL order}}`
 (list and counts from ONE query; every number of the page comes from these counts, `limit: 0` = counts only) ·
 `job_detail(key)` · `mark_read(key) -> bool` · `mark_all_read(place, search?) -> JobKey[]` · `mark_unread(keys) -> number` ·
-`set_pinned(key, on)` · `move_jobs(to, keys) -> JobKey[]` · `set_override(key, include) -> bool` ·
+`set_pinned(key, on)` · `move_jobs(to, keys) -> JobKey[]` · `move_back(jobs: MoveBack{key, to, trashedAt}[]) -> JobKey[]` ·
+`set_override(key, include) -> bool` ·
 `purge_jobs(keys) -> Deleted{count, keys, exportError?}` · `empty_trash -> Deleted` ·
 `ai_prompt(key) -> string` · `ai_prompt_top(limit) -> string` · `pick_profile -> ProfileDraft?` ·
 `parse_profile(text) -> ProfileDraft` · `profile_prompt` · `save_profile(ProfileSave{before, after, source?, clear[]}) -> ProfileInfo` ·
@@ -132,7 +134,7 @@ Types: `JobView{key, portal, title, company, location, workMode, mailDate, first
 `Highlight{id, start, end (UTF-16), kind, reason}` · `ProfileInfo{fileName, bytes, savedAt, quality: good|thin|empty, understood{competenceCount, competences[], sources[], criteria[], warnings[], packs[], years, degrees[], focus[], roles[], wishes}, scoredAt, pending, form}` ·
 `ProfileForm` (the editor's fields, `core/src/profile/form.rs`) · `ProfileDraft{form, source, quality, understood}` ·
 `PortalHealth = ok | paused{until, reason} | quotaReached{until} | layoutSuspect{emptyMails, pages} | loginRequired` ·
-`AppState{platform, dryRun, firstRun, running, settings, mailbox, profile, portals[{portal, enabled, fetchDetails, login, loginEnabled, signedIn, risk: low|grey|account, health, quota?}] (Portal::ALL order), autoFetchOnStart, lastRun (the last fetch: fetch or fullMailbox, never a rescore or details run), counts, matchPending, dataDir, logDir, resetReport?}` ·
+`AppState{platform, dryRun, firstRun, running, settings, mailbox, profile, portals[{portal, enabled, fetchDetails, login, loginEnabled, signedIn, health, quota?}] (Portal::ALL order), autoFetchOnStart, lastRun (the last fetch: fetch or fullMailbox, never a rescore or details run), counts, matchPending, dataDir, logDir, resetReport?}` ·
 `CommandError{kind, params}`. Traits: `pipeline::score::Matcher{rev, assess}` · `portal::PortalAdapter` · `matching::prescore`.
 
 ### Matching engine (`core/src/matching`, pure, synchronous, integer only)
@@ -176,8 +178,7 @@ criteria, ladder, relevance, semantic (feature), score, explain.
 
 ### Scraping and sign-in
 Per portal: Active · Fetch details (off = zero requests to the portal) · Sign in (freelance.de only, default off).
-Risk badges: low (freelancermap) · grey, no account affected (LinkedIn guest, freelance.de guest) · account risk
-(freelance.de signed in). Always on: only alert-mail links, `admit` for every request, Retry-After honoured, stop and
+No risk grades (user decision 2026-09-25). Always on: only alert-mail links, `admit` for every request, Retry-After honoured, stop and
 pause on 429/999/403/captcha/login wall, never bypass captcha/2FA, never an unasked login window.
 S1 PortalHealth + per-portal empty-alert warning · S2 freelance.de teaser · S3 `desc_facts` · S4 PortalAdapter registry,
 `join_all` · S5 error kinds, PARSER_VERSION, requeue, Retry-After, constants in `policy.rs` · S6 freelancermap URL forms,
