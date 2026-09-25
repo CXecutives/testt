@@ -1,0 +1,35 @@
+[
+ {
+  "name": "features-01 The reader shows the ad's rate and start whatever the profile sets (Terms strip)",
+  "value": "The reader is where the consultant decides, but it shows less than the list row. The row always shows 'ab sofort · 6 Monate · 60 % remote · 1.100 €/Tag' (JobRow via factWords, ui/src/lib/i18n/texts.ts:165-179). The reader's facts line uses workWords, which is only duration and remote share (Reader.svelte:279-298, texts.ts:183-191). Rate and start reach the reader only as criteria chips, and view.rs:627-636 (criteria_strip) drops every criterion the profile does not set (explain.rs:393-412 marks them Inactive). Proven with the real engine (scratch readerprobe; the sample profile with and without min_tagessatz and verfuegbar_ab, same ad): with them, the strip holds minDayRate and availability; without them, the strip holds only countries and noAnue, while JobMatch.facts still carries rate 1100 and start 'now'. So a consultant without a hard minimum never sees the rate in the reader except by reading the ad. Severity medium.",
+  "ux": "No new section and no new label. In the existing 'Rahmen' (Terms) strip, add a neutral chip (state 'plain', like the contract chip at Reader.svelte:191-201) from job.match.facts for the rate ('1.100 €/Tag', 'Tagessatz nach Absprache') and the start ('ab sofort', '1. November') whenever no criterion chip covers them. With a minimum in the profile, the criterion chip stays and keeps its met or violated state against the minimum. When everything is met or plain, the existing clean line already reads 'Rahmen ✓ Interim · 1.100 €/Tag · ab sofort · Hamburg'. The facts line under the title stays as it is.",
+  "cost": "Small: about 15 lines in the Reader `chips` derivation. A stub job whose criteria lack minDayRate and availability. A harness test 'the reader shows the ad's rate and start without a profile minimum' in both engines. Baselines refreshed.",
+  "risk": "Low. A rate appears twice only if both chip kinds are added, so guard by the criterion key. Note: without any profile there is no JobMatch and so no facts anywhere (row or reader). Fixing that means reading the facts independently of the profile (desc_facts plus text facts), which is a larger follow-up.",
+  "priority": "must"
+ },
+ {
+  "name": "features-02 The search matches every word, in any field, plus the portal name",
+  "value": "Today the search is one substring LIKE over 'title\\ncompany\\nlocation\\ntext' (store/jobs.rs:1027-1029 search_text, 1037-1041 like_pattern, used at 290-294 and 309/365). Two words only match where they stand next to each other. Proven with jobalert-core (scratch searchprobe; one job 'SAP FI/CO Berater (m/w/d)', Datenwerk GmbH, München, freelancermap): 'sap' finds 1 and 'münchen' finds 1, but 'sap berater', 'sap münchen', 'berater münchen' and 'freelancermap' each find 0. Consultants naturally type two words ('SAP Hamburg', 'Controller remote'). The portal name in the search is also the cheapest portal filter, with no new control. Severity medium.",
+  "ux": "Nothing changes on screen. The placeholder stays 'Jobs durchsuchen'. The list and every count ('Auch im Archiv (n)') follow the same statement as today.",
+  "cost": "Small to medium. Split the trimmed search at whitespace (at most 8 words) and AND one 'search LIKE ?n' per word in `jobs()` and `job_page()` (the counts come from the same statement). Add the portal's display name to search_text, and recompute the search column once, keyed by a kv 'search_version', since existing rows keep the old column. Tests in store/jobs.rs: `search_matches_every_word_in_any_field` ('sap berater' and 'sap münchen' hit, 'sap berlin' does not) and `search_finds_the_portal_name`.",
+  "risk": "Low. A LIKE per word stays fast at 2000 jobs; the timing spec guards it. A 'linkedin' in an ad footer can give a false hit, which is harmless.",
+  "priority": "must"
+ },
+ {
+  "name": "features-05 Exports say why a job is excluded and carry the key facts",
+  "value": "In the Excel, an excluded job keeps its domain score in 'Passung' (xlsx.rs:120-127), and only the grey row sets it apart. The reason is nowhere in the sheet, so sorting or filtering 'Passung' in Excel puts an excluded 85 above a scored 80. The reason words already exist for the HTML overview (texts.rs:77 exclusion_reason). The Excel and the HTML overview also lack the facts consultants filter on (rate, start, duration, remote, workload) and the favourite. The Excel is rewritten from the database every run, so new columns are safe.",
+  "ux": "Excel gets new columns after 'Passung': 'Ausschluss' (the reason in words, empty otherwise), 'Favorit' ('Ja' or empty), 'Tagessatz' (number), 'Start', 'Dauer (Monate)', 'Remote (%)', and 'Auslastung' after features-03. They are all under the existing autofilter, English mirrored. The HTML overview adds the row's facts line under company and place, and nothing more (still no full text).",
+  "cost": "Small. COLUMNS and WIDTHS in texts.rs and xlsx.rs, one facts formatter in Rust shared by the Excel and HTML writers. Tests: `the_exclusion_column_names_the_reason`, `key_fact_columns_follow_the_facts`, and the English header test.",
+  "risk": "Low. Header tests (xlsx.rs:273-334) change on purpose; the TXT contract is untouched.",
+  "priority": "should",
+  "note": "User chose it WITHOUT the Auslastung column (features-03 was not chosen)."
+ },
+ {
+  "name": "features-07 Remove the unreachable tile and portal filter (low)",
+  "value": "jobs.setFilter (ui/src/lib/state/jobs.svelte.ts:399-405), JobFilter (61), matches() (108-125) and the filter state (223) have no caller since the day-overview tiles went. JobList.svelte:251/306 and DayOverview.svelte:165 read a value that is always null. Dead state makes every list change harder to reason about.",
+  "ux": "None. Portal narrowing comes through features-02.",
+  "cost": "Small. Delete the code and the related glide or loadAll branches; the harness stays green.",
+  "risk": "Low.",
+  "priority": "could"
+ }
+]
