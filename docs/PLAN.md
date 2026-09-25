@@ -16,6 +16,7 @@ project layout. Windows and macOS as identical as possible. Done = shippable Win
 | Evaluation data | no access to Katharina: local real data + real runs through the app, two realistic invented profiles, blind labels by two independent agents + tie-breaker |
 | Embeddings | dropped (user, 2026-09-24): the rule engine covers the measured failures; the `Embedder` seam stays for later |
 | AI stage | two-stage like professional systems: stage 1 = our engine for every job (incl. the skill rubric); stage 2 = the improved `job-matching` skill, optional, only for the app's top matches, in the user's own Claude (no API key). The app writes a machine-readable top-matches file for it |
+| AI prompts (user, 2026-09-25) | The copied prompts (reader "Prompt für KI-Bewertung kopieren" = `ai_prompt`, overview "Prompt für KI-Vergleich kopieren" = `ai_prompt_top`) are at least as good as the skill, for any AI chat without files: role and goal; the profile without contact data and a glossary of the keys it holds; the ad with its key facts (contract, pay, start, duration, remote share, the page's own labels; each one the app did not find is said) and its text status (full, teaser, very short, none, closed); the app's pre-assessment, marked as a machine word match to check, not to copy (score and band, or the exclusion with its reason and the ad's words; every hard criterion with the profile's threshold, the ad's value and words; requirements met, partly, open with the profile entry and its years; points to check; Schwerpunkte, target role, wishes; all in words, no engine code); the skill's method (one row per requirement, weights, OR branches, degrees, the five frame rows with the profile's thresholds, no invention); the whole rubric; a fixed answer format (result with a recommendation, reasons, requirements table, hard criteria table, risks, open questions, pay and conditions, application points, a short message). The comparison gives each job the same and asks for a ranking first (score, then interim, then fewer open musts). German and English in full (`export/ai_prompt/de.rs` is the external contract, `en.rs` mirrors it); one golden prompt per language in `core/tests/fixtures/prompts/` |
 | Reuse | the app is generic: everything personal lives in the profile; competences may carry alternative terms (`auch`); lexicon = general core + domain packs that activate automatically from the profile; no pack editor in the UI; new portals via adapters |
 | Extra criteria | superseded: the engine adopts the skill rubric (contract type, permanent-role salary and region, seniority, formal requirements) via optional profile keys - exclusions only on clear wording, otherwise checks |
 | Scraping | everything switchable per portal (Active / Fetch details / Sign in), safe defaults, risk badge per switch |
@@ -59,10 +60,11 @@ New nullable `job` columns: `app_status TEXT` (applied|interview|offer|rejected)
 overview and `top_matches.json` leave it out. Excel gets a "Status" column (schema 5: "Beworben am" with the date); the
 TXT files stay byte-identical. The AI prompts (user decision: universal for any AI chat, they replace the skill for
 normal use; `export/ai_prompt.rs`, external contract) address the assistant as "du" without naming a product and carry
-the rubric intent of the skill in short and the profile without name, contact data, links and references (<= 8,000
+the whole rubric, the skill's method and the app's pre-assessment (superseded in detail by the decision "AI prompts",
+2026-09-25) and the profile without name, contact data, links and references (<= 8,000
 characters): `ai_prompt(key)` for a deep analysis of one ad (text <= 12,000 characters), `ai_prompt_top(limit 3..5)`
 for one comparison with a ranking of the best current matches (scored, not hidden, ad still online; pinned first, then
-by score), all ad texts together <= 24,000 characters, an equal share each, the prompt says when one was cut.
+by score), each ad text <= 6,000 characters, the prompt says where one was cut.
 
 ### Schema 5 (places like mail, the favourite, delete for good, "fits anyway"; user decisions 2026-09-24/25)
 Schema 4 is on main, so this is its own step (`migrate_4_to_5`, frozen fixture `core/tests/fixtures/schema_v4.sql`):
@@ -414,6 +416,12 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
 
 ### Phase 6 - delivery
 - [x] Skill `job-matching` (stage 2): back up the original, drop the hard-coded foreign path (use the app's work folder, works on macOS), read the app's top-matches file instead of screening every ad, align the rubric wording with the engine, test, deliver as a folder with a short install guide (`tools/job-matching-skill/`: `SKILL.md`, `scripts/matching.py` brief + render with the rubric caps, README, test on the corpus; original backed up outside the repo)
+- [x] The copied AI prompts at least as good as the skill (2026-09-25, see Decisions "AI prompts"): the gap analysis
+      against the skill's brief closed (method, frame rows, codes in words) and what neither had added (exclusions,
+      hard criteria with the ad's words, key facts and text status, profile evidence with years, page labels, risks,
+      questions, conditions); `PromptSource` assesses a stored job afresh for the prompt; tests for every section in
+      both languages, the contact filter, missing facts, teaser and short texts, exclusions, English ads, no engine
+      code; a golden prompt per language
 - [ ] Final CI builds (artifacts only), first-start guide (SmartScreen, Gatekeeper, keychain), close this plan, hand over
 
 ## Consistency audit per screen

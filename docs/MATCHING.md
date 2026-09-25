@@ -466,6 +466,13 @@ rows give the version-10 value).
 contract and ANÜ rules, wishes never exclude and move at most one point. `core/tests/rubric.rs`
 keeps both files identical and the caps of SKILL.md and `matching.py` equal to the rubric.
 
+The copied prompts (`core/src/export/ai_prompt.rs`) carry the rubric whole (German, or
+`ai_rubric.en.md` in English), the skill's method and the engine's assessment of the job in
+words: the result or the exclusion, every hard criterion with the profile's threshold and the
+ad's own words (the highlight ranges), the requirements with their profile entry and its years,
+the checks, Schwerpunkte, target role and wishes. No reason code reaches the text; a test builds
+every code and looks for none.
+
 ## New vs old
 
 Corpus results (`cargo test -p jobalert-core --test matching_corpus -- --ignored report --nocapture`).

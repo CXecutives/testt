@@ -416,6 +416,12 @@ pub(crate) fn hard_criteria(data: &Value) -> HardCriteria {
     HardCriteria::new(&profile::criteria(data), data)
 }
 
+/// The hard criteria of a profile with their thresholds, as the profile summary names them
+/// (the AI prompts state them next to the ad's values).
+pub(crate) fn profile_criteria(data: &Value) -> Vec<CriterionInfo> {
+    criteria_info(&hard_criteria(data))
+}
+
 /// A language level as the engine reads it: CEFR 1 (A1) to 6 (C2), 7 native.
 pub(crate) fn language_level(text: &str) -> Option<u8> {
     job::level_in(text)
