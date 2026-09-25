@@ -334,9 +334,11 @@ test('cut words in a row and in the compact bar show in full in a tooltip', asyn
   await open(page, `${WIN}&lang=en`);
   await facet(page, 'All').click();
   const labels = list(page).locator('.reason .label');
-  const cut = await labels.evaluateAll((nodes) =>
-    nodes.map((node) => node.scrollWidth > node.clientWidth),
-  );
+  const measure = (): Promise<boolean[]> =>
+    labels.evaluateAll((nodes) => nodes.map((node) => node.scrollWidth > node.clientWidth));
+  // The rows settle (fonts, the first layout) before a label counts as cut.
+  await expect.poll(async () => (await measure()).includes(true)).toBe(true);
+  const cut = await measure();
   const cutAt = cut.indexOf(true);
   const wholeAt = cut.indexOf(false);
   expect(cutAt).toBeGreaterThanOrEqual(0);
@@ -416,12 +418,19 @@ test('the terms label takes the size of the line it labels', async ({ page }) =>
 });
 
 test('the compact bar is for the pointer: Tab reaches each tool once', async ({ page }) => {
+  // A low window, so the ad scrolls its actions away in every engine.
+  await page.setViewportSize({ width: 1360, height: 560 });
   await open(page, WIN);
   const opened = row(page, 'linkedin-4100200301');
   await opened.click();
-  await page.getByTestId('stage').evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
   const bar = page.getByTestId('reader-compact');
-  await expect(bar).toHaveCSS('opacity', '1');
+  // Scroll to the end once the ad is there (it arrives after the head).
+  await expect
+    .poll(async () => {
+      await page.getByTestId('stage').evaluate((node) => node.scrollTo({ top: node.scrollHeight }));
+      return bar.evaluate((node) => getComputedStyle(node).opacity);
+    })
+    .toBe('1');
   const tabIndexes = await bar
     .locator('button')
     .evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).tabIndex));
@@ -473,9 +482,12 @@ test('a copy of the facts starts with the first fact', async ({ page }) => {
       return selection?.toString() ?? '';
     });
   await row(page, 'freelancermap-2801').click();
-  const facts = await copy(page.locator('.head .facts'));
-  expect(facts).toMatch(/^\S/);
+  // The open job's stage (the one on its way out has dropped its test id).
+  const head = page.getByTestId('stage').locator('.head .facts');
+  await expect.poll(() => copy(head)).toMatch(/^\S/);
+  const facts = await copy(head);
   expect(facts).toMatch(/\S · \S/);
   await row(page, 'linkedin-4100200301').click();
-  expect(await copy(page.getByTestId('criteria-clean').locator('.clean-values'))).toMatch(/^\S/);
+  const clean = page.getByTestId('stage').getByTestId('criteria-clean').locator('.clean-values');
+  await expect.poll(() => copy(clean)).toMatch(/^\S/);
 });
