@@ -101,6 +101,11 @@ export interface KeyConventions {
   redoWithY: boolean;
   /** Ctrl+A/E/B/F/N/P/D/H/K move and delete like in every macOS text field. */
   controlEdits: boolean;
+  /** Alt+Space opens the window's system menu (Windows); on macOS Option+Space types. */
+  systemMenuKey: boolean;
+  /** Shift+F10 opens the context menu of a field or a selection, like the Menu key
+   *  (Windows; a Mac keyboard has neither). */
+  contextMenuKey: boolean;
 }
 
 export function keyConventions(): KeyConventions {
@@ -110,5 +115,7 @@ export function keyConventions(): KeyConventions {
     command: mac ? 'metaKey' : 'ctrlKey',
     redoWithY: !mac,
     controlEdits: mac,
+    systemMenuKey: !mac,
+    contextMenuKey: !mac,
   };
 }

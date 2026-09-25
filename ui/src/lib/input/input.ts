@@ -4,7 +4,9 @@
 // listeners (eslint + core/tests/ui_contract.rs). Installed once in main.ts.
 //
 // - controls react to the left button only: the right button never presses, focuses or
-//   selects anything. There is no browser context menu; the OS's own menu appears where
+//   selects anything, and no control looks pressed under it (`data-aux-press`, see
+//   auxPress). A left press beside a focused field ends its focus, also on a drag region
+//   (`leaveField`). There is no browser context menu; the OS's own menu appears where
 //   a native app has one: in a text field (Windows: Undo | Cut, Copy, Paste, Delete |
 //   Select all; macOS: Cut, Copy, Paste | Select all; each enabled by the field's state)
 //   and on selected copyable text (Copy). Everywhere else a right click does nothing.
@@ -15,15 +17,16 @@
 // - no dragging of text, links or images
 // - text is selectable only in fields and where a user would copy it (`data-copy`: the ad
 //   text, job title and facts, profile values, paths); Ctrl/Cmd+C copies such a selection
-// - keys like in a native window: Tab and Shift+Tab move the focus, Enter and Space press
-//   the focused button, switch or radio. Inside a field every character the keyboard
+// - keys like in a native window: Tab and Shift+Tab move the focus, Space presses the
+//   focused button, switch or radio, Enter a button only. Inside a field every character the keyboard
 //   layout types (AltGr on Windows, Option on macOS: @ is Option+L on a German Mac) and
 //   the editing keys of the OS (word and line moves, delete word, Shift selection,
 //   Ctrl/Cmd+C/V/X/A/Z, redo) work. Enter saves and Esc cancels a form or dialog.
 // - a list with a reader (the Jobs view, `listKeys`) moves like a mail app: outside a field
 //   ArrowUp/ArrowDown open the previous/next item, Home/End the first/last, Esc closes the
-//   open item (in the search field Esc first clears the search), and Ctrl+F (Cmd+F on
-//   macOS) goes to its search field from anywhere.
+//   open item (in the search field Esc first clears the search), Space on the open item's
+//   row pages through the reader (`reader`), and Ctrl+F (Cmd+F on macOS) goes to its search
+//   field from anywhere.
 //   Outside fields Ctrl+Z (Cmd+Z on macOS) takes back the last list action while it can
 //   still be undone (`onUndo`), Ctrl+B (Cmd+B on macOS) folds the sidebar to its icons and
 //   back (`onSidebarKey`; in a field it does nothing), and PageUp, PageDown, Space and
@@ -46,7 +49,7 @@ import type { Action } from 'svelte/action';
 import { t } from '../i18n/t';
 import { popupEditMenu, type EditEntry } from '../ipc/api';
 import { fieldMenuUndoDelete, keyConventions, type KeyConventions } from '../platform';
-import { tokenMs } from '../tokens';
+import { tokenMs, tokenPx } from '../tokens';
 
 const FIELD = 'input, textarea, [contenteditable="true"], [contenteditable=""]';
 /** Text a user would copy (selectable, Ctrl/Cmd+C). */
@@ -56,8 +59,11 @@ const DIALOG = 'dialog, [role="dialog"], [role="alertdialog"]';
 const MODAL = '[aria-modal="true"]';
 const FORM = '[data-form-keys]';
 const LIST = '[data-list-keys]';
-/** Controls that Enter and Space press. */
+/** Controls that Space presses. */
 const PRESSABLE = 'button, [role="button"], [role="switch"], [role="radio"]';
+/** Controls that Enter presses: buttons only. A switch or a radio toggles with Space, like the
+ *  native ones; Enter there goes on to the form (its default action). */
+const ENTER_PRESSES = 'button:not([role="switch"], [role="radio"]), [role="button"]';
 /** Buttons inside a field (show password, clear search): a press leaves the focus there. */
 const KEEP_FOCUS = '[data-keep-focus]';
 const FOCUSABLE = [
@@ -113,23 +119,41 @@ function isCopy(event: KeyboardEvent): boolean {
   if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 'c') {
     return false;
   }
+  return hasSelection();
+}
+
+/** Selected text (outside fields only copyable text can be selected). */
+function hasSelection(): boolean {
   const selection = getSelection();
   return selection !== null && !selection.isCollapsed && selection.toString().trim() !== '';
 }
 
-/** An element between `target` and the page that scrolls (the middle button scrolls it). */
+/** An element between `target` and the page that scrolls (the middle button scrolls it). A
+ *  fixed layer (a dialog's backdrop, a toast, a tooltip) never scrolls with its DOM parent. */
 function inScrollArea(target: EventTarget | null): boolean {
   for (let node = target instanceof Element ? target : null; node; node = node.parentElement) {
     const style = getComputedStyle(node);
     const scrollsY = /auto|scroll/.test(style.overflowY) && node.scrollHeight > node.clientHeight;
     const scrollsX = /auto|scroll/.test(style.overflowX) && node.scrollWidth > node.clientWidth;
     if (scrollsY || scrollsX) return true;
+    if (style.position === 'fixed') return false;
   }
   return false;
 }
 
+/** The middle button scrolls here: over a scroll area, and while a modal dialog is open only
+ *  inside it (the page behind it stays where it is). */
+function middleScrolls(target: EventTarget | null): boolean {
+  const modal = topModal();
+  if (modal !== null && !(target instanceof Node && modal.contains(target))) return false;
+  return inScrollArea(target);
+}
+
 function isWindowShortcut(event: KeyboardEvent): boolean {
   if (event.altKey && event.key === 'F4') return true;
+  // Windows: Alt+Space opens the window's system menu (a cancelled key never reaches it).
+  const plainAlt = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+  if (plainAlt && event.code === 'Space' && keyConventions().systemMenuKey) return true;
   if (!event.metaKey || event.ctrlKey) return false;
   // Hide Others (Cmd+Option+H): Option changes the character, so the key itself counts.
   if (event.altKey) return event.code === 'KeyH';
@@ -150,7 +174,15 @@ function typesWithAltGraph(event: KeyboardEvent, os: KeyConventions): boolean {
   return event.ctrlKey && event.altKey && !event.metaKey && isTypedCharacter(event.key);
 }
 
+/** Shift+F10 alone: the context menu (Windows), which the engine turns into `contextmenu`. */
+function isContextMenuKey(event: KeyboardEvent): boolean {
+  return (
+    event.key === 'F10' && event.shiftKey && !hasModifier(event) && keyConventions().contextMenuKey
+  );
+}
+
 function allowedInField(event: KeyboardEvent): boolean {
+  if (isContextMenuKey(event)) return true;
   // Function keys (F1-F12) reach the WebView (reload, caret browsing, devtools).
   if (/^F\d{1,2}$/.test(event.key)) return false;
   const os = keyConventions();
@@ -224,7 +256,7 @@ function dispatchFormKey(event: KeyboardEvent, target: EventTarget | null = even
     handler = handlerFor(target, 'cancel');
   } else if (event.key === 'Enter') {
     // Enter on a button presses that button; in a text area it starts a new line.
-    if (closest(target, 'textarea') !== null || closest(target, PRESSABLE) !== null) {
+    if (closest(target, 'textarea') !== null || pressedByEnter(target)) {
       return false;
     }
     handler = handlerFor(target, 'save');
@@ -244,6 +276,9 @@ export interface ListKeyHandlers {
   close: () => void;
   /** Ctrl+F (Cmd+F on macOS): the search field. */
   find: () => void;
+  /** The scroll area of the open item: Space and Shift+Space on the open item's row page
+   *  through it, like in a mail app (pressing the row again would change nothing). */
+  reader?: () => HTMLElement | null;
 }
 
 const lists = new Map<HTMLElement, ListKeyHandlers>();
@@ -327,13 +362,46 @@ function dispatchListKey(event: KeyboardEvent): boolean {
   }
 }
 
+/** The arrows inside a radio group (the segments): the previous or the next option takes
+ *  the focus and is chosen, wrapping at the ends, like native radio buttons. The group is
+ *  one Tab stop (only the chosen option has tabindex 0). `true` if the group took the key. */
+function dispatchRadioKey(event: KeyboardEvent): boolean {
+  if (hasModifier(event) || event.shiftKey) return false;
+  const step =
+    event.key === 'ArrowRight' || event.key === 'ArrowDown'
+      ? 1
+      : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+        ? -1
+        : 0;
+  const radio = closest(event.target, '[role="radio"]');
+  const group = radio?.closest('[role="radiogroup"]') ?? null;
+  if (step === 0 || radio === null || group === null) return false;
+  const options = [...group.querySelectorAll<HTMLElement>('[role="radio"]')].filter(
+    (node) => node.getAttribute('aria-disabled') !== 'true' && !node.matches(':disabled'),
+  );
+  const at = options.indexOf(radio as HTMLElement);
+  const next = options[(at + step + options.length) % options.length];
+  event.preventDefault();
+  if (next === undefined || next === radio) return true;
+  next.focus();
+  next.click();
+  return true;
+}
+
 const isFocusMove = (event: KeyboardEvent): boolean => event.key === 'Tab' && !hasModifier(event);
 
-/** Enter and Space press the focused button, switch or radio (the engine clicks it). */
+/** The focused control is a button that Enter presses (not a switch or a radio). */
+function pressedByEnter(target: EventTarget | null): boolean {
+  const control = closest(target, PRESSABLE);
+  return control !== null && control.matches(ENTER_PRESSES);
+}
+
+/** Space presses the focused button, switch or radio, Enter only a button (the engine
+ *  clicks it). */
 const pressesControl = (event: KeyboardEvent): boolean =>
-  (event.key === 'Enter' || event.key === ' ') &&
   !hasModifier(event) &&
-  closest(event.target, PRESSABLE) !== null;
+  ((event.key === ' ' && closest(event.target, PRESSABLE) !== null) ||
+    (event.key === 'Enter' && pressedByEnter(event.target)));
 
 /** The open modal dialog on top, if any. */
 function topModal(): HTMLElement | null {
@@ -440,7 +508,43 @@ function dispatchChipKey(event: KeyboardEvent): boolean {
   return handled;
 }
 
+/** The focus moves by the keyboard (Tab, the arrows, a key that opens something) until the
+ *  next press of a mouse button. */
+let keyboardFocus = false;
+
+/**
+ * A control the keyboard focuses stays clear of its scroll area's edges with its ring and a
+ * gap (--space-8), below a sticky band too (the area's scroll-padding). The engines scroll a
+ * focused control only until it touches the edge, and WebKit ignores scroll-margin there.
+ */
+function keepInView(node: HTMLElement): void {
+  const pane = scrollAreaOf(node.parentElement);
+  if (pane === null || !node.isConnected) return;
+  const clear = tokenPx('--space-8');
+  const style = getComputedStyle(pane);
+  const view = pane.getBoundingClientRect();
+  const top = view.top + pane.clientTop + (Number.parseFloat(style.scrollPaddingTop) || 0);
+  const bottom =
+    view.top +
+    pane.clientTop +
+    pane.clientHeight -
+    (Number.parseFloat(style.scrollPaddingBottom) || 0);
+  const box = node.getBoundingClientRect();
+  const above = top - (box.top - clear);
+  const below = box.bottom + clear - bottom;
+  if (above > 0) pane.scrollTop -= above;
+  else if (below > 0) pane.scrollTop += Math.min(below, box.top - clear - top);
+}
+
+function onFocusIn(event: FocusEvent): void {
+  const node = event.target;
+  if (!keyboardFocus || !(node instanceof HTMLElement)) return;
+  // After the engine's own scroll into view.
+  requestAnimationFrame(() => keepInView(node));
+}
+
 function onKeyDown(event: KeyboardEvent): void {
+  keyboardFocus = true;
   if (event.ctrlKey || event.metaKey) guardZoom(true);
   if (isWindowShortcut(event)) return;
   const modal = topModal();
@@ -458,6 +562,8 @@ function onKeyDown(event: KeyboardEvent): void {
     }
   }
   if (isCopy(event)) return;
+  // Shift+F10 on selected text opens its menu (Copy), like the Menu key.
+  if (isContextMenuKey(event) && !inField(event.target) && hasSelection()) return;
   if (isFindShortcut(event)) {
     // Never the WebView's find bar; a list with a search field takes it.
     event.preventDefault();
@@ -482,7 +588,8 @@ function onKeyDown(event: KeyboardEvent): void {
     if (closest(event.target, LIST) !== null) dispatchListKey(event);
     return;
   }
-  if (isFocusMove(event) || pressesControl(event)) return;
+  if (modal === null && pagesReader(event)) return;
+  if (isFocusMove(event) || pressesControl(event) || dispatchRadioKey(event)) return;
   event.preventDefault();
   if (isUndo(event)) {
     if (modal === null) [...undos].reverse().some((undo) => undo());
@@ -525,11 +632,27 @@ function scrollsPage(event: KeyboardEvent): boolean {
   const nowhere = event.target === document.body || event.target === document.documentElement;
   const pane = scrollAreaOf(event.target) ?? (nowhere && lastPane?.isConnected ? lastPane : null);
   if (pane === null) return false;
+  scrollByPage(pane, down);
+  return true;
+}
+
+function scrollByPage(pane: HTMLElement, down: boolean): void {
   const smooth = document.documentElement.dataset.motion !== 'reduce';
   pane.scrollBy({
     top: (down ? 1 : -1) * pane.clientHeight * PAGE_SHARE,
     behavior: smooth ? 'smooth' : 'auto',
   });
+}
+
+/** Space or Shift+Space on the open item's row: its reader scrolls a page. */
+function pagesReader(event: KeyboardEvent): boolean {
+  if (event.key !== ' ' || hasModifier(event)) return false;
+  const row = closest(event.target, '[aria-current="true"]');
+  if (row === null || closest(row, LIST) === null) return false;
+  const pane = listFor(event.target)?.reader?.() ?? null;
+  if (pane === null || !pane.isConnected) return false;
+  event.preventDefault();
+  scrollByPage(pane, !event.shiftKey);
   return true;
 }
 
@@ -626,7 +749,11 @@ function fieldMenu(field: HTMLInputElement | HTMLTextAreaElement): EditEntry[] {
   const selected = (field.selectionStart ?? 0) !== (field.selectionEnd ?? 0);
   const full = fieldMenuUndoDelete();
   const undo: EditEntry[] = full
-    ? [{ command: 'Undo', text: t.edit.undo, enabled: editable }, SEPARATOR]
+    ? [
+        // The engine keeps one undo history for the page (the entry sends Ctrl+Z).
+        { command: 'Undo', text: t.edit.undo, enabled: editable && canUndo() },
+        SEPARATOR,
+      ]
     : [];
   const remove: EditEntry[] = full
     ? [
@@ -649,6 +776,15 @@ function fieldMenu(field: HTMLInputElement | HTMLTextAreaElement): EditEntry[] {
   ];
 }
 
+/** The page has an edit to take back (greys out the Undo entry otherwise, like the OS). */
+function canUndo(): boolean {
+  try {
+    return document.queryCommandEnabled('undo');
+  } catch {
+    return true;
+  }
+}
+
 /** Copyable text under the pointer that is part of the current selection. */
 function selectedCopy(target: EventTarget | null): boolean {
   const copy = closest(target, COPY);
@@ -657,14 +793,17 @@ function selectedCopy(target: EventTarget | null): boolean {
   return selection.toString().trim() !== '' && selection.containsNode(copy, true);
 }
 
-/** The right click: the OS's menu in fields and on selected copyable text, else nothing. */
+/** The right click: the OS's menu in fields and on selected copyable text, else nothing.
+ *  From the keyboard (the Menu key, Shift+F10: no button) the menu opens where the engine
+ *  puts the event, at the field or the selection, not at the pointer. */
 function onContextMenu(event: MouseEvent): void {
   event.preventDefault();
+  const at = event.button === -1 ? { x: event.clientX, y: event.clientY } : null;
   const field = closest(event.target, 'input, textarea');
   if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
-    void popupEditMenu(fieldMenu(field));
+    void popupEditMenu(fieldMenu(field), at);
   } else if (selectedCopy(event.target)) {
-    void popupEditMenu([{ command: 'Copy', text: t.edit.copy, enabled: true }]);
+    void popupEditMenu([{ command: 'Copy', text: t.edit.copy, enabled: true }], at);
   }
 }
 
@@ -746,17 +885,61 @@ function onPointerOut(event: PointerEvent): void {
 
 /**
  * The middle button keeps its default over a scroll area (the autoscroll needs it), but a
- * press must not focus the control under the pointer: after the default action the focus
- * goes back to where it was.
+ * press must not focus the control or the field under the pointer: after the default action
+ * the focus goes back to where it was.
  */
 function keepFocus(): void {
   const before = document.activeElement;
   setTimeout(() => {
     const now = document.activeElement;
-    if (now === before || !(now instanceof HTMLElement) || inField(now)) return;
+    if (now === before || !(now instanceof HTMLElement)) return;
     now.blur();
     if (before instanceof HTMLElement && before !== document.body) before.focus();
   }, 0);
+}
+
+/**
+ * The pressed look belongs to the left button. Both engines set `:active` (and Chromium
+ * `:hover`) for any button in the hit test of the press, before a listener could cancel it,
+ * and Chromium sets it again with the context menu after a right release. So while another
+ * button is down, and until the pointer moves after it, :root carries `data-aux-press` and
+ * every pressed rule waits for `:root:not([data-aux-press])` (core/tests/ui_contract.rs).
+ */
+function auxPress(on: boolean): void {
+  const root = document.documentElement;
+  if (on) root.dataset.auxPress = '';
+  else if (root.dataset.auxPress !== undefined) delete root.dataset.auxPress;
+}
+
+/** Buttons other than the left one (the `buttons` bit mask without bit 0). */
+const otherButtonsDown = (event: MouseEvent): boolean => (event.buttons & ~1) !== 0;
+
+/** A press on a scroller's own scrollbar (Windows): it never takes the focus from a field. */
+function onScrollbar(event: MouseEvent): boolean {
+  const node = event.target;
+  if (!(node instanceof HTMLElement) || node.clientWidth === 0) return false;
+  const scrolls = node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth;
+  // offsetX/Y count from the padding edge; the bar lies beyond the client box.
+  return scrolls && (event.offsetX >= node.clientWidth || event.offsetY >= node.clientHeight);
+}
+
+/**
+ * A left press beside the focused field ends its focus, like a click on the empty part of a
+ * native window. The engine does that by itself only where the press keeps its default: a
+ * drag region (the title bar, the toolbar row) cancels it. The field stays focused for a
+ * press inside it or its box (the chips, the clear button), on a button that keeps the caret
+ * (`data-keep-focus`), on its own label, and on a scrollbar.
+ */
+function leaveField(event: MouseEvent): void {
+  const field = document.activeElement;
+  if (!(field instanceof HTMLElement) || !inField(field) || inField(event.target)) return;
+  const target = event.target instanceof Element ? event.target : null;
+  if (target === null || closest(target, KEEP_FOCUS) !== null || onScrollbar(event)) return;
+  const box = field instanceof HTMLTextAreaElement ? field : (field.parentElement ?? field);
+  if (box.contains(target)) return;
+  const label = target.closest('label');
+  if (label !== null && label.control === field) return;
+  field.blur();
 }
 
 let installed = false;
@@ -770,14 +953,18 @@ export function installInput(): void {
   document.addEventListener(
     'mousedown',
     (event) => {
+      keyboardFocus = false;
       if (event.button === LEFT) {
+        if (!otherButtonsDown(event)) auxPress(false);
         lastPane = scrollAreaOf(event.target);
         // A button inside a field (show password, clear) leaves the caret in the field.
         if (closest(event.target, KEEP_FOCUS) !== null) event.preventDefault();
+        else leaveField(event);
         return;
       }
+      auxPress(true);
       // The middle button starts the autoscroll over a scroll area; nothing else gets it.
-      if (event.button === MIDDLE && inScrollArea(event.target)) {
+      if (event.button === MIDDLE && middleScrolls(event.target)) {
         keepFocus();
         return;
       }
@@ -793,6 +980,16 @@ export function installInput(): void {
     },
     capture,
   );
+  // The pressed look comes back once no other button is down and the pointer moved (a right
+  // release in Chromium sets :active once more with the context menu, before any move).
+  document.addEventListener(
+    'pointermove',
+    (event) => {
+      if (!otherButtonsDown(event)) auxPress(false);
+    },
+    { capture: true, passive: true },
+  );
+  document.addEventListener('pointercancel', () => auxPress(false), capture);
   document.addEventListener(
     'auxclick',
     (event) => {
@@ -827,6 +1024,7 @@ export function installInput(): void {
     capture,
   );
   document.addEventListener('keydown', onKeyDown, capture);
+  document.addEventListener('focusin', onFocusIn, { capture: true, passive: true });
   document.addEventListener(
     'keyup',
     (event) => {
@@ -834,7 +1032,10 @@ export function installInput(): void {
     },
     capture,
   );
-  window.addEventListener('blur', () => guardZoom(false));
+  window.addEventListener('blur', () => {
+    guardZoom(false);
+    auxPress(false);
+  });
   document.addEventListener('scroll', onScroll, { capture: true, passive: true });
   document.addEventListener('pointerover', onPointerOver, { capture: true, passive: true });
   document.addEventListener('pointerout', onPointerOut, { capture: true, passive: true });

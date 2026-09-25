@@ -129,12 +129,12 @@
     transition-duration: var(--dur-hover);
   }
 
-  .clickable:active:hover {
+  :global(:where(:root:not([data-aux-press]))) .clickable:active:hover {
     background-color: var(--surface-muted);
     transition-duration: var(--dur-instant);
   }
 
-  .clickable:active:hover::after {
+  :global(:where(:root:not([data-aux-press]))) .clickable:active:hover::after {
     opacity: 0;
     transition-duration: var(--dur-instant);
   }
@@ -145,7 +145,7 @@
 
   .active,
   .active:hover,
-  .active:active:hover {
+  :global(:where(:root:not([data-aux-press]))) .active:active:hover {
     border-color: var(--active-edge);
     background-color: var(--active-surface);
   }

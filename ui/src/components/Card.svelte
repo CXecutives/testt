@@ -92,12 +92,12 @@
     transition-duration: var(--dur-hover);
   }
 
-  .interactive:active:hover {
+  :global(:where(:root:not([data-aux-press]))) .interactive:active:hover {
     border-color: var(--active-edge);
     transition-duration: var(--dur-instant);
   }
 
-  .interactive:active:hover::after {
+  :global(:where(:root:not([data-aux-press]))) .interactive:active:hover::after {
     opacity: 0;
     transition-duration: var(--dur-instant);
   }

@@ -1,6 +1,6 @@
 // The input policy of lib/input/input.ts: like a native app. Controls react to the left
 // button only, the middle button scrolls scroll areas, text a user would copy selects and
-// copies. Keys: Tab moves the focus and Enter/Space press controls everywhere; fields take
+// copies. Keys: Tab moves the focus, Space presses controls and Enter buttons; fields take
 // every character of the keyboard layout (AltGr, Option) and the editing keys of the OS;
 // dialogs hold the focus; everything else is swallowed.
 
@@ -305,7 +305,7 @@ test('Tab from a field goes on through the controls, Enter and Space press them'
   expect(await focused()).toBe(first);
   await page.keyboard.press('Shift+Tab');
   expect(await focused()).toBe('search');
-  // Enter presses a focused nav entry, Space a focused switch.
+  // Enter presses a focused nav entry, Space a focused switch (Enter does not toggle it).
   await page.getByTestId('nav-settings').focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('view-settings')).toBeVisible();
@@ -507,11 +507,11 @@ test('a dialog holds the focus: Tab cycles, a click on its text keeps Esc workin
   await expect(dialog).toHaveCount(0);
 });
 
-test('a dialog marks its default button, the one Enter presses, until Tab moves on', async ({
+test('a dialog starts on its default button, ringed only once the keyboard moves', async ({
   page,
 }) => {
   await open(page, '?gallery&platform=windows');
-  // Opened with the mouse: no :focus-visible, yet the default button carries the ring.
+  // Opened with the mouse: the focus is on the default button, without a ring.
   await page.getByTestId('open-danger').click();
   const dialog = page.getByTestId('dialog-danger');
   const cancel = dialog.getByTestId('dialog-cancel');
@@ -520,12 +520,12 @@ test('a dialog marks its default button, the one Enter presses, until Tab moves 
   const ring = (button: typeof cancel): Promise<string> =>
     button.evaluate((node) => getComputedStyle(node).boxShadow);
   const atOpen = await ring(cancel);
-  // Tab moves the ring to the next button; the default is no longer marked.
+  // Tab moves the focus and shows the ring there; the default stays unmarked.
   await page.keyboard.press('Tab');
   await expect(confirm).toBeFocused();
   const focusRing = await ring(confirm);
-  expect(atOpen).toBe(focusRing);
-  expect(await ring(cancel)).not.toBe(focusRing);
+  expect(atOpen).not.toBe(focusRing);
+  expect(await ring(cancel)).toBe(atOpen);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });

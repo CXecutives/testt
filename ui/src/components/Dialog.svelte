@@ -6,11 +6,11 @@
   180 ms (ease-out) and leaves in 100 ms. It holds the focus like a native one (input.ts):
   Tab and Shift+Tab cycle through its buttons, Esc cancels wherever the focus is, Enter
   presses the focused button or, on the dialog itself, its default button (cancel for
-  danger, confirm otherwise). Like a native dialog it marks that default button from the
-  start (the focus ring, also when it was opened with the mouse) until the keyboard moves
-  on. A click on its text keeps the focus inside; on close the focus goes back to where
-  it was. A failure of the action shows inside the dialog
-  (`error`), never behind the scrim. The toasts lie below the scrim and wait while it is
+  danger, confirm otherwise). The focus starts on that default button; it shows the focus
+  ring only when the keyboard opened the dialog or moves in it, never after a click. The
+  heading stays ink also in a danger dialog (its red button says it). A click on its text
+  keeps the focus inside; on close the focus goes back to where it was. A failure of the
+  action shows inside the dialog (`error`), never behind the scrim. The toasts lie below the scrim and wait while it is
   open.
   Pressing inside and releasing on the scrim keeps it open; only the left button counts.
   The buttons follow the OS: the action first on Windows (then the third action, then
@@ -202,13 +202,10 @@
     letter-spacing: var(--tracking-tight);
   }
 
-  .danger .heading {
-    color: var(--danger-strong);
-  }
-
   .text {
     color: var(--text-muted);
     font: var(--type-body);
+    text-wrap: balance;
   }
 
   .actions {
@@ -222,11 +219,5 @@
   /* On macOS the third action stands apart on the left. */
   .apart {
     margin-right: auto;
-  }
-
-  /* The default button stays marked until the keyboard focus moves on (a native dialog
-     marks it too; :focus-visible alone is false when the dialog was opened by a click). */
-  .actions:not(:has(:focus-visible)) :global(.btn.default) {
-    box-shadow: var(--focus-ring);
   }
 </style>

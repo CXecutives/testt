@@ -134,7 +134,7 @@
     transition-duration: var(--dur-hover);
   }
 
-  button.reason:active:hover {
+  :global(:where(:root:not([data-aux-press]))) button.reason:active:hover {
     background-color: var(--surface-press);
     transition-duration: var(--dur-instant);
   }

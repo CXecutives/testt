@@ -382,10 +382,20 @@ fn a_pressed_look_only_under_the_pointer() {
     // off, it looks at rest again (like native buttons). So every `:active` style is
     // `:active:hover`; the scrollbar thumb keeps its drag look, a `:not(:active)` guard and
     // Svelte's `class:active` are no pressed styles.
+    // Only the left button presses: the engines set `:active` for the right and the middle
+    // button too, so input.ts marks such a press on :root (`data-aux-press`) and every pressed
+    // style waits for `:root:not([data-aux-press])` (in a zero-specificity `:where`).
+    const AUX_GUARD: &str = ":global(:where(:root:not([data-aux-press])))";
     let all = scanned(MIN_FILES);
     let mut problems = Vec::new();
+    let mut unguarded = Vec::new();
+    let mut pressed = 0;
     for source in &all {
+        let mut previous = "";
         for (n, line) in source.lines() {
+            // Prettier may put the guard on a line of its own before the selector.
+            let guarded = line.trim_start().starts_with(AUX_GUARD) || previous.trim() == AUX_GUARD;
+            previous = line;
             let mut rest = line;
             while let Some(i) = rest.find(":active") {
                 let before = &rest[..i];
@@ -394,8 +404,15 @@ fn a_pressed_look_only_under_the_pointer() {
                 let guard = before.trim_end().ends_with(',') || before.ends_with(":not(");
                 let thumb = before.ends_with("scrollbar-thumb");
                 let word = after.starts_with(|c: char| c.is_alphanumeric() || c == '-' || c == '_');
-                if !(directive || guard || thumb || word || after.starts_with(":hover")) {
+                let press = after.starts_with(":hover");
+                if !(directive || guard || thumb || word || press) {
                     problems.push(format!("{}:{n}: {}", source.path, line.trim()));
+                }
+                if press && !thumb {
+                    pressed += 1;
+                    if !guarded {
+                        unguarded.push(format!("{}:{n}: {}", source.path, line.trim()));
+                    }
                 }
                 rest = after;
             }
@@ -404,6 +421,23 @@ fn a_pressed_look_only_under_the_pointer() {
     fail(
         &problems,
         "pressed styles are `:active:hover` (moving off a held control releases its look)",
+    );
+    assert!(
+        pressed >= 10,
+        "only {pressed} pressed styles found - did the rule move?"
+    );
+    fail(
+        &unguarded,
+        "pressed styles start with `:global(:where(:root:not([data-aux-press])))` (the right \
+         and the middle button never press)",
+    );
+    let input = all
+        .iter()
+        .find(|s| s.is("lib/input/input.ts"))
+        .expect("lib/input/input.ts");
+    assert!(
+        input.code.contains("dataset.auxPress") && input.code.contains("auxPress(true)"),
+        "input.ts does not mark a press of the right or middle button (data-aux-press)"
     );
 }
 

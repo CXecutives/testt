@@ -7,6 +7,7 @@
   warm pill, the others stay muted with a plain count (same box, so nothing moves); an option
   may keep one tone whatever is chosen (the unread count stays warm). An
   unchosen option washes on hover and darkens while pressed. Counts roll when they change.
+  Like native radio buttons the group is one Tab stop and the arrows choose.
 -->
 <script lang="ts" module>
   export interface SegmentedOption<Id extends string = string> {
@@ -32,6 +33,9 @@
   }
 
   let { options, value, label, size = 'md', testid = null, onchange }: Props = $props();
+
+  /** One Tab stop: the chosen option (the arrows move between them, lib/input/input.ts). */
+  const stop = $derived(options.some((option) => option.id === value) ? value : options[0]?.id);
 </script>
 
 <div
@@ -47,6 +51,7 @@
       role="radio"
       class="option"
       aria-checked={chosen}
+      tabindex={option.id === stop ? 0 : -1}
       onclick={() => onchange(option.id)}
     >
       <span class="pill" aria-hidden="true"></span>
@@ -120,7 +125,7 @@
     transition-duration: var(--dur-hover);
   }
 
-  .option[aria-checked='false']:active:hover .pill {
+  :global(:where(:root:not([data-aux-press]))) .option[aria-checked='false']:active:hover .pill {
     background-color: var(--surface-press);
   }
 

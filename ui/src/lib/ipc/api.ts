@@ -251,11 +251,15 @@ export async function popupChoiceMenu(
 }
 
 /**
- * A native context menu at the pointer, the OS's own (Windows and macOS draw it). An
- * enabled entry is the OS's predefined edit command, so the OS performs it on the focused
- * field or selection exactly like its own menus do; a disabled one is only shown.
+ * A native context menu at the pointer (or at `at`, in page pixels: the field of a menu
+ * opened from the keyboard), the OS's own (Windows and macOS draw it). An enabled entry is
+ * the OS's predefined edit command, so the OS performs it on the focused field or selection
+ * exactly like its own menus do; a disabled one is only shown.
  */
-export async function popupEditMenu(entries: readonly EditEntry[]): Promise<void> {
+export async function popupEditMenu(
+  entries: readonly EditEntry[],
+  at: { x: number; y: number } | null = null,
+): Promise<void> {
   try {
     const items = await Promise.all(
       entries.map((entry) => {
@@ -268,7 +272,7 @@ export async function popupEditMenu(entries: readonly EditEntry[]): Promise<void
           : MenuItem.new({ text: entry.text, enabled: false });
       }),
     );
-    await show(await Menu.new({ items }));
+    await show(await Menu.new({ items }), at);
   } catch (error) {
     reportUiError(`context menu: ${String(error)}`, null, null);
   }
