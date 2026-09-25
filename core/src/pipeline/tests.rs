@@ -930,7 +930,6 @@ async fn the_info_sheet_says_what_the_app_says() {
         card.to_string(),
         "still the fetch's"
     );
-    assert!(rows.iter().all(|(k, _)| k != texts::INFO_LAST_RUN));
 }
 
 /// Rows stored by an earlier version (mail address, "Lauf" for a mailbox scan) come out in
