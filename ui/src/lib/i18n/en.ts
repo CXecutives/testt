@@ -99,7 +99,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   fileLocked: 'A file is open in another program right now.',
   io: 'A file could not be read or written.',
   xlsx: 'The Excel file could not be written.',
-  corrupt: "The app's data is damaged.",
+  corrupt: 'The app’s data is damaged.',
   newerSchema: 'The data comes from a newer version of the app.',
   invalid: 'The input is not valid.',
   busy: 'A fetch is running already.',
@@ -113,7 +113,7 @@ const errors: Record<ErrorKind | 'unknown', Text> = {
   mailNotGmail: 'This is not a Gmail mailbox.',
   mailServer: 'Gmail reports an error.',
   mailCancelled: 'Cancelled.',
-  secretStore: "The system's password store cannot be reached.",
+  secretStore: 'The system’s password store cannot be reached.',
   secretCorrupt: 'The stored app password cannot be read.',
   portalUnavailable: (p) => `No connection to ${portalOf(p.portal)}.`,
   portalPaused: (p) => `Fetching from ${portalOf(p.portal)} is paused right now.`,
@@ -554,7 +554,7 @@ export const en: Catalog = {
     inArchive: 'In the archive',
     inTrash: 'In the trash',
     inTrashFor: (days: number) =>
-      `In the trash, deleted for good after ${count(days, 'day', 'days')}`,
+      `In the trash, deleted forever after ${count(days, 'day', 'days')}`,
     empty: {
       inbox: 'No jobs.',
       archive: 'The archive is empty.',
@@ -566,7 +566,7 @@ export const en: Catalog = {
       trash: 'Deleted jobs stay here until you restore them or empty the trash.',
     } satisfies Record<Place, string>,
     trashFor: (days: number) =>
-      `Deleted jobs stay here for ${count(days, 'day', 'days')}, then they are gone for good.`,
+      `Deleted jobs stay here for ${count(days, 'day', 'days')} and are then gone forever.`,
   },
   actions: {
     archive: 'Archive',
@@ -581,8 +581,8 @@ export const en: Catalog = {
     emptyTrashHeading: 'Empty the trash?',
     emptyTrashText: (value: number) =>
       value === 1
-        ? 'The job is deleted for good and never comes back.'
-        : `The ${n(value)} jobs are deleted for good and never come back.`,
+        ? 'The job is deleted forever and never comes back.'
+        : `The ${n(value)} jobs are deleted forever and never come back.`,
     markAllRead: 'Mark all as read',
   },
   edit: {
@@ -651,7 +651,7 @@ export const en: Catalog = {
     } satisfies Record<Exclude<DetailState['kind'], 'ok'>, string>,
     detailHint: {
       pending: 'The full ad has not been fetched yet.',
-      teaser: 'Without a sign-in the portal shows only a teaser.',
+      teaser: 'Without a sign-in, the portal shows only a teaser.',
       failed: 'The full ad could not be fetched.',
       unfetchable: 'The ad could not be read after several tries.',
       gone: 'The ad is no longer online.',
@@ -770,7 +770,7 @@ export const en: Catalog = {
     readOlder: FULL_MAILBOX,
     emptyNew: 'No new jobs.',
     emptyFavourites: 'No favourites yet.',
-    emptyAll: 'After the first fetch the jobs show up here.',
+    emptyAll: 'After the first fetch, the jobs show up here.',
     emptyAfterRun: 'The alert emails have had no jobs so far.',
     noHit: (query: string) => `No jobs for “${query}”.`,
     noHitIn: {
@@ -784,7 +784,7 @@ export const en: Catalog = {
     createProfile: 'Create profile',
     openProfile: 'Open profile',
     noMailbox: 'Without a mailbox, no new jobs come in.',
-    noProfile: 'Without a profile there is no match.',
+    noProfile: 'Without a profile, there is no match.',
     profileUnreadable: 'Profile cannot be read',
     profileEmpty: 'Profile without skills',
     profileBrokenText: 'That is why the jobs show no match.',
@@ -847,9 +847,9 @@ export const en: Catalog = {
     preliminary: 'Provisional, scored from a teaser',
     mail: OPEN_MAIL,
     noMail: 'There is no alert email for this job.',
-    teaserOf: (portal: string) => `Without a sign-in ${portal} shows only a teaser.`,
+    teaserOf: (portal: string) => `Without a sign-in, ${portal} shows only a teaser.`,
     setUpSignIn: 'Set up sign-in',
-    promptNoProfile: 'Without a profile there is nothing to assess.',
+    promptNoProfile: 'Without a profile, there is nothing to assess.',
     promptNoText: 'The text of the ad is still missing.',
     mailAt: (moment: string) => `Alert email from ${moment}`,
     fetchDetails: 'Fetch details',
@@ -864,7 +864,7 @@ export const en: Catalog = {
     ad: 'Ad',
     detail: {
       pending: 'The details come with the next fetch.',
-      teaser: 'Without a sign-in the portal shows only a teaser.',
+      teaser: 'Without a sign-in, the portal shows only a teaser.',
       failed: 'The details could not be fetched.',
       unfetchable: 'The ad could not be read after several tries.',
       gone: 'The ad is no longer online.',
@@ -876,7 +876,7 @@ export const en: Catalog = {
     loadFailed: 'The job could not be loaded.',
   },
   overview: {
-    noProfileText: 'With a profile every job shows how well it fits.',
+    noProfileText: 'With a profile, every job shows how well it fits.',
     profileUnreadable: 'Profile cannot be read',
     label: 'Today at a glance',
     pick: 'Select a job on the left.',
@@ -965,7 +965,7 @@ export const en: Catalog = {
       update: 'Profile updated from the CV',
     },
     unsaved: 'Not saved',
-    review: 'Check the details, then save.',
+    review: 'Check the details and save them.',
     save: 'Save',
     discard: 'Discard',
     saved: 'Saved.',
@@ -1030,7 +1030,7 @@ export const en: Catalog = {
       language: 'Language',
       languagePlaceholder: 'German',
       level: 'Level',
-      levelHint: 'Without a level the app assumes B2.',
+      levelHint: 'Without a level, the app assumes B2.',
       addLanguage: 'Add language',
       removeLanguage: (name: string) => `Remove ${name || 'language'}`,
       wishRate: 'Preferred day rate (€)',
@@ -1060,7 +1060,7 @@ export const en: Catalog = {
       placesPlaceholder: 'Munich',
       remoteMin: 'Minimum remote share (%)',
       remoteMinHint:
-        'Outside these locations a permanent role counts only with at least this much remote work.',
+        'Outside these locations, a permanent role counts only with at least this much remote work.',
       rounded: 'Rounded down to whole euros.',
       unreadableNumber: (value: string) => `The file said “${value}”, which is not a number.`,
       unreadableDate: (value: string) => `The file said “${value}”, which is not a date.`,
@@ -1137,7 +1137,7 @@ export const en: Catalog = {
       copyAgain: 'Copy again',
       step: 'Paste it into an AI chat and attach your CV.',
       preview: 'Show prompt',
-      answer: "The AI's answer",
+      answer: 'The AI’s answer',
       take: 'Use answer',
     },
   },
@@ -1173,7 +1173,7 @@ export const en: Catalog = {
     autoArchive: 'Archive jobs after 30 days',
     autoArchiveHint: 'Favourites are never archived.',
     autoEmptyTrash: 'Empty the trash after 30 days',
-    autoEmptyTrashHint: 'Deleted jobs are then gone for good.',
+    autoEmptyTrashHint: 'Deleted jobs are then gone forever.',
     active: 'Active',
     details: 'Fetch details',
     needsDetails: 'Turn on Fetch details first.',
@@ -1192,7 +1192,7 @@ export const en: Catalog = {
     riskInfo: {
       low: 'The app opens only what anyone can see in a browser.',
       grey: 'The portal does not expressly allow automated reading.',
-      account: 'At worst the portal locks your own account.',
+      account: 'At worst, the portal locks your own account.',
     } satisfies Record<Risk, string>,
     detailsOff: 'Without details, jobs from this portal get no match.',
     quota: (used: number, cap: number) => `Today ${n(used)} of ${n(cap)} pages`,

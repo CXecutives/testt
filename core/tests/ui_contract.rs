@@ -1105,6 +1105,8 @@ fn the_catalog_keeps_the_glossary() {
             ("Places", "Locations"),
             ("Open points", "Needs attention"),
             ("Count anyway", "Include anyway"),
+            // German says "endgültig" everywhere; English says Gmail's "forever".
+            ("For good", "Forever"),
         ] {
             // Whole words in any case ("Hit" is no part of "white").
             let used = literals(line).iter().any(|text| {
@@ -1308,6 +1310,50 @@ fn the_catalog_has_no_ai_punctuation() {
         assert!(strings >= 200, "only {strings} strings in {name}");
     }
     fail(&problems, "plain punctuation in the UI catalogs");
+}
+
+/// Every text of a catalog is a single-quoted string or a template literal, the two kinds the
+/// rules above read (a double-quoted one would slip past all of them). English writes its
+/// apostrophes like its quotes, typographically ("The app’s", “Rewrite”), and joins two
+/// main clauses with a conjunction, never with ", then" (the header of en.ts).
+#[test]
+fn the_catalog_texts_are_checked_and_plain() {
+    let all = scanned(MIN_FILES);
+    let mut problems = Vec::new();
+    for path in CATALOGS {
+        let name = path.rsplit('/').next().unwrap_or(path);
+        for (n, line) in catalog(&all, path).lines() {
+            if line.contains('"') {
+                problems.push(format!(
+                    "{name}:{n}: a double-quoted text in \"{}\"",
+                    line.trim()
+                ));
+            }
+        }
+    }
+    let mut strings = 0;
+    for (n, line) in catalog(&all, "lib/i18n/en.ts").lines() {
+        let chars: Vec<char> = line.chars().collect();
+        let straight = chars
+            .windows(3)
+            .any(|w| w[1] == '\'' && w[0].is_alphabetic() && w[2].is_alphabetic());
+        if straight {
+            problems.push(format!(
+                "en.ts:{n}: a straight apostrophe in \"{}\"",
+                line.trim()
+            ));
+        }
+        for literal in literals(line) {
+            strings += 1;
+            if words(literal).contains(", then ") {
+                problems.push(format!(
+                    "en.ts:{n}: \", then\" joins two clauses in \"{literal}\""
+                ));
+            }
+        }
+    }
+    assert!(strings >= 200, "only {strings} strings in en.ts");
+    fail(&problems, "every catalog text checked, plain English");
 }
 
 /// Every number a catalog writes goes through its formatter `n` ("1.860 ausgewählt", not
