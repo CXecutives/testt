@@ -404,17 +404,17 @@
   }
 
   :global(:where(:root:not([data-scrolling]))) .job:hover .tool,
-  .tool:focus-within {
+  .tool:has(:global(:focus-visible)) {
     opacity: 1;
   }
 
   :global(:where(:root:not([data-scrolling]))) .muted:hover .tool,
-  .muted .tool:focus-within {
+  .muted .tool:has(:global(:focus-visible)) {
     opacity: var(--opacity-muted);
   }
 
   :global(:where(:root:not([data-scrolling]))) .tooled:hover .end,
-  .tooled:has(.tool:focus-within) .end {
+  .tooled:has(.tool :global(:focus-visible)) .end {
     opacity: 0;
     transition-duration: var(--dur-fast);
   }
