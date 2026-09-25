@@ -22,6 +22,7 @@
     <div
       class="toast {toast.tone}"
       class:paused={hovered === toast.id}
+      class:undo={toast.action !== null}
       role="group"
       data-testid="toast"
       animate:flip
@@ -133,7 +134,13 @@
     animation: drain var(--dur-toast) linear forwards;
   }
 
-  .paused .life {
+  /* A toast with an undo stays longer; its line drains as long. */
+  .undo .life {
+    animation-duration: var(--dur-toast-undo);
+  }
+
+  .paused .life,
+  :global(:root[data-window='inactive']) .life {
     animation-play-state: paused;
   }
 

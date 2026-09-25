@@ -1139,16 +1139,20 @@ test('Neu is entered again after another view: read jobs leave it, the open one 
   );
 });
 
-test('actions that act on a whole place wait while a search shows a part of it', async ({
+test('under a search all read marks the hits; the trash empties whole and says how many', async ({
   page,
 }) => {
   await open(page, WIN);
-  await expect(page.getByTestId('mark-all-read')).toBeVisible();
   await page.getByTestId('search').fill('Interim');
-  await expect(page.getByTestId('mark-all-read')).toHaveCount(0);
+  await expect(page.getByTestId('mark-all-read')).toBeVisible();
+  await page.getByTestId('mark-all-read').click();
+  expect((await calls(page, 'mark_all_read')).at(-1)?.[1]).toEqual({
+    place: 'inbox',
+    search: 'Interim',
+  });
   await page.getByTestId('search').fill('');
-  // The trash: two jobs, a search that finds one: no Papierkorb leeren; without it the
-  // dialog names both.
+  // The trash: two jobs, a search that finds one: Papierkorb leeren still empties both and
+  // its dialog says so.
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   for (const key of ['freelancermap-2802', 'freelancermap-2803']) {
     await row(page, key).hover();
@@ -1159,10 +1163,29 @@ test('actions that act on a whole place wait while a search shows a part of it',
   const title = await rows(page).first().locator('.title').innerText();
   await page.getByTestId('search').fill(title);
   await expect(rows(page)).toHaveCount(1);
-  await expect(page.getByTestId('empty-trash')).toHaveCount(0);
-  await page.getByTestId('search').fill('');
   await page.getByTestId('empty-trash').click();
   await expect(page.getByTestId('dialog-empty-trash')).toContainText('Die 2 Jobs werden');
+});
+
+test('Ctrl+Z takes back the last move while its toast is up; an undo toast stays longer', async ({
+  page,
+}) => {
+  await open(page, WIN);
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  const key = 'freelancermap-2802';
+  await row(page, key).hover();
+  await page.getByTestId(`archive-${key}`).click();
+  await expect(row(page, key)).toHaveCount(0);
+  // Still up after the 4 s of a plain toast.
+  await page.waitForTimeout(4500);
+  await expect(page.getByTestId('toast')).toHaveCount(1);
+  await page.getByTestId('reader-pane').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
+  await expect(row(page, key)).toHaveCount(1);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
+  // Nothing left to undo: Ctrl+Z does nothing.
+  await page.keyboard.press('Control+z');
+  expect(await calls(page, 'move_jobs')).toHaveLength(2);
 });
 
 test('a job of the day overview opens during a search', async ({ page }) => {

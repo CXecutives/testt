@@ -1317,6 +1317,8 @@ pub enum OpenTarget {
 pub struct Deleted {
     /// Jobs deleted (with the duplicates that stood for them).
     pub count: u32,
+    /// Their keys: the page drops them from lists, the reader and pending undos.
+    pub keys: Vec<JobKey>,
     /// The overview could not be written again (e.g. open in Excel); `params.target` names
     /// what failed. The jobs are deleted anyway.
     pub export_error: Option<ErrorInfo>,

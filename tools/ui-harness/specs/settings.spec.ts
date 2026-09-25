@@ -76,7 +76,12 @@ test('first run: three steps that tick themselves, fetch locked until a mailbox'
   await page.getByTestId('competence-name').fill('Controlling');
   await page.getByTestId('profile-save').click();
   await expect(page.getByTestId('profile-name')).toHaveText('Erika Beispiel');
-  await page.getByTestId('profile-next').click();
+  // The way on is where the user just saved (the bottom bar), and in the head.
+  await expect(page.getByTestId('profile-next')).toBeAttached();
+  await expect(page.getByTestId('profile-understood')).not.toContainText('SAP');
+  const next = page.getByTestId('profile-next-bar');
+  await expect(next).toBeInViewport();
+  await next.click();
   await expect(page.getByTestId('step-profile')).toHaveAttribute('data-done', 'true');
   await expect(page.getByTestId('step-profile')).toContainText('Erika Beispiel');
   expect(await visibleCount(page, '.btn.primary')).toBe(1);

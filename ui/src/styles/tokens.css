@@ -471,6 +471,9 @@
   --dur-breathe: 2000ms;
   /* How long a toast stays (paused while hovered). */
   --dur-toast: 4000ms;
+  /* A toast that can take back what the user just did stays longer (and pauses on hover and
+     while the window is in the background). */
+  --dur-toast-undo: 10000ms;
   --dur-crossfade: 100ms;
   /* At most this many list rows animate at the same time; the others are simply there. */
   --stagger-max: 10;

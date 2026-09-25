@@ -33,13 +33,15 @@
     note: string | null;
     /** The outcome of the last save (until the next change). */
     result: string | null;
+    /** The way on after the first save during setup (next to the result); `null` otherwise. */
+    onnext: (() => void) | null;
     /** Values of the file the app could not read, by field (said there while it is empty). */
     unreadable: Partial<Record<UnreadableField, string>>;
     onsave: () => void;
     ondiscard: () => void;
   }
 
-  let { quality, busy, note, result, unreadable, onsave, ondiscard }: Props = $props();
+  let { quality, busy, note, result, onnext, unreadable, onsave, ondiscard }: Props = $props();
 
   const words = $derived(t.profile.field);
   const id = $props.id();
@@ -326,6 +328,7 @@
         <NumberField
           id="{id}-target"
           bind:value={c.targetYears}
+          invalid={unread.targetYears !== null}
           describedby="{id}-target-message"
           testid="profile-target-years"
         />
@@ -400,7 +403,14 @@
     <h3 class="sub">{t.profile.section.permanent}</h3>
     <div class="pair">
       <Field label={words.minSalary} for="{id}-salary" error={unread.minSalary}>
-        <NumberField id="{id}-salary" money bind:value={c.minSalary} testid="profile-min-salary" />
+        <NumberField
+          id="{id}-salary"
+          money
+          bind:value={c.minSalary}
+          invalid={unread.minSalary !== null}
+          describedby="{id}-salary-message"
+          testid="profile-min-salary"
+        />
       </Field>
       <Field
         label={words.remoteMin}
@@ -411,6 +421,7 @@
         <NumberField
           id="{id}-remote-min"
           bind:value={c.permanentRemoteMin}
+          invalid={unread.remoteMin !== null}
           describedby="{id}-remote-min-message"
           testid="profile-remote-min"
         />
@@ -420,6 +431,8 @@
       <ChipInput
         id="{id}-places"
         bind:values={c.permanentPlaces}
+        invalid={unread.places !== null}
+        describedby="{id}-places-message"
         placeholder={words.placesPlaceholder}
         testid="profile-places"
       />
@@ -436,7 +449,18 @@
     {:else if editor.dirty}
       <span class="quiet">{t.profile.unsavedShort}</span>
     {:else if result}
-      <Notice tone="success" variant="inline" text={result} testid="profile-saved" />
+      <span class="result">
+        <Notice tone="success" variant="inline" text={result} testid="profile-saved" />
+        {#if onnext}
+          <Button
+            variant="secondary"
+            icon="refresh-cw"
+            label={t.profile.next}
+            testid="profile-next-bar"
+            onclick={onnext}
+          />
+        {/if}
+      </span>
     {/if}
   </div>
   <div class="buttons">
@@ -540,6 +564,13 @@
   .status {
     flex: 1;
     min-width: 0;
+  }
+
+  .result {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8) var(--space-16);
   }
 
   .quiet {

@@ -756,11 +756,11 @@ pub fn empty_old_trash(
         .trashed_keys(Some(days_before(now, days)))
         .and_then(|keys| store.delete_jobs(&keys, now));
     match deleted {
-        Ok((count, names)) => {
-            if let Some(workspace) = workspace.filter(|_| count > 0) {
+        Ok((gone, names)) => {
+            if let Some(workspace) = workspace.filter(|_| !gone.is_empty()) {
                 export::clear_txt_files(&workspace.join(RESULT_DIR), &names);
             }
-            count
+            gone.len()
         }
         Err(e) => {
             log::warn!("trash not emptied: {e}");
@@ -1149,12 +1149,13 @@ pub fn delete_jobs(
 ) -> crate::Result<Deleted> {
     // Only the trash is deleted for good.
     let keys = store.in_trash(keys)?;
-    let (count, names) = store.delete_jobs(&keys, now)?;
+    let (gone, names) = store.delete_jobs(&keys, now)?;
     let mut deleted = Deleted {
-        count: u32::try_from(count).unwrap_or(u32::MAX),
+        count: u32::try_from(gone.len()).unwrap_or(u32::MAX),
+        keys: gone,
         export_error: None,
     };
-    let Some(workspace) = workspace.filter(|_| count > 0) else {
+    let Some(workspace) = workspace.filter(|_| deleted.count > 0) else {
         return Ok(deleted);
     };
     let (_, failed) = export::clear_txt_files(&workspace.join(RESULT_DIR), &names);

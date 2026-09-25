@@ -87,7 +87,8 @@
 
   let error = $state<string | null>(null);
 
-  /** "Alle als gelesen markieren": every unread job of the inbox; the toast takes it back. */
+  /** "Alle als gelesen markieren": the unread jobs of the list (with a search its hits);
+   *  the toast takes it back. */
   async function markAllRead(): Promise<void> {
     error = null;
     const result = await jobs.markAllRead();
@@ -165,7 +166,6 @@
   let emptyError = $state<string | null>(null);
   /** Every job of the trash, whatever the search: emptying it deletes them all. */
   const inTrash = $derived(jobs.overviewCounts?.trash ?? jobs.counts.trash);
-  const searching = $derived(jobs.search.trim() !== '');
 
   async function emptyTrash(): Promise<void> {
     emptying = true;
@@ -256,7 +256,7 @@
         {/if}
       {/if}
       <span class="tools">
-        {#if inInbox && jobs.facet !== 'favourites' && !searching && jobs.counts.unread > 0}
+        {#if inInbox && jobs.facet !== 'favourites' && jobs.counts.unread > 0}
           <Button
             variant="ghost"
             size="sm"
@@ -277,7 +277,7 @@
             onchange={(sort) => jobs.setSort(sort)}
           />
         {/if}
-        {#if place === 'trash' && !searching && inTrash > 0}
+        {#if place === 'trash' && inTrash > 0}
           <Button
             variant="ghost"
             size="sm"

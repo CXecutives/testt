@@ -24,6 +24,8 @@
 //   ArrowUp/ArrowDown open the previous/next item, Home/End the first/last, Esc closes the
 //   open item (in the search field Esc first clears the search), and Ctrl+F (Cmd+F on
 //   macOS) goes to its search field from anywhere.
+//   Outside fields Ctrl+Z (Cmd+Z on macOS) takes back the last list action while it can
+//   still be undone (`onUndo`).
 //   Everything else, including every WebView shortcut (reload, find, print, zoom,
 //   devtools, caret browsing, Alt+Arrow back/forward), is swallowed.
 // - a modal dialog holds the focus: Tab cycles inside it, Esc cancels it wherever the
@@ -443,12 +445,39 @@ function onKeyDown(event: KeyboardEvent): void {
   }
   if (isFocusMove(event) || pressesControl(event)) return;
   event.preventDefault();
+  if (isUndo(event)) {
+    if (modal === null) [...undos].reverse().some((undo) => undo());
+    return;
+  }
   if (closest(event.target, `${FORM}, ${DIALOG}`) !== null && dispatchFormKey(event)) return;
   if (event.key === 'Escape' && !hasModifier(event) && escapes.length > 0) {
     escapes.at(-1)?.();
     return;
   }
   if (modal === null) dispatchListKey(event);
+}
+
+/** What Ctrl/Cmd+Z takes back outside fields (the last list action, like Mail). */
+const undos: (() => boolean)[] = [];
+
+/** `onUndo(handler)`: Ctrl+Z (Cmd+Z on macOS) outside fields and dialogs runs the newest
+ *  handler that has something to undo. Returns the unsubscribe function. */
+export function onUndo(handler: () => boolean): () => void {
+  undos.push(handler);
+  return () => {
+    const at = undos.indexOf(handler);
+    if (at !== -1) undos.splice(at, 1);
+  };
+}
+
+/** Ctrl+Z or Cmd+Z (the command key of the OS), without Alt or Shift. */
+function isUndo(event: KeyboardEvent): boolean {
+  return (
+    event[keyConventions().command] &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === 'z'
+  );
 }
 
 /** What Esc clears outside fields and dialogs; the newest first. */

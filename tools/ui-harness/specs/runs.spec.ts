@@ -314,3 +314,16 @@ test('an archived job leaves the list and every count but the archive', async ({
   await page.getByTestId('nav-archive').click();
   await expect(row(page, 'linkedin-4100200301')).toHaveCount(1);
 });
+
+test('all read under a search marks only the hits', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('search').fill('Interim');
+  await expect.poll(() => segmentCount(page, 'Neu')).toBe(2);
+  await page.getByTestId('mark-all-read').click();
+  expect((await calls(page, 'mark_all_read')).map(([, args]) => args)).toEqual([
+    { place: 'inbox', search: 'Interim' },
+  ]);
+  // The unread job that is no hit stays unread.
+  expect((await jobOf(page, 'linkedin', '4100200301')).unread).toBe(true);
+  expect((await jobOf(page, 'freelancermap', '2801')).unread).toBe(false);
+});

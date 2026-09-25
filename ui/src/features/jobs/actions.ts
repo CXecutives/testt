@@ -15,6 +15,7 @@ import { displayTitle } from '$lib/i18n/format';
 import { t } from '$lib/i18n/t';
 import type { JobKey, JobView, Place } from '$lib/ipc/types';
 import { inFacet, isExcluded, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
+import { onUndo } from '$lib/input/input';
 import { toasts } from '$lib/state/toasts.svelte';
 
 export type MoveId = 'archive' | 'toInbox' | 'trash' | 'restore';
@@ -57,6 +58,9 @@ export const hasStar = (place: Place): boolean => place !== 'trash';
 
 /** Rows that fold away because the user moved them, until they are gone. */
 export const moving = new SvelteSet<string>();
+
+// Ctrl/Cmd+Z takes back the newest move (or "all read") while its toast is up.
+onUndo(() => toasts.undoLast());
 
 const GUARD_MS = 500;
 let guardUntil = 0;
@@ -173,14 +177,14 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
   const leaving = list.filter((job) => !inFacet({ ...job, place: to }, jobs.facet));
   const next = leaving.length > 0 ? nextAfter(leaving) : null;
   for (const job of leaving) moving.add(keyOf(job.key));
-  const error = await jobs.move(
+  const result = await jobs.move(
     list.map((job) => job.key),
     to,
   );
   setTimeout(() => {
     for (const job of leaving) moving.delete(keyOf(job.key));
   }, 400);
-  if (error !== null) return error;
+  if ('error' in result) return result.error;
   if (leaving.length > 0) arm();
   const open = jobs.selected;
   if (open !== null && leaving.some((job) => sameKey(job.key, open))) reopen = open;
@@ -194,7 +198,9 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
     void jobs.load(true);
   }
   void jobs.loadOverview();
-  for (const job of list) {
+  // Toasts and undos only for the jobs that really moved.
+  const moved = new Set(result.moved.map(keyOf));
+  for (const job of list.filter((row) => moved.has(keyOf(row.key)))) {
     const from = job.place;
     toasts.undoable(`move-${action}`, said(action, job), t.common.undo, () => {
       void undo(job.key, from);

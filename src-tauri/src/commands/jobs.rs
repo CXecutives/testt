@@ -47,11 +47,15 @@ pub async fn set_pinned(state: State<'_, AppState>, key: JobKey, on: bool) -> Cm
     Ok(state.store.set_pinned(&key, on, Timestamp::now())?)
 }
 
-/// Moves jobs to the inbox, the archive or the trash; returns how many moved.
+/// Moves jobs to the inbox, the archive or the trash; returns the keys that really moved
+/// (the page toasts and undoes only those).
 #[tauri::command]
-pub async fn move_jobs(state: State<'_, AppState>, keys: Vec<JobKey>, to: Place) -> CmdResult<u32> {
-    let moved = state.store.move_jobs(&keys, to, Timestamp::now())?;
-    Ok(u32::try_from(moved).unwrap_or(u32::MAX))
+pub async fn move_jobs(
+    state: State<'_, AppState>,
+    keys: Vec<JobKey>,
+    to: Place,
+) -> CmdResult<Vec<JobKey>> {
+    Ok(state.store.move_jobs(&keys, to, Timestamp::now())?)
 }
 
 /// "Fits anyway": an excluded job counts as scored with its fit score (`include`), or the
@@ -85,7 +89,8 @@ pub async fn purge_jobs(state: State<'_, AppState>, keys: Vec<JobKey>) -> CmdRes
     forget(&state, &keys)
 }
 
-/// Empties the trash: every job in it is deleted for good (see [`purge_jobs`]).
+/// Empties the trash like Mail does: every job in it is deleted for good, whatever the list
+/// shows (see [`purge_jobs`]); the result names how many and which.
 #[tauri::command]
 pub async fn empty_trash(state: State<'_, AppState>) -> CmdResult<Deleted> {
     let keys = state.store.trashed_keys(None)?;
@@ -185,10 +190,17 @@ pub async fn ai_prompt_top(state: State<'_, AppState>, limit: u32) -> CmdResult<
     Ok(export::ai_prompt_top(&profile, &items, state.language()?))
 }
 
-/// "All read": every unread job of a place; the keys come back for the undo.
+/// "All read": every unread job of a place - with a search only its hits; the keys come
+/// back for the undo.
 #[tauri::command]
-pub async fn mark_all_read(state: State<'_, AppState>, place: Place) -> CmdResult<Vec<JobKey>> {
-    Ok(state.store.mark_all_read(place, Timestamp::now())?)
+pub async fn mark_all_read(
+    state: State<'_, AppState>,
+    place: Place,
+    search: Option<String>,
+) -> CmdResult<Vec<JobKey>> {
+    Ok(state
+        .store
+        .mark_all_read(place, search.as_deref(), Timestamp::now())?)
 }
 
 /// The undo of "all read": these jobs are unread again; returns how many.
