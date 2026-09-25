@@ -54,6 +54,7 @@ import { t } from '../i18n/t';
 import { popupEditMenu, type EditEntry } from '../ipc/api';
 import {
   fieldMenuUndoDelete,
+  hasAutoscroll,
   keyConventions,
   nativeEditMenu,
   type KeyConventions,
@@ -101,6 +102,8 @@ const EDITING_KEYS = new Set([
 const CONTROL_EDIT_KEYS = new Set(['a', 'e', 'b', 'f', 'n', 'p', 'd', 'h', 'k']);
 const LEFT = 0;
 const MIDDLE = 1;
+/** How far a held middle press may move and still leave the autoscroll on (a click). */
+const AUTOSCROLL_SLOP = 4;
 /** Back and forward (buttons 3 and 4). */
 const BACK = 3;
 /** The Cmd shortcuts of the macOS menu (Quit, Close, Minimize, Hide, Settings). WKWebView
@@ -1039,12 +1042,29 @@ export function installInput(): void {
   if (installed) return;
   installed = true;
   const capture = { capture: true } as const;
+  // The OS autoscroll a middle click starts (it runs until the next press): that press ends
+  // it and nothing else, whichever button it is and wherever it lands, like Windows' own
+  // scrolling. A middle press dragged and released scrolled while held and left no mode.
+  let autoscroll = false;
+  let swallow = false;
+  let middleAt = { x: 0, y: 0 };
+  const endSwallow = (): void => {
+    swallow = false;
+    auxPress(false);
+  };
 
   document.addEventListener('contextmenu', onContextMenu, capture);
   document.addEventListener(
     'mousedown',
     (event) => {
       keyboardFocus = false;
+      if (autoscroll) {
+        autoscroll = false;
+        swallow = true;
+        auxPress(true);
+        event.preventDefault();
+        return;
+      }
       if (event.button === LEFT) {
         if (!otherButtonsDown(event)) auxPress(false);
         lastPane = scrollAreaOf(event.target);
@@ -1060,6 +1080,8 @@ export function installInput(): void {
       auxPress(true);
       // The middle button starts the autoscroll over a scroll area; nothing else gets it.
       if (event.button === MIDDLE && middleScrolls(event.target)) {
+        middleAt = { x: event.clientX, y: event.clientY };
+        autoscroll = hasAutoscroll();
         keepFocus();
         return;
       }
@@ -1072,6 +1094,20 @@ export function installInput(): void {
     'mouseup',
     (event) => {
       if (event.button >= BACK) event.preventDefault();
+      // Dragged with the middle button held: it scrolled while held, no mode is left.
+      if (event.button === MIDDLE && autoscroll) {
+        const moved = Math.hypot(event.clientX - middleAt.x, event.clientY - middleAt.y);
+        if (moved > AUTOSCROLL_SLOP) autoscroll = false;
+      }
+      // Chromium ends its autoscroll with the next press and keeps that press to itself: only
+      // the release arrives, and nothing is left to end.
+      if (autoscroll && event.button !== MIDDLE) autoscroll = false;
+      // The press that ended the autoscroll: its click (a left one) comes right after this
+      // release in the same task; other buttons send none.
+      if (swallow) {
+        if (event.button === LEFT) setTimeout(endSwallow, 0);
+        else endSwallow();
+      }
     },
     capture,
   );
@@ -1080,11 +1116,13 @@ export function installInput(): void {
   document.addEventListener(
     'pointermove',
     (event) => {
-      if (!otherButtonsDown(event)) auxPress(false);
+      if (!otherButtonsDown(event) && !swallow) auxPress(false);
     },
     { capture: true, passive: true },
   );
   document.addEventListener('pointercancel', () => auxPress(false), capture);
+  document.addEventListener('keydown', () => (autoscroll = false), capture);
+  window.addEventListener('blur', () => (autoscroll = false));
   document.addEventListener(
     'auxclick',
     (event) => {
@@ -1097,6 +1135,11 @@ export function installInput(): void {
   document.addEventListener(
     'click',
     (event) => {
+      if (swallow) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
       if (event.button === LEFT) return;
       event.preventDefault();
       event.stopImmediatePropagation();

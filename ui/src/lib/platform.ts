@@ -113,6 +113,12 @@ export interface KeyConventions {
  * hang the window (Windows reported the app as not responding after it), and the app's own
  * menu takes its place. The keys (Ctrl/Cmd+X, C, V, A, Z) keep working in every field.
  */
+/** A middle click over a scroll area starts the OS autoscroll, which runs until the next
+ *  press: Windows (WebView2) has it, macOS has none. */
+export function hasAutoscroll(): boolean {
+  return platform() === 'windows';
+}
+
 export function nativeEditMenu(): boolean {
   return false;
 }
