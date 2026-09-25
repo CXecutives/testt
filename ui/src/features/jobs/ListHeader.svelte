@@ -10,18 +10,23 @@
   Row 2: the one place for filters, Neu · Alle · Gemerkt · Bewerbungen with their counts
   (always there, also while the reader is open); the archive (archived jobs), reached from the end of
   Alle, show as a pill with its x instead.
-  Row 3 (with a profile): the order in words ("Beste Passung", "Neueste"), a quiet button
-  whose glyph stands half a turn for newest first; a click switches it.
+  Row 3: the order, a quiet button with its name and a chevron ("Nach Passung", "Nach
+  Datum") that opens the OS's own menu with both, the current one ticked; one choice for
+  every list, kept. Without a usable profile it says "Nach Datum" and cannot open (why, in
+  its tooltip). The row keeps one height in every state.
   The bottom hairline shows only once the list below is scrolled.
 -->
 <script lang="ts">
   import Button from '$components/Button.svelte';
+  import Count from '$components/Count.svelte';
+  import MenuButton from '$components/MenuButton.svelte';
   import Segmented from '$components/Segmented.svelte';
   import TextField from '$components/TextField.svelte';
   import { t } from '$lib/i18n/t';
   import { fade, pop } from '$lib/motion/transitions';
   import { dragBands } from '$lib/platform';
   import { app } from '$lib/state/app.svelte';
+  import type { JobSort } from '$lib/ipc/types';
   import { jobs, type JobFacet } from '$lib/state/jobs.svelte';
   import { run } from '$lib/state/run.svelte';
 
@@ -31,27 +36,43 @@
   }
   let { scrolled = false }: Props = $props();
 
-  /** The inbox views: its unread jobs, all of it, the favourites (of inbox and archive). */
-  type View = JobFacet;
+  // Each segment counts its list (they follow the search): the unread ones always in the warm
+  // pill, the others plain, whichever is chosen, so the control keeps its width; no zero.
   const views = $derived([
-    { id: 'new' as View, label: t.toolbar.facetNew, count: jobs.counts.unread },
-    { id: 'all' as View, label: t.toolbar.facetAll, count: jobs.counts.inbox },
-    // An empty list of the user's own shows no zero (the row stays narrow).
     {
-      id: 'favourites' as View,
-      label: t.toolbar.facetPinned,
+      id: 'new' as JobFacet,
+      label: t.toolbar.facetNew,
+      count: jobs.counts.unread || null,
+      tone: 'soft' as const,
+    },
+    {
+      id: 'all' as JobFacet,
+      label: t.toolbar.facetAll,
+      count: jobs.counts.inbox || null,
+      tone: 'plain' as const,
+    },
+    {
+      id: 'favourites' as JobFacet,
+      label: t.toolbar.facetSaved,
       count: jobs.counts.favourites || null,
+      tone: 'plain' as const,
     },
   ]);
-  const view = $derived<View>(jobs.facet);
 
-  function choose(id: View): void {
-    jobs.setFacet(id);
+  let searchBox = $state<HTMLElement | null>(null);
+
+  /** Ctrl+F (Cmd+F on macOS, lib/input/input.ts): into the search, its text selected. */
+  export function find(): void {
+    const input = searchBox?.querySelector('input');
+    input?.focus();
+    input?.select();
   }
+
+  const SORTS: readonly JobSort[] = ['match', 'newest'];
+  const sorts = $derived(SORTS.map((sort) => ({ id: sort, label: t.toolbar.sortLabel[sort] })));
+
   /** A filter the segments do not name (a portal, a tile). */
-  const otherFilter = $derived(
-    jobs.filter !== null && jobs.filter !== 'pinned' ? jobs.filter : null,
-  );
+  const otherFilter = $derived(jobs.filter);
 </script>
 
 {#snippet fetchButton(live: boolean)}
@@ -81,7 +102,7 @@
 
 <div class="header" class:scrolled data-testid="list-header">
   <div class="top" data-tauri-drag-region={dragBands() ? '' : undefined}>
-    <span class="search">
+    <span class="search" bind:this={searchBox}>
       <TextField
         kind="search"
         value={jobs.search}
@@ -105,7 +126,8 @@
   <div class="filters">
     {#if jobs.facet === 'archived'}
       <span class="filter" data-testid="filter" in:pop out:fade>
-        <span class="filter-label">{t.list.hidden}</span>
+        <span class="filter-label">{t.list.archive}</span>
+        <Count value={jobs.counts.archive} tone="plain" />
         <Button
           variant="ghost"
           size="sm"
@@ -119,11 +141,11 @@
     {:else}
       <Segmented
         options={views}
-        value={view}
+        value={jobs.facet}
         label={t.toolbar.facet}
         size="sm"
         testid="facet"
-        onchange={choose}
+        onchange={(id) => jobs.setFacet(id)}
       />
     {/if}
     {#if otherFilter !== null}
@@ -141,17 +163,32 @@
       </span>
     {/if}
   </div>
-  {#if app.hasProfile}
-    <span class="sort">
-      <Button
-        variant="ghost"
-        size="sm"
-        icon="arrow-up-down"
-        label={t.toolbar.sortLabel[jobs.sortChoice]}
-        turned={jobs.sortChoice === 'newest'}
-        testid="sort"
-        onclick={() => jobs.setSort(jobs.sortChoice === 'match' ? 'newest' : 'match')}
-      />
+  <!-- Nothing to order in an empty list (the row comes back with a search or a job). -->
+  {#if jobs.counts.inbox > 0 || jobs.counts.archive > 0 || jobs.search.trim() !== ''}
+    <span class="order">
+      <span class="sort">
+        <MenuButton
+          options={sorts}
+          value={app.hasProfile ? jobs.sortChoice : 'newest'}
+          disabled={!app.hasProfile}
+          disabledReason={t.toolbar.sortNoProfile}
+          testid="sort"
+          onchange={(sort) => jobs.setSort(sort)}
+        />
+      </span>
+      <span class="order-tools">
+        {#if jobs.facet !== 'archived' && jobs.counts.archive > 0}
+          <!-- The archive, reachable from every list; its count follows the search. -->
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="archive"
+            label={t.list.archiveLink(jobs.counts.archive)}
+            testid="show-archive"
+            onclick={() => jobs.setFacet('archived')}
+          />
+        {/if}
+      </span>
     </span>
   {/if}
 </div>
@@ -232,16 +269,20 @@
     white-space: nowrap;
   }
 
-  /* A narrow column keeps the chosen segment's count only. */
-  @container (width < 440px) {
-    .filters :global(.count.plain) {
-      display: none;
-    }
+  /* The order in words; its glyph starts on the edge of the column. */
+  /* The order in words and, under Gemerkt, the pinned jobs as one prompt. */
+  /* One height in every state (a button that comes or goes never moves the list). */
+  .order {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    min-height: var(--control-sm);
+    margin-right: calc(-1 * var(--space-12));
   }
 
-  /* The order in words; its glyph starts on the edge of the column. */
   .sort {
     display: flex;
-    margin: calc(-1 * var(--space-4)) 0 calc(-1 * var(--space-4)) calc(-1 * var(--space-12));
+    margin-left: calc(-1 * var(--space-12));
   }
 </style>

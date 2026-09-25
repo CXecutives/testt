@@ -68,6 +68,14 @@ export function primaryFirst(): boolean {
   return platform() === 'windows';
 }
 
+/**
+ * A text field's menu. Windows: Undo | Cut, Copy, Paste, Delete | Select all. macOS has no
+ * undo and no delete there: Cut, Copy, Paste | Select all.
+ */
+export function fieldMenuUndoDelete(): boolean {
+  return platform() === 'windows';
+}
+
 /** How the keyboard of the OS edits text in a field (lib/input/input.ts applies it). */
 export interface KeyConventions {
   /** Option types characters (@ is Option+L on a German Mac) and moves by word, like

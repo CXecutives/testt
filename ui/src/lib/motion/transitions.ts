@@ -183,6 +183,28 @@ export function roll(node: Element, { up, on = true }: RollParams): TransitionCo
   };
 }
 
+export interface CollapseParams {
+  /** Collapse at all: only a job that the user moves out of the list (archive, delete,
+   *  restore); a row that a filter or a search hides is simply gone. */
+  on: boolean;
+}
+
+/**
+ * A job moved out of the list: its row folds away (150 ms, ease-in) while the rows below
+ * close the gap, so nothing jumps. The one animation of a height in the app, and it is
+ * one row's (rows are contained, the rest only moves). Instant under reduced motion.
+ * `out:rowCollapse={{ on }}` on the row's wrapper in the list.
+ */
+export function rowCollapse(node: Element, { on }: CollapseParams): TransitionConfig {
+  if (!on || isReducedMotion()) return {};
+  const height = node.getBoundingClientRect().height;
+  return {
+    duration: duration('base'),
+    easing: easing('in'),
+    css: (t) => `overflow: hidden; height: ${Math.round(t * height)}px; opacity: ${t}`,
+  };
+}
+
 /**
  * The unread dot leaves when the job is read while its row is on screen: it shrinks and
  * fades (150 ms, ease-in). Local, so filtering or unmounting a row never plays it.
@@ -216,15 +238,24 @@ export function toastOut(node: Element): TransitionConfig {
 }
 
 export interface TooltipParams {
-  /** Where the bubble sits: it moves --move-sm toward its anchor as it appears. */
-  placement: 'top' | 'bottom';
+  /** Where the bubble sits: it comes --move-sm out of its anchor as it appears. */
+  placement: 'top' | 'bottom' | 'right';
 }
 
-/** The tooltip pops toward its anchor (100 ms, ease-out) and leaves with a 60 ms fade. */
+/** The tooltip pops out of its anchor (100 ms, ease-out) and leaves with a 60 ms fade. */
 export function tooltipIn(node: Element, { placement }: TooltipParams): TransitionConfig {
   if (isReducedMotion()) return crossfade(node);
-  const y = move('sm') * (placement === 'top' ? 1 : -1);
   const scale = enterScale();
+  if (placement === 'right') {
+    const x = -move('sm');
+    return {
+      duration: duration('fast'),
+      easing: easing('out'),
+      css: (t) =>
+        `opacity: ${t}; transform: translateX(${Math.round((1 - t) * x)}px) scale(${scale + (1 - scale) * t})`,
+    };
+  }
+  const y = move('sm') * (placement === 'top' ? 1 : -1);
   return { duration: duration('fast'), easing: easing('out'), css: (t) => lifted(t, y, scale) };
 }
 

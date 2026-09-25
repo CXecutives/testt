@@ -6,13 +6,14 @@
   new rows are simply there. A search and live updates never move anything. Excluded jobs
   sit grey behind the divider "Ausgeschlossen" with a soft count (under Neu or a filter too,
   there without the count: the rows below are only a part of the excluded jobs). A page that
-  fails to load while scrolling says so at the end of the list, with a retry. Clicking the
-  selected row again closes it (back to the day overview). At the end of Alle a divider
+  fails to load while scrolling says so at the end of the list, with a retry. At the end of
+  Alle a divider
   leads to the archived jobs. An empty list says where jobs come from (an alert on each
   portal, older mails). Every empty
   state has exactly one reason and at most one way out (secondary: the header holds the
-  view's primary). Without a mailbox one note says how to connect one; a missing profile is
-  said once, in the day overview.
+  view's primary). Without a mailbox one slim note at the top says how to connect one;
+  without a usable profile one says that there is no fit without it and leads to the Profil
+  view (the rings stay, empty).
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
@@ -31,7 +32,9 @@
   import { app } from '$lib/state/app.svelte';
   import { isExcluded, jobs, keyOf, sameKey } from '$lib/state/jobs.svelte';
   import { navigation } from '$lib/state/navigation.svelte';
+  import { editor } from '$lib/state/profile.svelte';
   import { run } from '$lib/state/run.svelte';
+  import { archive } from './archive';
 
   const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
@@ -48,16 +51,66 @@
   const mailRead = $derived(lastFetch?.outcome.kind === 'completed' && lastFetch.scan !== null);
   const searching = $derived(jobs.search.trim() !== '');
   const profileMissing = $derived(app.state !== null && !app.hasProfile);
+  // No profile: the fit needs one. One that is there but cannot be used is named.
+  const profileNote = $derived.by(() => {
+    const profile = app.state?.profile ?? null;
+    if (profile === null) {
+      return { heading: null, text: t.list.noProfile, label: t.list.createProfile };
+    }
+    return {
+      heading: profile.parseError ? t.list.profileUnreadable : t.list.profileEmpty,
+      text: t.list.profileBrokenText,
+      label: t.list.openProfile,
+    };
+  });
+
+  function toProfile(): void {
+    // No profile yet: straight into the empty form, one click.
+    if (app.state?.profile == null) editor.create();
+    navigation.go('profile');
+  }
   const mailboxMissing = $derived(app.state !== null && !app.hasMailbox);
   // Jobs without a match get one soon while a run goes or a rescore is pending.
   const pending = $derived(app.hasProfile && (run.active || (app.state?.matchPending ?? 0) > 0));
 
-  /** A click on the selected row closes it again: back to the day overview. */
-  function select(job: JobView): void {
-    if (sameKey(jobs.selected, job.key)) jobs.clearSelection();
-    else void jobs.select(job, true);
+  /** The rows in the order they stand: the active ones, then the excluded ones. */
+  const order = $derived([...active, ...excluded]);
+
+  /** Open the row at `index` (the keyboard): it scrolls into view and takes the focus. */
+  function openAt(index: number): void {
+    const job = order[index];
+    if (job === undefined) return;
+    if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
+    const row = list?.querySelector<HTMLElement>(`[data-key="${CSS.escape(keyOf(job.key))}"] .row`);
+    row?.focus({ preventScroll: true });
+    row?.scrollIntoView({ block: 'nearest' });
   }
-  const hiddenCount = $derived(jobs.counts.archive);
+
+  /** ArrowUp / ArrowDown (lib/input/input.ts): the previous or next row opens; with none
+   *  open, the first (down) or the last (up). */
+  export function step(by: -1 | 1): void {
+    const at = order.findIndex((job) => sameKey(jobs.selected, job.key));
+    openAt(
+      at === -1
+        ? by === 1
+          ? 0
+          : order.length - 1
+        : Math.max(0, Math.min(order.length - 1, at + by)),
+    );
+  }
+
+  /** Home / End: the first or the last row shown. */
+  export function edge(last: boolean): void {
+    openAt(last ? order.length - 1 : 0);
+  }
+
+  /** A click opens the job (the open one stays open). */
+  function select(job: JobView): void {
+    if (!sameKey(jobs.selected, job.key)) void jobs.select(job, true);
+  }
+  // A search also finds archived jobs: their count (the list's, with the search) under the
+  // live hits, a way into the archive with the same search.
+  const archivedHits = $derived(searching && jobs.facet !== 'archived' ? jobs.counts.archive : 0);
   const PORTALS = $derived((app.state?.portals ?? []).filter((p) => p.enabled));
   function openPortal(portal: Portal): void {
     invoke('open_target', { target: { kind: 'portalHome', portal } }).catch(() => undefined);
@@ -142,7 +195,28 @@
   function pin(job: JobView): void {
     void jobs.pin(job.key, !job.pinned);
   }
+
+  let rowError = $state<string | null>(null);
+  async function toArchive(job: JobView): Promise<void> {
+    rowError = await archive(job);
+  }
 </script>
+
+{#snippet archiveHits()}
+  <div class="divider" data-testid="archive-hits">
+    <span class="divider-label">{t.list.inArchive}</span>
+    <Count value={archivedHits} tone="plain" />
+    <span class="divider-link">
+      <Button
+        variant="link"
+        size="sm"
+        label={t.list.showArchive}
+        testid="show-archive-hits"
+        onclick={() => jobs.setFacet('archived')}
+      />
+    </span>
+  </div>
+{/snippet}
 
 <div
   class="list"
@@ -155,10 +229,30 @@
     <div class="note">
       <Notice
         tone="info"
+        variant="row"
         text={t.list.noMailbox}
         action={{ label: t.list.connectMailbox, onclick: () => navigation.go('settings') }}
         testid="no-mailbox"
       />
+    </div>
+  {/if}
+
+  {#if profileMissing}
+    <div class="note">
+      <Notice
+        tone="info"
+        variant="row"
+        heading={profileNote.heading}
+        text={profileNote.text}
+        action={{ label: profileNote.label, onclick: toProfile }}
+        testid="no-profile"
+      />
+    </div>
+  {/if}
+
+  {#if rowError}
+    <div class="note">
+      <Notice tone="danger" variant="inline" text={rowError} testid="row-error" />
     </div>
   {/if}
 
@@ -168,7 +262,14 @@
         icon="triangle-alert"
         tone="danger"
         text={jobs.error ?? t.list.loadFailed}
-        secondary={{ label: t.common.retry, icon: 'rotate-ccw', onclick: () => void jobs.load() }}
+        secondary={{
+          label: t.common.retry,
+          icon: 'rotate-ccw',
+          onclick: () => {
+            void jobs.load();
+            void jobs.loadOverview();
+          },
+        }}
         testid="list-error"
       />
     </div>
@@ -189,13 +290,16 @@
   {:else if jobs.visible.length === 0 && jobs.status === 'ready'}
     <div class="empty">
       {#if searching}
-        <EmptyState
-          icon="search"
-          tone="neutral"
-          text={t.list.noHit(jobs.search.trim())}
-          secondary={{ label: t.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
-          testid="empty-search"
-        />
+        <div class="stack">
+          <EmptyState
+            icon="search"
+            tone="neutral"
+            text={t.list.noHit(jobs.search.trim())}
+            secondary={{ label: t.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
+            testid="empty-search"
+          />
+          {#if archivedHits > 0}{@render archiveHits()}{/if}
+        </div>
       {:else if jobs.filter !== null}
         <EmptyState
           icon="inbox"
@@ -208,7 +312,7 @@
         <EmptyState
           icon="inbox"
           tone="neutral"
-          text={t.list.emptyHidden}
+          text={t.list.emptyArchived}
           secondary={{ label: t.list.showAll, onclick: () => jobs.setFacet('all') }}
           testid="empty-hidden"
         />
@@ -220,14 +324,17 @@
           secondary={{ label: t.list.showAll, onclick: () => jobs.setFacet('all') }}
           testid="empty-new"
         />
+      {:else if run.active || !mailRead}
+        <!-- A fetch that goes, or none yet: only what comes (no setup links). -->
+        <EmptyState
+          icon="inbox"
+          tone="neutral"
+          text={run.active ? t.list.emptyWhileRun : t.list.emptyAll}
+          testid="empty-all"
+        />
       {:else}
         <div class="sources">
-          <EmptyState
-            icon="inbox"
-            tone="neutral"
-            text={mailRead ? t.list.emptyAfterRun : t.list.emptyAll}
-            testid="empty-all"
-          />
+          <EmptyState icon="inbox" tone="neutral" text={t.list.emptyAfterRun} testid="empty-all" />
           <p class="sources-text">{t.list.emptySources}</p>
           <div class="sources-actions">
             {#each PORTALS as portal (portal.portal)}
@@ -265,6 +372,7 @@
         selected={sameKey(jobs.selected, job.key)}
         onselect={select}
         onpin={pin}
+        onarchive={toArchive}
       />
     {/snippet}
     {#snippet group(items: JobView[], offset: number)}
@@ -285,27 +393,17 @@
     {#if excluded.length > 0}
       <div class="divider" data-testid="excluded-divider">
         <span class="divider-label">{t.list.excluded}</span>
-        {#if excludedCount !== null}<Count value={excludedCount} testid="excluded-count" />{/if}
+        {#if excludedCount !== null}<Count
+            value={excludedCount}
+            tone="plain"
+            testid="excluded-count"
+          />{/if}
       </div>
       <div class="rows" data-testid="excluded-rows">
         {@render group(excluded, active.length)}
       </div>
     {/if}
-    {#if jobs.facet === 'all' && jobs.filter === null && hiddenCount > 0 && !jobs.more}
-      <div class="divider" data-testid="hidden-divider">
-        <span class="divider-label">{t.list.hidden}</span>
-        <Count value={hiddenCount} tone="plain" />
-        <span class="divider-link">
-          <Button
-            variant="link"
-            size="sm"
-            label={t.list.showHidden}
-            testid="show-hidden"
-            onclick={() => jobs.setFacet('archived')}
-          />
-        </span>
-      </div>
-    {/if}
+    {#if archivedHits > 0 && !jobs.more}{@render archiveHits()}{/if}
     {#if jobs.pageError}
       <div class="page-error">
         <Notice
@@ -334,8 +432,9 @@
     min-height: 0;
   }
 
+  /* A slim line at the top of the list (no mailbox, no profile). */
   .note {
-    padding: var(--pane-padding);
+    padding: var(--space-12) var(--pane-padding);
     border-bottom: var(--border-width) solid var(--border);
   }
 
@@ -365,6 +464,13 @@
     height: var(--border-width);
     background-color: var(--border);
     content: '';
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
   }
 
   .divider-link {

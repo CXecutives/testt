@@ -67,8 +67,12 @@ interface Harness {
   holdAfter: number | null;
   /** A copy of a job as the stub holds it (null if unknown). */
   job: (key: JobKey) => JobView | null;
-  /** The native context menus shown (entries: text, enabled, OS command or null). */
-  menus: { text: string; enabled: boolean; command: string | null }[][];
+  /** The native menus shown (entries: text, enabled, OS command or null, check state). */
+  menus: { text: string; enabled: boolean; command: string | null; checked?: boolean }[][];
+  /** Where the last menu was shown (window px; null: at the pointer). */
+  menuAt: { x: number; y: number } | null;
+  /** Click an entry of the last menu shown (like the user in the native menu). */
+  pick: (index: number) => void;
 }
 
 declare global {
@@ -262,7 +266,18 @@ function sampleJobs(): JobView[] {
         unread: true,
         pinned: true,
         alsoOn: ['linkedin'],
-        match: scored(91, ['Interim-Management im Mittelstand', 'Konzernabschluss nach HGB'], 4, 4),
+        match: {
+          ...scored(91, ['Interim-Management im Mittelstand', 'Konzernabschluss nach HGB'], 4, 4),
+          facts: {
+            ...NO_FACTS,
+            rate: 1100,
+            start: 'now',
+            months: 6,
+            remoteFrom: 60,
+            remoteTo: 60,
+            contract: 'interim',
+          },
+        },
       },
     ),
     job(
@@ -1137,23 +1152,68 @@ function detailOf(j: JobView): JobDetail {
   add('check', 'info', 'startVague', 'Start zum nächstmöglichen Zeitpunkt', null);
   const excluded = m?.status === 'excluded';
   if (excluded) add('violation', 'hard', 'anue', 'Arbeitnehmerüberlassung', null);
-  // The strip shows the criteria the profile sets (the engine leaves out the others).
-  const criterion = (id: string, kind: Reason['kind'], code: string): Reason => ({
-    id,
-    kind,
-    weight: 'hard',
-    code,
-    label: '',
-    evidence: null,
-    params: {},
-    ranges: [],
-  });
-  const criteria: Reason[] = [
-    criterion('c:minDayRate', 'met', 'minDayRate'),
-    criterion('c:countries', 'met', 'countries'),
-    criterion('c:noAnue', excluded ? 'violation' : 'check', 'noAnue'),
-    criterion('c:targetYears', 'met', 'targetYears'),
-  ];
+  // Wishes of the profile (engine v4): a rate at the wish, a remote share near it.
+  if (j.key.id === '2801') {
+    add('met', 'info', 'dayRateWish', '', 'Tagessatz ab 1.000 €', {
+      state: 'met',
+      rate: 1100,
+      wish: 1000,
+    });
+    add('partial', 'info', 'remoteWish', '', 'überwiegend remote', {
+      state: 'near',
+      share: 60,
+      level: 'mostly',
+    });
+  }
+  // The strip shows the criteria the profile sets (the engine leaves out the others), with
+  // the ad's value and the passage that states it; `open` = the ad does not say.
+  const criterion = (
+    id: string,
+    kind: Reason['kind'],
+    code: string,
+    params: Record<string, string | number | boolean> = {},
+    passage: string | null = null,
+  ): Reason => {
+    const start = passage ? text.indexOf(passage) : -1;
+    return {
+      id,
+      kind,
+      weight: 'hard',
+      code,
+      label: '',
+      evidence: null,
+      params,
+      ranges: start >= 0 && passage ? [{ start, end: start + passage.length }] : [],
+    };
+  };
+  // One job whose ad states every criterion cleanly.
+  const clean = j.key.id === '4100200301';
+  const criteria: Reason[] = clean
+    ? [
+        criterion('c:minDayRate', 'met', 'minDayRate', { rate: 1200, min: 1000 }),
+        criterion('c:countries', 'met', 'countries', { location: j.location }),
+        criterion('c:noAnue', 'met', 'noAnue', { contract: 'interim' }),
+        criterion('c:availability', 'met', 'availability', { start: 'now' }),
+      ]
+    : [
+        criterion(
+          'c:minDayRate',
+          'open',
+          'minDayRate',
+          { rateOpen: true, min: 1000 },
+          'Tagessatz nach Absprache',
+        ),
+        criterion('c:countries', 'met', 'countries', { location: j.location }),
+        criterion('c:noAnue', excluded ? 'violation' : 'check', 'noAnue'),
+        criterion(
+          'c:availability',
+          'open',
+          'availability',
+          { start: 'vague' },
+          'Start zum nächstmöglichen Zeitpunkt',
+        ),
+        criterion('c:targetYears', 'met', 'targetYears', { years: 10 }),
+      ];
   const ok = j.detail.kind === 'ok';
   return {
     job: j,
@@ -1837,6 +1897,10 @@ const harness: Harness = {
   failPages: 0,
   holdAfter: null,
   menus: [],
+  menuAt: null,
+  pick(index) {
+    lastItems[index]?.choose();
+  },
   job(key) {
     const found = find(key);
     return found === undefined ? null : structuredClone(found);
@@ -1853,18 +1917,70 @@ interface StubItem {
   text: string;
   enabled: boolean;
   command: string | null;
+  checked?: boolean;
 }
 
-export class MenuItem {
-  constructor(readonly entry: StubItem) {}
+/** The window position of @tauri-apps/api/dpi. */
+export class LogicalPosition {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+}
 
-  static async new(options: { text: string; enabled?: boolean }): Promise<MenuItem> {
-    return new MenuItem({ text: options.text, enabled: options.enabled ?? true, command: null });
+/** The entries of the last menu shown (`pick` clicks one). */
+let lastItems: { choose: () => void }[] = [];
+
+export class MenuItem {
+  constructor(
+    readonly entry: StubItem,
+    readonly action: () => void,
+  ) {}
+
+  choose(): void {
+    if (this.entry.enabled) this.action();
+  }
+
+  static async new(options: {
+    text: string;
+    enabled?: boolean;
+    action?: () => void;
+  }): Promise<MenuItem> {
+    const entry = { text: options.text, enabled: options.enabled ?? true, command: null };
+    return new MenuItem(entry, options.action ?? (() => undefined));
+  }
+}
+
+export class CheckMenuItem {
+  constructor(
+    readonly entry: StubItem,
+    readonly action: () => void,
+  ) {}
+
+  static async new(options: {
+    text: string;
+    checked?: boolean;
+    enabled?: boolean;
+    action?: () => void;
+  }): Promise<CheckMenuItem> {
+    const entry = {
+      text: options.text,
+      enabled: options.enabled ?? true,
+      command: null,
+      checked: options.checked ?? false,
+    };
+    return new CheckMenuItem(entry, options.action ?? (() => undefined));
+  }
+
+  choose(): void {
+    if (this.entry.enabled) this.action();
   }
 }
 
 export class PredefinedMenuItem {
   constructor(readonly entry: StubItem) {}
+
+  choose(): void {}
 
   static async new(options: { item: string; text?: string }): Promise<PredefinedMenuItem> {
     return new PredefinedMenuItem({
@@ -1875,14 +1991,18 @@ export class PredefinedMenuItem {
   }
 }
 
-export class Menu {
-  constructor(readonly items: (MenuItem | PredefinedMenuItem)[]) {}
+type StubMenuItem = MenuItem | PredefinedMenuItem | CheckMenuItem;
 
-  static async new(options: { items: (MenuItem | PredefinedMenuItem)[] }): Promise<Menu> {
+export class Menu {
+  constructor(readonly items: StubMenuItem[]) {}
+
+  static async new(options: { items: StubMenuItem[] }): Promise<Menu> {
     return new Menu(options.items);
   }
 
-  async popup(): Promise<void> {
+  async popup(at?: LogicalPosition): Promise<void> {
+    lastItems = this.items;
+    harness.menuAt = at === undefined ? null : { x: at.x, y: at.y };
     harness.menus.push(this.items.map((item) => item.entry));
   }
 

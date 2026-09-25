@@ -28,6 +28,7 @@
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Eye from '@lucide/svelte/icons/eye';
   import EyeOff from '@lucide/svelte/icons/eye-off';
+  import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
   import FileText from '@lucide/svelte/icons/file-text';
   import FileUp from '@lucide/svelte/icons/file-up';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
@@ -41,6 +42,7 @@
   import MapPin from '@lucide/svelte/icons/map-pin';
   import Minus from '@lucide/svelte/icons/minus';
   import PauseCircle from '@lucide/svelte/icons/pause-circle';
+  import Pencil from '@lucide/svelte/icons/pencil';
   import Plus from '@lucide/svelte/icons/plus';
   import RefreshCw from '@lucide/svelte/icons/refresh-cw';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
@@ -115,6 +117,10 @@
     // Archive a job from its row, and bring an archived one back.
     archive: Archive,
     'archive-restore': ArchiveRestore,
+    // Change a stored value (the mailbox, the output folder).
+    pencil: Pencil,
+    // The Excel file in the day overview.
+    'file-spreadsheet': FileSpreadsheet,
   } satisfies Record<string, Component<Record<string, unknown>>>;
 
   export type IconName = keyof typeof ICONS;

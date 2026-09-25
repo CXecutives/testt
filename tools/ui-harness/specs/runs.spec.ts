@@ -111,7 +111,7 @@ test('a fetch that cannot write the Excel file says so once, and the toast too',
   await expect(page.getByText('blieb unverändert')).toHaveCount(1);
   // The numbers of the run still stand next to it.
   await expect(page.getByTestId('last-new')).toHaveText('2 neu');
-  await expect(page.getByTestId('last-top')).toHaveText('1 passen gut');
+  await expect(page.getByTestId('last-top')).toHaveText('1 passt gut');
 });
 
 test('the run card counts the run: new and not excluded, high among those', async ({ page }) => {
@@ -120,7 +120,7 @@ test('the run card counts the run: new and not excluded, high among those', asyn
   await runFinished(page);
   // Three new jobs came in, one of them excluded: two new, one fits well.
   await expect(page.getByTestId('last-new')).toHaveText('2 neu');
-  await expect(page.getByTestId('last-top')).toHaveText('1 passen gut');
+  await expect(page.getByTestId('last-top')).toHaveText('1 passt gut');
   await expect(page.getByTestId('nothing-new')).toHaveCount(0);
 });
 
@@ -302,18 +302,18 @@ test('an archived job leaves the list and every count but the archive', async ({
   await open(page, WIN);
   await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
   const all = await segmentCount(page, 'Alle');
-  const divider = page.getByTestId('hidden-divider');
-  const archived = Number((await divider.innerText()).replace(/\D/g, ''));
+  const link = page.getByTestId('show-archive');
+  const archived = Number((await link.innerText()).replace(/\D/g, ''));
   await row(page, 'linkedin-4100200301').click();
   await page.getByTestId('hide').click();
   await expect(row(page, 'linkedin-4100200301')).toHaveCount(0);
   await expect.poll(() => segmentCount(page, 'Alle')).toBe(all - 1);
-  await expect(divider).toContainText(String(archived + 1));
+  await expect(link).toContainText(String(archived + 1));
   expect((await calls(page, 'move_jobs')).map(([, args]) => args)).toEqual([
     { keys: [{ portal: 'linkedin', id: '4100200301' }], to: 'archive' },
   ]);
   expect((await jobOf(page, 'linkedin', '4100200301')).place).toBe('archive');
   // The archive lists it.
-  await page.getByTestId('show-hidden').click();
+  await link.click();
   await expect(row(page, 'linkedin-4100200301')).toHaveCount(1);
 });

@@ -1,6 +1,7 @@
 <!--
   The tooltip layer: mounted once (App, Gallery), fed by the `tooltip` action. Placed below
-  its anchor (above if there is no room), kept inside the window, whole-pixel positions.
+  its anchor (above if there is no room), or to its right (the icon rail: centred on the
+  icon, to the left if there is no room), kept inside the window, whole-pixel positions.
   The deep navy bubble pops toward its anchor (100 ms) and leaves with a 60 ms fade; moving
   on to the next anchor while it shows just moves it (no second entrance).
 -->
@@ -19,6 +20,14 @@
       const width = node.offsetWidth;
       const height = node.offsetHeight;
       const maxX = document.documentElement.clientWidth - width - edge;
+      const maxY = document.documentElement.clientHeight - height - edge;
+      if (tooltipState.placement === 'right') {
+        const right = a.right + gap;
+        const x = right <= maxX ? right : Math.max(edge, a.left - gap - width);
+        const y = Math.max(edge, Math.min(a.top + a.height / 2 - height / 2, maxY));
+        setVars(node, { 'tooltip-x': px(x), 'tooltip-y': px(y) });
+        return;
+      }
       const x = Math.max(edge, Math.min(a.left + a.width / 2 - width / 2, maxX));
       const below = a.bottom + gap;
       const above = a.top - gap - height;

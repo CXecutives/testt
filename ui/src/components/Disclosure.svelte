@@ -65,8 +65,10 @@
     box-shadow: var(--focus-ring-inset);
   }
 
+  /* On the axis of an icon button's glyph at the same edge (a card's tools above it). */
   .chevron {
     display: inline-flex;
+    margin-right: calc((var(--control-sm) - var(--icon-sm)) / 2);
     color: var(--text-muted);
     transition:
       transform var(--dur-slow) var(--ease-emphasized),

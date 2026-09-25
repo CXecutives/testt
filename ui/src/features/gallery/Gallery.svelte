@@ -28,11 +28,18 @@
   import { text } from './gallery';
 
   const NAV_ICONS = ['briefcase', 'user-round', 'sliders-horizontal'] as const;
+  /** Jobs carries its places (Archiv, Papierkorb) as quieter sub-entries. */
+  const places = [
+    { id: 'archive', label: text.navigation.places[0], icon: 'archive', testid: 'gnav-archive' },
+    { id: 'trash', label: text.navigation.places[1], icon: 'trash-2', testid: 'gnav-trash' },
+  ] as const;
   const tabs = text.navigation.tabs.map((label, index) => ({
     id: String(index),
     label,
     icon: NAV_ICONS[index] ?? 'briefcase',
     count: index === 0 ? 12 : null,
+    testid: `gnav-${index}`,
+    children: index === 0 ? places : [],
   }));
   let activeTab = $state('0');
   const noop = (): void => undefined;
@@ -99,6 +106,16 @@
         icon="star"
         iconOnly
         pressed={false}
+        onclick={noop}
+      />
+      <!-- A stored value changes; a reset warns on hover before its dialog asks. -->
+      <Button size="sm" label={text.buttons.change} icon="pencil" onclick={noop} />
+      <Button
+        size="sm"
+        label={text.buttons.reset}
+        icon="rotate-ccw"
+        warns
+        testid="button-warns"
         onclick={noop}
       />
     </div>

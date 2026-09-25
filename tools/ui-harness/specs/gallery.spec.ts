@@ -50,6 +50,59 @@ test('score rings show their value; excluded and unscorable show no number', asy
   await expect(page.getByTestId('ring-unscorable-lg')).toHaveText('–');
 });
 
+test("a ring that waits: the reader's arc turns, the list's dashed track breathes", async ({
+  page,
+}) => {
+  await open(page, '?gallery');
+  const wait = (id: string): Promise<{ name: string; dashes: string }> =>
+    page.getByTestId(id).evaluate((ring) => {
+      const layer = ring.querySelector('.wait')!;
+      return {
+        name: getComputedStyle(layer).animationName,
+        dashes: getComputedStyle(layer.querySelector('circle')!).strokeDasharray,
+      };
+    });
+  expect((await wait('ring-pending-md')).name).toBe('spin');
+  // In the list no spinner shape stands still: a dashed full track, breathing.
+  const list = await wait('ring-pending-sm');
+  expect(list.name).toBe('breathe');
+  expect(list.dashes).toMatch(/^2\.5(px)?,? 2\.5(px)?$/);
+});
+
+test('the evidence of a reason is part of it: its wash and its click cover the line', async ({
+  page,
+}) => {
+  await open(page, '?gallery');
+  const reason = page.getByTestId('gallery-reasons').locator('button.reason').first();
+  const evidence = reason.getByTestId('evidence');
+  await evidence.scrollIntoViewIfNeeded();
+  await expect(evidence).toContainText('Konzerncontrolling');
+  // Under the words, on their axis, inside the reason's box.
+  const row = (await reason.boundingBox())!;
+  const line = (await evidence.boundingBox())!;
+  const words = (await reason.locator('.head > .label').boundingBox())!;
+  expect(line.y).toBeGreaterThan(words.y + words.height - 1);
+  expect(Math.abs(line.x - words.x)).toBeLessThan(1);
+  expect(line.y + line.height).toBeLessThanOrEqual(row.y + row.height);
+  // Hovering the evidence washes the whole reason.
+  await evidence.hover();
+  await expect(reason).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+});
+
+test('to check has one colour: the chip and the reason show the same navy', async ({ page }) => {
+  await open(page, '?gallery');
+  const section = page.getByTestId('gallery-reasons');
+  await section.scrollIntoViewIfNeeded();
+  const chip = await section
+    .locator('.chip.unknown .chip-icon')
+    .evaluate((node) => getComputedStyle(node).color);
+  const reason = await section
+    .locator('.reason.check .icon')
+    .first()
+    .evaluate((node) => getComputedStyle(node).color);
+  expect(chip).toBe(reason);
+});
+
 test('under reduced motion the rings jump to their value', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '?gallery');
@@ -123,6 +176,44 @@ test('job rows select on click and reorder without losing a row', async ({ page 
   await expect(rows.last()).toHaveAttribute('data-testid', first!);
 });
 
+test('a quiet button that resets warns on hover, like the trash ghost', async ({ page }) => {
+  await open(page, '?gallery');
+  const reset = page.getByTestId('button-warns');
+  await reset.scrollIntoViewIfNeeded();
+  const colour = (): Promise<string> => reset.evaluate((node) => getComputedStyle(node).color);
+  const rest = await colour();
+  await reset.hover();
+  await expect.poll(colour).not.toBe(rest);
+  const danger = await page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--danger-strong)';
+    document.body.append(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  });
+  await expect.poll(colour).toBe(danger);
+});
+
+test('the hairline under a row spans it, or insets where the list reaches past its column', async ({
+  page,
+}) => {
+  await open(page, '?gallery');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const rule = (): Promise<{ left: string; right: string; height: string }> =>
+    list
+      .locator('.row')
+      .first()
+      .evaluate((row) => {
+        const style = getComputedStyle(row, '::after');
+        return { left: style.left, right: style.right, height: style.height };
+      });
+  expect(await rule()).toEqual({ left: '0px', right: '0px', height: '1px' });
+  await list.evaluate((node) => node.style.setProperty('--row-rule-inset', 'var(--pane-padding)'));
+  expect(await rule()).toEqual({ left: '16px', right: '16px', height: '1px' });
+});
+
 test('job rows: tools, status, aged date, provisional ring, no dot on excluded', async ({
   page,
 }) => {
@@ -131,11 +222,11 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   await list.scrollIntoViewIfNeeded();
   const job = (id: string) =>
     list.locator('.job', { has: page.locator(`[data-testid="job-row-${id}"]`) });
-  // Archive and bring back, left click; the button names its action.
-  const archive = page.getByTestId('archive-freelancermap-1001');
-  await expect(archive).toHaveAttribute('aria-label', 'Archivieren');
-  await archive.click();
-  await expect(archive).toHaveAttribute('aria-label', 'Wiederherstellen');
+  // The archive tool names its action (a click moves the job out, see the collapse test).
+  await expect(page.getByTestId('archive-freelancermap-1001')).toHaveAttribute(
+    'aria-label',
+    'Archivieren',
+  );
   // No stage badges: a favourite has only its star.
   await expect(job('linkedin-1002')).not.toContainText('Beworben');
   await expect(job('freelancermap-1001')).not.toContainText('Gemerkt');
@@ -145,6 +236,75 @@ test('job rows: tools, status, aged date, provisional ring, no dot on excluded',
   // A score from a teaser is provisional (dashed); an excluded unread row has no dot.
   await expect(job('freelance-1003').locator('.ring')).toHaveClass(/provisional/);
   await expect(job('freelancermap-1006').locator('.dot')).toHaveCount(0);
+});
+
+test('a row: the date ends the title line, the tools take its place on hover', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const job = list.locator('.job', { has: page.getByTestId('job-row-freelancermap-1001') });
+  const box = async (selector: string) => (await job.locator(selector).first().boundingBox())!;
+  const title = await box('.title');
+  const date = await box('.date');
+  const mark = await box('.mark');
+  // The date on the first title line, the small pinned star just left of it.
+  expect(Math.abs(date.y + date.height / 2 - (title.y + 10))).toBeLessThan(2);
+  expect(mark.x + mark.width).toBeLessThanOrEqual(date.x);
+  expect(mark.width).toBe(16);
+  // Company, place and facts use the full width, up to the date's right edge.
+  const meta = await box('.meta');
+  const foot = await box('.foot');
+  expect(meta.x + meta.width).toBeGreaterThan(date.x + date.width - 1);
+  expect(foot.x + foot.width).toBeGreaterThan(date.x + date.width - 1);
+  // On hover the date and its star give way to the tools, which sit over them.
+  const end = job.locator('.end');
+  const tools = job.locator('.tools');
+  await expect(end).toHaveCSS('opacity', '1');
+  await job.hover({ position: { x: 120, y: 30 } });
+  await expect(end).toHaveCSS('opacity', '0');
+  await expect(tools.locator('.tool').last()).toHaveCSS('opacity', '1');
+  const over = (await tools.boundingBox())!;
+  expect(Math.abs(over.x + over.width - (date.x + date.width))).toBeLessThan(1);
+  expect(Math.abs(over.y + over.height / 2 - (date.y + date.height / 2))).toBeLessThan(2);
+  // The title never runs under them: its line keeps their room free.
+  expect(title.x + title.width).toBeLessThanOrEqual(over.x);
+  // From the keyboard: Tab from the row to its first tool shows the tools, too.
+  await page.mouse.move(0, 0);
+  await expect(end).toHaveCSS('opacity', '1');
+  await page.getByTestId('job-row-freelancermap-1001').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('archive-freelancermap-1001')).toBeFocused();
+  await expect(end).toHaveCSS('opacity', '0');
+  await expect(tools.locator('.tool').first()).toHaveCSS('opacity', '1');
+});
+
+test('the facts of a row drop out whole, a value is never cut', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const facts = page.getByTestId('job-row-freelancermap-1001').getByTestId('row-facts');
+  const fit = (): Promise<{ shown: string[]; hidden: string[]; cut: string[] }> =>
+    facts.evaluate((line) => {
+      const edge = line.getBoundingClientRect();
+      const out = { shown: [] as string[], hidden: [] as string[], cut: [] as string[] };
+      for (const fact of line.querySelectorAll<HTMLElement>('.fact')) {
+        const box = fact.getBoundingClientRect();
+        if (box.top >= edge.bottom - 0.5) out.hidden.push(fact.textContent ?? '');
+        else out.shown.push(fact.textContent ?? '');
+        if (box.top < edge.bottom - 0.5 && box.right > edge.right + 0.5) out.cut.push('right');
+        if (fact.scrollWidth > fact.clientWidth) out.cut.push(fact.textContent ?? '');
+      }
+      return out;
+    });
+  const wide = await fit();
+  expect(wide.shown).toHaveLength(4);
+  expect(wide.cut).toEqual([]);
+  // A narrow list: the facts at the end drop out whole, in the order of their weight.
+  await list.evaluate((node) => node.style.setProperty('width', '330px'));
+  const narrow = await fit();
+  expect(narrow.hidden.length).toBeGreaterThan(0);
+  expect(narrow.shown[0]).toBe('ab sofort');
+  expect(narrow.cut).toEqual([]);
 });
 
 test('a long row title takes two lines, the row grows by one line, the rest is a tooltip', async ({
@@ -206,6 +366,137 @@ test('the column handle: left drag resizes within min and max, double click rese
   await page.reload();
   await handle.scrollIntoViewIfNeeded();
   await expect.poll(width).toBe(360);
+});
+
+test('nav sub-entries: quieter, indented, the one pill covers the active one (also in the rail)', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const section = page.getByTestId('gallery-navigation');
+  await section.scrollIntoViewIfNeeded();
+  for (const nav of [section.locator('nav').first(), section.locator('nav.collapsed')]) {
+    for (const id of ['gnav-trash', 'gnav-archive', 'gnav-0']) {
+      await nav.getByTestId(id).click();
+      await expect(nav.getByTestId(id)).toHaveAttribute('aria-current', 'page');
+      // The pill has slid onto the entry (it is exactly as high and at the same top).
+      await expect
+        .poll(async () => {
+          const pill = (await nav.locator('.indicator').boundingBox())!;
+          const entry = (await nav.getByTestId(id).boundingBox())!;
+          return [Math.round(pill.y - entry.y), Math.round(pill.height - entry.height)];
+        })
+        .toEqual([0, 0]);
+    }
+  }
+  // Collapsed, a sub-entry is an icon with its name as the accessible name (and tooltip).
+  await expect(section.locator('nav.collapsed').getByTestId('gnav-trash')).toHaveAttribute(
+    'aria-label',
+    'Papierkorb',
+  );
+  // Expanded, it is indented under the parent's label and quieter (13 px).
+  const [parent, sub] = await Promise.all(
+    ['gnav-0', 'gnav-archive'].map((id) =>
+      section.locator('nav').first().getByTestId(id).locator('.glyph').boundingBox(),
+    ),
+  );
+  expect(sub!.x - parent!.x).toBeGreaterThan(20);
+  await expect(section.locator('nav').first().getByTestId('gnav-archive')).toHaveCSS(
+    'font-size',
+    '13px',
+  );
+});
+
+test('a menu button opens the OS menu of choices below it; a choice applies', async ({ page }) => {
+  await open(page, '?gallery&platform=windows');
+  const button = page.getByTestId('menu-order');
+  await button.scrollIntoViewIfNeeded();
+  await expect(button).toHaveText('Nach Passung');
+  await expect(button).toHaveAttribute('aria-haspopup', 'menu');
+  await button.click();
+  const shown = await page.evaluate(() => ({
+    menu: window.__harness.menus.at(-1),
+    at: window.__harness.menuAt,
+  }));
+  expect(shown.menu!.map((entry) => [entry.text, entry.checked])).toEqual([
+    ['Nach Passung', true],
+    ['Nach Datum', false],
+  ]);
+  // Right below the button, on its left edge.
+  const box = (await button.boundingBox())!;
+  expect(Math.round(shown.at!.x)).toBe(Math.round(box.x));
+  expect(shown.at!.y).toBeGreaterThanOrEqual(box.y + box.height);
+  await page.evaluate(() => window.__harness.pick(1));
+  await expect(button).toHaveText('Nach Datum');
+  // Disabled: the tooltip says why, no menu opens.
+  const count = await page.evaluate(() => window.__harness.menus.length);
+  const off = page.getByTestId('menu-order-off');
+  await off.click({ force: true });
+  expect(await page.evaluate(() => window.__harness.menus.length)).toBe(count);
+  await page.mouse.move(0, 0);
+  await off.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Ohne Profil nur nach Datum.');
+});
+
+for (const [os, toggle] of [
+  ['windows', 'Control'],
+  ['macos', 'Meta'],
+] as const) {
+  test(`a mail app's selection on ${os}: toggle, range, the bar, Esc clears`, async ({ page }) => {
+    await open(page, `?gallery&platform=${os}`);
+    const list = page.getByTestId('job-list');
+    await list.scrollIntoViewIfNeeded();
+    const row = (id: string) => page.getByTestId(`job-row-freelancermap-${id}`);
+    const bar = page.getByTestId('selection-bar');
+    await expect(bar).toHaveCount(0);
+    await page.getByTestId('job-row-linkedin-1002').click({ modifiers: [toggle] });
+    await expect(page.getByTestId('selection-count')).toHaveText('2 ausgewählt');
+    await expect(row('1001')).toHaveAttribute('aria-current', 'true');
+    // Shift+click: the range from the last toggled row (1002) to 1005.
+    await row('1005').click({ modifiers: ['Shift'] });
+    await expect(page.getByTestId('selection-count')).toHaveText('4 ausgewählt');
+    await expect(row('1001')).not.toHaveAttribute('aria-current', 'true');
+    await expect(bar.getByTestId('bulk-archive')).toHaveAttribute('aria-label', 'Archivieren');
+    // Esc (outside fields) clears the selection; the bar goes.
+    await page.keyboard.press('Escape');
+    await expect(bar).toHaveCount(0);
+    // A plain click selects one job again.
+    await row('1004').click();
+    await expect(list.locator('[aria-current="true"]')).toHaveCount(1);
+  });
+}
+
+test('moving jobs out: the row folds away, one toast merges them, one undo brings all back', async ({
+  page,
+}) => {
+  await open(page, '?gallery&platform=windows');
+  const list = page.getByTestId('job-list');
+  await list.scrollIntoViewIfNeeded();
+  const rows = list.locator('[data-testid^="job-row-"]');
+  await expect(rows).toHaveCount(6);
+  // The row folds away: its wrapper animates its height while the rows below follow.
+  const folding = await page.evaluate(async () => {
+    const button = document.querySelector<HTMLElement>(
+      '[data-testid="archive-freelancermap-1004"]',
+    )!;
+    const wrapper = button.closest('.job')!.parentElement!;
+    button.click();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    return wrapper.getAnimations().length;
+  });
+  expect(folding).toBeGreaterThan(0);
+  await expect(rows).toHaveCount(5);
+  const toast = page.getByTestId('toast');
+  await expect(toast).toContainText('„SAP FI Berater');
+  // A second one within two seconds joins the same toast.
+  await page.getByTestId('archive-freelancermap-1005').click({ force: true });
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toContainText('2 Jobs archiviert.');
+  await expect(rows).toHaveCount(4);
+  // One undo brings both back, in their places.
+  await toast.getByTestId('toast-action').click();
+  await expect(rows).toHaveCount(6);
+  await expect(rows.nth(3)).toHaveAttribute('data-testid', 'job-row-freelancermap-1004');
+  await expect(rows.nth(4)).toHaveAttribute('data-testid', 'job-row-freelancermap-1005');
 });
 
 test('a switch row toggles from its text; an empty tile is no filter', async ({ page }) => {
