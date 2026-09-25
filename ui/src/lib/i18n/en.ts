@@ -769,7 +769,7 @@ export const en: Catalog = {
     },
     ofTotal: (total: number) => `of ${n(total)}`,
     newPill: (value: number) => `${n(value)} new`,
-    topPill: (value: number) => count(value, 'fits well', 'fit well'),
+    topPill: (value: number) => `${n(value)} high match`,
     resumesIn: (ms: number) => `Resumes in ${formatCountdown(ms)}`,
     kind: {
       fetch: 'Fetch',

@@ -801,7 +801,7 @@ export const de = {
     /** After the rolling number of a step counter: "von 7". */
     ofTotal: (total: number) => `von ${n(total)}`,
     newPill: (value: number) => `${n(value)} neu`,
-    topPill: (value: number) => count(value, 'passt gut', 'passen gut'),
+    topPill: (value: number) => `${n(value)} mit hoher Passung`,
     resumesIn: (ms: number) => `Weiter in ${formatCountdown(ms)}`,
     kind: {
       fetch: 'Abruf',
