@@ -79,7 +79,7 @@ export const text = {
     places: ['Archiv', 'Papierkorb'],
     toast: 'Toast zeigen',
     toastText: 'Gespeichert.',
-    status: 'Zuletzt 08:30',
+    status: 'Abgerufen 08:30',
     running: 'Holt Details',
   },
   surfaces: {

@@ -74,20 +74,28 @@
     return jobs.facet === 'trash' ? 'trash' : 'jobs';
   });
 
+  /**
+   * The view first: an unsaved Profil may keep it and ask. The place changes only with the
+   * switch (at once, or once the question is answered), and a click on the place that is
+   * already open changes nothing (no reload, like Jobs).
+   */
   function choose(id: NavId): void {
+    const from = navigation.current;
+    const view: ViewId = id === 'archive' || id === 'trash' ? 'jobs' : id;
+    navigation.go(view, false, () => arrive(id, from));
+  }
+
+  function arrive(id: NavId, from: ViewId): void {
     if (id === 'archive' || id === 'trash') {
-      jobs.setFacet(id === 'archive' ? 'archived' : 'trash');
-      navigation.go('jobs');
+      const facet = id === 'archive' ? 'archived' : 'trash';
+      if (jobs.facet !== facet) jobs.setFacet(facet);
       return;
     }
+    if (id !== 'jobs') return;
     // Jobs from the archive or the trash: back to the inbox, on its last tab.
-    if (id === 'jobs' && (jobs.facet === 'archived' || jobs.facet === 'trash')) {
-      jobs.setFacet(jobs.inboxFacet);
-    } else if (id === 'jobs' && navigation.current !== 'jobs' && jobs.facet === 'new') {
-      // Back from another view: Neu is entered again (the jobs read meanwhile leave it).
-      void jobs.load(true);
-    }
-    navigation.go(id);
+    if (jobs.facet === 'archived' || jobs.facet === 'trash') jobs.setFacet(jobs.inboxFacet);
+    // Back from another view: Neu is entered again (the jobs read meanwhile leave it).
+    else if (from !== 'jobs' && jobs.facet === 'new') void jobs.load(true);
   }
 
   function openRun(): void {
