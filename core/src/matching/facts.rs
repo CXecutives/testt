@@ -4,6 +4,7 @@
 //! fully remote) · day rate (EUR, upper bound, hourly x 8, not for permanent roles) ·
 //! availability (never decided: a gap or a vague start is a check).
 
+use std::collections::HashMap;
 use std::ops::Range;
 
 use std::sync::LazyLock;
@@ -488,13 +489,36 @@ pub(crate) fn anue(job: &JobFacts<'_>, segments: &[Segment]) -> Vec<Finding> {
 }
 
 /// Countries named in a folded text (names and cities).
+/// A country or city name with its country code.
+type Place = (&'static str, &'static str);
+
+/// Country and city names by their first word. A name stands in a text only where the
+/// text has that first word as a word of its own (the names start with a letter, and a
+/// match needs word boundaries), so a text is looked up word by word.
+static PLACES_BY_FIRST_WORD: LazyLock<HashMap<&'static str, Vec<Place>>> = LazyLock::new(|| {
+    let mut index: HashMap<&'static str, Vec<Place>> = HashMap::new();
+    for &(name, code) in lex::COUNTRIES.iter().chain(lex::CITIES) {
+        let first = name
+            .split(|c: char| !c.is_alphanumeric())
+            .next()
+            .unwrap_or(name);
+        index.entry(first).or_default().push((name, code));
+    }
+    index
+});
+
 fn countries_in(folded: &str) -> Vec<&'static str> {
-    let mut found: Vec<&'static str> = lex::COUNTRIES
-        .iter()
-        .chain(lex::CITIES)
-        .filter(|(name, _)| contains_word(folded, name))
-        .map(|&(_, code)| code)
-        .collect();
+    let mut found: Vec<&'static str> = Vec::new();
+    for word in folded.split(|c: char| !c.is_alphanumeric()) {
+        if let Some(names) = PLACES_BY_FIRST_WORD.get(word) {
+            found.extend(
+                names
+                    .iter()
+                    .filter(|(name, _)| contains_word(folded, name))
+                    .map(|&(_, code)| code),
+            );
+        }
+    }
     found.sort_unstable();
     found.dedup();
     found
@@ -662,11 +686,15 @@ pub(crate) fn rate_in(folded: &str) -> Option<Rate> {
         .max_by_key(Rate::per_day)
 }
 
-/// A currency next to a time unit (`110 EUR/h`, `EUR pro Stunde`, `CHF/Tag`).
+/// A currency next to a time unit (`110 EUR/h`, `EUR pro Stunde`, `CHF/Tag`). Only a text
+/// with one of `CURRENCY_MARKS` can match (the regex is checked after them).
 static CURRENCY_PER_TIME: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?:€|\beur\b|\beuro\b|\bchf\b|\busd\b|\bgbp\b)\s*(?:/|\bpro\b|\bper\b|\bje\b)\s*(?:h\b|std\b|stunde|tag\b|day\b|hour|pt\b|mt\b)")
         .expect("currency per time")
 });
+
+/// Every currency of `CURRENCY_PER_TIME` contains one of these.
+const CURRENCY_MARKS: &[&str] = &["€", "eur", "chf", "usd", "gbp"];
 
 /// Can the engine read a rate from this text (a page's rate field)? A bare number is none:
 /// without a unit it is no day or hourly rate.
@@ -676,9 +704,9 @@ pub(crate) fn readable_rate(text: &str) -> bool {
 
 pub(crate) fn parse_rate(folded: &str) -> Option<Rate> {
     let rate_word = lex::RATE_WORDS.iter().any(|w| folded.contains(w));
-    if !(rate_word || CURRENCY_PER_TIME.is_match(folded))
-        || lex::SALARY_WORDS.iter().any(|w| folded.contains(w))
-    {
+    let currency_per_time =
+        || CURRENCY_MARKS.iter().any(|m| folded.contains(m)) && CURRENCY_PER_TIME.is_match(folded);
+    if !(rate_word || currency_per_time()) || lex::SALARY_WORDS.iter().any(|w| folded.contains(w)) {
         return None;
     }
     let mut amounts = Vec::new();

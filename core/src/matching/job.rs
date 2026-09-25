@@ -315,21 +315,24 @@ pub(crate) fn read(text: &str, vocab: &Vocab) -> JobDoc {
         let mut nice = kind == ReqKind::Nice || closing;
         // One soft part among parts without a known skill makes all of them soft
         // (`verbindlich, pragmatisch und mit Freude am Detail`).
-        let soft_line = parts
+        // Each part classified once.
+        let classes: Vec<Class> = parts
             .iter()
-            .any(|(r, _)| classify(&phrase[r.clone()], level, vocab) == Class::Soft)
-            && parts.iter().all(|(r, _)| {
-                let part = &phrase[r.clone()];
-                classify(part, level, vocab) == Class::Soft || !known_skill(part)
-            });
-        for (span, alternatives) in parts {
+            .map(|(r, _)| classify(&phrase[r.clone()], level, vocab))
+            .collect();
+        let soft_line = classes.contains(&Class::Soft)
+            && parts
+                .iter()
+                .zip(&classes)
+                .all(|((r, _), class)| *class == Class::Soft || !known_skill(&phrase[r.clone()]));
+        for ((span, alternatives), class) in parts.into_iter().zip(classes) {
             let whole = &phrase[span.clone()];
             if atoms::atoms(whole, vocab).is_empty() || not_needed(whole) || noise_item(whole) {
                 continue;
             }
             nice |= nice_cue(whole);
             let kind = if nice { ReqKind::Nice } else { kind };
-            let class = match classify(whole, level, vocab) {
+            let class = match class {
                 Class::Skill if soft_line => Class::Soft,
                 class => class,
             };
