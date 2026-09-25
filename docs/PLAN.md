@@ -309,6 +309,19 @@ macOS: Apple Silicon only (M1 and newer, since 2020; user 2026-09-24), ad-hoc si
       Run 9 on the test mailbox, fixed: portal promo/onboarding mails are no alerts (no false "layout changed?"),
       a collection mail never takes another job's title as company or location, a stored title-like pair gives
       way, a new location makes the score pending (fixtures `promo_mails/`, `forward_composite.eml`).
+- [x] Scraping review, offline only (2026-09-25 night, fixtures and unit tests, no live request): the scan reads
+      All Mail (`\All`, drafts and own sent mails left out); only alert mails bring job links in (activity mails,
+      InMails and newsletters do not); every alert subject is a head candidate; plain-text link forms of Outlook and
+      Apple Mail (`MAIL_PARSER_VERSION` 3, read-back per portal); `?currentJobId=` links. Pages: walls and checks
+      served with 200 block at once (LinkedIn, freelancermap); LinkedIn's four criteria and `<br><br>` paragraphs
+      (anonymised skeleton fixtures in `core/tests/fixtures/pages/`); freelancermap's real island (start, duration,
+      skills, contract type, country); freelance.de end markers as headings only, the exact description heading,
+      the EXPERT notice only in place of the description, long guest teasers, rate and more head labels, a status
+      hint without `responseStatus`, redirects to a sign-in. Policy: every run's first layout page costs an attempt
+      and retries rotate; per-job verdicts never feed the breaker; broken settings switch no portal on; closed ads
+      marked and never a TXT; jobs beyond the 30-day window say "Details auf Anfrage"; teasers and slug links take
+      part in duplicates, archived or closed jobs are no original. Open: the WebKit status path wants the
+      macos-latest probe, one guest page of freelance.de for a real-structure fixture at the next allowed live run.
 - [ ] Live canary per portal (one counted page via `admit`)
 - [ ] Windows installer + first run + screenshots; macOS CI screenshots + dmg probe + WebKit scenarios
 - [ ] Performance (start time, long tasks at 2000 jobs), contrast
