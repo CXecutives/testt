@@ -24,6 +24,8 @@ const ALLOWLIST_PATHS: &[&str] = &[
     // The German scoring rubric of the Claude check and the skill (the same text twice).
     "core/src/export/ai_rubric.de.md",
     "tools/job-matching-skill/rubric.de.md",
+    // The German AI prompts (external contract; their Markdown lines can start with `*`).
+    "core/src/export/ai_prompt/de.rs",
     // Real or invented German mail/page/profile data, and recorded output.
     "core/tests/fixtures/",
     "core/tests/snapshots/",
