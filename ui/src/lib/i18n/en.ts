@@ -781,6 +781,7 @@ export const en: Catalog = {
     done: 'Fetch done',
     rescored: 'Scored again',
     nothingNew: 'Nothing new since the last fetch.',
+    showNew: 'Show new jobs',
     cancelled: 'Fetch cancelled',
     failed: 'Fetch failed',
     details: {

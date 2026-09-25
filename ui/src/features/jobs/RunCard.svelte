@@ -10,8 +10,9 @@
   one, a check that draws itself when a step finishes while the card is on screen, and
   counters that roll; then every limit or pause with its reason and end.
   finished (the header cross-fades from the running one): the outcome, its time and, for a
-  fetch, the pills "n neu" and "n passen gut" (the run's own numbers from the backend;
-  nothing when there are none, the note says it), a details run what it got, a rescore only
+  fetch, the pills "n neu" and "n mit hoher Passung" (the run's own numbers from the backend;
+  nothing when there are none, the note says it; seen in Archiv or Papierkorb, a quiet
+  "Neue Jobs zeigen" leads to them), a details run what it got, a rescore only
   that it is done; then what went wrong with a fitting action, a file the export could not
   write (once), the history with copy. The overview file and the folder have their one
   place in the day overview. A rescore shows here only when it failed or could not write
@@ -44,6 +45,7 @@
     outcomeText,
     run,
   } from '$lib/state/run.svelte';
+  import { jobs } from '$lib/state/jobs.svelte';
   import { toasts } from '$lib/state/toasts.svelte';
   import { copyText } from './prompt';
 
@@ -55,6 +57,8 @@
     summary?.perPortal.reduce((total, p) => total + p[key], 0) ?? 0;
   // A fetch counts what it brought (new, not excluded) and how many of those fit well.
   const newJobs = $derived(summary?.newJobs?.count ?? 0);
+  /** A fetch that brought new jobs, seen in Archiv or Papierkorb: the card leads to them. */
+  const elsewhere = $derived(jobs.facet === 'archived' || jobs.facet === 'trash');
   const topJobs = $derived(summary?.newJobs?.high ?? 0);
   const skipped = $derived(sum('skipped'));
   const failure = $derived(summary?.outcome.kind === 'failed' ? summary.outcome.error : null);
@@ -229,6 +233,18 @@
               {/if}
             {/if}
           </p>
+          {#if fetchRun && newJobs > 0 && elsewhere}
+            <span class="show-new">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="arrow-right"
+                label={t.run.showNew}
+                testid="run-show-new"
+                onclick={() => jobs.setFacet('new')}
+              />
+            </span>
+          {/if}
           {#if failure}
             <Notice
               tone="danger"
@@ -371,6 +387,12 @@
     font-weight: var(--weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* The way to the new jobs: a quiet button whose text starts on the card's edge. */
+  .show-new {
+    display: flex;
+    margin-left: calc(-1 * var(--ghost-inset));
   }
 
   /* The countdown of a pause: a soft navy pill; tabular digits, so the ticking stays still. */

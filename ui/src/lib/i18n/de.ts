@@ -811,6 +811,8 @@ export const de = {
     done: 'Abruf fertig',
     rescored: 'Neu bewertet',
     nothingNew: 'Nichts Neues seit dem letzten Abruf.',
+    /** On the card in Archiv or Papierkorb: the way to the new jobs of the fetch. */
+    showNew: 'Neue Jobs zeigen',
     cancelled: 'Abruf abgebrochen',
     failed: 'Abruf fehlgeschlagen',
     /** A details run (the reader's "Details holen"): its title, what it did not get. */

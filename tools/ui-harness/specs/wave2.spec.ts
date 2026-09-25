@@ -334,3 +334,19 @@ test('with the focus nowhere the arrows, Home and End scroll Profil too', async 
   await page.keyboard.press('Home');
   await expect.poll(top).toBe(0);
 });
+
+test('a fetch started from the Archiv leads to its new jobs', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('nav-archive').click();
+  await page.getByTestId('fetch').click();
+  await runFinished(page);
+  const show = page.getByTestId('run-show-new');
+  if (!(await show.isVisible())) await page.getByTestId('run-toggle').click();
+  await show.click();
+  await expect(page.getByTestId('facet').getByRole('radio', { name: /Neu/ })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  // In Jobs the list itself shows the new jobs: no such button.
+  await expect(page.getByTestId('run-show-new')).toHaveCount(0);
+});
