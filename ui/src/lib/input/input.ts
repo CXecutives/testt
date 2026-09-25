@@ -24,8 +24,9 @@
 //   Ctrl/Cmd+C/V/X/A/Z, redo) work. Enter saves and Esc cancels a form or dialog.
 // - a list with a reader (the Jobs view, `listKeys`) moves like a mail app: outside a field
 //   ArrowUp/ArrowDown open the previous/next item, Home/End the first/last, Esc closes the
-//   open item (in the search field Esc first clears the search), and Ctrl+F (Cmd+F on
-//   macOS) goes to its search field from anywhere.
+//   open item (in the search field Esc first clears the search), Space on the open item's
+//   row pages through the reader (`reader`), and Ctrl+F (Cmd+F on macOS) goes to its search
+//   field from anywhere.
 //   Outside fields Ctrl+Z (Cmd+Z on macOS) takes back the last list action while it can
 //   still be undone (`onUndo`), Ctrl+B (Cmd+B on macOS) folds the sidebar to its icons and
 //   back (`onSidebarKey`; in a field it does nothing), and PageUp, PageDown, Space and
@@ -275,6 +276,9 @@ export interface ListKeyHandlers {
   close: () => void;
   /** Ctrl+F (Cmd+F on macOS): the search field. */
   find: () => void;
+  /** The scroll area of the open item: Space and Shift+Space on the open item's row page
+   *  through it, like in a mail app (pressing the row again would change nothing). */
+  reader?: () => HTMLElement | null;
 }
 
 const lists = new Map<HTMLElement, ListKeyHandlers>();
@@ -584,6 +588,7 @@ function onKeyDown(event: KeyboardEvent): void {
     if (closest(event.target, LIST) !== null) dispatchListKey(event);
     return;
   }
+  if (modal === null && pagesReader(event)) return;
   if (isFocusMove(event) || pressesControl(event) || dispatchRadioKey(event)) return;
   event.preventDefault();
   if (isUndo(event)) {
@@ -627,11 +632,27 @@ function scrollsPage(event: KeyboardEvent): boolean {
   const nowhere = event.target === document.body || event.target === document.documentElement;
   const pane = scrollAreaOf(event.target) ?? (nowhere && lastPane?.isConnected ? lastPane : null);
   if (pane === null) return false;
+  scrollByPage(pane, down);
+  return true;
+}
+
+function scrollByPage(pane: HTMLElement, down: boolean): void {
   const smooth = document.documentElement.dataset.motion !== 'reduce';
   pane.scrollBy({
     top: (down ? 1 : -1) * pane.clientHeight * PAGE_SHARE,
     behavior: smooth ? 'smooth' : 'auto',
   });
+}
+
+/** Space or Shift+Space on the open item's row: its reader scrolls a page. */
+function pagesReader(event: KeyboardEvent): boolean {
+  if (event.key !== ' ' || hasModifier(event)) return false;
+  const row = closest(event.target, '[aria-current="true"]');
+  if (row === null || closest(row, LIST) === null) return false;
+  const pane = listFor(event.target)?.reader?.() ?? null;
+  if (pane === null || !pane.isConnected) return false;
+  event.preventDefault();
+  scrollByPage(pane, !event.shiftKey);
   return true;
 }
 
