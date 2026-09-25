@@ -725,8 +725,19 @@ const UNREADABLE_PROFILE: ProfileInfo = {
   },
 };
 
-/** The request for an AI (the real text lives in core/src/profile/prompt.rs). */
-const PROMPT = 'Erstelle aus meinem angehängten Lebenslauf ein Beraterprofil.';
+/** The prompts for an AI, for a new profile and for an update of the stored one (the real
+ *  texts live in core/src/profile/prompt.rs). */
+const PROMPT =
+  'Bitte erstelle aus meinem angehängten Lebenslauf das Profil für meine Job-Alert-App.';
+const PROMPT_UPDATE =
+  'Bitte aktualisiere das Profil meiner Job-Alert-App mit meinem angehängten Lebenslauf.';
+
+/** The stored profile's JSON an update saves into, with the answer's career stations. */
+function updateSource(answer: Record<string, unknown>): string {
+  const stored = { name: 'Erika Beispiel', harte_kriterien: { min_tagessatz: 1100 } };
+  const stations = answer.stationen;
+  return JSON.stringify(stations === undefined ? stored : { ...stored, stationen: stations });
+}
 
 type Json = Record<string, unknown>;
 const texts = (value: unknown, key?: string): string[] =>
@@ -749,15 +760,18 @@ const LEVELS: Record<string, ProfileForm['languages'][number]['level']> = {
   muttersprache: 'native',
 };
 
-/** Claude's answer as the backend reads it: the JSON (also in a code block) into the form. */
-function answerDraft(answer: string): ProfileDraft {
+/** An AI's answer as the backend reads it: the JSON (also in a code block) into the form; for
+ *  an update the draft saves into the stored profile. */
+function answerDraft(answer: string, update = false): ProfileDraft {
   const fenced = /```[a-z]*\s*([\s\S]*?)```/.exec(answer)?.[1];
   const text = fenced ?? answer.slice(answer.indexOf('{'), answer.lastIndexOf('}') + 1);
   let data: Json;
   try {
     data = JSON.parse(text) as Json;
   } catch {
-    throw fail('invalid', { reason: 'profileAnswer' });
+    // An object that never closes: the answer breaks off.
+    const open = answer.split('{').length - answer.split('}').length;
+    throw fail('invalid', { reason: open > 0 ? 'profileAnswerCut' : 'profileAnswer' });
   }
   const list = (key: string): unknown[] =>
     Array.isArray(data[key]) ? (data[key] as unknown[]) : [];
@@ -808,7 +822,8 @@ function answerDraft(answer: string): ProfileDraft {
     quality === 'thin'
       ? [{ code: 'fewCompetences', params: { count: form.competences.length } }]
       : [];
-  return { form, source: text, quality, understood: understoodOf(form, warnings) };
+  const source = update ? updateSource(data) : text;
+  return { form, source, quality, understood: understoodOf(form, warnings) };
 }
 
 /** The domain packs the engine would switch on for a form (a rough stand-in: words of the
@@ -1961,8 +1976,8 @@ const handlers: Handlers = {
     return promptTopOf(limit);
   },
   pick_profile: () => structuredClone(params.get('file') === 'focus' ? FOCUS_DRAFT : FILE_DRAFT),
-  parse_profile: ({ text }) => answerDraft(text),
-  profile_prompt: () => PROMPT,
+  parse_profile: ({ text, update }) => answerDraft(text, update),
+  profile_prompt: ({ update }) => (update && state.profile !== null ? PROMPT_UPDATE : PROMPT),
   save_profile: ({ save }) => {
     const after = save.after;
     const refuse = (field: string, row: number | null = null): never => {

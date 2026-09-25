@@ -716,6 +716,7 @@ const ANSWER = [
       sprachen: [{ sprache: 'Englisch', niveau: 'C1' }],
       alleinstellungsmerkmale: [],
       keywords: ['IFRS'],
+      stationen: [{ zeitraum: '01/2020 bis heute', rolle: 'CFO', schwerpunkte: ['Treasury'] }],
     },
     null,
     2,
@@ -743,7 +744,7 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
   );
   await expect(page.getByTestId('paste-prompt')).toHaveCount(0);
   await page.getByTestId('paste-preview').getByRole('button', { name: 'Prompt ansehen' }).click();
-  await expect(page.getByTestId('paste-prompt')).toContainText('Lebenslauf');
+  await expect(page.getByTestId('paste-prompt')).toContainText('Bitte erstelle');
   await expect(card).toContainText('Füge ihn in eine KI ein und hänge den Lebenslauf an.');
   // The same words as the rest of the app: KI and Prompt, never Claude or Anfrage.
   await expect(card).not.toContainText('Claude');
@@ -752,21 +753,31 @@ test('from a CV: the request is copied, the pasted answer fills the form', async
     await expect(page.getByTestId('paste-copied')).toContainText('Der Prompt ist kopiert.');
     await expect(page.getByTestId('paste-copy')).toHaveText('Erneut kopieren');
     const copied = await page.evaluate(() => navigator.clipboard.readText());
-    expect(copied).toContain('Lebenslauf');
+    expect(copied).toContain('Bitte erstelle');
   }
+  expect((await calls(page, 'profile_prompt')).map((call) => call[1])).toContainEqual({
+    update: false,
+  });
   const take = page.getByTestId('paste-take');
   await expect(take).toHaveAttribute('aria-disabled', 'true');
   await expect(card).toContainText('Antwort der KI');
   await page.getByTestId('paste-answer').fill('Das kann ich leider nicht.');
   await take.click();
   await expect(card).toContainText('In der Antwort steht kein Profil.');
+  // An answer the AI broke off says so.
+  await page.getByTestId('paste-answer').fill(ANSWER.slice(0, 200));
+  await take.click();
+  await expect(card).toContainText('Die Antwort bricht mitten im Profil ab.');
   await page.getByTestId('paste-answer').fill(ANSWER);
   await take.click();
   await expect(page.getByTestId('profile-name')).toHaveText('Profil aus dem Lebenslauf');
   await expect(page.getByTestId('profile-name-field')).toHaveValue('Carla Exempel');
   await expect(page.getByTestId('competence-name')).toHaveCount(2);
   await expect(chips(page.getByTestId('focus'))).toHaveText(['Controlling']);
-  expect((await calls(page, 'parse_profile')).at(-1)![1]).toEqual({ text: ANSWER });
+  expect((await calls(page, 'parse_profile')).at(-1)![1]).toEqual({
+    text: ANSWER,
+    update: false,
+  });
   // Criteria are the user's own: the form asks for them, the answer brings none.
   await expect(page.getByTestId('profile-min-rate')).toHaveValue('');
   await save(page).click();
@@ -777,8 +788,15 @@ test('from a CV for the stored profile: the answer updates it for review', async
   await profile(page);
   await page.getByTestId('profile-update-cv').click();
   await expect(page.getByTestId('profile-paste')).toContainText('Aus Lebenslauf aktualisieren');
+  // The update prompt (it carries the stored profile), loaded with the profile.
+  await page.getByTestId('paste-preview').getByRole('button', { name: 'Prompt ansehen' }).click();
+  await expect(page.getByTestId('paste-prompt')).toContainText('Bitte aktualisiere');
+  expect((await calls(page, 'profile_prompt')).map((call) => call[1])).toContainEqual({
+    update: true,
+  });
   await page.getByTestId('paste-answer').fill(ANSWER);
   await page.getByTestId('paste-take').click();
+  expect((await calls(page, 'parse_profile')).at(-1)![1]).toEqual({ text: ANSWER, update: true });
   await expect(page.getByTestId('profile-name')).toHaveText(
     'Profil mit dem Lebenslauf aktualisiert',
   );
@@ -793,11 +811,16 @@ test('from a CV for the stored profile: the answer updates it for review', async
     'Controlling',
     'Konzernrechnungslegung nach IFRS',
   ]);
-  // Nothing is saved by itself; saving writes into the stored profile.
+  // Nothing is saved by itself; saving writes into the stored profile, which now has the
+  // career stations of the answer.
   expect(await calls(page, 'save_profile')).toHaveLength(0);
   await save(page).click();
   const sent = await lastSave(page);
-  expect(sent.source).toBeNull();
+  const source = JSON.parse(sent.source!) as Record<string, unknown>;
+  expect(source.harte_kriterien).toEqual({ min_tagessatz: 1100 });
+  expect(source.stationen).toEqual([
+    { zeitraum: '01/2020 bis heute', rolle: 'CFO', schwerpunkte: ['Treasury'] },
+  ]);
   const controlling = sent.after.competences.find((row) => row.name === 'Controlling')!;
   expect(controlling.years).toBe(28);
   expect(controlling.aliases).toEqual(['Financial Controlling', 'FP&A']);

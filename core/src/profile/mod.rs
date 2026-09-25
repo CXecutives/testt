@@ -3,9 +3,10 @@
 //! ([`form`]): saving merges the form into the file, so keys the form does not know, their
 //! values and the order of the keys stay; the previous file stays next to it as the one
 //! backup. Removing the profile makes it that backup, so it can be restored. A file or a
-//! pasted answer of an AI ([`prompt`]) fills the form first, the user reviews it and saves.
-//! No network: everything stays on the computer.
+//! pasted answer of an AI ([`prompt`], read by [`answer`]) fills the form first, the user
+//! reviews it and saves. No network: everything stays on the computer.
 
+mod answer;
 mod form;
 mod json;
 pub mod prompt;
@@ -18,6 +19,7 @@ use serde_json::Value;
 use crate::error::{Error, InvalidInput, Result};
 use crate::export::write_atomic;
 use crate::matching::{self, ProfileQuality, ProfileSummary};
+use crate::settings::Language;
 
 pub use form::{
     LanguageLevel, MAX_FOCUS, ProfileAvailability, ProfileCompetence, ProfileCriteria, ProfileForm,
@@ -149,80 +151,65 @@ pub fn draft_from_file(path: &Path) -> Result<Draft> {
     Ok(draft(&parse_doc(text)?, text))
 }
 
-/// The AI's answer to the [`prompt`]: the profile JSON in it (bare, inside a code block or
-/// between a sentence before and after), for review in the editor. What the answer leaves
-/// empty (`null`, `""`, `[]`, `{}`, the unfilled parts of the skeleton) is dropped, so no
-/// empty value becomes a criterion the app cannot read.
+/// The AI's answer to the [`prompt`] for a new profile: the profile JSON in it (bare, inside
+/// a code block or between sentences, repaired and in the skeleton's shape, see [`answer`]),
+/// for review in the editor. What the answer leaves empty is dropped, so no empty value
+/// becomes a criterion the app cannot read.
 pub fn draft_from_answer(answer: &str) -> std::result::Result<Draft, InvalidInput> {
-    answer_candidates(answer)
-        .into_iter()
-        .filter_map(|text| {
-            let mut doc = parse_doc(text).ok()?;
-            if !drop_empty(&mut doc) {
-                return Some(draft(&doc, text));
-            }
-            Some(draft(&doc, doc.to_pretty().trim_end()))
-        })
-        .find(|found| found.form.has_content())
-        .ok_or(InvalidInput::ProfileAnswer)
+    let (doc, source) = answer::read(answer)?;
+    Ok(draft(&doc, &source))
 }
 
-/// Removes empty values from objects and lists, deepest first (a list of empty objects goes
-/// as a whole); `true` if anything went.
-fn drop_empty(value: &mut Json) -> bool {
-    let empty = |value: &Json| match value {
-        Json::Null => true,
-        Json::String(text) => text.trim().is_empty(),
-        Json::Array(items) => items.is_empty(),
-        Json::Object(entries) => entries.is_empty(),
-        Json::Bool(_) | Json::Number(_) => false,
+/// The AI's answer to the update prompt: the answer's form (the editor merges it into the
+/// stored one, keeping the user's own settings) and, as the JSON the save goes into, the
+/// stored profile with the answer's career stations in place of its own (the CV is their
+/// source and the form does not show them). Without a readable stored profile it is the
+/// draft of a new one.
+pub fn update_from_answer(workspace: &Path, answer: &str) -> Result<Draft> {
+    let (found, source) = answer::read(answer)?;
+    let stored = std::fs::read(profile_path(workspace))
+        .ok()
+        .and_then(|bytes| {
+            let text = utf8(&bytes).ok()?.to_owned();
+            Some((parse_doc(&text).ok()?, text))
+        });
+    let Some((mut doc, text)) = stored else {
+        return Ok(draft(&found, &source));
     };
-    let mut dropped = false;
-    match value {
-        Json::Object(entries) => {
-            for (_, child) in entries.iter_mut() {
-                dropped |= drop_empty(child);
-            }
-            let before = entries.len();
-            entries.retain(|(_, child)| !empty(child));
-            dropped |= entries.len() != before;
+    let source = match found.get(STATIONS) {
+        Some(stations) => {
+            doc.insert_before(STATIONS, stations.clone(), SETTINGS);
+            doc.to_pretty().trim_end().to_owned()
         }
-        Json::Array(items) => {
-            for child in items.iter_mut() {
-                dropped |= drop_empty(child);
-            }
-            let before = items.len();
-            items.retain(|child| !empty(child));
-            dropped |= items.len() != before;
-        }
-        _ => {}
-    }
-    dropped
+        None => text,
+    };
+    let compiled = matching::compile_profile(&doc.to_value());
+    Ok(Draft {
+        form: form::read(&found),
+        source,
+        quality: compiled.quality(),
+        summary: compiled.summary().clone(),
+    })
 }
 
-/// Where a JSON object may stand in an answer: every fenced code block (without its
-/// language tag), then the span from the first `{` to the last `}`.
-fn answer_candidates(answer: &str) -> Vec<&str> {
-    const FENCE: &str = "```";
-    let text = answer.trim().trim_start_matches('\u{feff}');
-    let mut out = Vec::new();
-    let mut rest = text;
-    while let Some(start) = rest.find(FENCE) {
-        let fenced = &rest[start + FENCE.len()..];
-        let body = &fenced[fenced.find('\n').map_or(fenced.len(), |n| n + 1)..];
-        let Some(end) = body.find(FENCE) else {
-            out.push(body.trim());
-            break;
-        };
-        out.push(body[..end].trim());
-        rest = &body[end + FENCE.len()..];
-    }
-    if let (Some(open), Some(close)) = (text.find('{'), text.rfind('}'))
-        && open < close
-    {
-        out.push(&text[open..=close]);
-    }
-    out
+/// The career stations (the engine reads them, the form does not show them).
+const STATIONS: &str = matching::lexicon::engine::KEY_STATIONS;
+/// The sections of the user's settings, German and English: new keys go before them.
+const SETTINGS: &[&str] = &[
+    matching::lexicon::KEY_PREFERENCES,
+    "preferences",
+    matching::lexicon::KEY_CRITERIA,
+    "hard_criteria",
+];
+
+/// The request for an AI in the app's language (see [`prompt`]): for a new profile, or with a
+/// `workspace` whose stored profile holds something of a CV, for an update of it.
+pub fn cv_prompt(workspace: Option<&Path>, language: Language) -> String {
+    let today = crate::time::local_date(Timestamp::now());
+    let stored = workspace
+        .and_then(stored_form)
+        .filter(ProfileForm::has_content);
+    prompt::text(language, today, stored.as_ref())
 }
 
 /// The form of the stored profile; `None` without a readable one.
@@ -632,6 +619,95 @@ mod tests {
                 "{answer}"
             );
         }
+    }
+
+    /// An update from a CV: the form is the answer's (the editor merges it), the JSON to save
+    /// into is the stored profile with the answer's career stations in place of its own; the
+    /// save keeps the user's settings and every other key.
+    #[test]
+    fn an_update_takes_the_stations_of_the_answer_into_the_stored_profile() {
+        let dir = workspace();
+        store(dir.path(), HAND_MADE);
+        let answer = "Hier ist das Profil.\n```json\n{\n  \"name\": \"Erika Beispiel\",\n  \
+                      \"kernkompetenzen\": [{\"kompetenz\": \"Treasury\", \"jahre\": 9}],\n  \
+                      \"stationen\": [{\"zeitraum\": \"01/2021 bis heute\", \"rolle\": \"CFO\", \
+                      \"schwerpunkte\": [\"Treasury\"]}]\n}\n```";
+        let stations = serde_json::json!([
+            {"zeitraum": "01/2021 bis heute", "rolle": "CFO", "schwerpunkte": ["Treasury"]}
+        ]);
+        let draft = update_from_answer(dir.path(), answer).unwrap();
+        assert_eq!(draft.form.competences[0].name, "Treasury");
+        assert_eq!(draft.form.competences[0].years, Some(9));
+        assert_eq!(keys(&draft.source), keys(HAND_MADE), "the stored order");
+        let source: Value = serde_json::from_str(&draft.source).unwrap();
+        assert_eq!(source["stationen"], stations);
+        assert_eq!(source["zeta_notiz"], "bleibt");
+
+        // The editor's merge (years of a stored competence) saved into it.
+        let before = stored_form(dir.path()).unwrap();
+        let mut after = before.clone();
+        after.competences[1].years = Some(9);
+        save_form(dir.path(), Some(&draft.source), &before, &after, &[]).unwrap();
+        let saved = load(dir.path()).unwrap().unwrap();
+        let original: Value = serde_json::from_str(HAND_MADE).unwrap();
+        assert_eq!(saved["stationen"], stations);
+        assert_eq!(saved["kernkompetenzen"][1]["jahre"], 9);
+        for key in [
+            "harte_kriterien",
+            "hard_criteria",
+            "einsatzpraeferenzen",
+            "keywords",
+        ] {
+            assert_eq!(saved[key], original[key], "{key}");
+        }
+
+        // Without stations the stored text stays as it is.
+        let text = stored(dir.path());
+        let draft = update_from_answer(dir.path(), "{\"kernkompetenzen\": [\"Recht\"]}").unwrap();
+        assert_eq!(draft.source, text);
+        // A profile without stations gets them before the settings.
+        store(
+            dir.path(),
+            "{\"name\": \"A\", \"einsatzpraeferenzen\": {\"remote\": \"voll\"}}",
+        );
+        let draft = update_from_answer(dir.path(), answer).unwrap();
+        assert_eq!(
+            keys(&draft.source),
+            ["name", "stationen", "einsatzpraeferenzen"]
+        );
+        // Without a stored profile it is the draft of a new one.
+        assert!(remove(dir.path()).unwrap());
+        assert_eq!(
+            update_from_answer(dir.path(), answer).unwrap(),
+            draft_from_answer(answer).unwrap()
+        );
+        // An answer without a profile is refused as before.
+        assert!(matches!(
+            update_from_answer(dir.path(), "Nein."),
+            Err(Error::Invalid(InvalidInput::ProfileAnswer))
+        ));
+    }
+
+    /// The prompt updates only a stored profile that holds something of a CV.
+    #[test]
+    fn the_update_prompt_needs_a_profile_from_a_cv() {
+        let dir = workspace();
+        let new = cv_prompt(None, Language::De);
+        assert!(new.contains("Bitte erstelle"), "{new}");
+        assert_eq!(cv_prompt(Some(dir.path()), Language::De), new, "no profile");
+        store(dir.path(), "{\"harte_kriterien\": {\"laender\": [\"DE\"]}}");
+        assert_eq!(
+            cv_prompt(Some(dir.path()), Language::De),
+            new,
+            "settings only"
+        );
+        store(dir.path(), HAND_MADE);
+        let update = cv_prompt(Some(dir.path()), Language::En);
+        assert!(update.contains("Please update"), "{update}");
+        assert!(
+            update.contains("{ \"kompetenz\": \"Controlling\", \"jahre\": 18 }"),
+            "{update}"
+        );
     }
 
     /// Every field of the form filled.

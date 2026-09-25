@@ -1252,7 +1252,8 @@ fn profile_warning(warning: &matching::ProfileWarning) -> Notice {
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ProfileDraft {
     pub form: ProfileForm,
-    /// The JSON the form came from; saving merges the form into it.
+    /// The JSON saving merges the form into: the file's or the answer's, for an update from a
+    /// CV the stored profile with the answer's career stations.
     pub source: String,
     pub quality: ProfileQuality,
     pub understood: ProfileUnderstanding,

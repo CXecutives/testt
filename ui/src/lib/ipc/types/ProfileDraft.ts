@@ -10,6 +10,7 @@ import type { ProfileUnderstanding } from "./ProfileUnderstanding";
  */
 export type ProfileDraft = { form: ProfileForm, 
 /**
- * The JSON the form came from; saving merges the form into it.
+ * The JSON saving merges the form into: the file's or the answer's, for an update from a
+ * CV the stored profile with the answer's career stations.
  */
 source: string, quality: ProfileQuality, understood: ProfileUnderstanding, };

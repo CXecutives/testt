@@ -144,6 +144,7 @@ const invalid: Record<InvalidInput['reason'], Text> = {
   profileNotObject: 'Die Datei enthält kein Profil.',
   profileValue: (p) => `Der Wert bei „${fieldName(p.field)}“ passt nicht.`,
   profileAnswer: 'In der Antwort steht kein Profil.',
+  profileAnswerCut: 'Die Antwort bricht mitten im Profil ab.',
   mailAddress: 'Die Adresse ist unvollständig.',
   appPassword: 'Ein App-Passwort hat 16 Buchstaben.',
   noSignIn: (p) => `Für ${portalOf(p.portal)} gibt es keine Anmeldung.`,

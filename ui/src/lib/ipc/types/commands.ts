@@ -37,8 +37,8 @@ export type Commands = {
   ai_prompt: { args: { key: JobKey }; result: string };
   ai_prompt_top: { args: { limit: number }; result: string };
   pick_profile: { args: Record<string, never>; result: ProfileDraft | null };
-  parse_profile: { args: { text: string }; result: ProfileDraft };
-  profile_prompt: { args: Record<string, never>; result: string };
+  parse_profile: { args: { text: string; update: boolean }; result: ProfileDraft };
+  profile_prompt: { args: { update: boolean }; result: string };
   save_profile: { args: { save: ProfileSave }; result: ProfileInfo };
   remove_profile: { args: Record<string, never>; result: boolean };
   restore_profile: { args: Record<string, never>; result: boolean };
