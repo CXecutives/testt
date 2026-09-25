@@ -165,7 +165,7 @@
   // Mail); the open one stays until another opens.
   $effect(() => {
     untrack(() => {
-      if (jobs.status === 'ready' && jobs.facet === 'new') void jobs.load(true);
+      if (jobs.status === 'ready' && jobs.facet === 'new') void jobs.load(true, false);
     });
   });
 

@@ -212,9 +212,9 @@ test('first run: Einstellungen and Profil open, Jobs and its places lead to the 
   await page.getByTestId('nav-settings').click();
   await expect(page.getByTestId('view-settings')).toBeVisible();
   // The language can be chosen before anything is set up.
-  await page.getByTestId('language').getByRole('radio', { name: 'Englisch' }).click();
+  await page.getByTestId('language').getByRole('radio', { name: 'English' }).click();
   await expect(page.getByTestId('nav-settings')).toContainText('Settings');
-  await page.getByTestId('language').getByRole('radio', { name: 'German' }).click();
+  await page.getByTestId('language').getByRole('radio', { name: 'Deutsch' }).click();
   await expect(page.getByTestId('nav-settings')).toContainText('Einstellungen');
   await page.getByTestId('nav-profile').click();
   await expect(page.getByTestId('view-profile')).toBeVisible();

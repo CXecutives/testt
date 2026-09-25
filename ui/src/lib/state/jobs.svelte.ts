@@ -132,12 +132,16 @@ function moved(counts: JobCounts, before: JobView, after: JobView): JobCounts {
   return add(add(counts, before, -1), after, 1);
 }
 
-/** A job a move took away, to bring back (`moveBack`): as it was, where it went, and its
- *  index in the list then (-1: the list did not hold it). */
+/** A job a move took away, to bring back (`moveBack`): as it was, where it went, its
+ *  index in the list then (-1: the list did not hold it) and the rows that stood below and
+ *  above it (keyOf, not moved with it): an undo puts it back between them, also when other
+ *  moves were undone in another order. */
 export interface Unmove {
   job: JobView;
   to: Place;
   at: number;
+  below: string | null;
+  above: string | null;
 }
 
 /** The text of a row as it came from the backend, kept per object (each is read once). */
@@ -216,6 +220,8 @@ class JobsStore {
   #served = $state(0);
   /** Keys of the rows the page put in itself (see #served). */
   #own = new Set<string>();
+  /** Jobs opened and so read in this visit of Neu: a reload keeps them (see withRead). */
+  #readHere = new Set<string>();
   status = $state<Status>('idle');
   /** The list has taken --delay-placeholder to load: its placeholder rows show (at once). */
   slow = $state(false);
@@ -385,8 +391,9 @@ class JobsStore {
    * Load the first page.
    * `keep` = the same rows in a new order (sort, end of a run): the mounted rows stay and move,
    * and as many rows come back as the list holds (a list scrolled far down stays as long).
+   * `keepRead`: Neu keeps the jobs read in this visit (not when the list is entered again).
    */
-  async load(keep = false): Promise<void> {
+  async load(keep = false, keepRead = keep): Promise<void> {
     const request = ++this.#request;
     this.status = 'loading';
     this.error = null;
@@ -401,8 +408,9 @@ class JobsStore {
       if (request !== this.#request) return;
       const mounted = keep ? new Set(this.shown.map((job) => keyOf(job.key))) : null;
       this.#own.clear();
+      if (!keepRead) this.#readHere.clear();
       this.#served = page.jobs.length;
-      this.rows = this.withOpen(keep ? reused(this.rows, page.jobs) : page.jobs);
+      this.rows = this.withRead(keep ? reused(this.rows, page.jobs) : page.jobs, keepRead);
       this.counts = page.counts;
       this.total = page.jobs.length < limit ? page.jobs.length : this.countOf(page.counts);
       this.window = keep ? Math.max(WINDOW, this.window) : WINDOW;
@@ -422,22 +430,49 @@ class JobsStore {
   }
 
   /**
-   * Neu keeps the open job listed after it was read, where it stood, until another job is
-   * opened (like Mail): a reload never pulls the job away from under the reader.
+   * Neu keeps the open job listed after it was read, until another job is opened (like
+   * Mail), and a reload of the same list (the end of a run, a sort) keeps every job read in
+   * this visit: a reload never pulls a job away from under the reader. A kept row stands
+   * where the list's order puts it among the rows that came.
    */
-  private withOpen(rows: JobView[]): JobView[] {
-    const open = this.detail?.job ?? null;
+  private withRead(rows: JobView[], keep: boolean): JobView[] {
     if (this.facet !== 'new' || this.search.trim() !== '') return rows;
-    if (open === null || !sameKey(open.key, this.selected)) return rows;
-    if (open.place !== 'inbox' || rows.some((job) => sameKey(job.key, open.key))) return rows;
-    const at = this.rows.findIndex((job) => sameKey(job.key, open.key));
-    // Among its kind: the excluded jobs stay behind the others.
-    const out = rows.findIndex(isExcluded);
-    const split = out < 0 ? rows.length : out;
-    const [low, high] = isExcluded(open) ? [split, rows.length] : [0, split];
-    const index = Math.max(low, Math.min(at < 0 ? low : at, high));
-    this.#own.add(keyOf(open.key));
-    return [...rows.slice(0, index), open, ...rows.slice(index)];
+    const open = this.detail?.job ?? null;
+    const isOpen = (job: JobView): boolean =>
+      open !== null && sameKey(job.key, open.key) && sameKey(open.key, this.selected);
+    const listed = new Set(rows.map((job) => keyOf(job.key)));
+    const kept = this.rows
+      .filter(
+        (job) =>
+          !listed.has(keyOf(job.key)) &&
+          ((keep && !job.unread && this.#readHere.has(keyOf(job.key))) || isOpen(job)),
+      )
+      .map((job) => (isOpen(job) && open !== null ? open : job))
+      .filter((job) => job.place === 'inbox');
+    if (open !== null && isOpen(open) && open.place === 'inbox' && !listed.has(keyOf(open.key))) {
+      if (!kept.some((job) => sameKey(job.key, open.key))) kept.push(open);
+    }
+    if (kept.length === 0) return rows;
+    const out = [...rows];
+    for (const job of kept) {
+      const index = out.findIndex((row) => this.#ahead(job, row));
+      out.splice(index < 0 ? out.length : index, 0, job);
+      this.#own.add(keyOf(job.key));
+    }
+    return out;
+  }
+
+  /** `job` stands before `row` in the list's order (the backend's, store::job_page). */
+  #ahead(job: JobView, row: JobView): boolean {
+    const out = Number(isExcluded(job)) - Number(isExcluded(row));
+    if (out !== 0) return out < 0;
+    if (this.sort === 'match') {
+      const none = Number(job.match === null) - Number(row.match === null);
+      if (none !== 0) return none < 0;
+      const score = (job.match?.score ?? 0) - (row.match?.score ?? 0);
+      if (score !== 0) return score > 0;
+    }
+    return (job.mailDate ?? job.firstSeenAt) > (row.mailDate ?? row.firstSeenAt);
   }
 
   /**
@@ -630,6 +665,7 @@ class JobsStore {
 
   private async markRead(key: JobKey): Promise<void> {
     this.patch(key, { unread: false });
+    if (this.facet === 'new') this.#readHere.add(keyOf(key));
     try {
       await invoke('mark_read', { key });
     } catch {
@@ -816,7 +852,7 @@ class JobsStore {
     const done = new Set(landed.map(keyOf));
     const same = generation === this.generation;
     let missing = false;
-    for (const { job, to, at } of [...back].sort((a, b) => a.at - b.at)) {
+    for (const { job, to, at, below, above } of [...back].sort((a, b) => a.at - b.at)) {
       if (!done.has(keyOf(job.key))) continue;
       if (this.rows.some((row) => sameKey(row.key, job.key)) || !same || at < 0) {
         this.patch(job.key, { place: job.place });
@@ -825,7 +861,11 @@ class JobsStore {
       }
       const gone = { ...job, place: to };
       const rows = [...this.rows];
-      rows.splice(Math.min(at, rows.length), 0, job);
+      const index = (key: string | null): number =>
+        key === null ? -1 : rows.findIndex((row) => keyOf(row.key) === key);
+      const after = index(above);
+      const place = index(below) >= 0 ? index(below) : after >= 0 ? after + 1 : at;
+      rows.splice(Math.min(place, rows.length), 0, job);
       this.rows = rows;
       this.counts = moved(this.counts, gone, job);
       if (this.overviewCounts !== null) this.overviewCounts = moved(this.overviewCounts, gone, job);

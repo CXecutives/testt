@@ -2,7 +2,7 @@
 // (see docs/PLAN.md).
 
 import type { Page } from '@playwright/test';
-import { expect, open, test } from './fixtures';
+import { expect, NOW, open, runFinished, test } from './fixtures';
 
 const WIN = '?platform=windows';
 const list = (page: Page) => page.getByTestId('job-list');
@@ -274,4 +274,46 @@ test('an unreadable country is said at its field like any other value', async ({
   const scope = page.locator('[data-field="countries"]');
   await expect(scope.locator('input')).toHaveAttribute('aria-invalid', 'true');
   await expect(scope.getByTestId('value-remove')).toBeVisible();
+});
+
+test('undoing moves in another order puts the rows back where they stood', async ({ page }) => {
+  await open(page, WIN);
+  const keys = async () =>
+    (await rows(page).evaluateAll((all) => all.map((r) => r.dataset.testid ?? ''))).slice(0, 3);
+  const before = await keys();
+  for (const [index, id] of before.slice(0, 2).entries()) {
+    const key = id.replace('job-row-', '');
+    await row(page, key).hover();
+    await page.getByTestId(`archive-${key}`).click();
+    await page.waitForTimeout(550);
+    // Later than the 2 s in which moves join one toast.
+    await page.clock.setFixedTime(new Date(NOW.getTime() + (index + 1) * 5_000));
+  }
+  const toasts = page.getByTestId('toast');
+  await expect(toasts).toHaveCount(2);
+  // The older toast first, then the newer one.
+  await toasts.first().getByRole('button', { name: 'Rückgängig' }).click();
+  await page.waitForTimeout(300);
+  await toasts.last().getByRole('button', { name: 'Rückgängig' }).click();
+  await expect.poll(keys).toEqual(before);
+});
+
+test('the end of a run keeps the jobs read in Neu, the open one in its place', async ({ page }) => {
+  await open(page, WIN);
+  const keys = async () => rows(page).evaluateAll((all) => all.map((r) => r.dataset.testid ?? ''));
+  const before = await keys();
+  const first = before[0]!.replace('job-row-', '');
+  const third = before[2]!.replace('job-row-', '');
+  await row(page, first).click();
+  await row(page, third).click();
+  await page.getByTestId('fetch').click();
+  await runFinished(page);
+  const after = await keys();
+  // Both read jobs are still listed, in the list's order.
+  expect(after).toContain(`job-row-${first}`);
+  expect(after.indexOf(`job-row-${first}`)).toBeLessThan(after.indexOf(`job-row-${third}`));
+  await expect(list(page).locator('[data-open]')).toHaveAttribute(
+    'data-key',
+    third.replace('-', ':'),
+  );
 });

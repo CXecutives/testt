@@ -64,3 +64,8 @@ One line per item: done, skipped (why) or open.
 - live-jobs-02 done: every fact of the reader's line is one box (WebKit broke inside one).
 - live-jobs-05 done: a tip never pushes out an undo toast.
 - ui-jobs-09, backend-03, live-jobs-03, live-jobs-06, live-forms-08, ui-core-01, live-jobs-01 skipped: fixed before.
+- ui-jobs-03 done: an undo puts a row back between the neighbours it had, whatever the order of the undos.
+- ui-jobs-06, live-jobs-07 done: a reload of Neu (end of a run, sort) keeps the jobs opened in this visit, each where
+  the list's order puts it; entering Neu again drops them.
+- names-08 skipped: fixed before (the move into Jobs uses the briefcase; restore keeps the undo arrow, a trash
+  convention).

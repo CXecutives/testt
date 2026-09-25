@@ -258,9 +258,20 @@ export async function move(all: readonly JobView[], action: MoveId): Promise<str
   for (const job of folding) moving.add(keyOf(job.key));
   // What the undo brings back: each job as the list held it, and where its row stood.
   const generation = jobs.generation;
+  const taken = new Set(list.map((job) => keyOf(job.key)));
+  const neighbour = (rows: readonly JobView[]): string | null => {
+    const row = rows.find((other) => !taken.has(keyOf(other.key)));
+    return row ? keyOf(row.key) : null;
+  };
   const back: Unmove[] = list.map((job) => {
     const at = jobs.rows.findIndex((row) => sameKey(row.key, job.key));
-    return { job: jobs.rows[at] ?? job, to, at };
+    return {
+      job: jobs.rows[at] ?? job,
+      to,
+      at,
+      below: at < 0 ? null : neighbour(jobs.rows.slice(at + 1)),
+      above: at < 0 ? null : neighbour(jobs.rows.slice(0, at).reverse()),
+    };
   });
   const open = jobs.selected;
   const reopen =
