@@ -696,6 +696,11 @@ export const en: Catalog = {
     emptyAll: 'After the first fetch the jobs show up here.',
     emptyAfterRun: 'The alert mails held no jobs so far.',
     noHit: (query: string) => `No jobs for “${query}”.`,
+    noHitIn: {
+      new: (query: string) => `No new jobs for “${query}”.`,
+      favourites: (query: string) => `No favourites for “${query}”.`,
+    },
+    searchAll: 'Search all',
     showAll: 'Show all',
     loadFailed: 'The list could not be loaded.',
     pageFailed: 'More jobs could not be loaded.',

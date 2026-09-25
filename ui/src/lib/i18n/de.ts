@@ -756,6 +756,12 @@ export const de = {
     emptyAll: 'Nach dem ersten Abruf stehen die Jobs hier.',
     emptyAfterRun: 'Die Alert-Mails enthielten bisher keine Jobs.',
     noHit: (query: string) => `Keine Jobs zu „${query}“.`,
+    /** A search under Neu or Favoriten that Alle would find. */
+    noHitIn: {
+      new: (query: string) => `Keine neuen Jobs zu „${query}“.`,
+      favourites: (query: string) => `Keine Favoriten zu „${query}“.`,
+    },
+    searchAll: 'In allen suchen',
     showAll: 'Alle zeigen',
     loadFailed: 'Die Liste ließ sich nicht laden.',
     pageFailed: 'Weitere Jobs ließen sich nicht laden.',

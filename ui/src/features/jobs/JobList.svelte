@@ -368,13 +368,24 @@
     <div class="empty">
       {#if searching}
         <div class="stack">
-          <EmptyState
-            icon="search"
-            tone="neutral"
-            text={t.list.noHit(jobs.search.trim())}
-            secondary={{ label: t.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
-            testid="empty-search"
-          />
+          <!-- Under Neu or Favoriten a search that Alle would find says so and goes there. -->
+          {#if (jobs.facet === 'new' || jobs.facet === 'favourites') && jobs.counts.inbox > 0}
+            <EmptyState
+              icon="search"
+              tone="neutral"
+              text={t.list.noHitIn[jobs.facet](jobs.search.trim())}
+              secondary={{ label: t.list.searchAll, onclick: () => jobs.setFacet('all') }}
+              testid="empty-search"
+            />
+          {:else}
+            <EmptyState
+              icon="search"
+              tone="neutral"
+              text={t.list.noHit(jobs.search.trim())}
+              secondary={{ label: t.field.clear, icon: 'x', onclick: () => jobs.setSearch('') }}
+              testid="empty-search"
+            />
+          {/if}
           {#if elsewhere.length > 0}{@render alsoIn()}{/if}
         </div>
       {:else if place !== 'inbox'}

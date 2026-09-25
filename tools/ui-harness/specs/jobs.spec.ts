@@ -155,6 +155,12 @@ test('the order menu reorders the list and keeps the selection', async ({ page }
   ]);
   await page.evaluate(() => window.__harness.pick(1));
   await expect(sort).toHaveText('Nach Datum');
+  // One choice for every list, kept: the archive is in the same order.
+  await page.getByTestId('nav-archive').click();
+  await expect(sort).toHaveText('Nach Datum');
+  await page.getByTestId('nav-jobs').click();
+  await page.getByTestId('facet').getByRole('radio', { name: /Alle/ }).click();
+  await row(page, 'freelancermap-2803').click();
   await expect
     .poll(() => rows(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-testid'))))
     .not.toEqual(before);
@@ -547,6 +553,16 @@ test('a list that fails to load says so once, and its retry reloads the overview
   await open(page, `${WIN}&scenario=list-error`);
   await expect(page.getByTestId('list-error')).toBeVisible();
   await expect(page.getByTestId('best-error')).toHaveCount(0);
+});
+
+test('a search under Neu that Alle would find says so and goes there', async ({ page }) => {
+  await open(page, WIN);
+  await page.getByTestId('search').fill('Controller Konzernberichtswesen');
+  const empty = page.getByTestId('empty-search');
+  await expect(empty).toContainText('Keine neuen Jobs zu „Controller Konzernberichtswesen“.');
+  await empty.getByRole('button', { name: 'In allen suchen' }).click();
+  await expect(rows(page)).toHaveCount(1);
+  await expect(page.getByTestId('search')).toHaveValue('Controller Konzernberichtswesen');
 });
 
 test('a failing list offers a retry', async ({ page }) => {
